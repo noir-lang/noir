@@ -28,8 +28,9 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         globals_memory_size: usize,
         name: &str,
         options: &BrilligOptions,
+        spill_support: bool,
     ) -> (BrilligArtifact<F>, usize) {
-        let mut context = BrilligContext::new(name, options, false);
+        let mut context = BrilligContext::new(name, options, spill_support);
 
         context.set_globals_memory_size(Some(globals_memory_size));
 
@@ -96,7 +97,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         // The stack begins after the calldata region (calldata + return data)
         let stack_start = return_data_start + return_data_size;
 
-        // The heap begins right after the stack (no global spill region).
+        // The heap begins right after the stack.
         // Per-function spill regions are allocated from the heap in each function's prologue.
         self.const_instruction(
             SingleAddrVariable::new_usize(ReservedRegisters::free_memory_pointer()),

@@ -67,6 +67,11 @@ pub(crate) fn gen_brillig_for(
 
     let options = BrilligOptions { enable_debug_trace: false, ..*options };
 
+    // The entry point must use the same spill_support as the callee so that
+    // parameter offsets (start_offset) align with the function body's register layout.
+    let callee_spill_support =
+        brillig.ssa_function_to_brillig.get(&func.id()).map_or(false, |a| a.spill_support);
+
     let (mut entry_point, stack_start) = BrilligContext::new_entry_point_artifact(
         arguments,
         return_parameters,
@@ -75,6 +80,7 @@ pub(crate) fn gen_brillig_for(
         globals_memory_size,
         func.name(),
         &options,
+        callee_spill_support,
     );
 
     // Link the entry point with all dependencies
@@ -110,7 +116,9 @@ mod entry_point {
     use crate::{
         assert_artifact_snapshot,
         brillig::{
-            BrilligOptions, brillig_gen::gen_brillig_for, brillig_ir::artifact::BrilligParameter,
+            BrilligOptions,
+            brillig_gen::gen_brillig_for,
+            brillig_ir::{LayoutConfig, artifact::BrilligParameter, registers::MAX_SCRATCH_SPACE},
         },
         ssa::ssa_gen::Ssa,
     };
@@ -181,6 +189,134 @@ mod entry_point {
         30: @1 = indirect const u64 14990209321349310352
         31: trap @[@1; @2]
         32: return
+        ");
+    }
+
+    /// Snapshot of full entry point compiled with a small frame that forces spilling.
+    /// Verifies that the entry point uses spill_support=true (matching the callee):
+    /// - Parameters placed at sp[2],sp[3] (start_offset=2, slot sp[1] reserved for spill base)
+    /// - Calldata copy targets sp[2],sp[3] (not sp[1],sp[2])
+    #[test]
+    fn entry_point_setup_with_spill_support() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            v2 = unchecked_add v0, v1
+            v3 = unchecked_add v0, u32 2
+            v4 = unchecked_add v0, u32 3
+            v5 = unchecked_add v1, u32 4
+            v6 = unchecked_add v1, u32 5
+            v7 = unchecked_add v0, u32 6
+            v8 = unchecked_add v1, u32 7
+            v9 = unchecked_add v0, u32 8
+            v10 = unchecked_add v1, u32 9
+            v11 = unchecked_add v0, u32 10
+            v12 = unchecked_add v2, v3
+            v13 = unchecked_add v12, v4
+            v14 = unchecked_add v13, v5
+            v15 = unchecked_add v14, v6
+            v16 = unchecked_add v15, v7
+            v17 = unchecked_add v16, v8
+            v18 = unchecked_add v17, v9
+            v19 = unchecked_add v18, v10
+            v20 = unchecked_add v19, v11
+            return v20
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let layout = LayoutConfig::new(12, 16, MAX_SCRATCH_SPACE);
+        let options = BrilligOptions { layout, ..Default::default() };
+        let brillig = ssa.to_brillig(&options);
+
+        let args = vec![BrilligParameter::SingleAddr(32), BrilligParameter::SingleAddr(32)];
+        let entry = gen_brillig_for(ssa.main(), args, &brillig, &options).unwrap();
+
+        // Snapshot verifies:
+        // - Parameters at sp[2],sp[3] (start_offset=2, matching callee's spill_support=true)
+        // - Spill base allocation at sp[1]
+        // - Correct calldata copy to sp[2],sp[3] (not sp[1],sp[2])
+        assert_artifact_snapshot!(entry, @r"
+        fn main
+         0: @2 = const u32 1
+         1: @1 = const u32 263
+         2: @0 = const u32 71
+         3: call 16
+         4: sp[4] = const u32 2
+         5: sp[5] = const u32 0
+         6: @68 = calldata copy [sp[5]; sp[4]]
+         7: @68 = cast @68 to u32
+         8: @69 = cast @69 to u32
+         9: sp[2] = @68
+        10: sp[3] = @69
+        11: call 17
+        12: @70 = sp[2]
+        13: sp[3] = const u32 70
+        14: sp[4] = const u32 1
+        15: stop @[sp[3]; sp[4]]
+        16: return
+        17: call 74
+        18: sp[1] = @1
+        19: @3 = const u32 2
+        20: @1 = u32 add @1, @3
+        21: sp[4] = u32 add sp[2], sp[3]
+        22: sp[5] = const u32 2
+        23: sp[6] = u32 add sp[2], sp[5]
+        24: sp[5] = const u32 3
+        25: sp[7] = u32 add sp[2], sp[5]
+        26: sp[5] = const u32 4
+        27: sp[8] = u32 add sp[3], sp[5]
+        28: sp[5] = const u32 5
+        29: sp[9] = u32 add sp[3], sp[5]
+        30: sp[5] = const u32 6
+        31: sp[10] = u32 add sp[2], sp[5]
+        32: sp[5] = const u32 7
+        33: sp[11] = u32 add sp[3], sp[5]
+        34: sp[5] = const u32 8
+        35: @3 = sp[1]
+        36: @4 = const u32 0
+        37: @3 = u32 add @3, @4
+        38: store sp[4] at @3
+        39: sp[4] = u32 add sp[2], sp[5]
+        40: sp[5] = const u32 9
+        41: @3 = sp[1]
+        42: @4 = const u32 1
+        43: @3 = u32 add @3, @4
+        44: store sp[6] at @3
+        45: sp[6] = u32 add sp[3], sp[5]
+        46: sp[3] = const u32 10
+        47: sp[5] = u32 add sp[2], sp[3]
+        48: @3 = sp[1]
+        49: @4 = const u32 0
+        50: @3 = u32 add @3, @4
+        51: sp[3] = load @3
+        52: @3 = sp[1]
+        53: @4 = const u32 0
+        54: @3 = u32 add @3, @4
+        55: store sp[7] at @3
+        56: @3 = sp[1]
+        57: @4 = const u32 1
+        58: @3 = u32 add @3, @4
+        59: sp[7] = load @3
+        60: sp[2] = u32 add sp[3], sp[7]
+        61: @3 = sp[1]
+        62: @4 = const u32 0
+        63: @3 = u32 add @3, @4
+        64: sp[7] = load @3
+        65: sp[3] = u32 add sp[2], sp[7]
+        66: sp[2] = u32 add sp[3], sp[8]
+        67: sp[3] = u32 add sp[2], sp[9]
+        68: sp[2] = u32 add sp[3], sp[10]
+        69: sp[3] = u32 add sp[2], sp[11]
+        70: sp[2] = u32 add sp[3], sp[4]
+        71: sp[3] = u32 add sp[2], sp[6]
+        72: sp[2] = u32 add sp[3], sp[5]
+        73: return
+        74: @4 = const u32 251
+        75: @3 = u32 lt @0, @4
+        76: jump if @3 to 79
+        77: @1 = indirect const u64 15764276373176857197
+        78: trap @[@1; @2]
+        79: return
         ");
     }
 }

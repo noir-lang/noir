@@ -223,6 +223,8 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
     /// Overwrite the 3 placeholder no-op opcodes with real spill region allocation instructions.
     /// Called after all blocks are compiled, only if the function actually spilled values.
     pub(crate) fn resolve_spill_prologue(&mut self, actual_spill_size: usize) {
+        use acvm::acir::brillig::{BinaryIntOp, BitSize, IntegerBitSize};
+
         let positions = self
             .obj
             .take_unresolved_spill_prologue()
@@ -238,15 +240,13 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         self.obj.byte_code[positions[1]] = BrilligOpcode::Const {
             destination: scratch,
             value: F::from(actual_spill_size as u128),
-            bit_size: acvm::acir::brillig::BitSize::Integer(
-                acvm::acir::brillig::IntegerBitSize::U32,
-            ),
+            bit_size: BitSize::Integer(IntegerBitSize::U32),
         };
         // [2]: BinaryIntOp Add @1, @1, @scratch  -- bump FMP by actual amount
         self.obj.byte_code[positions[2]] = BrilligOpcode::BinaryIntOp {
-            op: acvm::acir::brillig::BinaryIntOp::Add,
+            op: BinaryIntOp::Add,
             destination: ReservedRegisters::free_memory_pointer(),
-            bit_size: acvm::acir::brillig::IntegerBitSize::U32,
+            bit_size: IntegerBitSize::U32,
             lhs: ReservedRegisters::free_memory_pointer(),
             rhs: scratch,
         };
@@ -492,6 +492,7 @@ pub(crate) mod tests {
             0,
             "entry_point",
             &options,
+            false,
         );
         entry_point_artifact.link_with(&artifact);
         while let Some(unresolved_fn_label) = entry_point_artifact.first_unresolved_function_call()

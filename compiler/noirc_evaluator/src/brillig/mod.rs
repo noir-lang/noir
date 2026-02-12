@@ -158,7 +158,9 @@ impl Brillig {
             brillig_check::show_opcode_advisories(&opcode_advisories, brillig_context.artifact());
         }
 
-        brillig_context.into_artifact()
+        let mut artifact = brillig_context.into_artifact();
+        artifact.spill_support = function_context.spill_support;
+        artifact
     }
 
     pub fn call_stacks(&self) -> &CallStackHelper {
@@ -383,5 +385,338 @@ mod memory_layout {
         let ssa = Ssa::from_str(src).unwrap();
 
         let _ = ssa.to_brillig(&BrilligOptions::default());
+    }
+}
+
+#[cfg(test)]
+mod spill_runtime {
+    use acvm::FieldElement;
+
+    use crate::{
+        brillig::{
+            BrilligOptions,
+            brillig_gen::gen_brillig_for,
+            brillig_ir::{
+                LayoutConfig, artifact::BrilligParameter, registers::MAX_SCRATCH_SPACE,
+                tests::create_and_run_vm,
+            },
+        },
+        ssa::ssa_gen::Ssa,
+    };
+
+    /// Compile an SSA program with a small stack frame that forces spilling, then run the VM.
+    fn compile_and_run_with_layout(
+        src: &str,
+        calldata: Vec<FieldElement>,
+        layout: LayoutConfig,
+        args: Vec<BrilligParameter>,
+    ) -> Vec<FieldElement> {
+        let ssa = Ssa::from_str(src).unwrap();
+        let options = BrilligOptions { layout, ..Default::default() };
+        let brillig = ssa.to_brillig(&options);
+        let main = ssa.main();
+        let generated = gen_brillig_for(main, args, &brillig, &options).unwrap();
+
+        let (vm, return_data_offset, return_data_size) =
+            create_and_run_vm(calldata, &generated.byte_code);
+        vm.get_memory()[return_data_offset..return_data_offset + return_data_size]
+            .iter()
+            .map(|v| v.to_field())
+            .collect()
+    }
+
+    /// Frame size 12 gives 10 usable slots (start_offset=2 for spill base).
+    /// With SPILL_MARGIN=128, spill_support=true for any program.
+    fn spill_layout() -> LayoutConfig {
+        LayoutConfig::new(12, 16, MAX_SCRATCH_SPACE)
+    }
+
+    /// Computes 10 independent values from two inputs, keeping all of them live until
+    /// the final summation chain. With 10 usable slots, computing the 11th value
+    /// forces at least one spill. Uses unchecked arithmetic to avoid overflow-check
+    /// temporaries that would inflate register pressure unpredictably.
+    ///
+    /// v0=3, v1=5:
+    /// v2  = 3+5 = 8,  v3  = 3+2 = 5,  v4  = 3+3 = 6,  v5  = 5+4 = 9,
+    /// v6  = 5+5 = 10, v7  = 3+6 = 9,  v8  = 5+7 = 12, v9  = 3+8 = 11,
+    /// v10 = 5+9 = 14, v11 = 3+10 = 13
+    /// sum = 8+5+6+9+10+9+12+11+14+13 = 97
+    #[test]
+    fn spill_arithmetic_correctness() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            v2 = unchecked_add v0, v1
+            v3 = unchecked_add v0, u32 2
+            v4 = unchecked_add v0, u32 3
+            v5 = unchecked_add v1, u32 4
+            v6 = unchecked_add v1, u32 5
+            v7 = unchecked_add v0, u32 6
+            v8 = unchecked_add v1, u32 7
+            v9 = unchecked_add v0, u32 8
+            v10 = unchecked_add v1, u32 9
+            v11 = unchecked_add v0, u32 10
+            v12 = unchecked_add v2, v3
+            v13 = unchecked_add v12, v4
+            v14 = unchecked_add v13, v5
+            v15 = unchecked_add v14, v6
+            v16 = unchecked_add v15, v7
+            v17 = unchecked_add v16, v8
+            v18 = unchecked_add v17, v9
+            v19 = unchecked_add v18, v10
+            v20 = unchecked_add v19, v11
+            return v20
+        }
+        ";
+
+        let calldata = vec![FieldElement::from(3u64), FieldElement::from(5u64)];
+        let args = vec![BrilligParameter::SingleAddr(32), BrilligParameter::SingleAddr(32)];
+
+        let result = compile_and_run_with_layout(src, calldata, spill_layout(), args);
+        assert_eq!(result, vec![FieldElement::from(97u64)]);
+    }
+
+    /// Control flow with spilling in at least one branch. Uses unchecked operations
+    /// to keep register pressure predictable.
+    ///
+    /// b1 path (v0 < 10): computes 8 independent values from v0, then sums them.
+    ///   Each v_i = v0 + i, for i in 1..8, plus v0 itself.
+    ///   sum = v0 + (v0+1) + (v0+2) + ... + (v0+8) = 9*v0 + 36
+    ///   For v0=3: 9*3 + 36 = 63
+    ///
+    /// b2 path (v0 >= 10): simple chain of subtractions.
+    ///   v0 - 1 - 2 - 3 - 4 - 5 - 6 = v0 - 21
+    ///   For v0=100: 100 - 21 = 79
+    #[test]
+    fn spill_with_conditional_control_flow() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = lt v0, u32 10
+            jmpif v1 then: b1, else: b2
+          b1():
+            v2 = unchecked_add v0, u32 1
+            v3 = unchecked_add v0, u32 2
+            v4 = unchecked_add v0, u32 3
+            v5 = unchecked_add v0, u32 4
+            v6 = unchecked_add v0, u32 5
+            v7 = unchecked_add v0, u32 6
+            v8 = unchecked_add v0, u32 7
+            v9 = unchecked_add v0, u32 8
+            v10 = unchecked_add v0, v2
+            v11 = unchecked_add v10, v3
+            v12 = unchecked_add v11, v4
+            v13 = unchecked_add v12, v5
+            v14 = unchecked_add v13, v6
+            v15 = unchecked_add v14, v7
+            v16 = unchecked_add v15, v8
+            v17 = unchecked_add v16, v9
+            jmp b3(v17)
+          b2():
+            v18 = unchecked_sub v0, u32 1
+            v19 = unchecked_sub v18, u32 2
+            v20 = unchecked_sub v19, u32 3
+            v21 = unchecked_sub v20, u32 4
+            v22 = unchecked_sub v21, u32 5
+            v23 = unchecked_sub v22, u32 6
+            jmp b3(v23)
+          b3(v24: u32):
+            return v24
+        }
+        ";
+
+        let args = vec![BrilligParameter::SingleAddr(32)];
+
+        // v0 = 3: b1 path → 9*3 + 36 = 63
+        let result = compile_and_run_with_layout(
+            src,
+            vec![FieldElement::from(3u64)],
+            spill_layout(),
+            args.clone(),
+        );
+        assert_eq!(result, vec![FieldElement::from(63u64)]);
+
+        // v0 = 100: b2 path → 100 - 21 = 79
+        let result = compile_and_run_with_layout(
+            src,
+            vec![FieldElement::from(100u64)],
+            spill_layout(),
+            args,
+        );
+        assert_eq!(result, vec![FieldElement::from(79u64)]);
+    }
+
+    /// Two-function program where both caller and callee have enough live values
+    /// to trigger independent spilling. The caller consumes some values before
+    /// the call to reduce register pressure at the call site (codegen_call
+    /// allocates internal registers through the raw allocator, not the spill
+    /// manager).
+    ///
+    /// Uses frame=16 (14 usable slots). Both functions compute 14 independent
+    /// values from their inputs (16 live with v0,v1), forcing spills.
+    ///
+    /// v0=3, v1=5:
+    /// Caller computes v2..v15 (same as callee), then consumes v8..v15 into
+    /// a partial sum (v22=93) before calling helper. After the call, sums the
+    /// remaining v2..v7 + v22 + helper_result.
+    ///   partial_sum = 12+11+14+13+15+7+4+17 = 93
+    ///   helper(3,5) = 8+5+6+9+10+9+12+11+14+13+15+7+4+17 = 140
+    ///   remaining = 8+5+6+9+10+9 = 47
+    ///   result = 47 + 93 + 140 = 280
+    #[test]
+    fn spill_with_nested_call() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            v2 = unchecked_add v0, v1
+            v3 = unchecked_add v0, u32 2
+            v4 = unchecked_add v0, u32 3
+            v5 = unchecked_add v1, u32 4
+            v6 = unchecked_add v1, u32 5
+            v7 = unchecked_add v0, u32 6
+            v8 = unchecked_add v1, u32 7
+            v9 = unchecked_add v0, u32 8
+            v10 = unchecked_add v1, u32 9
+            v11 = unchecked_add v0, u32 10
+            v12 = unchecked_add v0, u32 12
+            v13 = unchecked_add v1, u32 2
+            v14 = unchecked_add v0, u32 1
+            v15 = unchecked_add v1, u32 12
+            v16 = unchecked_add v8, v9
+            v17 = unchecked_add v16, v10
+            v18 = unchecked_add v17, v11
+            v19 = unchecked_add v18, v12
+            v20 = unchecked_add v19, v13
+            v21 = unchecked_add v20, v14
+            v22 = unchecked_add v21, v15
+            v23 = call f1(v0, v1) -> u32
+            v24 = unchecked_add v2, v3
+            v25 = unchecked_add v24, v4
+            v26 = unchecked_add v25, v5
+            v27 = unchecked_add v26, v6
+            v28 = unchecked_add v27, v7
+            v29 = unchecked_add v28, v22
+            v30 = unchecked_add v29, v23
+            return v30
+        }
+        brillig(inline) fn helper f1 {
+          b0(v0: u32, v1: u32):
+            v2 = unchecked_add v0, v1
+            v3 = unchecked_add v0, u32 2
+            v4 = unchecked_add v0, u32 3
+            v5 = unchecked_add v1, u32 4
+            v6 = unchecked_add v1, u32 5
+            v7 = unchecked_add v0, u32 6
+            v8 = unchecked_add v1, u32 7
+            v9 = unchecked_add v0, u32 8
+            v10 = unchecked_add v1, u32 9
+            v11 = unchecked_add v0, u32 10
+            v12 = unchecked_add v0, u32 12
+            v13 = unchecked_add v1, u32 2
+            v14 = unchecked_add v0, u32 1
+            v15 = unchecked_add v1, u32 12
+            v16 = unchecked_add v2, v3
+            v17 = unchecked_add v16, v4
+            v18 = unchecked_add v17, v5
+            v19 = unchecked_add v18, v6
+            v20 = unchecked_add v19, v7
+            v21 = unchecked_add v20, v8
+            v22 = unchecked_add v21, v9
+            v23 = unchecked_add v22, v10
+            v24 = unchecked_add v23, v11
+            v25 = unchecked_add v24, v12
+            v26 = unchecked_add v25, v13
+            v27 = unchecked_add v26, v14
+            v28 = unchecked_add v27, v15
+            return v28
+        }
+        ";
+
+        // partial_sum(v8..v15) = 12+11+14+13+15+7+4+17 = 93
+        // helper(3,5) = 8+5+6+9+10+9+12+11+14+13+15+7+4+17 = 140
+        // remaining(v2..v7) = 8+5+6+9+10+9 = 47
+        // result = 47 + 93 + 140 = 280
+        let calldata = vec![FieldElement::from(3u64), FieldElement::from(5u64)];
+        let args = vec![BrilligParameter::SingleAddr(32), BrilligParameter::SingleAddr(32)];
+
+        let layout = LayoutConfig::new(16, 16, MAX_SCRATCH_SPACE);
+        let result = compile_and_run_with_layout(src, calldata, layout, args);
+        assert_eq!(result, vec![FieldElement::from(280u64)]);
+    }
+
+    /// Cross-block spill correctness test.
+    ///
+    /// This test exposes a known bug: each block gets a fresh `SpillManager`, so values
+    /// spilled in one block have stale register mappings in successor blocks.
+    ///
+    /// In b0, v0 is used once early then never again — making it the LRU victim when
+    /// register pressure exceeds the frame size. Its register gets reused for a later value.
+    /// In b1, v0 is live-in (not a block parameter), but the fresh SpillManager doesn't know
+    /// it was spilled, so it reads the stale (reused) register.
+    ///
+    /// The bug currently manifests as a panic ("register already deallocated") during
+    /// compilation, because b1's fresh SpillManager tries to deallocate a register that
+    /// was already freed in b0. This is even more severe than a silent wrong result.
+    ///
+    /// v0=3, v1=5:
+    /// v2=8, v3=7, v4=8, v5=9, v6=10, v7=11, v8=12, v9=13, v10=14, v11=15
+    /// sum(v2..v11) = 8+7+8+9+10+11+12+13+14+15 = 107
+    /// correct v21 = 107 + v0(3) = 110
+    #[test]
+    fn cross_block_spill_stale_register() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            v2 = unchecked_add v0, v1
+            v3 = unchecked_add v1, u32 2
+            v4 = unchecked_add v1, u32 3
+            v5 = unchecked_add v1, u32 4
+            v6 = unchecked_add v1, u32 5
+            v7 = unchecked_add v1, u32 6
+            v8 = unchecked_add v1, u32 7
+            v9 = unchecked_add v1, u32 8
+            v10 = unchecked_add v1, u32 9
+            v11 = unchecked_add v1, u32 10
+            v12 = unchecked_add v2, v3
+            v13 = unchecked_add v12, v4
+            v14 = unchecked_add v13, v5
+            v15 = unchecked_add v14, v6
+            v16 = unchecked_add v15, v7
+            v17 = unchecked_add v16, v8
+            v18 = unchecked_add v17, v9
+            v19 = unchecked_add v18, v10
+            v20 = unchecked_add v19, v11
+            jmp b1()
+          b1():
+            v21 = unchecked_add v20, v0
+            return v21
+        }
+        ";
+
+        let calldata = vec![FieldElement::from(3u64), FieldElement::from(5u64)];
+        let args = vec![BrilligParameter::SingleAddr(32), BrilligParameter::SingleAddr(32)];
+
+        // Default layout: no spilling -> correct result
+        let correct = compile_and_run_with_layout(
+            src,
+            calldata.clone(),
+            LayoutConfig::default(),
+            args.clone(),
+        );
+        assert_eq!(correct, vec![FieldElement::from(110u64)]);
+
+        // Small layout: spilling triggers the cross-block stale register bug.
+        // Currently panics with "register already deallocated" because b1's fresh
+        // SpillManager doesn't know v0 was spilled in b0.
+        // When the bug is fixed, remove the catch_unwind and assert result == [110].
+        let result = std::panic::catch_unwind(|| {
+            compile_and_run_with_layout(src, calldata, spill_layout(), args)
+        });
+
+        assert!(
+            result.is_err(),
+            "Cross-block spill bug appears fixed! \
+             Update this test: remove catch_unwind and assert result == [110]."
+        );
     }
 }

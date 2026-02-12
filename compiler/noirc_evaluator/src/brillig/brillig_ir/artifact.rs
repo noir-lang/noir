@@ -85,9 +85,14 @@ pub struct BrilligArtifact<F> {
 
     /// Positions of the 3 placeholder no-op opcodes emitted in the function prologue for
     /// the per-frame spill region allocation. If the function actually spills, these are
-    /// overwritten with real allocation instructions via `resolve_spill_prologue`.
+    /// overwritten with real allocation instructions after a function's code generation is complete.
     /// If no spilling occurs, the no-ops remain harmless.
     unresolved_spill_prologue: Option<[OpcodeLocation; 3]>,
+
+    /// Whether this function uses spill support (sp[1] reserved for per-frame spill base pointer).
+    /// The entry point must create its context with the same spill_support so that parameter
+    /// offsets align with the function body's register layout.
+    pub(crate) spill_support: bool,
 
     /// This field contains the given procedure id if this artifact originates from as procedure
     pub(crate) procedure: Option<ProcedureId>,

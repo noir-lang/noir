@@ -78,7 +78,7 @@ impl SpillManager {
     }
 
     /// Return the least recently used value that is not currently spilled.
-    /// Returns None if there are no unspilled values in the LRU.
+    /// Returns None if there are no non-spilled values in the LRU.
     pub(crate) fn lru_victim(&self) -> Option<ValueId> {
         // Walk from front (LRU) to find a value that's not already spilled
         for value_id in &self.lru_order {
@@ -102,5 +102,119 @@ impl SpillManager {
     /// Get the spill info for a value.
     pub(crate) fn get_spill(&self, value_id: &ValueId) -> Option<&SpillInfo> {
         self.spilled.get(value_id)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use acvm::acir::brillig::MemoryAddress;
+
+    use crate::{
+        brillig::brillig_ir::brillig_variable::{BrilligVariable, SingleAddrVariable},
+        ssa::ir::map::Id,
+    };
+
+    use super::SpillManager;
+
+    fn test_var(n: u32) -> BrilligVariable {
+        BrilligVariable::SingleAddr(SingleAddrVariable::new(MemoryAddress::relative(n), 32))
+    }
+
+    #[test]
+    fn lru_ordering_and_victim_selection() {
+        let mut sm = SpillManager::new();
+        let v0 = Id::test_new(0);
+        let v1 = Id::test_new(1);
+        let v2 = Id::test_new(2);
+
+        // Touch v0, v1, v2 in order. LRU order: [v0, v1, v2]
+        sm.touch(v0);
+        sm.touch(v1);
+        sm.touch(v2);
+
+        // Victim should be v0 (least recently used)
+        assert_eq!(sm.lru_victim(), Some(v0));
+
+        // Touch v0 again, making it most recent. LRU order: [v1, v2, v0]
+        sm.touch(v0);
+
+        // Victim should now be v1
+        assert_eq!(sm.lru_victim(), Some(v1));
+    }
+
+    #[test]
+    fn spill_record_and_victim_skips_spilled() {
+        let mut sm = SpillManager::new();
+        let v0 = Id::test_new(0);
+        let v1 = Id::test_new(1);
+        let v2 = Id::test_new(2);
+
+        sm.touch(v0);
+        sm.touch(v1);
+        sm.touch(v2);
+
+        // Spill v0 (the LRU victim)
+        let offset = sm.allocate_spill_offset();
+        sm.record_spill(v0, offset, test_var(0));
+
+        assert!(sm.is_spilled(&v0));
+        assert!(!sm.is_spilled(&v1));
+
+        let info = sm.get_spill(&v0).unwrap();
+        assert_eq!(info.offset, 0);
+
+        // Victim should skip v0 (spilled) and return v1
+        assert_eq!(sm.lru_victim(), Some(v1));
+    }
+
+    #[test]
+    fn spill_slot_allocation_and_reuse() {
+        let mut sm = SpillManager::new();
+        let v0 = Id::test_new(0);
+        let v1 = Id::test_new(1);
+
+        // Allocate two slots: offsets 0 and 1
+        let off0 = sm.allocate_spill_offset();
+        sm.record_spill(v0, off0, test_var(0));
+        let off1 = sm.allocate_spill_offset();
+        sm.record_spill(v1, off1, test_var(1));
+        assert_eq!(off0, 0);
+        assert_eq!(off1, 1);
+
+        // Free slot 0 by removing the spill
+        sm.remove_spill(&v0);
+        assert!(!sm.is_spilled(&v0));
+
+        // Next allocation should reuse freed slot 0
+        let off_reused = sm.allocate_spill_offset();
+        assert_eq!(off_reused, 0);
+
+        // Then a fresh slot at 2
+        let off_fresh = sm.allocate_spill_offset();
+        assert_eq!(off_fresh, 2);
+    }
+
+    #[test]
+    fn remove_from_lru() {
+        let mut sm = SpillManager::new();
+        let v0 = Id::test_new(0);
+        let v1 = Id::test_new(1);
+        let v2 = Id::test_new(2);
+
+        sm.touch(v0);
+        sm.touch(v1);
+        sm.touch(v2);
+
+        // Remove v1 from LRU entirely. LRU order: [v0, v2]
+        sm.remove_from_lru(&v1);
+
+        // Victim should be v0 (v1 is absent)
+        assert_eq!(sm.lru_victim(), Some(v0));
+
+        // Touch v0, making it most recent. LRU order: [v2, v0]
+        sm.touch(v0);
+
+        // Victim should be v2 (v1 is absent, v0 was touched)
+        assert_eq!(sm.lru_victim(), Some(v2));
     }
 }

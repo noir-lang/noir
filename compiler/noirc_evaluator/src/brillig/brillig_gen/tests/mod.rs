@@ -15,10 +15,18 @@ mod binary;
 mod black_box;
 mod call;
 mod memory;
+mod spill;
 
 pub(crate) fn ssa_to_brillig_artifacts(src: &str) -> Brillig {
+    ssa_to_brillig_artifacts_with_options(src, &BrilligOptions::default())
+}
+
+pub(crate) fn ssa_to_brillig_artifacts_with_options(
+    src: &str,
+    options: &BrilligOptions,
+) -> Brillig {
     let ssa = Ssa::from_str(src).unwrap();
-    ssa.to_brillig(&BrilligOptions::default())
+    ssa.to_brillig(options)
 }
 
 #[macro_export]
