@@ -376,6 +376,8 @@ Concatenates this array with another array.
 fn concat<let M: u32>(self, array2: [T; M]) -> [T; N + M]
 ```
 
+example:
+
 ```rust
 fn main() {
     let arr1 = [1, 2, 3, 4];
