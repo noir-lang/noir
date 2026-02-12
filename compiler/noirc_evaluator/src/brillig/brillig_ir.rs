@@ -179,12 +179,16 @@ impl<F, R: RegisterAllocator> BrilligContext<F, R> {
 
 /// Regular brillig context to codegen user defined functions
 impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
-    pub(crate) fn new(function_name: &str, options: &BrilligOptions) -> BrilligContext<F, Stack> {
+    pub(crate) fn new(
+        function_name: &str,
+        options: &BrilligOptions,
+        spill_support: bool,
+    ) -> BrilligContext<F, Stack> {
         let mut obj = BrilligArtifact::default();
         obj.name = function_name.to_owned();
         BrilligContext {
             obj,
-            registers: Rc::new(RefCell::new(Stack::new(options.layout))),
+            registers: Rc::new(RefCell::new(Stack::new(options.layout, spill_support))),
             context_label: Label::entrypoint(),
             current_section: 0,
             next_section: 1,
@@ -463,7 +467,7 @@ pub(crate) mod tests {
             enable_array_copy_counter: false,
             ..Default::default()
         };
-        let mut context = BrilligContext::new("test", &options);
+        let mut context = BrilligContext::new("test", &options, false);
         context.enter_context(Label::function(id));
         context
     }
@@ -538,7 +542,7 @@ pub(crate) mod tests {
             show_opcode_advisories: false,
             layout: Default::default(),
         };
-        let mut context = BrilligContext::new("test", &options);
+        let mut context = BrilligContext::new("test", &options, false);
 
         // Allocate variables
         let r_input_size = MemoryAddress::direct(assert_u32(ReservedRegisters::len()));
@@ -718,7 +722,7 @@ pub(crate) mod tests {
             show_opcode_advisories: false,
             layout: Default::default(),
         };
-        let mut context = BrilligContext::new("test", &options);
+        let mut context = BrilligContext::new("test", &options, false);
 
         // Allocate direct memory addresses for our variables (after reserved registers)
         let source_start = MemoryAddress::direct(assert_u32(ReservedRegisters::len()));
@@ -945,7 +949,7 @@ pub(crate) mod tests {
         };
 
         let mut context: BrilligContext<FieldElement, Stack> =
-            BrilligContext::new("test", &options);
+            BrilligContext::new("test", &options, false);
         context.enter_context(Label::function(FunctionId::test_new(0)));
 
         // Allocate registers to fill up most of the frame.

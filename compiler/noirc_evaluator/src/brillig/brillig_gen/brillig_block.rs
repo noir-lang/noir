@@ -96,7 +96,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         );
         let last_uses = function_context.liveness.get_last_uses(&block_id).clone();
 
-        let spill_manager = Some(SpillManager::new());
+        let spill_manager =
+            if function_context.spill_support { Some(SpillManager::new()) } else { None };
 
         let mut brillig_block = BrilligBlock {
             function_context,

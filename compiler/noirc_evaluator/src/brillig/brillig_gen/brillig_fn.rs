@@ -18,6 +18,8 @@ use rustc_hash::FxHashMap as HashMap;
 
 use super::{constant_allocation::ConstantAllocation, variable_liveness::VariableLiveness};
 
+use crate::brillig::brillig_ir::registers::MAX_STACK_FRAME_SIZE;
+
 /// Information required to compile an SSA [Function] into Brillig bytecode.
 ///
 /// This structure is instantiated once per function and used throughout basic block code generation.
@@ -49,6 +51,9 @@ pub(crate) struct FunctionContext {
     pub(crate) constant_allocation: ConstantAllocation,
     /// True if this function is a brillig entry point
     pub(crate) is_entry_point: bool,
+    /// Whether this function needs spill infrastructure (spill base pointer slot, prologue NOPs).
+    /// Determined by comparing `max_live_count` to `MAX_STACK_FRAME_SIZE`.
+    pub(crate) spill_support: bool,
     /// Set to true if any block in this function spilled a value to the heap spill region.
     pub(crate) did_spill: bool,
     /// The maximum spill offset used across all blocks (i.e. the number of spill slots needed).
@@ -57,12 +62,29 @@ pub(crate) struct FunctionContext {
 
 impl FunctionContext {
     /// Creates a new function context. It will allocate parameters for all blocks and compute the liveness of every variable.
+    /// Safety margin added to `max_live_count` when deciding whether a function needs
+    /// spill infrastructure.
+    ///
+    /// `max_live_count` is an SSA-level lower bound on actual Brillig register pressure.
+    /// Codegen inflates pressure beyond the SSA estimate in several ways:
+    /// - Temporary/scratch registers for address computation and intermediates
+    /// - Constant materialization into registers at use sites
+    /// - Call setup shuffling arguments/returns into contiguous register windows
+    /// - Instruction-specific expansions (e.g. MakeArray element loads)
+    ///
+    /// This margin is a conservative buffer so that functions close to the frame limit
+    /// still get spill support. It can be tuned if it proves too aggressive or too
+    /// conservative in practice.
+    const SPILL_MARGIN: usize = 128;
+
     pub(crate) fn new(function: &Function, is_entry_point: bool) -> Self {
         let id = function.id();
 
         let reverse_post_order = PostOrder::with_function(function).into_vec_reverse();
         let constants = ConstantAllocation::from_function(function);
         let liveness = VariableLiveness::from_function(function, &constants);
+
+        let spill_support = liveness.max_live_count + Self::SPILL_MARGIN >= MAX_STACK_FRAME_SIZE;
 
         Self {
             function_id: Some(id),
@@ -71,6 +93,7 @@ impl FunctionContext {
             liveness,
             is_entry_point,
             constant_allocation: constants,
+            spill_support,
             did_spill: false,
             max_spill_offset: 0,
         }

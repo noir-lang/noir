@@ -127,6 +127,9 @@ pub(crate) trait RegisterAllocator {
         preallocated_registers: Vec<MemoryAddress>,
         layout: LayoutConfig,
     ) -> Self;
+    /// Creates a new register context preserving configuration from an existing allocator.
+    /// This is used when resetting registers between blocks while keeping the same start offset.
+    fn new_from_existing(&self, preallocated_registers: Vec<MemoryAddress>) -> Self;
     /// Finds the first register which is followed only by free registers.
     ///
     /// Always returns a [MemoryAddress::Relative] address.
@@ -143,11 +146,19 @@ pub(crate) trait RegisterAllocator {
 pub(crate) struct Stack {
     storage: DeallocationListAllocator,
     layout: LayoutConfig,
+    /// The first addressable stack slot.
+    ///
+    /// - offset 0 is always reserved for the previous stack pointer.
+    /// - When spill support is enabled, offset 1 holds the per-frame spill base pointer,
+    ///   so `start_offset` is 2.
+    /// - Without spill support, `start_offset` is 1, avoiding the wasted slot.
+    start_offset: usize,
 }
 
 impl Stack {
-    pub(crate) fn new(layout: LayoutConfig) -> Self {
-        Self { storage: DeallocationListAllocator::new(Self::start()), layout }
+    pub(crate) fn new(layout: LayoutConfig, spill_support: bool) -> Self {
+        let start_offset = if spill_support { 2 } else { 1 };
+        Self { storage: DeallocationListAllocator::new(start_offset), layout, start_offset }
     }
 
     /// Check if a `Relative` address is within the bounds of the stack.
@@ -155,22 +166,38 @@ impl Stack {
     /// Panics if the address is `Direct`.
     fn is_within_bounds(&self, register: MemoryAddress) -> bool {
         let offset = assert_usize(register.unwrap_relative());
-        offset >= self.start() && offset < self.end()
+        offset >= self.start_offset && offset < self.end()
     }
+}
 
-    /// Static start address.
-    ///
-    /// The addressable space starts at offset 2:
-    /// - offset 0: previous stack pointer (saved/restored by codegen_call)
-    /// - offset 1: per-frame spill base pointer (set by prologue, used by spill/reload)
-    pub(super) fn start() -> usize {
-        2
+impl Stack {
+    /// Create a new `Stack` from a set of pre-allocated registers, preserving
+    /// the given `start_offset` (which comes from the original Stack).
+    pub(crate) fn from_preallocated_registers_with_start(
+        preallocated_registers: Vec<MemoryAddress>,
+        layout: LayoutConfig,
+        start_offset: usize,
+    ) -> Self {
+        let empty =
+            Self { storage: DeallocationListAllocator::new(start_offset), layout, start_offset };
+        for register in &preallocated_registers {
+            assert!(empty.is_within_bounds(*register), "Register out of stack bounds: {register}");
+        }
+
+        Self {
+            storage: DeallocationListAllocator::from_preallocated_registers(
+                start_offset,
+                vecmap(preallocated_registers, |r| assert_usize(r.unwrap_relative())),
+            ),
+            layout,
+            start_offset,
+        }
     }
 }
 
 impl RegisterAllocator for Stack {
     fn start(&self) -> usize {
-        Self::start()
+        self.start_offset
     }
 
     fn end(&self) -> usize {
@@ -196,18 +223,16 @@ impl RegisterAllocator for Stack {
         preallocated_registers: Vec<MemoryAddress>,
         layout: LayoutConfig,
     ) -> Self {
-        let empty = Stack::new(layout);
-        for register in &preallocated_registers {
-            assert!(empty.is_within_bounds(*register), "Register out of stack bounds: {register}");
-        }
+        // Default: no spill support. Use `new_from_existing` to preserve start_offset.
+        Self::from_preallocated_registers_with_start(preallocated_registers, layout, 1)
+    }
 
-        Self {
-            storage: DeallocationListAllocator::from_preallocated_registers(
-                empty.start(),
-                vecmap(preallocated_registers, |r| assert_usize(r.unwrap_relative())),
-            ),
-            layout,
-        }
+    fn new_from_existing(&self, preallocated_registers: Vec<MemoryAddress>) -> Self {
+        Stack::from_preallocated_registers_with_start(
+            preallocated_registers,
+            self.layout,
+            self.start_offset,
+        )
     }
 
     fn empty_registers_start(&self) -> MemoryAddress {
@@ -295,6 +320,10 @@ impl RegisterAllocator for ScratchSpace {
             ),
             layout,
         }
+    }
+
+    fn new_from_existing(&self, preallocated_registers: Vec<MemoryAddress>) -> Self {
+        Self::from_preallocated_registers(preallocated_registers, self.layout)
     }
 
     fn empty_registers_start(&self) -> MemoryAddress {
@@ -394,6 +423,10 @@ impl RegisterAllocator for GlobalSpace {
         _layout: LayoutConfig,
     ) -> Self {
         unimplemented!("`GlobalSpace` does not implement `from_preallocated_registers")
+    }
+
+    fn new_from_existing(&self, _preallocated_registers: Vec<MemoryAddress>) -> Self {
+        unimplemented!("`GlobalSpace` does not implement `new_from_existing")
     }
 
     fn empty_registers_start(&self) -> MemoryAddress {
@@ -538,18 +571,18 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
         self.registers_mut().deallocate_register(register);
     }
 
+    /// Resets the registers to a new list of allocated ones.
+    /// Uses `new_from_existing` to preserve allocator-specific configuration
+    /// (e.g., Stack's `start_offset` for spill support).
+    pub(crate) fn set_allocated_registers(&mut self, allocated_registers: Vec<MemoryAddress>) {
+        let new_registers = self.registers().new_from_existing(allocated_registers);
+        self.registers = Rc::new(RefCell::new(new_registers));
+    }
+
     /// Allocates an unused register.
     pub(crate) fn allocate_register(&self) -> Allocated<MemoryAddress, Registers> {
         let addr = self.registers_mut().allocate_register();
         Allocated::new_addr(addr, self.registers.clone())
-    }
-
-    /// Resets the registers to a new list of allocated ones.
-    pub(crate) fn set_allocated_registers(&mut self, allocated_registers: Vec<MemoryAddress>) {
-        self.registers = Rc::new(RefCell::new(Registers::from_preallocated_registers(
-            allocated_registers,
-            self.layout(),
-        )));
     }
 
     /// Allocate a [SingleAddrVariable].
@@ -771,7 +804,7 @@ mod tests {
 
     #[test]
     fn stack_should_prioritize_returning_low_registers() {
-        let mut stack = Stack::new(LayoutConfig::default());
+        let mut stack = Stack::new(LayoutConfig::default(), false);
         let one = stack.allocate_register();
         let _two = stack.allocate_register();
         let three = stack.allocate_register();

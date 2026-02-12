@@ -3,10 +3,8 @@ use acvm::{AcirField, acir::brillig::MemoryAddress};
 use crate::{brillig::brillig_ir::assert_u32, ssa::ir::function::FunctionId};
 
 use super::{
-    BrilligBinaryOp, BrilligContext, ReservedRegisters,
-    brillig_variable::BrilligVariable,
-    debug_show::DebugToString,
-    registers::{RegisterAllocator, Stack},
+    BrilligBinaryOp, BrilligContext, ReservedRegisters, brillig_variable::BrilligVariable,
+    debug_show::DebugToString, registers::RegisterAllocator,
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
@@ -63,9 +61,10 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         // This is the previous stack pointer to return to after the call.
         self.mov_instruction(previous_stack_pointer, ReservedRegisters::stack_pointer());
 
-        // Pass the arguments starting at the callee's Stack::start() offset.
-        // Offset 0 holds the saved stack pointer; offset 1 is reserved for spill base.
-        let mut current_argument_location = stack_size + Stack::start() as u32;
+        // Pass the arguments starting at the callee's start offset.
+        // Offset 0 holds the saved stack pointer; when spill support is active,
+        // offset 1 is reserved for the spill base pointer.
+        let mut current_argument_location = stack_size + self.registers().start() as u32;
         for item in arguments {
             // Here we are still using addresses relative to the current stack pointer.
             self.mov_instruction(
@@ -91,7 +90,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.mov_instruction(ReservedRegisters::stack_pointer(), MemoryAddress::relative(0));
 
         // Move the return values back. The return values are expected to overwrite the args.
-        let mut current_return_location = stack_size + Stack::start() as u32;
+        let mut current_return_location = stack_size + self.registers().start() as u32;
         for item in returns {
             self.mov_instruction(
                 item.extract_register(),
@@ -115,7 +114,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         for (destination_index, return_variable) in return_variables.iter().enumerate() {
             // In case we have fewer return registers than indices to write to, ensure we've allocated this register.
             let destination_register =
-                MemoryAddress::relative(assert_u32(Stack::start() + destination_index));
+                MemoryAddress::relative(assert_u32(self.registers().start() + destination_index));
             self.registers_mut().ensure_register_is_allocated(destination_register);
             destinations.push(destination_register);
             sources.push(return_variable.extract_register());

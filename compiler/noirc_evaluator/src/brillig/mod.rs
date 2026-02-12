@@ -119,19 +119,19 @@ impl Brillig {
         hoisted_global_constants: &HashMap<(FieldElement, NumericType), BrilligVariable>,
         is_entry_point: bool,
     ) -> BrilligArtifact<FieldElement> {
-        let mut brillig_context = BrilligContext::new(func.name(), options);
-
         let mut function_context = FunctionContext::new(func, is_entry_point);
+
+        let mut brillig_context =
+            BrilligContext::new(func.name(), options, function_context.spill_support);
 
         brillig_context.enter_context(Label::function(func.id()));
 
         brillig_context.call_check_max_stack_depth_procedure();
 
-        // Emit 3 placeholder NOPs for the per-frame spill region allocation.
-        // After all blocks are compiled, if the function actually spilled any values,
-        // these are overwritten with real allocation instructions. Otherwise they
-        // remain as harmless self-moves, avoiding unnecessary heap growth.
-        brillig_context.emit_unresolved_spill_prologue();
+        // Only emit spill prologue placeholders when the function may need spilling.
+        if function_context.spill_support {
+            brillig_context.emit_unresolved_spill_prologue();
+        }
 
         for block in function_context.reverse_post_order().collect::<Vec<_>>() {
             BrilligBlock::compile_block(
