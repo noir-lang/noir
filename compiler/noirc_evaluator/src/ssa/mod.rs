@@ -274,6 +274,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             ssa.dead_instruction_elimination_post_check(true);
             ssa
         }),
+        SsaPass::new(Ssa::reg2mem, "Reg2Mem"),
     ]
 }
 
