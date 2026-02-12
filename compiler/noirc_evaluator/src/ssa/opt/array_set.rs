@@ -163,8 +163,12 @@ impl<'f> Context<'f> {
                     self.set_last_use(*array, *instruction_id);
                 }
                 // Writing to an array is a use; mark it for mutation unless it might be shared.
-                Instruction::ArraySet { array, .. } => {
+                Instruction::ArraySet { array, value, .. } => {
                     self.set_last_use(*array, *instruction_id);
+
+                    if self.dfg.type_of_value(*value).is_array() {
+                        self.set_last_use(*value, *instruction_id);
+                    }
 
                     // We also want to check that the array is not part of the terminator arguments, as this means it is used again.
                     let mut is_array_in_terminator = false;
@@ -254,7 +258,11 @@ fn make_mutable(dfg: &mut DataFlowGraph, instructions_to_update: &HashSet<Instru
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{Ssa, opt::assert_ssa_does_not_change},
+        ssa::{
+            Ssa,
+            interpreter::value::{NumericValue, Value},
+            opt::assert_ssa_does_not_change,
+        },
     };
     use test_case::test_case;
 
@@ -419,5 +427,43 @@ mod tests {
             }
             ";
         assert_ssa_does_not_change(src, Ssa::array_set_optimization);
+    }
+
+    #[test]
+    fn array_set_array_value_should_mark_as_last_used() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0():
+            v1 = make_array [Field 0] : [Field; 1]
+            v3 = make_array [Field 7] : [Field; 1]
+            v4 = make_array [v3] : [[Field; 1]; 1]
+            v7 = array_set v1, index u32 0, value Field 1
+            v8 = array_set v4, index u32 0, value v1
+            v9 = array_get v8, index u32 0 -> [Field; 1]
+            v10 = array_get v9, index u32 0 -> Field
+            return v10
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let value = &ssa.interpret(vec![]).unwrap()[0];
+        assert_eq!(value, &Value::Numeric(NumericValue::Field(0_u32.into())));
+
+        let ssa = ssa.array_set_optimization();
+        let value = &ssa.interpret(vec![]).unwrap()[0];
+        assert_eq!(value, &Value::Numeric(NumericValue::Field(0_u32.into())));
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v1 = make_array [Field 0] : [Field; 1]
+            v3 = make_array [Field 7] : [Field; 1]
+            v4 = make_array [v3] : [[Field; 1]; 1]
+            v7 = array_set v1, index u32 0, value Field 1
+            v8 = array_set mut v4, index u32 0, value v1
+            v9 = array_get v8, index u32 0 -> [Field; 1]
+            v10 = array_get v9, index u32 0 -> Field
+            return v10
+        }
+        ");
     }
 }
