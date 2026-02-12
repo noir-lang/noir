@@ -489,7 +489,7 @@ impl LastUseContext {
     }
 
     fn track_variables_in_assign(&mut self, assign: &ast::Assign) {
-        // See if we are reassigning a variable, killing its previous value.
+        // See if we are reassigning a variable, killing the reference to its previous value.
         let reassign_ident = match &assign.lvalue {
             ast::LValue::Ident(ast::Ident {
                 definition: ast::Definition::Local(local_id), ..
@@ -509,14 +509,15 @@ impl LastUseContext {
         self.track_variables_in_expression(&assign.expression);
 
         if let Some(local_id) = reassign_ident {
-            // Confirm any last moves we have on variable at this point. From here it acts as a new one.
+            // Confirm any last moves we have on the variable at this point (which may be in the `assign.expression`).
+            // From here it acts as a newly declared variable with no history.
             if let Some((_, branches)) = self.last_uses.get_mut(&local_id) {
                 let branches = std::mem::replace(branches, Branches::None);
                 self.confirmed_moves.entry(local_id).or_default().extend(branches.flatten_uses());
+                return;
             }
-        } else {
-            self.track_variables_in_lvalue(&assign.lvalue, false /* nested */);
         }
+        self.track_variables_in_lvalue(&assign.lvalue, false /* nested */);
     }
 
     /// A variable in an lvalue position is never moved (otherwise you wouldn't
