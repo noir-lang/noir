@@ -1436,7 +1436,8 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
 
         // We expect the `make_array` at the top of `b3` to be replaced with an `inc_rc`
-        // of the newly hoisted `make_array` at the end of `b0`.
+// We expect the `make_array` at the top of `b3` to be kept since arrays may be mutated
+// in brillig by array_set instructions which we do not track.
         let ssa = ssa.loop_invariant_code_motion();
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
