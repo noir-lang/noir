@@ -563,11 +563,8 @@ impl Context {
         instruction: &Instruction,
         dfg: &DataFlowGraph,
     ) -> Option<ValueId> {
-        let use_predicate = self.use_constraint_info
-            && matches!(
-                can_be_deduplicated(instruction, dfg),
-                CanBeDeduplicated::UnderSamePredicate
-            );
+        let use_predicate =
+            self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
         use_predicate.then_some(side_effects_enabled_var)
     }
 }
