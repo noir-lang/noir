@@ -1338,9 +1338,8 @@ fn where_clause_on_associated_type_of_generic_in_trait_impl() {
     assert_no_errors(src);
 }
 
-/// TODO(https://github.com/noir-lang/noir/issues/11553): remove should_panic once fixed
+/// Regression test for https://github.com/noir-lang/noir/issues/11553
 #[test]
-#[should_panic(expected = "Expected no errors")]
 fn associated_type_as_generic_trait_param_with_nested_angle_brackets() {
     // Bug: Parser fails on << in type position: Store<<T as HasKey>::Key>
     let src = r#"
