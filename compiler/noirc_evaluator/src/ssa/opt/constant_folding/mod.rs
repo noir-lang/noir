@@ -546,7 +546,6 @@ impl Context {
             CanBeDeduplicated::UnderSamePredicate if use_constraint_info => cache_instruction(),
             // We also allow deduplicating MakeArray instructions that we have tracked which haven't been mutated.
             _ if is_make_array => cache_instruction(),
-
             CanBeDeduplicated::UnderSamePredicate | CanBeDeduplicated::Never => {}
         }
     }
