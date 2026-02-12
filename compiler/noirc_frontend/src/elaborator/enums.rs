@@ -283,7 +283,6 @@ impl Elaborator<'_> {
             name: name_string.clone(),
             visibility: enum_.visibility,
             attributes: Attributes { function: None, secondary: Vec::new() },
-            is_unconstrained: false,
             generic_count: datatype_ref.generics.len(),
             is_comptime: false,
             name_location: location,
@@ -1351,7 +1350,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
         };
 
         let mut cases = BTreeSet::new();
-        self.find_missing_values(tree, &mut Default::default(), &mut cases, starting_id);
+        self.find_missing_values(tree, &mut Default::default(), &mut cases, Some(starting_id));
 
         // It's possible to trigger this matching on an empty enum like `enum Void {}`
         if !cases.is_empty() {
@@ -1380,9 +1379,9 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
     fn find_missing_values(
         &self,
         tree: &HirMatch,
-        env: &mut HashMap<DefinitionId, (String, Vec<DefinitionId>)>,
+        env: &mut HashMap<DefinitionId, (String, Vec<Option<DefinitionId>>)>,
         missing_cases: &mut BTreeSet<String>,
-        starting_id: DefinitionId,
+        starting_id: Option<DefinitionId>,
     ) {
         match tree {
             HirMatch::Success(_) | HirMatch::Failure { missing_case: false } => (),
@@ -1396,7 +1395,8 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
             HirMatch::Switch(definition_id, cases, else_case) => {
                 for case in cases {
                     let name = case.constructor.to_string();
-                    env.insert(*definition_id, (name, case.arguments.clone()));
+                    let arguments = vecmap(&case.arguments, |arg| Some(*arg));
+                    env.insert(*definition_id, (name, arguments));
                     self.find_missing_values(&case.body, env, missing_cases, starting_id);
                 }
 
@@ -1414,7 +1414,11 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
         }
     }
 
-    fn missing_cases(&self, cases: &[Case], typ: &Type) -> Vec<(String, Vec<DefinitionId>)> {
+    fn missing_cases(
+        &self,
+        cases: &[Case],
+        typ: &Type,
+    ) -> Vec<(String, Vec<Option<DefinitionId>>)> {
         // We expect `cases` to come from a `Switch` which should always have
         // at least 2 cases, otherwise it should be a Success or Failure node.
         let first_case = &cases[0];
@@ -1432,9 +1436,9 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
         }
 
         vecmap(all_constructors, |(constructor, arg_count)| {
-            // Safety: this id should only be used in `env` of `find_missing_values` which
-            //         only uses it for display and defaults to "_" on unknown ids.
-            let args = vecmap(0..arg_count, |_| DefinitionId::dummy_id());
+            // Safety: this None should only be used in `env` of `find_missing_values` which
+            //         only uses it for display, and we use "_" (WILDCARD_PATTERN) when it's hit
+            let args = vecmap(0..arg_count, |_| None);
             (constructor.to_string(), args)
         })
     }
@@ -1443,7 +1447,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
         &self,
         cases: &[Case],
         typ: &Type,
-    ) -> Vec<(String, Vec<DefinitionId>)> {
+    ) -> Vec<(String, Vec<Option<DefinitionId>>)> {
         // We could give missed cases for field ranges of `0 .. field_modulus` but since the field
         // used in Noir may change we recommend a match-all pattern instead.
         // If the type is a type variable, we don't know exactly which integer type this may
@@ -1484,9 +1488,13 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
     }
 
     fn construct_missing_case(
-        starting_id: DefinitionId,
-        env: &HashMap<DefinitionId, (String, Vec<DefinitionId>)>,
+        starting_id: Option<DefinitionId>,
+        env: &HashMap<DefinitionId, (String, Vec<Option<DefinitionId>>)>,
     ) -> String {
+        let Some(starting_id) = starting_id else {
+            return WILDCARD_PATTERN.to_string();
+        };
+
         let Some((constructor_str, arguments)) = env.get(&starting_id) else {
             return WILDCARD_PATTERN.to_string();
         };

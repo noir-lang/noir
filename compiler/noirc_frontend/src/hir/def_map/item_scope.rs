@@ -94,9 +94,8 @@ impl ItemScope {
     ///
     /// Methods introduced without trait take priority and hide methods with the same name that come from a trait.
     pub fn find_func_with_name(&self, func_name: &Ident) -> Option<FuncId> {
-        Self::find_name_in(func_name, &self.values).and_then(|(module_def, _, _)| {
-            if let ModuleDefId::FunctionId(id) = module_def { Some(*id) } else { None }
-        })
+        let (module_def, _, _) = Self::find_name_in(func_name, &self.values)?;
+        if let ModuleDefId::FunctionId(id) = module_def { Some(*id) } else { None }
     }
 
     /// Look for an [Ident] in both `types` and `values`.

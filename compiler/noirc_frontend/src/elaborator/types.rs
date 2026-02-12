@@ -698,7 +698,6 @@ impl Elaborator<'_> {
                 self.push_err(TypeCheckError::MissingNamedTypeArg { item, location, name });
             }
         }
-
         resolved
     }
 
@@ -1026,7 +1025,7 @@ impl Elaborator<'_> {
     ) -> Type {
         let associated_types = match impl_kind {
             TraitImplKind::Assumed { trait_generics, .. } => Cow::Owned(trait_generics.named),
-            TraitImplKind::Normal(impl_id) => {
+            TraitImplKind::Normal(impl_id) | TraitImplKind::Prepared(impl_id) => {
                 Cow::Borrowed(self.interner.get_associated_types_for_impl(impl_id))
             }
         };
@@ -1981,7 +1980,7 @@ impl Elaborator<'_> {
                         expected_typ: return_type.to_string(),
                         expr_location: location,
                     });
-                };
+                }
 
                 let expected_object_type = args.pop().unwrap_or_else(|| {
                     unreachable!("ICE: expected operator method on {object_type} to take arguments, but found no arguments")
@@ -2240,41 +2239,10 @@ impl Elaborator<'_> {
             return self.return_trait_method_in_scope(&generic_methods, method_name, location);
         }
 
-        if let Type::DataType(datatype, _) = object_type {
-            let datatype = datatype.borrow();
-            let mut has_field_with_function_type = false;
-
-            if let Some(fields) = datatype.fields_raw() {
-                has_field_with_function_type = fields
-                    .iter()
-                    .any(|field| field.name.as_str() == method_name && field.typ.is_function());
-            }
-
-            if has_field_with_function_type {
-                self.push_err(TypeCheckError::CannotInvokeStructFieldFunctionType {
-                    method_name: method_name.to_string(),
-                    object_type: object_type.clone(),
-                    location,
-                });
-            } else {
-                self.push_err(TypeCheckError::UnresolvedMethodCall {
-                    method_name: method_name.to_string(),
-                    object_type: object_type.clone(),
-                    location,
-                });
-            }
-            None
-        } else {
-            // It could be that this type is a composite type that is bound to a trait,
-            // for example `x: (T, U) ... where (T, U): SomeTrait`
-            // (so this case is a generalization of the NamedGeneric case)
-            self.lookup_method_in_trait_constraints(
-                object_type,
-                method_name,
-                location,
-                object_location,
-            )
-        }
+        // It could be that this type is a composite type that is bound to a trait,
+        // for example `x: (T, U) ... where (T, U): SomeTrait`
+        // (so this case is a generalization of the NamedGeneric case)
+        self.lookup_method_in_trait_constraints(object_type, method_name, location, object_location)
     }
 
     /// Given a list of functions and the trait they belong to, returns the one function
@@ -2414,6 +2382,8 @@ impl Elaborator<'_> {
                 return None;
             }
         };
+
+        // The function we are elaborating, ie. where we make the method call from.
         let func_meta = self.interner.function_meta(&func_id);
 
         // If inside a trait method, check if it's a method on `self`
@@ -2502,13 +2472,33 @@ impl Elaborator<'_> {
             self.push_err(TypeCheckError::TypeAnnotationsNeededForMethodCall {
                 location: object_location,
             });
-        } else {
-            self.push_err(TypeCheckError::UnresolvedMethodCall {
-                method_name: method_name.to_string(),
-                object_type: object_type.clone(),
-                location,
-            });
+            return None;
         }
+
+        // Check if it's `foo.bar()` where `bar` is a member of the struct `foo`.
+        // In that case we tell the user that they need to write it like `(foo.bar)()`.
+        if let Type::DataType(datatype, _) = object_type {
+            let datatype = datatype.borrow();
+            let has_field_with_function_type = datatype.fields_raw().is_some_and(|fields| {
+                fields
+                    .iter()
+                    .any(|field| field.name.as_str() == method_name && field.typ.is_function())
+            });
+            if has_field_with_function_type {
+                self.push_err(TypeCheckError::CannotInvokeStructFieldFunctionType {
+                    method_name: method_name.to_string(),
+                    object_type: object_type.clone(),
+                    location,
+                });
+                return None;
+            }
+        }
+
+        self.push_err(TypeCheckError::UnresolvedMethodCall {
+            method_name: method_name.to_string(),
+            object_type: object_type.clone(),
+            location,
+        });
 
         None
     }
@@ -2537,7 +2527,9 @@ impl Elaborator<'_> {
             matches.push(trait_method);
         }
 
-        // Search in the parent traits, if any
+        // Search in the parent traits, if any.
+        // Note that `trait_bounds` represent `Foo: Bar + Baz`,
+        // but `Foo where Self: Bar + Baz` appears in `trait_constraints` instead.
         for parent_trait_bound in &the_trait.trait_bounds {
             if let Some(the_trait) = self.interner.try_get_trait(parent_trait_bound.trait_id) {
                 // Avoid looping forever in case there are cycles
@@ -2621,8 +2613,7 @@ impl Elaborator<'_> {
     /// Check if the callee is an unconstrained function, or a variable referring to one.
     fn is_unconstrained_call(&self, expr: ExprId) -> bool {
         if let Some(func_id) = self.interner.lookup_function_from_expr(&expr) {
-            let modifiers = self.interner.function_modifiers(&func_id);
-            modifiers.is_unconstrained
+            self.interner.function_meta(&func_id).is_unconstrained()
         } else {
             false
         }
@@ -2776,6 +2767,9 @@ impl Elaborator<'_> {
         (expr_location, empty_function)
     }
 
+    /// Insert the ordered generics and associated types from the trait bound.
+    /// If the constraint is `assumed`, it also inserts the binding to the `Self`
+    /// type to whatever type the constraint is defined on.
     pub fn bind_generics_from_trait_constraint(
         &self,
         constraint: &TraitConstraint,
@@ -2795,6 +2789,7 @@ impl Elaborator<'_> {
         }
     }
 
+    /// Insert the ordered generics and associated types from the trait bound.
     pub fn bind_generics_from_trait_bound(
         &self,
         trait_bound: &ResolvedTraitBound,
@@ -2881,24 +2876,38 @@ impl Elaborator<'_> {
     }
 }
 
+/// Binds the ordered [ResolvedGeneric]s of a trait to the ordered generics in a [ResolvedTraitBound].
+///
+/// Panics if the number of types do not match the ordered generics in the trait.
 pub(super) fn bind_ordered_generics(
     params: &[ResolvedGeneric],
     args: &[Type],
     bindings: &mut TypeBindings,
 ) {
-    assert_eq!(params.len(), args.len());
+    assert_eq!(params.len(), args.len(), "unexpected number of ordered generics");
 
     for (param, arg) in params.iter().zip(args) {
         bind_generic(param, arg, bindings);
     }
 }
 
+/// Binds the associated [ResolvedGeneric]s of a trait to the named generics in a [ResolvedTraitBound].
+///
+/// Panics if the number of types exceeds the named generics in the trait.
+/// Any named parameter that does not appear in the arguments is bound to [Type::Error].
 fn bind_named_generics(
     mut params: Vec<ResolvedGeneric>,
     args: &[NamedType],
     bindings: &mut TypeBindings,
 ) {
-    assert!(args.len() <= params.len());
+    assert!(
+        args.len() <= params.len(),
+        "bind_named_generics: trait bound has more named generics than associated types"
+    );
+
+    if params.is_empty() {
+        return;
+    }
 
     for arg in args {
         let i = params
@@ -2907,6 +2916,7 @@ fn bind_named_generics(
             .unwrap_or_else(|| unreachable!("Expected to find associated type named {}", arg.name));
 
         let param = params.swap_remove(i);
+
         bind_generic(&param, &arg.typ, bindings);
     }
 
@@ -2915,6 +2925,10 @@ fn bind_named_generics(
     }
 }
 
+/// Binds the type variable in a [ResolvedGeneric], e.g. a generic parameter of a trait,
+/// to a [Type], which itself can be an unbound type variable.
+///
+/// If the type variable itself appears in the type, then it does nothing.
 fn bind_generic(param: &ResolvedGeneric, arg: &Type, bindings: &mut TypeBindings) {
     // Avoid binding t = t
     if !arg.occurs(param.type_var.id()) {

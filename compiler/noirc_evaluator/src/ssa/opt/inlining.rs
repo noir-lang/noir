@@ -575,6 +575,21 @@ impl<'function> PerFunctionContext<'function> {
             .call_stack_data
             .unwind_call_stack(self.context.call_stack, call_stack_len);
 
+        // If the inlined function has no reachable return (e.g., contains `while true {}`),
+        // new_results will be empty even though old_results expects values. The function
+        // diverges, so any code after this call is unreachable. Create a fresh block with
+        // parameters of the correct types as dummy values.
+        if new_results.is_empty() && !old_results.is_empty() {
+            let unreachable_block = self.context.builder.insert_block();
+            for old_result in old_results {
+                let typ = self.source_function.dfg.type_of_value(*old_result);
+                let param = self.context.builder.add_block_parameter(unreachable_block, typ);
+                self.values.insert(*old_result, param);
+            }
+            self.context.builder.switch_to_block(unreachable_block);
+            return Ok(());
+        }
+
         let new_results = InsertInstructionResult::Results(call_id, &new_results);
         Self::insert_new_instruction_results(&mut self.values, old_results, new_results);
         Ok(())
@@ -1400,6 +1415,81 @@ mod tests {
         if !matches!(ssa, Err(RuntimeError::UnconstrainedCallingConstrained { .. })) {
             panic!("Expected inlining to fail with RuntimeError::UnconstrainedCallingConstrained");
         }
+    }
+
+    #[test]
+    fn inline_diverging_function() {
+        // Regression test: inlining a function with no reachable return (e.g., infinite loop)
+        // should not crash. The inlined function's return block is unreachable because the
+        // jmpif condition is a known constant `true`, so only the loop body branch is visited.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = call f1() -> Field
+            return v0
+        }
+        brillig(inline) fn foo f1 {
+          b0():
+            jmp b1()
+          b1():
+            jmpif u1 1 then: b2, else: b3
+          b2():
+            jmp b1()
+          b3():
+            return Field 1
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        // This should not panic
+        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+        // The inlined function diverges, so main should have an infinite loop
+        // and an unreachable block for the dummy return values.
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1()
+          b1():
+            jmp b2()
+          b2():
+            jmp b1()
+        }
+        ");
+    }
+
+    /// Same as [inline_diverging_function] but the loop header has block parameters.
+    #[test]
+    fn inline_diverging_function_with_block_parameters() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = call f1() -> Field
+            return v0
+        }
+        brillig(inline) fn foo f1 {
+          b0():
+            jmp b1(Field 0, Field 1)
+          b1(v0: Field, v1: Field):
+            v2 = add v0, v1
+            jmpif u1 1 then: b2, else: b3
+          b2():
+            jmp b1(v2, v0)
+          b3():
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1(Field 0, Field 1)
+          b1(v0: Field, v1: Field):
+            v4 = add v0, v1
+            jmp b2()
+          b2():
+            jmp b1(v4, v0)
+        }
+        ");
     }
 
     #[test]
