@@ -16,6 +16,37 @@ use super::{
     value::Value,
 };
 
+impl Instruction {
+    /// Whether this instruction can be safely duplicated into both branches
+    /// when flattening a Brillig conditional (`basic_conditional` pass).
+    ///
+    /// Instructions with side effects (constraints, calls, memory ops) cannot be
+    /// flattened because they would execute unconditionally in the merged block.
+    /// A few instructions that report `has_side_effects() == true` are still safe
+    /// in Brillig conditionals:
+    ///
+    /// - `EnableSideEffectsIf` is an ACIR-only concept (no-op in Brillig).
+    /// - `Allocate`, `IncrementRc`, `DecrementRc` are not predicate-dependent.
+    ///
+    /// Div/Mod and Shl/Shr are blocked unconditionally — even when `has_side_effects`
+    /// would allow them (e.g. known non-zero divisor), they are rarely worth flattening.
+    pub(crate) fn can_flatten_in_conditional(&self, dfg: &DataFlowGraph) -> bool {
+        match self {
+            Instruction::EnableSideEffectsIf { .. }
+            | Instruction::Allocate
+            | Instruction::IncrementRc { .. }
+            | Instruction::DecrementRc { .. } => true,
+
+            Instruction::Binary(binary) => match binary.operator {
+                BinaryOp::Div | BinaryOp::Mod | BinaryOp::Shl | BinaryOp::Shr => false,
+                _ => !self.has_side_effects(dfg),
+            },
+
+            _ => !self.has_side_effects(dfg),
+        }
+    }
+}
+
 impl BinaryOp {
     /// Estimate the Brillig opcode cost of this binary operation given the operand type.
     ///
