@@ -159,7 +159,7 @@ impl Function {
             RuntimeType::Brillig(_) => loop {
                 simplify_between_unrolls(self);
                 let (unrolled, _) = self.try_unroll_loops(force_unroll_threshold);
-                has_unrolled |= has_unrolled;
+                has_unrolled |= unrolled;
                 if !unrolled {
                     break;
                 }
