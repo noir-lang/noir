@@ -121,6 +121,15 @@ impl Type {
         matches!(self, Type::Numeric(NumericType::Boolean))
     }
 
+    /// Returns true if this is an array whose element type is itself an array.
+    /// ACIR uses flat array layout and cannot represent nested arrays.
+    pub fn is_nested_array(&self) -> bool {
+        match self {
+            Type::Array(element_types, _) => element_types.iter().any(|t| t.is_array()),
+            _ => false,
+        }
+    }
+
     pub fn is_array_of_references(&self) -> bool {
         match self {
             Type::Array(element_types, _) => element_types.iter().all(|t| t.is_reference()),

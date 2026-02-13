@@ -38,6 +38,19 @@ pub(crate) fn fuzz_target(
         return FuzzerOutput { witness_stack: WitnessStack::from(witness_map), program: None };
     }
 
+    // ACIR uses flat array layout and cannot represent nested arrays.
+    // Filter out ACIR runtime when any function uses nested arrays in inputs or return type.
+    let runtimes: Vec<RuntimeType> = if data.functions.iter().any(|f| {
+        f.input_types.iter().any(|t| t.is_nested_array()) || f.return_type.is_nested_array()
+    }) {
+        runtimes.into_iter().filter(|r| !matches!(r, RuntimeType::Acir(_))).collect()
+    } else {
+        runtimes
+    };
+    if runtimes.is_empty() {
+        return FuzzerOutput { witness_stack: WitnessStack::from(witness_map), program: None };
+    }
+
     if type_contains_vector_or_reference(&data.functions[0].return_type) {
         // main cannot return a reference
         data.functions[0].return_type = Type::default();

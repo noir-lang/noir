@@ -84,7 +84,7 @@ projects:
     compilation-timeout: 650
     execution-timeout: 35
     brillig-compilation-timeout: 500
-    compilation-memory-limit: 12000
+    compilation-memory-limit: 14000
     execution-memory-limit: 2000
   rollup-checkpoint-root:
     repo: AztecProtocol/aztec-packages
@@ -95,7 +95,7 @@ projects:
     compilation-timeout: 650
     execution-timeout: 35
     brillig-compilation-timeout: 525
-    compilation-memory-limit: 12000
+    compilation-memory-limit: 14000
     execution-memory-limit: 2000
   rollup-tx-merge:
     repo: AztecProtocol/aztec-packages
