@@ -461,7 +461,10 @@ impl Context<'_> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_ssa_snapshot, ssa::Ssa};
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{Ssa, opt::assert_ssa_does_not_change},
+    };
 
     #[test]
     fn basic_jmpif() {
@@ -517,7 +520,7 @@ mod tests {
                   return v1
             }
             "#;
-        crate::ssa::opt::assert_ssa_does_not_change(src, Ssa::flatten_basic_conditionals);
+        assert_ssa_does_not_change(src, Ssa::flatten_basic_conditionals);
     }
 
     #[test]
@@ -580,10 +583,81 @@ mod tests {
                 return v3
             }
             ";
-        // Neither inner conditional gets flattened: merge_cost=3 per exit param means
-        // jump_overhead=3 for 1-param conditionals, and both inner branches exceed the threshold.
-        // Inner 1: truncate(7)+truncate(7)=14 >= 14/2+3=10
-        // Inner 2: and(1)+truncate(7)=8 >= 8/2+3=7
-        crate::ssa::opt::assert_ssa_does_not_change(src, Ssa::flatten_basic_conditionals);
+        // Inner 1 is NOT flattened: truncate costs are high enough.
+        // Inner 2 IS flattened: and+truncate is cheap enough to merge.
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_basic_conditionals();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn foo f0 {
+          b0(v0: u32):
+            v4 = eq v0, u32 5
+            v5 = not v4
+            jmpif v4 then: b5, else: b1
+          b1():
+            v17 = lt v0, u32 3
+            jmpif v17 then: b3, else: b2
+          b2():
+            v19 = truncate v0 to 2 bits, max_bit_size: 32
+            jmp b4(v19)
+          b3():
+            v18 = truncate v0 to 1 bits, max_bit_size: 32
+            jmp b4(v18)
+          b4(v1: u32):
+            jmp b6(v1)
+          b5():
+            v7 = lt u32 2, v0
+            v8 = and v0, u32 2
+            v9 = not v7
+            v10 = truncate v0 to 3 bits, max_bit_size: 32
+            v11 = cast v7 as u32
+            v12 = cast v9 as u32
+            v13 = unchecked_mul v11, v8
+            v14 = unchecked_mul v12, v10
+            v15 = unchecked_add v13, v14
+            jmp b6(v15)
+          b6(v2: u32):
+            return v2
+        }
+        ");
+    }
+
+    #[test]
+    fn nested_jmpifs_not_flattened() {
+        // Both inner conditionals use truncate on both branches (cost 7 each),
+        // so total cost per inner = 14. jump_overhead = (2+2+2) - 1 = 5.
+        // 14 >= 14/2 + 5 = 12, so neither inner conditional is flattened.
+        let src = "
+            brillig(inline) fn foo f0 {
+              b0(v0: u32):
+                v5 = eq v0, u32 5
+                v6 = not v5
+                jmpif v5 then: b5, else: b1
+              b1():
+                v8 = lt v0, u32 3
+                jmpif v8 then: b3, else: b2
+              b2():
+                v9 = truncate v0 to 2 bits, max_bit_size: 32
+                jmp b4(v9)
+              b3():
+                v10 = truncate v0 to 1 bits, max_bit_size: 32
+                jmp b4(v10)
+              b4(v1: u32):
+                jmp b9(v1)
+              b5():
+                v12 = lt u32 2, v0
+                jmpif v12 then: b7, else: b6
+              b6():
+                v13 = truncate v0 to 3 bits, max_bit_size: 32
+                jmp b8(v13)
+              b7():
+                v14 = truncate v0 to 4 bits, max_bit_size: 32
+                jmp b8(v14)
+              b8(v2: u32):
+                jmp b9(v2)
+              b9(v3: u32):
+                return v3
+            }
+            ";
+        assert_ssa_does_not_change(src, Ssa::flatten_basic_conditionals);
     }
 }
