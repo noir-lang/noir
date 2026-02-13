@@ -1051,9 +1051,13 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 }
             }
         } else {
+            let in_acir_context = !self.in_unconstrained_context();
             vecmap(results, |result| {
                 let typ = self.dfg().type_of_value(*result);
-                Value::uninitialized(&typ, *result)
+                let value = Value::uninitialized(&typ, *result);
+                // In ACIR context, arrays must be flat (scalars only).
+                // Value::uninitialized creates nested arrays, so flatten them.
+                if in_acir_context { Value::flatten_for_acir(&value) } else { value }
             })
         };
 
@@ -1346,7 +1350,9 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             // Returning uninitialized/zero if both conditions are false to match
             // the decomposition of `cond * then_value + !cond * else_value` for numeric values.
             let typ = self.dfg().type_of_value(result);
-            Value::uninitialized(&typ, result)
+            let value = Value::uninitialized(&typ, result);
+            // In ACIR context, arrays must be flat (scalars only).
+            if !self.in_unconstrained_context() { Value::flatten_for_acir(&value) } else { value }
         } else if then_condition {
             then_value
         } else {
