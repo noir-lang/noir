@@ -2932,8 +2932,7 @@ fn module_add_item(
     interpreter.elaborate_in_module(module_id, reason, |elaborator| {
         let mut generated_items = CollectedItems::default();
 
-        let local_module = module_id.local_id;
-        elaborator.add_items(top_level_statements, &mut generated_items, local_module, location);
+        elaborator.add_items(top_level_statements, &mut generated_items, location);
 
         if !generated_items.is_empty() {
             elaborator.elaborate_items(generated_items);
