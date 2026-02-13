@@ -300,6 +300,27 @@ impl LastUseContext {
         }
     }
 
+    /// Navigate the `Branches` tree along the given path and extract only
+    /// the sub-tree at the leaf, replacing it with `Branches::None`.
+    /// Sibling branches are left untouched.
+    fn extract_branch_at_path(
+        branches: &mut Branches,
+        path: &[(IfOrMatchId, BranchId)],
+    ) -> Branches {
+        match path {
+            [] => std::mem::replace(branches, Branches::None),
+            [(if_id, branch_id), rest @ ..] => {
+                if let Branches::IfOrMatch(id, map) = branches
+                    && *id == *if_id
+                    && let Some(branch) = map.get_mut(branch_id)
+                {
+                    return Self::extract_branch_at_path(branch, rest);
+                }
+                Branches::None
+            }
+        }
+    }
+
     /// Collect the last use(s) of every local variable.
     fn get_variables_to_move(self) -> HashMap<LocalId, Vec<IdentId>> {
         let mut moves = self.confirmed_moves;
@@ -515,8 +536,12 @@ impl LastUseContext {
             // Confirm any last uses we have on the variable at this point (which may be in `assign.expression`),
             // From here on it acts as a newly declared variable with no history.
             if let Some((_, branches)) = self.last_uses.get_mut(&local_id) {
-                let branches = std::mem::replace(branches, Branches::None);
-                self.confirmed_moves.entry(local_id).or_default().extend(branches.flatten_uses());
+                let path = self
+                    .current_loop_and_branch
+                    .last()
+                    .expect("We should always have at least 1 path");
+                let extracted = Self::extract_branch_at_path(branches, path);
+                self.confirmed_moves.entry(local_id).or_default().extend(extracted.flatten_uses());
                 return;
             }
         }
