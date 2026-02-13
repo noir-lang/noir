@@ -24,6 +24,7 @@ use crate::ssa::{
         function_inserter::FunctionInserter,
         instruction::{Instruction, TerminatorInstruction},
         post_order::PostOrder,
+        types::Type,
         value::ValueId,
     },
     opt::flatten_cfg::WorkList,
@@ -118,17 +119,13 @@ fn is_conditional(
         // Compute the actual branching overhead for this conditional:
         // Flattening eliminates: JmpIf + then's Jmp + else's Jmp
         // Flattening adds merge (IfElse) ops only for exit params where branches differ.
-        // Numeric merges cost ~3 opcodes (mul+mul+add), array merges cost ~20 (memory copy).
+        // SingleAddr merges (numeric/reference) cost 1 opcode (ConditionalMov), array merges cost ~20 (memory copy).
         // Params where both branches pass the same value simplify to a no-op.
         let then_term_cost = function.dfg[*then_destination].unwrap_terminator().cost();
         let else_term_cost = function.dfg[*else_destination].unwrap_terminator().cost();
         let exit_block = next_then.unwrap();
-        let merge_cost = differing_merge_cost(
-            *then_destination,
-            *else_destination,
-            exit_block,
-            &function.dfg,
-        );
+        let merge_cost =
+            differing_merge_cost(*then_destination, *else_destination, exit_block, &function.dfg);
         let jump_overhead =
             (jmpif_cost + then_term_cost + else_term_cost).saturating_sub(merge_cost) as u32;
         let cost = cost_right.saturating_add(cost_left);
@@ -198,7 +195,8 @@ fn is_conditional(
 /// would generate. Only parameters where both branches pass different values need
 /// merge instructions; identical values simplify to a no-op.
 ///
-/// For numeric parameters, the merge is `mul + mul + add` = 3 opcodes.
+/// For SingleAddr types (numerics and references), the merge is a single
+/// `ConditionalMov` = 1 opcode.
 /// For array/slice parameters, the IfElse generates a conditional memory copy
 /// which is much more expensive (~20 opcodes).
 fn differing_merge_cost(
@@ -220,10 +218,10 @@ fn differing_merge_cost(
     for ((a, b), param) in then_args.iter().zip(else_args.iter()).zip(exit_params.iter()) {
         if a != b {
             let typ = dfg.type_of_value(*param);
-            if typ.is_numeric() {
-                cost += 3; // mul + mul + add
+            if typ.is_numeric() || matches!(typ, Type::Reference(_)) {
+                cost += 1; // SingleAddr: one ConditionalMov in Brillig
             } else {
-                // Array/slice/reference: IfElse generates conditional memory copy
+                // Array/slice: conditional memory copy (~20 opcodes)
                 cost += 20;
             }
         }
