@@ -9,16 +9,6 @@ warning: struct `MyStruct` is never constructed
   │                   -------- struct is never constructed
   │
 
-error: Duplicate definitions of import with name lib found
-  ┌─ src/main.nr:1:33
-  │
-1 │ use reexporting_lib::{MyStruct, lib};
-  │                                 --- Second import found here
-2 │ 
-3 │ mod lib;
-  │     --- First import found here
-  │
-
 error: Duplicate definitions of import with name MyStruct found
   ┌─ src/main.nr:1:23
   │
@@ -27,6 +17,16 @@ error: Duplicate definitions of import with name MyStruct found
   ·
 4 │ use crate::lib::MyStruct;
   │                 -------- Second import found here
+  │
+
+error: Duplicate definitions of import with name lib found
+  ┌─ src/main.nr:1:33
+  │
+1 │ use reexporting_lib::{MyStruct, lib};
+  │                                 --- Second import found here
+2 │ 
+3 │ mod lib;
+  │     --- First import found here
   │
 
 error: Could not resolve 'is_struct_zero' in path
