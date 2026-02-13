@@ -9,6 +9,7 @@ pub(crate) mod constant_allocation;
 #[cfg(test)]
 mod tests;
 mod variable_liveness;
+mod copy_coalescing;
 
 use acvm::FieldElement;
 use noirc_errors::call_stack::CallStack;
