@@ -601,13 +601,49 @@ impl Parser<'_> {
                 && matches!(self.token.token(), Token::Ident(..))
                 && self.next_is(Token::Colon);
 
-            let consequence = self.parse_block_after_left_brace();
+            let mut consequence = self.parse_block_after_left_brace();
 
             if looks_like_struct_literal {
                 self.errors.truncate(errors_before_consequence);
                 let location = self.location_since(condition.location);
                 self.push_error(ParserErrorReason::StructLiteralInIfCondition, location);
                 condition = Expression { kind: ExpressionKind::Error, location };
+
+                // Skip the condition tail and stop only at a top-level consequence `{`.
+                let mut closing_delimiters = Vec::new();
+                while !self.at_eof() {
+                    let token = self.token.token().clone();
+
+                    if closing_delimiters.is_empty() {
+                        if token == Token::LeftBrace {
+                            break;
+                        }
+
+                        if token == Token::Semicolon || token == Token::RightBrace {
+                            break;
+                        }
+                    }
+
+                    match token {
+                        Token::LeftParen => closing_delimiters.push(Token::RightParen),
+                        Token::LeftBracket => closing_delimiters.push(Token::RightBracket),
+                        Token::LeftBrace => closing_delimiters.push(Token::RightBrace),
+                        Token::RightParen | Token::RightBracket | Token::RightBrace => {
+                            if closing_delimiters.last() == Some(&token) {
+                                closing_delimiters.pop();
+                            }
+                        }
+                        _ => {}
+                    }
+
+                    self.bump();
+                }
+
+                if self.eat_left_brace() {
+                    consequence = self.parse_block_after_left_brace();
+                } else {
+                    self.expected_token(Token::LeftBrace);
+                }
             }
 
             consequence
@@ -2337,7 +2373,22 @@ mod tests {
     fn errors_on_struct_literal_used_in_if_condition() {
         let src = "if MyStruct { field: true }.field {}";
         let mut parser = Parser::for_str_with_dummy_file(src);
-        let _ = parser.parse_expression_or_error();
+        let expression = parser.parse_expression_or_error();
+        assert_eq!(expression.location.span.end() as usize, src.len());
+
+        assert_eq!(parser.errors.len(), 1);
+        assert!(matches!(
+            parser.errors[0].reason(),
+            Some(ParserErrorReason::StructLiteralInIfCondition)
+        ));
+    }
+
+    #[test]
+    fn errors_on_struct_literal_used_in_if_condition_with_block_argument() {
+        let src = "if MyStruct { field: true }.foo({ 1 }) {}";
+        let mut parser = Parser::for_str_with_dummy_file(src);
+        let expression = parser.parse_expression_or_error();
+        assert_eq!(expression.location.span.end() as usize, src.len());
 
         assert_eq!(parser.errors.len(), 1);
         assert!(matches!(
