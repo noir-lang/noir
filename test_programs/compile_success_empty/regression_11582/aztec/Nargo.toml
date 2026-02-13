@@ -1,0 +1,9 @@
+[package]
+name = "dependency1"
+type = "lib"
+authors = [""]
+compiler_unstable_features = ["enums"]
+
+[dependencies]
+# dependency2 = { path = "../dependency2" }
+# poseidon = { git = "https://github.com/noir-lang/poseidon", tag = "v0.1.1" }
