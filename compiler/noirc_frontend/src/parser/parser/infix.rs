@@ -118,7 +118,8 @@ impl Parser<'_> {
         parse_infix!(
             self,
             Parser::parse_shift,
-            if self.eat(Token::Less) {
+            if self.next_token.token() != &Token::LessEqual && self.eat(Token::Less) {
+                // Make sure to skip the `<<=` case, as `<<=` is lexed as `< <=`.
                 BinaryOpKind::Less
             } else if self.eat(Token::LessEqual) {
                 BinaryOpKind::LessEqual
@@ -141,7 +142,12 @@ impl Parser<'_> {
         parse_infix!(
             self,
             Parser::parse_add_or_subtract,
-            if !self.next_is(Token::Assign) && self.eat(Token::ShiftLeft) {
+            if self.at(Token::Less) && self.next_is(Token::Less) {
+                // Left-shift (<<) is issued as two separate < tokens by the lexer as this makes it easier
+                // to parse nested generic types. For normal expressions however, it means we have to manually
+                // parse two less-than tokens as a single left-shift here.
+                self.bump();
+                self.bump();
                 BinaryOpKind::ShiftLeft
             } else if self.at(Token::Greater) && self.next_is(Token::Greater) {
                 // Right-shift (>>) is issued as two separate > tokens by the lexer as this makes it easier

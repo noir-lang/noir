@@ -468,7 +468,10 @@ impl Instruction {
             | Instruction::ConstrainNotEqual(..) => true,
 
             Instruction::Call { func, .. } => match dfg[*func] {
-                Value::Function(id) => !matches!(dfg.purity_of(id), Some(Purity::Pure)),
+                // All user-defined function calls are predicated during ACIR generation
+                // (both ACIR and Brillig calls unconditionally pass the side effects predicate),
+                // so this must return true regardless of purity.
+                Value::Function(_) => true,
                 Value::Intrinsic(intrinsic) => {
                     match intrinsic {
                         // These utilize `noirc_evaluator::acir::Context::get_flattened_index` internally
@@ -479,6 +482,10 @@ impl Instruction {
                         // effect variable in the SSA and use it to optimize out memory operations that we know
                         // would fail, but they shouldn't because they might be disabled.
                         Intrinsic::VectorPopFront | Intrinsic::VectorPopBack => true,
+                        // RecursiveAggregation's predicate is injected implicitly from
+                        // `current_side_effects_enabled_var` during ACIR generation, so we
+                        // must preserve the EnableSideEffectsIf that sets it.
+                        Intrinsic::BlackBox(BlackBoxFunc::RecursiveAggregation) => true,
                         _ => false,
                     }
                 }

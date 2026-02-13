@@ -246,7 +246,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         if visibility != ItemVisibility::Private {
             self.push_str(&visibility.to_string());
             self.push(' ');
-        };
+        }
     }
 
     fn show_visibility(&mut self, visibility: Visibility) {
@@ -563,7 +563,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         if let GlobalValue::Resolved(value) = &global_info.value {
             self.push_str(" = ");
             self.show_value(value);
-        };
+        }
         self.push_str(";");
     }
 
@@ -571,7 +571,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         let modifiers = self.interner.function_modifiers(&func_id);
         let func_meta = self.interner.function_meta(&func_id);
 
-        if modifiers.is_unconstrained {
+        if func_meta.is_unconstrained() {
             self.push_str("unconstrained ");
         }
         if modifiers.is_comptime {

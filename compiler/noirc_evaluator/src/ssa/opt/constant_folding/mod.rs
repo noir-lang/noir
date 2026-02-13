@@ -92,7 +92,7 @@ impl Ssa {
             if func.runtime().is_brillig() {
                 let cloned_function = Function::clone_with_id(*func_id, func);
                 brillig_functions.insert(*func_id, cloned_function);
-            };
+            }
         }
         let mut interpreter = if brillig_functions.is_empty() {
             None
@@ -317,17 +317,28 @@ impl Context {
         {
             match cache_result {
                 CacheResult::Cached { results: cached, .. } => {
-                    // We track whether we may mutate `MakeArray` instructions before we deduplicate
-                    // them but we still need to issue an extra inc_rc in case they're mutated afterward.
-                    //
-                    // This also applies to calls that return arrays.
-                    if runtime_is_brillig {
-                        Self::increase_rc(id, cached, block, dfg);
+                    // Guard against self-deduplication: if the cached results are exactly
+                    // our own results, the instruction was hoisted here in an earlier visit.
+                    // The cache still points to itself, so mapping old→cached is a no-op that
+                    // would cause us to skip re-inserting the instruction, orphaning its result values.
+                    // In that case, fall through and re-insert instead of deduplicating.
+                    // The `!is_empty` guard is needed because Constrain instructions have
+                    // no results and trivially match.
+                    if !old_results.is_empty() && old_results == cached {
+                        // Fall through to re-insert the instruction normally.
+                    } else {
+                        // We track whether we may mutate `MakeArray` instructions before we deduplicate
+                        // them but we still need to issue an extra inc_rc in case they're mutated afterward.
+                        //
+                        // This also applies to calls that return arrays.
+                        if runtime_is_brillig {
+                            Self::increase_rc(id, cached, block, dfg);
+                        }
+
+                        self.values_to_replace.batch_insert(&old_results, cached);
+
+                        return;
                     }
-
-                    self.values_to_replace.batch_insert(&old_results, cached);
-
-                    return;
                 }
                 CacheResult::NeedToHoistToCommonBlock { dominator } => {
                     // During revisits we can visit a block which dominates something we already cached instructions from,
@@ -347,7 +358,7 @@ impl Context {
                     target_block = dominator;
                 }
             }
-        };
+        }
 
         // First try to inline a call to a brillig function with all constant arguments.
         let new_results = if runtime_is_brillig {
@@ -384,7 +395,7 @@ impl Context {
         // so that we use the correct set of constrained values in future.
         if let Instruction::EnableSideEffectsIf { condition } = instruction {
             *side_effects_enabled_var = condition;
-        };
+        }
     }
 
     fn increase_rc(
@@ -535,15 +546,16 @@ impl Context {
             CanBeDeduplicated::UnderSamePredicate if use_constraint_info => cache_instruction(),
             // We also allow deduplicating MakeArray instructions that we have tracked which haven't been mutated.
             _ if is_make_array => cache_instruction(),
-
             CanBeDeduplicated::UnderSamePredicate | CanBeDeduplicated::Never => {}
         }
     }
 
     /// Returns the predicate value to be used when looking up this [`Instruction`] in the cache.
     ///
-    /// We sometimes remove the predicate in situations where an instruction is infallible as it allows us to
-    /// deduplicate more aggressively.
+    /// Instructions that can be deduplicated only `UnderSamePredicate` include the predicate
+    /// in the cache key so that identical instructions under different `enable_side_effects`
+    /// contexts are not incorrectly merged. Instructions that can `Always` be deduplicated omit
+    /// the predicate for more aggressive deduplication.
     fn cache_predicate(
         &self,
         side_effects_enabled_var: ValueId,
@@ -622,19 +634,25 @@ fn can_be_deduplicated(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeD
         | IncrementRc { .. }
         | DecrementRc { .. } => CanBeDeduplicated::Never,
 
-        Call { func, .. } => {
-            let purity = match dfg[*func] {
-                Value::Intrinsic(intrinsic) => Some(intrinsic.purity()),
-                Value::Function(id) => dfg.purity_of(id),
-                _ => None,
-            };
-            match purity {
-                Some(Purity::Pure) => CanBeDeduplicated::Always,
-                Some(Purity::PureWithPredicate) => CanBeDeduplicated::UnderSamePredicate,
-                Some(Purity::Impure) => CanBeDeduplicated::Never,
-                None => CanBeDeduplicated::Never,
-            }
-        }
+        Call { func, .. } => match dfg[*func] {
+            Value::Intrinsic(intrinsic) => match intrinsic.purity() {
+                Purity::Pure => CanBeDeduplicated::Always,
+                Purity::PureWithPredicate => CanBeDeduplicated::UnderSamePredicate,
+                Purity::Impure => CanBeDeduplicated::Never,
+            },
+            // Calls to user-defined functions may lower to predicated `Opcode::Call` or
+            // `Opcode::BrilligCall` in ACIR. Even when the callee is pure, the predicated
+            // opcode skips the callee's constraints when the predicate is false, leaving
+            // outputs unconstrained. We must therefore include the predicate in the cache
+            // key to prevent deduplication across different `enable_side_effects` contexts.
+            Value::Function(id) => match dfg.purity_of(id) {
+                Some(Purity::Pure | Purity::PureWithPredicate) => {
+                    CanBeDeduplicated::UnderSamePredicate
+                }
+                Some(Purity::Impure) | None => CanBeDeduplicated::Never,
+            },
+            _ => CanBeDeduplicated::Never,
+        },
 
         // We can deduplicate these instructions if we know the predicate is also the same.
         Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => {
@@ -693,6 +711,8 @@ fn can_be_deduplicated(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeD
 
 #[cfg(test)]
 mod tests {
+    use test_case::test_case;
+
     use crate::{
         assert_ssa_snapshot,
         ssa::{
@@ -1002,6 +1022,43 @@ mod tests {
             constrain v4 == v10
             enable_side_effects v0
             return
+        }
+        ");
+    }
+
+    #[test]
+    fn deduplicates_pure_calls_under_same_predicate() {
+        // When two identical calls to a pure function occur under the same
+        // predicate, they CAN be deduplicated.
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1, v1: Field):
+                enable_side_effects v0
+                v2 = call f1(v1) -> Field
+                v3 = call f1(v1) -> Field
+                enable_side_effects u1 1
+                return v2, v3
+            }
+            acir(inline) pure fn my_pure_fn f1 {
+              b0(v0: Field):
+                v1 = add v0, Field 1
+                return v1
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants_using_constraints(MIN_ITER);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: Field):
+            enable_side_effects v0
+            v3 = call f1(v1) -> Field
+            enable_side_effects u1 1
+            return v3, v3
+        }
+        acir(inline) pure fn my_pure_fn f1 {
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            return v2
         }
         ");
     }
@@ -2585,5 +2642,87 @@ mod tests {
 
         let folded = ssa.fold_constants_using_constraints(DEFAULT_MAX_ITER);
         folded.interpret(Vec::new()).unwrap();
+    }
+
+    /// Regression test: constant folding's instruction hoisting can orphan values when
+    /// a hoisted instruction self-deduplicates during a revisit.
+    ///
+    /// Pass 1: b4/b5 are siblings with `not v2`, hoisted to b3. The `eq v2, u1 0`
+    /// in b6 doesn't match `not` in the cache, but push_instruction simplifies it to
+    /// a new `Not(v2)` instruction placed in b6 (not seen by this pass).
+    ///
+    /// Revisit from b3: the new `Not(v2)` in b6 hits the cache from b3, but b3
+    /// doesn't dominate b6 (path b2→b6 bypasses b3), so it's hoisted to
+    /// common_dom(b3, b6) = b2. Later in the same iteration, b2 is visited via the
+    /// loop back-edge (b6→b1→b2), and the hoisted `Not` self-deduplicates: the cache
+    /// points to its own results, so the pass skips re-insertion, orphaning the result.
+    #[test]
+    fn hoist_into_loop_header_does_not_self_deduplicate() {
+        let src = r#"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: Field):
+            v1 = allocate -> &mut u1
+            store u1 1 at v1
+            jmp b1()
+          b1():
+            v2 = load v1 -> u1
+            jmpif v2 then: b2, else: b7
+          b2():
+            jmpif v2 then: b3, else: b6
+          b3():
+            jmpif v2 then: b4, else: b5
+          b4():
+            v3 = not v2
+            jmp b6()
+          b5():
+            v4 = not v2
+            jmp b6()
+          b6():
+            v5 = eq v2, u1 0
+            store v5 at v1
+            jmp b1()
+          b7():
+            return v2
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let input = Value::from_constant(42_u128.into(), NumericType::NativeField).unwrap();
+        let (_, _) = assert_pass_does_not_affect_execution(ssa, vec![input], |ssa| {
+            ssa.fold_constants_using_constraints(DEFAULT_MAX_ITER)
+        });
+    }
+
+    // Regression test: identical calls to a `Purity::Pure` callee under different
+    // `enable_side_effects` predicates must not be deduplicated.
+    //
+    // `acir(fold)` functions lower to predicated `Opcode::Call` and brillig functions
+    // lower to predicated `Opcode::BrilligCall`. If both calls were collapsed into one
+    // (predicated by v0), then when v0=0 the callee's constraints would be skipped, its
+    // output witness would become unconstrained, and the `constrain` under the complementary
+    // predicate (`not v0`) would reference an unconstrained value — a soundness hole.
+    #[test_case("acir(fold)"; "acir_fold")]
+    #[test_case("brillig(inline)"; "brillig")]
+    fn does_not_deduplicate_pure_calls_under_different_predicates(callee_runtime: &str) {
+        let src = format!(
+            "
+        acir(inline) predicate_pure fn main f0 {{
+          b0(v0: u1, v1: Field):
+            enable_side_effects v0
+            v2 = call f1(v1) -> Field
+            v3 = not v0
+            enable_side_effects v3
+            v4 = call f1(v1) -> Field
+            constrain v4 != Field 123
+            enable_side_effects u1 1
+            return
+        }}
+        {callee_runtime} pure fn foo f1 {{
+          b0(v0: Field):
+            v1 = add v0, Field 1
+            return v1
+        }}
+        "
+        );
+        assert_ssa_does_not_change(&src, |ssa| ssa.fold_constants_using_constraints(MIN_ITER));
     }
 }

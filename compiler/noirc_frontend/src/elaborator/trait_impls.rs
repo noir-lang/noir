@@ -715,7 +715,7 @@ impl Elaborator<'_> {
                     bindings.insert(type_var_id, (new_type_var, kind, named_type.typ.clone()));
                 }
                 _ => (),
-            };
+            }
         }
     }
 

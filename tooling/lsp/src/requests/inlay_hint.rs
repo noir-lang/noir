@@ -362,7 +362,7 @@ impl Visitor for InlayHintCollector<'_> {
         // Only show inlay hints for let variables that don't have an explicit type annotation
         if let_statement.r#type.is_none() {
             let_statement.pattern.accept(self);
-        };
+        }
 
         let_statement.expression.accept(self);
 

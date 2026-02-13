@@ -195,6 +195,38 @@ impl FuncMeta {
         self.kind.can_ignore_return_type()
     }
 
+    pub fn is_unconstrained(&self) -> bool {
+        match &self.typ {
+            Type::Function(_, _, _, unconstrained) => {
+                return *unconstrained;
+            }
+            Type::Forall(_, typ) => {
+                if let Type::Function(_, _, _, unconstrained) = typ.as_ref() {
+                    return *unconstrained;
+                }
+            }
+            _ => (),
+        }
+        unreachable!("A function type can only be Function or Forall(Function)")
+    }
+
+    pub fn set_unconstrained(&mut self, unconstrained: bool) {
+        match &mut self.typ {
+            Type::Function(_, _, _, unconstrained_field) => {
+                *unconstrained_field = unconstrained;
+                return;
+            }
+            Type::Forall(_, typ) => {
+                if let Type::Function(_, _, _, unconstrained_field) = typ.as_mut() {
+                    *unconstrained_field = unconstrained;
+                    return;
+                }
+            }
+            _ => (),
+        }
+        unreachable!("A function type can only be Function or Forall(Function)")
+    }
+
     /// Gives the (uninstantiated) return type of this function.
     pub fn return_type(&self) -> &Type {
         match &self.typ {

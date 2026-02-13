@@ -488,7 +488,7 @@ mod tests {
 
             if path.file_name().is_none_or(|name| name != "Prover.toml") {
                 continue;
-            };
+            }
 
             return Some(path);
         }

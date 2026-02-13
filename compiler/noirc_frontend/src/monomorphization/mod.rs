@@ -1279,8 +1279,8 @@ impl<'interner> Monomorphizer<'interner> {
         // of both (constrained, unconstrained). This is used only as an optimization to avoid
         // unnecessary monomorphization when calling a known function.
         use_current_runtime: bool,
-        // If true, evaluate some builtins to function values. This is disabled when codegening the
-        // function in a function call since we can avoid creating a new function and instead
+        // If true, evaluate some builtins to function values. This is disabled when code-generating
+        // the function in a function call since we can avoid creating a new function and instead
         // inline the body directly which keeps some minimal SSA pass tests working.
         evaluate_builtin: bool,
     ) -> Result<ast::Expression, MonomorphizationError> {
@@ -2121,7 +2121,7 @@ impl<'interner> Monomorphizer<'interner> {
             for id in &call.arguments {
                 arguments.push(self.expr(*id)?);
             }
-        };
+        }
 
         let hir_arguments = vecmap(&call.arguments, |id| self.interner.expression(id));
 
@@ -2403,6 +2403,9 @@ impl<'interner> Monomorphizer<'interner> {
                 let reference = Box::new(self.lvalue(*lvalue)?);
                 let element_type = Self::convert_type(&element_type, location)?;
                 ast::LValue::Dereference { reference, element_type }
+            }
+            HirLValue::Error { .. } => {
+                unreachable!("Encountered Error node during monomorphization");
             }
         };
 
@@ -2830,8 +2833,7 @@ impl<'interner> Monomorphizer<'interner> {
     /// Returns `true` if a function itself unconstrained, or we are currently monomorphizing an
     /// unconstrained function, in which case all callees are treated as unconstrained.
     fn is_unconstrained(&self, func_id: node_interner::FuncId) -> bool {
-        self.in_unconstrained_function
-            || self.interner.function_modifiers(&func_id).is_unconstrained
+        self.in_unconstrained_function || self.interner.function_meta(&func_id).is_unconstrained()
     }
 
     // Functions are represented as pairs of (constrained, unconstrained) versions of the same
@@ -2872,7 +2874,7 @@ impl<'interner> Monomorphizer<'interner> {
         if let HirExpression::Ident(ident, _) = self.interner.expression(&function)
             && let DefinitionKind::Function(func_id) = self.interner.definition(ident.id).kind
         {
-            return self.interner.function_modifiers(&func_id).is_unconstrained;
+            return self.interner.function_meta(&func_id).is_unconstrained();
         }
 
         false
