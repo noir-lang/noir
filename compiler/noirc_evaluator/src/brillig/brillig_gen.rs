@@ -70,7 +70,7 @@ pub(crate) fn gen_brillig_for(
     // The entry point must use the same spill_support as the callee so that
     // parameter offsets (start_offset) align with the function body's register layout.
     let callee_spill_support =
-        brillig.ssa_function_to_brillig.get(&func.id()).map_or(false, |a| a.spill_support);
+        brillig.ssa_function_to_brillig.get(&func.id()).is_some_and(|a| a.spill_support);
 
     let (mut entry_point, stack_start) = BrilligContext::new_entry_point_artifact(
         arguments,

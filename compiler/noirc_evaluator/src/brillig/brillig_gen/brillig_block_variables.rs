@@ -21,7 +21,7 @@ use crate::{
         assert_u32,
         brillig_ir::{
             BrilligContext,
-            brillig_variable::{BrilligVariable, SingleAddrVariable, get_bit_size_from_ssa_type},
+            brillig_variable::{BrilligVariable, get_bit_size_from_ssa_type},
             registers::{Allocated, RegisterAllocator},
         },
     },

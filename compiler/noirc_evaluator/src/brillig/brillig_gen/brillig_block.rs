@@ -251,7 +251,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         self.ensure_register_capacity(1);
 
         let sm = self.function_context.spill_manager.as_ref().unwrap();
-        let spill_info = sm.get_spill(&value_id).unwrap().clone();
+        let spill_info = *sm.get_spill(&value_id).unwrap();
         let (scratch_addr, scratch_offset) = ReservedRegisters::spill_scratch();
 
         let new_reg = self.brillig_context.allocate_register().detach();
