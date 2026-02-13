@@ -593,17 +593,13 @@ impl DefCollector {
             break;
         }
 
-        // De-duplicate errors by location.
         // Because a use tree like `use foo::{bar, baz}` is desugared into `use foo::bar; use foo::baz;`,
         // if `foo` is not found then the error will happen twice. Given that only one error kind can happen
         // per path segment (either the segment was not found, or it's private, or it doesn't resolve to a module),
-        // this is safe to do.
-        let mut errors_by_location: HashMap<Location, CompilationError> = HashMap::default();
-        for error in inner_errors {
-            errors_by_location.insert(error.location(), error);
-        }
-        let errors = errors_by_location.into_values().collect::<Vec<_>>();
-        outer_errors.extend(errors);
+        // it's safe to only keep one error per location.
+        let inner_errors = inner_errors.into_iter().map(|error| (error.location(), error));
+        let inner_errors = inner_errors.collect::<HashMap<_, _>>().into_values();
+        outer_errors.extend(inner_errors);
     }
 
     /// Processes a resolved import by bringing into scope the imported item.
