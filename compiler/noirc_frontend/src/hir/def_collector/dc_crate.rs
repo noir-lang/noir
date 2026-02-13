@@ -570,7 +570,7 @@ impl DefCollector {
 
             // If we didn't make any progress, give up and:
             // 1. process successful imports
-            // 2. record errors of unecessful ones
+            // 2. record errors of unsuccessful ones
             for batch in imports_with_errors {
                 for (result, collected_import) in batch {
                     match result {
