@@ -610,10 +610,8 @@ impl Context {
         match can_be_deduplicated {
             CanBeDeduplicated::Always => cache_instruction(),
             CanBeDeduplicated::UnderSamePredicate if use_constraint_info => cache_instruction(),
-            // We also allow deduplicating MakeArray instructions whose type isn't mutated
-            // through block parameters (which we can't track due to RPO ordering).
+            // We also allow deduplicating MakeArray instructions that we have tracked which haven't been mutated.
             _ if is_safe_make_array => cache_instruction(),
-
             CanBeDeduplicated::UnderSamePredicate | CanBeDeduplicated::Never => {}
         }
     }

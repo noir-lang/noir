@@ -851,3 +851,201 @@ fn regression_10431_type_alias() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn numeric_generic_trait_method_via_instance() {
+    let src = r#"
+    struct Vector<let N: u32> {
+        data: [Field; N],
+    }
+
+    trait Process {
+        fn process(self) -> Field;
+    }
+
+    impl<let N: u32> Process for Vector<N> {
+        fn process(self) -> Field {
+            self.data[0]
+        }
+    }
+
+    fn do_process<let M: u32>(v: Vector<M>) -> Field {
+        v.process()
+    }
+
+    fn main() {
+        let v = Vector { data: [1, 2, 3] };
+        let _ = do_process(v);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn numeric_generic_static_trait_method_turbofish() {
+    let src = r#"
+    struct Matrix<let R: u32, let C: u32> {}
+
+    trait Dimensions {
+        fn rows() -> u32;
+        fn cols() -> u32;
+    }
+
+    impl<let R: u32, let C: u32> Dimensions for Matrix<R, C> {
+        fn rows() -> u32 { R }
+        fn cols() -> u32 { C }
+    }
+
+    fn get_rows<let R: u32, let C: u32>() -> u32 {
+        Matrix::<R, C>::rows()
+    }
+
+    fn main() {
+        let _ = get_rows::<3, 4>();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn generic_fn_trait_method_on_struct_with_numeric_generic() {
+    let src = r#"
+    struct Arr<let N: u32> {
+        inner: [Field; N],
+    }
+
+    trait Len {
+        fn len(self) -> u32;
+    }
+
+    impl<let N: u32> Len for Arr<N> {
+        fn len(self) -> u32 { N }
+    }
+
+    fn get_len<let N: u32>(a: Arr<N>) -> u32 {
+        a.len()
+    }
+
+    fn main() {
+        let a = Arr { inner: [1, 2, 3] };
+        assert(get_len(a) == 3);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn numeric_generic_propagation_chain() {
+    let src = r#"
+    fn identity<let N: u32>(arr: [Field; N]) -> [Field; N] {
+        arr
+    }
+
+    fn wrap_identity<let N: u32>(arr: [Field; N]) -> [Field; N] {
+        identity(arr)
+    }
+
+    fn double_wrap<let N: u32>(arr: [Field; N]) -> [Field; N] {
+        wrap_identity(arr)
+    }
+
+    fn main() {
+        let arr = [1, 2, 3];
+        let result = double_wrap(arr);
+        assert(result[0] == 1);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn trait_with_generic_method_on_numeric_generic_struct() {
+    let src = r#"
+    trait Apply {
+        fn apply<U>(self, f: fn(Field) -> U) -> U;
+    }
+
+    struct Single<let N: u32> {
+        data: [Field; N],
+    }
+
+    impl<let N: u32> Apply for Single<N> {
+        fn apply<U>(self, f: fn(Field) -> U) -> U {
+            f(self.data[0])
+        }
+    }
+
+    fn main() {
+        let s = Single { data: [42] };
+        let result = s.apply(|x| x + 1);
+        assert(result == 43);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn generic_with_both_type_and_numeric_generic_in_trait_impl() {
+    let src = r#"
+    trait Flatten {
+        fn flatten(self) -> Field;
+    }
+
+    struct Grid<T, let N: u32> {
+        rows: [T; N],
+    }
+
+    impl<let N: u32> Flatten for Grid<Field, N> {
+        fn flatten(self) -> Field {
+            let mut sum: Field = 0;
+            for i in 0..N {
+                sum += self.rows[i];
+            }
+            sum
+        }
+    }
+
+    fn do_flatten<T>(t: T) -> Field where T: Flatten {
+        t.flatten()
+    }
+
+    fn main() {
+        let g = Grid { rows: [1, 2, 3] };
+        assert(do_flatten(g) == 6);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn impl_for_generic_struct_with_numeric_and_type_generic() {
+    let src = r#"
+    trait Encode {
+        fn encode(self) -> Field;
+    }
+
+    impl Encode for Field {
+        fn encode(self) -> Field { self }
+    }
+
+    impl Encode for bool {
+        fn encode(self) -> Field { if self { 1 } else { 0 } }
+    }
+
+    struct Matrix<T, let R: u32, let C: u32> {
+        data: [T; R],
+    }
+
+    impl<T, let R: u32, let C: u32> Matrix<T, R, C> where T: Encode {
+        fn encode_first(self) -> Field {
+            self.data[0].encode()
+        }
+    }
+
+    fn main() {
+        let m: Matrix<bool, 3, 2> = Matrix { data: [true, false, true] };
+        assert(m.encode_first() == 1);
+    }
+    "#;
+    assert_no_errors(src);
+}

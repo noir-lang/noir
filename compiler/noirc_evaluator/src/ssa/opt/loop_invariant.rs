@@ -888,7 +888,13 @@ fn can_be_hoisted(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeHoiste
         // Arrays can be mutated in unconstrained code so code that handles this case must
         // take care to track whether the array was possibly mutated or not before hoisted.
         // An ACIR it is always safe to hoist MakeArray.
-        MakeArray { .. } => Yes,
+        MakeArray { .. } => {
+            if dfg.runtime().is_acir() {
+                Yes
+            } else {
+                No
+            }
+        }
 
         // These can have different behavior depending on the predicate.
         Binary(_) | ArraySet { .. } | ArrayGet { .. } => {
@@ -1429,8 +1435,8 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
 
-        // We expect the `make_array` at the top of `b3` to be replaced with an `inc_rc`
-        // of the newly hoisted `make_array` at the end of `b0`.
+        // We expect the `make_array` at the top of `b3` to be kept since arrays may be mutated
+        // in brillig by array_set instructions which we do not track.
         let ssa = ssa.loop_invariant_code_motion();
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
@@ -1440,20 +1446,19 @@ mod tests {
             v11 = array_set v8, index v0, value Field 64
             v13 = add v0, u32 1
             store v11 at v9
-            v14 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5] : [Field; 5]
             jmp b1(u32 0)
           b1(v2: u32):
-            v17 = lt v2, u32 5
-            jmpif v17 then: b3(), else: b2()
+            v16 = lt v2, u32 5
+            jmpif v16 then: b3(), else: b2()
           b2():
             v24 = load v9 -> [Field; 5]
             call f1(v24)
             return
           b3():
-            inc_rc v14
+            v17 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5] : [Field; 5]
             v18 = allocate -> &mut [Field; 5]
             v19 = add v1, v2
-            v21 = array_set v14, index v19, value Field 128
+            v21 = array_set v17, index v19, value Field 128
             call f1(v21)
             v23 = unchecked_add v2, u32 1
             jmp b1(v23)
@@ -2427,9 +2432,9 @@ mod tests {
         assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
     }
 
-    /// Test that `MakeArray` can be hoisted in both ACIR and Brillig.
-    #[test_case(RuntimeType::Brillig(InlineType::default()), CanBeHoistedResult::Yes)]
+    /// Test that `MakeArray` can be hoisted in ACIR but not Brillig.
     #[test_case(RuntimeType::Acir(InlineType::default()), CanBeHoistedResult::Yes)]
+    #[test_case(RuntimeType::Brillig(InlineType::default()), CanBeHoistedResult::No)]
     fn make_array_can_be_hoisted(runtime: RuntimeType, result: CanBeHoistedResult) {
         // This is just a stub to create a function with the expected runtime.
         let src = format!(
