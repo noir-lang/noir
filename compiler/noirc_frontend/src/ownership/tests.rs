@@ -651,3 +651,42 @@ fn overwrite_conditional() {
     }
     ");
 }
+
+/// Regression test for https://github.com/noir-lang/noir/issues/11574
+/// When the reassignment is in the else branch, uses in the then branch
+/// should still get cloned if the variable is used after the if/else.
+#[test]
+fn overwrite_conditional_swapped() {
+    let src = "
+    unconstrained fn main(cond: bool) {
+        let mut v = @[1, 2, 3];
+        if cond {
+            use_var(v);
+        } else {
+            v = identity(v);
+        }
+        use_var(v);
+    }
+
+    fn use_var<T>(_x: T) {}
+    fn identity<T>(x: T) -> T { x }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(cond$l0: bool) -> () {
+        let mut v$l1 = @[1, 2, 3];
+        if cond$l0 {
+            use_var$f1(v$l1.clone());
+        } else {
+            v$l1 = identity$f2(v$l1)
+        };
+        use_var$f1(v$l1);
+    }
+    unconstrained fn use_var$f1(_x$l2: [Field]) -> () {
+    }
+    unconstrained fn identity$f2(x$l3: [Field]) -> [Field] {
+        x$l3
+    }
+    ");
+}
