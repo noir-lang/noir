@@ -297,22 +297,29 @@
 <a href=#297 id=297 data-nosnippet>297</a>
 <a href=#298 id=298 data-nosnippet>298</a>    <span class="doccomment">/// Advances to the next token (the current token is not written).
 <a href=#299 id=299 data-nosnippet>299</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>bump(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Token {
-<a href=#300 id=300 data-nosnippet>300</a>        <span class="self">self</span>.ignore_next = <span class="bool-val">false</span>;
+<a href=#300 id=300 data-nosnippet>300</a>        <span class="kw">let </span>next_token = <span class="self">self</span>.read_token_internal();
 <a href=#301 id=301 data-nosnippet>301</a>
-<a href=#302 id=302 data-nosnippet>302</a>        <span class="kw">let </span>next_token = <span class="self">self</span>.read_token_internal();
-<a href=#303 id=303 data-nosnippet>303</a>        <span class="self">self</span>.token_span = next_token.span();
-<a href=#304 id=304 data-nosnippet>304</a>        std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.token, next_token.into_token())
-<a href=#305 id=305 data-nosnippet>305</a>    }
-<a href=#306 id=306 data-nosnippet>306</a>
-<a href=#307 id=307 data-nosnippet>307</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>read_token_internal(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; SpannedToken {
-<a href=#308 id=308 data-nosnippet>308</a>        <span class="kw">let </span>token = <span class="self">self</span>.lexer.next();
-<a href=#309 id=309 data-nosnippet>309</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(token) = token {
-<a href=#310 id=310 data-nosnippet>310</a>            <span class="kw">match </span>token {
-<a href=#311 id=311 data-nosnippet>311</a>                <span class="prelude-val">Ok</span>(token) =&gt; token.into_spanned_token(),
-<a href=#312 id=312 data-nosnippet>312</a>                <span class="prelude-val">Err</span>(err) =&gt; <span class="macro">panic!</span>(<span class="string">"Expected lexer not to error, but got: {err:?}"</span>),
-<a href=#313 id=313 data-nosnippet>313</a>            }
-<a href=#314 id=314 data-nosnippet>314</a>        } <span class="kw">else </span>{
-<a href=#315 id=315 data-nosnippet>315</a>            SpannedToken::new(Token::EOF, Default::default())
-<a href=#316 id=316 data-nosnippet>316</a>        }
-<a href=#317 id=317 data-nosnippet>317</a>    }
-<a href=#318 id=318 data-nosnippet>318</a>}</code></pre></div></section></main></body></html>
+<a href=#302 id=302 data-nosnippet>302</a>        <span class="comment">// Keep the ignore status as long as we keep finding comments or whitespace, otherwise reset it
+<a href=#303 id=303 data-nosnippet>303</a>        </span><span class="kw">if </span>!<span class="macro">matches!</span>(
+<a href=#304 id=304 data-nosnippet>304</a>            next_token.token(),
+<a href=#305 id=305 data-nosnippet>305</a>            Token::LineComment(..) | Token::BlockComment(..) | Token::Whitespace(..),
+<a href=#306 id=306 data-nosnippet>306</a>        ) {
+<a href=#307 id=307 data-nosnippet>307</a>            <span class="self">self</span>.ignore_next = <span class="bool-val">false</span>;
+<a href=#308 id=308 data-nosnippet>308</a>        }
+<a href=#309 id=309 data-nosnippet>309</a>
+<a href=#310 id=310 data-nosnippet>310</a>        <span class="self">self</span>.token_span = next_token.span();
+<a href=#311 id=311 data-nosnippet>311</a>        std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.token, next_token.into_token())
+<a href=#312 id=312 data-nosnippet>312</a>    }
+<a href=#313 id=313 data-nosnippet>313</a>
+<a href=#314 id=314 data-nosnippet>314</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>read_token_internal(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; SpannedToken {
+<a href=#315 id=315 data-nosnippet>315</a>        <span class="kw">let </span>token = <span class="self">self</span>.lexer.next();
+<a href=#316 id=316 data-nosnippet>316</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(token) = token {
+<a href=#317 id=317 data-nosnippet>317</a>            <span class="kw">match </span>token {
+<a href=#318 id=318 data-nosnippet>318</a>                <span class="prelude-val">Ok</span>(token) =&gt; token.into_spanned_token(),
+<a href=#319 id=319 data-nosnippet>319</a>                <span class="prelude-val">Err</span>(err) =&gt; <span class="macro">panic!</span>(<span class="string">"Expected lexer not to error, but got: {err:?}"</span>),
+<a href=#320 id=320 data-nosnippet>320</a>            }
+<a href=#321 id=321 data-nosnippet>321</a>        } <span class="kw">else </span>{
+<a href=#322 id=322 data-nosnippet>322</a>            SpannedToken::new(Token::EOF, Default::default())
+<a href=#323 id=323 data-nosnippet>323</a>        }
+<a href=#324 id=324 data-nosnippet>324</a>    }
+<a href=#325 id=325 data-nosnippet>325</a>}</code></pre></div></section></main></body></html>
