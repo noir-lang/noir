@@ -330,6 +330,7 @@ impl Formatter<'_> {
 #[cfg(test)]
 mod tests {
     use crate::{Config, assert_format, assert_format_with_config, assert_format_with_max_width};
+    use test_case::test_case;
 
     fn assert_format_wrapping_comments(src: &str, expected: &str, comment_width: usize) {
         let config = Config { wrap_comments: true, comment_width, ..Config::default() };
@@ -1241,61 +1242,30 @@ global x: Field = 1;
         assert_format(src, expected);
     }
 
-    #[test]
-    fn does_not_wrap_line_comment_if_directed_to_ignore() {
-        let src = "// noir-fmt:ignore
-// This is a long comment that's going to be wrapped.
-// This is a long comment that's going to be wrapped.
+    #[test_case("// ", "" ; "line comment")]
+    #[test_case("/* ", " */" ; "block comment")]
+    #[test_case("/// ", "" ; "outer doc line comment")]
+    #[test_case("/** ", " */" ; "outer doc block comment")]
+    fn does_not_wrap_outer_comment_if_directed_to_ignore(prefix: &str, suffix: &str) {
+        let src = format!(
+            r#"// noir-fmt:ignore
+{prefix}This is a long comment that's going to be wrapped.{suffix}
+{prefix}This is a long comment that's going to be wrapped.{suffix}
 global x: Field = 1;
-";
-        assert_format_wrapping_comments(src, src, 29);
+"#
+        );
+        assert_format_wrapping_comments(&src, &src, 29);
     }
 
-    #[test]
-    fn does_not_wrap_block_comment_if_directed_to_ignore() {
-        let src = "// noir-fmt:ignore
-/* This is a long comment that's going to be wrapped. */
-/* This is a long comment that's going to be wrapped. */
-global x: Field = 1;
-";
-        assert_format_wrapping_comments(src, src, 29);
-    }
-
-    #[test]
-    fn does_not_wrap_outer_doc_line_comment_if_directed_to_ignore() {
-        let src = "// noir-fmt:ignore
-/// This is a long comment that's going to be wrapped.
-/// This is a long comment that's going to be wrapped.
-global x: Field = 1;
-";
-        assert_format_wrapping_comments(src, src, 29);
-    }
-
-    #[test]
-    fn does_not_wrap_inner_doc_line_comment_if_directed_to_ignore() {
-        let src = "// noir-fmt:ignore
-//! This is a long comment that's going to be wrapped.
-//! This is a long comment that's going to be wrapped.
-";
-        assert_format_wrapping_comments(src, src, 29);
-    }
-
-    #[test]
-    fn does_not_wrap_outer_doc_block_comment_if_directed_to_ignore() {
-        let src = "// noir-fmt:ignore
-/** This is a long comment that's going to be wrapped. */
-/** This is a long comment that's going to be wrapped. */
-global x: Field = 1;
-";
-        assert_format_wrapping_comments(src, src, 29);
-    }
-
-    #[test]
-    fn does_not_wrap_inner_doc_block_comment_if_directed_to_ignore() {
-        let src = "// noir-fmt:ignore
-/*! This is a long comment that's going to be wrapped. */
-/*! This is a long comment that's going to be wrapped. */
-";
-        assert_format_wrapping_comments(src, src, 29);
+    #[test_case("//! ", "" ; "inner doc line comment")]
+    #[test_case("/*! ", " */" ; "inner doc block comment")]
+    fn does_not_wrap_inner_comment_if_directed_to_ignore(prefix: &str, suffix: &str) {
+        let src = format!(
+            r#"// noir-fmt:ignore
+{prefix}This is a long comment that's going to be wrapped.{suffix}
+{prefix}This is a long comment that's going to be wrapped.{suffix}
+"#
+        );
+        assert_format_wrapping_comments(&src, &src, 29);
     }
 }
