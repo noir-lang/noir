@@ -400,11 +400,13 @@ impl<'context> Elaborator<'context> {
         self.debug_comptime(location, |interner| value.display(interner).to_string());
 
         if value != Value::Unit {
+            // Items must be added in the correct module (for a module attribute, this will be the
+            // module itself; for a function, it will be the module where the function is defined, etc.)
+            self.local_module = Some(attribute_context.module);
+
             let items =
                 value.into_top_level_items(location, self).map_err(CompilationError::from)?;
 
-            // Items must be added in the correct module (for a module attribute, this will be the
-            // module itself; for a function, it will be the module where the function is defined, etc.)
             let local_module = attribute_context.module;
             self.add_items(items, generated_items, local_module, location);
         }
