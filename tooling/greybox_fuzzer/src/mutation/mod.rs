@@ -51,8 +51,7 @@ impl NodeWeight {
         self.start += start_offset;
         self.end += start_offset;
         let mut current_update = start_offset;
-        if self.subnodes.is_some() {
-            let subnode_weights = self.subnodes.as_mut().unwrap();
+        if let Some(subnode_weights) = &mut self.subnodes {
             for subnode_weight in subnode_weights.iter_mut() {
                 let weight_update = subnode_weight.get_weight();
                 subnode_weight.calculate_offsets(current_update);

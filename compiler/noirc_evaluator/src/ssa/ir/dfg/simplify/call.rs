@@ -778,7 +778,7 @@ fn simplify_derive_generators(
             }
             let len = results.len() as u32;
             assert!(
-                len % 3 == 0,
+                len.is_multiple_of(3),
                 "The number of results from derive_generators must be a multiple of 3"
             );
             let typ = Type::Array(
