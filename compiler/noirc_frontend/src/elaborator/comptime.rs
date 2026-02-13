@@ -403,8 +403,8 @@ impl<'context> Elaborator<'context> {
 
             // Items must be added in the correct module (for a module attribute, this will be the
             // module itself; for a function, it will be the module where the function is defined, etc.)
-            self.local_module = Some(attribute_context.module);
-            self.add_items(items, generated_items, location);
+            let local_module = attribute_context.module;
+            self.add_items(items, generated_items, local_module, location);
         }
 
         Ok(())
@@ -538,11 +538,12 @@ impl<'context> Elaborator<'context> {
         &mut self,
         items: Vec<Item>,
         generated_items: &mut CollectedItems,
+        local_module: LocalModuleId,
         location: Location,
     ) {
         self.with_elaborate_reason(ElaborateReason::RunningAttribute(location), |elaborator| {
             for item in items {
-                elaborator.add_item(item, generated_items, location);
+                elaborator.add_item(item, generated_items, local_module, location);
             }
         });
     }
@@ -557,9 +558,13 @@ impl<'context> Elaborator<'context> {
     /// All other item kinds are unsupported for unquoting. These restrictions often exist because certain items
     /// (e.g., module declarations and submodules) would require additional def-map updates
     /// thus potentially affecting the source order of attributes and would not be safe during elaboration.
-    fn add_item(&mut self, item: Item, generated_items: &mut CollectedItems, location: Location) {
-        let local_module = self.local_module();
-
+    fn add_item(
+        &mut self,
+        item: Item,
+        generated_items: &mut CollectedItems,
+        local_module: LocalModuleId,
+        location: Location,
+    ) {
         match item.kind {
             ItemKind::Function(function) => {
                 let module_id = self.module_id();
