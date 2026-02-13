@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771003592587,
+  "lastUpdate": 1771003594256,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -49498,105 +49498,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "michaeljklein@users.noreply.github.com",
-            "name": "Michael J Klein",
-            "username": "michaeljklein"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "8c399ff814b30657c016c720bb37effbeea66802",
-          "message": "fix: check `assert_constant` after SSA loop unrolling (#11428)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
-          "timestamp": "2026-02-05T14:59:17Z",
-          "tree_id": "886931090b010078d2e1eac717011a3ee3733a52",
-          "url": "https://github.com/noir-lang/noir/commit/8c399ff814b30657c016c720bb37effbeea66802"
-        },
-        "date": 1770305518842,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.796,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.77,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.767,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 1.196,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 1.2,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1.13,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 1.12,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1.19,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1.16,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.156,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 1.098,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 1.118,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 1.142,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.117,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.103,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -54431,6 +54332,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.126,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.116,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "bd5f9f0c864557f6abfda31db4b5919c23cccaf8",
+          "message": "fix(frontend): restore variable loop indices after while loops in ownership pass (#11584)",
+          "timestamp": "2026-02-13T16:51:50Z",
+          "tree_id": "17200b37c1889221ac7ed934e45f06a130afd3b8",
+          "url": "https://github.com/noir-lang/noir/commit/bd5f9f0c864557f6abfda31db4b5919c23cccaf8"
+        },
+        "date": 1771003548390,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.913,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.891,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.934,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 1.386,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 1.34,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1.39,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 1.372,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1.42,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1.39,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.376,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 1.384,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 1.446,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 1.516,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.128,
             "unit": "s"
           },
           {
