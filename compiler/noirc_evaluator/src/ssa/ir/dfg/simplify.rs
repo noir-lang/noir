@@ -386,52 +386,54 @@ fn optimize_length_one_array_read(
 /// of the same array, returning a modified version. We want to go backwards until we
 /// find the last `array_set` for the index we are interested in, and return the value set.
 fn try_optimize_array_get_from_previous_set(
-    dfg: &mut DataFlowGraph,
-    mut array_id: ValueId,
-    target_index: FieldElement,
+    _dfg: &mut DataFlowGraph,
+    _array_id: ValueId,
+    _target_index: FieldElement,
 ) -> SimplifyResult {
-    // The target index must be less than the maximum array length
-    let Some(target_index_u32) = target_index.try_to_u32() else {
-        return SimplifyResult::None;
-    };
+    return SimplifyResult::None;
 
-    // Arbitrary number of maximum tries just to prevent this optimization from taking too long.
-    let max_tries = 5;
-    for _ in 0..max_tries {
-        if let Some(instruction) = dfg.get_local_or_global_instruction(array_id) {
-            match instruction {
-                Instruction::ArraySet { array, index, value, .. } => {
-                    if let Some(constant) = dfg.get_numeric_constant(*index) {
-                        if constant == target_index {
-                            return SimplifyResult::SimplifiedTo(*value);
-                        }
+    // // The target index must be less than the maximum array length
+    // let Some(target_index_u32) = target_index.try_to_u32() else {
+    //     return SimplifyResult::None;
+    // };
 
-                        array_id = *array; // recur
-                        continue;
-                    }
-                }
-                Instruction::MakeArray { elements: array, typ: _ } => {
-                    let index = target_index_u32 as usize;
-                    if index < array.len() {
-                        return SimplifyResult::SimplifiedTo(array[index]);
-                    }
-                }
-                _ => (),
-            }
-        } else if let Value::Param { typ: Type::Array(_, length), .. } = &dfg[array_id]
-            && target_index_u32 < length.0
-        {
-            let index = dfg.make_constant(target_index, NumericType::length_type());
-            return SimplifyResult::SimplifiedToInstruction(Instruction::ArrayGet {
-                array: array_id,
-                index,
-            });
-        }
+    // // Arbitrary number of maximum tries just to prevent this optimization from taking too long.
+    // let max_tries = 5;
+    // for _ in 0..max_tries {
+    //     if let Some(instruction) = dfg.get_local_or_global_instruction(array_id) {
+    //         match instruction {
+    //             Instruction::ArraySet { array, index, value, .. } => {
+    //                 if let Some(constant) = dfg.get_numeric_constant(*index) {
+    //                     if constant == target_index {
+    //                         return SimplifyResult::SimplifiedTo(*value);
+    //                     }
 
-        break;
-    }
+    //                     array_id = *array; // recur
+    //                     continue;
+    //                 }
+    //             }
+    //             Instruction::MakeArray { elements: array, typ: _ } => {
+    //                 let index = target_index_u32 as usize;
+    //                 if index < array.len() {
+    //                     return SimplifyResult::SimplifiedTo(array[index]);
+    //                 }
+    //             }
+    //             _ => (),
+    //         }
+    //     } else if let Value::Param { typ: Type::Array(_, length), .. } = &dfg[array_id]
+    //         && target_index_u32 < length.0
+    //     {
+    //         let index = dfg.make_constant(target_index, NumericType::length_type());
+    //         return SimplifyResult::SimplifiedToInstruction(Instruction::ArrayGet {
+    //             array: array_id,
+    //             index,
+    //         });
+    //     }
 
-    SimplifyResult::None
+    //     break;
+    // }
+
+    // SimplifyResult::None
 }
 
 /// If we have an array set whose value is from an array get on the same array at the same index,
