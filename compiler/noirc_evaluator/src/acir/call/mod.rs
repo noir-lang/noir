@@ -182,43 +182,49 @@ impl Context<'_> {
     ) -> Vec<BrilligParameter> {
         values
             .iter()
-            .map(|&value_id| {
+            .enumerate()
+            .map(|(idx, &value_id)| {
                 let typ = dfg.type_of_value(value_id);
                 if let Type::Vector(item_types) = typ {
-                    let len = match self
-                        .ssa_values
-                        .get(&value_id)
-                        .expect("ICE: Unknown vector input to brillig")
-                    {
-                        AcirValue::DynamicArray(AcirDynamicArray { len, .. }) => {
-                            // len holds the flattened length of all elements in the vector,
-                            // so to get the no-flattened length we need to divide by the flattened
-                            // length of a single vector entry
-                            let sum: FlattenedLength =
-                                item_types.iter().map(|typ| typ.flattened_size()).sum();
-                            if sum.0 == 0 {
-                                SemanticLength(0)
-                            } else {
-                                *len / ElementsFlattenedLength::from(sum)
+                    let element_flat_size: FlattenedLength =
+                        item_types.iter().map(|typ| typ.flattened_size()).sum();
+
+                    let len = if element_flat_size.0 == 0 {
+                        // When elements are zero-sized, the flattened data is empty regardless
+                        // of the actual vector length, so we cannot recover the semantic length
+                        // by dividing. In SSA, vectors are represented as (length, data) pairs,
+                        // so the preceding argument holds the semantic length as a u32 constant.
+                        let length_value_id = values[idx - 1];
+                        let length = dfg
+                            .get_numeric_constant(length_value_id)
+                            .expect("ICE: Vector with zero-sized elements must be preceded by its length as a constant");
+                        SemanticLength(length.to_u128() as u32)
+                    } else {
+                        match self
+                            .ssa_values
+                            .get(&value_id)
+                            .expect("ICE: Unknown vector input to brillig")
+                        {
+                            AcirValue::DynamicArray(AcirDynamicArray { len, .. }) => {
+                                // len holds the flattened length of all elements in the vector,
+                                // so to get the non-flattened length we need to divide by the flattened
+                                // length of a single vector entry
+                                *len / ElementsFlattenedLength::from(element_flat_size)
                             }
+                            AcirValue::Array(array) => {
+                                // The Array may contain a mix of flat Vars and nested Arrays
+                                // (e.g. flat scalars + nested [Field; 3]). Use the total flat size
+                                // divided by the flat element size to get the logical element count.
+                                let flat_size: usize = array
+                                    .iter()
+                                    .map(|v| arrays::flattened_value_size(v).to_usize())
+                                    .sum();
+                                SemanticLength(
+                                    (flat_size / element_flat_size.0 as usize) as u32,
+                                )
+                            }
+                            _ => unreachable!("ICE: Vector value is not an array"),
                         }
-                        AcirValue::Array(array) => {
-                            // The Array may contain a mix of flat Vars and nested Arrays
-                            // (e.g. flat scalars + nested [Field; 3]). Use the total flat size
-                            // divided by the flat element size to get the logical element count.
-                            let flat_size: usize = array
-                                .iter()
-                                .map(|v| arrays::flattened_value_size(v).to_usize())
-                                .sum();
-                            let sum: u32 =
-                                item_types.iter().map(|typ| typ.flattened_size().0).sum();
-                            SemanticLength(if sum == 0 {
-                                0
-                            } else {
-                                (flat_size / sum as usize) as u32
-                            })
-                        }
-                        _ => unreachable!("ICE: Vector value is not an array"),
                     };
 
                     BrilligParameter::Vector(

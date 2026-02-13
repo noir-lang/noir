@@ -419,17 +419,34 @@ impl FunctionContext<'_> {
     /// The value returned from this function is always that of the allocate instruction.
     fn codegen_array(&mut self, elements: Vec<Values>, typ: Type) -> ValueId {
         let mut array = im::Vector::new();
+        let is_acir = self.builder.current_function.runtime().is_acir();
+        let is_vector = matches!(&typ, Type::Vector(_));
+
+        // Track original (pre-flattened) element values for vectors in ACIR context.
+        // Needed to preserve semantic length when elements are zero-sized.
+        let mut original_values: Vec<ValueId> = Vec::new();
 
         for element in elements {
             element.for_each(|element| {
                 let element = element.eval(self);
 
-                if self.builder.current_function.runtime().is_acir() {
+                if is_acir {
+                    if is_vector {
+                        original_values.push(element);
+                    }
                     array.extend(self.codegen_array_helper(element));
                 } else {
                     array.push_back(element);
                 }
             });
+        }
+
+        // For vectors in ACIR context, if flattening eliminated all elements
+        // (zero-sized inner types), use the original element references instead.
+        // This preserves the vector's semantic length which cannot be recovered
+        // from the type (unlike arrays which encode length in Type::Array(_, len)).
+        if is_vector && is_acir && array.is_empty() && !original_values.is_empty() {
+            array = original_values.into_iter().collect();
         }
 
         self.builder.insert_make_array(array, typ)
