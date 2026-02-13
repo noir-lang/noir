@@ -164,5 +164,7 @@ pub(crate) fn compile_procedure<F: AcirField + DebugToString>(
     }
 
     brillig_context.return_instruction();
-    brillig_context.into_artifact()
+    let mut artifact = brillig_context.into_artifact();
+    artifact.coalesce_copies();
+    artifact
 }
