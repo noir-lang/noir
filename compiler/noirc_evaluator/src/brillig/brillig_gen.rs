@@ -256,7 +256,7 @@ mod entry_point {
         16: return
         17: call 74
         18: sp[1] = @1
-        19: @3 = const u32 2
+        19: @3 = const u32 3
         20: @1 = u32 add @1, @3
         21: sp[4] = u32 add sp[2], sp[3]
         22: sp[5] = const u32 2
@@ -290,7 +290,7 @@ mod entry_point {
         50: @3 = u32 add @3, @4
         51: sp[3] = load @3
         52: @3 = sp[1]
-        53: @4 = const u32 0
+        53: @4 = const u32 2
         54: @3 = u32 add @3, @4
         55: store sp[7] at @3
         56: @3 = sp[1]
@@ -299,7 +299,7 @@ mod entry_point {
         59: sp[7] = load @3
         60: sp[2] = u32 add sp[3], sp[7]
         61: @3 = sp[1]
-        62: @4 = const u32 0
+        62: @4 = const u32 2
         63: @3 = u32 add @3, @4
         64: sp[7] = load @3
         65: sp[3] = u32 add sp[2], sp[7]

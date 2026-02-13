@@ -18,6 +18,11 @@ pub(crate) struct SpillManager {
     next_spill_offset: usize,
     /// Free list of spill slots that have been reclaimed.
     free_spill_slots: Vec<usize>,
+    /// Permanent spill slots for successor block params. These params are
+    /// eagerly spilled in the dominator block and must always be accessed
+    /// through the spill slot to ensure consistency across all Jmp sites
+    /// and the target block's reload code.
+    successor_param_spills: HashMap<ValueId, SpillInfo>,
 }
 
 #[derive(Clone, Copy)]
@@ -35,6 +40,7 @@ impl SpillManager {
             lru_order: Vec::new(),
             next_spill_offset: 0,
             free_spill_slots: Vec::new(),
+            successor_param_spills: HashMap::default(),
         }
     }
 
@@ -78,9 +84,8 @@ impl SpillManager {
     }
 
     /// Return the least recently used value that is not currently spilled.
-    /// Returns None if there are no non-spilled values in the LRU.
+    /// Returns None if there are no eligible values in the LRU.
     pub(crate) fn lru_victim(&self) -> Option<ValueId> {
-        // Walk from front (LRU) to find a value that's not already spilled
         for value_id in &self.lru_order {
             if !self.spilled.contains_key(value_id) {
                 return Some(*value_id);
@@ -102,6 +107,64 @@ impl SpillManager {
     /// Get the spill info for a value.
     pub(crate) fn get_spill(&self, value_id: &ValueId) -> Option<&SpillInfo> {
         self.spilled.get(value_id)
+    }
+
+    /// Reset the LRU for a new block, populating it with live-in values that are not spilled.
+    ///
+    /// The LRU is inherently per-block (tracks which in-register values can be evicted),
+    /// so resetting at block entry is correct. As instructions execute, `touch()` establishes
+    /// real usage order.
+    pub(crate) fn reset_lru_for_block(&mut self, live_in: impl Iterator<Item = ValueId>) {
+        self.lru_order.clear();
+        for value_id in live_in {
+            if !self.spilled.contains_key(&value_id) {
+                self.lru_order.push(value_id);
+            }
+        }
+    }
+
+    /// Record a successor block param as eagerly spilled.
+    ///
+    /// These params are always accessed through the spill slot: every Jmp writes
+    /// to the slot, and every target block reloads from it. The permanent record
+    /// in `successor_param_spills` ensures this consistency regardless of what
+    /// happens to the transient `spilled` map during block processing.
+    pub(crate) fn record_successor_param_spill(
+        &mut self,
+        value_id: ValueId,
+        offset: usize,
+        variable: BrilligVariable,
+    ) {
+        let info = SpillInfo { offset, variable };
+        self.spilled.insert(value_id, info);
+        self.successor_param_spills.insert(value_id, info);
+    }
+
+    /// Get the spill slot offset for a successor block param, if any.
+    pub(crate) fn get_successor_param_spill_offset(&self, value_id: &ValueId) -> Option<usize> {
+        self.successor_param_spills.get(value_id).map(|info| info.offset)
+    }
+
+    /// Re-mark eagerly-spilled successor params as spilled at block entry.
+    ///
+    /// A reload in a previous block unmarks the value from `spilled`, but the
+    /// value must be reloaded again in every block that uses it (since the Jmp
+    /// always writes to the spill slot, not to a register).
+    pub(crate) fn restore_successor_param_spills(&mut self) {
+        for (value_id, info) in &self.successor_param_spills {
+            if !self.spilled.contains_key(value_id) {
+                self.spilled.insert(*value_id, *info);
+            }
+        }
+    }
+
+    /// Remove a value from the spilled map WITHOUT freeing the spill slot.
+    ///
+    /// This is used when reloading a spilled value. The slot's data must remain valid
+    /// because the reload code may execute again in a loop iteration. Only `remove_spill`
+    /// (used when the value is truly dead) should free the slot.
+    pub(crate) fn unmark_spilled(&mut self, value_id: &ValueId) {
+        self.spilled.remove(value_id);
     }
 }
 

@@ -16,7 +16,10 @@ use crate::{
 };
 use rustc_hash::FxHashMap as HashMap;
 
-use super::{constant_allocation::ConstantAllocation, variable_liveness::VariableLiveness};
+use super::{
+    constant_allocation::ConstantAllocation, spill_manager::SpillManager,
+    variable_liveness::VariableLiveness,
+};
 
 /// Information required to compile an SSA [Function] into Brillig bytecode.
 ///
@@ -56,6 +59,9 @@ pub(crate) struct FunctionContext {
     pub(crate) did_spill: bool,
     /// The maximum spill offset used across all blocks (i.e. the number of spill slots needed).
     pub(crate) max_spill_offset: usize,
+    /// Manages spilling of register values to the heap spill region when register pressure
+    /// exceeds the stack frame limit. Persists across blocks so spill state is not lost.
+    pub(crate) spill_manager: Option<SpillManager>,
 }
 
 impl FunctionContext {
@@ -88,6 +94,8 @@ impl FunctionContext {
 
         let spill_support = liveness.max_live_count + Self::SPILL_MARGIN >= max_stack_frame_size;
 
+        let spill_manager = if spill_support { Some(SpillManager::new()) } else { None };
+
         Self {
             function_id: Some(id),
             ssa_value_allocations: HashMap::default(),
@@ -98,6 +106,7 @@ impl FunctionContext {
             spill_support,
             did_spill: false,
             max_spill_offset: 0,
+            spill_manager,
         }
     }
 

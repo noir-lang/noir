@@ -235,7 +235,6 @@ mod tests {
             globals,
             hoisted_global_constants,
             building_globals: false,
-            spill_manager: None,
         }
     }
 

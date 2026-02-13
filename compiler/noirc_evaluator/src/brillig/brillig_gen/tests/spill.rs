@@ -57,7 +57,7 @@ fn brillig_spill_and_reload() {
     fn main
      0: call 0
      1: sp[1] = @1
-     2: @3 = const u32 2
+     2: @3 = const u32 3
      3: @1 = u32 add @1, @3
      4: sp[4] = u32 add sp[2], sp[3]
      5: sp[5] = const u32 2
@@ -91,7 +91,7 @@ fn brillig_spill_and_reload() {
     33: @3 = u32 add @3, @4
     34: sp[3] = load @3
     35: @3 = sp[1]
-    36: @4 = const u32 0
+    36: @4 = const u32 2
     37: @3 = u32 add @3, @4
     38: store sp[7] at @3
     39: @3 = sp[1]
@@ -100,7 +100,7 @@ fn brillig_spill_and_reload() {
     42: sp[7] = load @3
     43: sp[2] = u32 add sp[3], sp[7]
     44: @3 = sp[1]
-    45: @4 = const u32 0
+    45: @4 = const u32 2
     46: @3 = u32 add @3, @4
     47: sp[7] = load @3
     48: sp[3] = u32 add sp[2], sp[7]

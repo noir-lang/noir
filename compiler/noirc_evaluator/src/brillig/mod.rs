@@ -646,17 +646,10 @@ mod spill_runtime {
 
     /// Cross-block spill correctness test.
     ///
-    /// This test exposes a known bug: each block gets a fresh `SpillManager`, so values
-    /// spilled in one block have stale register mappings in successor blocks.
-    ///
     /// In b0, v0 is used once early then never again — making it the LRU victim when
     /// register pressure exceeds the frame size. Its register gets reused for a later value.
-    /// In b1, v0 is live-in (not a block parameter), but the fresh SpillManager doesn't know
-    /// it was spilled, so it reads the stale (reused) register.
-    ///
-    /// The bug currently manifests as a panic ("register already deallocated") during
-    /// compilation, because b1's fresh SpillManager tries to deallocate a register that
-    /// was already freed in b0. This is even more severe than a silent wrong result.
+    /// In b1, v0 is live-in (not a block parameter). The SpillManager persists across
+    /// blocks, so b1 knows v0 is spilled and reloads it correctly.
     ///
     /// v0=3, v1=5:
     /// v2=8, v3=7, v4=8, v5=9, v6=10, v7=11, v8=12, v9=13, v10=14, v11=15
@@ -705,18 +698,110 @@ mod spill_runtime {
         );
         assert_eq!(correct, vec![FieldElement::from(110u64)]);
 
-        // Small layout: spilling triggers the cross-block stale register bug.
-        // Currently panics with "register already deallocated" because b1's fresh
-        // SpillManager doesn't know v0 was spilled in b0.
-        // When the bug is fixed, remove the catch_unwind and assert result == [110].
-        let result = std::panic::catch_unwind(|| {
-            compile_and_run_with_layout(src, calldata, spill_layout(), args)
-        });
+        // Small layout: spilling correctly persists across blocks
+        let result = compile_and_run_with_layout(src, calldata, spill_layout(), args);
+        assert_eq!(result, vec![FieldElement::from(110u64)]);
+    }
 
-        assert!(
-            result.is_err(),
-            "Cross-block spill bug appears fixed! \
-             Update this test: remove catch_unwind and assert result == [110]."
+    /// Demonstrates that pinned successor block params can exhaust the register
+    /// frame. With frame=5 (3 usable slots), b0 defines v0 (own) + v1,v2,v3
+    /// (b1's params). After spilling v0, the LRU is empty and the
+    /// terminator can't reload v0 to copy it to b1's params.
+    ///
+    /// v0=3: v1=v2=v3=3, v4=6, v5=9 → expected [9]
+    #[test]
+    fn spill_many_successor_params() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            jmp b1(v0, v0, v0)
+          b1(v1: u32, v2: u32, v3: u32):
+            v4 = unchecked_add v1, v2
+            v5 = unchecked_add v4, v3
+            return v5
+        }
+        ";
+
+        let calldata = vec![FieldElement::from(3u64)];
+        let args = vec![BrilligParameter::SingleAddr(32)];
+
+        // Default layout: works fine
+        let correct = compile_and_run_with_layout(
+            src,
+            calldata.clone(),
+            LayoutConfig::default(),
+            args.clone(),
         );
+        assert_eq!(correct, vec![FieldElement::from(9u64)]);
+
+        // Tiny layout (frame=5, 3 usable slots): successor params can be spilled
+        // and their values written directly to spill slots at the Jmp terminator.
+        let tiny = LayoutConfig::new(5, 16, MAX_SCRATCH_SPACE);
+        let result = compile_and_run_with_layout(src, calldata, tiny, args);
+        assert_eq!(result, vec![FieldElement::from(9u64)]);
+    }
+
+    /// Cross-block spill in a loop: a value spilled before the loop is used inside
+    /// the loop body. The spill slot must not be reused (freed) on reload, because
+    /// subsequent loop iterations need to reload from the same slot.
+    ///
+    /// v0=3, v1=5:
+    /// b0: v0 used once, then lots of pressure causes it to be spilled.
+    /// b1: loop header, v20 is the accumulator (starts at sum from b0).
+    /// b2: loop body, reloads v0 and adds it to accumulator. Loops 3 times.
+    /// Result: sum(v2..v11) + v0*3 = 107 + 9 = 116
+    #[test]
+    fn cross_block_spill_in_loop() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            v2 = unchecked_add v0, v1
+            v3 = unchecked_add v1, u32 2
+            v4 = unchecked_add v1, u32 3
+            v5 = unchecked_add v1, u32 4
+            v6 = unchecked_add v1, u32 5
+            v7 = unchecked_add v1, u32 6
+            v8 = unchecked_add v1, u32 7
+            v9 = unchecked_add v1, u32 8
+            v10 = unchecked_add v1, u32 9
+            v11 = unchecked_add v1, u32 10
+            v12 = unchecked_add v2, v3
+            v13 = unchecked_add v12, v4
+            v14 = unchecked_add v13, v5
+            v15 = unchecked_add v14, v6
+            v16 = unchecked_add v15, v7
+            v17 = unchecked_add v16, v8
+            v18 = unchecked_add v17, v9
+            v19 = unchecked_add v18, v10
+            v20 = unchecked_add v19, v11
+            jmp b1(v20, u32 0)
+          b1(v21: u32, v22: u32):
+            v23 = lt v22, u32 3
+            jmpif v23 then: b2, else: b3
+          b2():
+            v24 = unchecked_add v21, v0
+            v25 = unchecked_add v22, u32 1
+            jmp b1(v24, v25)
+          b3():
+            return v21
+        }
+        ";
+
+        let calldata = vec![FieldElement::from(3u64), FieldElement::from(5u64)];
+        let args = vec![BrilligParameter::SingleAddr(32), BrilligParameter::SingleAddr(32)];
+
+        // Default layout: no spilling -> correct result
+        let correct = compile_and_run_with_layout(
+            src,
+            calldata.clone(),
+            LayoutConfig::default(),
+            args.clone(),
+        );
+        // 107 + 3*3 = 116
+        assert_eq!(correct, vec![FieldElement::from(116u64)]);
+
+        // Small layout: spilling with loop — spill slot must persist across iterations
+        let result = compile_and_run_with_layout(src, calldata, spill_layout(), args);
+        assert_eq!(result, vec![FieldElement::from(116u64)]);
     }
 }
