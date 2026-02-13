@@ -22,7 +22,7 @@ use crate::ssa::{
         dfg::DataFlowGraph,
         function::{Function, FunctionId},
         function_inserter::FunctionInserter,
-        instruction::TerminatorInstruction,
+        instruction::{Instruction, TerminatorInstruction},
         post_order::PostOrder,
         value::ValueId,
     },
@@ -117,16 +117,18 @@ fn is_conditional(
         let cost_right = block_flatten_cost(*else_destination, &function.dfg)?;
         // Compute the actual branching overhead for this conditional:
         // Flattening eliminates: JmpIf + then's Jmp + else's Jmp
-        // Flattening adds merge ops only for exit params where branches differ:
-        //   per differing param: mul (1) + mul (1) + add (1) = 3 opcodes
+        // Flattening adds merge (IfElse) ops only for exit params where branches differ.
+        // Numeric merges cost ~3 opcodes (mul+mul+add), array merges cost ~20 (memory copy).
         // Params where both branches pass the same value simplify to a no-op.
-        // The shared overhead (not + 2*cast) is small (~1-3 opcodes since cast-from-bool
-        // is a widening cast, much cheaper than the general Cast cost of 3).
         let then_term_cost = function.dfg[*then_destination].unwrap_terminator().cost();
         let else_term_cost = function.dfg[*else_destination].unwrap_terminator().cost();
-        let differing_params =
-            count_differing_jmp_args(*then_destination, *else_destination, &function.dfg);
-        let merge_cost = differing_params * 3;
+        let exit_block = next_then.unwrap();
+        let merge_cost = differing_merge_cost(
+            *then_destination,
+            *else_destination,
+            exit_block,
+            &function.dfg,
+        );
         let jump_overhead =
             (jmpif_cost + then_term_cost + else_term_cost).saturating_sub(merge_cost) as u32;
         let cost = cost_right.saturating_add(cost_left);
@@ -192,12 +194,17 @@ fn is_conditional(
     (cfg.predecessors(result.block_exit).len() == 2).then_some(result)
 }
 
-/// Count the number of exit block parameters where the then and else branches
-/// pass different values. Only differing parameters generate IfElse merge instructions;
-/// parameters where both branches pass the same value simplify to a no-op.
-fn count_differing_jmp_args(
+/// Estimate the Brillig opcode cost of the IfElse merge instructions that flattening
+/// would generate. Only parameters where both branches pass different values need
+/// merge instructions; identical values simplify to a no-op.
+///
+/// For numeric parameters, the merge is `mul + mul + add` = 3 opcodes.
+/// For array/slice parameters, the IfElse generates a conditional memory copy
+/// which is much more expensive (~20 opcodes).
+fn differing_merge_cost(
     then_block: BasicBlockId,
     else_block: BasicBlockId,
+    exit_block: BasicBlockId,
     dfg: &DataFlowGraph,
 ) -> usize {
     let then_args = match dfg[then_block].terminator() {
@@ -208,7 +215,20 @@ fn count_differing_jmp_args(
         Some(TerminatorInstruction::Jmp { arguments, .. }) => arguments.as_slice(),
         _ => return 0,
     };
-    then_args.iter().zip(else_args.iter()).filter(|(a, b)| a != b).count()
+    let exit_params = dfg.block_parameters(exit_block);
+    let mut cost = 0;
+    for ((a, b), param) in then_args.iter().zip(else_args.iter()).zip(exit_params.iter()) {
+        if a != b {
+            let typ = dfg.type_of_value(*param);
+            if typ.is_numeric() {
+                cost += 3; // mul + mul + add
+            } else {
+                // Array/slice/reference: IfElse generates conditional memory copy
+                cost += 20;
+            }
+        }
+    }
+    cost
 }
 
 /// Computes a cost estimate for flattening a basic block in a conditional.
@@ -216,12 +236,28 @@ fn count_differing_jmp_args(
 /// Returns `None` if the block contains instructions that cannot be safely
 /// flattened (side-effectful instructions like constraints, calls, memory ops,
 /// div/mod, shifts). Otherwise returns the estimated Brillig opcode cost.
+///
+/// Memory management instructions (IncrementRc, DecrementRc, Allocate) are
+/// excluded from the cost — they are safe to flatten but represent overhead
+/// that shouldn't influence the flatten/not-flatten decision.
 fn block_flatten_cost(block: BasicBlockId, dfg: &DataFlowGraph) -> Option<u32> {
     let mut cost: u32 = 0;
     for instruction_id in dfg[block].instructions() {
         let instruction = &dfg[*instruction_id];
         if !instruction.can_flatten_in_conditional(dfg) {
             return None;
+        }
+        // Skip memory management instructions — these are always allowed to flatten
+        // but don't represent meaningful compute that should affect the decision.
+        if matches!(
+            instruction,
+            Instruction::EnableSideEffectsIf { .. }
+                | Instruction::Allocate
+                | Instruction::IncrementRc { .. }
+                | Instruction::DecrementRc { .. }
+                | Instruction::Noop
+        ) {
+            continue;
         }
         cost = cost.saturating_add(instruction.cost(*instruction_id, dfg) as u32);
     }
