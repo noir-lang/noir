@@ -3505,6 +3505,7 @@ dependencies = [
  "noirc_frontend",
  "serde",
  "similar-asserts",
+ "test-case",
  "thiserror 1.0.69",
  "toml",
 ]
