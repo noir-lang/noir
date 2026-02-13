@@ -466,10 +466,20 @@ fn zeroed_value(
     match typ {
         Type::Numeric(numeric_type) => dfg.make_constant(FieldElement::zero(), *numeric_type),
         Type::Array(element_types, len) => {
+            let is_acir = dfg.runtime().is_acir();
+            let has_nested_arrays = element_types.iter().any(|t| t.contains_an_array());
             let mut array = im::Vector::new();
-            for _ in 0..len.0 {
-                for typ in element_types.iter() {
-                    array.push_back(zeroed_value(dfg, func_id, block_id, typ));
+            if is_acir && has_nested_arrays {
+                // In ACIR mode, arrays are stored flat. We must create flat zeroed elements
+                // to match the layout that other SSA passes expect.
+                for flat_typ in typ.clone().flatten() {
+                    array.push_back(zeroed_value(dfg, func_id, block_id, &flat_typ));
+                }
+            } else {
+                for _ in 0..len.0 {
+                    for typ in element_types.iter() {
+                        array.push_back(zeroed_value(dfg, func_id, block_id, typ));
+                    }
                 }
             }
             let instruction = Instruction::MakeArray { elements: array, typ: typ.clone() };
