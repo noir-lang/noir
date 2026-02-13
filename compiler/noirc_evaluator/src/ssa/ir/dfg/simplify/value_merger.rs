@@ -1,4 +1,7 @@
-use acvm::acir::brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength};
+use acvm::{
+    AcirField as _, FieldElement,
+    acir::brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength},
+};
 use noirc_errors::{Location, call_stack::CallStackId};
 use rustc_hash::FxHashMap as HashMap;
 
@@ -10,7 +13,7 @@ use crate::{
         dfg::DataFlowGraph,
         instruction::{BinaryOp, Instruction},
         types::{NumericType, Type},
-        value::ValueId,
+        value::{Value, ValueId},
     },
 };
 
@@ -166,16 +169,21 @@ impl<'a> ValueMerger<'a> {
 
         for i in 0..len.0 {
             for (element_index, element_type) in element_types.iter().enumerate() {
-                let index = u128::from(i * element_count + element_index as u32).into();
-                let index = self.dfg.make_constant(index, NumericType::length_type());
+                let index_value = u128::from(i * element_count + element_index as u32).into();
+                let index = self.dfg.make_constant(index_value, NumericType::length_type());
 
                 let typevars = Some(vec![element_type.clone()]);
 
                 let mut get_element = |array, typevars| {
-                    let get = Instruction::ArrayGet { array, index };
-                    self.dfg
-                        .insert_instruction_and_results(get, self.block, typevars, self.call_stack)
-                        .first()
+                    maybe_optimized_array_get(
+                        array,
+                        index,
+                        index_value,
+                        self.block,
+                        typevars,
+                        self.call_stack,
+                        self.dfg,
+                    )
                 };
 
                 let then_element = get_element(then_value, typevars.clone());
@@ -235,14 +243,16 @@ impl<'a> ValueMerger<'a> {
 
                 let mut get_element = |array, typevars, len: SemiFlattenedLength| {
                     assert!(index_u32 < len.0, "get_element invoked with an out of bounds index");
-                    let get = Instruction::ArrayGet { array, index };
-                    let results = self.dfg.insert_instruction_and_results(
-                        get,
+
+                    maybe_optimized_array_get(
+                        array,
+                        index,
+                        index_value,
                         self.block,
                         typevars,
                         self.call_stack,
-                    );
-                    results.first()
+                        self.dfg,
+                    )
                 };
 
                 // If it's out of bounds for the "then" vector, a value in the "else" *must* exist.
@@ -280,4 +290,65 @@ impl<'a> ValueMerger<'a> {
             self.dfg.insert_instruction_and_results(instruction, self.block, None, call_stack);
         Ok(result.first())
     }
+}
+
+fn maybe_optimized_array_get(
+    array: ValueId,
+    index: ValueId,
+    index_value: FieldElement,
+    block: BasicBlockId,
+    typevars: Option<Vec<Type>>,
+    call_stack: CallStackId,
+    dfg: &mut DataFlowGraph,
+) -> ValueId {
+    match try_optimize_array_get_from_previous_set(dfg, array, index_value) {
+        Some(OptimizationResult::Value(value)) => value,
+        Some(OptimizationResult::ArrayGet(array)) => {
+            let get = Instruction::ArrayGet { array, index };
+            dfg.insert_instruction_and_results(get, block, typevars, call_stack).first()
+        }
+        None => {
+            let get = Instruction::ArrayGet { array, index };
+            dfg.insert_instruction_and_results(get, block, typevars, call_stack).first()
+        }
+    }
+}
+
+enum OptimizationResult {
+    Value(ValueId),
+    ArrayGet(ValueId),
+}
+
+fn try_optimize_array_get_from_previous_set(
+    dfg: &DataFlowGraph,
+    array_id: ValueId,
+    target_index: FieldElement,
+) -> Option<OptimizationResult> {
+    // The target index must be less than the maximum array length
+    let target_index_u32 = target_index.try_to_u32()?;
+
+    if let Some(instruction) = dfg.get_local_or_global_instruction(array_id) {
+        match instruction {
+            Instruction::ArraySet { index, value, .. } => {
+                if let Some(constant) = dfg.get_numeric_constant(*index)
+                    && constant == target_index
+                {
+                    return Some(OptimizationResult::Value(*value));
+                }
+            }
+            Instruction::MakeArray { elements: array, typ: _ } => {
+                let index = target_index_u32 as usize;
+                if index < array.len() {
+                    return Some(OptimizationResult::Value(array[index]));
+                }
+            }
+            _ => (),
+        }
+    } else if let Value::Param { typ: Type::Array(_, length), .. } = &dfg[array_id]
+        && target_index_u32 < length.0
+    {
+        return Some(OptimizationResult::ArrayGet(array_id));
+    }
+
+    None
 }
