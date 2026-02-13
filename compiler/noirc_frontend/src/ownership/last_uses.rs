@@ -406,26 +406,33 @@ impl LastUseContext {
     }
 
     fn track_variables_in_for(&mut self, for_expr: &ast::For) {
+        // The start and end range are evaluated once before the loop begins,
+        // so they are tracked outside the loop scope.
         self.track_variables_in_expression(&for_expr.start_range);
         self.track_variables_in_expression(&for_expr.end_range);
-        self.track_variables_in_loop(&for_expr.block);
+        self.track_variables_in_loop_exprs(&[&for_expr.block]);
     }
 
     fn track_variables_in_while(&mut self, while_expr: &ast::While) {
-        self.push_loop_scope();
         // The condition is evaluated on every iteration of the loop and thus must be included in the loop scope.
-        self.track_variables_in_expression(&while_expr.condition);
-        self.track_variables_in_expression(&while_expr.body);
-        self.pop_loop_scope();
+        self.track_variables_in_loop_exprs(&[&while_expr.condition, &while_expr.body]);
     }
 
     fn track_variables_in_loop(&mut self, loop_body: &Expression) {
+        self.track_variables_in_loop_exprs(&[loop_body]);
+    }
+
+    /// Track variables in a loop body. Each expression in `loop_exprs` must be
+    /// an expression that is evaluated on each iteration of the loop.
+    fn track_variables_in_loop_exprs(&mut self, loop_exprs: &[&Expression]) {
         // Save the current loop index of the variables we are tracking.
         // They *might* be reassigned inside the loop, which would change their index, but we need to restore them after.
         let orig_indices = vecmap(&self.last_uses, |(id, (index, _))| (*id, *index));
 
         self.push_loop_scope();
-        self.track_variables_in_expression(loop_body);
+        for expr in loop_exprs {
+            self.track_variables_in_expression(expr);
+        }
         self.pop_loop_scope();
 
         for (id, orig_index) in orig_indices {
