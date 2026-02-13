@@ -377,9 +377,11 @@ impl<'context> Elaborator<'context> {
         location: Location,
         generated_items: &mut CollectedItems,
     ) -> Result<(), CompilationError> {
+        // Arguments must be resolved relative to the module where the attribute happens
+        self.local_module = Some(attribute_context.attribute_module);
+
         let mut interpreter = self.setup_interpreter();
 
-        // Arguments must be resolved relative to the module where the attribute happens
         let mut arguments = Self::handle_attribute_arguments(
             &mut interpreter,
             &item,
