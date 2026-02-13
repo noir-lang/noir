@@ -29,8 +29,8 @@ fn brillig_as_vector() {
      7: sp[4] = indirect const u32 1
      8: sp[5] = u32 add sp[4], @2
      9: sp[6] = sp[5]
-    10: store sp[1] at sp[6]
-    11: sp[6] = u32 add sp[6], @2
+    10: store sp[1] at sp[5]
+    11: sp[6] = u32 add sp[5], @2
     12: store sp[2] at sp[6]
     13: sp[6] = u32 add sp[6], @2
     14: store sp[3] at sp[6]
@@ -169,8 +169,8 @@ fn brillig_array_ref_count() {
      7: sp[4] = indirect const u32 1
      8: sp[5] = u32 add sp[4], @2
      9: sp[6] = sp[5]
-    10: store sp[1] at sp[6]
-    11: sp[6] = u32 add sp[6], @2
+    10: store sp[1] at sp[5]
+    11: sp[6] = u32 add sp[5], @2
     12: store sp[2] at sp[6]
     13: sp[6] = u32 add sp[6], @2
     14: store sp[3] at sp[6]
@@ -206,8 +206,8 @@ fn brillig_vector_ref_count() {
      7: sp[4] = indirect const u32 1
      8: sp[5] = u32 add sp[4], @2
      9: sp[6] = sp[5]
-    10: store sp[1] at sp[6]
-    11: sp[6] = u32 add sp[6], @2
+    10: store sp[1] at sp[5]
+    11: sp[6] = u32 add sp[5], @2
     12: store sp[2] at sp[6]
     13: sp[6] = u32 add sp[6], @2
     14: store sp[3] at sp[6]

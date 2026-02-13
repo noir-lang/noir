@@ -80,13 +80,14 @@ impl Brillig {
         hoisted_global_constants: &HashMap<(FieldElement, NumericType), BrilligVariable>,
         is_entry_point: bool,
     ) {
-        let obj = self.convert_ssa_function(
+        let mut obj = self.convert_ssa_function(
             func,
             options,
             globals,
             hoisted_global_constants,
             is_entry_point,
         );
+        obj.coalesce_copies();
         self.ssa_function_to_brillig.insert(func.id(), obj);
     }
 
