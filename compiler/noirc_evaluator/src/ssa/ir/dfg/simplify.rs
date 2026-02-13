@@ -390,7 +390,7 @@ fn try_optimize_array_get_from_previous_set(
     _array_id: ValueId,
     _target_index: FieldElement,
 ) -> SimplifyResult {
-    return SimplifyResult::None;
+    SimplifyResult::None
 
     // // The target index must be less than the maximum array length
     // let Some(target_index_u32) = target_index.try_to_u32() else {
