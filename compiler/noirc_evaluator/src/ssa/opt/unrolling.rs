@@ -54,7 +54,7 @@ use crate::{
             cfg::ControlFlowGraph,
             dfg::DataFlowGraph,
             dom::DominatorTree,
-            function::Function,
+            function::{Function, RuntimeType},
             function_inserter::FunctionInserter,
             instruction::{Binary, BinaryOp, Instruction, TerminatorInstruction},
             integer::IntegerConstant,
@@ -134,38 +134,36 @@ impl Function {
         &mut self,
         force_unroll_threshold: usize,
     ) -> Result<bool, RuntimeError> {
-        // Try to unroll loops first:
         let (mut has_unrolled, mut unroll_errors) = self.try_unroll_loops(force_unroll_threshold);
 
-        // For Brillig, when unrolling succeeded, simplify and retry to catch
-        // newly-exposed inner loops after outer ones were unrolled.
-        if self.runtime().is_brillig() && has_unrolled {
-            loop {
+        match self.runtime() {
+            RuntimeType::Acir(_) => {
+                // Keep unrolling until no more errors are found
+                while !unroll_errors.is_empty() {
+                    let prev_unroll_err_count = unroll_errors.len();
+
+                    // Simplify the SSA before retrying
+                    simplify_between_unrolls(self);
+
+                    // Unroll again
+                    let (new_unrolled, new_errors) = self.try_unroll_loops(force_unroll_threshold);
+                    unroll_errors = new_errors;
+                    has_unrolled |= new_unrolled;
+
+                    // If we didn't manage to unroll any more loops, exit
+                    if unroll_errors.len() >= prev_unroll_err_count {
+                        return Err(unroll_errors.swap_remove(0));
+                    }
+                }
+            }
+            RuntimeType::Brillig(_) => loop {
                 simplify_between_unrolls(self);
-                let (unrolled, errors) = self.try_unroll_loops(force_unroll_threshold);
-                unroll_errors = errors;
+                let (unrolled, _) = self.try_unroll_loops(force_unroll_threshold);
+                has_unrolled |= has_unrolled;
                 if !unrolled {
                     break;
                 }
-            }
-        }
-
-        // Keep unrolling until no more errors are found
-        while !unroll_errors.is_empty() {
-            let prev_unroll_err_count = unroll_errors.len();
-
-            // Simplify the SSA before retrying
-            simplify_between_unrolls(self);
-
-            // Unroll again
-            let (new_unrolled, new_errors) = self.try_unroll_loops(force_unroll_threshold);
-            unroll_errors = new_errors;
-            has_unrolled |= new_unrolled;
-
-            // If we didn't manage to unroll any more loops, exit
-            if unroll_errors.len() >= prev_unroll_err_count {
-                return Err(unroll_errors.swap_remove(0));
-            }
+            },
         }
 
         #[cfg(debug_assertions)]
@@ -1338,6 +1336,7 @@ mod tests {
     use crate::assert_ssa_snapshot;
     use crate::errors::RuntimeError;
     use crate::ssa::ir::integer::IntegerConstant;
+    use crate::ssa::opt::assert_ssa_does_not_change;
     use crate::ssa::{Ssa, ir::value::ValueId, opt::assert_normalized_ssa_equals};
 
     use super::{BoilerplateStats, FORCE_UNROLL_THRESHOLD, LoopOrder, Loops, is_new_size_ok};
@@ -1538,7 +1537,13 @@ mod tests {
     fn test_boilerplate_stats_i64_empty() {
         // Looping 0..-1, which should be 0 iterations.
         // u64::MAX is how -1 is represented as a Field.
-        let ssa = brillig_unroll_test_case_6470_with_params("i64", "0", &format!("{}", u64::MAX));
+        let ssa = Ssa::from_str(&brillig_unroll_test_case_6470_with_params(
+            "i64",
+            "0",
+            &format!("{}", u64::MAX),
+        ))
+        .unwrap();
+
         let stats = loop0_stats(&ssa);
         assert_eq!(stats.iterations, 0);
         assert_eq!(stats.unrolled_instructions(), 0);
@@ -1548,26 +1553,27 @@ mod tests {
     fn test_boilerplate_stats_i64_non_empty() {
         // Looping -4..-1, which should be 3 iterations.
         // u64::MAX-3 is how -4 is represented as a Field.
-        let ssa = brillig_unroll_test_case_6470_with_params(
+        let ssa = Ssa::from_str(&brillig_unroll_test_case_6470_with_params(
             "i64",
             &format!("{}", u64::MAX - 3),
             &format!("{}", u64::MAX),
-        );
+        ))
+        .unwrap();
         let stats = loop0_stats(&ssa);
         assert_eq!(stats.iterations, 3);
     }
 
     #[test]
     fn test_boilerplate_stats_6470() {
-        let ssa = brillig_unroll_test_case_6470(2);
+        let ssa = Ssa::from_str(&brillig_unroll_test_case_6470(2)).unwrap();
         let stats = loop0_stats(&ssa);
         assert_eq!(stats.iterations, 2);
-        assert_eq!(stats.all_instructions, 2 + 9); // Instructions in b1 and b3
+        assert_eq!(stats.all_instructions, 2 + 8); // Instructions in b1 and b3
         assert_eq!(stats.increments, 2);
         assert_eq!(stats.loads, 1);
         assert_eq!(stats.stores, 1);
-        assert_eq!(stats.useful_instructions(), 4); // cast, array get, add, array set
-        assert_eq!(stats.baseline_instructions(), 12);
+        assert_eq!(stats.useful_instructions(), 3); // cast, array get, add, array set
+        assert_eq!(stats.baseline_instructions(), 11);
         assert!(stats.is_small());
     }
 
@@ -1631,7 +1637,7 @@ mod tests {
     #[test]
     fn test_brillig_unroll_6470_small() {
         // Few enough iterations so that we can perform the unroll.
-        let ssa = brillig_unroll_test_case_6470(2);
+        let ssa = Ssa::from_str(&brillig_unroll_test_case_6470(2)).unwrap();
         let (ssa, errors) = try_unroll_loops(ssa);
         assert_eq!(errors.len(), 0, "Unroll should have no errors");
         assert_eq!(ssa.main().reachable_blocks().len(), 2, "The loop should be unrolled");
@@ -1666,7 +1672,7 @@ mod tests {
     #[test]
     fn test_brillig_unroll_6470_large() {
         // 13 iterations × 4 useful instructions = 52, above FORCE_UNROLL_THRESHOLD (32)
-        let parse_ssa = || brillig_unroll_test_case_6470(13);
+        let parse_ssa = || Ssa::from_str(&brillig_unroll_test_case_6470(13)).unwrap();
         let ssa = parse_ssa();
         let stats = loop0_stats(&ssa);
         assert!(!stats.is_small(), "the loop should be considered large");
@@ -1708,7 +1714,7 @@ mod tests {
     /// With threshold=0, it should NOT be unrolled.
     #[test]
     fn test_brillig_force_unroll_threshold_zero_disables_unrolling() {
-        let parse_ssa = || brillig_unroll_test_case_6470(6);
+        let parse_ssa = || Ssa::from_str(&brillig_unroll_test_case_6470(6)).unwrap();
         let ssa = parse_ssa();
 
         // Verify the loop's properties match our expectations
@@ -1719,10 +1725,10 @@ mod tests {
             "loop should be within default force-unroll threshold"
         );
 
-        // With threshold=0, the loop should NOT be unrolled
-        let ssa = ssa.unroll_loops_iteratively(None, 0).unwrap();
-        // Check that it's still the original (not unrolled)
-        assert_normalized_ssa_equals(ssa, &parse_ssa().print_without_locations().to_string());
+        assert_ssa_does_not_change(&brillig_unroll_test_case_6470(6), |ssa| {
+            // With threshold=0, the loop should NOT be unrolled
+            ssa.unroll_loops_iteratively(None, 0).unwrap()
+        });
     }
 
     /// Test that `break` and `continue` stop unrolling without any panic.
@@ -1843,14 +1849,47 @@ mod tests {
     /// }
     /// ```
     /// The `num_iterations` parameter can be used to make it more costly to inline.
-    fn brillig_unroll_test_case_6470(num_iterations: usize) -> Ssa {
+    fn brillig_unroll_test_case_6470(num_iterations: usize) -> String {
         brillig_unroll_test_case_6470_with_params("u32", "0", &format!("{num_iterations}"))
     }
 
-    fn brillig_unroll_test_case_6470_with_params(idx_type: &str, lower: &str, upper: &str) -> Ssa {
-        let src = format!(
-            "
-        // After `static_assert` and `assert_constant`:
+    fn brillig_unroll_test_case_6470_with_params(
+        idx_type: &str,
+        lower: &str,
+        upper: &str,
+    ) -> String {
+        if idx_type == "u32" {
+            format!(
+                "
+        brillig(inline) fn main f0 {{
+          b0(v0: [u64; 6]):
+            inc_rc v0
+            v3 = make_array [u64 0, u64 0, u64 0, u64 0, u64 0, u64 0] : [u64; 6]
+            inc_rc v3
+            v4 = allocate -> &mut [u64; 6]
+            store v3 at v4
+            jmp b1({idx_type} {lower})
+          b1(v1: {idx_type}):
+            v7 = lt v1, {idx_type} {upper}
+            jmpif v7 then: b3, else: b2
+          b3():
+            v9 = load v4 -> [u64; 6]
+            v11 = array_get v0, index v1 -> u64
+            v12 = add v11, u64 1
+            v13 = array_set v9, index v1, value v12
+            v15 = unchecked_add v1, {idx_type} 1
+            store v13 at v4
+            v16 = unchecked_add v1, {idx_type} 1 // duplicate
+            jmp b1(v16)
+          b2():
+            v8 = load v4 -> [u64; 6]
+            return v8
+        }}
+        "
+            )
+        } else {
+            format!(
+                "
         brillig(inline) fn main f0 {{
           b0(v0: [u64; 6]):
             inc_rc v0
@@ -1877,8 +1916,8 @@ mod tests {
             return v8
         }}
         "
-        );
-        Ssa::from_str(&src).unwrap()
+            )
+        }
     }
 
     // Boilerplate stats of the first loop in the SSA.
