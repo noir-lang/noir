@@ -88,6 +88,10 @@ pub struct SsaBuilder<'local> {
     /// Providing a file manager is optional - if provided it can be used to print source
     /// locations along with each ssa instructions when debugging.
     files: Option<&'local fm::FileManager>,
+
+    /// Records the last SSA printed. This is used to avoid printing the result of an
+    /// SSA pass if it didn't produce any changes compared to the previous SSA.
+    last_ssa_printed: Option<String>,
 }
 
 impl<'local> SsaBuilder<'local> {
@@ -124,6 +128,7 @@ impl<'local> SsaBuilder<'local> {
             files,
             passed: Default::default(),
             skip_passes: Default::default(),
+            last_ssa_printed: None,
         }
     }
 
@@ -193,7 +198,23 @@ impl<'local> SsaBuilder<'local> {
         }
 
         if print_ssa_pass {
-            println_to_stdout!("After {msg}:\n{}", self.ssa.print_with(self.files));
+            let printed_ssa = format!("{}", self.ssa.print_with(self.files));
+
+            // Only print the new SSA if:
+            // - only some passes were requested to be printed
+            // - all of the passes were requested to be printed and the pass produced a changed in the SSA
+            if !(matches!(self.ssa_logging, SsaLogging::All)
+                && self
+                    .last_ssa_printed
+                    .as_ref()
+                    .is_some_and(|last_ssa_printed| last_ssa_printed == &printed_ssa))
+            {
+                println_to_stdout!("After {msg}:\n{}", printed_ssa);
+            }
+
+            if matches!(self.ssa_logging, SsaLogging::All) {
+                self.last_ssa_printed = Some(printed_ssa);
+            }
         }
         self
     }
