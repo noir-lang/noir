@@ -115,7 +115,7 @@ pub(crate) fn simplify(
         Instruction::ConstrainNotEqual(..) => None,
         Instruction::ArrayGet { array, index } => {
             if let Some(index) = dfg.get_numeric_constant(*index) {
-                return try_optimize_array_get_from_previous_set(dfg, *array, index);
+                return try_optimize_array_get_from_previous_instructions(dfg, *array, index);
             }
 
             let array_or_vector_type = dfg.type_of_value(*array);
@@ -357,7 +357,8 @@ fn optimize_length_one_array_read(
     );
     dfg.insert_instruction_and_results(index_constraint, block, None, call_stack);
 
-    let result = try_optimize_array_get_from_previous_set(dfg, array, FieldElement::zero());
+    let result =
+        try_optimize_array_get_from_previous_instructions(dfg, array, FieldElement::zero());
     if let SimplifyResult::None = result {
         SimplifyResult::SimplifiedToInstruction(Instruction::ArrayGet { array, index: zero })
     } else {
@@ -385,55 +386,60 @@ fn optimize_length_one_array_read(
 /// That is, we have multiple `array_set` instructions setting various constant indexes
 /// of the same array, returning a modified version. We want to go backwards until we
 /// find the last `array_set` for the index we are interested in, and return the value set.
-fn try_optimize_array_get_from_previous_set(
-    _dfg: &mut DataFlowGraph,
-    _array_id: ValueId,
-    _target_index: FieldElement,
+fn try_optimize_array_get_from_previous_instructions(
+    dfg: &mut DataFlowGraph,
+    mut array_id: ValueId,
+    target_index: FieldElement,
 ) -> SimplifyResult {
+    // The target index must be less than the maximum array length
+    let Some(target_index_u32) = target_index.try_to_u32() else {
+        return SimplifyResult::None;
+    };
+
+    // Arbitrary number of maximum tries just to prevent this optimization from taking too long.
+    let max_tries = 5;
+    for _ in 0..max_tries {
+        if let Some(instruction) = dfg.get_local_or_global_instruction(array_id) {
+            match instruction {
+                Instruction::ArraySet { array, index, .. } => {
+                    if let Some(constant) = dfg.get_numeric_constant(*index) {
+                        if constant == target_index {
+                            // If it's an array_set with the same index as the array_get, we don't
+                            // use the value at that index. The reason is that the array_set might
+                            // be under a different predicate than the array_get, so the set value
+                            // might not be the correct one in the end.
+                            return SimplifyResult::None;
+                        }
+
+                        // However, if it's for a known different index we can safely recurse,
+                        // as the array is not modified at the array_get index. We might end up
+                        // reaching a MakeArray or a Param.
+                        array_id = *array; // recur
+                        continue;
+                    }
+                }
+                Instruction::MakeArray { elements: array, typ: _ } => {
+                    let index = target_index_u32 as usize;
+                    if index < array.len() {
+                        return SimplifyResult::SimplifiedTo(array[index]);
+                    }
+                }
+                _ => (),
+            }
+        } else if let Value::Param { typ: Type::Array(_, length), .. } = &dfg[array_id]
+            && target_index_u32 < length.0
+        {
+            let index = dfg.make_constant(target_index, NumericType::length_type());
+            return SimplifyResult::SimplifiedToInstruction(Instruction::ArrayGet {
+                array: array_id,
+                index,
+            });
+        }
+
+        break;
+    }
+
     SimplifyResult::None
-
-    // // The target index must be less than the maximum array length
-    // let Some(target_index_u32) = target_index.try_to_u32() else {
-    //     return SimplifyResult::None;
-    // };
-
-    // // Arbitrary number of maximum tries just to prevent this optimization from taking too long.
-    // let max_tries = 5;
-    // for _ in 0..max_tries {
-    //     if let Some(instruction) = dfg.get_local_or_global_instruction(array_id) {
-    //         match instruction {
-    //             Instruction::ArraySet { array, index, value, .. } => {
-    //                 if let Some(constant) = dfg.get_numeric_constant(*index) {
-    //                     if constant == target_index {
-    //                         return SimplifyResult::SimplifiedTo(*value);
-    //                     }
-
-    //                     array_id = *array; // recur
-    //                     continue;
-    //                 }
-    //             }
-    //             Instruction::MakeArray { elements: array, typ: _ } => {
-    //                 let index = target_index_u32 as usize;
-    //                 if index < array.len() {
-    //                     return SimplifyResult::SimplifiedTo(array[index]);
-    //                 }
-    //             }
-    //             _ => (),
-    //         }
-    //     } else if let Value::Param { typ: Type::Array(_, length), .. } = &dfg[array_id]
-    //         && target_index_u32 < length.0
-    //     {
-    //         let index = dfg.make_constant(target_index, NumericType::length_type());
-    //         return SimplifyResult::SimplifiedToInstruction(Instruction::ArrayGet {
-    //             array: array_id,
-    //             index,
-    //         });
-    //     }
-
-    //     break;
-    // }
-
-    // SimplifyResult::None
 }
 
 /// If we have an array set whose value is from an array get on the same array at the same index,

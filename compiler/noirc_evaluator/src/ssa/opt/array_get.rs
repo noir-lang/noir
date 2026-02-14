@@ -94,18 +94,23 @@ fn try_optimize_array_get_from_previous_instructions(
         {
             match instruction {
                 Instruction::ArraySet { array, index, value, .. } => {
-                    if array_set_predicates
-                        .get(&other_instruction_id)
-                        .is_none_or(|predicate| predicate != &context.enable_side_effects)
-                    {
-                        return None;
-                    }
-
                     if let Some(constant) = context.dfg.get_numeric_constant(*index) {
                         if constant == target_index {
+                            // If there's an array_set with the same index as the array_get, we
+                            // can only apply this optimization if they are under the same predicate.
+                            if array_set_predicates
+                                .get(&other_instruction_id)
+                                .is_none_or(|predicate| predicate != &context.enable_side_effects)
+                            {
+                                return None;
+                            }
+
                             return Some(OptimizationResult::Value(*value));
                         }
 
+                        // If it's for a different known index, we can safely recur, because
+                        // regardless of whether the array_set ends up being executed or not, it
+                        // won't modify the value at the array_get index.
                         array_id = *array; // recur
                         continue;
                     }
