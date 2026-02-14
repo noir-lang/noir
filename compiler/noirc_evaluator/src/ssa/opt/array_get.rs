@@ -214,7 +214,7 @@ mod tests {
         acir(inline) fn main f0 {
           b0(v0: [Field; 3], v10: u1, v11: u1):
             enable_side_effects v10
-            v1 = array_set v0, index u32 1, value Field 1
+            v1 = array_set v0, index u32 0, value Field 1
             enable_side_effects v11
             v2 = array_get v1, index u32 0 -> Field
             return v2

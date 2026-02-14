@@ -761,12 +761,17 @@ mod tests {
         ";
         let ssa = Ssa::from_str_simplifying(src).unwrap();
 
+        // Only v3 was optimized because v2 reads from the same index
+        // as v1 and this basic optimization can't know if that array_set
+        // is under the same predicate as the array_get (there's a dedicated
+        // `array_get` optimization for that)
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) predicate_pure fn main f0 {
           b0(v0: [Field; 2]):
             v3 = array_set mut v0, index u32 0, value Field 4
-            v5 = array_get v0, index u32 1 -> Field
-            return Field 4, v5
+            v4 = array_get v3, index u32 0 -> Field
+            v6 = array_get v0, index u32 1 -> Field
+            return v4, v6
         }
         ");
     }
