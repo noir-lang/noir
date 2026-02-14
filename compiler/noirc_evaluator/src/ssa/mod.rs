@@ -147,6 +147,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             },
             "Preprocessing Functions",
         ),
+        SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
         SsaPass::new_try(
             move |ssa| {
                 ssa.inline_functions(
