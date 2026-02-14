@@ -40,7 +40,7 @@ use crate::{
             value::{ExprValue, FormatStringFragment, TypedExpr},
         },
         def_collector::dc_crate::CollectedItems,
-        def_map::{ModuleDefId, ModuleId},
+        def_map::{ModuleDefId, ModuleId, fully_qualified_module_path},
     },
     hir_def::{
         expr::{HirExpression, HirIdent, HirLiteral, ImplKind, TraitItem},
@@ -2924,6 +2924,17 @@ fn module_add_item(
 ) -> IResult<Value> {
     let (self_argument, item) = check_two_arguments(arguments, location)?;
     let module_id = get_module(self_argument)?;
+
+    let current_crate = interpreter.elaborator.module_id().krate;
+    if current_crate != module_id.krate {
+        let module = fully_qualified_module_path(
+            interpreter.elaborator.def_maps,
+            interpreter.elaborator.crate_graph,
+            &current_crate,
+            module_id,
+        );
+        return Err(InterpreterError::CannotAddItemToExternalCrateModule { module, location });
+    }
 
     let parser = Parser::parse_top_level_items;
     let top_level_statements = parse(interpreter.elaborator, item, parser, "a top-level item")?;
