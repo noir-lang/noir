@@ -1,3 +1,4 @@
+mod comptime_for;
 mod skip_interpreter_on_fail;
 
 use crate::{
@@ -935,21 +936,6 @@ fn comptime_if_expression() {
     assert_no_errors(src);
 }
 
-#[test]
-fn comptime_for_loop() {
-    let src = r#"
-        fn main() {
-            comptime {
-                let mut sum = 0;
-                for i in 0..3 {
-                    sum += i;
-                }
-                assert_eq(sum, 3);
-            }
-        }
-    "#;
-    assert_no_errors(src);
-}
 
 #[test]
 fn comptime_loop_with_break() {
