@@ -1350,6 +1350,32 @@ impl Type {
         }
     }
 
+    /// Returns true if this type is or contains a `NamedGeneric` (an unresolved generic parameter).
+    pub fn contains_named_generic(&self) -> bool {
+        match self {
+            Type::NamedGeneric(..) => true,
+            Type::Array(len, elem) => {
+                len.contains_named_generic() || elem.contains_named_generic()
+            }
+            Type::Vector(elem) => elem.contains_named_generic(),
+            Type::Tuple(fields) => fields.iter().any(|f| f.contains_named_generic()),
+            Type::Function(args, ret, env, _) => {
+                args.iter().any(|a| a.contains_named_generic())
+                    || ret.contains_named_generic()
+                    || env.contains_named_generic()
+            }
+            Type::DataType(_, generics) => generics.iter().any(|g| g.contains_named_generic()),
+            Type::Alias(alias, args) => {
+                alias.borrow().get_type(args).contains_named_generic()
+            }
+            Type::TypeVariable(binding) => match &*binding.borrow() {
+                TypeBinding::Bound(typ) => typ.contains_named_generic(),
+                TypeBinding::Unbound(_, _) => false,
+            },
+            _ => false,
+        }
+    }
+
     pub fn is_field(&self) -> bool {
         matches!(self.follow_bindings_shallow().as_ref(), Type::FieldElement)
     }
