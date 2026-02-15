@@ -1519,4 +1519,3 @@ fn path_inside_module_attribute() {
     "#;
     assert_no_errors(src);
 }
-

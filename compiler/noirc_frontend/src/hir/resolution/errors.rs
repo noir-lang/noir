@@ -150,7 +150,9 @@ pub enum ResolverError {
     ComptimeTypeInNonComptimeGlobal { typ: String, location: Location },
     #[error("Comptime variable `{name}` cannot be mutated in a non-comptime context")]
     MutatingComptimeInNonComptimeContext { name: String, location: Location },
-    #[error("Type `{typ}` contains a generic from a runtime function and cannot be used in a comptime context")]
+    #[error(
+        "Type `{typ}` contains a generic from a runtime function and cannot be used in a comptime context"
+    )]
     RuntimeGenericTypeInComptime { typ: String, location: Location },
     #[error("Failed to parse `{statement}` as an expression")]
     InvalidInternedStatementInExpr { statement: String, location: Location },
