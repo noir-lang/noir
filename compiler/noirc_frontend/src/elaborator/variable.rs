@@ -645,13 +645,8 @@ impl Elaborator<'_> {
             if self.in_comptime_context() && !self.in_comptime_function() {
                 let object_type = method.constraint.typ.follow_bindings();
                 if matches!(object_type, Type::NamedGeneric(..)) {
-                    let trait_id = method.constraint.trait_bound.trait_id;
-                    let trait_name = self.interner.get_trait(trait_id).name.to_string();
-                    let item = self.interner.definition_name(method.definition).to_string();
-                    self.push_err(ResolverError::UnresolvedGenericInComptime {
-                        object_type: object_type.to_string(),
-                        trait_name,
-                        item,
+                    self.push_err(ResolverError::RuntimeGenericTypeInComptime {
+                        typ: object_type.to_string(),
                         location,
                     });
                 }

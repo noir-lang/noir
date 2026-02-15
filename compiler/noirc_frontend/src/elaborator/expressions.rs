@@ -1593,6 +1593,20 @@ impl Elaborator<'_> {
             block
         });
 
+        // A comptime block inside a non-comptime function cannot produce a value whose type
+        // contains a runtime generic, since those are not resolved until monomorphization.
+        // This catches e.g. `let _: F = comptime { zeroed() }` where the type annotation
+        // is outside the comptime block.
+        if !self.in_comptime_function()
+            && let Some(target_type) = target_type
+            && target_type.follow_bindings().contains_named_generic()
+        {
+            self.push_err(ResolverError::RuntimeGenericTypeInComptime {
+                typ: target_type.follow_bindings().to_string(),
+                location,
+            });
+        }
+
         let mut interpreter = self.setup_interpreter();
         let value = interpreter.evaluate_block(block);
 

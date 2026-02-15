@@ -150,13 +150,6 @@ pub enum ResolverError {
     ComptimeTypeInNonComptimeGlobal { typ: String, location: Location },
     #[error("Comptime variable `{name}` cannot be mutated in a non-comptime context")]
     MutatingComptimeInNonComptimeContext { name: String, location: Location },
-    #[error("Cannot resolve `{trait_name}::{item}` for generic type `{object_type}` from a runtime function")]
-    UnresolvedGenericInComptime {
-        object_type: String,
-        trait_name: String,
-        item: String,
-        location: Location,
-    },
     #[error("Type `{typ}` contains a generic from a runtime function and cannot be used in a comptime context")]
     RuntimeGenericTypeInComptime { typ: String, location: Location },
     #[error("Failed to parse `{statement}` as an expression")]
@@ -279,7 +272,6 @@ impl ResolverError {
             | ResolverError::ComptimeTypeInRuntimeCode { location, .. }
             | ResolverError::ComptimeTypeInNonComptimeGlobal { location, .. }
             | ResolverError::MutatingComptimeInNonComptimeContext { location, .. }
-            | ResolverError::UnresolvedGenericInComptime { location, .. }
             | ResolverError::RuntimeGenericTypeInComptime { location, .. }
             | ResolverError::InvalidInternedStatementInExpr { location, .. }
             | ResolverError::InvalidSyntaxInPattern { location }
@@ -774,13 +766,6 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     format!("Comptime variable `{name}` cannot be mutated in a non-comptime context"),
                     format!("`{name}` mutated here"),
-                    *location,
-                )
-            },
-            ResolverError::UnresolvedGenericInComptime { object_type, trait_name, item, location } => {
-                Diagnostic::simple_error(
-                    format!("Cannot resolve `{trait_name}::{item}` for generic type `{object_type}` from a runtime function"),
-                    "This comptime block references a generic from an enclosing runtime function which will not be resolved until monomorphization, which runs after comptime evaluation. Consider using a concrete type instead.".to_string(),
                     *location,
                 )
             },

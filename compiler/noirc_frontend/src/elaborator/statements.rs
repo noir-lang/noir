@@ -152,15 +152,15 @@ impl Elaborator<'_> {
 
         // A comptime block inside a non-comptime function cannot meaningfully use types
         // that contain runtime generics, since those are not resolved until monomorphization.
-        if self.in_comptime_context() && !self.in_comptime_function() {
-            if let Some(type_location) = type_annotation_location {
-                if annotated_type.contains_named_generic() {
-                    self.push_err(ResolverError::RuntimeGenericTypeInComptime {
-                        typ: annotated_type.to_string(),
-                        location: type_location,
-                    });
-                }
-            }
+        if self.in_comptime_context()
+            && !self.in_comptime_function()
+            && let Some(type_location) = type_annotation_location
+            && annotated_type.contains_named_generic()
+        {
+            self.push_err(ResolverError::RuntimeGenericTypeInComptime {
+                typ: annotated_type.to_string(),
+                location: type_location,
+            });
         }
 
         // If this is a global, the global's value will be interpreted at compile time later on,

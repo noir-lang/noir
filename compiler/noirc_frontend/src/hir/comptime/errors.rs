@@ -633,11 +633,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             InterpreterError::CannotInlineMacro { value, typ, location } => {
                 let msg = format!("Cannot inline values of type `{typ}` into this position");
                 let secondary = format!("Cannot inline value `{value}`");
-                let mut diagnostic = CustomDiagnostic::simple_error(msg, secondary, *location);
-                if typ.contains_named_generic() {
-                    diagnostic.add_note("This comptime block references a generic from an enclosing runtime function which will not be resolved until monomorphization, which runs after comptime evaluation".to_string());
-                }
-                diagnostic
+                CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::UnquoteFoundDuringEvaluation { location } => {
                 let msg = "Unquote found during comptime evaluation".into();
