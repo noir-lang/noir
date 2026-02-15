@@ -1681,17 +1681,18 @@ mod tests {
           b11():
             v5 = make_array [u8 0] : [u8; 1]
             v7 = make_array [u8 1] : [u8; 1]
-            jmp b13()
+            jmp b13(v5)
           b12():
             v8 = make_array [u8 1] : [u8; 1]
-            jmp b13()
-          b13():
+            v20 = make_array [u8 0] : [u8; 1]
+            jmp b13(v20)
+          b13(v21: [u8; 1]):
             jmp b14()
           b14():
             jmp b15()
           b15():
             v6 = allocate -> &mut [u8; 1]
-            store v5 at v6
+            store v21 at v6
             jmp b16()
           b16():
             v9 = make_array [u8 0] : [u8; 1]
@@ -1718,7 +1719,7 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: u1):
-            v3 = make_array [u8 0] : [u8; 1]
+            v4 = make_array [u8 0] : [u8; 1]
             jmpif v0 then: b1, else: b10
           b1():
             jmp b2()
@@ -1731,42 +1732,44 @@ mod tests {
           b5():
             jmp b6()
           b6():
-            v8 = make_array [u8 2] : [u8; 1]
+            v9 = make_array [u8 2] : [u8; 1]
             jmpif v1 then: b7, else: b8
           b7():
-            v9 = make_array [u8 0] : [u8; 1]
-            inc_rc v8
+            inc_rc v4
+            inc_rc v9
             jmp b9()
           b8():
-            inc_rc v8
+            inc_rc v9
             jmp b9()
           b9():
             jmp b16()
           b10():
-            v5 = make_array [u8 1] : [u8; 1]
+            inc_rc v4
+            v6 = make_array [u8 1] : [u8; 1]
             jmpif v1 then: b11, else: b12
           b11():
-            inc_rc v3
-            inc_rc v5
-            jmp b13()
+            inc_rc v4
+            inc_rc v6
+            jmp b13(v4)
           b12():
-            inc_rc v5
-            jmp b13()
-          b13():
+            inc_rc v6
+            inc_rc v4
+            jmp b13(v4)
+          b13(v2: [u8; 1]):
             jmp b14()
           b14():
             jmp b15()
           b15():
-            v6 = allocate -> &mut [u8; 1]
-            store v3 at v6
+            v7 = allocate -> &mut [u8; 1]
+            store v2 at v7
             jmp b16()
           b16():
-            inc_rc v3
+            inc_rc v4
             v10 = allocate -> &mut [u8; 1]
-            store v3 at v10
+            store v4 at v10
             jmp b17()
           b17():
-            inc_rc v3
+            inc_rc v4
             v12 = make_array [u8 3] : [u8; 1]
             jmpif v1 then: b18, else: b19
           b18():

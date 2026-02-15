@@ -1588,12 +1588,13 @@ mod tests {
             jmpif u1 1 then: b1, else: b2
           b1():
             v3 = make_array [v1] : [&mut u1]
-            jmp b3(u32 0)
+            jmp b3(u32 0, v3)
           b2():
-            jmp b3(u32 0)
-          b3(v0: u32):
+            v8 = make_array [v1] : [&mut u1]
+            jmp b3(u32 0, v8)
+          b3(v0: u32, v9: [&mut u1]):
             constrain v0 == u32 0
-            v6 = array_get v3, index v0 -> &mut u1
+            v6 = array_get v9, index v0 -> &mut u1
             v7 = load v6 -> u1
             return v7
         }

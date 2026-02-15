@@ -24,6 +24,7 @@ use acvm::{
 };
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
+pub(crate) mod dominance;
 pub(crate) mod dynamic_array_indices;
 
 use crate::ssa::{
@@ -1066,6 +1067,10 @@ impl<'f> Validator<'f> {
         }
     }
 
+    fn validate_value_definitions(&self) {
+        dominance::validate_value_definitions(self.function);
+    }
+
     fn run(&mut self) {
         self.type_check_globals();
         self.validate_single_return_block();
@@ -1079,6 +1084,8 @@ impl<'f> Validator<'f> {
             }
             self.validate_block_terminator(block);
         }
+
+        self.validate_value_definitions();
     }
 }
 
