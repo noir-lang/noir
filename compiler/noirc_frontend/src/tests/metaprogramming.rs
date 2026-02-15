@@ -1604,3 +1604,19 @@ fn no_error_on_generic_trait_method_in_comptime_function() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn error_on_runtime_generic_type_annotation_in_comptime_block() {
+    let src = r#"
+    pub fn g<F>() {
+        comptime {
+            let _x: [F; 1] = zeroed();
+                    ^^^^^^ Type `[F; 1]` contains a generic from a runtime function and cannot be used in a comptime context
+                    ~~~~~~ This comptime block references a generic from an enclosing runtime function which will not be resolved until monomorphization, which runs after comptime evaluation
+        };
+    }
+
+    fn main() {}
+    "#;
+    check_errors_with_stdlib(src, [stdlib_src::ZEROED]);
+}

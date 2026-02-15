@@ -157,6 +157,8 @@ pub enum ResolverError {
         item: String,
         location: Location,
     },
+    #[error("Type `{typ}` contains a generic from a runtime function and cannot be used in a comptime context")]
+    RuntimeGenericTypeInComptime { typ: String, location: Location },
     #[error("Failed to parse `{statement}` as an expression")]
     InvalidInternedStatementInExpr { statement: String, location: Location },
     #[error("{0}")]
@@ -278,6 +280,7 @@ impl ResolverError {
             | ResolverError::ComptimeTypeInNonComptimeGlobal { location, .. }
             | ResolverError::MutatingComptimeInNonComptimeContext { location, .. }
             | ResolverError::UnresolvedGenericInComptime { location, .. }
+            | ResolverError::RuntimeGenericTypeInComptime { location, .. }
             | ResolverError::InvalidInternedStatementInExpr { location, .. }
             | ResolverError::InvalidSyntaxInPattern { location }
             | ResolverError::NonIntegerGlobalUsedInPattern { location, .. }
@@ -778,6 +781,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     format!("Cannot resolve `{trait_name}::{item}` for generic type `{object_type}` from a runtime function"),
                     "This comptime block references a generic from an enclosing runtime function which will not be resolved until monomorphization, which runs after comptime evaluation. Consider using a concrete type instead.".to_string(),
+                    *location,
+                )
+            },
+            ResolverError::RuntimeGenericTypeInComptime { typ, location } => {
+                Diagnostic::simple_error(
+                    format!("Type `{typ}` contains a generic from a runtime function and cannot be used in a comptime context"),
+                    "This comptime block references a generic from an enclosing runtime function which will not be resolved until monomorphization, which runs after comptime evaluation".to_string(),
                     *location,
                 )
             },
