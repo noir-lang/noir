@@ -152,6 +152,9 @@ impl Elaborator<'_> {
 
         // A comptime block inside a non-comptime function cannot meaningfully use types
         // that contain runtime generics, since those are not resolved until monomorphization.
+        // Note: if there is no type annotation then `annotated_type` was inferred, meaning
+        // the generic must be referenced explicitly elsewhere (e.g. a turbofish or trait path)
+        // and will be caught by other checks in those paths.
         if self.in_comptime_context()
             && !self.in_comptime_function()
             && let Some(type_location) = type_annotation_location
