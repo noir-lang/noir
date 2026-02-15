@@ -814,6 +814,13 @@ impl<'context> Elaborator<'context> {
             }
     }
 
+    /// True if the current item being elaborated is a comptime function.
+    /// This is distinct from `in_comptime_context()` which also returns true for
+    /// inline `comptime { }` blocks inside non-comptime functions.
+    pub(super) fn in_comptime_function(&self) -> bool {
+        matches!(self.current_item, Some(DependencyId::Function(id)) if self.interner.function_modifiers(&id).is_comptime)
+    }
+
     fn with_elaborate_reason<F, T>(&mut self, reason: ElaborateReason, f: F) -> T
     where
         F: FnOnce(&mut Elaborator) -> T,

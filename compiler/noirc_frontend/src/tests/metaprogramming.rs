@@ -1518,3 +1518,89 @@ fn path_inside_module_attribute() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn error_on_generic_trait_method_in_comptime_block() {
+    let src = r#"
+    trait B {
+        comptime fn c() -> u8;
+    }
+
+    pub fn g<F: B>() {
+        let _c = comptime {
+            F::c()
+            ^^^^ Cannot resolve `B::c` for generic type `F` from a runtime function
+            ~~~~ This comptime block references a generic from an enclosing runtime function which will not be resolved until monomorphization, which runs after comptime evaluation. Consider using a concrete type instead.
+        };
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn error_on_generic_as_trait_path_in_comptime_block() {
+    let src = r#"
+    trait B {
+        comptime fn c() -> u8;
+    }
+
+    pub fn g<F: B>() {
+        let _c = comptime {
+            <F as B>::c()
+             ^^^^^^ Cannot resolve `B::c` for generic type `F` from a runtime function
+             ~~~~~~ This comptime block references a generic from an enclosing runtime function which will not be resolved until monomorphization, which runs after comptime evaluation. Consider using a concrete type instead.
+        };
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn no_error_on_concrete_trait_method_in_comptime_block() {
+    let src = r#"
+    trait B {
+        comptime fn c() -> u8;
+    }
+
+    struct Foo {}
+
+    impl B for Foo {
+        comptime fn c() -> u8 { 42 }
+    }
+
+    pub fn main() {
+        let _c = comptime { Foo::c() };
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn no_error_on_generic_trait_method_in_comptime_function() {
+    // Comptime functions are monomorphized by the interpreter at call time,
+    // so their generics are resolved before trait dispatch happens.
+    let src = r#"
+    trait B {
+        comptime fn c() -> u8;
+    }
+
+    struct Foo {}
+
+    impl B for Foo {
+        comptime fn c() -> u8 { 42 }
+    }
+
+    comptime fn call_c<F: B>() -> u8 {
+        F::c()
+    }
+
+    pub fn main() {
+        let _c = comptime { call_c::<Foo>() };
+    }
+    "#;
+    assert_no_errors(src);
+}
