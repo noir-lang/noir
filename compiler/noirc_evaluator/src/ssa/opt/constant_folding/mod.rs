@@ -2725,4 +2725,70 @@ mod tests {
         );
         assert_ssa_does_not_change(&src, |ssa| ssa.fold_constants_using_constraints(MIN_ITER));
     }
+
+    /// Regression test: constant folding on this SSA (output of the Unrolling pass
+    /// on a Brillig function with nested loops, then reduced) creates a use-before-def
+    /// that is caught by normalize_ids.
+    ///
+    /// The bug requires 2 in-memory iterations of constant folding (not reproducible
+    /// through text round-trips, since normalize_ids heals the internal DFG state).
+    #[test]
+    #[should_panic(expected = "Unmapped value")]
+    fn constant_folding_does_not_create_use_before_def() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v5 = make_array [u8 0] : [u8; 1]
+            v6 = allocate -> &mut [u8; 1]
+            store v5 at v6
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v8 = eq v0, u32 0
+            v9 = make_array [u8 0] : [u8; 1]
+            jmpif v8 then: b2, else: b3
+          b2():
+            v19 = make_array [v9] : [[u8; 1]; 1]
+            v20 = allocate -> &mut [[u8; 1]; 1]
+            store v19 at v20
+            v21 = load v6 -> [u8; 1]
+            jmp b8(u32 0)
+          b3():
+            v10 = allocate -> &mut [u8; 1]
+            store v9 at v10
+            jmp b4(u32 0)
+          b4(v1: u32):
+            v11 = make_array [u8 0] : [u8; 1]
+            v12 = load v10 -> [u8; 1]
+            jmp b5(u32 0)
+          b5(v2: u32):
+            v14 = lt v2, u32 1
+            jmpif v14 then: b6, else: b7
+          b6():
+            v17 = array_get v12, index u32 0 -> u8
+            v18 = unchecked_add v2, u32 1
+            jmp b5(v18)
+          b7():
+            v15 = array_get v12, index u32 0 -> u8
+            v16 = unchecked_add v1, u32 1
+            jmp b4(v16)
+          b8(v3: u32):
+            v22 = lt v3, u32 1
+            jmpif v22 then: b9, else: b10
+          b9():
+            v26 = array_get v21, index u32 0 -> u8
+            v27 = unchecked_add v3, u32 1
+            jmp b8(v27)
+          b10():
+            v23 = make_array [u8 0] : [u8; 1]
+            v24 = array_get v21, index u32 0 -> u8
+            v25 = unchecked_add v0, u32 1
+            jmp b1(v25)
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        // Bug first appears at max_iter=2: the 1st iteration hoists instructions,
+        // and the 2nd iteration creates references to values in unreachable blocks.
+        let mut ssa = ssa.fold_constants_with_brillig(2);
+        ssa.normalize_ids();
+    }
 }
