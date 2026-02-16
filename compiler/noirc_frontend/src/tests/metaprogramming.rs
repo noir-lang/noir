@@ -936,7 +936,6 @@ fn comptime_if_expression() {
     assert_no_errors(src);
 }
 
-
 #[test]
 fn comptime_loop_with_break() {
     let src = r#"
