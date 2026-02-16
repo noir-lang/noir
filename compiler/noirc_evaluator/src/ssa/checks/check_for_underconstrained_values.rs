@@ -13,6 +13,7 @@ use noirc_artifacts::ssa::{InternalBug, SsaReport};
 use noirc_errors::Location;
 use rayon::prelude::*;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::hash::Hash;
 use tracing::trace;
 
 impl Ssa {
@@ -157,12 +158,12 @@ impl BrilligTaintedIds {
         // Exclude numeric constants
         let arguments: Vec<ValueId> = arguments
             .iter()
-            .filter(|value| function.dfg.get_numeric_constant(**value).is_none())
+            .filter(|value| !is_numeric_constant(function, **value))
             .copied()
             .collect();
         let results: Vec<ValueId> = results
             .iter()
-            .filter(|value| function.dfg.get_numeric_constant(**value).is_none())
+            .filter(|value| !is_numeric_constant(function, **value))
             .copied()
             .collect();
 
@@ -212,7 +213,7 @@ impl BrilligTaintedIds {
     /// separate as the forthcoming check considers the call covered
     /// if all the results were properly covered)
     fn update_children(&mut self, parents: &HashSet<ValueId>, children: &[ValueId]) {
-        if self.arguments.intersection(parents).next().is_some() {
+        if intersecting(&self.arguments, parents) {
             self.arguments.extend(children);
         }
 
@@ -221,7 +222,7 @@ impl BrilligTaintedIds {
                 // Skip updating results already found covered
                 ResultStatus::Constrained => {}
                 ResultStatus::Unconstrained { descendants } => {
-                    if descendants.intersection(parents).next().is_some() {
+                    if intersecting(descendants, parents) {
                         descendants.extend(children);
                     }
                 }
@@ -272,7 +273,7 @@ impl BrilligTaintedIds {
                 // Skip checking already covered results
                 ResultStatus::Constrained => {}
                 ResultStatus::Unconstrained { descendants } => {
-                    if descendants.intersection(constrained_values).next().is_some() {
+                    if intersecting(descendants, constrained_values) {
                         results_involved.push(i);
                     }
                 }
@@ -286,7 +287,7 @@ impl BrilligTaintedIds {
         // Along with it, one of the argument descendants should be constrained
         // (skipped if there were no arguments, or if a result descendant
         // has been constrained _alone_, e.g. against a constant).
-        let is_arg_constrained = self.arguments.intersection(constrained_values).next().is_some();
+        let is_arg_constrained = intersecting(&self.arguments, constrained_values);
         let is_against_const = constrained_values.len() == 1;
 
         if self.arguments.is_empty() || is_arg_constrained || is_against_const {
@@ -400,14 +401,14 @@ impl DependencyContext {
 
             // Collect non-constant instruction arguments
             function.dfg[*instruction].for_each_value(|value_id| {
-                if function.dfg.get_numeric_constant(value_id).is_none() {
+                if !is_numeric_constant(function, value_id) {
                     arguments.push(value_id);
                 }
             });
 
             // Collect non-constant instruction results
             for value_id in function.dfg.instruction_results(*instruction).iter() {
-                if function.dfg.get_numeric_constant(*value_id).is_none() {
+                if !is_numeric_constant(function, *value_id) {
                     results.push(*value_id);
                 }
             }
@@ -462,10 +463,7 @@ impl DependencyContext {
                     // Record the condition to set as future parent for the following values
                     Instruction::EnableSideEffectsIf { condition: value } => {
                         self.side_effects_condition =
-                            match function.dfg.get_numeric_constant(*value) {
-                                None => Some(*value),
-                                Some(_) => None,
-                            }
+                            (!is_numeric_constant(function, *value)).then_some(*value);
                     }
                     // Check the constrain instruction arguments against those
                     // involved in Brillig calls, remove covered calls
@@ -632,7 +630,7 @@ impl DependencyContext {
         // Remove numeric constants
         let constrained_values: HashSet<_> = constrained_values
             .iter()
-            .filter(|v| function.dfg.get_numeric_constant(**v).is_none())
+            .filter(|v| !is_numeric_constant(function, **v))
             .copied()
             .collect();
 
@@ -715,7 +713,7 @@ impl Context {
             .parameters()
             .iter()
             .chain(returns)
-            .filter(|id| function.dfg.get_numeric_constant(**id).is_none());
+            .filter(|id| !is_numeric_constant(function, **id));
 
         let mut connected_sets_indices: BTreeSet<usize> = BTreeSet::default();
 
@@ -778,13 +776,13 @@ impl Context {
 
             // Insert non-constant instruction arguments
             function.dfg[*instruction].for_each_value(|value_id| {
-                if function.dfg.get_numeric_constant(value_id).is_none() {
+                if !is_numeric_constant(function, value_id) {
                     instruction_arguments_and_results.insert(value_id);
                 }
             });
             // And non-constant results
             for value_id in function.dfg.instruction_results(*instruction).iter() {
-                if function.dfg.get_numeric_constant(*value_id).is_none() {
+                if !is_numeric_constant(function, *value_id) {
                     instruction_arguments_and_results.insert(*value_id);
                 }
             }
@@ -841,9 +839,7 @@ impl Context {
                                 // The latter are needed to produce the callstack later
                                 for result in
                                     function.dfg.instruction_results(*instruction).iter().filter(
-                                        |value_id| {
-                                            function.dfg.get_numeric_constant(**value_id).is_none()
-                                        },
+                                        |value_id| !is_numeric_constant(function, **value_id),
                                     )
                                 {
                                     self.brillig_return_to_argument
@@ -968,6 +964,17 @@ impl Context {
         Self::merge_sets(&sets)
     }
 }
+
+/// Return `true` if two sets have a non-empty intersection.
+fn intersecting<T: Hash + Eq>(a: &HashSet<T>, b: &HashSet<T>) -> bool {
+    a.intersection(b).next().is_some()
+}
+
+/// Return `true` if a [ValueId] identifies a numeric constant in the DFG.
+fn is_numeric_constant(func: &Function, value: ValueId) -> bool {
+    func.dfg.get_numeric_constant(value).is_some()
+}
+
 #[cfg(test)]
 mod tests {
     use crate::ssa::Ssa;
