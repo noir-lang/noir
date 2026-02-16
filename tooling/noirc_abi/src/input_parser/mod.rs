@@ -149,7 +149,7 @@ impl InputValue {
                     return Err(InputTypecheckingError::UnexpectedField {
                         path,
                         typ: abi_param.clone(),
-                        extra_field: extra_field.to_string(),
+                        extra_field,
                     });
                 }
 
