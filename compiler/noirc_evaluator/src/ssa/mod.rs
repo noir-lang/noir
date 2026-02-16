@@ -171,8 +171,6 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         ),
         SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
         SsaPass::new(Ssa::loop_invariant_code_motion, "Loop Invariant Code Motion"),
-        // LICM can constant-fold loop conditions (e.g. `lt v0, u8 0` → `u1 0`),
-        // producing constant-condition jmpifs that must be folded before unrolling.
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
         SsaPass::new_try(
             move |ssa| {
