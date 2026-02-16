@@ -216,6 +216,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             |ssa| ssa.fold_constants_using_constraints(options.constant_folding_max_iter),
             "Constant Folding using constraints",
         ),
+        SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
         SsaPass::new_try(
             move |ssa| {
                 ssa.unroll_loops_iteratively(
