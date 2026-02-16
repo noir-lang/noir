@@ -2070,8 +2070,9 @@ mod tests {
         assert_ne!(lower, upper);
     }
 
-    /// Regression test for #11599: prior passes can place non-comparison instructions
-    /// (like MakeArray) into a loop header block alongside a constant-condition JmpIf.
+    /// Prior passes can place non-comparison instructions (like MakeArray) into a loop header block
+    /// alongside a constant-condition JmpIf.
+    ///
     /// The pre-check should catch this and require simplify_cfg to be run first.
     #[test]
     #[should_panic(expected = "has a JmpIf with a constant condition")]
