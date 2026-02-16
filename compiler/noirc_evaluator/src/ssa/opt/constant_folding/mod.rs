@@ -382,18 +382,14 @@ impl Context {
 
         self.values_to_replace.batch_insert(&old_results, &new_results);
 
-        if self.block_queue.visited(&target_block) {
-            // If we haven't visited the target block yet, we should not update the cache because if we do then
-            // when we do visit the target block later, we'll find the instruction in the cache and skip re-inserting it.
-            self.cache_instruction(
-                &instruction,
-                new_results,
-                dfg,
-                dom,
-                *side_effects_enabled_var,
-                target_block,
-            );
-        }
+        self.cache_instruction(
+            &instruction,
+            new_results,
+            dfg,
+            dom,
+            *side_effects_enabled_var,
+            target_block,
+        );
 
         // If we just inserted an `Instruction::EnableSideEffectsIf`, we need to update `side_effects_enabled_var`
         // so that we use the correct set of constrained values in future.
@@ -478,6 +474,12 @@ impl Context {
         side_effects_enabled_var: ValueId,
         block: BasicBlockId,
     ) {
+        if !self.block_queue.visited(&block) {
+            // If we haven't visited the target block yet, we should not update the cache because if we do then
+            // when we _do_ visit the target block later, we'll find the instruction in the cache and skip re-inserting it.
+            return;
+        }
+
         if self.use_constraint_info {
             match instruction {
                 // If the instruction was a constraint, then create a link between the two `ValueId`s
@@ -2730,14 +2732,10 @@ mod tests {
         assert_ssa_does_not_change(&src, |ssa| ssa.fold_constants_using_constraints(MIN_ITER));
     }
 
-    /// Regression test: constant folding on this SSA (output of the Unrolling pass
-    /// on a Brillig function with nested loops, then reduced) creates a use-before-def
-    /// that is caught by normalize_ids.
-    ///
-    /// The bug requires 2 in-memory iterations of constant folding (not reproducible
-    /// through text round-trips, since normalize_ids heals the internal DFG state).
+    /// Regression test: constant folding on this SSA requires avoiding inserting cache entries for values in unvisited
+    /// blocks, otherwise a use-before-def error can occur.
     #[test]
-    fn constant_folding_does_not_create_use_before_def() {
+    fn does_not_insert_cache_entry_for_unvisited_blocks() {
         let src = "
         brillig(inline) fn main f0 {
           b0():
