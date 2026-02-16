@@ -1,0 +1,4 @@
+[package]
+name = "repro"
+type = "bin"
+authors = [""]
