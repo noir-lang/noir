@@ -474,6 +474,12 @@ impl Context {
         side_effects_enabled_var: ValueId,
         block: BasicBlockId,
     ) {
+        if !self.block_queue.visited(&block) {
+            // If we haven't visited the target block yet, we should not update the cache because if we do then
+            // when we _do_ visit the target block later, we'll find the instruction in the cache and skip re-inserting it.
+            return;
+        }
+
         if self.use_constraint_info {
             match instruction {
                 // If the instruction was a constraint, then create a link between the two `ValueId`s
@@ -2724,5 +2730,115 @@ mod tests {
         "
         );
         assert_ssa_does_not_change(&src, |ssa| ssa.fold_constants_using_constraints(MIN_ITER));
+    }
+
+    /// Regression test: constant folding on this SSA requires avoiding inserting cache entries for values in unvisited
+    /// blocks, otherwise a use-before-def error can occur.
+    #[test]
+    fn does_not_insert_cache_entry_for_unvisited_blocks() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v5 = make_array [u8 0] : [u8; 1]
+            v6 = allocate -> &mut [u8; 1]
+            store v5 at v6
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v8 = eq v0, u32 0
+            v9 = make_array [u8 0] : [u8; 1]
+            jmpif v8 then: b2, else: b3
+          b2():
+            v19 = make_array [v9] : [[u8; 1]; 1]
+            v20 = allocate -> &mut [[u8; 1]; 1]
+            store v19 at v20
+            v21 = load v6 -> [u8; 1]
+            jmp b8(u32 0)
+          b3():
+            v10 = allocate -> &mut [u8; 1]
+            store v9 at v10
+            jmp b4(u32 0)
+          b4(v1: u32):
+            v11 = make_array [u8 0] : [u8; 1]
+            v12 = load v10 -> [u8; 1]
+            jmp b5(u32 0)
+          b5(v2: u32):
+            v13 = eq v2, u32 0
+            jmpif v13 then: b6, else: b7
+          b6():
+            v17 = array_get v12, index u32 0 -> u8
+            v18 = unchecked_add v2, u32 1
+            jmp b5(v18)
+          b7():
+            v14 = array_get v12, index u32 0 -> u8
+            v16 = unchecked_add v1, u32 1
+            jmp b4(v16)
+          b8(v3: u32):
+            v22 = eq v3, u32 0
+            jmpif v22 then: b9, else: b10
+          b9():
+            v26 = array_get v21, index u32 0 -> u8
+            v27 = unchecked_add v3, u32 1
+            jmp b8(v27)
+          b10():
+            v23 = make_array [u8 0] : [u8; 1]
+            v24 = array_get v21, index u32 0 -> u8
+            v25 = unchecked_add v0, u32 1
+            jmp b1(v25)
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        // Bug would first appear at max_iter=2: the 1st iteration hoists instructions,
+        // and the 2nd iteration creates references to values in unreachable blocks.
+        let ssa = ssa.fold_constants_with_brillig(2);
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            v5 = make_array [u8 0] : [u8; 1]
+            v6 = allocate -> &mut [u8; 1]
+            store v5 at v6
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v8 = eq v0, u32 0
+            v9 = make_array [u8 0] : [u8; 1]
+            inc_rc v9
+            jmpif v8 then: b2, else: b3
+          b2():
+            v18 = make_array [v9] : [[u8; 1]; 1]
+            v19 = allocate -> &mut [[u8; 1]; 1]
+            store v18 at v19
+            v20 = load v6 -> [u8; 1]
+            jmp b8(u32 0)
+          b3():
+            v10 = allocate -> &mut [u8; 1]
+            store v9 at v10
+            jmp b4(u32 0)
+          b4(v1: u32):
+            v11 = make_array [u8 0] : [u8; 1]
+            v12 = load v10 -> [u8; 1]
+            jmp b5(u32 0)
+          b5(v2: u32):
+            v13 = eq v2, u32 0
+            v14 = array_get v12, index u32 0 -> u8
+            jmpif v13 then: b6, else: b7
+          b6():
+            v17 = unchecked_add v2, u32 1
+            jmp b5(v17)
+          b7():
+            v16 = unchecked_add v1, u32 1
+            jmp b4(v16)
+          b8(v3: u32):
+            v21 = eq v3, u32 0
+            v22 = array_get v20, index u32 0 -> u8
+            jmpif v21 then: b9, else: b10
+          b9():
+            v24 = unchecked_add v3, u32 1
+            jmp b8(v24)
+          b10():
+            inc_rc v9
+            v23 = unchecked_add v0, u32 1
+            jmp b1(v23)
+        }
+        ");
     }
 }
