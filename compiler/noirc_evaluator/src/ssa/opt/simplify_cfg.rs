@@ -33,6 +33,9 @@ impl Ssa {
     pub(crate) fn simplify_cfg(mut self) -> Self {
         for function in self.functions.values_mut() {
             function.simplify_function();
+
+            #[cfg(debug_assertions)]
+            simplify_cfg_post_check(function);
         }
         self
     }
@@ -92,6 +95,11 @@ impl Function {
             self.dfg.data_bus.replace_values(&values_to_replace);
         }
     }
+}
+
+#[cfg(debug_assertions)]
+fn simplify_cfg_post_check(function: &Function) {
+    super::checks::assert_no_constant_jmpif(function);
 }
 
 /// A helper function to simplify the current block based on information on its successors.
