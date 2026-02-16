@@ -34,6 +34,7 @@
 //!
 //! Conditions:
 //!   - Pre-condition: All loop headers have a single induction variable.
+//!   - Pre-condition: No loop header has a JmpIf with a constant condition (run simplify_cfg first).
 //!   - Pre-condition: The SSA must be optimized to a point at which loop bounds are known.
 //!     Some passes such as inlining and mem2reg are de-facto required before running this pass on arbitrary noir code.
 //!   - Post-condition (ACIR-only): All loops in ACIR functions should be unrolled when this pass is
@@ -134,6 +135,9 @@ impl Function {
         &mut self,
         force_unroll_threshold: usize,
     ) -> Result<bool, RuntimeError> {
+        #[cfg(debug_assertions)]
+        unroll_loops_pre_check(self);
+
         // Try to unroll loops first:
         let (mut has_unrolled, mut unroll_errors) = self.try_unroll_loops(force_unroll_threshold);
 
@@ -1303,6 +1307,28 @@ fn is_new_size_ok(orig_size: usize, new_size: usize, max_incr_pct: i32) -> bool 
     new_size.saturating_mul(100) <= max_size
 }
 
+/// Pre-check condition for [Function::unroll_loops_iteratively].
+///
+/// Panics if any loop header has a `JmpIf` with a constant condition.
+/// A constant-condition `JmpIf` means `simplify_cfg` should have been run first
+/// to fold the branch into an unconditional jump.
+#[cfg(debug_assertions)]
+fn unroll_loops_pre_check(function: &Function) {
+    let loops = Loops::find_all(function, LoopOrder::OutsideIn);
+    for loop_ in &loops.yet_to_unroll {
+        let header = &function.dfg[loop_.header];
+        if let Some(TerminatorInstruction::JmpIf { condition, .. }) = header.terminator() {
+            assert!(
+                function.dfg.get_numeric_constant(*condition).is_none(),
+                "Loop header block {} in function {} has a JmpIf with a constant condition. \
+                 Run simplify_cfg before loop unrolling to fold constant-condition branches.",
+                loop_.header,
+                function.name(),
+            );
+        }
+    }
+}
+
 /// Post-check condition for [Function::unroll_loops_iteratively].
 ///
 /// Panics if:
@@ -2006,5 +2032,44 @@ mod tests {
         let (lower, upper) =
             loop_.get_const_bounds(&function.dfg, pre_header).expect("bounds are numeric const");
         assert_ne!(lower, upper);
+    }
+
+    /// Regression test for #11599: prior passes can place non-comparison instructions
+    /// (like MakeArray) into a loop header block alongside a constant-condition JmpIf.
+    /// The pre-check should catch this and require simplify_cfg to be run first.
+    #[test]
+    #[should_panic(expected = "has a JmpIf with a constant condition")]
+    fn pre_check_rejects_const_condition_jmpif_in_loop_header() {
+        let src = "
+        acir(inline) impure fn main f0 {
+          b0():
+            call f1(u1 1)
+            return
+        }
+        brillig(inline) impure fn func f1 {
+          b0(v0: u1):
+            v2 = not v0
+            v3 = allocate -> &mut u1
+            store u1 1 at v3
+            jmp b1(u8 0)
+          b1(v1: u8):
+            v24 = make_array b\"unsignedinteger\"
+            jmpif u1 0 then: b2, else: b3
+          b2():
+            inc_rc v24
+            v29 = unchecked_add v1, u8 1
+            jmp b1(v29)
+          b3():
+            v26 = load v3 -> u1
+            jmpif v26 then: b4, else: b5
+          b4():
+            inc_rc v24
+            jmp b5()
+          b5():
+            return
+        }";
+        let ssa = Ssa::from_str(src).unwrap();
+        // This should panic because b1 has a constant-condition `jmpif u1 0`.
+        let _ = ssa.unroll_loops_iteratively(None, FORCE_UNROLL_THRESHOLD);
     }
 }
