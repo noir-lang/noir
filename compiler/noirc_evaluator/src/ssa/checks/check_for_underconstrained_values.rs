@@ -105,48 +105,50 @@ fn check_for_underconstrained_values_within_function(
 struct DependencyContext {
     visited_blocks: HashSet<BasicBlockId>,
     block_queue: Vec<BasicBlockId>,
-    // Map keeping track of values stored at memory locations
+    /// Map keeping track of values stored at memory locations
     memory_slots: HashMap<ValueId, ValueId>,
-    // Value currently affecting every instruction (i.e. being
-    // considered a parent of every value id met) because
-    // of its involvement in an EnableSideEffectsIf condition
+    /// Value currently affecting every instruction (i.e. being
+    /// considered a parent of every value id met) because
+    /// of its involvement in an EnableSideEffectsIf condition
     side_effects_condition: Option<ValueId>,
-    // Map of Brillig call ids to sets of the value ids descending
-    // from their arguments and results
+    /// Map of Brillig call IDs to sets of the value IDs descending
+    /// from their arguments and results
     tainted: BTreeMap<InstructionId, BrilligTaintedIds>,
-    // Map of argument value ids to the Brillig call ids employing them
+    /// Map of argument value IDs to the Brillig call IDs employing them
     call_arguments: HashMap<ValueId, Vec<InstructionId>>,
-    // The set of calls currently being tracked
+    /// The set of calls currently being tracked
     tracking: HashSet<InstructionId>,
-    // Opt-in to use the lookback feature (tracking the argument values
-    // of a Brillig call before the call happens if their usage precedes
-    // it). Can prevent certain false positives, at the cost of
-    // slowing down checking large functions considerably
+    /// Opt-in to use the lookback feature (tracking the argument values
+    /// of a Brillig call before the call happens if their usage precedes
+    /// it). Can prevent certain false positives, at the cost of
+    /// slowing down checking large functions considerably
     enable_lookback: bool,
-    // Code locations of brillig calls already visited (we don't
-    // need to recheck calls happening in the same unrolled functions)
+    /// Code locations of brillig calls already visited (we don't
+    /// need to recheck calls happening in the same unrolled functions)
     visited_locations: HashSet<(FunctionId, Location)>,
 }
 
-/// Structure keeping track of value ids descending from Brillig calls'
+/// Structure keeping track of value IDs descending from Brillig calls'
 /// arguments and results, also storing information on results
 /// already properly constrained
 #[derive(Clone, Debug)]
 struct BrilligTaintedIds {
-    // Argument descendant value ids
+    /// Argument descendant value ids
     arguments: HashSet<ValueId>,
-    // Results status
+    /// Results status
     results: Vec<ResultStatus>,
-    // Indices of the array elements in the results vector
+    /// Indices of the array elements in the results vector
     array_elements: HashMap<ValueId, Vec<usize>>,
-    // Initial result value ids, along with element ids for arrays
+    /// Initial result value ids, along with element IDs for arrays
     root_results: HashSet<ValueId>,
 }
 
 #[derive(Clone, Debug)]
 enum ResultStatus {
-    // Keep track of descendants until found constrained
-    Unconstrained { descendants: HashSet<ValueId> },
+    /// Keep track of descendants until found constrained
+    Unconstrained {
+        descendants: HashSet<ValueId>,
+    },
     Constrained,
 }
 
@@ -302,10 +304,9 @@ impl DependencyContext {
     fn build(&mut self, function: &Function, all_functions: &BTreeMap<FunctionId, Function>) {
         self.block_queue.push(function.entry_block());
         while let Some(block) = self.block_queue.pop() {
-            if self.visited_blocks.contains(&block) {
+            if !self.visited_blocks.insert(block) {
                 continue;
             }
-            self.visited_blocks.insert(block);
             self.process_instructions(block, function, all_functions);
         }
     }
@@ -381,7 +382,7 @@ impl DependencyContext {
             }
         });
 
-        //Then, go over the instructions
+        // Then, go over the instructions
         for instruction in function.dfg[block].instructions().iter() {
             let mut arguments = Vec::new();
             let mut results = Vec::new();
