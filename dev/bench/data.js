@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771254058323,
+  "lastUpdate": 1771254060645,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -25273,105 +25273,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "19d757761fa5d7257942e626471e010ce0408a85",
-          "message": "chore: warn about ec_addition costs (#11459)",
-          "timestamp": "2026-02-06T11:45:58Z",
-          "tree_id": "e415610f75e5ba2669f866afca92fa92755ea816",
-          "url": "https://github.com/noir-lang/noir/commit/19d757761fa5d7257942e626471e010ce0408a85"
-        },
-        "date": 1770380655250,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1015,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 2212.6,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 496.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 227.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 231.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 303,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 384.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 48695.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 48745.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 416.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 5441.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 4766.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 177.9,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 551.6,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 473,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "98e2f0dc5c22015132825d8781416f525309842a",
           "message": "fix: handle large arrays in the monomorphiser and limit their length (#11279)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
           "timestamp": "2026-02-06T13:07:00Z",
@@ -30171,6 +30072,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-checkpoint-root",
             "value": 29399.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 391.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 5438.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 4760.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 177.5,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 551.6,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 473,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "f9110c6f44b36a877cc6b6d817341c22c6cd4d61",
+          "message": "chore(ssa): Unroll in simplification feedback loop (#11526)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-02-16T14:27:08Z",
+          "tree_id": "fb98d97521a501794650cfd1d8ee8584f07f919d",
+          "url": "https://github.com/noir-lang/noir/commit/f9110c6f44b36a877cc6b6d817341c22c6cd4d61"
+        },
+        "date": 1771254008092,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1002.6,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2220.2,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 497,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 227.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 231,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 302.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 367.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 29348.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 29396.2,
             "unit": "KB"
           },
           {
