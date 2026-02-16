@@ -469,8 +469,16 @@ impl DependencyContext {
                     }
                     // Check the constrain instruction arguments against those
                     // involved in Brillig calls, remove covered calls
-                    Instruction::Constrain(value_id1, value_id2, _)
-                    | Instruction::ConstrainNotEqual(value_id1, value_id2, _) => {
+                    Instruction::Constrain(value_id1, value_id2, _) => {
+                        let constrained_values = [*value_id1, *value_id2];
+                        self.clear_constrained(&constrained_values, function);
+                        // When we have `constrain v0 == v1`, then consider any follow up constraints
+                        // on v0 or v1 as if it applied on both. This is because some SSA passes use
+                        // constraint info to simplify values, and what was a constraint on v0 could
+                        // end up being a constraint on v1.
+                        self.update_children(&constrained_values, &constrained_values);
+                    }
+                    Instruction::ConstrainNotEqual(value_id1, value_id2, _) => {
                         self.clear_constrained(&[*value_id1, *value_id2], function);
                     }
                     // Consider range check to also be constraining
@@ -1517,6 +1525,29 @@ mod tests {
         }
         brillig(inline) predicate_pure fn identity32 f1 {
             b0(v0: Field):
+            return v0
+        }
+        "#;
+
+        let mut ssa = Ssa::from_str(program).unwrap();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(true);
+        assert_eq!(ssa_level_warnings.len(), 0);
+    }
+
+    #[test]
+    #[traced_test]
+    fn constrain_on_independent_variable_can_indirectly_clear_results() {
+        let program = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32, v1: u32):
+            v3 = call f1(v0) -> u32
+            constrain v3 == v1       // This constraint does not connect the input of f1 to the output, so it doesn't clear.
+            v4 = lt v1, u32 1000000  // This is a constraint against a constant, so it would clear if it was directly v3.
+            constrain v4 == u1 1     // Since we asserted that v3 equals v1, this should indirectly clear v3.
+            return
+        }
+        brillig(inline) predicate_pure fn f f1 {
+          b0(v0: u32):
             return v0
         }
         "#;
