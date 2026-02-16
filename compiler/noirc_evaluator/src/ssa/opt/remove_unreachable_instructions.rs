@@ -509,15 +509,46 @@ fn remove_and_replace_with_defaults(
     func_id: FunctionId,
     block_id: BasicBlockId,
 ) {
-    context.remove_current_instruction();
-
     let result_ids = context.dfg.instruction_results(context.instruction_id).to_vec();
-
     for result_id in result_ids {
         let typ = &context.dfg.type_of_value(result_id);
-        let default_value = zeroed_value(context.dfg, func_id, block_id, typ);
+        let mut default_value = zeroed_value(context.dfg, func_id, block_id, typ);
+        if matches!(typ, Type::Vector(_)) {
+            if let Some(len) = context.dfg.try_get_vector_capacity(result_id) {
+                default_value =
+                    zeroed_vector_of_size(context.dfg, func_id, block_id, typ, len.to_usize());
+            } else {
+                // we cannot zero the vector without knowing its length.
+                return;
+            };
+        }
+
         context.replace_value(result_id, default_value);
     }
+    context.remove_current_instruction();
+}
+
+fn zeroed_vector_of_size(
+    dfg: &mut DataFlowGraph,
+    func_id: FunctionId,
+    block_id: BasicBlockId,
+    typ: &Type,
+    size: usize,
+) -> ValueId {
+    let Type::Vector(element_type) = typ else {
+        panic!("Expected vector type");
+    };
+
+    let mut array = im::Vector::new();
+    for _ in 0..size {
+        for elem_typ in element_type.iter() {
+            array.push_back(zeroed_value(dfg, func_id, block_id, elem_typ));
+        }
+    }
+
+    let instruction = Instruction::MakeArray { elements: array, typ: typ.clone() };
+    let stack = CallStackId::root();
+    dfg.insert_instruction_and_results(instruction, block_id, None, stack).first()
 }
 
 /// Insert a `constrain 0 == <predicate>, "<msg>"` instruction.
@@ -1331,6 +1362,7 @@ mod tests {
             enable_side_effects v0
             constrain u1 0 == v0, "Index out of bounds"
             v3 = make_array [] : [u32]
+            v4 = make_array [] : [u32]
             enable_side_effects u1 1
             return u32 1
         }
@@ -1420,5 +1452,41 @@ mod tests {
             return v4
         }
         ");
+    }
+
+    #[test]
+    fn keep_vector_length() {
+        // When VectorInsert becomes unreachable under a predicate,
+        // try_get_vector_capacity should determine the correct length (4 in this case)
+        // and replace it with a 4-element zero vector, not an empty vector.
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            v1 = make_array [u32 1, u32 2, u32 3] : [u32]
+            enable_side_effects v0
+            v2 = div u32 1, u32 0
+            v4, v5 = call vector_insert(u32 3, v1, u32 1, u32 42) -> (u32, [u32])
+            enable_side_effects u1 1
+            v6 = array_get v5, index u32 0 -> u32
+            return v6
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_instructions();
+
+        // v8 is NOT replaced with an empty array []
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            v4 = make_array [u32 1, u32 2, u32 3] : [u32]
+            enable_side_effects v0
+            constrain u1 0 == v0, "attempt to divide by zero"
+            v6 = make_array [] : [u32]
+            v8 = make_array [u32 0, u32 0, u32 0, u32 0] : [u32]
+            enable_side_effects u1 1
+            return u32 0
+        }
+        "#);
     }
 }

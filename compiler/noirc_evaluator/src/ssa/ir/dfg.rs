@@ -677,17 +677,65 @@ impl DataFlowGraph {
             return Some(length);
         }
 
-        // Check if the value was made by a MakeArray instruction, which can create vectors as well.
-        let (array, typ) = self.get_array_constant(value)?;
-        let elements_size = typ.element_size();
+        match self[value] {
+            Value::Instruction { instruction, .. } => match &self[instruction] {
+                Instruction::MakeArray { .. } => {
+                    let (array, typ) = self.get_array_constant(value)?;
+                    let elements_size = typ.element_size();
 
-        let length = if elements_size.0 == 0 {
-            SemanticLength(assert_u32(array.len()))
-        } else {
-            SemiFlattenedLength(assert_u32(array.len())) / elements_size
-        };
+                    let length = if elements_size.0 == 0 {
+                        SemanticLength(assert_u32(array.len()))
+                    } else {
+                        SemiFlattenedLength(assert_u32(array.len())) / elements_size
+                    };
+                    Some(length)
+                }
+                Instruction::ArraySet { array, .. } | Instruction::ArrayGet { array, .. } => {
+                    self.try_get_vector_capacity(*array)
+                }
+                Instruction::Call { func, arguments } => {
+                    // Handle vector intrinsics that return vectors with known capacities
+                    if !matches!(self.type_of_value(value), Type::Vector(_)) {
+                        return None;
+                    }
 
-        Some(length)
+                    if let Value::Intrinsic(intrinsic) = &self[*func] {
+                        use crate::ssa::ir::instruction::Intrinsic;
+                        match intrinsic {
+                            Intrinsic::VectorInsert | Intrinsic::VectorRemove => {
+                                if let Some(capacity_const) =
+                                    self.get_numeric_constant(arguments[0])
+                                {
+                                    let base_capacity = capacity_const.to_u128() as u32;
+                                    let new_capacity = match intrinsic {
+                                        Intrinsic::VectorInsert => base_capacity.saturating_add(1),
+                                        Intrinsic::VectorRemove => base_capacity.saturating_sub(1),
+                                        _ => unreachable!(),
+                                    };
+                                    return Some(SemanticLength(new_capacity));
+                                }
+                                None
+                            }
+                            Intrinsic::VectorPopFront | Intrinsic::VectorPopBack => {
+                                if let Some(capacity_const) =
+                                    self.get_numeric_constant(arguments[0])
+                                {
+                                    let base_capacity = capacity_const.to_u128() as u32;
+                                    let new_capacity = base_capacity.saturating_sub(1);
+                                    return Some(SemanticLength(new_capacity));
+                                }
+                                None
+                            }
+                            _ => None,
+                        }
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            },
+            _ => None,
+        }
     }
 
     /// If this value points to an array of constant bytes, returns a string
