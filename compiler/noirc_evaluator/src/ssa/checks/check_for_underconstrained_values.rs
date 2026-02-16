@@ -251,9 +251,17 @@ impl BrilligTaintedIds {
     }
 
     /// Remember partial constraints (involving some of the results and an argument)
-    /// along the way to take them into final consideration
+    /// along the way to take them into final consideration.
+    ///
     /// Generally, a valid partial constraint should link up a result descendant
-    /// and an argument descendant, although there are also edge cases mentioned below.
+    /// and an argument descendant, that is, it should establish a relationship
+    /// between the inputs and the outputs of an unconstrained call. Notably,
+    /// checking the results against an independent variable is _not_ considered
+    /// a partial constraint!
+    ///
+    /// There are two exceptions to this requirement:
+    /// * if the unconstrained call had no arguments
+    /// * if the value was constrained against some constant, rather than an input
     fn store_partial_constraints(&mut self, constrained_values: &HashSet<ValueId>) {
         let mut results_involved: Vec<usize> = vec![];
 
@@ -271,14 +279,17 @@ impl BrilligTaintedIds {
             }
         }
 
+        if results_involved.is_empty() {
+            return;
+        }
+
         // Along with it, one of the argument descendants should be constrained
         // (skipped if there were no arguments, or if a result descendant
-        // has been constrained _alone_, e.g. against a constant)
-        if !results_involved.is_empty()
-            && (self.arguments.is_empty()
-                || (constrained_values.len() == 1)
-                || self.arguments.intersection(constrained_values).next().is_some())
-        {
+        // has been constrained _alone_, e.g. against a constant).
+        let is_arg_constrained = self.arguments.intersection(constrained_values).next().is_some();
+        let is_against_const = constrained_values.len() == 1;
+
+        if self.arguments.is_empty() || is_arg_constrained || is_against_const {
             // Remember the partial constraint, clearing the sets
             results_involved.iter().for_each(|i| self.results[*i] = ResultStatus::Constrained);
         }
