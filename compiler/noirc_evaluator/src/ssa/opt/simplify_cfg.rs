@@ -111,13 +111,6 @@ fn simplify_current_block(
             | check_for_constant_jmpif(function, block, cfg)
             | check_for_converging_jmpif(function, block, cfg)
             | try_inline_successor(function, cfg, block, values_to_replace);
-
-        // Inlining a successor can introduce a terminator that references values with
-        // pending replacements (e.g. block parameters mapped to constants). Apply them
-        // to the terminator so the next iteration can detect newly-constant jmpif conditions.
-        if simplified && !values_to_replace.is_empty() {
-            function.dfg.replace_values_in_block_terminator(block, values_to_replace);
-        }
     }
 }
 
@@ -411,7 +404,16 @@ fn try_inline_successor(
             // If successful, `block` will be empty and unreachable after this call, so any
             // optimizations performed after this point on the same block should check if
             // the inlining here was successful before continuing.
-            try_inline_into_predecessor(function, cfg, destination, block)
+            let simplified = try_inline_into_predecessor(function, cfg, destination, block);
+
+            // Inlining a successor can introduce a terminator that references values with
+            // pending replacements (e.g. block parameters mapped to constants). Apply them
+            // to the terminator so the next iteration can detect newly-constant jmpif conditions.
+            if simplified && !values_to_replace.is_empty() {
+                function.dfg.replace_values_in_block_terminator(block, values_to_replace);
+            }
+
+            simplified
         } else {
             false
         }
