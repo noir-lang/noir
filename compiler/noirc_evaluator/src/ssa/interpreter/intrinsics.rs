@@ -72,7 +72,7 @@ impl<W: Write> Interpreter<'_, W> {
             Intrinsic::VectorPopFront => self.vector_pop_front(args),
             Intrinsic::VectorInsert => self.vector_insert(args),
             Intrinsic::VectorRemove => self.vector_remove(args),
-            Intrinsic::VectorEnumerate => {
+            Intrinsic::VectorEnumerate { .. } => {
                 todo!("vector_enumerate SSA interpreter not yet implemented")
             }
             Intrinsic::ApplyRangeConstraint => {

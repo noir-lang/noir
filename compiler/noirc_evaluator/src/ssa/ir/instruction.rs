@@ -84,9 +84,10 @@ pub enum Intrinsic {
     /// arguments: vector length, vector contents, remove index
     /// result: a vector with without the element at `remove index`
     VectorRemove,
-    /// VectorEnumerate - Iterate over a vector with indices
-    /// arguments: vector length, vector contents, closure function
-    /// result: () - calls the closure for each (element, index) pair
+    /// VectorEnumerate - Iterate over a vector, calling a closure for each index.
+    /// arguments: length, vec, acir_closure, brillig_closure, index, rev
+    /// The closure signature is fn([T], u32, u32) -> T at Noir level (iteration_index, user_index).
+    /// result: (u32, [T]) - length and the modified vector after writing closure results via ArraySet
     VectorEnumerate,
     /// ApplyRangeConstraint - Enforces the `bit size` of the first argument via a range check.
     /// arguments: value id, bit size (constant)

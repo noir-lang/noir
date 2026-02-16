@@ -2,7 +2,6 @@ use noirc_errors::call_stack::CallStackId;
 use rustc_hash::FxHashMap as HashMap;
 use std::{collections::VecDeque, sync::Arc};
 
-use crate::ssa::{ir::function::FunctionId, opt::zeroed_value};
 use acvm::{
     AcirField as _, FieldElement,
     acir::{
@@ -370,7 +369,7 @@ pub(super) fn simplify_call(
                 SimplifyResult::None
             }
         }
-        Intrinsic::VectorEnumerate => {
+        Intrinsic::VectorEnumerate { .. } => {
             // Vector enumerate is handled by a dedicated pass after inlining
             // See: expand_vector_enumerate.rs
             SimplifyResult::None
@@ -385,50 +384,41 @@ pub(super) fn simplify_call(
             }
         }
         Intrinsic::ResizeArray => {
-          //  dbg!("Attempting to simplify ResizeArray intrinsic");
             let array = arguments[1];
             if let Some(IntegerConstant::Signed { value: offset, .. }) =
                 dfg.get_integer_constant(arguments[2])
             {
-                //dbg!(offset);
-                let len =  dfg.get_integer_constant(arguments[0]);
-                //dbg!(&len);
-                // offset is i128
-                // positive means grow array, negative means shrink
-
-                if let Some((mut elements, element_types)) =
+                // Try to get length from arguments[0] first (works when length is constant),
+                // then fall back to inferring from the array value itself (works when the
+                // array comes from MakeArray, even if the length argument is dynamic).
+                let loaded = if let Some(known_length) = dfg.get_numeric_constant(arguments[0]) {
+                    let length = known_length.to_u128() as usize;
+                    load_array_elements_with_length(array, length, dfg, block, call_stack)
+                } else {
                     load_array_elements(array, dfg, block, call_stack)
-                {
-                    // `elements` contains all flattened ValueIds loaded via ArrayGet
-                    // These will be simplified to constants if the source array is constant
-//dbg!(elements.len());
-
+                };
+                if let Some((mut elements, element_types)) = loaded {
                     let zeroed: Vec<ValueId> = element_types
                         .iter()
                         .map(|elem_typ| make_zeroed_value(dfg, block, call_stack, elem_typ))
                         .collect();
 
                     if offset > 0 {
-                        // Grow: add zeroed elements
-
                         for _ in 0..offset {
                             for &zero in &zeroed {
                                 elements.push_back(zero);
                             }
                         }
                     } else if offset < 0 {
-                        // Shrink: remove elements from the end
                         let to_remove = (-offset) as usize * element_types.len();
                         for _ in 0..to_remove {
                             elements.pop_back();
                         }
                     }
-                    // Create new vector with adjusted capacity
                     let new_capacity = elements.len() as u32 / element_types.len() as u32;
                     let new_typ = Type::Vector(element_types);
                     let new_vector = make_array(dfg, elements, new_typ, block, call_stack);
 
-                    // Return (new_length, new_vector) - the length is adjusted by offset
                     let new_length = dfg.make_constant(
                         FieldElement::from(new_capacity as u128),
                         NumericType::length_type(),
@@ -437,11 +427,7 @@ pub(super) fn simplify_call(
                 }
             }
 
-            //TODO on fail si c'est pas un i32.
-            //len doit etre une constante, sinon on error.
-
             SimplifyResult::None
-            //TODO todo!()...il suffit de faire un make-arrray ?
         }
     };
 
@@ -892,6 +878,45 @@ fn load_array_elements(
         // Determine which element type this index corresponds to
         let element_type = element_types[i % element_types.len()].clone();
 
+        let index = dfg.make_constant(FieldElement::from(i as u128), NumericType::length_type());
+        let get_instruction = Instruction::ArrayGet { array: array_value, index };
+        let element = dfg
+            .insert_instruction_and_results(
+                get_instruction,
+                block,
+                Some(vec![element_type]),
+                call_stack,
+            )
+            .first();
+        elements.push_back(element);
+    }
+
+    Some((elements, element_types))
+}
+
+/// Like `load_array_elements`, but uses an explicit length instead of trying to infer
+/// the capacity from the vector value. This is needed when the vector is the result of
+/// ArraySet chains where the capacity can't be determined from the value alone.
+fn load_array_elements_with_length(
+    array_value: ValueId,
+    length: usize,
+    dfg: &mut DataFlowGraph,
+    block: BasicBlockId,
+    call_stack: CallStackId,
+) -> Option<(im::Vector<ValueId>, Arc<Vec<Type>>)> {
+    let typ = dfg.type_of_value(array_value);
+
+    let element_types = match &typ {
+        Type::Array(element_types, _) => element_types.clone(),
+        Type::Vector(element_types) => element_types.clone(),
+        _ => return None,
+    };
+
+    let flattened_length = length * element_types.len();
+    let mut elements = im::Vector::new();
+
+    for i in 0..flattened_length {
+        let element_type = element_types[i % element_types.len()].clone();
         let index = dfg.make_constant(FieldElement::from(i as u128), NumericType::length_type());
         let get_instruction = Instruction::ArrayGet { array: array_value, index };
         let element = dfg

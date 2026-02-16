@@ -126,7 +126,7 @@ impl Context<'_> {
             Intrinsic::VectorPopFront => self.convert_vector_pop_front(arguments, dfg, result_ids),
             Intrinsic::VectorInsert => self.convert_vector_insert(arguments, dfg, result_ids),
             Intrinsic::VectorRemove => self.convert_vector_remove(arguments, dfg, result_ids),
-            Intrinsic::VectorEnumerate => {
+            Intrinsic::VectorEnumerate { .. } => {
                 todo!("vector_enumerate ACIR codegen not yet implemented")
             }
 

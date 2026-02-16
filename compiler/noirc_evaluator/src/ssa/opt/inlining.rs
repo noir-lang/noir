@@ -138,8 +138,30 @@ impl Ssa {
             new_functions.insert(entry_point);
         }
 
-        // Drop functions that weren't inline targets.
-        self.functions.retain(|id, _| new_functions.contains(id));
+        // Collect functions still referenced as values (not call targets) in inlined functions.
+        // These need to be kept alive even though they weren't inline targets, because they
+        // are used as value arguments (e.g., closure args to vector_enumerate intrinsic).
+        let mut value_referenced_fns = std::collections::BTreeSet::new();
+        for func in self.functions.values() {
+            if !new_functions.contains(&func.id()) {
+                continue;
+            }
+            for block_id in func.reachable_blocks() {
+                for &instr_id in func.dfg[block_id].instructions() {
+                    func.dfg[instr_id].for_each_value(|value_id| {
+                        if let Value::Function(id) = func.dfg[value_id] {
+                            if !new_functions.contains(&id) {
+                                value_referenced_fns.insert(id);
+                            }
+                        }
+                    });
+                }
+            }
+        }
+
+        // Drop functions that weren't inline targets and aren't referenced as values.
+        self.functions
+            .retain(|id, _| new_functions.contains(id) || value_referenced_fns.contains(id));
 
         Ok(self)
     }

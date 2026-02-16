@@ -493,7 +493,7 @@ impl DependencyContext {
                                 | Intrinsic::VectorRefCount
                                 | Intrinsic::VectorInsert
                                 | Intrinsic::VectorRemove
-                                | Intrinsic::VectorEnumerate
+                                | Intrinsic::VectorEnumerate { .. }
                                 | Intrinsic::StaticAssert
                                 | Intrinsic::StrAsBytes
                                 | Intrinsic::ToBits(..)
@@ -809,12 +809,12 @@ impl Context {
                             | Intrinsic::VectorPopFront
                             | Intrinsic::VectorRefCount
                             | Intrinsic::VectorRemove
-                            | Intrinsic::VectorEnumerate
+                            | Intrinsic::VectorEnumerate { .. }
                             | Intrinsic::StaticAssert
                             | Intrinsic::StrAsBytes
                             | Intrinsic::ToBits(..)
                             | Intrinsic::ToRadix(..)
-                            | Intrinsic::FieldLessThan 
+                            | Intrinsic::FieldLessThan
                             | Intrinsic::ResizeArray => {
                                 self.value_sets.push(instruction_arguments_and_results);
                             }

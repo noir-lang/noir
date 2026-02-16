@@ -975,7 +975,8 @@ impl<'f> Context<'f> {
             | Intrinsic::VectorPopFront
             | Intrinsic::VectorInsert
             | Intrinsic::VectorRemove
-            | Intrinsic::VectorEnumerate
+            | Intrinsic::VectorEnumerate { .. }     // TODO
+            | Intrinsic::ResizeArray                // TODO
             | Intrinsic::ApplyRangeConstraint
             | Intrinsic::StrAsBytes
             | Intrinsic::Hint(_)
@@ -985,7 +986,6 @@ impl<'f> Context<'f> {
             | Intrinsic::FieldLessThan
             | Intrinsic::ArrayRefCount
             | Intrinsic::VectorRefCount => arguments,
-            Intrinsic::ResizeArray => todo!(),
         }
     }
 

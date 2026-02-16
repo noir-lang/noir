@@ -632,9 +632,10 @@ impl<'f> Validator<'f> {
                 let result_type = self.assert_one_result(instruction, "VectorRefCount");
                 assert_u32(&result_type, "VectorRefCount result");
             }
-            Intrinsic::VectorEnumerate => {
-                // fn enumerate<T>(vector: [T], closure: fn([T], u32) -> ()) {}
-                assert!(arguments.len() >= 3, "VectorEnumerate must have at least three arguments");
+            Intrinsic::VectorEnumerate { .. } => {
+                // fn enumerate<T>(vec: [T], closure: fn([T], u32, u32) -> T, index: u32, rev: bool) -> [T]
+                // SSA args: length, vec, acir_closure, brillig_closure, index, rev
+                assert!(arguments.len() >= 6, "VectorEnumerate must have 6 arguments");
 
                 let vector_length_type = self.function.dfg.type_of_value(arguments[0]);
                 assert_u32(&vector_length_type, "VectorEnumerate vector length");
@@ -642,9 +643,9 @@ impl<'f> Validator<'f> {
                 let vector_type = self.function.dfg.type_of_value(arguments[1]);
                 assert_vector(&vector_type, "VectorEnumerate vector");
 
-                // Third argument is the closure function - we don't validate function types here
-
-                self.assert_no_results(instruction, "VectorEnumerate");
+                // Returns (u32, [T]) — length and modified vector data
+                let results = self.function.dfg.instruction_results(instruction);
+                assert_eq!(results.len(), 2, "Expected two results for VectorEnumerate");
             }
             Intrinsic::BlackBox(blackbox) => {
                 self.type_check_black_box(instruction, arguments, blackbox);
@@ -666,7 +667,8 @@ impl<'f> Validator<'f> {
                 let (result_length_type, result_vector_type) =
                     self.assert_two_results(instruction, "ResizeArray");
                 assert_u32(&result_length_type, "ResizeArray result length");
-                let result_element_types = assert_vector(&result_vector_type, "ResizeArray result vector");
+                let result_element_types =
+                    assert_vector(&result_vector_type, "ResizeArray result vector");
                 assert_eq!(
                     vector_element_types, result_element_types,
                     "ResizeArray input element types must match output element types"

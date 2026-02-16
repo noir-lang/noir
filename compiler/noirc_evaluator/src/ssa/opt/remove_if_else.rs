@@ -286,6 +286,11 @@ impl Context {
                 // would otherwise underflow.
                 self.set_capacity(context.dfg, old, new, |c| SemanticLength(c.0.saturating_sub(1)));
             }
+            SizeChange::AdjustBy { old, new, delta } => {
+                self.set_capacity(context.dfg, old, new, |c| {
+                    SemanticLength((c.0 as i32 + delta).max(0) as u32)
+                });
+            }
             SizeChange::Many(changes) => {
                 for change in changes {
                     self.change_size(change, context);
@@ -324,8 +329,8 @@ impl Context {
                     return *entry.insert(length);
                 }
                 // For non-constant vectors we can't tell the size, which would mean we can't merge it.
-                let dbg_value = &dfg[value];
-                unreachable!("ICE: No size for vector {value} = {dbg_value:?}")
+                let _dbg_value = &dfg[value];
+                unreachable!("ICE: No size for vector {value} = {_dbg_value:?}")
             }
         }
     }
@@ -462,9 +467,30 @@ impl Context {
             | Intrinsic::ToRadix(_)
             | Intrinsic::ArrayRefCount
             | Intrinsic::VectorRefCount
-            | Intrinsic::VectorEnumerate
             | Intrinsic::FieldLessThan => SizeChange::None,
-            Intrinsic::ResizeArray => todo!(),
+            Intrinsic::VectorEnumerate => {
+                // vector_enumerate(len, vec, acir_closure, brillig_closure, index, rev) -> (u32, [T])
+                // Output vector has same capacity as input vec
+                let old = arguments[1]; // vec
+                let new = results[1]; // output vector
+                SizeChange::SetTo { old, new }
+            }
+            Intrinsic::ResizeArray => {
+                // resize_array(length, data, adjust) -> (u32, [T])
+                // Output capacity = input capacity + adjust
+                if arguments.len() >= 3 {
+                    let old = arguments[1]; // input data
+                    let new = results[1]; // output data
+                    if let Some(adjust) = dfg.get_numeric_constant(arguments[2]) {
+                        let delta = adjust.to_i128() as i32;
+                        SizeChange::AdjustBy { old, new, delta }
+                    } else {
+                        SizeChange::None
+                    }
+                } else {
+                    SizeChange::None
+                }
+            }
         }
     }
 }
@@ -485,6 +511,12 @@ enum SizeChange {
     Dec {
         old: ValueId,
         new: ValueId,
+    },
+    /// Make the size of the new vector equal to old + delta.
+    AdjustBy {
+        old: ValueId,
+        new: ValueId,
+        delta: i32,
     },
     Many(Vec<SizeChange>),
 }

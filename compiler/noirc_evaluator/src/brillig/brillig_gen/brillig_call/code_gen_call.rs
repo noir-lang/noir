@@ -270,7 +270,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                     | Intrinsic::VectorPopFront
                     | Intrinsic::VectorInsert
                     | Intrinsic::VectorRemove
-                    | Intrinsic::VectorEnumerate => {
+                    | Intrinsic::VectorEnumerate { .. } => {
                         self.convert_ssa_vector_intrinsic_call(
                             dfg,
                             &dfg[func],
