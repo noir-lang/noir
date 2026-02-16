@@ -1319,25 +1319,9 @@ fn is_new_size_ok(orig_size: usize, new_size: usize, max_incr_pct: i32) -> bool 
 }
 
 /// Pre-check condition for [Function::unroll_loops_iteratively].
-///
-/// Panics if any loop header has a `JmpIf` with a constant condition.
-/// A constant-condition `JmpIf` means `simplify_cfg` should have been run first
-/// to fold the branch into an unconditional jump.
 #[cfg(debug_assertions)]
 fn unroll_loops_pre_check(function: &Function) {
-    let loops = Loops::find_all(function, LoopOrder::OutsideIn);
-    for loop_ in &loops.yet_to_unroll {
-        let header = &function.dfg[loop_.header];
-        if let Some(TerminatorInstruction::JmpIf { condition, .. }) = header.terminator() {
-            assert!(
-                function.dfg.get_numeric_constant(*condition).is_none(),
-                "Loop header block {} in function {} has a JmpIf with a constant condition. \
-                 Run simplify_cfg before loop unrolling to fold constant-condition branches.",
-                loop_.header,
-                function.name(),
-            );
-        }
-    }
+    super::checks::assert_no_constant_jmpif(function);
 }
 
 /// Post-check condition for [Function::unroll_loops_iteratively].
