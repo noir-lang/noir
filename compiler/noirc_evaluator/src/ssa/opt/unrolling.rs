@@ -559,6 +559,17 @@ impl Loop {
             return None;
         }
 
+        // Verify that the jmpif condition actually uses the result of this instruction.
+        // Without this check we could return a bogus upper bound from an unrelated instruction
+        // that happens to be in the header.
+        let Some(TerminatorInstruction::JmpIf { condition, .. }) = header.terminator() else {
+            return None;
+        };
+        let results = dfg.instruction_results(instructions[0]);
+        if results.first() != Some(condition) {
+            return None;
+        }
+
         match &dfg[instructions[0]] {
             Instruction::Binary(Binary { lhs: _, operator: BinaryOp::Lt, rhs }) => {
                 dfg.get_integer_constant(*rhs)
@@ -2058,5 +2069,50 @@ mod tests {
         let (lower, upper) =
             loop_.get_const_bounds(&function.dfg, pre_header).expect("bounds are numeric const");
         assert_ne!(lower, upper);
+    }
+
+    /// Test that `get_const_upper_bound` does not blindly trust the single
+    /// instruction in the loop header without checking that the jmpif
+    /// condition actually uses that instruction's result.
+    ///
+    /// Here the header has a `lt` with rhs=100, but the jmpif condition
+    /// is a completely different value (`v10`) defined in the pre-header.
+    /// `get_const_upper_bound` should return `None` (or at least not 100).
+    #[test]
+    fn get_const_upper_bound_ignores_unrelated_instruction() {
+        // The loop header has a single `lt v0, u32 100` instruction
+        // but the jmpif uses a constant `u1 1`, not the result of that lt.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v1 = lt v0, u32 100
+            jmpif u1 1 then: b3, else: b2
+          b3():
+            v2 = unchecked_add v0, u32 1
+            jmp b1(v2)
+          b2():
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let function = ssa.main();
+        let loops = Loops::find_all(function, LoopOrder::OutsideIn);
+        assert_eq!(loops.yet_to_unroll.len(), 1);
+
+        let loop_ = &loops.yet_to_unroll[0];
+        let pre_header =
+            loop_.get_pre_header(function, &loops.cfg).expect("Should have a pre_header");
+
+        // The upper bound should be None because the lt instruction in the header
+        // is not connected to the jmpif condition. If this returns Some(100),
+        // the function is incorrectly assuming the header instruction feeds the jmpif.
+        let upper = loop_.get_const_upper_bound(&function.dfg, pre_header);
+        assert!(
+            upper.is_none(),
+            "get_const_upper_bound should return None when the header's Lt instruction \
+             does not feed the jmpif condition, but got: {upper:?}"
+        );
     }
 }
