@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771274799180,
+  "lastUpdate": 1771325134932,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23170,48 +23170,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "d314e0edb4250de8bd5d5950db7ed719797f7767",
-          "message": "fix(brillig): Use temp registers when passing block arguments (#11495)",
-          "timestamp": "2026-02-06T15:09:16Z",
-          "tree_id": "abc2f824525eaafce32904d12b9aa8ecbefba9b6",
-          "url": "https://github.com/noir-lang/noir/commit/d314e0edb4250de8bd5d5950db7ed719797f7767"
-        },
-        "date": 1770391833852,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255774,
-            "range": "± 654",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 224253,
-            "range": "± 8339",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2730965,
-            "range": "± 3644",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "f6f96dd52dcf151baaf301c3a9760555f5820ca5",
           "message": "fix(ssa): Keep store whose address is used even after flattening (#11380)",
@@ -25254,6 +25212,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2729644,
             "range": "± 7736",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "f6d22d13e0f6d83d6f5b2ab70cd9eae6d7580f4f",
+          "message": "chore(deps-dev): bump the linter group with 2 updates (#11605)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-02-17T10:23:37Z",
+          "tree_id": "ef75a304dd4ea83f721cf603e8b791cce4ae09c4",
+          "url": "https://github.com/noir-lang/noir/commit/f6d22d13e0f6d83d6f5b2ab70cd9eae6d7580f4f"
+        },
+        "date": 1771325089832,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249221,
+            "range": "± 277",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 219113,
+            "range": "± 5108",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2729111,
+            "range": "± 2095",
             "unit": "ns/iter"
           }
         ]
