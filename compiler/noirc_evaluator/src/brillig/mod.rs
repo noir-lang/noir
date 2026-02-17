@@ -710,7 +710,106 @@ mod spill_runtime {
 
         // Small frame: v0 spilled in b0, reloaded each loop iteration
         let layout = LayoutConfig::new(10, 16, MAX_SCRATCH_SPACE);
+        let result = compile_and_run_with_layout(src, calldata.clone(), layout, args.clone());
+        assert_eq!(result, vec![FieldElement::from(24u64)]);
+
+        // Regression: frame=8 previously corrupted loop counter
+        let layout = LayoutConfig::new(8, 16, MAX_SCRATCH_SPACE);
         let result = compile_and_run_with_layout(src, calldata, layout, args);
         assert_eq!(result, vec![FieldElement::from(24u64)]);
+    }
+
+    /// Diamond control flow where b1 (then-branch) spills v0, which is
+    /// a non-param live-in of b3 (the merge block). v0 is b0's param but
+    /// NOT b3's param — it enters b3 as a live-in without being passed
+    /// as a block argument. The merge block sees it as spilled and emits
+    /// reload, but on the else path nobody wrote to the spill slot.
+    ///
+    /// RPO: b0, b2, b1, b3 — b1 (then) is compiled AFTER b2 (else).
+    /// b1 spills v0 (untouched → LRU victim). b3 sees v0 as spilled.
+    /// On b0→b2→b3 path, spill slot was never written → garbage.
+    ///
+    /// v0=3  (b1 path): v6=210, v8=210+3=213
+    /// v0=100 (b2 path): v7=100, v8=100+100=200
+    #[test]
+    fn cross_block_spill_diamond() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = lt v0, u32 10
+            jmpif v1 then: b1, else: b2
+          b1():
+            v2 = unchecked_add u32 10, u32 20
+            v3 = unchecked_add u32 30, u32 40
+            v4 = unchecked_add u32 50, u32 60
+            v5 = unchecked_add v2, v3
+            v6 = unchecked_add v5, v4
+            jmp b3(v6)
+          b2():
+            jmp b3(v0)
+          b3(v7: u32):
+            v8 = unchecked_add v7, v0
+            return v8
+        }
+        ";
+        let args = vec![BrilligParameter::SingleAddr(32)];
+
+        // Default layout: correct
+        let correct = compile_and_run_with_layout(
+            src,
+            vec![FieldElement::from(100u64)],
+            LayoutConfig::default(),
+            args.clone(),
+        );
+        assert_eq!(correct, vec![FieldElement::from(200u64)]);
+
+        // Frame=6: b1 spills v0, b3 emits reload. Previously broken on b2 path.
+        let layout = LayoutConfig::new(6, 16, MAX_SCRATCH_SPACE);
+        let result = compile_and_run_with_layout(
+            src,
+            vec![FieldElement::from(100u64)],
+            layout,
+            args.clone(),
+        );
+        assert_eq!(result, vec![FieldElement::from(200u64)]);
+    }
+
+    /// Verify Jmp argument swaps work correctly through permanent spill slots.
+    /// With v0=3, v1=7: swap → v2=v1=7, v3=v0=3, v4=v0*v1=21
+    /// v5 = v2*10 + v3 + v4 = 70 + 3 + 21 = 94
+    #[test]
+    fn jmp_parallel_move_swap_with_spilling() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            v4 = unchecked_mul v0, v1
+            jmp b1(v1, v0, v4)
+          b1(v2: u32, v3: u32, v5: u32):
+            v6 = unchecked_mul v2, u32 10
+            v7 = unchecked_add v6, v3
+            v8 = unchecked_add v7, v5
+            return v8
+        }
+        ";
+        let args = vec![BrilligParameter::SingleAddr(32), BrilligParameter::SingleAddr(32)];
+
+        // Default layout: correct
+        let correct = compile_and_run_with_layout(
+            src,
+            vec![FieldElement::from(3u64), FieldElement::from(7u64)],
+            LayoutConfig::default(),
+            args.clone(),
+        );
+        assert_eq!(correct, vec![FieldElement::from(94u64)]);
+
+        // Small frame to force spill_support — all params go through spill slots
+        let layout = LayoutConfig::new(6, 16, MAX_SCRATCH_SPACE);
+        let result = compile_and_run_with_layout(
+            src,
+            vec![FieldElement::from(3u64), FieldElement::from(7u64)],
+            layout,
+            args.clone(),
+        );
+        assert_eq!(result, vec![FieldElement::from(94u64)]);
     }
 }

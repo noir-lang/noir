@@ -18,11 +18,11 @@ pub(crate) struct SpillManager {
     next_spill_offset: usize,
     /// Free list of spill slots that have been reclaimed.
     free_spill_slots: Vec<usize>,
-    /// Permanent spill slots for successor block params. These params are
-    /// eagerly spilled in the dominator block and must always be accessed
-    /// through the spill slot to ensure consistency across all Jmp sites
-    /// and the target block's reload code.
-    successor_param_spills: HashMap<ValueId, SpillInfo>,
+    /// Permanent spill slots for values that must always be accessed through
+    /// their spill slot. This includes successor block params (eagerly spilled
+    /// in the dominator block) and non-param live-in values (stored at JMP/JmpIf
+    /// to ensure the destination can always reload from a valid slot).
+    permanent_spills: HashMap<ValueId, SpillInfo>,
 }
 
 #[derive(Clone, Copy)]
@@ -40,7 +40,7 @@ impl SpillManager {
             lru_order: Vec::new(),
             next_spill_offset: 0,
             free_spill_slots: Vec::new(),
-            successor_param_spills: HashMap::default(),
+            permanent_spills: HashMap::default(),
         }
     }
 
@@ -66,8 +66,11 @@ impl SpillManager {
     }
 
     /// Remove a value from the spill map, reclaiming its slot for reuse.
+    /// Permanent spill slots are never freed — they must remain valid across all blocks.
     pub(crate) fn remove_spill(&mut self, value_id: &ValueId) {
-        if let Some(info) = self.spilled.remove(value_id) {
+        if let Some(info) = self.spilled.remove(value_id)
+            && !self.permanent_spills.contains_key(value_id)
+        {
             self.free_spill_slots.push(info.offset);
         }
     }
@@ -123,13 +126,12 @@ impl SpillManager {
         }
     }
 
-    /// Record a successor block param as eagerly spilled.
+    /// Record a value as permanently spilled.
     ///
-    /// These params are always accessed through the spill slot: every Jmp writes
-    /// to the slot, and every target block reloads from it. The permanent record
-    /// in `successor_param_spills` ensures this consistency regardless of what
-    /// happens to the transient `spilled` map during block processing.
-    pub(crate) fn record_successor_param_spill(
+    /// Permanently spilled values are always accessed through the spill slot.
+    /// The permanent record in `permanent_spills` ensures consistency regardless
+    /// of what happens to the transient `spilled` map during block processing.
+    pub(crate) fn record_permanent_spill(
         &mut self,
         value_id: ValueId,
         offset: usize,
@@ -137,21 +139,21 @@ impl SpillManager {
     ) {
         let info = SpillInfo { offset, variable };
         self.spilled.insert(value_id, info);
-        self.successor_param_spills.insert(value_id, info);
+        self.permanent_spills.insert(value_id, info);
     }
 
-    /// Get the spill slot offset for a successor block param, if any.
-    pub(crate) fn get_successor_param_spill_offset(&self, value_id: &ValueId) -> Option<usize> {
-        self.successor_param_spills.get(value_id).map(|info| info.offset)
+    /// Get the permanent spill slot offset for a value, if any.
+    pub(crate) fn get_permanent_spill_offset(&self, value_id: &ValueId) -> Option<usize> {
+        self.permanent_spills.get(value_id).map(|info| info.offset)
     }
 
-    /// Re-mark eagerly-spilled successor params as spilled at block entry.
+    /// Re-mark permanently-spilled values as spilled at block entry.
     ///
     /// A reload in a previous block removes the value from `spilled`, but the
-    /// value must be reloaded again in every block that uses it (since the Jmp
-    /// always writes to the spill slot, not to a register).
-    pub(crate) fn restore_successor_param_spills(&mut self) {
-        for (value_id, info) in &self.successor_param_spills {
+    /// value must be reloaded again in every block that uses it (since the
+    /// permanent spill slot is always the source of truth).
+    pub(crate) fn restore_permanent_spills(&mut self) {
+        for (value_id, info) in &self.permanent_spills {
             if !self.spilled.contains_key(value_id) {
                 self.spilled.insert(*value_id, *info);
             }

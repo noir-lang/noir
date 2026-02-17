@@ -66,24 +66,14 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     ) {
         let live_in = function_context.liveness.get_live_in(&block_id);
 
-        let mut live_in_no_globals = HashSet::default();
-        for value in live_in {
-            if let Value::NumericConstant { constant, typ } = dfg[*value]
-                && hoisted_global_constants.contains_key(&(constant, typ))
-            {
-                continue;
-            }
-            if !dfg.is_global(*value) {
-                live_in_no_globals.insert(*value);
-            }
-        }
+        let mut live_in_no_globals = live_in_no_globals(live_in, dfg, hoisted_global_constants);
 
         // Filter out spilled values — they don't have valid registers and must not be pre-allocated.
         // Reset the LRU with non-spilled live-in values for this block.
         if let Some(sm) = function_context.spill_manager.as_mut() {
             // Re-mark eagerly-spilled successor params so they are always reloaded
             // from the spill slot, regardless of what happened in previous blocks.
-            sm.restore_successor_param_spills();
+            sm.restore_permanent_spills();
             live_in_no_globals.retain(|v| !sm.is_spilled(v));
             sm.reset_lru_for_block(live_in_no_globals.iter().copied());
         }
@@ -291,6 +281,73 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         new_var
     }
 
+    /// Store non-param live-in values of `destination` into permanent spill
+    /// slots. Uses only scratch registers (no register pressure concern).
+    /// The destination's block will see them as spilled via
+    /// the spiller manager and is responsible for emitting reload code.
+    fn spill_non_param_live_ins(&mut self, destination: BasicBlockId, dfg: &DataFlowGraph) {
+        if self.function_context.spill_manager.is_none() {
+            return;
+        }
+
+        let dest_params: HashSet<_> = dfg[destination].parameters().iter().copied().collect();
+        let live_in = self.function_context.liveness.get_live_in(&destination);
+        let live_in_no_globals = live_in_no_globals(live_in, dfg, self.hoisted_global_constants);
+
+        for value_id in live_in_no_globals {
+            if dest_params.contains(&value_id) {
+                continue;
+            }
+
+            let sm = self.function_context.spill_manager.as_mut().unwrap();
+
+            // Already permanently tracked and currently spilled — slot has correct data
+            if sm.get_permanent_spill_offset(&value_id).is_some() && sm.is_spilled(&value_id) {
+                continue;
+            }
+
+            // If currently spilled (register was freed/reused) but not yet permanent,
+            // promote the existing spill slot to permanent. No store needed — data is
+            // already in the slot.
+            if sm.is_spilled(&value_id) {
+                let existing = *sm.get_spill(&value_id).unwrap();
+                sm.record_permanent_spill(value_id, existing.offset, existing.variable);
+                continue;
+            }
+
+            let var = *self.function_context.ssa_value_allocations.get(&value_id).unwrap();
+
+            // Allocate permanent slot on first encounter (value is in a register)
+            let sm = self.function_context.spill_manager.as_mut().unwrap();
+            let offset = if let Some(off) = sm.get_permanent_spill_offset(&value_id) {
+                off
+            } else {
+                let off = sm.allocate_spill_offset();
+                sm.record_permanent_spill(value_id, off, var);
+                off
+            };
+
+            // 4-instruction store via scratch registers
+            let source_reg = var.extract_register();
+            let (scratch_addr, scratch_offset) = ReservedRegisters::spill_scratch();
+            self.brillig_context
+                .mov_instruction(scratch_addr, ReservedRegisters::spill_base_slot());
+            self.brillig_context
+                .const_instruction(SingleAddrVariable::new_usize(scratch_offset), offset.into());
+            self.brillig_context.memory_op_instruction(
+                scratch_addr,
+                scratch_offset,
+                scratch_addr,
+                BrilligBinaryOp::Add,
+            );
+            self.brillig_context.store_instruction(scratch_addr, source_reg);
+
+            self.function_context.did_spill = true;
+            self.function_context.max_spill_offset =
+                self.function_context.max_spill_offset.max(offset + 1);
+        }
+    }
+
     /// Wrapper for [BlockVariables::define_variable] that ensures register capacity
     /// and tracks the new value in the LRU.
     pub(crate) fn define_variable(
@@ -391,6 +448,11 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 else_destination,
                 call_stack: _,
             } => {
+                // Store non-param live-ins BEFORE converting the condition to avoid
+                // register overwrites. Both branches' stores execute unconditionally;
+                // extra stores are harmless (SSA immutability).
+                self.spill_non_param_live_ins(*then_destination, dfg);
+                self.spill_non_param_live_ins(*else_destination, dfg);
                 let condition = self.convert_ssa_single_addr_value(*condition, dfg);
                 self.brillig_context.jump_if_instruction(
                     condition.address,
@@ -401,6 +463,9 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 );
             }
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
+                // Store non-param live-ins BEFORE the arg/param parallel moves
+                // to avoid register overwrites.
+                self.spill_non_param_live_ins(*destination, dfg);
                 let destination_block = &dfg[*destination];
                 let mut moves: Vec<(MemoryAddress, MemoryAddress)> = Vec::new();
                 for (arg, param) in arguments.iter().zip(destination_block.parameters()) {
@@ -415,7 +480,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                         .function_context
                         .spill_manager
                         .as_ref()
-                        .and_then(|sm| sm.get_successor_param_spill_offset(param));
+                        .and_then(|sm| sm.get_permanent_spill_offset(param));
 
                     if let Some(offset) = spill_offset {
                         // Param was spilled — write arg directly to param's spill slot.
@@ -526,7 +591,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                         let offset = sm.allocate_spill_offset();
                         let var =
                             *self.function_context.ssa_value_allocations.get(&param_id).unwrap();
-                        sm.record_successor_param_spill(param_id, offset, var);
+                        sm.record_permanent_spill(param_id, offset, var);
                         // Free the register — it holds no valid data.
                         let reg = var.extract_register();
                         self.brillig_context.deallocate_register(reg);
@@ -978,4 +1043,24 @@ pub(crate) fn type_of_binary_operation(lhs_type: &Type, rhs_type: &Type) -> Type
             Type::Numeric(*lhs_type)
         }
     }
+}
+
+/// Filter a block's live-in set to exclude globals and hoisted global constants.
+fn live_in_no_globals(
+    live_in: &HashSet<ValueId>,
+    dfg: &DataFlowGraph,
+    hoisted_global_constants: &HoistedConstantsToBrilligGlobals,
+) -> HashSet<ValueId> {
+    live_in
+        .iter()
+        .copied()
+        .filter(|&value| {
+            if let Value::NumericConstant { constant, typ } = dfg[value]
+                && hoisted_global_constants.contains_key(&(constant, typ))
+            {
+                return false;
+            }
+            !dfg.is_global(value)
+        })
+        .collect()
 }
