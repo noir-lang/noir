@@ -1821,3 +1821,27 @@ fn associated_constant_can_reference_generic_from_trait_bound() {
     "#;
     assert_no_errors(src);
 }
+
+/// Regression test for https://github.com/noir-lang/noir/issues/11538
+#[test]
+fn associated_constant_in_return_type_with_generic_impl_forwarding() {
+    let src = r#"
+    pub struct A<F> { pub f: F }
+
+    pub trait E {
+        let x: u32;
+        fn g() -> str<Self::x>;
+    }
+
+    impl<F: E> E for A<F> {
+        let x: u32 = F::x;
+
+        fn g() -> str<Self::x> {
+            F::g()
+        }
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}

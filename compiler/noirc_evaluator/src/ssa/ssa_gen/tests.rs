@@ -333,8 +333,8 @@ fn for_loop_inclusive_max_value_without_break() {
     // - b1 is the loop header
     // - b2 is the loop body
     // - b3 is the loop exit, but it performs a check to determine whether the final iteration
-    //   should be executed. In this case we check if no break was hit. It's multiplied by
-    //   one because that "one" is (start < end) which is true in this case.
+    //   should be executed. In this case we check if no break was hit. The (start <= end)
+    //   condition is constant true and simplified away.
     // - b4 is the final iteration where `index == end`
     assert_ssa_snapshot!(ssa, @r"
     acir(inline) fn main f0 {
@@ -348,25 +348,24 @@ fn for_loop_inclusive_max_value_without_break() {
         v6 = lt v0, u8 255
         jmpif v6 then: b2, else: b3
       b2():
-        v13 = load v1 -> u8
-        v14 = add v13, v0
-        v15 = load v1 -> u8
-        store v14 at v1
-        v17 = unchecked_add v0, u8 1
-        jmp b1(v17)
+        v12 = load v1 -> u8
+        v13 = add v12, v0
+        v14 = load v1 -> u8
+        store v13 at v1
+        v16 = unchecked_add v0, u8 1
+        jmp b1(v16)
       b3():
         v7 = load v3 -> u1
-        v8 = unchecked_mul v7, u1 1
-        jmpif v8 then: b4, else: b5
+        jmpif v7 then: b4, else: b5
       b4():
-        v9 = load v1 -> u8
-        v10 = add v9, u8 255
-        v11 = load v1 -> u8
-        store v10 at v1
+        v8 = load v1 -> u8
+        v9 = add v8, u8 255
+        v10 = load v1 -> u8
+        store v9 at v1
         jmp b5()
       b5():
-        v12 = load v1 -> u8
-        return v12
+        v11 = load v1 -> u8
+        return v11
     }
     ");
 }
@@ -449,8 +448,7 @@ fn for_loop_inclusive_max_value_with_break() {
         jmpif v0 then: b4, else: b5
       b3():
         v13 = load v4 -> u1
-        v14 = unchecked_mul v13, u1 1
-        jmpif v14 then: b6, else: b7
+        jmpif v13 then: b6, else: b7
       b4():
         store u1 0 at v4
         jmp b3()
@@ -463,14 +461,14 @@ fn for_loop_inclusive_max_value_with_break() {
       b6():
         jmpif v0 then: b8, else: b9
       b7():
-        v17 = load v2 -> u8
-        return v17
+        v16 = load v2 -> u8
+        return v16
       b8():
         jmp b7()
       b9():
-        v15 = load v2 -> u8
-        v16 = add v15, u8 255
-        store v16 at v2
+        v14 = load v2 -> u8
+        v15 = add v14, u8 255
+        store v15 at v2
         jmp b7()
     }
     ");
@@ -564,12 +562,11 @@ fn for_loop_inclusive_with_continue() {
         v5 = lt v0, u8 255
         jmpif v5 then: b2, else: b3
       b2():
-        v9 = unchecked_add v0, u8 1
-        jmp b1(v9)
+        v8 = unchecked_add v0, u8 1
+        jmp b1(v8)
       b3():
         v6 = load v1 -> u1
-        v7 = unchecked_mul v6, u1 1
-        jmpif v7 then: b4, else: b5
+        jmpif v6 then: b4, else: b5
       b4():
         jmp b5()
       b5():
@@ -604,27 +601,51 @@ fn for_loop_inclusive_max_value_to_max_value() {
         v6 = lt v0, u8 255
         jmpif v6 then: b2, else: b3
       b2():
-        v13 = load v1 -> u8
-        v14 = add v13, v0
-        v15 = load v1 -> u8
-        store v14 at v1
-        v17 = unchecked_add v0, u8 1
-        jmp b1(v17)
+        v12 = load v1 -> u8
+        v13 = add v12, v0
+        v14 = load v1 -> u8
+        store v13 at v1
+        v16 = unchecked_add v0, u8 1
+        jmp b1(v16)
       b3():
         v7 = load v3 -> u1
-        v8 = unchecked_mul v7, u1 1
-        jmpif v8 then: b4, else: b5
+        jmpif v7 then: b4, else: b5
       b4():
-        v9 = load v1 -> u8
-        v10 = add v9, u8 255
-        v11 = load v1 -> u8
-        store v10 at v1
+        v8 = load v1 -> u8
+        v9 = add v8, u8 255
+        v10 = load v1 -> u8
+        store v9 at v1
         jmp b5()
       b5():
-        v12 = load v1 -> u8
-        return v12
+        v11 = load v1 -> u8
+        return v11
     }
     ");
+}
+
+#[test]
+fn for_loop_inclusive_no_mul_by_one() {
+    // Regression: `and(v, u1 1)` was simplified to `unchecked_mul(v, u1 1)` instead
+    // of being recognized as an identity operation (AND with max value is identity).
+    let src = "
+    fn main() -> pub u8 {
+        let mut sum = 0;
+        for i in 0..=255_u8 {
+          sum += i;
+        }
+        sum
+    }
+    ";
+    let ssa = get_initial_ssa(src).unwrap();
+
+    // The `did_not_hit_break` load should be used directly in the jmpif,
+    // not multiplied by `u1 1`.
+    let ssa_string = ssa.to_string();
+    assert!(
+        !ssa_string.contains("unchecked_mul"),
+        "Expected no `unchecked_mul` in initial SSA for inclusive range with known bounds,\
+         but found:\n{ssa_string}"
+    );
 }
 
 #[test]

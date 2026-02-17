@@ -1,0 +1,7 @@
+[package]
+name = "dependency"
+type = "lib"
+authors = [""]
+compiler_unstable_features = ["enums"]
+
+[dependencies]

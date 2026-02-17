@@ -3,7 +3,7 @@
   "contributors": [
     "The Noir Team <team@noir-lang.org>"
   ],
-  "version": "1.0.0-beta.18",
+  "version": "1.0.0-beta.19",
   "packageManager": "yarn@4.5.2",
   "license": "(MIT OR Apache-2.0)",
   "type": "module",
@@ -56,7 +56,7 @@
     "@types/pako": "^2",
     "@types/prettier": "^3.0.0",
     "chai": "^6.2.2",
-    "eslint": "^9.39.2",
+    "eslint": "^10.0.0",
     "eslint-plugin-prettier": "^5.5.5",
     "mocha": "^11.7.5",
     "prettier": "3.8.1",
