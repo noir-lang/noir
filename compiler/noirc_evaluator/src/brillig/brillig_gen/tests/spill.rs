@@ -8,7 +8,7 @@ use crate::{
     ssa::ir::map::Id,
 };
 
-/// Snapshot test verifying that spill/reload instructions are emitted when register
+/// Verify that spill/reload instructions are emitted when register
 /// pressure exceeds the stack frame limit.
 ///
 /// Uses `max_stack_frame_size = 6` with `start_offset = 2` (spill enabled), leaving
