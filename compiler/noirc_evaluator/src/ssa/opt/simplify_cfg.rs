@@ -343,8 +343,17 @@ fn check_for_converging_jmpif(
     if then_final == else_final {
         let then_destination = *then_destination;
         let else_destination = *else_destination;
+        // For ACIR functions, jump to the immediate target rather than the resolved
+        // chain endpoint. flatten_cfg expects symmetric join structures, and skipping
+        // intermediate blocks can create asymmetric paths that break branch analysis.
+        // try_inline_successor will safely collapse the remaining chain later.
+        let destination = if matches!(function.runtime(), RuntimeType::Acir(_)) {
+            then_destination
+        } else {
+            then_final
+        };
         let jmp = TerminatorInstruction::Jmp {
-            destination: then_final,
+            destination,
             // The blocks in a jmp chain are checked to have empty arguments by resolve_jmp_chain
             arguments: Vec::new(),
             call_stack: *call_stack,
@@ -796,7 +805,7 @@ mod tests {
             return v1
           b6():
             v9 = array_get v0, index u32 8 -> u1
-            jmp b8()
+            jmp b9()
           b7():
             jmp b9()
           b8():
@@ -805,6 +814,10 @@ mod tests {
             jmp b8()
         }
         ");
+
+        // The output must be a valid input for flatten_cfg (no panic).
+        let ssa = Ssa::from_str(src).unwrap().simplify_cfg();
+        let _ssa = ssa.flatten_cfg();
     }
 
     #[test]
