@@ -1,5 +1,5 @@
 [package]
-name = "repro_11440"
+name = "regression_11440"
 type = "bin"
 authors = [""]
 
