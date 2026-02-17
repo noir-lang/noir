@@ -407,7 +407,7 @@ impl VariableLiveness {
     /// Walk each block instruction-by-instruction, tracking how many variables are
     /// simultaneously alive: start with `live_in`, add variables defined by each
     /// instruction (including block param definitions), and subtract dead variables
-    /// from `last_uses`. Record the high-water mark across all blocks.
+    /// from `last_uses`. Record the highest count across all blocks.
     ///
     /// For `MakeArray` instructions, also account for the element count: during Brillig
     /// codegen, each unique element value is materialized as a separate register, which

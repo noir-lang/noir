@@ -231,7 +231,8 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             .expect("ICE: resolve_spill_prologue called without emit_unresolved_spill_prologue");
         let (scratch, _) = ReservedRegisters::spill_scratch();
 
-        // [0]: Mov sp[1], @1  -- save current FMP as spill base
+        // Save current FMP as spill base
+        // [0]: Mov sp[1], @1 
         self.obj.byte_code[positions[0]] = BrilligOpcode::Mov {
             destination: ReservedRegisters::spill_base_slot(),
             source: ReservedRegisters::free_memory_pointer(),
@@ -242,7 +243,8 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             value: F::from(actual_spill_size as u128),
             bit_size: BitSize::Integer(IntegerBitSize::U32),
         };
-        // [2]: BinaryIntOp Add @1, @1, @scratch  -- bump FMP by actual amount
+        // Bump FMP by actual amount
+        // [2]: BinaryIntOp Add @1, @1, @scratch
         self.obj.byte_code[positions[2]] = BrilligOpcode::BinaryIntOp {
             op: BinaryIntOp::Add,
             destination: ReservedRegisters::free_memory_pointer(),
