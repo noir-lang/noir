@@ -203,7 +203,6 @@ pub struct CompileOptions {
     pub force_unroll_threshold: usize,
 
     /// Maximum size of a single Brillig stack frame.
-    /// Smaller values force register spilling.
     #[arg(long, hide = true, default_value_t = MAX_STACK_FRAME_SIZE)]
     pub max_stack_frame_size: usize,
 
