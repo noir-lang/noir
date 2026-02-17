@@ -1061,6 +1061,60 @@ mod tests {
     }
 
     #[test]
+    fn simplify_cfg_preserves_valid_join_structure_for_flatten() {
+        // Regression test: simplify_cfg was creating an asymmetric join structure
+        // that flatten_cfg's branch analysis couldn't handle. After simplification,
+        // one branch of a jmpif would reach the return block directly while the
+        // other went through extra blocks, causing "Expected two blocks to join
+        // to the same block" in flatten_cfg.
+        let src = "
+        acir(inline) impure fn main f0 {
+          b0(v1: u1, v2: u1, v3: u1, v4: u32):
+            v5 = eq v4, u32 1
+            jmpif v5 then: b1, else: b2
+          b1():
+            jmp b3()
+          b2():
+            v6 = eq v4, u32 2
+            jmpif v6 then: b4, else: b5
+          b3():
+            jmp b6()
+          b4():
+            jmpif v1 then: b7, else: b8
+          b5():
+            jmp b9()
+          b6():
+            jmp b10()
+          b7():
+            v7 = not v2
+            jmpif v2 then: b11, else: b12
+          b8():
+            jmp b13()
+          b9():
+            jmp b14()
+          b10():
+            return
+          b11():
+            jmp b15()
+          b12():
+            jmp b15()
+          b13():
+            jmp b16()
+          b14():
+            jmp b6()
+          b15():
+            jmp b13()
+          b16():
+            jmp b14()
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.simplify_cfg();
+        // The key check: flatten_cfg must not panic
+        let _ssa = ssa.flatten_cfg();
+    }
+
+    #[test]
     fn deep_jmp_empty_blocks() {
         let src = "
         brillig(inline) fn test f0 {
