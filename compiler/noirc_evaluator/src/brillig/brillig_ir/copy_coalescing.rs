@@ -49,7 +49,8 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
         }
 
         // Phase 2: Build CFG (successor/predecessor lists).
-        let (successors, predecessors) = build_cfg(&blocks, &self.byte_code, &jump_targets);
+        let (successors, predecessors) =
+            build_cfg(&blocks, &self.byte_code, &jump_targets);
 
         // Phase 3: Iterative dataflow analysis.
         // OUT[b] = transfer(IN[b], instructions in b)
@@ -70,7 +71,8 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
                 None => continue,
             };
 
-            let out_map = transfer_block(&self.byte_code, &blocks[block_idx], in_map);
+            let out_map =
+                transfer_block(&self.byte_code, &blocks[block_idx], in_map);
 
             let changed = block_out[block_idx].as_ref() != Some(&out_map);
             block_out[block_idx] = Some(out_map);
@@ -184,7 +186,10 @@ fn build_blocks<F>(
     starts
         .windows(2)
         .map(|w| Block { start: w[0], end: w[1] })
-        .chain(std::iter::once(Block { start: *starts.last().unwrap(), end: byte_code.len() }))
+        .chain(std::iter::once(Block {
+            start: *starts.last().unwrap(),
+            end: byte_code.len(),
+        }))
         .collect()
 }
 
@@ -274,7 +279,8 @@ fn transfer_block<F: Clone + std::fmt::Debug>(
     block: &Block,
     mut copies: CopyMap,
 ) -> CopyMap {
-    for opcode in byte_code.iter().skip(block.start).take(block.end) {
+    for i in block.start..block.end {
+        let opcode = &byte_code[i];
         if let Opcode::Mov { destination, source } = opcode {
             let mut src = *source;
             // Simulate read propagation.
@@ -293,7 +299,10 @@ fn transfer_block<F: Clone + std::fmt::Debug>(
             // If dst == src after propagation, it's a self-move; no map change needed.
         } else if matches!(opcode, Opcode::Call { .. }) {
             copies.clear();
-        } else if matches!(opcode, Opcode::Return | Opcode::Trap { .. } | Opcode::Stop { .. }) {
+        } else if matches!(
+            opcode,
+            Opcode::Return | Opcode::Trap { .. } | Opcode::Stop { .. }
+        ) {
             // Terminal: copies don't matter after this, but we still
             // keep the map for the OUT of this block (it won't have successors).
         } else if matches!(opcode, Opcode::Jump { .. } | Opcode::JumpIf { .. }) {
@@ -360,7 +369,10 @@ fn update_copies_after_rewrite<F>(
         copies.clear();
     } else if matches!(opcode, Opcode::Jump { .. } | Opcode::JumpIf { .. }) {
         // Jump/JumpIf don't modify registers.
-    } else if matches!(opcode, Opcode::Return | Opcode::Trap { .. } | Opcode::Stop { .. }) {
+    } else if matches!(
+        opcode,
+        Opcode::Return | Opcode::Trap { .. } | Opcode::Stop { .. }
+    ) {
         // Terminal: no effect on copies needed for rewrite.
     } else {
         invalidate_opcode_writes(opcode, copies);
@@ -792,11 +804,11 @@ mod tests {
         // Intersection: r2 maps differ → discarded.
         let mut artifact = BrilligArtifact::with_opcodes_and_labels(
             vec![
-                mov(2, 1),                                                    // 0: block 0
-                BrilligOpcode::JumpIf { condition: direct(10), location: 4 }, // 1: block 0 end
-                mov(2, 3),                                                    // 2: block 1
-                BrilligOpcode::Jump { location: 4 },                          // 3: block 1 end
-                add_op(4, 2, 1), // 4: block 2 (label_a)
+                mov(2, 1),                                                     // 0: block 0
+                BrilligOpcode::JumpIf { condition: direct(10), location: 4 },  // 1: block 0 end
+                mov(2, 3),                                                     // 2: block 1
+                BrilligOpcode::Jump { location: 4 },                           // 3: block 1 end
+                add_op(4, 2, 1),                                               // 4: block 2 (label_a)
             ],
             &[(label(1), 4)],
         );
@@ -813,11 +825,11 @@ mod tests {
         // Both predecessors have {r2→r1} → preserved at merge.
         let mut artifact = BrilligArtifact::with_opcodes_and_labels(
             vec![
-                mov(2, 1),                                                    // 0: block 0
-                BrilligOpcode::JumpIf { condition: direct(10), location: 4 }, // 1: block 0 end
-                mov(3, 5),                                                    // 2: block 1
-                BrilligOpcode::Jump { location: 4 },                          // 3: block 1 end
-                add_op(4, 2, 1), // 4: block 2 (label_a)
+                mov(2, 1),                                                     // 0: block 0
+                BrilligOpcode::JumpIf { condition: direct(10), location: 4 },  // 1: block 0 end
+                mov(3, 5),                                                     // 2: block 1
+                BrilligOpcode::Jump { location: 4 },                           // 3: block 1 end
+                add_op(4, 2, 1),                                               // 4: block 2 (label_a)
             ],
             &[(label(1), 4)],
         );
