@@ -39,7 +39,8 @@ p256 = { workspace = true, features = [
     "arithmetic",
 ] }
 
-libaes = "0.7.0"
+aes = "0.8"
+cbc = "0.1"
 
 [dev-dependencies]
 proptest.workspace = true

@@ -426,7 +426,9 @@ impl Context<'_> {
 
         let shift = ElementTypeSizesArrayShift::None;
         let index_var = self.convert_numeric_value(index, dfg)?;
-        let index_var = self.get_flattened_index(&array_typ, array_id, index_var, dfg, shift)?;
+        let is_safe_index = dfg.is_safe_index(index, array_id);
+        let index_var =
+            self.get_flattened_index(&array_typ, array_id, index_var, dfg, is_safe_index, shift)?;
 
         // Side-effects are always enabled so we do not need to do any predication
         if self.acir_context.is_constant_one(&self.current_side_effects_enabled_var) {
@@ -656,11 +658,11 @@ impl Context<'_> {
         match &value {
             AcirValue::Var(acir_var, typ) => {
                 let array_typ = dfg.type_of_value(array);
-                if let Type::Numeric(numeric_type) = array_typ.first() {
-                    if numeric_type.bit_size::<FieldElement>() <= typ.bit_size::<FieldElement>() {
-                        // first element is compatible
-                        index_side_effect = false;
-                    }
+                if let Type::Numeric(numeric_type) = array_typ.first()
+                    && numeric_type.bit_size::<FieldElement>() <= typ.bit_size::<FieldElement>()
+                {
+                    // first element is compatible
+                    index_side_effect = false;
                 }
 
                 if index_side_effect {
@@ -1125,6 +1127,7 @@ impl Context<'_> {
         array_id: ValueId,
         var_index: AcirVar,
         dfg: &DataFlowGraph,
+        is_safe_index: bool,
         shift: ElementTypeSizesArrayShift,
     ) -> Result<AcirVar, RuntimeError> {
         if let Some(step_size) = array_has_constant_element_size(array_typ) {
@@ -1134,8 +1137,11 @@ impl Context<'_> {
             let element_type_sizes =
                 self.init_element_type_sizes_array(array_typ, array_id, None, dfg, shift)?;
 
-            let predicate_index =
-                self.acir_context.mul_var(var_index, self.current_side_effects_enabled_var)?;
+            let predicate_index = if is_safe_index {
+                var_index
+            } else {
+                self.acir_context.mul_var(var_index, self.current_side_effects_enabled_var)?
+            };
 
             self.acir_context
                 .read_from_memory(element_type_sizes, &predicate_index)

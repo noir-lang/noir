@@ -57,7 +57,7 @@ Test cases are auto-generated from these directories by `tooling/nargo_cli/build
 
 ## Build & Development Commands
 
-The project uses `just` as a task runner and `cargo` for Rust builds. Minimum Rust version: 1.85.0. Run `just --list` to see all available commands.
+The project uses `just` as a task runner and `cargo` for Rust builds. Minimum Rust version: 1.89.0. Run `just --list` to see all available commands.
 
 ### Building
 
@@ -200,7 +200,6 @@ Special labels to control CI behavior:
 ### Workflow Reminders
 
 - ✅ Always compile before testing
-- ✅ Format/lint modified packages before committing
 - ✅ Run tests for modified code
 - ✅ Use single-package commands when possible (faster)
 - ❌ Never run `yarn test` from project root - always cd into package first

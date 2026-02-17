@@ -16,7 +16,9 @@ use noirc_errors::{CustomDiagnostic, DiagnosticKind};
 use noirc_evaluator::brillig::BrilligOptions;
 use noirc_evaluator::create_program;
 use noirc_evaluator::errors::RuntimeError;
-use noirc_evaluator::ssa::opt::{CONSTANT_FOLDING_MAX_ITER, INLINING_MAX_INSTRUCTIONS};
+use noirc_evaluator::ssa::opt::{
+    CONSTANT_FOLDING_MAX_ITER, FORCE_UNROLL_THRESHOLD, INLINING_MAX_INSTRUCTIONS,
+};
 use noirc_evaluator::ssa::{
     SsaEvaluatorOptions, SsaLogging, SsaProgramArtifact, create_program_with_minimal_passes,
 };
@@ -188,6 +190,15 @@ pub struct CompileOptions {
     #[arg(long, hide = true, allow_hyphen_values = true)]
     pub max_bytecode_increase_percent: Option<i32>,
 
+    /// Override the threshold for force-unrolling small loops.
+    ///
+    /// Loops with constant bounds and no breaks whose unrolled
+    /// instruction count is at or below this threshold will always be unrolled.
+    ///
+    /// Set to 0 to disable force-unrolling.
+    #[arg(long, hide = true, default_value_t = FORCE_UNROLL_THRESHOLD)]
+    pub force_unroll_threshold: usize,
+
     /// Skip reading files/folders from the root directory and instead accept the
     /// contents of `main.nr` through STDIN.
     ///
@@ -246,6 +257,7 @@ impl Default for CompileOptions {
             constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
             small_function_max_instructions: INLINING_MAX_INSTRUCTIONS,
             max_bytecode_increase_percent: None,
+            force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
             debug_compile_stdin: false,
             unstable_features: Vec::new(),
             no_unstable_features: false,
@@ -282,6 +294,7 @@ impl CompileOptions {
             constant_folding_max_iter: self.constant_folding_max_iter,
             small_function_max_instruction: self.small_function_max_instructions,
             max_bytecode_increase_percent: self.max_bytecode_increase_percent,
+            force_unroll_threshold: self.force_unroll_threshold,
             skip_passes: self.skip_ssa_pass.clone(),
         }
     }
@@ -379,7 +392,7 @@ pub fn prepare_crate(context: &mut Context, file_name: &Path) -> CrateId {
     let std_file_id = context.file_manager.name_to_id(path_to_std_lib_file);
     let std_crate_id = std_file_id.map(|std_file_id| context.crate_graph.add_stdlib(std_file_id));
 
-    let root_file_id = context.file_manager.name_to_id(file_name.to_path_buf()).unwrap_or_else(|| panic!("files are expected to be added to the FileManager before reaching the compiler file_path: {file_name:?}"));
+    let root_file_id = context.file_manager.name_to_id(file_name.to_path_buf()).unwrap_or_else(|| panic!("files are expected to be added to the FileManager before reaching the compiler file_path: {}", file_name.display()));
 
     if let Some(std_crate_id) = std_crate_id {
         let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
@@ -403,7 +416,7 @@ pub fn prepare_dependency(context: &mut Context, file_name: &Path) -> CrateId {
     let root_file_id = context
         .file_manager
         .name_to_id(file_name.to_path_buf())
-        .unwrap_or_else(|| panic!("files are expected to be added to the FileManager before reaching the compiler file_path: {file_name:?}"));
+        .unwrap_or_else(|| panic!("files are expected to be added to the FileManager before reaching the compiler file_path: {}", file_name.display()));
 
     let crate_id = context.crate_graph.add_crate(root_file_id);
 
@@ -563,10 +576,10 @@ pub fn compile_contract(
     } else {
         if options.print_acir {
             for contract_function in &compiled_contract.functions {
-                if let Some(ref name) = options.show_contract_fn {
-                    if name != &contract_function.name {
-                        continue;
-                    }
+                if let Some(ref name) = options.show_contract_fn
+                    && name != &contract_function.name
+                {
+                    continue;
                 }
                 println!(
                     "Compiled ACIR for {}::{} (non-transformed):",
@@ -665,7 +678,7 @@ fn compile_contract_inner(
             if !show {
                 options.show_ssa_pass.clear();
             }
-        };
+        }
 
         let function = match compile_no_check(context, &options, function_id, None, true) {
             Ok(function) => function,
@@ -676,6 +689,7 @@ fn compile_contract_inner(
         };
         warnings.extend(function.warnings);
         let modifiers = context.def_interner.function_modifiers(&function_id);
+        let is_unconstrained = context.def_interner.function_meta(&function_id).is_unconstrained();
 
         let custom_attributes = modifiers
             .attributes
@@ -697,7 +711,7 @@ fn compile_contract_inner(
             abi: function.abi,
             bytecode: function.program,
             debug: function.debug,
-            is_unconstrained: modifiers.is_unconstrained,
+            is_unconstrained,
         });
     }
 
@@ -862,11 +876,12 @@ pub fn compile_no_check(
     // Hash the AST program, which is going to be used to fingerprint the compilation artifact.
     let hash = rustc_hash::FxBuildHasher.hash_one(&program);
 
-    if let Some(cached_program) = cached_program {
-        if !force_compile && cached_program.hash == hash {
-            info!("Program matches existing artifact, returning early");
-            return Ok(cached_program);
-        }
+    if let Some(cached_program) = cached_program
+        && !force_compile
+        && cached_program.hash == hash
+    {
+        info!("Program matches existing artifact, returning early");
+        return Ok(cached_program);
     }
 
     let return_visibility = program.return_visibility();

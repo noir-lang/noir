@@ -40,8 +40,7 @@ use crate::{
             value::{ExprValue, FormatStringFragment, TypedExpr},
         },
         def_collector::dc_crate::CollectedItems,
-        def_map::{ModuleDefId, ModuleId},
-        type_check::generics::TraitGenerics,
+        def_map::{ModuleDefId, ModuleId, fully_qualified_module_path},
     },
     hir_def::{
         expr::{HirExpression, HirIdent, HirLiteral, ImplKind, TraitItem},
@@ -1388,9 +1387,8 @@ fn trait_impl_trait_generic_args(
     let argument = check_one_argument(arguments, location)?;
 
     let trait_impl_id = get_trait_impl(argument)?;
-    let trait_impl = interner.get_trait_implementation(trait_impl_id);
-    let trait_impl = trait_impl.borrow();
-    let trait_generics = trait_impl.trait_generics.iter().map(|t| Value::Type(t.clone())).collect();
+    let ordered_generics = interner.get_ordered_generics_for_impl(trait_impl_id);
+    let trait_generics = ordered_generics.iter().map(|t| Value::Type(t.clone())).collect();
     let vector_type = Type::Vector(Box::new(Type::Quoted(QuotedType::Type)));
 
     Ok(Value::Vector(trait_generics, vector_type))
@@ -2565,10 +2563,8 @@ fn function_def_as_typed_expr(
     let hir_ident = if let Some(trait_impl_id) = trait_impl_id {
         let trait_impl = interpreter.elaborator.interner.get_trait_implementation(trait_impl_id);
         let trait_impl = trait_impl.borrow();
-        let ordered = trait_impl.trait_generics.clone();
-        let named =
-            interpreter.elaborator.interner.get_associated_types_for_impl(trait_impl_id).to_vec();
-        let trait_generics = TraitGenerics { ordered, named };
+        let trait_generics =
+            interpreter.elaborator.interner.get_trait_generics_for_impl(trait_impl_id).clone();
         let trait_bound =
             ResolvedTraitBound { trait_id: trait_impl.trait_id, trait_generics, location };
         let constraint = TraitConstraint { typ: trait_impl.typ.clone(), trait_bound };
@@ -2629,10 +2625,10 @@ fn function_def_has_named_attribute(
     let name = &*get_str(name)?;
 
     let modifiers = interner.function_modifiers(&func_id);
-    if let Some(attribute) = modifiers.attributes.function() {
-        if name == attribute.kind.name() {
-            return Ok(Value::Bool(true));
-        }
+    if let Some(attribute) = modifiers.attributes.function()
+        && name == attribute.kind.name()
+    {
+        return Ok(Value::Bool(true));
     }
 
     Ok(Value::Bool(has_named_attribute(name, &modifiers.attributes.secondary, interner)))
@@ -2654,7 +2650,7 @@ fn function_def_is_unconstrained(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let func_id = get_function_def(self_argument)?;
-    let is_unconstrained = interner.function_modifiers(&func_id).is_unconstrained;
+    let is_unconstrained = interner.function_meta(&func_id).is_unconstrained();
     Ok(Value::Bool(is_unconstrained))
 }
 
@@ -2901,8 +2897,9 @@ fn function_def_set_unconstrained(
 
     let unconstrained = get_bool(unconstrained)?;
 
-    let modifiers = interpreter.elaborator.interner.function_modifiers_mut(&func_id);
-    modifiers.is_unconstrained = unconstrained;
+    mutate_func_meta_type(interpreter.elaborator.interner, func_id, |func_meta| {
+        func_meta.set_unconstrained(unconstrained);
+    });
 
     Ok(Value::Unit)
 }
@@ -2927,6 +2924,17 @@ fn module_add_item(
 ) -> IResult<Value> {
     let (self_argument, item) = check_two_arguments(arguments, location)?;
     let module_id = get_module(self_argument)?;
+
+    let current_crate = interpreter.elaborator.module_id().krate;
+    if current_crate != module_id.krate {
+        let module = fully_qualified_module_path(
+            interpreter.elaborator.def_maps,
+            interpreter.elaborator.crate_graph,
+            &current_crate,
+            module_id,
+        );
+        return Err(InterpreterError::CannotAddItemToExternalCrateModule { module, location });
+    }
 
     let parser = Parser::parse_top_level_items;
     let top_level_statements = parse(interpreter.elaborator, item, parser, "a top-level item")?;

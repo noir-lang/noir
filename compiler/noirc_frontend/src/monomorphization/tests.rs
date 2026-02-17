@@ -460,6 +460,7 @@ fn multiple_trait_impls_with_different_instantiations() {
 #[should_panic(expected = "Type recursion limit reached - types are too large")]
 fn extreme_type_alias_chain_stack_overflow() {
     // Generate a chain of 2,000 type aliases programmatically
+    // This exercises follow_bindings_shallow which handles alias chains.
     // ```
     // type Alias2000 = u8;
     // type Alias1999 = Alias2000;
@@ -487,6 +488,31 @@ fn extreme_type_alias_chain_stack_overflow() {
             x
         }}
     "#
+    );
+
+    let _ = get_monomorphized(&src);
+}
+
+#[test]
+#[should_panic(expected = "Type recursion limit reached - types are too large")]
+fn deeply_nested_tuple_type_stack_overflow() {
+    // Generate deeply nested tuple types by wrapping values repeatedly.
+    // This exercises follow_bindings which handles nested type structures.
+    // Each wrap adds one level: Field -> (Field,) -> ((Field,),) -> ...
+    use crate::TYPE_RECURSION_LIMIT;
+    const DEPTH: usize = TYPE_RECURSION_LIMIT as usize + 10;
+
+    let mut body = String::from("let v0: Field = 1;\n");
+    for i in 1..=DEPTH {
+        body.push_str(&format!("    let v{i} = (v{},);\n", i - 1));
+    }
+
+    let src = format!(
+        r#"
+fn main() {{
+    {body}
+}}
+"#
     );
 
     let _ = get_monomorphized(&src);
@@ -630,10 +656,7 @@ fn repeated_array() {
     let program = get_monomorphized(src).unwrap();
     insta::assert_snapshot!(program, @r"
     fn main$f0() -> () {
-        let _a$l1 = {
-            let repeated_element$l0 = (1 + 2);
-            [repeated_element$l0, repeated_element$l0, repeated_element$l0]
-        }
+        let _a$l0 = [(1 + 2); 3]
     }
     ");
 }
@@ -652,10 +675,7 @@ fn repeated_array_zero() {
     let program = get_monomorphized(src).unwrap();
     insta::assert_snapshot!(program, @r"
     fn main$f0() -> () {
-        let _a$l1 = {
-            let repeated_element$l0 = foo$f1();
-            @[]
-        }
+        let _a$l0 = @[foo$f1(); 0]
     }
     fn foo$f1() -> Field {
         (1 + 2)
@@ -1330,6 +1350,17 @@ fn out_of_order_globals() {
         (x$l2 + FOO$g1)
     }
     ");
+}
+
+#[test]
+fn very_large_array() {
+    let src = r#"
+    fn main() {
+        // 1.3 billion elements 
+        let _arr: [Field; 1294967295] = [0; 1294967295];
+    }
+    "#;
+    assert!(get_monomorphized(src).is_ok());
 }
 
 #[test]

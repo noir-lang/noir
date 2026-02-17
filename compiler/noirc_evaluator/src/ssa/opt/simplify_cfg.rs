@@ -126,28 +126,27 @@ fn check_for_constant_jmpif(
         else_destination,
         call_stack,
     }) = function.dfg[block].terminator()
+        && let Some(constant) = function.dfg.get_numeric_constant(*condition)
     {
-        if let Some(constant) = function.dfg.get_numeric_constant(*condition) {
-            let (destination, unchosen_destination) = if constant.is_zero() {
-                (*else_destination, *then_destination)
-            } else {
-                (*then_destination, *else_destination)
-            };
+        let (destination, unchosen_destination) = if constant.is_zero() {
+            (*else_destination, *then_destination)
+        } else {
+            (*then_destination, *else_destination)
+        };
 
-            let arguments = Vec::new();
-            let call_stack = *call_stack;
-            let jmp = TerminatorInstruction::Jmp { destination, arguments, call_stack };
-            function.dfg[block].set_terminator(jmp);
-            cfg.recompute_block(function, block);
+        let arguments = Vec::new();
+        let call_stack = *call_stack;
+        let jmp = TerminatorInstruction::Jmp { destination, arguments, call_stack };
+        function.dfg[block].set_terminator(jmp);
+        cfg.recompute_block(function, block);
 
-            // If `block` was the only predecessor to `unchosen_destination` then it's no long reachable through the CFG,
-            // we can then invalidate it successors as it's an invalid predecessor.
-            if cfg.predecessors(unchosen_destination).len() == 0 {
-                cfg.invalidate_block_successors(unchosen_destination);
-            }
-
-            return true;
+        // If `block` was the only predecessor to `unchosen_destination` then it's no long reachable through the CFG,
+        // we can then invalidate it successors as it's an invalid predecessor.
+        if cfg.predecessors(unchosen_destination).len() == 0 {
+            cfg.invalidate_block_successors(unchosen_destination);
         }
+
+        return true;
     }
     false
 }
@@ -258,21 +257,19 @@ fn check_for_negated_jmpif_condition(
         else_destination,
         call_stack,
     }) = function.dfg[block].terminator()
+        && let Value::Instruction { instruction, .. } = function.dfg[*condition]
+        && let Instruction::Not(negated_condition) = function.dfg[instruction]
     {
-        if let Value::Instruction { instruction, .. } = function.dfg[*condition] {
-            if let Instruction::Not(negated_condition) = function.dfg[instruction] {
-                let call_stack = *call_stack;
-                let jmpif = TerminatorInstruction::JmpIf {
-                    condition: negated_condition,
-                    then_destination: *else_destination,
-                    else_destination: *then_destination,
-                    call_stack,
-                };
-                function.dfg[block].set_terminator(jmpif);
-                cfg.recompute_block(function, block);
-                return true;
-            }
-        }
+        let call_stack = *call_stack;
+        let jmpif = TerminatorInstruction::JmpIf {
+            condition: negated_condition,
+            then_destination: *else_destination,
+            else_destination: *then_destination,
+            call_stack,
+        };
+        function.dfg[block].set_terminator(jmpif);
+        cfg.recompute_block(function, block);
+        return true;
     }
     false
 }
@@ -407,7 +404,16 @@ fn try_inline_successor(
             // If successful, `block` will be empty and unreachable after this call, so any
             // optimizations performed after this point on the same block should check if
             // the inlining here was successful before continuing.
-            try_inline_into_predecessor(function, cfg, destination, block)
+            let simplified = try_inline_into_predecessor(function, cfg, destination, block);
+
+            // Inlining a successor can introduce a terminator that references values with
+            // pending replacements (e.g. block parameters mapped to constants). Apply them
+            // to the terminator so the next iteration can detect newly-constant jmpif conditions.
+            if simplified && !values_to_replace.is_empty() {
+                function.dfg.replace_values_in_block_terminator(block, values_to_replace);
+            }
+
+            simplified
         } else {
             false
         }
@@ -441,6 +447,8 @@ fn try_inline_into_predecessor(
 
 #[cfg(test)]
 mod tests {
+    use test_case::test_case;
+
     use crate::{
         assert_ssa_snapshot,
         ssa::{Ssa, opt::assert_ssa_does_not_change},
@@ -854,15 +862,17 @@ mod tests {
         ");
     }
 
-    #[test]
-    fn handles_cascading_simplifications() {
+    #[test_case("acir"; "acir")]
+    #[test_case("brillig"; "brillig")]
+    fn handles_cascading_simplifications(runtime: &str) {
         // Simplifying the CFG from a block can result the block being updated to a form which can be simplified further.
         // We want to ensure that we handle any followup simplifications correctly.
         //
         // In this case we have a jmpif which is simplified to a jmp, which then can be inlined into its predecessor.
         // The new terminator instruction of the block is then a jmpif which can be simplified to a jmp.
-        let src = r#"
-        brillig(inline) impure fn main f0 {
+        let src = format!(
+            "
+        {runtime}(inline) impure fn main f0 {{
           b0():
             jmpif u1 1 then: b1, else: b2
           b1():
@@ -877,20 +887,21 @@ mod tests {
             jmp b6()
           b6():
             return
-        }
-        "#;
+        }}
+        "
+        );
 
-        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = Ssa::from_str(&src).unwrap();
         let ssa = ssa.simplify_cfg();
 
-        assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) impure fn main f0 {
-          b0():
-            jmp b1()
-          b1():
-            return
-        }
-        ");
+        let expected = format!(
+            "\
+{runtime}(inline) impure fn main f0 {{
+  b0():
+    return
+}}"
+        );
+        assert_eq!(ssa.to_string().trim(), expected.trim());
     }
 
     #[test]

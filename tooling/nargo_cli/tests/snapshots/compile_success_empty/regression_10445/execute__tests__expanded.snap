@@ -1,0 +1,28 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+comptime fn foo(_: FunctionDefinition) -> Quoted {
+    let t: Type = quote { [i32; 3] }.as_type();
+    quote {
+        struct Bar < T >  {
+            x: T, 
+        }
+        struct Foo {
+            // See https://github.com/noir-lang/noir/pull/11410/changes#r2747886398
+            x: Bar < $t > , 
+        }
+    }
+}
+
+struct Bar<T> {
+    x: T,
+}
+
+struct Foo {
+    x: Bar<[i32; 3]>,
+}
+
+fn main() {
+    let _: Foo = Foo { x: Bar::<[i32; 3]> { x: [1_i32, 2_i32, 3_i32] } };
+}

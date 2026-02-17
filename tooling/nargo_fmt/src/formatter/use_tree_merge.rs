@@ -127,7 +127,7 @@ enum Segment {
     SelfReference,
     Crate,
     Super,
-    Dep,
+    Absolute,
     Plain(String),
 }
 
@@ -146,7 +146,7 @@ impl Segment {
             Segment::SelfReference => 0,
             Segment::Crate => 1,
             Segment::Super => 2,
-            Segment::Dep => 3,
+            Segment::Absolute => 3,
             Segment::Plain(_) => 4,
         }
     }
@@ -157,7 +157,7 @@ impl Display for Segment {
         match self {
             Segment::Crate => write!(f, "crate"),
             Segment::Super => write!(f, "super"),
-            Segment::Dep => write!(f, "dep"),
+            Segment::Absolute => write!(f, ""),
             Segment::Plain(s) => write!(f, "{s}"),
             Segment::SelfReference => write!(f, "self"),
         }
@@ -266,7 +266,7 @@ fn merge_imports_in_tree(imports: Vec<UseTree>, mut tree: &mut ImportTree) {
         let mut tree = match import.prefix.kind {
             PathKind::Crate => tree.insert(Segment::Crate),
             PathKind::Super => tree.insert(Segment::Super),
-            PathKind::Dep => tree.insert(Segment::Dep),
+            PathKind::Absolute => tree.insert(Segment::Absolute),
             PathKind::Plain => &mut tree,
             PathKind::Resolved(_) => unreachable!("$crate shouldn't be possible here"),
         };
@@ -627,5 +627,12 @@ use std::merkle::compute_merkle_root;
     fn does_not_merge_same_identifiers_if_equal_case_insensitive() {
         let src = "use bigint::{BigNum, bignum::BigNumTrait};\n";
         assert_format(src, src);
+    }
+
+    #[test]
+    fn format_use_dep() {
+        let src = " use dep :: foo :: bar;  ";
+        let expected = "use ::foo::bar;\n";
+        assert_format(src, expected);
     }
 }

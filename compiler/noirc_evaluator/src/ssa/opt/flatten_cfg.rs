@@ -203,18 +203,11 @@ impl Ssa {
 ///   - Any ACIR function has a `ConstrainNotEqual` instruction
 #[cfg(debug_assertions)]
 fn flatten_cfg_pre_check(function: &Function) {
-    if !function.runtime().is_acir() {
-        return;
-    }
-    let loops = super::Loops::find_all(function, super::LoopOrder::OutsideIn);
-    assert_eq!(loops.yet_to_unroll.len(), 0);
-
-    for block in function.reachable_blocks() {
-        for instruction in function.dfg[block].instructions() {
-            if matches!(function.dfg[*instruction], Instruction::ConstrainNotEqual(_, _, _)) {
-                panic!("ConstrainNotEqual should not be introduced before flattening");
-            }
-        }
+    if function.runtime().is_acir() {
+        super::checks::assert_no_loops(function);
+        super::checks::for_each_instruction(function, |instruction, _dfg| {
+            super::checks::assert_not_constrain_not_equal(instruction);
+        });
     }
 }
 
@@ -224,11 +217,9 @@ fn flatten_cfg_pre_check(function: &Function) {
 ///   - Any ACIR function contains > 1 block
 #[cfg(debug_assertions)]
 pub(super) fn flatten_cfg_post_check(function: &Function) {
-    if !function.runtime().is_acir() {
-        return;
+    if function.runtime().is_acir() {
+        super::checks::assert_cfg_is_flattened(function);
     }
-    let blocks = function.reachable_blocks();
-    assert_eq!(blocks.len(), 1, "CFG contains more than 1 block");
 }
 
 pub(crate) struct Context<'f> {
@@ -415,10 +406,10 @@ impl<'f> Context<'f> {
         no_predicates: &HashMap<FunctionId, bool>,
         instruction: &InstructionId,
     ) -> bool {
-        if let Instruction::Call { func, .. } = self.inserter.function.dfg[*instruction] {
-            if let Value::Function(fid) = self.inserter.function.dfg[func] {
-                return no_predicates.get(&fid).copied().unwrap_or_default();
-            }
+        if let Instruction::Call { func, .. } = self.inserter.function.dfg[*instruction]
+            && let Value::Function(fid) = self.inserter.function.dfg[func]
+        {
+            return no_predicates.get(&fid).copied().unwrap_or_default();
         }
         false
     }

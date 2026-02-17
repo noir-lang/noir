@@ -291,7 +291,10 @@ mod tests {
             SsaEvaluatorOptions,
             function_builder::FunctionBuilder,
             ir::{basic_block::BasicBlockId, cfg::ControlFlowGraph, map::Id, types::Type},
-            opt::{constant_folding, flatten_cfg::branch_analysis::find_branch_ends, inlining},
+            opt::{
+                FORCE_UNROLL_THRESHOLD, constant_folding,
+                flatten_cfg::branch_analysis::find_branch_ends, inlining,
+            },
             primary_passes,
             ssa_gen::Ssa,
         },
@@ -647,8 +650,9 @@ mod tests {
             enable_brillig_constraints_check_lookback: false,
             inliner_aggressiveness: 0,
             constant_folding_max_iter: constant_folding::DEFAULT_MAX_ITER,
-            small_function_max_instruction: inlining::MAX_INSTRUCTIONS,
+            small_function_max_instruction: inlining::MAX_SIMPLE_FUNCTION_WEIGHT,
             max_bytecode_increase_percent: None,
+            force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
             skip_passes: Vec::new(),
         };
         let pipeline = primary_passes(&options);

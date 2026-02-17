@@ -230,7 +230,7 @@ impl CSatTransformer {
                     self.mark_solvable(intermediate_var.1);
                     new_opcode.linear_combinations.push(intermediate_var);
                 }
-            };
+            }
         }
 
         // Add the rest of the elements back into the new_opcode
@@ -420,7 +420,7 @@ fn fits_in_one_identity<F: AcirField>(expr: &Expression<F>, width: usize) -> boo
     // A Polynomial with more than one mul term cannot fit into one opcode
     if expr.mul_terms.len() > 1 {
         return false;
-    };
+    }
 
     expr.width() <= width
 }

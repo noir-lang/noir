@@ -1,0 +1,7 @@
+[package]
+name = "regression_11579"
+type = "bin"
+authors = [""]
+
+[dependencies]
+dependency = { path = "dependency" }

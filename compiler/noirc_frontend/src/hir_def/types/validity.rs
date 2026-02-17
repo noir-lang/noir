@@ -1,6 +1,6 @@
 use noirc_errors::{CustomDiagnostic, Location};
 
-use crate::{NamedGeneric, TYPE_RECURSION_LIMIT, Type, TypeBinding, ast::Ident};
+use crate::{NamedGeneric, Type, TypeBinding, ast::Ident, recursion::TypeRecursionContext};
 
 /// An type incorrectly used as a program input.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -97,13 +97,11 @@ impl Type {
             return None;
         }
 
-        fn helper(this: &Type, allow_empty_arrays: bool, mut i: u32) -> Option<InvalidType> {
-            if i == TYPE_RECURSION_LIMIT {
-                return None;
-            }
-            i += 1;
-            let recur = |typ| helper(typ, allow_empty_arrays, i);
-
+        fn helper(
+            this: &Type,
+            allow_empty_arrays: bool,
+            mut type_recursion_context: TypeRecursionContext,
+        ) -> Option<InvalidType> {
             match this {
                 // Type::Error is allowed as usual since it indicates an error was already issued and
                 // we don't need to issue further errors about this likely unresolved type
@@ -122,16 +120,26 @@ impl Type {
                 | Type::Vector(_)
                 | Type::TraitAsType(..) => Some(InvalidType::Primitive(this.clone())),
 
-                Type::CheckedCast { to, .. } => recur(to),
+                Type::CheckedCast { to, .. } => {
+                    helper(to, allow_empty_arrays, type_recursion_context.recur())
+                }
 
                 Type::Alias(alias, generics) => {
                     let alias = alias.borrow();
-                    if let Some(invalid_type) = recur(&alias.get_type(generics)) {
-                        let alias_name = alias.name.clone();
-                        Some(InvalidType::Alias {
-                            alias_name,
-                            invalid_type: Box::new(invalid_type),
-                        })
+                    if type_recursion_context.insert_alias(alias.id, generics.clone()) {
+                        if let Some(invalid_type) = helper(
+                            &alias.get_type(generics),
+                            allow_empty_arrays,
+                            type_recursion_context.recur(),
+                        ) {
+                            let alias_name = alias.name.clone();
+                            Some(InvalidType::Alias {
+                                alias_name,
+                                invalid_type: Box::new(invalid_type),
+                            })
+                        } else {
+                            None
+                        }
                     } else {
                         None
                     }
@@ -141,61 +149,82 @@ impl Type {
                     if !length_is_valid_for_entry_point(length, allow_empty_arrays) {
                         Some(InvalidType::Primitive(this.clone()))
                     } else {
-                        recur(length).or_else(|| recur(element))
+                        helper(length, allow_empty_arrays, type_recursion_context.clone().recur())
+                            .or_else(|| {
+                                helper(element, allow_empty_arrays, type_recursion_context.recur())
+                            })
                     }
                 }
                 Type::String(length) => {
                     if !length_is_valid_for_entry_point(length, allow_empty_arrays) {
                         Some(InvalidType::EmptyString(this.clone()))
                     } else {
-                        recur(length)
+                        helper(length, allow_empty_arrays, type_recursion_context.recur())
                     }
                 }
                 Type::Tuple(elements) => {
                     for element in elements {
-                        if let Some(invalid_type) = recur(element) {
+                        if let Some(invalid_type) = helper(
+                            element,
+                            allow_empty_arrays,
+                            type_recursion_context.clone().recur(),
+                        ) {
                             return Some(invalid_type);
                         }
                     }
                     None
                 }
                 Type::DataType(definition, generics) => {
-                    let definition = definition.borrow();
+                    if type_recursion_context
+                        .insert_data_type(definition.borrow().id, generics.clone())
+                    {
+                        let definition = definition.borrow();
 
-                    if let Some(fields) = definition.get_fields(generics) {
-                        for (field_name, field, _) in fields {
-                            if let Some(invalid_type) = helper(&field, allow_empty_arrays, i) {
-                                let struct_name = definition.name.clone();
-                                let mut fields_raw = definition.fields_raw().unwrap().iter();
-                                let field =
-                                    fields_raw.find(|field| field.name.as_str() == field_name);
-                                return Some(InvalidType::StructField {
-                                    struct_name,
-                                    field_name: field.unwrap().name.clone(),
-                                    invalid_type: Box::new(invalid_type),
-                                });
+                        if let Some(fields) = definition.get_fields(generics) {
+                            for (field_name, field, _) in fields {
+                                if let Some(invalid_type) = helper(
+                                    &field,
+                                    allow_empty_arrays,
+                                    type_recursion_context.clone().recur(),
+                                ) {
+                                    let struct_name = definition.name.clone();
+                                    let mut fields_raw = definition.fields_raw().unwrap().iter();
+                                    let field =
+                                        fields_raw.find(|field| field.name.as_str() == field_name);
+                                    return Some(InvalidType::StructField {
+                                        struct_name,
+                                        field_name: field.unwrap().name.clone(),
+                                        invalid_type: Box::new(invalid_type),
+                                    });
+                                }
                             }
+                            None
+                        } else {
+                            // Arbitrarily disallow enums from program input, though we may support them later
+                            Some(InvalidType::Enum(this.clone()))
                         }
-                        None
                     } else {
-                        // Arbitrarily disallow enums from program input, though we may support them later
-                        Some(InvalidType::Enum(this.clone()))
+                        None
                     }
                 }
-                Type::InfixExpr(lhs, _, rhs, _) => recur(lhs).or_else(|| recur(rhs)),
+                Type::InfixExpr(lhs, _, rhs, _) => {
+                    helper(lhs, allow_empty_arrays, type_recursion_context.clone().recur())
+                        .or_else(|| helper(rhs, allow_empty_arrays, type_recursion_context.recur()))
+                }
                 Type::TypeVariable(type_var)
                 | Type::NamedGeneric(NamedGeneric { type_var, .. }) => {
                     // Unbound TypeVariable and Generic are allowed here as they can only result from
                     // generics being declared on the function itself, but we produce a different error in that case.
                     if let TypeBinding::Bound(typ) = &*type_var.borrow() {
-                        recur(typ)
+                        helper(typ, allow_empty_arrays, type_recursion_context.recur())
                     } else {
                         None
                     }
                 }
             }
         }
-        helper(self, output, 0)
+
+        helper(self, output, TypeRecursionContext::default())
     }
 
     /// Returns this type, or a nested one, if this type can be used as a parameter to an ACIR
@@ -211,6 +240,13 @@ impl Type {
     /// certain types which through compilation we know what their size should be.
     /// This includes types such as numeric generics.
     pub(crate) fn non_inlined_function_input_validity(&self) -> Option<InvalidType> {
+        self.non_inlined_function_input_validity_helper(TypeRecursionContext::default())
+    }
+
+    fn non_inlined_function_input_validity_helper(
+        &self,
+        mut type_recursion_context: TypeRecursionContext,
+    ) -> Option<InvalidType> {
         match self {
             // Type::Error is allowed as usual since it indicates an error was already issued and
             // we don't need to issue further errors about this likely unresolved type
@@ -233,49 +269,59 @@ impl Type {
             | Type::Quoted(_)
             | Type::TraitAsType(..) => Some(InvalidType::Primitive(self.clone())),
 
-            Type::CheckedCast { to, .. } => to.non_inlined_function_input_validity(),
+            Type::CheckedCast { to, .. } => to.non_inlined_function_input_validity_helper(type_recursion_context.recur()),
 
             Type::Alias(alias, generics) => {
+                if type_recursion_context.insert_alias(alias.borrow().id, generics.clone()) {
+
                 let alias = alias.borrow();
-                if let Some(invalid_type) = alias.get_type(generics).non_inlined_function_input_validity() {
+                if let Some(invalid_type) = alias.get_type(generics).non_inlined_function_input_validity_helper(type_recursion_context.recur()) {
                     let alias_name = alias.name.clone();
                     Some(InvalidType::Alias { alias_name, invalid_type: Box::new(invalid_type) })
                 } else {
                     None
                 }
+            } else {
+                None
+
+            }
             }
 
             Type::Array(length, element) => {
-                length.non_inlined_function_input_validity().or_else(|| element.non_inlined_function_input_validity())
+                length.non_inlined_function_input_validity_helper(type_recursion_context.clone().recur()).or_else(|| element.non_inlined_function_input_validity_helper(type_recursion_context.recur()))
             }
-            Type::String(length) => length.non_inlined_function_input_validity(),
+            Type::String(length) => length.non_inlined_function_input_validity_helper(type_recursion_context.recur()),
             Type::Tuple(elements) => {
                 for element in elements {
-                    if let Some(invalid_type) = element.non_inlined_function_input_validity() {
+                    if let Some(invalid_type) = element.non_inlined_function_input_validity_helper(type_recursion_context.clone().recur()) {
                         return Some(invalid_type);
                     }
                 }
                 None
             },
             Type::DataType(definition, generics) => {
-                let definition = definition.borrow();
+                if type_recursion_context.insert_data_type(definition.borrow().id, generics.clone()) {
+                    let definition = definition.borrow();
 
-                if let Some(fields) = definition.get_fields(generics) {
-                    for (field_name, field, _) in fields {
-                        if let Some(invalid_type) = field.non_inlined_function_input_validity() {
-                            let struct_name = definition.name.clone();
-                            let mut fields_raw = definition.fields_raw().unwrap().iter();
-                            let field = fields_raw.find(|field| field.name.as_str() == field_name);
-                            return Some(InvalidType::StructField {
-                                struct_name,
-                                field_name: field.unwrap().name.clone(),
-                                invalid_type: Box::new(invalid_type),
-                            });
+                    if let Some(fields) = definition.get_fields(generics) {
+                        for (field_name, field, _) in fields {
+                            if let Some(invalid_type) = field.non_inlined_function_input_validity_helper(type_recursion_context.clone().recur()) {
+                                let struct_name = definition.name.clone();
+                                let mut fields_raw = definition.fields_raw().unwrap().iter();
+                                let field = fields_raw.find(|field| field.name.as_str() == field_name);
+                                return Some(InvalidType::StructField {
+                                    struct_name,
+                                    field_name: field.unwrap().name.clone(),
+                                    invalid_type: Box::new(invalid_type),
+                                });
+                            }
                         }
+                        None
+                    } else {
+                        Some(InvalidType::Enum(self.clone()))
                     }
-                    None
                 } else {
-                    Some(InvalidType::Enum(self.clone()))
+                    None
                 }
             }
             Type::TypeVariable(type_var)
@@ -283,7 +329,7 @@ impl Type {
                 // Unbound TypeVariable and Generic are allowed here as they can only result from
                 // generics being declared on the function itself, but we produce a different error in that case.
                 if let TypeBinding::Bound(typ) = &*type_var.borrow() {
-                    typ.non_inlined_function_input_validity()
+                    typ.non_inlined_function_input_validity_helper(type_recursion_context.recur())
                 } else {
                     None
                 }
@@ -294,6 +340,13 @@ impl Type {
     /// Returns true if a value of this type can safely pass between constrained and
     /// unconstrained functions (and vice-versa).
     pub(crate) fn is_valid_for_unconstrained_boundary(&self) -> bool {
+        self.is_valid_for_unconstrained_boundary_helper(TypeRecursionContext::default())
+    }
+
+    fn is_valid_for_unconstrained_boundary_helper(
+        &self,
+        mut type_recursion_context: TypeRecursionContext,
+    ) -> bool {
         match self {
             Type::FieldElement
             | Type::Integer(_, _)
@@ -308,13 +361,15 @@ impl Type {
 
             Type::TypeVariable(type_var) | Type::NamedGeneric(NamedGeneric { type_var, .. }) => {
                 if let TypeBinding::Bound(typ) = &*type_var.borrow() {
-                    typ.is_valid_for_unconstrained_boundary()
+                    typ.is_valid_for_unconstrained_boundary_helper(type_recursion_context.recur())
                 } else {
                     true
                 }
             }
 
-            Type::CheckedCast { to, .. } => to.is_valid_for_unconstrained_boundary(),
+            Type::CheckedCast { to, .. } => {
+                to.is_valid_for_unconstrained_boundary_helper(type_recursion_context.recur())
+            }
 
             // Quoted objects only exist at compile-time where the only execution
             // environment is the interpreter. In this environment, they are valid.
@@ -323,25 +378,44 @@ impl Type {
             Type::Reference(..) | Type::Forall(_, _) | Type::TraitAsType(..) => false,
 
             Type::Alias(alias, generics) => {
-                let alias = alias.borrow();
-                alias.get_type(generics).is_valid_for_unconstrained_boundary()
+                if type_recursion_context.insert_alias(alias.borrow().id, generics.clone()) {
+                    let alias = alias.borrow();
+                    alias
+                        .get_type(generics)
+                        .is_valid_for_unconstrained_boundary_helper(type_recursion_context.recur())
+                } else {
+                    true
+                }
             }
 
             Type::Array(length, element) => {
-                length.is_valid_for_unconstrained_boundary()
-                    && element.is_valid_for_unconstrained_boundary()
+                length.is_valid_for_unconstrained_boundary_helper(
+                    type_recursion_context.clone().recur(),
+                ) && element
+                    .is_valid_for_unconstrained_boundary_helper(type_recursion_context.recur())
             }
-            Type::String(length) => length.is_valid_for_unconstrained_boundary(),
-            Type::Tuple(elements) => {
-                elements.iter().all(|elem| elem.is_valid_for_unconstrained_boundary())
+            Type::String(length) => {
+                length.is_valid_for_unconstrained_boundary_helper(type_recursion_context.recur())
             }
+            Type::Tuple(elements) => elements.iter().all(|elem| {
+                elem.is_valid_for_unconstrained_boundary_helper(
+                    type_recursion_context.clone().recur(),
+                )
+            }),
             Type::DataType(definition, generics) => {
-                if let Some(fields) = definition.borrow().get_fields(generics) {
-                    fields
-                        .into_iter()
-                        .all(|(_, field, _)| field.is_valid_for_unconstrained_boundary())
+                if type_recursion_context.insert_data_type(definition.borrow().id, generics.clone())
+                {
+                    if let Some(fields) = definition.borrow().get_fields(generics) {
+                        fields.into_iter().all(|(_, field, _)| {
+                            field.is_valid_for_unconstrained_boundary_helper(
+                                type_recursion_context.clone().recur(),
+                            )
+                        })
+                    } else {
+                        false
+                    }
                 } else {
-                    false
+                    true
                 }
             }
         }

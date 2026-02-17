@@ -92,3 +92,43 @@ fn trait_with_same_generic_in_different_default_methods() {
     "#;
     assert_no_errors(src);
 }
+
+// Known bug: Numeric generic from generic trait not accessible in default method body
+/// TODO(https://github.com/noir-lang/noir/issues/11552): remove should_panic once fixed
+#[test]
+#[should_panic(expected = "Expected no errors")]
+fn generic_trait_numeric_generic_default_method() {
+    // Bug: N from Fillable<let N: u32> not found in default method body
+    let src = r#"
+    trait Fillable<let N: u32> {
+        fn value(self) -> Field;
+
+        fn fill(self) -> [Field; N] {
+            let mut arr = [0; N];
+            let v = self.value();
+            for i in 0..N {
+                arr[i] = v;
+            }
+            arr
+        }
+    }
+
+    struct Num {
+        val: Field,
+    }
+
+    impl Fillable<4> for Num {
+        fn value(self) -> Field {
+            self.val
+        }
+    }
+
+    fn main() {
+        let n = Num { val: 7 };
+        let arr = n.fill();
+        assert(arr[0] == 7);
+        assert(arr[3] == 7);
+    }
+    "#;
+    assert_no_errors(src);
+}

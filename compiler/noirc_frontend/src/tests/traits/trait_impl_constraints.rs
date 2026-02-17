@@ -312,3 +312,36 @@ fn non_equivalent_generic_positions() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn impl_block_with_cross_trait_where_clause() {
+    let src = r#"
+    trait Validate {
+        fn is_valid(self) -> bool;
+    }
+
+    trait Process {
+        fn process(self) -> Field;
+    }
+
+    struct Item<T> {
+        data: T,
+    }
+
+    impl Validate for Field {
+        fn is_valid(self) -> bool { true }
+    }
+
+    impl<T> Process for Item<T> where T: Validate {
+        fn process(self) -> Field {
+            if self.data.is_valid() { 1 } else { 0 }
+        }
+    }
+
+    fn main() {
+        let item = Item { data: 42 as Field };
+        assert(item.process() == 1);
+    }
+    "#;
+    assert_no_errors(src);
+}

@@ -370,57 +370,54 @@ impl Type {
             // Check if it's `A + rhs = other` or `A - rhs = other`
             if let (Some(op_a_inverse), Type::TypeVariable(lhs_lhs_var)) =
                 (lhs_op_inverse, lhs_lhs.as_ref())
+                && lhs_lhs_var.1.borrow().is_unbound()
             {
-                if lhs_lhs_var.1.borrow().is_unbound() {
-                    // We can say that `A = other - rhs` or `A = other + rhs` respectively
-                    let new_rhs =
-                        Type::infix_expr(Box::new(other.clone()), op_a_inverse, lhs_rhs.clone());
+                // We can say that `A = other - rhs` or `A = other + rhs` respectively
+                let new_rhs =
+                    Type::infix_expr(Box::new(other.clone()), op_a_inverse, lhs_rhs.clone());
 
-                    let mut tmp_bindings = bindings.clone();
-                    if lhs_lhs.try_unify(&new_rhs, &mut tmp_bindings).is_ok() {
-                        *bindings = tmp_bindings;
-                        return Ok(());
-                    }
+                let mut tmp_bindings = bindings.clone();
+                if lhs_lhs.try_unify(&new_rhs, &mut tmp_bindings).is_ok() {
+                    *bindings = tmp_bindings;
+                    return Ok(());
                 }
             }
 
             // Check if it's `lhs + B = other`
             if let (BinaryTypeOperator::Addition, Type::TypeVariable(lhs_rhs_var)) =
                 (lhs_op, lhs_rhs.as_ref())
+                && lhs_rhs_var.1.borrow().is_unbound()
             {
-                if lhs_rhs_var.1.borrow().is_unbound() {
-                    // We can say that `B = other - lhs`
-                    let new_rhs = Type::inverted_infix_expr(
-                        Box::new(other.clone()),
-                        BinaryTypeOperator::Subtraction,
-                        lhs_lhs.clone(),
-                    );
+                // We can say that `B = other - lhs`
+                let new_rhs = Type::inverted_infix_expr(
+                    Box::new(other.clone()),
+                    BinaryTypeOperator::Subtraction,
+                    lhs_lhs.clone(),
+                );
 
-                    let mut tmp_bindings = bindings.clone();
-                    if lhs_rhs.try_unify(&new_rhs, &mut tmp_bindings).is_ok() {
-                        *bindings = tmp_bindings;
-                        return Ok(());
-                    }
+                let mut tmp_bindings = bindings.clone();
+                if lhs_rhs.try_unify(&new_rhs, &mut tmp_bindings).is_ok() {
+                    *bindings = tmp_bindings;
+                    return Ok(());
                 }
             }
 
             // Check if it's `lhs - B = other`
             if let (BinaryTypeOperator::Subtraction, Type::TypeVariable(lhs_rhs_var)) =
                 (lhs_op, lhs_rhs.as_ref())
+                && lhs_rhs_var.1.borrow().is_unbound()
             {
-                if lhs_rhs_var.1.borrow().is_unbound() {
-                    // We can say that `B = lhs - other`
-                    let new_rhs = Type::inverted_infix_expr(
-                        lhs_lhs.clone(),
-                        BinaryTypeOperator::Subtraction,
-                        Box::new(other.clone()),
-                    );
+                // We can say that `B = lhs - other`
+                let new_rhs = Type::inverted_infix_expr(
+                    lhs_lhs.clone(),
+                    BinaryTypeOperator::Subtraction,
+                    Box::new(other.clone()),
+                );
 
-                    let mut tmp_bindings = bindings.clone();
-                    if lhs_rhs.try_unify(&new_rhs, &mut tmp_bindings).is_ok() {
-                        *bindings = tmp_bindings;
-                        return Ok(());
-                    }
+                let mut tmp_bindings = bindings.clone();
+                if lhs_rhs.try_unify(&new_rhs, &mut tmp_bindings).is_ok() {
+                    *bindings = tmp_bindings;
+                    return Ok(());
                 }
             }
         }
@@ -462,25 +459,25 @@ impl Type {
         other: &Type,
         bindings: &mut TypeBindings,
     ) -> Result<(), UnificationError> {
-        if let Type::InfixExpr(lhs_lhs, lhs_op, lhs_rhs, _) = self {
-            if let Some(lhs_op_inverse) = lhs_op.approx_inverse() {
-                let kind = lhs_lhs.infix_kind(lhs_rhs);
-                let dummy_location = Location::dummy();
-                let lhs_rhs = lhs_rhs.substitute(bindings);
-                if let Ok(value) = lhs_rhs.evaluate_to_signed_field(&kind, dummy_location) {
-                    let lhs_rhs = Box::new(Type::Constant(value, kind));
-                    let new_rhs =
-                        Type::inverted_infix_expr(Box::new(other.clone()), lhs_op_inverse, lhs_rhs);
+        if let Type::InfixExpr(lhs_lhs, lhs_op, lhs_rhs, _) = self
+            && let Some(lhs_op_inverse) = lhs_op.approx_inverse()
+        {
+            let kind = lhs_lhs.infix_kind(lhs_rhs);
+            let dummy_location = Location::dummy();
+            let lhs_rhs = lhs_rhs.substitute(bindings);
+            if let Ok(value) = lhs_rhs.evaluate_to_signed_field(&kind, dummy_location) {
+                let lhs_rhs = Box::new(Type::Constant(value, kind));
+                let new_rhs =
+                    Type::inverted_infix_expr(Box::new(other.clone()), lhs_op_inverse, lhs_rhs);
 
-                    let mut tmp_bindings = bindings.clone();
+                let mut tmp_bindings = bindings.clone();
 
-                    // Since we are going to move a constant from one side to the other, we don't want
-                    // to try moving the constant back to where it was because it would lead to infinite recursion.
-                    let flags = UnificationFlags::DoNotMoveConstantsOnTheRight;
-                    if lhs_lhs.try_unify_with_flags(&new_rhs, flags, &mut tmp_bindings).is_ok() {
-                        *bindings = tmp_bindings;
-                        return Ok(());
-                    }
+                // Since we are going to move a constant from one side to the other, we don't want
+                // to try moving the constant back to where it was because it would lead to infinite recursion.
+                let flags = UnificationFlags::DoNotMoveConstantsOnTheRight;
+                if lhs_lhs.try_unify_with_flags(&new_rhs, flags, &mut tmp_bindings).is_ok() {
+                    *bindings = tmp_bindings;
+                    return Ok(());
                 }
             }
         }

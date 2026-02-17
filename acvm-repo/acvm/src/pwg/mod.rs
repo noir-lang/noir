@@ -567,7 +567,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
                     }
                     // All other errors are thrown normally.
                     _ => (),
-                };
+                }
                 self.fail(error)
             }
         }
@@ -638,7 +638,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         let result = solver.solve().inspect_err(|_| {
             if self.brillig_fuzzing_active {
                 self.brillig_fuzzing_trace = Some(solver.get_fuzzing_trace());
-            };
+            }
         })?;
 
         match result {
