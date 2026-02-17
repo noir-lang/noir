@@ -193,7 +193,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
             // Check that the sequence of value types fit an integer number of
             // times inside the given size.
             assert!(
-                0 == size % assert_u32(value_types.len()),
+                size.is_multiple_of(assert_u32(value_types.len())),
                 "array/vector does not contain a whole number of elements"
             );
 
