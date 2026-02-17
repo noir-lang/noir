@@ -489,3 +489,17 @@ fn generic_struct_implementing_generic_trait() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn overlapping_generic_impls() {
+    let src = r#"
+    pub struct Foo<T> {}
+    pub trait Bar {}
+    impl<T> Bar for Foo<T> {}
+            ~~~ Previous impl defined here
+    impl<T> Bar for Foo<T> {}
+                    ^^^^^^ Impl for type `Foo<T>` overlaps with existing impl
+                    ~~~~~~ Overlapping impl
+    "#;
+    check_errors(src);
+}

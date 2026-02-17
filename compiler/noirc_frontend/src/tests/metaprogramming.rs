@@ -1,3 +1,4 @@
+mod comptime_for;
 mod runtime_generics_in_comptime;
 mod skip_interpreter_on_fail;
 
@@ -930,22 +931,6 @@ fn comptime_if_expression() {
             comptime {
                 let x = if true { 5 } else { 10 };
                 assert_eq(x, 5);
-            }
-        }
-    "#;
-    assert_no_errors(src);
-}
-
-#[test]
-fn comptime_for_loop() {
-    let src = r#"
-        fn main() {
-            comptime {
-                let mut sum = 0;
-                for i in 0..3 {
-                    sum += i;
-                }
-                assert_eq(sum, 3);
             }
         }
     "#;
