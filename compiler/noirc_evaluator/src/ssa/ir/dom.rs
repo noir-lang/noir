@@ -162,6 +162,7 @@ impl DominatorTree {
     /// This approach computes the control flow graph and post-order internally and then
     /// discards them. If either should be retained reuse it is better to instead pre-compute them
     /// and build the dominator tree with `DominatorTree::with_cfg_and_post_order`.
+    #[allow(dead_code)]
     pub(crate) fn with_function(func: &Function) -> Self {
         let cfg = ControlFlowGraph::with_function(func);
         let post_order = PostOrder::with_function(func);
