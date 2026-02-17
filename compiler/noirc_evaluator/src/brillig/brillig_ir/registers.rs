@@ -62,7 +62,7 @@ pub struct LayoutConfig {
 }
 
 impl LayoutConfig {
-    pub(crate) fn new(
+    pub fn new(
         max_stack_frame_size: usize,
         num_stack_frames: usize,
         max_scratch_space: usize,
@@ -101,9 +101,9 @@ impl LayoutConfig {
 }
 
 // These constants represent expert chosen defaults that are appropriate for the majority of programs
-pub(crate) const NUM_STACK_FRAMES: usize = 16;
-pub(crate) const MAX_STACK_FRAME_SIZE: usize = 2048;
-pub(crate) const MAX_SCRATCH_SPACE: usize = 64;
+pub const NUM_STACK_FRAMES: usize = 16;
+pub const MAX_STACK_FRAME_SIZE: usize = 2048;
+pub const MAX_SCRATCH_SPACE: usize = 64;
 
 impl Default for LayoutConfig {
     fn default() -> Self {
