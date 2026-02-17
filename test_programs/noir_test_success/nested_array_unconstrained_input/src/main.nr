@@ -17,7 +17,7 @@ unconstrained fn test_nested_array_map_to_u128(seeds: [[u8; 2]; 3]) {
 
 #[test]
 unconstrained fn test_push_back_nested(seeds: [[u8; 2]; 3]) {
-    let mut result: [[u8; 2]] = &[];
+    let mut result: [[u8; 2]] = @[];
     for seed in seeds {
         result = result.push_back(seed);
     }
