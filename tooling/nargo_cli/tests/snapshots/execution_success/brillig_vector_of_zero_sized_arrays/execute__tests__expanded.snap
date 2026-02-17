@@ -1,0 +1,14 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    let a: [[Field; 0]] = @[[], []];
+    // Safety: comment added by `nargo expand`
+    let l: [Field; 0] = unsafe { func_1(a) };
+    assert(l == []);
+}
+
+unconstrained fn func_1(a: [[Field; 0]]) -> [Field; 0] {
+    a[0_u32]
+}

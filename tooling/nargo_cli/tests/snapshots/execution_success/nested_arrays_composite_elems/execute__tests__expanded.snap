@@ -7,8 +7,8 @@ fn main(x: u32) {
     parent_array[x].foo.c.a = 10_Field;
     assert(parent_array[0_u32].foo.c.a == 10_Field);
     {
-        let i_3826: u32 = x + 1_u32;
-        parent_array[i_3826].bar = Bar { a: 1_u8, b: 2_u8, array: [3_Field, 4_Field] };
+        let i_4468: u32 = x + 1_u32;
+        parent_array[i_4468].bar = Bar { a: 1_u8, b: 2_u8, array: [3_Field, 4_Field] };
     };
     assert(parent_array[1_u32].bar.a == 1_u8);
     assert(parent_array[1_u32].bar.b == 2_u8);
@@ -17,14 +17,14 @@ fn main(x: u32) {
     assert(parent_array[1_u32].bar.array[1_u32] == 4_Field);
     parent_array[x].foo.c.array[x] = 20_u32;
     {
-        let i_3827: u32 = x + 1_u32;
-        parent_array[x].foo.c.array[i_3827] = 30_u32;
+        let i_4469: u32 = x + 1_u32;
+        parent_array[x].foo.c.array[i_4469] = 30_u32;
     };
     assert(parent_array[0_u32].foo.c.array[0_u32] == 20_u32);
     assert(parent_array[0_u32].foo.c.array[1_u32] == 30_u32);
     {
-        let i_3828: u32 = x + 1_u32;
-        parent_array[i_3828].qux = Qux {
+        let i_4470: u32 = x + 1_u32;
+        parent_array[i_4470].qux = Qux {
             array: [
                 InnerFoo {
                     a: 100_Field,
