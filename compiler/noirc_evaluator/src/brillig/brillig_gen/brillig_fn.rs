@@ -79,7 +79,7 @@ impl FunctionContext {
     /// This margin is a conservative buffer so that functions close to the frame limit
     /// still get spill support. It can be tuned if it proves too aggressive or too
     /// conservative in practice.
-    const SPILL_MARGIN: usize = 128;
+    const SPILL_MARGIN: usize = 32;
 
     pub(crate) fn new(
         function: &Function,
