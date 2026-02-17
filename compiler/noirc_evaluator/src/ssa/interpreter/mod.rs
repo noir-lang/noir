@@ -294,9 +294,8 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         Ok(())
     }
 
-    /// Evaluate all values from a GlobalsGraph into the working global scope
-    /// (call_stack[0].scope). The caller is responsible for moving the results
-    /// to the appropriate field afterward.
+    /// Evaluate all values from a GlobalsGraph into the working global scope.
+    /// The caller is responsible for moving the results to the appropriate field afterward.
     fn evaluate_globals_graph(&mut self, globals: &GlobalsGraph) -> IResult<()> {
         for (global_id, global) in globals.values_iter() {
             let value = match global {
