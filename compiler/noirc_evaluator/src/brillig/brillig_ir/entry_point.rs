@@ -20,6 +20,7 @@ use acvm::acir::{
 
 impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
     /// Creates an entry point artifact that will jump to the function label provided.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new_entry_point_artifact(
         arguments: Vec<BrilligParameter>,
         return_parameters: Vec<BrilligParameter>,
