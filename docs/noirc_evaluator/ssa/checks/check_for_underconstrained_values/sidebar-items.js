@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["ResultStatus"],"fn":["check_for_underconstrained_values_within_function"],"struct":["BrilligTaintedIds","Context","DependencyContext"]};
+window.SIDEBAR_ITEMS = {"enum":["ResultStatus"],"fn":["check_for_underconstrained_values_within_function","intersecting","is_numeric_constant"],"struct":["BrilligTaintedIds","Context","DependencyContext"]};
