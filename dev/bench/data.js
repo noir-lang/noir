@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771331901833,
+  "lastUpdate": 1771331904003,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -40054,105 +40054,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "michaeljklein@users.noreply.github.com",
-            "name": "Michael J Klein",
-            "username": "michaeljklein"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "b8b218326ce28ccb5fde7106a13c941cce7e9d11",
-          "message": "fix: discriminating on errors from `try_lookup_trait_implementation` in `add_assumed_trait_implementation` (#11488)",
-          "timestamp": "2026-02-06T16:19:22Z",
-          "tree_id": "7e95bfbc850353e3f5d161edc60d1b474c8354dc",
-          "url": "https://github.com/noir-lang/noir/commit/b8b218326ce28ccb5fde7106a13c941cce7e9d11"
-        },
-        "date": 1770396614875,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 774.7,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 701.9,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 337.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 268.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 272.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 333.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 271.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 533.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 575.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 421.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 641.3,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 804.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 200.2,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 2070.2,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 161.7,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -44917,6 +44818,105 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/c7a5760ba9c0bc2898b8455c7ed14f86f7c1b9a8"
         },
         "date": 1771331197366,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 762,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 706.2,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 338.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 268.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 272.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 332.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 269.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 532.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 574.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 412.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 637.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 806.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 199.7,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 2069.4,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 162.3,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ec990a1f050d711ef44eb98a9efba99c0453ca1b",
+          "message": "fix(ssa): Consider constraints on values already constrained to be equal to affect both (#11603)",
+          "timestamp": "2026-02-17T12:05:39Z",
+          "tree_id": "c5977e61e15c1cc25c039fb418f2d3a4bf9f59fb",
+          "url": "https://github.com/noir-lang/noir/commit/ec990a1f050d711ef44eb98a9efba99c0453ca1b"
+        },
+        "date": 1771331850642,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
