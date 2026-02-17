@@ -111,6 +111,14 @@ fn simplify_current_block(
     cfg: &mut ControlFlowGraph,
     values_to_replace: &mut ValueMapping,
 ) {
+    // Apply any pending replacements to the terminator before we inspect it.
+    // Without this, checks like `check_for_constant_jmpif` may miss constant conditions
+    // that were only recorded in `values_to_replace` but not yet applied to this block's
+    // terminator (e.g. a block parameter replaced by a constant during inlining).
+    if !values_to_replace.is_empty() {
+        function.dfg.replace_values_in_block_terminator(block, values_to_replace);
+    }
+
     // These functions return `true` if they successfully simplified the CFG for the current block.
     let mut simplified = true;
 
@@ -1008,6 +1016,46 @@ mod tests {
         brillig(inline) fn test f0 {
           b0(v0: Field):
             return v0
+        }
+        ");
+    }
+
+    #[test]
+    fn fold_constant_jmpif_after_negation_swap() {
+        // Regression: simplify_cfg must fold constant-condition jmpifs that become
+        // visible after a negation swap. When `not v0` produces a constant that
+        // causes the first jmpif to be folded, the second `jmpif v0` also has a
+        // constant condition and must be folded in the same pass invocation.
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            jmp b1(u1 0)
+          b1(v0: u1):
+            v1 = not v0
+            jmpif v1 then: b2, else: b3
+          b2():
+            jmp b4()
+          b3():
+            jmpif v0 then: b4, else: b4
+          b4():
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.simplify_cfg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v1 = not u1 0
+            jmpif v1 then: b1, else: b2
+          b1():
+            jmp b3()
+          b2():
+            jmp b3()
+          b3():
+            return
         }
         ");
     }
