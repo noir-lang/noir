@@ -147,7 +147,7 @@ impl SpillManager {
 
     /// Re-mark eagerly-spilled successor params as spilled at block entry.
     ///
-    /// A reload in a previous block unmarks the value from `spilled`, but the
+    /// A reload in a previous block removes the value from `spilled`, but the
     /// value must be reloaded again in every block that uses it (since the Jmp
     /// always writes to the spill slot, not to a register).
     pub(crate) fn restore_successor_param_spills(&mut self) {
