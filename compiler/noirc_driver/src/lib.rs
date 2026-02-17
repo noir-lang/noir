@@ -14,6 +14,9 @@ use noirc_artifacts::program::CompiledProgram;
 use noirc_artifacts::ssa::{InternalBug, InternalWarning, SsaReport};
 use noirc_errors::{CustomDiagnostic, DiagnosticKind};
 use noirc_evaluator::brillig::BrilligOptions;
+use noirc_evaluator::brillig::brillig_ir::{
+    LayoutConfig, MAX_SCRATCH_SPACE, MAX_STACK_FRAME_SIZE, NUM_STACK_FRAMES,
+};
 use noirc_evaluator::create_program;
 use noirc_evaluator::errors::RuntimeError;
 use noirc_evaluator::ssa::opt::{
@@ -199,6 +202,19 @@ pub struct CompileOptions {
     #[arg(long, hide = true, default_value_t = FORCE_UNROLL_THRESHOLD)]
     pub force_unroll_threshold: usize,
 
+    /// Maximum size of a single Brillig stack frame.
+    /// Smaller values force register spilling.
+    #[arg(long, hide = true, default_value_t = MAX_STACK_FRAME_SIZE)]
+    pub max_stack_frame_size: usize,
+
+    /// Number of Brillig stack frames / call depth limit.
+    #[arg(long, hide = true, default_value_t = NUM_STACK_FRAMES)]
+    pub num_stack_frames: usize,
+
+    /// Maximum Brillig scratch space size.
+    #[arg(long, hide = true, default_value_t = MAX_SCRATCH_SPACE)]
+    pub max_scratch_space: usize,
+
     /// Skip reading files/folders from the root directory and instead accept the
     /// contents of `main.nr` through STDIN.
     ///
@@ -258,6 +274,9 @@ impl Default for CompileOptions {
             small_function_max_instructions: INLINING_MAX_INSTRUCTIONS,
             max_bytecode_increase_percent: None,
             force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
+            max_stack_frame_size: MAX_STACK_FRAME_SIZE,
+            num_stack_frames: NUM_STACK_FRAMES,
+            max_scratch_space: MAX_SCRATCH_SPACE,
             debug_compile_stdin: false,
             unstable_features: Vec::new(),
             no_unstable_features: false,
@@ -281,7 +300,11 @@ impl CompileOptions {
                 enable_debug_assertions: self.enable_brillig_debug_assertions,
                 enable_array_copy_counter: self.count_array_copies,
                 show_opcode_advisories: self.show_brillig_opcode_advisories,
-                layout: Default::default(),
+                layout: LayoutConfig::new(
+                    self.max_stack_frame_size,
+                    self.num_stack_frames,
+                    self.max_scratch_space,
+                ),
             },
             print_codegen_timings: self.benchmark_codegen,
             emit_ssa: if self.emit_ssa { Some(package_build_path) } else { None },
