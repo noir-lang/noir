@@ -89,7 +89,7 @@ pub struct BrilligArtifact<F> {
     /// If no spilling occurs, the no-ops remain harmless.
     unresolved_spill_prologue: Option<[OpcodeLocation; 3]>,
 
-    /// Whether this function uses spill support (sp[1] reserved for per-frame spill base pointer).
+    /// Whether this function uses spill support (reserves space for per-frame [spill base pointer][crate::brillig::brillig_ir::ReservedRegisters::spill_base_slot]).
     /// The entry point must create its context with the same spill_support so that parameter
     /// offsets align with the function body's register layout.
     pub(crate) spill_support: bool,
