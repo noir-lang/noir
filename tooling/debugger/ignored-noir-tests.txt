@@ -14,3 +14,6 @@ test_sort
 test_sort_comptime
 test_acir_field_too_big
 test_void_to_vectors_memory_does_not_overlap
+test_nested_array_map_to_u128
+test_push_back_nested
+test_nested_array_to_vector
