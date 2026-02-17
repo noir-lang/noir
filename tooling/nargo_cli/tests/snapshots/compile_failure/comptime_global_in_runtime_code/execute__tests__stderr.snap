@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Cannot inline values of type `fn(Field) -> ()` into this position
+   ┌─ src/main.nr:12:13
+   │
+12 │     let _ = comptime { foo_global }(x);
+   │             ----------------------- Cannot inline value `(closure)`
+   │
+
+error: Comptime global `foo_global` used in non-comptime code
+   ┌─ src/main.nr:13:5
+   │
+13 │     foo_global(x);
+   │     ---------- Surround this global with a `comptime` block to evaluate it
+   │
+
+Aborting due to 2 previous errors
