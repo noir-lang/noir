@@ -62,7 +62,7 @@
 <a href=#62 id=62 data-nosnippet>62</a>}
 <a href=#63 id=63 data-nosnippet>63</a>
 <a href=#64 id=64 data-nosnippet>64</a><span class="kw">impl </span>LayoutConfig {
-<a href=#65 id=65 data-nosnippet>65</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(
+<a href=#65 id=65 data-nosnippet>65</a>    <span class="kw">pub fn </span>new(
 <a href=#66 id=66 data-nosnippet>66</a>        max_stack_frame_size: usize,
 <a href=#67 id=67 data-nosnippet>67</a>        num_stack_frames: usize,
 <a href=#68 id=68 data-nosnippet>68</a>        max_scratch_space: usize,
@@ -101,9 +101,9 @@
 <a href=#101 id=101 data-nosnippet>101</a>}
 <a href=#102 id=102 data-nosnippet>102</a>
 <a href=#103 id=103 data-nosnippet>103</a><span class="comment">// These constants represent expert chosen defaults that are appropriate for the majority of programs
-<a href=#104 id=104 data-nosnippet>104</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const </span>NUM_STACK_FRAMES: usize = <span class="number">16</span>;
-<a href=#105 id=105 data-nosnippet>105</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const </span>MAX_STACK_FRAME_SIZE: usize = <span class="number">2048</span>;
-<a href=#106 id=106 data-nosnippet>106</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const </span>MAX_SCRATCH_SPACE: usize = <span class="number">64</span>;
+<a href=#104 id=104 data-nosnippet>104</a></span><span class="kw">pub const </span>NUM_STACK_FRAMES: usize = <span class="number">16</span>;
+<a href=#105 id=105 data-nosnippet>105</a><span class="kw">pub const </span>MAX_STACK_FRAME_SIZE: usize = <span class="number">2048</span>;
+<a href=#106 id=106 data-nosnippet>106</a><span class="kw">pub const </span>MAX_SCRATCH_SPACE: usize = <span class="number">64</span>;
 <a href=#107 id=107 data-nosnippet>107</a>
 <a href=#108 id=108 data-nosnippet>108</a><span class="kw">impl </span>Default <span class="kw">for </span>LayoutConfig {
 <a href=#109 id=109 data-nosnippet>109</a>    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
