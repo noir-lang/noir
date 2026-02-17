@@ -419,7 +419,7 @@ fn try_inline_successor(
             // If successful, `block` will be empty and unreachable after this call, so any
             // optimizations performed after this point on the same block should check if
             // the inlining here was successful before continuing.
-            try_inline_into_predecessor(function, cfg, destination, block);
+            try_inline_into_predecessor(function, cfg, destination, block)
         } else {
             false
         }
