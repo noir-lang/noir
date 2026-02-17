@@ -119,6 +119,13 @@ fn simplify_current_block(
             | check_for_constant_jmpif(function, block, cfg)
             | check_for_converging_jmpif(function, block, cfg)
             | try_inline_successor(function, cfg, block, values_to_replace);
+
+        // Simplifications may rewrite the terminator with values that have pending
+        // replacements (e.g. block parameters mapped to constants). Apply them so
+        // the next iteration sees the resolved values.
+        if simplified && !values_to_replace.is_empty() {
+            function.dfg.replace_values_in_block_terminator(block, values_to_replace);
+        }
     }
 }
 
@@ -412,16 +419,7 @@ fn try_inline_successor(
             // If successful, `block` will be empty and unreachable after this call, so any
             // optimizations performed after this point on the same block should check if
             // the inlining here was successful before continuing.
-            let simplified = try_inline_into_predecessor(function, cfg, destination, block);
-
-            // Inlining a successor can introduce a terminator that references values with
-            // pending replacements (e.g. block parameters mapped to constants). Apply them
-            // to the terminator so the next iteration can detect newly-constant jmpif conditions.
-            if simplified && !values_to_replace.is_empty() {
-                function.dfg.replace_values_in_block_terminator(block, values_to_replace);
-            }
-
-            simplified
+            try_inline_into_predecessor(function, cfg, destination, block);
         } else {
             false
         }
@@ -910,6 +908,36 @@ mod tests {
 }}"
         );
         assert_eq!(ssa.to_string().trim(), expected.trim());
+    }
+
+    #[test]
+    fn fully_simplifies_negated_constant_condition() {
+        let src = r#"
+        brillig(inline) impure fn main f0 {
+          b0():
+            jmp b1(u1 1)
+          b1(v0: u1):
+            v1 = not v0
+            jmpif v1 then: b2, else: b3
+          b2():
+            jmp b4(u1 0)
+          b3():
+            jmp b4(u1 1)
+          b4(v2: u1):
+            return
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.simplify_cfg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) impure fn main f0 {
+          b0():
+            v1 = not u1 1
+            return
+        }
+        ");
     }
 
     #[test]
