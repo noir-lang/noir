@@ -242,21 +242,22 @@ fn block_flatten_cost(block: BasicBlockId, dfg: &DataFlowGraph) -> Option<u32> {
     let mut cost: u32 = 0;
     for instruction_id in dfg[block].instructions() {
         let instruction = &dfg[*instruction_id];
-        if !instruction.can_flatten_in_conditional(dfg) {
-            return None;
-        }
         // Skip memory management instructions — these are always allowed to flatten
         // but don't represent meaningful compute that should affect the decision.
         if matches!(
             instruction,
-            Instruction::EnableSideEffectsIf { .. }
-                | Instruction::Allocate
+            Instruction::Allocate
                 | Instruction::IncrementRc { .. }
                 | Instruction::DecrementRc { .. }
                 | Instruction::Noop
         ) {
             continue;
         }
+
+        if !instruction.can_flatten_in_conditional(dfg) {
+            return None;
+        }
+
         cost = cost.saturating_add(instruction.cost(*instruction_id, dfg) as u32);
     }
     Some(cost)
@@ -542,11 +543,7 @@ mod tests {
                   return v1
             }
             "#;
-        let ssa = Ssa::from_str(src).unwrap();
-        assert_eq!(ssa.main().reachable_blocks().len(), 4);
-        let ssa = ssa.flatten_basic_conditionals();
-        // Not flattened — too expensive
-        assert_eq!(ssa.main().reachable_blocks().len(), 4);
+        assert_ssa_does_not_change(src, Ssa::flatten_basic_conditionals);
     }
 
     #[test]

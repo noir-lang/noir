@@ -22,20 +22,26 @@ impl Instruction {
     ///
     /// Instructions with side effects (constraints, calls, memory ops) cannot be
     /// flattened because they would execute unconditionally in the merged block.
-    /// A few instructions that report `has_side_effects() == true` are still safe
-    /// in Brillig conditionals:
-    ///
-    /// - `EnableSideEffectsIf` is an ACIR-only concept (no-op in Brillig).
+    /// A few instructions that report side effects are still safe in Brillig conditionals.
+    ///  These instructions are expected to be handled by this method's caller:
     /// - `Allocate`, `IncrementRc`, `DecrementRc` are not predicate-dependent.
     ///
     /// Div/Mod and Shl/Shr are blocked unconditionally — even when `has_side_effects`
     /// would allow them (e.g. known non-zero divisor), they are rarely worth flattening.
     pub(crate) fn can_flatten_in_conditional(&self, dfg: &DataFlowGraph) -> bool {
         match self {
-            Instruction::EnableSideEffectsIf { .. }
-            | Instruction::Allocate
+            Instruction::EnableSideEffectsIf { .. } => {
+                if dfg.runtime().is_brillig() {
+                    panic!("ICE: Instruction is expected to only be emitted in ACIR");
+                } else {
+                    true
+                }
+            }
+            Instruction::Allocate
             | Instruction::IncrementRc { .. }
-            | Instruction::DecrementRc { .. } => true,
+            | Instruction::DecrementRc { .. } => {
+                panic!("ICE: Caller should handle memory ops");
+            }
 
             // Calls are never worth flattening — even pure intrinsics can expand
             // into many Brillig opcodes, making unconditional execution expensive.
