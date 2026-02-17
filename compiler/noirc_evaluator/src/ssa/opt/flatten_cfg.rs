@@ -771,6 +771,7 @@ impl<'f> Context<'f> {
     /// merged = if then_condition { new_value } else { original }
     /// result = array_set(base_array, index, merged)
     /// ```
+    #[allow(clippy::too_many_arguments)]
     fn create_merged_array_set(
         &mut self,
         base_array: ValueId,

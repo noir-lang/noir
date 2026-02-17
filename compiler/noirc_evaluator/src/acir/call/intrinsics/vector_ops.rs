@@ -107,12 +107,7 @@ impl Context<'_> {
 
             // 2. Copy the vector into an AcirDynamicArray
             // Generates the element_type_sizes array
-            let element_type_sizes =
-                if super::arrays::array_has_constant_element_size(&vector_typ).is_none() {
-                    None
-                } else {
-                    None
-                };
+            let element_type_sizes = None;
 
             // The block ID for the new vector is the one for the resulting vector
             let block_id = self.block_id(result_ids[1]);
@@ -616,12 +611,7 @@ impl Context<'_> {
             }
         }
 
-        let element_type_sizes =
-            if super::arrays::array_has_constant_element_size(&vector_typ).is_none() {
-                None
-            } else {
-                None
-            };
+        let element_type_sizes = None;
 
         let value_types = flat_numeric_types(&vector_typ);
 

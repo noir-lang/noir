@@ -120,13 +120,7 @@ pub(super) fn simplify_call(
             if let Some((array, array_type)) = array {
                 // Compute the resulting vector length
                 let inner_element_types = array_type.element_types();
-                let vector_length_value = dfg.try_get_vector_capacity(arguments[0]).unwrap();
-                // dbg!(vector_length_value);
                 let length = array_type.array_size();
-                // dbg!(length);
-                // let flat_elem_size: u32 = element_types.iter().map(|elem| elem.flattened_size()).sum();
-                // dbg!(flat_elem_size);
-                // let length = length * flat_elem_size;
                 let vector_length = dfg.make_constant(length.into(), NumericType::length_type());
                 let new_vector =
                     make_array(dfg, array, Type::Vector(inner_element_types), block, call_stack);
@@ -175,7 +169,7 @@ pub(super) fn simplify_call(
                                     _ => {
                                         vector.push_back(*elem);
                                     }
-                                };
+                                }
                             }
 
                             let new_vector_length = increment_vector_length(
@@ -604,7 +598,7 @@ fn make_array(
 /// and not a flattened length used internally to represent arrays of tuples.
 fn update_vector_length(
     vector_len: ValueId,
-    element_type: &Type,
+    _element_type: &Type,
     dfg: &mut DataFlowGraph,
     operator: BinaryOp,
     block: BasicBlockId,

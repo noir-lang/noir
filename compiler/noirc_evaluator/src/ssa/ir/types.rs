@@ -322,6 +322,7 @@ impl Type {
         }
     }
 
+    #[allow(dead_code)]
     pub(crate) fn is_nested_array(&self) -> bool {
         if let Type::Array(element_types, _) = self {
             element_types.as_ref().iter().any(|typ| typ.contains_an_array())
