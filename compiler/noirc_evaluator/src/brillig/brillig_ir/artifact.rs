@@ -108,6 +108,18 @@ impl BrilligArtifact<acvm::FieldElement> {
         labels.insert(label, label_pos);
         BrilligArtifact { byte_code: opcodes, labels, ..Default::default() }
     }
+
+    #[cfg(test)]
+    pub(crate) fn with_opcodes_and_labels(
+        opcodes: Vec<BrilligOpcode<acvm::FieldElement>>,
+        label_positions: &[(Label, OpcodeLocation)],
+    ) -> Self {
+        let mut labels = HashMap::new();
+        for (label, pos) in label_positions {
+            labels.insert(label.clone(), *pos);
+        }
+        BrilligArtifact { byte_code: opcodes, labels, ..Default::default() }
+    }
 }
 
 impl<F: std::fmt::Display> std::fmt::Display for BrilligArtifact<F> {
