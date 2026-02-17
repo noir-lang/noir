@@ -377,9 +377,11 @@ impl<'context> Elaborator<'context> {
         location: Location,
         generated_items: &mut CollectedItems,
     ) -> Result<(), CompilationError> {
-        self.local_module = Some(attribute_context.module);
+        // Arguments must be resolved relative to the module where the attribute happens
+        self.local_module = Some(attribute_context.attribute_module);
 
         let mut interpreter = self.setup_interpreter();
+
         let mut arguments = Self::handle_attribute_arguments(
             &mut interpreter,
             &item,
@@ -398,9 +400,12 @@ impl<'context> Elaborator<'context> {
         self.debug_comptime(location, |interner| value.display(interner).to_string());
 
         if value != Value::Unit {
+            // Items must be added in the correct module (for a module attribute, this will be the
+            // module itself; for a function, it will be the module where the function is defined, etc.)
+            self.local_module = Some(attribute_context.module);
+
             let items =
                 value.into_top_level_items(location, self).map_err(CompilationError::from)?;
-
             self.add_items(items, generated_items, location);
         }
 

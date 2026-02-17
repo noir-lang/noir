@@ -79,7 +79,7 @@ impl Ssa {
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{opt::inlining::MAX_INSTRUCTIONS, ssa_gen::Ssa},
+        ssa::{opt::inlining::inline_info::MAX_INSTRUCTIONS, ssa_gen::Ssa},
     };
 
     #[test]

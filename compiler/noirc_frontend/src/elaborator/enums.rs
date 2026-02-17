@@ -283,7 +283,6 @@ impl Elaborator<'_> {
             name: name_string.clone(),
             visibility: enum_.visibility,
             attributes: Attributes { function: None, secondary: Vec::new() },
-            is_unconstrained: false,
             generic_count: datatype_ref.generics.len(),
             is_comptime: false,
             name_location: location,

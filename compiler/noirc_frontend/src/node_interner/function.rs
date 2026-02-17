@@ -65,7 +65,6 @@ impl NodeInterner {
             name: function.name.to_string(),
             visibility: function.visibility,
             attributes: function.attributes.clone(),
-            is_unconstrained: function.is_unconstrained,
             generic_count: function.generics.len(),
             is_comptime: function.is_comptime,
             name_location,

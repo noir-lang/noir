@@ -2833,8 +2833,7 @@ impl<'interner> Monomorphizer<'interner> {
     /// Returns `true` if a function itself unconstrained, or we are currently monomorphizing an
     /// unconstrained function, in which case all callees are treated as unconstrained.
     fn is_unconstrained(&self, func_id: node_interner::FuncId) -> bool {
-        self.in_unconstrained_function
-            || self.interner.function_modifiers(&func_id).is_unconstrained
+        self.in_unconstrained_function || self.interner.function_meta(&func_id).is_unconstrained()
     }
 
     // Functions are represented as pairs of (constrained, unconstrained) versions of the same
@@ -2875,7 +2874,7 @@ impl<'interner> Monomorphizer<'interner> {
         if let HirExpression::Ident(ident, _) = self.interner.expression(&function)
             && let DefinitionKind::Function(func_id) = self.interner.definition(ident.id).kind
         {
-            return self.interner.function_modifiers(&func_id).is_unconstrained;
+            return self.interner.function_meta(&func_id).is_unconstrained();
         }
 
         false

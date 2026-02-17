@@ -755,7 +755,7 @@ impl<'context> Elaborator<'context> {
 
         let in_unconstrained_function = self.current_item.is_some_and(|id| {
             if let DependencyId::Function(id) = id {
-                self.interner.function_modifiers(&id).is_unconstrained
+                self.interner.function_meta(&id).is_unconstrained()
             } else {
                 false
             }
