@@ -6,11 +6,9 @@
 
 use std::cmp::Ordering;
 
-use super::{
-    basic_block::BasicBlockId, cfg::ControlFlowGraph, post_order::PostOrder,
-};
 #[cfg(test)]
 use super::function::Function;
+use super::{basic_block::BasicBlockId, cfg::ControlFlowGraph, post_order::PostOrder};
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 /// Dominator tree node. We keep one of these per reachable block.
