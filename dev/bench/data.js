@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771428594187,
+  "lastUpdate": 1771428596617,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23096,48 +23096,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "0af4c1a0adc17eab8928db147bd7f7e1d50fc83e",
-          "message": "chore: add pre/post checks to SSA optimization passes (#11477)",
-          "timestamp": "2026-02-10T13:08:03Z",
-          "tree_id": "88e5e9b36d0b559909d0c0cced78ef25d3271941",
-          "url": "https://github.com/noir-lang/noir/commit/0af4c1a0adc17eab8928db147bd7f7e1d50fc83e"
-        },
-        "date": 1770730996806,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252086,
-            "range": "± 2399",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 220037,
-            "range": "± 3843",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2725980,
-            "range": "± 2323",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -25189,6 +25147,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2727206,
             "range": "± 2386",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "cca6747d07a07f1ca501d1376c47e2f2aa5fc742",
+          "message": "chore(ssa): Reuse Brillig target costs in basic_conditional pass (#11568)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-02-18T15:04:08Z",
+          "tree_id": "4c1eccc2391ab2b32226d175bcb2af80b6426e73",
+          "url": "https://github.com/noir-lang/noir/commit/cca6747d07a07f1ca501d1376c47e2f2aa5fc742"
+        },
+        "date": 1771428551441,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 250269,
+            "range": "± 807",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 221908,
+            "range": "± 1486",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2724538,
+            "range": "± 1524",
             "unit": "ns/iter"
           }
         ]
