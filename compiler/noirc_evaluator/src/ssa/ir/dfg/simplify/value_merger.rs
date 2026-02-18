@@ -156,7 +156,7 @@ impl<'a> ValueMerger<'a> {
     /// Given an if expression that returns an array: `if c { array1 } else { array2 }`,
     /// this function will recursively merge array1 and array2 into a single resulting array
     /// by creating a new array containing the result of `self.merge_values` for each element.
-    pub(crate) fn merge_array_values(
+    fn merge_array_values(
         &mut self,
         typ: Type,
         then_condition: ValueId,
