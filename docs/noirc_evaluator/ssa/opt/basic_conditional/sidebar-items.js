@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["block_cost","flatten_function","flatten_multiple","is_conditional"],"struct":["BasicConditional"]};
+window.SIDEBAR_ITEMS = {"fn":["block_flatten_cost","differing_merge_cost","flatten_function","flatten_multiple","is_conditional"],"struct":["BasicConditional"]};
