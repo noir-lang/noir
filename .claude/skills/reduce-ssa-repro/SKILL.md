@@ -119,14 +119,20 @@ Re-run phases 1–3 until no more reductions are possible.
 
 ### Phase 5: Manual simplifications
 
+**Draw a CFG diagram first.** Write an ASCII diagram of the control flow graph to a file (e.g., `cfg_diagram.txt`). This makes the meaningful structure visible — nested diamonds, loop nesting, jmp chains vs. actual branch points — and guides which simplifications preserve the structure that triggers the bug vs. which just remove padding. Update the diagram after significant reductions.
+
 Try each change one at a time, running `reproduce_crash.sh` after each:
 
+- **Collapse jmp chains**: if `bA → bB → bC` are all unconditional jumps with no instructions/params, redirect `bA → bC` and remove `bB`. This is the single most effective manual reduction for CFG-heavy inputs
+- **Remove nested structure levels**: in nested diamonds or loops, try rewiring an outer level to point directly at an inner level's targets, removing the intermediate blocks entirely
+- **Make jmpif converge**: try pointing both branches of a `jmpif` to the same target (e.g., `jmpif v0 then: bX, else: bX`). This tests whether the branch matters or just the block count
 - **Remove unused globals**: delete `gN` definitions not referenced in any function body
 - **Simplify constants**: replace large numeric constants (`u128 671967...`) with small values (`u128 1`)
 - **Remove unused functions**: if `f0` just calls `f1`, try `return` in `f0`; or inline `f1` into `f0`
 - **Reduce loop bounds**: e.g., `lt vN, u32 3` → `lt vN, u32 1`. Test one change at a time — reductions that work individually may not compose
 - **Remove function arguments**: remove the parameter from the signature, replace uses with a constant, remove the argument from all call sites. Arguments feeding control flow (`jmpif` conditions, loop bounds) are less likely to be removable
 - **Remove return values**: replace `return vN` with `return`, update the function signature and callers
+- **Simplify function attributes**: try removing `predicate_pure` and other attributes
 
 ## 4. Completion Criteria
 
@@ -146,6 +152,6 @@ After reduction, the minimized SSA reveals the structural trigger:
 
 ## Reference
 
-- **`noir-ssa check`**: parses SSA, normalizes IDs, removes unreachable blocks, prints canonical form. Use to clean up after manual edits.
+- **`noir-ssa check`**: parses SSA, normalizes IDs, removes unreachable blocks, prints canonical form to **stdout** (not `-o`). Use to clean up after manual edits: `noir-ssa check --source-path input.ssa > normalized.ssa`.
 - **`--ssa-pass` uses substring matching** (`contains()`), always matching the **first** pass with that name. Passes appearing multiple times may have different implementations at different pipeline positions.
 - **Serialize to heal state**: `noir-ssa transform -o file.ssa` then re-read — isolates whether corruption is in DFG state or logical SSA structure.
