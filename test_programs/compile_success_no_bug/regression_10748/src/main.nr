@@ -34,9 +34,5 @@ struct Storage<Context> {
 struct PrivateContext {}
 
 fn main() {
-    let _storage = Storage {
-        symbol: PublicImmutable {
-            context: PrivateContext {},
-        },
-    };
+    let _storage = Storage { symbol: PublicImmutable { context: PrivateContext {} } };
 }
