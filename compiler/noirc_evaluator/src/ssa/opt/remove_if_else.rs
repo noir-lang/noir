@@ -602,6 +602,79 @@ mod tests {
     }
 
     #[test]
+    fn wrong_merge() {
+        // This is the flattened SSA for the following Noir logic:
+        // ```
+        // fn main(x: bool, mut y: [u32; 2]) {
+        //     if x {
+        //         y[0] = 2;
+        //         y[1] = 3;
+        //     }
+        //
+        //     let z = y[0] + y[1];
+        //     assert(z == 5);
+        // }
+        // ```
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1, v1: [u32; 2]):
+            v2 = allocate -> &mut [u32; 2]
+            enable_side_effects v0
+            v5 = array_set v1, index u32 0, value u32 2
+            v7 = array_set v5, index u32 1, value u32 3
+            v8 = not v0
+            v9 = if v0 then v7 else (if v8) v1
+            enable_side_effects u1 1
+            v11 = array_get v9, index u32 0 -> u32
+            v12 = array_get v9, index u32 1 -> u32
+            v13 = add v11, v12
+            v15 = eq v13, u32 5
+            constrain v13 == u32 5
+            return
+        }
+        ";
+
+        let mut ssa = Ssa::from_str(src).unwrap();
+        ssa = ssa.remove_if_else().unwrap();
+
+        // In case our if block is never activated, we need to fetch each value from the original array.
+        // We then should create a new array where each value can be mapped to `(then_condition * then_value) + (!then_condition * else_value)`.
+        // The `then_value` and `else_value` for an array will be every element of the array. Thus, we should see array_get operations
+        // on the original array as well as the new values we are writing to the array.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1, v1: [u32; 2]):
+            v2 = allocate -> &mut [u32; 2]
+            enable_side_effects v0
+            v5 = array_set v1, index u32 0, value u32 2
+            v8 = array_set v5, index u32 1, value u32 3
+            v9 = not v0
+            enable_side_effects u1 1
+            v11 = array_get v8, index u32 0 -> u32
+            v12 = array_get v1, index u32 0 -> u32
+            v13 = cast v0 as u32
+            v14 = cast v9 as u32
+            v15 = unchecked_mul v13, v11
+            v16 = unchecked_mul v14, v12
+            v17 = unchecked_add v15, v16
+            v18 = array_get v1, index u32 1 -> u32
+            v19 = cast v0 as u32
+            v20 = cast v9 as u32
+            v21 = unchecked_mul v19, u32 3
+            v22 = unchecked_mul v20, v18
+            v23 = unchecked_add v21, v22
+            v24 = make_array [v17, v23] : [u32; 2]
+            enable_side_effects v0
+            enable_side_effects u1 1
+            v25 = add v17, v23
+            v27 = eq v25, u32 5
+            constrain v25 == u32 5
+            return
+        }
+        ");
+    }
+
+    #[test]
     fn merges_all_indices_even_if_they_did_not_change() {
         // This is the flattened SSA for the following Noir logic:
         // ```

@@ -1,3 +1,86 @@
+//! Replaces `array_get` with known indices with values from previous instructions
+//! such as `array_set` or `make_array`.
+//!
+//! Given these two instructions:
+//!
+//! ```text
+//! v1 = array_set v0, index 0, value: 42
+//! v2 = array_get v1, index 0 -> Field
+//! ```
+//!
+//! because we get from `v1` at `index 0`, but `v1` is the result of setting the value "42"
+//! at `index 0`, we can conclude that `v2` will be "42", and so this SSA pass will do that.
+//! However, this is only safe to do if the `array_set` happened under the same side effects
+//! variable as the array_get. For example, in this case:
+//!
+//! ```text
+//! enable_side_effects v100
+//! v1 = array_set v0, index 0, value: 42
+//! enable_side_effects v200
+//! v2 = array_get v1, index 0 -> Field
+//! ```
+//!
+//! it would be wrong to replace `v2` with "42" as the previous array_set might not have
+//! been executed.
+//!
+//! In this case:
+//!
+//! ```text
+//! v1 = array_set v0, index 0, value: 42
+//! v2 = array_set v1, index 1, value: 15
+//! v3 = array_get v2, index 0 -> Field
+//! ```
+//!
+//! for `v3` the optimization will try to find a previous `array_set` with the same index (`index 0``).
+//! It will first find `v2`. Because it's an `array_set` of a different **known** index, it will
+//! then find `v1` and apply the same optimization as before. Note that it's safe to skip `v2` and
+//! look at `v1` even if `v2` was under a different side effects var because it doesn't affect
+//! the index used in `v3`.
+//!
+//! In this case:
+//!
+//! ```text
+//! v1 = array_set v0, index 0, value: 42
+//! v2 = array_set v1, index v88, value: 15
+//! v3 = array_get v2, index 0 -> Field
+//! ```
+//!
+//! for `v3` the optimization will find `v2`. Because the set index is unknown, and it might be zero,
+//! the optimization can't deduce anything so it won't do anything.
+//!
+//! Another case where the optimization applies is when it finds a `make_array`:
+//!
+//! ```text
+//! v1 = make_array [Field 10, Field 20] : [Field; 2]
+//! v2 = array_get v1, index 0 -> Field
+//! ```
+//!
+//! In this case `v2` will be replaced with `Field 10`. A `make_array` could also be reached
+//! after passing through other `array_set` with a different index, as previously shown.
+//!
+//! Finally, the optimization might also reach to params:
+//!
+//! ```text
+//! b0(v1: [Field; 2]):
+//!   v2 = array_set v1, index 1, value: 42
+//!   v3 = array_get v2, index 0 -> Field
+//! ```
+//!
+//! In this case `v3` will be replaced with `array_get v1, index 0`, directly getting from `v1`
+//! instead of from `v2`, because `v2` is the same as `v1` except for what's in index 1, but
+//! `v3` is getting from index 0.
+//!
+//! This module also provides a [`try_optimize_array_get_from_previous_instructions`] function
+//! that is used in other SSA-related optimizations:
+//! - Whenever an `array_get` is inserted into a [`DFG``][crate::ssa::ir::dfg::DataFlowGraph]:
+//!   in this case a previous array_set with the same index as the array_get cannot be used
+//!   because we don't know under which side effects var it happens. However, array_set with
+//!   a different known index can be skipped through to eventually reach a `make_array` or param.
+//! - In [`crate::ssa::ir::dfg::simplify::value_merger::ValueMerger`]: in this case an `array_set`
+//!   with the same index as the `array_get` will be reused, regardless of the side effects var
+//!   it happens in (as long as it's the first `array_set` found) because that array_set will
+//!   definitely happen under a different side effects var, but `ValueMerger` makes sure to
+//!   multiply that value by the side effects var it's under.
 use std::collections::HashMap;
 
 use acvm::{AcirField, FieldElement};
@@ -14,6 +97,8 @@ use crate::ssa::{
 };
 
 impl Ssa {
+    /// Replaces `array_get` instructions with known indices with known values from
+    /// previous instructions. See the [`array_get`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn array_get_optimization(mut self) -> Self {
         for func in self.functions.values_mut() {
@@ -25,6 +110,7 @@ impl Ssa {
 
 impl Function {
     fn array_get_optimization(&mut self) {
+        // Keeps track of side effect vars associated to each `array_set` instruction.
         let mut array_set_predicates = HashMap::new();
 
         self.simple_optimization(|context| {
@@ -77,20 +163,36 @@ impl Function {
     }
 }
 
+/// The result of the array_get optimization.
 pub(crate) enum ArrayGetOptimizationResult {
+    /// The `array_get` can be replaced with the given value.
     Value(ValueId),
+    /// The `array_get` can be replaced by fetching from the given array at the same index as
+    /// the `array_get`'s index.
     ArrayGet(ValueId),
 }
 
+/// The mode in which to try to optimize an `array_get` instruction.
 pub(crate) enum ArrayGetOptimizationMode<'a> {
+    /// In "simplify" mode, to be used when inserting an `array_get`instruction into a DFG,
+    /// the value of `array_set` instructions with the same index as the `array_get` to optimize
+    /// cannot be used becasue the side effects var being applied to that `array_set` is unknown.
     Simplify,
-    ValueMerging,
+    /// In "value merger" mode, to be used by [`crate::ssa::ir::dfg::simplify::value_merger::ValueMerger`],
+    /// the value of the first `array_set` instructions with the same index as the `array_get` to
+    /// optimize can be used because `ValueMerger` makes sure to multiply the fetched value by the
+    /// side effects var the `array_set` is under.
+    ValueMerger,
+    /// The "array get optimization" mode is used by the [`array_get`][self] optimization where
+    /// side effect vars associated to each `array_set` are tracked.
     ArrayGetOptimization {
         side_effects_var: ValueId,
         array_set_predicates: &'a HashMap<InstructionId, ValueId>,
     },
 }
 
+/// Tries to replace an `array_get` instructions with values from previous instructions.
+/// See the [`array_get`][self] module for more information.
 pub(crate) fn try_optimize_array_get_from_previous_instructions(
     mut array_id: ValueId,
     target_index: FieldElement,
@@ -117,7 +219,7 @@ pub(crate) fn try_optimize_array_get_from_previous_instructions(
                                     // might not be the correct one in the end.
                                     return None;
                                 }
-                                ArrayGetOptimizationMode::ValueMerging => {
+                                ArrayGetOptimizationMode::ValueMerger => {
                                     // If it's an array_set with the same index, we can reuse the value at
                                     // the index regardless of the predicate, because we'll later multiply
                                     // but its associated predicate. However, we only do this in this first
@@ -148,7 +250,7 @@ pub(crate) fn try_optimize_array_get_from_previous_instructions(
                         // If it's for a different known index, we can safely recur, because
                         // regardless of whether the array_set ends up being executed or not, it
                         // won't modify the value at the array_get index.
-                        array_id = *array; // recur
+                        array_id = *array;
                         continue;
                     }
                 }

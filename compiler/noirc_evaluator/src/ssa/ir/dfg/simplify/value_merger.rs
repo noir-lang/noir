@@ -307,7 +307,7 @@ fn maybe_optimized_array_get(
     call_stack: CallStackId,
     dfg: &mut DataFlowGraph,
 ) -> ValueId {
-    let mode = ArrayGetOptimizationMode::ValueMerging;
+    let mode = ArrayGetOptimizationMode::ValueMerger;
     match try_optimize_array_get_from_previous_instructions(array, index_value, dfg, mode) {
         Some(ArrayGetOptimizationResult::Value(value)) => value,
         Some(ArrayGetOptimizationResult::ArrayGet(array)) => {
