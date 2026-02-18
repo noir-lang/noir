@@ -3074,8 +3074,8 @@ mod tests {
         let results = ssa.interpret(vec![inputs]).unwrap();
         assert_eq!(results[0], Value::field(1u32.into()));
 
-        // We expect `v13 = array_get v3, index u32 0 -> Field` to be in b4. 
-        // If we do not account for v3 being defined in the loop header, 
+        // We expect `v13 = array_get v3, index u32 0 -> Field` to be in b4.
+        // If we do not account for v3 being defined in the loop header,
         // we risk hoisting to b3 which dominates b4 (thus panicking on usage of an undefined value).
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) impure fn main f0 {
