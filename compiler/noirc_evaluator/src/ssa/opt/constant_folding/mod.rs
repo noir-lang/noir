@@ -313,6 +313,7 @@ impl Context {
         dfg.data_bus.map_values_mut(resolve_cache);
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn fold_constants_into_instruction(
         &mut self,
         dfg: &mut DataFlowGraph,
@@ -368,7 +369,7 @@ impl Context {
                     // then go further back in the dominator tree, because the functions in the unrolling
                     // module have certain assumptions about what instructions can appear in a loop header;
                     // if we hoisted any instruction into them, they might break in subtle ways.
-                    // The header is also something that gets executed in each iteration, while its pre-header isn't.
+                    // The header is also something that gets executed in each iteration, unlike its pre-header.
                     loop {
                         if !loop_headers.contains(&dominator) {
                             break;
