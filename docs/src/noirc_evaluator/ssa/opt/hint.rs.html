@@ -29,76 +29,83 @@
 <a href=#29 id=29 data-nosnippet>29</a>            max_bytecode_increase_percent: <span class="prelude-val">None</span>,
 <a href=#30 id=30 data-nosnippet>30</a>            force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
 <a href=#31 id=31 data-nosnippet>31</a>            skip_passes: Default::default(),
-<a href=#32 id=32 data-nosnippet>32</a>        };
-<a href=#33 id=33 data-nosnippet>33</a>
-<a href=#34 id=34 data-nosnippet>34</a>        <span class="kw">let </span>builder = SsaBuilder::from_ssa(ssa, options.ssa_logging.clone(), <span class="bool-val">false</span>, <span class="prelude-val">None</span>);
-<a href=#35 id=35 data-nosnippet>35</a>        <span class="prelude-val">Ok</span>(builder.run_passes(<span class="kw-2">&amp;</span>primary_passes(options))<span class="question-mark">?</span>.finish())
-<a href=#36 id=36 data-nosnippet>36</a>    }
-<a href=#37 id=37 data-nosnippet>37</a>
-<a href=#38 id=38 data-nosnippet>38</a>    <span class="doccomment">/// Test that the `std::hint::black_box` function prevents some of the optimizations.
-<a href=#39 id=39 data-nosnippet>39</a>    </span><span class="attr">#[test]
-<a href=#40 id=40 data-nosnippet>40</a>    </span><span class="kw">fn </span>test_black_box_hint() {
-<a href=#41 id=41 data-nosnippet>41</a>        <span class="comment">// fn main(sum: u32) {
-<a href=#42 id=42 data-nosnippet>42</a>        //     // This version simplifies into a single `constraint 50 == sum`
-<a href=#43 id=43 data-nosnippet>43</a>        //     assert_eq(loop(5, 10), sum);
-<a href=#44 id=44 data-nosnippet>44</a>        //     // This should preserve additions because `k` is opaque, as if it came from an input.
-<a href=#45 id=45 data-nosnippet>45</a>        //     assert_eq(loop(5, std::hint::black_box(10)), sum);
-<a href=#46 id=46 data-nosnippet>46</a>        // }
-<a href=#47 id=47 data-nosnippet>47</a>        // fn loop(n: u32, k: u32) -&gt; u32 {
-<a href=#48 id=48 data-nosnippet>48</a>        //     let mut sum = 0;
-<a href=#49 id=49 data-nosnippet>49</a>        //     for _ in 0..n {
-<a href=#50 id=50 data-nosnippet>50</a>        //         sum = sum + k;
-<a href=#51 id=51 data-nosnippet>51</a>        //     }
-<a href=#52 id=52 data-nosnippet>52</a>        //     sum
+<a href=#32 id=32 data-nosnippet>32</a>            ssa_logging_hide_unchanged: <span class="bool-val">false</span>,
+<a href=#33 id=33 data-nosnippet>33</a>        };
+<a href=#34 id=34 data-nosnippet>34</a>
+<a href=#35 id=35 data-nosnippet>35</a>        <span class="kw">let </span>builder = SsaBuilder::from_ssa(
+<a href=#36 id=36 data-nosnippet>36</a>            ssa,
+<a href=#37 id=37 data-nosnippet>37</a>            options.ssa_logging.clone(),
+<a href=#38 id=38 data-nosnippet>38</a>            options.ssa_logging_hide_unchanged,
+<a href=#39 id=39 data-nosnippet>39</a>            <span class="bool-val">false</span>,
+<a href=#40 id=40 data-nosnippet>40</a>            <span class="prelude-val">None</span>,
+<a href=#41 id=41 data-nosnippet>41</a>        );
+<a href=#42 id=42 data-nosnippet>42</a>        <span class="prelude-val">Ok</span>(builder.run_passes(<span class="kw-2">&amp;</span>primary_passes(options))<span class="question-mark">?</span>.finish())
+<a href=#43 id=43 data-nosnippet>43</a>    }
+<a href=#44 id=44 data-nosnippet>44</a>
+<a href=#45 id=45 data-nosnippet>45</a>    <span class="doccomment">/// Test that the `std::hint::black_box` function prevents some of the optimizations.
+<a href=#46 id=46 data-nosnippet>46</a>    </span><span class="attr">#[test]
+<a href=#47 id=47 data-nosnippet>47</a>    </span><span class="kw">fn </span>test_black_box_hint() {
+<a href=#48 id=48 data-nosnippet>48</a>        <span class="comment">// fn main(sum: u32) {
+<a href=#49 id=49 data-nosnippet>49</a>        //     // This version simplifies into a single `constraint 50 == sum`
+<a href=#50 id=50 data-nosnippet>50</a>        //     assert_eq(loop(5, 10), sum);
+<a href=#51 id=51 data-nosnippet>51</a>        //     // This should preserve additions because `k` is opaque, as if it came from an input.
+<a href=#52 id=52 data-nosnippet>52</a>        //     assert_eq(loop(5, std::hint::black_box(10)), sum);
 <a href=#53 id=53 data-nosnippet>53</a>        // }
-<a href=#54 id=54 data-nosnippet>54</a>
-<a href=#55 id=55 data-nosnippet>55</a>        // Initial SSA:
-<a href=#56 id=56 data-nosnippet>56</a>        </span><span class="kw">let </span>src = <span class="string">"
-<a href=#57 id=57 data-nosnippet>57</a>          acir(inline) fn main f0 {
-<a href=#58 id=58 data-nosnippet>58</a>            b0(v0: u32):
-<a href=#59 id=59 data-nosnippet>59</a>              v4 = call f1(u32 5, u32 10) -&gt; u32
-<a href=#60 id=60 data-nosnippet>60</a>              v5 = eq v4, v0
-<a href=#61 id=61 data-nosnippet>61</a>              constrain v4 == v0
-<a href=#62 id=62 data-nosnippet>62</a>              v7 = call black_box(u32 10) -&gt; u32
-<a href=#63 id=63 data-nosnippet>63</a>              v9 = call f1(u32 5, v7) -&gt; u32
-<a href=#64 id=64 data-nosnippet>64</a>              v10 = eq v9, v0
-<a href=#65 id=65 data-nosnippet>65</a>              constrain v9 == v0
-<a href=#66 id=66 data-nosnippet>66</a>              return
-<a href=#67 id=67 data-nosnippet>67</a>          }
-<a href=#68 id=68 data-nosnippet>68</a>          acir(inline) fn loop f1 {
-<a href=#69 id=69 data-nosnippet>69</a>            b0(v0: u32, v1: u32):
-<a href=#70 id=70 data-nosnippet>70</a>              v3 = allocate -&gt; &amp;mut u32
-<a href=#71 id=71 data-nosnippet>71</a>              store u32 0 at v3
-<a href=#72 id=72 data-nosnippet>72</a>              jmp b1(u32 0)
-<a href=#73 id=73 data-nosnippet>73</a>            b1(v2: u32):
-<a href=#74 id=74 data-nosnippet>74</a>              v5 = lt v2, v0
-<a href=#75 id=75 data-nosnippet>75</a>              jmpif v5 then: b3, else: b2
-<a href=#76 id=76 data-nosnippet>76</a>            b3():
-<a href=#77 id=77 data-nosnippet>77</a>              v7 = load v3 -&gt; u32
-<a href=#78 id=78 data-nosnippet>78</a>              v8 = add v7, v1
-<a href=#79 id=79 data-nosnippet>79</a>              store v8 at v3
-<a href=#80 id=80 data-nosnippet>80</a>              v10 = add v2, u32 1
-<a href=#81 id=81 data-nosnippet>81</a>              jmp b1(v10)
-<a href=#82 id=82 data-nosnippet>82</a>            b2():
-<a href=#83 id=83 data-nosnippet>83</a>              v6 = load v3 -&gt; u32
-<a href=#84 id=84 data-nosnippet>84</a>              return v6
-<a href=#85 id=85 data-nosnippet>85</a>          }
-<a href=#86 id=86 data-nosnippet>86</a>        "</span>;
-<a href=#87 id=87 data-nosnippet>87</a>
-<a href=#88 id=88 data-nosnippet>88</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-<a href=#89 id=89 data-nosnippet>89</a>        <span class="kw">let </span>ssa = run_all_passes(ssa).unwrap();
-<a href=#90 id=90 data-nosnippet>90</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-<a href=#91 id=91 data-nosnippet>91</a>        acir(inline) impure fn main f0 {
-<a href=#92 id=92 data-nosnippet>92</a>          b0(v0: u32):
-<a href=#93 id=93 data-nosnippet>93</a>            constrain u32 50 == v0
-<a href=#94 id=94 data-nosnippet>94</a>            v4 = call black_box(u32 10) -&gt; u32
-<a href=#95 id=95 data-nosnippet>95</a>            v5 = add v4, v4
-<a href=#96 id=96 data-nosnippet>96</a>            v6 = add v5, v4
-<a href=#97 id=97 data-nosnippet>97</a>            v7 = add v6, v4
-<a href=#98 id=98 data-nosnippet>98</a>            v8 = add v7, v4
-<a href=#99 id=99 data-nosnippet>99</a>            constrain v8 == u32 50
-<a href=#100 id=100 data-nosnippet>100</a>            return
-<a href=#101 id=101 data-nosnippet>101</a>        }
-<a href=#102 id=102 data-nosnippet>102</a>        "</span>);
-<a href=#103 id=103 data-nosnippet>103</a>    }
-<a href=#104 id=104 data-nosnippet>104</a>}</code></pre></div></section></main></body></html>
+<a href=#54 id=54 data-nosnippet>54</a>        // fn loop(n: u32, k: u32) -&gt; u32 {
+<a href=#55 id=55 data-nosnippet>55</a>        //     let mut sum = 0;
+<a href=#56 id=56 data-nosnippet>56</a>        //     for _ in 0..n {
+<a href=#57 id=57 data-nosnippet>57</a>        //         sum = sum + k;
+<a href=#58 id=58 data-nosnippet>58</a>        //     }
+<a href=#59 id=59 data-nosnippet>59</a>        //     sum
+<a href=#60 id=60 data-nosnippet>60</a>        // }
+<a href=#61 id=61 data-nosnippet>61</a>
+<a href=#62 id=62 data-nosnippet>62</a>        // Initial SSA:
+<a href=#63 id=63 data-nosnippet>63</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#64 id=64 data-nosnippet>64</a>          acir(inline) fn main f0 {
+<a href=#65 id=65 data-nosnippet>65</a>            b0(v0: u32):
+<a href=#66 id=66 data-nosnippet>66</a>              v4 = call f1(u32 5, u32 10) -&gt; u32
+<a href=#67 id=67 data-nosnippet>67</a>              v5 = eq v4, v0
+<a href=#68 id=68 data-nosnippet>68</a>              constrain v4 == v0
+<a href=#69 id=69 data-nosnippet>69</a>              v7 = call black_box(u32 10) -&gt; u32
+<a href=#70 id=70 data-nosnippet>70</a>              v9 = call f1(u32 5, v7) -&gt; u32
+<a href=#71 id=71 data-nosnippet>71</a>              v10 = eq v9, v0
+<a href=#72 id=72 data-nosnippet>72</a>              constrain v9 == v0
+<a href=#73 id=73 data-nosnippet>73</a>              return
+<a href=#74 id=74 data-nosnippet>74</a>          }
+<a href=#75 id=75 data-nosnippet>75</a>          acir(inline) fn loop f1 {
+<a href=#76 id=76 data-nosnippet>76</a>            b0(v0: u32, v1: u32):
+<a href=#77 id=77 data-nosnippet>77</a>              v3 = allocate -&gt; &amp;mut u32
+<a href=#78 id=78 data-nosnippet>78</a>              store u32 0 at v3
+<a href=#79 id=79 data-nosnippet>79</a>              jmp b1(u32 0)
+<a href=#80 id=80 data-nosnippet>80</a>            b1(v2: u32):
+<a href=#81 id=81 data-nosnippet>81</a>              v5 = lt v2, v0
+<a href=#82 id=82 data-nosnippet>82</a>              jmpif v5 then: b3, else: b2
+<a href=#83 id=83 data-nosnippet>83</a>            b3():
+<a href=#84 id=84 data-nosnippet>84</a>              v7 = load v3 -&gt; u32
+<a href=#85 id=85 data-nosnippet>85</a>              v8 = add v7, v1
+<a href=#86 id=86 data-nosnippet>86</a>              store v8 at v3
+<a href=#87 id=87 data-nosnippet>87</a>              v10 = add v2, u32 1
+<a href=#88 id=88 data-nosnippet>88</a>              jmp b1(v10)
+<a href=#89 id=89 data-nosnippet>89</a>            b2():
+<a href=#90 id=90 data-nosnippet>90</a>              v6 = load v3 -&gt; u32
+<a href=#91 id=91 data-nosnippet>91</a>              return v6
+<a href=#92 id=92 data-nosnippet>92</a>          }
+<a href=#93 id=93 data-nosnippet>93</a>        "</span>;
+<a href=#94 id=94 data-nosnippet>94</a>
+<a href=#95 id=95 data-nosnippet>95</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#96 id=96 data-nosnippet>96</a>        <span class="kw">let </span>ssa = run_all_passes(ssa).unwrap();
+<a href=#97 id=97 data-nosnippet>97</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+<a href=#98 id=98 data-nosnippet>98</a>        acir(inline) impure fn main f0 {
+<a href=#99 id=99 data-nosnippet>99</a>          b0(v0: u32):
+<a href=#100 id=100 data-nosnippet>100</a>            constrain u32 50 == v0
+<a href=#101 id=101 data-nosnippet>101</a>            v4 = call black_box(u32 10) -&gt; u32
+<a href=#102 id=102 data-nosnippet>102</a>            v5 = add v4, v4
+<a href=#103 id=103 data-nosnippet>103</a>            v6 = add v5, v4
+<a href=#104 id=104 data-nosnippet>104</a>            v7 = add v6, v4
+<a href=#105 id=105 data-nosnippet>105</a>            v8 = add v7, v4
+<a href=#106 id=106 data-nosnippet>106</a>            constrain v8 == u32 50
+<a href=#107 id=107 data-nosnippet>107</a>            return
+<a href=#108 id=108 data-nosnippet>108</a>        }
+<a href=#109 id=109 data-nosnippet>109</a>        "</span>);
+<a href=#110 id=110 data-nosnippet>110</a>    }
+<a href=#111 id=111 data-nosnippet>111</a>}</code></pre></div></section></main></body></html>
