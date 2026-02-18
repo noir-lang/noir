@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771444064987,
+  "lastUpdate": 1771450241975,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23131,48 +23131,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "084c3d0bd5ace37c28be5a698746fdc17e7402a4",
-          "message": "chore: enable new clippy lints and apply auto-fixes (#11519)",
-          "timestamp": "2026-02-10T15:34:55Z",
-          "tree_id": "e71860444e211253416e240c80aa87e73c4754d7",
-          "url": "https://github.com/noir-lang/noir/commit/084c3d0bd5ace37c28be5a698746fdc17e7402a4"
-        },
-        "date": 1770739077263,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252335,
-            "range": "± 521",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 220216,
-            "range": "± 6915",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2733387,
-            "range": "± 7684",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25224,6 +25182,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2205653,
             "range": "± 3128",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8e35c636afe293b1748d655b5f8a2d18b4d1cd5e",
+          "message": "fix(ssa): Count params as loop header defined variables when folding (#11630)",
+          "timestamp": "2026-02-18T21:04:29Z",
+          "tree_id": "ee4bac32cd08fe9930b3c48e91c85d4607689d6a",
+          "url": "https://github.com/noir-lang/noir/commit/8e35c636afe293b1748d655b5f8a2d18b4d1cd5e"
+        },
+        "date": 1771450196012,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 250858,
+            "range": "± 359",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 222633,
+            "range": "± 1107",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2727613,
+            "range": "± 2627",
             "unit": "ns/iter"
           }
         ]
