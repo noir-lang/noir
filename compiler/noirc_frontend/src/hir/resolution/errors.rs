@@ -1011,7 +1011,7 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             ResolverError::ComptimeGlobalInNonComptimeCode { location, name } => {
                 Diagnostic::simple_error(
                     format!("Comptime global `{name}` used in non-comptime code"),
-                    "Surround this global with a `comptime` block to evaluate it".to_string(),
+                    "Consider using a comptime function or block".to_string(),
                     *location,
                 )
             },
