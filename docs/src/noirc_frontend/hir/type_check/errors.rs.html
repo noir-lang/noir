@@ -507,7 +507,7 @@
 <a href=#507 id=507 data-nosnippet>507</a>                Diagnostic::simple_warning(error.to_string(), reason.clone(), <span class="kw-2">*</span>location)
 <a href=#508 id=508 data-nosnippet>508</a>            }
 <a href=#509 id=509 data-nosnippet>509</a>            TypeCheckError::CannotCastNumericToBool { typ: <span class="kw">_</span>, location } =&gt; {
-<a href=#510 id=510 data-nosnippet>510</a>                <span class="kw">let </span>secondary = <span class="string">"compare with zero instead: ` != 0`"</span>.to_string();
+<a href=#510 id=510 data-nosnippet>510</a>                <span class="kw">let </span>secondary = <span class="string">"Compare with zero instead: ` != 0`"</span>.to_string();
 <a href=#511 id=511 data-nosnippet>511</a>                Diagnostic::simple_error(error.to_string(), secondary, <span class="kw-2">*</span>location)
 <a href=#512 id=512 data-nosnippet>512</a>            }
 <a href=#513 id=513 data-nosnippet>513</a>

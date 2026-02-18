@@ -1486,22 +1486,34 @@
 <a href=#1486 id=1486 data-nosnippet>1486</a>    }
 <a href=#1487 id=1487 data-nosnippet>1487</a>}
 <a href=#1488 id=1488 data-nosnippet>1488</a>
-<a href=#1489 id=1489 data-nosnippet>1489</a><span class="doccomment">/// Return whether the expression refers to a pure builtin or low level function.
-<a href=#1490 id=1490 data-nosnippet>1490</a></span><span class="kw">fn </span>is_pure_builtin_func(expr: <span class="kw-2">&amp;</span>Expression) -&gt; bool {
-<a href=#1491 id=1491 data-nosnippet>1491</a>    <span class="kw">let </span>Expression::Ident(ident) = expr <span class="kw">else </span>{
-<a href=#1492 id=1492 data-nosnippet>1492</a>        <span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#1493 id=1493 data-nosnippet>1493</a>    };
-<a href=#1494 id=1494 data-nosnippet>1494</a>    <span class="kw">let </span>(ast::Definition::Builtin(name) | ast::Definition::LowLevel(name)) = <span class="kw-2">&amp;</span>ident.definition
-<a href=#1495 id=1495 data-nosnippet>1495</a>    <span class="kw">else </span>{
-<a href=#1496 id=1496 data-nosnippet>1496</a>        <span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#1497 id=1497 data-nosnippet>1497</a>    };
-<a href=#1498 id=1498 data-nosnippet>1498</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(intrinsic) = Intrinsic::lookup(name) <span class="kw">else </span>{
-<a href=#1499 id=1499 data-nosnippet>1499</a>        <span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#1500 id=1500 data-nosnippet>1500</a>    };
-<a href=#1501 id=1501 data-nosnippet>1501</a>    <span class="macro">matches!</span>(intrinsic.purity(), Purity::Pure | Purity::PureWithPredicate)
-<a href=#1502 id=1502 data-nosnippet>1502</a>}
-<a href=#1503 id=1503 data-nosnippet>1503</a>
-<a href=#1504 id=1504 data-nosnippet>1504</a><span class="doccomment">/// Return whether the expression refers to a foreign function.
-<a href=#1505 id=1505 data-nosnippet>1505</a></span><span class="kw">fn </span>is_oracle_func(expr: <span class="kw-2">&amp;</span>Expression) -&gt; bool {
-<a href=#1506 id=1506 data-nosnippet>1506</a>    <span class="macro">matches!</span>(expr, Expression::Ident(ast::Ident { definition: ast::Definition::Oracle(<span class="kw">_</span>), .. }))
-<a href=#1507 id=1507 data-nosnippet>1507</a>}</code></pre></div></section></main></body></html>
+<a href=#1489 id=1489 data-nosnippet>1489</a><span class="doccomment">/// Return whether the expression refers to a pure builtin or low level function
+<a href=#1490 id=1490 data-nosnippet>1490</a>/// that does not modify its array inputs.
+<a href=#1491 id=1491 data-nosnippet>1491</a>///
+<a href=#1492 id=1492 data-nosnippet>1492</a>/// Note: Vector operations like push_front/push_back are "pure" (no side effects)
+<a href=#1493 id=1493 data-nosnippet>1493</a>/// but they CAN modify their input array in Brillig due to copy-on-write optimization
+<a href=#1494 id=1494 data-nosnippet>1494</a>/// when the reference count is 1. We must NOT skip clones for these operations.
+<a href=#1495 id=1495 data-nosnippet>1495</a></span><span class="kw">fn </span>is_pure_builtin_func(expr: <span class="kw-2">&amp;</span>Expression) -&gt; bool {
+<a href=#1496 id=1496 data-nosnippet>1496</a>    <span class="kw">let </span>Expression::Ident(ident) = expr <span class="kw">else </span>{
+<a href=#1497 id=1497 data-nosnippet>1497</a>        <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#1498 id=1498 data-nosnippet>1498</a>    };
+<a href=#1499 id=1499 data-nosnippet>1499</a>    <span class="kw">let </span>(ast::Definition::Builtin(name) | ast::Definition::LowLevel(name)) = <span class="kw-2">&amp;</span>ident.definition
+<a href=#1500 id=1500 data-nosnippet>1500</a>    <span class="kw">else </span>{
+<a href=#1501 id=1501 data-nosnippet>1501</a>        <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#1502 id=1502 data-nosnippet>1502</a>    };
+<a href=#1503 id=1503 data-nosnippet>1503</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(intrinsic) = Intrinsic::lookup(name) <span class="kw">else </span>{
+<a href=#1504 id=1504 data-nosnippet>1504</a>        <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#1505 id=1505 data-nosnippet>1505</a>    };
+<a href=#1506 id=1506 data-nosnippet>1506</a>
+<a href=#1507 id=1507 data-nosnippet>1507</a>    <span class="comment">// Vector operations can modify their input array in Brillig when RC=1,
+<a href=#1508 id=1508 data-nosnippet>1508</a>    // so we must clone them to ensure that they are "pure".
+<a href=#1509 id=1509 data-nosnippet>1509</a>    </span><span class="kw">if </span>intrinsic.modifies_input_array_in_brillig() {
+<a href=#1510 id=1510 data-nosnippet>1510</a>        <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#1511 id=1511 data-nosnippet>1511</a>    }
+<a href=#1512 id=1512 data-nosnippet>1512</a>
+<a href=#1513 id=1513 data-nosnippet>1513</a>    <span class="macro">matches!</span>(intrinsic.purity(), Purity::Pure | Purity::PureWithPredicate)
+<a href=#1514 id=1514 data-nosnippet>1514</a>}
+<a href=#1515 id=1515 data-nosnippet>1515</a>
+<a href=#1516 id=1516 data-nosnippet>1516</a><span class="doccomment">/// Return whether the expression refers to a foreign function.
+<a href=#1517 id=1517 data-nosnippet>1517</a></span><span class="kw">fn </span>is_oracle_func(expr: <span class="kw-2">&amp;</span>Expression) -&gt; bool {
+<a href=#1518 id=1518 data-nosnippet>1518</a>    <span class="macro">matches!</span>(expr, Expression::Ident(ast::Ident { definition: ast::Definition::Oracle(<span class="kw">_</span>), .. }))
+<a href=#1519 id=1519 data-nosnippet>1519</a>}</code></pre></div></section></main></body></html>
