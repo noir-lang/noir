@@ -72,7 +72,7 @@
 //!
 //! This module also provides a [`try_optimize_array_get_from_previous_instructions`] function
 //! that is used in other SSA-related optimizations:
-//! - Whenever an `array_get` is inserted into a [`DFG``][crate::ssa::ir::dfg::DataFlowGraph]:
+//! - Whenever an `array_get` is inserted into a [`DFG`][crate::ssa::ir::dfg::DataFlowGraph]:
 //!   in this case a previous array_set with the same index as the array_get cannot be used
 //!   because we don't know under which side effects var it happens. However, array_set with
 //!   a different known index can be skipped through to eventually reach a `make_array` or param.
