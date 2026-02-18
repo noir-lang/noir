@@ -140,3 +140,55 @@ fn brillig_array_with_rc_ops() {
     29: return
     ");
 }
+
+// Regression test: global array passed as jmp argument to a single-predecessor block
+// must not be param-side coalesced. Globals are allocated in a separate globals map,
+// not in ssa_value_allocations, so fetching the "coalesced" value would fail.
+//
+// The DFG's indexing transparently resolves Value::Global to its underlying
+// instruction in the globals graph, so the coalescing code must add special handling for globals.
+#[test]
+fn brillig_global_array_not_coalesced_with_block_param() {
+    let src = "
+    g0 = make_array [u8 65] : [u8; 1]
+
+    brillig(inline) impure fn main f0 {
+      b0(v0: [u8; 1]):
+        v1 = allocate -> &mut u32
+        store u32 1 at v1
+        v2 = call f1(v1) -> u1
+        jmpif v2 then: b1, else: b2
+      b1():
+        constrain u1 0 == u1 1
+        unreachable
+      b2():
+        inc_rc g0
+        jmp b3(g0)
+      b3(v3: [u8; 1]):
+        return v3
+    }
+    brillig(inline) impure fn func_3 f1 {
+      b0(v0: &mut u32):
+        v1 = load v0 -> u32
+        v2 = eq v1, u32 0
+        jmpif v2 then: b1, else: b2
+      b1():
+        jmp b3(u1 0)
+      b2():
+        v3 = sub v1, u32 1
+        store v3 at v0
+        v4 = call f1(v0) -> u1
+        v5 = not v4
+        jmp b3(v5)
+      b3(v6: u1):
+        return v6
+    }
+    ";
+
+    // This should compile without panicking.
+    let brillig = ssa_to_brillig_artifacts(src);
+    let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
+    // Just verify it produced some output (not empty).
+    let output = main.to_string();
+    assert!(output.contains("fn main"), "Expected Brillig output for main");
+}
