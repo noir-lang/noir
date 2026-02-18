@@ -33,6 +33,17 @@ pub(crate) struct ValueMerger<'a> {
 
     call_stack: CallStackId,
 
+    /// Optional information about the current side effects variable, and what
+    /// side effects variables are applied to each `array_set` instruction that happen
+    /// before the values being merged.
+    ///
+    /// When arrays or vectors are merged as a result of an `if ... else` instruction,
+    /// a new array will be built that does `array_get` on the arrays on the "then" and
+    /// "else" branches, and combine those values. These newly inserted `array_get` could
+    /// be optimized by reusing previously inserted instructions, such as an `array_get` at
+    /// the same index as the one in the `array_get`. However, this is only safe to do
+    /// if we know the side effects var of those two instructions is the same. Hence, that
+    /// information can optionally be specified here.
     array_get_optimization_side_effects: Option<ArrayGetOptimizationSideEffects<'a>>,
 }
 
