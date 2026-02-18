@@ -84,7 +84,6 @@ const IGNORED_BRILLIG_SMALL_STACK_TESTS: [&str; 5] = [
     "reference_counts_inliner_min",
     "reference_counts_vectors_inliner_0",
     "regression_5252",
-    "uhashmap",
 ];
 
 /// Some tests are explicitly ignored in brillig due to them failing.

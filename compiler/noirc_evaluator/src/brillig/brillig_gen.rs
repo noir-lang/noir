@@ -160,25 +160,25 @@ mod entry_point {
          1: @1 = const u32 32839
          2: @0 = const u32 71
          3: call 16
-         4: sp[3] = const u32 2
-         5: sp[4] = const u32 0
-         6: @68 = calldata copy [sp[4]; sp[3]]
+         4: sp[4] = const u32 2
+         5: sp[5] = const u32 0
+         6: @68 = calldata copy [sp[5]; sp[4]]
          7: @68 = cast @68 to u32
          8: @69 = cast @69 to u32
-         9: sp[1] = @68
-        10: sp[2] = @69
+         9: sp[2] = @68
+        10: sp[3] = @69
         11: call 17
-        12: @70 = sp[1]
-        13: sp[2] = const u32 70
-        14: sp[3] = const u32 1
-        15: stop @[sp[2]; sp[3]]
+        12: @70 = sp[2]
+        13: sp[3] = const u32 70
+        14: sp[4] = const u32 1
+        15: stop @[sp[3]; sp[4]]
         16: return
         17: call 24
-        18: sp[3] = u32 add sp[1], sp[2]
-        19: sp[4] = u32 lt_eq sp[1], sp[3]
-        20: jump if sp[4] to 22
+        18: sp[4] = u32 add sp[2], sp[3]
+        19: sp[5] = u32 lt_eq sp[2], sp[4]
+        20: jump if sp[5] to 22
         21: call 30
-        22: sp[1] = sp[3]
+        22: sp[2] = sp[4]
         23: return
         24: @4 = const u32 30791
         25: @3 = u32 lt @0, @4

@@ -257,8 +257,8 @@ mod tests {
         assert_eq!(opcodes, generate_opcodes(expected_moves));
     }
 
-    /// Stack offset base. Tests create contexts with spill_support=false, so start=1.
-    const S: usize = 1;
+    /// Stack offset base. All stacks now start at offset 2 (see `Stack::new`).
+    const S: usize = 2;
 
     #[test]
     fn test_no_op() {

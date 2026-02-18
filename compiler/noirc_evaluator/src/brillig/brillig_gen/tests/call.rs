@@ -20,37 +20,37 @@ fn brillig_as_vector() {
     assert_artifact_snapshot!(foo, @r"
     fn foo
      0: call 0
-     1: sp[1] = const u32 10
-     2: sp[2] = const u32 20
-     3: sp[3] = const u32 30
-     4: sp[4] = @1
-     5: sp[5] = const u32 4
-     6: @1 = u32 add @1, sp[5]
-     7: sp[4] = indirect const u32 1
-     8: sp[5] = u32 add sp[4], @2
-     9: sp[6] = sp[5]
-    10: store sp[1] at sp[6]
-    11: sp[6] = u32 add sp[6], @2
-    12: store sp[2] at sp[6]
-    13: sp[6] = u32 add sp[6], @2
-    14: store sp[3] at sp[6]
-    15: sp[3] = const u32 3
-    16: sp[1] = u32 div sp[3], @2
-    17: sp[6] = const u32 3
-    18: sp[5] = u32 add sp[3], sp[6]
-    19: sp[2] = @1
-    20: @1 = u32 add @1, sp[5]
-    21: sp[2] = indirect const u32 1
-    22: sp[5] = u32 add sp[2], @2
-    23: store sp[3] at sp[5]
-    24: sp[5] = u32 add sp[5], @2
-    25: store sp[3] at sp[5]
-    26: sp[6] = const u32 3
-    27: sp[5] = u32 add sp[2], sp[6]
-    28: sp[6] = u32 add sp[4], @2
-    29: @3 = sp[6]
-    30: @4 = sp[5]
-    31: @5 = sp[3]
+     1: sp[2] = const u32 10
+     2: sp[3] = const u32 20
+     3: sp[4] = const u32 30
+     4: sp[5] = @1
+     5: sp[6] = const u32 4
+     6: @1 = u32 add @1, sp[6]
+     7: sp[5] = indirect const u32 1
+     8: sp[6] = u32 add sp[5], @2
+     9: sp[7] = sp[6]
+    10: store sp[2] at sp[7]
+    11: sp[7] = u32 add sp[7], @2
+    12: store sp[3] at sp[7]
+    13: sp[7] = u32 add sp[7], @2
+    14: store sp[4] at sp[7]
+    15: sp[4] = const u32 3
+    16: sp[2] = u32 div sp[4], @2
+    17: sp[7] = const u32 3
+    18: sp[6] = u32 add sp[4], sp[7]
+    19: sp[3] = @1
+    20: @1 = u32 add @1, sp[6]
+    21: sp[3] = indirect const u32 1
+    22: sp[6] = u32 add sp[3], @2
+    23: store sp[4] at sp[6]
+    24: sp[6] = u32 add sp[6], @2
+    25: store sp[4] at sp[6]
+    26: sp[7] = const u32 3
+    27: sp[6] = u32 add sp[3], sp[7]
+    28: sp[7] = u32 add sp[5], @2
+    29: @3 = sp[7]
+    30: @4 = sp[6]
+    31: @5 = sp[4]
     32: call 0
     33: return
     ");
@@ -72,19 +72,19 @@ fn brillig_to_bits() {
     assert_artifact_snapshot!(foo, @r"
     fn foo
      0: call 0
-     1: sp[3] = const u32 2
-     2: sp[4] = const bool 1
-     3: sp[2] = @1
-     4: sp[5] = const u32 9
-     5: @1 = u32 add @1, sp[5]
-     6: sp[2] = indirect const u32 1
-     7: sp[5] = u32 add sp[2], @2
-     8: sp[6] = const u32 8
-     9: to_radix(input: sp[1], radix: sp[3], num_limbs: sp[6], output_pointer: sp[5], output_bits: sp[4])
-    10: @3 = sp[5]
-    11: @4 = sp[6]
+     1: sp[4] = const u32 2
+     2: sp[5] = const bool 1
+     3: sp[3] = @1
+     4: sp[6] = const u32 9
+     5: @1 = u32 add @1, sp[6]
+     6: sp[3] = indirect const u32 1
+     7: sp[6] = u32 add sp[3], @2
+     8: sp[7] = const u32 8
+     9: to_radix(input: sp[2], radix: sp[4], num_limbs: sp[7], output_pointer: sp[6], output_bits: sp[5])
+    10: @3 = sp[6]
+    11: @4 = sp[7]
     12: call 0
-    13: sp[1] = sp[2]
+    13: sp[2] = sp[3]
     14: return
     ");
 }
@@ -105,18 +105,18 @@ fn brillig_to_radix() {
     assert_artifact_snapshot!(foo, @r"
     fn foo
      0: call 0
-     1: sp[4] = const bool 0
-     2: sp[3] = @1
-     3: sp[5] = const u32 9
-     4: @1 = u32 add @1, sp[5]
-     5: sp[3] = indirect const u32 1
-     6: sp[5] = u32 add sp[3], @2
-     7: sp[6] = const u32 8
-     8: to_radix(input: sp[1], radix: sp[2], num_limbs: sp[6], output_pointer: sp[5], output_bits: sp[4])
-     9: @3 = sp[5]
-    10: @4 = sp[6]
+     1: sp[5] = const bool 0
+     2: sp[4] = @1
+     3: sp[6] = const u32 9
+     4: @1 = u32 add @1, sp[6]
+     5: sp[4] = indirect const u32 1
+     6: sp[6] = u32 add sp[4], @2
+     7: sp[7] = const u32 8
+     8: to_radix(input: sp[2], radix: sp[3], num_limbs: sp[7], output_pointer: sp[6], output_bits: sp[5])
+     9: @3 = sp[6]
+    10: @4 = sp[7]
     11: call 0
-    12: sp[1] = sp[3]
+    12: sp[2] = sp[4]
     13: return
     ");
 }
@@ -137,8 +137,8 @@ fn brillig_field_less_than() {
     assert_artifact_snapshot!(foo, @r"
     fn foo
     0: call 0
-    1: sp[3] = field lt sp[1], sp[2]
-    2: sp[1] = sp[3]
+    1: sp[4] = field lt sp[2], sp[3]
+    2: sp[2] = sp[4]
     3: return
     ");
 }
@@ -160,21 +160,21 @@ fn brillig_array_ref_count() {
     assert_artifact_snapshot!(foo, @r"
     fn foo
      0: call 0
-     1: sp[1] = const u32 10
-     2: sp[2] = const u32 20
-     3: sp[3] = const u32 30
-     4: sp[4] = @1
-     5: sp[5] = const u32 4
-     6: @1 = u32 add @1, sp[5]
-     7: sp[4] = indirect const u32 1
-     8: sp[5] = u32 add sp[4], @2
-     9: sp[6] = sp[5]
-    10: store sp[1] at sp[6]
-    11: sp[6] = u32 add sp[6], @2
-    12: store sp[2] at sp[6]
-    13: sp[6] = u32 add sp[6], @2
-    14: store sp[3] at sp[6]
-    15: sp[1] = load sp[4]
+     1: sp[2] = const u32 10
+     2: sp[3] = const u32 20
+     3: sp[4] = const u32 30
+     4: sp[5] = @1
+     5: sp[6] = const u32 4
+     6: @1 = u32 add @1, sp[6]
+     7: sp[5] = indirect const u32 1
+     8: sp[6] = u32 add sp[5], @2
+     9: sp[7] = sp[6]
+    10: store sp[2] at sp[7]
+    11: sp[7] = u32 add sp[7], @2
+    12: store sp[3] at sp[7]
+    13: sp[7] = u32 add sp[7], @2
+    14: store sp[4] at sp[7]
+    15: sp[2] = load sp[5]
     16: return
     ");
 }
@@ -197,40 +197,40 @@ fn brillig_vector_ref_count() {
     assert_artifact_snapshot!(foo, @r"
     fn foo
      0: call 0
-     1: sp[1] = const u32 10
-     2: sp[2] = const u32 20
-     3: sp[3] = const u32 30
-     4: sp[4] = @1
-     5: sp[5] = const u32 4
-     6: @1 = u32 add @1, sp[5]
-     7: sp[4] = indirect const u32 1
-     8: sp[5] = u32 add sp[4], @2
-     9: sp[6] = sp[5]
-    10: store sp[1] at sp[6]
-    11: sp[6] = u32 add sp[6], @2
-    12: store sp[2] at sp[6]
-    13: sp[6] = u32 add sp[6], @2
-    14: store sp[3] at sp[6]
-    15: sp[3] = const u32 3
-    16: sp[1] = u32 div sp[3], @2
-    17: sp[6] = const u32 3
-    18: sp[5] = u32 add sp[3], sp[6]
-    19: sp[2] = @1
-    20: @1 = u32 add @1, sp[5]
-    21: sp[2] = indirect const u32 1
-    22: sp[5] = u32 add sp[2], @2
-    23: store sp[3] at sp[5]
-    24: sp[5] = u32 add sp[5], @2
-    25: store sp[3] at sp[5]
-    26: sp[6] = const u32 3
-    27: sp[5] = u32 add sp[2], sp[6]
-    28: sp[6] = u32 add sp[4], @2
-    29: @3 = sp[6]
-    30: @4 = sp[5]
-    31: @5 = sp[3]
+     1: sp[2] = const u32 10
+     2: sp[3] = const u32 20
+     3: sp[4] = const u32 30
+     4: sp[5] = @1
+     5: sp[6] = const u32 4
+     6: @1 = u32 add @1, sp[6]
+     7: sp[5] = indirect const u32 1
+     8: sp[6] = u32 add sp[5], @2
+     9: sp[7] = sp[6]
+    10: store sp[2] at sp[7]
+    11: sp[7] = u32 add sp[7], @2
+    12: store sp[3] at sp[7]
+    13: sp[7] = u32 add sp[7], @2
+    14: store sp[4] at sp[7]
+    15: sp[4] = const u32 3
+    16: sp[2] = u32 div sp[4], @2
+    17: sp[7] = const u32 3
+    18: sp[6] = u32 add sp[4], sp[7]
+    19: sp[3] = @1
+    20: @1 = u32 add @1, sp[6]
+    21: sp[3] = indirect const u32 1
+    22: sp[6] = u32 add sp[3], @2
+    23: store sp[4] at sp[6]
+    24: sp[6] = u32 add sp[6], @2
+    25: store sp[4] at sp[6]
+    26: sp[7] = const u32 3
+    27: sp[6] = u32 add sp[3], sp[7]
+    28: sp[7] = u32 add sp[5], @2
+    29: @3 = sp[7]
+    30: @4 = sp[6]
+    31: @5 = sp[4]
     32: call 0
-    33: sp[3] = load sp[2]
-    34: sp[1] = sp[3]
+    33: sp[4] = load sp[3]
+    34: sp[2] = sp[4]
     35: return
     ");
 }

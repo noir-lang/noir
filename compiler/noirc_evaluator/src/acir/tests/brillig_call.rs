@@ -56,24 +56,24 @@ fn multiple_brillig_calls_one_bytecode() {
      1: @1 = const u32 32839
      2: @0 = const u32 71
      3: call 14
-     4: sp[3] = const u32 2
-     5: sp[4] = const u32 0
-     6: @68 = calldata copy [sp[4]; sp[3]]
-     7: sp[1] = @68
-     8: sp[2] = @69
+     4: sp[4] = const u32 2
+     5: sp[5] = const u32 0
+     6: @68 = calldata copy [sp[5]; sp[4]]
+     7: sp[2] = @68
+     8: sp[3] = @69
      9: call 15
-    10: @70 = sp[1]
-    11: sp[2] = const u32 70
-    12: sp[3] = const u32 1
-    13: stop @[sp[2]; sp[3]]
+    10: @70 = sp[2]
+    11: sp[3] = const u32 70
+    12: sp[4] = const u32 1
+    13: stop @[sp[3]; sp[4]]
     14: return
     15: call 23
-    16: sp[3] = field eq sp[1], sp[2]
-    17: sp[2] = const bool 0
-    18: sp[4] = bool eq sp[3], sp[2]
-    19: jump if sp[4] to 22
-    20: sp[5] = const u32 0
-    21: trap @[@1; sp[5]]
+    16: sp[4] = field eq sp[2], sp[3]
+    17: sp[3] = const bool 0
+    18: sp[5] = bool eq sp[4], sp[3]
+    19: jump if sp[5] to 22
+    20: sp[6] = const u32 0
+    21: trap @[@1; sp[6]]
     22: return
     23: @4 = const u32 30791
     24: @3 = u32 lt @0, @4
@@ -86,24 +86,24 @@ fn multiple_brillig_calls_one_bytecode() {
      1: @1 = const u32 32839
      2: @0 = const u32 71
      3: call 14
-     4: sp[3] = const u32 2
-     5: sp[4] = const u32 0
-     6: @68 = calldata copy [sp[4]; sp[3]]
-     7: sp[1] = @68
-     8: sp[2] = @69
+     4: sp[4] = const u32 2
+     5: sp[5] = const u32 0
+     6: @68 = calldata copy [sp[5]; sp[4]]
+     7: sp[2] = @68
+     8: sp[3] = @69
      9: call 15
-    10: @70 = sp[1]
-    11: sp[2] = const u32 70
-    12: sp[3] = const u32 1
-    13: stop @[sp[2]; sp[3]]
+    10: @70 = sp[2]
+    11: sp[3] = const u32 70
+    12: sp[4] = const u32 1
+    13: stop @[sp[3]; sp[4]]
     14: return
     15: call 23
-    16: sp[3] = field eq sp[1], sp[2]
-    17: sp[2] = const bool 0
-    18: sp[4] = bool eq sp[3], sp[2]
-    19: jump if sp[4] to 22
-    20: sp[5] = const u32 0
-    21: trap @[@1; sp[5]]
+    16: sp[4] = field eq sp[2], sp[3]
+    17: sp[3] = const bool 0
+    18: sp[5] = bool eq sp[4], sp[3]
+    19: jump if sp[5] to 22
+    20: sp[6] = const u32 0
+    21: trap @[@1; sp[6]]
     22: return
     23: @4 = const u32 30791
     24: @3 = u32 lt @0, @4
@@ -265,26 +265,26 @@ fn brillig_stdlib_calls_with_regular_brillig_call() {
      1: @1 = const u32 32839
      2: @0 = const u32 71
      3: call 16
-     4: sp[3] = const u32 2
-     5: sp[4] = const u32 0
-     6: @68 = calldata copy [sp[4]; sp[3]]
+     4: sp[4] = const u32 2
+     5: sp[5] = const u32 0
+     6: @68 = calldata copy [sp[5]; sp[4]]
      7: @68 = cast @68 to u32
      8: @69 = cast @69 to u32
-     9: sp[1] = @68
-    10: sp[2] = @69
+     9: sp[2] = @68
+    10: sp[3] = @69
     11: call 17
-    12: @70 = sp[1]
-    13: sp[2] = const u32 70
-    14: sp[3] = const u32 1
-    15: stop @[sp[2]; sp[3]]
+    12: @70 = sp[2]
+    13: sp[3] = const u32 70
+    14: sp[4] = const u32 1
+    15: stop @[sp[3]; sp[4]]
     16: return
     17: call 25
-    18: sp[3] = u32 eq sp[1], sp[2]
-    19: sp[2] = const bool 0
-    20: sp[4] = bool eq sp[3], sp[2]
-    21: jump if sp[4] to 24
-    22: sp[5] = const u32 0
-    23: trap @[@1; sp[5]]
+    18: sp[4] = u32 eq sp[2], sp[3]
+    19: sp[3] = const bool 0
+    20: sp[5] = bool eq sp[4], sp[3]
+    21: jump if sp[5] to 24
+    22: sp[6] = const u32 0
+    23: trap @[@1; sp[6]]
     24: return
     25: @4 = const u32 30791
     26: @3 = u32 lt @0, @4
@@ -412,26 +412,26 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
      1: @1 = const u32 32839
      2: @0 = const u32 71
      3: call 16
-     4: sp[3] = const u32 2
-     5: sp[4] = const u32 0
-     6: @68 = calldata copy [sp[4]; sp[3]]
+     4: sp[4] = const u32 2
+     5: sp[5] = const u32 0
+     6: @68 = calldata copy [sp[5]; sp[4]]
      7: @68 = cast @68 to u32
      8: @69 = cast @69 to u32
-     9: sp[1] = @68
-    10: sp[2] = @69
+     9: sp[2] = @68
+    10: sp[3] = @69
     11: call 17
-    12: @70 = sp[1]
-    13: sp[2] = const u32 70
-    14: sp[3] = const u32 1
-    15: stop @[sp[2]; sp[3]]
+    12: @70 = sp[2]
+    13: sp[3] = const u32 70
+    14: sp[4] = const u32 1
+    15: stop @[sp[3]; sp[4]]
     16: return
     17: call 25
-    18: sp[3] = u32 eq sp[1], sp[2]
-    19: sp[2] = const bool 0
-    20: sp[4] = bool eq sp[3], sp[2]
-    21: jump if sp[4] to 24
-    22: sp[5] = const u32 0
-    23: trap @[@1; sp[5]]
+    18: sp[4] = u32 eq sp[2], sp[3]
+    19: sp[3] = const bool 0
+    20: sp[5] = bool eq sp[4], sp[3]
+    21: jump if sp[5] to 24
+    22: sp[6] = const u32 0
+    23: trap @[@1; sp[6]]
     24: return
     25: @4 = const u32 30791
     26: @3 = u32 lt @0, @4

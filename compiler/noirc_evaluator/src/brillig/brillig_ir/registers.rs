@@ -149,15 +149,25 @@ pub(crate) struct Stack {
     /// The first addressable stack slot.
     ///
     /// - offset 0 is always reserved for the previous stack pointer.
-    /// - When spill support is enabled, offset 1 holds the per-frame spill base pointer,
-    ///   so `start_offset` is 2.
-    /// - Without spill support, `start_offset` is 1, avoiding the wasted slot.
+    /// - offset 1 is always reserved for the per-frame spill base pointer.
+    /// - `start_offset` is always 2.
+    ///
+    /// We use a uniform start offset across all functions to keep the calling convention
+    /// consistent. `codegen_call` places arguments at `sp[stack_size + self.start()]` using
+    /// the *caller's* start offset, while `codegen_return` writes returns at `sp[self.start()]`
+    /// using the *callee's* start offset. If caller and callee disagree on `start()`, the
+    /// calling convention breaks silently (arguments are misaligned). Since `spill_support` is
+    /// per-function (based on liveness), different functions in the same program can have
+    /// different start offsets if we condition on it. The only safe choice is a uniform start
+    /// offset across all functions. The cost (1 wasted slot per frame) is negligible.
     start_offset: usize,
 }
 
 impl Stack {
-    pub(crate) fn new(layout: LayoutConfig, spill_support: bool) -> Self {
-        let start_offset = if spill_support { 2 } else { 1 };
+    pub(crate) fn new(layout: LayoutConfig, _spill_support: bool) -> Self {
+        // Always reserve sp[0] for prev stack pointer and sp[1] for spill base.
+        // See `start_offset` doc comment for why this is unconditional.
+        let start_offset = 2;
         Self { storage: DeallocationListAllocator::new(start_offset), layout, start_offset }
     }
 
@@ -223,8 +233,8 @@ impl RegisterAllocator for Stack {
         preallocated_registers: Vec<MemoryAddress>,
         layout: LayoutConfig,
     ) -> Self {
-        // Default: no spill support. Use `new_from_existing` to preserve start_offset.
-        Self::from_preallocated_registers_with_start(preallocated_registers, layout, 1)
+        // Always use start_offset=2 to match Stack::new.
+        Self::from_preallocated_registers_with_start(preallocated_registers, layout, 2)
     }
 
     fn new_from_existing(&self, preallocated_registers: Vec<MemoryAddress>) -> Self {
