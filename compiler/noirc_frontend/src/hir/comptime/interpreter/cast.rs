@@ -14,7 +14,7 @@ fn bit_size(typ: &Type) -> u32 {
     match typ {
         Type::FieldElement => FieldElement::max_num_bits(),
         Type::Integer(_, bit_size) => u32::from(bit_size.bit_size()),
-        Type::Bool => 2,
+        Type::Bool => 1,
         _ => FieldElement::max_num_bits(),
     }
 }
@@ -155,7 +155,8 @@ pub(super) fn evaluate_cast_one_step(
                 Err(InterpreterError::TypeUnsupported { typ, location })
             }
         },
-        // Checking `lhs_is_negative` is necessary to account for negative values that get truncated to zero
+        Type::Bool if lhs_type == Type::Bool => Ok(Value::Bool(!lhs.is_zero())),
+        // Numeric conversions to booleans must use `!= 0`
         Type::Bool => Err(InterpreterError::CannotCastNumericToBool { typ: lhs_type, location }),
         typ => Err(InterpreterError::CastToNonNumericType { typ, location }),
     }
