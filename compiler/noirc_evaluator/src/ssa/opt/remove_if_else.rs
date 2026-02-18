@@ -108,7 +108,7 @@ use crate::errors::RtResult;
 
 use crate::ssa::ir::dfg::simplify::value_merger::ValueMerger;
 use crate::ssa::ir::types::NumericType;
-use crate::ssa::opt::ArrayGetOptimizationData;
+use crate::ssa::opt::ArrayGetOptimizationSideEffects;
 use crate::ssa::opt::simple_optimization::SimpleOptimizationContext;
 use crate::ssa::{
     Ssa,
@@ -226,7 +226,7 @@ impl Context {
                     }
 
                     let call_stack = context.dfg.get_instruction_call_stack_id(instruction_id);
-                    let array_get_optimization_data = Some(ArrayGetOptimizationData {
+                    let array_get_optimization_data = Some(ArrayGetOptimizationSideEffects {
                         side_effects_var: context.enable_side_effects,
                         array_set_predicates: &array_set_predicates,
                     });

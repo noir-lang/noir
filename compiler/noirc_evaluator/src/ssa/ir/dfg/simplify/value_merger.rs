@@ -17,7 +17,7 @@ use crate::{
             value::ValueId,
         },
         opt::{
-            ArrayGetOptimizationData, ArrayGetOptimizationMode, ArrayGetOptimizationResult,
+            ArrayGetOptimizationResult, ArrayGetOptimizationSideEffects,
             try_optimize_array_get_from_previous_instructions,
         },
     },
@@ -33,7 +33,7 @@ pub(crate) struct ValueMerger<'a> {
 
     call_stack: CallStackId,
 
-    array_get_optimization_data: Option<ArrayGetOptimizationData<'a>>,
+    array_get_optimization_side_effects: Option<ArrayGetOptimizationSideEffects<'a>>,
 }
 
 impl<'a> ValueMerger<'a> {
@@ -42,9 +42,9 @@ impl<'a> ValueMerger<'a> {
         block: BasicBlockId,
         vector_sizes: &'a HashMap<ValueId, SemanticLength>,
         call_stack: CallStackId,
-        array_get_optimization_data: Option<ArrayGetOptimizationData<'a>>,
+        array_get_optimization_side_effects: Option<ArrayGetOptimizationSideEffects<'a>>,
     ) -> Self {
-        ValueMerger { dfg, block, vector_sizes, call_stack, array_get_optimization_data }
+        ValueMerger { dfg, block, vector_sizes, call_stack, array_get_optimization_side_effects }
     }
 
     /// Choose a call stack to return with the [RuntimeError].
@@ -291,12 +291,13 @@ impl<'a> ValueMerger<'a> {
         index_value: FieldElement,
         typevars: Option<Vec<Type>>,
     ) -> ValueId {
-        let mode = match &self.array_get_optimization_data {
-            Some(data) => ArrayGetOptimizationMode::ArrayGetOptimization(data),
-            None => ArrayGetOptimizationMode::Simplify,
-        };
-        match try_optimize_array_get_from_previous_instructions(array, index_value, self.dfg, mode)
-        {
+        let side_effects = self.array_get_optimization_side_effects.as_ref();
+        match try_optimize_array_get_from_previous_instructions(
+            array,
+            index_value,
+            self.dfg,
+            side_effects,
+        ) {
             Some(ArrayGetOptimizationResult::Value(value)) => value,
             Some(ArrayGetOptimizationResult::ArrayGet(array)) => {
                 let get = Instruction::ArrayGet { array, index };

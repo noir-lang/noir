@@ -9,7 +9,7 @@ use crate::ssa::{
         types::{NumericType, Type},
         value::{Value, ValueId},
     },
-    opt::{ArrayGetOptimizationMode, ArrayGetOptimizationResult},
+    opt::ArrayGetOptimizationResult,
 };
 use acvm::{
     AcirField as _, FieldElement,
@@ -375,12 +375,12 @@ fn try_optimize_array_get_from_previous_instructions(
     array_id: ValueId,
     target_index: FieldElement,
 ) -> SimplifyResult {
-    let mode = ArrayGetOptimizationMode::Simplify;
+    let side_effects = None;
     let result = crate::ssa::opt::try_optimize_array_get_from_previous_instructions(
         array_id,
         target_index,
         dfg,
-        mode,
+        side_effects,
     );
     match result {
         Some(ArrayGetOptimizationResult::Value(value)) => SimplifyResult::SimplifiedTo(value),

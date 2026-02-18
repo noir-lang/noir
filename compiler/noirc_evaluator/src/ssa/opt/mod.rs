@@ -44,7 +44,7 @@ mod simplify_cfg;
 mod unrolling;
 
 pub(crate) use array_get::{
-    ArrayGetOptimizationData, ArrayGetOptimizationMode, ArrayGetOptimizationResult,
+    ArrayGetOptimizationResult, ArrayGetOptimizationSideEffects,
     try_optimize_array_get_from_previous_instructions,
 };
 pub use constant_folding::DEFAULT_MAX_ITER as CONSTANT_FOLDING_MAX_ITER;

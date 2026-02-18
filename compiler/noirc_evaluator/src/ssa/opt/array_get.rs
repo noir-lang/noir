@@ -71,16 +71,11 @@
 //! `v3` is getting from index 0.
 //!
 //! This module also provides a [`try_optimize_array_get_from_previous_instructions`] function
-//! that is used in other SSA-related optimizations:
-//! - Whenever an `array_get` is inserted into a [`DFG`][crate::ssa::ir::dfg::DataFlowGraph]:
-//!   in this case a previous array_set with the same index as the array_get cannot be used
-//!   because we don't know under which side effects var it happens. However, array_set with
-//!   a different known index can be skipped through to eventually reach a `make_array` or param.
-//! - In [`crate::ssa::ir::dfg::simplify::value_merger::ValueMerger`]: in this case an `array_set`
-//!   with the same index as the `array_get` will be reused, regardless of the side effects var
-//!   it happens in (as long as it's the first `array_set` found) because that array_set will
-//!   definitely happen under a different side effects var, but `ValueMerger` makes sure to
-//!   multiply that value by the side effects var it's under.
+//! that is used in other SSA-related optimizations. For example,whenever an `array_get` is inserted
+//! into a [`DFG`][crate::ssa::ir::dfg::DataFlowGraph]: in this case a previous array_set with the
+//! same index as the array_get cannot be used because we don't know under which side effects var it
+//! happens. However, array_set with a different known index can be skipped through to eventually
+//! reach a `make_array` or param.
 use std::collections::HashMap;
 
 use acvm::{AcirField, FieldElement};
@@ -126,16 +121,15 @@ impl Function {
                     };
                     let array = *array;
                     let index = *index;
-                    let mode =
-                        ArrayGetOptimizationMode::ArrayGetOptimization(&ArrayGetOptimizationData {
-                            side_effects_var: context.enable_side_effects,
-                            array_set_predicates: &array_set_predicates,
-                        });
+                    let side_effects = Some(&ArrayGetOptimizationSideEffects {
+                        side_effects_var: context.enable_side_effects,
+                        array_set_predicates: &array_set_predicates,
+                    });
                     let Some(result) = try_optimize_array_get_from_previous_instructions(
                         array,
                         index_field,
                         context.dfg,
-                        mode,
+                        side_effects,
                     ) else {
                         return;
                     };
@@ -173,19 +167,11 @@ pub(crate) enum ArrayGetOptimizationResult {
     ArrayGet(ValueId),
 }
 
-/// The mode in which to try to optimize an `array_get` instruction.
-pub(crate) enum ArrayGetOptimizationMode<'a> {
-    /// In "simplify" mode, to be used when inserting an `array_get`instruction into a DFG,
-    /// the value of `array_set` instructions with the same index as the `array_get` to optimize
-    /// cannot be used becasue the side effects var being applied to that `array_set` is unknown.
-    Simplify,
-    /// The "array get optimization" mode is used by the [`array_get`][self] optimization where
-    /// side effect vars associated to each `array_set` are tracked.
-    ArrayGetOptimization(&'a ArrayGetOptimizationData<'a>),
-}
-
-pub(crate) struct ArrayGetOptimizationData<'a> {
+/// Side effects information to be able to optimize `array_get` more efficiently.
+pub(crate) struct ArrayGetOptimizationSideEffects<'a> {
+    /// The current value of the side effects var.
     pub(crate) side_effects_var: ValueId,
+    /// The side effects var applied to each known `array_set` instruction.
     pub(crate) array_set_predicates: &'a HashMap<InstructionId, ValueId>,
 }
 
@@ -195,7 +181,7 @@ pub(crate) fn try_optimize_array_get_from_previous_instructions(
     mut array_id: ValueId,
     target_index: FieldElement,
     dfg: &DataFlowGraph,
-    mode: ArrayGetOptimizationMode,
+    side_effects: Option<&ArrayGetOptimizationSideEffects>,
 ) -> Option<ArrayGetOptimizationResult> {
     let target_index_u32 = target_index.try_to_u32()?;
 
@@ -209,20 +195,18 @@ pub(crate) fn try_optimize_array_get_from_previous_instructions(
                 Instruction::ArraySet { array, index, value, .. } => {
                     if let Some(constant) = dfg.get_numeric_constant(*index) {
                         if constant == target_index {
-                            match mode {
-                                ArrayGetOptimizationMode::Simplify => {
+                            match side_effects {
+                                None => {
                                     // If it's an array_set with the same index as the array_get, we don't
                                     // use the value at that index. The reason is that the array_set might
                                     // be under a different predicate than the array_get, so the set value
                                     // might not be the correct one in the end.
                                     return None;
                                 }
-                                ArrayGetOptimizationMode::ArrayGetOptimization(
-                                    ArrayGetOptimizationData {
-                                        side_effects_var,
-                                        array_set_predicates,
-                                    },
-                                ) => {
+                                Some(ArrayGetOptimizationSideEffects {
+                                    side_effects_var,
+                                    array_set_predicates,
+                                }) => {
                                     // If there's an array_set with the same index as the array_get, we
                                     // can only apply this optimization if they are under the same predicate.
                                     if array_set_predicates
