@@ -80,6 +80,9 @@ pub struct SsaEvaluatorOptions {
     /// Emit debug information for the intermediate SSA IR
     pub ssa_logging: SsaLogging,
 
+    /// Whether to skip printing an SSA pass if it didn't produce any changes.
+    pub ssa_logging_hide_unchanged: bool,
+
     /// Options affecting Brillig code generation.
     pub brillig_options: BrilligOptions,
 
@@ -378,6 +381,7 @@ pub fn optimize_into_acir(
     let builder = SsaBuilder::from_program(
         program,
         options.ssa_logging.clone(),
+        options.ssa_logging_hide_unchanged,
         options.print_codegen_timings,
         &options.emit_ssa,
         files,
