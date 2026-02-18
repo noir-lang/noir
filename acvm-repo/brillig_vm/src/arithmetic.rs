@@ -562,6 +562,75 @@ mod int_ops {
         );
     }
 
+    /// Reference implementation: compute `lhs op rhs` using u128 arithmetic,
+    /// then truncate to the given bit width.
+    fn reference_shift(op: &BinaryIntOp, lhs: u128, rhs: u128, bit_width: u32) -> u128 {
+        let mask = if bit_width == 128 { u128::MAX } else { (1u128 << bit_width) - 1 };
+        let lhs = lhs & mask;
+        let rhs = rhs & mask;
+        if rhs >= bit_width as u128 {
+            return 0;
+        }
+        let result = match op {
+            BinaryIntOp::Shl => lhs << rhs as u32,
+            BinaryIntOp::Shr => lhs >> rhs as u32,
+            _ => unreachable!(),
+        };
+        result & mask
+    }
+
+    proptest::proptest! {
+        #[test]
+        fn shift_u8_fuzz(lhs in 0u128..=u8::MAX as u128, rhs in 0u128..=u8::MAX as u128) {
+            let bit_size = IntegerBitSize::U8;
+            for op in [BinaryIntOp::Shl, BinaryIntOp::Shr] {
+                let actual = evaluate_u128(&op, lhs, rhs, bit_size);
+                let expected = reference_shift(&op, lhs, rhs, 8);
+                proptest::prop_assert_eq!(actual, expected);
+            }
+        }
+
+        #[test]
+        fn shift_u16_fuzz(lhs in 0u128..=u16::MAX as u128, rhs in 0u128..=u16::MAX as u128) {
+            let bit_size = IntegerBitSize::U16;
+            for op in [BinaryIntOp::Shl, BinaryIntOp::Shr] {
+                let actual = evaluate_u128(&op, lhs, rhs, bit_size);
+                let expected = reference_shift(&op, lhs, rhs, 16);
+                proptest::prop_assert_eq!(actual, expected);
+            }
+        }
+
+        #[test]
+        fn shift_u32_fuzz(lhs in 0u128..=u32::MAX as u128, rhs in 0u128..=u32::MAX as u128) {
+            let bit_size = IntegerBitSize::U32;
+            for op in [BinaryIntOp::Shl, BinaryIntOp::Shr] {
+                let actual = evaluate_u128(&op, lhs, rhs, bit_size);
+                let expected = reference_shift(&op, lhs, rhs, 32);
+                proptest::prop_assert_eq!(actual, expected);
+            }
+        }
+
+        #[test]
+        fn shift_u64_fuzz(lhs in 0u128..=u64::MAX as u128, rhs in 0u128..=u64::MAX as u128) {
+            let bit_size = IntegerBitSize::U64;
+            for op in [BinaryIntOp::Shl, BinaryIntOp::Shr] {
+                let actual = evaluate_u128(&op, lhs, rhs, bit_size);
+                let expected = reference_shift(&op, lhs, rhs, 64);
+                proptest::prop_assert_eq!(actual, expected);
+            }
+        }
+
+        #[test]
+        fn shift_u128_fuzz(lhs: u128, rhs: u128) {
+            let bit_size = IntegerBitSize::U128;
+            for op in [BinaryIntOp::Shl, BinaryIntOp::Shr] {
+                let actual = evaluate_u128(&op, lhs, rhs, bit_size);
+                let expected = reference_shift(&op, lhs, rhs, 128);
+                proptest::prop_assert_eq!(actual, expected);
+            }
+        }
+    }
+
     #[test]
     fn comparison_ops_test() {
         let bit_size = IntegerBitSize::U8;
