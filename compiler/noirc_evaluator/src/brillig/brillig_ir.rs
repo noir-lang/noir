@@ -233,7 +233,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         let (scratch, _) = ReservedRegisters::spill_scratch();
 
         // Save current FMP as spill base
-        // [0]: Mov sp[1], @1 
+        // [0]: Mov sp[1], @1
         self.obj.byte_code[positions[0]] = BrilligOpcode::Mov {
             destination: ReservedRegisters::spill_base_slot(),
             source: ReservedRegisters::free_memory_pointer(),

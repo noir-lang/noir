@@ -148,3 +148,48 @@ fn brillig_spill_successor_params() {
     32: return
     ");
 }
+
+/// Verify that permanently spilled non-param live-ins that die without being
+/// reloaded by instruction codegen don't cause an ICE.
+///
+/// The IfElse instruction's `else_condition` is included in `for_each_value`
+/// (and therefore in liveness / `last_uses`) but is NOT accessed by
+/// `codegen_if_else`. When this value is a non-param live-in that was
+/// permanently spilled at block entry, it remains in the `spilled` map
+/// without ever being added to `available_variables`. The dead variable
+/// cleanup must skip `mark_unavailable` for such values.
+///
+/// Uses `max_stack_frame_size = 6` (4 usable slots after `start_offset = 2`).
+/// Block b0 has 4 params filling all slots, so computing v4 and v5 forces
+/// spills. At the JmpIf, `spill_non_param_live_ins(b1)` permanently spills
+/// v1–v5. In b1, the IfElse codegen reloads v4, v1, v2 but NOT v5
+/// (else_condition). When v5 appears in `last_uses`, the cleanup sees it
+/// as spilled but not available — this previously caused an ICE.
+#[test]
+fn brillig_spill_jmpif_diamond_dead_else_condition() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u32, v1: u32, v2: u32, v3: u32):
+        v4 = eq v0, u32 0
+        v5 = not v4
+        jmpif v4 then: b1, else: b2
+      b1():
+        v6 = if v4 then v1 else (if v5) v2
+        v7 = unchecked_add v6, v3
+        jmp b3(v7)
+      b2():
+        jmp b3(v1)
+      b3(v8: u32):
+        return v8
+    }
+    ";
+
+    let layout = LayoutConfig::new(6, 16, MAX_SCRATCH_SPACE);
+    let options = BrilligOptions { layout, ..Default::default() };
+    // This should compile without ICE. Previously, the dead variable cleanup
+    // for v5 (else_condition) would assert because v5 was permanently spilled
+    // at b1 entry but never reloaded into available_variables.
+    let brillig = ssa_to_brillig_artifacts_with_options(src, &options);
+    let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
+    assert!(!main.to_string().is_empty());
+}
