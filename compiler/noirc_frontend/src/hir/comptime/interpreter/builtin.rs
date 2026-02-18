@@ -36,11 +36,14 @@ use crate::{
             InterpreterError, Value,
             display::tokens_to_string,
             errors::IResult,
-            interpreter::builtin::builtin_helpers::fragments_to_string,
+            interpreter::{
+                builtin::builtin_helpers::fragments_to_string,
+                builtin_helpers::check_item_crate_matches_current_crate,
+            },
             value::{ExprValue, FormatStringFragment, TypedExpr},
         },
         def_collector::dc_crate::CollectedItems,
-        def_map::{ModuleDefId, ModuleId, fully_qualified_module_path},
+        def_map::{ModuleDefId, ModuleId},
     },
     hir_def::{
         expr::{HirExpression, HirIdent, HirLiteral, ImplKind, TraitItem},
@@ -216,8 +219,8 @@ impl Interpreter<'_, '_> {
             "type_as_str" => type_as_str(arguments, return_type, location),
             "type_as_data_type" => type_as_data_type(arguments, return_type, location),
             "type_as_tuple" => type_as_tuple(arguments, return_type, location),
-            "type_def_add_attribute" => type_def_add_attribute(interner, arguments, location),
-            "type_def_add_generic" => type_def_add_generic(interner, arguments, location),
+            "type_def_add_attribute" => type_def_add_attribute(self, arguments, location),
+            "type_def_add_generic" => type_def_add_generic(self, arguments, location),
             "type_def_as_type" => type_def_as_type(interner, arguments, location),
             "type_def_as_type_with_generics" => {
                 type_def_as_type_with_generics(interner, arguments, return_type, location)
@@ -234,7 +237,7 @@ impl Interpreter<'_, '_> {
             "type_def_hash" => type_def_hash(arguments, location),
             "type_def_module" => type_def_module(self, arguments, location),
             "type_def_name" => type_def_name(interner, arguments, location),
-            "type_def_set_fields" => type_def_set_fields(self.elaborator, arguments, location),
+            "type_def_set_fields" => type_def_set_fields(self, arguments, location),
             "type_eq" => type_eq(arguments, location),
             "type_get_trait_impl" => {
                 type_get_trait_impl(interner, arguments, return_type, location)
@@ -413,7 +416,7 @@ fn str_as_ctstring(arguments: Vec<(Value, Location)>, location: Location) -> IRe
 
 // fn add_attribute<let N: u32>(self, attribute: str<N>)
 fn type_def_add_attribute(
-    interner: &mut NodeInterner,
+    interpreter: &mut Interpreter,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
@@ -430,7 +433,9 @@ fn type_def_add_attribute(
     };
 
     let type_id = get_type_id(self_argument)?;
-    interner.update_type_attributes(type_id, |attributes| {
+    check_item_crate_matches_current_crate(interpreter, type_id.module_id(), location)?;
+
+    interpreter.elaborator.interner.update_type_attributes(type_id, |attributes| {
         attributes.push(attribute);
     });
 
@@ -439,7 +444,7 @@ fn type_def_add_attribute(
 
 // fn add_generic<let N: u32>(self, generic_name: str<N>)
 fn type_def_add_generic(
-    interner: &NodeInterner,
+    interpreter: &Interpreter,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
@@ -463,7 +468,9 @@ fn type_def_add_generic(
     };
 
     let struct_id = get_type_id(self_argument)?;
-    let the_struct = interner.get_type(struct_id);
+    check_item_crate_matches_current_crate(interpreter, struct_id.module_id(), location)?;
+
+    let the_struct = interpreter.elaborator.interner.get_type(struct_id);
     let mut the_struct = the_struct.borrow_mut();
     let name = Rc::new(generic_name);
 
@@ -478,8 +485,8 @@ fn type_def_add_generic(
         }
     }
 
-    let type_var_kind = Kind::Normal;
-    let type_var = TypeVariable::unbound(interner.next_type_variable_id(), type_var_kind);
+    let type_var_id = interpreter.elaborator.interner.next_type_variable_id();
+    let type_var = TypeVariable::unbound(type_var_id, Kind::Normal);
     let typ = type_var.clone().into_named_generic(&name, None);
     let new_generic = ResolvedGeneric { name, type_var, location: generic_location };
     the_struct.generics.push(new_generic);
@@ -717,14 +724,15 @@ fn type_def_name(
 /// fn set_fields(self, new_fields: [(Quoted, Type, Quoted)]) {}
 /// Returns (name, type) pairs of each field of this TypeDefinition
 fn type_def_set_fields(
-    elaborator: &mut Elaborator,
+    interpreter: &mut Interpreter,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let (the_struct, fields) = check_two_arguments(arguments, location)?;
     let struct_id = get_type_id(the_struct)?;
+    check_item_crate_matches_current_crate(interpreter, struct_id.module_id(), location)?;
 
-    let struct_def = elaborator.interner.get_type(struct_id);
+    let struct_def = interpreter.elaborator.interner.get_type(struct_id);
     let mut struct_def = struct_def.borrow_mut();
 
     let field_location = fields.1;
@@ -757,7 +765,7 @@ fn type_def_set_fields(
         match name_tokens.first().map(|t| t.token()) {
             Some(Token::Ident(name)) if name_tokens.len() == 1 => {
                 let visibility = parse(
-                    elaborator,
+                    interpreter.elaborator,
                     (visibility, field_location),
                     Parser::parse_item_visibility,
                     "a visibility",
@@ -777,7 +785,7 @@ fn type_def_set_fields(
                 new_fields.push(StructField { visibility, name, typ });
             }
             _ => {
-                let value = name_value.display(elaborator.interner).to_string();
+                let value = name_value.display(interpreter.elaborator.interner).to_string();
                 let location = field_location;
                 return Err(InterpreterError::ExpectedIdentForStructField {
                     value,
@@ -2925,16 +2933,7 @@ fn module_add_item(
     let (self_argument, item) = check_two_arguments(arguments, location)?;
     let module_id = get_module(self_argument)?;
 
-    let current_crate = interpreter.elaborator.module_id().krate;
-    if current_crate != module_id.krate {
-        let module = fully_qualified_module_path(
-            interpreter.elaborator.def_maps,
-            interpreter.elaborator.crate_graph,
-            &current_crate,
-            module_id,
-        );
-        return Err(InterpreterError::CannotAddItemToExternalCrateModule { module, location });
-    }
+    check_item_crate_matches_current_crate(interpreter, module_id, location)?;
 
     let parser = Parser::parse_top_level_items;
     let top_level_statements = parse(interpreter.elaborator, item, parser, "a top-level item")?;

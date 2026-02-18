@@ -11,10 +11,12 @@ use noirc_errors::Location;
 use crate::Shared;
 use crate::ast::{BinaryOp, ItemVisibility, UnaryOp};
 use crate::elaborator::Elaborator;
+use crate::graph::CrateId;
 use crate::hir::comptime::display::tokens_to_string;
 use crate::hir::comptime::value::unwrap_rc;
 use crate::hir::comptime::value::{FormatStringFragment, StructFields};
 use crate::hir::def_collector::dc_crate::CompilationError;
+use crate::hir::def_map::fully_qualified_module_path;
 use crate::lexer::Lexer;
 use crate::parser::{Parser, ParserError};
 use crate::signed_field::SignedField;
@@ -488,11 +490,32 @@ fn gather_hir_pattern_tokens(
     }
 }
 
+/// If the given `item_module`'s crate does not match the crate the interpreter is in, issue an
+/// error to prevent modifying an item from an external crate.
+pub(super) fn check_item_crate_matches_current_crate(
+    interpreter: &Interpreter,
+    item_module: ModuleId,
+    location: Location,
+) -> IResult<()> {
+    let current_crate = interpreter.elaborator.module_id().krate;
+    if current_crate != item_module.krate {
+        let module = fully_qualified_module_path(
+            interpreter.elaborator.def_maps,
+            interpreter.elaborator.crate_graph,
+            &current_crate,
+            item_module,
+        );
+        Err(InterpreterError::CannotModifyExternalItem { module, location })
+    } else {
+        Ok(())
+    }
+}
+
 pub(super) fn check_function_not_yet_resolved(
     interpreter: &Interpreter,
     func_id: FuncId,
     location: Location,
-) -> Result<(), InterpreterError> {
+) -> IResult<()> {
     let func_meta = interpreter.elaborator.interner.function_meta(&func_id);
     match func_meta.function_body {
         FunctionBody::Unresolved(_, _, _) => Ok(()),
