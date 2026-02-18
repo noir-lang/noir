@@ -89,30 +89,18 @@ fn is_conditional(
         else_arguments,
         call_stack: _,
     }) = function.dfg[block].terminator()
-<<<<<<< HEAD
-    {
-        assert!(
-            then_arguments.is_empty(),
-            "basic_conditionals pass hasn't been updated to handle jmpif args"
-        );
-        assert!(
-            else_arguments.is_empty(),
-            "basic_conditions pass has not yet been updated to handle jmpif args"
-        );
-
-        // A conditional must end with a JmpIf
-        let mut then_successors = cfg.successors(*then_destination);
-        let mut else_successors = cfg.successors(*else_destination);
-        let then_successors_len = then_successors.len();
-        let else_successors_len = else_successors.len();
-        let next_then = then_successors.next();
-        let next_else = else_successors.next();
-        if next_then == Some(block) || next_else == Some(block) {
-            // this is a loop, not a conditional
-=======
     else {
         return None;
     };
+
+    assert!(
+        then_arguments.is_empty(),
+        "basic_conditionals pass hasn't been updated to handle jmpif args"
+    );
+    assert!(
+        else_arguments.is_empty(),
+        "basic_conditions pass has not yet been updated to handle jmpif args"
+    );
 
     // Cost of the JmpIf terminator (2 opcodes: jump_if + jump)
     let jmpif_cost = function.dfg[block].unwrap_terminator().cost();
@@ -278,7 +266,6 @@ fn block_flatten_cost(block: BasicBlockId, dfg: &DataFlowGraph) -> Option<u32> {
         }
 
         if !instruction.can_flatten_in_conditional(dfg) {
->>>>>>> master
             return None;
         }
 
@@ -615,15 +602,9 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn foo f0 {
           b0(v0: u32):
-<<<<<<< HEAD
             v3 = eq v0, u32 5
             v4 = not v3
             jmpif v3 then: b2(), else: b1()
-=======
-            v4 = eq v0, u32 5
-            v5 = not v4
-            jmpif v4 then: b5, else: b1
->>>>>>> master
           b1():
             v17 = lt v0, u32 3
             jmpif v17 then: b3, else: b2
