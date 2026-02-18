@@ -379,7 +379,7 @@ impl Context {
                         // Crucially the comparison result is a product of codegen and won't appear anywhere else in the SSA.
                         // If the loop is a `while` loop, however, then its loaded condition variable can be used in its body,
                         // so we cannot necessarily hoist an instruction above its header. We may be using the loop variable
-                        // of the `for` loop itself multiple time, but that usually has the first block body hoist into.
+                        // of a `for` loop itself multiple times, but that usually has the first block of the body to hoist into.
                         let mut uses_value_defined_in_header = false;
                         // It's enough to consider values defined immediately in the header: if we are hoisting into it already,
                         // we cannot be using anything from any block between the origin and the header.
