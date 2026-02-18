@@ -20,7 +20,7 @@ pub(crate) struct SpillManager {
     free_spill_slots: Vec<usize>,
     /// Permanent spill slots for values that must always be accessed through
     /// their spill slot. This includes successor block params (eagerly spilled
-    /// in the dominator block) and non-param live-in values (stored at JMP/JmpIf
+    /// in the dominator block) and non-param live-in values (stored at Jmp/JmpIf
     /// to ensure the destination can always reload from a valid slot).
     permanent_spills: HashMap<ValueId, SpillInfo>,
 }

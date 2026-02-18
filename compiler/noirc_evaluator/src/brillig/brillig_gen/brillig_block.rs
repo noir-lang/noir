@@ -196,8 +196,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
     /// Spill the least-recently-used value to the spill region
     fn spill_lru_value(&mut self) {
-        // Extract data from spill_manager first (borrow checker: can't hold &mut spill_manager
-        // while also accessing &self.function_context.ssa_value_allocations)
+        // Extract data from spill_manager first (borrow checker prevent mutably borrowing the spill manager
+        // while also accessing ssa_value_allocations immutably)
         let sm = self.function_context.spill_manager.as_mut().unwrap();
         let victim_id = sm.lru_victim().expect("No values available to spill");
         let offset = sm.allocate_spill_offset();
