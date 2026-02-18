@@ -78,12 +78,15 @@ fn main() -> Result<(), String> {
 /// Tests expected to fail with `--force-brillig --max-stack-frame-size 64`
 /// because they need register spilling (not yet implemented).
 /// Remove tests from this list as spilling is implemented.
-const IGNORED_BRILLIG_SMALL_STACK_TESTS: [&str; 5] = [
+const IGNORED_BRILLIG_SMALL_STACK_TESTS: [&str; 4] = [
+    // TODO: Enabling this would require an indirect call convention. We are returning more args than allowed in the stack.
+    // To enable this code we would need to pass/return call args through a pointer.
     "brillig_block_parameter_liveness",
+    // These tests rely on specific inliner settings, while we only run
+    // the small stack tests with the default maximally aggressive inliner.
     "reference_counts_inliner_0",
     "reference_counts_inliner_min",
     "reference_counts_vectors_inliner_0",
-    "regression_5252",
 ];
 
 /// Some tests are explicitly ignored in brillig due to them failing.

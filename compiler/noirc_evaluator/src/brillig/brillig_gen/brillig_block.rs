@@ -317,34 +317,46 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
             let var = *self.function_context.ssa_value_allocations.get(&value_id).unwrap();
 
-            // Allocate permanent slot on first encounter (value is in a register)
             let sm = self.function_context.spill_manager.as_mut().unwrap();
-            let offset = if let Some(off) = sm.get_permanent_spill_offset(&value_id) {
-                off
+            if let Some(off) = sm.get_permanent_spill_offset(&value_id) {
+                // Value already has a permanent spill slot from a previous block.
+                // The slot contains valid data (SSA values are immutable), so we
+                // just need to re-mark it as spilled. No store or register
+                // deallocation needed — the register may already be freed if the
+                // value was reloaded and then died in this block.
+                sm.record_spill(value_id, off, var);
             } else {
+                // First encounter: allocate a permanent slot and store the value.
                 let off = sm.allocate_spill_offset();
                 sm.record_permanent_spill(value_id, off, var);
-                off
-            };
 
-            // 4-instruction store via scratch registers
-            let source_reg = var.extract_register();
-            let (scratch_addr, scratch_offset) = ReservedRegisters::spill_scratch();
-            self.brillig_context
-                .mov_instruction(scratch_addr, ReservedRegisters::spill_base_slot());
-            self.brillig_context
-                .const_instruction(SingleAddrVariable::new_usize(scratch_offset), offset.into());
-            self.brillig_context.memory_op_instruction(
-                scratch_addr,
-                scratch_offset,
-                scratch_addr,
-                BrilligBinaryOp::Add,
-            );
-            self.brillig_context.store_instruction(scratch_addr, source_reg);
+                // 4-instruction store via scratch registers
+                let source_reg = var.extract_register();
+                let (scratch_addr, scratch_offset) = ReservedRegisters::spill_scratch();
+                self.brillig_context
+                    .mov_instruction(scratch_addr, ReservedRegisters::spill_base_slot());
+                self.brillig_context
+                    .const_instruction(SingleAddrVariable::new_usize(scratch_offset), off.into());
+                self.brillig_context.memory_op_instruction(
+                    scratch_addr,
+                    scratch_offset,
+                    scratch_addr,
+                    BrilligBinaryOp::Add,
+                );
+                self.brillig_context.store_instruction(scratch_addr, source_reg);
 
-            self.function_context.did_spill = true;
-            self.function_context.max_spill_offset =
-                self.function_context.max_spill_offset.max(offset + 1);
+                // Free the register: the value is now safely in the spill slot.
+                // Without this, the register stays allocated but the value is marked
+                // as spilled — `lru_victim()` can't reclaim it, creating "phantom"
+                // allocations that exhaust the register file.
+                // If the value is needed later (e.g., as a Jmp argument),
+                // `convert_ssa_value` will see it's spilled and reload on demand.
+                self.brillig_context.deallocate_register(source_reg);
+
+                self.function_context.did_spill = true;
+                self.function_context.max_spill_offset =
+                    self.function_context.max_spill_offset.max(off + 1);
+            }
         }
     }
 
