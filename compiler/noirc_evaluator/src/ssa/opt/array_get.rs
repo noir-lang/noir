@@ -126,10 +126,11 @@ impl Function {
                     };
                     let array = *array;
                     let index = *index;
-                    let mode = ArrayGetOptimizationMode::ArrayGetOptimization {
-                        side_effects_var: context.enable_side_effects,
-                        array_set_predicates: &array_set_predicates,
-                    };
+                    let mode =
+                        ArrayGetOptimizationMode::ArrayGetOptimization(&ArrayGetOptimizationData {
+                            side_effects_var: context.enable_side_effects,
+                            array_set_predicates: &array_set_predicates,
+                        });
                     let Some(result) = try_optimize_array_get_from_previous_instructions(
                         array,
                         index_field,
@@ -178,17 +179,14 @@ pub(crate) enum ArrayGetOptimizationMode<'a> {
     /// the value of `array_set` instructions with the same index as the `array_get` to optimize
     /// cannot be used becasue the side effects var being applied to that `array_set` is unknown.
     Simplify,
-    /// In "value merger" mode, to be used by [`crate::ssa::ir::dfg::simplify::value_merger::ValueMerger`],
-    /// the value of the first `array_set` instructions with the same index as the `array_get` to
-    /// optimize can be used because `ValueMerger` makes sure to multiply the fetched value by the
-    /// side effects var the `array_set` is under.
-    ValueMerger,
     /// The "array get optimization" mode is used by the [`array_get`][self] optimization where
     /// side effect vars associated to each `array_set` are tracked.
-    ArrayGetOptimization {
-        side_effects_var: ValueId,
-        array_set_predicates: &'a HashMap<InstructionId, ValueId>,
-    },
+    ArrayGetOptimization(&'a ArrayGetOptimizationData<'a>),
+}
+
+pub(crate) struct ArrayGetOptimizationData<'a> {
+    pub(crate) side_effects_var: ValueId,
+    pub(crate) array_set_predicates: &'a HashMap<InstructionId, ValueId>,
 }
 
 /// Tries to replace an `array_get` instructions with values from previous instructions.
@@ -203,7 +201,7 @@ pub(crate) fn try_optimize_array_get_from_previous_instructions(
 
     // Arbitrary number of maximum tries just to prevent this optimization from taking too long.
     let max_tries = 5;
-    for try_number in 0..max_tries {
+    for _ in 0..max_tries {
         if let Some((instruction, other_instruction_id)) =
             dfg.get_local_or_global_instruction_with_id(array_id)
         {
@@ -219,25 +217,17 @@ pub(crate) fn try_optimize_array_get_from_previous_instructions(
                                     // might not be the correct one in the end.
                                     return None;
                                 }
-                                ArrayGetOptimizationMode::ValueMerger => {
-                                    // If it's an array_set with the same index, we can reuse the value at
-                                    // the index regardless of the predicate, because we'll later multiply
-                                    // but its associated predicate. However, we only do this in this first
-                                    // iteration of the loop: successive iterations might be modifying under
-                                    // a different predicate.
-                                    if try_number != 0 {
-                                        return None;
-                                    }
-                                }
-                                ArrayGetOptimizationMode::ArrayGetOptimization {
-                                    side_effects_var,
-                                    array_set_predicates,
-                                } => {
+                                ArrayGetOptimizationMode::ArrayGetOptimization(
+                                    ArrayGetOptimizationData {
+                                        side_effects_var,
+                                        array_set_predicates,
+                                    },
+                                ) => {
                                     // If there's an array_set with the same index as the array_get, we
                                     // can only apply this optimization if they are under the same predicate.
                                     if array_set_predicates
                                         .get(&other_instruction_id)
-                                        .is_none_or(|predicate| predicate != &side_effects_var)
+                                        .is_none_or(|predicate| predicate != side_effects_var)
                                     {
                                         return None;
                                     }

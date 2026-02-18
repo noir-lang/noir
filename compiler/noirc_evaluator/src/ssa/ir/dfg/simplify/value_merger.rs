@@ -17,7 +17,7 @@ use crate::{
             value::ValueId,
         },
         opt::{
-            ArrayGetOptimizationMode, ArrayGetOptimizationResult,
+            ArrayGetOptimizationData, ArrayGetOptimizationMode, ArrayGetOptimizationResult,
             try_optimize_array_get_from_previous_instructions,
         },
     },
@@ -32,6 +32,8 @@ pub(crate) struct ValueMerger<'a> {
     vector_sizes: &'a HashMap<ValueId, SemanticLength>,
 
     call_stack: CallStackId,
+
+    array_get_optimization_data: Option<ArrayGetOptimizationData<'a>>,
 }
 
 impl<'a> ValueMerger<'a> {
@@ -40,8 +42,9 @@ impl<'a> ValueMerger<'a> {
         block: BasicBlockId,
         vector_sizes: &'a HashMap<ValueId, SemanticLength>,
         call_stack: CallStackId,
+        array_get_optimization_data: Option<ArrayGetOptimizationData<'a>>,
     ) -> Self {
-        ValueMerger { dfg, block, vector_sizes, call_stack }
+        ValueMerger { dfg, block, vector_sizes, call_stack, array_get_optimization_data }
     }
 
     /// Choose a call stack to return with the [RuntimeError].
@@ -181,15 +184,7 @@ impl<'a> ValueMerger<'a> {
                 let typevars = Some(vec![element_type.clone()]);
 
                 let mut get_element = |array, typevars| {
-                    maybe_optimized_array_get(
-                        array,
-                        index,
-                        index_value,
-                        self.block,
-                        typevars,
-                        self.call_stack,
-                        self.dfg,
-                    )
+                    self.maybe_optimized_array_get(array, index, index_value, typevars)
                 };
 
                 let then_element = get_element(then_value, typevars.clone());
@@ -250,15 +245,7 @@ impl<'a> ValueMerger<'a> {
                 let mut get_element = |array, typevars, len: SemiFlattenedLength| {
                     assert!(index_u32 < len.0, "get_element invoked with an out of bounds index");
 
-                    maybe_optimized_array_get(
-                        array,
-                        index,
-                        index_value,
-                        self.block,
-                        typevars,
-                        self.call_stack,
-                        self.dfg,
-                    )
+                    self.maybe_optimized_array_get(array, index, index_value, typevars)
                 };
 
                 // If it's out of bounds for the "then" vector, a value in the "else" *must* exist.
@@ -296,27 +283,33 @@ impl<'a> ValueMerger<'a> {
             self.dfg.insert_instruction_and_results(instruction, self.block, None, call_stack);
         Ok(result.first())
     }
-}
 
-fn maybe_optimized_array_get(
-    array: ValueId,
-    index: ValueId,
-    index_value: FieldElement,
-    block: BasicBlockId,
-    typevars: Option<Vec<Type>>,
-    call_stack: CallStackId,
-    dfg: &mut DataFlowGraph,
-) -> ValueId {
-    let mode = ArrayGetOptimizationMode::ValueMerger;
-    match try_optimize_array_get_from_previous_instructions(array, index_value, dfg, mode) {
-        Some(ArrayGetOptimizationResult::Value(value)) => value,
-        Some(ArrayGetOptimizationResult::ArrayGet(array)) => {
-            let get = Instruction::ArrayGet { array, index };
-            dfg.insert_instruction_and_results(get, block, typevars, call_stack).first()
-        }
-        None => {
-            let get = Instruction::ArrayGet { array, index };
-            dfg.insert_instruction_and_results(get, block, typevars, call_stack).first()
+    fn maybe_optimized_array_get(
+        &mut self,
+        array: ValueId,
+        index: ValueId,
+        index_value: FieldElement,
+        typevars: Option<Vec<Type>>,
+    ) -> ValueId {
+        let mode = match &self.array_get_optimization_data {
+            Some(data) => ArrayGetOptimizationMode::ArrayGetOptimization(data),
+            None => ArrayGetOptimizationMode::Simplify,
+        };
+        match try_optimize_array_get_from_previous_instructions(array, index_value, self.dfg, mode)
+        {
+            Some(ArrayGetOptimizationResult::Value(value)) => value,
+            Some(ArrayGetOptimizationResult::ArrayGet(array)) => {
+                let get = Instruction::ArrayGet { array, index };
+                self.dfg
+                    .insert_instruction_and_results(get, self.block, typevars, self.call_stack)
+                    .first()
+            }
+            None => {
+                let get = Instruction::ArrayGet { array, index };
+                self.dfg
+                    .insert_instruction_and_results(get, self.block, typevars, self.call_stack)
+                    .first()
+            }
         }
     }
 }

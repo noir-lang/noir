@@ -108,6 +108,7 @@ use crate::errors::RtResult;
 
 use crate::ssa::ir::dfg::simplify::value_merger::ValueMerger;
 use crate::ssa::ir::types::NumericType;
+use crate::ssa::opt::ArrayGetOptimizationData;
 use crate::ssa::opt::simple_optimization::SimpleOptimizationContext;
 use crate::ssa::{
     Ssa,
@@ -188,6 +189,9 @@ impl Context {
             return Ok(());
         }
 
+        // Keeps track of side effect vars associated to each `array_set` instruction.
+        let mut array_set_predicates = std::collections::HashMap::new();
+
         function.simple_optimization_result(|context| {
             let instruction_id = context.instruction_id;
             let instruction = context.instruction();
@@ -222,8 +226,17 @@ impl Context {
                     }
 
                     let call_stack = context.dfg.get_instruction_call_stack_id(instruction_id);
-                    let mut value_merger =
-                        ValueMerger::new(context.dfg, block, &self.vector_sizes, call_stack);
+                    let array_get_optimization_data = Some(ArrayGetOptimizationData {
+                        side_effects_var: context.enable_side_effects,
+                        array_set_predicates: &array_set_predicates,
+                    });
+                    let mut value_merger = ValueMerger::new(
+                        context.dfg,
+                        block,
+                        &self.vector_sizes,
+                        call_stack,
+                        array_get_optimization_data,
+                    );
 
                     let value = value_merger.merge_values(
                         then_condition,
@@ -260,6 +273,8 @@ impl Context {
                 }
                 // Track vector sizes through array set instructions
                 Instruction::ArraySet { array, .. } => {
+                    array_set_predicates.insert(instruction_id, context.enable_side_effects);
+
                     let [result] = context.dfg.instruction_result(instruction_id);
                     self.set_capacity(context.dfg, *array, result, |c| c);
                 }
