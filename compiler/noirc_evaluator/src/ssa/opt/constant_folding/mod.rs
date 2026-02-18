@@ -130,17 +130,20 @@ impl Function {
     ) {
         let loops = Loops::find_all(self, LoopOrder::OutsideIn);
 
-        // Identify loop headers, so we don't hoist into them, except if they already
-        // contain extra instructions, in which case hoisting into their dominator
-        // might push an instruction before some value it actually relies on.
+        // Identify loop headers, so we can try to avoid hoisting into them.
         let loop_headers = loops
             .yet_to_unroll
             .into_iter()
-            .filter_map(|loop_| {
-                let is_multi_instruction = self.dfg[loop_.header].instructions().len() > 1;
-                (!is_multi_instruction).then_some(loop_.header)
+            .map(|loop_| {
+                let values_defined_in_header = self.dfg[loop_.header]
+                    .instructions()
+                    .iter()
+                    .flat_map(|id| self.dfg.instruction_results(*id))
+                    .cloned()
+                    .collect::<HashSet<_>>();
+                (loop_.header, values_defined_in_header)
             })
-            .collect::<HashSet<_>>();
+            .collect::<HashMap<_, _>>();
 
         let mut dom = loops.dom;
         let mut context = Context::new(use_constraint_info);
@@ -264,7 +267,7 @@ impl Context {
         &mut self,
         dfg: &mut DataFlowGraph,
         dom: &mut DominatorTree,
-        loop_headers: &HashSet<BasicBlockId>,
+        loop_headers: &HashMap<BasicBlockId, HashSet<ValueId>>,
         block_id: BasicBlockId,
         interpreter: &mut Option<Interpreter<Empty>>,
     ) {
@@ -318,7 +321,7 @@ impl Context {
         &mut self,
         dfg: &mut DataFlowGraph,
         dom: &mut DominatorTree,
-        loop_headers: &HashSet<BasicBlockId>,
+        loop_headers: &HashMap<BasicBlockId, HashSet<ValueId>>,
         block: BasicBlockId,
         id: InstructionId,
         side_effects_enabled_var: &mut ValueId,
@@ -366,11 +369,28 @@ impl Context {
                 }
                 CacheResult::NeedToHoistToCommonBlock { mut dominator } => {
                     // If the common dominator of a the block and the cache origin is a loop header,
-                    // then go further back in the dominator tree, because the functions in the unrolling
+                    // then try to go further back in the dominator tree, because the functions in the `unrolling`
                     // module have certain assumptions about what instructions can appear in a loop header;
                     // if we hoisted any instruction into them, they might break in subtle ways.
                     // The header is also something that gets executed in each iteration, unlike its pre-header.
-                    while loop_headers.contains(&dominator) {
+                    while let Some(values_defined_in_header) = loop_headers.get(&dominator) {
+                        // If the header is that of a `for` loop (either with constant or dynamic bounds), then we can
+                        // expect it to have at most 1 instruction to compare the induction variable to the upper bound.
+                        // Crucially the comparison result is a product of codegen and won't appear anywhere else in the SSA.
+                        // If the loop is a `while` loop, however, then its loaded condition variable can be used in its body,
+                        // so we cannot necessarily hoist an instruction above its header. We may be using the loop variable
+                        // of the `for` loop itself multiple time, but that usually has the first block body hoist into.
+                        let mut uses_value_defined_in_header = false;
+                        // It's enough to consider values defined immediately in the header: if we are hoisting into it already,
+                        // we cannot be using anything from any block between the origin and the header.
+                        instruction.for_each_value(|v| {
+                            uses_value_defined_in_header |= values_defined_in_header.contains(&v);
+                        });
+                        // If we use a value from the header, we cannot hoist into the pre-header.
+                        if uses_value_defined_in_header {
+                            break;
+                        }
+                        // It should be okay to hoist into the pre-header, if there is one.
                         if let Some(predecessor) = dom.immediate_dominator(dominator) {
                             dominator = predecessor;
                         } else {
@@ -1615,8 +1635,9 @@ mod tests {
         "#;
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants(DEFAULT_MAX_ITER);
+        let ssa = ssa.fold_constants(2);
 
+        // ORIGINAL DESCRIPTION:
         // In the 2nd iteration we will restart from b2, which we hoisted into,
         // and revisit b3, b4 and b5, then its successor b1, which will see the
         // make_array now exists in b2.
@@ -1625,6 +1646,10 @@ mod tests {
         // could actually deduplicate the one in b2 with that in b1, but currently
         // we decided we won't be rescheduling a visit to b1, so b2 is not visited
         // again to see this opportunity.
+        //
+        // UPDATE: After the tweak to avoid hoisting into headers, we hoist into b0
+        // instead of b1, and if we allow more than 2 iterations than it gets
+        // deduplicated with b2 as well.
 
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) predicate_pure fn main f0 {
@@ -1632,9 +1657,10 @@ mod tests {
             v3 = make_array [u8 0] : [u8; 1]
             v4 = allocate -> &mut [u8; 1]
             store v3 at v4
+            v5 = make_array [u8 0] : [u8; 1]
             jmp b1(u32 0)
           b1(v1: u32):
-            v6 = make_array [u8 0] : [u8; 1]
+            inc_rc v5
             v8 = make_array [u8 1] : [u8; 1]
             v10 = lt v1, u32 5
             jmpif v10 then: b2, else: b6
@@ -2834,13 +2860,14 @@ mod tests {
             v5 = make_array [u8 0] : [u8; 1]
             v6 = allocate -> &mut [u8; 1]
             store v5 at v6
+            v7 = make_array [u8 0] : [u8; 1]
             jmp b1(u32 0)
           b1(v0: u32):
-            v8 = eq v0, u32 0
-            v9 = make_array [u8 0] : [u8; 1]
-            jmpif v8 then: b2, else: b3
+            v9 = eq v0, u32 0
+            inc_rc v7
+            jmpif v9 then: b2, else: b3
           b2():
-            v18 = make_array [v9] : [[u8; 1]; 1]
+            v18 = make_array [v7] : [[u8; 1]; 1]
             v19 = allocate -> &mut [[u8; 1]; 1]
             store v18 at v19
             v20 = load v6 -> [u8; 1]
@@ -2848,7 +2875,7 @@ mod tests {
             jmp b8(u32 0)
           b3():
             v10 = allocate -> &mut [u8; 1]
-            store v9 at v10
+            store v7 at v10
             jmp b4(u32 0)
           b4(v1: u32):
             v11 = make_array [u8 0] : [u8; 1]
@@ -2879,7 +2906,7 @@ mod tests {
     }
 
     #[test]
-    fn does_not_hoist_into_loop_header() {
+    fn does_not_hoist_into_for_loop_header() {
         // An example of an `..=` inclusive loop, which has its body repeated as a follow up block,
         // which is an opportunity to hoist duplicate instructions into a common dominator.
         let src = r#"
@@ -2950,5 +2977,55 @@ mod tests {
             return
         }
         "#);
+    }
+
+    #[test]
+    fn may_hoist_into_while_loop_header() {
+        // Here b1 is a header of a `while` loop, and its condition
+        // v3 is used in both b2 and b3 to define a `not v3` variable.
+        // That can be hoisted as a duplicate, but only into b1 itself,
+        // not its pre-header b0, because v3 is not available there.
+        let src = r#"
+        brillig(inline) impure fn main f0 {
+          b0(v1: u1):
+            v2 = allocate -> &mut u1
+            store v1 at v2
+            jmp b1()
+          b1():
+            v3 = load v2 -> u1
+            jmpif v3 then: b2, else: b3
+          b2():
+            v4 = not v3
+            jmp b4(v4)
+          b3():
+            v5 = not v3
+            jmp b4(v5)
+          b4(v6: u1):
+            store v6 at v2
+            jmp b1()
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants_with_brillig(DEFAULT_MAX_ITER);
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) impure fn main f0 {
+          b0(v0: u1):
+            v2 = allocate -> &mut u1
+            store v0 at v2
+            jmp b1()
+          b1():
+            v3 = load v2 -> u1
+            v4 = not v3
+            jmpif v3 then: b2, else: b3
+          b2():
+            jmp b4(v4)
+          b3():
+            jmp b4(v4)
+          b4(v1: u1):
+            store v1 at v2
+            jmp b1()
+        }
+        ");
     }
 }
