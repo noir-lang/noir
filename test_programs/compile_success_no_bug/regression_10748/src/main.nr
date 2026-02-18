@@ -13,7 +13,7 @@ impl<Context> StateVariable<Context> for PublicImmutable<Context> {
 }
 
 pub comptime fn storage(s: TypeDefinition) -> Quoted {
-    let (name, typ, _) = s.fields_as_written()[0];
+    let (_name, typ, _) = s.fields_as_written()[0];
 
     let context = std::meta::typ::fresh_type_variable();
     assert(
@@ -34,6 +34,9 @@ struct Storage<Context> {
 struct PrivateContext {}
 
 fn main() {
-    let context: PrivateContext = PrivateContext {};
-    let s = Storage::init(context);
+    let _storage = Storage {
+        symbol: PublicImmutable {
+            context: PrivateContext {},
+        },
+    };
 }
