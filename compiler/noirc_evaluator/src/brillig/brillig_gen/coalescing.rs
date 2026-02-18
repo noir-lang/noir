@@ -6,6 +6,7 @@
 //! parameter's register, eliminating the mov at the jmp site.
 
 use crate::ssa::ir::{
+    cfg::ControlFlowGraph,
     function::Function,
     instruction::TerminatorInstruction,
     value::{Value, ValueId},
@@ -30,6 +31,7 @@ impl CoalescingMap {
     /// the defining instruction.
     pub(crate) fn from_function(func: &Function, liveness: &VariableLiveness) -> Self {
         let mut coalesced = HashMap::default();
+        let cfg = liveness.cfg();
 
         for block_id in func.reachable_blocks() {
             let block = &func.dfg[block_id];
@@ -43,6 +45,7 @@ impl CoalescingMap {
 
             let dest_block = &func.dfg[*destination];
             let params = dest_block.parameters();
+            let dest_live_in = liveness.get_live_in(destination);
 
             for (arg, param) in arguments.iter().zip(params.iter()) {
                 if arg == param {
@@ -69,6 +72,15 @@ impl CoalescingMap {
                 else {
                     continue;
                 };
+
+                // If arg is live-in to the destination block and the destination has
+                // other predecessors, we must not coalesce. When the destination is a
+                // loop header (or merge point), other predecessors will write different
+                // values to param's register on subsequent iterations, destroying arg's
+                // value while it is still needed.
+                if dest_live_in.contains(arg) && cfg.predecessors(*destination).count() > 1 {
+                    continue;
+                }
 
                 let live_in = liveness.get_live_in(&block_id);
 
@@ -214,6 +226,35 @@ mod tests {
         // b2 is block index 2, arg index 0
         let (coalescing, arg, _param) = get_jmp_coalescing(src, 2, 0);
         assert!(!coalescing.is_coalesced(&arg));
+    }
+
+    #[test]
+    fn does_not_coalesce_when_arg_live_across_loop() {
+        // v2 is computed in b0 and passed as arg to b1's param v3.
+        // v2 is also used in b2 (inside the loop body), so it is live-in to b1.
+        // Since b1 has two predecessors (b0 and b2), the back-edge from b2
+        // would overwrite v3's register with a different value, destroying v2.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            v2 = add v0, v1
+            jmp b1(v2)
+          b1(v3: u32):
+            v4 = lt v3, v0
+            jmpif v4 then: b2, else: b3
+          b2():
+            v5 = add v3, v2
+            jmp b1(v5)
+          b3():
+            return v3
+        }
+        ";
+        // b0 is block index 0 (RPO), arg index 0 — v2 -> v3
+        let (coalescing, arg, _param) = get_jmp_coalescing(src, 0, 0);
+        assert!(
+            !coalescing.is_coalesced(&arg),
+            "v2 should not be coalesced with v3: v2 is live across the b1 loop"
+        );
     }
 
     #[test]
