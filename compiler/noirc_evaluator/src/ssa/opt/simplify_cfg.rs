@@ -65,7 +65,7 @@ impl Function {
             // to the stack.
             let simplified = simplify_current_block(self, block, &mut cfg, &mut values_to_replace);
 
-            if visited.insert(block) {
+            if visited.insert(block) || simplified {
                 stack.extend(self.dfg[block].successors().filter(|block| !visited.contains(block)));
             }
 
@@ -1180,6 +1180,57 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn test f0 {
           b0():
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn explores_new_successors_after_simplifying_revisited_block() {
+        // Regression: when a re-visited block was simplified (e.g. a converging jmpif was
+        // folded and the successor inlined, giving the block a new terminator with new
+        // successors), those new successors were not pushed to the stack because
+        // `visited.insert(block)` returned false. This left downstream constant jmpifs
+        // unreached and unfolded.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1, else: b2
+          b1():
+            jmp b6()
+          b2():
+            jmpif v0 then: b3, else: b4
+          b3():
+            jmp b5()
+          b4():
+            jmp b5()
+          b5():
+            jmp b6()
+          b6():
+            jmpif v0 then: b7, else: b8
+          b7():
+            jmp b12()
+          b8():
+            jmpif v0 then: b9, else: b10
+          b9():
+            jmp b11()
+          b10():
+            jmp b11()
+          b11():
+            jmp b12()
+          b12():
+            jmpif u1 1 then: b13, else: b13
+          b13():
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.simplify_cfg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
             return
         }
         ");
