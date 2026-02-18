@@ -173,7 +173,7 @@ pub(crate) fn evaluate_binary_int_op<F: AcirField>(
         BinaryIntOp::Shl | BinaryIntOp::Shr => match (lhs, rhs, bit_size) {
             (MemoryValue::U1(lhs), MemoryValue::U1(rhs), IntegerBitSize::U1) => {
                 if rhs {
-                    Err(BrilligArithmeticError::BitshiftOverflow { bit_size: 1, shift_size: 1 })
+                    Ok(MemoryValue::U1(false))
                 } else {
                     Ok(MemoryValue::U1(lhs))
                 }
@@ -264,14 +264,6 @@ fn evaluate_binary_int_op_shifts<
     lhs: T,
     rhs: T,
 ) -> Result<T, BrilligArithmeticError> {
-    let bit_size = 8 * size_of::<T>();
-    let rhs_usize: usize = rhs.to_usize().expect("Could not convert rhs to usize");
-    if rhs_usize >= bit_size {
-        return Err(BrilligArithmeticError::BitshiftOverflow {
-            bit_size: bit_size as u32,
-            shift_size: rhs.into(),
-        });
-    }
     match op {
         BinaryIntOp::Shl => Ok(lhs << rhs),
         BinaryIntOp::Shr => Ok(lhs >> rhs),
