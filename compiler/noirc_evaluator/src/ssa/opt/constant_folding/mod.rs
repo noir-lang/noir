@@ -15,7 +15,7 @@
 //! This is the only pass which removes duplicated pure [`Instruction`]s however and so is needed when
 //! different blocks are merged, i.e. after the [`flatten_cfg`][super::flatten_cfg] pass.
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::{BTreeMap, BTreeSet, HashSet},
     io::Empty,
 };
 
@@ -33,7 +33,7 @@ use crate::ssa::{
         types::NumericType,
         value::{Value, ValueId, ValueMapping},
     },
-    opt::pure::Purity,
+    opt::{LoopOrder, Loops, pure::Purity},
     ssa_gen::Ssa,
     visit_once_priority_queue::VisitOncePriorityQueue,
 };
@@ -128,14 +128,37 @@ impl Function {
         max_iter: usize,
         interpreter: &mut Option<Interpreter<Empty>>,
     ) {
-        let mut dom = DominatorTree::with_function(self);
+        let loops = Loops::find_all(self, LoopOrder::OutsideIn);
+
+        // Identify loop headers, so we can try to avoid hoisting into them.
+        let loop_headers = loops
+            .yet_to_unroll
+            .into_iter()
+            .map(|loop_| {
+                let values_defined_in_header = self.dfg[loop_.header]
+                    .instructions()
+                    .iter()
+                    .flat_map(|id| self.dfg.instruction_results(*id))
+                    .cloned()
+                    .collect::<HashSet<_>>();
+                (loop_.header, values_defined_in_header)
+            })
+            .collect::<HashMap<_, _>>();
+
+        let mut dom = loops.dom;
         let mut context = Context::new(use_constraint_info);
 
         context.enqueue(&dom, [self.entry_block()]);
 
         for _ in 0..max_iter {
             while let Some(block) = context.block_queue.pop_front() {
-                context.fold_constants_in_block(&mut self.dfg, &mut dom, block, interpreter);
+                context.fold_constants_in_block(
+                    &mut self.dfg,
+                    &mut dom,
+                    &loop_headers,
+                    block,
+                    interpreter,
+                );
                 context.enqueue(&dom, self.dfg[block].successors());
             }
 
@@ -244,6 +267,7 @@ impl Context {
         &mut self,
         dfg: &mut DataFlowGraph,
         dom: &mut DominatorTree,
+        loop_headers: &HashMap<BasicBlockId, HashSet<ValueId>>,
         block_id: BasicBlockId,
         interpreter: &mut Option<Interpreter<Empty>>,
     ) {
@@ -261,6 +285,7 @@ impl Context {
             self.fold_constants_into_instruction(
                 dfg,
                 dom,
+                loop_headers,
                 block_id,
                 instruction_id,
                 &mut side_effects_enabled_var,
@@ -291,10 +316,12 @@ impl Context {
         dfg.data_bus.map_values_mut(resolve_cache);
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn fold_constants_into_instruction(
         &mut self,
         dfg: &mut DataFlowGraph,
         dom: &mut DominatorTree,
+        loop_headers: &HashMap<BasicBlockId, HashSet<ValueId>>,
         block: BasicBlockId,
         id: InstructionId,
         side_effects_enabled_var: &mut ValueId,
@@ -340,7 +367,37 @@ impl Context {
                         return;
                     }
                 }
-                CacheResult::NeedToHoistToCommonBlock { dominator } => {
+                CacheResult::NeedToHoistToCommonBlock { mut dominator } => {
+                    // If the common dominator of a the block and the cache origin is a loop header,
+                    // then try to go further back in the dominator tree, because the functions in the `unrolling`
+                    // module have certain assumptions about what instructions can appear in a loop header;
+                    // if we hoisted any instruction into them, they might break in subtle ways.
+                    // The header is also something that gets executed in each iteration, unlike its pre-header.
+                    while let Some(values_defined_in_header) = loop_headers.get(&dominator) {
+                        // If the header is that of a `for` loop (either with constant or dynamic bounds), then we can
+                        // expect it to have at most 1 instruction to compare the induction variable to the upper bound.
+                        // Crucially the comparison result is a product of codegen and won't appear anywhere else in the SSA.
+                        // If the loop is a `while` loop, however, then its loaded condition variable can be used in its body,
+                        // so we cannot necessarily hoist an instruction above its header. We may be using the loop variable
+                        // of a `for` loop itself multiple times, but that usually has the first block of the body to hoist into.
+                        let mut uses_value_defined_in_header = false;
+                        // It's enough to consider values defined immediately in the header: if we are hoisting into it already,
+                        // we cannot be using anything from any block between the origin and the header.
+                        instruction.for_each_value(|v| {
+                            uses_value_defined_in_header |= values_defined_in_header.contains(&v);
+                        });
+                        // If we use a value from the header, we cannot hoist into the pre-header.
+                        if uses_value_defined_in_header {
+                            break;
+                        }
+                        // It should be okay to hoist into the pre-header, if there is one.
+                        if let Some(predecessor) = dom.immediate_dominator(dominator) {
+                            dominator = predecessor;
+                        } else {
+                            break;
+                        }
+                    }
+
                     // During revisits we can visit a block which dominates something we already cached instructions from,
                     // if we restarted from a hoist point that this block also dominates. Most likely it is pointless to
                     // schedule a revisit of *this* block after again, because something must have prevented this instruction
@@ -1578,8 +1635,9 @@ mod tests {
         "#;
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants(DEFAULT_MAX_ITER);
+        let ssa = ssa.fold_constants(2);
 
+        // ORIGINAL DESCRIPTION:
         // In the 2nd iteration we will restart from b2, which we hoisted into,
         // and revisit b3, b4 and b5, then its successor b1, which will see the
         // make_array now exists in b2.
@@ -1588,6 +1646,10 @@ mod tests {
         // could actually deduplicate the one in b2 with that in b1, but currently
         // we decided we won't be rescheduling a visit to b1, so b2 is not visited
         // again to see this opportunity.
+        //
+        // UPDATE: After the tweak to avoid hoisting into headers, we hoist into b0
+        // instead of b1, and if we allow more than 2 iterations than it gets
+        // deduplicated with b2 as well.
 
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) predicate_pure fn main f0 {
@@ -1595,9 +1657,10 @@ mod tests {
             v3 = make_array [u8 0] : [u8; 1]
             v4 = allocate -> &mut [u8; 1]
             store v3 at v4
+            v5 = make_array [u8 0] : [u8; 1]
             jmp b1(u32 0)
           b1(v1: u32):
-            v6 = make_array [u8 0] : [u8; 1]
+            inc_rc v5
             v8 = make_array [u8 1] : [u8; 1]
             v10 = lt v1, u32 5
             jmpif v10 then: b2, else: b6
@@ -2797,30 +2860,31 @@ mod tests {
             v5 = make_array [u8 0] : [u8; 1]
             v6 = allocate -> &mut [u8; 1]
             store v5 at v6
+            v7 = make_array [u8 0] : [u8; 1]
             jmp b1(u32 0)
           b1(v0: u32):
-            v8 = eq v0, u32 0
-            v9 = make_array [u8 0] : [u8; 1]
-            inc_rc v9
-            jmpif v8 then: b2, else: b3
+            v9 = eq v0, u32 0
+            inc_rc v7
+            jmpif v9 then: b2, else: b3
           b2():
-            v18 = make_array [v9] : [[u8; 1]; 1]
+            v18 = make_array [v7] : [[u8; 1]; 1]
             v19 = allocate -> &mut [[u8; 1]; 1]
             store v18 at v19
             v20 = load v6 -> [u8; 1]
+            v21 = array_get v20, index u32 0 -> u8
             jmp b8(u32 0)
           b3():
             v10 = allocate -> &mut [u8; 1]
-            store v9 at v10
+            store v7 at v10
             jmp b4(u32 0)
           b4(v1: u32):
             v11 = make_array [u8 0] : [u8; 1]
             v12 = load v10 -> [u8; 1]
+            v13 = array_get v12, index u32 0 -> u8
             jmp b5(u32 0)
           b5(v2: u32):
-            v13 = eq v2, u32 0
-            v14 = array_get v12, index u32 0 -> u8
-            jmpif v13 then: b6, else: b7
+            v14 = eq v2, u32 0
+            jmpif v14 then: b6, else: b7
           b6():
             v17 = unchecked_add v2, u32 1
             jmp b5(v17)
@@ -2828,16 +2892,139 @@ mod tests {
             v16 = unchecked_add v1, u32 1
             jmp b4(v16)
           b8(v3: u32):
-            v21 = eq v3, u32 0
-            v22 = array_get v20, index u32 0 -> u8
-            jmpif v21 then: b9, else: b10
+            v22 = eq v3, u32 0
+            jmpif v22 then: b9, else: b10
           b9():
-            v24 = unchecked_add v3, u32 1
-            jmp b8(v24)
+            v25 = unchecked_add v3, u32 1
+            jmp b8(v25)
           b10():
-            inc_rc v9
-            v23 = unchecked_add v0, u32 1
-            jmp b1(v23)
+            v23 = make_array [u8 0] : [u8; 1]
+            v24 = unchecked_add v0, u32 1
+            jmp b1(v24)
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_hoist_into_for_loop_header() {
+        // An example of an `..=` inclusive loop, which has its body repeated as a follow up block,
+        // which is an opportunity to hoist duplicate instructions into a common dominator.
+        let src = r#"
+        brillig(inline) impure fn main f1 {
+          b0(v0: u1):
+            jmpif v0 then: b1, else: b2
+          b1():
+            jmp b3(u8 1)
+          b2():
+            jmp b3(u8 1)
+          b3(v1: u8):
+            v4 = mod u8 1, v1
+            v5 = allocate -> &mut u1
+            store u1 1 at v5
+            jmp b4(u8 0)
+          b4(v2: u8):
+            v8 = lt v2, v4
+            jmpif v8 then: b5, else: b6
+          b5():
+            v31 = make_array b"{\"kind\":\"unsignedinteger\",\"width\":8}"
+            call print(u1 1, v2, v31, u1 0)
+            v32 = unchecked_add v2, u8 1
+            jmp b4(v32)
+          b6():
+            v9 = load v5 -> u1
+            jmpif v9 then: b7, else: b8
+          b7():
+            v28 = make_array b"{\"kind\":\"unsignedinteger\",\"width\":8}"
+            call print(u1 1, v4, v28, u1 0)
+            jmp b8()
+          b8():
+            return
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants_with_brillig(DEFAULT_MAX_ITER);
+        // The `make_array` should be hoisted into b3, not b4.
+        assert_ssa_snapshot!(ssa, @r#"
+        brillig(inline) impure fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1, else: b2
+          b1():
+            jmp b3(u8 1)
+          b2():
+            jmp b3(u8 1)
+          b3(v1: u8):
+            v4 = mod u8 1, v1
+            v5 = allocate -> &mut u1
+            store u1 1 at v5
+            v25 = make_array b"{\"kind\":\"unsignedinteger\",\"width\":8}"
+            jmp b4(u8 0)
+          b4(v2: u8):
+            v27 = lt v2, v4
+            jmpif v27 then: b5, else: b6
+          b5():
+            inc_rc v25
+            call print(u1 1, v2, v25, u1 0)
+            v31 = unchecked_add v2, u8 1
+            jmp b4(v31)
+          b6():
+            v28 = load v5 -> u1
+            jmpif v28 then: b7, else: b8
+          b7():
+            inc_rc v25
+            call print(u1 1, v4, v25, u1 0)
+            jmp b8()
+          b8():
+            return
+        }
+        "#);
+    }
+
+    #[test]
+    fn may_hoist_into_while_loop_header() {
+        // Here b1 is a header of a `while` loop, and its condition
+        // v3 is used in both b2 and b3 to define a `not v3` variable.
+        // That can be hoisted as a duplicate, but only into b1 itself,
+        // not its pre-header b0, because v3 is not available there.
+        let src = r#"
+        brillig(inline) impure fn main f0 {
+          b0(v1: u1):
+            v2 = allocate -> &mut u1
+            store v1 at v2
+            jmp b1()
+          b1():
+            v3 = load v2 -> u1
+            jmpif v3 then: b2, else: b3
+          b2():
+            v4 = not v3
+            jmp b4(v4)
+          b3():
+            v5 = not v3
+            jmp b4(v5)
+          b4(v6: u1):
+            store v6 at v2
+            jmp b1()
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants_with_brillig(DEFAULT_MAX_ITER);
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) impure fn main f0 {
+          b0(v0: u1):
+            v2 = allocate -> &mut u1
+            store v0 at v2
+            jmp b1()
+          b1():
+            v3 = load v2 -> u1
+            v4 = not v3
+            jmpif v3 then: b2, else: b3
+          b2():
+            jmp b4(v4)
+          b3():
+            jmp b4(v4)
+          b4(v1: u1):
+            store v1 at v2
+            jmp b1()
         }
         ");
     }
