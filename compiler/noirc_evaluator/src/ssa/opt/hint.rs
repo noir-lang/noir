@@ -29,9 +29,16 @@ mod tests {
             max_bytecode_increase_percent: None,
             force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
             skip_passes: Default::default(),
+            ssa_logging_skip_unchanged: false,
         };
 
-        let builder = SsaBuilder::from_ssa(ssa, options.ssa_logging.clone(), false, None);
+        let builder = SsaBuilder::from_ssa(
+            ssa,
+            options.ssa_logging.clone(),
+            options.ssa_logging_skip_unchanged,
+            false,
+            None,
+        );
         Ok(builder.run_passes(&primary_passes(options))?.finish())
     }
 
