@@ -338,7 +338,6 @@ mod tests {
         ";
         // b1 is block index 1, arg 0: v1 (defined in b0, not b1) → v2
         let (coalescing, _arg, param) = get_jmp_coalescing(src, 1, 0);
-        dbg!(param);
         assert!(coalescing.is_coalesced(&param));
     }
 
