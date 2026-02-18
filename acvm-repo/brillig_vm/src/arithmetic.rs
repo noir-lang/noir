@@ -15,8 +15,6 @@ pub(crate) enum BrilligArithmeticError {
     MismatchedLhsBitSize { lhs_bit_size: u32, op_bit_size: u32 },
     #[error("Bit size for rhs {rhs_bit_size} does not match op bit size {op_bit_size}")]
     MismatchedRhsBitSize { rhs_bit_size: u32, op_bit_size: u32 },
-    #[error("Attempted to shift by {shift_size} bits on a type of bit size {bit_size}")]
-    BitshiftOverflow { bit_size: u32, shift_size: u128 },
     #[error("Attempted to divide by zero")]
     DivisionByZero,
 }
@@ -252,18 +250,20 @@ fn evaluate_binary_int_op_cmp<T: Ord + PartialEq>(op: &BinaryIntOp, lhs: T, rhs:
 /// Ensures that shifting beyond the type width returns zero.
 ///
 /// # Returns
-/// - Ok(result) if successful.
-/// - Err([BrilligArithmeticError::DivisionByZero]) if the RHS is not less than the bit size.
+/// - Ok(result)
 ///
 /// # Panics
 /// If an unsupported operator is provided (i.e., not `Shl` or `Shr`).
-fn evaluate_binary_int_op_shifts<
-    T: ToPrimitive + Zero + Shl<Output = T> + Shr<Output = T> + Into<u128>,
->(
+fn evaluate_binary_int_op_shifts<T: ToPrimitive + Zero + Shl<Output = T> + Shr<Output = T>>(
     op: &BinaryIntOp,
     lhs: T,
     rhs: T,
 ) -> Result<T, BrilligArithmeticError> {
+    let bit_size = (size_of::<T>() * 8) as u128;
+    let rhs_val = rhs.to_u128().unwrap();
+    if rhs_val >= bit_size {
+        return Ok(T::zero());
+    }
     match op {
         BinaryIntOp::Shl => Ok(lhs << rhs),
         BinaryIntOp::Shr => Ok(lhs >> rhs),
@@ -530,7 +530,7 @@ mod int_ops {
             vec![TestParams { a: 1, b: 7, result: 128 }, TestParams { a: 5, b: 7, result: 128 }];
 
         evaluate_int_ops(test_ops, BinaryIntOp::Shl, bit_size);
-
+        // Shifting more than bit width returns zero
         assert_eq!(
             evaluate_binary_int_op(
                 &BinaryIntOp::Shl,
@@ -538,7 +538,7 @@ mod int_ops {
                 MemoryValue::<FieldElement>::U8(8u8),
                 IntegerBitSize::U8
             ),
-            Err(BrilligArithmeticError::BitshiftOverflow { bit_size: 8, shift_size: 8 })
+            Ok(MemoryValue::<FieldElement>::U8(0u8))
         );
     }
 
@@ -550,7 +550,7 @@ mod int_ops {
             vec![TestParams { a: 1, b: 0, result: 1 }, TestParams { a: 5, b: 1, result: 2 }];
 
         evaluate_int_ops(test_ops, BinaryIntOp::Shr, bit_size);
-
+        // Shifting more than bit width returns zero
         assert_eq!(
             evaluate_binary_int_op(
                 &BinaryIntOp::Shr,
@@ -558,7 +558,7 @@ mod int_ops {
                 MemoryValue::<FieldElement>::U8(8u8),
                 IntegerBitSize::U8
             ),
-            Err(BrilligArithmeticError::BitshiftOverflow { bit_size: 8, shift_size: 8 })
+            Ok(MemoryValue::<FieldElement>::U8(0u8))
         );
     }
 
