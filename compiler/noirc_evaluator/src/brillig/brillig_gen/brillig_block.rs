@@ -461,8 +461,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 call_stack: _,
             } => {
                 // Store non-param live-ins BEFORE converting the condition to avoid
-                // register overwrites. Both branches' stores execute unconditionally;
-                // extra stores are harmless (SSA immutability).
+                // register overwrites. Both branches' stores execute unconditionally.
+                // Extra stores are harmless.
                 self.spill_non_param_live_ins(*then_destination, dfg);
                 self.spill_non_param_live_ins(*else_destination, dfg);
                 let condition = self.convert_ssa_single_addr_value(*condition, dfg);

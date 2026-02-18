@@ -664,7 +664,7 @@ mod spill_runtime {
     }
 
     /// Cross-block spill in a loop. Frame=10 gives 8 usable slots. In b0, the
-    /// idom also allocates b1's params (v5, v6), so baseline overhead is
+    /// immediate dominator also allocates b1's params (v5, v6), so baseline overhead is
     /// {v0, v1, v5, v6} = 4 of 8. Computing v2..v4 plus constants fills the
     /// frame, and v0 (LRU) gets spilled.
     ///
@@ -762,8 +762,15 @@ mod spill_runtime {
             args.clone(),
         );
         assert_eq!(correct, vec![FieldElement::from(200u64)]);
+        let correct = compile_and_run_with_layout(
+            src,
+            vec![FieldElement::from(3u64)],
+            LayoutConfig::default(),
+            args.clone(),
+        );
+        assert_eq!(correct, vec![FieldElement::from(213u64)]);
 
-        // Frame=6: b1 spills v0, b3 emits reload. Previously broken on b2 path.
+        // Frame=6: b1 spills v0, b3 emits reload.
         let layout = LayoutConfig::new(6, 16, MAX_SCRATCH_SPACE);
         let result = compile_and_run_with_layout(
             src,
@@ -772,6 +779,9 @@ mod spill_runtime {
             args.clone(),
         );
         assert_eq!(result, vec![FieldElement::from(200u64)]);
+        let result =
+            compile_and_run_with_layout(src, vec![FieldElement::from(3u64)], layout, args.clone());
+        assert_eq!(result, vec![FieldElement::from(213u64)]);
     }
 
     /// Verify Jmp argument swaps work correctly through permanent spill slots.
