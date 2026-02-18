@@ -16,6 +16,7 @@ use rustc_hash::FxHashMap as HashMap;
 use super::variable_liveness::VariableLiveness;
 
 /// Maps SSA argument ValueIds to the block parameter ValueId whose register they should reuse.
+#[derive(Default)]
 pub(crate) struct CoalescingMap {
     coalesced: HashMap<ValueId, ValueId>,
 }
@@ -99,14 +100,12 @@ impl CoalescingMap {
 
                 // Also check if param is used in the terminator as an argument (not as a
                 // destination parameter — those are the write side).
-                if !param_used_at_or_after {
-                    if let Some(term) = func.dfg[block_id].terminator() {
-                        term.for_each_value(|v| {
-                            if v == *param {
-                                param_used_at_or_after = true;
-                            }
-                        });
-                    }
+                if !param_used_at_or_after && let Some(term) = func.dfg[block_id].terminator() {
+                    term.for_each_value(|v| {
+                        if v == *param {
+                            param_used_at_or_after = true;
+                        }
+                    });
                 }
 
                 if !param_used_at_or_after {
@@ -126,12 +125,6 @@ impl CoalescingMap {
     /// Check whether `value_id` is a coalesced argument (i.e., shares a register with a parameter).
     pub(crate) fn is_coalesced(&self, value_id: &ValueId) -> bool {
         self.coalesced.contains_key(value_id)
-    }
-}
-
-impl Default for CoalescingMap {
-    fn default() -> Self {
-        Self { coalesced: HashMap::default() }
     }
 }
 
