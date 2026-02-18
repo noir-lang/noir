@@ -592,25 +592,24 @@ mod tests {
             v8 = array_set v5, index u32 1, value u32 3
             v9 = not v0
             enable_side_effects u1 1
-            v11 = array_get v8, index u32 0 -> u32
-            v12 = array_get v1, index u32 0 -> u32
-            v13 = cast v0 as u32
-            v14 = cast v9 as u32
+            v11 = array_get v1, index u32 0 -> u32
+            v12 = cast v0 as u32
+            v13 = cast v9 as u32
+            v14 = unchecked_mul v12, u32 2
             v15 = unchecked_mul v13, v11
-            v16 = unchecked_mul v14, v12
-            v17 = unchecked_add v15, v16
-            v18 = array_get v1, index u32 1 -> u32
-            v19 = cast v0 as u32
-            v20 = cast v9 as u32
-            v21 = unchecked_mul v19, u32 3
-            v22 = unchecked_mul v20, v18
-            v23 = unchecked_add v21, v22
-            v24 = make_array [v17, v23] : [u32; 2]
+            v16 = unchecked_add v14, v15
+            v17 = array_get v1, index u32 1 -> u32
+            v18 = cast v0 as u32
+            v19 = cast v9 as u32
+            v20 = unchecked_mul v18, u32 3
+            v21 = unchecked_mul v19, v17
+            v22 = unchecked_add v20, v21
+            v23 = make_array [v16, v22] : [u32; 2]
             enable_side_effects v0
             enable_side_effects u1 1
-            v25 = add v17, v23
-            v27 = eq v25, u32 5
-            constrain v25 == u32 5
+            v24 = add v16, v22
+            v26 = eq v24, u32 5
+            constrain v24 == u32 5
             return
         }
         ");
@@ -665,25 +664,24 @@ mod tests {
             v8 = array_set v5, index u32 1, value u32 3
             v9 = not v0
             enable_side_effects u1 1
-            v11 = array_get v8, index u32 0 -> u32
-            v12 = array_get v1, index u32 0 -> u32
-            v13 = cast v0 as u32
-            v14 = cast v9 as u32
+            v11 = array_get v1, index u32 0 -> u32
+            v12 = cast v0 as u32
+            v13 = cast v9 as u32
+            v14 = unchecked_mul v12, u32 2
             v15 = unchecked_mul v13, v11
-            v16 = unchecked_mul v14, v12
-            v17 = unchecked_add v15, v16
-            v18 = array_get v1, index u32 1 -> u32
-            v19 = cast v0 as u32
-            v20 = cast v9 as u32
-            v21 = unchecked_mul v19, u32 3
-            v22 = unchecked_mul v20, v18
-            v23 = unchecked_add v21, v22
-            v24 = make_array [v17, v23] : [u32; 2]
+            v16 = unchecked_add v14, v15
+            v17 = array_get v1, index u32 1 -> u32
+            v18 = cast v0 as u32
+            v19 = cast v9 as u32
+            v20 = unchecked_mul v18, u32 3
+            v21 = unchecked_mul v19, v17
+            v22 = unchecked_add v20, v21
+            v23 = make_array [v16, v22] : [u32; 2]
             enable_side_effects v0
             enable_side_effects u1 1
-            v25 = add v17, v23
-            v27 = eq v25, u32 5
-            constrain v25 == u32 5
+            v24 = add v16, v22
+            v26 = eq v24, u32 5
+            constrain v24 == u32 5
             return
         }
         ");
