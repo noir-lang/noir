@@ -700,28 +700,23 @@ impl DataFlowGraph {
 
                 if let Value::Intrinsic(intrinsic) = &self[*func] {
                     use crate::ssa::ir::instruction::Intrinsic;
-                    match intrinsic {
-                        Intrinsic::VectorInsert | Intrinsic::VectorRemove => {
-                            if let Some(capacity_const) = self.get_numeric_constant(arguments[0]) {
-                                let base_capacity = capacity_const.to_u128() as u32;
-                                let new_capacity = match intrinsic {
-                                    Intrinsic::VectorInsert => base_capacity.saturating_add(1),
-                                    Intrinsic::VectorRemove => base_capacity.saturating_sub(1),
-                                    _ => unreachable!(),
-                                };
-                                return Some(SemanticLength(new_capacity));
+                    if let Some(capacity_const) = self.get_numeric_constant(arguments[0]) {
+                        let base_capacity = capacity_const.to_u128() as u32;
+                        match intrinsic {
+                            Intrinsic::VectorPopFront
+                            | Intrinsic::VectorPopBack
+                            | Intrinsic::VectorRemove => {
+                                Some(SemanticLength(base_capacity.saturating_sub(1)))
                             }
-                            None
-                        }
-                        Intrinsic::VectorPopFront | Intrinsic::VectorPopBack => {
-                            if let Some(capacity_const) = self.get_numeric_constant(arguments[0]) {
-                                let base_capacity = capacity_const.to_u128() as u32;
-                                let new_capacity = base_capacity.saturating_sub(1);
-                                return Some(SemanticLength(new_capacity));
+                            Intrinsic::VectorPushBack
+                            | Intrinsic::VectorPushFront
+                            | Intrinsic::VectorInsert => {
+                                Some(SemanticLength(base_capacity.saturating_add(1)))
                             }
-                            None
+                            _ => None,
                         }
-                        _ => None,
+                    } else {
+                        None
                     }
                 } else {
                     None
