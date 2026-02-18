@@ -109,6 +109,24 @@ fn simplify_cfg_post_check(function: &Function) {
     super::checks::assert_no_constant_jmpif(function);
 }
 
+/// When a block becomes unreachable (0 predecessors), invalidate its successors in the CFG.
+/// This cascades: if removing the edges makes further blocks unreachable, those are
+/// invalidated too. This ensures predecessor counts stay accurate for inlining decisions.
+fn cascade_invalidate_unreachable(
+    function: &Function,
+    cfg: &mut ControlFlowGraph,
+    block: BasicBlockId,
+) {
+    if block == function.entry_block() || cfg.predecessors(block).len() != 0 {
+        return;
+    }
+    let successors: Vec<_> = cfg.successors(block).collect();
+    cfg.invalidate_block_successors(block);
+    for successor in successors {
+        cascade_invalidate_unreachable(function, cfg, successor);
+    }
+}
+
 /// A helper function to simplify the current block based on information on its successors.
 ///
 /// This function will recursively simplify the current block until no further simplifications can be made.
@@ -156,35 +174,47 @@ fn check_for_constant_jmpif(
     block: BasicBlockId,
     cfg: &mut ControlFlowGraph,
 ) -> bool {
-    if let Some(TerminatorInstruction::JmpIf {
+    let Some(TerminatorInstruction::JmpIf {
         condition,
         then_destination,
         else_destination,
         call_stack,
     }) = function.dfg[block].terminator()
-        && let Some(constant) = function.dfg.get_numeric_constant(*condition)
-    {
-        let (destination, unchosen_destination) = if constant.is_zero() {
-            (*else_destination, *then_destination)
-        } else {
-            (*then_destination, *else_destination)
-        };
+    else {
+        return false;
+    };
+    let condition = *condition;
+    let then_destination = *then_destination;
+    let else_destination = *else_destination;
+    let call_stack = *call_stack;
 
+    let mut replace_with_jmp = |function: &mut Function, destination, unchosen_destination| {
         let arguments = Vec::new();
-        let call_stack = *call_stack;
         let jmp = TerminatorInstruction::Jmp { destination, arguments, call_stack };
         function.dfg[block].set_terminator(jmp);
         cfg.recompute_block(function, block);
 
-        // If `block` was the only predecessor to `unchosen_destination` then it's no long reachable through the CFG,
-        // we can then invalidate it successors as it's an invalid predecessor.
-        if cfg.predecessors(unchosen_destination).len() == 0 {
-            cfg.invalidate_block_successors(unchosen_destination);
-        }
+        // If `block` was the only predecessor to `unchosen_destination` then it's no longer reachable through the CFG,
+        // we can then invalidate its successors as it's an invalid predecessor.
+        cascade_invalidate_unreachable(function, cfg, unchosen_destination);
+    };
 
-        return true;
+    if let Some(constant) = function.dfg.get_numeric_constant(condition) {
+        let (destination, unchosen_destination) = if constant.is_zero() {
+            (else_destination, then_destination)
+        } else {
+            (then_destination, else_destination)
+        };
+
+        replace_with_jmp(function, destination, unchosen_destination);
+
+        true
+    } else if then_destination == else_destination {
+        replace_with_jmp(function, then_destination, else_destination);
+        true
+    } else {
+        false
     }
-    false
 }
 
 /// Optimize a jmp to a block which immediately jmps elsewhere to just jmp to the second block.
@@ -361,13 +391,11 @@ fn check_for_converging_jmpif(
         function.dfg[block].set_terminator(jmp);
         cfg.recompute_block(function, block);
 
-        // The old branch targets may now be unreachable. Invalidate their successors
-        // so that downstream blocks no longer see them as predecessors, enabling
-        // further inlining.
+        // The old branch targets may now be unreachable. Cascade-invalidate their
+        // successors so that downstream blocks no longer see them as predecessors,
+        // enabling further inlining.
         for dest in [then_destination, else_destination] {
-            if cfg.predecessors(dest).len() == 0 {
-                cfg.invalidate_block_successors(dest);
-            }
+            cascade_invalidate_unreachable(function, cfg, dest);
         }
 
         true
@@ -682,8 +710,6 @@ mod tests {
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: i16):
             v2 = lt i16 1, v0
-            jmp b1()
-          b1():
             v4 = lt i16 2, v0
             return
         }
@@ -1159,8 +1185,15 @@ mod tests {
         ");
     }
 
-        #[test]
-    fn simplifies_fully() {
+    #[test]
+    fn cascade_invalidation_simplifies_through_unreachable_chains() {
+        // Regression: when a jmpif is folded (e.g. converging branches), the unchosen
+        // destination is invalidated. But if that destination was part of a chain
+        // (e.g. b5→b6→b7), only b5's successors were invalidated — b6→b7 remained
+        // in the CFG. This made b7 appear to have 2 predecessors, preventing inlining.
+        //
+        // The fix cascades invalidation: when removing edges makes a block unreachable,
+        // its successors are also invalidated, allowing the full chain to collapse.
         let src = "
         acir(inline) fn main f0 {
           b0(v0: u1):
@@ -1188,15 +1221,8 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u1):
-            jmp b2()
-          b1():
             return
-          b2():
-            jmpif u1 1 then: b1, else: b1
         }
         ");
     }
 }
-
-
-
