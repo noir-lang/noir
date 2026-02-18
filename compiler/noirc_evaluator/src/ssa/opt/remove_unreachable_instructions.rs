@@ -520,7 +520,7 @@ fn remove_and_replace_with_defaults(
             } else {
                 // we cannot zero the vector without knowing its length.
                 return;
-            };
+            }
         }
 
         context.replace_value(result_id, default_value);
