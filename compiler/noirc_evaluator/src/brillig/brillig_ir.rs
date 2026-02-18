@@ -21,6 +21,7 @@ pub(crate) mod codegen_control_flow;
 mod codegen_intrinsic;
 mod codegen_memory;
 mod codegen_stack;
+mod copy_coalescing;
 mod entry_point;
 mod instructions;
 

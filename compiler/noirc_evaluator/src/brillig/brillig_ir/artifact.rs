@@ -66,7 +66,7 @@ pub struct BrilligArtifact<F> {
     pub(crate) error_types: BTreeMap<ErrorSelector, ErrorType>,
     /// The set of jumps that need to have their locations
     /// resolved.
-    unresolved_jumps: Vec<(JumpInstructionPosition, UnresolvedJumpLocation)>,
+    pub(super) unresolved_jumps: Vec<(JumpInstructionPosition, UnresolvedJumpLocation)>,
     /// A map of labels to their position in byte code.
     pub(crate) labels: HashMap<Label, OpcodeLocation>,
     /// Set of labels which are external to the bytecode.
@@ -75,9 +75,9 @@ pub struct BrilligArtifact<F> {
     /// which are defined in other bytecode, that this bytecode has called.
     /// TODO: perhaps we should combine this with the `unresolved_jumps` field
     /// TODO: and have an enum which indicates whether the jump is internal or external
-    unresolved_external_call_labels: Vec<(JumpInstructionPosition, Label)>,
+    pub(super) unresolved_external_call_labels: Vec<(JumpInstructionPosition, Label)>,
     /// Maps the opcodes that are associated with a callstack to it.
-    locations: BTreeMap<OpcodeLocation, CallStackId>,
+    pub(super) locations: BTreeMap<OpcodeLocation, CallStackId>,
     /// The current call stack. All opcodes that are pushed will be associated with this call stack.
     call_stack_id: CallStackId,
     /// Name of the function, only used for debugging purposes.
@@ -90,6 +90,24 @@ pub struct BrilligArtifact<F> {
     /// which opcodes originate from reusable procedures.s
     /// The range is inclusive for both start and end opcode locations.
     pub(crate) procedure_locations: BTreeMap<ProcedureId, (OpcodeLocation, OpcodeLocation)>,
+}
+
+impl BrilligArtifact<acvm::FieldElement> {
+    #[cfg(test)]
+    pub(crate) fn with_opcodes(opcodes: Vec<BrilligOpcode<acvm::FieldElement>>) -> Self {
+        Self { byte_code: opcodes, ..Default::default() }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_opcodes_and_label(
+        opcodes: Vec<BrilligOpcode<acvm::FieldElement>>,
+        label_pos: OpcodeLocation,
+    ) -> Self {
+        let label = Label { label_type: LabelType::Entrypoint, section: Some(99) };
+        let mut labels = HashMap::new();
+        labels.insert(label, label_pos);
+        BrilligArtifact { byte_code: opcodes, labels, ..Default::default() }
+    }
 }
 
 impl<F: std::fmt::Display> std::fmt::Display for BrilligArtifact<F> {
