@@ -64,7 +64,7 @@ impl FunctionContext {
         let reverse_post_order = PostOrder::with_function(function).into_vec_reverse();
         let constants = ConstantAllocation::from_function(function);
         let liveness = VariableLiveness::from_function(function, &constants);
-        let coalescing = CoalescingMap::compute(function, &liveness);
+        let coalescing = CoalescingMap::from_function(function, &liveness);
 
         Self {
             function_id: Some(id),

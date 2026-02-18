@@ -1,4 +1,4 @@
-//! Pre-codegen phi coalescing for Brillig.
+//! Pre-codegen block parameter coalescing for Brillig.
 //!
 //! This module analyzes `Jmp` terminators to determine which arguments can share
 //! a register with their destination block parameter. When an argument is coalesced
@@ -27,7 +27,7 @@ impl CoalescingMap {
     /// can safely write to the parameter's register. This is safe when the parameter
     /// is not live at the point where the argument is defined, or becomes dead before
     /// the defining instruction.
-    pub(crate) fn compute(func: &Function, liveness: &VariableLiveness) -> Self {
+    pub(crate) fn from_function(func: &Function, liveness: &VariableLiveness) -> Self {
         let mut coalesced = HashMap::default();
 
         for block_id in func.reachable_blocks() {
@@ -48,17 +48,15 @@ impl CoalescingMap {
                     continue;
                 }
 
-                // Only coalesce instruction results for now (not constants or block params).
+                // Only coalesce instruction results — coalescing works by intercepting code gen's
+                // variable definition to reuse the parameter's register, which only fires
+                // for instruction results defined in the same block as the jmp.
                 let Value::Instruction { instruction: defining_inst, .. } = &func.dfg[*arg] else {
                     continue;
                 };
 
-                // If arg is already coalesced to a different parameter, reject.
-                if let Some(existing) = coalesced.get(arg) {
-                    if existing != param {
-                        continue;
-                    }
-                    // Already coalesced to this same param (from a different predecessor) — ok.
+                // If arg is already coalesced, skip (whether to the same or different parameter).
+                if coalesced.contains_key(arg) {
                     continue;
                 }
 
@@ -155,7 +153,7 @@ mod tests {
         let func = ssa.main();
         let constants = ConstantAllocation::from_function(func);
         let liveness = VariableLiveness::from_function(func, &constants);
-        let coalescing = CoalescingMap::compute(func, &liveness);
+        let coalescing = CoalescingMap::from_function(func, &liveness);
 
         let blocks: Vec<_> = func.reachable_blocks().into_iter().collect();
         let block = &func.dfg[blocks[block_idx]];
