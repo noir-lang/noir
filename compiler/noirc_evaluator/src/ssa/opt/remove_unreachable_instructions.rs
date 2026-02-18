@@ -472,10 +472,7 @@ fn zeroed_value(
             dfg.insert_instruction_and_results(instruction, block_id, None, stack).first()
         }
         Type::Vector(_) => {
-            let array = im::Vector::new();
-            let instruction = Instruction::MakeArray { elements: array, typ: typ.clone() };
-            let stack = CallStackId::root();
-            dfg.insert_instruction_and_results(instruction, block_id, None, stack).first()
+            panic!("zeroed_value() does not support vectors, use zeroed_vector_of_size() instead");
         }
         Type::Reference(element_type) => {
             // The result of the instruction is a reference; Allocate creates a reference,
@@ -1361,7 +1358,6 @@ mod tests {
             enable_side_effects v0
             constrain u1 0 == v0, "Index out of bounds"
             v3 = make_array [] : [u32]
-            v4 = make_array [] : [u32]
             enable_side_effects u1 1
             return u32 1
         }
