@@ -1195,20 +1195,6 @@ mod tests {
     }
 
     #[test]
-<<<<<<< HEAD
-    fn constant_jmpif_with_args() {
-        let src = r#"
-            brillig(inline) fn func f0 {
-              b0():
-                jmpif u1 1 then: b1(Field 2), else: b2(Field 3)
-              b1(v1: Field):
-                jmp b3(v1)
-              b2(v2: Field):
-                jmp b3(v2)
-              b3(v3: Field):
-                return v3
-            }"#;
-=======
     fn explores_new_successors_after_simplifying_revisited_block() {
         // Regression: when a re-visited block was simplified (e.g. a converging jmpif was
         // folded and the successor inlined, giving the block a new terminator with new
@@ -1247,18 +1233,11 @@ mod tests {
             return
         }
         ";
->>>>>>> master
 
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.simplify_cfg();
 
         assert_ssa_snapshot!(ssa, @r"
-<<<<<<< HEAD
-            brillig(inline) fn func f0 {
-              b0():
-                return Field 2
-            }
-=======
         acir(inline) fn main f0 {
           b0(v0: u1):
             return
@@ -1304,7 +1283,6 @@ mod tests {
           b0(v0: u1):
             return
         }
->>>>>>> master
         ");
     }
 }
