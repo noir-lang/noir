@@ -370,10 +370,7 @@ impl Context {
                     // module have certain assumptions about what instructions can appear in a loop header;
                     // if we hoisted any instruction into them, they might break in subtle ways.
                     // The header is also something that gets executed in each iteration, unlike its pre-header.
-                    loop {
-                        if !loop_headers.contains(&dominator) {
-                            break;
-                        }
+                    while loop_headers.contains(&dominator) {
                         if let Some(predecessor) = dom.immediate_dominator(dominator) {
                             dominator = predecessor;
                         } else {
