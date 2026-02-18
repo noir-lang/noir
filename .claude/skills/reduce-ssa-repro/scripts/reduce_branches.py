@@ -15,7 +15,7 @@ import tempfile
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Reduce SSA branches while preserving a crash.")
-    parser.add_argument("--ssa-binary", default="../target/release/noir-ssa", help="Path to noir-ssa binary")
+    parser.add_argument("--ssa-binary", default="../target/debug/noir-ssa", help="Path to noir-ssa binary")
     parser.add_argument("--input", default="input.ssa", help="Input SSA file")
     parser.add_argument("--passes", nargs="+", required=True,
                         help="SSA passes to apply (as pass names), e.g. --passes Unrolling 'Inlining Brillig Calls'")
