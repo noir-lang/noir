@@ -369,26 +369,7 @@ fn optimize_length_one_array_read(
     }
 }
 
-/// Given a chain of operations like:
-/// v1 = array_set [10, 11, 12], index 1, value: 5
-/// v2 = array_set v1, index 2, value: 6
-/// v3 = array_set v2, index 2, value: 7
-/// v4 = array_get v3, index 1
-///
-/// We want to optimize `v4` to `11`. To do this we need to follow the array value
-/// through several array sets. For each array set:
-/// - If the index is non-constant we fail the optimization since any index may be changed
-/// - If the index is constant and is our target index, we conservatively fail the optimization
-///   in case the array_set is disabled from a previous `enable_side_effects_if` and the array get
-///   was not.
-/// - Otherwise, we check the array value of the array set.
-///   - If the array value is constant, we use that array.
-///   - If the array value is from a previous array-set, we recur.
-///   - If the array value is from an array parameter, we use that array.
-///
-/// That is, we have multiple `array_set` instructions setting various constant indexes
-/// of the same array, returning a modified version. We want to go backwards until we
-/// find the last `array_set` for the index we are interested in, and return the value set.
+/// See [`crate::ssa::opt::try_optimize_array_get_from_previous_instructions`] for more information.
 fn try_optimize_array_get_from_previous_instructions(
     dfg: &mut DataFlowGraph,
     array_id: ValueId,
