@@ -174,22 +174,22 @@ fn check_for_constant_jmpif(
     block: BasicBlockId,
     cfg: &mut ControlFlowGraph,
 ) -> bool {
-    let Some(TerminatorInstruction::JmpIf {
+    if let Some(TerminatorInstruction::JmpIf {
         condition,
         then_destination,
         else_destination,
         call_stack,
     }) = function.dfg[block].terminator()
-    else {
-        return false;
-    };
-    let condition = *condition;
-    let then_destination = *then_destination;
-    let else_destination = *else_destination;
-    let call_stack = *call_stack;
+        && let Some(constant) = function.dfg.get_numeric_constant(*condition)
+    {
+        let (destination, unchosen_destination) = if constant.is_zero() {
+            (*else_destination, *then_destination)
+        } else {
+            (*then_destination, *else_destination)
+        };
 
-    let mut replace_with_jmp = |function: &mut Function, destination, unchosen_destination| {
         let arguments = Vec::new();
+        let call_stack = *call_stack;
         let jmp = TerminatorInstruction::Jmp { destination, arguments, call_stack };
         function.dfg[block].set_terminator(jmp);
         cfg.recompute_block(function, block);
@@ -197,24 +197,10 @@ fn check_for_constant_jmpif(
         // If `block` was the only predecessor to `unchosen_destination` then it's no longer reachable through the CFG,
         // we can then invalidate its successors as it's an invalid predecessor.
         cascade_invalidate_unreachable(function, cfg, unchosen_destination);
-    };
 
-    if let Some(constant) = function.dfg.get_numeric_constant(condition) {
-        let (destination, unchosen_destination) = if constant.is_zero() {
-            (else_destination, then_destination)
-        } else {
-            (then_destination, else_destination)
-        };
-
-        replace_with_jmp(function, destination, unchosen_destination);
-
-        true
-    } else if then_destination == else_destination {
-        replace_with_jmp(function, then_destination, else_destination);
-        true
-    } else {
-        false
+        return true;
     }
+    false
 }
 
 /// Optimize a jmp to a block which immediately jmps elsewhere to just jmp to the second block.
