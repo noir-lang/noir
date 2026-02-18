@@ -31,7 +31,7 @@
 //! v3 = array_get v2, index 0 -> Field
 //! ```
 //!
-//! for `v3` the optimization will try to find a previous `array_set` with the same index (`index 0``).
+//! for `v3` the optimization will try to find a previous `array_set` with the same index (`index 0`).
 //! It will first find `v2`. Because it's an `array_set` of a different **known** index, it will
 //! then find `v1` and apply the same optimization as before. Note that it's safe to skip `v2` and
 //! look at `v1` even if `v2` was under a different side effects var because it doesn't affect
