@@ -133,7 +133,7 @@ impl<'local> SsaBuilder<'local> {
     ) -> Self {
         Self {
             ssa_logging,
-            ssa_logging_hide_unchanged: ssa_logging_hide_unchanged,
+            ssa_logging_hide_unchanged,
             last_ssa_printed: None,
             print_codegen_timings,
             ssa,
