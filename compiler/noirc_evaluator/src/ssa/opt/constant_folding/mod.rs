@@ -3067,8 +3067,6 @@ mod tests {
       ";
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.fold_constants_with_brillig(DEFAULT_MAX_ITER);
-        // ssa.normalize_ids();
-        // println!("{}", ssa.print_with(None));
         let elements = vec![Value::field((-2i128).into()), Value::field((-1i128).into())];
         let inputs = Value::array(elements, vec![Type::field()]);
         let results = ssa.interpret(vec![inputs]).unwrap();
