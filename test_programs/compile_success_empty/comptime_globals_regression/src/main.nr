@@ -4,10 +4,12 @@ fn main() {
     comptime { increment() };
     comptime { increment() };
 
-    assert_eq(get_counter(), 2);
+    comptime {
+        assert_eq(get_counter(), 2);
+    }
 }
 
-fn get_counter() -> Field {
+comptime fn get_counter() -> Field {
     COUNTER
 }
 
