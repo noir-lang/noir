@@ -1158,4 +1158,45 @@ mod tests {
         }
         ");
     }
+
+        #[test]
+    fn simplifies_fully() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmp b2()
+          b1():
+            return
+          b2():
+            jmpif v0 then: b4, else: b3
+          b3():
+            jmpif v0 then: b4, else: b4
+          b4():
+            jmpif v0 then: b7, else: b5
+          b5():
+            jmp b6()
+          b6():
+            jmp b7()
+          b7():
+            jmpif u1 1 then: b1, else: b1
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.simplify_cfg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmp b2()
+          b1():
+            return
+          b2():
+            jmpif u1 1 then: b1, else: b1
+        }
+        ");
+    }
 }
+
+
+
