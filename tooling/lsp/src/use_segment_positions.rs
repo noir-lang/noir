@@ -111,7 +111,7 @@ impl UseSegmentPositions {
             let ident = &segment.ident;
             if !prefix.is_empty() {
                 prefix.push_str("::");
-            };
+            }
             prefix.push_str(ident.as_str());
 
             if index < prefix_segments_len - 1 {

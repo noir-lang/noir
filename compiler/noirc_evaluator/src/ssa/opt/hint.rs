@@ -25,7 +25,7 @@ mod tests {
             skip_brillig_constraints_check: true,
             inliner_aggressiveness: 0,
             constant_folding_max_iter: constant_folding::DEFAULT_MAX_ITER,
-            small_function_max_instruction: inlining::MAX_INSTRUCTIONS,
+            small_function_max_instruction: inlining::MAX_SIMPLE_FUNCTION_WEIGHT,
             max_bytecode_increase_percent: None,
             force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
             skip_passes: Default::default(),

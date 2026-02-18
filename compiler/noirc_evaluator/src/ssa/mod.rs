@@ -171,6 +171,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         ),
         SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
         SsaPass::new(Ssa::loop_invariant_code_motion, "Loop Invariant Code Motion"),
+        SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
         SsaPass::new_try(
             move |ssa| {
                 ssa.unroll_loops_iteratively(
@@ -216,6 +217,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             |ssa| ssa.fold_constants_using_constraints(options.constant_folding_max_iter),
             "Constant Folding using constraints",
         ),
+        SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
         SsaPass::new_try(
             move |ssa| {
                 ssa.unroll_loops_iteratively(
@@ -352,7 +354,7 @@ pub fn optimize_ssa_builder_into_acir(
                 )
             },
         ));
-    };
+    }
 
     drop(ssa_gen_span_guard);
     let artifacts = time("SSA to ACIR", options.print_codegen_timings, || {

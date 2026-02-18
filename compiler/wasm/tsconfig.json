@@ -16,6 +16,7 @@
     "module": "CommonJS",
     "moduleResolution": "Node",
     "allowJs": true,
+    "skipLibCheck": true,
   },
   "exclude": ["node_modules"]
 }

@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+warning: Cannot add items to external crate module `dependency::foo`
+  ┌─ src/main.nr:4:5
+  │
+4 │     m.add_item(quote { pub fn bar() {} });
+  │     -------------------------------------
+  │
+
+error: Could not resolve 'bar' in path
+  ┌─ src/main.nr:8:22
+  │
+8 │     dependency::foo::bar()
+  │                      ---
+  │
+
+Aborting due to 1 previous error

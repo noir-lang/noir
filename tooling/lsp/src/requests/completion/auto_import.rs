@@ -65,7 +65,7 @@ impl NodeFinder<'_> {
 
                 if completion_items.is_empty() {
                     continue;
-                };
+                }
 
                 self.suggested_module_def_ids.insert(module_def_id);
 

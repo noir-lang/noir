@@ -229,7 +229,7 @@ impl Function {
                         }
                     };
                 return;
-            };
+            }
 
             if current_block_reachability == Reachability::UnreachableUnderPredicate {
                 if should_replace_instruction_with_defaults(context) {
@@ -380,7 +380,7 @@ impl Function {
                     };
                 }
                 _ => (),
-            };
+            }
 
             // Once we find an instruction that will always fail, replace the terminator with `unreachable`.
             // Subsequent instructions in this block will be removed.
@@ -606,7 +606,7 @@ fn should_replace_instruction_with_defaults(context: &SimpleOptimizationContext)
             // effect variable. Instructions which use its result would then get
             // incorrect zero, instead of whatever was in the array.
         }
-    };
+    }
 
     // Instructions that don't interact with the predicate should be left alone,
     // because the `remove_enable_side_effects` pass might have moved the boundaries around them.

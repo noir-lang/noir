@@ -312,7 +312,7 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
         write!(&mut result, "{:x}", trimmed[0]).unwrap();
 
         // Ensure even length by padding if necessary
-        if result.len() % 2 != 0 {
+        if !result.len().is_multiple_of(2) {
             // Insert '0' after "0x" to make it even
             result.insert(2, '0');
         }
@@ -329,7 +329,7 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
         let value = hex_str.strip_prefix("0x").unwrap_or(hex_str);
 
         // Decode directly, handling even length efficiently
-        let hex_as_bytes = if value.len() % 2 == 0 {
+        let hex_as_bytes = if value.len().is_multiple_of(2) {
             hex::decode(value).ok()?
         } else {
             // For odd length, prepend '0' to the string view only for decoding
