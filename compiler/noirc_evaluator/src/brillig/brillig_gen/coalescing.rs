@@ -66,6 +66,15 @@ impl CoalescingMap {
                     continue;
                 }
 
+                // Globals are allocated separately (in the globals map, not ssa_value_allocations),
+                // so they cannot participate in coalescing. Note: we must check via `is_global`
+                // rather than matching on `func.dfg[*arg]` because the DFG's Index impl
+                // transparently resolves Global values to their underlying instruction in the
+                // globals graph, hiding the Global wrapper.
+                if func.dfg.is_global(*arg) {
+                    continue;
+                }
+
                 match &func.dfg[*arg] {
                     Value::Instruction { instruction: defining_inst, .. }
                         if instructions.iter().any(|inst_id| inst_id == defining_inst) =>
@@ -339,6 +348,43 @@ mod tests {
         // b1 is block index 1, arg 0: v1 (defined in b0, not b1) → v2
         let (coalescing, _arg, param) = get_jmp_coalescing(src, 1, 0);
         assert!(coalescing.is_coalesced(&param));
+    }
+
+    #[test]
+    fn does_not_coalesce_global_arg() {
+        // g0 is a global array passed as arg to b2's param v1.
+        // Even though b2 has a single predecessor (b1) and g0 is not live-in to b2,
+        // globals are allocated separately (in the globals map, not ssa_value_allocations),
+        // so param-side coalescing must be skipped.
+        //
+        // The DFG's Index<ValueId> transparently resolves Value::Global to its
+        // underlying instruction in the globals graph, so the coalescing code must
+        // check `dfg.is_global()` rather than matching on the resolved value.
+        let src = "
+        g0 = make_array [u8 65] : [u8; 1]
+
+        brillig(inline) fn main f0 {
+          b0(v0: [u8; 1]):
+            v1 = call f1() -> u1
+            jmpif v1 then: b1, else: b2
+          b1():
+            inc_rc g0
+            jmp b3(g0)
+          b2():
+            constrain u1 0 == u1 1
+            unreachable
+          b3(v2: [u8; 1]):
+            return v2
+        }
+        brillig(inline) fn func_3 f1 {
+          b0():
+            return u1 0
+        }
+        ";
+        // b1 is block index 1, arg 0: g0 → v2
+        let (coalescing, arg, param) = get_jmp_coalescing(src, 1, 0);
+        assert!(!coalescing.is_coalesced(&arg), "global arg should not be coalesced");
+        assert!(!coalescing.is_coalesced(&param), "param should not be coalesced with global arg");
     }
 
     #[test]
