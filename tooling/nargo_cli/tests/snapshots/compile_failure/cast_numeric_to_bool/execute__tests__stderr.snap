@@ -6,21 +6,21 @@ error: Cannot cast `Field` as `bool`
   ┌─ src/main.nr:3:13
   │
 3 │     let _ = x as bool;
-  │             --------- compare with zero instead: ` != 0`
+  │             --------- Compare with zero instead: ` != 0`
   │
 
 error: Cannot cast `i32` as `bool`
   ┌─ src/main.nr:6:13
   │
 6 │     let _ = x as bool;
-  │             --------- compare with zero instead: ` != 0`
+  │             --------- Compare with zero instead: ` != 0`
   │
 
 error: Cannot cast `u64` as `bool`
   ┌─ src/main.nr:9:13
   │
 9 │     let _ = x as bool;
-  │             --------- compare with zero instead: ` != 0`
+  │             --------- Compare with zero instead: ` != 0`
   │
 
 Aborting due to 3 previous errors
