@@ -308,6 +308,7 @@ pub enum InterpreterError {
         location: Location,
     },
     CannotModifyExternalItem {
+        item: String,
         module: String,
         location: Location,
     },
@@ -879,10 +880,10 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let secondary = String::new();
                 CustomDiagnostic::simple_warning(primary, secondary, *location)
             }
-            InterpreterError::CannotModifyExternalItem { module, location } => {
-                let primary = format!("Cannot mutate something from an external crate");
-                let secondary = format!("The item mutated here was declared in `{module}`");
-                CustomDiagnostic::simple_warning(primary, secondary, *location)
+            InterpreterError::CannotModifyExternalItem { item, module, location } => {
+                let primary = "Cannot mutate something from an external crate".to_string();
+                let secondary = format!("`{item}` was declared in `{module}`");
+                CustomDiagnostic::simple_error(primary, secondary, *location)
             }
             InterpreterError::CannotCastNumericToBool { typ, location } => {
                 let primary = format!("Cannot cast `{typ}` as `bool`");

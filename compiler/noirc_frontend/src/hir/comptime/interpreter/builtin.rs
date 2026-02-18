@@ -432,8 +432,9 @@ fn type_def_add_attribute(
         });
     };
 
+    let self_arg = self_argument.0.clone();
     let type_id = get_type_id(self_argument)?;
-    check_item_crate_matches_current_crate(interpreter, type_id.module_id(), location)?;
+    check_item_crate_matches_current_crate(interpreter, &self_arg, type_id.module_id(), location)?;
 
     interpreter.elaborator.interner.update_type_attributes(type_id, |attributes| {
         attributes.push(attribute);
@@ -467,8 +468,11 @@ fn type_def_add_generic(
         });
     };
 
+    let self_arg = self_argument.0.clone();
     let struct_id = get_type_id(self_argument)?;
-    check_item_crate_matches_current_crate(interpreter, struct_id.module_id(), location)?;
+    let struct_module = struct_id.module_id();
+
+    check_item_crate_matches_current_crate(interpreter, &self_arg, struct_module, location)?;
 
     let the_struct = interpreter.elaborator.interner.get_type(struct_id);
     let mut the_struct = the_struct.borrow_mut();
@@ -729,8 +733,11 @@ fn type_def_set_fields(
     location: Location,
 ) -> IResult<Value> {
     let (the_struct, fields) = check_two_arguments(arguments, location)?;
+    let self_arg = the_struct.0.clone();
     let struct_id = get_type_id(the_struct)?;
-    check_item_crate_matches_current_crate(interpreter, struct_id.module_id(), location)?;
+    let struct_module = struct_id.module_id();
+
+    check_item_crate_matches_current_crate(interpreter, &self_arg, struct_module, location)?;
 
     let struct_def = interpreter.elaborator.interner.get_type(struct_id);
     let mut struct_def = struct_def.borrow_mut();
@@ -2931,9 +2938,10 @@ fn module_add_item(
     location: Location,
 ) -> IResult<Value> {
     let (self_argument, item) = check_two_arguments(arguments, location)?;
+    let module_value = self_argument.0.clone();
     let module_id = get_module(self_argument)?;
 
-    check_item_crate_matches_current_crate(interpreter, module_id, location)?;
+    check_item_crate_matches_current_crate(interpreter, &module_value, module_id, location)?;
 
     let parser = Parser::parse_top_level_items;
     let top_level_statements = parse(interpreter.elaborator, item, parser, "a top-level item")?;

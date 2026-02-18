@@ -11,7 +11,6 @@ use noirc_errors::Location;
 use crate::Shared;
 use crate::ast::{BinaryOp, ItemVisibility, UnaryOp};
 use crate::elaborator::Elaborator;
-use crate::graph::CrateId;
 use crate::hir::comptime::display::tokens_to_string;
 use crate::hir::comptime::value::unwrap_rc;
 use crate::hir::comptime::value::{FormatStringFragment, StructFields};
@@ -494,6 +493,7 @@ fn gather_hir_pattern_tokens(
 /// error to prevent modifying an item from an external crate.
 pub(super) fn check_item_crate_matches_current_crate(
     interpreter: &Interpreter,
+    item: &Value,
     item_module: ModuleId,
     location: Location,
 ) -> IResult<()> {
@@ -505,7 +505,8 @@ pub(super) fn check_item_crate_matches_current_crate(
             &current_crate,
             item_module,
         );
-        Err(InterpreterError::CannotModifyExternalItem { module, location })
+        let item = item.display(interpreter.elaborator.interner).to_string();
+        Err(InterpreterError::CannotModifyExternalItem { item, module, location })
     } else {
         Ok(())
     }
