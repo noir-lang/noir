@@ -91,7 +91,7 @@ impl BlockVariables {
         dfg: &DataFlowGraph,
     ) -> BrilligVariable {
         // Check coalescing map — reuse the block parameter's register if coalesced.
-        if let Some(param) = function_context.coalescing.get_coalesced_param(&value_id) {
+        if let Some(param) = function_context.coalescing.get_coalesced(&value_id) {
             let variable = *function_context
                 .ssa_value_allocations
                 .get(&param)

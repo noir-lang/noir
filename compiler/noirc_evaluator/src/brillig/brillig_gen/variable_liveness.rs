@@ -396,6 +396,10 @@ impl VariableLiveness {
 
         self
     }
+
+    pub(super) fn cfg(&self) -> &ControlFlowGraph {
+        &self.cfg
+    }
 }
 
 #[cfg(test)]
