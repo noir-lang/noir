@@ -77,6 +77,11 @@ pub struct SsaBuilder<'local> {
     ssa: Ssa,
     /// Options to control which SSA passes to print.
     ssa_logging: SsaLogging,
+    /// Whether to skip printing an SSA pass if it didn't produce any changes.
+    ssa_logging_hide_unchanged: bool,
+    /// Records the last SSA printed. This is used to avoid printing the result of an
+    /// SSA pass if it didn't produce any changes compared to the previous SSA.
+    last_ssa_printed: Option<String>,
     /// Whether to print the amount of time it took to run individual SSA passes.
     print_codegen_timings: bool,
     /// Counters indexed by the message in the SSA pass, so we can distinguish between multiple
@@ -94,6 +99,7 @@ impl<'local> SsaBuilder<'local> {
     pub fn from_program(
         program: Program,
         ssa_logging: SsaLogging,
+        ssa_logging_hide_unchanged: bool,
         print_codegen_timings: bool,
         emit_ssa: &Option<PathBuf>,
         files: Option<&'local fm::FileManager>,
@@ -108,17 +114,27 @@ impl<'local> SsaBuilder<'local> {
             let ssa_path = emit_ssa.with_extension("ssa.json");
             write_to_file(&serde_json::to_vec(&ssa).unwrap(), &ssa_path);
         }
-        Ok(Self::from_ssa(ssa, ssa_logging, print_codegen_timings, files).print("Initial SSA"))
+        Ok(Self::from_ssa(
+            ssa,
+            ssa_logging,
+            ssa_logging_hide_unchanged,
+            print_codegen_timings,
+            files,
+        )
+        .print("Initial SSA"))
     }
 
     pub fn from_ssa(
         ssa: Ssa,
         ssa_logging: SsaLogging,
+        ssa_logging_hide_unchanged: bool,
         print_codegen_timings: bool,
         files: Option<&'local fm::FileManager>,
     ) -> Self {
         Self {
             ssa_logging,
+            ssa_logging_hide_unchanged,
+            last_ssa_printed: None,
             print_codegen_timings,
             ssa,
             files,
@@ -193,7 +209,20 @@ impl<'local> SsaBuilder<'local> {
         }
 
         if print_ssa_pass {
-            println_to_stdout!("After {msg}:\n{}", self.ssa.print_with(self.files));
+            let printed_ssa = format!("{}", self.ssa.print_with(self.files));
+            let skip_print = self.ssa_logging_hide_unchanged
+                && self
+                    .last_ssa_printed
+                    .as_ref()
+                    .is_some_and(|last_ssa_printed| last_ssa_printed == &printed_ssa);
+
+            if !skip_print {
+                println_to_stdout!("After {msg}:\n{printed_ssa}");
+            }
+
+            if self.ssa_logging_hide_unchanged {
+                self.last_ssa_printed = Some(printed_ssa);
+            }
         }
         self
     }

@@ -11,7 +11,6 @@
 
 use std::collections::HashSet;
 
-use acvm::AcirField;
 use iter_extended::vecmap;
 use rustc_hash::FxHashMap as HashMap;
 
@@ -23,8 +22,9 @@ use crate::ssa::{
         dfg::DataFlowGraph,
         function::{Function, FunctionId},
         function_inserter::FunctionInserter,
-        instruction::{BinaryOp, Instruction, TerminatorInstruction},
+        instruction::{Instruction, TerminatorInstruction},
         post_order::PostOrder,
+        types::Type,
         value::ValueId,
     },
     opt::flatten_cfg::WorkList,
@@ -80,12 +80,8 @@ fn is_conditional(
     cfg: &ControlFlowGraph,
     function: &Function,
 ) -> Option<BasicConditional> {
-    // jump overhead is the cost for doing the conditional and jumping around the blocks
-    // We use 10 as a rough estimate, the real cost is less.
-    let jump_overhead = 10;
-    let mut result = None;
-
-    if let Some(TerminatorInstruction::JmpIf {
+    // A conditional must end with a JmpIf
+    let Some(TerminatorInstruction::JmpIf {
         condition: _,
         then_destination,
         then_arguments,
@@ -93,6 +89,7 @@ fn is_conditional(
         else_arguments,
         call_stack: _,
     }) = function.dfg[block].terminator()
+<<<<<<< HEAD
     {
         assert!(
             then_arguments.is_empty(),
@@ -112,144 +109,182 @@ fn is_conditional(
         let next_else = else_successors.next();
         if next_then == Some(block) || next_else == Some(block) {
             // this is a loop, not a conditional
+=======
+    else {
+        return None;
+    };
+
+    // Cost of the JmpIf terminator (2 opcodes: jump_if + jump)
+    let jmpif_cost = function.dfg[block].unwrap_terminator().cost();
+
+    let mut then_successors = cfg.successors(*then_destination);
+    let mut else_successors = cfg.successors(*else_destination);
+    let then_successors_len = then_successors.len();
+    let else_successors_len = else_successors.len();
+    let next_then = then_successors.next();
+    let next_else = else_successors.next();
+
+    if next_then == Some(block) || next_else == Some(block) {
+        // this is a loop, not a conditional
+        return None;
+    }
+
+    let result = if then_successors_len == 1 && else_successors_len == 1 && next_then == next_else {
+        // The branches join on one block so it is a non-nested conditional with a classical diamond shape:
+        //    block
+        //    /    \
+        // then   else
+        //    \    /
+        //   next_then
+        // We check that the cost of the flattened code is lower than the cost of the branches
+        let cost_left = block_flatten_cost(*then_destination, &function.dfg)?;
+        let cost_right = block_flatten_cost(*else_destination, &function.dfg)?;
+        // Compute the actual branching overhead for this conditional:
+        // Flattening eliminates: JmpIf + then's Jmp + else's Jmp
+        // Flattening adds merge (IfElse) ops only for exit params where branches differ.
+        // SingleAddr merges (numeric/reference) cost 1 opcode (ConditionalMov), array merges cost ~20 (memory copy).
+        // Params where both branches pass the same value simplify to a no-op.
+        let then_term_cost = function.dfg[*then_destination].unwrap_terminator().cost();
+        let else_term_cost = function.dfg[*else_destination].unwrap_terminator().cost();
+        let exit_block = next_then.unwrap();
+        let merge_cost =
+            differing_merge_cost(*then_destination, *else_destination, exit_block, &function.dfg);
+        let jump_overhead =
+            (jmpif_cost + then_term_cost + else_term_cost).saturating_sub(merge_cost) as u32;
+        let cost = cost_right.saturating_add(cost_left);
+        if cost >= cost / 2 + jump_overhead {
+            return None;
+        }
+        BasicConditional {
+            block_entry: block,
+            block_then: Some(*then_destination),
+            block_else: Some(*else_destination),
+            block_exit: next_then.unwrap(),
+        }
+    } else if then_successors_len == 1 && next_then == Some(*else_destination) {
+        // Left branch joins the right branch, e.g if/then statement with no else:
+        //    block
+        //    /    \
+        // then     \
+        //     \    |
+        //      -> else
+        // This case may not happen (i.e not generated), but it is safer to handle it (e.g in case it happens due to some optimizations)
+        let cost = block_flatten_cost(*then_destination, &function.dfg)?;
+        // Flattening eliminates: JmpIf + then's Jmp; adds IfElse per exit param
+        let then_term_cost = function.dfg[*then_destination].unwrap_terminator().cost();
+        let merge_cost = function.dfg.block_parameters(*else_destination).len() * 3;
+        let jump_overhead = (jmpif_cost + then_term_cost).saturating_sub(merge_cost) as u32;
+        if cost >= cost / 2 + jump_overhead {
+            return None;
+        }
+        BasicConditional {
+            block_entry: block,
+            block_then: Some(*then_destination),
+            block_else: None,
+            block_exit: *else_destination,
+        }
+    } else if else_successors_len == 1 && next_else == Some(*then_destination) {
+        // Right branch joins the left branch, e.g if/else statement with no then
+        // This case may not happen (i.e not generated), but it is safer to handle it (e.g in case it happens due to some optimizations)
+        //    block
+        //    /    \
+        //   |     else
+        //   |      |
+        //    \    /
+        //     then
+        let cost = block_flatten_cost(*else_destination, &function.dfg)?;
+        // Flattening eliminates: JmpIf + else's Jmp; adds IfElse per exit param
+        let else_term_cost = function.dfg[*else_destination].unwrap_terminator().cost();
+        let merge_cost = function.dfg.block_parameters(*then_destination).len() * 3;
+        let jump_overhead = (jmpif_cost + else_term_cost).saturating_sub(merge_cost) as u32;
+        if cost >= cost / 2 + jump_overhead {
+            return None;
+        }
+        BasicConditional {
+            block_entry: block,
+            block_then: None,
+            block_else: Some(*else_destination),
+            block_exit: *else_destination,
+        }
+    } else {
+        return None;
+    };
+
+    // A conditional exit would have exactly 2 predecessors
+    (cfg.predecessors(result.block_exit).len() == 2).then_some(result)
+}
+
+/// Estimate the Brillig opcode cost of the IfElse merge instructions that flattening
+/// would generate. Only parameters where both branches pass different values need
+/// merge instructions; identical values simplify to a no-op.
+///
+/// For SingleAddr types (numerics and references), the merge is a single
+/// `ConditionalMov` = 1 opcode.
+/// For array/slice parameters, the IfElse generates a conditional memory copy
+/// which is much more expensive (~20 opcodes).
+fn differing_merge_cost(
+    then_block: BasicBlockId,
+    else_block: BasicBlockId,
+    exit_block: BasicBlockId,
+    dfg: &DataFlowGraph,
+) -> usize {
+    let then_args = match dfg[then_block].terminator() {
+        Some(TerminatorInstruction::Jmp { arguments, .. }) => arguments.as_slice(),
+        _ => return 0,
+    };
+    let else_args = match dfg[else_block].terminator() {
+        Some(TerminatorInstruction::Jmp { arguments, .. }) => arguments.as_slice(),
+        _ => return 0,
+    };
+    let exit_params = dfg.block_parameters(exit_block);
+    let mut cost = 0;
+    for ((a, b), param) in then_args.iter().zip(else_args.iter()).zip(exit_params.iter()) {
+        if a != b {
+            let typ = dfg.type_of_value(*param);
+            if typ.is_numeric() || matches!(typ, Type::Reference(_)) {
+                cost += 1; // SingleAddr: one ConditionalMov in Brillig
+            } else {
+                // Array/slice: conditional memory copy (~20 opcodes)
+                cost += 20;
+            }
+        }
+    }
+    cost
+}
+
+/// Computes a cost estimate for flattening a basic block in a conditional.
+///
+/// Returns `None` if the block contains instructions that cannot be safely
+/// flattened (side-effectful instructions like constraints, calls, memory ops,
+/// div/mod, shifts). Otherwise returns the estimated Brillig opcode cost.
+///
+/// Memory management instructions (IncrementRc, DecrementRc, Allocate) are
+/// excluded from the cost — they are safe to flatten but represent overhead
+/// that shouldn't influence the flatten/not-flatten decision.
+fn block_flatten_cost(block: BasicBlockId, dfg: &DataFlowGraph) -> Option<u32> {
+    let mut cost: u32 = 0;
+    for instruction_id in dfg[block].instructions() {
+        let instruction = &dfg[*instruction_id];
+        // Skip memory management instructions — these are always allowed to flatten
+        // but don't represent meaningful compute that should affect the decision.
+        if matches!(
+            instruction,
+            Instruction::Allocate
+                | Instruction::IncrementRc { .. }
+                | Instruction::DecrementRc { .. }
+                | Instruction::Noop
+        ) {
+            continue;
+        }
+
+        if !instruction.can_flatten_in_conditional(dfg) {
+>>>>>>> master
             return None;
         }
 
-        if then_successors_len == 1 && else_successors_len == 1 && next_then == next_else {
-            // The branches join on one block so it is a non-nested conditional with a classical diamond shape:
-            //    block
-            //    /    \
-            // then   else
-            //    \    /
-            //   next_then
-            // We check that the cost of the flattened code is lower than the cost of the branches
-            let cost_left = block_cost(*then_destination, &function.dfg);
-            let cost_right = block_cost(*else_destination, &function.dfg);
-            // For the flattening to be valuable, we compare the cost of the flattened code with the average cost of the 2 branches,
-            // including an overhead to take into account the jumps between the blocks.
-            // We use the average cost of the 2 branches, assuming that both branches are equally likely to be executed.
-            let cost = cost_right.saturating_add(cost_left);
-            if cost < cost / 2 + jump_overhead {
-                result = Some(BasicConditional {
-                    block_entry: block,
-                    block_then: Some(*then_destination),
-                    block_else: Some(*else_destination),
-                    block_exit: next_then.unwrap(),
-                });
-            }
-        } else if then_successors_len == 1 && next_then == Some(*else_destination) {
-            // Left branch joins the right branch, e.g if/then statement with no else:
-            //    block
-            //    /    \
-            // then     \
-            //     \    |
-            //      -> else
-            // This case may not happen (i.e not generated), but it is safer to handle it (e.g in case it happens due to some optimizations)
-            let cost = block_cost(*then_destination, &function.dfg);
-            if cost < cost / 2 + jump_overhead {
-                // Use the terminator of the entry block to identify the 'then/else' branches
-                // Indeed, the left/right namings are arbitrary, and we now map them
-                // to the then/else naming of JmpIf.
-                result = Some(BasicConditional {
-                    block_entry: block,
-                    block_then: Some(*then_destination),
-                    block_else: None,
-                    block_exit: *else_destination,
-                });
-            }
-        } else if else_successors_len == 1 && next_else == Some(*then_destination) {
-            // Right branch joins the left branch, e.g if/else statement with no then
-            // This case may not happen (i.e not generated), but it is safer to handle it (e.g in case it happens due to some optimizations)
-            //    block
-            //    /    \
-            //   |     else
-            //   |      |
-            //    \    /
-            //     then
-            let cost = block_cost(*else_destination, &function.dfg);
-            if cost < cost / 2 + jump_overhead {
-                result = Some(BasicConditional {
-                    block_entry: block,
-                    block_then: None,
-                    block_else: Some(*else_destination),
-                    block_exit: *else_destination,
-                });
-            }
-        }
+        cost = cost.saturating_add(instruction.cost(*instruction_id, dfg) as u32);
     }
-    // A conditional exit would have exactly 2 predecessors
-    result.filter(|result| cfg.predecessors(result.block_exit).len() == 2)
-}
-
-/// Computes a cost estimate for the execution of a basic block
-/// returns u32::MAX if the block has side-effect instructions
-/// WARNING: these are estimates of the runtime cost of each instruction,
-/// 1 being the cost of the simplest instruction. These numbers can be improved.
-fn block_cost(block: BasicBlockId, dfg: &DataFlowGraph) -> u32 {
-    let mut cost: u32 = 0;
-    for instruction in dfg[block].instructions() {
-        let instruction_cost = match &dfg[*instruction] {
-            Instruction::Binary(binary) => {
-                match binary.operator {
-                    BinaryOp::Add { unchecked }
-                    | BinaryOp::Sub { unchecked }
-                    | BinaryOp::Mul { unchecked } => if unchecked { 3 } else { return u32::MAX },
-                    BinaryOp::Div
-                    | BinaryOp::Mod => return u32::MAX,
-                    BinaryOp::Eq => 1,
-                    BinaryOp::Lt => 5,
-                    BinaryOp::And
-                    | BinaryOp::Or
-                    | BinaryOp::Xor => 1,
-                    BinaryOp::Shl
-                    | BinaryOp::Shr => return u32::MAX,
-                }
-            },
-            // A Cast can be either simplified, or lead to a truncate
-            Instruction::Cast(_, _) => 3,
-            Instruction::Not(_) => 1,
-            Instruction::Truncate { .. } => 7,
-
-            Instruction::Constrain(_,_,_)
-            | Instruction::ConstrainNotEqual(_,_,_)
-            | Instruction::RangeCheck { .. }
-            // Calls with no-predicate set to true could be supported, but
-            // they are likely to be too costly anyways. Simple calls would
-            // have been inlined already.
-            | Instruction::Call { .. }
-            |      Instruction::Load { .. }
-            | Instruction::Store { .. }
-            | Instruction::ArraySet { .. } => return u32::MAX,
-
-            Instruction::ArrayGet { array, index  } => {
-                // A get can fail because of out-of-bound index
-                let mut in_bound = false;
-                // check if index is in bound
-                if let (Some(index), Some(len)) = (dfg.get_numeric_constant(*index), dfg.try_get_array_length(*array)) {
-                    // The index is in-bounds
-                    if index.to_u128() < u128::from(len.0) {
-                        in_bound = true;
-                    }
-                }
-                if !in_bound {
-                    return u32::MAX;
-                }
-                1
-            },
-            // if less than 10 elements, it is translated into a store for each element
-            // if more than 10, it is a loop, so 20 should be a good estimate, worst case being 10 stores and ~10 index increments
-            Instruction::MakeArray { .. } => 20,
-
-            Instruction::Allocate
-            | Instruction::EnableSideEffectsIf { .. }
-            | Instruction::IncrementRc { .. }
-            | Instruction::DecrementRc { .. }
-            | Instruction::Noop => 0,
-            Instruction::IfElse { .. } => 1,
-        };
-        cost += instruction_cost;
-    }
-    cost
+    Some(cost)
 }
 
 /// Identifies all simple conditionals in the function and flattens them
@@ -457,7 +492,7 @@ impl Context<'_> {
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{Ssa, opt::assert_normalized_ssa_equals},
+        ssa::{Ssa, opt::assert_ssa_does_not_change},
     };
 
     #[test]
@@ -496,6 +531,9 @@ mod tests {
 
     #[test]
     fn array_jmpif() {
+        // With merge_cost=3 per exit param, jump_overhead = (2+2+2) - 3 = 3.
+        // A 3-element MakeArray costs 6 per branch. Total cost 12 >= 12/2 + 3 = 9,
+        // so the conditional is NOT flattened.
         let src = r#"
               brillig(inline) fn foo f0 {
                 b0(v0: u32):
@@ -511,11 +549,29 @@ mod tests {
                   return v1
             }
             "#;
-        let ssa = Ssa::from_str(src).unwrap();
-        assert_eq!(ssa.main().reachable_blocks().len(), 4);
-        let ssa = ssa.flatten_basic_conditionals();
-        // make_array is not simplified
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::flatten_basic_conditionals);
+    }
+
+    #[test]
+    fn large_array_jmpif_not_flattened() {
+        // Large MakeArrays (10+ elements) cost min(len*2, 20) = 20 each.
+        // Combined cost of 40 >= 40/2 + 10 = 30, so the conditional is not worth flattening.
+        let src = r#"
+              brillig(inline) fn foo f0 {
+                b0(v0: u32):
+                  v3 = eq v0, u32 5
+                  jmpif v3 then: b2, else: b1
+                b1():
+                  v10 = make_array b"0123456789a"
+                  jmp b3(v10)
+                b2():
+                  v7 = make_array b"abcdefghijk"
+                  jmp b3(v7)
+                b3(v1: [u8; 11]):
+                  return v1
+            }
+            "#;
+        assert_ssa_does_not_change(src, Ssa::flatten_basic_conditionals);
     }
 
     #[test]
@@ -552,42 +608,87 @@ mod tests {
                 return v3
             }
             ";
+        // Inner 1 is NOT flattened: truncate costs are high enough.
+        // Inner 2 IS flattened: and+truncate is cheap enough to merge.
         let ssa = Ssa::from_str(src).unwrap();
-        assert_eq!(ssa.main().reachable_blocks().len(), 10);
-
         let ssa = ssa.flatten_basic_conditionals();
-        assert_eq!(ssa.main().reachable_blocks().len(), 4);
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn foo f0 {
           b0(v0: u32):
+<<<<<<< HEAD
             v3 = eq v0, u32 5
             v4 = not v3
             jmpif v3 then: b2(), else: b1()
+=======
+            v4 = eq v0, u32 5
+            v5 = not v4
+            jmpif v4 then: b5, else: b1
+>>>>>>> master
           b1():
-            v16 = lt v0, u32 3
-            v17 = truncate v0 to 1 bits, max_bit_size: 32
-            v18 = not v16
-            v19 = truncate v0 to 2 bits, max_bit_size: 32
-            v20 = cast v16 as u32
-            v21 = cast v18 as u32
-            v22 = unchecked_mul v20, v17
-            v23 = unchecked_mul v21, v19
-            v24 = unchecked_add v22, v23
-            jmp b3(v24)
+            v17 = lt v0, u32 3
+            jmpif v17 then: b3, else: b2
           b2():
-            v6 = lt u32 2, v0
-            v7 = and v0, u32 2
-            v8 = not v6
-            v9 = truncate v0 to 3 bits, max_bit_size: 32
-            v10 = cast v6 as u32
-            v11 = cast v8 as u32
-            v12 = unchecked_mul v10, v7
-            v13 = unchecked_mul v11, v9
-            v14 = unchecked_add v12, v13
-            jmp b3(v14)
-          b3(v1: u32):
-            return v1
+            v19 = truncate v0 to 2 bits, max_bit_size: 32
+            jmp b4(v19)
+          b3():
+            v18 = truncate v0 to 1 bits, max_bit_size: 32
+            jmp b4(v18)
+          b4(v1: u32):
+            jmp b6(v1)
+          b5():
+            v7 = lt u32 2, v0
+            v8 = and v0, u32 2
+            v9 = not v7
+            v10 = truncate v0 to 3 bits, max_bit_size: 32
+            v11 = cast v7 as u32
+            v12 = cast v9 as u32
+            v13 = unchecked_mul v11, v8
+            v14 = unchecked_mul v12, v10
+            v15 = unchecked_add v13, v14
+            jmp b6(v15)
+          b6(v2: u32):
+            return v2
         }
         ");
+    }
+
+    #[test]
+    fn nested_jmpifs_not_flattened() {
+        // Both inner conditionals use truncate on both branches (cost 7 each),
+        // so total cost per inner = 14. jump_overhead = (2+2+2) - 1 = 5.
+        // 14 >= 14/2 + 5 = 12, so neither inner conditional is flattened.
+        let src = "
+            brillig(inline) fn foo f0 {
+              b0(v0: u32):
+                v5 = eq v0, u32 5
+                v6 = not v5
+                jmpif v5 then: b5, else: b1
+              b1():
+                v8 = lt v0, u32 3
+                jmpif v8 then: b3, else: b2
+              b2():
+                v9 = truncate v0 to 2 bits, max_bit_size: 32
+                jmp b4(v9)
+              b3():
+                v10 = truncate v0 to 1 bits, max_bit_size: 32
+                jmp b4(v10)
+              b4(v1: u32):
+                jmp b9(v1)
+              b5():
+                v12 = lt u32 2, v0
+                jmpif v12 then: b7, else: b6
+              b6():
+                v13 = truncate v0 to 3 bits, max_bit_size: 32
+                jmp b8(v13)
+              b7():
+                v14 = truncate v0 to 4 bits, max_bit_size: 32
+                jmp b8(v14)
+              b8(v2: u32):
+                jmp b9(v2)
+              b9(v3: u32):
+                return v3
+            }
+            ";
+        assert_ssa_does_not_change(src, Ssa::flatten_basic_conditionals);
     }
 }

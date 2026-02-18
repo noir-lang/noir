@@ -211,6 +211,24 @@ impl Intrinsic {
         }
     }
 
+    /// Returns true if this intrinsic can modify its input array in Brillig
+    /// due to copy-on-write optimization when the reference count is 1.
+    ///
+    /// This is used to ensure we don't skip clones for these operations,
+    /// even though they're technically "pure" (no observable side effects).
+    /// Without proper reference counting, the caller's array could be corrupted.
+    pub(crate) fn modifies_input_array_in_brillig(&self) -> bool {
+        matches!(
+            self,
+            Intrinsic::VectorPushBack
+                | Intrinsic::VectorPushFront
+                | Intrinsic::VectorPopBack
+                | Intrinsic::VectorPopFront
+                | Intrinsic::VectorInsert
+                | Intrinsic::VectorRemove
+        )
+    }
+
     pub(crate) fn purity(&self) -> Purity {
         match self {
             // These apply a constraint in the form of ACIR opcodes, but they can be deduplicated
