@@ -535,6 +535,12 @@ impl Context {
         side_effects_enabled_var: ValueId,
         block: BasicBlockId,
     ) {
+        if !self.block_queue.visited(&block) {
+            // If we haven't visited the target block yet, we should not update the cache because if we do then
+            // when we _do_ visit the target block later, we'll find the instruction in the cache and skip re-inserting it.
+            return;
+        }
+
         if self.use_constraint_info {
             match instruction {
                 // If the instruction was a constraint, then create a link between the two `ValueId`s
@@ -620,8 +626,10 @@ impl Context {
 
     /// Returns the predicate value to be used when looking up this [`Instruction`] in the cache.
     ///
-    /// We sometimes remove the predicate in situations where an instruction is infallible as it allows us to
-    /// deduplicate more aggressively.
+    /// Instructions that can be deduplicated only `UnderSamePredicate` include the predicate
+    /// in the cache key so that identical instructions under different `enable_side_effects`
+    /// contexts are not incorrectly merged. Instructions that can `Always` be deduplicated omit
+    /// the predicate for more aggressive deduplication.
     fn cache_predicate(
         &self,
         side_effects_enabled_var: ValueId,
@@ -700,19 +708,25 @@ fn can_be_deduplicated(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeD
         | IncrementRc { .. }
         | DecrementRc { .. } => CanBeDeduplicated::Never,
 
-        Call { func, .. } => {
-            let purity = match dfg[*func] {
-                Value::Intrinsic(intrinsic) => Some(intrinsic.purity()),
-                Value::Function(id) => dfg.purity_of(id),
-                _ => None,
-            };
-            match purity {
-                Some(Purity::Pure) => CanBeDeduplicated::Always,
-                Some(Purity::PureWithPredicate) => CanBeDeduplicated::UnderSamePredicate,
-                Some(Purity::Impure) => CanBeDeduplicated::Never,
-                None => CanBeDeduplicated::Never,
-            }
-        }
+        Call { func, .. } => match dfg[*func] {
+            Value::Intrinsic(intrinsic) => match intrinsic.purity() {
+                Purity::Pure => CanBeDeduplicated::Always,
+                Purity::PureWithPredicate => CanBeDeduplicated::UnderSamePredicate,
+                Purity::Impure => CanBeDeduplicated::Never,
+            },
+            // Calls to user-defined functions may lower to predicated `Opcode::Call` or
+            // `Opcode::BrilligCall` in ACIR. Even when the callee is pure, the predicated
+            // opcode skips the callee's constraints when the predicate is false, leaving
+            // outputs unconstrained. We must therefore include the predicate in the cache
+            // key to prevent deduplication across different `enable_side_effects` contexts.
+            Value::Function(id) => match dfg.purity_of(id) {
+                Some(Purity::Pure | Purity::PureWithPredicate) => {
+                    CanBeDeduplicated::UnderSamePredicate
+                }
+                Some(Purity::Impure) | None => CanBeDeduplicated::Never,
+            },
+            _ => CanBeDeduplicated::Never,
+        },
 
         // We can deduplicate these instructions if we know the predicate is also the same.
         Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => {
@@ -771,6 +785,8 @@ fn can_be_deduplicated(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeD
 
 #[cfg(test)]
 mod tests {
+    use test_case::test_case;
+
     use crate::{
         assert_ssa_snapshot,
         ssa::{
@@ -1080,6 +1096,43 @@ mod tests {
             constrain v4 == v10
             enable_side_effects v0
             return
+        }
+        ");
+    }
+
+    #[test]
+    fn deduplicates_pure_calls_under_same_predicate() {
+        // When two identical calls to a pure function occur under the same
+        // predicate, they CAN be deduplicated.
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1, v1: Field):
+                enable_side_effects v0
+                v2 = call f1(v1) -> Field
+                v3 = call f1(v1) -> Field
+                enable_side_effects u1 1
+                return v2, v3
+            }
+            acir(inline) pure fn my_pure_fn f1 {
+              b0(v0: Field):
+                v1 = add v0, Field 1
+                return v1
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants_using_constraints(MIN_ITER);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: Field):
+            enable_side_effects v0
+            v3 = call f1(v1) -> Field
+            enable_side_effects u1 1
+            return v3, v3
+        }
+        acir(inline) pure fn my_pure_fn f1 {
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            return v2
         }
         ");
     }
@@ -2764,5 +2817,149 @@ mod tests {
         let (_, _) = assert_pass_does_not_affect_execution(ssa, vec![input], |ssa| {
             ssa.fold_constants_using_constraints(DEFAULT_MAX_ITER)
         });
+    }
+
+    // Regression test: identical calls to a `Purity::Pure` callee under different
+    // `enable_side_effects` predicates must not be deduplicated.
+    //
+    // `acir(fold)` functions lower to predicated `Opcode::Call` and brillig functions
+    // lower to predicated `Opcode::BrilligCall`. If both calls were collapsed into one
+    // (predicated by v0), then when v0=0 the callee's constraints would be skipped, its
+    // output witness would become unconstrained, and the `constrain` under the complementary
+    // predicate (`not v0`) would reference an unconstrained value — a soundness hole.
+    #[test_case("acir(fold)"; "acir_fold")]
+    #[test_case("brillig(inline)"; "brillig")]
+    fn does_not_deduplicate_pure_calls_under_different_predicates(callee_runtime: &str) {
+        let src = format!(
+            "
+        acir(inline) predicate_pure fn main f0 {{
+          b0(v0: u1, v1: Field):
+            enable_side_effects v0
+            v2 = call f1(v1) -> Field
+            v3 = not v0
+            enable_side_effects v3
+            v4 = call f1(v1) -> Field
+            constrain v4 != Field 123
+            enable_side_effects u1 1
+            return
+        }}
+        {callee_runtime} pure fn foo f1 {{
+          b0(v0: Field):
+            v1 = add v0, Field 1
+            return v1
+        }}
+        "
+        );
+        assert_ssa_does_not_change(&src, |ssa| ssa.fold_constants_using_constraints(MIN_ITER));
+    }
+
+    /// Regression test: constant folding on this SSA requires avoiding inserting cache entries for values in unvisited
+    /// blocks, otherwise a use-before-def error can occur.
+    #[test]
+    fn does_not_insert_cache_entry_for_unvisited_blocks() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v5 = make_array [u8 0] : [u8; 1]
+            v6 = allocate -> &mut [u8; 1]
+            store v5 at v6
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v8 = eq v0, u32 0
+            v9 = make_array [u8 0] : [u8; 1]
+            jmpif v8 then: b2, else: b3
+          b2():
+            v19 = make_array [v9] : [[u8; 1]; 1]
+            v20 = allocate -> &mut [[u8; 1]; 1]
+            store v19 at v20
+            v21 = load v6 -> [u8; 1]
+            jmp b8(u32 0)
+          b3():
+            v10 = allocate -> &mut [u8; 1]
+            store v9 at v10
+            jmp b4(u32 0)
+          b4(v1: u32):
+            v11 = make_array [u8 0] : [u8; 1]
+            v12 = load v10 -> [u8; 1]
+            jmp b5(u32 0)
+          b5(v2: u32):
+            v13 = eq v2, u32 0
+            jmpif v13 then: b6, else: b7
+          b6():
+            v17 = array_get v12, index u32 0 -> u8
+            v18 = unchecked_add v2, u32 1
+            jmp b5(v18)
+          b7():
+            v14 = array_get v12, index u32 0 -> u8
+            v16 = unchecked_add v1, u32 1
+            jmp b4(v16)
+          b8(v3: u32):
+            v22 = eq v3, u32 0
+            jmpif v22 then: b9, else: b10
+          b9():
+            v26 = array_get v21, index u32 0 -> u8
+            v27 = unchecked_add v3, u32 1
+            jmp b8(v27)
+          b10():
+            v23 = make_array [u8 0] : [u8; 1]
+            v24 = array_get v21, index u32 0 -> u8
+            v25 = unchecked_add v0, u32 1
+            jmp b1(v25)
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        // Bug would first appear at max_iter=2: the 1st iteration hoists instructions,
+        // and the 2nd iteration creates references to values in unreachable blocks.
+        let ssa = ssa.fold_constants_with_brillig(2);
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            v5 = make_array [u8 0] : [u8; 1]
+            v6 = allocate -> &mut [u8; 1]
+            store v5 at v6
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v8 = eq v0, u32 0
+            v9 = make_array [u8 0] : [u8; 1]
+            inc_rc v9
+            jmpif v8 then: b2, else: b3
+          b2():
+            v18 = make_array [v9] : [[u8; 1]; 1]
+            v19 = allocate -> &mut [[u8; 1]; 1]
+            store v18 at v19
+            v20 = load v6 -> [u8; 1]
+            jmp b8(u32 0)
+          b3():
+            v10 = allocate -> &mut [u8; 1]
+            store v9 at v10
+            jmp b4(u32 0)
+          b4(v1: u32):
+            v11 = make_array [u8 0] : [u8; 1]
+            v12 = load v10 -> [u8; 1]
+            jmp b5(u32 0)
+          b5(v2: u32):
+            v13 = eq v2, u32 0
+            v14 = array_get v12, index u32 0 -> u8
+            jmpif v13 then: b6, else: b7
+          b6():
+            v17 = unchecked_add v2, u32 1
+            jmp b5(v17)
+          b7():
+            v16 = unchecked_add v1, u32 1
+            jmp b4(v16)
+          b8(v3: u32):
+            v21 = eq v3, u32 0
+            v22 = array_get v20, index u32 0 -> u8
+            jmpif v21 then: b9, else: b10
+          b9():
+            v24 = unchecked_add v3, u32 1
+            jmp b8(v24)
+          b10():
+            inc_rc v9
+            v23 = unchecked_add v0, u32 1
+            jmp b1(v23)
+        }
+        ");
     }
 }

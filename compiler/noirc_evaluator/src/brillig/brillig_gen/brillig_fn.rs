@@ -16,7 +16,10 @@ use crate::{
 };
 use rustc_hash::FxHashMap as HashMap;
 
-use super::{constant_allocation::ConstantAllocation, variable_liveness::VariableLiveness};
+use super::{
+    coalescing::CoalescingMap, constant_allocation::ConstantAllocation,
+    variable_liveness::VariableLiveness,
+};
 
 /// Information required to compile an SSA [Function] into Brillig bytecode.
 ///
@@ -49,6 +52,8 @@ pub(crate) struct FunctionContext {
     pub(crate) constant_allocation: ConstantAllocation,
     /// True if this function is a brillig entry point
     pub(crate) is_entry_point: bool,
+    /// Coalescing map for jmp argument → block parameter register sharing.
+    pub(crate) coalescing: CoalescingMap,
 }
 
 impl FunctionContext {
@@ -59,6 +64,7 @@ impl FunctionContext {
         let reverse_post_order = PostOrder::with_function(function).into_vec_reverse();
         let constants = ConstantAllocation::from_function(function);
         let liveness = VariableLiveness::from_function(function, &constants);
+        let coalescing = CoalescingMap::compute(function, &liveness);
 
         Self {
             function_id: Some(id),
@@ -67,6 +73,7 @@ impl FunctionContext {
             liveness,
             is_entry_point,
             constant_allocation: constants,
+            coalescing,
         }
     }
 

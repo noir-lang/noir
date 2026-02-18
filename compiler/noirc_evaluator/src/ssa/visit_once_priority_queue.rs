@@ -13,6 +13,10 @@ impl<P: Ord, T: Ord + Copy> VisitOncePriorityQueue<P, T> {
         Self { visited: BTreeSet::new(), queue: BTreeSet::new() }
     }
 
+    pub(crate) fn visited(&self, item: &T) -> bool {
+        self.visited.contains(item)
+    }
+
     pub(crate) fn push(&mut self, priority: P, item: T) {
         if !self.visited.contains(&item) {
             self.queue.insert((priority, item));

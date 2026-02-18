@@ -468,7 +468,10 @@ impl Instruction {
             | Instruction::ConstrainNotEqual(..) => true,
 
             Instruction::Call { func, .. } => match dfg[*func] {
-                Value::Function(id) => !matches!(dfg.purity_of(id), Some(Purity::Pure)),
+                // All user-defined function calls are predicated during ACIR generation
+                // (both ACIR and Brillig calls unconditionally pass the side effects predicate),
+                // so this must return true regardless of purity.
+                Value::Function(_) => true,
                 Value::Intrinsic(intrinsic) => {
                     match intrinsic {
                         // These utilize `noirc_evaluator::acir::Context::get_flattened_index` internally
