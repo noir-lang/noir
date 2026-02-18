@@ -46,7 +46,7 @@ fn arb_ssa_roundtrip() {
             max_bytecode_increase_percent: None,
             force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
             skip_passes: Default::default(),
-            ssa_logging_skip_unchanged: false,
+            ssa_logging_hide_unchanged: false,
         };
         let pipeline = primary_passes(&options);
         let last_pass = u.choose_index(pipeline.len())?;

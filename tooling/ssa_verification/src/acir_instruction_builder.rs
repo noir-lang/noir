@@ -235,13 +235,13 @@ impl InstructionArtifacts {
 /// Converts SSA to ACIR program
 fn ssa_to_acir_program(ssa: Ssa) -> AcirProgram<FieldElement> {
     // third brillig names, fourth errors
-    let ssa_logging_skip_unchanged = false;
+    let ssa_logging_hide_unchanged = false;
     let print_codegen_timings = false;
     let files = None;
     let builder = SsaBuilder::from_ssa(
         ssa,
         SsaLogging::None,
-        ssa_logging_skip_unchanged,
+        ssa_logging_hide_unchanged,
         print_codegen_timings,
         files,
     );
@@ -259,7 +259,7 @@ fn ssa_to_acir_program(ssa: Ssa) -> AcirProgram<FieldElement> {
         brillig_options: BrilligOptions::default(),
         enable_brillig_constraints_check_lookback: false,
         skip_passes: vec![],
-        ssa_logging_skip_unchanged: false,
+        ssa_logging_hide_unchanged: false,
     };
     let (acir_functions, brillig, _) = match optimize_ssa_builder_into_acir(
         builder,

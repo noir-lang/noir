@@ -71,7 +71,7 @@ pub struct CompileOptions {
 
     /// Do not print an SSA pass if it didn't produce changes.
     #[arg(long, hide = true)]
-    pub skip_unchanged_ssa: bool,
+    pub hide_unchanged_ssa: bool,
 
     /// Emit source file locations when emitting debug information for the SSA IR to stdout.
     /// By default, source file locations won't be shown.
@@ -236,7 +236,7 @@ impl Default for CompileOptions {
             force_compile: false,
             show_ssa: false,
             show_ssa_pass: Vec::new(),
-            skip_unchanged_ssa: false,
+            hide_unchanged_ssa: false,
             with_ssa_locations: false,
             show_contract_fn: None,
             skip_ssa_pass: Vec::new(),
@@ -301,7 +301,7 @@ impl CompileOptions {
             max_bytecode_increase_percent: self.max_bytecode_increase_percent,
             force_unroll_threshold: self.force_unroll_threshold,
             skip_passes: self.skip_ssa_pass.clone(),
-            ssa_logging_skip_unchanged: self.skip_unchanged_ssa,
+            ssa_logging_hide_unchanged: self.hide_unchanged_ssa,
         }
     }
 }

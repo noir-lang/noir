@@ -51,7 +51,7 @@ fn arb_program_can_be_executed() {
             max_bytecode_increase_percent: None,
             force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
             skip_passes: Default::default(),
-            ssa_logging_skip_unchanged: false,
+            ssa_logging_hide_unchanged: false,
         };
 
         // Print the AST if something goes wrong, then panic.

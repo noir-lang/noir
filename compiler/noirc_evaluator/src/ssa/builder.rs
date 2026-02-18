@@ -78,7 +78,7 @@ pub struct SsaBuilder<'local> {
     /// Options to control which SSA passes to print.
     ssa_logging: SsaLogging,
     /// Whether to skip printing an SSA pass if it didn't produce any changes.
-    ssa_logging_skip_unchanged: bool,
+    ssa_logging_hide_unchanged: bool,
     /// Records the last SSA printed. This is used to avoid printing the result of an
     /// SSA pass if it didn't produce any changes compared to the previous SSA.
     last_ssa_printed: Option<String>,
@@ -99,7 +99,7 @@ impl<'local> SsaBuilder<'local> {
     pub fn from_program(
         program: Program,
         ssa_logging: SsaLogging,
-        ssa_logging_skip_unchanged: bool,
+        ssa_logging_hide_unchanged: bool,
         print_codegen_timings: bool,
         emit_ssa: &Option<PathBuf>,
         files: Option<&'local fm::FileManager>,
@@ -117,7 +117,7 @@ impl<'local> SsaBuilder<'local> {
         Ok(Self::from_ssa(
             ssa,
             ssa_logging,
-            ssa_logging_skip_unchanged,
+            ssa_logging_hide_unchanged,
             print_codegen_timings,
             files,
         )
@@ -127,13 +127,13 @@ impl<'local> SsaBuilder<'local> {
     pub fn from_ssa(
         ssa: Ssa,
         ssa_logging: SsaLogging,
-        ssa_logging_skip_unchanged: bool,
+        ssa_logging_hide_unchanged: bool,
         print_codegen_timings: bool,
         files: Option<&'local fm::FileManager>,
     ) -> Self {
         Self {
             ssa_logging,
-            ssa_logging_skip_unchanged,
+            ssa_logging_hide_unchanged: ssa_logging_hide_unchanged,
             last_ssa_printed: None,
             print_codegen_timings,
             ssa,
@@ -210,7 +210,7 @@ impl<'local> SsaBuilder<'local> {
 
         if print_ssa_pass {
             let printed_ssa = format!("{}", self.ssa.print_with(self.files));
-            let skip_print = self.ssa_logging_skip_unchanged
+            let skip_print = self.ssa_logging_hide_unchanged
                 && self
                     .last_ssa_printed
                     .as_ref()
@@ -220,7 +220,7 @@ impl<'local> SsaBuilder<'local> {
                 println_to_stdout!("After {msg}:\n{printed_ssa}");
             }
 
-            if self.ssa_logging_skip_unchanged {
+            if self.ssa_logging_hide_unchanged {
                 self.last_ssa_printed = Some(printed_ssa);
             }
         }

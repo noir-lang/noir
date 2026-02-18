@@ -47,7 +47,7 @@ pub fn optimize_ssa_into_acir(
         let builder = SsaBuilder::from_ssa(
             ssa,
             options.ssa_logging.clone(),
-            options.ssa_logging_skip_unchanged,
+            options.ssa_logging_hide_unchanged,
             options.print_codegen_timings,
             None,
         );

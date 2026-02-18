@@ -260,7 +260,7 @@ fn print_ssa(
 
     if print_ssa_pass {
         let printed_ssa = format!("{}", ssa.print_with(files));
-        let skip_print = options.ssa_logging_skip_unchanged
+        let skip_print = options.ssa_logging_hide_unchanged
             && last_ssa_printed
                 .as_ref()
                 .is_some_and(|last_ssa_printed| last_ssa_printed == &printed_ssa);
@@ -269,7 +269,7 @@ fn print_ssa(
             println!("After {msg}:\n{printed_ssa}");
         }
 
-        if options.ssa_logging_skip_unchanged {
+        if options.ssa_logging_hide_unchanged {
             *last_ssa_printed = Some(printed_ssa);
         }
 
