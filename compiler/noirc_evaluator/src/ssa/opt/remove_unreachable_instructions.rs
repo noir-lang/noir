@@ -512,17 +512,16 @@ fn remove_and_replace_with_defaults(
     let result_ids = context.dfg.instruction_results(context.instruction_id).to_vec();
     for result_id in result_ids {
         let typ = &context.dfg.type_of_value(result_id);
-        let mut default_value = zeroed_value(context.dfg, func_id, block_id, typ);
-        if matches!(typ, Type::Vector(_)) {
+        let default_value = if matches!(typ, Type::Vector(_)) {
             if let Some(len) = context.dfg.try_get_vector_capacity(result_id) {
-                default_value =
-                    zeroed_vector_of_size(context.dfg, func_id, block_id, typ, len.to_usize());
+                zeroed_vector_of_size(context.dfg, func_id, block_id, typ, len.to_usize())
             } else {
                 // we cannot zero the vector without knowing its length.
                 return;
             }
-        }
-
+        } else {
+            zeroed_value(context.dfg, func_id, block_id, typ)
+        };
         context.replace_value(result_id, default_value);
     }
     context.remove_current_instruction();
@@ -1475,15 +1474,14 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.remove_unreachable_instructions();
 
-        // v8 is NOT replaced with an empty array []
+        // v7 is NOT replaced with an empty array []
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u1):
             v4 = make_array [u32 1, u32 2, u32 3] : [u32]
             enable_side_effects v0
             constrain u1 0 == v0, "attempt to divide by zero"
-            v6 = make_array [] : [u32]
-            v8 = make_array [u32 0, u32 0, u32 0, u32 0] : [u32]
+            v7 = make_array [u32 0, u32 0, u32 0, u32 0] : [u32]
             enable_side_effects u1 1
             return u32 0
         }
