@@ -4,12 +4,12 @@ use acvm::{AcirField, FieldElement};
 
 use crate::ssa::{
     ir::{
+        dfg::DataFlowGraph,
         function::Function,
         instruction::{Instruction, InstructionId},
         types::Type,
         value::{Value, ValueId},
     },
-    opt::simple_optimization::SimpleOptimizationContext,
     ssa_gen::Ssa,
 };
 
@@ -40,11 +40,15 @@ impl Function {
                     };
                     let array = *array;
                     let index = *index;
+                    let mode = ArrayGetOptimizationMode::ArrayGetOptimization {
+                        side_effects_var: context.enable_side_effects,
+                        array_set_predicates: &array_set_predicates,
+                    };
                     let Some(result) = try_optimize_array_get_from_previous_instructions(
                         array,
                         index_field,
-                        context,
-                        &array_set_predicates,
+                        context.dfg,
+                        mode,
                     ) else {
                         return;
                     };
@@ -52,11 +56,11 @@ impl Function {
                     context.remove_current_instruction();
 
                     match result {
-                        OptimizationResult::Value(new_value) => {
+                        ArrayGetOptimizationResult::Value(new_value) => {
                             let [result] = context.dfg.instruction_result(instruction_id);
                             context.replace_value(result, new_value);
                         }
-                        OptimizationResult::ArrayGet(array) => {
+                        ArrayGetOptimizationResult::ArrayGet(array) => {
                             let array_get = Instruction::ArrayGet { array, index };
                             let [result] = context.dfg.instruction_result(instruction_id);
                             let result_typ = context.dfg.type_of_value(result);
@@ -73,39 +77,72 @@ impl Function {
     }
 }
 
-enum OptimizationResult {
+pub(crate) enum ArrayGetOptimizationResult {
     Value(ValueId),
     ArrayGet(ValueId),
 }
 
-fn try_optimize_array_get_from_previous_instructions(
+pub(crate) enum ArrayGetOptimizationMode<'a> {
+    Simplify,
+    ValueMerging,
+    ArrayGetOptimization {
+        side_effects_var: ValueId,
+        array_set_predicates: &'a HashMap<InstructionId, ValueId>,
+    },
+}
+
+pub(crate) fn try_optimize_array_get_from_previous_instructions(
     mut array_id: ValueId,
     target_index: FieldElement,
-    context: &SimpleOptimizationContext,
-    array_set_predicates: &HashMap<InstructionId, ValueId>,
-) -> Option<OptimizationResult> {
+    dfg: &DataFlowGraph,
+    mode: ArrayGetOptimizationMode,
+) -> Option<ArrayGetOptimizationResult> {
     let target_index_u32 = target_index.try_to_u32()?;
 
     // Arbitrary number of maximum tries just to prevent this optimization from taking too long.
     let max_tries = 5;
-    for _ in 0..max_tries {
+    for try_number in 0..max_tries {
         if let Some((instruction, other_instruction_id)) =
-            context.dfg.get_local_or_global_instruction_with_id(array_id)
+            dfg.get_local_or_global_instruction_with_id(array_id)
         {
             match instruction {
                 Instruction::ArraySet { array, index, value, .. } => {
-                    if let Some(constant) = context.dfg.get_numeric_constant(*index) {
+                    if let Some(constant) = dfg.get_numeric_constant(*index) {
                         if constant == target_index {
-                            // If there's an array_set with the same index as the array_get, we
-                            // can only apply this optimization if they are under the same predicate.
-                            if array_set_predicates
-                                .get(&other_instruction_id)
-                                .is_none_or(|predicate| predicate != &context.enable_side_effects)
-                            {
-                                return None;
+                            match mode {
+                                ArrayGetOptimizationMode::Simplify => {
+                                    // If it's an array_set with the same index as the array_get, we don't
+                                    // use the value at that index. The reason is that the array_set might
+                                    // be under a different predicate than the array_get, so the set value
+                                    // might not be the correct one in the end.
+                                    return None;
+                                }
+                                ArrayGetOptimizationMode::ValueMerging => {
+                                    // If it's an array_set with the same index, we can reuse the value at
+                                    // the index regardless of the predicate, because we'll later multiply
+                                    // but its associated predicate. However, we only do this in this first
+                                    // iteration of the loop: successive iterations might be modifying under
+                                    // a different predicate.
+                                    if try_number != 0 {
+                                        return None;
+                                    }
+                                }
+                                ArrayGetOptimizationMode::ArrayGetOptimization {
+                                    side_effects_var,
+                                    array_set_predicates,
+                                } => {
+                                    // If there's an array_set with the same index as the array_get, we
+                                    // can only apply this optimization if they are under the same predicate.
+                                    if array_set_predicates
+                                        .get(&other_instruction_id)
+                                        .is_none_or(|predicate| predicate != &side_effects_var)
+                                    {
+                                        return None;
+                                    }
+                                }
                             }
 
-                            return Some(OptimizationResult::Value(*value));
+                            return Some(ArrayGetOptimizationResult::Value(*value));
                         }
 
                         // If it's for a different known index, we can safely recur, because
@@ -118,15 +155,15 @@ fn try_optimize_array_get_from_previous_instructions(
                 Instruction::MakeArray { elements: array, typ: _ } => {
                     let index = target_index_u32 as usize;
                     if index < array.len() {
-                        return Some(OptimizationResult::Value(array[index]));
+                        return Some(ArrayGetOptimizationResult::Value(array[index]));
                     }
                 }
                 _ => (),
             }
-        } else if let Value::Param { typ: Type::Array(_, length), .. } = &context.dfg[array_id]
+        } else if let Value::Param { typ: Type::Array(_, length), .. } = &dfg[array_id]
             && target_index_u32 < length.0
         {
-            return Some(OptimizationResult::ArrayGet(array_id));
+            return Some(ArrayGetOptimizationResult::ArrayGet(array_id));
         }
 
         break;

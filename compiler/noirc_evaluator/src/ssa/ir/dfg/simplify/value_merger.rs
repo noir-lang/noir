@@ -1,5 +1,5 @@
 use acvm::{
-    AcirField as _, FieldElement,
+    FieldElement,
     acir::brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength},
 };
 use noirc_errors::{Location, call_stack::CallStackId};
@@ -8,12 +8,18 @@ use rustc_hash::FxHashMap as HashMap;
 use crate::{
     brillig::assert_u32,
     errors::{RtResult, RuntimeError},
-    ssa::ir::{
-        basic_block::BasicBlockId,
-        dfg::DataFlowGraph,
-        instruction::{BinaryOp, Instruction},
-        types::{NumericType, Type},
-        value::{Value, ValueId},
+    ssa::{
+        ir::{
+            basic_block::BasicBlockId,
+            dfg::DataFlowGraph,
+            instruction::{BinaryOp, Instruction},
+            types::{NumericType, Type},
+            value::ValueId,
+        },
+        opt::{
+            ArrayGetOptimizationMode, ArrayGetOptimizationResult,
+            try_optimize_array_get_from_previous_instructions,
+        },
     },
 };
 
@@ -301,9 +307,10 @@ fn maybe_optimized_array_get(
     call_stack: CallStackId,
     dfg: &mut DataFlowGraph,
 ) -> ValueId {
-    match try_optimize_array_get_from_previous_instructions(dfg, array, index_value) {
-        Some(OptimizationResult::Value(value)) => value,
-        Some(OptimizationResult::ArrayGet(array)) => {
+    let mode = ArrayGetOptimizationMode::ValueMerging;
+    match try_optimize_array_get_from_previous_instructions(array, index_value, dfg, mode) {
+        Some(ArrayGetOptimizationResult::Value(value)) => value,
+        Some(ArrayGetOptimizationResult::ArrayGet(array)) => {
             let get = Instruction::ArrayGet { array, index };
             dfg.insert_instruction_and_results(get, block, typevars, call_stack).first()
         }
@@ -312,64 +319,4 @@ fn maybe_optimized_array_get(
             dfg.insert_instruction_and_results(get, block, typevars, call_stack).first()
         }
     }
-}
-
-enum OptimizationResult {
-    Value(ValueId),
-    ArrayGet(ValueId),
-}
-
-fn try_optimize_array_get_from_previous_instructions(
-    dfg: &DataFlowGraph,
-    mut array_id: ValueId,
-    target_index: FieldElement,
-) -> Option<OptimizationResult> {
-    // The target index must be less than the maximum array length
-    let target_index_u32 = target_index.try_to_u32()?;
-
-    // Arbitrary number of maximum tries just to prevent this optimization from taking too long.
-    let max_tries = 5;
-    for try_number in 0..max_tries {
-        if let Some(instruction) = dfg.get_local_or_global_instruction(array_id) {
-            match instruction {
-                Instruction::ArraySet { array, index, value, .. } => {
-                    if let Some(constant) = dfg.get_numeric_constant(*index) {
-                        if constant == target_index {
-                            // If it's an array_set with the same index, we can reuse the value at
-                            // the index regardless of the predicate, because we'll later multiply
-                            // but its associated predicate. However, we only do this in this first
-                            // iteration of the loop: successive iterations might be modifying under
-                            // a different predicate.
-                            if try_number != 0 {
-                                return None;
-                            }
-
-                            return Some(OptimizationResult::Value(*value));
-                        }
-
-                        // If it's for a different known index, we can safely recur, because
-                        // regardless of whether the array_set ends up being executed or not, it
-                        // won't modify the value at the array_get index.
-                        array_id = *array; // recur
-                        continue;
-                    }
-                }
-                Instruction::MakeArray { elements: array, typ: _ } => {
-                    let index = target_index_u32 as usize;
-                    if index < array.len() {
-                        return Some(OptimizationResult::Value(array[index]));
-                    }
-                }
-                _ => (),
-            }
-        } else if let Value::Param { typ: Type::Array(_, length), .. } = &dfg[array_id]
-            && target_index_u32 < length.0
-        {
-            return Some(OptimizationResult::ArrayGet(array_id));
-        }
-
-        break;
-    }
-
-    None
 }
