@@ -244,13 +244,13 @@ impl Elaborator<'_> {
                 methods,
             });
 
-            let generics = vecmap(&self.generics, |generic| generic.type_var.clone());
+            let impl_generics = vecmap(&self.generics, |generic| generic.type_var.clone());
 
             match self.interner.add_trait_implementation(
                 self_type.clone(),
                 trait_id,
                 trait_impl.impl_id.expect("ICE: impl_id should be set in define_function_metas"),
-                generics,
+                impl_generics,
                 resolved_trait_impl,
                 location,
             ) {
@@ -833,7 +833,13 @@ impl Elaborator<'_> {
         if let Some(trait_id) = trait_id {
             // The ordered generics and associated types are already stored by `resolve_trait_impl_associated_types`.
             // Now that we have resolved the self-type, register the prepared trait impl for it.
-            self.interner.add_prepared_trait_implementation(self_type.clone(), trait_id, impl_id);
+            let impl_generics = vecmap(&self.generics, |generic| generic.type_var.clone());
+            self.interner.add_prepared_trait_implementation(
+                self_type.clone(),
+                trait_id,
+                impl_id,
+                impl_generics,
+            );
         }
 
         trait_impl.methods.self_type = Some(self_type.clone());

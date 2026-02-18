@@ -27,12 +27,19 @@ mod tests {
             max_bytecode_increase_percent: None,
             max_unroll_iterations: MAX_UNROLL_ITERATIONS,
             constant_folding_max_iter: constant_folding::DEFAULT_MAX_ITER,
-            small_function_max_instruction: inlining::MAX_INSTRUCTIONS,
+            small_function_max_instruction: inlining::MAX_SIMPLE_FUNCTION_WEIGHT,
             force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
             skip_passes: Default::default(),
+            ssa_logging_hide_unchanged: false,
         };
 
-        let builder = SsaBuilder::from_ssa(ssa, options.ssa_logging.clone(), false, None);
+        let builder = SsaBuilder::from_ssa(
+            ssa,
+            options.ssa_logging.clone(),
+            options.ssa_logging_hide_unchanged,
+            false,
+            None,
+        );
         Ok(builder.run_passes(&primary_passes(options))?.finish())
     }
 

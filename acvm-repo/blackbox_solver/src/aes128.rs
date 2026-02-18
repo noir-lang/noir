@@ -8,7 +8,7 @@ pub fn aes128_encrypt(
     iv: [u8; 16],
     key: [u8; 16],
 ) -> Result<Vec<u8>, BlackBoxResolutionError> {
-    if inputs.len() % 16 != 0 {
+    if !inputs.len().is_multiple_of(16) {
         return Err(BlackBoxResolutionError::Failed(
             acir::BlackBoxFunc::AES128Encrypt,
             "input length must be a multiple of 16".to_string(),

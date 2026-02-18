@@ -80,6 +80,9 @@ pub struct SsaEvaluatorOptions {
     /// Emit debug information for the intermediate SSA IR
     pub ssa_logging: SsaLogging,
 
+    /// Whether to skip printing an SSA pass if it didn't produce any changes.
+    pub ssa_logging_hide_unchanged: bool,
+
     /// Options affecting Brillig code generation.
     pub brillig_options: BrilligOptions,
 
@@ -175,6 +178,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         ),
         SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
         SsaPass::new(Ssa::loop_invariant_code_motion, "Loop Invariant Code Motion"),
+        SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
         SsaPass::new_try(
             move |ssa| {
                 ssa.unroll_loops_iteratively(
@@ -221,6 +225,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             |ssa| ssa.fold_constants_using_constraints(options.constant_folding_max_iter),
             "Constant Folding using constraints",
         ),
+        SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
         SsaPass::new_try(
             move |ssa| {
                 ssa.unroll_loops_iteratively(
@@ -382,6 +387,7 @@ pub fn optimize_into_acir(
     let builder = SsaBuilder::from_program(
         program,
         options.ssa_logging.clone(),
+        options.ssa_logging_hide_unchanged,
         options.print_codegen_timings,
         &options.emit_ssa,
         files,

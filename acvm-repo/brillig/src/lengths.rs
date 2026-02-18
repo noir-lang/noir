@@ -123,7 +123,7 @@ impl Div<ElementTypesLength> for SemiFlattenedLength {
     type Output = SemanticLength;
 
     fn div(self, rhs: ElementTypesLength) -> Self::Output {
-        if self.0 % rhs.0 != 0 {
+        if !self.0.is_multiple_of(rhs.0) {
             panic!(
                 "Division of SemiFlattenedLength {} by ElementTypesLength {} has remainder",
                 self.0, rhs.0
@@ -211,7 +211,7 @@ impl Div<ElementsFlattenedLength> for FlattenedLength {
     type Output = SemanticLength;
 
     fn div(self, rhs: ElementsFlattenedLength) -> Self::Output {
-        if self.0 % rhs.0 != 0 {
+        if !self.0.is_multiple_of(rhs.0) {
             panic!(
                 "Division of FlattenedLength {} by ElementsFlattenedLength {} has remainder",
                 self.0, rhs.0

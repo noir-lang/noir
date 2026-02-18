@@ -40,7 +40,7 @@ use crate::{
             value::{ExprValue, FormatStringFragment, TypedExpr},
         },
         def_collector::dc_crate::CollectedItems,
-        def_map::{ModuleDefId, ModuleId},
+        def_map::{ModuleDefId, ModuleId, fully_qualified_module_path},
     },
     hir_def::{
         expr::{HirExpression, HirIdent, HirLiteral, ImplKind, TraitItem},
@@ -2650,7 +2650,7 @@ fn function_def_is_unconstrained(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let func_id = get_function_def(self_argument)?;
-    let is_unconstrained = interner.function_modifiers(&func_id).is_unconstrained;
+    let is_unconstrained = interner.function_meta(&func_id).is_unconstrained();
     Ok(Value::Bool(is_unconstrained))
 }
 
@@ -2897,8 +2897,9 @@ fn function_def_set_unconstrained(
 
     let unconstrained = get_bool(unconstrained)?;
 
-    let modifiers = interpreter.elaborator.interner.function_modifiers_mut(&func_id);
-    modifiers.is_unconstrained = unconstrained;
+    mutate_func_meta_type(interpreter.elaborator.interner, func_id, |func_meta| {
+        func_meta.set_unconstrained(unconstrained);
+    });
 
     Ok(Value::Unit)
 }
@@ -2923,6 +2924,17 @@ fn module_add_item(
 ) -> IResult<Value> {
     let (self_argument, item) = check_two_arguments(arguments, location)?;
     let module_id = get_module(self_argument)?;
+
+    let current_crate = interpreter.elaborator.module_id().krate;
+    if current_crate != module_id.krate {
+        let module = fully_qualified_module_path(
+            interpreter.elaborator.def_maps,
+            interpreter.elaborator.crate_graph,
+            &current_crate,
+            module_id,
+        );
+        return Err(InterpreterError::CannotAddItemToExternalCrateModule { module, location });
+    }
 
     let parser = Parser::parse_top_level_items;
     let top_level_statements = parse(interpreter.elaborator, item, parser, "a top-level item")?;

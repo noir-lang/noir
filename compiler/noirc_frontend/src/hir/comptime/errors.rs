@@ -307,6 +307,10 @@ pub enum InterpreterError {
     TraitImplResolutionRecursionLimitReached {
         location: Location,
     },
+    CannotAddItemToExternalCrateModule {
+        module: String,
+        location: Location,
+    },
 
     // These cases are not errors, they are just used to prevent us from running more code
     // until the loop can be resumed properly. These cases will never be displayed to users.
@@ -407,7 +411,8 @@ impl InterpreterError {
             | InterpreterError::CheckedTransmuteFailed { location, .. }
             | InterpreterError::UnexpectedEscapedTokenInQuote { location, .. }
             | InterpreterError::TraitImplResolutionRecursionLimitReached { location }
-            | InterpreterError::AttributeRecursionLimitExceeded { location } => *location,
+            | InterpreterError::AttributeRecursionLimitExceeded { location }
+            | InterpreterError::CannotAddItemToExternalCrateModule { location, .. } => *location,
             InterpreterError::FailedToParseMacro { error, .. } => error.location(),
             InterpreterError::NoMatchingImplFound { error } => error.location,
             InterpreterError::DuplicateStructFieldInSetFields { name, .. } => name.location(),
@@ -866,6 +871,11 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             }
             InterpreterError::TraitImplResolutionRecursionLimitReached { location } => {
                 let primary = "Trait impl resolution recursion limit reached".to_string();
+                let secondary = String::new();
+                CustomDiagnostic::simple_warning(primary, secondary, *location)
+            }
+            InterpreterError::CannotAddItemToExternalCrateModule { module, location } => {
+                let primary = format!("Cannot add items to external crate module `{module}`");
                 let secondary = String::new();
                 CustomDiagnostic::simple_warning(primary, secondary, *location)
             }

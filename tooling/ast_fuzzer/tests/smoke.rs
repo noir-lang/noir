@@ -55,6 +55,7 @@ fn arb_program_can_be_executed() {
             max_unroll_iterations: MAX_UNROLL_ITERATIONS,
             force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
             skip_passes: Default::default(),
+            ssa_logging_hide_unchanged: false,
         };
 
         // Print the AST if something goes wrong, then panic.
