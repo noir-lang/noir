@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771366044096,
+  "lastUpdate": 1771426258149,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23121,48 +23121,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "f93f8c50e20fe6c927f76746610f24e216868b5e",
-          "message": "chore(deps-dev): bump webpack from 5.104.1 to 5.105.0 in the webpack group (#11516)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-02-10T12:49:24Z",
-          "tree_id": "89afa830dfa9cebe488447c670f09bf6f0bc60b9",
-          "url": "https://github.com/noir-lang/noir/commit/f93f8c50e20fe6c927f76746610f24e216868b5e"
-        },
-        "date": 1770729405255,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252201,
-            "range": "± 314",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 219976,
-            "range": "± 1858",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2722714,
-            "range": "± 1876",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -25214,6 +25172,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2723256,
             "range": "± 6114",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8aa28097e42b4246d71401f80f00aabc877b1b8b",
+          "message": "fix(ssa): fully simplify CFG by exploring new successors and cascading invalidation (#11619)",
+          "timestamp": "2026-02-18T14:28:33Z",
+          "tree_id": "8d8a949dd13e2e3c29745c9ba81f1ff45f9ee57e",
+          "url": "https://github.com/noir-lang/noir/commit/8aa28097e42b4246d71401f80f00aabc877b1b8b"
+        },
+        "date": 1771426213458,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 250617,
+            "range": "± 463",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 222048,
+            "range": "± 7859",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2726501,
+            "range": "± 3227",
             "unit": "ns/iter"
           }
         ]
