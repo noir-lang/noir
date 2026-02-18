@@ -217,7 +217,7 @@ impl<'local> SsaBuilder<'local> {
                     .is_some_and(|last_ssa_printed| last_ssa_printed == &printed_ssa);
 
             if !skip_print {
-                println_to_stdout!("After {msg}:\n{}", printed_ssa);
+                println_to_stdout!("After {msg}:\n{printed_ssa}");
             }
 
             if self.ssa_logging_skip_unchanged {

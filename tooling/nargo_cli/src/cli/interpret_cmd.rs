@@ -140,6 +140,7 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
         };
         let file_manager =
             if args.compile_options.with_ssa_locations { Some(&file_manager) } else { None };
+        let mut last_ssa_printed: Option<String> = None;
 
         is_ok &= print_and_interpret_ssa(
             ssa_options,
@@ -150,6 +151,7 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
             &ssa_return,
             interpreter_options,
             file_manager,
+            &mut last_ssa_printed,
         )?;
 
         // Run SSA passes in the pipeline and interpret the ones we are interested in.
@@ -173,6 +175,7 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
                 &ssa_return,
                 interpreter_options,
                 file_manager,
+                &mut last_ssa_printed,
             )?;
         }
     }
@@ -238,15 +241,41 @@ fn msg_matches(patterns: &[String], msg: &str) -> bool {
     patterns.iter().any(|p| msg.contains(&p.to_lowercase()))
 }
 
-fn print_ssa(options: &SsaEvaluatorOptions, ssa: &mut Ssa, msg: &str, fm: Option<&FileManager>) {
-    let print = match options.ssa_logging {
-        SsaLogging::All => true,
-        SsaLogging::None => false,
-        SsaLogging::Contains(ref ps) => msg_matches(ps, msg),
-    };
-    if print {
+/// Prints the SSA (if it needs to be printed) and returns whether the SSA needs
+/// to be interpreted afterwards (it doesn't need to if the SSA passes are being
+/// printed and the user asked to skip SSA passes that don't produce changes).
+fn print_ssa(
+    options: &SsaEvaluatorOptions,
+    ssa: &mut Ssa,
+    msg: &str,
+    files: Option<&FileManager>,
+    last_ssa_printed: &mut Option<String>,
+) -> bool {
+    let print_ssa_pass = options.ssa_logging.matches(msg);
+
+    // Always normalize if we are going to print at least one of the passes
+    if !matches!(options.ssa_logging, SsaLogging::None) {
         ssa.normalize_ids();
-        println!("After {msg}:\n{}", ssa.print_with(fm));
+    }
+
+    if print_ssa_pass {
+        let printed_ssa = format!("{}", ssa.print_with(files));
+        let skip_print = options.ssa_logging_skip_unchanged
+            && last_ssa_printed
+                .as_ref()
+                .is_some_and(|last_ssa_printed| last_ssa_printed == &printed_ssa);
+
+        if !skip_print {
+            println!("After {msg}:\n{printed_ssa}");
+        }
+
+        if options.ssa_logging_skip_unchanged {
+            *last_ssa_printed = Some(printed_ssa);
+        }
+
+        !skip_print
+    } else {
+        true
     }
 }
 
@@ -305,9 +334,14 @@ fn print_and_interpret_ssa(
     return_value: &Option<Vec<Value>>,
     interpreter_options: InterpreterOptions,
     fm: Option<&FileManager>,
+    last_ssa_printed: &mut Option<String>,
 ) -> Result<bool, CliError> {
-    print_ssa(options, ssa, msg, fm);
-    interpret_ssa(passes_to_interpret, ssa, msg, args, return_value, interpreter_options)
+    let must_interpret = print_ssa(options, ssa, msg, fm, last_ssa_printed);
+    if must_interpret {
+        interpret_ssa(passes_to_interpret, ssa, msg, args, return_value, interpreter_options)
+    } else {
+        Ok(true)
+    }
 }
 
 fn flatten_databus_values(values: Vec<Value>) -> Vec<Value> {
