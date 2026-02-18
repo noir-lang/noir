@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771429764714,
+  "lastUpdate": 1771433344368,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23096,48 +23096,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "163862677+noirwhal@users.noreply.github.com",
-            "name": "noirwhal",
-            "username": "noirwhal"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "333e36ce70f7d406831c52df624677f101ed3d4f",
-          "message": "chore: bump external pinned commits (#11506)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-02-10T13:56:36Z",
-          "tree_id": "f181d8f2401e26f6ef161f067cf8e29ca2a7a92a",
-          "url": "https://github.com/noir-lang/noir/commit/333e36ce70f7d406831c52df624677f101ed3d4f"
-        },
-        "date": 1770731943681,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 251844,
-            "range": "± 1105",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 219587,
-            "range": "± 4624",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2725035,
-            "range": "± 4340",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -25189,6 +25147,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2724538,
             "range": "± 1524",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ea8f830b66b767af727e7f233dd59cb6c7db8c77",
+          "message": "fix(ssa): Try not to hoist into loop headers during constant folding (#11616)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-02-18T16:24:27Z",
+          "tree_id": "db39adadd0c55443d76c509a87329b23218f161e",
+          "url": "https://github.com/noir-lang/noir/commit/ea8f830b66b767af727e7f233dd59cb6c7db8c77"
+        },
+        "date": 1771433295748,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 243306,
+            "range": "± 2007",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 212902,
+            "range": "± 2643",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2205714,
+            "range": "± 3808",
             "unit": "ns/iter"
           }
         ]
