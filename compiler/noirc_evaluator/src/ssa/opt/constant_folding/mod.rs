@@ -128,11 +128,6 @@ impl Function {
         max_iter: usize,
         interpreter: &mut Option<Interpreter<Empty>>,
     ) {
-<<<<<<< HEAD
-        let mut dom = DominatorTree::with_function(self);
-        let mutated_types = find_mutated_block_param_array_types(self);
-        let mut context = Context::new(use_constraint_info, mutated_types.clone());
-=======
         let loops = Loops::find_all(self, LoopOrder::OutsideIn);
 
         // Identify loop headers, so we can try to avoid hoisting into them.
@@ -152,8 +147,8 @@ impl Function {
             .collect::<HashMap<_, _>>();
 
         let mut dom = loops.dom;
-        let mut context = Context::new(use_constraint_info);
->>>>>>> master
+        let mutated_types = find_mutated_block_param_array_types(self);
+        let mut context = Context::new(use_constraint_info, mutated_types.clone());
 
         context.enqueue(&dom, [self.entry_block()]);
 
