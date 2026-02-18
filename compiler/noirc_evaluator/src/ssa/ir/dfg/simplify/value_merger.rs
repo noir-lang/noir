@@ -302,7 +302,8 @@ impl<'a> ValueMerger<'a> {
         index_value: FieldElement,
         typevars: Option<Vec<Type>>,
     ) -> ValueId {
-        let side_effects = self.array_get_optimization_side_effects.as_ref();
+        // let side_effects = self.array_get_optimization_side_effects.as_ref();
+        let side_effects = None;
         match try_optimize_array_get_from_previous_instructions(
             array,
             index_value,
