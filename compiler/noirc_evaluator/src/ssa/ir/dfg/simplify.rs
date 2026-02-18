@@ -374,9 +374,7 @@ fn optimize_length_one_array_read(
 /// We want to optimize `v4` to `11`. To do this we need to follow the array value
 /// through several array sets. For each array set:
 /// - If the index is non-constant we fail the optimization since any index may be changed
-/// - If the index is constant and is our target index, we conservatively fail the optimization
-///   in case the array_set is disabled from a previous `enable_side_effects_if` and the array get
-///   was not.
+///
 /// - Otherwise, we check the array value of the array set.
 ///   - If the array value is constant, we use that array.
 ///   - If the array value is from a previous array-set, we recur.
@@ -385,6 +383,10 @@ fn optimize_length_one_array_read(
 /// That is, we have multiple `array_set` instructions setting various constant indexes
 /// of the same array, returning a modified version. We want to go backwards until we
 /// find the last `array_set` for the index we are interested in, and return the value set.
+///
+/// This optimization should be disabled in case of array-set is under an `enable_side_effects_if`
+/// In that case, array-get are Loads before flattening and IfElse after, so the optimization will
+/// not apply.
 fn try_optimize_array_get_from_previous_set(
     dfg: &mut DataFlowGraph,
     mut array_id: ValueId,
