@@ -144,6 +144,7 @@ impl Function {
                     .instructions()
                     .iter()
                     .flat_map(|id| self.dfg.instruction_results(*id))
+                    .chain(self.dfg.block_parameters(loop_.header).iter())
                     .cloned()
                     .collect::<HashSet<_>>();
                 (loop_.header, values_defined_in_header)
@@ -854,7 +855,10 @@ mod tests {
         ssa::{
             Ssa,
             interpreter::value::Value,
-            ir::{types::NumericType, value::ValueMapping},
+            ir::{
+                types::{NumericType, Type},
+                value::ValueMapping,
+            },
             opt::{
                 assert_normalized_ssa_equals, assert_pass_does_not_affect_execution,
                 assert_ssa_does_not_change, constant_folding::DEFAULT_MAX_ITER,
@@ -3151,6 +3155,79 @@ mod tests {
           b4(v1: u1):
             store v1 at v2
             jmp b1()
+        }
+        ");
+    }
+
+    #[test]
+    fn hoisting_instruction_using_param_into_dominator_of_param() {
+        let src = "
+      brillig(inline) impure fn main f0 {
+        b0(v0: [Field; 2]):
+          inc_rc v0
+          v6 = array_get v0, index u32 1 -> Field
+          v8 = add Field 3, v6
+          v9 = array_set v0, index u32 1, value v8
+          jmp b1(v9, u1 1)
+        b1(v1: [Field; 2], v2: u1):
+          jmpif v2 then: b2, else: b3
+        b2():
+          v18 = array_get v1, index u32 0 -> Field
+          v19 = add Field 3, v18
+          v20 = array_set v1, index u32 0, value v19
+          jmp b1(v20, u1 0)
+        b3():
+          v11 = array_set v0, index u32 1, value v8
+          jmp b4(v11, u1 1)
+        b4(v3: [Field; 2], v4: u1):
+          jmpif v4 then: b5, else: b6
+        b5():
+          v14 = array_get v3, index u32 0 -> Field
+          v15 = add Field 3, v14
+          v16 = array_set v3, index u32 0, value v15
+          jmp b4(v16, u1 0)
+        b6():
+          v13 = array_get v3, index u32 0 -> Field
+          return v13
+      }
+      ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants_with_brillig(DEFAULT_MAX_ITER);
+        let elements = vec![Value::field((-2i128).into()), Value::field((-1i128).into())];
+        let inputs = Value::array(elements, vec![Type::field()]);
+        let results = ssa.interpret(vec![inputs]).unwrap();
+        assert_eq!(results[0], Value::field(1u32.into()));
+
+        // We expect `v13 = array_get v3, index u32 0 -> Field` to be in b4.
+        // If we do not account for v3 being defined in the loop header,
+        // we risk hoisting to b3 which dominates b4 (thus panicking on usage of an undefined value).
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) impure fn main f0 {
+          b0(v0: [Field; 2]):
+            inc_rc v0
+            v6 = array_get v0, index u32 1 -> Field
+            v8 = add Field 3, v6
+            v9 = array_set v0, index u32 1, value v8
+            jmp b1(v9, u1 1)
+          b1(v1: [Field; 2], v2: u1):
+            jmpif v2 then: b2, else: b3
+          b2():
+            v17 = array_get v1, index u32 0 -> Field
+            v18 = add Field 3, v17
+            v19 = array_set v1, index u32 0, value v18
+            jmp b1(v19, u1 0)
+          b3():
+            v11 = array_set v0, index u32 1, value v8
+            jmp b4(v11, u1 1)
+          b4(v3: [Field; 2], v4: u1):
+            v13 = array_get v3, index u32 0 -> Field
+            jmpif v4 then: b5, else: b6
+          b5():
+            v14 = add Field 3, v13
+            v15 = array_set v3, index u32 0, value v14
+            jmp b4(v15, u1 0)
+          b6():
+            return v13
         }
         ");
     }
