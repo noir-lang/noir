@@ -568,7 +568,7 @@ mod int_ops {
         let mask = if bit_width == 128 { u128::MAX } else { (1u128 << bit_width) - 1 };
         let lhs = lhs & mask;
         let rhs = rhs & mask;
-        if rhs >= bit_width as u128 {
+        if rhs >= u128::from(bit_width) {
             return 0;
         }
         let result = match op {
@@ -581,7 +581,7 @@ mod int_ops {
 
     proptest::proptest! {
         #[test]
-        fn shift_u8_fuzz(lhs in 0u128..=u8::MAX as u128, rhs in 0u128..=u8::MAX as u128) {
+        fn shift_u8_fuzz(lhs in 0u128..=u128::from(u8::MAX), rhs in 0u128..=u128::from(u8::MAX)) {
             let bit_size = IntegerBitSize::U8;
             for op in [BinaryIntOp::Shl, BinaryIntOp::Shr] {
                 let actual = evaluate_u128(&op, lhs, rhs, bit_size);
@@ -591,7 +591,7 @@ mod int_ops {
         }
 
         #[test]
-        fn shift_u16_fuzz(lhs in 0u128..=u16::MAX as u128, rhs in 0u128..=u16::MAX as u128) {
+        fn shift_u16_fuzz(lhs in 0u128..=u128::from(u16::MAX), rhs in 0u128..=u128::from(u16::MAX)) {
             let bit_size = IntegerBitSize::U16;
             for op in [BinaryIntOp::Shl, BinaryIntOp::Shr] {
                 let actual = evaluate_u128(&op, lhs, rhs, bit_size);
@@ -601,7 +601,7 @@ mod int_ops {
         }
 
         #[test]
-        fn shift_u32_fuzz(lhs in 0u128..=u32::MAX as u128, rhs in 0u128..=u32::MAX as u128) {
+        fn shift_u32_fuzz(lhs in 0u128..=u128::from(u32::MAX), rhs in 0u128..=u128::from(u32::MAX)) {
             let bit_size = IntegerBitSize::U32;
             for op in [BinaryIntOp::Shl, BinaryIntOp::Shr] {
                 let actual = evaluate_u128(&op, lhs, rhs, bit_size);
@@ -611,7 +611,7 @@ mod int_ops {
         }
 
         #[test]
-        fn shift_u64_fuzz(lhs in 0u128..=u64::MAX as u128, rhs in 0u128..=u64::MAX as u128) {
+        fn shift_u64_fuzz(lhs in 0u128..=u128::from(u64::MAX), rhs in 0u128..=u128::from(u64::MAX)) {
             let bit_size = IntegerBitSize::U64;
             for op in [BinaryIntOp::Shl, BinaryIntOp::Shr] {
                 let actual = evaluate_u128(&op, lhs, rhs, bit_size);
