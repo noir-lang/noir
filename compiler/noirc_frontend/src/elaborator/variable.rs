@@ -334,9 +334,14 @@ impl Elaborator<'_> {
         &mut self,
         item: PathResolutionItem,
     ) -> (Vec<Type>, Option<Type>) {
-        match item {
+        let mut errors = Vec::new();
+        let result = match item {
             PathResolutionItem::Method(struct_id, Some(generics), _func_id) => {
-                let generics = self.resolve_struct_id_turbofish_generics(struct_id, Some(generics));
+                let generics = self.resolve_struct_id_turbofish_generics(
+                    struct_id,
+                    Some(generics),
+                    &mut errors,
+                );
                 (generics, None)
             }
             PathResolutionItem::SelfMethod(_) => {
@@ -350,8 +355,11 @@ impl Elaborator<'_> {
             PathResolutionItem::TypeAliasFunction(type_alias_id, generics, _func_id) => {
                 let type_alias = self.interner.get_type_alias(type_alias_id);
                 let type_alias = type_alias.borrow();
-                let generics =
-                    self.resolve_type_alias_id_turbofish_generics(type_alias_id, generics);
+                let generics = self.resolve_type_alias_id_turbofish_generics(
+                    type_alias_id,
+                    generics,
+                    &mut errors,
+                );
 
                 // Now instantiate the underlying struct or alias with those generics, the struct might
                 // have more generics than those in the alias, like in this example:
@@ -372,6 +380,7 @@ impl Elaborator<'_> {
                     trait_generics,
                     Some(generics.generics),
                     generics.location,
+                    &mut errors,
                 );
                 (generics, None)
             }
@@ -379,8 +388,11 @@ impl Elaborator<'_> {
                 (Vec::new(), Some(self_type))
             }
             PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, _func_id) => {
-                let (typ, has_generics) =
-                    self.instantiate_primitive_type_with_turbofish(primitive_type, turbofish);
+                let (typ, has_generics) = self.instantiate_primitive_type_with_turbofish(
+                    primitive_type,
+                    turbofish,
+                    &mut errors,
+                );
                 let generics = if has_generics {
                     match typ {
                         Type::String(length) => vec![*length],
@@ -405,7 +417,9 @@ impl Elaborator<'_> {
             | PathResolutionItem::Global(..)
             | PathResolutionItem::ModuleFunction(..)
             | PathResolutionItem::TraitConstant(..) => (Vec::new(), None),
-        }
+        };
+        self.push_errors(errors);
+        result
     }
 
     /// Elaborates a type path used in an expression, e.g. `Type::method::<Args>`

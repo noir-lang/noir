@@ -1194,23 +1194,37 @@ impl Elaborator<'_> {
         let turbofish = before_last_segment.turbofish();
 
         let path_resolution = self.use_path_as_type(path).ok()?;
+
+        // Note that we discard errors we gather here because while we resolve turbofish here
+        // we still don't know if we'll find a trait method.
+        // This logic will be done again once we find a method (the caller will do this).
+        let mut errors = Vec::new();
         let typ = match path_resolution.item {
             PathResolutionItem::Type(type_id) => {
-                let generics =
-                    self.resolve_struct_id_turbofish_generics(type_id, turbofish.clone());
+                let generics = self.resolve_struct_id_turbofish_generics(
+                    type_id,
+                    turbofish.clone(),
+                    &mut errors,
+                );
                 let datatype = self.get_type(type_id);
                 Type::DataType(datatype, generics)
             }
             PathResolutionItem::TypeAlias(type_alias_id) => {
-                let generics =
-                    self.resolve_type_alias_id_turbofish_generics(type_alias_id, turbofish.clone());
+                let generics = self.resolve_type_alias_id_turbofish_generics(
+                    type_alias_id,
+                    turbofish.clone(),
+                    &mut errors,
+                );
                 let type_alias = self.interner.get_type_alias(type_alias_id);
                 let type_alias = type_alias.borrow();
                 type_alias.get_type(&generics)
             }
             PathResolutionItem::PrimitiveType(primitive_type) => {
-                let (typ, _) = self
-                    .instantiate_primitive_type_with_turbofish(primitive_type, turbofish.clone());
+                let (typ, _) = self.instantiate_primitive_type_with_turbofish(
+                    primitive_type,
+                    turbofish.clone(),
+                    &mut errors,
+                );
                 typ
             }
             PathResolutionItem::Module(..)
