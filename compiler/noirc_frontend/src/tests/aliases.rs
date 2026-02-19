@@ -62,7 +62,7 @@ fn double_alias_in_path() {
     type FooAlias1 = Foo;
     type FooAlias2 = FooAlias1;
 
-    fn main() { 
+    fn main() {
         let _ = FooAlias2::new();
     }
     "#;
@@ -73,16 +73,16 @@ fn double_alias_in_path() {
 fn double_generic_alias_in_path() {
     let src = r#"
     struct Foo<T> {}
-    
+
     impl<T> Foo<T> {
         fn new() -> Self {
             Self {}
         }
     }
-    
+
     type FooAlias1 = Foo<i32>;
     type FooAlias2 = FooAlias1;
-    
+
     fn main() {
         let _ = FooAlias2::new();
     }
@@ -145,6 +145,8 @@ fn identity_numeric_type_alias_works() {
 fn self_referring_type_alias_is_not_allowed() {
     let src = r#"
         pub type X = X;
+                 ^ Dependency cycle found
+                 ~ 'X' recursively depends on itself: X -> X
 
         fn main() {
             let _: X = 1;
@@ -436,6 +438,8 @@ fn regression_10429_with_trait() {
 fn regression_10352_parameter() {
     let src = r#"
     type Alias = Alias;
+         ^^^^^ Dependency cycle found
+         ~~~~~ 'Alias' recursively depends on itself: Alias -> Alias
 
     fn main(_: Alias) {}
                ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
@@ -448,6 +452,8 @@ fn regression_10352_parameter() {
 fn regression_10352_tuple() {
     let src = r#"
     type Alias = (Alias,);
+         ^^^^^ Dependency cycle found
+         ~~~~~ 'Alias' recursively depends on itself: Alias -> Alias
 
     fn main(_: Alias) {}
                ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
@@ -464,6 +470,8 @@ fn regression_10352_struct() {
     }
 
     type Alias = Foo<Alias>;
+         ^^^^^ Dependency cycle found
+         ~~~~~ 'Alias' recursively depends on itself: Alias -> Alias
 
     fn main(_: Alias) {}
                ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
@@ -481,6 +489,8 @@ fn regression_10352_enum() {
     }
 
     type Alias = Foo<Alias>;
+         ^^^^^ Dependency cycle found
+         ~~~~~ 'Alias' recursively depends on itself: Alias -> Alias
 
     fn main(_: Alias) {}
                ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
@@ -493,6 +503,8 @@ fn regression_10352_enum() {
 fn regression_10352_array() {
     let src = r#"
     type Alias = [Alias; 3];
+         ^^^^^ Dependency cycle found
+         ~~~~~ 'Alias' recursively depends on itself: Alias -> Alias
 
     fn main(_: Alias) {}
                ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
@@ -505,6 +517,8 @@ fn regression_10352_array() {
 fn regression_10352_slice() {
     let src = r#"
     type Alias = [Alias];
+         ^^^^^ Dependency cycle found
+         ~~~~~ 'Alias' recursively depends on itself: Alias -> Alias
 
     fn main(_: Alias) {}
                ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
@@ -519,6 +533,8 @@ fn regression_10352_trait_as_type() {
     trait Foo<T> {}
 
     type Alias = impl Foo<Alias>;
+         ^^^^^ Dependency cycle found
+         ~~~~~ 'Alias' recursively depends on itself: Alias -> Alias
 
     fn main(_: Alias) {}
                ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
@@ -531,7 +547,9 @@ fn regression_10352_trait_as_type() {
 fn regression_10352_string() {
     let src = r#"
     type Alias = str<Alias>;
-    
+         ^^^^^ Dependency cycle found
+         ~~~~~ 'Alias' recursively depends on itself: Alias -> Alias
+
     fn main(_: Alias) {}
                ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
                ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
@@ -543,6 +561,8 @@ fn regression_10352_string() {
 fn regression_10352_format_string_len() {
     let src = r#"
     type Alias = fmtstr<Alias, ()>;
+         ^^^^^ Dependency cycle found
+         ~~~~~ 'Alias' recursively depends on itself: Alias -> Alias
 
     fn main(_: Alias) {}
                ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
@@ -555,6 +575,8 @@ fn regression_10352_format_string_len() {
 fn regression_10352_format_string_env() {
     let src = r#"
     type Alias = fmtstr<0, (Alias,)>;
+         ^^^^^ Dependency cycle found
+         ~~~~~ 'Alias' recursively depends on itself: Alias -> Alias
 
     fn main(_: Alias) {}
                ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
@@ -567,6 +589,8 @@ fn regression_10352_format_string_env() {
 fn regression_10352_function_parameter() {
     let src = r#"
     type Alias = fn(Alias);
+         ^^^^^ Dependency cycle found
+         ~~~~~ 'Alias' recursively depends on itself: Alias -> Alias
 
     fn main(_: Alias) {}
                ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
@@ -579,6 +603,8 @@ fn regression_10352_function_parameter() {
 fn regression_10352_function_return() {
     let src = r#"
     type Alias = fn() -> Alias;
+         ^^^^^ Dependency cycle found
+         ~~~~~ 'Alias' recursively depends on itself: Alias -> Alias
 
     fn main(_: Alias) {}
                ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
@@ -591,6 +617,8 @@ fn regression_10352_function_return() {
 fn regression_10352_function_env() {
     let src = r#"
     type Alias = fn[(Alias,)]();
+         ^^^^^ Dependency cycle found
+         ~~~~~ 'Alias' recursively depends on itself: Alias -> Alias
 
     fn main(_: Alias) {}
                ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
@@ -603,6 +631,8 @@ fn regression_10352_function_env() {
 fn regression_10352_immutable_reference() {
     let src = r#"
     type Alias = &Alias;
+         ^^^^^ Dependency cycle found
+         ~~~~~ 'Alias' recursively depends on itself: Alias -> Alias
 
     fn main(_: Alias) {}
                ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
@@ -615,6 +645,8 @@ fn regression_10352_immutable_reference() {
 fn regression_10352_mutable_reference() {
     let src = r#"
     type Alias = &mut Alias;
+         ^^^^^ Dependency cycle found
+         ~~~~~ 'Alias' recursively depends on itself: Alias -> Alias
 
     fn main(_: Alias) {}
                ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
@@ -892,6 +924,7 @@ fn regression_10764_undefined_generic_impl() {
          ~~~ Only enum and struct types may have implementation methods
         fn foo() { }
     }
+
     "#;
     check_errors(src);
 }
