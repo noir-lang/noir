@@ -1491,23 +1491,6 @@ impl Type {
         }
     }
 
-    /// Returns the number of `Forall`-quantified type variables on this type.
-    /// Returns 0 if this is not a Type::Forall
-    pub fn generic_count(&self) -> usize {
-        match self {
-            Type::Forall(generics, _) => generics.len(),
-            Type::CheckedCast { to, .. } => to.generic_count(),
-            Type::TypeVariable(type_variable)
-            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
-                match &*type_variable.borrow() {
-                    TypeBinding::Bound(binding) => binding.generic_count(),
-                    TypeBinding::Unbound(_, _) => 0,
-                }
-            }
-            _ => 0,
-        }
-    }
-
     /// Takes a monomorphic type and generalizes it over each of the type variables in the
     /// given type bindings, ignoring what each type variable is bound to in the TypeBindings
     /// and their Kind's
