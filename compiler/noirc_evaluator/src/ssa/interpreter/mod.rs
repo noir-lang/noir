@@ -149,7 +149,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             // With a limit we shouldn't wrap around, but just in case we wanted move this outside,
             // use a safe wrap-around increment.
             self.step_counter = self.step_counter.wrapping_add(1);
-        };
+        }
         Ok(())
     }
 
@@ -379,13 +379,12 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
         self.call_stack.pop();
 
-        if self.options.trace {
-            if let Some(context) = self.call_stack.last() {
-                if let Some(function_id) = context.called_function {
-                    let function = &self.functions[&function_id];
-                    println!("back in function {} ({})", function_id, function.name());
-                }
-            }
+        if self.options.trace
+            && let Some(context) = self.call_stack.last()
+            && let Some(function_id) = context.called_function
+        {
+            let function = &self.functions[&function_id];
+            println!("back in function {} ({})", function_id, function.name());
         }
 
         Ok(return_values)
@@ -475,12 +474,11 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         length: u32,
     ) -> IResult<u32> {
         self.lookup_helper(value_id, instruction, "u32", Value::as_u32).map_err(|e| {
-            if matches!(e, InterpreterError::Internal(InternalError::TypeError { .. })) {
-                if let Ok(Value::Numeric(NumericValue::U32(Fitted::Unfit(index)))) =
+            if matches!(e, InterpreterError::Internal(InternalError::TypeError { .. }))
+                && let Ok(Value::Numeric(NumericValue::U32(Fitted::Unfit(index)))) =
                     self.lookup(value_id)
-                {
-                    return InterpreterError::IndexOutOfBounds { index, length };
-                }
+            {
+                return InterpreterError::IndexOutOfBounds { index, length };
             }
             e
         })

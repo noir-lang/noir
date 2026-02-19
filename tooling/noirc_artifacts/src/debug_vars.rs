@@ -34,10 +34,9 @@ impl<F: AcirField> DebugVars<F> {
     }
 
     fn lookup_var(&self, var_id: DebugVarId) -> Option<(&str, &PrintableType)> {
-        self.variables.get(&var_id).and_then(|debug_var| {
-            let printable_type = self.types.get(&debug_var.debug_type_id)?;
-            Some((debug_var.name.as_str(), printable_type))
-        })
+        let debug_var = self.variables.get(&var_id)?;
+        let printable_type = self.types.get(&debug_var.debug_type_id)?;
+        Some((debug_var.name.as_str(), printable_type))
     }
 
     fn build_stack_frame<'a>(
@@ -150,7 +149,8 @@ impl<F: AcirField> DebugVars<F> {
     }
 
     pub fn get_type(&self, var_id: DebugVarId) -> Option<&PrintableType> {
-        self.variables.get(&var_id).and_then(|debug_var| self.types.get(&debug_var.debug_type_id))
+        let debug_var = self.variables.get(&var_id)?;
+        self.types.get(&debug_var.debug_type_id)
     }
 
     pub fn drop_var(&mut self, var_id: DebugVarId) {

@@ -764,10 +764,33 @@ fn main(a: u32) -> pub u32 {
 }
 
 fn inner(a: call_data(0) u32) -> return_data u32 {
-   ~~~~~ unnecessary call_data(0)
-   ^^^^^ unnecessary call_data(0) attribute for function inner
+            ~~~~~~~~~~~~ unnecessary call_data(0)
+            ^^^^^^^^^^^^ unnecessary call_data(0) attribute for function inner
     a
 }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn unnecessary_pub_on_return_type() {
+    let src = "
+    pub fn foo() -> pub u32 {
+                    ^^^ unnecessary pub keyword on return type for function foo
+                    ~~~ unnecessary pub return type
+        0
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn unnecessary_pub_on_argument() {
+    let src = "
+    pub fn foo(_: pub u32) {
+                  ^^^ unnecessary pub keyword on parameter for function foo
+                  ~~~ unnecessary pub parameter
+    }
     ";
     check_errors(src);
 }

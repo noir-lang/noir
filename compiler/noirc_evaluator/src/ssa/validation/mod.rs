@@ -176,7 +176,7 @@ impl<'f> Validator<'f> {
                     )
                 {
                     panic!("Cannot use `{operator}` with field elements");
-                };
+                }
             }
             Instruction::ArrayGet { array, index, .. }
             | Instruction::ArraySet { array, index, .. } => {
@@ -668,7 +668,7 @@ impl<'f> Validator<'f> {
 
                 let input_length = assert_u8_array(&input_type, "aes128_encrypt input");
                 assert!(
-                    input_length % 16 == 0,
+                    input_length.is_multiple_of(16),
                     "aes128_encrypt input length must be a multiple of 16"
                 );
 
@@ -931,20 +931,19 @@ impl<'f> Validator<'f> {
 
     /// Validates that ACIR functions are not called from unconstrained code.
     fn check_calls_in_unconstrained(&self, instruction: InstructionId) {
-        if self.function.runtime().is_brillig() {
-            if let Instruction::Call { func, .. } = &self.function.dfg[instruction] {
-                if let Value::Function(func_id) = &self.function.dfg[*func] {
-                    let called_function = &self.ssa.functions[func_id];
-                    if called_function.runtime().is_acir() {
-                        panic!(
-                            "Call to ACIR function '{} {}' from unconstrained '{} {}'",
-                            called_function.name(),
-                            called_function.id(),
-                            self.function.name(),
-                            self.function.id(),
-                        );
-                    }
-                }
+        if self.function.runtime().is_brillig()
+            && let Instruction::Call { func, .. } = &self.function.dfg[instruction]
+            && let Value::Function(func_id) = &self.function.dfg[*func]
+        {
+            let called_function = &self.ssa.functions[func_id];
+            if called_function.runtime().is_acir() {
+                panic!(
+                    "Call to ACIR function '{} {}' from unconstrained '{} {}'",
+                    called_function.name(),
+                    called_function.id(),
+                    self.function.name(),
+                    self.function.id(),
+                );
             }
         }
     }

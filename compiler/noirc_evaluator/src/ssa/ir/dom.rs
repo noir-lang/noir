@@ -6,9 +6,9 @@
 
 use std::cmp::Ordering;
 
-use super::{
-    basic_block::BasicBlockId, cfg::ControlFlowGraph, function::Function, post_order::PostOrder,
-};
+#[cfg(test)]
+use super::function::Function;
+use super::{basic_block::BasicBlockId, cfg::ControlFlowGraph, post_order::PostOrder};
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 /// Dominator tree node. We keep one of these per reachable block.
@@ -69,7 +69,8 @@ impl DominatorTree {
     /// This returns `None` if `block_id` is not reachable from the entry block, or if it is the
     /// entry block which has no dominators.
     pub(crate) fn immediate_dominator(&self, block_id: BasicBlockId) -> Option<BasicBlockId> {
-        self.nodes.get(&block_id).and_then(|node| node.immediate_dominator)
+        let node = self.nodes.get(&block_id)?;
+        node.immediate_dominator
     }
 
     /// Compare two blocks relative to the reverse post-order.
@@ -161,6 +162,7 @@ impl DominatorTree {
     /// This approach computes the control flow graph and post-order internally and then
     /// discards them. If either should be retained reuse it is better to instead pre-compute them
     /// and build the dominator tree with `DominatorTree::with_cfg_and_post_order`.
+    #[cfg(test)]
     pub(crate) fn with_function(func: &Function) -> Self {
         let cfg = ControlFlowGraph::with_function(func);
         let post_order = PostOrder::with_function(func);

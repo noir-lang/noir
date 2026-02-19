@@ -207,11 +207,10 @@ impl<'a> Files<'a> for DebugArtifact {
         let name: Self::Name = name.map(|file| file.path.clone().into())?;
 
         // See if we can make the file path a bit shorter/easier to read if it starts with the current directory
-        if let Ok(current_dir) = std::env::current_dir() {
-            if let Ok(name_without_prefix) = name.clone().into_path_buf().strip_prefix(current_dir)
-            {
-                return Ok(PathString::from_path(name_without_prefix.to_path_buf()));
-            }
+        if let Ok(current_dir) = std::env::current_dir()
+            && let Ok(name_without_prefix) = name.clone().into_path_buf().strip_prefix(current_dir)
+        {
+            return Ok(PathString::from_path(name_without_prefix.to_path_buf()));
         }
 
         Ok(name)
@@ -222,17 +221,15 @@ impl<'a> Files<'a> for DebugArtifact {
     }
 
     fn line_index(&self, file_id: Self::FileId, byte_index: usize) -> Result<usize, Error> {
-        self.file_map.get(&file_id).ok_or(Error::FileMissing).and_then(|file| {
-            SimpleFile::new(PathString::from(file.path.clone()), file.source.clone())
-                .line_index((), byte_index)
-        })
+        let file = self.file_map.get(&file_id).ok_or(Error::FileMissing)?;
+        SimpleFile::new(PathString::from(file.path.clone()), file.source.clone())
+            .line_index((), byte_index)
     }
 
     fn line_range(&self, file_id: Self::FileId, line_index: usize) -> Result<Range<usize>, Error> {
-        self.file_map.get(&file_id).ok_or(Error::FileMissing).and_then(|file| {
-            SimpleFile::new(PathString::from(file.path.clone()), file.source.clone())
-                .line_range((), line_index)
-        })
+        let file = self.file_map.get(&file_id).ok_or(Error::FileMissing)?;
+        SimpleFile::new(PathString::from(file.path.clone()), file.source.clone())
+            .line_range((), line_index)
     }
 }
 

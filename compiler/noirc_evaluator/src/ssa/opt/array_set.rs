@@ -50,69 +50,41 @@ impl Ssa {
 
 /// Pre-check condition for [Function::array_set_optimization].
 ///
-/// Panics if:
-///   - An ACIR function contains more than 1 block, i.e. it hasn't been flattened yet.
+/// Only applies to ACIR functions. Panics if:
+///   - The function contains more than 1 block, i.e. it hasn't been flattened yet.
 ///   - There already exists a mutable array set instruction.
 ///   - There is an `IfElse` instruction which hasn't been removed yet.
+///   - There are any Load or Store instructions.
 #[cfg(debug_assertions)]
 fn array_set_optimization_pre_check(func: &Function) {
-    // We only want to run this pass for ACIR.
-    if func.runtime().is_brillig() {
+    // This optimization only applies to ACIR functions
+    if !func.runtime().is_acir() {
         return;
     }
 
-    let reachable_blocks = func.reachable_blocks();
-
-    assert_eq!(
-        reachable_blocks.len(),
-        1,
-        "Expected there to be 1 block remaining in ACIR function for array_set optimization"
-    );
-
-    for block_id in reachable_blocks {
-        let instruction_ids = func.dfg[block_id].instructions();
-        for instruction_id in instruction_ids {
-            match func.dfg[*instruction_id] {
-                // There should be no mutable array sets.
-                Instruction::ArraySet { mutable: true, .. } => {
-                    panic!(
-                        "mutable ArraySet instruction exists before `array_set_optimization` pass"
-                    );
-                }
-                // The pass might mutate an array result of an `IfElse` and thus modify the input even if it's used later,
-                // so we assert that such instructions have already been removed by the `remove_if_else` pass.
-                Instruction::IfElse { .. } => {
-                    panic!("IfElse instruction exists before `array_set_optimization` pass");
-                }
-                Instruction::Load { .. } => {
-                    panic!("Load instruction exists before `array_set_optimization` pass");
-                }
-                Instruction::Store { .. } => {
-                    panic!("Store instruction exists before `array_set_optimization` pass");
-                }
-                _ => {}
-            }
-        }
-    }
+    // flatten_cfg must have run
+    super::checks::assert_cfg_is_flattened(func);
+    super::checks::for_each_instruction(func, |instruction, _dfg| {
+        // remove_if_else must have run
+        super::checks::assert_not_if_else(instruction);
+        // mem2reg must have run (no Load/Store remaining)
+        super::checks::assert_not_load_or_store(instruction);
+        // No mutable array sets should exist yet (they are created by this pass)
+        super::checks::assert_not_mutable_array_set(instruction);
+    });
 }
 
 /// Post-check condition for [Function::array_set_optimization].
 ///
-/// Panics if:
-///   - Mutable array_set optimization has been applied to Brillig function.
+/// Panics if a Brillig function contains mutable array set instructions.
+/// Brillig uses ref-counting to decide whether to mutate an array, not mutable flags.
 #[cfg(debug_assertions)]
 fn array_set_optimization_post_check(func: &Function) {
-    // Brillig functions should not have any mutable array sets.
+    // Brillig functions should not have any mutable array sets
     if func.runtime().is_brillig() {
-        for block_id in func.reachable_blocks() {
-            let instruction_ids = func.dfg[block_id].instructions();
-            for instruction_id in instruction_ids {
-                if matches!(func.dfg[*instruction_id], Instruction::ArraySet { mutable: true, .. })
-                {
-                    panic!("Mutable array set instruction in Brillig function");
-                }
-            }
-        }
+        super::checks::for_each_instruction(func, |instruction, _dfg| {
+            super::checks::assert_not_mutable_array_set(instruction);
+        });
     }
 }
 
@@ -182,7 +154,7 @@ impl<'f> Context<'f> {
             other => {
                 panic!("unexpected terminator in ACIR: {other:?}")
             }
-        };
+        }
 
         for instruction_id in block.instructions() {
             match &self.dfg[*instruction_id] {
@@ -191,8 +163,12 @@ impl<'f> Context<'f> {
                     self.set_last_use(*array, *instruction_id);
                 }
                 // Writing to an array is a use; mark it for mutation unless it might be shared.
-                Instruction::ArraySet { array, .. } => {
+                Instruction::ArraySet { array, value, .. } => {
                     self.set_last_use(*array, *instruction_id);
+
+                    if self.dfg.type_of_value(*value).is_array() {
+                        self.set_last_use(*value, *instruction_id);
+                    }
 
                     // We also want to check that the array is not part of the terminator arguments, as this means it is used again.
                     let mut is_array_in_terminator = false;
@@ -282,7 +258,11 @@ fn make_mutable(dfg: &mut DataFlowGraph, instructions_to_update: &HashSet<Instru
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{Ssa, opt::assert_ssa_does_not_change},
+        ssa::{
+            Ssa,
+            interpreter::value::{NumericValue, Value},
+            opt::assert_ssa_does_not_change,
+        },
     };
     use test_case::test_case;
 
@@ -416,7 +396,7 @@ mod tests {
 
     #[test_case("inline")]
     #[test_case("fold")]
-    #[should_panic = "Expected there to be 1 block remaining in ACIR function for array_set optimization"]
+    #[should_panic = "CFG contains more than 1 block"]
     fn disallows_multiple_blocks(inline_type: &str) {
         let src = format!(
             "
@@ -447,5 +427,48 @@ mod tests {
             }
             ";
         assert_ssa_does_not_change(src, Ssa::array_set_optimization);
+    }
+
+    #[test]
+    fn array_set_array_value_should_mark_as_last_used() {
+        // If we don't mark the value of `array_set` as last used then v7 ends up being
+        //
+        //     v7 = array_set mut v1, index u32 0, value Field 1
+        //
+        // which is incorrect.
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0():
+            v1 = make_array [Field 0] : [Field; 1]
+            v3 = make_array [Field 7] : [Field; 1]
+            v4 = make_array [v3] : [[Field; 1]; 1]
+            v7 = array_set v1, index u32 0, value Field 1
+            v8 = array_set v4, index u32 0, value v1
+            v9 = array_get v8, index u32 0 -> [Field; 1]
+            v10 = array_get v9, index u32 0 -> Field
+            return v10
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let value = &ssa.interpret(vec![]).unwrap()[0];
+        assert_eq!(value, &Value::Numeric(NumericValue::Field(0_u32.into())));
+
+        let ssa = ssa.array_set_optimization();
+        let value = &ssa.interpret(vec![]).unwrap()[0];
+        assert_eq!(value, &Value::Numeric(NumericValue::Field(0_u32.into())));
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v1 = make_array [Field 0] : [Field; 1]
+            v3 = make_array [Field 7] : [Field; 1]
+            v4 = make_array [v3] : [[Field; 1]; 1]
+            v7 = array_set v1, index u32 0, value Field 1
+            v8 = array_set mut v4, index u32 0, value v1
+            v9 = array_get v8, index u32 0 -> [Field; 1]
+            v10 = array_get v9, index u32 0 -> Field
+            return v10
+        }
+        ");
     }
 }

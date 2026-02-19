@@ -68,10 +68,10 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
         let mut live_in_no_globals = HashSet::default();
         for value in live_in {
-            if let Value::NumericConstant { constant, typ } = dfg[*value] {
-                if hoisted_global_constants.contains_key(&(constant, typ)) {
-                    continue;
-                }
+            if let Value::NumericConstant { constant, typ } = dfg[*value]
+                && hoisted_global_constants.contains_key(&(constant, typ))
+            {
+                continue;
             }
             if !dfg.is_global(*value) {
                 live_in_no_globals.insert(*value);
@@ -143,7 +143,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 allocate_value_with_type(self.brillig_context, Type::unsigned(32)).detach();
             self.brillig_context
                 .const_instruction(new_variable.extract_single_addr(), FieldElement::zero());
-        };
+        }
 
         for (id, value) in globals.values_iter() {
             if !used_globals.contains(&id) {
@@ -429,7 +429,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 self.codegen_make_array(instruction_id, array, typ, dfg);
             }
             Instruction::Noop => (),
-        };
+        }
 
         if !self.building_globals {
             let dead_variables = self
@@ -581,10 +581,10 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         dfg: &DataFlowGraph,
         value_id: ValueId,
     ) -> Option<BrilligVariable> {
-        if let Value::NumericConstant { constant, typ } = &dfg[value_id] {
-            if let Some(variable) = self.hoisted_global_constants.get(&(*constant, *typ)) {
-                return Some(*variable);
-            }
+        if let Value::NumericConstant { constant, typ } = &dfg[value_id]
+            && let Some(variable) = self.hoisted_global_constants.get(&(*constant, *typ))
+        {
+            return Some(*variable);
         }
         None
     }

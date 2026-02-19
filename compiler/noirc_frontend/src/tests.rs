@@ -275,7 +275,7 @@ fn check_errors_with_options(src: &str, monomorphize: bool, options: GetProgramO
             } else {
                 report_all(context.file_manager.as_file_map(), &errors, false, false);
                 panic!(
-                    "Couldn't find primary error at {span:?} with message {primary_message:?}.\nAll errors: {errors:?}"
+                    "Couldn't find primary error at {span:?} with message {primary_message:?}.\nAll errors: {errors:?}\nExpected primaries: {primary_spans_with_errors:?}\nExpected secondaries: {secondary_spans_with_errors:?}"
                 );
             }
         };

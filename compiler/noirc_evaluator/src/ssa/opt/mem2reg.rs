@@ -124,6 +124,17 @@ impl Function {
         context.update_data_bus();
     }
 
+    /// Run mem2reg analysis and return the set of ValueIds collected in
+    /// `instruction_input_references` (references passed transitively to Call
+    /// instructions).
+    #[cfg(test)]
+    fn mem2reg_instruction_input_references(&mut self) -> HashSet<ValueId> {
+        let loop_aliases = Self::analyze_loop_aliases(self);
+        let mut context = PerFunctionContext::new(self, loop_aliases);
+        context.mem2reg();
+        context.instruction_input_references
+    }
+
     /// Analyzes all loops in the function to find references with potential loop carried aliases.
     ///
     /// A loop carried alias occurs when a reference is stored into another reference
@@ -259,11 +270,14 @@ impl<'f> PerFunctionContext<'f> {
             per_func_block_params.extend(block_params.iter());
             let terminator = self.inserter.function.dfg[*block_id].unwrap_terminator();
             terminator.for_each_value(|value| {
-                Self::collect_terminator_value_aliases(
+                all_terminator_values.insert(value);
+                Self::for_each_value_alias(
                     value,
                     references,
                     &self.inserter.function.dfg,
-                    &mut all_terminator_values,
+                    &mut |alias| {
+                        all_terminator_values.insert(alias);
+                    },
                 );
             });
         }
@@ -347,48 +361,46 @@ impl<'f> PerFunctionContext<'f> {
 
             // Check whether there are any aliases whose instructions are not all marked for removal.
             // If there is any alias marked to survive, we should not remove its last store.
-            if let Some(alias_instructions) = self.aliased_references.get(&alias) {
-                if !alias_instructions.is_subset(&self.instructions_to_remove) {
-                    return true;
-                }
+            if let Some(alias_instructions) = self.aliased_references.get(&alias)
+                && !alias_instructions.is_subset(&self.instructions_to_remove)
+            {
+                return true;
             }
         }
 
         false
     }
 
-    /// Collects a terminator value and all its aliases into the output set.
-    ///
-    /// When a value has unknown aliases (e.g., because it contains references from
-    /// arrays with unknown contents), we fall back to directly collecting the array
-    /// elements if it's an array constant. This ensures that stores to references
-    /// within the array are not incorrectly removed.
-    fn collect_terminator_value_aliases(
+    /// Calls `callback` for each known alias of `value`, recursing into array
+    /// elements when the combined alias set is unknown. Skips values whose type
+    /// does not contain a reference.
+    fn for_each_value_alias(
         value: ValueId,
         references: &Block,
         dfg: &DataFlowGraph,
-        output: &mut HashSet<ValueId>,
+        callback: &mut impl FnMut(ValueId),
     ) {
-        output.insert(value);
-
-        let typ = dfg.type_of_value(value);
-        if !typ.contains_reference() {
+        if !dfg.type_of_value(value).contains_reference() {
             return;
         }
 
         let aliases = references.get_aliases_for_value(value);
         if aliases.is_unknown() {
-            // If aliases are unknown but this is an array constant, directly collect
-            // the elements. This handles the case where an array contains references
-            // that have unknown aliases (e.g., from array parameters), but we still
-            // need to track the elements that DO have known aliases.
             if let Some((elements, _)) = dfg.get_array_constant(value) {
                 for element in elements.iter() {
-                    Self::collect_terminator_value_aliases(*element, references, dfg, output);
+                    Self::for_each_value_alias(*element, references, dfg, callback);
                 }
+            } else {
+                // If aliases are unknown and we can't decompose the value further,
+                // conservatively include the value itself. This handles the case where
+                // alias information was cleared (e.g. by clear_aliases during Return
+                // handling) but the value is still a reference that may be stored to.
+                callback(value);
             }
         } else {
-            output.extend(aliases.iter());
+            for alias in aliases.iter() {
+                callback(alias);
+            }
         }
     }
 
@@ -666,20 +678,24 @@ impl<'f> PerFunctionContext<'f> {
                 if !self.aliased_references.contains_key(&address)
                     && address_aliases.single_alias().is_some()
                     && !has_loop_aliases
+                    && let Some(last_store) = references.last_stores.get(&address)
                 {
-                    if let Some(last_store) = references.last_stores.get(&address) {
-                        self.store_instructions_to_remove
-                            .entry(address)
-                            .or_default()
-                            .push((block_id, *last_store));
-                    }
+                    self.store_instructions_to_remove
+                        .entry(address)
+                        .or_default()
+                        .push((block_id, *last_store));
                 }
 
                 // Remember that we used the value in this instruction. If this instruction
                 // isn't removed at the end, we need to keep the stores to the value as well.
-                for alias in references.get_aliases_for_value(value).iter() {
-                    self.aliased_references.entry(alias).or_default().insert(instruction);
-                }
+                Self::for_each_value_alias(
+                    value,
+                    references,
+                    &self.inserter.function.dfg,
+                    &mut |alias| {
+                        self.aliased_references.entry(alias).or_default().insert(instruction);
+                    },
+                );
 
                 references.set_known_value(address, value);
                 // If we see a store to an address, the last load to that address needs to remain.
@@ -774,8 +790,14 @@ impl<'f> PerFunctionContext<'f> {
                 // We need to appropriately mark each alias of a reference as being used as a call argument.
                 // This prevents us potentially removing a last store from a preceding block or is altered within another function.
                 for arg in arguments {
-                    self.instruction_input_references
-                        .extend(references.get_aliases_for_value(*arg).iter());
+                    Self::for_each_value_alias(
+                        *arg,
+                        references,
+                        &self.inserter.function.dfg,
+                        &mut |alias| {
+                            self.instruction_input_references.insert(alias);
+                        },
+                    );
                 }
                 self.mark_all_unknown(arguments, references);
                 // Call results might be aliases of their arguments, if they are references
@@ -829,24 +851,31 @@ impl<'f> PerFunctionContext<'f> {
                     // Mark references in both branches as being used by this IfElse instruction.
                     // This ensures that stores to those references are kept even in loops where
                     // alias information may not propagate correctly through the back edge.
-                    for alias in then_aliases.iter() {
-                        self.aliased_references.entry(alias).or_default().insert(instruction);
-                    }
-                    for alias in else_aliases.iter() {
-                        self.aliased_references.entry(alias).or_default().insert(instruction);
+                    for value in [*then_value, *else_value] {
+                        Self::for_each_value_alias(
+                            value,
+                            references,
+                            &self.inserter.function.dfg,
+                            &mut |alias| {
+                                self.aliased_references
+                                    .entry(alias)
+                                    .or_default()
+                                    .insert(instruction);
+                            },
+                        );
                     }
 
                     // `then_value` and `else_value` are now aliased by `result`
-                    if let Some(then_expr) = references.expressions.get_mut(then_value) {
-                        if let Some(then_aliases) = references.aliases.get_mut(then_expr) {
-                            then_aliases.insert(result);
-                        }
+                    if let Some(then_expr) = references.expressions.get_mut(then_value)
+                        && let Some(then_aliases) = references.aliases.get_mut(then_expr)
+                    {
+                        then_aliases.insert(result);
                     }
 
-                    if let Some(else_expr) = references.expressions.get_mut(else_value) {
-                        if let Some(else_aliases) = references.aliases.get_mut(else_expr) {
-                            else_aliases.insert(result);
-                        }
+                    if let Some(else_expr) = references.expressions.get_mut(else_value)
+                        && let Some(else_aliases) = references.aliases.get_mut(else_expr)
+                    {
+                        else_aliases.insert(result);
                     }
                 }
             }
@@ -905,12 +934,11 @@ impl<'f> PerFunctionContext<'f> {
                 let value = *value;
                 // If we have a nested reference (e.g., &mut &mut Field), recurse to invalidate what it points to.
                 // This is necessary because for example, a callee could load this reference and mutate through the inner reference.
-                if let Type::Reference(element) = &typ {
-                    if element.contains_reference() {
-                        if let Some(inner_ref) = references.get_known_value(value) {
-                            self.mark_all_unknown(&[inner_ref], references);
-                        }
-                    }
+                if let Type::Reference(element) = &typ
+                    && element.contains_reference()
+                    && let Some(inner_ref) = references.get_known_value(value)
+                {
+                    self.mark_all_unknown(&[inner_ref], references);
                 }
 
                 references.set_unknown(value);
@@ -966,32 +994,32 @@ impl<'f> PerFunctionContext<'f> {
                             return;
                         }
                         Type::Reference(_) => {
-                            if let Some(expression) = references.expressions.get(argument) {
-                                if let Some(aliases) = references.aliases.get_mut(expression) {
-                                    // If the argument has unknown aliases, we must be conservative
-                                    // and mark all destination parameters as unknown. Otherwise,
-                                    // inserting into an unknown alias set is a no-op and destination parameters
-                                    // would incorrectly end up in separate alias sets.
-                                    if aliases.is_unknown() {
-                                        self.mark_all_unknown(destination_parameters, references);
-                                        return;
-                                    }
-
-                                    let argument = *argument;
-
-                                    // The argument reference is possibly aliased by this block parameter
-                                    aliases.insert(*parameter);
-
-                                    // Check if we have seen the same argument
-                                    let seen_parameters = arg_set
-                                        .entry(argument)
-                                        .or_insert_with(|| VecSet::single(argument));
-                                    // Add the current parameter to the parameters we have seen for this argument.
-                                    // The previous parameters and the current one alias one another.
-                                    seen_parameters.insert(*parameter);
-                                    // Also add all of the argument aliases
-                                    seen_parameters.extend(aliases.iter());
+                            if let Some(expression) = references.expressions.get(argument)
+                                && let Some(aliases) = references.aliases.get_mut(expression)
+                            {
+                                // If the argument has unknown aliases, we must be conservative
+                                // and mark all destination parameters as unknown. Otherwise,
+                                // inserting into an unknown alias set is a no-op and destination parameters
+                                // would incorrectly end up in separate alias sets.
+                                if aliases.is_unknown() {
+                                    self.mark_all_unknown(destination_parameters, references);
+                                    return;
                                 }
+
+                                let argument = *argument;
+
+                                // The argument reference is possibly aliased by this block parameter
+                                aliases.insert(*parameter);
+
+                                // Check if we have seen the same argument
+                                let seen_parameters = arg_set
+                                    .entry(argument)
+                                    .or_insert_with(|| VecSet::single(argument));
+                                // Add the current parameter to the parameters we have seen for this argument.
+                                // The previous parameters and the current one alias one another.
+                                seen_parameters.insert(*parameter);
+                                // Also add all of the argument aliases
+                                seen_parameters.extend(aliases.iter());
                             }
                         }
                         typ if typ.contains_reference() => {
@@ -1027,7 +1055,11 @@ impl<'f> PerFunctionContext<'f> {
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{Ssa, interpreter::value::Value, opt::assert_ssa_does_not_change},
+        ssa::{
+            Ssa,
+            interpreter::value::Value,
+            opt::{assert_pass_does_not_affect_execution, assert_ssa_does_not_change},
+        },
     };
 
     #[test]
@@ -3131,8 +3163,8 @@ mod tests {
         assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
-    /// Tests for `collect_terminator_value_aliases` which recursively collects
-    /// aliases for values used in block terminators (return, jmp, etc.).
+    /// Tests for `for_each_value_alias` which recursively collects aliases
+    /// for values, including those used in block terminators (return, jmp, etc.).
     mod terminator_value_aliases {
         use super::*;
 
@@ -3250,8 +3282,33 @@ mod tests {
             }
             "#;
 
+            let ssa = Ssa::from_str(src).unwrap();
+            let (ssa, _) = assert_pass_does_not_affect_execution(ssa, Vec::new(), Ssa::mem2reg);
+
             // The stores to v7 and v9 must be preserved since they escape via the returned array
-            assert_ssa_does_not_change(src, Ssa::mem2reg);
+            assert_ssa_snapshot!(ssa, @r"
+            brillig(inline) fn func_1 f0 {
+              b0(v0: [&mut u1; 3]):
+                v2 = allocate -> &mut u1
+                store u1 0 at v2
+                v4 = allocate -> &mut u1
+                store u1 0 at v4
+                v6 = array_get v0, index u32 2 -> &mut u1
+                v7 = load v6 -> u1
+                jmpif v7 then: b1, else: b2
+              b1():
+                v11 = array_get v0, index u32 1 -> &mut u1
+                jmp b3(v11)
+              b2():
+                v9 = array_get v0, index u32 0 -> &mut u1
+                jmp b3(v9)
+              b3(v1: &mut u1):
+                v12 = allocate -> &mut u1
+                store u1 1 at v12
+                v16 = make_array [u32 1, v2, u32 2, v4, u32 3, v1, u32 4, v12] : [(u32, &mut u1); 4]
+                return v16
+            }
+            ");
         }
 
         // Test that the recursive alias collection works for arrays containing
@@ -3293,8 +3350,37 @@ mod tests {
             }
             "#;
 
+            let ssa = Ssa::from_str(src).unwrap();
+            let (ssa, _) = assert_pass_does_not_affect_execution(ssa, Vec::new(), Ssa::mem2reg);
+
             // The stores to v7 and v9 must be preserved since they escape via the returned array
-            assert_ssa_does_not_change(src, Ssa::mem2reg);
+            assert_ssa_snapshot!(ssa, @r"
+            brillig(inline) fn func_1 f0 {
+              b0(v0: [&mut [u1; 2]; 3]):
+                v2 = allocate -> &mut [u1; 2]
+                v5 = make_array [u1 0, u1 1] : [u1; 2]
+                store v5 at v2
+                v6 = allocate -> &mut [u1; 2]
+                v7 = make_array [u1 1, u1 0] : [u1; 2]
+                store v7 at v6
+                v9 = array_get v0, index u32 2 -> &mut [u1; 2]
+                v10 = load v9 -> [u1; 2]
+                v12 = array_get v10, index u32 0 -> u1
+                jmpif v12 then: b1, else: b2
+              b1():
+                v15 = array_get v0, index u32 1 -> &mut [u1; 2]
+                jmp b3(v15)
+              b2():
+                v13 = array_get v0, index u32 0 -> &mut [u1; 2]
+                jmp b3(v13)
+              b3(v1: &mut [u1; 2]):
+                v16 = allocate -> &mut [u1; 2]
+                v17 = make_array [u1 0, u1 0] : [u1; 2]
+                store v17 at v16
+                v18 = make_array [v2, v6, v1, v16] : [&mut [u1; 2]; 4]
+                return v18
+            }
+            ");
         }
     }
 
@@ -3357,6 +3443,156 @@ mod tests {
             }
         "#;
         assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    /// This module contains a set of tests for a class of bugs related to unknown combined aliases.
+    ///
+    /// When an array has unknown combined aliases (e.g. mixing a block parameter with local
+    /// allocations), `get_aliases_for_value().iter()` yields nothing, so references with
+    /// known aliases inside the array are not recorded in `aliased_references`.
+    mod unknown_combined_aliases {
+        use super::*;
+
+        /// This test checks the Store instruction path: storing such an array must still track
+        /// its individual element aliases.
+        #[test]
+        fn keep_store_when_array_value_has_unknown_aliases_from_block_param() {
+            let src = r#"
+            brillig(inline) impure fn main f0 {
+              b0():
+                jmpif u1 0 then: b1, else: b2
+              b1():
+                v1 = allocate -> &mut u1
+                store u1 0 at v1
+                v2 = make_array [v1] : [&mut u1; 1]
+                jmp b3(v2)
+              b2():
+                v3 = allocate -> &mut u1
+                store u1 0 at v3
+                v4 = make_array [v3] : [&mut u1; 1]
+                jmp b3(v4)
+              b3(v5: [&mut u1; 1]):
+                v6 = allocate -> &mut u1
+                store u1 1 at v6
+                v7 = make_array [v6] : [&mut u1; 1]
+                v8 = make_array [v7, v5] : [[&mut u1; 1]; 2]
+                v9 = allocate -> &mut [[&mut u1; 1]; 2]
+                store v8 at v9
+                jmp b4(u1 0)
+              b4(v10: u1):
+                v11 = load v9 -> [[&mut u1; 1]; 2]
+                v12 = array_get v11, index u32 0 -> [&mut u1; 1]
+                v13 = array_get v12, index u32 0 -> &mut u1
+                v14 = load v13 -> u1
+                jmpif v10 then: b5, else: b6
+              b5():
+                return v14
+              b6():
+                jmp b4(u1 1)
+            }
+        "#;
+
+            assert_ssa_does_not_change(src, Ssa::mem2reg);
+        }
+
+        // When one of the IfElse operands is an array with unknown combined aliases,
+        // its known element aliases are not recorded in `aliased_references`.
+        #[test]
+        fn keep_store_when_if_else_operand_has_unknown_aliases_from_block_param() {
+            let src = r#"
+            brillig(inline) fn main f0 {
+              b0():
+                v0 = allocate -> &mut u1
+                store u1 1 at v0
+                v1 = make_array [v0] : [&mut u1; 1]
+                jmp b1(v1)
+              b1(v2: [&mut u1; 1]):
+                v3 = array_get v2, index u32 0 -> &mut u1
+                v4 = load v3 -> u1
+                v5 = not v4
+                v6 = allocate -> &mut u1
+                store u1 1 at v6
+                v7 = make_array [v6, v3] : [&mut u1; 2]
+                v8 = allocate -> &mut u1
+                store u1 0 at v8
+                v9 = allocate -> &mut u1
+                store u1 0 at v9
+                v10 = make_array [v8, v9] : [&mut u1; 2]
+                v11 = if v4 then v7 else (if v5) v10
+                v12 = array_get v11, index u32 0 -> &mut u1
+                v13 = load v12 -> u1
+                return v13
+            }
+            "#;
+
+            assert_ssa_does_not_change(src, Ssa::mem2reg);
+        }
+
+        // This test checks the Call instruction path: to ensure that when a call argument
+        // is an array with unknown combined aliases, stores to those elements are
+        // not incorrectly removed.
+        //
+        // This test directly checks the `instruction_input_references` set because the bug
+        // is currently masked at the store-removal stage by `mark_all_unknown` → `clear_aliases`
+        // making the aliases unknown (which conservatively protects stores).
+        #[test]
+        fn call_with_unknown_alias_array_populates_instruction_input_references() {
+            use crate::ssa::ir::basic_block::BasicBlockId;
+            use crate::ssa::ir::instruction::Instruction;
+
+            // v0 is allocated in b0 and passed via an array to b1 as a block parameter,
+            // giving it unknown aliases. v4 is locally allocated in b1 with known aliases.
+            // make_array [v3, v4] combines unknown (v3 from array_get on block param) with
+            // known (v4), producing unknown combined aliases. When this array is passed to
+            // call f1, for_each_value_alias must recurse into the MakeArray elements to find
+            // v4 and add it to instruction_input_references.
+            let src = r#"
+            brillig(inline) fn main f0 {
+              b0():
+                v0 = allocate -> &mut Field
+                store Field 0 at v0
+                v1 = make_array [v0] : [&mut Field; 1]
+                jmp b1(v1)
+              b1(v2: [&mut Field; 1]):
+                v3 = array_get v2, index u32 0 -> &mut Field
+                v4 = allocate -> &mut Field
+                store Field 42 at v4
+                v5 = make_array [v3, v4] : [&mut Field; 2]
+                v6 = call f1(v5) -> Field
+                return v6
+            }
+            brillig(inline) fn helper f1 {
+              b0(v0: [&mut Field; 2]):
+                v1 = array_get v0, index u32 1 -> &mut Field
+                v2 = load v1 -> Field
+                return v2
+            }
+            "#;
+
+            let mut ssa = Ssa::from_str(src).unwrap();
+            let main_func = ssa.main_mut();
+            let input_refs = main_func.mem2reg_instruction_input_references();
+
+            // Find the allocate in b1 (the second block). Its result must be in
+            // instruction_input_references because it is transitively passed to a call.
+            let b1 = BasicBlockId::test_new(1);
+            let v4 = main_func.dfg[b1]
+                .instructions()
+                .iter()
+                .find(|&&inst| matches!(&main_func.dfg[inst], Instruction::Allocate))
+                .map(|&inst| {
+                    let [result] = main_func.dfg.instruction_result(inst);
+                    result
+                })
+                .expect("Expected an allocate in b1");
+
+            assert!(
+                input_refs.contains(&v4),
+                "Local allocate result {v4} should be in instruction_input_references \
+             because it is an element of an array passed to a call. \
+             Got: {input_refs:?}"
+            );
+        }
     }
 
     #[test]
@@ -3471,5 +3707,38 @@ mod tests {
             return
         }
         ");
+    }
+
+    #[test]
+    fn store_in_returned_array_not_removed_across_branches() {
+        // Regression test: mem2reg incorrectly removes `store u1 0 at v1` in func_1
+        // when a branch (jmpif) follows the store. The reference v1 is placed into
+        // an array that is returned. The clear_aliases call in mark_all_unknown
+        // (during Return terminator handling) destroys the alias information
+        // before the terminator value collection can find that v1 is used.
+        let src = r#"
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = call f1(u1 0) -> [&mut u1; 2]
+            v1 = array_get v0, index u32 0 -> &mut u1
+            v2 = load v1 -> u1
+            return v2
+        }
+        brillig(inline) fn func_1 f1 {
+          b0(v0: u1):
+            v1 = allocate -> &mut u1
+            store u1 0 at v1
+            v2 = make_array [v1, v1] : [&mut u1; 2]
+            jmpif v0 then: b1, else: b2
+          b1():
+            jmp b3()
+          b2():
+            jmp b3()
+          b3():
+            return v2
+        }
+        "#;
+
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 }

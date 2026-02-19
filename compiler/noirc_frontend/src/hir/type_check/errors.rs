@@ -532,7 +532,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 Diagnostic::simple_warning(error.to_string(), reason.clone(), *location)
             }
             TypeCheckError::CannotCastNumericToBool { typ: _, location } => {
-                let secondary = "compare with zero instead: ` != 0`".to_string();
+                let secondary = "Compare with zero instead: ` != 0`".to_string();
                 Diagnostic::simple_error(error.to_string(), secondary, *location)
             }
 

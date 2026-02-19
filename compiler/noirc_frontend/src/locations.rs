@@ -149,7 +149,7 @@ impl NodeInterner {
             ModuleDefId::GlobalId(global_id) => {
                 self.add_global_reference(global_id, location);
             }
-        };
+        }
     }
 
     /// In LSP mode, take note that a [ModuleId] was referenced at a [Location].

@@ -66,7 +66,6 @@ impl NodeInterner {
             name: function.name.to_string(),
             visibility: function.visibility,
             attributes: function.attributes.clone(),
-            is_unconstrained: function.is_unconstrained,
             generic_count: function.generics.len(),
             is_comptime: function.is_comptime,
             name_location,
@@ -128,13 +127,16 @@ impl NodeInterner {
         location: Location,
     ) -> Result<Option<FuncId>, InterpreterError> {
         if let HirExpression::Ident(HirIdent { id, .. }, _) = self.expression(expr) {
-            match self.try_definition(id).map(|def| &def.kind) {
-                Some(DefinitionKind::Function(func_id)) => Ok(Some(*func_id)),
-                Some(DefinitionKind::Local(Some(expr_id))) => {
-                    self.lookup_function_from_expr(expr_id, location)
+            let Some(definition) = self.try_definition(id) else {
+                return Ok(None);
+            };
+            match definition.kind {
+                DefinitionKind::Function(func_id) => Ok(Some(func_id)),
+                DefinitionKind::Local(Some(expr_id)) => {
+                    self.lookup_function_from_expr(&expr_id, location)
                 }
-                Some(DefinitionKind::Global(global_id)) => {
-                    let info = self.get_global(*global_id);
+                DefinitionKind::Global(global_id) => {
+                    let info = self.get_global(global_id);
                     let expression = match self.statement(&info.let_statement) {
                         HirStatement::Let(HirLetStatement { expression, .. })
                         | HirStatement::Expression(expression) => expression,
@@ -149,7 +151,9 @@ impl NodeInterner {
                     };
                     self.lookup_function_from_expr(&expression, location)
                 }
-                _ => Ok(None),
+                DefinitionKind::Local(None)
+                | DefinitionKind::AssociatedConstant(..)
+                | DefinitionKind::NumericGeneric(..) => Ok(None),
             }
         } else {
             Ok(None)

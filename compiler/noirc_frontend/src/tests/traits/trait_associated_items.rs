@@ -568,6 +568,76 @@ fn associated_type_mismatch_across_modules() {
 }
 
 #[test]
+fn associated_type_mismatch_with_inheritance() {
+    // This code would be rejected by Rust, without further evidence to support their equivalence.
+    let src = r#"
+    pub trait Foo {
+        type Bar;
+        fn foo(x: Self::Bar) -> Self::Bar;
+    }
+
+    pub trait Qux: Foo {
+        type Baz;
+        fn qux(x: Self::Baz) -> Self::Baz {
+            <Self as Foo>::foo(x)
+             ^^^^^^^^^^^ No matching impl found for `Self: Foo<Bar = Self::Baz>`
+             ~~~~~~~~~~~ No impl for `Self: Foo<Bar = Self::Baz>`
+        }
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn associated_type_and_constant_composite() {
+    let src = r#"
+    pub trait Foo {
+        type Bar;
+        let Baz: u32;
+        fn foo(x: [Self::Bar; Self::Baz]) -> u32;
+    }
+
+    impl Foo for () {
+        type Bar = ();
+        let Baz: u32 = 0;
+        fn foo(_x: [Self::Bar; Self::Baz]) -> u32 {
+            0
+        }
+    }
+
+    fn main() {
+        let _ = <() as Foo>::foo([(); 0]);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn associated_constant_refer_to_generic() {
+    let src = r#"
+    pub trait Deserialize {
+        let N: u32;
+        fn deserialize(fields: [Field; N]) -> Self;
+    }
+
+    impl<let M: u32> Deserialize for [Field; M] {
+        let N: u32 = M;
+
+        fn deserialize(fields: Self) -> Self {
+            fields
+        }
+    }
+
+    pub fn go<let M: u32>(fields: [Field; M]) {
+        let _data = <[Field; M] as Deserialize<N = M>>::deserialize(fields);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn associated_type_behind_self_as_trait() {
     let src = r#"
     pub trait Foo {
@@ -808,6 +878,24 @@ fn associated_constant_in_trait_method_missing_in_impl() {
 }
 
 #[test]
+fn associated_type_via_self_as_in_impl() {
+    let src = r#"
+    pub trait Foo {
+        type Bar;
+        fn foo() -> Self::Bar;
+    }
+
+    pub struct Qux;
+
+    impl Foo for Qux {
+        type Bar = u32;
+        fn foo() -> <Self as Foo>::Bar { 10 }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn generic_associated_type_access_direct_bound() {
     // T::Qux works when T: Baz and Baz defines Qux (direct bound syntax)
     let src = r#"
@@ -823,6 +911,23 @@ fn generic_associated_type_access_direct_bound() {
 }
 
 #[test]
+fn associated_type_via_self_in_impl() {
+    let src = r#"
+    pub trait Foo {
+        type Bar;
+        fn foo() -> Self::Bar;
+    }
+
+    pub struct Qux;
+
+    impl Foo for Qux {
+        type Bar = u32;
+        fn foo() -> Self::Bar { 10 }
+    }"#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn generic_associated_type_access_where_clause() {
     // T::Qux works when T: Baz and Baz defines Qux (where clause syntax)
     let src = r#"
@@ -831,6 +936,27 @@ fn generic_associated_type_access_where_clause() {
 
     impl<T> Foo for T where T: Baz {
         type Bar = T::Qux;
+    }
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn associated_type_referred_via_full_path_from_function() {
+    let src = r#"
+    pub trait Foo {
+        type Bar;
+    }
+
+    pub struct Qux;
+
+    impl Foo for Qux {
+        type Bar = u32;
+    }
+
+    pub fn qux_foo_bar() -> <Qux as Foo>::Bar {
+        0
     }
     fn main() {}
     "#;
@@ -943,19 +1069,19 @@ fn associated_type_in_trait_impl_method_where_clause() {
 
 #[test]
 fn associated_type_accessed_through_self_in_trait_impl_method() {
-    let src = "  
-    trait HasQux { type Qux; }                                                                                                                            
-    trait Foo { type Bar: HasQux; }                                                                                                                  
-    trait Result { 
+    let src = "
+    trait HasQux { type Qux; }
+    trait Foo { type Bar: HasQux; }
+    trait Result {
         type Output;
-        fn use_bar(_x: Self::Output) {}   
-    }                                                                                                                                       
-                                                                                                                                             
-    impl<T> Result for T where T: Foo {                                                                                   
-        type Output = T::Bar;  
-        fn use_bar(_x: Self::Output) {}                                                                          
-    }                                                                                                                                        
-    fn main() { }                                                                                                                             
+        fn use_bar(_x: Self::Output) {}
+    }
+
+    impl<T> Result for T where T: Foo {
+        type Output = T::Bar;
+        fn use_bar(_x: Self::Output) {}
+    }
+    fn main() { }
     ";
     check_errors(src);
 }
@@ -963,17 +1089,759 @@ fn associated_type_accessed_through_self_in_trait_impl_method() {
 /// TODO(https://github.com/noir-lang/noir/issues/11376): Switch to assert no errors once resolved
 #[test]
 fn fully_qualified_nested_associated_type() {
-    let src = "                                                                                                                              
-    trait HasQux { type Qux; }                                                                                                               
-    trait Foo { type Bar: HasQux; }                                                                                                          
-    trait Result { type Output; }                                                                                                            
-                                                                                                                                             
-    impl<T> Result for T where T: Foo {                                                                                                      
-        type Output = <T::Bar as HasQux>::Qux;  
+    let src = "
+    trait HasQux { type Qux; }
+    trait Foo { type Bar: HasQux; }
+    trait Result { type Output; }
+
+    impl<T> Result for T where T: Foo {
+        type Output = <T::Bar as HasQux>::Qux;
                                  ^^^^^^ No matching impl found for `<T as Foo>::Bar: HasQux<Qux = _>`
-                                 ~~~~~~ No impl for `<T as Foo>::Bar: HasQux<Qux = _>`                                                                             
-    }                                                                                                                                        
-    fn main() {}                                                                                                                             
+                                 ~~~~~~ No impl for `<T as Foo>::Bar: HasQux<Qux = _>`
+    }
+    fn main() {}
     ";
     check_errors(src);
+}
+
+#[test]
+fn associated_constant_references_generic_in_impl() {
+    let src = r#"
+    trait HasSize {
+        let SIZE: u32;
+    }
+
+    struct Wrapper<T> {
+        inner: T,
+    }
+
+    impl HasSize for Field {
+        let SIZE: u32 = 1;
+    }
+
+    impl<T> HasSize for Wrapper<T> where T: HasSize {
+        let SIZE: u32 = <T as HasSize>::SIZE;
+    }
+
+    fn main() {
+        let _: u32 = <Wrapper<Field> as HasSize>::SIZE;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn associated_constant_arithmetic_with_generic_param() {
+    let src = r#"
+    trait HasSize {
+        let SIZE: u32;
+    }
+
+    struct Pair<A, B> {
+        a: A,
+        b: B,
+    }
+
+    impl HasSize for Field {
+        let SIZE: u32 = 1;
+    }
+
+    impl HasSize for bool {
+        let SIZE: u32 = 1;
+    }
+
+    impl<A, B> HasSize for Pair<A, B> where A: HasSize, B: HasSize {
+        let SIZE: u32 = <A as HasSize>::SIZE + <B as HasSize>::SIZE;
+    }
+
+    fn main() {
+        let _: u32 = <Pair<Field, bool> as HasSize>::SIZE;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn associated_type_with_trait_bound_in_generic_fn() {
+    let src = r#"
+    trait ToField {
+        fn to_field(self) -> Field;
+    }
+
+    trait Container {
+        type Element: ToField;
+        fn get(self) -> Self::Element;
+    }
+
+    impl ToField for u32 {
+        fn to_field(self) -> Field {
+            self as Field
+        }
+    }
+
+    struct MyBox {
+        value: u32,
+    }
+
+    impl Container for MyBox {
+        type Element = u32;
+        fn get(self) -> Self::Element {
+            self.value
+        }
+    }
+
+    fn extract_as_field<C>(c: C) -> Field where C: Container {
+        c.get().to_field()
+    }
+
+    fn main() {
+        let b = MyBox { value: 42 };
+        assert(extract_as_field(b) == 42);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn associated_type_equals_generic_param_in_impl() {
+    let src = r#"
+    trait Mappable {
+        type Item;
+        fn first(self) -> Self::Item;
+    }
+
+    struct List<T> {
+        head: T,
+    }
+
+    impl<T> Mappable for List<T> {
+        type Item = T;
+        fn first(self) -> Self::Item {
+            self.head
+        }
+    }
+
+    fn get_head<T>(list: List<T>) -> T {
+        list.first()
+    }
+
+    fn main() {
+        let l = List { head: 42 as Field };
+        assert(get_head(l) == 42);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn associated_constant_as_array_length_in_generic_fn() {
+    let src = r#"
+    trait Sized {
+        let SIZE: u32;
+    }
+
+    struct Packet {}
+
+    impl Sized for Packet {
+        let SIZE: u32 = 4;
+    }
+
+    fn make_buffer<T>() -> [Field; <T as Sized>::SIZE] where T: Sized {
+        [0; <T as Sized>::SIZE]
+    }
+
+    fn main() {
+        let buf: [Field; 4] = make_buffer::<Packet>();
+        assert(buf[0] == 0);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn numeric_generic_constrained_by_associated_constant() {
+    let src = r#"
+    trait HasLen {
+        let LEN: u32;
+    }
+
+    struct MyArray<let N: u32> {
+        data: [Field; N],
+    }
+
+    impl<let N: u32> HasLen for MyArray<N> {
+        let LEN: u32 = N;
+    }
+
+    fn check_len<T>() -> u32 where T: HasLen {
+        <T as HasLen>::LEN
+    }
+
+    fn main() {
+        assert(check_len::<MyArray<5>>() == 5);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn associated_constant_used_in_generic_function_body() {
+    let src = r#"
+    trait Config {
+        let MAX: u32;
+        let MIN: u32;
+    }
+
+    struct Settings {}
+
+    impl Config for Settings {
+        let MAX: u32 = 100;
+        let MIN: u32 = 0;
+    }
+
+    fn range<T>() -> u32 where T: Config {
+        <T as Config>::MAX - <T as Config>::MIN
+    }
+
+    fn main() {
+        assert(range::<Settings>() == 100);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn trait_with_comptime_and_associated_constant() {
+    let src = r#"
+    trait TypeInfo {
+        let SIZE: u32;
+        comptime fn type_id() -> u32;
+    }
+
+    struct MyStruct {}
+
+    impl TypeInfo for MyStruct {
+        let SIZE: u32 = 10;
+        comptime fn type_id() -> u32 {
+            42
+        }
+    }
+
+    fn get_size<T>() -> u32 where T: TypeInfo {
+        <T as TypeInfo>::SIZE
+    }
+
+    fn main() {
+        assert(get_size::<MyStruct>() == 10);
+        comptime {
+            assert(MyStruct::type_id() == 42);
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn trait_with_numeric_generic_and_associated_type() {
+    let src = r#"
+    trait Serializable<let N: u32> {
+        type Aux;
+        fn serialize(self) -> [Field; N];
+    }
+
+    struct Point {
+        x: Field,
+        y: Field,
+    }
+
+    impl Serializable<2> for Point {
+        type Aux = bool;
+        fn serialize(self) -> [Field; 2] {
+            [self.x, self.y]
+        }
+    }
+
+    fn ser<T, let N: u32>(val: T) -> [Field; N] where T: Serializable<N> {
+        val.serialize()
+    }
+
+    fn main() {
+        let p = Point { x: 1, y: 2 };
+        let arr = ser(p);
+        assert(arr[0] == 1);
+        assert(arr[1] == 2);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn numeric_generic_with_trait_bound_and_arithmetic() {
+    let src = r#"
+    trait Sized {
+        let SIZE: u32;
+    }
+
+    impl Sized for Field {
+        let SIZE: u32 = 1;
+    }
+
+    fn double_size<T>() -> u32 where T: Sized {
+        <T as Sized>::SIZE * 2
+    }
+
+    fn main() {
+        assert(double_size::<Field>() == 2);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn numeric_generic_in_associated_constant_with_arithmetic() {
+    let src = r#"
+    trait StorageInfo {
+        let TOTAL_SIZE: u32;
+    }
+
+    struct DoubleArray<let N: u32> {
+        data: [Field; N],
+    }
+
+    impl<let N: u32> StorageInfo for DoubleArray<N> {
+        let TOTAL_SIZE: u32 = N * 2;
+    }
+
+    fn get_storage_size<T>() -> u32 where T: StorageInfo {
+        <T as StorageInfo>::TOTAL_SIZE
+    }
+
+    fn main() {
+        assert(get_storage_size::<DoubleArray<5>>() == 10);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn associated_type_in_generic_impl() {
+    let src = r#"
+    trait Mappable {
+        type Item;
+        fn first(self) -> Self::Item;
+    }
+
+    struct List<T> {
+        head: T,
+    }
+
+    impl<T> Mappable for List<T> {
+        type Item = T;
+        fn first(self) -> Self::Item {
+            self.head
+        }
+    }
+
+    fn get_head<T>(list: List<T>) -> T {
+        list.first()
+    }
+
+    fn main() {
+        let l = List { head: 42 as Field };
+        assert(get_head(l) == 42);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test for https://github.com/noir-lang/noir/issues/11545
+#[test]
+fn associated_type_shorthand_in_return_type() {
+    let src = r#"
+    trait Transform {
+        type Output;
+        fn transform(self) -> Self::Output;
+    }
+
+    impl Transform for Field {
+        type Output = Field;
+        fn transform(self) -> Self::Output {
+            self
+        }
+    }
+
+    fn apply_transform<T>(w: T) -> T::Output where T: Transform {
+        w.transform()
+    }
+
+    fn main() {
+        let _: Field = apply_transform(1 as Field);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test for https://github.com/noir-lang/noir/issues/11545
+#[test]
+fn associated_type_shorthand_in_return_type_with_trait_having_constant() {
+    let src = r#"
+    trait Collection {
+        type Item;
+        let MAX_SIZE: u32;
+
+        fn get(self, index: u32) -> Self::Item;
+    }
+
+    struct FieldVec {
+        data: [Field; 4],
+    }
+
+    impl Collection for FieldVec {
+        type Item = Field;
+        let MAX_SIZE: u32 = 4;
+
+        fn get(self, index: u32) -> Self::Item {
+            self.data[index]
+        }
+    }
+
+    fn first_element<C>(c: C) -> C::Item where C: Collection {
+        c.get(0)
+    }
+
+    fn main() {
+        let v = FieldVec { data: [10, 20, 30, 40] };
+        let _ = first_element(v);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test for https://github.com/noir-lang/noir/issues/11545
+#[test]
+fn associated_type_shorthand_simple_identity() {
+    let src = r#"
+    trait HasItem {
+        type Item;
+        fn item(self) -> Self::Item;
+    }
+
+    impl HasItem for Field {
+        type Item = bool;
+        fn item(self) -> Self::Item {
+            true
+        }
+    }
+
+    fn get_item<T>(t: T) -> T::Item where T: HasItem {
+        t.item()
+    }
+
+    fn main() {
+        let _ = get_item(1 as Field);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// TODO(https://github.com/noir-lang/noir/issues/11562): remove should_panic once fixed
+#[test]
+#[should_panic(expected = "Expected no errors")]
+fn associated_type_of_self_generic_in_param_position_for_parent() {
+    // Bug: Self::Key cannot be resolved
+    let src = r#"
+    trait KeyType {
+        type Key;
+    }
+
+    trait Lookup: KeyType {
+        fn lookup(self, key: Self::Key);
+    }
+
+    impl KeyType for u32 {
+        type Key = Field;
+    }
+
+    impl Lookup for u32 {
+        fn lookup(self, _key: Self::Key) {}
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// TODO(https://github.com/noir-lang/noir/issues/11562): remove should_panic once fixed
+#[test]
+#[should_panic(expected = "Expected no errors")]
+fn associated_type_of_non_self_generic_in_param_position_for_parent() {
+    // Bug: Self::Key cannot be resolved
+    let src = r#"
+    trait KeyType {
+        type Key;
+    }
+
+    trait Lookup: KeyType {}
+
+    fn find<M: Lookup>(m: M, key: M::Key) {}
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test for https://github.com/noir-lang/noir/issues/11545
+#[test]
+fn associated_type_shorthand_in_param_position() {
+    let src = r#"
+    trait Container {
+        type Item;
+        fn contains(self, item: Self::Item) -> bool;
+    }
+
+    struct Bag {
+        val: Field,
+    }
+
+    impl Container for Bag {
+        type Item = Field;
+        fn contains(self, _item: Self::Item) -> bool {
+            true
+        }
+    }
+
+    fn check<C>(c: C, item: C::Item) -> bool where C: Container {
+        c.contains(item)
+    }
+
+    fn main() {
+        let b = Bag { val: 42 };
+        assert(check(b, 42));
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test for https://github.com/noir-lang/noir/issues/11549
+#[test]
+fn nested_associated_type_access_fails() {
+    // Bug: nested associated type resolution fails
+    let src = r#"
+    trait HasInner {
+        type Inner;
+    }
+
+    trait HasValue {
+        type Value;
+        fn get_value(self) -> Self::Value;
+    }
+
+    struct A {}
+    struct B {}
+
+    impl HasValue for B {
+        type Value = Field;
+        fn get_value(self) -> Self::Value { 0 }
+    }
+
+    impl HasInner for A {
+        type Inner = B;
+    }
+
+    fn process<T>(val: <T as HasInner>::Inner) -> <<T as HasInner>::Inner as HasValue>::Value
+    where
+        T: HasInner,
+        <T as HasInner>::Inner: HasValue,
+    {
+        val.get_value()
+    }
+
+    fn main() {
+        let b = B {};
+        let _: Field = process::<A>(b);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test for https://github.com/noir-lang/noir/issues/11545
+#[test]
+fn associated_type_in_generic_function_local_var() {
+    let src = r#"
+    trait HasItem {
+        type Item;
+        fn get(self) -> Self::Item;
+    }
+
+    struct Holder {
+        val: Field,
+    }
+
+    impl HasItem for Holder {
+        type Item = Field;
+        fn get(self) -> Self::Item {
+            self.val
+        }
+    }
+
+    fn extract<T>(t: T) -> Field where T: HasItem {
+        let x: T::Item = t.get();
+        let _ = x;
+        0
+    }
+
+    fn main() {
+        let h = Holder { val: 42 };
+        let _ = extract(h);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test for https://github.com/noir-lang/noir/issues/11545
+#[test]
+fn generic_impl_with_associated_type_in_method_signature() {
+    let src = r#"
+    trait HasItem {
+        type Item;
+        fn get_item(self) -> Self::Item;
+    }
+
+    impl HasItem for Field {
+        type Item = bool;
+        fn get_item(self) -> Self::Item {
+            self != 0
+        }
+    }
+
+    struct Processor<T> {
+        source: T,
+    }
+
+    impl<T> Processor<T> where T: HasItem {
+        fn process(self) -> T::Item {
+            self.source.get_item()
+        }
+    }
+
+    fn main() {
+        let p = Processor { source: 42 as Field };
+        assert(p.process());
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test for https://github.com/noir-lang/noir/issues/11550
+#[test]
+fn generic_fn_returning_tuple_with_associated_type() {
+    let src = r#"
+    trait HasOutput {
+        type Out;
+        fn produce(self) -> Self::Out;
+    }
+
+    impl HasOutput for Field {
+        type Out = bool;
+        fn produce(self) -> Self::Out {
+            self != 0
+        }
+    }
+
+    fn produce_pair<T>(a: T, b: T) -> (T::Out, T::Out) where T: HasOutput {
+        (a.produce(), b.produce())
+    }
+
+    fn main() {
+        let (x, y) = produce_pair(1 as Field, 0 as Field);
+        assert(x);
+        assert(!y);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// TODO(https://github.com/noir-lang/noir/issues/11551): remove should_panic once fixed
+#[test]
+#[should_panic(expected = "Expected no errors")]
+fn trait_with_associated_type_used_in_other_method_signature() {
+    // Bug: Associated type from one trait method used in another's signature
+    let src = r#"
+    trait Mappable {
+        type Target;
+        fn map_to(self) -> Self::Target;
+    }
+
+    trait Chainable: Mappable {
+        fn chain(self) -> <Self::Target as Mappable>::Target where Self::Target: Mappable;
+    }
+
+    impl Mappable for Field {
+        type Target = bool;
+        fn map_to(self) -> Self::Target {
+            self != 0
+        }
+    }
+
+    impl Mappable for bool {
+        type Target = u32;
+        fn map_to(self) -> Self::Target {
+            if self { 1 } else { 0 }
+        }
+    }
+
+    impl Chainable for Field {
+        fn chain(self) -> <Self::Target as Mappable>::Target where Self::Target: Mappable {
+            self.map_to().map_to()
+        }
+    }
+
+    fn main() {
+        let x: Field = 5;
+        let result = x.chain();
+        assert(result == 1);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test for https://github.com/noir-lang/noir/issues/11538
+#[test]
+fn associated_constant_can_reference_generic_from_trait_bound() {
+    let src = r#"
+    pub trait E {
+        let x: u32;
+    }
+
+    pub struct A<F> {
+        pub f: F,
+    }
+
+    impl<X: E> E for A<X> {
+        let x: u32 = X::x;
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test for https://github.com/noir-lang/noir/issues/11538
+#[test]
+fn associated_constant_in_return_type_with_generic_impl_forwarding() {
+    let src = r#"
+    pub struct A<F> { pub f: F }
+
+    pub trait E {
+        let x: u32;
+        fn g() -> str<Self::x>;
+    }
+
+    impl<F: E> E for A<F> {
+        let x: u32 = F::x;
+
+        fn g() -> str<Self::x> {
+            F::g()
+        }
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
 }

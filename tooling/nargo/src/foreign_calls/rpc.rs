@@ -199,7 +199,7 @@ fn build_http_client(target: &str) -> HttpClient {
     {
         let timeout_duration = std::time::Duration::from_millis(timeout);
         client_builder = client_builder.request_timeout(timeout_duration);
-    };
+    }
 
     client_builder.build(target).expect("Invalid oracle resolver URL")
 }

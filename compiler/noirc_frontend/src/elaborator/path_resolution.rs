@@ -438,20 +438,21 @@ impl Elaborator<'_> {
         let mut module_id = self.module_id();
         let mut intermediate_item = IntermediatePathResolutionItem::Module;
 
-        if path.kind == PathKind::Plain && path.first_name() == Some(SELF_TYPE_NAME) {
-            if let Some(Type::DataType(datatype, _)) = &self.self_type {
-                let datatype = datatype.borrow();
-                if path.segments.len() == 1 {
-                    return Ok(PathResolution {
-                        item: PathResolutionItem::Type(datatype.id),
-                        errors: Vec::new(),
-                    });
-                }
-
-                module_id = datatype.id.module_id();
-                path.segments.remove(0);
-                intermediate_item = IntermediatePathResolutionItem::SelfType;
+        if path.kind == PathKind::Plain
+            && path.first_name() == Some(SELF_TYPE_NAME)
+            && let Some(Type::DataType(datatype, _)) = &self.self_type
+        {
+            let datatype = datatype.borrow();
+            if path.segments.len() == 1 {
+                return Ok(PathResolution {
+                    item: PathResolutionItem::Type(datatype.id),
+                    errors: Vec::new(),
+                });
             }
+
+            module_id = datatype.id.module_id();
+            path.segments.remove(0);
+            intermediate_item = IntermediatePathResolutionItem::SelfType;
         }
 
         let last_segment_turbofish_location = path
@@ -818,7 +819,7 @@ impl Elaborator<'_> {
             let trait_id = trait_id.expect("The None option was already considered before");
             if let Some(name) = starting_module.find_trait_in_scope(trait_id) {
                 results.push((trait_id, name, item));
-            };
+            }
         }
 
         if results.is_empty() {
@@ -964,7 +965,7 @@ impl Elaborator<'_> {
         for (func_id, trait_id) in &trait_methods {
             if let Some(name) = starting_module.find_trait_in_scope(*trait_id) {
                 results.push((*trait_id, *func_id, name));
-            };
+            }
         }
 
         if results.is_empty() {
