@@ -101,6 +101,35 @@ impl NodeInterner {
         }
     }
 
+    /// Replace each generic with a fresh type variable.
+    ///
+    /// For example if the object type if `Foo<T'3>` then it becomes `Foo<'5>`.
+    /// The difference is that `Foo<T'3>` would not unify with `Foo<T'4>`,
+    /// but as `Foo<'5>` it will, allowing us to match existing implementations.
+    fn replace_generics_with_fresh_type_variable(
+        &self,
+        object_type: &Type,
+        impl_generics: GenericTypeVars,
+    ) -> (Type, TypeBindings) {
+        let substitutions = impl_generics
+            .into_iter()
+            .map(|typevar| {
+                let typevar_kind = typevar.kind();
+                let typevar_id = typevar.id();
+                let substitution = (
+                    typevar,
+                    typevar_kind.clone(),
+                    self.next_type_variable_with_kind(typevar_kind),
+                );
+                (typevar_id, substitution)
+            })
+            .collect();
+
+        let instantiated_object_type = object_type.substitute(&substitutions);
+
+        (instantiated_object_type, substitutions)
+    }
+
     /// Adds a prepared trait implementation.
     ///
     /// This is called before the normal implementation is ready, so we can look up the
@@ -110,12 +139,18 @@ impl NodeInterner {
         object_type: Type,
         trait_id: TraitId,
         impl_id: TraitImplId,
+        impl_generics: GenericTypeVars,
     ) {
         if matches!(object_type, Type::Error) {
             // If we stored a prepared impl for Error, it would later unify with anything,
             // leading to potentially unexpected duplications with the real prepared impl.
             return;
         }
+
+        // When looking for an existing type, we first have to make the unifying more relaxed by replacing
+        // named generics with fresh type variables, otherwise we can end up with duplicates.
+        let (instantiated_object_type, _) =
+            self.replace_generics_with_fresh_type_variable(&object_type, impl_generics);
 
         // Check that we haven't already some overlapping implementation.
         // Get the generics, which are inserted by `resolve_trait_impl_associated_types`
@@ -128,7 +163,7 @@ impl NodeInterner {
         });
 
         let existing = self.try_lookup_trait_implementation(
-            &object_type,
+            &instantiated_object_type,
             trait_id,
             &trait_generics.ordered,
             &associated_types,
@@ -137,6 +172,7 @@ impl NodeInterner {
         if existing.is_ok() {
             return;
         }
+
         let entries = self.trait_implementation_map.entry(trait_id).or_default();
         entries.push((object_type, TraitImplKind::Prepared(impl_id)));
     }
@@ -164,22 +200,8 @@ impl NodeInterner {
             .into());
         }
 
-        // Replace each generic with a fresh type variable
-        let substitutions = impl_generics
-            .into_iter()
-            .map(|typevar| {
-                let typevar_kind = typevar.kind();
-                let typevar_id = typevar.id();
-                let substitution = (
-                    typevar,
-                    typevar_kind.clone(),
-                    self.next_type_variable_with_kind(typevar_kind),
-                );
-                (typevar_id, substitution)
-            })
-            .collect();
-
-        let instantiated_object_type = object_type.substitute(&substitutions);
+        let (instantiated_object_type, substitutions) =
+            self.replace_generics_with_fresh_type_variable(&object_type, impl_generics);
 
         let trait_generics = self.get_trait_generics_for_impl(impl_id);
 

@@ -33,6 +33,9 @@ impl Ssa {
     pub(crate) fn simplify_cfg(mut self) -> Self {
         for function in self.functions.values_mut() {
             function.simplify_function();
+
+            #[cfg(debug_assertions)]
+            simplify_cfg_post_check(function);
         }
         self
     }
@@ -60,10 +63,17 @@ impl Function {
 
             // First perform any simplifications on the current block, this ensures that we add the proper successors
             // to the stack.
-            simplify_current_block(self, block, &mut cfg, &mut values_to_replace);
+            let simplified = simplify_current_block(self, block, &mut cfg, &mut values_to_replace);
 
-            if visited.insert(block) {
+            if visited.insert(block) || simplified {
                 stack.extend(self.dfg[block].successors().filter(|block| !visited.contains(block)));
+            }
+
+            // If this block was simplified (e.g. a jmpif was folded to a jmp), its predecessors
+            // may now have new simplification opportunities (e.g. converging branches).
+            // Re-add them to the stack so they get re-checked.
+            if simplified {
+                stack.extend(cfg.predecessors(block).filter(|b| visited.contains(b)));
             }
 
             let mut predecessors = cfg.predecessors(block);
@@ -94,24 +104,68 @@ impl Function {
     }
 }
 
+#[cfg(debug_assertions)]
+fn simplify_cfg_post_check(function: &Function) {
+    super::checks::assert_no_constant_jmpif(function);
+}
+
+/// When a block becomes unreachable (0 predecessors), invalidate its successors in the CFG.
+/// This cascades: if removing the edges makes further blocks unreachable, those are
+/// invalidated too. This ensures predecessor counts stay accurate for inlining decisions.
+fn cascade_invalidate_unreachable(
+    function: &Function,
+    cfg: &mut ControlFlowGraph,
+    block: BasicBlockId,
+) {
+    if block == function.entry_block() || cfg.predecessors(block).len() != 0 {
+        return;
+    }
+    let successors: Vec<_> = cfg.successors(block).collect();
+    cfg.invalidate_block_successors(block);
+    for successor in successors {
+        cascade_invalidate_unreachable(function, cfg, successor);
+    }
+}
+
 /// A helper function to simplify the current block based on information on its successors.
 ///
 /// This function will recursively simplify the current block until no further simplifications can be made.
+/// Returns true if any simplification was performed.
 fn simplify_current_block(
     function: &mut Function,
     block: BasicBlockId,
     cfg: &mut ControlFlowGraph,
     values_to_replace: &mut ValueMapping,
-) {
+) -> bool {
+    // Apply any pending replacements to the terminator before we inspect it.
+    // Without this, checks like `check_for_constant_jmpif` may miss constant conditions
+    // that were only recorded in `values_to_replace` but not yet applied to this block's
+    // terminator (e.g. a block parameter replaced by a constant during inlining).
+    if !values_to_replace.is_empty() {
+        function.dfg.replace_values_in_block_terminator(block, values_to_replace);
+    }
+
     // These functions return `true` if they successfully simplified the CFG for the current block.
     let mut simplified = true;
+    let mut ever_simplified = false;
 
     while simplified {
         simplified = check_for_negated_jmpif_condition(function, block, cfg)
             | check_for_constant_jmpif(function, block, cfg)
             | check_for_converging_jmpif(function, block, cfg)
             | try_inline_successor(function, cfg, block, values_to_replace);
+
+        ever_simplified |= simplified;
+
+        // Simplifications may rewrite the terminator with values that have pending
+        // replacements (e.g. block parameters mapped to constants). Apply them so
+        // the next iteration sees the resolved values.
+        if simplified && !values_to_replace.is_empty() {
+            function.dfg.replace_values_in_block_terminator(block, values_to_replace);
+        }
     }
+
+    ever_simplified
 }
 
 /// Optimize a jmpif into a jmp if the condition is known
@@ -140,11 +194,9 @@ fn check_for_constant_jmpif(
         function.dfg[block].set_terminator(jmp);
         cfg.recompute_block(function, block);
 
-        // If `block` was the only predecessor to `unchosen_destination` then it's no long reachable through the CFG,
-        // we can then invalidate it successors as it's an invalid predecessor.
-        if cfg.predecessors(unchosen_destination).len() == 0 {
-            cfg.invalidate_block_successors(unchosen_destination);
-        }
+        // If `block` was the only predecessor to `unchosen_destination` then it's no longer reachable through the CFG,
+        // we can then invalidate its successors as it's an invalid predecessor.
+        cascade_invalidate_unreachable(function, cfg, unchosen_destination);
 
         return true;
     }
@@ -284,13 +336,6 @@ fn check_for_converging_jmpif(
     block: BasicBlockId,
     cfg: &mut ControlFlowGraph,
 ) -> bool {
-    if matches!(function.runtime(), RuntimeType::Acir(_)) {
-        // The `flatten_cfg` pass expects two blocks to join to the same block.
-        // If we have a nested if the inner if statement could potentially be a converging jmpif.
-        // This may change the final block we converge into.
-        return false;
-    }
-
     let Some(TerminatorInstruction::JmpIf {
         then_destination, else_destination, call_stack, ..
     }) = function.dfg[block].terminator()
@@ -301,16 +346,44 @@ fn check_for_converging_jmpif(
     let then_final = resolve_jmp_chain(function, *then_destination);
     let else_final = resolve_jmp_chain(function, *else_destination);
 
+    if matches!(function.runtime(), RuntimeType::Acir(_)) && then_final != else_final {
+        // The `flatten_cfg` pass expects two blocks to join to the same block.
+        // If we have a nested if the inner if statement could potentially be a converging jmpif.
+        // This may change the final block we converge into.
+        // However, if both branches resolve to the same block, the jmpif is a no-op and can
+        // always be safely replaced with a jmp.
+        return false;
+    }
+
     // If both branches end at the same target, we can replace the jmpif with a jmp
     if then_final == else_final {
+        let then_destination = *then_destination;
+        let else_destination = *else_destination;
+        // For ACIR functions, jump to the immediate target rather than the resolved
+        // chain endpoint. flatten_cfg expects symmetric join structures, and skipping
+        // intermediate blocks can create asymmetric paths that break branch analysis.
+        // try_inline_successor will safely collapse the remaining chain later.
+        let destination = if matches!(function.runtime(), RuntimeType::Acir(_)) {
+            then_destination
+        } else {
+            then_final
+        };
         let jmp = TerminatorInstruction::Jmp {
-            destination: then_final,
+            destination,
             // The blocks in a jmp chain are checked to have empty arguments by resolve_jmp_chain
             arguments: Vec::new(),
             call_stack: *call_stack,
         };
         function.dfg[block].set_terminator(jmp);
         cfg.recompute_block(function, block);
+
+        // The old branch targets may now be unreachable. Cascade-invalidate their
+        // successors so that downstream blocks no longer see them as predecessors,
+        // enabling further inlining.
+        for dest in [then_destination, else_destination] {
+            cascade_invalidate_unreachable(function, cfg, dest);
+        }
+
         true
     } else {
         false
@@ -438,6 +511,8 @@ fn try_inline_into_predecessor(
 
 #[cfg(test)]
 mod tests {
+    use test_case::test_case;
+
     use crate::{
         assert_ssa_snapshot,
         ssa::{Ssa, opt::assert_ssa_does_not_change},
@@ -536,6 +611,7 @@ mod tests {
             v1 = not v0
             jmpif v1 then: b1, else: b2
           b1():
+            constrain v0 == u1 0
             jmp b2()
           b2():
             return
@@ -573,11 +649,7 @@ mod tests {
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: i16):
             v2 = lt i16 3, v0
-            jmp b1()
-          b1():
             v4 = lt i16 5, v0
-            jmp b2()
-          b2():
             return
         }
         ");
@@ -624,11 +696,7 @@ mod tests {
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: i16):
             v2 = lt i16 1, v0
-            jmp b1()
-          b1():
             v4 = lt i16 2, v0
-            jmp b2()
-          b2():
             return
         }
         ");
@@ -727,12 +795,8 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.simplify_cfg();
 
-        // We expect all jmpifs to remain.
-        // The remaining jmpifs cannot be simplified as the flattening pass expects
-        // to be able to merge into a single block.
-        // We could potentially merge converging jmpifs in an ACIR runtime as well if
-        // this restriction was removed or the SSA input to this pass was validated to pass
-        // branch analysis.
+        // Non-converging jmpifs remain because the flattening pass expects to merge them.
+        // Converging jmpifs (where both branches reach the same block) are folded.
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) predicate_pure fn main f0 {
           b0(v0: [(u1, u1, [u8; 1], [u8; 1]); 3]):
@@ -753,27 +817,19 @@ mod tests {
             return v1
           b6():
             v9 = array_get v0, index u32 8 -> u1
-            jmpif v9 then: b10, else: b11
+            jmp b9()
           b7():
             jmp b9()
           b8():
             jmp b5(u1 0)
           b9():
             jmp b8()
-          b10():
-            jmp b12()
-          b11():
-            jmp b12()
-          b12():
-            jmpif v9 then: b13, else: b14
-          b13():
-            jmp b15()
-          b14():
-            jmp b15()
-          b15():
-            jmp b9()
         }
         ");
+
+        // The output must be a valid input for flatten_cfg (no panic).
+        let ssa = Ssa::from_str(src).unwrap().simplify_cfg();
+        let _ssa = ssa.flatten_cfg();
     }
 
     #[test]
@@ -851,15 +907,17 @@ mod tests {
         ");
     }
 
-    #[test]
-    fn handles_cascading_simplifications() {
+    #[test_case("acir"; "acir")]
+    #[test_case("brillig"; "brillig")]
+    fn handles_cascading_simplifications(runtime: &str) {
         // Simplifying the CFG from a block can result the block being updated to a form which can be simplified further.
         // We want to ensure that we handle any followup simplifications correctly.
         //
         // In this case we have a jmpif which is simplified to a jmp, which then can be inlined into its predecessor.
         // The new terminator instruction of the block is then a jmpif which can be simplified to a jmp.
-        let src = r#"
-        brillig(inline) impure fn main f0 {
+        let src = format!(
+            "
+        {runtime}(inline) impure fn main f0 {{
           b0():
             jmpif u1 1 then: b1, else: b2
           b1():
@@ -874,6 +932,38 @@ mod tests {
             jmp b6()
           b6():
             return
+        }}
+        "
+        );
+
+        let ssa = Ssa::from_str(&src).unwrap();
+        let ssa = ssa.simplify_cfg();
+
+        let expected = format!(
+            "\
+{runtime}(inline) impure fn main f0 {{
+  b0():
+    return
+}}"
+        );
+        assert_eq!(ssa.to_string().trim(), expected.trim());
+    }
+
+    #[test]
+    fn fully_simplifies_negated_constant_condition() {
+        let src = r#"
+        brillig(inline) impure fn main f0 {
+          b0():
+            jmp b1(u1 1)
+          b1(v0: u1):
+            v1 = not v0
+            jmpif v1 then: b2, else: b3
+          b2():
+            jmp b4(u1 0)
+          b3():
+            jmp b4(u1 1)
+          b4(v2: u1):
+            return
         }
         "#;
 
@@ -883,8 +973,7 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) impure fn main f0 {
           b0():
-            jmp b1()
-          b1():
+            v1 = not u1 1
             return
         }
         ");
@@ -963,6 +1052,94 @@ mod tests {
     }
 
     #[test]
+    fn fold_constant_jmpif_after_negation_swap() {
+        // Regression: simplify_cfg must fold constant-condition jmpifs that become
+        // visible after a negation swap. When `not v0` produces a constant that
+        // causes the first jmpif to be folded, the second `jmpif v0` also has a
+        // constant condition and must be folded in the same pass invocation.
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            jmp b1(u1 0)
+          b1(v0: u1):
+            v1 = not v0
+            jmpif v1 then: b2, else: b3
+          b2():
+            jmp b4()
+          b3():
+            jmpif v0 then: b4, else: b4
+          b4():
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.simplify_cfg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v1 = not u1 0
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn simplify_cfg_preserves_valid_join_structure_for_flatten() {
+        // Regression test: simplify_cfg was creating an asymmetric join structure
+        // that flatten_cfg's branch analysis couldn't handle. After simplification,
+        // one branch of a jmpif would reach the return block directly while the
+        // other went through extra blocks, causing "Expected two blocks to join
+        // to the same block" in flatten_cfg.
+        let src = "
+        acir(inline) impure fn main f0 {
+          b0(v1: u1, v2: u1, v3: u1, v4: u32):
+            v5 = eq v4, u32 1
+            jmpif v5 then: b1, else: b2
+          b1():
+            jmp b3()
+          b2():
+            v6 = eq v4, u32 2
+            jmpif v6 then: b4, else: b5
+          b3():
+            jmp b6()
+          b4():
+            jmpif v1 then: b7, else: b8
+          b5():
+            jmp b9()
+          b6():
+            jmp b10()
+          b7():
+            v7 = not v2
+            jmpif v2 then: b11, else: b12
+          b8():
+            jmp b13()
+          b9():
+            jmp b14()
+          b10():
+            return
+          b11():
+            jmp b15()
+          b12():
+            jmp b15()
+          b13():
+            jmp b16()
+          b14():
+            jmp b6()
+          b15():
+            jmp b13()
+          b16():
+            jmp b14()
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.simplify_cfg();
+        // The key check: flatten_cfg must not panic
+        let _ssa = ssa.flatten_cfg();
+    }
+
+    #[test]
     fn deep_jmp_empty_blocks() {
         let src = "
         brillig(inline) fn test f0 {
@@ -989,6 +1166,98 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn test f0 {
           b0():
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn explores_new_successors_after_simplifying_revisited_block() {
+        // Regression: when a re-visited block was simplified (e.g. a converging jmpif was
+        // folded and the successor inlined, giving the block a new terminator with new
+        // successors), those new successors were not pushed to the stack because
+        // `visited.insert(block)` returned false. This left downstream constant jmpifs
+        // unreached and unfolded.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1, else: b2
+          b1():
+            jmp b6()
+          b2():
+            jmpif v0 then: b3, else: b4
+          b3():
+            jmp b5()
+          b4():
+            jmp b5()
+          b5():
+            jmp b6()
+          b6():
+            jmpif v0 then: b7, else: b8
+          b7():
+            jmp b12()
+          b8():
+            jmpif v0 then: b9, else: b10
+          b9():
+            jmp b11()
+          b10():
+            jmp b11()
+          b11():
+            jmp b12()
+          b12():
+            jmpif u1 1 then: b13, else: b13
+          b13():
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.simplify_cfg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn cascade_invalidation_simplifies_through_unreachable_chains() {
+        // Regression: when a jmpif is folded (e.g. converging branches), the unchosen
+        // destination is invalidated. But if that destination was part of a chain
+        // (e.g. b5→b6→b7), only b5's successors were invalidated — b6→b7 remained
+        // in the CFG. This made b7 appear to have 2 predecessors, preventing inlining.
+        //
+        // The fix cascades invalidation: when removing edges makes a block unreachable,
+        // its successors are also invalidated, allowing the full chain to collapse.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmp b2()
+          b1():
+            return
+          b2():
+            jmpif v0 then: b4, else: b3
+          b3():
+            jmpif v0 then: b4, else: b4
+          b4():
+            jmpif v0 then: b7, else: b5
+          b5():
+            jmp b6()
+          b6():
+            jmp b7()
+          b7():
+            jmpif u1 1 then: b1, else: b1
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.simplify_cfg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
             return
         }
         ");

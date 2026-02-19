@@ -10,6 +10,7 @@
     "resolveJsonModule": true,
     "strict": true,
     "noImplicitAny": false,
+    "skipLibCheck": true,
   },
   "include": [
     "src/**/*.ts"

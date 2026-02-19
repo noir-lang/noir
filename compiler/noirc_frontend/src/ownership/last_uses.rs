@@ -300,6 +300,27 @@ impl LastUseContext {
         }
     }
 
+    /// Navigate the `Branches` tree along the given path and extract only
+    /// the sub-tree at the leaf, replacing it with `Branches::None`.
+    /// Sibling branches are left untouched.
+    fn extract_branch_at_path(
+        branches: &mut Branches,
+        path: &[(IfOrMatchId, BranchId)],
+    ) -> Branches {
+        match path {
+            [] => std::mem::replace(branches, Branches::None),
+            [(if_id, branch_id), rest @ ..] => {
+                if let Branches::IfOrMatch(id, map) = branches
+                    && *id == *if_id
+                    && let Some(branch) = map.get_mut(branch_id)
+                {
+                    return Self::extract_branch_at_path(branch, rest);
+                }
+                Branches::None
+            }
+        }
+    }
+
     /// Collect the last use(s) of every local variable.
     fn get_variables_to_move(self) -> HashMap<LocalId, Vec<IdentId>> {
         let mut moves = self.confirmed_moves;
@@ -385,26 +406,33 @@ impl LastUseContext {
     }
 
     fn track_variables_in_for(&mut self, for_expr: &ast::For) {
+        // The start and end range are evaluated once before the loop begins,
+        // so they are tracked outside the loop scope.
         self.track_variables_in_expression(&for_expr.start_range);
         self.track_variables_in_expression(&for_expr.end_range);
-        self.track_variables_in_loop(&for_expr.block);
+        self.track_variables_in_loop_exprs(&[&for_expr.block]);
     }
 
     fn track_variables_in_while(&mut self, while_expr: &ast::While) {
-        self.push_loop_scope();
         // The condition is evaluated on every iteration of the loop and thus must be included in the loop scope.
-        self.track_variables_in_expression(&while_expr.condition);
-        self.track_variables_in_expression(&while_expr.body);
-        self.pop_loop_scope();
+        self.track_variables_in_loop_exprs(&[&while_expr.condition, &while_expr.body]);
     }
 
     fn track_variables_in_loop(&mut self, loop_body: &Expression) {
+        self.track_variables_in_loop_exprs(&[loop_body]);
+    }
+
+    /// Track variables in a loop body. Each expression in `loop_exprs` must be
+    /// an expression that is evaluated on each iteration of the loop.
+    fn track_variables_in_loop_exprs(&mut self, loop_exprs: &[&Expression]) {
         // Save the current loop index of the variables we are tracking.
         // They *might* be reassigned inside the loop, which would change their index, but we need to restore them after.
         let orig_indices = vecmap(&self.last_uses, |(id, (index, _))| (*id, *index));
 
         self.push_loop_scope();
-        self.track_variables_in_expression(loop_body);
+        for expr in loop_exprs {
+            self.track_variables_in_expression(expr);
+        }
         self.pop_loop_scope();
 
         for (id, orig_index) in orig_indices {
@@ -515,8 +543,12 @@ impl LastUseContext {
             // Confirm any last uses we have on the variable at this point (which may be in `assign.expression`),
             // From here on it acts as a newly declared variable with no history.
             if let Some((_, branches)) = self.last_uses.get_mut(&local_id) {
-                let branches = std::mem::replace(branches, Branches::None);
-                self.confirmed_moves.entry(local_id).or_default().extend(branches.flatten_uses());
+                let path = self
+                    .current_loop_and_branch
+                    .last()
+                    .expect("We should always have at least 1 path");
+                let extracted = Self::extract_branch_at_path(branches, path);
+                self.confirmed_moves.entry(local_id).or_default().extend(extracted.flatten_uses());
                 return;
             }
         }
