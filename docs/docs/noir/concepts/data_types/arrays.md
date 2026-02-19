@@ -376,12 +376,32 @@ Concatenates this array with another array.
 fn concat<let M: u32>(self, array2: [T; M]) -> [T; N + M]
 ```
 
+example:
+
 ```rust
 fn main() {
     let arr1 = [1, 2, 3, 4];
     let arr2 = [6, 7, 8, 9, 10, 11];
     let concatenated_arr = arr1.concat(arr2);
     assert(concatenated_arr == [1, 2, 3, 4, 6, 7, 8, 9, 10, 11]);
+}
+```
+
+### subarray
+
+Returns a subarray of length `M` starting at `offset`. Requires `offset + M <= N`.
+
+```rust
+fn subarray<let M: u32>(self, offset: u32) -> [T; M]
+```
+
+example:
+
+```rust
+fn main() {
+    let arr = [10, 20, 30, 40, 50];
+    let sub: [Field; 3] = arr.subarray(1);
+    assert_eq(sub, [20, 30, 40]);
 }
 ```
 
