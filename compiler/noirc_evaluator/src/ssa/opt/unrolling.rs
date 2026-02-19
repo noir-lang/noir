@@ -60,7 +60,7 @@ use crate::{
             instruction::{Binary, BinaryOp, Instruction, TerminatorInstruction},
             integer::IntegerConstant,
             post_order::PostOrder,
-            value::ValueId,
+            value::{Value, ValueId},
         },
         ssa_gen::Ssa,
     },
@@ -908,6 +908,25 @@ impl Loop {
             .count()
     }
 
+    /// Whether the loop body contains calls to user-defined functions.
+    ///
+    /// Intrinsics (`Value::Intrinsic`) compile to a handful of Brillig opcodes,
+    /// but user-defined function calls (`Value::Function`) get inlined at the
+    /// Brillig level, so their true cost is much higher than the SSA instruction
+    /// count suggests. We use this to avoid force-unrolling call-heavy loops.
+    fn contains_function_calls(&self, function: &Function) -> bool {
+        for block in &self.blocks {
+            for instruction_id in function.dfg[*block].instructions() {
+                if let Instruction::Call { func, .. } = &function.dfg[*instruction_id]
+                    && matches!(function.dfg[*func], Value::Function(..))
+                {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
     /// Whether this loop should be unrolled when compiling to Brillig.
     ///
     /// A loop is unrolled if:
@@ -915,6 +934,7 @@ impl Loop {
     /// 2. AND either:
     ///    a. The cost model predicts unrolling reduces code size (`is_small`), OR
     ///    b. The total unrolled instruction count is within the force-unroll threshold
+    ///    AND the loop contains no calls to user-defined functions
     fn should_unroll_in_brillig(
         &self,
         function: &Function,
@@ -924,7 +944,8 @@ impl Loop {
         let threshold = force_unroll_threshold;
         self.boilerplate_stats(function, cfg)
             .map(|s| {
-                let force_unroll = s.unrolled_instructions() <= threshold;
+                let has_calls = self.contains_function_calls(function);
+                let force_unroll = !has_calls && s.unrolled_instructions() <= threshold;
                 (force_unroll || s.is_small()) && self.is_fully_executed(cfg)
             })
             .unwrap_or_default()
@@ -1738,6 +1759,73 @@ mod tests {
         assert_ssa_does_not_change(&brillig_unroll_test_case_6470(6), |ssa| {
             // With threshold=0, the loop should NOT be unrolled
             ssa.unroll_loops_iteratively(None, 0).unwrap()
+        });
+    }
+
+    /// Test that force-unroll is NOT applied when the loop body contains calls
+    /// to user-defined functions.
+    ///
+    /// The SSA instruction count of call-containing loops vastly understates
+    /// the true Brillig cost because calls get inlined at the Brillig level.
+    /// Force-unrolling such loops duplicates a large amount of bytecode with
+    /// no execution benefit.
+    #[test]
+    fn test_brillig_force_unroll_skipped_when_loop_has_calls() {
+        // A 6-iteration loop with array ops + a call to user-defined function f1.
+        // Based on the 6470 pattern which at 6 iterations has:
+        //   is_small() = false, unrolled_instructions() ≤ FORCE_UNROLL_THRESHOLD
+        // Adding a function call should prevent force-unrolling.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: [u64; 6]):
+            inc_rc v0
+            v3 = make_array [u64 0, u64 0, u64 0, u64 0, u64 0, u64 0] : [u64; 6]
+            inc_rc v3
+            v4 = allocate -> &mut [u64; 6]
+            store v3 at v4
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v7 = lt v1, u32 6
+            jmpif v7 then: b3, else: b2
+          b3():
+            v9 = load v4 -> [u64; 6]
+            v11 = array_get v0, index v1 -> u64
+            v12 = call f1(v11) -> u64
+            v13 = array_set v9, index v1, value v12
+            v15 = unchecked_add v1, u32 1
+            store v13 at v4
+            v16 = unchecked_add v1, u32 1
+            jmp b1(v16)
+          b2():
+            v8 = load v4 -> [u64; 6]
+            return v8
+        }
+        brillig(inline) fn inc f1 {
+          b0(v0: u64):
+            v2 = add v0, u64 1
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        // Verify the loop's properties: small enough for force-unroll by
+        // instruction count, but NOT small by the cost model.
+        let function = ssa.main();
+        let mut loops = Loops::find_all(function, LoopOrder::OutsideIn);
+        let loop0 = loops.yet_to_unroll.pop().expect("should have a loop");
+        let stats = loop0.boilerplate_stats(function, &loops.cfg).expect("should have stats");
+        assert!(!stats.is_small(), "loop should not be small (got {:?})", stats);
+        assert!(
+            stats.unrolled_instructions() <= FORCE_UNROLL_THRESHOLD,
+            "loop should be within force-unroll threshold (got {})",
+            stats.unrolled_instructions()
+        );
+        assert!(loop0.contains_function_calls(function), "loop should contain a function call");
+
+        // The loop should NOT be unrolled because it contains function calls
+        // and is_small() is false.
+        assert_ssa_does_not_change(src, |ssa| {
+            ssa.unroll_loops_iteratively(None, FORCE_UNROLL_THRESHOLD).unwrap()
         });
     }
 
