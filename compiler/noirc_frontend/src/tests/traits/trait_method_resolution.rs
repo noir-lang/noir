@@ -2,7 +2,9 @@
 //! Validates that trait methods are correctly resolved based on imports, handles ambiguity, and suggests missing imports.
 
 use crate::test_utils::stdlib_src;
-use crate::tests::{assert_no_errors, check_errors, check_errors_with_stdlib};
+use crate::tests::{
+    assert_no_errors, check_errors, check_errors_with_stdlib, check_monomorphization_error,
+};
 
 #[test]
 fn calls_trait_method_if_it_is_in_scope_with_multiple_candidates_but_only_one_decided_by_generics()
@@ -927,4 +929,82 @@ fn trait_method_resolved_with_multiple_impls_different_type_params() {
     }
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn type_path_generic_struct_method() {
+    let src = r#"
+    pub trait Deserialize {
+        fn deserialize();
+    }
+
+    struct Gen<T> {}
+
+    impl<T> Deserialize for Gen<T> {
+        fn deserialize() {}
+    }
+
+    fn main() {
+        let _ = <Gen<Field>>::deserialize;
+    }
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn type_path_generic_array_method_1() {
+    let src = r#"
+    pub trait Deserialize {
+        fn deserialize();
+    }
+
+    impl<T, let M: u32> Deserialize for [T; M] {
+        fn deserialize() {
+            let _: u32 = M;
+        }
+    }
+
+    fn main() {
+        let _ = <[Field; 3]>::deserialize;
+    }
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn type_path_generic_array_method_2() {
+    let src = r#"
+    pub trait Deserialize {
+        fn deserialize();
+    }
+
+    impl<let M: u32, T> Deserialize for [T; M] {
+        fn deserialize() {
+            let _: u32 = M;
+        }
+    }
+
+    fn main() {
+        let _ = <[Field; 3]>::deserialize;
+    }
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn type_path_generic_tuple_method() {
+    let src = r#"
+    pub trait Deserialize {
+        fn deserialize();
+    }
+
+    impl<A, B> Deserialize for (A, B) {
+        fn deserialize() {}
+    }
+
+    fn main() {
+        let _ = <(u32, i32)>::deserialize;
+    }
+    "#;
+    check_monomorphization_error(src);
 }

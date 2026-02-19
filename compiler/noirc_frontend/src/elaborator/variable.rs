@@ -448,7 +448,7 @@ impl Elaborator<'_> {
         let generics =
             turbofish.map(|turbofish| self.use_type_args(turbofish, func_id, ident_location).0);
 
-        self.elaborate_type_path_impl_inner(typ_location, ident_location, method, generics)
+        self.elaborate_type_path_impl_inner(&typ, typ_location, ident_location, method, generics)
     }
 
     /// Variant of [Self::elaborate_type_path_impl_inner] that accepts already resolved generics.
@@ -476,12 +476,19 @@ impl Elaborator<'_> {
             return self.elaborate_expression(error);
         };
 
-        self.elaborate_type_path_impl_inner(typ_location, ident_location, method, resolved_generics)
+        self.elaborate_type_path_impl_inner(
+            &typ,
+            typ_location,
+            ident_location,
+            method,
+            resolved_generics,
+        )
     }
 
     /// Common implementation for type path impl variants.
     fn elaborate_type_path_impl_inner(
         &mut self,
+        typ: &Type,
         _typ_location: Location,
         ident_location: Location,
         method: HirMethodReference,
@@ -512,7 +519,28 @@ impl Elaborator<'_> {
         let id =
             self.intern_expr(HirExpression::Ident(ident.clone(), generics.clone()), ident_location);
 
-        let typ = self.type_check_variable(ident, &id, generics);
+        // If the method has a self type (it's an impl or trait impl), bind `typ` to the instantiated self type
+        let function_meta = self.interner.function_meta(&func_id);
+        let bindings = if let Type::Forall(type_vars, _) = &function_meta.typ
+            && let Some(self_type) = &function_meta.self_type
+        {
+            let (self_type, instantiation_bindings) =
+                self_type.instantiate_with_type_vars(type_vars, self.interner);
+            let _ = typ.unify(&self_type);
+            instantiation_bindings
+        } else {
+            TypeBindings::default()
+        };
+
+        // TODO: set this to `true`. See https://github.com/noir-lang/noir/issues/8687
+        let push_required_type_variables = self.current_trait.is_none();
+        let typ = self.type_check_variable_with_bindings(
+            ident,
+            &id,
+            generics,
+            bindings,
+            push_required_type_variables,
+        );
         let id = self.intern_expr_type(id, typ.clone());
 
         (id, typ)

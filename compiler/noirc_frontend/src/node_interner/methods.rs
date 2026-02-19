@@ -1,5 +1,5 @@
 use crate::{
-    Type, TypeBindings,
+    Type,
     node_interner::{FuncId, TraitId},
 };
 
@@ -102,13 +102,6 @@ impl Methods {
         direct.chain(trait_impl_methods)
     }
 
-    /// Check if the types can unify without binding any type variables.
-    /// This is important because method lookup should not have side effects on type variables.
-    fn types_can_unify(a: &Type, b: &Type) -> bool {
-        let mut bindings = TypeBindings::default();
-        a.try_unify(b, &mut bindings).is_ok()
-    }
-
     fn method_matches(
         typ: &Type,
         check_self_param: bool,
@@ -116,7 +109,8 @@ impl Methods {
         method_type: &Type,
         interner: &NodeInterner,
     ) -> bool {
-        match interner.function_meta(&method).typ.instantiate(interner).0 {
+        let function_typ = &interner.function_meta(&method).typ;
+        match function_typ.instantiate(interner).0 {
             Type::Function(args, _, _, _) => {
                 if check_self_param {
                     if let Some(object) = args.first() {
@@ -132,17 +126,19 @@ impl Methods {
                         }
                     }
                 } else {
-                    // When check_self_param is false, we do not bind unification because
-                    // `method_type` might contain NamedGenerics from the impl definition,
-                    // and we don't want to bind type variables in `typ` to those NamedGenerics.
-                    // This prevents side effects on the caller's type variables.
-                    if Self::types_can_unify(method_type, typ) {
+                    let method_type = if let Type::Forall(typevars, _) = function_typ {
+                        method_type.instantiate_with_type_vars(typevars, interner).0
+                    } else {
+                        method_type.clone()
+                    };
+
+                    if method_type.unify(typ).is_ok() {
                         return true;
                     }
 
                     // Handle auto-dereferencing `&T` and `&mut T` into `T`
                     if let Type::Reference(method_type, _mutable) = method_type
-                        && Self::types_can_unify(method_type, typ)
+                        && method_type.unify(typ).is_ok()
                     {
                         return true;
                     }
