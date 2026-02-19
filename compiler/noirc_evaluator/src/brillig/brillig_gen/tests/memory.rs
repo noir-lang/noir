@@ -162,7 +162,6 @@ fn brillig_global_array_not_coalesced_with_block_param() {
         constrain u1 0 == u1 1
         unreachable
       b2():
-        inc_rc g0
         jmp b3(g0)
       b3(v3: [u8; 1]):
         return v3
@@ -185,10 +184,33 @@ fn brillig_global_array_not_coalesced_with_block_param() {
     }
     ";
 
-    // This should compile without panicking.
     let brillig = ssa_to_brillig_artifacts(src);
     let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
-    // Just verify it produced some output (not empty).
-    let output = main.to_string();
-    assert!(output.contains("fn main"), "Expected Brillig output for main");
+    // Key opcodes:
+    //   13: sp[1] = @68  — global g0 lives in global register @68, copied into sp[1] (param v3's slot)
+    //   15: return        — returns sp[1]; global and param use separate allocations (not coalesced)
+    assert_artifact_snapshot!(main, @r"
+    fn main
+     0: call 0
+     1: sp[2] = @1
+     2: @1 = u32 add @1, @2
+     3: store @70 at sp[2]
+     4: sp[4] = const u32 5
+     5: sp[5] = @0
+     6: sp[6] = sp[2]
+     7: @0 = u32 add @0, sp[4]
+     8: call 0
+     9: @0 = sp[0]
+    10: sp[3] = sp[6]
+    11: jump if sp[3] to 0
+    12: jump to 0
+    13: sp[1] = @68
+    14: jump to 0
+    15: return
+    16: sp[1] = const bool 1
+    17: sp[2] = bool eq @69, sp[1]
+    18: jump if sp[2] to 0
+    19: sp[3] = const u32 0
+    20: trap @[@1; sp[3]]
+    ");
 }

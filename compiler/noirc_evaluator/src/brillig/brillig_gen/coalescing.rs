@@ -168,6 +168,11 @@ impl CoalescingMap {
     pub(crate) fn is_coalesced(&self, value_id: &ValueId) -> bool {
         self.coalesced.contains_key(value_id)
     }
+
+    #[cfg(test)]
+    pub(crate) fn len(&self) -> usize {
+        self.coalesced.len()
+    }
 }
 
 #[cfg(test)]
@@ -179,19 +184,22 @@ mod tests {
 
     use super::CoalescingMap;
 
-    /// Look up the coalescing map by examining the actual SSA structure,
-    /// rather than guessing ValueIds (which the parser may renumber).
-    fn get_jmp_coalescing(
-        src: &str,
-        block_idx: usize,
-        arg_idx: usize,
-    ) -> (CoalescingMap, ValueId, ValueId) {
+    /// Parse SSA source and build the coalescing map once.
+    fn build_coalescing(src: &str) -> (CoalescingMap, Ssa) {
         let ssa = Ssa::from_str(src).unwrap();
         let func = ssa.main();
         let constants = ConstantAllocation::from_function(func);
         let liveness = VariableLiveness::from_function(func, &constants);
         let coalescing = CoalescingMap::from_function(func, &liveness);
+        (coalescing, ssa)
+    }
 
+    /// Look up the (arg, param) pair for a specific jmp terminator.
+    fn get_jmp_pair(
+        func: &crate::ssa::ir::function::Function,
+        block_idx: usize,
+        arg_idx: usize,
+    ) -> (ValueId, ValueId) {
         let blocks: Vec<_> = func.reachable_blocks().into_iter().collect();
         let block = &func.dfg[blocks[block_idx]];
         let term = block.terminator().unwrap();
@@ -205,7 +213,7 @@ mod tests {
         };
         let arg = args[arg_idx];
         let param = func.dfg[dest].parameters()[arg_idx];
-        (coalescing, arg, param)
+        (arg, param)
     }
 
     #[test]
@@ -228,18 +236,23 @@ mod tests {
         }
         ";
         // b1 is block index 1 (b0=0, b1=1, b2=2, b3=3), arg index 0
-        let (coalescing, arg, param) = get_jmp_coalescing(src, 1, 0);
+        let (coalescing, ssa) = build_coalescing(src);
+        let func = ssa.main();
+        let (arg, param) = get_jmp_pair(func, 1, 0);
         assert_eq!(coalescing.get_coalesced(&arg), Some(param));
 
         // Check b2's jmp — constant arg should NOT be coalesced
-        let (coalescing, arg, _param) = get_jmp_coalescing(src, 2, 0);
+        let (arg, param) = get_jmp_pair(func, 2, 0);
         assert!(!coalescing.is_coalesced(&arg));
+        assert!(!coalescing.is_coalesced(&param));
+
+        assert_eq!(coalescing.len(), 1);
     }
 
     #[test]
     fn does_not_coalesce_when_param_live_and_used() {
         // Loop: v1 is a block parameter of b1 and is used in the `add` that defines v3.
-        // Since v1 is an operand of v3's defining instruction, coalescing v3 → v1 would
+        // Since v1 is an operand of v3's defining instruction, coalescing v3 -> v1 would
         // clobber v1 before the add reads it. Must reject.
         let src = "
         brillig(inline) fn main f0 {
@@ -256,8 +269,12 @@ mod tests {
         }
         ";
         // b2 is block index 2, arg index 0
-        let (coalescing, arg, _param) = get_jmp_coalescing(src, 2, 0);
+        let (coalescing, ssa) = build_coalescing(src);
+        let func = ssa.main();
+        let (arg, param) = get_jmp_pair(func, 2, 0);
         assert!(!coalescing.is_coalesced(&arg));
+        assert!(!coalescing.is_coalesced(&param));
+        assert_eq!(coalescing.len(), 0);
     }
 
     #[test]
@@ -282,30 +299,43 @@ mod tests {
         }
         ";
         // b0 is block index 0 (RPO), arg index 0 — v2 -> v3
-        let (coalescing, arg, _param) = get_jmp_coalescing(src, 0, 0);
+        let (coalescing, ssa) = build_coalescing(src);
+        let func = ssa.main();
+        let (arg, param) = get_jmp_pair(func, 0, 0);
         assert!(
             !coalescing.is_coalesced(&arg),
             "v2 should not be coalesced with v3: v2 is live across the b1 loop"
         );
+        assert!(!coalescing.is_coalesced(&param));
+        assert_eq!(coalescing.len(), 0);
     }
 
     #[test]
-    fn coalesces_non_live_param() {
-        // The add result is passed to b1's parameter.
-        // The parameter is NOT live-in to b0 (entry block has empty live-in),
-        // so the add can safely write to the parameter's register.
+    fn does_not_coalesce_when_arg_equals_param() {
+        // Loop back-edge where b2 passes v1 (b1's own param) back to b1.
+        // Since arg == param (same value), we should skip the pair.
+        // b0->b1 passes v0 to v1, but b1 has 2 predecessors and v0 is a
+        // function param, so v0 -> v1 is rejected. Net result: no coalescing.
         let src = "
         brillig(inline) fn main f0 {
-          b0(v0: Field):
-            v1 = add v0, Field 1
+          b0(v0: u32):
+            jmp b1(v0)
+          b1(v1: u32):
+            v2 = lt v1, u32 10
+            jmpif v2 then: b2, else: b3
+          b2():
             jmp b1(v1)
-          b1(v2: Field):
-            return v2
+          b3():
+            return v1
         }
         ";
-        // b0 is block index 0, arg index 0
-        let (coalescing, arg, param) = get_jmp_coalescing(src, 0, 0);
-        assert_eq!(coalescing.get_coalesced(&arg), Some(param));
+        let (coalescing, ssa) = build_coalescing(src);
+        let func = ssa.main();
+        // b2 is block index 2, arg index 0: v1 -> v1
+        let (arg, param) = get_jmp_pair(func, 2, 0);
+        assert_eq!(arg, param, "arg and param should be the same ValueId");
+        assert!(!coalescing.is_coalesced(&arg), "arg == param should be skipped");
+        assert_eq!(coalescing.len(), 0);
     }
 
     #[test]
@@ -324,8 +354,18 @@ mod tests {
             return v3
         }
         ";
-        let (coalescing, _arg, param) = get_jmp_coalescing(src, 1, 0);
-        assert!(coalescing.is_coalesced(&param));
+        let (coalescing, ssa) = build_coalescing(src);
+        let func = ssa.main();
+
+        // b0->b1: v1 is an instruction result in b0, arg-side coalescing v1->v2
+        let (arg, param) = get_jmp_pair(func, 0, 0);
+        assert_eq!(coalescing.get_coalesced(&arg), Some(param));
+
+        // b1->b2: v2 is a block param passed through, param-side coalescing v3->v2
+        let (arg, param) = get_jmp_pair(func, 1, 0);
+        assert_eq!(coalescing.get_coalesced(&param), Some(arg));
+
+        assert_eq!(coalescing.len(), 2);
     }
 
     #[test]
@@ -345,9 +385,12 @@ mod tests {
             return v2
         }
         ";
-        // b1 is block index 1, arg 0: v1 (defined in b0, not b1) → v2
-        let (coalescing, _arg, param) = get_jmp_coalescing(src, 1, 0);
-        assert!(coalescing.is_coalesced(&param));
+        // b1 is block index 1, arg 0: v1 (defined in b0, not b1) -> v2
+        let (coalescing, ssa) = build_coalescing(src);
+        let func = ssa.main();
+        let (arg, param) = get_jmp_pair(func, 1, 0);
+        assert_eq!(coalescing.get_coalesced(&param), Some(arg));
+        assert_eq!(coalescing.len(), 1);
     }
 
     #[test]
@@ -381,10 +424,148 @@ mod tests {
             return u1 0
         }
         ";
-        // b1 is block index 1, arg 0: g0 → v2
-        let (coalescing, arg, param) = get_jmp_coalescing(src, 1, 0);
+        // b1 is block index 1, arg 0: g0 -> v2
+        let (coalescing, ssa) = build_coalescing(src);
+        let func = ssa.main();
+        let (arg, param) = get_jmp_pair(func, 1, 0);
         assert!(!coalescing.is_coalesced(&arg), "global arg should not be coalesced");
         assert!(!coalescing.is_coalesced(&param), "param should not be coalesced with global arg");
+        assert_eq!(coalescing.len(), 0);
+    }
+
+    #[test]
+    fn coalesces_when_param_live_but_last_use_before_def() {
+        // Loop where v1 (param of b1, the destination) is live-in to b2 because
+        // it's used in the add. But v4's defining instruction (mul) comes AFTER
+        // v1's last use, so param_used_at_or_after is false and coalescing succeeds.
+        //
+        // Param IS live-in to the source block, but is not used at or after the arg's defining instruction.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v2 = lt v1, v0
+            jmpif v2 then: b2, else: b3
+          b2():
+            v3 = add v1, u32 1
+            v4 = mul v3, u32 2
+            jmp b1(v4)
+          b3():
+            return v1
+        }
+        ";
+        // b2 is block index 2, arg index 0: v4 -> v1
+        let (coalescing, ssa) = build_coalescing(src);
+        let func = ssa.main();
+        let (arg, param) = get_jmp_pair(func, 2, 0);
+        assert_eq!(
+            coalescing.get_coalesced(&arg),
+            Some(param),
+            "v4 should coalesce with v1: v1's last use is before v4's defining instruction"
+        );
+        assert_eq!(coalescing.len(), 1);
+    }
+
+    #[test]
+    fn does_not_coalesce_when_param_used_in_terminator() {
+        // Loop with two block parameters. In b2, v4 is defined (mul) without using
+        // v1 in its defining instruction. However, v1 appears as the SECOND argument
+        // in the jmp terminator. The terminator check must catch this: coalescing
+        // v4 -> v1 would clobber v1's register before the jmp reads it as the second arg.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            jmp b1(u32 0, u32 10)
+          b1(v1: u32, v2: u32):
+            v3 = lt v1, v0
+            jmpif v3 then: b2, else: b3
+          b2():
+            v4 = mul v0, u32 2
+            jmp b1(v4, v1)
+          b3():
+            return v2
+        }
+        ";
+        // b2 is block index 2, arg index 0: v4 -> v1
+        let (coalescing, ssa) = build_coalescing(src);
+        let func = ssa.main();
+        let (arg, param) = get_jmp_pair(func, 2, 0);
+        assert!(
+            !coalescing.is_coalesced(&arg),
+            "v4 must not coalesce with v1: v1 is used in the terminator as the second arg"
+        );
+        assert!(!coalescing.is_coalesced(&param));
+        assert_eq!(coalescing.len(), 0);
+    }
+
+    #[test]
+    fn does_not_coalesce_param_side_when_arg_live_in_dest() {
+        // v1 is defined in b0 and passed from b1 to b2's param v2.
+        // b2 has a single predecessor (b1), satisfying the first param-side condition.
+        // However, v1 is also used directly in b2, making it live-in to b2.
+        // Coalescing v2 -> v1 would create interference: both v1 and v2 are live
+        // simultaneously in b2.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = add v0, Field 1
+            jmp b1()
+          b1():
+            jmp b2(v1)
+          b2(v2: Field):
+            v3 = add v1, v2
+            return v3
+        }
+        ";
+        // b1 is block index 1, arg 0: v1 -> v2
+        let (coalescing, ssa) = build_coalescing(src);
+        let func = ssa.main();
+        let (arg, param) = get_jmp_pair(func, 1, 0);
+        assert!(!coalescing.is_coalesced(&arg));
+        assert!(!coalescing.is_coalesced(&param), "param-side must reject: v1 is live-in to b2");
+        assert_eq!(coalescing.len(), 0);
+    }
+
+    #[test]
+    fn does_not_double_coalesce_same_arg() {
+        // The same value v1 is passed as both arguments to b1's two parameters.
+        // The first pair (v1 -> v2) coalesces, but the second pair (v1 -> v3) must be
+        // skipped because v1 is already a key in the coalescing map.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = add v0, Field 1
+            jmp b1(v1, v1)
+          b1(v2: Field, v3: Field):
+            v4 = add v2, v3
+            return v4
+        }
+        ";
+        // b0 is block index 0, check both arg indices
+        let (coalescing, ssa) = build_coalescing(src);
+        let func = ssa.main();
+        let (arg0, param0) = get_jmp_pair(func, 0, 0);
+        let (arg1, param1) = get_jmp_pair(func, 0, 1);
+
+        // arg0 and arg1 are the same ValueId (v1)
+        assert_eq!(arg0, arg1, "both args should be the same value");
+
+        // Exactly one of the two pairs should coalesce (the first one encountered)
+        let first_coalesced = coalescing.is_coalesced(&arg0);
+        let second_param_coalesced = coalescing.is_coalesced(&param1);
+
+        assert!(first_coalesced, "first pair (v1 -> v2) should coalesce");
+        assert_eq!(
+            coalescing.get_coalesced(&arg0),
+            Some(param0),
+            "v1 should map to v2 (the first param)"
+        );
+        assert!(
+            !second_param_coalesced,
+            "second param v3 must not coalesce: v1 is already a key from the first pair"
+        );
+        assert_eq!(coalescing.len(), 1);
     }
 
     #[test]
@@ -411,8 +592,10 @@ mod tests {
             return v4
         }
         ";
-        // b1, arg 0: v2 → v4. Not coalesced due to multi-predecessor.
-        let (coalescing, arg, param) = get_jmp_coalescing(src, 1, 0);
+        // b1, arg 0: v2 -> v4. Not coalesced due to multi-predecessor.
+        let (coalescing, ssa) = build_coalescing(src);
+        let func = ssa.main();
+        let (arg, param) = get_jmp_pair(func, 1, 0);
         assert!(
             !coalescing.is_coalesced(&arg),
             "v2 is cross-block, falls to param-side which requires single-predecessor"
@@ -421,8 +604,8 @@ mod tests {
             !coalescing.is_coalesced(&param),
             "param-side coalescing requires single-predecessor destination"
         );
-        // b2, arg 0: v3 → v4. v3 is defined in b2 (source block) so this is arg-side.
-        let (coalescing, arg, param) = get_jmp_coalescing(src, 2, 0);
+        // b2, arg 0: v3 -> v4. v3 is defined in b2 (source block) so this is arg-side.
+        let (arg, param) = get_jmp_pair(func, 2, 0);
         // Arg-side coalescing succeeds because v3 is not live-in to b3.
         assert!(
             coalescing.is_coalesced(&arg),
@@ -433,5 +616,6 @@ mod tests {
             !coalescing.is_coalesced(&param),
             "param-side coalescing requires single-predecessor destination"
         );
+        assert_eq!(coalescing.len(), 1);
     }
 }
