@@ -198,19 +198,22 @@ mod tests {
         Circuit::from_str(src).unwrap()
     }
 
+    fn assert_no_dead_witnesses(src: &str) {
+        let circuit = parse_circuit(src);
+        let dead = find_dead_witnesses(&circuit);
+        assert!(dead.is_empty(), "Expected no dead witnesses, got: {dead:?}");
+    }
+
     #[test]
     fn all_live_simple() {
         // w0 is public, w1 is connected to w0 via AssertZero, w1 is a return value
-        let circuit = parse_circuit(
-            "
-            private parameters: []
-            public parameters: [w0]
-            return values: [w1]
-            ASSERT w1 = w0
-            ",
-        );
-        let dead = find_dead_witnesses(&circuit);
-        assert!(dead.is_empty(), "Expected no dead witnesses, got: {dead:?}");
+        let src = "
+        private parameters: []
+        public parameters: [w0]
+        return values: [w1]
+        ASSERT w1 = w0
+        ";
+        assert_no_dead_witnesses(src);
     }
 
     #[test]
@@ -282,17 +285,14 @@ mod tests {
     fn brillig_output_live_through_assert() {
         // w0 is public (seed, trivially live), Brillig produces w1,
         // w1 is connected to w2 (return) via AssertZero → all live.
-        let circuit = parse_circuit(
-            "
-            private parameters: []
-            public parameters: [w0]
-            return values: [w2]
-            BRILLIG CALL func: 0, predicate: 1, inputs: [w0], outputs: [w1]
-            ASSERT w2 = w1
-            ",
-        );
-        let dead = find_dead_witnesses(&circuit);
-        assert!(dead.is_empty(), "All witnesses should be live: {dead:?}");
+        let src = "
+        private parameters: []
+        public parameters: [w0]
+        return values: [w2]
+        BRILLIG CALL func: 0, predicate: 1, inputs: [w0], outputs: [w1]
+        ASSERT w2 = w1
+        ";
+        assert_no_dead_witnesses(src);
     }
 
     #[test]
@@ -319,18 +319,15 @@ mod tests {
         // MemoryOp reads from b0 into w1 (value).
         // w1 is connected to w2 (return) via AssertZero.
         // All should be live because w0 and w1 share block b0.
-        let circuit = parse_circuit(
-            "
-            private parameters: []
-            public parameters: [w0]
-            return values: [w2]
-            INIT b0 = [w0]
-            READ w1 = b0[0]
-            ASSERT w2 = w1
-            ",
-        );
-        let dead = find_dead_witnesses(&circuit);
-        assert!(dead.is_empty(), "All witnesses should be live via memory read: {dead:?}");
+        let src = "
+        private parameters: []
+        public parameters: [w0]
+        return values: [w2]
+        INIT b0 = [w0]
+        READ w1 = b0[0]
+        ASSERT w2 = w1
+        ";
+        assert_no_dead_witnesses(src);
     }
 
     #[test]
@@ -339,19 +336,16 @@ mod tests {
         // w1 is written into b0, then w2 is read from b0.
         // w2 is connected to w3 (return) via AssertZero.
         // All should be live because w0, w1, and w2 share block b0.
-        let circuit = parse_circuit(
-            "
-            private parameters: [w1]
-            public parameters: [w0]
-            return values: [w3]
-            INIT b0 = [w0]
-            WRITE b0[0] = w1
-            READ w2 = b0[0]
-            ASSERT w3 = w2
-            ",
-        );
-        let dead = find_dead_witnesses(&circuit);
-        assert!(dead.is_empty(), "All witnesses should be live via memory write: {dead:?}");
+        let src = "
+        private parameters: [w1]
+        public parameters: [w0]
+        return values: [w3]
+        INIT b0 = [w0]
+        WRITE b0[0] = w1
+        READ w2 = b0[0]
+        ASSERT w3 = w2
+        ";
+        assert_no_dead_witnesses(src);
     }
 
     #[test]
@@ -378,44 +372,35 @@ mod tests {
     fn blackbox_connects_all_witnesses() {
         // w0 is public, AND produces w2 from w0 and w1.
         // w2 is a return value. w1 should be live because blackbox connects all.
-        let circuit = parse_circuit(
-            "
-            private parameters: [w1]
-            public parameters: [w0]
-            return values: [w2]
-            BLACKBOX::AND lhs: w0, rhs: w1, output: w2, bits: 32
-            ",
-        );
-        let dead = find_dead_witnesses(&circuit);
-        assert!(dead.is_empty(), "All witnesses should be live: {dead:?}");
+        let src = "
+        private parameters: [w1]
+        public parameters: [w0]
+        return values: [w2]
+        BLACKBOX::AND lhs: w0, rhs: w1, output: w2, bits: 32
+        ";
+        assert_no_dead_witnesses(src);
     }
 
     #[test]
     fn call_connects_all_witnesses() {
         // w0 is public, Call takes w0 as input and produces w1.
         // w1 is a return value. All live.
-        let circuit = parse_circuit(
-            "
-            private parameters: []
-            public parameters: [w0]
-            return values: [w1]
-            CALL func: 0, predicate: 1, inputs: [w0], outputs: [w1]
-            ",
-        );
-        let dead = find_dead_witnesses(&circuit);
-        assert!(dead.is_empty(), "All witnesses should be live: {dead:?}");
+        let src = "
+        private parameters: []
+        public parameters: [w0]
+        return values: [w1]
+        CALL func: 0, predicate: 1, inputs: [w0], outputs: [w1]
+        ";
+        assert_no_dead_witnesses(src);
     }
 
     #[test]
     fn empty_circuit() {
-        let circuit = parse_circuit(
-            "
-            private parameters: []
-            public parameters: []
-            return values: []
-            ",
-        );
-        let dead = find_dead_witnesses(&circuit);
-        assert!(dead.is_empty());
+        let src = "
+        private parameters: []
+        public parameters: []
+        return values: []
+        ";
+        assert_no_dead_witnesses(src);
     }
 }
