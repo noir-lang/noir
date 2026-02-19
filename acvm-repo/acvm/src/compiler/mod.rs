@@ -18,9 +18,12 @@ use acir::circuit::{AcirOpcodeLocation, AssertionPayload, OpcodeLocation};
 
 // The various passes that we can use over ACIR
 pub use optimizers::optimize;
+mod dead_witness;
 mod optimizers;
 mod simulator;
 pub mod validator;
+
+pub use dead_witness::find_dead_witnesses;
 
 pub use simulator::CircuitSimulator;
 

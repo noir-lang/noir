@@ -68,6 +68,7 @@ dependencies = [
  "num-bigint",
  "pprof",
  "proptest",
+ "rayon",
  "rustc-hash",
  "serde",
  "thiserror 1.0.69",
