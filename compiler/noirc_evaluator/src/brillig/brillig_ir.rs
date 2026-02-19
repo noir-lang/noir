@@ -17,7 +17,7 @@ pub(crate) mod registers;
 
 mod codegen_binary;
 mod codegen_calls;
-mod codegen_control_flow;
+pub(crate) mod codegen_control_flow;
 mod codegen_intrinsic;
 mod codegen_memory;
 mod codegen_stack;
@@ -34,7 +34,8 @@ use registers::{RegisterAllocator, ScratchSpace};
 
 use crate::brillig::assert_u32;
 
-pub(crate) use self::registers::LayoutConfig;
+pub use self::registers::LayoutConfig;
+pub use self::registers::{MAX_SCRATCH_SPACE, MAX_STACK_FRAME_SIZE, NUM_STACK_FRAMES};
 use self::{artifact::BrilligArtifact, debug_show::DebugToString, registers::Stack};
 use acvm::{
     AcirField,
@@ -750,7 +751,7 @@ pub(crate) mod tests {
                     panic!("We are performing a mem copy when it should have been skipped");
                 }
                 _ => {}
-            };
+            }
             vm.process_opcode();
         }
 
@@ -848,5 +849,134 @@ pub(crate) mod tests {
             panic!("Expected 'Out of memory' error from allocation overflow, got: {status:?}")
         };
         assert!(message.contains("Out of memory"), "Expected 'Out of memory', got: {message}");
+    }
+
+    /// Test that `codegen_call` panics when call arguments would exceed stack frame bounds.
+    ///
+    /// This test demonstrates the defensive check that prevents heap corruption.
+    /// Without this check, call arguments could be written beyond the stack frame boundary
+    /// before CheckMaxStackDepth runs in the called function.
+    #[test]
+    #[should_panic(expected = "Call arguments would exceed stack frame bounds")]
+    fn codegen_call_panics_when_arguments_exceed_frame_bounds() {
+        use super::brillig_variable::BrilligVariable;
+        use super::registers::LayoutConfig;
+
+        // Create a layout with a very small max stack frame size to easily trigger the check
+        let small_layout = LayoutConfig::new(10, 16, 64);
+
+        let options = BrilligOptions {
+            enable_debug_trace: false,
+            enable_debug_assertions: true,
+            enable_array_copy_counter: false,
+            show_opcode_advisories: false,
+            layout: small_layout,
+        };
+
+        let mut context: BrilligContext<FieldElement, Stack> =
+            BrilligContext::new("test", &options);
+        context.enter_context(Label::function(FunctionId::test_new(0)));
+
+        // Allocate registers to fill up most of the frame.
+        // Stack starts at offset 1, so with max_stack_frame_size=10:
+        // - Allocating 7 registers uses offsets 1-7
+        // - empty_registers_start() will return 8
+        // - stack_size = 8
+        // NOTE: We must keep the allocated registers alive to prevent deallocation.
+        let _allocated_registers: Vec<_> = (0..7).map(|_| context.allocate_register()).collect();
+
+        // Create 5 dummy arguments.
+        // With stack_size=8 and 5 arguments:
+        // stack_size + arguments.len() + 1 = 8 + 5 = 14 > 10 (max stack frame size)
+        // This should trigger the assertion.
+        let dummy_addr = MemoryAddress::relative(1);
+        let dummy_var = BrilligVariable::SingleAddr(SingleAddrVariable::new(dummy_addr, 32));
+        let arguments: Vec<BrilligVariable> = vec![dummy_var; 5];
+
+        // This call should panic with "Call arguments would exceed stack frame bounds"
+        context.codegen_call(FunctionId::test_new(1), &arguments, &[]);
+    }
+
+    /// Test that jmp block parameter passing handles the parallel-move problem correctly.
+    ///
+    /// When a jmp instruction passes block parameters where a source register is also a
+    /// destination for another parameter, the sequential mov loop can overwrite values.
+    /// For example, `jmp b1(v1, v2, u32 10)` where b1(v2, v3, v4):
+    ///   1. mov reg(v2), reg(v1) — overwrites old v3
+    ///   2. mov reg(v3), reg(v2) — reads the NEW v2 instead of old
+    ///
+    /// This test verifies the fix by running a loop where v3 should get the old v2 value.
+    #[test]
+    fn jmp_block_params_parallel_move() {
+        let src = r#"
+            brillig(inline) impure fn main f0 {
+              b0():
+                jmp b1(u32 0, u32 0, u32 0)
+              b1(v3: u32, v35: u32, v36: u32):
+                v5 = lt v3, u32 17
+                jmpif v5 then: b2, else: b3
+              b2():
+                v8 = unchecked_add v3, u32 1
+                jmp b1(v8, v3, u32 10)
+              b3():
+                constrain v35 == u32 16
+                constrain v36 == u32 10
+                return
+            }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let main = ssa.main();
+        let options = BrilligOptions::default();
+        let brillig = ssa.to_brillig(&options);
+        let generated = gen_brillig_for(main, vec![], &brillig, &options).unwrap();
+
+        let mut vm = VM::new(vec![], &generated.byte_code, &DummyBlackBoxSolver, false, None);
+        let status = vm.process_opcodes();
+        assert_eq!(
+            status,
+            VMStatus::Finished { return_data_offset: 0, return_data_size: 0 },
+            "VM should finish successfully; v35 should be 16 and v36 should be 10"
+        );
+    }
+
+    /// Test that the parallel-move fix preserves temporary registers across all moves.
+    ///
+    /// When two block parameters are swapped (`jmp b1(v1, v0, ...)`  where `b1(v0, v1, ...)`),
+    /// both sources are also destinations, so both need temporaries. If the temporaries are
+    /// freed too early, the register allocator can reuse the same address for the second
+    /// temp, overwriting the first saved value.
+    #[test]
+    fn jmp_block_params_parallel_move_swap() {
+        let src = r#"
+            brillig(inline) impure fn main f0 {
+              b0():
+                jmp b1(u32 0, u32 1, u32 0)
+              b1(v0: u32, v1: u32, v2: u32):
+                v3 = lt v2, u32 1
+                jmpif v3 then: b2, else: b3
+              b2():
+                v4 = unchecked_add v2, u32 1
+                jmp b1(v1, v0, v4)
+              b3():
+                constrain v0 == u32 1
+                constrain v1 == u32 0
+                return
+            }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let main = ssa.main();
+        let options = BrilligOptions::default();
+        let brillig = ssa.to_brillig(&options);
+        let generated = gen_brillig_for(main, vec![], &brillig, &options).unwrap();
+
+        let mut vm = VM::new(vec![], &generated.byte_code, &DummyBlackBoxSolver, false, None);
+        let status = vm.process_opcodes();
+        assert_eq!(
+            status,
+            VMStatus::Finished { return_data_offset: 0, return_data_size: 0 },
+            "VM should finish successfully; v0 and v1 should be swapped after one iteration"
+        );
     }
 }

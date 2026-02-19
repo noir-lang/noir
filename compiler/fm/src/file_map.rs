@@ -1,7 +1,9 @@
-use codespan_reporting::files::{Error, Files, SimpleFile, SimpleFiles};
+use codespan_reporting::files::{Error, Files, SimpleFile};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::{ops::Range, path::PathBuf};
+
+use crate::simple_files::SimpleFiles;
 
 // XXX: File and FileMap serve as opaque types, so that the rest of the library does not need to import the dependency
 // or worry about when we change the dep
@@ -73,6 +75,10 @@ impl FileMap {
         file_id
     }
 
+    pub fn replace_file(&mut self, file_id: FileId, source: String) {
+        self.files.replace(file_id.0, source);
+    }
+
     pub fn get_file(&self, file_id: FileId) -> Option<File> {
         self.files.get(file_id.0).map(File).ok()
     }
@@ -89,10 +95,10 @@ impl FileMap {
         let name = self.get_absolute_name(file_id)?;
 
         // See if we can make the file name a bit shorter/easier to read if it starts with the current directory
-        if let Some(current_dir) = &self.current_dir {
-            if let Ok(name_without_prefix) = name.0.strip_prefix(current_dir) {
-                return Ok(PathString::from_path(name_without_prefix.to_path_buf()));
-            }
+        if let Some(current_dir) = &self.current_dir
+            && let Ok(name_without_prefix) = name.0.strip_prefix(current_dir)
+        {
+            return Ok(PathString::from_path(name_without_prefix.to_path_buf()));
         }
 
         Ok(name)

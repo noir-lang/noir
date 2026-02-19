@@ -43,6 +43,7 @@ impl HirStatement {
                 range: ForRange::range(
                     for_stmt.start_range.to_display_ast(interner),
                     for_stmt.end_range.to_display_ast(interner),
+                    for_stmt.inclusive,
                 ),
                 block: for_stmt.block.to_display_ast(interner),
                 location,
@@ -529,6 +530,9 @@ impl HirLValue {
             HirLValue::Dereference { lvalue, element_type: _, location, implicitly_added: _ } => {
                 let lvalue = Box::new(lvalue.to_display_ast(interner));
                 LValue::Dereference(lvalue, *location)
+            }
+            HirLValue::Error { location } => {
+                LValue::Path(Path::from_single("(unknown-variable)".to_string(), *location))
             }
         }
     }

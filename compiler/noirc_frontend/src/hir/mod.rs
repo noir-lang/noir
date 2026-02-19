@@ -6,17 +6,18 @@ pub mod resolution;
 pub mod scope;
 pub mod type_check;
 
-use crate::ast::UnresolvedGenerics;
+use crate::ast::{IdentOrQuotedType, UnresolvedGenerics};
 use crate::debug::DebugInstrumenter;
 use crate::elaborator::UnstableFeature;
 use crate::graph::{CrateGraph, CrateId};
 use crate::hir::def_collector::dc_crate::UnresolvedGlobal;
 use crate::hir::def_map::DefMaps;
+use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::function::FuncMeta;
 use crate::node_interner::{FuncId, GlobalId, NodeInterner, TypeId};
 use crate::parser::ParserError;
 use crate::usage_tracker::UsageTracker;
-use crate::{Kind, ParsedModule, ResolvedGeneric, ResolvedGenerics, TypeVariable};
+use crate::{Kind, ParsedModule, ResolvedGeneric, ResolvedGenerics, Type, TypeVariable};
 use def_collector::dc_crate::CompilationError;
 use def_map::{CrateDefMap, FuzzingHarness, fully_qualified_module_path};
 use fm::{FileId, FileManager};
@@ -38,7 +39,7 @@ pub type ParsedFiles = HashMap<FileId, (ParsedModule, Vec<ParserError>)>;
 pub struct Context<'file_manager, 'parsed_files> {
     pub def_interner: NodeInterner,
     pub crate_graph: CrateGraph,
-    pub def_maps: BTreeMap<CrateId, CrateDefMap>,
+    pub def_maps: DefMaps,
     pub usage_tracker: UsageTracker,
     // In the WASM context, we take ownership of the file manager,
     // which is why this needs to be a Cow. In all use-cases, the file manager
@@ -103,6 +104,31 @@ impl Context<'_, '_> {
             usage_tracker: UsageTracker::default(),
             visited_files: BTreeMap::new(),
             crate_graph: CrateGraph::default(),
+            file_manager: Cow::Borrowed(file_manager),
+            debug_instrumenter: DebugInstrumenter::default(),
+            parsed_files: Cow::Borrowed(parsed_files),
+            package_build_path: PathBuf::default(),
+            interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
+            required_unstable_features: BTreeMap::new(),
+            unresolved_globals: BTreeMap::new(),
+        }
+    }
+
+    /// Creates a Context from some existing components.
+    /// This is only used by LSP when a file is type-checked after it has been modified.
+    pub fn from_existing<'file_manager, 'parsed_files>(
+        file_manager: &'file_manager FileManager,
+        parsed_files: &'parsed_files ParsedFiles,
+        def_interner: NodeInterner,
+        def_maps: DefMaps,
+        crate_graph: CrateGraph,
+    ) -> Context<'file_manager, 'parsed_files> {
+        Context {
+            def_interner,
+            def_maps,
+            usage_tracker: UsageTracker::default(),
+            visited_files: BTreeMap::new(),
+            crate_graph,
             file_manager: Cow::Borrowed(file_manager),
             debug_instrumenter: DebugInstrumenter::default(),
             parsed_files: Cow::Borrowed(parsed_files),
@@ -262,6 +288,16 @@ impl Context<'_, '_> {
             let type_var = TypeVariable::unbound(id, type_var_kind);
             let ident = generic.ident();
             let location = ident.location();
+
+            if let IdentOrQuotedType::Quoted(quoted_type_id, _) = ident {
+                let typ = interner.get_quoted_type(*quoted_type_id).follow_bindings();
+                if !matches!(typ, Type::NamedGeneric(..)) {
+                    errors.push(
+                        ResolverError::MacroResultInGenericsListNotAGeneric { location, typ }
+                            .into(),
+                    );
+                }
+            }
 
             // Check for name collisions of this generic
             let name = Rc::new(ident.to_string());

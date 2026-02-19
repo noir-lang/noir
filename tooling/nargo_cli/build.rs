@@ -47,6 +47,8 @@ fn main() -> Result<(), String> {
     generate_comptime_interpret_execution_success_tests(&mut test_file, &test_dir);
     generate_comptime_interpret_execution_failure_tests(&mut test_file, &test_dir);
 
+    generate_brillig_small_stack_execution_success_tests(&mut test_file, &test_dir);
+
     generate_fuzzing_failure_tests(&mut test_file, &test_dir);
 
     generate_nargo_expand_execution_success_tests(&mut test_file, &test_dir);
@@ -72,6 +74,20 @@ fn main() -> Result<(), String> {
 
     Ok(())
 }
+
+/// Tests expected to fail with `--force-brillig --max-stack-frame-size 64`
+/// because they need register spilling (not yet implemented).
+/// Remove tests from this list as spilling is implemented.
+const IGNORED_BRILLIG_SMALL_STACK_TESTS: [&str; 8] = [
+    "brillig_block_parameter_liveness",
+    "hashmap",
+    "poseidon_bn254_hash_width_3",
+    "poseidonsponge_x5_254",
+    "reference_counts_inliner_0",
+    "reference_counts_inliner_min",
+    "reference_counts_vectors_inliner_0",
+    "regression_5252",
+];
 
 /// Some tests are explicitly ignored in brillig due to them failing.
 /// These should be fixed and removed from this list.
@@ -213,11 +229,7 @@ const TESTS_WITHOUT_STDOUT_CHECK: [&str; 0] = [];
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
 /// (some are ignored on purpose for the same reason as `IGNORED_NARGO_EXPAND_EXECUTION_TESTS`)
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 9] = [
-    // bug
-    "associated_type_bounds",
-    // bug
-    "enums",
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 7] = [
     // There's no "src/main.nr" here so it's trickier to make this work
     "overlapping_dep_and_mod",
     // this one works, but copying its `Nargo.toml` file to somewhere else doesn't work
@@ -590,6 +602,49 @@ fn generate_comptime_interpret_execution_failure_tests(test_file: &mut File, tes
                   nargo_execute_comptime_expect_failure(test_program_dir);
               }}
               "#
+        )
+        .unwrap();
+    }
+    writeln!(test_file, "}}").unwrap();
+}
+
+fn generate_brillig_small_stack_execution_success_tests(
+    test_file: &mut File,
+    test_data_dir: &Path,
+) {
+    let test_type = "execution_success";
+    let test_cases = read_test_cases(test_data_dir, test_type);
+
+    writeln!(
+        test_file,
+        "mod brillig_small_stack_{test_type} {{
+        use super::*;
+    "
+    )
+    .unwrap();
+    for (test_name, test_dir) in test_cases {
+        if IGNORED_BRILLIG_TESTS.contains(&test_name.as_str()) {
+            continue;
+        }
+
+        let should_panic = if IGNORED_BRILLIG_SMALL_STACK_TESTS.contains(&test_name.as_str()) {
+            "#[should_panic]"
+        } else {
+            ""
+        };
+
+        let test_dir = test_dir.display();
+
+        write!(
+            test_file,
+            r#"
+            #[test]
+            {should_panic}
+            fn test_{test_name}() {{
+                let test_program_dir = PathBuf::from("{test_dir}");
+                nargo_execute_brillig_small_stack(test_program_dir);
+            }}
+            "#
         )
         .unwrap();
     }

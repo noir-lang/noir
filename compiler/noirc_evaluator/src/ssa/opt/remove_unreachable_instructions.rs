@@ -229,7 +229,7 @@ impl Function {
                         }
                     };
                 return;
-            };
+            }
 
             if current_block_reachability == Reachability::UnreachableUnderPredicate {
                 if should_replace_instruction_with_defaults(context) {
@@ -380,7 +380,7 @@ impl Function {
                     };
                 }
                 _ => (),
-            };
+            }
 
             // Once we find an instruction that will always fail, replace the terminator with `unreachable`.
             // Subsequent instructions in this block will be removed.
@@ -575,7 +575,7 @@ fn should_replace_instruction_with_defaults(context: &SimpleOptimizationContext)
             // effect variable. Instructions which use its result would then get
             // incorrect zero, instead of whatever was in the array.
         }
-    };
+    }
 
     // Instructions that don't interact with the predicate should be left alone,
     // because the `remove_enable_side_effects` pass might have moved the boundaries around them.
@@ -1032,7 +1032,7 @@ mod tests {
           b1():
             v2 = add Field 1, Field 2
             jmp b2(v2)
-          b2():
+          b2(v3: Field):
             jmpif u1 0 then: b3, else: b4
           b3():
             constrain u1 0 == u1 1, "Index out of bounds"
@@ -1050,16 +1050,16 @@ mod tests {
           b0():
             jmp b1()
           b1():
-            v2 = add Field 1, Field 2
-            jmp b2(v2)
-          b2():
+            v3 = add Field 1, Field 2
+            jmp b2(v3)
+          b2(v0: Field):
             jmpif u1 0 then: b3, else: b4
           b3():
             constrain u1 0 == u1 1, "Index out of bounds"
             unreachable
           b4():
-            v4 = add Field 1, Field 2
-            return v4
+            v5 = add Field 1, Field 2
+            return v5
         }
         "#);
     }

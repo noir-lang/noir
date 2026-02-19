@@ -70,12 +70,18 @@ pub enum ResolverError {
         "Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library"
     )]
     LowLevelFunctionOutsideOfStdlib { location: Location },
+    #[error(
+        "The name of an `#[oracle]` function clashes with one defined in the Noir standard library"
+    )]
+    OracleNameClashesWithStdlib { location: Location },
     #[error("Usage of the `#[oracle]` function attribute is only valid on unconstrained functions")]
     OracleMarkedAsConstrained { ident: Ident, location: Location },
     #[error("Oracle functions cannot return multiple vectors")]
     OracleReturnsMultipleVectors { location: Location },
     #[error("Oracle functions cannot return references")]
     OracleReturnsReference { location: Location },
+    #[error("Oracle functions cannot return vectors containing nested arrays")]
+    OracleReturnsVectorWithNestedArray { location: Location },
     #[error("Dependency cycle found, '{item}' recursively depends on itself: {cycle} ")]
     DependencyCycle { location: Location, item: String, cycle: String },
     #[error("break/continue are only allowed in unconstrained functions")]
@@ -150,8 +156,6 @@ pub enum ResolverError {
     UnsupportedNumericGenericType(#[from] UnsupportedNumericGenericType),
     #[error("Type `{typ}` is more private than item `{item}`")]
     TypeIsMorePrivateThenItem { typ: String, item: String, location: Location },
-    #[error("Attribute function `{function}` is not a path")]
-    AttributeFunctionIsNotAPath { function: String, location: Location },
     #[error("Attribute function `{name}` is not in scope")]
     AttributeFunctionNotInScope { name: String, location: Location },
     #[error("The trait `{missing_trait}` is not implemented for `{type_missing_trait}`")]
@@ -172,6 +176,10 @@ pub enum ResolverError {
     NonIntegerGlobalUsedInPattern { location: Location },
     #[error("Cannot match on values of type `{typ}`")]
     TypeUnsupportedInMatch { typ: Type, location: Location },
+    #[error("Cannot define a method on values of type `{typ}`")]
+    TypeUnsupportedForMethod { typ: Type, location: Location },
+    #[error("Cannot define a trait impl on values of type `{typ}`")]
+    TypeUnsupportedForTraitImpl { typ: Type, location: Location },
     #[error("Expected a struct, enum, or literal value in pattern, but found {item}")]
     UnexpectedItemInPattern { location: Location, item: String },
     #[error("Trait `{trait_name}` doesn't have a method named `{method_name}`")]
@@ -194,6 +202,8 @@ pub enum ResolverError {
     AssociatedItemConstraintsNotAllowedInGenerics { location: Location },
     #[error("Ambiguous associated type")]
     AmbiguousAssociatedType { trait_name: String, associated_type_name: String, location: Location },
+    #[error("Cannot define a trait impl on associated types")]
+    TraitImplOnAssociatedType { location: Location },
     #[error("The placeholder `_` is not allowed within types on item signatures for functions")]
     WildcardTypeDisallowed { location: Location, context: WildcardDisallowedContext },
     #[error("References are not allowed in globals")]
@@ -226,7 +236,6 @@ impl ResolverError {
             | ResolverError::MissingFields { location, .. }
             | ResolverError::UnnecessaryMut { second_mut: location, .. }
             | ResolverError::TypeIsMorePrivateThenItem { location, .. }
-            | ResolverError::AttributeFunctionIsNotAPath { location, .. }
             | ResolverError::AttributeFunctionNotInScope { location, .. }
             | ResolverError::TraitNotImplemented { location, .. }
             | ResolverError::ExpectedTrait { location, .. }
@@ -235,7 +244,7 @@ impl ResolverError {
             | ResolverError::GenericsOnAssociatedType { location }
             | ResolverError::InvalidClosureEnvironment { location, .. }
             | ResolverError::NestedVectors { location }
-            | ResolverError::AbiAttributeOutsideContract { location }
+            | ResolverError::AbiAttributeOutsideContract { location, .. }
             | ResolverError::DependencyCycle { location, .. }
             | ResolverError::JumpInConstrainedFn { location, .. }
             | ResolverError::LoopInConstrainedFn { location }
@@ -265,6 +274,8 @@ impl ResolverError {
             | ResolverError::InvalidSyntaxInPattern { location }
             | ResolverError::NonIntegerGlobalUsedInPattern { location, .. }
             | ResolverError::TypeUnsupportedInMatch { location, .. }
+            | ResolverError::TypeUnsupportedForMethod { location, .. }
+            | ResolverError::TypeUnsupportedForTraitImpl { location, .. }
             | ResolverError::UnexpectedItemInPattern { location, .. }
             | ResolverError::NoSuchMethodInTrait { location, .. }
             | ResolverError::VariableAlreadyDefinedInPattern { new_location: location, .. }
@@ -275,13 +286,16 @@ impl ResolverError {
             | ResolverError::NoPredicatesAttributeOnEntryPoint { location, .. }
             | ResolverError::FoldAttributeOnUnconstrained { location, .. }
             | ResolverError::InlineNeverAttributeOnConstrained { location, .. }
+            | ResolverError::OracleNameClashesWithStdlib { location, .. }
             | ResolverError::OracleMarkedAsConstrained { location, .. }
             | ResolverError::OracleReturnsMultipleVectors { location, .. }
             | ResolverError::OracleReturnsReference { location, .. }
+            | ResolverError::OracleReturnsVectorWithNestedArray { location, .. }
             | ResolverError::LowLevelFunctionOutsideOfStdlib { location }
             | ResolverError::UnreachableStatement { location, .. }
             | ResolverError::AssociatedItemConstraintsNotAllowedInGenerics { location }
             | ResolverError::AmbiguousAssociatedType { location, .. }
+            | ResolverError::TraitImplOnAssociatedType { location }
             | ResolverError::WildcardTypeDisallowed { location, .. }
             | ResolverError::ReferencesNotAllowedInGlobals { location }
             | ResolverError::OracleWithBody { location }
@@ -483,12 +497,19 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     "misplaced #[abi(tag)] attribute".to_string(),
                     *location,
                 )
-            },
+            }
             ResolverError::LowLevelFunctionOutsideOfStdlib { location } => Diagnostic::simple_error(
                 "Definition of low-level function outside of standard library".into(),
                 "Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library".into(),
                 *location,
             ),
+            ResolverError::OracleNameClashesWithStdlib { location } => {
+                Diagnostic::simple_error(
+                    error.to_string(),
+                    "Naming an `#[oracle]` function the same as one in the Noir standard library could lead to unexpected behavior".into(),
+                    *location,
+                )
+            },
             ResolverError::OracleMarkedAsConstrained { ident, location } => {
                 let mut diagnostic = Diagnostic::simple_error(
                     error.to_string(),
@@ -509,6 +530,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     error.to_string(),
                     String::new(),
+                    *location,
+                )
+            },
+            ResolverError::OracleReturnsVectorWithNestedArray { location } => {
+                Diagnostic::simple_error(
+                    error.to_string(),
+                    "Vectors with nested arrays are not yet supported for foreign call returns".to_string(),
                     *location,
                 )
             },
@@ -746,13 +774,6 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             },
-            ResolverError::AttributeFunctionIsNotAPath { function, location } => {
-                Diagnostic::simple_error(
-                    format!("Attribute function `{function}` is not a path"),
-                    "An attribute's function should be a single identifier or a path".into(),
-                    *location,
-                )
-            },
             ResolverError::AttributeFunctionNotInScope { name, location } => {
                 Diagnostic::simple_error(
                     format!("Attribute function `{name}` is not in scope"),
@@ -801,6 +822,20 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             },
+            ResolverError::TypeUnsupportedForMethod { typ, location } => {
+                Diagnostic::simple_error(
+                    format!("Cannot define a method on values of type `{typ}`"),
+                    String::new(),
+                    *location,
+                )
+            }
+            ResolverError::TypeUnsupportedForTraitImpl { typ, location } => {
+                Diagnostic::simple_error(
+                    format!("Cannot define a trait impl on values of type `{typ}`"),
+                    String::new(),
+                    *location,
+                )
+            }
             ResolverError::UnexpectedItemInPattern { item, location } => {
                 Diagnostic::simple_error(
                     format!("Expected a struct, enum, or literal pattern, but found {item}"),
@@ -863,6 +898,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     "Ambiguous associated type".to_string(),
                     format!("If there were a type named `Example` that implemented `{trait_name}`, you could use the fully-qualified path: `<Example as {trait_name}>::{associated_type_name}`"),
+                    *location,
+                )
+            }
+            ResolverError::TraitImplOnAssociatedType { location } => {
+                Diagnostic::simple_error(
+                    "Cannot define a trait impl on associated types".to_string(),
+                    String::new(),
                     *location,
                 )
             }

@@ -460,6 +460,27 @@ mod tests {
         execution_failure(nargo);
     }
 
+    fn nargo_execute_brillig_small_stack(test_program_dir: PathBuf) {
+        #[allow(deprecated)]
+        let mut nargo = Command::cargo_bin("nargo").unwrap();
+        nargo.arg("--program-dir").arg(test_program_dir.clone());
+        nargo.arg("execute").arg("--force").arg("--force-brillig");
+        nargo.arg("--max-stack-frame-size").arg("64");
+
+        let skip_brillig_debug_assertions = IGNORED_BRILLIG_DEBUG_ASSERTIONS_TESTS
+            .into_iter()
+            .any(|test_to_skip| test_program_dir.ends_with(test_to_skip));
+        if !skip_brillig_debug_assertions {
+            nargo.arg("--enable-brillig-debug-assertions");
+        }
+
+        // Enable enums and trait_as_type as unstable features
+        nargo.arg("-Zenums");
+        nargo.arg("-Ztrait_as_type");
+
+        nargo.assert().success();
+    }
+
     fn run_nargo_fmt(target_dir: PathBuf) {
         #[allow(deprecated)]
         let mut nargo = Command::cargo_bin("nargo").unwrap();
@@ -480,15 +501,15 @@ mod tests {
 
             let path = entry.path();
 
-            if entry.file_type().is_ok_and(|file_type| file_type.is_dir()) {
-                if let Some(prover_toml) = find_prover_toml_in_dir(&path) {
-                    return Some(prover_toml);
-                }
+            if entry.file_type().is_ok_and(|file_type| file_type.is_dir())
+                && let Some(prover_toml) = find_prover_toml_in_dir(&path)
+            {
+                return Some(prover_toml);
             }
 
             if path.file_name().is_none_or(|name| name != "Prover.toml") {
                 continue;
-            };
+            }
 
             return Some(path);
         }

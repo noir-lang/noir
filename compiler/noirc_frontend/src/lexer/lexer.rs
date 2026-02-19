@@ -85,24 +85,24 @@ impl<'a> Lexer<'a> {
     }
 
     /// Peeks at the next char. Does not iterate the cursor
-    fn peek_char(&mut self) -> Option<char> {
+    fn peek_char(&self) -> Option<char> {
         self.chars.clone().next().map(|(_, ch)| ch)
     }
 
     /// Peeks at the character two positions ahead. Does not iterate the cursor
-    fn peek2_char(&mut self) -> Option<char> {
+    fn peek2_char(&self) -> Option<char> {
         let mut chars = self.chars.clone();
         chars.next();
         chars.next().map(|(_, ch)| ch)
     }
 
     /// Peeks at the next char and returns true if it is equal to the char argument
-    fn peek_char_is(&mut self, ch: char) -> bool {
+    fn peek_char_is(&self, ch: char) -> bool {
         self.peek_char() == Some(ch)
     }
 
     /// Peeks at the character two positions ahead and returns true if it is equal to the char argument
-    fn peek2_char_is(&mut self, ch: char) -> bool {
+    fn peek2_char_is(&self, ch: char) -> bool {
         self.peek2_char() == Some(ch)
     }
 
@@ -176,6 +176,7 @@ impl<'a> Lexer<'a> {
             Some(']') => self.single_char_token(Token::RightBracket),
             Some('$') => self.single_char_token(Token::DollarSign),
             Some('@') => self.single_char_token(Token::At),
+            Some('\\') => self.single_char_token(Token::Backslash),
             Some('"') => self.eat_string_literal(),
             Some('f') => self.eat_format_string_or_alpha_numeric(),
             Some('r') => self.eat_raw_string_or_alpha_numeric(),
@@ -255,9 +256,8 @@ impl<'a> Lexer<'a> {
                 if self.peek_char_is('=') {
                     self.next_char();
                     Ok(Token::LessEqual.into_span(start, start + 1))
-                } else if self.peek_char_is('<') {
-                    self.next_char();
-                    Ok(Token::ShiftLeft.into_span(start, start + 1))
+                    // Note: There is deliberately no case for ShiftLeft. We always lex << as
+                    // two separate Less tokens to help the parser parse nested generic types.
                 } else {
                     Ok(prev_token.into_single_span(start))
                 }
@@ -596,13 +596,13 @@ impl<'a> Lexer<'a> {
                     };
 
                     string.push(char);
-                    length += 1;
+                    length += char.len_utf8() as u32;
 
                     if char == '{' || char == '}' {
                         // This might look a bit strange, but if there's `{{` or `}}` in the format string
                         // then it will be `{` and `}` in the string fragment respectively, but on the codegen
                         // phase it will be translated back to `{{` and `}}` to avoid executing an interpolation,
-                        // thus the actual length of the codegen'd string will be one more than what we get here.
+                        // thus the length of `{{` and `}}` need to be counted as 2.
                         //
                         // We could just make the fragment include the double curly braces, but then the interpreter
                         // would need to undo the curly braces, so it's simpler to add them during codegen.
@@ -672,8 +672,8 @@ impl<'a> Lexer<'a> {
                         other
                     }
                 };
-                length += 1;
                 string.push(char);
+                length += char.len_utf8() as u32;
             }
 
             length += 1; // for the closing curly brace
@@ -962,7 +962,8 @@ mod tests {
             Token::Star,
             Token::Assign,
             Token::Equal,
-            Token::ShiftLeft,
+            Token::Less,
+            Token::Less,
             Token::Greater,
             Token::Greater,
             Token::EOF,
@@ -1653,5 +1654,18 @@ mod tests {
         let str = "f\"{";
         let mut lexer = Lexer::new_with_dummy_file(str);
         let _ = lexer.next_token();
+    }
+
+    #[test]
+    fn fmtstr_utf8_length() {
+        let str = "f\"黒{x}\"";
+        assert_eq!(str.len(), 9);
+        assert_eq!(str.chars().count(), 7);
+        let mut lexer = Lexer::new_with_dummy_file(str);
+        let token = lexer.next_token().unwrap();
+        let Token::FmtStr(_, length) = token.into_token() else {
+            panic!("Expected FmtStr token");
+        };
+        assert_eq!(length, 6);
     }
 }

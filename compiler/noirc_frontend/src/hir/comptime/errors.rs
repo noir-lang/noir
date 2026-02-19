@@ -10,6 +10,7 @@ use crate::{
     },
     parser::ParserError,
     signed_field::SignedField,
+    token::Token,
 };
 use acvm::BlackBoxResolutionError;
 use noirc_errors::{CustomDiagnostic, Location};
@@ -25,6 +26,10 @@ pub enum InterpreterError {
     TypeMismatch {
         expected: String,
         actual: Type,
+        location: Location,
+    },
+    UnexpectedZeroedValue {
+        expected: String,
         location: Location,
     },
     NonComptimeVarReferenced {
@@ -292,6 +297,25 @@ pub enum InterpreterError {
         location: Location,
         call_stack: im::Vector<Location>,
     },
+    AttributeRecursionLimitExceeded {
+        location: Location,
+    },
+    UnexpectedEscapedTokenInQuote {
+        token: Option<Token>,
+        location: Location,
+    },
+    TraitImplResolutionRecursionLimitReached {
+        location: Location,
+    },
+    CannotModifyExternalItem {
+        item: String,
+        module: String,
+        location: Location,
+    },
+    CannotCastNumericToBool {
+        typ: Type,
+        location: Location,
+    },
 
     // These cases are not errors, they are just used to prevent us from running more code
     // until the loop can be resumed properly. These cases will never be displayed to users.
@@ -326,6 +350,7 @@ impl InterpreterError {
         match self {
             InterpreterError::ArgumentCountMismatch { location, .. }
             | InterpreterError::TypeMismatch { location, .. }
+            | InterpreterError::UnexpectedZeroedValue { location, .. }
             | InterpreterError::NonComptimeVarReferenced { location, .. }
             | InterpreterError::VariableNotInScope { location, .. }
             | InterpreterError::IntegerOutOfRangeForType { location, .. }
@@ -388,7 +413,12 @@ impl InterpreterError {
             | InterpreterError::GlobalCouldNotBeResolved { location }
             | InterpreterError::StackOverflow { location, .. }
             | InterpreterError::EvaluationDepthOverflow { location, .. }
-            | InterpreterError::CheckedTransmuteFailed { location, .. } => *location,
+            | InterpreterError::CheckedTransmuteFailed { location, .. }
+            | InterpreterError::UnexpectedEscapedTokenInQuote { location, .. }
+            | InterpreterError::TraitImplResolutionRecursionLimitReached { location }
+            | InterpreterError::AttributeRecursionLimitExceeded { location }
+            | InterpreterError::CannotCastNumericToBool { location, .. }
+            | InterpreterError::CannotModifyExternalItem { location, .. } => *location,
             InterpreterError::FailedToParseMacro { error, .. } => error.location(),
             InterpreterError::NoMatchingImplFound { error } => error.location,
             InterpreterError::DuplicateStructFieldInSetFields { name, .. } => name.location(),
@@ -433,6 +463,13 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             InterpreterError::TypeMismatch { expected, actual, location } => {
                 let msg = format!("Expected `{expected}` but a value of type `{actual}` was given");
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
+            }
+            InterpreterError::UnexpectedZeroedValue { expected, location } => {
+                let msg = format!("Expected a concrete `{expected}` but a zeroed value was given");
+                let secondary = format!(
+                    "A zeroed value of `{expected}` may be created to satisfy the type system, but it's not expected to be used"
+                );
+                CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::NonComptimeVarReferenced { name, location } => {
                 let msg = format!("Non-comptime variable `{name}` referenced in comptime code");
@@ -823,6 +860,36 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 );
                 diagnostic.with_call_stack(call_stack.into_iter().copied().collect())
             }
+            InterpreterError::AttributeRecursionLimitExceeded { location } => {
+                CustomDiagnostic::simple_error(
+                    "Attribute recursion limit exceeded".to_string(),
+                    "This attribute generates code with the same attribute, causing infinite recursion".to_string(),
+                    *location,
+                )
+            }
+            InterpreterError::UnexpectedEscapedTokenInQuote { token, location } => {
+                let primary = match token {
+                    Some(token) => format!("`{token}` cannot be escaped in quoted expressions"),
+                    None => "Unexpected end of input after escape character in quoted expression".to_string(),
+                };
+                let secondary = "Only `$` may be escaped in `quote` expressions".to_string();
+                CustomDiagnostic::simple_error(primary, secondary, *location)
+            }
+            InterpreterError::TraitImplResolutionRecursionLimitReached { location } => {
+                let primary = "Trait impl resolution recursion limit reached".to_string();
+                let secondary = String::new();
+                CustomDiagnostic::simple_warning(primary, secondary, *location)
+            }
+            InterpreterError::CannotModifyExternalItem { item, module, location } => {
+                let primary = "Cannot mutate something from an external crate".to_string();
+                let secondary = format!("`{item}` was declared in `{module}`");
+                CustomDiagnostic::simple_error(primary, secondary, *location)
+            }
+            InterpreterError::CannotCastNumericToBool { typ, location } => {
+                let primary = format!("Cannot cast `{typ}` as `bool`");
+                let secondary = "Compare with zero instead: ` != 0`".to_string();
+                CustomDiagnostic::simple_error(primary, secondary, *location)
+            },
         }
     }
 }

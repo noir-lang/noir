@@ -478,7 +478,7 @@ impl<'a> FunctionContext<'a> {
                     }
                 };
             }
-        };
+        }
 
         let mut freq = Freq::new(u, &self.config().expr_freqs)?;
 
@@ -497,16 +497,16 @@ impl<'a> FunctionContext<'a> {
 
         let allow_match = allow_if_then && !self.ctx.config.avoid_match;
 
-        if freq.enabled_when("unary", allow_nested && types::can_unary_return(typ)) {
-            if let Some(expr) = self.gen_unary(u, typ, max_depth)? {
-                return Ok(expr);
-            }
+        if freq.enabled_when("unary", allow_nested && types::can_unary_return(typ))
+            && let Some(expr) = self.gen_unary(u, typ, max_depth)?
+        {
+            return Ok(expr);
         }
 
-        if freq.enabled_when("binary", allow_nested && types::can_binary_return(typ)) {
-            if let Some(expr) = self.gen_binary(u, typ, max_depth)? {
-                return Ok(expr);
-            }
+        if freq.enabled_when("binary", allow_nested && types::can_binary_return(typ))
+            && let Some(expr) = self.gen_binary(u, typ, max_depth)?
+        {
+            return Ok(expr);
         }
 
         // if-then-else returning a value
@@ -538,10 +538,10 @@ impl<'a> FunctionContext<'a> {
         }
 
         // We can always try to just derive a value from the variables we have.
-        if freq.enabled("vars") {
-            if let Some(expr) = self.gen_expr_from_vars(u, typ, max_depth)? {
-                return Ok(expr);
-            }
+        if freq.enabled("vars")
+            && let Some(expr) = self.gen_expr_from_vars(u, typ, max_depth)?
+        {
+            return Ok(expr);
         }
 
         // If nothing else worked out we can always produce a random literal.
@@ -577,18 +577,33 @@ impl<'a> FunctionContext<'a> {
             // If we can't produce the exact we're looking for, maybe we can produce parts of it.
             match typ {
                 Type::Array(len, item_type) => {
-                    let mut arr = ArrayLiteral {
-                        contents: Vec::with_capacity(*len as usize),
-                        typ: typ.clone(),
-                    };
-                    let mut arr_dyn = false;
-                    for _ in 0..*len {
-                        let (item, item_dyn) =
+                    // Randomly choose between Array and Repeated literal
+                    if bool::arbitrary(u)? {
+                        let mut arr = ArrayLiteral {
+                            contents: Vec::with_capacity(*len as usize),
+                            typ: typ.clone(),
+                        };
+                        let mut arr_dyn = false;
+                        for _ in 0..*len {
+                            let (item, item_dyn) =
+                                self.gen_expr(u, item_type, max_depth, Flags::NESTED)?;
+                            arr_dyn |= item_dyn;
+                            arr.contents.push(item);
+                        }
+                        return Ok(Some((Expression::Literal(Literal::Array(arr)), arr_dyn)));
+                    } else {
+                        let (element, elem_dyn) =
                             self.gen_expr(u, item_type, max_depth, Flags::NESTED)?;
-                        arr_dyn |= item_dyn;
-                        arr.contents.push(item);
+                        return Ok(Some((
+                            Expression::Literal(Literal::Repeated {
+                                element: Box::new(element),
+                                length: *len,
+                                is_vector: false,
+                                typ: typ.clone(),
+                            }),
+                            elem_dyn,
+                        )));
                     }
-                    return Ok(Some((Expression::Literal(Literal::Array(arr)), arr_dyn)));
                 }
                 Type::Tuple(items) => {
                     let mut values = Vec::with_capacity(items.len());
@@ -626,39 +641,39 @@ impl<'a> FunctionContext<'a> {
         // If we found our type, we can return it without further ado.
         if src_type == tgt_type {
             // If we want a vector, we can push onto it.
-            if let Type::Vector(item_type) = src_type {
+            if let Type::Vector(item_type) = src_type
+                && bool::arbitrary(u)?
+            {
+                let (item, item_dyn) = self.gen_expr(u, item_type, max_depth, Flags::TOP)?;
+                // We can use push_back, push_front, or insert.
                 if bool::arbitrary(u)? {
-                    let (item, item_dyn) = self.gen_expr(u, item_type, max_depth, Flags::TOP)?;
-                    // We can use push_back, push_front, or insert.
-                    if bool::arbitrary(u)? {
-                        let push_expr = self.call_vector_push(
-                            src_type.clone(),
-                            item_type.as_ref().clone(),
-                            src_expr,
-                            bool::arbitrary(u)?,
-                            item,
-                        );
-                        return Ok(Some((push_expr, src_dyn || item_dyn)));
-                    } else {
-                        // Generate a random index and insert the item at it.
-                        return self.gen_vector_access(
-                            u,
-                            (src_expr, src_dyn || item_dyn),
-                            src_type,
-                            src_mutable,
-                            tgt_type,
-                            max_depth,
-                            |this, ident, idx| {
-                                this.call_vector_insert(
-                                    src_type.clone(),
-                                    item_type.as_ref().clone(),
-                                    Expression::Ident(ident),
-                                    idx,
-                                    item,
-                                )
-                            },
-                        );
-                    }
+                    let push_expr = self.call_vector_push(
+                        src_type.clone(),
+                        item_type.as_ref().clone(),
+                        src_expr,
+                        bool::arbitrary(u)?,
+                        item,
+                    );
+                    return Ok(Some((push_expr, src_dyn || item_dyn)));
+                } else {
+                    // Generate a random index and insert the item at it.
+                    return self.gen_vector_access(
+                        u,
+                        (src_expr, src_dyn || item_dyn),
+                        src_type,
+                        src_mutable,
+                        tgt_type,
+                        max_depth,
+                        |this, ident, idx| {
+                            this.call_vector_insert(
+                                src_type.clone(),
+                                item_type.as_ref().clone(),
+                                Expression::Ident(ident),
+                                idx,
+                                item,
+                            )
+                        },
+                    );
                 }
             }
             // Otherwise just return as-is.
@@ -1146,10 +1161,10 @@ impl<'a> FunctionContext<'a> {
         // TODO(#7926): Match
 
         // We don't want constraints to get too frequent, as it could dominate all outcome.
-        if freq.enabled_when("constrain", !self.config().avoid_constrain) {
-            if let Some(e) = self.gen_constrain(u)? {
-                return Ok(e);
-            }
+        if freq.enabled_when("constrain", !self.config().avoid_constrain)
+            && let Some(e) = self.gen_constrain(u)?
+        {
+            return Ok(e);
         }
 
         // Require a positive budget, so that we have some for the block itself and its contents.
@@ -1157,20 +1172,20 @@ impl<'a> FunctionContext<'a> {
             return self.gen_if(u, &Type::Unit, self.max_depth(), Flags::TOP).map(|(e, _)| e);
         }
 
-        if freq.enabled_when("match", self.budget > 1 && !self.ctx.config.avoid_match) {
-            if let Some((e, _)) = self.gen_match(u, &Type::Unit, self.max_depth())? {
-                return Ok(e);
-            }
+        if freq.enabled_when("match", self.budget > 1 && !self.ctx.config.avoid_match)
+            && let Some((e, _)) = self.gen_match(u, &Type::Unit, self.max_depth())?
+        {
+            return Ok(e);
         }
 
         if freq.enabled_when("for", self.budget > 1) {
             return self.gen_for(u);
         }
 
-        if freq.enabled_when("call", self.budget > 0) {
-            if let Some((e, _)) = self.gen_call(u, &Type::Unit, self.max_depth())? {
-                return Ok(e);
-            }
+        if freq.enabled_when("call", self.budget > 0)
+            && let Some((e, _)) = self.gen_call(u, &Type::Unit, self.max_depth())?
+        {
+            return Ok(e);
         }
 
         if self.unconstrained() {
@@ -1192,17 +1207,17 @@ impl<'a> FunctionContext<'a> {
             }
 
             // For now only try prints in unconstrained code, were we don't need to create a proxy.
-            if freq.enabled_when("print", !self.config().avoid_print) {
-                if let Some(e) = self.gen_print(u)? {
-                    return Ok(e);
-                }
+            if freq.enabled_when("print", !self.config().avoid_print)
+                && let Some(e) = self.gen_print(u)?
+            {
+                return Ok(e);
             }
         }
 
-        if freq.enabled("assign") {
-            if let Some(e) = self.gen_assign(u)? {
-                return Ok(e);
-            }
+        if freq.enabled("assign")
+            && let Some(e) = self.gen_assign(u)?
+        {
+            return Ok(e);
         }
 
         self.gen_let(u)
@@ -1216,17 +1231,17 @@ impl<'a> FunctionContext<'a> {
         let mut typ = self.ctx.gen_type(u, max_depth, false, false, comptime_friendly, true)?;
 
         // If we picked the target type to be a vector, we can consider popping from it.
-        if let Type::Vector(ref item_type) = typ {
-            if bool::arbitrary(u)? {
-                let fields = if bool::arbitrary(u)? {
-                    // ([T], T) <- pop_back or remove
-                    vec![typ.clone(), item_type.as_ref().clone()]
-                } else {
-                    // (T, [T]) <- pop_front
-                    vec![item_type.as_ref().clone(), typ.clone()]
-                };
-                typ = Type::Tuple(fields);
-            }
+        if let Type::Vector(ref item_type) = typ
+            && bool::arbitrary(u)?
+        {
+            let fields = if bool::arbitrary(u)? {
+                // ([T], T) <- pop_back or remove
+                vec![typ.clone(), item_type.as_ref().clone()]
+            } else {
+                // (T, [T]) <- pop_front
+                vec![item_type.as_ref().clone(), typ.clone()]
+            };
+            typ = Type::Tuple(fields);
         }
 
         let (expr, is_dyn) = self.gen_expr(u, &typ, max_depth, Flags::TOP)?;
@@ -1599,6 +1614,7 @@ impl<'a> FunctionContext<'a> {
             start_range: Box::new(start_range),
             end_range: Box::new(end_range),
             block: Box::new(block),
+            inclusive: bool::arbitrary(u)?,
             start_range_location: Location::dummy(),
             end_range_location: Location::dummy(),
         });
@@ -1948,11 +1964,7 @@ impl<'a> FunctionContext<'a> {
     }
 
     /// Generate a random field that can be used in the match constructor of a numeric type.
-    fn gen_num_field(
-        &mut self,
-        u: &mut Unstructured,
-        typ: &Type,
-    ) -> arbitrary::Result<SignedField> {
+    fn gen_num_field(&self, u: &mut Unstructured, typ: &Type) -> arbitrary::Result<SignedField> {
         let literal = self.gen_literal(u, typ)?;
         let Expression::Literal(Literal::Integer(field, _, _)) = literal else {
             unreachable!("expected Literal::Integer; got {literal:?}");
@@ -1962,7 +1974,7 @@ impl<'a> FunctionContext<'a> {
 
     /// Generate a match constructor for a numeric type.
     fn gen_num_match_constructor(
-        &mut self,
+        &self,
         u: &mut Unstructured,
         typ: &Type,
     ) -> arbitrary::Result<Constructor> {

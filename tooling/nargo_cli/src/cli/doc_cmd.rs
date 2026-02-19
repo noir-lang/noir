@@ -8,7 +8,10 @@ use nargo::{
     ops::check_crate_and_report_errors, package::Package, parse_all, prepare_package,
     workspace::Workspace,
 };
-use nargo_doc::{BrokenLink, crate_module, items::Crate};
+use nargo_doc::{
+    BrokenLink, ConvertedItem, crate_module,
+    items::{Crate, ItemId},
+};
 use nargo_toml::{PackageConfig, PackageSelection};
 use noirc_driver::{CompileOptions, CrateId, stdlib_nargo_toml_source};
 use noirc_errors::CustomDiagnostic;
@@ -52,6 +55,8 @@ pub(crate) fn run(args: DocCommand, workspace: Workspace) -> Result<(), CliError
 
     let mut broken_links = Vec::new();
 
+    let mut item_id_to_converted_item: HashMap<ItemId, ConvertedItem> = HashMap::new();
+
     // Maps a crate's root file to its crate
     let mut dependencies = HashMap::new();
 
@@ -62,6 +67,7 @@ pub(crate) fn run(args: DocCommand, workspace: Workspace) -> Result<(), CliError
             &parsed_files,
             package,
             &args.compile_options,
+            &mut item_id_to_converted_item,
             &mut dependencies,
             &mut broken_links,
         )?;
@@ -127,6 +133,7 @@ fn package_crate(
     parsed_files: &ParsedFiles,
     package: &Package,
     compile_options: &CompileOptions,
+    item_id_to_converted_item: &mut HashMap<ItemId, ConvertedItem>,
     dependencies: &mut HashMap<String, Crate>,
     broken_links: &mut Vec<BrokenLink>,
 ) -> Result<Crate, CompileError> {
@@ -134,23 +141,27 @@ fn package_crate(
 
     check_crate_and_report_errors(&mut context, crate_id, compile_options)?;
 
+    // Process dependencies first so that if a create publicly re-exports an item
+    // from a dependency, it will be found as a ConvertedItem.
+    collect_dependencies(
+        &context,
+        Some(package),
+        crate_id,
+        file_manager,
+        item_id_to_converted_item,
+        dependencies,
+        broken_links,
+    )?;
+
     let (module, module_broken_links) = crate_module(
         crate_id,
         &context.crate_graph,
         &context.def_maps,
         &context.def_interner,
         file_manager,
+        item_id_to_converted_item,
     );
     broken_links.extend(module_broken_links);
-
-    collect_dependencies(
-        &context,
-        Some(package),
-        crate_id,
-        file_manager,
-        dependencies,
-        broken_links,
-    )?;
 
     let root_file = &context.crate_graph[crate_id].root_file_id;
     let root_file = file_manager.path(*root_file).unwrap().display().to_string();
@@ -166,6 +177,7 @@ fn collect_dependencies(
     package: Option<&Package>,
     crate_id: CrateId,
     file_manager: &FileManager,
+    item_id_to_converted_item: &mut HashMap<ItemId, ConvertedItem>,
     dependencies: &mut HashMap<String, Crate>,
     broken_links: &mut Vec<BrokenLink>,
 ) -> Result<(), CompileError> {
@@ -184,6 +196,7 @@ fn collect_dependencies(
             &context.def_maps,
             &context.def_interner,
             file_manager,
+            item_id_to_converted_item,
         );
         broken_links.extend(module_broken_links);
 
@@ -210,7 +223,15 @@ fn collect_dependencies(
         let krate = Crate { name, version, root_module: module, root_file: root_file.clone() };
         dependencies.insert(root_file, krate);
 
-        collect_dependencies(context, package, crate_id, file_manager, dependencies, broken_links)?;
+        collect_dependencies(
+            context,
+            package,
+            crate_id,
+            file_manager,
+            item_id_to_converted_item,
+            dependencies,
+            broken_links,
+        )?;
     }
     Ok(())
 }

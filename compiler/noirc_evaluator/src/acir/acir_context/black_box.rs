@@ -39,11 +39,8 @@ impl<F: AcirField> AcirContext<F> {
                     }
                 }?;
 
-                assert_eq!(
-                    output_count,
-                    input_size + 16 - input_size % 16,
-                    "output count mismatch"
-                );
+                assert!(input_size.is_multiple_of(16), "input length must be a multiple of 16");
+                assert_eq!(output_count, input_size, "output count mismatch");
 
                 Vec::new()
             }
@@ -68,6 +65,12 @@ impl<F: AcirField> AcirContext<F> {
                         }));
                     }
                 };
+                // We inject the predicate as a witness input to the black box function,
+                // so that it can be used to conditionally execute the recursive aggregation.
+                //
+                // This is specific to the recursive aggregation black box, as other blackbox functions either:
+                // - do not have a predicate input (e.g. keccak, blake2s, etc.)
+                // - or have a predicate input that is already included in the `inputs` vector (e.g. ecdsa blackboxes).
                 inputs.push(AcirValue::Var(predicate.unwrap(), NumericType::bool()));
                 vec![proof_type_constant]
             }

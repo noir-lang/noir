@@ -5,6 +5,7 @@ use crate::ssa::{
     ir::{call_graph::CallGraph, function::Function},
 };
 
+use super::FORCE_UNROLL_THRESHOLD;
 use super::inlining::{self, InlineInfo};
 
 impl Ssa {
@@ -54,8 +55,11 @@ impl Ssa {
             function.as_vector_optimization();
             // Prepare for unrolling
             function.loop_invariant_code_motion();
+            // Clear out constant jmpifs to ensure that loops are properly unrolled.
+            function.simplify_function();
             // We might not be able to unroll all loops without fully inlining them, so ignore errors.
-            let _ = function.unroll_loops_iteratively();
+            // Use default threshold for force-unrolling.
+            let _ = function.unroll_loops_iteratively(FORCE_UNROLL_THRESHOLD);
             // Reduce the number of redundant stores/loads after unrolling
             function.mem2reg();
 
@@ -77,7 +81,7 @@ impl Ssa {
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{opt::inlining::MAX_INSTRUCTIONS, ssa_gen::Ssa},
+        ssa::{opt::inlining::inline_info::MAX_INSTRUCTIONS, ssa_gen::Ssa},
     };
 
     #[test]

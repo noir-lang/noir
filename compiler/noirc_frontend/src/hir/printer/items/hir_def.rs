@@ -580,7 +580,11 @@ impl ItemPrinter<'_, '_> {
                 self.show_hir_ident(hir_for_statement.identifier, None);
                 self.push_str(" in ");
                 self.show_hir_expression_id(hir_for_statement.start_range);
-                self.push_str("..");
+                if hir_for_statement.inclusive {
+                    self.push_str("..=");
+                } else {
+                    self.push_str("..");
+                }
                 self.show_hir_expression_id(hir_for_statement.end_range);
                 self.push(' ');
                 self.show_hir_expression_id(hir_for_statement.block);
@@ -712,6 +716,9 @@ impl ItemPrinter<'_, '_> {
             } => {
                 self.push_str("*");
                 self.show_hir_lvalue(*lvalue);
+            }
+            HirLValue::Error { .. } => {
+                unreachable!("error nodes should not happen")
             }
         }
     }

@@ -1,0 +1,20 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 407
+expression: expanded_code
+---
+fn main() -> pub Field {
+    // Safety: comment added by `nargo expand`
+    let result: Field = unsafe { foo() };
+    assert(result == 1_Field);
+    result
+}
+
+unconstrained fn foo() -> Field {
+    bar()
+}
+
+unconstrained fn bar() -> Field {
+    while true {}
+    1_Field
+}

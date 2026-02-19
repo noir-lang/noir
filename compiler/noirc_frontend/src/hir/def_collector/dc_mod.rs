@@ -52,6 +52,11 @@ struct ModCollector<'a> {
 /// Walk a module and collect its definitions.
 ///
 /// This performs the entirety of the definition collection phase of the name resolution pass.
+///
+/// The `reuse_existing_module_declarations` flag is only used by the LSP server to avoid parsing
+/// and processing the file behind `mod foo;` declarations, as when a file is changed those
+/// modules should already exist and they don't need to be reprocessed (they are added as child modules
+/// to `module_id`, though).
 pub fn collect_defs(
     def_collector: &mut DefCollector,
     ast: SortedModule,
@@ -59,15 +64,21 @@ pub fn collect_defs(
     module_id: LocalModuleId,
     crate_id: CrateId,
     context: &mut Context,
+    reuse_existing_module_declarations: bool,
 ) -> Vec<CompilationError> {
     let mut collector = ModCollector { def_collector, file_id, module_id };
     let mut errors: Vec<CompilationError> = vec![];
 
     // First resolve the module declarations
     for decl in ast.module_decls {
-        errors.extend(
-            collector.parse_module_declaration(context, decl, crate_id, file_id, module_id),
-        );
+        errors.extend(collector.parse_module_declaration(
+            context,
+            decl,
+            crate_id,
+            file_id,
+            module_id,
+            reuse_existing_module_declarations,
+        ));
     }
 
     errors.extend(collector.collect_submodules(
@@ -256,7 +267,6 @@ impl ModCollector<'_> {
                 impl_id: None,
                 resolved_object_type: None,
                 resolved_generics: Vec::new(),
-                resolved_trait_generics: Vec::new(),
                 unresolved_associated_types: Vec::new(),
             };
 
@@ -568,7 +578,6 @@ impl ModCollector<'_> {
                             visibility: trait_definition.visibility,
                             // TODO(Maddiaa): Investigate trait implementations with attributes see: https://github.com/noir-lang/noir/issues/2629
                             attributes: crate::token::Attributes::empty(),
-                            is_unconstrained: *is_unconstrained,
                             generic_count: generics.len(),
                             is_comptime: *is_comptime,
                             name_location: location,
@@ -785,6 +794,7 @@ impl ModCollector<'_> {
                             .set_doc_comments(ReferenceId::Module(child), doc_comments);
                     }
 
+                    let reuse_existing_module_declarations = false;
                     errors.extend(collect_defs(
                         self.def_collector,
                         submodule.contents,
@@ -792,12 +802,13 @@ impl ModCollector<'_> {
                         child.local_id,
                         crate_id,
                         context,
+                        reuse_existing_module_declarations,
                     ));
                 }
                 Err(error) => {
                     errors.push(error.into());
                 }
-            };
+            }
         }
         errors
     }
@@ -805,6 +816,12 @@ impl ModCollector<'_> {
     /// Search for a module named `mod_name`
     /// Parse it, add it as a child to the parent module in which it was declared
     /// and then collect all definitions of the child module
+    ///
+    /// If `reuse_existing_module_declarations` is true, this will first check if a module is
+    /// already registered in the CrateDefMap at the file where `mod mod_name;` happens, and reuse
+    /// that module declaration's contents.
+    /// This is only used by LSP when a file is modified, to avoid parsing and type-checking nested modules
+    /// that happen in separate files as these were already parsed and type-checked before.
     #[allow(clippy::too_many_arguments)]
     fn parse_module_declaration(
         &mut self,
@@ -813,6 +830,7 @@ impl ModCollector<'_> {
         crate_id: CrateId,
         parent_file_id: FileId,
         parent_module_id: LocalModuleId,
+        reuse_existing_module_declarations: bool,
     ) -> Vec<CompilationError> {
         let mut doc_comments = mod_decl.doc_comments;
         let mod_decl = mod_decl.item;
@@ -828,6 +846,30 @@ impl ModCollector<'_> {
         };
 
         let location = Location { file: self.file_id, span: mod_decl.ident.span() };
+
+        if reuse_existing_module_declarations {
+            let name = &mod_decl.ident;
+            let existing_child_module_id =
+                self.def_collector.def_map.modules().iter().find_map(|(index, module_data)| {
+                    let file_matches = module_data.location.file == child_file_id;
+                    let module_name = module_data.name.as_ref();
+                    let name_matches =
+                        module_name.is_some_and(|module_name| module_name == name.as_str());
+                    (file_matches && name_matches).then_some(LocalModuleId::new(index))
+                });
+            if let Some(existing_child_module_id) = existing_child_module_id {
+                let parent_module_data = &mut self.def_collector.def_map[parent_module_id];
+                parent_module_data.children.insert(name.clone(), existing_child_module_id);
+                let child_id = ModuleId { krate: crate_id, local_id: existing_child_module_id };
+                let _ = parent_module_data.declare_child_module(
+                    name.clone(),
+                    mod_decl.visibility,
+                    child_id,
+                );
+                context.def_interner.add_module_reference(child_id, location);
+                return errors;
+            }
+        }
 
         if let Some(old_location) = context.visited_files.get(&child_file_id) {
             let error = DefCollectorErrorKind::ModuleAlreadyPartOfCrate {
@@ -885,6 +927,7 @@ impl ModCollector<'_> {
                         .set_doc_comments(ReferenceId::Module(child_mod_id), doc_comments);
                 }
 
+                let reuse_existing_module_declarations = false;
                 errors.extend(collect_defs(
                     self.def_collector,
                     ast,
@@ -892,6 +935,7 @@ impl ModCollector<'_> {
                     child_mod_id.local_id,
                     crate_id,
                     context,
+                    reuse_existing_module_declarations,
                 ));
             }
             Err(error) => {
@@ -943,16 +987,13 @@ impl ModCollector<'_> {
 
         // TODO: delay this to the Elaborator
         // See https://github.com/noir-lang/noir/issues/8504
-        if let UnresolvedTypeData::Named(path, _generics, _) = &typ.typ {
-            if path.segments.len() == 1 {
-                if let Some(primitive_type) =
-                    PrimitiveType::lookup_by_name(path.segments[0].ident.as_str())
-                {
-                    if let Some(typ) = primitive_type.to_integer_or_field() {
-                        return typ;
-                    }
-                }
-            }
+        if let UnresolvedTypeData::Named(path, _generics, _) = &typ.typ
+            && path.segments.len() == 1
+            && let Some(primitive_type) =
+                PrimitiveType::lookup_by_name(path.segments[0].ident.as_str())
+            && let Some(typ) = primitive_type.to_integer_or_field()
+        {
+            return typ;
         }
 
         let error = ResolverError::AssociatedConstantsMustBeNumeric { location: typ.location };
@@ -969,10 +1010,10 @@ fn check_nargo_doc_primitive(crate_id: CrateId, submodule: &SortedSubModule) -> 
     }
 
     submodule.outer_attributes.iter().find_map(|attr| {
-        if let SecondaryAttributeKind::Tag(tag) = &attr.kind {
-            if let Some(primitive) = tag.strip_prefix("nargo_doc_primitive ") {
-                return Some(primitive.to_string());
-            }
+        if let SecondaryAttributeKind::Tag(tag) = &attr.kind
+            && let Some(primitive) = tag.strip_prefix("nargo_doc_primitive ")
+        {
+            return Some(primitive.to_string());
         }
         None
     })
@@ -1003,6 +1044,7 @@ fn push_child_module(
     // so we keep using `location` so that it continues to work as usual.
     let location = Location::new(mod_name.span(), mod_location.file);
     let new_module = ModuleData::new(
+        Some(mod_name.to_string()),
         Some(parent),
         location,
         outer_attributes,
@@ -1067,10 +1109,10 @@ pub fn collect_function(
     doc_comments: Vec<DocComment>,
     errors: &mut Vec<CompilationError>,
 ) -> Option<crate::node_interner::FuncId> {
-    if let Some(field) = function.attributes().get_field_attribute() {
-        if !is_native_field(&field) {
-            return None;
-        }
+    if let Some(field) = function.attributes().get_field_attribute()
+        && !is_native_field(&field)
+    {
+        return None;
     }
 
     let is_crate_root = def_map.root() == module.local_id;
@@ -1097,13 +1139,11 @@ pub fn collect_function(
         interner.register_function(func_id, &function.def);
     }
 
-    if is_entry_point_function {
-        if let Some(generic) = function.def.generics.first() {
-            let name = name.to_string();
-            let location = generic.location();
-            let error = DefCollectorErrorKind::EntryPointWithGenerics { name, location };
-            errors.push(error.into());
-        }
+    if is_entry_point_function && let Some(generic) = function.def.generics.first() {
+        let name = name.to_string();
+        let location = generic.location();
+        let error = DefCollectorErrorKind::EntryPointWithGenerics { name, location };
+        errors.push(error.into());
     }
 
     if !is_test
@@ -1118,20 +1158,19 @@ pub fn collect_function(
 
     interner.set_doc_comments(ReferenceId::Function(func_id), doc_comments);
 
-    if let Some((test_scope, location)) = test_attribute {
-        if function.def.parameters.is_empty()
-            && matches!(test_scope, TestScope::OnlyFailWith { .. })
-        {
-            let error = DefCollectorErrorKind::TestOnlyFailWithWithoutParameters { location };
-            errors.push(error.into());
-        }
+    if let Some((test_scope, location)) = test_attribute
+        && function.def.parameters.is_empty()
+        && matches!(test_scope, TestScope::OnlyFailWith { .. })
+    {
+        let error = DefCollectorErrorKind::TestOnlyFailWithWithoutParameters { location };
+        errors.push(error.into());
     }
 
-    if let Some((_, location)) = fuzz_attribute {
-        if function.def.parameters.is_empty() {
-            let error = DefCollectorErrorKind::FuzzingHarnessWithoutParameters { location };
-            errors.push(error.into());
-        }
+    if let Some((_, location)) = fuzz_attribute
+        && function.def.parameters.is_empty()
+    {
+        let error = DefCollectorErrorKind::FuzzingHarnessWithoutParameters { location };
+        errors.push(error.into());
     }
 
     // Add function to scope/ns of the module
@@ -1222,6 +1261,17 @@ pub fn collect_struct(
     let result = def_map[module_id].declare_type(name.clone(), visibility, id);
 
     let parent_module_id = ModuleId { krate, local_id: module_id };
+
+    // ABI attributes are only meaningful within contracts, so error if used elsewhere.
+    if !def_map[module_id].is_contract {
+        for attr in &unresolved.struct_def.attributes {
+            if matches!(attr.kind, SecondaryAttributeKind::Abi(_)) {
+                definition_errors.push(
+                    ResolverError::AbiAttributeOutsideContract { location: attr.location }.into(),
+                );
+            }
+        }
+    }
 
     let has_allow_dead_code =
         unresolved.struct_def.attributes.iter().any(|attr| attr.kind.is_allow("dead_code"));

@@ -673,7 +673,7 @@ impl BlockContext {
     }
 
     /// Takes scalar from [`super::instruction::Scalar`] and converts it to [`noir_ssa_fuzzer::typed_value::Scalar`]
-    fn ssa_scalar_from_instruction_scalar(&mut self, scalar: InstructionScalar) -> Option<Scalar> {
+    fn ssa_scalar_from_instruction_scalar(&self, scalar: InstructionScalar) -> Option<Scalar> {
         let lo = self.get_stored_variable(&Type::Numeric(NumericType::Field), scalar.field_lo_idx);
         let hi = self.get_stored_variable(&Type::Numeric(NumericType::Field), scalar.field_hi_idx);
         match (lo, hi) {
@@ -684,7 +684,7 @@ impl BlockContext {
 
     /// Takes point from [`super::instruction::Point`] and converts it to [`noir_ssa_fuzzer::typed_value::Point`]
     fn ssa_point_from_instruction_point(
-        &mut self,
+        &self,
         builder: &mut FuzzerBuilder,
         point: InstructionPoint,
     ) -> Option<Point> {
@@ -702,7 +702,7 @@ impl BlockContext {
     }
 
     fn insert_array(
-        &mut self,
+        &self,
         builder: &mut FuzzerBuilder,
         elements_indices: Vec<usize>,
         element_type: Type,
@@ -739,7 +739,7 @@ impl BlockContext {
     /// * TypedValue
     /// * None if the instruction is not enabled or the array is not stored
     fn insert_array_get(
-        &mut self,
+        &self,
         builder: &mut FuzzerBuilder,
         array_index: usize,
         index: TypedValue,
@@ -791,7 +791,7 @@ impl BlockContext {
     /// * TypedValue referencing the new array
     /// * None if the instruction is not enabled or the array is not stored
     fn insert_array_set(
-        &mut self,
+        &self,
         builder: &mut FuzzerBuilder,
         array_index: usize,
         index: TypedValue,

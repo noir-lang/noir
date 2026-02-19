@@ -106,7 +106,7 @@ impl Monomorphizer<'_> {
 
     /// Check the given type conversion that the types are equal, or issue an error if not.
     fn check_transmute(
-        &mut self,
+        &self,
         actual: &Type,
         expected: &Type,
         location: Location,
@@ -269,27 +269,27 @@ impl Monomorphizer<'_> {
         argument_values: &[ast::Expression],
         result_type: &ast::Type,
     ) -> Result<Option<ast::Expression>, MonomorphizationError> {
-        if let ast::Expression::Ident(ident) = func {
-            if let Definition::Builtin(opcode) = &ident.definition {
-                let location = self.interner.expr_location(expr_id);
+        if let ast::Expression::Ident(ident) = func
+            && let Definition::Builtin(opcode) = &ident.definition
+        {
+            let location = self.interner.expr_location(expr_id);
 
-                return Ok(Some(match HandledOpcode::parse(opcode) {
-                    Some(HandledOpcode::CheckedTransmute) => {
-                        assert_eq!(arguments.len(), 1);
-                        let parameter_type = self.interner.id_type(arguments[0]).follow_bindings();
-                        let result_type = self.interner.id_type(expr_id).follow_bindings();
-                        self.check_transmute(&parameter_type, &result_type, location)?;
-                        argument_values[0].clone()
-                    }
-                    Some(HandledOpcode::ModulusBeBits) => self.modulus_be_bits(location),
-                    Some(HandledOpcode::ModulusBeBytes) => self.modulus_be_bytes(location),
-                    Some(HandledOpcode::ModulusLeBits) => self.modulus_le_bits(location),
-                    Some(HandledOpcode::ModulusLeBytes) => self.modulus_le_bytes(location),
-                    Some(HandledOpcode::ModulusNumBits) => Self::modulus_num_bits(location),
-                    Some(HandledOpcode::Zeroed) => self.zeroed_value_of_type(result_type, location),
-                    None => return Ok(None),
-                }));
-            }
+            return Ok(Some(match HandledOpcode::parse(opcode) {
+                Some(HandledOpcode::CheckedTransmute) => {
+                    assert_eq!(arguments.len(), 1);
+                    let parameter_type = self.interner.id_type(arguments[0]).follow_bindings();
+                    let result_type = self.interner.id_type(expr_id).follow_bindings();
+                    self.check_transmute(&parameter_type, &result_type, location)?;
+                    argument_values[0].clone()
+                }
+                Some(HandledOpcode::ModulusBeBits) => self.modulus_be_bits(location),
+                Some(HandledOpcode::ModulusBeBytes) => self.modulus_be_bytes(location),
+                Some(HandledOpcode::ModulusLeBits) => self.modulus_le_bits(location),
+                Some(HandledOpcode::ModulusLeBytes) => self.modulus_le_bytes(location),
+                Some(HandledOpcode::ModulusNumBits) => Self::modulus_num_bits(location),
+                Some(HandledOpcode::Zeroed) => self.zeroed_value_of_type(result_type, location),
+                None => return Ok(None),
+            }));
         }
         Ok(None)
     }

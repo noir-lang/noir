@@ -38,7 +38,7 @@ use crate::{
     token::{MetaAttribute, MetaAttributeName, SecondaryAttribute, SecondaryAttributeKind},
 };
 
-use super::{ElaborateReason, Elaborator, ResolverMeta};
+use super::{ElaborateReason, Elaborator, MAX_MACRO_EXPANSION_DEPTH, ResolverMeta};
 
 /// Context information for the module that an attribute is located and where it should generate items.
 /// These locations differ when attributes are used across module boundaries.
@@ -149,7 +149,7 @@ impl<'context> Elaborator<'context> {
             errors = vecmap(errors, |error| {
                 CompilationError::ComptimeError(reason.to_macro_error(error))
             });
-        };
+        }
 
         self.errors.extend(errors);
         self.comptime_evaluation_halted = elaborator.comptime_evaluation_halted;
@@ -339,19 +339,13 @@ impl<'context> Elaborator<'context> {
         let definition_id = match self.interner.expression(&function) {
             HirExpression::Ident(ident, _) => ident.id,
             _ => {
-                let error = ResolverError::AttributeFunctionIsNotAPath {
-                    function: function_string,
-                    location,
-                };
+                let error =
+                    ResolverError::AttributeFunctionNotInScope { name: function_string, location };
                 return Err(error.into());
             }
         };
 
-        let Some(definition) = self.interner.try_definition(definition_id) else {
-            let error =
-                ResolverError::AttributeFunctionNotInScope { name: function_string, location };
-            return Err(error.into());
-        };
+        let definition = self.interner.definition(definition_id);
 
         let DefinitionKind::Function(function) = definition.kind else {
             return Err(ResolverError::NonFunctionInAnnotation { location }.into());
@@ -383,9 +377,11 @@ impl<'context> Elaborator<'context> {
         location: Location,
         generated_items: &mut CollectedItems,
     ) -> Result<(), CompilationError> {
-        self.local_module = Some(attribute_context.module);
+        // Arguments must be resolved relative to the module where the attribute happens
+        self.local_module = Some(attribute_context.attribute_module);
 
         let mut interpreter = self.setup_interpreter();
+
         let mut arguments = Self::handle_attribute_arguments(
             &mut interpreter,
             &item,
@@ -404,9 +400,12 @@ impl<'context> Elaborator<'context> {
         self.debug_comptime(location, |interner| value.display(interner).to_string());
 
         if value != Value::Unit {
+            // Items must be added in the correct module (for a module attribute, this will be the
+            // module itself; for a function, it will be the module where the function is defined, etc.)
+            self.local_module = Some(attribute_context.module);
+
             let items =
                 value.into_top_level_items(location, self).map_err(CompilationError::from)?;
-
             self.add_items(items, generated_items, location);
         }
 
@@ -526,7 +525,7 @@ impl<'context> Elaborator<'context> {
                 }
 
                 push_arg(interpreter.evaluate(expr_id)?);
-            };
+            }
         }
 
         if is_varargs {
@@ -612,7 +611,6 @@ impl<'context> Elaborator<'context> {
                     impl_id: None,
                     resolved_object_type: None,
                     resolved_generics: Vec::new(),
-                    resolved_trait_generics: Vec::new(),
                     unresolved_associated_types: Vec::new(),
                 });
             }
@@ -737,6 +735,25 @@ impl<'context> Elaborator<'context> {
 
         // Execute each collected attribute
         for attr in attributes_to_run {
+            // Check macro expansion depth to prevent infinite recursion when an attribute
+            // generates code that triggers further attribute expansion (including mutual recursion).
+            //
+            // Note: This check is intentionally here in `run_attributes` rather than in
+            // `run_attribute` because the recursion path is:
+            //   run_attributes -> run_attribute -> elaborate_items -> run_attributes
+            // If we put the increment/decrement in `run_attribute`, the decrement would
+            // happen before `elaborate_items` is called, so the depth counter would reset
+            // before the recursive call and fail to detect the recursion.
+            if self.macro_expansion_depth >= MAX_MACRO_EXPANSION_DEPTH {
+                self.push_err(InterpreterError::AttributeRecursionLimitExceeded {
+                    location: attr.location,
+                });
+                // Halt further elaboration to prevent cascading errors
+                self.comptime_evaluation_halted = true;
+                return;
+            }
+            self.macro_expansion_depth += 1;
+
             let mut generated_items = CollectedItems::default();
             self.elaborate_in_comptime_context(|this| {
                 if let Err(error) = this.run_attribute(
@@ -757,6 +774,8 @@ impl<'context> Elaborator<'context> {
                     elaborator.elaborate_items(generated_items);
                 });
             }
+
+            self.macro_expansion_depth -= 1;
         }
     }
 

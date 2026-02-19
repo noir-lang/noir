@@ -128,11 +128,11 @@ impl<F: AcirField> AcirContext<F> {
             return Ok(());
         }
 
-        if let Some(w) = self.var_to_expression(lhs)?.to_witness() {
-            if self.acir_ir.input_witnesses.contains(&w) {
-                //Input witnesses are not replaced
-                return Ok(());
-            }
+        if let Some(w) = self.var_to_expression(lhs)?.to_witness()
+            && self.acir_ir.input_witnesses.contains(&w)
+        {
+            //Input witnesses are not replaced
+            return Ok(());
         }
 
         let lhs_data = self.vars.remove(&lhs).ok_or_else(|| InternalError::UndeclaredAcirVar {
@@ -511,15 +511,14 @@ impl<F: AcirField> AcirContext<F> {
         &self,
         assert_message: Option<&AssertionPayload<F>>,
     ) -> Option<String> {
-        assert_message.as_ref().and_then(|assertion_payload| {
-            if let Some(ErrorType::String(message)) =
-                self.acir_ir.error_types.get(&ErrorSelector::new(assertion_payload.error_selector))
-            {
-                Some(message.to_string())
-            } else {
-                None
-            }
-        })
+        let assertion_payload = assert_message.as_ref()?;
+        if let Some(ErrorType::String(message)) =
+            self.acir_ir.error_types.get(&ErrorSelector::new(assertion_payload.error_selector))
+        {
+            Some(message.to_string())
+        } else {
+            None
+        }
     }
 
     /// Constrains the `lhs` and `rhs` to be non-equal.
@@ -1081,12 +1080,16 @@ impl<F: AcirField> AcirContext<F> {
         message: Option<String>,
         predicate: AcirVar,
     ) -> Result<AcirVar, RuntimeError> {
-        // If `variable` is constant then we don't need to add a constraint.
-        // We _do_ add a constraint if `variable` would fail the range check however so that we throw an error.
+        let mut return_zero = false;
         if let Some(constant) = self.var_to_expression(variable)?.to_const() {
+            // If `variable` is constant and fits in the bit_size range
+            // then we don't need to add a constraint.
             if constant.num_bits() <= bit_size {
                 return Ok(variable);
             }
+            // The range check is ensured to fail, unless the predicate is false.
+            // In both cases, the return value does not matter and we can return 0.
+            return_zero = true;
         }
         // Under a predicate, a range check must not fail, so we
         // range check `predicate * variable` instead.
@@ -1100,7 +1103,12 @@ impl<F: AcirField> AcirContext<F> {
                 .assertion_payloads
                 .insert(self.acir_ir.last_acir_opcode_location(), payload);
         }
-        Ok(predicate_range)
+        if return_zero {
+            let zero = self.add_constant(F::zero());
+            Ok(zero)
+        } else {
+            Ok(predicate_range)
+        }
     }
 
     /// Returns an `AcirVar` which will be constrained to be lhs mod 2^{rhs}

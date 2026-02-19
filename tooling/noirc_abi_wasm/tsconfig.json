@@ -12,5 +12,6 @@
     "preserveConstEnums": true,
     "sourceMap": true,
     "resolveJsonModule": true,
+    "skipLibCheck": true,
   }
 }

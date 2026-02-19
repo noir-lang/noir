@@ -238,7 +238,7 @@ impl AstPrinter {
         }
     }
 
-    fn next_line(&mut self, f: &mut Formatter) -> std::fmt::Result {
+    fn next_line(&self, f: &mut Formatter) -> std::fmt::Result {
         writeln!(f)?;
         for _ in 0..self.indent_level {
             write!(f, "    ")?;
@@ -261,6 +261,12 @@ impl AstPrinter {
                 write!(f, "@[")?;
                 self.print_comma_separated(&array.contents, f)?;
                 write!(f, "]")
+            }
+            Literal::Repeated { element, length, is_vector, .. } => {
+                let prefix = if *is_vector { "@" } else { "" };
+                write!(f, "{prefix}[")?;
+                self.print_expr(element, f)?;
+                write!(f, "; {length}]")
             }
             Literal::Integer(x, typ, _) => {
                 if self.show_type_of_int_literal && *typ != Type::Field {
@@ -381,7 +387,11 @@ impl AstPrinter {
     ) -> Result<(), std::fmt::Error> {
         write!(f, "for {} in ", self.fmt_local(&for_expr.index_name, for_expr.index_variable))?;
         self.print_expr(&for_expr.start_range, f)?;
-        write!(f, " .. ")?;
+        if for_expr.inclusive {
+            write!(f, " ..= ")?;
+        } else {
+            write!(f, " .. ")?;
+        }
         self.print_expr(&for_expr.end_range, f)?;
         write!(f, " {{")?;
 
@@ -580,10 +590,10 @@ impl AstPrinter {
             (false, None)
         };
 
-        if let Some(special) = special {
-            if self.print_special_call(special, &call.arguments, f)? {
-                return Ok(());
-            }
+        if let Some(special) = special
+            && self.print_special_call(special, &call.arguments, f)?
+        {
+            return Ok(());
         }
 
         if print_unsafe {

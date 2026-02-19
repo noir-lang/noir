@@ -62,11 +62,11 @@ resolver = "2"
 
 [workspace.package]
 # x-release-please-start-version
-version = "1.0.0-beta.18"
+version = "1.0.0-beta.19"
 # x-release-please-end
 authors = ["The Noir Team <team@noir-lang.org>"]
 edition = "2024"
-rust-version = "1.85.0"
+rust-version = "1.89.0"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/noir-lang/noir/"
 
@@ -83,19 +83,25 @@ mismatched_lifetime_syntaxes = "allow"
 [workspace.lints.clippy]
 cast_lossless = "warn"
 semicolon_if_nothing_returned = "warn"
+unnecessary_semicolon = "warn"
 result_large_err = "allow"
 uninlined_format_args = "warn"
+needless_pass_by_ref_mut = "warn"
+non_std_lazy_statics = "warn"
+return_and_then = "warn"
+unnecessary_unwrap = "warn"
+unnecessary_debug_formatting = "warn"
 
 [workspace.dependencies]
 
 # ACVM workspace dependencies
-acir_field = { version = "1.0.0-beta.18", path = "acvm-repo/acir_field", default-features = false }
-acir = { version = "1.0.0-beta.18", path = "acvm-repo/acir", default-features = false }
-acvm = { version = "1.0.0-beta.18", path = "acvm-repo/acvm" }
-brillig = { version = "1.0.0-beta.18", path = "acvm-repo/brillig", default-features = false }
-brillig_vm = { version = "1.0.0-beta.18", path = "acvm-repo/brillig_vm", default-features = false }
-acvm_blackbox_solver = { version = "1.0.0-beta.18", path = "acvm-repo/blackbox_solver", default-features = false }
-bn254_blackbox_solver = { version = "1.0.0-beta.18", path = "acvm-repo/bn254_blackbox_solver", default-features = false }
+acir_field = { version = "1.0.0-beta.19", path = "acvm-repo/acir_field", default-features = false }
+acir = { version = "1.0.0-beta.19", path = "acvm-repo/acir", default-features = false }
+acvm = { version = "1.0.0-beta.19", path = "acvm-repo/acvm" }
+brillig = { version = "1.0.0-beta.19", path = "acvm-repo/brillig", default-features = false }
+brillig_vm = { version = "1.0.0-beta.19", path = "acvm-repo/brillig_vm", default-features = false }
+acvm_blackbox_solver = { version = "1.0.0-beta.19", path = "acvm-repo/blackbox_solver", default-features = false }
+bn254_blackbox_solver = { version = "1.0.0-beta.19", path = "acvm-repo/bn254_blackbox_solver", default-features = false }
 
 # Noir compiler workspace dependencies
 fm = { path = "compiler/fm" }
@@ -189,7 +195,6 @@ bincode = { version = "^2.0.1", features = ["serde"] }
 hex = "0.4.2"
 const_format = "0.2.30"
 indexmap = "^2.10.0"
-lazy_static = "1.4"
 libfuzzer-sys = "0.4"
 num-bigint = "0.4"
 num-traits = "0.2"
@@ -212,7 +217,7 @@ proptest = { version = "1.6.0", default-features = false, features = [
 proptest-derive = "^0.6.0"
 rayon = "1.8.0"
 sha2 = "0.11.0-rc.3"
-sha3 = "0.11.0-rc.3"
+sha3 = "0.11.0-rc.7"
 k256 = "0.14.0-rc.4"
 p256 = "0.14.0-rc.4"
 strum = "0.24"

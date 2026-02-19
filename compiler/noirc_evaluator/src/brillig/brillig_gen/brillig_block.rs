@@ -14,7 +14,7 @@ use crate::ssa::ir::{
     types::{NumericType, Type},
     value::{Value, ValueId},
 };
-use acvm::{FieldElement, acir::AcirField};
+use acvm::{FieldElement, acir::AcirField, acir::brillig::MemoryAddress};
 use iter_extended::vecmap;
 use noirc_errors::call_stack::{CallStackHelper, CallStackId};
 use num_bigint::BigUint;
@@ -68,10 +68,10 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
         let mut live_in_no_globals = HashSet::default();
         for value in live_in {
-            if let Value::NumericConstant { constant, typ } = dfg[*value] {
-                if hoisted_global_constants.contains_key(&(constant, typ)) {
-                    continue;
-                }
+            if let Value::NumericConstant { constant, typ } = dfg[*value]
+                && hoisted_global_constants.contains_key(&(constant, typ))
+            {
+                continue;
             }
             if !dfg.is_global(*value) {
                 live_in_no_globals.insert(*value);
@@ -143,7 +143,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 allocate_value_with_type(self.brillig_context, Type::unsigned(32)).detach();
             self.brillig_context
                 .const_instruction(new_variable.extract_single_addr(), FieldElement::zero());
-        };
+        }
 
         for (id, value) in globals.values_iter() {
             if !used_globals.contains(&id) {
@@ -261,13 +261,45 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             }
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
                 let destination_block = &dfg[*destination];
+                let mut moves: Vec<(MemoryAddress, MemoryAddress)> = Vec::new();
                 for (arg, param) in arguments.iter().zip(destination_block.parameters()) {
-                    // Destinations are block parameters, so they should have been allocated previously in `create_block_params`.
-                    let param = self.variables.get_allocation(self.function_context, *param);
-                    let arg = self.convert_ssa_value(*arg, dfg);
-                    self.brillig_context
-                        .mov_instruction(param.extract_register(), arg.extract_register());
+                    let param_reg = self
+                        .variables
+                        .get_allocation(self.function_context, *param)
+                        .extract_register();
+                    let arg_reg = self.convert_ssa_value(*arg, dfg).extract_register();
+                    moves.push((arg_reg, param_reg));
                 }
+
+                // Block parameter assignments at a jmp must happen "simultaneously".
+                // A naive sequential loop can lose values when a source register
+                // is overwritten by an earlier move in the same batch. For example, with:
+                //   `jmp b1(v1, v2, u32 10)` where b1(v2, v3, v4):
+                // Sequential execution would:
+                //      1. mov reg(v2), reg(v1) — overwrites old v3
+                //      2. mov reg(v3), reg(v2) — reads the NEW v2 instead of old
+                // To prevent this, we save any source that would be overwritten into a
+                // temporary first.
+                let dest_set: HashSet<MemoryAddress> = moves.iter().map(|(_, d)| *d).collect();
+                // `Allocated` automatically deallocates the register when dropped,
+                // so we collect the temporaries here to keep them alive until all
+                // moves have been emitted.
+                let mut temps = Vec::new();
+                for (src, _dst) in &mut moves {
+                    if dest_set.contains(src) {
+                        let temp = self.brillig_context.allocate_register();
+                        self.brillig_context.mov_instruction(*temp, *src);
+                        *src = *temp;
+                        temps.push(temp);
+                    }
+                }
+
+                for (src, dst) in &moves {
+                    if src != dst {
+                        self.brillig_context.mov_instruction(*dst, *src);
+                    }
+                }
+
                 self.brillig_context
                     .jump_instruction(self.create_block_label_for_current_function(*destination));
             }
@@ -397,7 +429,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 self.codegen_make_array(instruction_id, array, typ, dfg);
             }
             Instruction::Noop => (),
-        };
+        }
 
         if !self.building_globals {
             let dead_variables = self
@@ -549,10 +581,10 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         dfg: &DataFlowGraph,
         value_id: ValueId,
     ) -> Option<BrilligVariable> {
-        if let Value::NumericConstant { constant, typ } = &dfg[value_id] {
-            if let Some(variable) = self.hoisted_global_constants.get(&(*constant, *typ)) {
-                return Some(*variable);
-            }
+        if let Value::NumericConstant { constant, typ } = &dfg[value_id]
+            && let Some(variable) = self.hoisted_global_constants.get(&(*constant, *typ))
+        {
+            return Some(*variable);
         }
         None
     }

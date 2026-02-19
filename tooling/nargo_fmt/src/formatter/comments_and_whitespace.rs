@@ -1,4 +1,4 @@
-use noirc_frontend::token::Token;
+use noirc_frontend::{parser::block_comment_has_all_leading_stars, token::Token};
 
 use super::Formatter;
 
@@ -79,7 +79,7 @@ impl Formatter<'_> {
         // Was the last token we processed a block comment?
         let mut last_was_block_comment = false;
 
-        let mut ignore_next = false;
+        let mut ignore_next = self.ignore_next;
 
         loop {
             match &self.token {
@@ -118,6 +118,7 @@ impl Formatter<'_> {
 
                     if comment.trim() == "noir-fmt:ignore" {
                         ignore_next = true;
+                        self.ignore_next = true;
                     }
 
                     // Here we check if we need to write one line, two lines or none after the
@@ -149,6 +150,7 @@ impl Formatter<'_> {
 
                     if comment.trim() == "noir-fmt:ignore" {
                         ignore_next = true;
+                        self.ignore_next = true;
                     }
 
                     // Here we check if we need to write one line, two lines or none after the
@@ -187,7 +189,8 @@ impl Formatter<'_> {
     pub(crate) fn write_line_comment(&mut self, comment: &str, prefix: &str) {
         // We don't wrap lines that start with '#' because these might be
         // markdown headers and wrapping those would actually break them.
-        if !self.config.wrap_comments
+        if self.ignore_next
+            || !self.config.wrap_comments
             || self.in_chunk
             || comment.trim_start().starts_with('#')
             || self.current_line_width() + comment.chars().count() + prefix.len()
@@ -220,11 +223,13 @@ impl Formatter<'_> {
     pub(crate) fn write_block_comment(&mut self, comment: &str, prefix: &str) {
         self.write(prefix);
 
-        if !self.config.wrap_comments || self.in_chunk {
+        if self.ignore_next || !self.config.wrap_comments || self.in_chunk {
             self.write(comment);
             self.write("*/");
             return;
         }
+
+        let all_stars = block_comment_has_all_leading_stars(comment);
 
         if comment.trim_start_matches([' ', '\t']).starts_with('\n') {
             self.start_new_line();
@@ -240,6 +245,9 @@ impl Formatter<'_> {
                     >= self.config.comment_width
                 {
                     self.start_new_line();
+                    if all_stars {
+                        self.write(" * ");
+                    }
                 }
 
                 self.write(word);
@@ -321,11 +329,20 @@ impl Formatter<'_> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Config, assert_format, assert_format_with_config, assert_format_with_max_width};
+    use crate::{
+        Config, assert_format, assert_format_with_config, assert_format_with_max_width,
+        assert_formatter_changes_with_config,
+    };
+    use test_case::test_case;
 
     fn assert_format_wrapping_comments(src: &str, expected: &str, comment_width: usize) {
         let config = Config { wrap_comments: true, comment_width, ..Config::default() };
         assert_format_with_config(src, expected, config);
+    }
+
+    fn assert_formatter_changes_wrapping_comments(src: &str, comment_width: usize) {
+        let config = Config { wrap_comments: true, comment_width, ..Config::default() };
+        assert_formatter_changes_with_config(src, config);
     }
 
     #[test]
@@ -1050,8 +1067,8 @@ global x: Field = 1;
 global x: Field = 1;
         ";
         let expected = "/* This is a long comment
-that's going to be wrapped.
-*/
+ * that's going to be
+ * wrapped. */
 global x: Field = 1;
 ";
         assert_format_wrapping_comments(src, expected, 29);
@@ -1064,7 +1081,7 @@ global x: Field = 1;
 global x: Field = 1;
         ";
         let expected = "/* This is a long comment
-that's wrapped. */
+ * that's wrapped. */
 global x: Field = 1;
 ";
         assert_format_wrapping_comments(src, expected, 29);
@@ -1077,7 +1094,7 @@ global x: Field = 1;
 global x: Field = 1;
         ";
         let expected = "/* This is a long comment
-that will be wrapped. */
+ * that will be wrapped. */
 global x: Field = 1;
 ";
         assert_format_wrapping_comments(src, expected, 29);
@@ -1115,6 +1132,26 @@ that's wrapped.
 This is a long comment
 that's wrapped.
 */
+global x: Field = 1;
+";
+        assert_format_wrapping_comments(src, expected, 29);
+    }
+
+    #[test]
+    fn wraps_block_comments_multiple_lines_with_all_stars() {
+        let src = "
+/*  
+ * This is a long comment that's wrapped.
+ * This is a long comment that's wrapped.
+ */
+global x: Field = 1;
+        ";
+        let expected = "/*
+ * This is a long comment
+ * that's wrapped.
+ * This is a long comment
+ * that's wrapped.
+ */
 global x: Field = 1;
 ";
         assert_format_wrapping_comments(src, expected, 29);
@@ -1190,5 +1227,55 @@ global x: Field = 1;
         let src = "global x: Field = 1;\n\n\n";
         let expected = "global x: Field = 1;\n";
         assert_format(src, expected);
+    }
+
+    #[test]
+    fn block_comment_trailing_spaces_bug() {
+        // Note: there are three trailing spaces after "one"
+        let src = "fn foo() {
+    /*
+    * one   
+    * two
+    */
+}
+";
+        // Here the trailing spaces are gone
+        let expected = "fn foo() {
+    /*
+    * one
+    * two
+    */
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test_case("//", "" ; "line comment")]
+    #[test_case("/*", " */" ; "block comment")]
+    #[test_case("///", "" ; "outer doc line comment")]
+    #[test_case("/**", " */" ; "outer doc block comment")]
+    fn does_not_wrap_outer_comment_if_directed_to_ignore(prefix: &str, suffix: &str) {
+        let comment = format!(
+            r#"{prefix} This is a long comment that's going to be wrapped.{suffix}
+{prefix} This is a long comment that's going to be wrapped.{suffix}
+global x: Field = 1;
+"#
+        );
+        assert_formatter_changes_wrapping_comments(&comment, 29);
+        let ignored_comment = format!("// noir-fmt:ignore\n{comment}");
+        assert_format_wrapping_comments(&ignored_comment, &ignored_comment, 29);
+    }
+
+    #[test_case("//!", "" ; "inner doc line comment")]
+    #[test_case("/*!", " */" ; "inner doc block comment")]
+    fn does_not_wrap_inner_comment_if_directed_to_ignore(prefix: &str, suffix: &str) {
+        let comment = format!(
+            r#"{prefix} This is a long comment that's going to be wrapped.{suffix}
+{prefix} This is a long comment that's going to be wrapped.{suffix}
+"#
+        );
+        assert_formatter_changes_wrapping_comments(&comment, 29);
+        let ignored_comment = format!("// noir-fmt:ignore\n{comment}");
+        assert_format_wrapping_comments(&ignored_comment, &ignored_comment, 29);
     }
 }

@@ -28,6 +28,8 @@ pub enum ParserErrorReason {
     UnconstrainedNotFollowedByAnItem,
     #[error("`comptime` is not followed by an item")]
     ComptimeNotFollowedByAnItem,
+    #[error("`mut` is not followed by an item")]
+    MutableNotFollowedByAnItem,
     #[error("`mut` cannot be applied to this item")]
     MutableNotApplicable,
     #[error("`comptime` cannot be applied to this item")]
@@ -125,6 +127,8 @@ pub enum ParserErrorReason {
         "type expression is not allowed for type aliases (Is this a numeric type alias? If so, the numeric type must be specified with `: <type>`"
     )]
     UnexpectedTypeExpressionInTypeAlias,
+    #[error("`dep::{0}` path is deprecated, please use `::{0}` instead")]
+    DeprecatedDep(String),
 }
 
 /// Represents a parsing error, or a parsing error in the making.
@@ -325,6 +329,11 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                     "Provide a type for the associated constant: `: u32`".to_string(),
                     error.location,
                 ),
+                ParserErrorReason::DeprecatedDep(name) => {
+                    let primary = format!("`dep::{name}` path is deprecated");
+                    let secondary = format!("Please use `::{name}` instead");
+                    Diagnostic::simple_warning(primary, secondary, error.location())
+                }
                 other => {
                     Diagnostic::simple_error(format!("{other}"), String::new(), error.location())
                 }

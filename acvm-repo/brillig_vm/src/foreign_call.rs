@@ -193,7 +193,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
             // Check that the sequence of value types fit an integer number of
             // times inside the given size.
             assert!(
-                0 == size % assert_u32(value_types.len()),
+                size.is_multiple_of(assert_u32(value_types.len())),
                 "array/vector does not contain a whole number of elements"
             );
 
@@ -366,7 +366,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                         self.memory.write(*size_addr, assert_u32(values.len()).into());
                         self.write_values_to_memory(*pointer, values, value_types)?;
                     } else {
-                        unimplemented!("deflattening heap vectors from foreign calls");
+                        unreachable!("deflattening heap vectors from foreign calls");
                     }
                 }
                 _ => {

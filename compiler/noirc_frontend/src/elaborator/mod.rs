@@ -83,6 +83,7 @@ use crate::{
         DependencyId, GlobalId, NodeInterner, TraitId, TraitImplId, TypeAliasId, TypeId,
     },
     parser::{ParserError, ParserErrorReason},
+    recursion::TypeRecursionContext,
 };
 use crate::{
     graph::CrateGraph, hir::def_collector::dc_crate::UnresolvedTrait, usage_tracker::UsageTracker,
@@ -111,6 +112,7 @@ mod unquote;
 mod variable;
 mod visibility;
 
+use self::traits::check_trait_impl_method_matches_declaration;
 use function_context::FunctionContext;
 use noirc_errors::Location;
 pub(crate) use options::ElaboratorOptions;
@@ -119,8 +121,6 @@ pub use path_resolution::Turbofish;
 use path_resolution::{
     PathResolution, PathResolutionItem, PathResolutionMode, PathResolutionTarget,
 };
-
-use self::traits::check_trait_impl_method_matches_declaration;
 pub(crate) use path_resolution::{TypedPath, TypedPathSegment};
 pub use primitive_types::PrimitiveType;
 
@@ -136,6 +136,16 @@ pub use primitive_types::PrimitiveType;
 ///
 /// Note that if we increase this, currently we would hit the `MAX_EVALUATION_DEPTH`.
 const MAX_INTERPRETER_CALL_STACK_SIZE: usize = 100;
+
+/// Maximum depth of macro expansion (attribute execution).
+///
+/// This prevents infinite recursion when an attribute generates code that
+/// triggers further attribute expansion, which would otherwise cause a
+/// Rust stack overflow.
+///
+/// This limit is lower than the [interpreter call stack limit][MAX_INTERPRETER_CALL_STACK_SIZE] because macro
+/// expansion involves more stack frames per level (elaboration, comptime evaluation, etc.).
+pub(crate) const MAX_MACRO_EXPANSION_DEPTH: usize = 32;
 
 /// ResolverMetas are tagged onto each definition to track how many times they are used
 #[derive(Debug, PartialEq, Eq)]
@@ -276,6 +286,11 @@ pub struct Elaborator<'context> {
     /// Set to true when the interpreter encounters an errored expression/statement,
     /// causing all subsequent comptime evaluation to be skipped.
     pub(crate) comptime_evaluation_halted: bool,
+
+    /// Tracks the current macro expansion depth to prevent infinite recursion
+    /// when an attribute generates code that triggers further attribute expansion.
+    /// This is a global counter that catches both single-function and mutual recursion.
+    pub(crate) macro_expansion_depth: usize,
 }
 
 #[derive(Copy, Clone)]
@@ -345,6 +360,7 @@ impl<'context> Elaborator<'context> {
             options,
             elaborate_reasons,
             comptime_evaluation_halted: false,
+            macro_expansion_depth: 0,
         }
     }
 
@@ -527,44 +543,70 @@ impl<'context> Elaborator<'context> {
     }
 
     fn mark_type_as_used(&mut self, typ: &Type) {
+        self.mark_type_as_used_helper(typ, TypeRecursionContext::default());
+    }
+
+    fn mark_type_as_used_helper(
+        &mut self,
+        typ: &Type,
+        mut type_recursion_context: TypeRecursionContext,
+    ) {
         match typ {
-            Type::Array(_n, typ) => self.mark_type_as_used(typ),
-            Type::Vector(typ) => self.mark_type_as_used(typ),
+            Type::Array(_n, typ) => {
+                self.mark_type_as_used_helper(typ, type_recursion_context.recur());
+            }
+            Type::Vector(typ) => self.mark_type_as_used_helper(typ, type_recursion_context.recur()),
             Type::Tuple(types) => {
                 for typ in types {
-                    self.mark_type_as_used(typ);
+                    self.mark_type_as_used_helper(typ, type_recursion_context.clone().recur());
                 }
             }
             Type::DataType(datatype, generics) => {
-                self.mark_struct_as_constructed(datatype.clone());
-                for generic in generics {
-                    self.mark_type_as_used(generic);
-                }
-                if let Some(fields) = datatype.borrow().get_fields(generics) {
-                    for (_, typ, _) in fields {
-                        self.mark_type_as_used(&typ);
+                if type_recursion_context.insert_data_type(datatype.borrow().id, generics.clone()) {
+                    self.mark_struct_as_constructed(datatype.clone());
+                    for generic in generics {
+                        self.mark_type_as_used_helper(
+                            generic,
+                            type_recursion_context.clone().recur(),
+                        );
                     }
-                } else if let Some(variants) = datatype.borrow().get_variants(generics) {
-                    for (_, variant_types) in variants {
-                        for typ in variant_types {
-                            self.mark_type_as_used(&typ);
+                    if let Some(fields) = datatype.borrow().get_fields(generics) {
+                        for (_, typ, _) in fields {
+                            self.mark_type_as_used_helper(
+                                &typ,
+                                type_recursion_context.clone().recur(),
+                            );
+                        }
+                    } else if let Some(variants) = datatype.borrow().get_variants(generics) {
+                        for (_, variant_types) in variants {
+                            for typ in variant_types {
+                                self.mark_type_as_used_helper(
+                                    &typ,
+                                    type_recursion_context.clone().recur(),
+                                );
+                            }
                         }
                     }
                 }
             }
             Type::Alias(alias_type, generics) => {
-                self.mark_type_as_used(&alias_type.borrow().get_type(generics));
+                if type_recursion_context.insert_alias(alias_type.borrow().id, generics.clone()) {
+                    self.mark_type_as_used_helper(
+                        &alias_type.borrow().get_type(generics),
+                        type_recursion_context.recur(),
+                    );
+                }
             }
             Type::CheckedCast { from, to } => {
-                self.mark_type_as_used(from);
-                self.mark_type_as_used(to);
+                self.mark_type_as_used_helper(from, type_recursion_context.clone().recur());
+                self.mark_type_as_used_helper(to, type_recursion_context.recur());
             }
             Type::Reference(typ, _) => {
-                self.mark_type_as_used(typ);
+                self.mark_type_as_used_helper(typ, type_recursion_context.recur());
             }
             Type::InfixExpr(left, _op, right, _) => {
-                self.mark_type_as_used(left);
-                self.mark_type_as_used(right);
+                self.mark_type_as_used_helper(left, type_recursion_context.clone().recur());
+                self.mark_type_as_used_helper(right, type_recursion_context.recur());
             }
             Type::FieldElement
             | Type::Integer(..)
@@ -713,7 +755,7 @@ impl<'context> Elaborator<'context> {
 
         let in_unconstrained_function = self.current_item.is_some_and(|id| {
             if let DependencyId::Function(id) = id {
-                self.interner.function_modifiers(&id).is_unconstrained
+                self.interner.function_meta(&id).is_unconstrained()
             } else {
                 false
             }
@@ -813,6 +855,8 @@ pub mod test_utils {
     /// Interpret source code using the elaborator, without
     /// parsing and compiling it with nargo, converting
     /// the result into a monomorphized AST expression.
+    ///
+    /// The source is treated as root and stdlib, so stdlib snippets are allowed.
     pub fn interpret<W: Write + 'static>(
         src: &str,
         output: Rc<RefCell<W>>,
@@ -837,6 +881,7 @@ pub mod test_utils {
         let location = Location::new(Default::default(), file);
         let root_module = ModuleData::new(
             None,
+            None,
             location,
             Vec::new(),
             Vec::new(),
@@ -850,7 +895,7 @@ pub mod test_utils {
         context.def_interner.populate_dummy_operator_traits();
         context.set_comptime_printing(output);
 
-        let krate = context.crate_graph.add_crate_root(FileId::dummy());
+        let krate = context.crate_graph.add_crate_root_and_stdlib(FileId::dummy());
 
         let (module, errors) = parse_program(src, file);
         // Skip parser warnings
@@ -864,8 +909,17 @@ pub mod test_utils {
         let def_map = CrateDefMap::new(krate, root_module);
         let root_module_id = def_map.root();
         let mut collector = DefCollector::new(def_map);
+        let reuse_existing_module_declarations = false;
 
-        collect_defs(&mut collector, ast, FileId::dummy(), root_module_id, krate, &mut context);
+        collect_defs(
+            &mut collector,
+            ast,
+            FileId::dummy(),
+            root_module_id,
+            krate,
+            &mut context,
+            reuse_existing_module_declarations,
+        );
         context.def_maps.insert(krate, collector.def_map);
 
         let main = context.get_main_function(&krate).expect("Expected 'main' function");

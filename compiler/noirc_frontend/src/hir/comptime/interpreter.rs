@@ -41,7 +41,6 @@ use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
 
-use crate::TypeVariable;
 use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, UnaryOp};
 use crate::elaborator::{ElaborateReason, Elaborator, ElaboratorOptions};
 use crate::hir::Context;
@@ -54,7 +53,7 @@ use crate::monomorphization::{
     undo_instantiation_bindings,
 };
 use crate::node_interner::GlobalValue;
-use crate::shared::Signedness;
+use crate::shared::{ForeignCall, Signedness};
 use crate::signed_field::SignedField;
 use crate::token::{FmtStrFragment, Tokens};
 use crate::{
@@ -75,6 +74,7 @@ use crate::{
     },
     node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, StmtId},
 };
+use crate::{TypeVariable, UnificationError};
 
 use super::errors::{IResult, InterpreterError};
 use super::value::{Closure, Value, unwrap_rc};
@@ -318,7 +318,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         } else if let Some(foreign) = func_attrs.foreign() {
             self.call_foreign(foreign.clone().as_str(), arguments, return_type, location)
         } else if let Some(oracle) = func_attrs.oracle() {
-            if oracle == "print" {
+            if let Some(ForeignCall::Print) = ForeignCall::lookup(oracle) {
                 self.print_oracle(arguments)
             // Ignore debugger functions
             } else if oracle.starts_with("__debug") {
@@ -575,11 +575,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     /// Mutate an existing variable, potentially from a prior scope
     fn mutate(&mut self, id: DefinitionId, argument: Value, location: Location) -> IResult<()> {
-        // If the id is a dummy, assume the error was already issued elsewhere
-        if id == DefinitionId::dummy_id() {
-            return Ok(());
-        }
-
         for scope in self.elaborator.interner.comptime_scopes.iter_mut().rev() {
             if let Entry::Occupied(mut entry) = scope.entry(id) {
                 match entry.get() {
@@ -612,12 +607,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             }
         }
 
-        if id == DefinitionId::dummy_id() {
-            Err(InterpreterError::VariableNotInScope { location })
-        } else {
-            let name = self.elaborator.interner.definition_name(id).to_string();
-            Err(InterpreterError::NonComptimeVarReferenced { name, location })
-        }
+        let name = self.elaborator.interner.definition_name(id).to_string();
+        Err(InterpreterError::NonComptimeVarReferenced { name, location })
     }
 
     /// Evaluate an expression and return the result.
@@ -690,10 +681,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     /// Evaluates a variable
     pub(super) fn evaluate_ident(&mut self, ident: HirIdent, id: ExprId) -> IResult<Value> {
-        let definition = self.elaborator.interner.try_definition(ident.id).ok_or_else(|| {
-            let location = self.elaborator.interner.expr_location(&id);
-            InterpreterError::VariableNotInScope { location }
-        })?;
+        let definition = self.elaborator.interner.definition(ident.id);
 
         if let ImplKind::TraitItem(item) = ident.impl_kind {
             return self.evaluate_trait_item(item, id);
@@ -1156,14 +1144,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         });
                     result = self.evaluate(expr)?;
 
-                    // Macro calls are typed as type variables during type checking.
-                    // Now that we know the type we need to further unify it in case there
-                    // are inconsistencies or the type needs to be known.
-                    // We don't commit any type bindings made this way in case the type of
-                    // the macro result changes across loop iterations.
-                    let expected_type = self.elaborator.interner.id_type(id);
-                    let actual_type = result.get_type();
-                    self.unify_without_binding(&actual_type, &expected_type, location);
+                    self.unify_macro_call_result_with_expected_type(id, location, &result);
                 }
                 Ok(result)
             }
@@ -1175,17 +1156,45 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
     }
 
-    /// This function is used by the interpreter for some comptime code
-    /// which can change types e.g. on each iteration of a for loop.
-    fn unify_without_binding(&mut self, actual: &Type, expected: &Type, location: Location) {
+    /// Macro calls are typed as type variables during type checking.
+    /// Once we know their type we need to further  unify it in case there
+    /// are inconsistencies or the type needs to be known.
+    fn unify_macro_call_result_with_expected_type(
+        &mut self,
+        id: ExprId,
+        location: Location,
+        result: &Value,
+    ) {
+        let expected_type = self.elaborator.interner.id_type(id);
+        let actual_type = result.get_type();
+
+        // Undo any bindings (if any) from the last time we unified this expression's
+        // type against the actual type
+        if let Some(bindings) = self.elaborator.interner.macro_call_expression_bindings.remove(&id)
+        {
+            for (var, kind, _typ) in bindings.values() {
+                var.unbind(var.id(), kind.clone());
+            }
+        }
+
         let mut bindings = TypeBindings::default();
-        if actual.try_unify(expected, &mut bindings).is_err() {
-            let error = TypeCheckError::TypeMismatch {
-                expected_typ: expected.to_string(),
-                expr_typ: actual.to_string(),
-                expr_location: location,
-            };
-            self.elaborator.push_err(error);
+        match actual_type.try_unify(&expected_type, &mut bindings) {
+            Ok(()) => {
+                // Store the bindings so we can undo them next time
+                self.elaborator
+                    .interner
+                    .macro_call_expression_bindings
+                    .insert(id, bindings.clone());
+                Type::apply_type_bindings(bindings);
+            }
+            Err(UnificationError) => {
+                let error = TypeCheckError::TypeMismatch {
+                    expected_typ: expected_type.to_string(),
+                    expr_typ: actual_type.to_string(),
+                    expr_location: location,
+                };
+                self.elaborator.push_err(error);
+            }
         }
     }
 
@@ -1234,7 +1243,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         Ok(Value::Tuple(fields))
     }
 
-    fn evaluate_lambda(&mut self, lambda: HirLambda, id: ExprId) -> IResult<Value> {
+    fn evaluate_lambda(&self, lambda: HirLambda, id: ExprId) -> IResult<Value> {
         let location = self.elaborator.interner.expr_location(&id);
         let env = try_vecmap(&lambda.captures, |capture| {
             let value = self.lookup_id(capture.ident.id, location)?;
@@ -1385,6 +1394,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let new_array = constructor(elements.update(index, rhs), typ);
                 self.store_lvalue(*array, new_array)
             }
+            HirLValue::Error { location } => Err(InterpreterError::VariableNotInScope { location }),
         }
     }
 
@@ -1476,6 +1486,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let (elements, index) = bounds_check(array, index, *location)?;
                 Ok(elements[index].clone())
             }
+            HirLValue::Error { location } => {
+                Err(InterpreterError::VariableNotInScope { location: *location })
+            }
         }
     }
 
@@ -1508,7 +1521,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             let start = to_i128(start_value).expect("Checked above that value is signed type");
             let end = to_i128(end_value).expect("Checked above that types match");
 
-            self.evaluate_for_loop(start..end, get_index, for_.identifier.id, for_.block)
+            if for_.inclusive {
+                self.evaluate_for_loop(start..=end, get_index, for_.identifier.id, for_.block)
+            } else {
+                self.evaluate_for_loop(start..end, get_index, for_.identifier.id, for_.block)
+            }
         } else if start_type.is_unsigned() {
             let get_index = match start_value {
                 Value::U1(_) => |i| Value::U1(i == 1),
@@ -1524,7 +1541,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             let start = to_u128(start_value).expect("Checked above that value is unsigned type");
             let end = to_u128(end_value).expect("Checked above that types match");
 
-            self.evaluate_for_loop(start..end, get_index, for_.identifier.id, for_.block)
+            if for_.inclusive {
+                self.evaluate_for_loop(start..=end, get_index, for_.identifier.id, for_.block)
+            } else {
+                self.evaluate_for_loop(start..end, get_index, for_.identifier.id, for_.block)
+            }
         } else {
             let location = self.elaborator.interner.expr_location(&for_.start_range);
             let typ = start_type.into_owned();
@@ -1650,7 +1671,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
     }
 
-    fn evaluate_break(&mut self, id: StmtId) -> IResult<Value> {
+    fn evaluate_break(&self, id: StmtId) -> IResult<Value> {
         if self.in_loop {
             Err(InterpreterError::Break)
         } else {
@@ -1659,7 +1680,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
     }
 
-    fn evaluate_continue(&mut self, id: StmtId) -> IResult<Value> {
+    fn evaluate_continue(&self, id: StmtId) -> IResult<Value> {
         if self.in_loop {
             Err(InterpreterError::Continue)
         } else {
@@ -1672,10 +1693,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         self.evaluate_statement(statement)
     }
 
-    fn print_oracle(
-        &mut self,
-        arguments: Vec<(Value, Location)>,
-    ) -> Result<Value, InterpreterError> {
+    fn print_oracle(&self, arguments: Vec<(Value, Location)>) -> Result<Value, InterpreterError> {
         assert_eq!(arguments.len(), 2);
 
         let Some(output) = self.elaborator.interpreter_output else {

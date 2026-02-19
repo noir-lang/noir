@@ -14,7 +14,8 @@ use crate::hir::resolution::visibility::item_in_module_is_visible;
 
 use crate::locations::ReferencesTracker;
 use crate::node_interner::{
-    FuncId, GlobalId, NodeInterner, TraitAssociatedTypeId, TraitId, TypeAliasId, TypeId,
+    DefinitionId, FuncId, GlobalId, NodeInterner, TraitAssociatedTypeId, TraitId, TypeAliasId,
+    TypeId,
 };
 use crate::{Shared, Type, TypeAlias};
 
@@ -59,6 +60,8 @@ pub(crate) enum PathResolutionItem {
     TypeTraitFunction(Type, TraitId, FuncId),
     /// A function call on a primitive type, for example `u64::from(...)` or `u64::<A, B>::from(..)`.
     PrimitiveFunction(PrimitiveType, Option<Turbofish>, FuncId),
+    /// An associated constant accessed via Type::CONSTANT syntax, for example `Foo::N`.
+    TraitConstant(TypeId, TraitId, DefinitionId),
 }
 
 impl PathResolutionItem {
@@ -78,7 +81,8 @@ impl PathResolutionItem {
             | PathResolutionItem::PrimitiveType(..)
             | PathResolutionItem::Trait(..)
             | PathResolutionItem::TraitAssociatedType(..)
-            | PathResolutionItem::Global(..) => None,
+            | PathResolutionItem::Global(..)
+            | PathResolutionItem::TraitConstant(..) => None,
         }
     }
 
@@ -129,6 +133,16 @@ impl PathResolutionItem {
             | PathResolutionItem::PrimitiveFunction(_, _, func_id) => {
                 let name = interner.function_name(func_id);
                 format!("function `{name}`")
+            }
+            PathResolutionItem::TraitConstant(type_id, trait_id, def_id) => {
+                let datatype = interner.get_type(*type_id);
+                let datatype = datatype.borrow();
+                let trait_ = interner.get_trait(*trait_id);
+                let def_info = interner.definition(*def_id);
+                format!(
+                    "associated constant `{}` from trait `{}` on type `{}`",
+                    def_info.name, trait_.name, datatype.name
+                )
             }
         }
     }
@@ -243,7 +257,7 @@ impl TypedPath {
     /// Construct a [PathKind::Plain] from a single identifier segment.
     pub fn from_ident(name: Ident) -> TypedPath {
         let location = name.location();
-        let segment = TypedPathSegment { ident: name, generics: None, location };
+        let segment = TypedPathSegment::without_generics(name, location);
         TypedPath::plain(vec![segment], location)
     }
 
@@ -311,6 +325,10 @@ pub struct TypedPathSegment {
 }
 
 impl TypedPathSegment {
+    pub(crate) fn without_generics(ident: Ident, location: Location) -> TypedPathSegment {
+        TypedPathSegment { ident, generics: None, location }
+    }
+
     /// Returns the span where turbofish can happen. For example:
     ///
     /// ```noir
@@ -420,20 +438,21 @@ impl Elaborator<'_> {
         let mut module_id = self.module_id();
         let mut intermediate_item = IntermediatePathResolutionItem::Module;
 
-        if path.kind == PathKind::Plain && path.first_name() == Some(SELF_TYPE_NAME) {
-            if let Some(Type::DataType(datatype, _)) = &self.self_type {
-                let datatype = datatype.borrow();
-                if path.segments.len() == 1 {
-                    return Ok(PathResolution {
-                        item: PathResolutionItem::Type(datatype.id),
-                        errors: Vec::new(),
-                    });
-                }
-
-                module_id = datatype.id.module_id();
-                path.segments.remove(0);
-                intermediate_item = IntermediatePathResolutionItem::SelfType;
+        if path.kind == PathKind::Plain
+            && path.first_name() == Some(SELF_TYPE_NAME)
+            && let Some(Type::DataType(datatype, _)) = &self.self_type
+        {
+            let datatype = datatype.borrow();
+            if path.segments.len() == 1 {
+                return Ok(PathResolution {
+                    item: PathResolutionItem::Type(datatype.id),
+                    errors: Vec::new(),
+                });
             }
+
+            module_id = datatype.id.module_id();
+            path.segments.remove(0);
+            intermediate_item = IntermediatePathResolutionItem::SelfType;
         }
 
         let last_segment_turbofish_location = path
@@ -471,7 +490,8 @@ impl Elaborator<'_> {
                 | PathResolutionItem::TypeAliasFunction(..)
                 | PathResolutionItem::TraitFunction(..)
                 | PathResolutionItem::TypeTraitFunction(..)
-                | PathResolutionItem::PrimitiveFunction(..) => (),
+                | PathResolutionItem::PrimitiveFunction(..)
+                | PathResolutionItem::TraitConstant(..) => (),
             }
             resolution
         })
@@ -641,11 +661,21 @@ impl Elaborator<'_> {
             // Check if namespace
             let found_ns = if current_module_id_is_type {
                 match self.resolve_method(importing_module, current_module, current_ident) {
-                    MethodLookupResult::NotFound(vec) => {
-                        if vec.is_empty() {
+                    MethodLookupResult::NotFound(method_traits) => {
+                        // Before returning an error, try to look up as an associated constant
+                        if let Some(result) = self.try_resolve_trait_constant(
+                            &intermediate_item,
+                            current_ident,
+                            importing_module,
+                        ) {
+                            return result.map(|item| PathResolution { item, errors });
+                        }
+
+                        // Fall back to the original error handling
+                        if method_traits.is_empty() {
                             return Err(PathResolutionError::Unresolved(current_ident.clone()));
                         } else {
-                            let traits = vecmap(vec, |trait_id| {
+                            let traits = vecmap(method_traits, |trait_id| {
                                 let trait_ = self.interner.get_trait(trait_id);
                                 self.fully_qualified_trait_path(trait_)
                             });
@@ -789,7 +819,7 @@ impl Elaborator<'_> {
             let trait_id = trait_id.expect("The None option was already considered before");
             if let Some(name) = starting_module.find_trait_in_scope(trait_id) {
                 results.push((trait_id, name, item));
-            };
+            }
         }
 
         if results.is_empty() {
@@ -815,6 +845,72 @@ impl Elaborator<'_> {
         let (_, name, item) = results.remove(0);
         let per_ns = PerNs { types: None, values: Some(*item) };
         MethodLookupResult::FoundTraitMethod(per_ns, name.clone())
+    }
+
+    /// Try to resolve an identifier as a trait associated constant (e.g., `Foo::N`).
+    ///
+    /// Returns `Some(Ok(PathResolutionItem))` if the constant was found,
+    /// `Some(Err(PathResolutionError))` if there's an ambiguity error,
+    /// or `None` if no matching constant was found.
+    fn try_resolve_trait_constant(
+        &self,
+        intermediate_item: &IntermediatePathResolutionItem,
+        ident: &Ident,
+        importing_module: ModuleId,
+    ) -> Option<Result<PathResolutionItem, PathResolutionError>> {
+        // Extract type info
+        let (type_id, turbofish) = match intermediate_item {
+            IntermediatePathResolutionItem::Type(id, turbofish) => (*id, turbofish),
+            _ => return None,
+        };
+        let datatype = self.interner.get_type(type_id);
+        // Use concrete types from turbofish if present, otherwise fresh type variables
+        let generics = if let Some(turbofish) = turbofish {
+            turbofish.generics.iter().map(|t| t.contents.clone()).collect()
+        } else {
+            datatype.borrow().generic_types()
+        };
+        let self_type = Type::DataType(datatype, generics);
+
+        // Look up constants matching the identifier
+        let constants =
+            self.interner.lookup_trait_impl_constants_for_type(&self_type, ident.as_str());
+
+        if constants.is_empty() {
+            return None;
+        }
+
+        // Filter to traits that are in scope
+        let starting_module = self.get_module(importing_module);
+        let in_scope: Vec<_> = constants
+            .iter()
+            .filter(|(_, trait_id, _)| starting_module.find_trait_in_scope(*trait_id).is_some())
+            .collect();
+
+        match in_scope.len() {
+            0 => {
+                // Constants exist but none of their traits are in scope
+                // Return None to fall through to the method error handling,
+                // which will suggest importing the traits
+                None
+            }
+            1 => {
+                // Exactly one matching constant with trait in scope
+                let (def_id, trait_id, _impl_id) = in_scope[0];
+                Some(Ok(PathResolutionItem::TraitConstant(type_id, *trait_id, *def_id)))
+            }
+            _ => {
+                // Multiple traits in scope have the same constant - ambiguous
+                let traits = vecmap(&in_scope, |(_, trait_id, _)| {
+                    let trait_ = self.interner.get_trait(*trait_id);
+                    self.fully_qualified_trait_path(trait_)
+                });
+                Some(Err(PathResolutionError::MultipleTraitsInScope {
+                    ident: ident.clone(),
+                    traits,
+                }))
+            }
+        }
     }
 
     /// Try to resolve a path with 1 or 2 segments as a [PathResolutionItem::PrimitiveType] or [PathResolutionItem::PrimitiveFunction].
@@ -869,7 +965,7 @@ impl Elaborator<'_> {
         for (func_id, trait_id) in &trait_methods {
             if let Some(name) = starting_module.find_trait_in_scope(*trait_id) {
                 results.push((*trait_id, *func_id, name));
-            };
+            }
         }
 
         if results.is_empty() {

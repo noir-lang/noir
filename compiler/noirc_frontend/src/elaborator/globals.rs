@@ -21,10 +21,9 @@
 //! must be elaborated first. It is assumed that the caller of this module has enforced elaborating globals in their dependency order.
 
 use crate::{
-    Type,
     ast::Pattern,
     hir::{def_collector::dc_crate::UnresolvedGlobal, resolution::errors::ResolverError},
-    hir_def::stmt::HirStatement,
+    hir_def::{expr::HirExpression, stmt::HirStatement},
     node_interner::{DependencyId, GlobalId, GlobalValue},
     token::SecondaryAttributeKind,
 };
@@ -70,7 +69,6 @@ impl Elaborator<'_> {
         };
 
         let location = let_stmt.pattern.location();
-        let type_location = let_stmt.r#type.as_ref().map(|typ| typ.location).unwrap_or(location);
 
         // ABI attributes are only meaningful within contracts, so error if used elsewhere.
         if !self.in_contract() {
@@ -89,21 +87,12 @@ impl Elaborator<'_> {
             self.push_err(ResolverError::MutableGlobal { location });
         }
 
-        // Elaborate the let statement in a comptime context. This ensures that the expression
-        // is type-checked and converted to HIR.
-        let (let_statement, _typ) = self
-            .elaborate_in_comptime_context(|this| this.elaborate_let(let_stmt, Some(global_id)));
+        let (let_statement, _typ) = self.elaborate_let(let_stmt, Some(global_id));
 
         // References cannot be stored in globals because they would outlive their referents.
         // All data in globals must be owned.
         if let_statement.r#type.contains_reference() {
             self.push_err(ResolverError::ReferencesNotAllowedInGlobals { location });
-        }
-
-        if !let_statement.comptime && matches!(let_statement.r#type, Type::Quoted(_)) {
-            let typ = let_statement.r#type.to_string();
-            let location = type_location;
-            self.push_err(ResolverError::ComptimeTypeInNonComptimeGlobal { typ, location });
         }
 
         let let_statement = HirStatement::Let(let_statement);
@@ -142,22 +131,25 @@ impl Elaborator<'_> {
         let definition_id = global.definition_id;
         let location = global.location;
 
-        let mut interpreter = self.setup_interpreter();
+        let expr = self.interner.expression(&let_statement.expression);
+        if !matches!(expr, HirExpression::Error) {
+            let mut interpreter = self.setup_interpreter();
 
-        // Evaluate the global's initializer expression at compile time using the interpreter.
-        if let Err(error) = interpreter.evaluate_let(let_statement) {
-            self.push_err(error);
-        } else {
-            // The interpreter has now computed the constant value. Look it up and store it
-            // in the interner for use during compilation.
-            let value = interpreter
-                .lookup_id(definition_id, location)
-                .expect("The global should be defined since evaluate_let did not error");
+            // Evaluate the global's initializer expression at compile time using the interpreter.
+            if let Err(error) = interpreter.evaluate_let(let_statement) {
+                self.push_err(error);
+            } else {
+                // The interpreter has now computed the constant value. Look it up and store it
+                // in the interner for use during compilation.
+                let value = interpreter
+                    .lookup_id(definition_id, location)
+                    .expect("The global should be defined since evaluate_let did not error");
 
-            self.debug_comptime(location, |interner| value.display(interner).to_string());
+                self.debug_comptime(location, |interner| value.display(interner).to_string());
 
-            // Store the resolved value so it can be used later
-            self.interner.get_global_mut(global_id).value = GlobalValue::Resolved(value);
+                // Store the resolved value so it can be used later
+                self.interner.get_global_mut(global_id).value = GlobalValue::Resolved(value);
+            }
         }
     }
 

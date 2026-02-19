@@ -186,13 +186,19 @@ impl Function {
     /// None might be returned if the function ends up with all of its block
     /// terminators being `jmp`, `jmpif` or `unreachable`.
     pub(crate) fn returns(&self) -> Option<&[ValueId]> {
-        for block in self.reachable_blocks() {
-            let terminator = self.dfg[block].terminator();
-            if let Some(TerminatorInstruction::Return { return_values, .. }) = terminator {
-                return Some(return_values);
-            }
+        match self.return_instruction()? {
+            TerminatorInstruction::Return { return_values, .. } => Some(return_values),
+            _ => None,
         }
-        None
+    }
+
+    /// Retrieve the return instruction of this function, if any.
+    pub(crate) fn return_instruction(&self) -> Option<&TerminatorInstruction> {
+        self.reachable_blocks().into_iter().find_map(|block| {
+            self.dfg[block]
+                .terminator()
+                .filter(|t| matches!(t, TerminatorInstruction::Return { .. }))
+        })
     }
 
     /// Collects all the reachable blocks of this function.

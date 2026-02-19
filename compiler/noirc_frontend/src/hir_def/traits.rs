@@ -3,8 +3,11 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::ResolvedGeneric;
 use crate::ast::{Ident, ItemVisibility, NoirFunction};
+use crate::elaborator::types::SELF_TYPE_NAME;
 use crate::hir::type_check::generics::TraitGenerics;
-use crate::node_interner::{DefinitionId, NodeInterner};
+use crate::node_interner::{
+    DefinitionId, ImplSearchErrorKind, NodeInterner, TraitImplKind, TraitLookupMode,
+};
 use crate::{
     ResolvedGenerics, Type, TypeBindings, TypeVariable,
     graph::CrateId,
@@ -62,10 +65,12 @@ pub struct Trait {
     /// the information needed to create the full TraitFunction.
     pub method_ids: HashMap<String, FuncId>,
 
+    /// Named generics of the trait.
     pub associated_types: ResolvedGenerics,
     pub associated_type_bounds: HashMap<String, Vec<ResolvedTraitBound>>,
 
     pub name: Ident,
+    /// Ordered generics of the trait.
     pub generics: ResolvedGenerics,
     pub location: Location,
     pub visibility: ItemVisibility,
@@ -87,20 +92,17 @@ pub struct Trait {
     pub associated_constant_ids: HashMap<String, DefinitionId>,
 }
 
+/// A completed trait implementation.
+///
+/// Note that ordered generics and named arguments (associated types) are stored separately
+/// in the NodeInterner. This is because they're required to resolve types before the impl
+/// as a whole is finished resolving.
 #[derive(Debug)]
 pub struct TraitImpl {
     pub ident: Ident,
     pub location: Location,
     pub typ: Type,
     pub trait_id: TraitId,
-
-    /// Any ordered type arguments on the trait this impl is for.
-    /// E.g. `A, B` in `impl Foo<A, B, C = D> for Bar`
-    ///
-    /// Note that named arguments (associated types) are stored separately
-    /// in the NodeInterner. This is because they're required to resolve types
-    /// before the impl as a whole is finished resolving.
-    pub trait_generics: Vec<Type>,
 
     pub file: FileId,
     pub crate_id: CrateId,
@@ -134,6 +136,39 @@ impl TraitConstraint {
             &self.trait_bound.trait_generics.ordered,
             &self.trait_bound.trait_generics.named,
         )
+    }
+
+    /// Looks up a trait implementation which satisfies this constraint and returns it.
+    ///
+    /// Note that if successful, any type bindings from the impl search will be automatically
+    /// applied, unless `current_trait_self` is `Some` type variable matching the constraint,
+    /// representing a trait definition, in which case we don't bind it, but also don't reject
+    /// it as a missing type.
+    pub fn find_impl(
+        &self,
+        interner: &NodeInterner,
+        current_trait_self: Option<&Type>,
+    ) -> Result<(TraitImplKind, TypeBindings), ImplSearchErrorKind> {
+        match current_trait_self {
+            Some(typ) if *typ == self.typ && typ.is_bindable() => {
+                let (impl_kind, _bindings, instantiation_bindings) = interner
+                    .try_lookup_trait_implementation(
+                        &self.typ,
+                        self.trait_bound.trait_id,
+                        &self.trait_bound.trait_generics.ordered,
+                        &self.trait_bound.trait_generics.named,
+                        TraitLookupMode::SelfAssumedOnly,
+                    )?;
+                // Do not bind it the self type.
+                Ok((impl_kind, instantiation_bindings))
+            }
+            _ => interner.lookup_trait_implementation(
+                &self.typ,
+                self.trait_bound.trait_id,
+                &self.trait_bound.trait_generics.ordered,
+                &self.trait_bound.trait_generics.named,
+            ),
+        }
     }
 }
 
@@ -225,6 +260,9 @@ impl Trait {
         self.associated_constant_ids.get(name).copied()
     }
 
+    /// Find an associated type by the last segments in its name.
+    ///
+    /// For example if a method returns `Self::Foo`, here we will be looking for it by the name `"Foo"`.
     pub fn get_associated_type(&self, last_name: &str) -> Option<&ResolvedGeneric> {
         self.associated_types.iter().find(|typ| typ.name.as_ref() == last_name)
     }
@@ -232,16 +270,21 @@ impl Trait {
     /// Returns both the ordered generics of this type, and its named, associated types.
     /// These types are all as-is and are not instantiated.
     pub fn get_generics(&self) -> (Vec<Type>, Vec<Type>) {
-        let ordered = vecmap(&self.generics, |generic| generic.clone().as_named_generic());
-        let named = vecmap(&self.associated_types, |generic| generic.clone().as_named_generic());
+        let ordered = vecmap(&self.generics, |generic| generic.clone().into_named_generic(None));
+        let named = vecmap(&self.associated_types, |generic| {
+            generic.clone().into_named_generic(Some((SELF_TYPE_NAME, self.name.as_str())))
+        });
         (ordered, named)
     }
 
     pub fn get_trait_generics(&self, location: Location) -> TraitGenerics {
-        let ordered = vecmap(&self.generics, |generic| generic.clone().as_named_generic());
+        let ordered = vecmap(&self.generics, |generic| generic.clone().into_named_generic(None));
         let named = vecmap(&self.associated_types, |generic| {
             let name = Ident::new(generic.name.to_string(), location);
-            NamedType { name, typ: generic.clone().as_named_generic() }
+            NamedType {
+                name,
+                typ: generic.clone().into_named_generic(Some((SELF_TYPE_NAME, self.name.as_str()))),
+            }
         });
         TraitGenerics { ordered, named }
     }

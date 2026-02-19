@@ -1,12 +1,12 @@
 use acir::BlackBoxFunc;
-use k256::elliptic_curve::sec1::FromEncodedPoint;
-use k256::{FieldBytes, elliptic_curve::PrimeField};
 
 use k256::{
-    AffinePoint, EncodedPoint, ProjectivePoint, PublicKey,
+    AffinePoint, ProjectivePoint, PublicKey,
     elliptic_curve::{
+        PrimeField,
+        ops::Reduce,
         scalar::IsHigh,
-        sec1::{Coordinates, ToEncodedPoint},
+        sec1::{Coordinates, FromSec1Point, Sec1Point, ToSec1Point},
     },
 };
 use k256::{Scalar, ecdsa::Signature};
@@ -51,13 +51,13 @@ pub(super) fn verify_signature(
         ));
     };
 
-    let point = EncodedPoint::from_affine_coordinates(
+    let point = Sec1Point::<k256::Secp256k1>::from_affine_coordinates(
         public_key_x_bytes.into(),
         public_key_y_bytes.into(),
         false,
     );
 
-    let pubkey = PublicKey::from_encoded_point(&point);
+    let pubkey = PublicKey::from_sec1_point(&point);
     if pubkey.is_none().into() {
         // Public key must sit on the Secp256k1 curve.
         return Err(BlackBoxResolutionError::Failed(
@@ -67,12 +67,10 @@ pub(super) fn verify_signature(
     }
     let pubkey = pubkey.unwrap();
 
-    // Note: This will panic if `hashed_msg >= k256::Secp256k1::ORDER`.
-    // In this scenario we should just take the leftmost bits from `hashed_msg` up to the group order length.
-    let z = Scalar::from_repr(
-        FieldBytes::try_from_iter(hashed_msg.iter().copied()).expect("slice length mismatch"),
-    )
-    .unwrap();
+    // Convert the hashed message to a scalar.
+    // Per ECDSA specification (SEC 1, section 4.1.4), if `hashed_msg >= k256::Secp256k1::ORDER`,
+    // the message hash should be reduced modulo the curve order.
+    let z = <Scalar as Reduce<k256::U256>>::reduce(&k256::U256::from_be_slice(hashed_msg));
 
     // Finished converting bytes into data structures
 
@@ -96,10 +94,27 @@ pub(super) fn verify_signature(
         + (ProjectivePoint::from(*pubkey.as_affine()) * u2))
         .to_affine();
 
-    match R.to_encoded_point(false).coordinates() {
-        Coordinates::Uncompressed { x, y: _ } => Ok(Scalar::from_repr(*x).unwrap().eq(&r)),
+    // Compare R.x with signature's r component.
+    match R.to_sec1_point(false).coordinates() {
+        Coordinates::Uncompressed { x, y: _ } => {
+            // The conversion from R.x to a scalar can fail if R.x >= curve_order (a possible but rare case).
+            // In this case, the signature is invalid per ECDSA specification, so we return false.
+            // The prover will handle this gracefully - it should generate a proof that fails verification.
+            Ok(Scalar::from_repr(*x).into_option().map_or_else(
+                || {
+                    log::warn!(
+                        "ECDSA Secp256k1 verification: R.x coordinate exceeds scalar field order - signature is invalid"
+                    );
+                    false
+                },
+                |scalar| scalar == *r,
+            ))
+        }
         Coordinates::Identity => Ok(false),
-        _ => unreachable!("Point is uncompressed"),
+        _ => Err(BlackBoxResolutionError::Failed(
+            BlackBoxFunc::EcdsaSecp256k1,
+            "Unexpected coordinate encoding".to_string(),
+        )),
     }
 }
 

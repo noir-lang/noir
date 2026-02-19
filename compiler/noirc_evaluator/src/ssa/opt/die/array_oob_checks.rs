@@ -18,7 +18,7 @@ impl Context {
     /// some of the instructions in a group are used but not all of them, no check
     /// is inserted, so this method might return `false`.
     pub(super) fn replace_array_instructions_with_out_of_bounds_checks(
-        &mut self,
+        &self,
         function: &mut Function,
         block_id: BasicBlockId,
         possible_index_out_of_bounds_indexes: &mut Vec<usize>,
@@ -42,7 +42,7 @@ impl Context {
                 // We still need to keep the EnableSideEffects instruction
                 function.dfg[block_id].instructions_mut().push(instruction_id);
                 continue;
-            };
+            }
 
             // If it's an ArrayGet we'll deal with groups of it in case the array type is a composite type,
             // and adjust `next_out_of_bounds_index` and `possible_index_out_of_bounds_indexes` accordingly
@@ -198,13 +198,13 @@ fn handle_array_get_group(
     if function.dfg.try_get_array_length(*array).is_none() {
         // Nothing to do for vectors
         return;
-    };
+    }
 
     let element_size = function.dfg.type_of_value(*array).element_size().to_usize();
     if element_size <= 1 {
         // Not a composite type
         return;
-    };
+    }
 
     // It's a composite type.
     // When doing ArrayGet on a composite type, this **always** results in instructions like these

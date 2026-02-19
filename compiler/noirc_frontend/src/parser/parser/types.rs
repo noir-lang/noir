@@ -93,7 +93,7 @@ impl Parser<'_> {
             return Some(typ);
         }
 
-        if let Some(path) = self.parse_path_no_turbofish() {
+        if let Some(path) = self.parse_path_for_named_type() {
             let generics = if allow_generics {
                 self.parse_generic_type_args()
             } else {
@@ -307,7 +307,7 @@ impl Parser<'_> {
         if self.eat_colon() { Some(self.parse_type_or_error()) } else { None }
     }
 
-    fn error_type_at_previous_token_end(&mut self) -> UnresolvedType {
+    fn error_type_at_previous_token_end(&self) -> UnresolvedType {
         UnresolvedTypeData::Error.with_location(self.location_at_previous_token_end())
     }
 }
@@ -448,6 +448,30 @@ mod tests {
         };
         assert_eq!(path.to_string(), "foo::Bar");
         assert!(generics.is_empty());
+    }
+
+    #[test]
+    fn parses_named_type_with_generics_without_double_colon() {
+        let src = "foo::Bar<i32>";
+        let typ = parse_type_no_errors(src);
+        let UnresolvedTypeData::Named(path, generics, _) = typ.typ else {
+            panic!("Expected a named type")
+        };
+        assert_eq!(path.to_string(), "foo::Bar");
+        assert_eq!(generics.ordered_args.len(), 1);
+        assert_eq!(generics.ordered_args[0].typ.to_string(), "i32");
+    }
+
+    #[test]
+    fn parses_named_type_with_generics_with_double_colon() {
+        let src = "foo::Bar::<i32>";
+        let typ = parse_type_no_errors(src);
+        let UnresolvedTypeData::Named(path, generics, _) = typ.typ else {
+            panic!("Expected a named type")
+        };
+        assert_eq!(path.to_string(), "foo::Bar");
+        assert_eq!(generics.ordered_args.len(), 1);
+        assert_eq!(generics.ordered_args[0].typ.to_string(), "i32");
     }
 
     #[test]

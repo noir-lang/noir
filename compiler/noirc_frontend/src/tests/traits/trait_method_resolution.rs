@@ -1,7 +1,8 @@
 //! Tests for trait method resolution and scope rules.
 //! Validates that trait methods are correctly resolved based on imports, handles ambiguity, and suggests missing imports.
 
-use crate::tests::{assert_no_errors, check_errors};
+use crate::test_utils::stdlib_src;
+use crate::tests::{assert_no_errors, check_errors, check_errors_with_stdlib};
 
 #[test]
 fn calls_trait_method_if_it_is_in_scope_with_multiple_candidates_but_only_one_decided_by_generics()
@@ -264,7 +265,7 @@ fn errors_if_multiple_trait_methods_are_in_scope_for_function_call() {
     fn main() {
         let _ = Bar::foo();
                      ^^^ Multiple applicable items in scope
-                     ~~~ All these trait which provide `foo` are implemented and in scope: `private_mod::Foo2`, `private_mod::Foo`
+                     ~~~ Multiple traits which provide `foo` are implemented and in scope: `private_mod::Foo2`, `private_mod::Foo`
     }
 
     pub struct Bar {
@@ -401,7 +402,7 @@ fn errors_if_multiple_trait_methods_are_in_scope_for_method_call() {
         let bar = Bar { x : 42 };
         let _ = bar.foo();
                 ^^^^^^^^^ Multiple applicable items in scope
-                ~~~~~~~~~ All these trait which provide `foo` are implemented and in scope: `private_mod::Foo2`, `private_mod::Foo`
+                ~~~~~~~~~ Multiple traits which provide `foo` are implemented and in scope: `private_mod::Foo2`, `private_mod::Foo`
     }
 
     pub struct Bar {
@@ -642,7 +643,7 @@ fn ambiguous_trait_method_multiple_bounds_with_self() {
     fn foo<T: One + Two>(x: T) {
         x.method();
         ^^^^^^^^^^ Multiple applicable items in scope
-        ~~~~~~~~~~ All these trait which provide `method` are implemented and in scope: `One`, `Two`
+        ~~~~~~~~~~ Multiple traits which provide `method` are implemented and in scope: `One`, `Two`
     }
 
     fn main() {
@@ -666,7 +667,7 @@ fn ambiguous_trait_method_in_parent_child_relationship_with_self() {
     pub fn foo<T: Child>(x: T) {
         x.foo();
         ^^^^^^^ Multiple applicable items in scope
-        ~~~~~~~ All these trait which provide `foo` are implemented and in scope: `Child`, `Parent`
+        ~~~~~~~ Multiple traits which provide `foo` are implemented and in scope: `Child`, `Parent`
     }
 
     fn main() {}
@@ -688,10 +689,242 @@ fn ambiguous_trait_method_in_parent_child_relationship_without_self() {
     pub fn foo<T: Child>() {
         T::foo();
         ^^^^^^ Multiple applicable items in scope
-        ~~~~~~ All these trait which provide `foo` are implemented and in scope: `Child`, `Parent`
+        ~~~~~~ Multiple traits which provide `foo` are implemented and in scope: `Child`, `Parent`
     }
 
     fn main() {}
     "#;
     check_errors(src);
+}
+
+#[test]
+fn regression_10537() {
+    let src = r#"
+    use cmp::Ord;
+
+    pub fn min<T>(v1: T, v2: T) -> T
+    where
+        T: Ord,
+    {
+        if v1 > v2 {
+            v2
+        } else {
+            v1
+        }
+    }
+    "#;
+    check_errors_with_stdlib(src, [stdlib_src::EQ, stdlib_src::ORD]);
+}
+
+// Expecting missing `Eq` impl errors to resolve to a `NoMatchingImplFound` error
+// with a trait name of "PopulateDummyOperatorTraitsTrait" when the `Eq` trait
+// hasn't been explicitly defined, i.e. when it's only been defined by
+// `NodeInterner::populate_dummy_operator_traits`
+#[test]
+fn missing_eq_trait_error() {
+    let src = "
+    struct Foo {}
+    fn main() {
+        let x = Foo {};
+        let y = Foo {};
+        assert(x == y);
+               ^^^^^^ No matching impl found for `Foo: PopulateDummyOperatorTraitsTrait`
+               ~~~~~~ No impl for `Foo: PopulateDummyOperatorTraitsTrait`
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn regression_10219() {
+    let src = "
+    fn main() {
+        let mut x: u32 = 0;
+        let mut y: u32 = 0;
+        assert(&mut x == &mut y);
+               ^^^^^^^^^^^^^^^^ No matching impl found for `&mut u32: Eq`
+               ~~~~~~~~~~~~~~~~ No impl for `&mut u32: Eq`
+    }
+    ";
+    check_errors_with_stdlib(src, [stdlib_src::EQ]);
+}
+
+#[test]
+fn regression_10766() {
+    let src = r#"
+    trait Foo {
+        type Bar;
+    }
+
+    pub struct Example { }
+    pub struct Baz { }
+
+    impl Foo for Example {
+        type Bar = Baz;
+    }
+
+    impl Foo::Bar { }
+         ^^^^^^^^ Cannot define a trait impl on associated types
+
+    fn main() { }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn comptime_trait_method_with_generic_struct() {
+    let src = r#"
+    trait Metadata {
+        comptime fn name() -> str<9>;
+    }
+
+    struct Typed<T> {
+        value: T,
+    }
+
+    impl Metadata for Typed<Field> {
+        comptime fn name() -> str<9> {
+            "TypedFiel"
+        }
+    }
+
+    fn main() {
+        comptime {
+            let _ = Typed::<Field>::name();
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn comptime_trait_method_with_numeric_generic() {
+    let src = r#"
+    trait Info {
+        comptime fn size() -> u32;
+    }
+
+    struct FixedArray<let N: u32> {}
+
+    impl<let N: u32> Info for FixedArray<N> {
+        comptime fn size() -> u32 {
+            N
+        }
+    }
+
+    fn main() {
+        comptime {
+            let s = FixedArray::<5>::size();
+            assert(s == 5);
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn trait_method_returning_self_with_generic_impl() {
+    let src = r#"
+    trait Doubled {
+        fn doubled(self) -> Self;
+    }
+
+    struct Wrapper<T> {
+        inner: T,
+    }
+
+    impl Doubled for Field {
+        fn doubled(self) -> Self {
+            self * 2
+        }
+    }
+
+    impl<T> Doubled for Wrapper<T> where T: Doubled {
+        fn doubled(self) -> Self {
+            Wrapper { inner: self.inner.doubled() }
+        }
+    }
+
+    fn double_it<T>(t: T) -> T where T: Doubled {
+        t.doubled()
+    }
+
+    fn main() {
+        let w = Wrapper { inner: 21 as Field };
+        let d = double_it(w);
+        assert(d.inner == 42);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn two_traits_same_method_name_disambiguated_by_constraint() {
+    let src = r#"
+    trait TraitA {
+        fn do_thing(self) -> Field;
+    }
+
+    trait TraitB {
+        fn do_thing(self) -> bool;
+    }
+
+    struct Foo {
+        val: Field,
+    }
+
+    impl TraitA for Foo {
+        fn do_thing(self) -> Field { self.val }
+    }
+
+    impl TraitB for Foo {
+        fn do_thing(self) -> bool { self.val != 0 }
+    }
+
+    fn use_a<T>(t: T) -> Field where T: TraitA {
+        t.do_thing()
+    }
+
+    fn use_b<T>(t: T) -> bool where T: TraitB {
+        t.do_thing()
+    }
+
+    fn main() {
+        let f = Foo { val: 42 };
+        assert(use_a(f) == 42);
+        let f2 = Foo { val: 42 };
+        assert(use_b(f2));
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test for https://github.com/noir-lang/noir/issues/11540
+#[test]
+#[should_panic(expected = "Expected no errors")]
+fn trait_method_resolved_with_multiple_impls_different_type_params() {
+    let src = r#"
+    pub struct Foo<let Y: u32, A> {}
+
+    pub trait Bar {
+        comptime fn bar();
+    }
+
+    impl<let X: u32> Bar for Foo<X, u8> {
+        comptime fn bar() {}
+    }
+
+    impl<let X: u32> Bar for Foo<X, u16> {
+        comptime fn bar() {}
+    }
+
+    fn g<let Z: u32>() {
+        Foo::<Z, u8>::bar();
+    }
+
+    fn main() {
+        g::<1>();
+    }
+    "#;
+    assert_no_errors(src);
 }

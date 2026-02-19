@@ -1,9 +1,9 @@
-/// An SSA pass that transforms the checked signed arithmetic operations add, sub and mul
-/// into unchecked operations followed by explicit overflow checks.
-///
-/// The purpose of this pass is to avoid ACIR and Brillig having to handle checked signed arithmetic
-/// operations, while also allowing further optimizations to be done during subsequent
-/// SSA passes on the expanded instructions.
+//! An SSA pass that transforms the checked signed arithmetic operations add, sub and mul
+//! into unchecked operations followed by explicit overflow checks.
+//!
+//! The purpose of this pass is to avoid ACIR and Brillig having to handle checked signed arithmetic
+//! operations, while also allowing further optimizations to be done during subsequent
+//! SSA passes on the expanded instructions.
 use acvm::{FieldElement, acir::AcirField};
 
 use crate::ssa::{
@@ -452,24 +452,11 @@ impl Context<'_, '_, '_> {
 ///
 /// Otherwise panics.
 #[cfg(debug_assertions)]
-fn expand_signed_checks_post_check(func: &Function) {
-    for block_id in func.reachable_blocks() {
-        let instruction_ids = func.dfg[block_id].instructions();
-        for instruction_id in instruction_ids {
-            if let Instruction::Binary(binary) = &func.dfg[*instruction_id] {
-                if func.dfg.type_of_value(binary.lhs).is_signed() {
-                    match binary.operator {
-                        BinaryOp::Add { unchecked: false }
-                        | BinaryOp::Sub { unchecked: false }
-                        | BinaryOp::Mul { unchecked: false } => {
-                            panic!("Checked signed binary operation has not been removed")
-                        }
-                        _ => (),
-                    }
-                }
-            }
-        }
-    }
+pub(super) fn expand_signed_checks_post_check(func: &Function) {
+    // All checked signed add/sub/mul should be expanded
+    super::checks::for_each_instruction(func, |instruction, dfg| {
+        super::checks::assert_not_checked_signed_add_sub_mul(instruction, dfg);
+    });
 }
 
 #[cfg(test)]

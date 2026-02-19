@@ -327,3 +327,66 @@ fn constructor_private_field() {
     // NOTE: The second attempt could work with `foo::Foo { x: _, .. }` if Noir supported `..`.
     check_errors(src);
 }
+
+#[test]
+fn deny_abi_attribute_on_struct_outside_contract() {
+    let src = r#"
+        pub mod moo {
+            #[abi(hello)]
+            ^^^^^^^^^^^^^ #[abi(tag)] attributes can only be used in contracts
+            ~~~~~~~~~~~~~ misplaced #[abi(tag)] attribute
+            pub struct Foo {}
+        }
+
+        pub fn foo(_: moo::Foo) {}
+
+        fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn allow_abi_attribute_on_struct_inside_contract() {
+    let src = r#"
+        pub contract moo {
+            #[abi(hello)]
+            pub struct Foo {}
+        }
+
+        pub fn foo(_: moo::Foo) {}
+
+        fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn deny_cyclic_structs() {
+    let src = r#"
+    pub struct Foo {
+        bar: Bar,
+    }
+
+    pub struct Bar {
+               ^^^ Dependency cycle found
+               ~~~ 'Bar' recursively depends on itself: Bar -> Foo -> Bar
+        foo: Foo,
+    }
+
+    // Here we check if `Foo` contains references, and this check could
+    // cause a stack overflow unless we properly track visited data types.
+    pub unconstrained fn foo() -> [Foo; 0] {
+        []
+    }
+
+    // Here we check the input and output types
+    fn main(_: Foo) -> pub [Foo; 0] {
+        // Here we also check if the call returns a function, another check
+        // that must be done with care.
+        // Safety:
+        let _ = unsafe { foo() };
+        []
+    }
+    "#;
+    check_errors(src);
+}

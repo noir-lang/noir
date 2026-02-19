@@ -69,6 +69,7 @@ pub struct HirForStatement {
     pub start_range: ExprId,
     pub end_range: ExprId,
     pub block: ExprId,
+    pub inclusive: bool,
 }
 
 /// Corresponds to `lvalue = expression;` in the source code
@@ -154,6 +155,9 @@ pub enum HirLValue {
         lvalue: Box<HirLValue>,
         element_type: Type,
         implicitly_added: bool,
+        location: Location,
+    },
+    Error {
         location: Location,
     },
 }

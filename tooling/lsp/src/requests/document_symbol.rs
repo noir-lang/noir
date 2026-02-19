@@ -18,7 +18,7 @@ use noirc_frontend::{
 };
 
 use crate::LspState;
-use crate::requests::process_request_no_type_check;
+use crate::requests::process_request;
 
 pub(crate) fn on_document_symbol_request(
     state: &mut LspState,
@@ -29,7 +29,7 @@ pub(crate) fn on_document_symbol_request(
         position: Position { line: 0, character: 0 },
     };
 
-    let result = process_request_no_type_check(state, text_document_position_params, |args| {
+    let result = process_request(state, text_document_position_params, |args| {
         let file_id = args.location.file;
         let file = args.files.get_file(file_id).unwrap();
         let source = file.source();
@@ -296,10 +296,10 @@ impl Visitor for DocumentSymbolCollector<'_> {
         }
 
         // If there's a body, extend the span to include it
-        if let Some(body) = body {
-            if let Some(statement) = body.statements.last() {
-                span = Span::from(span.start()..statement.location.span.end());
-            }
+        if let Some(body) = body
+            && let Some(statement) = body.statements.last()
+        {
+            span = Span::from(span.start()..statement.location.span.end());
         }
 
         let Some(location) = self.to_lsp_location(span) else {

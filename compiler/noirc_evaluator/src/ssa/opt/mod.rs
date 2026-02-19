@@ -7,10 +7,13 @@
 mod array_set;
 mod as_vector_length;
 mod basic_conditional;
+mod black_box_bypass;
 mod brillig_array_get_and_set;
 pub(crate) mod brillig_entry_points;
 mod check_u128_mul_overflow;
 mod checked_to_unchecked;
+#[cfg(debug_assertions)]
+mod checks;
 mod constant_folding;
 mod defunctionalize;
 mod die;
@@ -40,8 +43,9 @@ mod simplify_cfg;
 mod unrolling;
 
 pub use constant_folding::DEFAULT_MAX_ITER as CONSTANT_FOLDING_MAX_ITER;
-pub use inlining::MAX_INSTRUCTIONS as INLINING_MAX_INSTRUCTIONS;
-pub(crate) use unrolling::Loops;
+pub use inlining::MAX_SIMPLE_FUNCTION_WEIGHT as INLINING_MAX_INSTRUCTIONS;
+pub use unrolling::FORCE_UNROLL_THRESHOLD;
+pub(crate) use unrolling::{LoopOrder, Loops};
 
 #[cfg(test)]
 use crate::ssa::{

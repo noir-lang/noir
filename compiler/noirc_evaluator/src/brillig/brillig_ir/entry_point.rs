@@ -153,14 +153,14 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                 _ => unreachable!("ICE: cannot match variables against arguments"),
             }
 
-            current_calldata_pointer += Self::flattened_size(argument);
+            current_calldata_pointer += argument.flattened_size();
         }
 
         stack_start
     }
 
     fn allocate_function_arguments(
-        &mut self,
+        &self,
         arguments: &[BrilligParameter],
     ) -> Vec<Allocated<BrilligVariable, Stack>> {
         arguments
@@ -307,7 +307,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                         }
                     }
 
-                    source_offset += Self::flattened_size(subitem);
+                    source_offset += subitem.flattened_size();
                 }
             }
         } else {
@@ -382,7 +382,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
                 }
             }
 
-            return_data_index += Self::flattened_size(return_param);
+            return_data_index += return_param.flattened_size();
         }
 
         let return_pointer = self.make_usize_constant_instruction(return_data_offset.into());

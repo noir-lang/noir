@@ -517,7 +517,11 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// Initializes an array, allocating memory on the heap to store its representation and initializing the reference counter to 1.
     pub(crate) fn codegen_initialize_array(&mut self, array: BrilligArray) {
         // Allocate memory for the ref counter and `size` items.
-        let size = array.size.0 + offsets::ARRAY_META_COUNT;
+        let size = array
+            .size
+            .0
+            .checked_add(offsets::ARRAY_META_COUNT)
+            .expect("Array size overflow: array is too large to be allocated in Brillig");
         self.codegen_allocate_immediate_mem(array.pointer, assert_usize(size));
         self.codegen_initialize_rc(array.pointer, 1);
     }
@@ -535,7 +539,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// The inputs are:
     /// * the `pointer` to the array/vector
     /// * the `rc` address of the vector where we have the current RC loaded already
-    pub(crate) fn codegen_decrement_rc(&mut self, _pointer: MemoryAddress, _rc: MemoryAddress) {
+    pub(crate) fn codegen_decrement_rc(&self, _pointer: MemoryAddress, _rc: MemoryAddress) {
         // In benchmarks having this on didn't have a noticeable performance benefit,
         // but it does have a small increase in byte code size and the number of executed opcodes.
         // When we disabled `dec_rc` in SSA, the performance improved, so for now we disabled this,

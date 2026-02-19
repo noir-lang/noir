@@ -11,7 +11,7 @@ use noirc_evaluator::{
     brillig::BrilligOptions,
     ssa::{
         self,
-        opt::{CONSTANT_FOLDING_MAX_ITER, INLINING_MAX_INSTRUCTIONS},
+        opt::{CONSTANT_FOLDING_MAX_ITER, FORCE_UNROLL_THRESHOLD, INLINING_MAX_INSTRUCTIONS},
         primary_passes,
         ssa_gen::{self, Ssa},
     },
@@ -24,6 +24,11 @@ fn seed_from_env() -> Option<u64> {
     Some(seed)
 }
 
+/// This test is about checking that the SSA parser can deal with arbitrary SSA:
+/// 1. Generate a random Program
+/// 2. Codegen the initial SSA and apply a random prefix of the the standard SSA passes on it
+/// 3. Print the transformed SSA and parse it back
+/// 4. Check that the same values are present in the transformed and the parsed SSA, nothing got lost or changed
 #[test]
 fn arb_ssa_roundtrip() {
     let maybe_seed = seed_from_env();
@@ -44,7 +49,9 @@ fn arb_ssa_roundtrip() {
             constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
             small_function_max_instruction: INLINING_MAX_INSTRUCTIONS,
             max_bytecode_increase_percent: None,
+            force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
             skip_passes: Default::default(),
+            ssa_logging_hide_unchanged: false,
         };
         let pipeline = primary_passes(&options);
         let last_pass = u.choose_index(pipeline.len())?;

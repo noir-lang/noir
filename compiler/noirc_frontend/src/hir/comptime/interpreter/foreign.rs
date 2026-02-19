@@ -26,7 +26,7 @@ use super::{
 
 impl Interpreter<'_, '_> {
     pub(super) fn call_foreign(
-        &mut self,
+        &self,
         name: &str,
         arguments: Vec<(Value, Location)>,
         return_type: Type,
@@ -348,7 +348,7 @@ mod tests {
                 Err(InvalidInComptimeContext { .. }) => {}
                 Err(Unimplemented { .. }) => not_implemented.push(name),
                 Err(other) => panic!("unexpected error: {other:?}"),
-            };
+            }
         }
 
         assert!(

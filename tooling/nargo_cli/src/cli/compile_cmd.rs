@@ -145,7 +145,7 @@ pub fn compile_workspace_full(
     let (workspace_file_manager, parsed_files) = parse_workspace(workspace, debug_compile_stdin);
 
     let compiled_workspace =
-        compile_workspace(&workspace_file_manager, &parsed_files, workspace, compile_options);
+        compile_workspace(&workspace_file_manager, &parsed_files, workspace, compile_options)?;
 
     report_errors(
         compiled_workspace,
@@ -164,7 +164,7 @@ fn compile_workspace(
     parsed_files: &ParsedFiles,
     workspace: &Workspace,
     compile_options: &CompileOptions,
-) -> CompilationResult<()> {
+) -> Result<CompilationResult<()>, CliError> {
     let (binary_packages, contract_packages): (Vec<_>, Vec<_>) = workspace
         .into_iter()
         .filter(|package| !package.is_library())
@@ -173,7 +173,7 @@ fn compile_workspace(
 
     // Compile all of the packages in parallel.
     let program_warnings_or_errors: CompilationResult<()> =
-        compile_programs(file_manager, parsed_files, workspace, &binary_packages, compile_options);
+        compile_programs(file_manager, parsed_files, workspace, &binary_packages, compile_options)?;
 
     let contract_warnings_or_errors: CompilationResult<()> = compile_contracts(
         file_manager,
@@ -181,9 +181,9 @@ fn compile_workspace(
         &contract_packages,
         compile_options,
         &workspace.target_directory_path(),
-    );
+    )?;
 
-    match (program_warnings_or_errors, contract_warnings_or_errors) {
+    let result = match (program_warnings_or_errors, contract_warnings_or_errors) {
         (Ok((_, program_warnings)), Ok((_, contract_warnings))) => {
             let warnings = [program_warnings, contract_warnings].concat();
             Ok(((), warnings))
@@ -192,7 +192,8 @@ fn compile_workspace(
             Err([program_errors, contract_errors].concat())
         }
         (Err(errors), _) | (_, Err(errors)) => Err(errors),
-    }
+    };
+    Ok(result)
 }
 
 /// Compile the given binary packages in the workspace.
@@ -202,7 +203,7 @@ fn compile_programs(
     workspace: &Workspace,
     binary_packages: &[Package],
     compile_options: &CompileOptions,
-) -> CompilationResult<()> {
+) -> Result<CompilationResult<()>, CliError> {
     // Load any existing artifact for a given package, _iff_ it was compiled with the same nargo version.
     // The loaded circuit includes backend specific transformations, which might be different from the current target.
     let load_cached_program = |package| {
@@ -213,7 +214,7 @@ fn compile_programs(
             .map(|p| p.into())
     };
 
-    let compile_package = |package| {
+    let compile_package = |package| -> Result<CompilationResult<()>, CliError> {
         let cached_program = load_cached_program(package);
 
         // Hash over the entire compiled program, including any post-compile transformations.
@@ -222,30 +223,39 @@ fn compile_programs(
             cached_program.as_ref().map(|prog| rustc_hash::FxBuildHasher.hash_one(prog));
 
         // Compile the program, or use the cached artifacts if it matches.
-        let (program, warnings) = compile_program(
+        match compile_program(
             file_manager,
             parsed_files,
             workspace,
             package,
             compile_options,
             cached_program,
-        )?;
-
-        // If the compiled program is the same as the cached one, we don't apply transformations again, unless the target width has changed.
-        // The transformations might not be idempotent, which would risk creating witnesses that don't work with earlier versions,
-        // based on which we might have generated a verifier already.
-        if cached_hash == Some(rustc_hash::FxBuildHasher.hash_one(&program)) {
-            return Ok(((), warnings));
+        ) {
+            Ok((program, warnings)) => {
+                // If the compiled program is the same as the cached one, we don't apply transformations again, unless the target width has changed.
+                // The transformations might not be idempotent, which would risk creating witnesses that don't work with earlier versions,
+                // based on which we might have generated a verifier already.
+                if cached_hash == Some(rustc_hash::FxBuildHasher.hash_one(&program)) {
+                    return Ok(Ok(((), warnings)));
+                }
+                // Run ACVM optimizations.
+                let program = nargo::ops::optimize_program(program);
+                // Check solvability.
+                match nargo::ops::check_program(&program) {
+                    Ok(()) => {
+                        // Overwrite the build artifacts with the final circuit, which includes the backend specific transformations.
+                        let _ = save_program_to_file(
+                            &program.into(),
+                            &package.name,
+                            &workspace.target_directory_path(),
+                        )?;
+                        Ok(Ok(((), warnings)))
+                    }
+                    Err(errors_and_warnings) => Ok(Err(errors_and_warnings)),
+                }
+            }
+            Err(errors_and_warnings) => Ok(Err(errors_and_warnings)),
         }
-        // Run ACVM optimizations.
-        let program = nargo::ops::optimize_program(program);
-        // Check solvability.
-        nargo::ops::check_program(&program)?;
-        // Overwrite the build artifacts with the final circuit, which includes the backend specific transformations.
-        save_program_to_file(&program.into(), &package.name, &workspace.target_directory_path())
-            .expect("failed to save program");
-
-        Ok(((), warnings))
     };
 
     // Configure a thread pool with a larger stack size to prevent overflowing stack in large programs.
@@ -256,11 +266,12 @@ fn compile_programs(
         .stack_size(4 * 1024 * 1024)
         .build()
         .unwrap();
-    let program_results: Vec<CompilationResult<()>> =
-        pool.install(|| binary_packages.par_iter().map(compile_package).collect());
+    let program_results = pool.install(|| {
+        binary_packages.par_iter().map(compile_package).collect::<Result<Vec<_>, _>>()
+    })?;
 
     // Collate any warnings/errors which were encountered during compilation.
-    collect_errors(program_results).map(|(_, warnings)| ((), warnings))
+    Ok(collect_errors(program_results).map(|(_, warnings)| ((), warnings)))
 }
 
 /// Compile the given contracts in the workspace.
@@ -270,21 +281,29 @@ fn compile_contracts(
     contract_packages: &[Package],
     compile_options: &CompileOptions,
     target_dir: &Path,
-) -> CompilationResult<()> {
-    let contract_results: Vec<CompilationResult<()>> = contract_packages
+) -> Result<CompilationResult<()>, CliError> {
+    let contract_results = contract_packages
         .par_iter()
-        .map(|package| {
-            let (contract, warnings) =
-                compile_contract(file_manager, parsed_files, package, compile_options)?;
-
-            let contract = nargo::ops::optimize_contract(contract);
-            save_contract(contract, package, target_dir, compile_options.show_artifact_paths);
-            Ok(((), warnings))
+        .map(|package| -> Result<CompilationResult<()>, CliError> {
+            match compile_contract(file_manager, parsed_files, package, compile_options) {
+                Ok((contract, warnings)) => {
+                    let contract = nargo::ops::optimize_contract(contract);
+                    save_contract(
+                        contract,
+                        package,
+                        target_dir,
+                        compile_options.show_artifact_paths,
+                    )?;
+                    Ok(Ok(((), warnings)))
+                }
+                Err(errors_and_warnings) => Ok(Err(errors_and_warnings)),
+            }
         })
-        .collect();
+        .collect::<Result<Vec<_>, CliError>>()?;
 
     // Collate any warnings/errors which were encountered during compilation.
-    collect_errors(contract_results).map(|(_, warnings)| ((), warnings))
+    let errors = collect_errors(contract_results).map(|(_, warnings)| ((), warnings));
+    Ok(errors)
 }
 
 fn save_contract(
@@ -292,15 +311,15 @@ fn save_contract(
     package: &Package,
     target_dir: &Path,
     show_artifact_paths: bool,
-) {
+) -> Result<(), CliError> {
     let contract_name = contract.name.clone();
     let artifact_path = save_contract_to_file(
         &contract.into(),
         &format!("{}-{}", package.name, contract_name),
         target_dir,
-    )
-    .expect("failed to save contract");
+    )?;
     if show_artifact_paths {
         println!("Saved contract artifact to: {}", artifact_path.display());
     }
+    Ok(())
 }

@@ -14,8 +14,11 @@ use noirc_frontend::{
     },
 };
 
-use crate::use_segment_positions::{
-    UseCompletionItemAdditionTextEditsRequest, use_completion_item_additional_text_edits,
+use crate::{
+    requests::completion::sort_text::local_variable_sort_text,
+    use_segment_positions::{
+        UseCompletionItemAdditionTextEditsRequest, use_completion_item_additional_text_edits,
+    },
 };
 
 use super::{
@@ -247,10 +250,10 @@ impl NodeFinder<'_> {
                     } else if let Type::Tuple(self_tuple_types) = self_type {
                         // Tuple types of different lengths seem to also have methods defined on all of them,
                         // so here we reject methods for tuples where the length doesn't match.
-                        if let Type::Tuple(func_self_tuple_types) = func_self_type {
-                            if self_tuple_types.len() != func_self_tuple_types.len() {
-                                return Vec::new();
-                            }
+                        if let Type::Tuple(func_self_tuple_types) = func_self_type
+                            && self_tuple_types.len() != func_self_tuple_types.len()
+                        {
+                            return Vec::new();
                         }
                     }
                 } else {
@@ -383,7 +386,7 @@ impl NodeFinder<'_> {
             }
         };
 
-        self.auto_import_trait_if_trait_method(func_id, trait_info, &mut completion_item);
+        self.auto_import_trait_if_trait_method(trait_info, &mut completion_item);
 
         if let (Some(type_id), Some(variant_index)) =
             (func_meta.type_id, func_meta.enum_variant_index)
@@ -401,7 +404,6 @@ impl NodeFinder<'_> {
 
     fn auto_import_trait_if_trait_method(
         &self,
-        func_id: FuncId,
         trait_info: Option<(TraitId, Option<&TraitReexport>)>,
         completion_item: &mut CompletionItem,
     ) -> Option<()> {
@@ -431,7 +433,7 @@ impl NodeFinder<'_> {
             )
         } else {
             relative_module_full_path(
-                ModuleDefId::FunctionId(func_id),
+                ModuleDefId::TraitId(trait_id),
                 self.module_id,
                 current_module_parent_id,
                 self.interner,
@@ -636,6 +638,14 @@ pub(super) fn field_completion_item(
     } else {
         simple_completion_item(field, CompletionItemKind::FIELD, Some(typ.into()))
     }
+}
+
+pub(super) fn variable_completion_item(
+    label: impl Into<String>,
+    description: Option<String>,
+) -> CompletionItem {
+    let item = simple_completion_item(label, CompletionItemKind::VALUE, description);
+    completion_item_with_sort_text(item, local_variable_sort_text())
 }
 
 pub(super) fn simple_completion_item(

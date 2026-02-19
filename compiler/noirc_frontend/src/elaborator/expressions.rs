@@ -16,7 +16,10 @@ use crate::{
         PrefixExpression, StatementKind, TraitBound, UnaryOp, UnresolvedTraitConstraint,
         UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression,
     },
-    elaborator::types::{WildcardAllowed, WildcardDisallowedContext},
+    elaborator::{
+        patterns::IdentFromPath,
+        types::{WildcardAllowed, WildcardDisallowedContext},
+    },
     hir::{
         comptime::{self, InterpreterError},
         def_collector::dc_crate::CompilationError,
@@ -459,15 +462,26 @@ impl Elaborator<'_> {
 
         for fragment in &fragments {
             if let FmtStrFragment::Interpolation(ident_name, location) = fragment {
-                let ((hir_ident, var_scope_index), _) = self
-                    .get_ident_from_path(TypedPath::from_single(ident_name.to_string(), *location));
-                self.handle_hir_ident(&hir_ident, var_scope_index, *location);
-
-                let hir_expr = HirExpression::Ident(hir_ident.clone(), None);
-                let expr_id = self.intern_expr(hir_expr, *location);
-                let typ = self.type_check_variable(hir_ident, &expr_id, None);
-                let expr_id = self.intern_expr_type(expr_id, typ.clone());
-
+                let (typ, expr_id) = match self
+                    .get_ident_from_path(TypedPath::from_single(ident_name.to_string(), *location))
+                {
+                    Some(IdentFromPath::Variable(variable)) => {
+                        self.handle_local_variable(&variable);
+                        self.elaborate_fmt_string_ident(variable.ident, *location)
+                    }
+                    Some(IdentFromPath::Definition { id, item: _ }) => {
+                        self.handle_definition_id(id, *location);
+                        let hir_ident = HirIdent::non_trait_method(id, *location);
+                        self.elaborate_fmt_string_ident(hir_ident, *location)
+                    }
+                    Some(IdentFromPath::TypeAlias(_)) | None => {
+                        let hir_expr = HirExpression::Error;
+                        let expr_id = self.intern_expr(hir_expr, *location);
+                        let typ = Type::Error;
+                        let expr_id = self.intern_expr_type(expr_id, typ.clone());
+                        (typ, expr_id)
+                    }
+                };
                 capture_types.push(typ);
                 fmt_str_idents.push(expr_id);
             }
@@ -478,6 +492,18 @@ impl Elaborator<'_> {
             if capture_types.is_empty() { Type::Unit } else { Type::Tuple(capture_types) };
         let typ = Type::FmtString(Box::new(len), Box::new(fmtstr_type));
         (HirExpression::Literal(HirLiteral::FmtStr(fragments, fmt_str_idents, length)), typ)
+    }
+
+    fn elaborate_fmt_string_ident(
+        &mut self,
+        hir_ident: HirIdent,
+        location: Location,
+    ) -> (Type, ExprId) {
+        let hir_expr = HirExpression::Ident(hir_ident.clone(), None);
+        let expr_id = self.intern_expr(hir_expr, location);
+        let typ = self.type_check_variable(hir_ident, &expr_id, None);
+        let expr_id = self.intern_expr_type(expr_id, typ.clone());
+        (typ, expr_id)
     }
 
     fn elaborate_prefix(&mut self, prefix: PrefixExpression, location: Location) -> (ExprId, Type) {
@@ -523,12 +549,14 @@ impl Elaborator<'_> {
             rhs_type
         } else {
             let result = self.prefix_operand_type_rules(&operator, &rhs_type, location);
+            let not_ord = false;
             self.handle_operand_type_rules_result(
                 result,
                 &rhs_type,
                 trait_method_id,
                 *expr_id,
                 location,
+                not_ord,
             )
         };
 
@@ -542,16 +570,12 @@ impl Elaborator<'_> {
     pub(super) fn check_can_mutate(&mut self, expr_id: ExprId, location: Location) {
         match self.interner.expression(&expr_id) {
             HirExpression::Ident(hir_ident, _) => {
-                if let Some(definition) = self.interner.try_definition(hir_ident.id) {
-                    let name = definition.name.clone();
-                    if !definition.mutable {
-                        self.push_err(TypeCheckError::CannotMutateImmutableVariable {
-                            name,
-                            location,
-                        });
-                    } else {
-                        self.check_can_mutate_lambda_capture(hir_ident.id, name, location);
-                    }
+                let definition = self.interner.definition(hir_ident.id);
+                let name = definition.name.clone();
+                if !definition.mutable {
+                    self.push_err(TypeCheckError::CannotMutateImmutableVariable { name, location });
+                } else {
+                    self.check_can_mutate_lambda_capture(hir_ident.id, name, location);
                 }
             }
             HirExpression::Index(_) => {
@@ -779,6 +803,7 @@ impl Elaborator<'_> {
 
         let function_type = self.interner.function_meta(&func_id).typ.clone();
         self.try_add_mutable_reference_to_object(&function_type, &mut object_type, &mut object);
+
         let generics = method_call.generics;
         let generics = generics.map(|generics| {
             vecmap(generics, |generic| {
@@ -1229,6 +1254,8 @@ impl Elaborator<'_> {
         let opt_trait_id = self.interner.try_get_operator_trait_method(infix.operator.contents);
 
         let file = infix.operator.location().file;
+        let is_ord =
+            infix.operator.contents.is_comparator() && !infix.operator.contents.is_equality();
         let operator = HirBinaryOp::new(infix.operator, file);
         let expr = HirExpression::Infix(HirInfixExpression {
             lhs,
@@ -1246,6 +1273,7 @@ impl Elaborator<'_> {
             opt_trait_id,
             *expr_id,
             location,
+            is_ord,
         );
 
         let expr_id = self.intern_expr_type(expr_id, typ.clone());
@@ -1263,6 +1291,7 @@ impl Elaborator<'_> {
         trait_method_id: Option<TraitItemId>,
         expr_id: ExprId,
         location: Location,
+        is_ord: bool,
     ) -> Type {
         match result {
             Ok((typ, use_impl)) => {
@@ -1286,6 +1315,7 @@ impl Elaborator<'_> {
                         operand_type,
                         &typ,
                         location,
+                        is_ord,
                     );
                 }
                 typ
@@ -1611,26 +1641,22 @@ impl Elaborator<'_> {
     }
 
     fn try_get_comptime_function(
-        &mut self,
+        &self,
         func: ExprId,
         location: Location,
-    ) -> Result<Option<FuncId>, ResolverError> {
+    ) -> Result<FuncId, ResolverError> {
         match self.interner.expression(&func) {
             HirExpression::Ident(ident, _generics) => {
-                if let Some(definition) = self.interner.try_definition(ident.id) {
-                    if let DefinitionKind::Function(function) = definition.kind {
-                        let meta = self.interner.function_modifiers(&function);
-                        if meta.is_comptime {
-                            Ok(Some(function))
-                        } else {
-                            Err(ResolverError::MacroIsNotComptime { location })
-                        }
+                let definition = self.interner.definition(ident.id);
+                if let DefinitionKind::Function(function) = definition.kind {
+                    let meta = self.interner.function_modifiers(&function);
+                    if meta.is_comptime {
+                        Ok(function)
                     } else {
-                        Err(ResolverError::InvalidSyntaxInMacroCall { location })
+                        Err(ResolverError::MacroIsNotComptime { location })
                     }
                 } else {
-                    // Assume a name resolution error has already been issued
-                    Ok(None)
+                    Err(ResolverError::InvalidSyntaxInMacroCall { location })
                 }
             }
             _ => Err(ResolverError::InvalidSyntaxInMacroCall { location }),
@@ -1651,7 +1677,7 @@ impl Elaborator<'_> {
         });
 
         let function = match self.try_get_comptime_function(func, location) {
-            Ok(function) => function?,
+            Ok(function) => function,
             Err(error) => {
                 self.push_err(error);
                 return None;

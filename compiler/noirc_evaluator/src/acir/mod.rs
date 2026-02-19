@@ -31,10 +31,11 @@ mod types;
 use crate::brillig::Brillig;
 use crate::brillig::brillig_gen::gen_brillig_for;
 use crate::errors::{InternalError, RuntimeError};
+
 use crate::ssa::{
     function_builder::data_bus::DataBus,
     ir::{
-        dfg::DataFlowGraph,
+        dfg::{DataFlowGraph, MAX_ELEMENTS},
         function::{Function, RuntimeType},
         instruction::{
             Binary, BinaryOp, ConstrainError, Instruction, InstructionId, TerminatorInstruction,
@@ -83,6 +84,11 @@ struct Context<'a> {
     /// Each acir memory block corresponds to a different SSA array.
     memory_blocks: HashMap<Id<Value>, BlockId>,
 
+    /// The BlockId dedicated to return_data
+    /// It is not managed by memory_blocks to ensure getting always a fresh block for return_data, even if
+    /// the SSA array has already been initialized to a block.
+    return_data_block_id: Option<BlockId>,
+
     /// Maps SSA values to BlockId's used internally for computing the accurate flattened
     /// index of non-homogenous arrays.
     /// See [arrays] for more information about the purpose of the type sizes array.
@@ -127,6 +133,7 @@ impl<'a> Context<'a> {
             acir_context,
             initialized_arrays: HashSet::default(),
             memory_blocks: HashMap::default(),
+            return_data_block_id: None,
             element_type_sizes_blocks: HashMap::default(),
             type_sizes_to_blocks: HashMap::default(),
             max_block_id: 0,
@@ -188,8 +195,7 @@ impl<'a> Context<'a> {
         self.acir_context.acir_ir.input_witnesses =
             self.convert_ssa_block_params(entry_block.parameters(), dfg)?;
 
-        let num_return_witnesses =
-            self.get_num_return_witnesses(entry_block.unwrap_terminator(), dfg);
+        let num_return_witnesses = dfg.get_num_return_witnesses(main_func)?;
 
         // Create a witness for each return witness we have to guarantee that the return witnesses match the standard
         // layout for serializing those types as if they were being passed as inputs.
@@ -283,6 +289,25 @@ impl<'a> Context<'a> {
 
         self.acir_context.acir_ir.input_witnesses = self.acir_context.extract_witnesses(&inputs);
         let returns = main_func.returns().unwrap_or_default();
+
+        // Check the flattened size of return values to avoid OOM during Brillig entry point generation
+        let num_return_values: usize = returns
+            .iter()
+            .map(|result_id| dfg.type_of_value(*result_id).flattened_size().to_usize())
+            .sum();
+        if num_return_values > MAX_ELEMENTS {
+            let entry_block = &dfg[main_func.entry_block()];
+            let call_stack_id = match entry_block.unwrap_terminator() {
+                TerminatorInstruction::Return { call_stack, .. } => *call_stack,
+                _ => unreachable!("ICE: expected return terminator"),
+            };
+            let call_stack = dfg.call_stack_data.get_call_stack(call_stack_id);
+            return Err(RuntimeError::ReturnLimitExceeded {
+                num_witnesses: num_return_values,
+                max_witnesses: MAX_ELEMENTS,
+                call_stack,
+            });
+        }
 
         let outputs: Vec<AcirType> =
             vecmap(returns, |result_id| dfg.type_of_value(*result_id).into());
@@ -582,26 +607,6 @@ impl<'a> Context<'a> {
     }
 
     /// Converts an SSA terminator's return values into their ACIR representations
-    fn get_num_return_witnesses(
-        &self,
-        terminator: &TerminatorInstruction,
-        dfg: &DataFlowGraph,
-    ) -> usize {
-        let return_values = match terminator {
-            TerminatorInstruction::Return { return_values, .. } => return_values,
-            TerminatorInstruction::Unreachable { .. } => return 0,
-            // TODO(https://github.com/noir-lang/noir/issues/4616): Enable recursion on foldable/non-inlined ACIR functions
-            TerminatorInstruction::JmpIf { .. } | TerminatorInstruction::Jmp { .. } => {
-                unreachable!("ICE: Program must have a singular return")
-            }
-        };
-
-        return_values
-            .iter()
-            .fold(0, |acc, value_id| acc + dfg.type_of_value(*value_id).flattened_size().to_usize())
-    }
-
-    /// Converts an SSA terminator's return values into their ACIR representations
     fn convert_ssa_return(
         &mut self,
         terminator: &TerminatorInstruction,
@@ -875,7 +880,7 @@ impl<'a> Context<'a> {
             _ => unreachable!(
                 "ICE: Truncates are only ever applied to the result of a binary op or a param"
             ),
-        };
+        }
 
         self.acir_context.truncate_var(var, bit_size, max_bit_size)
     }

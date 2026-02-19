@@ -30,6 +30,7 @@ use crate::{
 /// - attribute references (see `visit_meta_attribute`).
 pub(crate) struct VisitorReferenceFinder<'a> {
     source: &'a str,
+    file_id: FileId,
     byte_index: usize,
     /// The module ID in scope. This might change as we traverse the AST
     /// if we are analyzing something inside an inline module declaration.
@@ -47,7 +48,7 @@ pub(crate) struct VisitorReferenceFinder<'a> {
 impl<'a> VisitorReferenceFinder<'a> {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
-        file: FileId,
+        file_id: FileId,
         source: &'a str,
         byte_index: usize,
         args: &'a ProcessRequestCallbackArgs<'a>,
@@ -56,7 +57,7 @@ impl<'a> VisitorReferenceFinder<'a> {
         let krate = args.crate_id;
         let def_map = &args.def_maps[&krate];
         let local_id = if let Some((module_index, _)) =
-            def_map.modules().iter().find(|(_, module_data)| module_data.location.file == file)
+            def_map.modules().iter().find(|(_, module_data)| module_data.location.file == file_id)
         {
             LocalModuleId::new(module_index)
         } else {
@@ -64,14 +65,14 @@ impl<'a> VisitorReferenceFinder<'a> {
         };
         let module_id = ModuleId { krate, local_id };
         let link_finder = LinkFinder::default();
-        Self { source, byte_index, module_id, args, link_finder, reference_id: None }
+        Self { source, file_id, byte_index, module_id, args, link_finder, reference_id: None }
     }
 
     pub(crate) fn find(
         &mut self,
         parsed_module: &ParsedModule,
     ) -> Option<(ReferenceId, Option<lsp_types::Location>)> {
-        // Find in the doc comments on the crate root
+        // Find in the doc comments on the crate root, if we are in the crate root
         self.find_in_reference_doc_comments(ReferenceId::Module(self.module_id));
 
         parsed_module.accept(self);
@@ -104,6 +105,12 @@ impl<'a> VisitorReferenceFinder<'a> {
         self.link_finder.reset();
         for located_comment in doc_comments {
             let location = located_comment.location();
+            if location.file != self.file_id {
+                // A module's comments might happen inline in the same file or in a different file.
+                // We should not process comments that are not in the current file.
+                continue;
+            }
+
             let Some(lsp_location) = to_lsp_location(self.args.files, location.file, location.span)
             else {
                 continue;
@@ -178,16 +185,16 @@ impl Visitor for VisitorReferenceFinder<'_> {
         let name_location = parsed_sub_module.name.location();
         if let Some(reference) = self.args.interner.reference_at_location(name_location) {
             self.find_in_reference_doc_comments(reference);
-        };
+        }
 
         // Switch `self.module_id` to the submodule
         let previous_module_id = self.module_id;
 
         let def_map = &self.args.def_maps[&self.module_id.krate];
-        if let Some(module_data) = def_map.get(self.module_id.local_id) {
-            if let Some(child_module) = module_data.children.get(&parsed_sub_module.name) {
-                self.module_id = ModuleId { krate: self.module_id.krate, local_id: *child_module };
-            }
+        if let Some(module_data) = def_map.get(self.module_id.local_id)
+            && let Some(child_module) = module_data.children.get(&parsed_sub_module.name)
+        {
+            self.module_id = ModuleId { krate: self.module_id.krate, local_id: *child_module };
         }
 
         parsed_sub_module.accept_children(self);
@@ -202,7 +209,7 @@ impl Visitor for VisitorReferenceFinder<'_> {
         let name_location = function.name_ident().location();
         if let Some(reference) = self.args.interner.reference_at_location(name_location) {
             self.find_in_reference_doc_comments(reference);
-        };
+        }
 
         self.intersects_span(span)
     }
@@ -211,13 +218,13 @@ impl Visitor for VisitorReferenceFinder<'_> {
         let name_location = noir_struct.name.location();
         if let Some(reference) = self.args.interner.reference_at_location(name_location) {
             self.find_in_reference_doc_comments(reference);
-        };
+        }
 
         for field in noir_struct.fields.iter() {
             let field_name_location = field.item.name.location();
             if let Some(reference) = self.args.interner.reference_at_location(field_name_location) {
                 self.find_in_reference_doc_comments(reference);
-            };
+            }
         }
 
         false
@@ -227,14 +234,14 @@ impl Visitor for VisitorReferenceFinder<'_> {
         let name_location = noir_enum.name.location();
         if let Some(reference) = self.args.interner.reference_at_location(name_location) {
             self.find_in_reference_doc_comments(reference);
-        };
+        }
 
         for variant in noir_enum.variants.iter() {
             let variant_name_location = variant.item.name.location();
             if let Some(reference) = self.args.interner.reference_at_location(variant_name_location)
             {
                 self.find_in_reference_doc_comments(reference);
-            };
+            }
         }
 
         false
@@ -244,7 +251,7 @@ impl Visitor for VisitorReferenceFinder<'_> {
         let name_location = noir_trait.name.location();
         if let Some(reference) = self.args.interner.reference_at_location(name_location) {
             self.find_in_reference_doc_comments(reference);
-        };
+        }
 
         for item in noir_trait.items.iter() {
             if let TraitItem::Function { name, .. } = &item.item {
@@ -253,7 +260,7 @@ impl Visitor for VisitorReferenceFinder<'_> {
                     self.args.interner.reference_at_location(func_name_location)
                 {
                     self.find_in_reference_doc_comments(reference);
-                };
+                }
             }
         }
 
@@ -264,7 +271,7 @@ impl Visitor for VisitorReferenceFinder<'_> {
         let name_location = let_statement.pattern.location();
         if let Some(reference) = self.args.interner.reference_at_location(name_location) {
             self.find_in_reference_doc_comments(reference);
-        };
+        }
         false
     }
 
@@ -272,7 +279,7 @@ impl Visitor for VisitorReferenceFinder<'_> {
         let name_location = type_alias.name.location();
         if let Some(reference) = self.args.interner.reference_at_location(name_location) {
             self.find_in_reference_doc_comments(reference);
-        };
+        }
         false
     }
 

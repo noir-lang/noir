@@ -14,6 +14,7 @@ use async_lsp::{
         SemanticTokensResult, TextDocumentPositionParams,
     },
 };
+use fm::FileId;
 use nargo_doc::links::{LinkFinder, LinkTarget};
 use noirc_errors::Span;
 use noirc_frontend::{
@@ -22,7 +23,7 @@ use noirc_frontend::{
         Visitor,
     },
     elaborator::PrimitiveType,
-    hir::def_map::{ModuleDefId, ModuleId},
+    hir::def_map::{LocalModuleId, ModuleDefId, ModuleId},
     lexer::Lexer,
     node_interner::ReferenceId,
     parser::ParsedSubModule,
@@ -52,7 +53,7 @@ pub(crate) fn on_semantic_tokens_full_request(
         let source = file.source();
         let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
-        let mut collector = SemanticTokenCollector::new(source, &args);
+        let mut collector = SemanticTokenCollector::new(source, file_id, &args);
         let tokens = collector.collect(&parsed_module);
         Some(SemanticTokensResult::Tokens(SemanticTokens { result_id: None, data: tokens }))
     });
@@ -62,6 +63,7 @@ pub(crate) fn on_semantic_tokens_full_request(
 struct SemanticTokenCollector<'args> {
     source: &'args str,
     args: &'args ProcessRequestCallbackArgs<'args>,
+    file_id: FileId,
     link_finder: LinkFinder,
     tokens: Vec<SemanticToken>,
     previous_line: u32,
@@ -77,13 +79,18 @@ enum CodeBlock {
 }
 
 impl<'args> SemanticTokenCollector<'args> {
-    fn new(source: &'args str, args: &'args ProcessRequestCallbackArgs<'args>) -> Self {
+    fn new(
+        source: &'args str,
+        file_id: FileId,
+        args: &'args ProcessRequestCallbackArgs<'args>,
+    ) -> Self {
         let link_finder = LinkFinder::default();
         let tokens = Vec::new();
         let token_types = semantic_token_types_map();
         SemanticTokenCollector {
             source,
             args,
+            file_id,
             link_finder,
             tokens,
             previous_line: 0,
@@ -93,9 +100,21 @@ impl<'args> SemanticTokenCollector<'args> {
     }
 
     fn collect(&mut self, parsed_module: &noirc_frontend::ParsedModule) -> Vec<SemanticToken> {
-        // Also process doc comments for the crate root module
-        let local_module_id = self.args.def_maps[&self.args.crate_id].root();
-        let module_id = ModuleId { krate: self.args.crate_id, local_id: local_module_id };
+        // Find the module the current file belongs to
+        let krate = self.args.crate_id;
+        let def_map = &self.args.def_maps[&krate];
+        let local_id = if let Some((module_index, _)) = def_map
+            .modules()
+            .iter()
+            .find(|(_, module_data)| module_data.location.file == self.file_id)
+        {
+            LocalModuleId::new(module_index)
+        } else {
+            def_map.root()
+        };
+        let module_id = ModuleId { krate, local_id };
+
+        // Process doc comments on the module itself
         self.process_reference_id(ReferenceId::Module(module_id));
 
         parsed_module.accept(self);
@@ -116,6 +135,13 @@ impl<'args> SemanticTokenCollector<'args> {
 
         self.link_finder.reset();
         for located_comment in doc_comments {
+            let location = located_comment.location();
+            if location.file != self.file_id {
+                // A module's comments might happen inline in the same file or in a different file.
+                // We should not process comments that are not in the current file.
+                continue;
+            }
+
             let contents = located_comment.contents.trim();
             let mut fence = false;
 
@@ -361,6 +387,7 @@ impl<'args> SemanticTokenCollector<'args> {
             | Token::Pound
             | Token::Colon
             | Token::DoubleColon
+            | Token::Backslash
             | Token::Bang
             | Token::DollarSign
             | Token::At
@@ -429,7 +456,7 @@ impl Visitor for SemanticTokenCollector<'_> {
         let name_location = module.name.location();
         if let Some(reference) = self.args.interner.reference_at_location(name_location) {
             self.process_reference_id(reference);
-        };
+        }
 
         true
     }
@@ -438,7 +465,7 @@ impl Visitor for SemanticTokenCollector<'_> {
         let name_location = function.name_ident().location();
         if let Some(reference) = self.args.interner.reference_at_location(name_location) {
             self.process_reference_id(reference);
-        };
+        }
 
         false
     }
@@ -447,13 +474,13 @@ impl Visitor for SemanticTokenCollector<'_> {
         let name_location = noir_struct.name.location();
         if let Some(reference) = self.args.interner.reference_at_location(name_location) {
             self.process_reference_id(reference);
-        };
+        }
 
         for field in noir_struct.fields.iter() {
             let field_name_location = field.item.name.location();
             if let Some(reference) = self.args.interner.reference_at_location(field_name_location) {
                 self.process_reference_id(reference);
-            };
+            }
         }
 
         false
@@ -463,14 +490,14 @@ impl Visitor for SemanticTokenCollector<'_> {
         let name_location = noir_enum.name.location();
         if let Some(reference) = self.args.interner.reference_at_location(name_location) {
             self.process_reference_id(reference);
-        };
+        }
 
         for variant in noir_enum.variants.iter() {
             let variant_name_location = variant.item.name.location();
             if let Some(reference) = self.args.interner.reference_at_location(variant_name_location)
             {
                 self.process_reference_id(reference);
-            };
+            }
         }
 
         false
@@ -480,7 +507,7 @@ impl Visitor for SemanticTokenCollector<'_> {
         let name_location = noir_trait.name.location();
         if let Some(reference) = self.args.interner.reference_at_location(name_location) {
             self.process_reference_id(reference);
-        };
+        }
 
         for item in noir_trait.items.iter() {
             if let TraitItem::Function { name, .. } = &item.item {
@@ -489,7 +516,7 @@ impl Visitor for SemanticTokenCollector<'_> {
                     self.args.interner.reference_at_location(func_name_location)
                 {
                     self.process_reference_id(reference);
-                };
+                }
             }
         }
 
@@ -500,7 +527,7 @@ impl Visitor for SemanticTokenCollector<'_> {
         let name_location = let_statement.pattern.location();
         if let Some(reference) = self.args.interner.reference_at_location(name_location) {
             self.process_reference_id(reference);
-        };
+        }
         false
     }
 
@@ -508,7 +535,7 @@ impl Visitor for SemanticTokenCollector<'_> {
         let name_location = type_alias.name.location();
         if let Some(reference) = self.args.interner.reference_at_location(name_location) {
             self.process_reference_id(reference);
-        };
+        }
         false
     }
 }

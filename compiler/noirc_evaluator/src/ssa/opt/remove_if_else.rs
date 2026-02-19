@@ -179,6 +179,15 @@ impl Context {
     fn remove_if_else(&mut self, function: &mut Function) -> RtResult<()> {
         let block = function.entry_block();
 
+        // Early return if there is no IfElse instruction.
+        if !function.dfg[block]
+            .instructions()
+            .iter()
+            .any(|inst| matches!(function.dfg[*inst], Instruction::IfElse { .. }))
+        {
+            return Ok(());
+        }
+
         function.simple_optimization_result(|context| {
             let instruction_id = context.instruction_id;
             let instruction = context.instruction();
@@ -345,6 +354,24 @@ impl Context {
                     );
                 }
             }
+            Intrinsic::Hint(Hint::BlackBox) => {
+                // Try to set the length of any vector argument to be that of the preceding constant.
+                let arguments_types =
+                    arguments.iter().map(|x| dfg.type_of_value(*x)).collect::<Vec<_>>();
+
+                for (i, argument) in arguments.iter().enumerate().skip(1) {
+                    if !matches!(arguments_types[i], Type::Vector(_)) {
+                        continue;
+                    }
+                    assert!(matches!(arguments_types[i - 1], Type::Numeric(_)));
+                    if let Some(const_len) = dfg.get_numeric_constant(arguments[i - 1]) {
+                        self.vector_sizes.insert(
+                            *argument,
+                            SemanticLength(const_len.try_to_u32().expect("Type should be u32")),
+                        );
+                    }
+                }
+            }
             _ => {}
         }
     }
@@ -468,29 +495,12 @@ enum SizeChange {
 
 #[cfg(debug_assertions)]
 fn remove_if_else_pre_check(func: &Function) {
-    // This pass should only run post-flattening.
-    super::flatten_cfg::flatten_cfg_post_check(func);
-
-    // We expect to only encounter `IfElse` instructions on array and vector types.
-    for block_id in func.reachable_blocks() {
-        let instruction_ids = func.dfg[block_id].instructions();
-
-        for instruction_id in instruction_ids {
-            if let Instruction::IfElse { then_value, .. } = &func.dfg[*instruction_id] {
-                // We generally expect that all the results at this point will be either arrays or vectors,
-                // however the flattening makes no guarantee of this: if it needs to merge references or functions
-                // it will do so using IfElse. The ValueMerger already returns appropriate RuntimeErrors to point
-                // at the problem, so we don't assert this expectation.
-
-                // We do expect that numeric values are not used though.
-                let typ = func.dfg.type_of_value(*then_value);
-                assert!(
-                    !matches!(typ, Type::Numeric(_)),
-                    "Numeric values should have been handled during flattening"
-                );
-            }
-        }
-    }
+    // flatten_cfg must have run
+    super::checks::assert_cfg_is_flattened(func);
+    // IfElse should only be on arrays/vectors, not numeric types
+    super::checks::for_each_instruction(func, |instruction, dfg| {
+        super::checks::assert_not_if_else_on_numeric(instruction, dfg);
+    });
 }
 
 /// Post-check condition for [Function::remove_if_else].
@@ -502,20 +512,10 @@ fn remove_if_else_pre_check(func: &Function) {
 /// Otherwise panics.
 #[cfg(debug_assertions)]
 fn remove_if_else_post_check(func: &Function) {
-    // Brillig functions should be unaffected.
-    if func.runtime().is_brillig() {
-        return;
-    }
-
-    // Otherwise there should be no if-else instructions in any reachable block.
-    for block_id in func.reachable_blocks() {
-        let instruction_ids = func.dfg[block_id].instructions();
-        for instruction_id in instruction_ids {
-            if matches!(func.dfg[*instruction_id], Instruction::IfElse { .. }) {
-                panic!("IfElse instruction still remains in ACIR function");
-            }
-        }
-    }
+    // All IfElse instructions should be removed
+    super::checks::for_each_instruction(func, |instruction, _dfg| {
+        super::checks::assert_not_if_else(instruction);
+    });
 }
 
 #[cfg(test)]

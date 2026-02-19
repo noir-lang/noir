@@ -70,15 +70,20 @@ impl Expression {
             Expression::Ident(ident) => borrowed(&ident.typ),
             Expression::Literal(literal) => match literal {
                 Literal::Array(literal) | Literal::Vector(literal) => borrowed(&literal.typ),
+                Literal::Repeated { typ, .. } => borrowed(typ),
                 Literal::Integer(_, typ, _) => borrowed(typ),
                 Literal::Bool(_) => borrowed(&Type::Bool),
                 Literal::Unit => borrowed(&Type::Unit),
                 Literal::Str(s) => owned(Type::String(s.len() as u32)),
-                Literal::FmtStr(_, size, expr) => expr.return_type().and_then(|typ| {
+                Literal::FmtStr(_, size, expr) => {
+                    let typ = expr.return_type()?;
                     owned(Type::FmtString(*size as u32, Box::new(typ.into_owned())))
-                }),
+                }
             },
-            Expression::Block(xs) => xs.last().and_then(|x| x.return_type()),
+            Expression::Block(xs) => {
+                let x = xs.last()?;
+                x.return_type()
+            }
             Expression::Unary(unary) => borrowed(&unary.result_type),
             Expression::Binary(binary) => {
                 if binary.operator.is_comparator() {
@@ -253,6 +258,7 @@ pub struct For {
     pub start_range: Box<Expression>,
     pub end_range: Box<Expression>,
     pub block: Box<Expression>,
+    pub inclusive: bool,
 
     pub start_range_location: Location,
     pub end_range_location: Location,
@@ -268,6 +274,14 @@ pub struct While {
 pub enum Literal {
     Array(ArrayLiteral),
     Vector(ArrayLiteral),
+    /// A repeated array like `[expr; N]` where the element is repeated N times.
+    /// This avoids creating N copies of the element expression in memory.
+    Repeated {
+        element: Box<Expression>,
+        length: u32,
+        is_vector: bool,
+        typ: Type,
+    },
     Integer(SignedField, Type, Location),
     Bool(bool),
     Unit,

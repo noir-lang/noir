@@ -136,29 +136,23 @@ fn simple_closure_with_no_captured_variables() {
     insta::assert_snapshot!(program, @r"
     fn main$f0(y$l0: call_data(0) Field) -> pub Field {
         let x$l1 = 1;
-        let closure$l6 = ({
+        let closure$l4 = {
             let closure_variable$l3 = {
                 let env$l2 = (x$l1);
-                (env$l2, lambda$f1)
+                ((env$l2, lambda$f1), (env$l2, lambda$f2))
             };
             closure_variable$l3
-        }, {
-            let closure_variable$l5 = {
-                let env$l4 = (x$l1);
-                (env$l4, lambda$f2)
-            };
-            closure_variable$l5
-        });
+        };
         {
-            let tmp$l7 = closure$l6.0;
-            tmp$l7.1(tmp$l7.0)
+            let tmp$l5 = closure$l4.0;
+            tmp$l5.1(tmp$l5.0)
         }
     }
     fn lambda$f1(mut env$l2: (Field,)) -> Field {
         env$l2.0
     }
-    unconstrained fn lambda$f2(mut env$l4: (Field,)) -> Field {
-        env$l4.0
+    unconstrained fn lambda$f2(mut env$l2: (Field,)) -> Field {
+        env$l2.0
     }
     ");
 }
@@ -466,6 +460,7 @@ fn multiple_trait_impls_with_different_instantiations() {
 #[should_panic(expected = "Type recursion limit reached - types are too large")]
 fn extreme_type_alias_chain_stack_overflow() {
     // Generate a chain of 2,000 type aliases programmatically
+    // This exercises follow_bindings_shallow which handles alias chains.
     // ```
     // type Alias2000 = u8;
     // type Alias1999 = Alias2000;
@@ -493,6 +488,31 @@ fn extreme_type_alias_chain_stack_overflow() {
             x
         }}
     "#
+    );
+
+    let _ = get_monomorphized(&src);
+}
+
+#[test]
+#[should_panic(expected = "Type recursion limit reached - types are too large")]
+fn deeply_nested_tuple_type_stack_overflow() {
+    // Generate deeply nested tuple types by wrapping values repeatedly.
+    // This exercises follow_bindings which handles nested type structures.
+    // Each wrap adds one level: Field -> (Field,) -> ((Field,),) -> ...
+    use crate::TYPE_RECURSION_LIMIT;
+    const DEPTH: usize = TYPE_RECURSION_LIMIT as usize + 10;
+
+    let mut body = String::from("let v0: Field = 1;\n");
+    for i in 1..=DEPTH {
+        body.push_str(&format!("    let v{i} = (v{},);\n", i - 1));
+    }
+
+    let src = format!(
+        r#"
+fn main() {{
+    {body}
+}}
+"#
     );
 
     let _ = get_monomorphized(&src);
@@ -636,10 +656,7 @@ fn repeated_array() {
     let program = get_monomorphized(src).unwrap();
     insta::assert_snapshot!(program, @r"
     fn main$f0() -> () {
-        let _a$l1 = {
-            let repeated_element$l0 = (1 + 2);
-            [repeated_element$l0, repeated_element$l0, repeated_element$l0]
-        }
+        let _a$l0 = [(1 + 2); 3]
     }
     ");
 }
@@ -658,10 +675,7 @@ fn repeated_array_zero() {
     let program = get_monomorphized(src).unwrap();
     insta::assert_snapshot!(program, @r"
     fn main$f0() -> () {
-        let _a$l1 = {
-            let repeated_element$l0 = foo$f1();
-            @[]
-        }
+        let _a$l0 = @[foo$f1(); 0]
     }
     fn foo$f1() -> Field {
         (1 + 2)
@@ -1336,4 +1350,122 @@ fn out_of_order_globals() {
         (x$l2 + FOO$g1)
     }
     ");
+}
+
+#[test]
+fn very_large_array() {
+    let src = r#"
+    fn main() {
+        // 1.3 billion elements 
+        let _arr: [Field; 1294967295] = [0; 1294967295];
+    }
+    "#;
+    assert!(get_monomorphized(src).is_ok());
+}
+
+#[test]
+fn closure_capture_chain_oom() {
+    let src = "
+    fn main() {
+        let x: Field = 1;
+        let f0 = || x;
+        let f1 = || f0();
+        let f2 = || f1();
+        let f3 = || f2();
+        let f4 = || f3();
+        let f5 = || f4();
+        let f6 = || f5();
+        let f7 = || f6();
+        let f8 = || f7();
+        let f9 = || f8();
+        let f10 = || f9();
+        let _ = f10();
+    }
+    ";
+    let _ = get_monomorphized(src);
+}
+
+#[test]
+fn deeply_nested_closures() {
+    const DEPTH: usize = 20;
+
+    // Build: let f0 = || { let f1 = || { ... let fN = || { 0 }; fN() }; ... f1() }; f0()
+    // The closures do not have exponential growth and should be allowed.
+    let mut opening = String::new();
+    let mut closing = String::new();
+
+    for i in 0..DEPTH {
+        opening.push_str(&format!("let f{i} = || {{ "));
+    }
+    // Close in reverse order
+    for i in (0..DEPTH).rev() {
+        closing.push_str(&format!("}}; f{i}() "));
+    }
+
+    let src = format!(
+        r#"
+    fn main() {{
+        {opening}0{closing};
+    }}
+    "#
+    );
+    assert!(get_monomorphized(&src).is_ok());
+}
+
+#[test]
+fn unbounded_monomorphization_queue() {
+    // Generate many unique monomorphic functions via different array sizes.
+    // Each [Field; N] is a distinct type, creating foo<[Field; N]>.
+    const NUM_MONOMORPHIC_FUNCTIONS: usize = 9000;
+
+    let mut calls = String::new();
+    for i in 1..=NUM_MONOMORPHIC_FUNCTIONS {
+        calls.push_str(&format!("        let v{i} = foo([0; {i}]);\n"));
+    }
+
+    let src = format!(
+        r#"
+    fn foo<T>(x: T) -> T {{ x }}
+    fn main() {{
+{calls}    }}
+    "#
+    );
+
+    assert!(get_monomorphized(&src).is_ok());
+}
+
+#[test]
+fn exponential_type_complexity_should_fail() {
+    // This test verifies that exponentially growing types are caught by the complexity limit.
+    // Each wrap(x) doubles the type size: Field -> (Field, Field) -> ((Field, Field), (Field, Field))
+    const DEPTH: usize = 20;
+
+    let mut body = String::from("let v0 = 1;\n");
+    for i in 1..=DEPTH {
+        body.push_str(&format!("    let v{} = wrap(v{});\n", i, i - 1));
+    }
+
+    let src = format!(
+        r#"
+fn wrap<T>(x: T) -> (T, T) {{
+    (x, x)
+}}
+fn main() {{
+    {body}
+}}
+"#
+    );
+
+    let result = get_monomorphized(&src);
+    match result {
+        Ok(_) => panic!("Expected ComplexType error, but got Ok"),
+        Err(MonomorphizationError::ComplexType { complexity, max_complexity, .. }) => {
+            // Verify the error is correct
+            assert!(
+                complexity > max_complexity,
+                "Complexity {complexity} should exceed max {max_complexity}",
+            );
+        }
+        Err(e) => panic!("Expected ComplexType error, but got {e:?}"),
+    }
 }

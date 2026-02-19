@@ -30,7 +30,6 @@ use nargo::{
 };
 use nargo_toml::{PackageSelection, find_file_manifest, resolve_workspace_from_toml};
 use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
-use noirc_errors::CustomDiagnostic;
 use noirc_frontend::{
     ParsedModule,
     graph::{CrateGraph, CrateId, CrateName},
@@ -106,9 +105,6 @@ pub struct LspState {
     package_cache: HashMap<PathBuf, PackageCacheData>,
     workspace_symbol_cache: WorkspaceSymbolCache,
 
-    /// Whenever a file in a workspace is changed we'll add it to this set.
-    workspaces_to_process: HashSet<PathBuf>,
-
     options: LspInitializationOptions,
 
     // Tracks files that currently have errors, by package root.
@@ -125,8 +121,6 @@ struct PackageCacheData {
     node_interner: NodeInterner,
     def_maps: BTreeMap<CrateId, CrateDefMap>,
     usage_tracker: UsageTracker,
-    diagnostics: Vec<CustomDiagnostic>,
-    diagnostics_just_published: bool,
 }
 
 impl LspState {
@@ -143,7 +137,6 @@ impl LspState {
             workspace_cache: HashMap::new(),
             package_cache: HashMap::new(),
             workspace_symbol_cache: WorkspaceSymbolCache::default(),
-            workspaces_to_process: HashSet::new(),
             options: Default::default(),
             files_with_errors: HashMap::new(),
         }
@@ -293,7 +286,7 @@ pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Work
         ) {
             Ok(workspace) => return Ok(workspace),
             Err(error) => {
-                eprintln!("Error while processing {toml_path:?}: {error}");
+                eprintln!("Error while processing {}: {error}", toml_path.display());
             }
         }
     }
@@ -304,7 +297,8 @@ pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Work
         .and_then(|file_name_os_str| file_name_os_str.to_str())
     else {
         return Err(LspError::WorkspaceResolutionError(format!(
-            "Could not resolve parent folder for file: {file_path:?}"
+            "Could not resolve parent folder for file: {}",
+            file_path.display()
         )));
     };
 
@@ -385,14 +379,13 @@ fn parse_diff(file_manager: &FileManager, state: &mut LspState) -> ParsedFiles {
             .par_iter()
             .filter_map(|(file_id, file_path, current_hash)| {
                 let cached_version = state.cached_parsed_files.get(file_path);
-                if let Some((hash, (parsed_module, errors))) = cached_version {
-                    if hash == current_hash {
-                        // The cached ParsedModule might have FileIDs in it that are different than the file_id we get here,
-                        // so we must replace all of those FileIDs with the one here.
-                        let parsed_module =
-                            parsed_module_with_file(parsed_module.clone(), *file_id);
-                        return Some((*file_id, (parsed_module, errors.clone())));
-                    }
+                if let Some((hash, (parsed_module, errors))) = cached_version
+                    && hash == current_hash
+                {
+                    // The cached ParsedModule might have FileIDs in it that are different than the file_id we get here,
+                    // so we must replace all of those FileIDs with the one here.
+                    let parsed_module = parsed_module_with_file(parsed_module.clone(), *file_id);
+                    return Some((*file_id, (parsed_module, errors.clone())));
                 }
                 None
             })

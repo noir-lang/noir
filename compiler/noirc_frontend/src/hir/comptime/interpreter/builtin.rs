@@ -36,12 +36,14 @@ use crate::{
             InterpreterError, Value,
             display::tokens_to_string,
             errors::IResult,
-            interpreter::builtin::builtin_helpers::fragments_to_string,
+            interpreter::{
+                builtin::builtin_helpers::fragments_to_string,
+                builtin_helpers::check_item_crate_matches_current_crate,
+            },
             value::{ExprValue, FormatStringFragment, TypedExpr},
         },
         def_collector::dc_crate::CollectedItems,
         def_map::{ModuleDefId, ModuleId},
-        type_check::generics::TraitGenerics,
     },
     hir_def::{
         expr::{HirExpression, HirIdent, HirLiteral, ImplKind, TraitItem},
@@ -217,8 +219,8 @@ impl Interpreter<'_, '_> {
             "type_as_str" => type_as_str(arguments, return_type, location),
             "type_as_data_type" => type_as_data_type(arguments, return_type, location),
             "type_as_tuple" => type_as_tuple(arguments, return_type, location),
-            "type_def_add_attribute" => type_def_add_attribute(interner, arguments, location),
-            "type_def_add_generic" => type_def_add_generic(interner, arguments, location),
+            "type_def_add_attribute" => type_def_add_attribute(self, arguments, location),
+            "type_def_add_generic" => type_def_add_generic(self, arguments, location),
             "type_def_as_type" => type_def_as_type(interner, arguments, location),
             "type_def_as_type_with_generics" => {
                 type_def_as_type_with_generics(interner, arguments, return_type, location)
@@ -235,7 +237,7 @@ impl Interpreter<'_, '_> {
             "type_def_hash" => type_def_hash(arguments, location),
             "type_def_module" => type_def_module(self, arguments, location),
             "type_def_name" => type_def_name(interner, arguments, location),
-            "type_def_set_fields" => type_def_set_fields(self.elaborator, arguments, location),
+            "type_def_set_fields" => type_def_set_fields(self, arguments, location),
             "type_eq" => type_eq(arguments, location),
             "type_get_trait_impl" => {
                 type_get_trait_impl(interner, arguments, return_type, location)
@@ -414,7 +416,7 @@ fn str_as_ctstring(arguments: Vec<(Value, Location)>, location: Location) -> IRe
 
 // fn add_attribute<let N: u32>(self, attribute: str<N>)
 fn type_def_add_attribute(
-    interner: &mut NodeInterner,
+    interpreter: &mut Interpreter,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
@@ -430,8 +432,11 @@ fn type_def_add_attribute(
         });
     };
 
+    let self_arg = self_argument.0.clone();
     let type_id = get_type_id(self_argument)?;
-    interner.update_type_attributes(type_id, |attributes| {
+    check_item_crate_matches_current_crate(interpreter, &self_arg, type_id.module_id(), location)?;
+
+    interpreter.elaborator.interner.update_type_attributes(type_id, |attributes| {
         attributes.push(attribute);
     });
 
@@ -440,7 +445,7 @@ fn type_def_add_attribute(
 
 // fn add_generic<let N: u32>(self, generic_name: str<N>)
 fn type_def_add_generic(
-    interner: &NodeInterner,
+    interpreter: &Interpreter,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
@@ -463,8 +468,13 @@ fn type_def_add_generic(
         });
     };
 
+    let self_arg = self_argument.0.clone();
     let struct_id = get_type_id(self_argument)?;
-    let the_struct = interner.get_type(struct_id);
+    let struct_module = struct_id.module_id();
+
+    check_item_crate_matches_current_crate(interpreter, &self_arg, struct_module, location)?;
+
+    let the_struct = interpreter.elaborator.interner.get_type(struct_id);
     let mut the_struct = the_struct.borrow_mut();
     let name = Rc::new(generic_name);
 
@@ -479,9 +489,9 @@ fn type_def_add_generic(
         }
     }
 
-    let type_var_kind = Kind::Normal;
-    let type_var = TypeVariable::unbound(interner.next_type_variable_id(), type_var_kind);
-    let typ = type_var.clone().into_named_generic(name.clone());
+    let type_var_id = interpreter.elaborator.interner.next_type_variable_id();
+    let type_var = TypeVariable::unbound(type_var_id, Kind::Normal);
+    let typ = type_var.clone().into_named_generic(&name, None);
     let new_generic = ResolvedGeneric { name, type_var, location: generic_location };
     the_struct.generics.push(new_generic);
 
@@ -499,7 +509,7 @@ fn type_def_as_type(
     let type_def_rc = interner.get_type(struct_id);
     let type_def = type_def_rc.borrow();
 
-    let generics = vecmap(&type_def.generics, |generic| generic.clone().as_named_generic());
+    let generics = vecmap(&type_def.generics, |generic| generic.clone().into_named_generic(None));
 
     drop(type_def);
     Ok(Value::Type(Type::DataType(type_def_rc, generics)))
@@ -566,7 +576,7 @@ fn type_def_generics(
         .generics
         .iter()
         .map(|generic| {
-            let generic_as_named = generic.clone().as_named_generic();
+            let generic_as_named = generic.clone().into_named_generic(None);
             let numeric_type = match generic_as_named.kind() {
                 Kind::Numeric(numeric_type) => Some(Value::Type(*numeric_type)),
                 _ => None,
@@ -605,7 +615,7 @@ fn type_def_has_named_attribute(
 /// Returns (name, type, visibility) tuples of each field of this TypeDefinition.
 /// Applies the given generic arguments to each field.
 fn type_def_fields(
-    interner: &mut NodeInterner,
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
     call_stack: &Vector<Location>,
@@ -658,7 +668,7 @@ fn type_def_fields(
 ///
 /// Note that any generic arguments won't be applied: if you need them to be, use `fields`.
 fn type_def_fields_as_written(
-    interner: &mut NodeInterner,
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
@@ -718,14 +728,18 @@ fn type_def_name(
 /// fn set_fields(self, new_fields: [(Quoted, Type, Quoted)]) {}
 /// Returns (name, type) pairs of each field of this TypeDefinition
 fn type_def_set_fields(
-    elaborator: &mut Elaborator,
+    interpreter: &mut Interpreter,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let (the_struct, fields) = check_two_arguments(arguments, location)?;
+    let self_arg = the_struct.0.clone();
     let struct_id = get_type_id(the_struct)?;
+    let struct_module = struct_id.module_id();
 
-    let struct_def = elaborator.interner.get_type(struct_id);
+    check_item_crate_matches_current_crate(interpreter, &self_arg, struct_module, location)?;
+
+    let struct_def = interpreter.elaborator.interner.get_type(struct_id);
     let mut struct_def = struct_def.borrow_mut();
 
     let field_location = fields.1;
@@ -758,7 +772,7 @@ fn type_def_set_fields(
         match name_tokens.first().map(|t| t.token()) {
             Some(Token::Ident(name)) if name_tokens.len() == 1 => {
                 let visibility = parse(
-                    elaborator,
+                    interpreter.elaborator,
                     (visibility, field_location),
                     Parser::parse_item_visibility,
                     "a visibility",
@@ -778,7 +792,7 @@ fn type_def_set_fields(
                 new_fields.push(StructField { visibility, name, typ });
             }
             _ => {
-                let value = name_value.display(elaborator.interner).to_string();
+                let value = name_value.display(interpreter.elaborator.interner).to_string();
                 let location = field_location;
                 return Err(InterpreterError::ExpectedIdentForStructField {
                     value,
@@ -1363,7 +1377,7 @@ fn trait_def_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResul
 
 // fn methods(self) -> [FunctionDefinition]
 fn trait_impl_methods(
-    interner: &mut NodeInterner,
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
@@ -1381,16 +1395,15 @@ fn trait_impl_methods(
 
 // fn trait_generic_args(self) -> [Type]
 fn trait_impl_trait_generic_args(
-    interner: &mut NodeInterner,
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
 
     let trait_impl_id = get_trait_impl(argument)?;
-    let trait_impl = interner.get_trait_implementation(trait_impl_id);
-    let trait_impl = trait_impl.borrow();
-    let trait_generics = trait_impl.trait_generics.iter().map(|t| Value::Type(t.clone())).collect();
+    let ordered_generics = interner.get_ordered_generics_for_impl(trait_impl_id);
+    let trait_generics = ordered_generics.iter().map(|t| Value::Type(t.clone())).collect();
     let vector_type = Type::Vector(Box::new(Type::Quoted(QuotedType::Type)));
 
     Ok(Value::Vector(trait_generics, vector_type))
@@ -1947,7 +1960,7 @@ fn expr_as_for(
     })
 }
 
-// fn as_for_range(self) -> Option<(Quoted, Expr, Expr, Expr)>
+// fn as_for_range(self) -> Option<(Quoted, Expr, Expr, bool, Expr)>
 fn expr_as_for_range(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
@@ -1957,14 +1970,14 @@ fn expr_as_for_range(
     expr_as(interner, arguments, return_type, location, |expr| {
         if let ExprValue::Statement(StatementKind::For(for_statement)) = expr {
             if let ForRange::Range(bounds) = for_statement.range {
-                let (from, to) = bounds.into_half_open();
                 let token = Token::Ident(for_statement.identifier.into_string());
                 let token = LocatedToken::new(token, location);
                 let identifier = Shared::new(Value::Quoted(Rc::new(vec![token])));
-                let from = Shared::new(Value::expression(from.kind));
-                let to = Shared::new(Value::expression(to.kind));
+                let from = Shared::new(Value::expression(bounds.start.kind));
+                let to = Shared::new(Value::expression(bounds.end.kind));
+                let inclusive = Shared::new(Value::Bool(bounds.inclusive));
                 let body = Shared::new(Value::expression(for_statement.block.kind));
-                Some(Value::Tuple(vec![identifier, from, to, body]))
+                Some(Value::Tuple(vec![identifier, from, to, inclusive, body]))
             } else {
                 None
             }
@@ -2565,10 +2578,8 @@ fn function_def_as_typed_expr(
     let hir_ident = if let Some(trait_impl_id) = trait_impl_id {
         let trait_impl = interpreter.elaborator.interner.get_trait_implementation(trait_impl_id);
         let trait_impl = trait_impl.borrow();
-        let ordered = trait_impl.trait_generics.clone();
-        let named =
-            interpreter.elaborator.interner.get_associated_types_for_impl(trait_impl_id).to_vec();
-        let trait_generics = TraitGenerics { ordered, named };
+        let trait_generics =
+            interpreter.elaborator.interner.get_trait_generics_for_impl(trait_impl_id).clone();
         let trait_bound =
             ResolvedTraitBound { trait_id: trait_impl.trait_id, trait_generics, location };
         let constraint = TraitConstraint { typ: trait_impl.typ.clone(), trait_bound };
@@ -2629,10 +2640,10 @@ fn function_def_has_named_attribute(
     let name = &*get_str(name)?;
 
     let modifiers = interner.function_modifiers(&func_id);
-    if let Some(attribute) = modifiers.attributes.function() {
-        if name == attribute.kind.name() {
-            return Ok(Value::Bool(true));
-        }
+    if let Some(attribute) = modifiers.attributes.function()
+        && name == attribute.kind.name()
+    {
+        return Ok(Value::Bool(true));
     }
 
     Ok(Value::Bool(has_named_attribute(name, &modifiers.attributes.secondary, interner)))
@@ -2654,7 +2665,7 @@ fn function_def_is_unconstrained(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let func_id = get_function_def(self_argument)?;
-    let is_unconstrained = interner.function_modifiers(&func_id).is_unconstrained;
+    let is_unconstrained = interner.function_meta(&func_id).is_unconstrained();
     Ok(Value::Bool(is_unconstrained))
 }
 
@@ -2901,8 +2912,9 @@ fn function_def_set_unconstrained(
 
     let unconstrained = get_bool(unconstrained)?;
 
-    let modifiers = interpreter.elaborator.interner.function_modifiers_mut(&func_id);
-    modifiers.is_unconstrained = unconstrained;
+    mutate_func_meta_type(interpreter.elaborator.interner, func_id, |func_meta| {
+        func_meta.set_unconstrained(unconstrained);
+    });
 
     Ok(Value::Unit)
 }
@@ -2926,7 +2938,10 @@ fn module_add_item(
     location: Location,
 ) -> IResult<Value> {
     let (self_argument, item) = check_two_arguments(arguments, location)?;
+    let module_value = self_argument.0.clone();
     let module_id = get_module(self_argument)?;
+
+    check_item_crate_matches_current_crate(interpreter, &module_value, module_id, location)?;
 
     let parser = Parser::parse_top_level_items;
     let top_level_statements = parse(interpreter.elaborator, item, parser, "a top-level item")?;
@@ -3157,7 +3172,7 @@ fn quoted_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult
 }
 
 fn trait_def_as_trait_constraint(
-    interner: &mut NodeInterner,
+    interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {

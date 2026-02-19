@@ -312,7 +312,7 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
         write!(&mut result, "{:x}", trimmed[0]).unwrap();
 
         // Ensure even length by padding if necessary
-        if result.len() % 2 != 0 {
+        if !result.len().is_multiple_of(2) {
             // Insert '0' after "0x" to make it even
             result.insert(2, '0');
         }
@@ -329,7 +329,7 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
         let value = hex_str.strip_prefix("0x").unwrap_or(hex_str);
 
         // Decode directly, handling even length efficiently
-        let hex_as_bytes = if value.len() % 2 == 0 {
+        let hex_as_bytes = if value.len().is_multiple_of(2) {
             hex::decode(value).ok()?
         } else {
             // For odd length, prepend '0' to the string view only for decoding
@@ -481,6 +481,7 @@ impl Write for BitCounter {
 mod tests {
     use super::{AcirField, FieldElement};
     use proptest::prelude::*;
+    use std::ops::Neg;
 
     #[test]
     fn requires_zero_bit_to_hold_zero() {
@@ -657,17 +658,27 @@ mod tests {
         assert_eq!(F::zero().try_into_i128(), Some(0));
         assert_eq!(F::from(42_i128).try_into_i128(), Some(42));
         assert_eq!(F::from(i128::MAX).try_into_i128(), Some(i128::MAX));
+        assert_eq!(F::from(-i128::MAX).try_into_i128(), Some(-i128::MAX));
 
         // Valid negative conversions
         assert_eq!(F::from(-1_i128).try_into_i128(), Some(-1));
         assert_eq!(F::from(-42_i128).try_into_i128(), Some(-42));
         assert_eq!(F::from(i128::MIN + 1).try_into_i128(), Some(i128::MIN + 1));
-
+        assert_eq!(F::from(i128::MAX - 1).try_into_i128(), Some(i128::MAX - 1));
+        assert_eq!(F::from(1_i128 << 126).try_into_i128(), Some(1_i128 << 126));
+        assert_eq!(F::from(-((1_i128 << 126) - 1)).try_into_i128(), Some(-((1_i128 << 126) - 1)));
         // Invalid conversions
         assert_eq!(F::from(1_u128 << 127).try_into_i128(), None);
         assert_eq!(F::from(u128::MAX).try_into_i128(), None);
         // i128::MIN doesn't fit due to implementation
         assert_eq!(F::from(i128::MIN).try_into_i128(), None);
+        // A few other invalid values
+        assert_eq!(F::from((1_u128 << 127) + 1).try_into_i128(), None);
+        assert_eq!(F::from((1_u128 << 127) + 1000).try_into_i128(), None);
+        assert_eq!(F::from(1_u128 << 127).neg().try_into_i128(), None);
+        assert_eq!(F::from((1_u128 << 127) + 1).neg().try_into_i128(), None);
+        assert_eq!(F::from((1_u128 << 127) + 100).try_into_i128(), None);
+        assert_eq!(F::from((1_u128 << 127) + 100).neg().try_into_i128(), None);
     }
 
     #[test]

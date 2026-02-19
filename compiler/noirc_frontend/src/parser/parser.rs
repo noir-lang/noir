@@ -41,6 +41,7 @@ mod types;
 mod use_tree;
 mod where_clause;
 
+pub use doc_comments::block_comment_has_all_leading_stars;
 pub use statement_or_expression_or_lvalue::StatementOrExpressionOrLValue;
 
 /// Entry function for the parser - also handles lexing internally.
@@ -294,11 +295,11 @@ impl<'a> Parser<'a> {
     }
 
     fn eat_self(&mut self) -> bool {
-        if let Token::Ident(ident) = self.token.token() {
-            if ident == "self" {
-                self.bump();
-                return true;
-            }
+        if let Token::Ident(ident) = self.token.token()
+            && ident == "self"
+        {
+            self.bump();
+            return true;
         }
 
         false
@@ -535,7 +536,7 @@ impl<'a> Parser<'a> {
     fn set_lexer_skip_whitespaces_flag(&mut self, flag: bool) {
         if let TokenStream::Lexer(lexer) = &mut self.tokens {
             lexer.set_skip_whitespaces_flag(flag);
-        };
+        }
     }
 
     fn next_is(&self, token: Token) -> bool {
@@ -611,8 +612,8 @@ impl<'a> Parser<'a> {
         Location::new(span_at_previous_token_end, self.previous_token_location.file)
     }
 
-    fn unknown_ident_at_previous_token_end(&self) -> Ident {
-        Ident::new("(unknown)".to_string(), self.location_at_previous_token_end())
+    fn empty_ident_at_previous_token_end(&self) -> Ident {
+        Ident::new("".to_string(), self.location_at_previous_token_end())
     }
 
     fn expected_identifier(&mut self) {
@@ -671,6 +672,7 @@ impl<'a> Parser<'a> {
         self.visibility_not_followed_by_an_item(modifiers);
         self.unconstrained_not_followed_by_an_item(modifiers);
         self.comptime_not_followed_by_an_item(modifiers);
+        self.mutable_not_followed_by_an_item(modifiers);
     }
 
     fn visibility_not_followed_by_an_item(&mut self, modifiers: Modifiers) {
@@ -693,6 +695,12 @@ impl<'a> Parser<'a> {
     fn comptime_not_followed_by_an_item(&mut self, modifiers: Modifiers) {
         if let Some(location) = modifiers.comptime {
             self.push_error(ParserErrorReason::ComptimeNotFollowedByAnItem, location);
+        }
+    }
+
+    fn mutable_not_followed_by_an_item(&mut self, modifiers: Modifiers) {
+        if let Some(location) = modifiers.mutable {
+            self.push_error(ParserErrorReason::MutableNotFollowedByAnItem, location);
         }
     }
 
