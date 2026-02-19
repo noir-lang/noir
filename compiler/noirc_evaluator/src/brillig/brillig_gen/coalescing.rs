@@ -19,9 +19,9 @@ use super::variable_liveness::VariableLiveness;
 ///
 /// An entry `x -> y` means "when defining x, reuse y's register."
 /// This covers two cases:
-/// - **Arg-side** (`arg -> param`): an instruction result defined in the same block as the jmp
+/// - Arg-side (`arg -> param`): an instruction result defined in the same block as the jmp
 ///   writes directly to the parameter's register.
-/// - **Param-side** (`param -> arg`): a block parameter reuses the register of an already-allocated
+/// - Param-side (`param -> arg`): a block parameter reuses the register of an already-allocated
 ///   value (block param passthrough, cross-block instruction result).
 #[derive(Default)]
 pub(crate) struct CoalescingMap {
@@ -33,9 +33,9 @@ impl CoalescingMap {
     ///
     /// For each `(argument, parameter)` pair at a jmp, we attempt to coalesce in one
     /// of two directions:
-    /// - **Arg-side**: if the arg is an instruction result defined in the source block,
+    /// - Arg-side: if the arg is an instruction result defined in the source block,
     ///   record `arg -> param` so the instruction writes to the param's register.
-    /// - **Param-side**: if the arg is a block parameter or instruction from another block,
+    /// - Param-side: if the arg is a block parameter or instruction from another block,
     ///   record `param -> arg` so the param reuses the arg's register.
     pub(crate) fn from_function(func: &Function, liveness: &VariableLiveness) -> Self {
         let mut coalesced = HashMap::default();
