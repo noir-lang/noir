@@ -200,8 +200,35 @@ pub(super) fn simplify_call(
         Intrinsic::VectorPushFront => {
             let vector = dfg.get_array_constant(arguments[1]);
             if let Some((mut vector, element_type)) = vector {
+                let is_acir = dfg.runtime().is_acir();
+
+                // Flatten elements before pushing for ACIR, since ACIR vectors
+                // store data in a flat representation.
+                // Push in reverse order so the first element ends up at the front.
                 for elem in arguments[2..].iter().rev() {
-                    vector.push_front(*elem);
+                    let typ = dfg.type_of_value(*elem);
+                    match (&typ, is_acir) {
+                        (Type::Array(_, _) | Type::Vector(_), true) => {
+                            let flat_typ = typ.clone().flatten();
+                            // Push flattened scalars in reverse order
+                            for (my_index, typ) in flat_typ.into_iter().enumerate().rev() {
+                                let index =
+                                    dfg.make_constant(my_index.into(), NumericType::length_type());
+                                assert!(matches!(typ, Type::Numeric(_)));
+                                let get = Instruction::ArrayGet { array: *elem, index };
+                                let typevars = Some(vec![typ]);
+                                let res = dfg
+                                    .insert_instruction_and_results(
+                                        get, block, typevars, call_stack,
+                                    )
+                                    .first();
+                                vector.push_front(res);
+                            }
+                        }
+                        _ => {
+                            vector.push_front(*elem);
+                        }
+                    }
                 }
 
                 let new_vector_length =
@@ -1186,6 +1213,34 @@ mod tests {
         }
         "#;
         let _ = Ssa::from_str_simplifying(src).unwrap();
+    }
+
+    #[test]
+    fn simplifies_vector_push_front_with_nested_array_in_acir() {
+        // Regression test: VectorPushFront simplification was missing
+        // ACIR flattening. Pushing a [Field; 3] element to a flat [[Field; 3]] vector
+        // must flatten the element into individual scalars rather than inserting
+        // the nested array ValueId as-is.
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [Field 10, Field 20, Field 30] : [Field; 3]
+            v1 = make_array [Field 1, Field 2, Field 3] : [[Field; 3]]
+            v2, v3 = call vector_push_front(u32 1, v1, v0) -> (u32, [[Field; 3]])
+            return v2, v3
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v3 = make_array [Field 10, Field 20, Field 30] : [Field; 3]
+            v7 = make_array [Field 1, Field 2, Field 3] : [[Field; 3]]
+            v8 = make_array [Field 10, Field 20, Field 30, Field 1, Field 2, Field 3] : [[Field; 3]]
+            return u32 2, v8
+        }
+        ");
     }
 
     #[test]
