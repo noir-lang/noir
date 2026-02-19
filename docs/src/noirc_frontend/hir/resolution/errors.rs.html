@@ -65,7 +65,7 @@
 <a href=#65 id=65 data-nosnippet>65</a>    <span class="attr">#[error(<span class="string">"Nested vectors, i.e. vectors within an array or vector, are not supported"</span>)]
 <a href=#66 id=66 data-nosnippet>66</a>    </span>NestedVectors { location: Location },
 <a href=#67 id=67 data-nosnippet>67</a>    <span class="attr">#[error(<span class="string">"#[abi(tag)] attribute is only allowed in contracts"</span>)]
-<a href=#68 id=68 data-nosnippet>68</a>    </span>AbiAttributeOutsideContract { location: Location, usage_location: <span class="prelude-ty">Option</span>&lt;Location&gt; },
+<a href=#68 id=68 data-nosnippet>68</a>    </span>AbiAttributeOutsideContract { location: Location },
 <a href=#69 id=69 data-nosnippet>69</a>    <span class="attr">#[error(
 <a href=#70 id=70 data-nosnippet>70</a>        <span class="string">"Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library"
 <a href=#71 id=71 data-nosnippet>71</a>    </span>)]
@@ -491,520 +491,513 @@
 <a href=#491 id=491 data-nosnippet>491</a>                <span class="string">"Try to use a constant sized array or BoundedVec instead"</span>.into(),
 <a href=#492 id=492 data-nosnippet>492</a>                <span class="kw-2">*</span>location,
 <a href=#493 id=493 data-nosnippet>493</a>            ),
-<a href=#494 id=494 data-nosnippet>494</a>            ResolverError::AbiAttributeOutsideContract { location, usage_location } =&gt; {
-<a href=#495 id=495 data-nosnippet>495</a>                <span class="kw">let </span><span class="kw-2">mut </span>diagnostic = Diagnostic::simple_error(
+<a href=#494 id=494 data-nosnippet>494</a>            ResolverError::AbiAttributeOutsideContract { location } =&gt; {
+<a href=#495 id=495 data-nosnippet>495</a>                Diagnostic::simple_error(
 <a href=#496 id=496 data-nosnippet>496</a>                    <span class="string">"#[abi(tag)] attributes can only be used in contracts"</span>.to_string(),
 <a href=#497 id=497 data-nosnippet>497</a>                    <span class="string">"misplaced #[abi(tag)] attribute"</span>.to_string(),
 <a href=#498 id=498 data-nosnippet>498</a>                    <span class="kw-2">*</span>location,
-<a href=#499 id=499 data-nosnippet>499</a>                );
-<a href=#500 id=500 data-nosnippet>500</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(usage_location) = usage_location {
-<a href=#501 id=501 data-nosnippet>501</a>                    diagnostic.add_secondary(
-<a href=#502 id=502 data-nosnippet>502</a>                        <span class="string">"the type is used outside of a contract"</span>.to_string(),
-<a href=#503 id=503 data-nosnippet>503</a>                        <span class="kw-2">*</span>usage_location,
-<a href=#504 id=504 data-nosnippet>504</a>                    );
-<a href=#505 id=505 data-nosnippet>505</a>                }
-<a href=#506 id=506 data-nosnippet>506</a>                diagnostic
-<a href=#507 id=507 data-nosnippet>507</a>            }
-<a href=#508 id=508 data-nosnippet>508</a>            ResolverError::LowLevelFunctionOutsideOfStdlib { location } =&gt; Diagnostic::simple_error(
-<a href=#509 id=509 data-nosnippet>509</a>                <span class="string">"Definition of low-level function outside of standard library"</span>.into(),
-<a href=#510 id=510 data-nosnippet>510</a>                <span class="string">"Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library"</span>.into(),
-<a href=#511 id=511 data-nosnippet>511</a>                <span class="kw-2">*</span>location,
-<a href=#512 id=512 data-nosnippet>512</a>            ),
-<a href=#513 id=513 data-nosnippet>513</a>            ResolverError::OracleNameClashesWithStdlib { location } =&gt; {
-<a href=#514 id=514 data-nosnippet>514</a>                Diagnostic::simple_error(
+<a href=#499 id=499 data-nosnippet>499</a>                )
+<a href=#500 id=500 data-nosnippet>500</a>            }
+<a href=#501 id=501 data-nosnippet>501</a>            ResolverError::LowLevelFunctionOutsideOfStdlib { location } =&gt; Diagnostic::simple_error(
+<a href=#502 id=502 data-nosnippet>502</a>                <span class="string">"Definition of low-level function outside of standard library"</span>.into(),
+<a href=#503 id=503 data-nosnippet>503</a>                <span class="string">"Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library"</span>.into(),
+<a href=#504 id=504 data-nosnippet>504</a>                <span class="kw-2">*</span>location,
+<a href=#505 id=505 data-nosnippet>505</a>            ),
+<a href=#506 id=506 data-nosnippet>506</a>            ResolverError::OracleNameClashesWithStdlib { location } =&gt; {
+<a href=#507 id=507 data-nosnippet>507</a>                Diagnostic::simple_error(
+<a href=#508 id=508 data-nosnippet>508</a>                    error.to_string(),
+<a href=#509 id=509 data-nosnippet>509</a>                    <span class="string">"Naming an `#[oracle]` function the same as one in the Noir standard library could lead to unexpected behavior"</span>.into(),
+<a href=#510 id=510 data-nosnippet>510</a>                    <span class="kw-2">*</span>location,
+<a href=#511 id=511 data-nosnippet>511</a>                )
+<a href=#512 id=512 data-nosnippet>512</a>            },
+<a href=#513 id=513 data-nosnippet>513</a>            ResolverError::OracleMarkedAsConstrained { ident, location } =&gt; {
+<a href=#514 id=514 data-nosnippet>514</a>                <span class="kw">let </span><span class="kw-2">mut </span>diagnostic = Diagnostic::simple_error(
 <a href=#515 id=515 data-nosnippet>515</a>                    error.to_string(),
-<a href=#516 id=516 data-nosnippet>516</a>                    <span class="string">"Naming an `#[oracle]` function the same as one in the Noir standard library could lead to unexpected behavior"</span>.into(),
+<a href=#516 id=516 data-nosnippet>516</a>                    String::new(),
 <a href=#517 id=517 data-nosnippet>517</a>                    <span class="kw-2">*</span>location,
-<a href=#518 id=518 data-nosnippet>518</a>                )
-<a href=#519 id=519 data-nosnippet>519</a>            },
-<a href=#520 id=520 data-nosnippet>520</a>            ResolverError::OracleMarkedAsConstrained { ident, location } =&gt; {
-<a href=#521 id=521 data-nosnippet>521</a>                <span class="kw">let </span><span class="kw-2">mut </span>diagnostic = Diagnostic::simple_error(
-<a href=#522 id=522 data-nosnippet>522</a>                    error.to_string(),
-<a href=#523 id=523 data-nosnippet>523</a>                    String::new(),
-<a href=#524 id=524 data-nosnippet>524</a>                    <span class="kw-2">*</span>location,
-<a href=#525 id=525 data-nosnippet>525</a>                );
-<a href=#526 id=526 data-nosnippet>526</a>                diagnostic.add_secondary(<span class="string">"Oracle functions must have the `unconstrained` keyword applied"</span>.into(), ident.location());
-<a href=#527 id=527 data-nosnippet>527</a>                diagnostic
+<a href=#518 id=518 data-nosnippet>518</a>                );
+<a href=#519 id=519 data-nosnippet>519</a>                diagnostic.add_secondary(<span class="string">"Oracle functions must have the `unconstrained` keyword applied"</span>.into(), ident.location());
+<a href=#520 id=520 data-nosnippet>520</a>                diagnostic
+<a href=#521 id=521 data-nosnippet>521</a>            },
+<a href=#522 id=522 data-nosnippet>522</a>            ResolverError::OracleReturnsMultipleVectors { location } =&gt; {
+<a href=#523 id=523 data-nosnippet>523</a>                Diagnostic::simple_error(
+<a href=#524 id=524 data-nosnippet>524</a>                    error.to_string(),
+<a href=#525 id=525 data-nosnippet>525</a>                    String::new(),
+<a href=#526 id=526 data-nosnippet>526</a>                    <span class="kw-2">*</span>location,
+<a href=#527 id=527 data-nosnippet>527</a>                )
 <a href=#528 id=528 data-nosnippet>528</a>            },
-<a href=#529 id=529 data-nosnippet>529</a>            ResolverError::OracleReturnsMultipleVectors { location } =&gt; {
+<a href=#529 id=529 data-nosnippet>529</a>            ResolverError::OracleReturnsReference { location } =&gt; {
 <a href=#530 id=530 data-nosnippet>530</a>                Diagnostic::simple_error(
 <a href=#531 id=531 data-nosnippet>531</a>                    error.to_string(),
 <a href=#532 id=532 data-nosnippet>532</a>                    String::new(),
 <a href=#533 id=533 data-nosnippet>533</a>                    <span class="kw-2">*</span>location,
 <a href=#534 id=534 data-nosnippet>534</a>                )
 <a href=#535 id=535 data-nosnippet>535</a>            },
-<a href=#536 id=536 data-nosnippet>536</a>            ResolverError::OracleReturnsReference { location } =&gt; {
+<a href=#536 id=536 data-nosnippet>536</a>            ResolverError::OracleReturnsVectorWithNestedArray { location } =&gt; {
 <a href=#537 id=537 data-nosnippet>537</a>                Diagnostic::simple_error(
 <a href=#538 id=538 data-nosnippet>538</a>                    error.to_string(),
-<a href=#539 id=539 data-nosnippet>539</a>                    String::new(),
+<a href=#539 id=539 data-nosnippet>539</a>                    <span class="string">"Vectors with nested arrays are not yet supported for foreign call returns"</span>.to_string(),
 <a href=#540 id=540 data-nosnippet>540</a>                    <span class="kw-2">*</span>location,
 <a href=#541 id=541 data-nosnippet>541</a>                )
 <a href=#542 id=542 data-nosnippet>542</a>            },
-<a href=#543 id=543 data-nosnippet>543</a>            ResolverError::OracleReturnsVectorWithNestedArray { location } =&gt; {
+<a href=#543 id=543 data-nosnippet>543</a>            ResolverError::DependencyCycle { location, item, cycle } =&gt; {
 <a href=#544 id=544 data-nosnippet>544</a>                Diagnostic::simple_error(
-<a href=#545 id=545 data-nosnippet>545</a>                    error.to_string(),
-<a href=#546 id=546 data-nosnippet>546</a>                    <span class="string">"Vectors with nested arrays are not yet supported for foreign call returns"</span>.to_string(),
+<a href=#545 id=545 data-nosnippet>545</a>                    <span class="string">"Dependency cycle found"</span>.into(),
+<a href=#546 id=546 data-nosnippet>546</a>                    <span class="macro">format!</span>(<span class="string">"'{item}' recursively depends on itself: {cycle}"</span>),
 <a href=#547 id=547 data-nosnippet>547</a>                    <span class="kw-2">*</span>location,
 <a href=#548 id=548 data-nosnippet>548</a>                )
 <a href=#549 id=549 data-nosnippet>549</a>            },
-<a href=#550 id=550 data-nosnippet>550</a>            ResolverError::DependencyCycle { location, item, cycle } =&gt; {
-<a href=#551 id=551 data-nosnippet>551</a>                Diagnostic::simple_error(
-<a href=#552 id=552 data-nosnippet>552</a>                    <span class="string">"Dependency cycle found"</span>.into(),
-<a href=#553 id=553 data-nosnippet>553</a>                    <span class="macro">format!</span>(<span class="string">"'{item}' recursively depends on itself: {cycle}"</span>),
-<a href=#554 id=554 data-nosnippet>554</a>                    <span class="kw-2">*</span>location,
-<a href=#555 id=555 data-nosnippet>555</a>                )
-<a href=#556 id=556 data-nosnippet>556</a>            },
-<a href=#557 id=557 data-nosnippet>557</a>            ResolverError::JumpInConstrainedFn { is_break, location } =&gt; {
-<a href=#558 id=558 data-nosnippet>558</a>                <span class="kw">let </span>item = <span class="kw">if </span><span class="kw-2">*</span>is_break { <span class="string">"break" </span>} <span class="kw">else </span>{ <span class="string">"continue" </span>};
+<a href=#550 id=550 data-nosnippet>550</a>            ResolverError::JumpInConstrainedFn { is_break, location } =&gt; {
+<a href=#551 id=551 data-nosnippet>551</a>                <span class="kw">let </span>item = <span class="kw">if </span><span class="kw-2">*</span>is_break { <span class="string">"break" </span>} <span class="kw">else </span>{ <span class="string">"continue" </span>};
+<a href=#552 id=552 data-nosnippet>552</a>                Diagnostic::simple_error(
+<a href=#553 id=553 data-nosnippet>553</a>                    <span class="macro">format!</span>(<span class="string">"{item} is only allowed in unconstrained functions"</span>),
+<a href=#554 id=554 data-nosnippet>554</a>                    <span class="string">"Constrained code must always have a known number of loop iterations"</span>.into(),
+<a href=#555 id=555 data-nosnippet>555</a>                    <span class="kw-2">*</span>location,
+<a href=#556 id=556 data-nosnippet>556</a>                )
+<a href=#557 id=557 data-nosnippet>557</a>            },
+<a href=#558 id=558 data-nosnippet>558</a>            ResolverError::LoopInConstrainedFn { location } =&gt; {
 <a href=#559 id=559 data-nosnippet>559</a>                Diagnostic::simple_error(
-<a href=#560 id=560 data-nosnippet>560</a>                    <span class="macro">format!</span>(<span class="string">"{item} is only allowed in unconstrained functions"</span>),
+<a href=#560 id=560 data-nosnippet>560</a>                    <span class="string">"`loop` is only allowed in unconstrained functions"</span>.into(),
 <a href=#561 id=561 data-nosnippet>561</a>                    <span class="string">"Constrained code must always have a known number of loop iterations"</span>.into(),
 <a href=#562 id=562 data-nosnippet>562</a>                    <span class="kw-2">*</span>location,
 <a href=#563 id=563 data-nosnippet>563</a>                )
 <a href=#564 id=564 data-nosnippet>564</a>            },
-<a href=#565 id=565 data-nosnippet>565</a>            ResolverError::LoopInConstrainedFn { location } =&gt; {
+<a href=#565 id=565 data-nosnippet>565</a>            ResolverError::LoopWithoutBreak { location } =&gt; {
 <a href=#566 id=566 data-nosnippet>566</a>                Diagnostic::simple_error(
-<a href=#567 id=567 data-nosnippet>567</a>                    <span class="string">"`loop` is only allowed in unconstrained functions"</span>.into(),
-<a href=#568 id=568 data-nosnippet>568</a>                    <span class="string">"Constrained code must always have a known number of loop iterations"</span>.into(),
+<a href=#567 id=567 data-nosnippet>567</a>                    <span class="string">"`loop` must have at least one `break` in it"</span>.into(),
+<a href=#568 id=568 data-nosnippet>568</a>                    <span class="string">"Infinite loops are disallowed"</span>.into(),
 <a href=#569 id=569 data-nosnippet>569</a>                    <span class="kw-2">*</span>location,
 <a href=#570 id=570 data-nosnippet>570</a>                )
 <a href=#571 id=571 data-nosnippet>571</a>            },
-<a href=#572 id=572 data-nosnippet>572</a>            ResolverError::LoopWithoutBreak { location } =&gt; {
+<a href=#572 id=572 data-nosnippet>572</a>            ResolverError::WhileInConstrainedFn { location } =&gt; {
 <a href=#573 id=573 data-nosnippet>573</a>                Diagnostic::simple_error(
-<a href=#574 id=574 data-nosnippet>574</a>                    <span class="string">"`loop` must have at least one `break` in it"</span>.into(),
-<a href=#575 id=575 data-nosnippet>575</a>                    <span class="string">"Infinite loops are disallowed"</span>.into(),
+<a href=#574 id=574 data-nosnippet>574</a>                    <span class="string">"`while` is only allowed in unconstrained functions"</span>.into(),
+<a href=#575 id=575 data-nosnippet>575</a>                    <span class="string">"Constrained code must always have a known number of loop iterations"</span>.into(),
 <a href=#576 id=576 data-nosnippet>576</a>                    <span class="kw-2">*</span>location,
 <a href=#577 id=577 data-nosnippet>577</a>                )
 <a href=#578 id=578 data-nosnippet>578</a>            },
-<a href=#579 id=579 data-nosnippet>579</a>            ResolverError::WhileInConstrainedFn { location } =&gt; {
-<a href=#580 id=580 data-nosnippet>580</a>                Diagnostic::simple_error(
-<a href=#581 id=581 data-nosnippet>581</a>                    <span class="string">"`while` is only allowed in unconstrained functions"</span>.into(),
-<a href=#582 id=582 data-nosnippet>582</a>                    <span class="string">"Constrained code must always have a known number of loop iterations"</span>.into(),
-<a href=#583 id=583 data-nosnippet>583</a>                    <span class="kw-2">*</span>location,
-<a href=#584 id=584 data-nosnippet>584</a>                )
-<a href=#585 id=585 data-nosnippet>585</a>            },
-<a href=#586 id=586 data-nosnippet>586</a>            ResolverError::JumpOutsideLoop { is_break, location } =&gt; {
-<a href=#587 id=587 data-nosnippet>587</a>                <span class="kw">let </span>item = <span class="kw">if </span><span class="kw-2">*</span>is_break { <span class="string">"break" </span>} <span class="kw">else </span>{ <span class="string">"continue" </span>};
+<a href=#579 id=579 data-nosnippet>579</a>            ResolverError::JumpOutsideLoop { is_break, location } =&gt; {
+<a href=#580 id=580 data-nosnippet>580</a>                <span class="kw">let </span>item = <span class="kw">if </span><span class="kw-2">*</span>is_break { <span class="string">"break" </span>} <span class="kw">else </span>{ <span class="string">"continue" </span>};
+<a href=#581 id=581 data-nosnippet>581</a>                Diagnostic::simple_error(
+<a href=#582 id=582 data-nosnippet>582</a>                    <span class="macro">format!</span>(<span class="string">"{item} is only allowed within loops"</span>),
+<a href=#583 id=583 data-nosnippet>583</a>                    <span class="string">""</span>.into(),
+<a href=#584 id=584 data-nosnippet>584</a>                    <span class="kw-2">*</span>location,
+<a href=#585 id=585 data-nosnippet>585</a>                )
+<a href=#586 id=586 data-nosnippet>586</a>            },
+<a href=#587 id=587 data-nosnippet>587</a>            ResolverError::MutableGlobal { location } =&gt; {
 <a href=#588 id=588 data-nosnippet>588</a>                Diagnostic::simple_error(
-<a href=#589 id=589 data-nosnippet>589</a>                    <span class="macro">format!</span>(<span class="string">"{item} is only allowed within loops"</span>),
-<a href=#590 id=590 data-nosnippet>590</a>                    <span class="string">""</span>.into(),
+<a href=#589 id=589 data-nosnippet>589</a>                    <span class="string">"Only `comptime` globals may be mutable"</span>.into(),
+<a href=#590 id=590 data-nosnippet>590</a>                    String::new(),
 <a href=#591 id=591 data-nosnippet>591</a>                    <span class="kw-2">*</span>location,
 <a href=#592 id=592 data-nosnippet>592</a>                )
 <a href=#593 id=593 data-nosnippet>593</a>            },
-<a href=#594 id=594 data-nosnippet>594</a>            ResolverError::MutableGlobal { location } =&gt; {
-<a href=#595 id=595 data-nosnippet>595</a>                Diagnostic::simple_error(
-<a href=#596 id=596 data-nosnippet>596</a>                    <span class="string">"Only `comptime` globals may be mutable"</span>.into(),
+<a href=#594 id=594 data-nosnippet>594</a>            ResolverError::UnspecifiedGlobalType { pattern_location, expr_location, expected_type } =&gt; {
+<a href=#595 id=595 data-nosnippet>595</a>                <span class="kw">let </span><span class="kw-2">mut </span>diagnostic = Diagnostic::simple_error(
+<a href=#596 id=596 data-nosnippet>596</a>                    <span class="string">"Globals must have a specified type"</span>.to_string(),
 <a href=#597 id=597 data-nosnippet>597</a>                    String::new(),
-<a href=#598 id=598 data-nosnippet>598</a>                    <span class="kw-2">*</span>location,
-<a href=#599 id=599 data-nosnippet>599</a>                )
-<a href=#600 id=600 data-nosnippet>600</a>            },
-<a href=#601 id=601 data-nosnippet>601</a>            ResolverError::UnspecifiedGlobalType { pattern_location, expr_location, expected_type } =&gt; {
-<a href=#602 id=602 data-nosnippet>602</a>                <span class="kw">let </span><span class="kw-2">mut </span>diagnostic = Diagnostic::simple_error(
-<a href=#603 id=603 data-nosnippet>603</a>                    <span class="string">"Globals must have a specified type"</span>.to_string(),
-<a href=#604 id=604 data-nosnippet>604</a>                    String::new(),
-<a href=#605 id=605 data-nosnippet>605</a>                    <span class="kw-2">*</span>pattern_location,
-<a href=#606 id=606 data-nosnippet>606</a>                );
-<a href=#607 id=607 data-nosnippet>607</a>                diagnostic.add_secondary(<span class="macro">format!</span>(<span class="string">"Inferred type is `{expected_type}`"</span>), <span class="kw-2">*</span>expr_location);
-<a href=#608 id=608 data-nosnippet>608</a>                diagnostic
-<a href=#609 id=609 data-nosnippet>609</a>            },
-<a href=#610 id=610 data-nosnippet>610</a>            ResolverError::UnevaluatedGlobalType { location } =&gt; {
+<a href=#598 id=598 data-nosnippet>598</a>                    <span class="kw-2">*</span>pattern_location,
+<a href=#599 id=599 data-nosnippet>599</a>                );
+<a href=#600 id=600 data-nosnippet>600</a>                diagnostic.add_secondary(<span class="macro">format!</span>(<span class="string">"Inferred type is `{expected_type}`"</span>), <span class="kw-2">*</span>expr_location);
+<a href=#601 id=601 data-nosnippet>601</a>                diagnostic
+<a href=#602 id=602 data-nosnippet>602</a>            },
+<a href=#603 id=603 data-nosnippet>603</a>            ResolverError::UnevaluatedGlobalType { location } =&gt; {
+<a href=#604 id=604 data-nosnippet>604</a>                Diagnostic::simple_error(
+<a href=#605 id=605 data-nosnippet>605</a>                    <span class="string">"Global failed to evaluate"</span>.to_string(),
+<a href=#606 id=606 data-nosnippet>606</a>                    String::new(),
+<a href=#607 id=607 data-nosnippet>607</a>                    <span class="kw-2">*</span>location,
+<a href=#608 id=608 data-nosnippet>608</a>                )
+<a href=#609 id=609 data-nosnippet>609</a>            }
+<a href=#610 id=610 data-nosnippet>610</a>            ResolverError::NegativeGlobalType { location, global_value } =&gt; {
 <a href=#611 id=611 data-nosnippet>611</a>                Diagnostic::simple_error(
-<a href=#612 id=612 data-nosnippet>612</a>                    <span class="string">"Global failed to evaluate"</span>.to_string(),
-<a href=#613 id=613 data-nosnippet>613</a>                    String::new(),
+<a href=#612 id=612 data-nosnippet>612</a>                    <span class="string">"Globals used in a type position must be non-negative"</span>.to_string(),
+<a href=#613 id=613 data-nosnippet>613</a>                    <span class="macro">format!</span>(<span class="string">"But found value `{global_value:?}`"</span>),
 <a href=#614 id=614 data-nosnippet>614</a>                    <span class="kw-2">*</span>location,
 <a href=#615 id=615 data-nosnippet>615</a>                )
 <a href=#616 id=616 data-nosnippet>616</a>            }
-<a href=#617 id=617 data-nosnippet>617</a>            ResolverError::NegativeGlobalType { location, global_value } =&gt; {
+<a href=#617 id=617 data-nosnippet>617</a>            ResolverError::NonIntegralGlobalType { location, global_value } =&gt; {
 <a href=#618 id=618 data-nosnippet>618</a>                Diagnostic::simple_error(
-<a href=#619 id=619 data-nosnippet>619</a>                    <span class="string">"Globals used in a type position must be non-negative"</span>.to_string(),
+<a href=#619 id=619 data-nosnippet>619</a>                    <span class="string">"Globals used in a type position must be integers"</span>.to_string(),
 <a href=#620 id=620 data-nosnippet>620</a>                    <span class="macro">format!</span>(<span class="string">"But found value `{global_value:?}`"</span>),
 <a href=#621 id=621 data-nosnippet>621</a>                    <span class="kw-2">*</span>location,
 <a href=#622 id=622 data-nosnippet>622</a>                )
 <a href=#623 id=623 data-nosnippet>623</a>            }
-<a href=#624 id=624 data-nosnippet>624</a>            ResolverError::NonIntegralGlobalType { location, global_value } =&gt; {
+<a href=#624 id=624 data-nosnippet>624</a>            ResolverError::GlobalDoesNotFitItsType { location, global_value, kind } =&gt; {
 <a href=#625 id=625 data-nosnippet>625</a>                Diagnostic::simple_error(
-<a href=#626 id=626 data-nosnippet>626</a>                    <span class="string">"Globals used in a type position must be integers"</span>.to_string(),
-<a href=#627 id=627 data-nosnippet>627</a>                    <span class="macro">format!</span>(<span class="string">"But found value `{global_value:?}`"</span>),
+<a href=#626 id=626 data-nosnippet>626</a>                    <span class="macro">format!</span>(<span class="string">"Global value `{global_value}` is larger than its kind's maximum value"</span>),
+<a href=#627 id=627 data-nosnippet>627</a>                    <span class="macro">format!</span>(<span class="string">"Global's kind inferred to be `{kind}`"</span>),
 <a href=#628 id=628 data-nosnippet>628</a>                    <span class="kw-2">*</span>location,
 <a href=#629 id=629 data-nosnippet>629</a>                )
 <a href=#630 id=630 data-nosnippet>630</a>            }
-<a href=#631 id=631 data-nosnippet>631</a>            ResolverError::GlobalDoesNotFitItsType { location, global_value, kind } =&gt; {
+<a href=#631 id=631 data-nosnippet>631</a>            ResolverError::SelfReferentialType { location } =&gt; {
 <a href=#632 id=632 data-nosnippet>632</a>                Diagnostic::simple_error(
-<a href=#633 id=633 data-nosnippet>633</a>                    <span class="macro">format!</span>(<span class="string">"Global value `{global_value}` is larger than its kind's maximum value"</span>),
-<a href=#634 id=634 data-nosnippet>634</a>                    <span class="macro">format!</span>(<span class="string">"Global's kind inferred to be `{kind}`"</span>),
+<a href=#633 id=633 data-nosnippet>633</a>                    <span class="string">"Self-referential types are not supported"</span>.into(),
+<a href=#634 id=634 data-nosnippet>634</a>                    <span class="string">""</span>.into(),
 <a href=#635 id=635 data-nosnippet>635</a>                    <span class="kw-2">*</span>location,
 <a href=#636 id=636 data-nosnippet>636</a>                )
-<a href=#637 id=637 data-nosnippet>637</a>            }
-<a href=#638 id=638 data-nosnippet>638</a>            ResolverError::SelfReferentialType { location } =&gt; {
-<a href=#639 id=639 data-nosnippet>639</a>                Diagnostic::simple_error(
-<a href=#640 id=640 data-nosnippet>640</a>                    <span class="string">"Self-referential types are not supported"</span>.into(),
-<a href=#641 id=641 data-nosnippet>641</a>                    <span class="string">""</span>.into(),
+<a href=#637 id=637 data-nosnippet>637</a>            },
+<a href=#638 id=638 data-nosnippet>638</a>            ResolverError::NoPredicatesAttributeOnUnconstrained { ident, location } =&gt; {
+<a href=#639 id=639 data-nosnippet>639</a>                <span class="kw">let </span><span class="kw-2">mut </span>diag = Diagnostic::simple_error(
+<a href=#640 id=640 data-nosnippet>640</a>                    <span class="macro">format!</span>(<span class="string">"misplaced #[no_predicates] attribute on unconstrained function {ident}. Only allowed on constrained functions"</span>),
+<a href=#641 id=641 data-nosnippet>641</a>                    <span class="string">"misplaced #[no_predicates] attribute"</span>.to_string(),
 <a href=#642 id=642 data-nosnippet>642</a>                    <span class="kw-2">*</span>location,
-<a href=#643 id=643 data-nosnippet>643</a>                )
-<a href=#644 id=644 data-nosnippet>644</a>            },
-<a href=#645 id=645 data-nosnippet>645</a>            ResolverError::NoPredicatesAttributeOnUnconstrained { ident, location } =&gt; {
-<a href=#646 id=646 data-nosnippet>646</a>                <span class="kw">let </span><span class="kw-2">mut </span>diag = Diagnostic::simple_error(
-<a href=#647 id=647 data-nosnippet>647</a>                    <span class="macro">format!</span>(<span class="string">"misplaced #[no_predicates] attribute on unconstrained function {ident}. Only allowed on constrained functions"</span>),
-<a href=#648 id=648 data-nosnippet>648</a>                    <span class="string">"misplaced #[no_predicates] attribute"</span>.to_string(),
-<a href=#649 id=649 data-nosnippet>649</a>                    <span class="kw-2">*</span>location,
-<a href=#650 id=650 data-nosnippet>650</a>                );
-<a href=#651 id=651 data-nosnippet>651</a>
-<a href=#652 id=652 data-nosnippet>652</a>                diag.add_note(<span class="string">"The `#[no_predicates]` attribute specifies to the compiler whether it should diverge from auto-inlining constrained functions"</span>.to_owned());
-<a href=#653 id=653 data-nosnippet>653</a>                diag
-<a href=#654 id=654 data-nosnippet>654</a>            }
-<a href=#655 id=655 data-nosnippet>655</a>            ResolverError::NoPredicatesAttributeOnEntryPoint { ident, location } =&gt; {
-<a href=#656 id=656 data-nosnippet>656</a>                <span class="kw">let </span><span class="kw-2">mut </span>diag = Diagnostic::simple_error(
-<a href=#657 id=657 data-nosnippet>657</a>                    <span class="macro">format!</span>(<span class="string">"#[no_predicates] attribute is not allowed on entry point function {ident}"</span>),
-<a href=#658 id=658 data-nosnippet>658</a>                    <span class="string">"#[no_predicates] attribute not allowed on entry points"</span>.to_string(),
-<a href=#659 id=659 data-nosnippet>659</a>                    <span class="kw-2">*</span>location,
-<a href=#660 id=660 data-nosnippet>660</a>                );
-<a href=#661 id=661 data-nosnippet>661</a>
-<a href=#662 id=662 data-nosnippet>662</a>                diag.add_note(<span class="string">"The `#[no_predicates]` attribute is used to prevent inlining of a function into the entry point, but applying it to the entry point itself has no effect"</span>.to_owned());
-<a href=#663 id=663 data-nosnippet>663</a>                diag
-<a href=#664 id=664 data-nosnippet>664</a>            }
-<a href=#665 id=665 data-nosnippet>665</a>            ResolverError::FoldAttributeOnUnconstrained { ident, location } =&gt; {
-<a href=#666 id=666 data-nosnippet>666</a>                <span class="kw">let </span><span class="kw-2">mut </span>diag = Diagnostic::simple_error(
-<a href=#667 id=667 data-nosnippet>667</a>                    <span class="macro">format!</span>(<span class="string">"misplaced #[fold] attribute on unconstrained function {ident}. Only allowed on constrained functions"</span>),
-<a href=#668 id=668 data-nosnippet>668</a>                    <span class="string">"misplaced #[fold] attribute"</span>.to_string(),
-<a href=#669 id=669 data-nosnippet>669</a>                    <span class="kw-2">*</span>location,
-<a href=#670 id=670 data-nosnippet>670</a>                );
-<a href=#671 id=671 data-nosnippet>671</a>
-<a href=#672 id=672 data-nosnippet>672</a>                diag.add_note(<span class="string">"The `#[fold]` attribute specifies whether a constrained function should be treated as a separate circuit rather than inlined into the program entry point"</span>.to_owned());
-<a href=#673 id=673 data-nosnippet>673</a>                diag
-<a href=#674 id=674 data-nosnippet>674</a>            }
-<a href=#675 id=675 data-nosnippet>675</a>            ResolverError::InlineNeverAttributeOnConstrained { ident, location } =&gt; {
-<a href=#676 id=676 data-nosnippet>676</a>                <span class="kw">let </span><span class="kw-2">mut </span>diag = Diagnostic::simple_error(
-<a href=#677 id=677 data-nosnippet>677</a>                    <span class="macro">format!</span>(<span class="string">"misplaced #[inline_never] attribute on constrained function {ident}. Only allowed on unconstrained functions"</span>),
-<a href=#678 id=678 data-nosnippet>678</a>                    <span class="string">"misplaced #[inline_never] attribute"</span>.to_string(),
-<a href=#679 id=679 data-nosnippet>679</a>                    <span class="kw-2">*</span>location,
-<a href=#680 id=680 data-nosnippet>680</a>                );
-<a href=#681 id=681 data-nosnippet>681</a>
-<a href=#682 id=682 data-nosnippet>682</a>                diag.add_note(<span class="string">"The `#[inline_never]` attribute prevents inlining of unconstrained functions"</span>.to_owned());
-<a href=#683 id=683 data-nosnippet>683</a>                diag
-<a href=#684 id=684 data-nosnippet>684</a>            }
-<a href=#685 id=685 data-nosnippet>685</a>            ResolverError::UnquoteUsedOutsideQuote { location } =&gt; {
+<a href=#643 id=643 data-nosnippet>643</a>                );
+<a href=#644 id=644 data-nosnippet>644</a>
+<a href=#645 id=645 data-nosnippet>645</a>                diag.add_note(<span class="string">"The `#[no_predicates]` attribute specifies to the compiler whether it should diverge from auto-inlining constrained functions"</span>.to_owned());
+<a href=#646 id=646 data-nosnippet>646</a>                diag
+<a href=#647 id=647 data-nosnippet>647</a>            }
+<a href=#648 id=648 data-nosnippet>648</a>            ResolverError::NoPredicatesAttributeOnEntryPoint { ident, location } =&gt; {
+<a href=#649 id=649 data-nosnippet>649</a>                <span class="kw">let </span><span class="kw-2">mut </span>diag = Diagnostic::simple_error(
+<a href=#650 id=650 data-nosnippet>650</a>                    <span class="macro">format!</span>(<span class="string">"#[no_predicates] attribute is not allowed on entry point function {ident}"</span>),
+<a href=#651 id=651 data-nosnippet>651</a>                    <span class="string">"#[no_predicates] attribute not allowed on entry points"</span>.to_string(),
+<a href=#652 id=652 data-nosnippet>652</a>                    <span class="kw-2">*</span>location,
+<a href=#653 id=653 data-nosnippet>653</a>                );
+<a href=#654 id=654 data-nosnippet>654</a>
+<a href=#655 id=655 data-nosnippet>655</a>                diag.add_note(<span class="string">"The `#[no_predicates]` attribute is used to prevent inlining of a function into the entry point, but applying it to the entry point itself has no effect"</span>.to_owned());
+<a href=#656 id=656 data-nosnippet>656</a>                diag
+<a href=#657 id=657 data-nosnippet>657</a>            }
+<a href=#658 id=658 data-nosnippet>658</a>            ResolverError::FoldAttributeOnUnconstrained { ident, location } =&gt; {
+<a href=#659 id=659 data-nosnippet>659</a>                <span class="kw">let </span><span class="kw-2">mut </span>diag = Diagnostic::simple_error(
+<a href=#660 id=660 data-nosnippet>660</a>                    <span class="macro">format!</span>(<span class="string">"misplaced #[fold] attribute on unconstrained function {ident}. Only allowed on constrained functions"</span>),
+<a href=#661 id=661 data-nosnippet>661</a>                    <span class="string">"misplaced #[fold] attribute"</span>.to_string(),
+<a href=#662 id=662 data-nosnippet>662</a>                    <span class="kw-2">*</span>location,
+<a href=#663 id=663 data-nosnippet>663</a>                );
+<a href=#664 id=664 data-nosnippet>664</a>
+<a href=#665 id=665 data-nosnippet>665</a>                diag.add_note(<span class="string">"The `#[fold]` attribute specifies whether a constrained function should be treated as a separate circuit rather than inlined into the program entry point"</span>.to_owned());
+<a href=#666 id=666 data-nosnippet>666</a>                diag
+<a href=#667 id=667 data-nosnippet>667</a>            }
+<a href=#668 id=668 data-nosnippet>668</a>            ResolverError::InlineNeverAttributeOnConstrained { ident, location } =&gt; {
+<a href=#669 id=669 data-nosnippet>669</a>                <span class="kw">let </span><span class="kw-2">mut </span>diag = Diagnostic::simple_error(
+<a href=#670 id=670 data-nosnippet>670</a>                    <span class="macro">format!</span>(<span class="string">"misplaced #[inline_never] attribute on constrained function {ident}. Only allowed on unconstrained functions"</span>),
+<a href=#671 id=671 data-nosnippet>671</a>                    <span class="string">"misplaced #[inline_never] attribute"</span>.to_string(),
+<a href=#672 id=672 data-nosnippet>672</a>                    <span class="kw-2">*</span>location,
+<a href=#673 id=673 data-nosnippet>673</a>                );
+<a href=#674 id=674 data-nosnippet>674</a>
+<a href=#675 id=675 data-nosnippet>675</a>                diag.add_note(<span class="string">"The `#[inline_never]` attribute prevents inlining of unconstrained functions"</span>.to_owned());
+<a href=#676 id=676 data-nosnippet>676</a>                diag
+<a href=#677 id=677 data-nosnippet>677</a>            }
+<a href=#678 id=678 data-nosnippet>678</a>            ResolverError::UnquoteUsedOutsideQuote { location } =&gt; {
+<a href=#679 id=679 data-nosnippet>679</a>                Diagnostic::simple_error(
+<a href=#680 id=680 data-nosnippet>680</a>                    <span class="string">"The unquote operator '$' can only be used within a quote expression"</span>.into(),
+<a href=#681 id=681 data-nosnippet>681</a>                    <span class="string">""</span>.into(),
+<a href=#682 id=682 data-nosnippet>682</a>                    <span class="kw-2">*</span>location,
+<a href=#683 id=683 data-nosnippet>683</a>                )
+<a href=#684 id=684 data-nosnippet>684</a>            },
+<a href=#685 id=685 data-nosnippet>685</a>            ResolverError::InvalidSyntaxInMacroCall { location } =&gt; {
 <a href=#686 id=686 data-nosnippet>686</a>                Diagnostic::simple_error(
-<a href=#687 id=687 data-nosnippet>687</a>                    <span class="string">"The unquote operator '$' can only be used within a quote expression"</span>.into(),
-<a href=#688 id=688 data-nosnippet>688</a>                    <span class="string">""</span>.into(),
+<a href=#687 id=687 data-nosnippet>687</a>                    <span class="string">"Invalid syntax in macro call"</span>.into(),
+<a href=#688 id=688 data-nosnippet>688</a>                    <span class="string">"Macro calls must call a comptime function directly, they cannot use higher-order functions"</span>.into(),
 <a href=#689 id=689 data-nosnippet>689</a>                    <span class="kw-2">*</span>location,
 <a href=#690 id=690 data-nosnippet>690</a>                )
 <a href=#691 id=691 data-nosnippet>691</a>            },
-<a href=#692 id=692 data-nosnippet>692</a>            ResolverError::InvalidSyntaxInMacroCall { location } =&gt; {
+<a href=#692 id=692 data-nosnippet>692</a>            ResolverError::MacroIsNotComptime { location } =&gt; {
 <a href=#693 id=693 data-nosnippet>693</a>                Diagnostic::simple_error(
-<a href=#694 id=694 data-nosnippet>694</a>                    <span class="string">"Invalid syntax in macro call"</span>.into(),
-<a href=#695 id=695 data-nosnippet>695</a>                    <span class="string">"Macro calls must call a comptime function directly, they cannot use higher-order functions"</span>.into(),
+<a href=#694 id=694 data-nosnippet>694</a>                    <span class="string">"This macro call is to a non-comptime function"</span>.into(),
+<a href=#695 id=695 data-nosnippet>695</a>                    <span class="string">"Macro calls must be to comptime functions"</span>.into(),
 <a href=#696 id=696 data-nosnippet>696</a>                    <span class="kw-2">*</span>location,
 <a href=#697 id=697 data-nosnippet>697</a>                )
 <a href=#698 id=698 data-nosnippet>698</a>            },
-<a href=#699 id=699 data-nosnippet>699</a>            ResolverError::MacroIsNotComptime { location } =&gt; {
+<a href=#699 id=699 data-nosnippet>699</a>            ResolverError::NonFunctionInAnnotation { location } =&gt; {
 <a href=#700 id=700 data-nosnippet>700</a>                Diagnostic::simple_error(
-<a href=#701 id=701 data-nosnippet>701</a>                    <span class="string">"This macro call is to a non-comptime function"</span>.into(),
-<a href=#702 id=702 data-nosnippet>702</a>                    <span class="string">"Macro calls must be to comptime functions"</span>.into(),
+<a href=#701 id=701 data-nosnippet>701</a>                    <span class="string">"Unknown annotation"</span>.into(),
+<a href=#702 id=702 data-nosnippet>702</a>                    <span class="string">"The name of an annotation must refer to a comptime function"</span>.into(),
 <a href=#703 id=703 data-nosnippet>703</a>                    <span class="kw-2">*</span>location,
 <a href=#704 id=704 data-nosnippet>704</a>                )
 <a href=#705 id=705 data-nosnippet>705</a>            },
-<a href=#706 id=706 data-nosnippet>706</a>            ResolverError::NonFunctionInAnnotation { location } =&gt; {
+<a href=#706 id=706 data-nosnippet>706</a>            ResolverError::MacroResultInGenericsListNotAGeneric { location, typ } =&gt; {
 <a href=#707 id=707 data-nosnippet>707</a>                Diagnostic::simple_error(
-<a href=#708 id=708 data-nosnippet>708</a>                    <span class="string">"Unknown annotation"</span>.into(),
-<a href=#709 id=709 data-nosnippet>709</a>                    <span class="string">"The name of an annotation must refer to a comptime function"</span>.into(),
+<a href=#708 id=708 data-nosnippet>708</a>                    <span class="macro">format!</span>(<span class="string">"Type `{typ}` was inserted into a generics list from a macro, but it is not a generic"</span>),
+<a href=#709 id=709 data-nosnippet>709</a>                    <span class="macro">format!</span>(<span class="string">"Type `{typ}` is not a generic"</span>),
 <a href=#710 id=710 data-nosnippet>710</a>                    <span class="kw-2">*</span>location,
 <a href=#711 id=711 data-nosnippet>711</a>                )
-<a href=#712 id=712 data-nosnippet>712</a>            },
-<a href=#713 id=713 data-nosnippet>713</a>            ResolverError::MacroResultInGenericsListNotAGeneric { location, typ } =&gt; {
+<a href=#712 id=712 data-nosnippet>712</a>            }
+<a href=#713 id=713 data-nosnippet>713</a>            ResolverError::NamedTypeArgs { location, item_kind } =&gt; {
 <a href=#714 id=714 data-nosnippet>714</a>                Diagnostic::simple_error(
-<a href=#715 id=715 data-nosnippet>715</a>                    <span class="macro">format!</span>(<span class="string">"Type `{typ}` was inserted into a generics list from a macro, but it is not a generic"</span>),
-<a href=#716 id=716 data-nosnippet>716</a>                    <span class="macro">format!</span>(<span class="string">"Type `{typ}` is not a generic"</span>),
+<a href=#715 id=715 data-nosnippet>715</a>                    <span class="macro">format!</span>(<span class="string">"Named type arguments aren't allowed on a {item_kind}"</span>),
+<a href=#716 id=716 data-nosnippet>716</a>                    <span class="string">"Named type arguments are only allowed for associated types on traits"</span>.to_string(),
 <a href=#717 id=717 data-nosnippet>717</a>                    <span class="kw-2">*</span>location,
 <a href=#718 id=718 data-nosnippet>718</a>                )
 <a href=#719 id=719 data-nosnippet>719</a>            }
-<a href=#720 id=720 data-nosnippet>720</a>            ResolverError::NamedTypeArgs { location, item_kind } =&gt; {
+<a href=#720 id=720 data-nosnippet>720</a>            ResolverError::AssociatedConstantsMustBeNumeric { location } =&gt; {
 <a href=#721 id=721 data-nosnippet>721</a>                Diagnostic::simple_error(
-<a href=#722 id=722 data-nosnippet>722</a>                    <span class="macro">format!</span>(<span class="string">"Named type arguments aren't allowed on a {item_kind}"</span>),
-<a href=#723 id=723 data-nosnippet>723</a>                    <span class="string">"Named type arguments are only allowed for associated types on traits"</span>.to_string(),
+<a href=#722 id=722 data-nosnippet>722</a>                    <span class="string">"Associated constants may only be a field or integer type"</span>.to_string(),
+<a href=#723 id=723 data-nosnippet>723</a>                    <span class="string">"Only numeric constants are allowed"</span>.to_string(),
 <a href=#724 id=724 data-nosnippet>724</a>                    <span class="kw-2">*</span>location,
 <a href=#725 id=725 data-nosnippet>725</a>                )
 <a href=#726 id=726 data-nosnippet>726</a>            }
-<a href=#727 id=727 data-nosnippet>727</a>            ResolverError::AssociatedConstantsMustBeNumeric { location } =&gt; {
+<a href=#727 id=727 data-nosnippet>727</a>            ResolverError::BinaryOpError { lhs, op, rhs, err, location } =&gt; {
 <a href=#728 id=728 data-nosnippet>728</a>                Diagnostic::simple_error(
-<a href=#729 id=729 data-nosnippet>729</a>                    <span class="string">"Associated constants may only be a field or integer type"</span>.to_string(),
-<a href=#730 id=730 data-nosnippet>730</a>                    <span class="string">"Only numeric constants are allowed"</span>.to_string(),
+<a href=#729 id=729 data-nosnippet>729</a>                    <span class="macro">format!</span>(<span class="string">"Computing `{lhs} {op} {rhs}` failed with error {err}"</span>),
+<a href=#730 id=730 data-nosnippet>730</a>                    String::new(),
 <a href=#731 id=731 data-nosnippet>731</a>                    <span class="kw-2">*</span>location,
 <a href=#732 id=732 data-nosnippet>732</a>                )
 <a href=#733 id=733 data-nosnippet>733</a>            }
-<a href=#734 id=734 data-nosnippet>734</a>            ResolverError::BinaryOpError { lhs, op, rhs, err, location } =&gt; {
+<a href=#734 id=734 data-nosnippet>734</a>            ResolverError::QuoteInRuntimeCode { location } =&gt; {
 <a href=#735 id=735 data-nosnippet>735</a>                Diagnostic::simple_error(
-<a href=#736 id=736 data-nosnippet>736</a>                    <span class="macro">format!</span>(<span class="string">"Computing `{lhs} {op} {rhs}` failed with error {err}"</span>),
-<a href=#737 id=737 data-nosnippet>737</a>                    String::new(),
+<a href=#736 id=736 data-nosnippet>736</a>                    <span class="string">"`quote` cannot be used in runtime code"</span>.to_string(),
+<a href=#737 id=737 data-nosnippet>737</a>                    <span class="string">"Wrap this in a `comptime` block or function to use it"</span>.to_string(),
 <a href=#738 id=738 data-nosnippet>738</a>                    <span class="kw-2">*</span>location,
 <a href=#739 id=739 data-nosnippet>739</a>                )
-<a href=#740 id=740 data-nosnippet>740</a>            }
-<a href=#741 id=741 data-nosnippet>741</a>            ResolverError::QuoteInRuntimeCode { location } =&gt; {
+<a href=#740 id=740 data-nosnippet>740</a>            },
+<a href=#741 id=741 data-nosnippet>741</a>            ResolverError::ComptimeTypeInRuntimeCode { typ, location } =&gt; {
 <a href=#742 id=742 data-nosnippet>742</a>                Diagnostic::simple_error(
-<a href=#743 id=743 data-nosnippet>743</a>                    <span class="string">"`quote` cannot be used in runtime code"</span>.to_string(),
-<a href=#744 id=744 data-nosnippet>744</a>                    <span class="string">"Wrap this in a `comptime` block or function to use it"</span>.to_string(),
+<a href=#743 id=743 data-nosnippet>743</a>                    <span class="macro">format!</span>(<span class="string">"Comptime-only type `{typ}` cannot be used in runtime code"</span>),
+<a href=#744 id=744 data-nosnippet>744</a>                    <span class="string">"Comptime-only type used here"</span>.to_string(),
 <a href=#745 id=745 data-nosnippet>745</a>                    <span class="kw-2">*</span>location,
 <a href=#746 id=746 data-nosnippet>746</a>                )
 <a href=#747 id=747 data-nosnippet>747</a>            },
-<a href=#748 id=748 data-nosnippet>748</a>            ResolverError::ComptimeTypeInRuntimeCode { typ, location } =&gt; {
+<a href=#748 id=748 data-nosnippet>748</a>            ResolverError::ComptimeTypeInNonComptimeGlobal { typ, location } =&gt; {
 <a href=#749 id=749 data-nosnippet>749</a>                Diagnostic::simple_error(
-<a href=#750 id=750 data-nosnippet>750</a>                    <span class="macro">format!</span>(<span class="string">"Comptime-only type `{typ}` cannot be used in runtime code"</span>),
+<a href=#750 id=750 data-nosnippet>750</a>                    <span class="macro">format!</span>(<span class="string">"Comptime-only type `{typ}` cannot be used in non-comptime global"</span>),
 <a href=#751 id=751 data-nosnippet>751</a>                    <span class="string">"Comptime-only type used here"</span>.to_string(),
 <a href=#752 id=752 data-nosnippet>752</a>                    <span class="kw-2">*</span>location,
 <a href=#753 id=753 data-nosnippet>753</a>                )
 <a href=#754 id=754 data-nosnippet>754</a>            },
-<a href=#755 id=755 data-nosnippet>755</a>            ResolverError::ComptimeTypeInNonComptimeGlobal { typ, location } =&gt; {
+<a href=#755 id=755 data-nosnippet>755</a>            ResolverError::MutatingComptimeInNonComptimeContext { name, location } =&gt; {
 <a href=#756 id=756 data-nosnippet>756</a>                Diagnostic::simple_error(
-<a href=#757 id=757 data-nosnippet>757</a>                    <span class="macro">format!</span>(<span class="string">"Comptime-only type `{typ}` cannot be used in non-comptime global"</span>),
-<a href=#758 id=758 data-nosnippet>758</a>                    <span class="string">"Comptime-only type used here"</span>.to_string(),
+<a href=#757 id=757 data-nosnippet>757</a>                    <span class="macro">format!</span>(<span class="string">"Comptime variable `{name}` cannot be mutated in a non-comptime context"</span>),
+<a href=#758 id=758 data-nosnippet>758</a>                    <span class="macro">format!</span>(<span class="string">"`{name}` mutated here"</span>),
 <a href=#759 id=759 data-nosnippet>759</a>                    <span class="kw-2">*</span>location,
 <a href=#760 id=760 data-nosnippet>760</a>                )
 <a href=#761 id=761 data-nosnippet>761</a>            },
-<a href=#762 id=762 data-nosnippet>762</a>            ResolverError::MutatingComptimeInNonComptimeContext { name, location } =&gt; {
+<a href=#762 id=762 data-nosnippet>762</a>            ResolverError::InvalidInternedStatementInExpr { statement, location } =&gt; {
 <a href=#763 id=763 data-nosnippet>763</a>                Diagnostic::simple_error(
-<a href=#764 id=764 data-nosnippet>764</a>                    <span class="macro">format!</span>(<span class="string">"Comptime variable `{name}` cannot be mutated in a non-comptime context"</span>),
-<a href=#765 id=765 data-nosnippet>765</a>                    <span class="macro">format!</span>(<span class="string">"`{name}` mutated here"</span>),
+<a href=#764 id=764 data-nosnippet>764</a>                    <span class="macro">format!</span>(<span class="string">"Failed to parse `{statement}` as an expression"</span>),
+<a href=#765 id=765 data-nosnippet>765</a>                    <span class="string">"The statement was used from a macro here"</span>.to_string(),
 <a href=#766 id=766 data-nosnippet>766</a>                    <span class="kw-2">*</span>location,
 <a href=#767 id=767 data-nosnippet>767</a>                )
 <a href=#768 id=768 data-nosnippet>768</a>            },
-<a href=#769 id=769 data-nosnippet>769</a>            ResolverError::InvalidInternedStatementInExpr { statement, location } =&gt; {
-<a href=#770 id=770 data-nosnippet>770</a>                Diagnostic::simple_error(
-<a href=#771 id=771 data-nosnippet>771</a>                    <span class="macro">format!</span>(<span class="string">"Failed to parse `{statement}` as an expression"</span>),
-<a href=#772 id=772 data-nosnippet>772</a>                    <span class="string">"The statement was used from a macro here"</span>.to_string(),
-<a href=#773 id=773 data-nosnippet>773</a>                    <span class="kw-2">*</span>location,
-<a href=#774 id=774 data-nosnippet>774</a>                )
-<a href=#775 id=775 data-nosnippet>775</a>            },
-<a href=#776 id=776 data-nosnippet>776</a>            ResolverError::UnsupportedNumericGenericType(err) =&gt; err.into(),
-<a href=#777 id=777 data-nosnippet>777</a>            ResolverError::TypeIsMorePrivateThenItem { typ, item, location } =&gt; {
+<a href=#769 id=769 data-nosnippet>769</a>            ResolverError::UnsupportedNumericGenericType(err) =&gt; err.into(),
+<a href=#770 id=770 data-nosnippet>770</a>            ResolverError::TypeIsMorePrivateThenItem { typ, item, location } =&gt; {
+<a href=#771 id=771 data-nosnippet>771</a>                Diagnostic::simple_error(
+<a href=#772 id=772 data-nosnippet>772</a>                    <span class="macro">format!</span>(<span class="string">"Type `{typ}` is more private than item `{item}`"</span>),
+<a href=#773 id=773 data-nosnippet>773</a>                    String::new(),
+<a href=#774 id=774 data-nosnippet>774</a>                    <span class="kw-2">*</span>location,
+<a href=#775 id=775 data-nosnippet>775</a>                )
+<a href=#776 id=776 data-nosnippet>776</a>            },
+<a href=#777 id=777 data-nosnippet>777</a>            ResolverError::AttributeFunctionNotInScope { name, location } =&gt; {
 <a href=#778 id=778 data-nosnippet>778</a>                Diagnostic::simple_error(
-<a href=#779 id=779 data-nosnippet>779</a>                    <span class="macro">format!</span>(<span class="string">"Type `{typ}` is more private than item `{item}`"</span>),
+<a href=#779 id=779 data-nosnippet>779</a>                    <span class="macro">format!</span>(<span class="string">"Attribute function `{name}` is not in scope"</span>),
 <a href=#780 id=780 data-nosnippet>780</a>                    String::new(),
 <a href=#781 id=781 data-nosnippet>781</a>                    <span class="kw-2">*</span>location,
 <a href=#782 id=782 data-nosnippet>782</a>                )
 <a href=#783 id=783 data-nosnippet>783</a>            },
-<a href=#784 id=784 data-nosnippet>784</a>            ResolverError::AttributeFunctionNotInScope { name, location } =&gt; {
-<a href=#785 id=785 data-nosnippet>785</a>                Diagnostic::simple_error(
-<a href=#786 id=786 data-nosnippet>786</a>                    <span class="macro">format!</span>(<span class="string">"Attribute function `{name}` is not in scope"</span>),
-<a href=#787 id=787 data-nosnippet>787</a>                    String::new(),
-<a href=#788 id=788 data-nosnippet>788</a>                    <span class="kw-2">*</span>location,
-<a href=#789 id=789 data-nosnippet>789</a>                )
-<a href=#790 id=790 data-nosnippet>790</a>            },
-<a href=#791 id=791 data-nosnippet>791</a>            ResolverError::TraitNotImplemented { impl_trait, missing_trait: the_trait, type_missing_trait: typ, location, missing_trait_location} =&gt; {
-<a href=#792 id=792 data-nosnippet>792</a>                <span class="kw">let </span><span class="kw-2">mut </span>diagnostic = Diagnostic::simple_error(
-<a href=#793 id=793 data-nosnippet>793</a>                    <span class="macro">format!</span>(<span class="string">"The trait bound `{typ}: {the_trait}` is not satisfied"</span>),
-<a href=#794 id=794 data-nosnippet>794</a>                    <span class="macro">format!</span>(<span class="string">"The trait `{the_trait}` is not implemented for `{typ}`"</span>)
-<a href=#795 id=795 data-nosnippet>795</a>                    , <span class="kw-2">*</span>location);
-<a href=#796 id=796 data-nosnippet>796</a>                diagnostic.add_secondary(<span class="macro">format!</span>(<span class="string">"required by this bound in `{impl_trait}`"</span>), <span class="kw-2">*</span>missing_trait_location);
-<a href=#797 id=797 data-nosnippet>797</a>                diagnostic
-<a href=#798 id=798 data-nosnippet>798</a>            },
-<a href=#799 id=799 data-nosnippet>799</a>            ResolverError::ExpectedTrait { found, location  } =&gt; {
+<a href=#784 id=784 data-nosnippet>784</a>            ResolverError::TraitNotImplemented { impl_trait, missing_trait: the_trait, type_missing_trait: typ, location, missing_trait_location} =&gt; {
+<a href=#785 id=785 data-nosnippet>785</a>                <span class="kw">let </span><span class="kw-2">mut </span>diagnostic = Diagnostic::simple_error(
+<a href=#786 id=786 data-nosnippet>786</a>                    <span class="macro">format!</span>(<span class="string">"The trait bound `{typ}: {the_trait}` is not satisfied"</span>),
+<a href=#787 id=787 data-nosnippet>787</a>                    <span class="macro">format!</span>(<span class="string">"The trait `{the_trait}` is not implemented for `{typ}`"</span>)
+<a href=#788 id=788 data-nosnippet>788</a>                    , <span class="kw-2">*</span>location);
+<a href=#789 id=789 data-nosnippet>789</a>                diagnostic.add_secondary(<span class="macro">format!</span>(<span class="string">"required by this bound in `{impl_trait}`"</span>), <span class="kw-2">*</span>missing_trait_location);
+<a href=#790 id=790 data-nosnippet>790</a>                diagnostic
+<a href=#791 id=791 data-nosnippet>791</a>            },
+<a href=#792 id=792 data-nosnippet>792</a>            ResolverError::ExpectedTrait { found, location  } =&gt; {
+<a href=#793 id=793 data-nosnippet>793</a>                Diagnostic::simple_error(
+<a href=#794 id=794 data-nosnippet>794</a>                    <span class="macro">format!</span>(<span class="string">"Expected a trait, found {found}"</span>),
+<a href=#795 id=795 data-nosnippet>795</a>                    String::new(),
+<a href=#796 id=796 data-nosnippet>796</a>                    <span class="kw-2">*</span>location,
+<a href=#797 id=797 data-nosnippet>797</a>                )
+<a href=#798 id=798 data-nosnippet>798</a>            }
+<a href=#799 id=799 data-nosnippet>799</a>            ResolverError::InvalidSyntaxInPattern { location } =&gt; {
 <a href=#800 id=800 data-nosnippet>800</a>                Diagnostic::simple_error(
-<a href=#801 id=801 data-nosnippet>801</a>                    <span class="macro">format!</span>(<span class="string">"Expected a trait, found {found}"</span>),
-<a href=#802 id=802 data-nosnippet>802</a>                    String::new(),
+<a href=#801 id=801 data-nosnippet>801</a>                    <span class="string">"Invalid syntax in match pattern"</span>.into(),
+<a href=#802 id=802 data-nosnippet>802</a>                    <span class="string">"Only literal, constructor, and variable patterns are allowed"</span>.into(),
 <a href=#803 id=803 data-nosnippet>803</a>                    <span class="kw-2">*</span>location,
 <a href=#804 id=804 data-nosnippet>804</a>                )
-<a href=#805 id=805 data-nosnippet>805</a>            }
-<a href=#806 id=806 data-nosnippet>806</a>            ResolverError::InvalidSyntaxInPattern { location } =&gt; {
-<a href=#807 id=807 data-nosnippet>807</a>                Diagnostic::simple_error(
-<a href=#808 id=808 data-nosnippet>808</a>                    <span class="string">"Invalid syntax in match pattern"</span>.into(),
-<a href=#809 id=809 data-nosnippet>809</a>                    <span class="string">"Only literal, constructor, and variable patterns are allowed"</span>.into(),
-<a href=#810 id=810 data-nosnippet>810</a>                    <span class="kw-2">*</span>location,
-<a href=#811 id=811 data-nosnippet>811</a>                )
+<a href=#805 id=805 data-nosnippet>805</a>            },
+<a href=#806 id=806 data-nosnippet>806</a>            ResolverError::VariableAlreadyDefinedInPattern { existing, new_location } =&gt; {
+<a href=#807 id=807 data-nosnippet>807</a>                <span class="kw">let </span>message = <span class="macro">format!</span>(<span class="string">"Variable `{existing}` was already defined in the same match pattern"</span>);
+<a href=#808 id=808 data-nosnippet>808</a>                <span class="kw">let </span>secondary = <span class="macro">format!</span>(<span class="string">"`{existing}` redefined here"</span>);
+<a href=#809 id=809 data-nosnippet>809</a>                <span class="kw">let </span><span class="kw-2">mut </span>error = Diagnostic::simple_error(message, secondary, <span class="kw-2">*</span>new_location);
+<a href=#810 id=810 data-nosnippet>810</a>                error.add_secondary(<span class="macro">format!</span>(<span class="string">"`{existing}` was previously defined here"</span>), existing.location());
+<a href=#811 id=811 data-nosnippet>811</a>                error
 <a href=#812 id=812 data-nosnippet>812</a>            },
-<a href=#813 id=813 data-nosnippet>813</a>            ResolverError::VariableAlreadyDefinedInPattern { existing, new_location } =&gt; {
-<a href=#814 id=814 data-nosnippet>814</a>                <span class="kw">let </span>message = <span class="macro">format!</span>(<span class="string">"Variable `{existing}` was already defined in the same match pattern"</span>);
-<a href=#815 id=815 data-nosnippet>815</a>                <span class="kw">let </span>secondary = <span class="macro">format!</span>(<span class="string">"`{existing}` redefined here"</span>);
-<a href=#816 id=816 data-nosnippet>816</a>                <span class="kw">let </span><span class="kw-2">mut </span>error = Diagnostic::simple_error(message, secondary, <span class="kw-2">*</span>new_location);
-<a href=#817 id=817 data-nosnippet>817</a>                error.add_secondary(<span class="macro">format!</span>(<span class="string">"`{existing}` was previously defined here"</span>), existing.location());
-<a href=#818 id=818 data-nosnippet>818</a>                error
-<a href=#819 id=819 data-nosnippet>819</a>            },
-<a href=#820 id=820 data-nosnippet>820</a>            ResolverError::NonIntegerGlobalUsedInPattern { location } =&gt; {
-<a href=#821 id=821 data-nosnippet>821</a>                <span class="kw">let </span>message = <span class="string">"Only integer or boolean globals can be used in match patterns"</span>.to_string();
-<a href=#822 id=822 data-nosnippet>822</a>                <span class="kw">let </span>secondary = <span class="string">"This global is not an integer or boolean"</span>.to_string();
-<a href=#823 id=823 data-nosnippet>823</a>                Diagnostic::simple_error(message, secondary, <span class="kw-2">*</span>location)
+<a href=#813 id=813 data-nosnippet>813</a>            ResolverError::NonIntegerGlobalUsedInPattern { location } =&gt; {
+<a href=#814 id=814 data-nosnippet>814</a>                <span class="kw">let </span>message = <span class="string">"Only integer or boolean globals can be used in match patterns"</span>.to_string();
+<a href=#815 id=815 data-nosnippet>815</a>                <span class="kw">let </span>secondary = <span class="string">"This global is not an integer or boolean"</span>.to_string();
+<a href=#816 id=816 data-nosnippet>816</a>                Diagnostic::simple_error(message, secondary, <span class="kw-2">*</span>location)
+<a href=#817 id=817 data-nosnippet>817</a>            },
+<a href=#818 id=818 data-nosnippet>818</a>            ResolverError::TypeUnsupportedInMatch { typ, location } =&gt; {
+<a href=#819 id=819 data-nosnippet>819</a>                Diagnostic::simple_error(
+<a href=#820 id=820 data-nosnippet>820</a>                    <span class="macro">format!</span>(<span class="string">"Cannot match on values of type `{typ}`"</span>),
+<a href=#821 id=821 data-nosnippet>821</a>                    String::new(),
+<a href=#822 id=822 data-nosnippet>822</a>                    <span class="kw-2">*</span>location,
+<a href=#823 id=823 data-nosnippet>823</a>                )
 <a href=#824 id=824 data-nosnippet>824</a>            },
-<a href=#825 id=825 data-nosnippet>825</a>            ResolverError::TypeUnsupportedInMatch { typ, location } =&gt; {
+<a href=#825 id=825 data-nosnippet>825</a>            ResolverError::TypeUnsupportedForMethod { typ, location } =&gt; {
 <a href=#826 id=826 data-nosnippet>826</a>                Diagnostic::simple_error(
-<a href=#827 id=827 data-nosnippet>827</a>                    <span class="macro">format!</span>(<span class="string">"Cannot match on values of type `{typ}`"</span>),
+<a href=#827 id=827 data-nosnippet>827</a>                    <span class="macro">format!</span>(<span class="string">"Cannot define a method on values of type `{typ}`"</span>),
 <a href=#828 id=828 data-nosnippet>828</a>                    String::new(),
 <a href=#829 id=829 data-nosnippet>829</a>                    <span class="kw-2">*</span>location,
 <a href=#830 id=830 data-nosnippet>830</a>                )
-<a href=#831 id=831 data-nosnippet>831</a>            },
-<a href=#832 id=832 data-nosnippet>832</a>            ResolverError::TypeUnsupportedForMethod { typ, location } =&gt; {
+<a href=#831 id=831 data-nosnippet>831</a>            }
+<a href=#832 id=832 data-nosnippet>832</a>            ResolverError::TypeUnsupportedForTraitImpl { typ, location } =&gt; {
 <a href=#833 id=833 data-nosnippet>833</a>                Diagnostic::simple_error(
-<a href=#834 id=834 data-nosnippet>834</a>                    <span class="macro">format!</span>(<span class="string">"Cannot define a method on values of type `{typ}`"</span>),
+<a href=#834 id=834 data-nosnippet>834</a>                    <span class="macro">format!</span>(<span class="string">"Cannot define a trait impl on values of type `{typ}`"</span>),
 <a href=#835 id=835 data-nosnippet>835</a>                    String::new(),
 <a href=#836 id=836 data-nosnippet>836</a>                    <span class="kw-2">*</span>location,
 <a href=#837 id=837 data-nosnippet>837</a>                )
 <a href=#838 id=838 data-nosnippet>838</a>            }
-<a href=#839 id=839 data-nosnippet>839</a>            ResolverError::TypeUnsupportedForTraitImpl { typ, location } =&gt; {
+<a href=#839 id=839 data-nosnippet>839</a>            ResolverError::UnexpectedItemInPattern { item, location } =&gt; {
 <a href=#840 id=840 data-nosnippet>840</a>                Diagnostic::simple_error(
-<a href=#841 id=841 data-nosnippet>841</a>                    <span class="macro">format!</span>(<span class="string">"Cannot define a trait impl on values of type `{typ}`"</span>),
+<a href=#841 id=841 data-nosnippet>841</a>                    <span class="macro">format!</span>(<span class="string">"Expected a struct, enum, or literal pattern, but found {item}"</span>),
 <a href=#842 id=842 data-nosnippet>842</a>                    String::new(),
 <a href=#843 id=843 data-nosnippet>843</a>                    <span class="kw-2">*</span>location,
 <a href=#844 id=844 data-nosnippet>844</a>                )
-<a href=#845 id=845 data-nosnippet>845</a>            }
-<a href=#846 id=846 data-nosnippet>846</a>            ResolverError::UnexpectedItemInPattern { item, location } =&gt; {
+<a href=#845 id=845 data-nosnippet>845</a>            },
+<a href=#846 id=846 data-nosnippet>846</a>            ResolverError::NoSuchMethodInTrait { trait_name, method_name, location } =&gt; {
 <a href=#847 id=847 data-nosnippet>847</a>                Diagnostic::simple_error(
-<a href=#848 id=848 data-nosnippet>848</a>                    <span class="macro">format!</span>(<span class="string">"Expected a struct, enum, or literal pattern, but found {item}"</span>),
+<a href=#848 id=848 data-nosnippet>848</a>                    <span class="macro">format!</span>(<span class="string">"Trait `{trait_name}` has no method named `{method_name}`"</span>),
 <a href=#849 id=849 data-nosnippet>849</a>                    String::new(),
 <a href=#850 id=850 data-nosnippet>850</a>                    <span class="kw-2">*</span>location,
 <a href=#851 id=851 data-nosnippet>851</a>                )
 <a href=#852 id=852 data-nosnippet>852</a>            },
-<a href=#853 id=853 data-nosnippet>853</a>            ResolverError::NoSuchMethodInTrait { trait_name, method_name, location } =&gt; {
+<a href=#853 id=853 data-nosnippet>853</a>            ResolverError::RecursiveTypeAlias { location } =&gt; {
 <a href=#854 id=854 data-nosnippet>854</a>                Diagnostic::simple_error(
-<a href=#855 id=855 data-nosnippet>855</a>                    <span class="macro">format!</span>(<span class="string">"Trait `{trait_name}` has no method named `{method_name}`"</span>),
+<a href=#855 id=855 data-nosnippet>855</a>                    <span class="string">"Cannot use a type alias inside a type alias"</span>.to_string(),
 <a href=#856 id=856 data-nosnippet>856</a>                    String::new(),
 <a href=#857 id=857 data-nosnippet>857</a>                    <span class="kw-2">*</span>location,
 <a href=#858 id=858 data-nosnippet>858</a>                )
 <a href=#859 id=859 data-nosnippet>859</a>            },
-<a href=#860 id=860 data-nosnippet>860</a>            ResolverError::RecursiveTypeAlias { location } =&gt; {
+<a href=#860 id=860 data-nosnippet>860</a>            ResolverError::ExpectedNumericExpression { typ, location } =&gt; {
 <a href=#861 id=861 data-nosnippet>861</a>                Diagnostic::simple_error(
-<a href=#862 id=862 data-nosnippet>862</a>                    <span class="string">"Cannot use a type alias inside a type alias"</span>.to_string(),
+<a href=#862 id=862 data-nosnippet>862</a>                    <span class="macro">format!</span>(<span class="string">"Expected a numeric expression, but got `{typ}`"</span>),
 <a href=#863 id=863 data-nosnippet>863</a>                    String::new(),
 <a href=#864 id=864 data-nosnippet>864</a>                    <span class="kw-2">*</span>location,
 <a href=#865 id=865 data-nosnippet>865</a>                )
 <a href=#866 id=866 data-nosnippet>866</a>            },
-<a href=#867 id=867 data-nosnippet>867</a>            ResolverError::ExpectedNumericExpression { typ, location } =&gt; {
-<a href=#868 id=868 data-nosnippet>868</a>                Diagnostic::simple_error(
-<a href=#869 id=869 data-nosnippet>869</a>                    <span class="macro">format!</span>(<span class="string">"Expected a numeric expression, but got `{typ}`"</span>),
+<a href=#867 id=867 data-nosnippet>867</a>            ResolverError::NonU32Index { location } =&gt; {
+<a href=#868 id=868 data-nosnippet>868</a>                Diagnostic::simple_warning(
+<a href=#869 id=869 data-nosnippet>869</a>                    <span class="string">"Indexing an array or vector with a type other than `u32` is deprecated and will soon be an error"</span>.to_string(),
 <a href=#870 id=870 data-nosnippet>870</a>                    String::new(),
 <a href=#871 id=871 data-nosnippet>871</a>                    <span class="kw-2">*</span>location,
 <a href=#872 id=872 data-nosnippet>872</a>                )
 <a href=#873 id=873 data-nosnippet>873</a>            },
-<a href=#874 id=874 data-nosnippet>874</a>            ResolverError::NonU32Index { location } =&gt; {
-<a href=#875 id=875 data-nosnippet>875</a>                Diagnostic::simple_warning(
-<a href=#876 id=876 data-nosnippet>876</a>                    <span class="string">"Indexing an array or vector with a type other than `u32` is deprecated and will soon be an error"</span>.to_string(),
-<a href=#877 id=877 data-nosnippet>877</a>                    String::new(),
-<a href=#878 id=878 data-nosnippet>878</a>                    <span class="kw-2">*</span>location,
+<a href=#874 id=874 data-nosnippet>874</a>            ResolverError::UnconstrainedTypeParameter { ident} =&gt; {
+<a href=#875 id=875 data-nosnippet>875</a>                Diagnostic::simple_error(
+<a href=#876 id=876 data-nosnippet>876</a>                    <span class="macro">format!</span>(<span class="string">"The type parameter `{ident}` is not constrained by the impl trait, self type, or predicates"</span>),
+<a href=#877 id=877 data-nosnippet>877</a>                    <span class="macro">format!</span>(<span class="string">"Hint: remove the `{ident}` type parameter"</span>),
+<a href=#878 id=878 data-nosnippet>878</a>                    ident.location(),
 <a href=#879 id=879 data-nosnippet>879</a>                )
-<a href=#880 id=880 data-nosnippet>880</a>            },
-<a href=#881 id=881 data-nosnippet>881</a>            ResolverError::UnconstrainedTypeParameter { ident} =&gt; {
-<a href=#882 id=882 data-nosnippet>882</a>                Diagnostic::simple_error(
-<a href=#883 id=883 data-nosnippet>883</a>                    <span class="macro">format!</span>(<span class="string">"The type parameter `{ident}` is not constrained by the impl trait, self type, or predicates"</span>),
-<a href=#884 id=884 data-nosnippet>884</a>                    <span class="macro">format!</span>(<span class="string">"Hint: remove the `{ident}` type parameter"</span>),
-<a href=#885 id=885 data-nosnippet>885</a>                    ident.location(),
-<a href=#886 id=886 data-nosnippet>886</a>                )
-<a href=#887 id=887 data-nosnippet>887</a>            }
-<a href=#888 id=888 data-nosnippet>888</a>            ResolverError::UnreachableStatement { location, break_or_continue_location} =&gt; {
-<a href=#889 id=889 data-nosnippet>889</a>                <span class="kw">let </span><span class="kw-2">mut </span>diagnostic = Diagnostic::simple_warning(
-<a href=#890 id=890 data-nosnippet>890</a>                    <span class="string">"Unreachable statement"</span>.to_string(),
-<a href=#891 id=891 data-nosnippet>891</a>                    <span class="string">"Unreachable statement"</span>.to_string(),
-<a href=#892 id=892 data-nosnippet>892</a>                    <span class="kw-2">*</span>location,
-<a href=#893 id=893 data-nosnippet>893</a>                );
-<a href=#894 id=894 data-nosnippet>894</a>                diagnostic.add_secondary(<span class="string">"Any code following this expression is unreachable"</span>.to_string(), <span class="kw-2">*</span>break_or_continue_location);
-<a href=#895 id=895 data-nosnippet>895</a>                diagnostic
+<a href=#880 id=880 data-nosnippet>880</a>            }
+<a href=#881 id=881 data-nosnippet>881</a>            ResolverError::UnreachableStatement { location, break_or_continue_location} =&gt; {
+<a href=#882 id=882 data-nosnippet>882</a>                <span class="kw">let </span><span class="kw-2">mut </span>diagnostic = Diagnostic::simple_warning(
+<a href=#883 id=883 data-nosnippet>883</a>                    <span class="string">"Unreachable statement"</span>.to_string(),
+<a href=#884 id=884 data-nosnippet>884</a>                    <span class="string">"Unreachable statement"</span>.to_string(),
+<a href=#885 id=885 data-nosnippet>885</a>                    <span class="kw-2">*</span>location,
+<a href=#886 id=886 data-nosnippet>886</a>                );
+<a href=#887 id=887 data-nosnippet>887</a>                diagnostic.add_secondary(<span class="string">"Any code following this expression is unreachable"</span>.to_string(), <span class="kw-2">*</span>break_or_continue_location);
+<a href=#888 id=888 data-nosnippet>888</a>                diagnostic
+<a href=#889 id=889 data-nosnippet>889</a>            }
+<a href=#890 id=890 data-nosnippet>890</a>            ResolverError::AssociatedItemConstraintsNotAllowedInGenerics { location} =&gt; {
+<a href=#891 id=891 data-nosnippet>891</a>                Diagnostic::simple_error(
+<a href=#892 id=892 data-nosnippet>892</a>                    <span class="string">"Associated item constraints are not allowed here"</span>.to_string(),
+<a href=#893 id=893 data-nosnippet>893</a>                    <span class="string">"Consider removing this associated item binding"</span>.to_string(),
+<a href=#894 id=894 data-nosnippet>894</a>                    <span class="kw-2">*</span>location,
+<a href=#895 id=895 data-nosnippet>895</a>                )
 <a href=#896 id=896 data-nosnippet>896</a>            }
-<a href=#897 id=897 data-nosnippet>897</a>            ResolverError::AssociatedItemConstraintsNotAllowedInGenerics { location} =&gt; {
+<a href=#897 id=897 data-nosnippet>897</a>            ResolverError::AmbiguousAssociatedType { trait_name, associated_type_name, location } =&gt; {
 <a href=#898 id=898 data-nosnippet>898</a>                Diagnostic::simple_error(
-<a href=#899 id=899 data-nosnippet>899</a>                    <span class="string">"Associated item constraints are not allowed here"</span>.to_string(),
-<a href=#900 id=900 data-nosnippet>900</a>                    <span class="string">"Consider removing this associated item binding"</span>.to_string(),
+<a href=#899 id=899 data-nosnippet>899</a>                    <span class="string">"Ambiguous associated type"</span>.to_string(),
+<a href=#900 id=900 data-nosnippet>900</a>                    <span class="macro">format!</span>(<span class="string">"If there were a type named `Example` that implemented `{trait_name}`, you could use the fully-qualified path: `&lt;Example as {trait_name}&gt;::{associated_type_name}`"</span>),
 <a href=#901 id=901 data-nosnippet>901</a>                    <span class="kw-2">*</span>location,
 <a href=#902 id=902 data-nosnippet>902</a>                )
 <a href=#903 id=903 data-nosnippet>903</a>            }
-<a href=#904 id=904 data-nosnippet>904</a>            ResolverError::AmbiguousAssociatedType { trait_name, associated_type_name, location } =&gt; {
+<a href=#904 id=904 data-nosnippet>904</a>            ResolverError::TraitImplOnAssociatedType { location } =&gt; {
 <a href=#905 id=905 data-nosnippet>905</a>                Diagnostic::simple_error(
-<a href=#906 id=906 data-nosnippet>906</a>                    <span class="string">"Ambiguous associated type"</span>.to_string(),
-<a href=#907 id=907 data-nosnippet>907</a>                    <span class="macro">format!</span>(<span class="string">"If there were a type named `Example` that implemented `{trait_name}`, you could use the fully-qualified path: `&lt;Example as {trait_name}&gt;::{associated_type_name}`"</span>),
+<a href=#906 id=906 data-nosnippet>906</a>                    <span class="string">"Cannot define a trait impl on associated types"</span>.to_string(),
+<a href=#907 id=907 data-nosnippet>907</a>                    String::new(),
 <a href=#908 id=908 data-nosnippet>908</a>                    <span class="kw-2">*</span>location,
 <a href=#909 id=909 data-nosnippet>909</a>                )
 <a href=#910 id=910 data-nosnippet>910</a>            }
-<a href=#911 id=911 data-nosnippet>911</a>            ResolverError::TraitImplOnAssociatedType { location } =&gt; {
-<a href=#912 id=912 data-nosnippet>912</a>                Diagnostic::simple_error(
-<a href=#913 id=913 data-nosnippet>913</a>                    <span class="string">"Cannot define a trait impl on associated types"</span>.to_string(),
-<a href=#914 id=914 data-nosnippet>914</a>                    String::new(),
-<a href=#915 id=915 data-nosnippet>915</a>                    <span class="kw-2">*</span>location,
-<a href=#916 id=916 data-nosnippet>916</a>                )
-<a href=#917 id=917 data-nosnippet>917</a>            }
-<a href=#918 id=918 data-nosnippet>918</a>            ResolverError::WildcardTypeDisallowed { location, context: reason } =&gt; {
-<a href=#919 id=919 data-nosnippet>919</a>                <span class="kw">let </span>context = <span class="kw">match </span>reason {
-<a href=#920 id=920 data-nosnippet>920</a>                    WildcardDisallowedContext::AssociatedType =&gt; <span class="string">"associated type definitions"</span>,
-<a href=#921 id=921 data-nosnippet>921</a>                    WildcardDisallowedContext::Cast =&gt; <span class="string">"casts"</span>,
-<a href=#922 id=922 data-nosnippet>922</a>                    WildcardDisallowedContext::EnumVariant =&gt; <span class="string">"enum variant definitions"</span>,
-<a href=#923 id=923 data-nosnippet>923</a>                    WildcardDisallowedContext::FunctionReturn =&gt; <span class="string">"function return types"</span>,
-<a href=#924 id=924 data-nosnippet>924</a>                    WildcardDisallowedContext::FunctionParameter =&gt; <span class="string">"function parameter types"</span>,
-<a href=#925 id=925 data-nosnippet>925</a>                    WildcardDisallowedContext::Global =&gt; <span class="string">"global definitions"</span>,
-<a href=#926 id=926 data-nosnippet>926</a>                    WildcardDisallowedContext::ImplType =&gt; <span class="string">"impl types"</span>,
-<a href=#927 id=927 data-nosnippet>927</a>                    WildcardDisallowedContext::NumericGeneric =&gt; <span class="string">"numeric generics"</span>,
-<a href=#928 id=928 data-nosnippet>928</a>                    WildcardDisallowedContext::QuotedAsType =&gt; <span class="string">"the argument to Quoted::as_type"</span>,
-<a href=#929 id=929 data-nosnippet>929</a>                    WildcardDisallowedContext::StructField =&gt; <span class="string">"struct field types"</span>,
-<a href=#930 id=930 data-nosnippet>930</a>                    WildcardDisallowedContext::TraitAsType =&gt; <span class="string">"impl trait types"</span>,
-<a href=#931 id=931 data-nosnippet>931</a>                    WildcardDisallowedContext::TraitBound =&gt; <span class="string">"trait bounds"</span>,
-<a href=#932 id=932 data-nosnippet>932</a>                    WildcardDisallowedContext::TraitConstraint =&gt; <span class="string">"trait constraints"</span>,
-<a href=#933 id=933 data-nosnippet>933</a>                    WildcardDisallowedContext::TraitImplType =&gt; <span class="string">"trait impl types"</span>,
-<a href=#934 id=934 data-nosnippet>934</a>                    WildcardDisallowedContext::TypeAlias =&gt; <span class="string">"type alias definitions"</span>,
-<a href=#935 id=935 data-nosnippet>935</a>                };
+<a href=#911 id=911 data-nosnippet>911</a>            ResolverError::WildcardTypeDisallowed { location, context: reason } =&gt; {
+<a href=#912 id=912 data-nosnippet>912</a>                <span class="kw">let </span>context = <span class="kw">match </span>reason {
+<a href=#913 id=913 data-nosnippet>913</a>                    WildcardDisallowedContext::AssociatedType =&gt; <span class="string">"associated type definitions"</span>,
+<a href=#914 id=914 data-nosnippet>914</a>                    WildcardDisallowedContext::Cast =&gt; <span class="string">"casts"</span>,
+<a href=#915 id=915 data-nosnippet>915</a>                    WildcardDisallowedContext::EnumVariant =&gt; <span class="string">"enum variant definitions"</span>,
+<a href=#916 id=916 data-nosnippet>916</a>                    WildcardDisallowedContext::FunctionReturn =&gt; <span class="string">"function return types"</span>,
+<a href=#917 id=917 data-nosnippet>917</a>                    WildcardDisallowedContext::FunctionParameter =&gt; <span class="string">"function parameter types"</span>,
+<a href=#918 id=918 data-nosnippet>918</a>                    WildcardDisallowedContext::Global =&gt; <span class="string">"global definitions"</span>,
+<a href=#919 id=919 data-nosnippet>919</a>                    WildcardDisallowedContext::ImplType =&gt; <span class="string">"impl types"</span>,
+<a href=#920 id=920 data-nosnippet>920</a>                    WildcardDisallowedContext::NumericGeneric =&gt; <span class="string">"numeric generics"</span>,
+<a href=#921 id=921 data-nosnippet>921</a>                    WildcardDisallowedContext::QuotedAsType =&gt; <span class="string">"the argument to Quoted::as_type"</span>,
+<a href=#922 id=922 data-nosnippet>922</a>                    WildcardDisallowedContext::StructField =&gt; <span class="string">"struct field types"</span>,
+<a href=#923 id=923 data-nosnippet>923</a>                    WildcardDisallowedContext::TraitAsType =&gt; <span class="string">"impl trait types"</span>,
+<a href=#924 id=924 data-nosnippet>924</a>                    WildcardDisallowedContext::TraitBound =&gt; <span class="string">"trait bounds"</span>,
+<a href=#925 id=925 data-nosnippet>925</a>                    WildcardDisallowedContext::TraitConstraint =&gt; <span class="string">"trait constraints"</span>,
+<a href=#926 id=926 data-nosnippet>926</a>                    WildcardDisallowedContext::TraitImplType =&gt; <span class="string">"trait impl types"</span>,
+<a href=#927 id=927 data-nosnippet>927</a>                    WildcardDisallowedContext::TypeAlias =&gt; <span class="string">"type alias definitions"</span>,
+<a href=#928 id=928 data-nosnippet>928</a>                };
+<a href=#929 id=929 data-nosnippet>929</a>                Diagnostic::simple_error(
+<a href=#930 id=930 data-nosnippet>930</a>                    <span class="macro">format!</span>(<span class="string">"The placeholder `_` is not allowed in {context}"</span>),
+<a href=#931 id=931 data-nosnippet>931</a>                    String::new(),
+<a href=#932 id=932 data-nosnippet>932</a>                    <span class="kw-2">*</span>location,
+<a href=#933 id=933 data-nosnippet>933</a>                )
+<a href=#934 id=934 data-nosnippet>934</a>            }
+<a href=#935 id=935 data-nosnippet>935</a>            ResolverError::ReferencesNotAllowedInGlobals { location } =&gt; {
 <a href=#936 id=936 data-nosnippet>936</a>                Diagnostic::simple_error(
-<a href=#937 id=937 data-nosnippet>937</a>                    <span class="macro">format!</span>(<span class="string">"The placeholder `_` is not allowed in {context}"</span>),
+<a href=#937 id=937 data-nosnippet>937</a>                    <span class="string">"References are not allowed in globals"</span>.to_string(),
 <a href=#938 id=938 data-nosnippet>938</a>                    String::new(),
 <a href=#939 id=939 data-nosnippet>939</a>                    <span class="kw-2">*</span>location,
 <a href=#940 id=940 data-nosnippet>940</a>                )
 <a href=#941 id=941 data-nosnippet>941</a>            }
-<a href=#942 id=942 data-nosnippet>942</a>            ResolverError::ReferencesNotAllowedInGlobals { location } =&gt; {
+<a href=#942 id=942 data-nosnippet>942</a>            ResolverError::OracleWithBody { location } =&gt; {
 <a href=#943 id=943 data-nosnippet>943</a>                Diagnostic::simple_error(
-<a href=#944 id=944 data-nosnippet>944</a>                    <span class="string">"References are not allowed in globals"</span>.to_string(),
-<a href=#945 id=945 data-nosnippet>945</a>                    String::new(),
+<a href=#944 id=944 data-nosnippet>944</a>                    <span class="string">"Functions marked with #[oracle] must have no body"</span>.to_string(),
+<a href=#945 id=945 data-nosnippet>945</a>                    <span class="string">"This function body will never be run so should be removed"</span>.to_string(),
 <a href=#946 id=946 data-nosnippet>946</a>                    <span class="kw-2">*</span>location,
 <a href=#947 id=947 data-nosnippet>947</a>                )
 <a href=#948 id=948 data-nosnippet>948</a>            }
-<a href=#949 id=949 data-nosnippet>949</a>            ResolverError::OracleWithBody { location } =&gt; {
+<a href=#949 id=949 data-nosnippet>949</a>            ResolverError::BuiltinWithBody { location } =&gt; {
 <a href=#950 id=950 data-nosnippet>950</a>                Diagnostic::simple_error(
-<a href=#951 id=951 data-nosnippet>951</a>                    <span class="string">"Functions marked with #[oracle] must have no body"</span>.to_string(),
-<a href=#952 id=952 data-nosnippet>952</a>                    <span class="string">"This function body will never be run so should be removed"</span>.to_string(),
+<a href=#951 id=951 data-nosnippet>951</a>                    <span class="string">"Builtin and low-level function declarations cannot have a body"</span>.to_string(),
+<a href=#952 id=952 data-nosnippet>952</a>                    <span class="string">"This function body should be removed"</span>.to_string(),
 <a href=#953 id=953 data-nosnippet>953</a>                    <span class="kw-2">*</span>location,
 <a href=#954 id=954 data-nosnippet>954</a>                )
 <a href=#955 id=955 data-nosnippet>955</a>            }
-<a href=#956 id=956 data-nosnippet>956</a>            ResolverError::BuiltinWithBody { location } =&gt; {
+<a href=#956 id=956 data-nosnippet>956</a>            ResolverError::PatternBoundMoreThanOnce { ident } =&gt; {
 <a href=#957 id=957 data-nosnippet>957</a>                Diagnostic::simple_error(
-<a href=#958 id=958 data-nosnippet>958</a>                    <span class="string">"Builtin and low-level function declarations cannot have a body"</span>.to_string(),
-<a href=#959 id=959 data-nosnippet>959</a>                    <span class="string">"This function body should be removed"</span>.to_string(),
-<a href=#960 id=960 data-nosnippet>960</a>                    <span class="kw-2">*</span>location,
+<a href=#958 id=958 data-nosnippet>958</a>                    <span class="macro">format!</span>(<span class="string">"Identifier `{ident}` is bound more than once in the same pattern"</span>),
+<a href=#959 id=959 data-nosnippet>959</a>                    <span class="string">"Used in a pattern more than once"</span>.to_string(),
+<a href=#960 id=960 data-nosnippet>960</a>                    ident.location(),
 <a href=#961 id=961 data-nosnippet>961</a>                )
 <a href=#962 id=962 data-nosnippet>962</a>            }
-<a href=#963 id=963 data-nosnippet>963</a>            ResolverError::PatternBoundMoreThanOnce { ident } =&gt; {
-<a href=#964 id=964 data-nosnippet>964</a>                Diagnostic::simple_error(
-<a href=#965 id=965 data-nosnippet>965</a>                    <span class="macro">format!</span>(<span class="string">"Identifier `{ident}` is bound more than once in the same pattern"</span>),
-<a href=#966 id=966 data-nosnippet>966</a>                    <span class="string">"Used in a pattern more than once"</span>.to_string(),
+<a href=#963 id=963 data-nosnippet>963</a>            ResolverError::DataBusOnNonEntryPoint { visibility, ident } =&gt; {
+<a href=#964 id=964 data-nosnippet>964</a>                <span class="kw">let </span><span class="kw-2">mut </span>diag = Diagnostic::simple_error(
+<a href=#965 id=965 data-nosnippet>965</a>                    <span class="macro">format!</span>(<span class="string">"unnecessary {visibility} attribute for function {ident}"</span>),
+<a href=#966 id=966 data-nosnippet>966</a>                    <span class="macro">format!</span>(<span class="string">"unnecessary {visibility}"</span>),
 <a href=#967 id=967 data-nosnippet>967</a>                    ident.location(),
-<a href=#968 id=968 data-nosnippet>968</a>                )
-<a href=#969 id=969 data-nosnippet>969</a>            }
-<a href=#970 id=970 data-nosnippet>970</a>            ResolverError::DataBusOnNonEntryPoint { visibility, ident } =&gt; {
-<a href=#971 id=971 data-nosnippet>971</a>                <span class="kw">let </span><span class="kw-2">mut </span>diag = Diagnostic::simple_error(
-<a href=#972 id=972 data-nosnippet>972</a>                    <span class="macro">format!</span>(<span class="string">"unnecessary {visibility} attribute for function {ident}"</span>),
-<a href=#973 id=973 data-nosnippet>973</a>                    <span class="macro">format!</span>(<span class="string">"unnecessary {visibility}"</span>),
-<a href=#974 id=974 data-nosnippet>974</a>                    ident.location(),
-<a href=#975 id=975 data-nosnippet>975</a>                );
-<a href=#976 id=976 data-nosnippet>976</a>                diag.add_note(
-<a href=#977 id=977 data-nosnippet>977</a>                    <span class="macro">format!</span>(<span class="string">"The {visibility} attribute only has effects for the entry-point function of a program. Thus, adding it to other function can be deceiving and should be removed)"</span>));
-<a href=#978 id=978 data-nosnippet>978</a>                diag
+<a href=#968 id=968 data-nosnippet>968</a>                );
+<a href=#969 id=969 data-nosnippet>969</a>                diag.add_note(
+<a href=#970 id=970 data-nosnippet>970</a>                    <span class="macro">format!</span>(<span class="string">"The {visibility} attribute only has effects for the entry-point function of a program. Thus, adding it to other function can be deceiving and should be removed)"</span>));
+<a href=#971 id=971 data-nosnippet>971</a>                diag
+<a href=#972 id=972 data-nosnippet>972</a>            },
+<a href=#973 id=973 data-nosnippet>973</a>            ResolverError::AssociatedTypeInImplWithoutBody { ident } =&gt; {
+<a href=#974 id=974 data-nosnippet>974</a>                Diagnostic::simple_error(
+<a href=#975 id=975 data-nosnippet>975</a>                    <span class="string">"Associated type in impl without body"</span>.to_string(),
+<a href=#976 id=976 data-nosnippet>976</a>                    <span class="string">"Provide a definition for the type: ` = &lt;type&gt;;`"</span>.to_string(),
+<a href=#977 id=977 data-nosnippet>977</a>                    ident.location(),
+<a href=#978 id=978 data-nosnippet>978</a>                )
 <a href=#979 id=979 data-nosnippet>979</a>            },
-<a href=#980 id=980 data-nosnippet>980</a>            ResolverError::AssociatedTypeInImplWithoutBody { ident } =&gt; {
+<a href=#980 id=980 data-nosnippet>980</a>            ResolverError::VarargsOnNonComptimeFunction { location } =&gt; {
 <a href=#981 id=981 data-nosnippet>981</a>                Diagnostic::simple_error(
-<a href=#982 id=982 data-nosnippet>982</a>                    <span class="string">"Associated type in impl without body"</span>.to_string(),
-<a href=#983 id=983 data-nosnippet>983</a>                    <span class="string">"Provide a definition for the type: ` = &lt;type&gt;;`"</span>.to_string(),
-<a href=#984 id=984 data-nosnippet>984</a>                    ident.location(),
+<a href=#982 id=982 data-nosnippet>982</a>                    <span class="string">"#[varargs] can only be applied to comptime functions"</span>.to_string(),
+<a href=#983 id=983 data-nosnippet>983</a>                    String::new(),
+<a href=#984 id=984 data-nosnippet>984</a>                    <span class="kw-2">*</span>location,
 <a href=#985 id=985 data-nosnippet>985</a>                )
 <a href=#986 id=986 data-nosnippet>986</a>            },
-<a href=#987 id=987 data-nosnippet>987</a>            ResolverError::VarargsOnNonComptimeFunction { location } =&gt; {
+<a href=#987 id=987 data-nosnippet>987</a>            ResolverError::VarargsOnFunctionWithNoParameters { location } =&gt; {
 <a href=#988 id=988 data-nosnippet>988</a>                Diagnostic::simple_error(
-<a href=#989 id=989 data-nosnippet>989</a>                    <span class="string">"#[varargs] can only be applied to comptime functions"</span>.to_string(),
+<a href=#989 id=989 data-nosnippet>989</a>                    <span class="string">"#[varargs] requires its function to have at least one parameter"</span>.to_string(),
 <a href=#990 id=990 data-nosnippet>990</a>                    String::new(),
 <a href=#991 id=991 data-nosnippet>991</a>                    <span class="kw-2">*</span>location,
 <a href=#992 id=992 data-nosnippet>992</a>                )
 <a href=#993 id=993 data-nosnippet>993</a>            },
-<a href=#994 id=994 data-nosnippet>994</a>            ResolverError::VarargsOnFunctionWithNoParameters { location } =&gt; {
+<a href=#994 id=994 data-nosnippet>994</a>            ResolverError::VarargsLastParameterIsNotAVector { location } =&gt; {
 <a href=#995 id=995 data-nosnippet>995</a>                Diagnostic::simple_error(
-<a href=#996 id=996 data-nosnippet>996</a>                    <span class="string">"#[varargs] requires its function to have at least one parameter"</span>.to_string(),
+<a href=#996 id=996 data-nosnippet>996</a>                    <span class="string">"The last parameter of a #[varargs] function must be a vector"</span>.to_string(),
 <a href=#997 id=997 data-nosnippet>997</a>                    String::new(),
 <a href=#998 id=998 data-nosnippet>998</a>                    <span class="kw-2">*</span>location,
 <a href=#999 id=999 data-nosnippet>999</a>                )
 <a href=#1000 id=1000 data-nosnippet>1000</a>            },
-<a href=#1001 id=1001 data-nosnippet>1001</a>            ResolverError::VarargsLastParameterIsNotAVector { location } =&gt; {
-<a href=#1002 id=1002 data-nosnippet>1002</a>                Diagnostic::simple_error(
-<a href=#1003 id=1003 data-nosnippet>1003</a>                    <span class="string">"The last parameter of a #[varargs] function must be a vector"</span>.to_string(),
-<a href=#1004 id=1004 data-nosnippet>1004</a>                    String::new(),
-<a href=#1005 id=1005 data-nosnippet>1005</a>                    <span class="kw-2">*</span>location,
-<a href=#1006 id=1006 data-nosnippet>1006</a>                )
-<a href=#1007 id=1007 data-nosnippet>1007</a>            },
-<a href=#1008 id=1008 data-nosnippet>1008</a>        }
-<a href=#1009 id=1009 data-nosnippet>1009</a>    }
-<a href=#1010 id=1010 data-nosnippet>1010</a>}</code></pre></div></section></main></body></html>
+<a href=#1001 id=1001 data-nosnippet>1001</a>        }
+<a href=#1002 id=1002 data-nosnippet>1002</a>    }
+<a href=#1003 id=1003 data-nosnippet>1003</a>}</code></pre></div></section></main></body></html>
