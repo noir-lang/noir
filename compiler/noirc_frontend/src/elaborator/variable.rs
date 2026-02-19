@@ -519,15 +519,24 @@ impl Elaborator<'_> {
         let id =
             self.intern_expr(HirExpression::Ident(ident.clone(), generics.clone()), ident_location);
 
-        // If the method has a self type (it's an impl or trait impl), bind `typ` to the instantiated self type
+        // If the method has a self type (it's an impl or trait impl), bind `typ` to the instantiated self type.
         let function_meta = self.interner.function_meta(&func_id);
-        let bindings = if let Type::Forall(type_vars, _) = &function_meta.typ
-            && let Some(self_type) = &function_meta.self_type
-        {
-            let (self_type, instantiation_bindings) =
-                self_type.instantiate_with_type_vars(type_vars, self.interner);
-            let _ = typ.unify(&self_type);
-            instantiation_bindings
+        let self_type_generics_count =
+            function_meta.all_generics.len() - function_meta.direct_generics.len();
+        let bindings = if self_type_generics_count > 0 {
+            if let Type::Forall(type_vars, _) = &function_meta.typ
+                && let Some(self_type) = &function_meta.self_type
+            {
+                // Only instantiate type vars corresponding to the `self` type, not to function direct generics
+                let type_vars =
+                    type_vars.iter().take(self_type_generics_count).cloned().collect::<Vec<_>>();
+                let (self_type, instantiation_bindings) =
+                    self_type.instantiate_with_type_vars(&type_vars, self.interner);
+                let _ = typ.unify(&self_type);
+                instantiation_bindings
+            } else {
+                TypeBindings::default()
+            }
         } else {
             TypeBindings::default()
         };

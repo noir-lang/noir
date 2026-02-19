@@ -903,7 +903,6 @@ fn two_traits_same_method_name_disambiguated_by_constraint() {
 
 /// Regression test for https://github.com/noir-lang/noir/issues/11540
 #[test]
-#[should_panic(expected = "Expected no errors")]
 fn trait_method_resolved_with_multiple_impls_different_type_params() {
     let src = r#"
     pub struct Foo<let Y: u32, A> {}
@@ -989,6 +988,28 @@ fn type_path_generic_array_method_2() {
     }
     "#;
     check_monomorphization_error(src);
+}
+
+#[test]
+fn type_path_generic_array_method_3() {
+    let src = r#"
+    pub trait Deserialize {
+        fn deserialize<U>(x: U) -> U;
+    }
+
+    impl<let M: u32, T> Deserialize for [T; M] {
+        fn deserialize<U>(x: U) -> U {
+            let _: u32 = M;
+            x
+        }
+    }
+
+    fn main() {
+        let _: u32 = <[Field; 3]>::deserialize::<u64>(0);
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Expected type u32, found type u64
+    }
+    "#;
+    check_errors(src);
 }
 
 #[test]
