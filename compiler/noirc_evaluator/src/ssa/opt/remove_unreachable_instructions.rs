@@ -507,21 +507,29 @@ fn remove_and_replace_with_defaults(
     block_id: BasicBlockId,
 ) {
     let result_ids = context.dfg.instruction_results(context.instruction_id).to_vec();
-    for result_id in result_ids {
-        let typ = &context.dfg.type_of_value(result_id);
-        let default_value = if matches!(typ, Type::Vector(_)) {
-            if let Some(len) = context.dfg.try_get_vector_capacity(result_id) {
-                zeroed_vector_of_size(context.dfg, func_id, block_id, typ, len.to_usize())
-            } else {
-                // we cannot zero the vector without knowing its length.
+    let mut replacements: Vec<(ValueId, ValueId)> = Vec::new();
+    for (i, result_id) in result_ids.iter().enumerate() {
+        let typ = &context.dfg.type_of_value(*result_id);
+        if matches!(typ, Type::Vector(_)) {
+            let Some(len) = context.dfg.try_get_vector_capacity(*result_id) else {
                 return;
-            }
+            };
+            replacements[i - 1].1 = context.dfg.make_constant(
+                FieldElement::from(len.to_usize()),
+                NumericType::Unsigned { bit_size: 32 },
+            );
+            replacements.push((
+                *result_id,
+                zeroed_vector_of_size(context.dfg, func_id, block_id, typ, len.to_usize()),
+            ));
         } else {
-            zeroed_value(context.dfg, func_id, block_id, typ)
-        };
-        context.replace_value(result_id, default_value);
+            replacements.push((*result_id, zeroed_value(context.dfg, func_id, block_id, typ)));
+        }
     }
     context.remove_current_instruction();
+    for (result_id, default_id) in replacements {
+        context.replace_value(result_id, default_id);
+    }
 }
 
 fn zeroed_vector_of_size(
