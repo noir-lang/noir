@@ -1195,9 +1195,6 @@ impl Elaborator<'_> {
 
         let path_resolution = self.use_path_as_type(path).ok()?;
 
-        // Note that we discard errors we gather here because while we resolve turbofish here
-        // we still don't know if we'll find a trait method.
-        // This logic will be done again once we find a method (the caller will do this).
         let mut errors = Vec::new();
         let typ = match path_resolution.item {
             PathResolutionItem::Type(type_id) => {
@@ -1290,7 +1287,11 @@ impl Elaborator<'_> {
                 trait_id,
                 ..
             }) => {
+                // In this case turbofish won't be resolved again, so we can commit the errors
+                self.push_errors(errors);
+
                 let trait_ = self.interner.get_trait(trait_id);
+
                 let mut constraint = trait_.as_constraint(location);
                 constraint.typ = typ.clone();
 
