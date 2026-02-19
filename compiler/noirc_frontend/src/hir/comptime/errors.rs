@@ -435,6 +435,7 @@ impl InterpreterError {
         InterpreterError::DebugEvaluateComptime { diagnostic, location }
     }
 
+    /// An error which is only shown to the user if there are no other errors emitted.
     pub(crate) fn expecting_other_error<S: Into<String>>(
         message: S,
         location: Location,
