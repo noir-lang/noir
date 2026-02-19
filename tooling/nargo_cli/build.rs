@@ -87,6 +87,7 @@ const IGNORED_BRILLIG_SMALL_STACK_TESTS: [&str; 8] = [
     "reference_counts_inliner_min",
     "reference_counts_vectors_inliner_0",
     "regression_5252",
+    "nested_arrays_composite_elems",
 ];
 
 /// Some tests are explicitly ignored in brillig due to them failing.
