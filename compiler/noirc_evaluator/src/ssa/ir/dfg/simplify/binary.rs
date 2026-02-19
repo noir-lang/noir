@@ -234,12 +234,6 @@ pub(super) fn simplify_binary(
             if lhs == rhs {
                 return SimplifyResult::SimplifiedTo(lhs);
             }
-            if lhs_type == NumericType::bool() {
-                // Boolean AND is equivalent to multiplication, which is a cheaper operation.
-                // (mul unchecked because these are bools so it doesn't matter really)
-                let instruction = Instruction::binary(BinaryOp::Mul { unchecked: true }, lhs, rhs);
-                return SimplifyResult::SimplifiedToInstruction(instruction);
-            }
             if lhs_type.is_unsigned() {
                 // It's common in other programming languages to truncate values to a certain bit size using
                 // a bitwise AND with a bit mask. However this operation is quite inefficient inside a snark.
@@ -270,6 +264,12 @@ pub(super) fn simplify_binary(
 
                     _ => (),
                 }
+            }
+            if lhs_type == NumericType::bool() {
+                // Boolean AND is equivalent to multiplication, which is a cheaper operation.
+                // (mul unchecked because these are bools so it doesn't matter really)
+                let instruction = Instruction::binary(BinaryOp::Mul { unchecked: true }, lhs, rhs);
+                return SimplifyResult::SimplifiedToInstruction(instruction);
             }
         }
         BinaryOp::Or => {

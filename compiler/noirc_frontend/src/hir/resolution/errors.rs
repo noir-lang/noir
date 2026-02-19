@@ -47,9 +47,9 @@ pub enum ResolverError {
     #[error("Unneeded 'mut', pattern is already marked as mutable")]
     UnnecessaryMut { first_mut: Location, second_mut: Location },
     #[error("Unneeded 'pub', function is not the main method")]
-    UnnecessaryPub { ident: Ident, position: PubPosition },
+    UnnecessaryPub { name: String, location: Location, position: PubPosition },
     #[error("Required 'pub', main function must return public value")]
-    NecessaryPub { ident: Ident },
+    NecessaryPub { name: String, location: Location },
     #[error("No global or generic type parameter found with the given name")]
     NoSuchNumericTypeVariable { path: TypedPath },
     #[error("Only struct types can be used in constructor expressions")]
@@ -65,7 +65,7 @@ pub enum ResolverError {
     #[error("Nested vectors, i.e. vectors within an array or vector, are not supported")]
     NestedVectors { location: Location },
     #[error("#[abi(tag)] attribute is only allowed in contracts")]
-    AbiAttributeOutsideContract { location: Location, usage_location: Option<Location> },
+    AbiAttributeOutsideContract { location: Location },
     #[error(
         "Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library"
     )]
@@ -215,7 +215,7 @@ pub enum ResolverError {
     #[error("Identifier `{ident}` is bound more than once in the same pattern")]
     PatternBoundMoreThanOnce { ident: Ident },
     #[error("{visibility} attribute is only allowed on entry point functions")]
-    DataBusOnNonEntryPoint { visibility: String, ident: Ident },
+    DataBusOnNonEntryPoint { visibility: String, name: String, location: Location },
     #[error("Associated type in `impl` without body")]
     AssociatedTypeInImplWithoutBody { ident: Ident },
     #[error("#[varargs] can only be applied to comptime functions")]
@@ -305,15 +305,15 @@ impl ResolverError {
             | ResolverError::VarargsOnNonComptimeFunction { location }
             | ResolverError::VarargsOnFunctionWithNoParameters { location }
             | ResolverError::ComptimeGlobalInNonComptimeCode { location, .. }
-            | ResolverError::VarargsLastParameterIsNotAVector { location } => *location,
+            | ResolverError::VarargsLastParameterIsNotAVector { location }
+            | ResolverError::UnnecessaryPub { location, .. }
+            | ResolverError::NecessaryPub { location, .. }
+            | ResolverError::DataBusOnNonEntryPoint { location, .. } => *location,
             ResolverError::UnusedVariable { ident }
             | ResolverError::UnusedItem { ident, .. }
             | ResolverError::DuplicateField { field: ident }
             | ResolverError::NoSuchField { field: ident, .. }
-            | ResolverError::UnnecessaryPub { ident, .. }
-            | ResolverError::NecessaryPub { ident }
             | ResolverError::UnconstrainedTypeParameter { ident }
-            | ResolverError::DataBusOnNonEntryPoint { ident, .. }
             | ResolverError::PatternBoundMoreThanOnce { ident }
             | ResolverError::AssociatedTypeInImplWithoutBody { ident } => ident.location(),
             ResolverError::PathResolutionError(path_resolution_error) => {
@@ -446,20 +446,20 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 );
                 error
             }
-            ResolverError::UnnecessaryPub { ident, position } => {
+            ResolverError::UnnecessaryPub { name, location, position } => {
                 let mut diag = Diagnostic::simple_error(
-                    format!("unnecessary pub keyword on {position} for function {ident}"),
+                    format!("unnecessary pub keyword on {position} for function {name}"),
                     format!("unnecessary pub {position}"),
-                    ident.location(),
+                    *location,
                 );
                 diag.add_note("The `pub` keyword only has effects on arguments to the entry-point function of a program. Thus, adding it to other function parameters can be deceiving and should be removed".to_owned());
                 diag
             }
-            ResolverError::NecessaryPub { ident } => {
+            ResolverError::NecessaryPub { name, location } => {
                 let mut diag = Diagnostic::simple_error(
-                    format!("missing pub keyword on return type of function {ident}"),
+                    format!("missing pub keyword on return type of function {name}"),
                     "missing pub on return type".to_string(),
-                    ident.location(),
+                    *location,
                 );
                 diag.add_note("The `pub` keyword is mandatory for the entry-point function return type because the verifier cannot retrieve private witness and thus the function will not be able to return a 'priv' value".to_owned());
                 diag
@@ -494,19 +494,12 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 "Try to use a constant sized array or BoundedVec instead".into(),
                 *location,
             ),
-            ResolverError::AbiAttributeOutsideContract { location, usage_location } => {
-                let mut diagnostic = Diagnostic::simple_error(
+            ResolverError::AbiAttributeOutsideContract { location } => {
+                Diagnostic::simple_error(
                     "#[abi(tag)] attributes can only be used in contracts".to_string(),
                     "misplaced #[abi(tag)] attribute".to_string(),
                     *location,
-                );
-                if let Some(usage_location) = usage_location {
-                    diagnostic.add_secondary(
-                        "the type is used outside of a contract".to_string(),
-                        *usage_location,
-                    );
-                }
-                diagnostic
+                )
             }
             ResolverError::LowLevelFunctionOutsideOfStdlib { location } => Diagnostic::simple_error(
                 "Definition of low-level function outside of standard library".into(),
@@ -970,11 +963,11 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     ident.location(),
                 )
             }
-            ResolverError::DataBusOnNonEntryPoint { visibility, ident } => {
+            ResolverError::DataBusOnNonEntryPoint { visibility, name, location } => {
                 let mut diag = Diagnostic::simple_error(
-                    format!("unnecessary {visibility} attribute for function {ident}"),
+                    format!("unnecessary {visibility} attribute for function {name}"),
                     format!("unnecessary {visibility}"),
-                    ident.location(),
+                    *location,
                 );
                 diag.add_note(
                     format!("The {visibility} attribute only has effects for the entry-point function of a program. Thus, adding it to other function can be deceiving and should be removed)"));

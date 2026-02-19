@@ -9,9 +9,11 @@ fn main() {}
 
 // Check that add_attribute and has_named_attribute work well
 
-#[abi(something)]
-#[add_attribute]
-pub struct Foo {}
+contract moo {
+    #[abi(something)]
+    #[super::add_attribute]
+    pub struct Foo {}
+}
 
 comptime fn add_attribute(s: TypeDefinition) {
     assert(!s.has_named_attribute("foo"));
