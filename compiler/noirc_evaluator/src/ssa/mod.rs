@@ -585,7 +585,7 @@ fn split_public_and_private_inputs(
         })
         .fold((BTreeSet::new(), BTreeSet::new()), |mut acc, (vis, witnesses)| {
             // Split witnesses into sets based on their visibility.
-            if *vis == Visibility::Public {
+            if matches!(vis, Visibility::Public) {
                 for witness in witnesses {
                     acc.0.insert(witness);
                 }

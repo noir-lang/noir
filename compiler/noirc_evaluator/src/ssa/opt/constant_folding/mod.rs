@@ -131,7 +131,7 @@ impl Function {
         let loops = Loops::find_all(self, LoopOrder::OutsideIn);
 
         // Identify loop headers, so we can try to avoid hoisting into them.
-        let loop_headers = loops
+        let mut loop_headers = loops
             .yet_to_unroll
             .into_iter()
             .map(|loop_| {
@@ -139,6 +139,7 @@ impl Function {
                     .instructions()
                     .iter()
                     .flat_map(|id| self.dfg.instruction_results(*id))
+                    .chain(self.dfg.block_parameters(loop_.header).iter())
                     .cloned()
                     .collect::<HashSet<_>>();
                 (loop_.header, values_defined_in_header)
@@ -155,7 +156,7 @@ impl Function {
                 context.fold_constants_in_block(
                     &mut self.dfg,
                     &mut dom,
-                    &loop_headers,
+                    &mut loop_headers,
                     block,
                     interpreter,
                 );
@@ -267,7 +268,7 @@ impl Context {
         &mut self,
         dfg: &mut DataFlowGraph,
         dom: &mut DominatorTree,
-        loop_headers: &HashMap<BasicBlockId, HashSet<ValueId>>,
+        loop_headers: &mut HashMap<BasicBlockId, HashSet<ValueId>>,
         block_id: BasicBlockId,
         interpreter: &mut Option<Interpreter<Empty>>,
     ) {
@@ -321,7 +322,7 @@ impl Context {
         &mut self,
         dfg: &mut DataFlowGraph,
         dom: &mut DominatorTree,
-        loop_headers: &HashMap<BasicBlockId, HashSet<ValueId>>,
+        loop_headers: &mut HashMap<BasicBlockId, HashSet<ValueId>>,
         block: BasicBlockId,
         id: InstructionId,
         side_effects_enabled_var: &mut ValueId,
@@ -433,8 +434,21 @@ impl Context {
         // so it is deduplicated by the one in the target block.
         // In case it refers to an array that is mutated, we need to increment
         // its reference count.
-        if target_block != block && runtime_is_brillig {
-            Self::increase_rc(id, &new_results, block, dfg);
+        if target_block != block {
+            // If we hoisted into a loop header, update the set of values defined there
+            // so that subsequent hoist decisions don't incorrectly skip past it.
+            // Without this, the loop_headers set becomes stale after hoisting, and later
+            // instructions that use the hoisted result could be hoisted above the loop header
+            // to a block where the result isn't yet defined.
+            if let Some(values_defined_in_header) = loop_headers.get_mut(&target_block) {
+                for result in &new_results {
+                    values_defined_in_header.insert(*result);
+                }
+            }
+
+            if runtime_is_brillig {
+                Self::increase_rc(id, &new_results, block, dfg);
+            }
         }
 
         self.values_to_replace.batch_insert(&old_results, &new_results);
@@ -781,7 +795,10 @@ mod tests {
         ssa::{
             Ssa,
             interpreter::value::Value,
-            ir::{types::NumericType, value::ValueMapping},
+            ir::{
+                types::{NumericType, Type},
+                value::ValueMapping,
+            },
             opt::{
                 assert_normalized_ssa_equals, assert_pass_does_not_affect_execution,
                 assert_ssa_does_not_change, constant_folding::DEFAULT_MAX_ITER,
@@ -3024,6 +3041,141 @@ mod tests {
             jmp b4(v4)
           b4(v1: u1):
             store v1 at v2
+            jmp b1()
+        }
+        ");
+    }
+
+    #[test]
+    fn hoisting_instruction_using_param_into_dominator_of_param() {
+        let src = "
+      brillig(inline) impure fn main f0 {
+        b0(v0: [Field; 2]):
+          inc_rc v0
+          v6 = array_get v0, index u32 1 -> Field
+          v8 = add Field 3, v6
+          v9 = array_set v0, index u32 1, value v8
+          jmp b1(v9, u1 1)
+        b1(v1: [Field; 2], v2: u1):
+          jmpif v2 then: b2, else: b3
+        b2():
+          v18 = array_get v1, index u32 0 -> Field
+          v19 = add Field 3, v18
+          v20 = array_set v1, index u32 0, value v19
+          jmp b1(v20, u1 0)
+        b3():
+          v11 = array_set v0, index u32 1, value v8
+          jmp b4(v11, u1 1)
+        b4(v3: [Field; 2], v4: u1):
+          jmpif v4 then: b5, else: b6
+        b5():
+          v14 = array_get v3, index u32 0 -> Field
+          v15 = add Field 3, v14
+          v16 = array_set v3, index u32 0, value v15
+          jmp b4(v16, u1 0)
+        b6():
+          v13 = array_get v3, index u32 0 -> Field
+          return v13
+      }
+      ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants_with_brillig(DEFAULT_MAX_ITER);
+        let elements = vec![Value::field((-2i128).into()), Value::field((-1i128).into())];
+        let inputs = Value::array(elements, vec![Type::field()]);
+        let results = ssa.interpret(vec![inputs]).unwrap();
+        assert_eq!(results[0], Value::field(1u32.into()));
+
+        // We expect `v13 = array_get v3, index u32 0 -> Field` to be in b4.
+        // If we do not account for v3 being defined in the loop header,
+        // we risk hoisting to b3 which dominates b4 (thus panicking on usage of an undefined value).
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) impure fn main f0 {
+          b0(v0: [Field; 2]):
+            inc_rc v0
+            v6 = array_get v0, index u32 1 -> Field
+            v8 = add Field 3, v6
+            v9 = array_set v0, index u32 1, value v8
+            jmp b1(v9, u1 1)
+          b1(v1: [Field; 2], v2: u1):
+            jmpif v2 then: b2, else: b3
+          b2():
+            v17 = array_get v1, index u32 0 -> Field
+            v18 = add Field 3, v17
+            v19 = array_set v1, index u32 0, value v18
+            jmp b1(v19, u1 0)
+          b3():
+            v11 = array_set v0, index u32 1, value v8
+            jmp b4(v11, u1 1)
+          b4(v3: [Field; 2], v4: u1):
+            v13 = array_get v3, index u32 0 -> Field
+            jmpif v4 then: b5, else: b6
+          b5():
+            v14 = add Field 3, v13
+            v15 = array_set v3, index u32 0, value v14
+            jmp b4(v15, u1 0)
+          b6():
+            return v13
+        }
+        ");
+    }
+
+    #[test]
+    fn hoist_to_loop_header_tracks_new_values() {
+        // Regression test for hoisting through loop headers with stale value tracking.
+        //
+        // When b3 (loop body) and b4 (loop exit) both contain identical instructions
+        // (array_get v2 followed by mul), constant folding:
+        // 1. Processes b3 first and caches results
+        // 2. When processing b4, finds cache hits and hoists array_get to the common
+        //    dominator b1 (a loop header)
+        // 3. Without the appropriate tracking, the loop_headers set becomes stale after step 2 — it doesn't
+        //    include the newly hoisted array_get's result. So when b4's mul tries to
+        //    hoist, the code incorrectly escapes past the loop header to b0, creating invalid
+        //    SSA where the mul uses a value not yet defined.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: [Field; 1]):
+            jmp b1(u8 0, v0)
+          b2():
+            return
+          b1(v1: u8, v2: [Field; 1]):
+            v3 = lt v1, u8 2
+            jmpif v3 then: b3, else: b4
+          b3():
+            v4 = array_get v2, index u32 0 -> Field
+            v5 = mul v4, v4
+            v6 = array_set v2, index u32 0, value v5
+            v7 = unchecked_add v1, u8 1
+            jmp b1(v7, v6)
+          b4():
+            v8 = array_get v2, index u32 0 -> Field
+            v9 = mul v8, v8
+            jmp b2()
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants(DEFAULT_MAX_ITER);
+
+        let elements = vec![Value::field((2u32).into())];
+        let inputs = Value::array(elements, vec![Type::field()]);
+        let _ = ssa.interpret(vec![inputs]).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: [Field; 1]):
+            jmp b2(u8 0, v0)
+          b1():
+            return
+          b2(v1: u8, v2: [Field; 1]):
+            v5 = lt v1, u8 2
+            v7 = array_get v2, index u32 0 -> Field
+            v8 = mul v7, v7
+            jmpif v5 then: b3, else: b4
+          b3():
+            v9 = array_set v2, index u32 0, value v8
+            v11 = unchecked_add v1, u8 1
+            jmp b2(v11, v9)
+          b4():
             jmp b1()
         }
         ");
