@@ -312,6 +312,7 @@ impl Elaborator<'_> {
             parameter_idents: Vec::new(),
             return_type: crate::ast::FunctionReturnType::Ty(self_type_unresolved),
             return_visibility: Visibility::Private,
+            return_visibility_location: Location::dummy(),
             typ: function_type,
             direct_generics: datatype_ref.generics.clone(),
             all_generics: datatype_ref.generics.clone(),
