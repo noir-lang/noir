@@ -253,331 +253,346 @@
 <a href=#253 id=253 data-nosnippet>253</a>            parameter_idents,
 <a href=#254 id=254 data-nosnippet>254</a>            return_type: func.def.return_type.clone(),
 <a href=#255 id=255 data-nosnippet>255</a>            return_visibility: func.def.return_visibility,
-<a href=#256 id=256 data-nosnippet>256</a>            has_body: !func.def.body.is_empty(),
-<a href=#257 id=257 data-nosnippet>257</a>            trait_constraints,
-<a href=#258 id=258 data-nosnippet>258</a>            extra_trait_constraints,
-<a href=#259 id=259 data-nosnippet>259</a>            is_entry_point,
-<a href=#260 id=260 data-nosnippet>260</a>            has_inline_attribute: func.has_inline_attribute(),
-<a href=#261 id=261 data-nosnippet>261</a>            source_crate: <span class="self">self</span>.crate_id,
-<a href=#262 id=262 data-nosnippet>262</a>            source_module: <span class="self">self</span>.local_module(),
-<a href=#263 id=263 data-nosnippet>263</a>            function_body: FunctionBody::Unresolved(func.kind, body, func.def.location),
-<a href=#264 id=264 data-nosnippet>264</a>            self_type: <span class="self">self</span>.self_type.clone(),
-<a href=#265 id=265 data-nosnippet>265</a>            source_file: location.file,
-<a href=#266 id=266 data-nosnippet>266</a>        };
-<a href=#267 id=267 data-nosnippet>267</a>
-<a href=#268 id=268 data-nosnippet>268</a>        <span class="self">self</span>.interner.push_fn_meta(meta, func_id);
-<a href=#269 id=269 data-nosnippet>269</a>        <span class="self">self</span>.scopes.end_function();
-<a href=#270 id=270 data-nosnippet>270</a>        <span class="self">self</span>.current_item = <span class="prelude-val">None</span>;
-<a href=#271 id=271 data-nosnippet>271</a>        <span class="self">self</span>.in_comptime_context = old_comptime_value;
-<a href=#272 id=272 data-nosnippet>272</a>    }
-<a href=#273 id=273 data-nosnippet>273</a>
-<a href=#274 id=274 data-nosnippet>274</a>    <span class="doccomment">/// Adds function generics and associated generics (from where clause) to scope.
-<a href=#275 id=275 data-nosnippet>275</a>    ///
-<a href=#276 id=276 data-nosnippet>276</a>    /// Returns (generics, associated_generics_trait_constraints) where generics contains
-<a href=#277 id=277 data-nosnippet>277</a>    /// both associated and explicit generics in the correct order (associated first, then explicit function generics).
-<a href=#278 id=278 data-nosnippet>278</a>    </span><span class="kw">fn </span>add_function_generics_to_scope(
-<a href=#279 id=279 data-nosnippet>279</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#280 id=280 data-nosnippet>280</a>        func_generics: <span class="kw-2">&amp;</span>UnresolvedGenerics,
-<a href=#281 id=281 data-nosnippet>281</a>        where_clause: <span class="kw-2">&amp;mut </span>[UnresolvedTraitConstraint],
-<a href=#282 id=282 data-nosnippet>282</a>    ) -&gt; (Vec&lt;TypeVariable&gt;, Vec&lt;TraitConstraint&gt;) {
-<a href=#283 id=283 data-nosnippet>283</a>        <span class="self">self</span>.add_generics(func_generics);
-<a href=#284 id=284 data-nosnippet>284</a>
-<a href=#285 id=285 data-nosnippet>285</a>        <span class="kw">let </span>func_generics = vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.generics, |generic| generic.type_var.clone());
-<a href=#286 id=286 data-nosnippet>286</a>
-<a href=#287 id=287 data-nosnippet>287</a>        <span class="kw">let </span>associated_generics = <span class="self">self</span>.desugar_trait_constraints(where_clause);
-<a href=#288 id=288 data-nosnippet>288</a>
-<a href=#289 id=289 data-nosnippet>289</a>        <span class="kw">let </span><span class="kw-2">mut </span>generics = Vec::with_capacity(associated_generics.len());
-<a href=#290 id=290 data-nosnippet>290</a>        <span class="kw">let </span><span class="kw-2">mut </span>associated_generics_trait_constraints = Vec::new();
-<a href=#291 id=291 data-nosnippet>291</a>
-<a href=#292 id=292 data-nosnippet>292</a>        <span class="kw">for </span>(associated_generic, bounds) <span class="kw">in </span>associated_generics {
-<a href=#293 id=293 data-nosnippet>293</a>            <span class="kw">for </span>bound <span class="kw">in </span>bounds {
-<a href=#294 id=294 data-nosnippet>294</a>                <span class="kw">let </span>typ = Type::TypeVariable(associated_generic.type_var.clone());
-<a href=#295 id=295 data-nosnippet>295</a>                <span class="kw">let </span>location = associated_generic.location;
-<a href=#296 id=296 data-nosnippet>296</a>                <span class="self">self</span>.add_trait_bound_to_scope(location, <span class="kw-2">&amp;</span>typ, <span class="kw-2">&amp;</span>bound, bound.trait_id);
-<a href=#297 id=297 data-nosnippet>297</a>                associated_generics_trait_constraints
-<a href=#298 id=298 data-nosnippet>298</a>                    .push(TraitConstraint { typ, trait_bound: bound });
-<a href=#299 id=299 data-nosnippet>299</a>            }
-<a href=#300 id=300 data-nosnippet>300</a>
-<a href=#301 id=301 data-nosnippet>301</a>            generics.push(associated_generic.type_var);
-<a href=#302 id=302 data-nosnippet>302</a>        }
-<a href=#303 id=303 data-nosnippet>303</a>
-<a href=#304 id=304 data-nosnippet>304</a>        <span class="comment">// We put associated generics first, as they are implicit and implicit generics
-<a href=#305 id=305 data-nosnippet>305</a>        // come before explicit generics (see `Type::instantiate_with`).
-<a href=#306 id=306 data-nosnippet>306</a>        </span>generics.extend(func_generics);
-<a href=#307 id=307 data-nosnippet>307</a>
-<a href=#308 id=308 data-nosnippet>308</a>        (generics, associated_generics_trait_constraints)
-<a href=#309 id=309 data-nosnippet>309</a>    }
-<a href=#310 id=310 data-nosnippet>310</a>
-<a href=#311 id=311 data-nosnippet>311</a>    <span class="kw">fn </span>is_function_in_contract(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-<a href=#312 id=312 data-nosnippet>312</a>        <span class="kw">if </span><span class="self">self</span>.self_type.is_some() {
-<a href=#313 id=313 data-nosnippet>313</a>            <span class="comment">// Without this, impl methods can accidentally be placed in contracts.
-<a href=#314 id=314 data-nosnippet>314</a>            // See: https://github.com/noir-lang/noir/issues/3254
-<a href=#315 id=315 data-nosnippet>315</a>            </span><span class="bool-val">false
-<a href=#316 id=316 data-nosnippet>316</a>        </span>} <span class="kw">else </span>{
-<a href=#317 id=317 data-nosnippet>317</a>            <span class="self">self</span>.in_contract()
-<a href=#318 id=318 data-nosnippet>318</a>        }
-<a href=#319 id=319 data-nosnippet>319</a>    }
-<a href=#320 id=320 data-nosnippet>320</a>
-<a href=#321 id=321 data-nosnippet>321</a>    <span class="doccomment">/// True if the `pub` keyword is allowed on parameters in this function
-<a href=#322 id=322 data-nosnippet>322</a>    /// `pub` on function parameters is only allowed for entry point functions
-<a href=#323 id=323 data-nosnippet>323</a>    </span><span class="kw">fn </span>pub_allowed(<span class="kw-2">&amp;</span><span class="self">self</span>, func: <span class="kw-2">&amp;</span>NoirFunction, in_contract: bool, is_crate_root: bool) -&gt; bool {
-<a href=#324 id=324 data-nosnippet>324</a>        func.is_entry_point(in_contract, is_crate_root) || func.attributes().is_foldable()
-<a href=#325 id=325 data-nosnippet>325</a>    }
-<a href=#326 id=326 data-nosnippet>326</a>
-<a href=#327 id=327 data-nosnippet>327</a>    <span class="doccomment">/// Resolves function parameters and validates their types for entry points.
-<a href=#328 id=328 data-nosnippet>328</a>    ///
-<a href=#329 id=329 data-nosnippet>329</a>    /// Returns (parameters, parameter_types, parameter_idents) where generics and
-<a href=#330 id=330 data-nosnippet>330</a>    /// trait_constraints may be extended due to `impl Trait` desugaring.
-<a href=#331 id=331 data-nosnippet>331</a>    </span><span class="kw">fn </span>resolve_function_parameters(
-<a href=#332 id=332 data-nosnippet>332</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#333 id=333 data-nosnippet>333</a>        func: <span class="kw-2">&amp;</span>NoirFunction,
-<a href=#334 id=334 data-nosnippet>334</a>        generics: <span class="kw-2">&amp;mut </span>Vec&lt;TypeVariable&gt;,
-<a href=#335 id=335 data-nosnippet>335</a>        trait_constraints: <span class="kw-2">&amp;mut </span>Vec&lt;TraitConstraint&gt;,
-<a href=#336 id=336 data-nosnippet>336</a>    ) -&gt; ResolvedParametersInfo {
-<a href=#337 id=337 data-nosnippet>337</a>        <span class="kw">let </span>is_crate_root = <span class="self">self</span>.is_at_crate_root();
-<a href=#338 id=338 data-nosnippet>338</a>        <span class="kw">let </span>is_entry_point = func.is_entry_point(<span class="self">self</span>.is_function_in_contract(), is_crate_root);
-<a href=#339 id=339 data-nosnippet>339</a>        <span class="kw">let </span>is_test_or_fuzz = func.is_test_or_fuzz();
-<a href=#340 id=340 data-nosnippet>340</a>
-<a href=#341 id=341 data-nosnippet>341</a>        <span class="kw">let </span>has_inline_attribute = func.has_inline_attribute();
-<a href=#342 id=342 data-nosnippet>342</a>        <span class="kw">let </span>is_pub_allowed = <span class="self">self</span>.pub_allowed(func, <span class="self">self</span>.is_function_in_contract(), is_crate_root);
-<a href=#343 id=343 data-nosnippet>343</a>
-<a href=#344 id=344 data-nosnippet>344</a>        <span class="kw">let </span><span class="kw-2">mut </span>parameters = Vec::new();
-<a href=#345 id=345 data-nosnippet>345</a>        <span class="kw">let </span><span class="kw-2">mut </span>parameter_types = Vec::new();
-<a href=#346 id=346 data-nosnippet>346</a>        <span class="kw">let </span><span class="kw-2">mut </span>parameter_idents = Vec::new();
-<a href=#347 id=347 data-nosnippet>347</a>        <span class="kw">let </span><span class="kw-2">mut </span>parameter_names_in_list = rustc_hash::FxHashMap::default();
-<a href=#348 id=348 data-nosnippet>348</a>        <span class="kw">let </span>wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::FunctionParameter);
-<a href=#349 id=349 data-nosnippet>349</a>
-<a href=#350 id=350 data-nosnippet>350</a>        <span class="kw">for </span>Param { visibility, pattern, typ, location: <span class="kw">_ </span>} <span class="kw">in </span>func.parameters().iter().cloned() {
-<a href=#351 id=351 data-nosnippet>351</a>            <span class="self">self</span>.run_lint(|<span class="kw">_</span>| {
-<a href=#352 id=352 data-nosnippet>352</a>                lints::unnecessary_pub_argument(func, visibility, is_pub_allowed).map(Into::into)
-<a href=#353 id=353 data-nosnippet>353</a>            });
+<a href=#256 id=256 data-nosnippet>256</a>            return_visibility_location: func.def.return_visibility_location,
+<a href=#257 id=257 data-nosnippet>257</a>            has_body: !func.def.body.is_empty(),
+<a href=#258 id=258 data-nosnippet>258</a>            trait_constraints,
+<a href=#259 id=259 data-nosnippet>259</a>            extra_trait_constraints,
+<a href=#260 id=260 data-nosnippet>260</a>            is_entry_point,
+<a href=#261 id=261 data-nosnippet>261</a>            has_inline_attribute: func.has_inline_attribute(),
+<a href=#262 id=262 data-nosnippet>262</a>            source_crate: <span class="self">self</span>.crate_id,
+<a href=#263 id=263 data-nosnippet>263</a>            source_module: <span class="self">self</span>.local_module(),
+<a href=#264 id=264 data-nosnippet>264</a>            function_body: FunctionBody::Unresolved(func.kind, body, func.def.location),
+<a href=#265 id=265 data-nosnippet>265</a>            self_type: <span class="self">self</span>.self_type.clone(),
+<a href=#266 id=266 data-nosnippet>266</a>            source_file: location.file,
+<a href=#267 id=267 data-nosnippet>267</a>        };
+<a href=#268 id=268 data-nosnippet>268</a>
+<a href=#269 id=269 data-nosnippet>269</a>        <span class="self">self</span>.interner.push_fn_meta(meta, func_id);
+<a href=#270 id=270 data-nosnippet>270</a>        <span class="self">self</span>.scopes.end_function();
+<a href=#271 id=271 data-nosnippet>271</a>        <span class="self">self</span>.current_item = <span class="prelude-val">None</span>;
+<a href=#272 id=272 data-nosnippet>272</a>        <span class="self">self</span>.in_comptime_context = old_comptime_value;
+<a href=#273 id=273 data-nosnippet>273</a>    }
+<a href=#274 id=274 data-nosnippet>274</a>
+<a href=#275 id=275 data-nosnippet>275</a>    <span class="doccomment">/// Adds function generics and associated generics (from where clause) to scope.
+<a href=#276 id=276 data-nosnippet>276</a>    ///
+<a href=#277 id=277 data-nosnippet>277</a>    /// Returns (generics, associated_generics_trait_constraints) where generics contains
+<a href=#278 id=278 data-nosnippet>278</a>    /// both associated and explicit generics in the correct order (associated first, then explicit function generics).
+<a href=#279 id=279 data-nosnippet>279</a>    </span><span class="kw">fn </span>add_function_generics_to_scope(
+<a href=#280 id=280 data-nosnippet>280</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#281 id=281 data-nosnippet>281</a>        func_generics: <span class="kw-2">&amp;</span>UnresolvedGenerics,
+<a href=#282 id=282 data-nosnippet>282</a>        where_clause: <span class="kw-2">&amp;mut </span>[UnresolvedTraitConstraint],
+<a href=#283 id=283 data-nosnippet>283</a>    ) -&gt; (Vec&lt;TypeVariable&gt;, Vec&lt;TraitConstraint&gt;) {
+<a href=#284 id=284 data-nosnippet>284</a>        <span class="self">self</span>.add_generics(func_generics);
+<a href=#285 id=285 data-nosnippet>285</a>
+<a href=#286 id=286 data-nosnippet>286</a>        <span class="kw">let </span>func_generics = vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.generics, |generic| generic.type_var.clone());
+<a href=#287 id=287 data-nosnippet>287</a>
+<a href=#288 id=288 data-nosnippet>288</a>        <span class="kw">let </span>associated_generics = <span class="self">self</span>.desugar_trait_constraints(where_clause);
+<a href=#289 id=289 data-nosnippet>289</a>
+<a href=#290 id=290 data-nosnippet>290</a>        <span class="kw">let </span><span class="kw-2">mut </span>generics = Vec::with_capacity(associated_generics.len());
+<a href=#291 id=291 data-nosnippet>291</a>        <span class="kw">let </span><span class="kw-2">mut </span>associated_generics_trait_constraints = Vec::new();
+<a href=#292 id=292 data-nosnippet>292</a>
+<a href=#293 id=293 data-nosnippet>293</a>        <span class="kw">for </span>(associated_generic, bounds) <span class="kw">in </span>associated_generics {
+<a href=#294 id=294 data-nosnippet>294</a>            <span class="kw">for </span>bound <span class="kw">in </span>bounds {
+<a href=#295 id=295 data-nosnippet>295</a>                <span class="kw">let </span>typ = Type::TypeVariable(associated_generic.type_var.clone());
+<a href=#296 id=296 data-nosnippet>296</a>                <span class="kw">let </span>location = associated_generic.location;
+<a href=#297 id=297 data-nosnippet>297</a>                <span class="self">self</span>.add_trait_bound_to_scope(location, <span class="kw-2">&amp;</span>typ, <span class="kw-2">&amp;</span>bound, bound.trait_id);
+<a href=#298 id=298 data-nosnippet>298</a>                associated_generics_trait_constraints
+<a href=#299 id=299 data-nosnippet>299</a>                    .push(TraitConstraint { typ, trait_bound: bound });
+<a href=#300 id=300 data-nosnippet>300</a>            }
+<a href=#301 id=301 data-nosnippet>301</a>
+<a href=#302 id=302 data-nosnippet>302</a>            generics.push(associated_generic.type_var);
+<a href=#303 id=303 data-nosnippet>303</a>        }
+<a href=#304 id=304 data-nosnippet>304</a>
+<a href=#305 id=305 data-nosnippet>305</a>        <span class="comment">// We put associated generics first, as they are implicit and implicit generics
+<a href=#306 id=306 data-nosnippet>306</a>        // come before explicit generics (see `Type::instantiate_with`).
+<a href=#307 id=307 data-nosnippet>307</a>        </span>generics.extend(func_generics);
+<a href=#308 id=308 data-nosnippet>308</a>
+<a href=#309 id=309 data-nosnippet>309</a>        (generics, associated_generics_trait_constraints)
+<a href=#310 id=310 data-nosnippet>310</a>    }
+<a href=#311 id=311 data-nosnippet>311</a>
+<a href=#312 id=312 data-nosnippet>312</a>    <span class="kw">fn </span>is_function_in_contract(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+<a href=#313 id=313 data-nosnippet>313</a>        <span class="kw">if </span><span class="self">self</span>.self_type.is_some() {
+<a href=#314 id=314 data-nosnippet>314</a>            <span class="comment">// Without this, impl methods can accidentally be placed in contracts.
+<a href=#315 id=315 data-nosnippet>315</a>            // See: https://github.com/noir-lang/noir/issues/3254
+<a href=#316 id=316 data-nosnippet>316</a>            </span><span class="bool-val">false
+<a href=#317 id=317 data-nosnippet>317</a>        </span>} <span class="kw">else </span>{
+<a href=#318 id=318 data-nosnippet>318</a>            <span class="self">self</span>.in_contract()
+<a href=#319 id=319 data-nosnippet>319</a>        }
+<a href=#320 id=320 data-nosnippet>320</a>    }
+<a href=#321 id=321 data-nosnippet>321</a>
+<a href=#322 id=322 data-nosnippet>322</a>    <span class="doccomment">/// True if the `pub` keyword is allowed on parameters in this function
+<a href=#323 id=323 data-nosnippet>323</a>    /// `pub` on function parameters is only allowed for entry point functions
+<a href=#324 id=324 data-nosnippet>324</a>    </span><span class="kw">fn </span>pub_allowed(<span class="kw-2">&amp;</span><span class="self">self</span>, func: <span class="kw-2">&amp;</span>NoirFunction, in_contract: bool, is_crate_root: bool) -&gt; bool {
+<a href=#325 id=325 data-nosnippet>325</a>        func.is_entry_point(in_contract, is_crate_root) || func.attributes().is_foldable()
+<a href=#326 id=326 data-nosnippet>326</a>    }
+<a href=#327 id=327 data-nosnippet>327</a>
+<a href=#328 id=328 data-nosnippet>328</a>    <span class="doccomment">/// Resolves function parameters and validates their types for entry points.
+<a href=#329 id=329 data-nosnippet>329</a>    ///
+<a href=#330 id=330 data-nosnippet>330</a>    /// Returns (parameters, parameter_types, parameter_idents) where generics and
+<a href=#331 id=331 data-nosnippet>331</a>    /// trait_constraints may be extended due to `impl Trait` desugaring.
+<a href=#332 id=332 data-nosnippet>332</a>    </span><span class="kw">fn </span>resolve_function_parameters(
+<a href=#333 id=333 data-nosnippet>333</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#334 id=334 data-nosnippet>334</a>        func: <span class="kw-2">&amp;</span>NoirFunction,
+<a href=#335 id=335 data-nosnippet>335</a>        generics: <span class="kw-2">&amp;mut </span>Vec&lt;TypeVariable&gt;,
+<a href=#336 id=336 data-nosnippet>336</a>        trait_constraints: <span class="kw-2">&amp;mut </span>Vec&lt;TraitConstraint&gt;,
+<a href=#337 id=337 data-nosnippet>337</a>    ) -&gt; ResolvedParametersInfo {
+<a href=#338 id=338 data-nosnippet>338</a>        <span class="kw">let </span>is_crate_root = <span class="self">self</span>.is_at_crate_root();
+<a href=#339 id=339 data-nosnippet>339</a>        <span class="kw">let </span>is_entry_point = func.is_entry_point(<span class="self">self</span>.is_function_in_contract(), is_crate_root);
+<a href=#340 id=340 data-nosnippet>340</a>        <span class="kw">let </span>is_test_or_fuzz = func.is_test_or_fuzz();
+<a href=#341 id=341 data-nosnippet>341</a>
+<a href=#342 id=342 data-nosnippet>342</a>        <span class="kw">let </span>has_inline_attribute = func.has_inline_attribute();
+<a href=#343 id=343 data-nosnippet>343</a>        <span class="kw">let </span>is_pub_allowed = <span class="self">self</span>.pub_allowed(func, <span class="self">self</span>.is_function_in_contract(), is_crate_root);
+<a href=#344 id=344 data-nosnippet>344</a>
+<a href=#345 id=345 data-nosnippet>345</a>        <span class="kw">let </span><span class="kw-2">mut </span>parameters = Vec::new();
+<a href=#346 id=346 data-nosnippet>346</a>        <span class="kw">let </span><span class="kw-2">mut </span>parameter_types = Vec::new();
+<a href=#347 id=347 data-nosnippet>347</a>        <span class="kw">let </span><span class="kw-2">mut </span>parameter_idents = Vec::new();
+<a href=#348 id=348 data-nosnippet>348</a>        <span class="kw">let </span><span class="kw-2">mut </span>parameter_names_in_list = rustc_hash::FxHashMap::default();
+<a href=#349 id=349 data-nosnippet>349</a>        <span class="kw">let </span>wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::FunctionParameter);
+<a href=#350 id=350 data-nosnippet>350</a>
+<a href=#351 id=351 data-nosnippet>351</a>        <span class="kw">for </span>Param { visibility, visibility_location, pattern, typ, location: <span class="kw">_ </span>} <span class="kw">in
+<a href=#352 id=352 data-nosnippet>352</a>            </span>func.parameters().iter().cloned()
+<a href=#353 id=353 data-nosnippet>353</a>        {
 <a href=#354 id=354 data-nosnippet>354</a>            <span class="self">self</span>.run_lint(|<span class="kw">_</span>| {
-<a href=#355 id=355 data-nosnippet>355</a>                lints::databus_on_non_entry_point(func, visibility, is_entry_point).map(Into::into)
-<a href=#356 id=356 data-nosnippet>356</a>            });
-<a href=#357 id=357 data-nosnippet>357</a>            <span class="kw">let </span>type_location = typ.location;
-<a href=#358 id=358 data-nosnippet>358</a>            <span class="kw">let </span>typ = <span class="kw">match </span>typ.typ {
-<a href=#359 id=359 data-nosnippet>359</a>                UnresolvedTypeData::TraitAsType(path, args) =&gt; {
-<a href=#360 id=360 data-nosnippet>360</a>                    <span class="self">self</span>.use_unstable_feature(UnstableFeature::TraitAsType, path.location);
-<a href=#361 id=361 data-nosnippet>361</a>                    <span class="self">self</span>.desugar_impl_trait_arg(path, args, generics, trait_constraints)
-<a href=#362 id=362 data-nosnippet>362</a>                }
-<a href=#363 id=363 data-nosnippet>363</a>                <span class="comment">// Function parameters have Kind::Normal
-<a href=#364 id=364 data-nosnippet>364</a>                </span><span class="kw">_ </span>=&gt; <span class="self">self</span>.resolve_type_with_kind(typ, <span class="kw-2">&amp;</span>Kind::Normal, wildcard_allowed),
-<a href=#365 id=365 data-nosnippet>365</a>            };
-<a href=#366 id=366 data-nosnippet>366</a>
-<a href=#367 id=367 data-nosnippet>367</a>            <span class="kw">let </span>output = <span class="bool-val">false</span>;
-<a href=#368 id=368 data-nosnippet>368</a>            <span class="kw">if let </span><span class="prelude-val">Err</span>(err) = <span class="self">Self</span>::check_if_type_is_valid_for_program(
-<a href=#369 id=369 data-nosnippet>369</a>                <span class="kw-2">&amp;</span>typ,
-<a href=#370 id=370 data-nosnippet>370</a>                is_entry_point || is_test_or_fuzz,
-<a href=#371 id=371 data-nosnippet>371</a>                has_inline_attribute,
-<a href=#372 id=372 data-nosnippet>372</a>                output,
-<a href=#373 id=373 data-nosnippet>373</a>                type_location,
-<a href=#374 id=374 data-nosnippet>374</a>            ) {
-<a href=#375 id=375 data-nosnippet>375</a>                <span class="self">self</span>.push_err(err);
-<a href=#376 id=376 data-nosnippet>376</a>            }
-<a href=#377 id=377 data-nosnippet>377</a>
-<a href=#378 id=378 data-nosnippet>378</a>            <span class="kw">if </span>is_entry_point || is_test_or_fuzz {
-<a href=#379 id=379 data-nosnippet>379</a>                <span class="self">self</span>.mark_type_as_used(<span class="kw-2">&amp;</span>typ);
-<a href=#380 id=380 data-nosnippet>380</a>            }
+<a href=#355 id=355 data-nosnippet>355</a>                lints::unnecessary_pub_argument(
+<a href=#356 id=356 data-nosnippet>356</a>                    func,
+<a href=#357 id=357 data-nosnippet>357</a>                    visibility,
+<a href=#358 id=358 data-nosnippet>358</a>                    visibility_location,
+<a href=#359 id=359 data-nosnippet>359</a>                    is_pub_allowed,
+<a href=#360 id=360 data-nosnippet>360</a>                )
+<a href=#361 id=361 data-nosnippet>361</a>                .map(Into::into)
+<a href=#362 id=362 data-nosnippet>362</a>            });
+<a href=#363 id=363 data-nosnippet>363</a>            <span class="self">self</span>.run_lint(|<span class="kw">_</span>| {
+<a href=#364 id=364 data-nosnippet>364</a>                lints::databus_on_non_entry_point(
+<a href=#365 id=365 data-nosnippet>365</a>                    func,
+<a href=#366 id=366 data-nosnippet>366</a>                    visibility,
+<a href=#367 id=367 data-nosnippet>367</a>                    visibility_location,
+<a href=#368 id=368 data-nosnippet>368</a>                    is_entry_point,
+<a href=#369 id=369 data-nosnippet>369</a>                )
+<a href=#370 id=370 data-nosnippet>370</a>                .map(Into::into)
+<a href=#371 id=371 data-nosnippet>371</a>            });
+<a href=#372 id=372 data-nosnippet>372</a>            <span class="kw">let </span>type_location = typ.location;
+<a href=#373 id=373 data-nosnippet>373</a>            <span class="kw">let </span>typ = <span class="kw">match </span>typ.typ {
+<a href=#374 id=374 data-nosnippet>374</a>                UnresolvedTypeData::TraitAsType(path, args) =&gt; {
+<a href=#375 id=375 data-nosnippet>375</a>                    <span class="self">self</span>.use_unstable_feature(UnstableFeature::TraitAsType, path.location);
+<a href=#376 id=376 data-nosnippet>376</a>                    <span class="self">self</span>.desugar_impl_trait_arg(path, args, generics, trait_constraints)
+<a href=#377 id=377 data-nosnippet>377</a>                }
+<a href=#378 id=378 data-nosnippet>378</a>                <span class="comment">// Function parameters have Kind::Normal
+<a href=#379 id=379 data-nosnippet>379</a>                </span><span class="kw">_ </span>=&gt; <span class="self">self</span>.resolve_type_with_kind(typ, <span class="kw-2">&amp;</span>Kind::Normal, wildcard_allowed),
+<a href=#380 id=380 data-nosnippet>380</a>            };
 <a href=#381 id=381 data-nosnippet>381</a>
-<a href=#382 id=382 data-nosnippet>382</a>            <span class="kw">let </span>pattern = <span class="self">self</span>.elaborate_pattern_and_store_ids(
-<a href=#383 id=383 data-nosnippet>383</a>                pattern,
-<a href=#384 id=384 data-nosnippet>384</a>                typ.clone(),
-<a href=#385 id=385 data-nosnippet>385</a>                DefinitionKind::Local(<span class="prelude-val">None</span>),
-<a href=#386 id=386 data-nosnippet>386</a>                <span class="kw-2">&amp;mut </span>parameter_idents,
-<a href=#387 id=387 data-nosnippet>387</a>                <span class="bool-val">true</span>, <span class="comment">// warn_if_unused
-<a href=#388 id=388 data-nosnippet>388</a>                </span><span class="kw-2">&amp;mut </span>parameter_names_in_list,
-<a href=#389 id=389 data-nosnippet>389</a>            );
-<a href=#390 id=390 data-nosnippet>390</a>
-<a href=#391 id=391 data-nosnippet>391</a>            parameters.push((pattern, typ.clone(), visibility));
-<a href=#392 id=392 data-nosnippet>392</a>            parameter_types.push(typ);
-<a href=#393 id=393 data-nosnippet>393</a>        }
-<a href=#394 id=394 data-nosnippet>394</a>
-<a href=#395 id=395 data-nosnippet>395</a>        (parameters, parameter_types, parameter_idents)
-<a href=#396 id=396 data-nosnippet>396</a>    }
-<a href=#397 id=397 data-nosnippet>397</a>
-<a href=#398 id=398 data-nosnippet>398</a>    <span class="doccomment">/// Only sized types are valid to be used as main's parameters or the parameters to a contract
-<a href=#399 id=399 data-nosnippet>399</a>    /// function. If the given type is not sized (e.g. contains a vector or NamedGeneric type), an
-<a href=#400 id=400 data-nosnippet>400</a>    /// error is issued.
-<a href=#401 id=401 data-nosnippet>401</a>    </span><span class="kw">fn </span>check_if_type_is_valid_for_program(
-<a href=#402 id=402 data-nosnippet>402</a>        typ: <span class="kw-2">&amp;</span>Type,
-<a href=#403 id=403 data-nosnippet>403</a>        is_entry_point: bool,
-<a href=#404 id=404 data-nosnippet>404</a>        has_inline_attribute: bool,
-<a href=#405 id=405 data-nosnippet>405</a>        output: bool,
-<a href=#406 id=406 data-nosnippet>406</a>        location: Location,
-<a href=#407 id=407 data-nosnippet>407</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), TypeCheckError&gt; {
-<a href=#408 id=408 data-nosnippet>408</a>        <span class="kw">if </span>is_entry_point &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(invalid_type) = typ.program_validity(output) {
-<a href=#409 id=409 data-nosnippet>409</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(TypeCheckError::InvalidTypeForEntryPoint { invalid_type, location });
-<a href=#410 id=410 data-nosnippet>410</a>        }
-<a href=#411 id=411 data-nosnippet>411</a>
-<a href=#412 id=412 data-nosnippet>412</a>        <span class="kw">if </span>has_inline_attribute
-<a href=#413 id=413 data-nosnippet>413</a>            &amp;&amp; !output
-<a href=#414 id=414 data-nosnippet>414</a>            &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(invalid_type) = typ.non_inlined_function_input_validity()
-<a href=#415 id=415 data-nosnippet>415</a>        {
-<a href=#416 id=416 data-nosnippet>416</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(TypeCheckError::InvalidTypeForEntryPoint { invalid_type, location });
-<a href=#417 id=417 data-nosnippet>417</a>        }
-<a href=#418 id=418 data-nosnippet>418</a>
-<a href=#419 id=419 data-nosnippet>419</a>        <span class="prelude-val">Ok</span>(())
-<a href=#420 id=420 data-nosnippet>420</a>    }
-<a href=#421 id=421 data-nosnippet>421</a>
-<a href=#422 id=422 data-nosnippet>422</a>    <span class="kw">fn </span>run_function_lints(<span class="kw-2">&amp;mut </span><span class="self">self</span>, func: <span class="kw-2">&amp;</span>FuncMeta, modifiers: <span class="kw-2">&amp;</span>FunctionModifiers) {
-<a href=#423 id=423 data-nosnippet>423</a>        <span class="self">self</span>.run_lint(|<span class="kw">_</span>| lints::inlining_attributes(func, modifiers).map(Into::into));
-<a href=#424 id=424 data-nosnippet>424</a>        <span class="self">self</span>.run_lint(|<span class="kw">_</span>| lints::no_predicates_on_entry_point(func, modifiers).map(Into::into));
-<a href=#425 id=425 data-nosnippet>425</a>        <span class="self">self</span>.run_lint(|<span class="kw">_</span>| lints::missing_pub(func, modifiers).map(Into::into));
-<a href=#426 id=426 data-nosnippet>426</a>        <span class="self">self</span>.run_lint(|<span class="kw">_</span>| {
-<a href=#427 id=427 data-nosnippet>427</a>            <span class="kw">let </span>pub_allowed = func.is_entry_point || modifiers.attributes.is_foldable();
-<a href=#428 id=428 data-nosnippet>428</a>            lints::unnecessary_pub_return(func, modifiers, pub_allowed).map(Into::into)
-<a href=#429 id=429 data-nosnippet>429</a>        });
-<a href=#430 id=430 data-nosnippet>430</a>        <span class="self">self</span>.run_lint(|<span class="kw">_</span>| lints::oracle_not_marked_unconstrained(func, modifiers).map(Into::into));
-<a href=#431 id=431 data-nosnippet>431</a>        <span class="self">self</span>.run_lint(|<span class="kw">_</span>| lints::oracle_returns_multiple_vectors(func, modifiers).map(Into::into));
-<a href=#432 id=432 data-nosnippet>432</a>        <span class="self">self</span>.run_lint(|<span class="kw">_</span>| lints::oracle_returns_reference(func, modifiers).map(Into::into));
-<a href=#433 id=433 data-nosnippet>433</a>        <span class="self">self</span>.run_lint(|<span class="kw">_</span>| {
-<a href=#434 id=434 data-nosnippet>434</a>            lints::oracle_returns_vector_with_nested_array(func, modifiers).map(Into::into)
-<a href=#435 id=435 data-nosnippet>435</a>        });
-<a href=#436 id=436 data-nosnippet>436</a>        <span class="self">self</span>.run_lint(|elaborator| {
-<a href=#437 id=437 data-nosnippet>437</a>            lints::low_level_function_outside_stdlib(modifiers, elaborator.crate_id).map(Into::into)
-<a href=#438 id=438 data-nosnippet>438</a>        });
-<a href=#439 id=439 data-nosnippet>439</a>        <span class="self">self</span>.run_lint(|elaborator| {
-<a href=#440 id=440 data-nosnippet>440</a>            lints::oracle_name_clashes_with_stdlib(modifiers, elaborator.crate_id).map(Into::into)
-<a href=#441 id=441 data-nosnippet>441</a>        });
-<a href=#442 id=442 data-nosnippet>442</a>        <span class="self">self</span>.run_lint(|<span class="kw">_</span>| lints::check_varargs(func, modifiers).map(Into::into));
-<a href=#443 id=443 data-nosnippet>443</a>    }
-<a href=#444 id=444 data-nosnippet>444</a>
-<a href=#445 id=445 data-nosnippet>445</a>    <span class="doccomment">/// Elaborates a function's body and performs type checking.
-<a href=#446 id=446 data-nosnippet>446</a>    ///
-<a href=#447 id=447 data-nosnippet>447</a>    /// This is the second pass of function elaboration that processes the function body,
-<a href=#448 id=448 data-nosnippet>448</a>    /// resolves all expressions and statements, performs type checking, and verifies
-<a href=#449 id=449 data-nosnippet>449</a>    /// trait constraints. The function metadata must already be defined by [Self::define_function_meta].
-<a href=#450 id=450 data-nosnippet>450</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>elaborate_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: FuncId) {
-<a href=#451 id=451 data-nosnippet>451</a>        <span class="kw">let </span>func_meta = <span class="self">self</span>.interner.func_meta.get_mut(<span class="kw-2">&amp;</span>id);
-<a href=#452 id=452 data-nosnippet>452</a>        <span class="kw">let </span>func_meta =
-<a href=#453 id=453 data-nosnippet>453</a>            func_meta.expect(<span class="string">"FuncMetas should be declared before a function is elaborated"</span>);
-<a href=#454 id=454 data-nosnippet>454</a>
-<a href=#455 id=455 data-nosnippet>455</a>        <span class="kw">let </span>(kind, body, body_location) = <span class="kw">match </span>func_meta.take_body() {
-<a href=#456 id=456 data-nosnippet>456</a>            FunctionBody::Unresolved(kind, body, location) =&gt; (kind, body, location),
-<a href=#457 id=457 data-nosnippet>457</a>            FunctionBody::Resolved =&gt; <span class="kw">return</span>,
-<a href=#458 id=458 data-nosnippet>458</a>            <span class="comment">// Do not error for the still-resolving case. If there is a dependency cycle,
-<a href=#459 id=459 data-nosnippet>459</a>            // the dependency cycle check will find it later on.
-<a href=#460 id=460 data-nosnippet>460</a>            </span>FunctionBody::Resolving =&gt; <span class="kw">return</span>,
-<a href=#461 id=461 data-nosnippet>461</a>        };
-<a href=#462 id=462 data-nosnippet>462</a>
-<a href=#463 id=463 data-nosnippet>463</a>        <span class="kw">let </span>func_meta = func_meta.clone();
-<a href=#464 id=464 data-nosnippet>464</a>
-<a href=#465 id=465 data-nosnippet>465</a>        <span class="macro">assert_eq!</span>(
-<a href=#466 id=466 data-nosnippet>466</a>            <span class="self">self</span>.crate_id, func_meta.source_crate,
-<a href=#467 id=467 data-nosnippet>467</a>            <span class="string">"Functions in other crates should be already elaborated"
-<a href=#468 id=468 data-nosnippet>468</a>        </span>);
+<a href=#382 id=382 data-nosnippet>382</a>            <span class="kw">let </span>output = <span class="bool-val">false</span>;
+<a href=#383 id=383 data-nosnippet>383</a>            <span class="kw">if let </span><span class="prelude-val">Err</span>(err) = <span class="self">Self</span>::check_if_type_is_valid_for_program(
+<a href=#384 id=384 data-nosnippet>384</a>                <span class="kw-2">&amp;</span>typ,
+<a href=#385 id=385 data-nosnippet>385</a>                is_entry_point || is_test_or_fuzz,
+<a href=#386 id=386 data-nosnippet>386</a>                has_inline_attribute,
+<a href=#387 id=387 data-nosnippet>387</a>                output,
+<a href=#388 id=388 data-nosnippet>388</a>                type_location,
+<a href=#389 id=389 data-nosnippet>389</a>            ) {
+<a href=#390 id=390 data-nosnippet>390</a>                <span class="self">self</span>.push_err(err);
+<a href=#391 id=391 data-nosnippet>391</a>            }
+<a href=#392 id=392 data-nosnippet>392</a>
+<a href=#393 id=393 data-nosnippet>393</a>            <span class="kw">if </span>is_entry_point || is_test_or_fuzz {
+<a href=#394 id=394 data-nosnippet>394</a>                <span class="self">self</span>.mark_type_as_used(<span class="kw-2">&amp;</span>typ);
+<a href=#395 id=395 data-nosnippet>395</a>            }
+<a href=#396 id=396 data-nosnippet>396</a>
+<a href=#397 id=397 data-nosnippet>397</a>            <span class="kw">let </span>pattern = <span class="self">self</span>.elaborate_pattern_and_store_ids(
+<a href=#398 id=398 data-nosnippet>398</a>                pattern,
+<a href=#399 id=399 data-nosnippet>399</a>                typ.clone(),
+<a href=#400 id=400 data-nosnippet>400</a>                DefinitionKind::Local(<span class="prelude-val">None</span>),
+<a href=#401 id=401 data-nosnippet>401</a>                <span class="kw-2">&amp;mut </span>parameter_idents,
+<a href=#402 id=402 data-nosnippet>402</a>                <span class="bool-val">true</span>, <span class="comment">// warn_if_unused
+<a href=#403 id=403 data-nosnippet>403</a>                </span><span class="kw-2">&amp;mut </span>parameter_names_in_list,
+<a href=#404 id=404 data-nosnippet>404</a>            );
+<a href=#405 id=405 data-nosnippet>405</a>
+<a href=#406 id=406 data-nosnippet>406</a>            parameters.push((pattern, typ.clone(), visibility));
+<a href=#407 id=407 data-nosnippet>407</a>            parameter_types.push(typ);
+<a href=#408 id=408 data-nosnippet>408</a>        }
+<a href=#409 id=409 data-nosnippet>409</a>
+<a href=#410 id=410 data-nosnippet>410</a>        (parameters, parameter_types, parameter_idents)
+<a href=#411 id=411 data-nosnippet>411</a>    }
+<a href=#412 id=412 data-nosnippet>412</a>
+<a href=#413 id=413 data-nosnippet>413</a>    <span class="doccomment">/// Only sized types are valid to be used as main's parameters or the parameters to a contract
+<a href=#414 id=414 data-nosnippet>414</a>    /// function. If the given type is not sized (e.g. contains a vector or NamedGeneric type), an
+<a href=#415 id=415 data-nosnippet>415</a>    /// error is issued.
+<a href=#416 id=416 data-nosnippet>416</a>    </span><span class="kw">fn </span>check_if_type_is_valid_for_program(
+<a href=#417 id=417 data-nosnippet>417</a>        typ: <span class="kw-2">&amp;</span>Type,
+<a href=#418 id=418 data-nosnippet>418</a>        is_entry_point: bool,
+<a href=#419 id=419 data-nosnippet>419</a>        has_inline_attribute: bool,
+<a href=#420 id=420 data-nosnippet>420</a>        output: bool,
+<a href=#421 id=421 data-nosnippet>421</a>        location: Location,
+<a href=#422 id=422 data-nosnippet>422</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), TypeCheckError&gt; {
+<a href=#423 id=423 data-nosnippet>423</a>        <span class="kw">if </span>is_entry_point &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(invalid_type) = typ.program_validity(output) {
+<a href=#424 id=424 data-nosnippet>424</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(TypeCheckError::InvalidTypeForEntryPoint { invalid_type, location });
+<a href=#425 id=425 data-nosnippet>425</a>        }
+<a href=#426 id=426 data-nosnippet>426</a>
+<a href=#427 id=427 data-nosnippet>427</a>        <span class="kw">if </span>has_inline_attribute
+<a href=#428 id=428 data-nosnippet>428</a>            &amp;&amp; !output
+<a href=#429 id=429 data-nosnippet>429</a>            &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(invalid_type) = typ.non_inlined_function_input_validity()
+<a href=#430 id=430 data-nosnippet>430</a>        {
+<a href=#431 id=431 data-nosnippet>431</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(TypeCheckError::InvalidTypeForEntryPoint { invalid_type, location });
+<a href=#432 id=432 data-nosnippet>432</a>        }
+<a href=#433 id=433 data-nosnippet>433</a>
+<a href=#434 id=434 data-nosnippet>434</a>        <span class="prelude-val">Ok</span>(())
+<a href=#435 id=435 data-nosnippet>435</a>    }
+<a href=#436 id=436 data-nosnippet>436</a>
+<a href=#437 id=437 data-nosnippet>437</a>    <span class="kw">fn </span>run_function_lints(<span class="kw-2">&amp;mut </span><span class="self">self</span>, func: <span class="kw-2">&amp;</span>FuncMeta, modifiers: <span class="kw-2">&amp;</span>FunctionModifiers) {
+<a href=#438 id=438 data-nosnippet>438</a>        <span class="self">self</span>.run_lint(|<span class="kw">_</span>| lints::inlining_attributes(func, modifiers).map(Into::into));
+<a href=#439 id=439 data-nosnippet>439</a>        <span class="self">self</span>.run_lint(|<span class="kw">_</span>| lints::no_predicates_on_entry_point(func, modifiers).map(Into::into));
+<a href=#440 id=440 data-nosnippet>440</a>        <span class="self">self</span>.run_lint(|<span class="kw">_</span>| lints::missing_pub(func, modifiers).map(Into::into));
+<a href=#441 id=441 data-nosnippet>441</a>        <span class="self">self</span>.run_lint(|<span class="kw">_</span>| {
+<a href=#442 id=442 data-nosnippet>442</a>            <span class="kw">let </span>pub_allowed = func.is_entry_point || modifiers.attributes.is_foldable();
+<a href=#443 id=443 data-nosnippet>443</a>            lints::unnecessary_pub_return(func, modifiers, pub_allowed).map(Into::into)
+<a href=#444 id=444 data-nosnippet>444</a>        });
+<a href=#445 id=445 data-nosnippet>445</a>        <span class="self">self</span>.run_lint(|<span class="kw">_</span>| lints::oracle_not_marked_unconstrained(func, modifiers).map(Into::into));
+<a href=#446 id=446 data-nosnippet>446</a>        <span class="self">self</span>.run_lint(|<span class="kw">_</span>| lints::oracle_returns_multiple_vectors(func, modifiers).map(Into::into));
+<a href=#447 id=447 data-nosnippet>447</a>        <span class="self">self</span>.run_lint(|<span class="kw">_</span>| lints::oracle_returns_reference(func, modifiers).map(Into::into));
+<a href=#448 id=448 data-nosnippet>448</a>        <span class="self">self</span>.run_lint(|<span class="kw">_</span>| {
+<a href=#449 id=449 data-nosnippet>449</a>            lints::oracle_returns_vector_with_nested_array(func, modifiers).map(Into::into)
+<a href=#450 id=450 data-nosnippet>450</a>        });
+<a href=#451 id=451 data-nosnippet>451</a>        <span class="self">self</span>.run_lint(|elaborator| {
+<a href=#452 id=452 data-nosnippet>452</a>            lints::low_level_function_outside_stdlib(modifiers, elaborator.crate_id).map(Into::into)
+<a href=#453 id=453 data-nosnippet>453</a>        });
+<a href=#454 id=454 data-nosnippet>454</a>        <span class="self">self</span>.run_lint(|elaborator| {
+<a href=#455 id=455 data-nosnippet>455</a>            lints::oracle_name_clashes_with_stdlib(modifiers, elaborator.crate_id).map(Into::into)
+<a href=#456 id=456 data-nosnippet>456</a>        });
+<a href=#457 id=457 data-nosnippet>457</a>        <span class="self">self</span>.run_lint(|<span class="kw">_</span>| lints::check_varargs(func, modifiers).map(Into::into));
+<a href=#458 id=458 data-nosnippet>458</a>    }
+<a href=#459 id=459 data-nosnippet>459</a>
+<a href=#460 id=460 data-nosnippet>460</a>    <span class="doccomment">/// Elaborates a function's body and performs type checking.
+<a href=#461 id=461 data-nosnippet>461</a>    ///
+<a href=#462 id=462 data-nosnippet>462</a>    /// This is the second pass of function elaboration that processes the function body,
+<a href=#463 id=463 data-nosnippet>463</a>    /// resolves all expressions and statements, performs type checking, and verifies
+<a href=#464 id=464 data-nosnippet>464</a>    /// trait constraints. The function metadata must already be defined by [Self::define_function_meta].
+<a href=#465 id=465 data-nosnippet>465</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>elaborate_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: FuncId) {
+<a href=#466 id=466 data-nosnippet>466</a>        <span class="kw">let </span>func_meta = <span class="self">self</span>.interner.func_meta.get_mut(<span class="kw-2">&amp;</span>id);
+<a href=#467 id=467 data-nosnippet>467</a>        <span class="kw">let </span>func_meta =
+<a href=#468 id=468 data-nosnippet>468</a>            func_meta.expect(<span class="string">"FuncMetas should be declared before a function is elaborated"</span>);
 <a href=#469 id=469 data-nosnippet>469</a>
-<a href=#470 id=470 data-nosnippet>470</a>        <span class="self">self</span>.local_module = <span class="prelude-val">Some</span>(func_meta.source_module);
-<a href=#471 id=471 data-nosnippet>471</a>        <span class="self">self</span>.self_type = func_meta.self_type.clone();
-<a href=#472 id=472 data-nosnippet>472</a>        <span class="self">self</span>.current_trait_impl = func_meta.trait_impl;
-<a href=#473 id=473 data-nosnippet>473</a>
-<a href=#474 id=474 data-nosnippet>474</a>        <span class="self">self</span>.scopes.start_function();
-<a href=#475 id=475 data-nosnippet>475</a>        <span class="kw">let </span>old_item = <span class="self">self</span>.current_item.replace(DependencyId::Function(id));
-<a href=#476 id=476 data-nosnippet>476</a>
-<a href=#477 id=477 data-nosnippet>477</a>        <span class="self">self</span>.trait_bounds = func_meta.all_trait_constraints().cloned().collect();
-<a href=#478 id=478 data-nosnippet>478</a>        <span class="self">self</span>.push_function_context();
+<a href=#470 id=470 data-nosnippet>470</a>        <span class="kw">let </span>(kind, body, body_location) = <span class="kw">match </span>func_meta.take_body() {
+<a href=#471 id=471 data-nosnippet>471</a>            FunctionBody::Unresolved(kind, body, location) =&gt; (kind, body, location),
+<a href=#472 id=472 data-nosnippet>472</a>            FunctionBody::Resolved =&gt; <span class="kw">return</span>,
+<a href=#473 id=473 data-nosnippet>473</a>            <span class="comment">// Do not error for the still-resolving case. If there is a dependency cycle,
+<a href=#474 id=474 data-nosnippet>474</a>            // the dependency cycle check will find it later on.
+<a href=#475 id=475 data-nosnippet>475</a>            </span>FunctionBody::Resolving =&gt; <span class="kw">return</span>,
+<a href=#476 id=476 data-nosnippet>476</a>        };
+<a href=#477 id=477 data-nosnippet>477</a>
+<a href=#478 id=478 data-nosnippet>478</a>        <span class="kw">let </span>func_meta = func_meta.clone();
 <a href=#479 id=479 data-nosnippet>479</a>
-<a href=#480 id=480 data-nosnippet>480</a>        <span class="comment">// Lints and visibility must be separately from function meta resolution as comptime attribute
-<a href=#481 id=481 data-nosnippet>481</a>        // may possibly update a function's modifiers.
-<a href=#482 id=482 data-nosnippet>482</a>        </span><span class="kw">let </span>modifiers = <span class="self">self</span>.interner.function_modifiers(<span class="kw-2">&amp;</span>id).clone();
-<a href=#483 id=483 data-nosnippet>483</a>        <span class="self">self</span>.run_function_lints(<span class="kw-2">&amp;</span>func_meta, <span class="kw-2">&amp;</span>modifiers);
-<a href=#484 id=484 data-nosnippet>484</a>        <span class="kw">let </span>name = Ident::new(
-<a href=#485 id=485 data-nosnippet>485</a>            <span class="self">self</span>.interner.definition_name(func_meta.name.id).to_string(),
-<a href=#486 id=486 data-nosnippet>486</a>            func_meta.name.location,
-<a href=#487 id=487 data-nosnippet>487</a>        );
-<a href=#488 id=488 data-nosnippet>488</a>        <span class="self">self</span>.check_function_visibility(<span class="kw-2">&amp;</span>func_meta, <span class="kw-2">&amp;</span>modifiers, <span class="kw-2">&amp;</span>name, func_meta.location);
-<a href=#489 id=489 data-nosnippet>489</a>
-<a href=#490 id=490 data-nosnippet>490</a>        <span class="self">self</span>.introduce_generics_into_scope(func_meta.all_generics.clone());
+<a href=#480 id=480 data-nosnippet>480</a>        <span class="macro">assert_eq!</span>(
+<a href=#481 id=481 data-nosnippet>481</a>            <span class="self">self</span>.crate_id, func_meta.source_crate,
+<a href=#482 id=482 data-nosnippet>482</a>            <span class="string">"Functions in other crates should be already elaborated"
+<a href=#483 id=483 data-nosnippet>483</a>        </span>);
+<a href=#484 id=484 data-nosnippet>484</a>
+<a href=#485 id=485 data-nosnippet>485</a>        <span class="self">self</span>.local_module = <span class="prelude-val">Some</span>(func_meta.source_module);
+<a href=#486 id=486 data-nosnippet>486</a>        <span class="self">self</span>.self_type = func_meta.self_type.clone();
+<a href=#487 id=487 data-nosnippet>487</a>        <span class="self">self</span>.current_trait_impl = func_meta.trait_impl;
+<a href=#488 id=488 data-nosnippet>488</a>
+<a href=#489 id=489 data-nosnippet>489</a>        <span class="self">self</span>.scopes.start_function();
+<a href=#490 id=490 data-nosnippet>490</a>        <span class="kw">let </span>old_item = <span class="self">self</span>.current_item.replace(DependencyId::Function(id));
 <a href=#491 id=491 data-nosnippet>491</a>
-<a href=#492 id=492 data-nosnippet>492</a>        <span class="comment">// The DefinitionIds for each parameter were already created in define_function_meta
-<a href=#493 id=493 data-nosnippet>493</a>        // so we need to reintroduce the same IDs into scope here.
-<a href=#494 id=494 data-nosnippet>494</a>        </span><span class="kw">for </span>parameter <span class="kw">in </span><span class="kw-2">&amp;</span>func_meta.parameter_idents {
-<a href=#495 id=495 data-nosnippet>495</a>            <span class="kw">let </span>name = <span class="self">self</span>.interner.definition_name(parameter.id).to_owned();
-<a href=#496 id=496 data-nosnippet>496</a>            <span class="kw">let </span>warn_if_unused = !(func_meta.trait_impl.is_some() &amp;&amp; name == <span class="string">"self"</span>);
-<a href=#497 id=497 data-nosnippet>497</a>            <span class="comment">// We allow shadowing here because there's no outer scope to shadow
-<a href=#498 id=498 data-nosnippet>498</a>            // (duplicate parameter names were already checked in `resolve_function_parameters`)
-<a href=#499 id=499 data-nosnippet>499</a>            </span><span class="kw">let </span>allow_shadowing = <span class="bool-val">true</span>;
-<a href=#500 id=500 data-nosnippet>500</a>            <span class="self">self</span>.add_existing_variable_to_scope(
-<a href=#501 id=501 data-nosnippet>501</a>                name,
-<a href=#502 id=502 data-nosnippet>502</a>                parameter.clone(),
-<a href=#503 id=503 data-nosnippet>503</a>                warn_if_unused,
-<a href=#504 id=504 data-nosnippet>504</a>                allow_shadowing,
-<a href=#505 id=505 data-nosnippet>505</a>            );
-<a href=#506 id=506 data-nosnippet>506</a>        }
-<a href=#507 id=507 data-nosnippet>507</a>
-<a href=#508 id=508 data-nosnippet>508</a>        <span class="self">self</span>.add_trait_constraints_to_scope(func_meta.all_trait_constraints(), func_meta.location);
-<a href=#509 id=509 data-nosnippet>509</a>
-<a href=#510 id=510 data-nosnippet>510</a>        <span class="kw">let </span>(hir_func, body_type) = <span class="kw">match </span>kind {
-<a href=#511 id=511 data-nosnippet>511</a>            FunctionKind::Builtin
-<a href=#512 id=512 data-nosnippet>512</a>            | FunctionKind::LowLevel
-<a href=#513 id=513 data-nosnippet>513</a>            | FunctionKind::TraitFunctionWithoutBody =&gt; {
-<a href=#514 id=514 data-nosnippet>514</a>                <span class="kw">if </span>!body.statements.is_empty() {
-<a href=#515 id=515 data-nosnippet>515</a>                    <span class="self">self</span>.push_err(ResolverError::BuiltinWithBody {
-<a href=#516 id=516 data-nosnippet>516</a>                        location: func_meta.name.location,
-<a href=#517 id=517 data-nosnippet>517</a>                    });
-<a href=#518 id=518 data-nosnippet>518</a>                }
-<a href=#519 id=519 data-nosnippet>519</a>                (HirFunction::empty(), Type::Error)
-<a href=#520 id=520 data-nosnippet>520</a>            }
-<a href=#521 id=521 data-nosnippet>521</a>            FunctionKind::Oracle =&gt; {
-<a href=#522 id=522 data-nosnippet>522</a>                <span class="kw">if </span>!body.statements.is_empty() {
-<a href=#523 id=523 data-nosnippet>523</a>                    <span class="self">self</span>.push_err(ResolverError::OracleWithBody {
-<a href=#524 id=524 data-nosnippet>524</a>                        location: func_meta.name.location,
-<a href=#525 id=525 data-nosnippet>525</a>                    });
-<a href=#526 id=526 data-nosnippet>526</a>                }
-<a href=#527 id=527 data-nosnippet>527</a>                (HirFunction::empty(), Type::Error)
-<a href=#528 id=528 data-nosnippet>528</a>            }
-<a href=#529 id=529 data-nosnippet>529</a>            FunctionKind::Normal =&gt; {
-<a href=#530 id=530 data-nosnippet>530</a>                <span class="kw">let </span>return_type = func_meta.return_type();
-<a href=#531 id=531 data-nosnippet>531</a>                <span class="kw">let </span>(block, body_type) = <span class="self">self</span>.elaborate_block(body, <span class="prelude-val">Some</span>(return_type));
-<a href=#532 id=532 data-nosnippet>532</a>                <span class="kw">let </span>expr_id = <span class="self">self</span>.interner.push_expr_full(block, body_location, body_type.clone());
-<a href=#533 id=533 data-nosnippet>533</a>                (HirFunction::unchecked_from_expr(expr_id), body_type)
-<a href=#534 id=534 data-nosnippet>534</a>            }
-<a href=#535 id=535 data-nosnippet>535</a>        };
-<a href=#536 id=536 data-nosnippet>536</a>
-<a href=#537 id=537 data-nosnippet>537</a>        <span class="comment">// Don't verify the return type for builtin functions &amp; trait function declarations
-<a href=#538 id=538 data-nosnippet>538</a>        </span><span class="kw">if </span>!func_meta.is_stub() {
-<a href=#539 id=539 data-nosnippet>539</a>            <span class="self">self</span>.type_check_function_body(body_type, <span class="kw-2">&amp;</span>func_meta, hir_func.as_expr());
-<a href=#540 id=540 data-nosnippet>540</a>        }
-<a href=#541 id=541 data-nosnippet>541</a>
-<a href=#542 id=542 data-nosnippet>542</a>        <span class="comment">// Default any type variables that still need defaulting and
-<a href=#543 id=543 data-nosnippet>543</a>        // verify any remaining trait constraints arising from the function body.
-<a href=#544 id=544 data-nosnippet>544</a>        // This is done before trait impl search since leaving them bindable can lead to errors
-<a href=#545 id=545 data-nosnippet>545</a>        // when multiple impls are available. Instead we default first to choose the Field or u64 impl.
-<a href=#546 id=546 data-nosnippet>546</a>        </span><span class="self">self</span>.check_and_pop_function_context();
-<a href=#547 id=547 data-nosnippet>547</a>
-<a href=#548 id=548 data-nosnippet>548</a>        <span class="self">self</span>.remove_trait_constraints_from_scope(func_meta.all_trait_constraints());
-<a href=#549 id=549 data-nosnippet>549</a>
-<a href=#550 id=550 data-nosnippet>550</a>        <span class="kw">let </span>func_scope_tree = <span class="self">self</span>.scopes.end_function();
+<a href=#492 id=492 data-nosnippet>492</a>        <span class="self">self</span>.trait_bounds = func_meta.all_trait_constraints().cloned().collect();
+<a href=#493 id=493 data-nosnippet>493</a>        <span class="self">self</span>.push_function_context();
+<a href=#494 id=494 data-nosnippet>494</a>
+<a href=#495 id=495 data-nosnippet>495</a>        <span class="comment">// Lints and visibility must be separately from function meta resolution as comptime attribute
+<a href=#496 id=496 data-nosnippet>496</a>        // may possibly update a function's modifiers.
+<a href=#497 id=497 data-nosnippet>497</a>        </span><span class="kw">let </span>modifiers = <span class="self">self</span>.interner.function_modifiers(<span class="kw-2">&amp;</span>id).clone();
+<a href=#498 id=498 data-nosnippet>498</a>        <span class="self">self</span>.run_function_lints(<span class="kw-2">&amp;</span>func_meta, <span class="kw-2">&amp;</span>modifiers);
+<a href=#499 id=499 data-nosnippet>499</a>        <span class="kw">let </span>name = Ident::new(
+<a href=#500 id=500 data-nosnippet>500</a>            <span class="self">self</span>.interner.definition_name(func_meta.name.id).to_string(),
+<a href=#501 id=501 data-nosnippet>501</a>            func_meta.name.location,
+<a href=#502 id=502 data-nosnippet>502</a>        );
+<a href=#503 id=503 data-nosnippet>503</a>        <span class="self">self</span>.check_function_visibility(<span class="kw-2">&amp;</span>func_meta, <span class="kw-2">&amp;</span>modifiers, <span class="kw-2">&amp;</span>name, func_meta.location);
+<a href=#504 id=504 data-nosnippet>504</a>
+<a href=#505 id=505 data-nosnippet>505</a>        <span class="self">self</span>.introduce_generics_into_scope(func_meta.all_generics.clone());
+<a href=#506 id=506 data-nosnippet>506</a>
+<a href=#507 id=507 data-nosnippet>507</a>        <span class="comment">// The DefinitionIds for each parameter were already created in define_function_meta
+<a href=#508 id=508 data-nosnippet>508</a>        // so we need to reintroduce the same IDs into scope here.
+<a href=#509 id=509 data-nosnippet>509</a>        </span><span class="kw">for </span>parameter <span class="kw">in </span><span class="kw-2">&amp;</span>func_meta.parameter_idents {
+<a href=#510 id=510 data-nosnippet>510</a>            <span class="kw">let </span>name = <span class="self">self</span>.interner.definition_name(parameter.id).to_owned();
+<a href=#511 id=511 data-nosnippet>511</a>            <span class="kw">let </span>warn_if_unused = !(func_meta.trait_impl.is_some() &amp;&amp; name == <span class="string">"self"</span>);
+<a href=#512 id=512 data-nosnippet>512</a>            <span class="comment">// We allow shadowing here because there's no outer scope to shadow
+<a href=#513 id=513 data-nosnippet>513</a>            // (duplicate parameter names were already checked in `resolve_function_parameters`)
+<a href=#514 id=514 data-nosnippet>514</a>            </span><span class="kw">let </span>allow_shadowing = <span class="bool-val">true</span>;
+<a href=#515 id=515 data-nosnippet>515</a>            <span class="self">self</span>.add_existing_variable_to_scope(
+<a href=#516 id=516 data-nosnippet>516</a>                name,
+<a href=#517 id=517 data-nosnippet>517</a>                parameter.clone(),
+<a href=#518 id=518 data-nosnippet>518</a>                warn_if_unused,
+<a href=#519 id=519 data-nosnippet>519</a>                allow_shadowing,
+<a href=#520 id=520 data-nosnippet>520</a>            );
+<a href=#521 id=521 data-nosnippet>521</a>        }
+<a href=#522 id=522 data-nosnippet>522</a>
+<a href=#523 id=523 data-nosnippet>523</a>        <span class="self">self</span>.add_trait_constraints_to_scope(func_meta.all_trait_constraints(), func_meta.location);
+<a href=#524 id=524 data-nosnippet>524</a>
+<a href=#525 id=525 data-nosnippet>525</a>        <span class="kw">let </span>(hir_func, body_type) = <span class="kw">match </span>kind {
+<a href=#526 id=526 data-nosnippet>526</a>            FunctionKind::Builtin
+<a href=#527 id=527 data-nosnippet>527</a>            | FunctionKind::LowLevel
+<a href=#528 id=528 data-nosnippet>528</a>            | FunctionKind::TraitFunctionWithoutBody =&gt; {
+<a href=#529 id=529 data-nosnippet>529</a>                <span class="kw">if </span>!body.statements.is_empty() {
+<a href=#530 id=530 data-nosnippet>530</a>                    <span class="self">self</span>.push_err(ResolverError::BuiltinWithBody {
+<a href=#531 id=531 data-nosnippet>531</a>                        location: func_meta.name.location,
+<a href=#532 id=532 data-nosnippet>532</a>                    });
+<a href=#533 id=533 data-nosnippet>533</a>                }
+<a href=#534 id=534 data-nosnippet>534</a>                (HirFunction::empty(), Type::Error)
+<a href=#535 id=535 data-nosnippet>535</a>            }
+<a href=#536 id=536 data-nosnippet>536</a>            FunctionKind::Oracle =&gt; {
+<a href=#537 id=537 data-nosnippet>537</a>                <span class="kw">if </span>!body.statements.is_empty() {
+<a href=#538 id=538 data-nosnippet>538</a>                    <span class="self">self</span>.push_err(ResolverError::OracleWithBody {
+<a href=#539 id=539 data-nosnippet>539</a>                        location: func_meta.name.location,
+<a href=#540 id=540 data-nosnippet>540</a>                    });
+<a href=#541 id=541 data-nosnippet>541</a>                }
+<a href=#542 id=542 data-nosnippet>542</a>                (HirFunction::empty(), Type::Error)
+<a href=#543 id=543 data-nosnippet>543</a>            }
+<a href=#544 id=544 data-nosnippet>544</a>            FunctionKind::Normal =&gt; {
+<a href=#545 id=545 data-nosnippet>545</a>                <span class="kw">let </span>return_type = func_meta.return_type();
+<a href=#546 id=546 data-nosnippet>546</a>                <span class="kw">let </span>(block, body_type) = <span class="self">self</span>.elaborate_block(body, <span class="prelude-val">Some</span>(return_type));
+<a href=#547 id=547 data-nosnippet>547</a>                <span class="kw">let </span>expr_id = <span class="self">self</span>.interner.push_expr_full(block, body_location, body_type.clone());
+<a href=#548 id=548 data-nosnippet>548</a>                (HirFunction::unchecked_from_expr(expr_id), body_type)
+<a href=#549 id=549 data-nosnippet>549</a>            }
+<a href=#550 id=550 data-nosnippet>550</a>        };
 <a href=#551 id=551 data-nosnippet>551</a>
-<a href=#552 id=552 data-nosnippet>552</a>        <span class="comment">// The arguments to low-level and oracle functions are always unused so we do not produce warnings for them.
+<a href=#552 id=552 data-nosnippet>552</a>        <span class="comment">// Don't verify the return type for builtin functions &amp; trait function declarations
 <a href=#553 id=553 data-nosnippet>553</a>        </span><span class="kw">if </span>!func_meta.is_stub() {
-<a href=#554 id=554 data-nosnippet>554</a>            <span class="self">self</span>.check_for_unused_variables_in_scope_tree(func_scope_tree);
+<a href=#554 id=554 data-nosnippet>554</a>            <span class="self">self</span>.type_check_function_body(body_type, <span class="kw-2">&amp;</span>func_meta, hir_func.as_expr());
 <a href=#555 id=555 data-nosnippet>555</a>        }
 <a href=#556 id=556 data-nosnippet>556</a>
-<a href=#557 id=557 data-nosnippet>557</a>        <span class="comment">// Check that the body can return without calling the function.
-<a href=#558 id=558 data-nosnippet>558</a>        </span><span class="kw">if let </span>FunctionKind::Normal = kind {
-<a href=#559 id=559 data-nosnippet>559</a>            <span class="self">self</span>.run_lint(|elaborator| {
-<a href=#560 id=560 data-nosnippet>560</a>                lints::unbounded_recursion(
-<a href=#561 id=561 data-nosnippet>561</a>                    elaborator.interner,
-<a href=#562 id=562 data-nosnippet>562</a>                    id,
-<a href=#563 id=563 data-nosnippet>563</a>                    || elaborator.interner.definition_name(func_meta.name.id),
-<a href=#564 id=564 data-nosnippet>564</a>                    func_meta.name.location,
-<a href=#565 id=565 data-nosnippet>565</a>                    hir_func.as_expr(),
-<a href=#566 id=566 data-nosnippet>566</a>                )
-<a href=#567 id=567 data-nosnippet>567</a>                .map(Into::into)
-<a href=#568 id=568 data-nosnippet>568</a>            });
-<a href=#569 id=569 data-nosnippet>569</a>        }
-<a href=#570 id=570 data-nosnippet>570</a>
-<a href=#571 id=571 data-nosnippet>571</a>        <span class="kw">let </span>meta = <span class="self">self
-<a href=#572 id=572 data-nosnippet>572</a>            </span>.interner
-<a href=#573 id=573 data-nosnippet>573</a>            .func_meta
-<a href=#574 id=574 data-nosnippet>574</a>            .get_mut(<span class="kw-2">&amp;</span>id)
-<a href=#575 id=575 data-nosnippet>575</a>            .expect(<span class="string">"FuncMetas should be declared before a function is elaborated"</span>);
-<a href=#576 id=576 data-nosnippet>576</a>
-<a href=#577 id=577 data-nosnippet>577</a>        meta.function_body = FunctionBody::Resolved;
-<a href=#578 id=578 data-nosnippet>578</a>
-<a href=#579 id=579 data-nosnippet>579</a>        <span class="self">self</span>.trait_bounds.clear();
-<a href=#580 id=580 data-nosnippet>580</a>        <span class="self">self</span>.interner.update_fn(id, hir_func);
-<a href=#581 id=581 data-nosnippet>581</a>        <span class="self">self</span>.current_item = old_item;
-<a href=#582 id=582 data-nosnippet>582</a>    }
-<a href=#583 id=583 data-nosnippet>583</a>}</code></pre></div></section></main></body></html>
+<a href=#557 id=557 data-nosnippet>557</a>        <span class="comment">// Default any type variables that still need defaulting and
+<a href=#558 id=558 data-nosnippet>558</a>        // verify any remaining trait constraints arising from the function body.
+<a href=#559 id=559 data-nosnippet>559</a>        // This is done before trait impl search since leaving them bindable can lead to errors
+<a href=#560 id=560 data-nosnippet>560</a>        // when multiple impls are available. Instead we default first to choose the Field or u64 impl.
+<a href=#561 id=561 data-nosnippet>561</a>        </span><span class="self">self</span>.check_and_pop_function_context();
+<a href=#562 id=562 data-nosnippet>562</a>
+<a href=#563 id=563 data-nosnippet>563</a>        <span class="self">self</span>.remove_trait_constraints_from_scope(func_meta.all_trait_constraints());
+<a href=#564 id=564 data-nosnippet>564</a>
+<a href=#565 id=565 data-nosnippet>565</a>        <span class="kw">let </span>func_scope_tree = <span class="self">self</span>.scopes.end_function();
+<a href=#566 id=566 data-nosnippet>566</a>
+<a href=#567 id=567 data-nosnippet>567</a>        <span class="comment">// The arguments to low-level and oracle functions are always unused so we do not produce warnings for them.
+<a href=#568 id=568 data-nosnippet>568</a>        </span><span class="kw">if </span>!func_meta.is_stub() {
+<a href=#569 id=569 data-nosnippet>569</a>            <span class="self">self</span>.check_for_unused_variables_in_scope_tree(func_scope_tree);
+<a href=#570 id=570 data-nosnippet>570</a>        }
+<a href=#571 id=571 data-nosnippet>571</a>
+<a href=#572 id=572 data-nosnippet>572</a>        <span class="comment">// Check that the body can return without calling the function.
+<a href=#573 id=573 data-nosnippet>573</a>        </span><span class="kw">if let </span>FunctionKind::Normal = kind {
+<a href=#574 id=574 data-nosnippet>574</a>            <span class="self">self</span>.run_lint(|elaborator| {
+<a href=#575 id=575 data-nosnippet>575</a>                lints::unbounded_recursion(
+<a href=#576 id=576 data-nosnippet>576</a>                    elaborator.interner,
+<a href=#577 id=577 data-nosnippet>577</a>                    id,
+<a href=#578 id=578 data-nosnippet>578</a>                    || elaborator.interner.definition_name(func_meta.name.id),
+<a href=#579 id=579 data-nosnippet>579</a>                    func_meta.name.location,
+<a href=#580 id=580 data-nosnippet>580</a>                    hir_func.as_expr(),
+<a href=#581 id=581 data-nosnippet>581</a>                )
+<a href=#582 id=582 data-nosnippet>582</a>                .map(Into::into)
+<a href=#583 id=583 data-nosnippet>583</a>            });
+<a href=#584 id=584 data-nosnippet>584</a>        }
+<a href=#585 id=585 data-nosnippet>585</a>
+<a href=#586 id=586 data-nosnippet>586</a>        <span class="kw">let </span>meta = <span class="self">self
+<a href=#587 id=587 data-nosnippet>587</a>            </span>.interner
+<a href=#588 id=588 data-nosnippet>588</a>            .func_meta
+<a href=#589 id=589 data-nosnippet>589</a>            .get_mut(<span class="kw-2">&amp;</span>id)
+<a href=#590 id=590 data-nosnippet>590</a>            .expect(<span class="string">"FuncMetas should be declared before a function is elaborated"</span>);
+<a href=#591 id=591 data-nosnippet>591</a>
+<a href=#592 id=592 data-nosnippet>592</a>        meta.function_body = FunctionBody::Resolved;
+<a href=#593 id=593 data-nosnippet>593</a>
+<a href=#594 id=594 data-nosnippet>594</a>        <span class="self">self</span>.trait_bounds.clear();
+<a href=#595 id=595 data-nosnippet>595</a>        <span class="self">self</span>.interner.update_fn(id, hir_func);
+<a href=#596 id=596 data-nosnippet>596</a>        <span class="self">self</span>.current_item = old_item;
+<a href=#597 id=597 data-nosnippet>597</a>    }
+<a href=#598 id=598 data-nosnippet>598</a>}</code></pre></div></section></main></body></html>

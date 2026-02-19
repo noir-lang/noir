@@ -585,7 +585,7 @@
 <a href=#585 id=585 data-nosnippet>585</a>        })
 <a href=#586 id=586 data-nosnippet>586</a>        .fold((BTreeSet::new(), BTreeSet::new()), |<span class="kw-2">mut </span>acc, (vis, witnesses)| {
 <a href=#587 id=587 data-nosnippet>587</a>            <span class="comment">// Split witnesses into sets based on their visibility.
-<a href=#588 id=588 data-nosnippet>588</a>            </span><span class="kw">if </span><span class="kw-2">*</span>vis == Visibility::Public {
+<a href=#588 id=588 data-nosnippet>588</a>            </span><span class="kw">if </span><span class="macro">matches!</span>(vis, Visibility::Public) {
 <a href=#589 id=589 data-nosnippet>589</a>                <span class="kw">for </span>witness <span class="kw">in </span>witnesses {
 <a href=#590 id=590 data-nosnippet>590</a>                    acc.<span class="number">0</span>.insert(witness);
 <a href=#591 id=591 data-nosnippet>591</a>                }
