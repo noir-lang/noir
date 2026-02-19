@@ -14,6 +14,7 @@ use noirc_frontend::signed_field::SignedField;
 
 use crate::errors::RuntimeError;
 use crate::ssa::function_builder::FunctionBuilder;
+use crate::ssa::ir;
 use crate::ssa::ir::basic_block::BasicBlockId;
 use crate::ssa::ir::function::FunctionId as IrFunctionId;
 use crate::ssa::ir::function::{Function, RuntimeType};
@@ -77,13 +78,17 @@ pub(super) struct SharedContext {
     /// Shared counter used to assign the ID of the next function
     function_counter: AtomicCounter<Function>,
 
-    /// A pseudo function that represents global values.
+    /// Pseudo functions that represent global values, one per runtime.
     /// Globals are only concerned with the values and instructions (due to Instruction::MakeArray)
     /// in a function's DataFlowGraph. However, in order to re-use various codegen methods
     /// we need to use the same `Function` type.
-    pub(super) globals_context: Function,
+    ///
+    /// ACIR globals produce flat arrays, Brillig globals produce non-flat arrays.
+    pub(super) acir_globals_context: Function,
+    pub(super) brillig_globals_context: Function,
 
-    pub(super) globals: BTreeMap<GlobalId, Values>,
+    pub(super) acir_globals: BTreeMap<GlobalId, Values>,
+    pub(super) brillig_globals: BTreeMap<GlobalId, Values>,
 
     /// The entire monomorphized source program
     pub(super) program: Program,
@@ -127,7 +132,8 @@ impl<'a> FunctionContext<'a> {
         parameters: &Parameters,
         runtime: RuntimeType,
         shared_context: &'a SharedContext,
-        globals: GlobalsGraph,
+        acir_globals: GlobalsGraph,
+        brillig_globals: GlobalsGraph,
     ) -> Self {
         let function_id = shared_context
             .pop_next_function_in_queue()
@@ -135,8 +141,8 @@ impl<'a> FunctionContext<'a> {
             .1;
 
         let mut builder = FunctionBuilder::new(function_name, function_id);
-        builder.set_globals(Arc::new(globals));
         builder.set_runtime(runtime);
+        builder.set_globals(Arc::new(acir_globals), Arc::new(brillig_globals));
 
         let definitions = HashMap::default();
         let mut this = Self {
@@ -188,8 +194,9 @@ impl<'a> FunctionContext<'a> {
         mutable: bool,
     ) {
         // Add a separate parameter for each field type in 'parameter_type'
-        let parameter_value = Self::map_type(parameter_type, |typ| {
+        let parameter_value = Self::map_type_with_ast_type(parameter_type, |_old_typ, typ| {
             let value = self.builder.add_parameter(typ);
+
             if mutable {
                 // This will wrap any `mut var: T` in a reference
                 self.new_mutable_variable(value)
@@ -210,14 +217,6 @@ impl<'a> FunctionContext<'a> {
         self.builder.insert_store(alloc, value_to_store);
         let typ = self.builder.type_of_value(value_to_store);
         Value::Mutable(alloc, typ)
-    }
-
-    /// Maps the given type to a Tree of the result type.
-    ///
-    /// This can be used to (for example) flatten a tuple type, creating
-    /// and returning a new parameter for each field type.
-    pub(super) fn map_type<T>(typ: &ast::Type, mut f: impl FnMut(Type) -> T) -> Tree<T> {
-        Self::map_type_helper(typ, &mut f)
     }
 
     // This helper is needed because we need to take f by mutable reference,
@@ -250,6 +249,52 @@ impl<'a> FunctionContext<'a> {
                 ])
             }
             other => Tree::Leaf(f(Self::convert_non_tuple_type(other))),
+        }
+    }
+
+    pub(super) fn map_type_with_ast_type<T>(
+        typ: &ast::Type,
+        mut f: impl FnMut(&ast::Type, Type) -> T,
+    ) -> Tree<T> {
+        Self::map_type_with_ast_type_helper(typ, &mut f)
+    }
+
+    // This helper is the same as `map_type_helper` except we also pass the original `ast::Type`
+    // along with the new SSA `Type`. This enables being able to run operations on the original
+    // structured type information.
+    fn map_type_with_ast_type_helper<T>(
+        typ: &ast::Type,
+        f: &mut dyn FnMut(&ast::Type, Type) -> T,
+    ) -> Tree<T> {
+        match typ {
+            ast::Type::Tuple(fields) => {
+                Tree::Branch(vecmap(fields, |field| Self::map_type_with_ast_type_helper(field, f)))
+            }
+            ast::Type::Unit => Tree::empty(),
+            // A mutable reference wraps each element into a reference.
+            // This can be multiple values if the element type is a tuple.
+            ast::Type::Reference(element, _) => {
+                Self::map_type_with_ast_type_helper(element, &mut |old_typ, new_typ| {
+                    f(old_typ, Type::Reference(Arc::new(new_typ)))
+                })
+            }
+            ast::Type::FmtString(len, fields) => {
+                // A format string is represented by multiple values
+                // The message string, the number of fields to be formatted, and
+                // then the encapsulated fields themselves
+                let final_fmt_str_fields =
+                    vec![ast::Type::String(*len), ast::Type::Field, *fields.clone()];
+                let fmt_str_tuple = ast::Type::Tuple(final_fmt_str_fields);
+                Self::map_type_with_ast_type_helper(&fmt_str_tuple, f)
+            }
+            ast::Type::Vector(elements) => {
+                let element_types = Self::convert_type(elements).flatten();
+                Tree::Branch(vec![
+                    Tree::Leaf(f(typ, Type::length_type())),
+                    Tree::Leaf(f(typ, Type::Vector(Arc::new(element_types)))),
+                ])
+            }
+            other => Tree::Leaf(f(typ, Self::convert_non_tuple_type(other))),
         }
     }
 
@@ -378,14 +423,17 @@ impl<'a> FunctionContext<'a> {
         location: Location,
     ) -> Values {
         let result_types = Self::convert_type(result_type).flatten();
-        let results =
-            self.builder.set_location(location).insert_call(function, arguments, result_types);
+        let results = self
+            .builder
+            .set_location(location)
+            .insert_call(function, arguments, result_types)
+            .to_vec();
 
         let mut i = 0;
-        let reshaped_return_values = Self::map_type(result_type, |_| {
-            let result = results[i].into();
+        let reshaped_return_values = Self::map_type_with_ast_type(result_type, |_ast_typ, _| {
+            let result = results[i];
             i += 1;
-            result
+            result.into()
         });
         assert_eq!(i, results.len());
         reshaped_return_values
@@ -595,8 +643,12 @@ impl<'a> FunctionContext<'a> {
     }
 
     pub(super) fn lookup_global(&self, id: GlobalId) -> Values {
-        self.shared_context
-            .globals
+        let globals = if self.builder.current_function.runtime().is_acir() {
+            &self.shared_context.acir_globals
+        } else {
+            &self.shared_context.brillig_globals
+        };
+        globals
             .get(&id)
             .unwrap_or_else(|| panic!("lookup_global: variable {id:?} not defined"))
             .clone()
@@ -693,7 +745,12 @@ impl<'a> FunctionContext<'a> {
             ast::LValue::MemberAccess { object, field_index } => {
                 let (old_object, object_lvalue) = self.extract_current_value_recursive(object)?;
                 let object_lvalue = Box::new(object_lvalue);
-                LValue::MemberAccess { old_object, object_lvalue, index: *field_index }
+                LValue::MemberAccess {
+                    old_object,
+                    index: *field_index,
+                    object_lvalue,
+                    skip_extraction: false,
+                }
             }
             ast::LValue::Dereference { reference, .. } => {
                 let (reference, _) = self.extract_current_value_recursive(reference)?;
@@ -703,11 +760,16 @@ impl<'a> FunctionContext<'a> {
         })
     }
 
-    fn dereference_lvalue(&mut self, values: &Values, element_type: &ast::Type) -> Values {
+    pub(super) fn dereference_lvalue(
+        &mut self,
+        values: &Values,
+        element_type: &ast::Type,
+    ) -> Values {
         let element_types = Self::convert_type(element_type);
         values.map_both(element_types, |value, element_type| {
             let reference = value.eval_reference();
-            self.builder.insert_load(reference, element_type).into()
+            let result = self.builder.insert_load(reference, element_type);
+            result.into()
         })
     }
 
@@ -716,6 +778,7 @@ impl<'a> FunctionContext<'a> {
     fn ident_lvalue(&self, ident: &ast::Ident) -> (Values, bool) {
         match &ident.definition {
             ast::Definition::Local(id) => (self.lookup(*id), ident.mutable),
+            ast::Definition::Global(id) => (self.lookup_global(*id), false),
             other => panic!("Unexpected definition found for mutable value: {other}"),
         }
     }
@@ -784,7 +847,15 @@ impl<'a> FunctionContext<'a> {
                 let (old_object, object_lvalue) = self.extract_current_value_recursive(object)?;
                 let object_lvalue = Box::new(object_lvalue);
                 let element = Self::get_field_ref(&old_object, *index).clone();
-                Ok((element, LValue::MemberAccess { old_object, object_lvalue, index: *index }))
+                Ok((
+                    element,
+                    LValue::MemberAccess {
+                        old_object,
+                        object_lvalue,
+                        index: *index,
+                        skip_extraction: false,
+                    },
+                ))
             }
             ast::LValue::Dereference { reference, element_type } => {
                 let (reference, _) = self.extract_current_value_recursive(reference)?;
@@ -800,6 +871,135 @@ impl<'a> FunctionContext<'a> {
                 Ok((values, lvalue))
             }
         }
+    }
+
+    /// Extract a flat lvalue for ACIR assignment.
+    ///
+    /// Walks the lvalue tree and computes a flat offset into the underlying
+    /// array, tracking whether the base has been materialized (e.g. after a
+    /// dereference or member-access on a reference) or is still an inline
+    /// aggregate where offset arithmetic is needed.
+    pub(super) fn extract_flat_lvalue(
+        &mut self,
+        lvalue: &ast::LValue,
+    ) -> Result<FlatLValue, RuntimeError> {
+        match lvalue {
+            ast::LValue::Ident(ident) => {
+                let (variable, should_auto_deref) = self.ident_lvalue(ident);
+                let base = if should_auto_deref {
+                    self.dereference_lvalue(&variable, &ident.typ)
+                } else {
+                    variable.clone()
+                };
+                let zero = self.builder.numeric_constant(0_u32, NumericType::length_type());
+                Ok(FlatLValue {
+                    base,
+                    offset: zero,
+                    elem_type: ident.typ.clone(),
+                    // Store original allocation for later assignment
+                    original_alloc: variable,
+                    base_is_materialized: true,
+                })
+            }
+            ast::LValue::Index { array, index, element_type, .. } => {
+                let mut flat_lvalue = self.extract_flat_lvalue(array)?;
+                let index = self.codegen_non_tuple_expression(index)?;
+
+                let stride = element_type.flattened_size();
+                let stride = self.builder.numeric_constant(stride, NumericType::length_type());
+                let new_index =
+                    self.builder.insert_binary(index, BinaryOp::Mul { unchecked: true }, stride);
+                let new_offset = self.builder.insert_binary(
+                    flat_lvalue.offset,
+                    BinaryOp::Add { unchecked: true },
+                    new_index,
+                );
+
+                if element_type.is_reference() {
+                    // Must materialize the slot as an SSA handle
+                    let array_values = flat_lvalue.base.clone().into_value_list(self);
+                    let array: ir::map::Id<ir::value::Value> =
+                        if array_values.len() > 1 { array_values[1] } else { array_values[0] };
+                    let elem_ref = self.codegen_flat_array_get(array, new_offset, element_type);
+                    flat_lvalue.base = elem_ref;
+                    flat_lvalue.offset =
+                        self.builder.numeric_constant(0_u32, NumericType::length_type());
+                    flat_lvalue.base_is_materialized = true;
+                } else {
+                    // Inline types -> just do stride/offset math
+                    flat_lvalue.offset = new_offset;
+                    flat_lvalue.base_is_materialized = false;
+                }
+
+                flat_lvalue.elem_type = element_type.clone();
+                Ok(flat_lvalue)
+            }
+            ast::LValue::MemberAccess { object, field_index } => {
+                let field_index = *field_index;
+                let mut flat_lvalue = self.extract_flat_lvalue(object)?;
+                let element_types = flat_lvalue.elem_type.clone().element_types();
+
+                if flat_lvalue.base_is_materialized {
+                    let field_val = Self::get_field(flat_lvalue.base.clone(), field_index);
+                    flat_lvalue.original_alloc =
+                        Self::get_field(flat_lvalue.original_alloc.clone(), field_index);
+                    flat_lvalue.base = field_val;
+                    flat_lvalue.offset =
+                        self.builder.numeric_constant(0_u32, NumericType::length_type());
+                } else {
+                    // Inline aggregate -> compute offset
+                    let offset = element_types[0..field_index]
+                        .iter()
+                        .fold(0, |acc, typ| acc + typ.flattened_size());
+                    let offset = self.builder.numeric_constant(offset, NumericType::length_type());
+                    flat_lvalue.offset = self.builder.insert_binary(
+                        flat_lvalue.offset,
+                        BinaryOp::Add { unchecked: true },
+                        offset,
+                    );
+                }
+
+                flat_lvalue.elem_type = element_types[field_index].clone();
+                Ok(flat_lvalue)
+            }
+            ast::LValue::Dereference { reference, element_type } => {
+                let flat_lvalue = self.extract_flat_lvalue(reference)?;
+                let deref_value = self.dereference_lvalue(&flat_lvalue.base, element_type);
+                let zero = self.builder.numeric_constant(0_u32, NumericType::length_type());
+
+                Ok(FlatLValue {
+                    base: deref_value,
+                    offset: zero,
+                    elem_type: element_type.clone(),
+                    // Write back into the dereferenced allocation
+                    original_alloc: flat_lvalue.base,
+                    base_is_materialized: true,
+                })
+            }
+            ast::LValue::Clone(_) => unreachable!("Clone should only be for Brillig runtimes"),
+        }
+    }
+
+    /// Assigns a new value to a flattened LValue.
+    /// `flat_lvalue` contains the base SSA value and flattened index.
+    /// `new_value` is the SSA value(s) to store.
+    pub(super) fn assign_flat_lvalue(&mut self, flat: FlatLValue, new_value: Values) {
+        if flat.base_is_materialized {
+            self.assign(flat.original_alloc, new_value);
+            return;
+        }
+
+        let array_values = flat.base.clone().into_value_list(self);
+        let array = if array_values.len() > 1 { array_values[1] } else { array_values[0] };
+
+        let updated_array =
+            self.assign_lvalue_index_no_offset(new_value, array, flat.offset, Location::dummy());
+        let new_value = if array_values.len() > 1 {
+            Tree::Branch(vec![array_values[0].into(), updated_array.into()])
+        } else {
+            updated_array.into()
+        };
+        self.assign(flat.original_alloc, new_value);
     }
 
     /// Assigns a new value to the given LValue.
@@ -852,7 +1052,13 @@ impl<'a> FunctionContext<'a> {
                     Tree::Branch(vec![vector_values[0].into(), vector_values[1].into()]);
                 self.assign_new_value(*vector_lvalue, new_vector);
             }
-            LValue::MemberAccess { old_object, index, object_lvalue } => {
+            LValue::MemberAccess { old_object, index, object_lvalue, skip_extraction } => {
+                // Having this if block commented is necessary for lvalue assignment that starts with a member access.
+                if skip_extraction {
+                    self.assign_new_value(*object_lvalue, new_value);
+                    return;
+                }
+
                 let new_object = Self::replace_field(old_object, index, new_value);
                 self.assign_new_value(*object_lvalue, new_object);
             }
@@ -885,11 +1091,51 @@ impl<'a> FunctionContext<'a> {
 
         new_value.for_each(|value| {
             let value = value.eval(self);
-            let mutable = false;
-            array = self.builder.insert_array_set(array, index, value, mutable);
+
+            array = self.builder.insert_array_set(array, index, value, false);
             // Unchecked add because this can't overflow (it would have overflowed when creating the array)
             index = self.builder.insert_binary(index, BinaryOp::Add { unchecked: true }, one);
         });
+        array
+    }
+
+    pub(super) fn assign_lvalue_index_no_offset(
+        &mut self,
+        new_value: Values,
+        mut array: ValueId,
+        index: ValueId,
+        _location: Location,
+    ) -> ValueId {
+        let mut index = self.make_array_index(index);
+
+        new_value.for_each(|value| {
+            let value = value.eval(self);
+            let value_typ = self.builder.current_function.dfg.type_of_value(value);
+
+            let flat_typ = value_typ.clone().flatten();
+            let offset = self.builder.numeric_constant(flat_typ.len(), NumericType::length_type());
+            if value_typ.contains_an_array() {
+                // TODO: test setting a struct with array and primitive fields where primitives come after
+                // the array fields. This test should help us check whether we are updating the index appropriately
+                // TODO: Move this logic to a helper
+                let flat_typ = value_typ.clone().flatten();
+                for (my_index, typ) in flat_typ.into_iter().enumerate() {
+                    let read_index = self
+                        .builder
+                        .current_function
+                        .dfg
+                        .make_constant(my_index.into(), NumericType::length_type());
+                    assert!(matches!(typ, Type::Numeric(_)));
+                    let res = self.builder.insert_array_get(value, read_index, typ);
+                    let write_index = self.make_offset(index, my_index as u128, true);
+                    array = self.builder.insert_array_set(array, write_index, res, false);
+                }
+            } else {
+                array = self.builder.insert_array_set(array, index, value, false);
+            }
+            index = self.builder.insert_binary(index, BinaryOp::Add { unchecked: true }, offset);
+        });
+
         array
     }
 
@@ -919,6 +1165,34 @@ impl<'a> FunctionContext<'a> {
                 )
             }
         }
+    }
+
+    pub(super) fn extract_ident_from_expr(
+        &mut self,
+        expr: &ast::Expression,
+        indices: &mut Vec<NestedArrayIndex>,
+    ) -> Result<Values, RuntimeError> {
+        Ok(match expr {
+            ast::Expression::Ident(ident) => {
+                let (variable, should_auto_deref) = self.ident_lvalue(ident);
+                if should_auto_deref {
+                    self.dereference_lvalue(&variable, &ident.typ)
+                } else {
+                    variable
+                }
+            }
+            ast::Expression::Index(index) => {
+                let index_value = self.codegen_non_tuple_expression(&index.index)?;
+
+                indices.push(NestedArrayIndex::Value(index_value, index.element_type.clone()));
+                self.extract_ident_from_expr(&index.collection, indices)?
+            }
+            ast::Expression::ExtractTupleField(tuple, field_index) => {
+                indices.push(NestedArrayIndex::Constant(*field_index));
+                self.extract_ident_from_expr(tuple, indices)?
+            }
+            _ => self.codegen_expression(expr)?,
+        })
     }
 
     pub(crate) fn enter_loop(&mut self, loop_: Loop) {
@@ -975,27 +1249,52 @@ fn convert_operator(op: BinaryOpKind) -> BinaryOp {
     }
 }
 
+#[derive(Debug, Clone)]
+pub(super) enum NestedArrayIndex {
+    /// A runtime array index together with the `ast::Type` of the element
+    /// being indexed into. The `ast::Type` is needed because SSA types lose
+    /// tuple boundaries.
+    Value(ValueId, ast::Type),
+    Constant(usize),
+}
+
 impl SharedContext {
     /// Create a new SharedContext for the given monomorphized program.
     pub(super) fn new(program: Program) -> Self {
-        let globals_shared_context = SharedContext::new_for_globals();
-
         let globals_id = Program::global_space_id();
 
-        // Queue the function representing the globals space for compilation
-        globals_shared_context.get_or_queue_function(globals_id);
-
-        let mut context = FunctionContext::new(
+        // Codegen globals in Brillig context (non-flat arrays)
+        let brillig_globals_shared = SharedContext::new_for_globals();
+        brillig_globals_shared.get_or_queue_function(globals_id);
+        let mut brillig_ctx = FunctionContext::new(
             "globals".to_owned(),
             &vec![],
             RuntimeType::Brillig(InlineType::default()),
-            &globals_shared_context,
+            &brillig_globals_shared,
+            GlobalsGraph::default(),
             GlobalsGraph::default(),
         );
-        let mut globals = BTreeMap::default();
+        let mut brillig_globals = BTreeMap::default();
         for (id, (_, _, global)) in program.globals.iter() {
-            let values = context.codegen_expression(global).unwrap();
-            globals.insert(*id, values);
+            let values = brillig_ctx.codegen_expression(global).unwrap();
+            brillig_globals.insert(*id, values);
+        }
+
+        // Codegen globals in ACIR context (flat arrays)
+        let acir_globals_shared = SharedContext::new_for_globals();
+        acir_globals_shared.get_or_queue_function(globals_id);
+        let mut acir_ctx = FunctionContext::new(
+            "globals".to_owned(),
+            &vec![],
+            RuntimeType::Acir(InlineType::default()),
+            &acir_globals_shared,
+            GlobalsGraph::default(),
+            GlobalsGraph::default(),
+        );
+        let mut acir_globals = BTreeMap::default();
+        for (id, (_, _, global)) in program.globals.iter() {
+            let values = acir_ctx.codegen_expression(global).unwrap();
+            acir_globals.insert(*id, values);
         }
 
         Self {
@@ -1003,21 +1302,23 @@ impl SharedContext {
             function_queue: Default::default(),
             function_counter: Default::default(),
             program,
-            globals_context: context.builder.current_function,
-            globals,
+            brillig_globals_context: brillig_ctx.builder.current_function,
+            acir_globals_context: acir_ctx.builder.current_function,
+            brillig_globals,
+            acir_globals,
         }
     }
 
     pub(super) fn new_for_globals() -> Self {
-        let globals_context = Function::new_for_globals();
-
         Self {
             functions: Default::default(),
             function_queue: Default::default(),
             function_counter: Default::default(),
             program: Default::default(),
-            globals_context,
-            globals: Default::default(),
+            acir_globals_context: Function::new_for_globals(),
+            brillig_globals_context: Function::new_for_globals(),
+            acir_globals: Default::default(),
+            brillig_globals: Default::default(),
         }
     }
 
@@ -1051,7 +1352,7 @@ impl SharedContext {
 }
 
 /// Used to remember the results of each step of extracting a value from an ast::LValue
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(super) enum LValue {
     Ident,
     Index {
@@ -1070,8 +1371,25 @@ pub(super) enum LValue {
         old_object: Values,
         index: usize,
         object_lvalue: Box<LValue>,
+        skip_extraction: bool,
     },
     Dereference {
         reference: Values,
     },
+}
+
+/// Tracks the base SSA value and current flat offset while flattening.
+#[derive(Debug, Clone)]
+pub(super) struct FlatLValue {
+    /// SSA value holding the base array or struct
+    base: Values,
+    /// Current flattened index offset   
+    offset: ValueId,
+    /// Type of the element at `base + offset`    
+    elem_type: ast::Type,
+    /// The original allocation to write back into  
+    original_alloc: Values,
+    /// Whether `base` is an SSA handle (materialized slot / reference) rather than the original allocation.
+    /// If true, MemberAccess should be done by extracting a field from `base`. If false, do offset math.
+    pub base_is_materialized: bool,
 }

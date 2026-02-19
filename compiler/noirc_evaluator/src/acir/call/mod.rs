@@ -1,14 +1,10 @@
 use acvm::AcirField;
-use acvm::acir::brillig::lengths::{
-    ElementTypesLength, ElementsFlattenedLength, FlattenedLength, SemanticLength,
-    SemiFlattenedLength,
-};
+use acvm::acir::brillig::lengths::{ElementsFlattenedLength, FlattenedLength, SemanticLength};
 use acvm::acir::circuit::opcodes::AcirFunctionId;
 use iter_extended::vecmap;
 use noirc_artifacts::ssa::SsaReport;
 
 use crate::acir::AcirVar;
-use crate::brillig::assert_u32;
 use crate::brillig::brillig_gen::brillig_fn::FunctionContext;
 use crate::brillig::brillig_gen::gen_brillig_for;
 use crate::brillig::brillig_ir::artifact::BrilligParameter;
@@ -186,37 +182,49 @@ impl Context<'_> {
     ) -> Vec<BrilligParameter> {
         values
             .iter()
-            .map(|&value_id| {
+            .enumerate()
+            .map(|(idx, &value_id)| {
                 let typ = dfg.type_of_value(value_id);
                 if let Type::Vector(item_types) = typ {
-                    let len = match self
-                        .ssa_values
-                        .get(&value_id)
-                        .expect("ICE: Unknown vector input to brillig")
-                    {
-                        AcirValue::DynamicArray(AcirDynamicArray { len, .. }) => {
-                            // len holds the flattened length of all elements in the vector,
-                            // so to get the no-flattened length we need to divide by the flattened
-                            // length of a single vector entry
-                            let sum: FlattenedLength =
-                                item_types.iter().map(|typ| typ.flattened_size()).sum();
-                            if sum.0 == 0 {
-                                SemanticLength(0)
-                            } else {
-                                *len / ElementsFlattenedLength::from(sum)
+                    let element_flat_size: FlattenedLength =
+                        item_types.iter().map(|typ| typ.flattened_size()).sum();
+
+                    let len = if element_flat_size.0 == 0 {
+                        // When elements are zero-sized, the flattened data is empty regardless
+                        // of the actual vector length, so we cannot recover the semantic length
+                        // by dividing. In SSA, vectors are represented as (length, data) pairs,
+                        // so the preceding argument holds the semantic length as a u32 constant.
+                        let length_value_id = values[idx - 1];
+                        let length = dfg
+                            .get_numeric_constant(length_value_id)
+                            .expect("ICE: Vector with zero-sized elements must be preceded by its length as a constant");
+                        SemanticLength(length.to_u128() as u32)
+                    } else {
+                        match self
+                            .ssa_values
+                            .get(&value_id)
+                            .expect("ICE: Unknown vector input to brillig")
+                        {
+                            AcirValue::DynamicArray(AcirDynamicArray { len, .. }) => {
+                                // len holds the flattened length of all elements in the vector,
+                                // so to get the non-flattened length we need to divide by the flattened
+                                // length of a single vector entry
+                                *len / ElementsFlattenedLength::from(element_flat_size)
                             }
-                        }
-                        AcirValue::Array(array) => {
-                            if item_types.is_empty() {
-                                SemanticLength(0)
-                            } else {
-                                // len holds the semi-flattened length of all elements in the vector,
-                                // so here we need to divide by elements length of the item types
-                                let len = SemiFlattenedLength(assert_u32(array.len()));
-                                len / ElementTypesLength(assert_u32(item_types.len()))
+                            AcirValue::Array(array) => {
+                                // The Array may contain a mix of flat Vars and nested Arrays
+                                // (e.g. flat scalars + nested [Field; 3]). Use the total flat size
+                                // divided by the flat element size to get the logical element count.
+                                let flat_size: usize = array
+                                    .iter()
+                                    .map(|v| arrays::flattened_value_size(v).to_usize())
+                                    .sum();
+                                SemanticLength(
+                                    (flat_size / element_flat_size.0 as usize) as u32,
+                                )
                             }
+                            _ => unreachable!("ICE: Vector value is not an array"),
                         }
-                        _ => unreachable!("ICE: Vector value is not an array"),
                     };
 
                     BrilligParameter::Vector(
@@ -247,11 +255,24 @@ impl Context<'_> {
                     arrays::flattened_value_size(&output)
                 };
                 self.initialize_array(block_id, len, Some(output.clone()))?;
+
+                // Eagerly flatten so all arrays in ssa_values are guaranteed flat.
+                // Brillig/ACIR call outputs may have nested AcirValue::Array elements;
+                // flattening here avoids an O(n) check on every ArrayGet/ArraySet.
+                let flat_output = AcirValue::Array(
+                    output
+                        .flatten()
+                        .into_iter()
+                        .map(|(var, typ)| AcirValue::Var(var, typ))
+                        .collect::<im::Vector<_>>(),
+                );
+                self.ssa_values.insert(*result_id, flat_output);
+            } else {
+                // Do nothing for AcirValue::DynamicArray and AcirValue::Var
+                // A dynamic array returned from a function call should already be initialized
+                // and a single variable does not require any extra initialization.
+                self.ssa_values.insert(*result_id, output);
             }
-            // Do nothing for AcirValue::DynamicArray and AcirValue::Var
-            // A dynamic array returned from a function call should already be initialized
-            // and a single variable does not require any extra initialization.
-            self.ssa_values.insert(*result_id, output);
         }
         Ok(())
     }

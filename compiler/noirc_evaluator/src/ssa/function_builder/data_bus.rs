@@ -3,15 +3,11 @@ use std::{collections::BTreeMap, sync::Arc};
 use crate::{
     brillig::assert_usize,
     ssa::ir::{
-        function::RuntimeType,
         types::{NumericType, Type},
         value::{ValueId, ValueMapping},
     },
 };
-use acvm::{
-    FieldElement,
-    acir::brillig::lengths::{FlattenedLength, SemanticLength},
-};
+use acvm::acir::brillig::lengths::{FlattenedLength, SemanticLength};
 use noirc_frontend::monomorphization::ast::Parameters;
 use noirc_frontend::shared::Visibility;
 use rustc_hash::FxHashMap as HashMap;
@@ -167,30 +163,18 @@ impl FunctionBuilder {
                 databus.values.push_back(value);
                 databus.index += 1;
             }
-            Type::Array(typ, len) => {
+            Type::Array(_, _) => {
                 databus.map.insert(value, databus.index);
 
-                let mut index = 0;
-                for _i in 0..len.0 {
-                    for subitem_typ in typ.iter() {
-                        // load each element of the array, and add it to the databus
-                        let length_type = NumericType::length_type();
-                        let index_var = FieldElement::from(index);
-                        let index_var =
-                            self.current_function.dfg.make_constant(index_var, length_type);
-                        // If we do not check for an empty array we will have an unused array get
-                        // as an array of length zero will not be actually added to the databus' values.
-                        if let Type::Array(_, SemanticLength(0)) = subitem_typ {
-                            continue;
-                        }
-                        let element = self.insert_array_get(value, index_var, subitem_typ.clone());
-                        index += match subitem_typ {
-                            Type::Array(_, _) | Type::Vector(_) => subitem_typ.element_size().0,
-                            Type::Numeric(_) => 1,
-                            _ => unreachable!("Unsupported type for databus"),
-                        };
-                        self.add_to_data_bus(element, databus);
-                    }
+                let flat_typ = typ.flatten();
+                for (my_index, typ) in flat_typ.into_iter().enumerate() {
+                    let index = self
+                        .current_function
+                        .dfg
+                        .make_constant(my_index.into(), NumericType::length_type());
+                    assert!(matches!(typ, Type::Numeric(_)));
+                    let element = self.insert_array_get(value, index, typ);
+                    self.add_to_data_bus(element, databus);
                 }
             }
             Type::Reference(_) => {
@@ -211,7 +195,7 @@ impl FunctionBuilder {
         // Only decompose values into flat array_gets and build the data bus array
         // for ACIR functions. In Brillig, the data bus array is never created and
         // the flat array_get instructions would be dead code.
-        if !matches!(self.current_function.runtime(), RuntimeType::Acir(_)) {
+        if !self.current_function.runtime().is_acir() {
             return DataBusBuilder { call_data_id, ..DataBusBuilder::new() };
         }
 

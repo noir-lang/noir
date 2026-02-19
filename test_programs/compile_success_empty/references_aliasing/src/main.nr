@@ -38,8 +38,10 @@ fn regression_2445() {
 
     let mut array = [ref, ref];
 
-    **array[0] = 1;
-    **array[1] = 2;
+    assert(**array[0] == 0);
+
+    **array[0 as u32] = 1;
+    **array[1 as u32] = 2;
 
     assert(var == 2);
     assert(**ref == 2);

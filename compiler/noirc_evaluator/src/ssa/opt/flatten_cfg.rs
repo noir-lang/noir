@@ -712,6 +712,17 @@ impl<'f> Context<'f> {
 
         // Cannot include this in the previous vecmap since it requires exclusive access to self
         let args = vecmap(args, |(then_arg, else_arg)| {
+            // Check if we can optimize array merging
+            if let Some(optimized) = self.try_optimize_array_set_merge(
+                then_arg,
+                else_arg,
+                cond_context.then_branch.condition,
+                else_branch.condition,
+                cond_context.call_stack,
+            ) {
+                return optimized;
+            }
+
             let instruction = Instruction::IfElse {
                 then_condition: cond_context.then_branch.condition,
                 then_value: then_arg,
@@ -747,6 +758,191 @@ impl<'f> Context<'f> {
         for (value, old_mapping) in conditional_context.predicated_values.drain() {
             self.inserter.map_value(value, old_mapping);
         }
+    }
+
+    /// Create an array with a merged value at a single index.
+    ///
+    /// This is the core optimization for conditional array modifications. Instead of
+    /// merging entire arrays (O(n) in remove_if_else), we merge just the scalar value
+    /// at the modified index:
+    ///
+    /// ```text
+    /// original = array_get(base_array, index)
+    /// merged = if then_condition { new_value } else { original }
+    /// result = array_set(base_array, index, merged)
+    /// ```
+    #[allow(clippy::too_many_arguments)]
+    fn create_merged_array_set(
+        &mut self,
+        base_array: ValueId,
+        index: ValueId,
+        new_value: ValueId,
+        then_condition: ValueId,
+        else_condition: ValueId,
+        mutable: bool,
+        call_stack: CallStackId,
+    ) -> ValueId {
+        let typ = self.inserter.function.dfg.type_of_value(new_value);
+
+        // Get the original value at this index
+        let get = Instruction::ArrayGet { array: base_array, index };
+        let original_value =
+            self.insert_instruction_with_typevars(get, Some(vec![typ]), call_stack).first();
+
+        // Merge the value: if then_condition { new_value } else { original_value }
+        let merge = Instruction::IfElse {
+            then_condition,
+            then_value: new_value,
+            else_condition,
+            else_value: original_value,
+        };
+        let merged_value = self.insert_instruction(merge, call_stack);
+
+        // Create the array_set with merged value
+        self.insert_instruction(
+            Instruction::ArraySet { array: base_array, index, value: merged_value, mutable },
+            call_stack,
+        )
+    }
+
+    /// Try to optimize a Store of an ArraySet by merging just the value at the modified index.
+    ///
+    /// When we have a conditional Store of an ArraySet result:
+    /// ```text
+    /// v1 = load addr
+    /// v2 = array_set v1, index, new_val
+    /// v3 = if cond { v2 } else { v1' }  // v1' is another load from addr
+    /// store v3 at addr
+    /// ```
+    ///
+    /// We transform it to merge just the value at the index:
+    /// ```text
+    /// v1' = load addr
+    /// orig = array_get v1', index
+    /// merged = if cond { new_val } else { orig }
+    /// v2 = array_set v1', index, merged
+    /// store v2 at addr
+    /// ```
+    ///
+    /// This works because if cond is false, the array_set just puts back the original
+    /// value, producing the same array as v1'.
+    fn try_optimize_store_of_array_set(
+        &mut self,
+        value: ValueId,
+        address: ValueId,
+        previous_value: ValueId,
+        condition: ValueId,
+        call_stack: CallStackId,
+    ) -> Option<ValueId> {
+        // Global values have their instructions in the global DFG, not the function's DFG.
+        if self.inserter.function.dfg.is_global(value) {
+            return None;
+        }
+        // Check if value is an ArraySet instruction
+        let Value::Instruction { instruction, .. } = &self.inserter.function.dfg[value] else {
+            return None;
+        };
+
+        let Instruction::ArraySet { array, index, value: new_val, mutable } =
+            self.inserter.function.dfg[*instruction].clone()
+        else {
+            return None;
+        };
+
+        // Resolve values
+        let array = self.inserter.resolve(array);
+        let index = self.inserter.resolve(index);
+        let new_val = self.inserter.resolve(new_val);
+
+        // Check if the ArraySet's base array was loaded from the same address.
+        // This means `array` and `previous_value` are semantically equivalent.
+        if !self.was_loaded_from_address(array, address) {
+            return None;
+        }
+
+        let else_condition = self.not_instruction(condition, call_stack);
+        Some(self.create_merged_array_set(
+            previous_value,
+            index,
+            new_val,
+            condition,
+            else_condition,
+            mutable,
+            call_stack,
+        ))
+    }
+
+    /// Check if a value was the result of loading from a specific address.
+    fn was_loaded_from_address(&self, value: ValueId, address: ValueId) -> bool {
+        if self.inserter.function.dfg.is_global(value) {
+            return false;
+        }
+        let Value::Instruction { instruction, .. } = &self.inserter.function.dfg[value] else {
+            return false;
+        };
+        matches!(
+            &self.inserter.function.dfg[*instruction],
+            Instruction::Load { address: load_addr } if *load_addr == address
+        )
+    }
+
+    /// Try to optimize the merging of array values at a join point.
+    ///
+    /// This recognizes the pattern where:
+    /// - `then_value` is the result of `ArraySet(base_array, index, new_value)`
+    /// - `else_value` is `base_array`
+    ///
+    /// Instead of creating an `IfElse` that merges entire arrays (O(n) in remove_if_else),
+    /// we transform this to merge only the value being set:
+    ///
+    /// ```text
+    /// original = array_get(base_array, index)
+    /// merged = if then_condition { new_value } else { original }
+    /// result = array_set(base_array, index, merged)
+    /// ```
+    fn try_optimize_array_set_merge(
+        &mut self,
+        then_value: ValueId,
+        else_value: ValueId,
+        then_condition: ValueId,
+        else_condition: ValueId,
+        call_stack: CallStackId,
+    ) -> Option<ValueId> {
+        // Global values have their instructions in the global DFG, not the function's DFG.
+        // They are always MakeArray, never ArraySet, so skip them.
+        if self.inserter.function.dfg.is_global(then_value) {
+            return None;
+        }
+        // Check if then_value is an ArraySet instruction
+        let Value::Instruction { instruction, .. } = &self.inserter.function.dfg[then_value] else {
+            return None;
+        };
+
+        let Instruction::ArraySet { array, index, value, mutable } =
+            self.inserter.function.dfg[*instruction].clone()
+        else {
+            return None;
+        };
+
+        // Resolve the array and index values since the instruction might have unresolved references
+        let array = self.inserter.resolve(array);
+        let index = self.inserter.resolve(index);
+        let value = self.inserter.resolve(value);
+
+        // Check if the base array of the ArraySet is the else_value
+        if array != else_value {
+            return None;
+        }
+
+        Some(self.create_merged_array_set(
+            else_value,
+            index,
+            value,
+            then_condition,
+            else_condition,
+            mutable,
+            call_stack,
+        ))
     }
 
     /// Insert a new instruction into the target block.
@@ -811,6 +1007,7 @@ impl<'f> Context<'f> {
         let instruction = self.handle_instruction_side_effects(instruction, call_stack);
 
         let instruction_is_allocate = matches!(&instruction, Instruction::Allocate);
+
         let results = self.inserter.push_instruction_value(
             instruction,
             id,
@@ -862,6 +1059,19 @@ impl<'f> Context<'f> {
                     let previous_value = self
                         .insert_instruction_with_typevars(load, Some(vec![typ]), call_stack)
                         .first();
+
+                    // Optimization: If the stored value is an ArraySet whose base was loaded
+                    // from the same address, we can merge just the scalar value instead of
+                    // the entire array. This transforms O(n) array merging into O(1).
+                    if let Some(optimized) = self.try_optimize_store_of_array_set(
+                        value,
+                        address,
+                        previous_value,
+                        condition,
+                        call_stack,
+                    ) {
+                        return Instruction::Store { address, value: optimized };
+                    }
 
                     let else_condition = self.not_instruction(condition, call_stack);
 
@@ -2024,5 +2234,89 @@ mod tests {
             return v1
         }
         ");
+    }
+
+    #[test]
+    fn conditional_array_set_scalar_merge() {
+        // Test that conditional array_set creates scalar IfElse, not array IfElse at join point.
+        // The array_set should be transformed to:
+        //   1. array_get the original value at the index
+        //   2. if-else merge just the scalar
+        //   3. unconditional array_set with the merged value
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: [Field; 4]):
+            jmpif v0 then: b1, else: b2
+          b1():
+            v2 = array_set v1, index u32 2, value Field 42
+            jmp b3(v2)
+          b2():
+            jmp b3(v1)
+          b3(v3: [Field; 4]):
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg();
+
+        // After flattening, the array_set merge should be optimized to a scalar merge.
+        // We should see: array_get from base array, scalar merge (cast/mul/add), then array_set with merged value.
+        // The key is that there's NO IfElse instruction on arrays - just a scalar merge.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: [Field; 4]):
+            enable_side_effects v0
+            v4 = array_set v1, index u32 2, value Field 42
+            v5 = not v0
+            enable_side_effects u1 1
+            v7 = array_get v1, index u32 2 -> Field
+            v8 = cast v0 as Field
+            v9 = cast v5 as Field
+            v10 = mul v8, Field 42
+            v11 = mul v9, v7
+            v12 = add v10, v11
+            v13 = array_set v1, index u32 2, value v12
+            return v13
+        }
+        ");
+    }
+
+    // Regression test: global array values passed as branch arguments should not
+    // cause an index-out-of-bounds panic. The global's InstructionId lives in the
+    // global DFG, not the function's DFG, so try_optimize_array_set_merge must
+    // guard against accessing it via the local DFG.
+    //
+    // We need enough globals so the branch-arg globals have InstructionIds higher
+    // than the number of local instructions the flatten pass creates before
+    // reaching the merge point (~3: enable_side_effects, not, enable_side_effects).
+    #[test]
+    fn flatten_with_global_array_branch_args() {
+        let src = "
+            g0 = make_array [u8 0] : [u8; 1]
+            g1 = make_array [u8 0] : [u8; 1]
+            g2 = make_array [u8 0] : [u8; 1]
+            g3 = make_array [u8 0, u8 0, u8 0] : [u8; 3]
+            g4 = make_array [u8 0] : [u8; 1]
+            g5 = make_array [u8 0] : [u8; 1]
+            g6 = make_array [u8 0] : [u8; 1]
+            g7 = make_array [u8 1, u8 1, u8 1] : [u8; 3]
+
+            acir(inline) fn main f0 {
+              b0(v0: u1):
+                jmpif v0 then: b1, else: b2
+              b1():
+                jmp b3(g3)
+              b2():
+                jmp b3(g7)
+              b3(v1: [u8; 3]):
+                return v1
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+        // This should not panic (previously crashed with index out of bounds
+        // when try_optimize_array_set_merge accessed a global InstructionId
+        // in the function's local DFG).
+        let ssa = ssa.flatten_cfg();
+        assert_eq!(ssa.main().reachable_blocks().len(), 1);
     }
 }

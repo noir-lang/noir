@@ -160,7 +160,7 @@ impl Translator {
             }
             RuntimeType::Brillig(inline_type) => {
                 self.builder.new_brillig_function(external_name, function_id, inline_type);
-                self.builder.set_globals(self.globals_graph.clone());
+                self.builder.set_globals(self.globals_graph.clone(), self.globals_graph.clone());
 
                 // In our ACIR generation tests we want to make sure that `brillig_locations` in the `GeneratedAcir` was accurately set.
                 // Thus, we set a dummy location here so that translated instructions have a location associated with them.
@@ -177,7 +177,7 @@ impl Translator {
     }
 
     fn translate_function_body(&mut self, function: ParsedFunction) -> Result<(), SsaError> {
-        self.builder.set_globals(self.globals_graph.clone());
+        self.builder.set_globals(self.globals_graph.clone(), self.globals_graph.clone());
 
         // First define all blocks so that they are known (a block might jump to a block that comes next)
         for (index, block) in function.blocks.iter().enumerate() {

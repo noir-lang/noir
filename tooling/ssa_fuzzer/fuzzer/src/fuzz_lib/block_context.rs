@@ -7,7 +7,11 @@ use super::{
 };
 use noir_ssa_fuzzer::builder::{FuzzerBuilder, InstructionWithOneArg, InstructionWithTwoArgs};
 use noir_ssa_fuzzer::typed_value::{NumericType, Point, Scalar, Type, TypedValue};
-use noirc_evaluator::ssa::ir::{basic_block::BasicBlockId, function::Function, map::Id};
+use noirc_evaluator::ssa::ir::{
+    basic_block::BasicBlockId,
+    function::{Function, RuntimeType},
+    map::Id,
+};
 use std::collections::{HashMap, VecDeque};
 use std::iter::zip;
 
@@ -708,6 +712,10 @@ impl BlockContext {
         element_type: Type,
     ) -> Option<TypedValue> {
         if !self.options.instruction_options.create_array_enabled {
+            return None;
+        }
+        // ACIR uses flat array layout — skip nested array creation
+        if matches!(builder.runtime, RuntimeType::Acir(_)) && element_type.is_array() {
             return None;
         }
         // if we storing references, take values from memory addresses, otherwise from stored variables

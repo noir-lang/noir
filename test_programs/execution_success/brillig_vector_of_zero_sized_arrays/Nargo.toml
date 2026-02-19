@@ -1,0 +1,6 @@
+[package]
+name = "brillig_vector_of_zero_sized_arrays"
+type = "bin"
+authors = [""]
+
+[dependencies]

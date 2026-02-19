@@ -142,6 +142,23 @@ pub struct ArrayValue {
 
     pub element_types: Arc<CompositeType>,
     pub is_vector: bool,
+
+    /// When true, elements are stored fully flattened (all scalars).
+    /// Used for ACIR arrays whose element_types contain nested array types.
+    pub is_flat: bool,
+}
+
+impl ArrayValue {
+    /// Returns the number of flat scalar elements per one "cycle" of element_types.
+    /// For flat arrays/vectors, this is the sum of flattened sizes.
+    /// For semi-flat, this is just `element_types.len()`.
+    pub fn element_stride(&self) -> usize {
+        if self.is_flat {
+            self.element_types.iter().map(|t| t.flattened_size().0 as usize).sum()
+        } else {
+            self.element_types.len()
+        }
+    }
 }
 
 impl Value {
@@ -152,6 +169,17 @@ impl Value {
             Value::Reference(reference) => Type::Reference(reference.element_type.clone()),
             Value::ArrayOrVector(array) if array.is_vector => {
                 Type::Vector(array.element_types.clone())
+            }
+            Value::ArrayOrVector(array) if array.is_flat => {
+                // For flat arrays, compute length from flattened size
+                let flat_per_cycle: u32 =
+                    array.element_types.iter().map(|t| t.flattened_size().0).sum();
+                let len = if flat_per_cycle == 0 {
+                    SemanticLength(0)
+                } else {
+                    SemanticLength(assert_u32(array.elements.borrow().len()) / flat_per_cycle)
+                };
+                Type::Array(array.element_types.clone(), len)
             }
             Value::ArrayOrVector(array) => {
                 let element_types_length =
@@ -285,6 +313,7 @@ impl Value {
             rc: Shared::new(1),
             element_types: Arc::new(element_types),
             is_vector: false,
+            is_flat: false,
         })
     }
 
@@ -294,6 +323,7 @@ impl Value {
             rc: Shared::new(1),
             element_types,
             is_vector: true,
+            is_flat: false,
         })
     }
 
@@ -356,6 +386,7 @@ impl Value {
                     rc: Shared::new(*a.rc.borrow()),
                     element_types: a.element_types.clone(),
                     is_vector: a.is_vector,
+                    is_flat: a.is_flat,
                 })
             }
             Value::Function(id) => Value::Function(*id),
@@ -379,6 +410,131 @@ impl Value {
     #[cfg(test)]
     pub(crate) fn unfit(field: FieldElement, typ: NumericType) -> IResult<Self> {
         NumericValue::unfit(field, typ).map(Self::Numeric)
+    }
+
+    /// Flatten a semi-flat array value (with nested `ArrayValue`s) into a fully flat
+    /// array of scalars, for use in ACIR functions where SSA gen produces flat indexing.
+    pub(crate) fn flatten_for_acir(value: &Value) -> Value {
+        match value {
+            Value::ArrayOrVector(array)
+                if !array.is_flat
+                    && !array.is_vector
+                    && array.element_types.iter().any(|t| t.contains_an_array()) =>
+            {
+                // Don't flatten when the flat stride is 0 (zero-size inner arrays like
+                // [[u128; 0]; 2]) — flattening would produce 0 elements and lose
+                // the semantic length.
+                let flat_per_cycle: usize =
+                    array.element_types.iter().map(|t| t.flattened_size().0 as usize).sum();
+                if flat_per_cycle == 0 {
+                    return value.clone();
+                }
+
+                let mut flat_elements = Vec::new();
+                Self::flatten_elements(&array.elements.borrow(), &mut flat_elements);
+                Value::ArrayOrVector(ArrayValue {
+                    elements: Shared::new(flat_elements),
+                    rc: Shared::new(1),
+                    element_types: array.element_types.clone(),
+                    is_vector: false,
+                    is_flat: true,
+                })
+            }
+            _ => value.clone(),
+        }
+    }
+
+    /// Recursively flatten all elements, expanding nested `ArrayValue`s into scalars.
+    pub(crate) fn flatten_elements(elements: &[Value], out: &mut Vec<Value>) {
+        for element in elements {
+            match element {
+                Value::ArrayOrVector(inner) => {
+                    Self::flatten_elements(&inner.elements.borrow(), out);
+                }
+                other => out.push(other.clone()),
+            }
+        }
+    }
+
+    /// Create semi-flat inner arrays for a zero-size nested array type.
+    /// For example, `[[u128; 0]; 2]` → two empty `ArrayValue`s with element_types `[u128]`.
+    /// This preserves the semantic length when the flat representation would have 0 elements.
+    pub(crate) fn create_zero_size_inner_arrays(
+        element_types: &[Type],
+        semantic_length: usize,
+        id: ValueId,
+    ) -> Vec<Value> {
+        let mut elements = Vec::new();
+        for _ in 0..semantic_length {
+            for typ in element_types.iter() {
+                elements.push(Value::uninitialized(typ, id));
+            }
+        }
+        elements
+    }
+
+    /// Unflatten a flat ACIR array back to nested form for Brillig consumption.
+    /// If the array is not flat or element_types don't contain arrays, it's a no-op.
+    pub(crate) fn unflatten_for_brillig(value: &Value) -> Value {
+        match value {
+            Value::ArrayOrVector(array) if array.is_flat => {
+                let elements = array.elements.borrow();
+                let mut nested = Vec::new();
+                let mut offset = 0;
+                let flat_len = elements.len();
+                let flat_per_cycle: usize =
+                    array.element_types.iter().map(|t| t.flattened_size().0 as usize).sum();
+                if flat_per_cycle == 0 {
+                    return value.clone();
+                }
+                let repeats = flat_len / flat_per_cycle;
+                for _ in 0..repeats {
+                    for typ in array.element_types.iter() {
+                        let (val, consumed) = Self::unflatten_value(typ, &elements, offset);
+                        nested.push(val);
+                        offset += consumed;
+                    }
+                }
+                Value::ArrayOrVector(ArrayValue {
+                    elements: Shared::new(nested),
+                    rc: Shared::new(1),
+                    element_types: array.element_types.clone(),
+                    is_vector: array.is_vector,
+                    is_flat: false,
+                })
+            }
+            _ => value.clone(),
+        }
+    }
+
+    /// Reconstruct a single value of the given type from flat scalar elements.
+    /// Returns the reconstructed value and the number of flat elements consumed.
+    pub(crate) fn unflatten_value(typ: &Type, flat: &[Value], offset: usize) -> (Value, usize) {
+        match typ {
+            Type::Array(element_types, len) => {
+                let mut elements = Vec::new();
+                let mut consumed = 0;
+                for _ in 0..len.0 {
+                    for et in element_types.iter() {
+                        let (val, c) = Self::unflatten_value(et, flat, offset + consumed);
+                        elements.push(val);
+                        consumed += c;
+                    }
+                }
+                let array = Value::ArrayOrVector(ArrayValue {
+                    elements: Shared::new(elements),
+                    rc: Shared::new(1),
+                    element_types: element_types.clone(),
+                    is_vector: false,
+                    is_flat: false,
+                });
+                (array, consumed)
+            }
+            _ => {
+                // Scalar or non-array type: take one flat element
+                (flat[offset].clone(), 1)
+            }
+        }
     }
 }
 
@@ -636,7 +792,13 @@ impl std::fmt::Display for ArrayValue {
 
         write!(f, "[")?;
 
-        let length = self.elements.borrow().len() / self.element_types.len();
+        let length = if self.is_flat {
+            let flat_per_cycle: usize =
+                self.element_types.iter().map(|t| t.flattened_size().0 as usize).sum();
+            if flat_per_cycle == 0 { 0 } else { self.elements.borrow().len() / flat_per_cycle }
+        } else {
+            self.elements.borrow().len() / self.element_types.len()
+        };
         if length == 0 {
             // We show an array length zero like `[T; 0]` or `[(T1, T2, ...); 0]`
             let element_types = if self.element_types.len() == 1 {
@@ -650,16 +812,16 @@ impl std::fmt::Display for ArrayValue {
         } else {
             // Otherwise we show the elements, but try to group them if the element type is a composite type
             // (that way the element types can be inferred from the elements)
-            let element_types_len = self.element_types.len();
+            let stride = self.element_stride();
             for (index, element) in self.elements.borrow().iter().enumerate() {
                 if index > 0 {
                     write!(f, ", ")?;
                 }
-                if element_types_len > 1 && index % element_types_len == 0 {
+                if stride > 1 && index % stride == 0 {
                     write!(f, "(")?;
                 }
                 write!(f, "{element}")?;
-                if element_types_len > 1 && index % element_types_len == element_types_len - 1 {
+                if stride > 1 && index % stride == stride - 1 {
                     write!(f, ")")?;
                 }
             }
@@ -671,10 +833,34 @@ impl std::fmt::Display for ArrayValue {
 
 impl PartialEq for ArrayValue {
     fn eq(&self, other: &Self) -> bool {
-        // Don't compare RC
-        self.elements == other.elements
-            && self.element_types == other.element_types
-            && self.is_vector == other.is_vector
+        // Don't compare RC or is_flat (is_flat is an implementation detail)
+        if self.element_types != other.element_types || self.is_vector != other.is_vector {
+            return false;
+        }
+        // If both have the same flatness, compare elements directly
+        if self.is_flat == other.is_flat {
+            return self.elements == other.elements;
+        }
+        // One is flat and the other isn't: compare by flattening the non-flat one
+        let self_flat = Self::collect_scalars(&self.elements.borrow());
+        let other_flat = Self::collect_scalars(&other.elements.borrow());
+        self_flat == other_flat
+    }
+}
+
+impl ArrayValue {
+    /// Recursively collect all scalar (non-array) values for semantic comparison.
+    fn collect_scalars(elements: &[Value]) -> Vec<Value> {
+        let mut result = Vec::new();
+        for element in elements {
+            match element {
+                Value::ArrayOrVector(inner) => {
+                    result.extend(Self::collect_scalars(&inner.elements.borrow()));
+                }
+                other => result.push(other.clone()),
+            }
+        }
+        result
     }
 }
 

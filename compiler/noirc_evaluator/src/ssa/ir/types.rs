@@ -249,6 +249,13 @@ impl Type {
         }
     }
 
+    pub(crate) fn array_size(&self) -> u32 {
+        match self {
+            Type::Array(_, size) => size.0,
+            other => panic!("array_size: Expected array, found {other}"),
+        }
+    }
+
     /// Return the types of items in this array/vector.
     ///
     /// Panics if `self` is not a [`Type::Array`] or [`Type::Vector`].
@@ -290,6 +297,18 @@ impl Type {
         }
     }
 
+    pub(crate) fn flatten(self) -> Vec<Type> {
+        match self {
+            Type::Array(elements, len) => {
+                (0..len.0).flat_map(|_| elements.iter().cloned().flat_map(Type::flatten)).collect()
+            }
+            Type::Vector(_) => {
+                unimplemented!("ICE: cannot flatten slice");
+            }
+            Type::Function | Type::Reference(_) | Type::Numeric(_) => vec![self],
+        }
+    }
+
     /// True if this type is an array (or vector)
     pub(crate) fn is_array(&self) -> bool {
         matches!(self, Type::Array(_, _) | Type::Vector(_))
@@ -303,11 +322,33 @@ impl Type {
         }
     }
 
-    /// True if this type is an array (or vector) or internally contains an array (or vector)
+    #[allow(dead_code)]
+    pub(crate) fn is_nested_array(&self) -> bool {
+        if let Type::Array(element_types, _) = self {
+            element_types.as_ref().iter().any(|typ| typ.contains_an_array())
+        } else {
+            false
+        }
+    }
+
+    /// True if this type is an array (or slice) or internally contains an array (or slice)
     pub(crate) fn contains_an_array(&self) -> bool {
         match self {
             Type::Numeric(_) | Type::Function => false,
             Type::Array(_, _) | Type::Vector(_) => true,
+            Type::Reference(element) => element.contains_an_array(),
+        }
+    }
+
+    /// True if this type is a zero-sized array or internally contains a zer-sized array
+    pub(crate) fn contains_an_empty_array(&self) -> bool {
+        match self {
+            Type::Numeric(_) | Type::Function => false,
+            Type::Vector(_) => false,
+            Type::Array(_, SemanticLength(0)) => true,
+            Type::Array(element_types, _) => {
+                element_types.iter().any(|typ| typ.contains_an_empty_array())
+            }
             Type::Reference(element) => element.contains_an_array(),
         }
     }
@@ -407,6 +448,29 @@ mod tests {
         assert!(i8.value_is_outside_limits(SignedField::positive(0_i128)).is_none());
         assert!(i8.value_is_outside_limits(SignedField::positive(127_i128)).is_none());
         assert!(i8.value_is_outside_limits(SignedField::positive(128_i128)).is_some());
+    }
+
+    #[test]
+    fn flatten_type() {
+        let array_typ = Type::Array(
+            Arc::new(vec![Type::unsigned(1), Type::field(), Type::field(), Type::unsigned(1)]),
+            SemanticLength(2),
+        );
+        let flat_typ = array_typ.flatten();
+
+        let expected = vec![
+            Type::unsigned(1),
+            Type::field(),
+            Type::field(),
+            Type::unsigned(1),
+            Type::unsigned(1),
+            Type::field(),
+            Type::field(),
+            Type::unsigned(1),
+        ];
+        for (got, expected) in flat_typ.into_iter().zip(expected) {
+            assert_eq!(got, expected);
+        }
     }
 
     proptest! {

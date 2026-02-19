@@ -56,7 +56,10 @@ impl Function {
             let Type::Array(_, length) = array_typ else {
                 unreachable!("AsVector called with non-array {}", array_typ);
             };
-
+            // dbg!(length);
+            // let flat_elem_size: u32 = element_types.iter().map(|elem| elem.flattened_size()).sum();
+            // dbg!(flat_elem_size);
+            // let length = length * flat_elem_size;
             let [original_vector_length, _] = context.dfg.instruction_result(instruction_id);
             let known_length =
                 context.dfg.make_constant(length.0.into(), NumericType::length_type());

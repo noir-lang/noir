@@ -126,7 +126,7 @@
 //!   not run after this pass as they can't handle the `unreachable` terminator.
 use std::sync::Arc;
 
-use acvm::{AcirField, FieldElement, acir::brillig::lengths::SemiFlattenedLength};
+use acvm::{AcirField, FieldElement, acir::brillig::lengths::SemanticLength};
 use im::HashSet;
 use noirc_errors::call_stack::CallStackId;
 
@@ -308,16 +308,21 @@ impl Function {
                             else {
                                 return;
                             };
-                            // The index check expects `len` to be the logical length, like for arrays,
-                            // not the semi flattened size, so we need to divide by the number of items.
-                            SemiFlattenedLength(assert_u32(elements.len())) / typ.element_size()
+                            // With flattened arrays, elements.len() is the fully flattened count.
+                            // Divide by the flattened element stride to get the semantic length.
+                            let flat_element_stride: u32 =
+                                typ.element_types().iter().map(|e| e.flattened_size().0).sum();
+                            SemanticLength(assert_u32(elements.len()) / flat_element_stride)
                         }
                         _ => return,
                     };
 
+                    let elements = array_type.element_types();
+                    let flat_types_size: u32 =
+                        elements.iter().map(|element| element.flattened_size().0).sum();
                     let array_op_always_fails = len.0 == 0
                         || context.dfg.get_numeric_constant(*index).is_some_and(|index| {
-                            (index.try_to_u32().unwrap()) >= (array_type.element_size() * len).0
+                            (index.try_to_u32().unwrap()) >= (flat_types_size * len.0)
                         });
                     if !array_op_always_fails {
                         return;
@@ -461,10 +466,20 @@ fn zeroed_value(
     match typ {
         Type::Numeric(numeric_type) => dfg.make_constant(FieldElement::zero(), *numeric_type),
         Type::Array(element_types, len) => {
+            let is_acir = dfg.runtime().is_acir();
+            let has_nested_arrays = element_types.iter().any(|t| t.contains_an_array());
             let mut array = im::Vector::new();
-            for _ in 0..len.0 {
-                for typ in element_types.iter() {
-                    array.push_back(zeroed_value(dfg, func_id, block_id, typ));
+            if is_acir && has_nested_arrays {
+                // In ACIR mode, arrays are stored flat. We must create flat zeroed elements
+                // to match the layout that other SSA passes expect.
+                for flat_typ in typ.clone().flatten() {
+                    array.push_back(zeroed_value(dfg, func_id, block_id, &flat_typ));
+                }
+            } else {
+                for _ in 0..len.0 {
+                    for typ in element_types.iter() {
+                        array.push_back(zeroed_value(dfg, func_id, block_id, typ));
+                    }
                 }
             }
             let instruction = Instruction::MakeArray { elements: array, typ: typ.clone() };
@@ -817,7 +832,7 @@ mod tests {
           b0(v0: u1):
             enable_side_effects v0
             v1 = make_array [u8 1, u8 2] : [u8; 2]
-            v2 = make_array [v1, u1 0] : [([u8; 2], u1); 1]
+            v2 = make_array [u8 1, u8 2, u1 0] : [([u8; 2], u1); 1]
             v3 = mul u32 4294967295, u32 2          // overflow
             v4 = add v3, u32 1                      // after overflow, replaced by default
             enable_side_effects u1 1                // end of side effects mode
@@ -837,7 +852,7 @@ mod tests {
           b0(v0: u1):
             enable_side_effects v0
             v3 = make_array [u8 1, u8 2] : [u8; 2]
-            v5 = make_array [v3, u1 0] : [([u8; 2], u1); 1]
+            v5 = make_array [u8 1, u8 2, u1 0] : [([u8; 2], u1); 1]
             constrain u1 0 == v0, "attempt to multiply with overflow"
             enable_side_effects u1 1
             enable_side_effects v0

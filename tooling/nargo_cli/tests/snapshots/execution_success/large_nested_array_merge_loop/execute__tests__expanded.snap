@@ -1,0 +1,13 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(input: [[u64; 3]; 1024], condition: bool) {
+    let mut arr: [[u64; 3]; 1024] = input;
+    for i in 0_u32..1024_u32 {
+        if condition {
+            arr[i][0_u32] = arr[i][0_u32] + 1_u64;
+        }
+    }
+    assert(arr[0_u32][0_u32] > 0_u64);
+}

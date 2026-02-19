@@ -584,10 +584,11 @@ fn create_apply_function(
     // which are shared across all functions.
     // We will be borrowing `ssa` mutably so we need to fetch this shared information
     // before attempting to add a new function to the SSA.
-    let globals = ssa.main().dfg.globals.clone();
+    let acir_globals = ssa.acir_globals.clone();
+    let brillig_globals = ssa.brillig_globals.clone();
     ssa.add_fn(|id| {
         let mut function_builder = FunctionBuilder::new("apply".to_string(), id);
-        function_builder.set_globals(globals);
+        function_builder.set_globals(acir_globals, brillig_globals);
 
         // We want to push for apply functions to be inlined more aggressively;
         // they are expected to be optimized away by constants visible at the call site.

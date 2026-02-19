@@ -5,7 +5,7 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         function::Function,
         instruction::{Binary, BinaryOp, Instruction, InstructionId},
-        types::{NumericType, Type},
+        types::NumericType,
         value::ValueId,
     },
     opt::die::Context,
@@ -85,13 +85,7 @@ impl Context {
                 (false_const, true_const)
             } else {
                 let array_typ = function.dfg.type_of_value(*array);
-                let element_size = array_typ.element_size();
-                let len = match array_typ {
-                    Type::Array(_, len) => len,
-                    _ => panic!("Expected an array"),
-                };
-                // `index` will be relative to the flattened array length, so we need to take that into account
-                let array_length = element_size * len;
+                let array_length = array_typ.flattened_size();
 
                 // If we are here it means the index is dynamic, so let's add a check that it's less than length.
 

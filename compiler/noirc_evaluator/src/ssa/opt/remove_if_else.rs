@@ -100,7 +100,7 @@
 
 use std::collections::hash_map::Entry;
 
-use acvm::acir::brillig::lengths::SemanticLength;
+use acvm::acir::brillig::lengths::{FlattenedLength, SemanticLength};
 use acvm::{AcirField, FieldElement};
 use rustc_hash::FxHashMap as HashMap;
 
@@ -276,15 +276,35 @@ impl Context {
                 self.set_capacity(context.dfg, old, new, |c| c);
             }
             SizeChange::Inc { old, new } => {
+                let element_stride: u32 = context
+                    .dfg
+                    .type_of_value(old)
+                    .element_types()
+                    .iter()
+                    .map(|elem| elem.flattened_size())
+                    .sum::<FlattenedLength>()
+                    .0;
                 self.set_capacity(context.dfg, old, new, |c| {
                     // Checked addition because increasing the capacity must increase it (cannot wrap around or saturate).
-                    SemanticLength(c.0.checked_add(1).expect("Vector capacity overflow"))
+                    SemanticLength(
+                        c.0.checked_add(element_stride).expect("Vector capacity overflow"),
+                    )
                 });
             }
             SizeChange::Dec { old, new } => {
+                let element_stride: u32 = context
+                    .dfg
+                    .type_of_value(old)
+                    .element_types()
+                    .iter()
+                    .map(|elem| elem.flattened_size())
+                    .sum::<FlattenedLength>()
+                    .0;
                 // We use a saturating sub here as calling `pop_front` or `pop_back` on a zero-length vector
                 // would otherwise underflow.
-                self.set_capacity(context.dfg, old, new, |c| SemanticLength(c.0.saturating_sub(1)));
+                self.set_capacity(context.dfg, old, new, |c| {
+                    SemanticLength(c.0.saturating_sub(element_stride))
+                });
             }
             SizeChange::Many(changes) => {
                 for change in changes {
@@ -348,10 +368,17 @@ impl Context {
             | Intrinsic::VectorRemove
             | Intrinsic::VectorPopFront => {
                 if let Some(const_len) = dfg.get_numeric_constant(arguments[0]) {
-                    self.vector_sizes.insert(
-                        arguments[1],
-                        SemanticLength(const_len.try_to_u32().expect("Type should be u32")),
-                    );
+                    let semantic_len = const_len.try_to_u32().expect("Type should be u32");
+                    // Convert semantic length to flat length since vector_sizes stores flat counts
+                    let element_stride: u32 = dfg
+                        .type_of_value(arguments[1])
+                        .element_types()
+                        .iter()
+                        .map(|elem| elem.flattened_size())
+                        .sum::<FlattenedLength>()
+                        .0;
+                    self.vector_sizes
+                        .insert(arguments[1], SemanticLength(semantic_len * element_stride));
                 }
             }
             Intrinsic::Hint(Hint::BlackBox) => {
@@ -365,10 +392,16 @@ impl Context {
                     }
                     assert!(matches!(arguments_types[i - 1], Type::Numeric(_)));
                     if let Some(const_len) = dfg.get_numeric_constant(arguments[i - 1]) {
-                        self.vector_sizes.insert(
-                            *argument,
-                            SemanticLength(const_len.try_to_u32().expect("Type should be u32")),
-                        );
+                        let semantic_len = const_len.try_to_u32().expect("Type should be u32");
+                        let element_stride: u32 = dfg
+                            .type_of_value(*argument)
+                            .element_types()
+                            .iter()
+                            .map(|elem| elem.flattened_size())
+                            .sum::<FlattenedLength>()
+                            .0;
+                        self.vector_sizes
+                            .insert(*argument, SemanticLength(semantic_len * element_stride));
                     }
                 }
             }
@@ -441,9 +474,7 @@ impl Context {
 
                 let mut changes = Vec::new();
                 for (i, argument) in arguments.iter().enumerate() {
-                    if self.vector_sizes.contains_key(argument)
-                        && matches!(arguments_types[i], Type::Vector(_))
-                    {
+                    if matches!(arguments_types[i], Type::Vector(_)) {
                         assert!(matches!(arguments_types[i - 1], Type::Numeric(_)));
                         let new = results[i];
                         changes.push(SizeChange::SetTo { old: *argument, new });

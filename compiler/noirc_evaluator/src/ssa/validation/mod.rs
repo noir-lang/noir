@@ -213,6 +213,42 @@ impl<'f> Validator<'f> {
             Instruction::MakeArray { elements, typ: _ } => {
                 let result_type = self.assert_one_result(instruction, "MakeArray");
 
+                // ACIR functions use fully flattened arrays, so the element count
+                // equals the total flattened size rather than the semi-flattened size.
+                if self.function.runtime().is_acir() {
+                    match &result_type {
+                        Type::Array(_, _) => {
+                            let flattened_length = result_type.flattened_size();
+                            let elements_length = crate::brillig::assert_u32(elements.len());
+                            if elements_length != flattened_length.0 {
+                                panic!(
+                                    "MakeArray returns an array of flattened length {}, but it has {} elements",
+                                    flattened_length, elements_length
+                                );
+                            }
+                        }
+                        Type::Vector(composite_type) => {
+                            if composite_type.is_empty() && !elements.is_empty() {
+                                panic!(
+                                    "MakeArray vector has non-zero {} elements but composite type is empty",
+                                    elements.len(),
+                                );
+                            }
+                            // For ACIR vectors, elements are fully flattened so
+                            // we can't check divisibility by composite_type.len().
+                        }
+                        _ => {
+                            panic!(
+                                "MakeArray must return an array or vector type, not {result_type}"
+                            );
+                        }
+                    }
+                    // Elements are fully flattened in ACIR, so we skip the
+                    // per-element type check against composite_type.
+                    return;
+                }
+
+                // Brillig: arrays are semi-flattened (tuples flattened, nested arrays kept).
                 let composite_type = match result_type {
                     Type::Array(composite_type, length) => {
                         let types_length =
@@ -1645,7 +1681,7 @@ mod tests {
     )]
     fn make_array_vector_returns_incorrect_length() {
         let src = "
-        acir(inline) fn main f0 {
+        brillig(inline) fn main f0 {
           b0():
             v0 = make_array [u8 1, u8 2, u8 3] : [(u8, u8)]
             return v0
@@ -1672,7 +1708,7 @@ mod tests {
     )]
     fn make_array_has_incorrect_element_type() {
         let src = "
-        acir(inline) fn main f0 {
+        brillig(inline) fn main f0 {
           b0():
             v0 = make_array [u8 1, Field 2, u8 3, u8 4] : [(u8, u8); 2]
             return v0

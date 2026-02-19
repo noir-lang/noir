@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use acvm::acir::circuit::ErrorSelector;
 use iter_extended::btree_map;
@@ -7,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
 use crate::ssa::ir::{
+    dfg::GlobalsGraph,
     function::{Function, FunctionId},
     map::AtomicCounter,
     value::Value,
@@ -34,12 +36,21 @@ pub struct Ssa {
     // ABI not the actual SSA IR.
     #[serde(skip)]
     pub error_selector_to_type: BTreeMap<ErrorSelector, HirType>,
+    #[serde(skip)]
+    pub acir_globals: Arc<GlobalsGraph>,
+    #[serde(skip)]
+    pub brillig_globals: Arc<GlobalsGraph>,
 }
 
 impl Ssa {
     /// Create a new Ssa object from the given SSA functions.
     /// The first function in this vector is expected to be the main function.
-    pub fn new(functions: Vec<Function>, error_types: BTreeMap<ErrorSelector, HirType>) -> Self {
+    pub fn new(
+        functions: Vec<Function>,
+        error_types: BTreeMap<ErrorSelector, HirType>,
+        acir_globals: Arc<GlobalsGraph>,
+        brillig_globals: Arc<GlobalsGraph>,
+    ) -> Self {
         let main_id = functions.first().expect("Expected at least 1 SSA function").id();
         let mut max_id = main_id;
 
@@ -54,6 +65,8 @@ impl Ssa {
             next_id: AtomicCounter::starting_after(max_id),
             entry_point_to_generated_index: BTreeMap::new(),
             error_selector_to_type: error_types,
+            acir_globals,
+            brillig_globals,
         }
     }
 

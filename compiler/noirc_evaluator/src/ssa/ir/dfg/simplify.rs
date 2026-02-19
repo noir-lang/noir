@@ -10,7 +10,7 @@ use crate::ssa::ir::{
 };
 use acvm::{
     AcirField as _, FieldElement,
-    acir::brillig::lengths::{ElementTypesLength, SemanticLength},
+    acir::brillig::lengths::{FlattenedLength, SemanticLength},
 };
 use binary::simplify_binary;
 use call::simplify_call;
@@ -119,9 +119,12 @@ pub(crate) fn simplify(
             }
 
             let array_or_vector_type = dfg.type_of_value(*array);
-            if matches!(array_or_vector_type, Type::Array(_, SemanticLength(1)))
-                && array_or_vector_type.element_size() == ElementTypesLength(1)
-            {
+            let Type::Array(element_types, SemanticLength(1)) = &array_or_vector_type else {
+                return None;
+            };
+
+            let has_empty_arrays = element_types.iter().any(|typ| typ.contains_an_empty_array());
+            if array_or_vector_type.flattened_size() == FlattenedLength(1) && !has_empty_arrays {
                 // If the array is of length 1 then we know the only value which can be potentially read out of it.
                 // We can then simply assert that the index is equal to zero and return the array's contained value.
                 optimize_length_one_array_read(dfg, block, call_stack, *array, *index)
@@ -132,14 +135,37 @@ pub(crate) fn simplify(
         Instruction::ArraySet { array: array_id, index: index_id, value, .. } => {
             let array = dfg.get_array_constant(*array_id);
             let index = dfg.get_numeric_constant(*index_id);
-            if let (Some((array, _element_type)), Some(index)) = (array, index) {
-                let index =
+            if let (Some((mut array, _element_type)), Some(index)) = (array, index) {
+                let index_const =
                     index.try_to_u32().expect("Expected array index to fit in u32") as usize;
 
-                if index < array.len() {
-                    let elements = array.update(index, *value);
+                if index_const < array.len() {
+                    let typ = dfg.type_of_value(*value);
+                    let is_acir = dfg.runtime().is_acir();
+                    match (&typ, is_acir) {
+                        (Type::Array(_, _), true) => {
+                            let flat_typ = typ.clone().flatten();
+                            for (my_index, typ) in flat_typ.into_iter().enumerate() {
+                                let index =
+                                    dfg.make_constant(my_index.into(), NumericType::length_type());
+                                assert!(matches!(typ, Type::Numeric(_)));
+                                let get = Instruction::ArrayGet { array: *value, index };
+                                let typevars = Some(vec![typ]);
+                                let res = dfg
+                                    .insert_instruction_and_results(
+                                        get, block, typevars, call_stack,
+                                    )
+                                    .first();
+                                array = array.update(index_const + my_index, res);
+                            }
+                        }
+                        _ => {
+                            array = array.update(index_const, *value);
+                        }
+                    }
+
                     let typ = dfg.type_of_value(*array_id);
-                    let instruction = Instruction::MakeArray { elements, typ };
+                    let instruction = Instruction::MakeArray { elements: array, typ };
                     let new_array = dfg.insert_instruction_and_results(
                         instruction,
                         block,
@@ -669,17 +695,18 @@ mod tests {
         acir(inline) fn main f0 {
           b0(v0: Field, v1: u32):
             v2 = make_array [v0, v0] : [Field; 2]
-            v3 = make_array [v2] : [[Field; 2]; 1]
+            v3 = make_array [v0, v0] : [[Field; 2]; 1]
             v4 = make_array [] : [Field; 0]
-            v5 = make_array [v4, v0] : [([Field; 0], Field); 1]
+            v5 = make_array [v0] : [([Field; 0], Field); 1]
             v6 = array_get v3, index v1 -> [Field; 2]
             v7 = add v1, u32 1
             v8 = array_get v5, index v7 -> Field
             return v6, v8
         }
         ";
-        // The flattened size of v3 is 2, but it has 1 element -> it can be optimized.
-        // The flattened size of v5 is 1, but it has 2 elements -> it cannot be optimized.
+        // With flat arrays, the length-one optimization only applies when
+        // flattened_size == 1 and no empty arrays. Neither v3 (flattened_size 2)
+        // nor v5 (contains empty array [Field; 0]) qualifies.
 
         let ssa = Ssa::from_str_simplifying(src).unwrap();
 
@@ -687,13 +714,13 @@ mod tests {
         acir(inline) fn main f0 {
           b0(v0: Field, v1: u32):
             v2 = make_array [v0, v0] : [Field; 2]
-            v3 = make_array [v2] : [[Field; 2]; 1]
+            v3 = make_array [v0, v0] : [[Field; 2]; 1]
             v4 = make_array [] : [Field; 0]
-            v5 = make_array [v4, v0] : [([Field; 0], Field); 1]
-            constrain v1 == u32 0, "Index out of bounds"
+            v5 = make_array [v0] : [([Field; 0], Field); 1]
+            v6 = array_get v3, index v1 -> [Field; 2]
             v8 = add v1, u32 1
             v9 = array_get v5, index v8 -> Field
-            return v2, v9
+            return v6, v9
         }
         "#);
     }

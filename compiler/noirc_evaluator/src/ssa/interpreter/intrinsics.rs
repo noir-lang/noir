@@ -3,6 +3,7 @@ use std::{hash::BuildHasher, io::Write};
 use acvm::{AcirField, BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 use bn254_blackbox_solver::derive_generators;
 use iter_extended::{try_vecmap, vecmap};
+use noirc_frontend::Shared;
 use noirc_printable_type::{PrintableType, PrintableValueDisplay, decode_printable_value};
 use num_bigint::BigUint;
 
@@ -26,7 +27,8 @@ impl<W: Write> Interpreter<'_, W> {
             Intrinsic::ArrayLen => {
                 check_argument_count(args, 1, intrinsic)?;
                 let array = self.lookup_array_or_vector(args[0], "call to array_len")?;
-                let length = array.elements.borrow().len();
+                let stride = array.element_stride();
+                let length = if stride == 0 { 0 } else { array.elements.borrow().len() / stride };
                 Ok(vec![Value::u32(length as u32)])
             }
             Intrinsic::ArrayAsStrUnchecked => {
@@ -36,11 +38,19 @@ impl<W: Write> Interpreter<'_, W> {
             Intrinsic::AsVector => {
                 check_argument_count(args, 1, intrinsic)?;
                 let array = self.lookup_array_or_vector(args[0], "call to as_vector")?;
-                let length = array.elements.borrow().len();
+                let stride = array.element_stride();
+                let length = if stride == 0 { 0 } else { array.elements.borrow().len() / stride };
                 let length = Value::u32(length as u32);
 
                 let elements = array.elements.borrow().to_vec();
-                let vector = Value::vector(elements, array.element_types.clone());
+                let is_flat = array.is_flat;
+                let vector = Value::ArrayOrVector(ArrayValue {
+                    elements: Shared::new(elements),
+                    rc: Shared::new(1),
+                    element_types: array.element_types.clone(),
+                    is_vector: true,
+                    is_flat,
+                });
                 Ok(vec![length, vector])
             }
             Intrinsic::AssertConstant => {
@@ -541,16 +551,29 @@ impl<W: Write> Interpreter<'_, W> {
         // It'd need to be brillig-only if so since RC is always 1 in acir.
         let mut new_elements = vector.elements.borrow().to_vec();
         let element_types = vector.element_types.clone();
+        let stride = vector.element_stride();
+        let is_flat = vector.is_flat;
 
         // The vector might contain more elements than its length.
         // We need to either insert before the extras, overwrite, or remove them.
-        new_elements.truncate(element_types.len() * length as usize);
+        new_elements.truncate(stride * length as usize);
         for arg in args.iter().skip(2) {
-            new_elements.push(self.lookup(*arg)?);
+            let val = self.lookup(*arg)?;
+            if is_flat {
+                flatten_value_into(&val, &mut new_elements);
+            } else {
+                new_elements.push(val);
+            }
         }
 
         let new_length = Value::u32(length + 1);
-        let new_vector = Value::vector(new_elements, element_types);
+        let new_vector = Value::ArrayOrVector(ArrayValue {
+            elements: Shared::new(new_elements),
+            rc: Shared::new(1),
+            element_types,
+            is_vector: true,
+            is_flat,
+        });
         Ok(vec![new_length, new_vector])
     }
 
@@ -560,12 +583,28 @@ impl<W: Write> Interpreter<'_, W> {
         let vector = self.lookup_array_or_vector(args[1], "call to vector_push_front")?;
         let vector_elements = vector.elements.clone();
         let element_types = vector.element_types.clone();
+        let is_flat = vector.is_flat;
 
-        let mut new_elements = try_vecmap(args.iter().skip(2), |arg| self.lookup(*arg))?;
+        let mut new_elements = if is_flat {
+            let mut flat = Vec::new();
+            for arg in args.iter().skip(2) {
+                let val = self.lookup(*arg)?;
+                flatten_value_into(&val, &mut flat);
+            }
+            flat
+        } else {
+            try_vecmap(args.iter().skip(2), |arg| self.lookup(*arg))?
+        };
         new_elements.extend_from_slice(&vector_elements.borrow());
 
         let new_length = Value::u32(length + 1);
-        let new_vector = Value::vector(new_elements, element_types);
+        let new_vector = Value::ArrayOrVector(ArrayValue {
+            elements: Shared::new(new_elements),
+            rc: Shared::new(1),
+            element_types,
+            is_vector: true,
+            is_flat,
+        });
         Ok(vec![new_length, new_vector])
     }
 
@@ -576,6 +615,7 @@ impl<W: Write> Interpreter<'_, W> {
 
         let mut vector_elements = vector.elements.borrow().to_vec();
         let element_types = vector.element_types.clone();
+        let stride = vector.element_stride();
 
         if vector_elements.is_empty() || length == 0 {
             let instruction = "vector_pop_back";
@@ -586,15 +626,26 @@ impl<W: Write> Interpreter<'_, W> {
         // The vector might contain more elements than its length.
         // We want the last valid element, ignoring any extras following it.
         // We don't ever access the extras, so we might as well remove any.
-        vector_elements.truncate(element_types.len() * length as usize);
-        let mut popped_elements =
-            vecmap(0..element_types.len(), |_| vector_elements.pop().unwrap());
+        vector_elements.truncate(stride * length as usize);
+        let mut popped_elements = vecmap(0..stride, |_| vector_elements.pop().unwrap());
         popped_elements.reverse();
 
+        let popped_results = if vector.is_flat {
+            regroup_flat_elements(&popped_elements, &element_types)
+        } else {
+            popped_elements
+        };
+
         let new_length = Value::u32(length - 1);
-        let new_vector = Value::vector(vector_elements, element_types);
+        let new_vector = Value::ArrayOrVector(ArrayValue {
+            elements: Shared::new(vector_elements),
+            rc: Shared::new(1),
+            element_types,
+            is_vector: true,
+            is_flat: vector.is_flat,
+        });
         let mut results = vec![new_length, new_vector];
-        results.extend(popped_elements);
+        results.extend(popped_results);
         Ok(results)
     }
 
@@ -605,6 +656,7 @@ impl<W: Write> Interpreter<'_, W> {
 
         let mut vector_elements = vector.elements.borrow().to_vec();
         let element_types = vector.element_types.clone();
+        let stride = vector.element_stride();
 
         if vector_elements.is_empty() || length == 0 {
             let instruction = "vector_pop_front";
@@ -612,10 +664,18 @@ impl<W: Write> Interpreter<'_, W> {
         }
         check_vector_can_pop_all_element_types(args[1], &vector)?;
 
-        let mut results = vector_elements.drain(0..element_types.len()).collect::<Vec<_>>();
+        let drained: Vec<_> = vector_elements.drain(0..stride).collect();
+        let mut results =
+            if vector.is_flat { regroup_flat_elements(&drained, &element_types) } else { drained };
 
         let new_length = Value::u32(length - 1);
-        let new_vector = Value::vector(vector_elements, element_types);
+        let new_vector = Value::ArrayOrVector(ArrayValue {
+            elements: Shared::new(vector_elements),
+            rc: Shared::new(1),
+            element_types,
+            is_vector: true,
+            is_flat: vector.is_flat,
+        });
         results.push(new_length);
         results.push(new_vector);
         Ok(results)
@@ -629,15 +689,34 @@ impl<W: Write> Interpreter<'_, W> {
 
         let mut vector_elements = vector.elements.borrow().to_vec();
         let element_types = vector.element_types.clone();
+        let stride = vector.element_stride();
 
-        let mut index = index as usize * element_types.len();
-        for arg in args.iter().skip(3) {
-            vector_elements.insert(index, self.lookup(*arg)?);
-            index += 1;
+        let mut insert_index = index as usize * stride;
+        if vector.is_flat {
+            let mut flat_args = Vec::new();
+            for arg in args.iter().skip(3) {
+                let val = self.lookup(*arg)?;
+                flatten_value_into(&val, &mut flat_args);
+            }
+            for val in flat_args {
+                vector_elements.insert(insert_index, val);
+                insert_index += 1;
+            }
+        } else {
+            for arg in args.iter().skip(3) {
+                vector_elements.insert(insert_index, self.lookup(*arg)?);
+                insert_index += 1;
+            }
         }
 
         let new_length = Value::u32(length + 1);
-        let new_vector = Value::vector(vector_elements, element_types);
+        let new_vector = Value::ArrayOrVector(ArrayValue {
+            elements: Shared::new(vector_elements),
+            rc: Shared::new(1),
+            element_types,
+            is_vector: true,
+            is_flat: vector.is_flat,
+        });
         Ok(vec![new_length, new_vector])
     }
 
@@ -649,6 +728,7 @@ impl<W: Write> Interpreter<'_, W> {
 
         let mut vector_elements = vector.elements.borrow().to_vec();
         let element_types = vector.element_types.clone();
+        let stride = vector.element_stride();
 
         if vector_elements.is_empty() {
             let instruction = "vector_remove";
@@ -656,13 +736,22 @@ impl<W: Write> Interpreter<'_, W> {
         }
         check_vector_can_pop_all_element_types(args[1], &vector)?;
 
-        let index = index as usize * element_types.len();
-        let removed: Vec<_> = vector_elements.drain(index..index + element_types.len()).collect();
+        let index = index as usize * stride;
+        let removed: Vec<_> = vector_elements.drain(index..index + stride).collect();
+
+        let removed_results =
+            if vector.is_flat { regroup_flat_elements(&removed, &element_types) } else { removed };
 
         let new_length = Value::u32(length - 1);
-        let new_vector = Value::vector(vector_elements, element_types);
+        let new_vector = Value::ArrayOrVector(ArrayValue {
+            elements: Shared::new(vector_elements),
+            rc: Shared::new(1),
+            element_types,
+            is_vector: true,
+            is_flat: vector.is_flat,
+        });
         let mut results = vec![new_length, new_vector];
-        results.extend(removed);
+        results.extend(removed_results);
         Ok(results)
     }
 
@@ -782,9 +871,60 @@ fn check_argument_count_is_at_least(
     }
 }
 
+/// Regroup flat scalar elements back into semi-flat form according to element_types.
+/// Each element_type that is an Array gets its flat scalars reassembled into an ArrayValue.
+/// Non-array types pass through as-is.
+/// Flatten a value into scalar elements, expanding any nested `ArrayValue`s.
+/// Used when pushing values into a flat vector.
+fn flatten_value_into(value: &Value, out: &mut Vec<Value>) {
+    match value {
+        Value::ArrayOrVector(array) => {
+            for element in array.elements.borrow().iter() {
+                flatten_value_into(element, out);
+            }
+        }
+        other => out.push(other.clone()),
+    }
+}
+
+fn regroup_flat_elements(flat: &[Value], element_types: &[Type]) -> Vec<Value> {
+    let mut result = Vec::new();
+    let mut offset = 0;
+    for typ in element_types {
+        let (val, consumed) = unflatten_one_value(typ, flat, offset);
+        result.push(val);
+        offset += consumed;
+    }
+    result
+}
+
+/// Reconstruct a single value of the given type from flat scalar elements.
+/// Returns the reconstructed value and the number of flat elements consumed.
+fn unflatten_one_value(typ: &Type, flat: &[Value], offset: usize) -> (Value, usize) {
+    match typ {
+        Type::Array(element_types, len) => {
+            let mut elements = Vec::new();
+            let mut consumed = 0;
+            for _ in 0..len.0 {
+                for et in element_types.iter() {
+                    let (val, c) = unflatten_one_value(et, flat, offset + consumed);
+                    elements.push(val);
+                    consumed += c;
+                }
+            }
+            let array = Value::array(elements, element_types.as_ref().clone());
+            (array, consumed)
+        }
+        _ => {
+            // Scalar or non-array type: take one flat element
+            (flat[offset].clone(), 1)
+        }
+    }
+}
+
 fn check_vector_can_pop_all_element_types(vector_id: ValueId, vector: &ArrayValue) -> IResult<()> {
     let actual_length = vector.elements.borrow().len();
-    if actual_length >= vector.element_types.len() {
+    if actual_length >= vector.element_stride() {
         Ok(())
     } else {
         Err(InterpreterError::Internal(InternalError::NotEnoughElementsToPopVectorOfStructs {
@@ -836,7 +976,7 @@ fn values_to_fields(values: &[Value]) -> Vec<FieldElement> {
                 Value::ArrayOrVector(array_value) => {
                     let length = match vector_length {
                         Some(length) if array_value.is_vector => {
-                            length * array_value.element_types.len()
+                            length * array_value.element_stride()
                         }
                         _ => array_value.elements.borrow().len(),
                     };

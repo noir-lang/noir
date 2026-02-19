@@ -1,0 +1,11 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(input: [[u64; 3]; 1024]) {
+    let mut sum: u64 = 0_u64;
+    for i in 0_u32..1024_u32 {
+        sum = sum + input[i][0_u32];
+    }
+    assert(sum > 0_u64);
+}

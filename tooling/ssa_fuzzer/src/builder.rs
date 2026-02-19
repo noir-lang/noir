@@ -34,7 +34,7 @@ pub type InstructionWithOneArg = fn(&mut FuzzerBuilder, TypedValue) -> TypedValu
 /// Contains a FunctionBuilder and tracks the current numeric type being used
 pub struct FuzzerBuilder {
     pub(crate) builder: FunctionBuilder,
-    pub(crate) runtime: RuntimeType,
+    pub runtime: RuntimeType,
 }
 
 impl FuzzerBuilder {

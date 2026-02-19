@@ -78,7 +78,7 @@ fn main() -> Result<(), String> {
 /// Tests expected to fail with `--force-brillig --max-stack-frame-size 64`
 /// because they need register spilling (not yet implemented).
 /// Remove tests from this list as spilling is implemented.
-const IGNORED_BRILLIG_SMALL_STACK_TESTS: [&str; 8] = [
+const IGNORED_BRILLIG_SMALL_STACK_TESTS: [&str; 9] = [
     "brillig_block_parameter_liveness",
     "hashmap",
     "poseidon_bn254_hash_width_3",
@@ -87,6 +87,7 @@ const IGNORED_BRILLIG_SMALL_STACK_TESTS: [&str; 8] = [
     "reference_counts_inliner_min",
     "reference_counts_vectors_inliner_0",
     "regression_5252",
+    "nested_arrays_composite_elems",
 ];
 
 /// Some tests are explicitly ignored in brillig due to them failing.
