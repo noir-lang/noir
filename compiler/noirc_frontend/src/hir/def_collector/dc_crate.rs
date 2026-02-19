@@ -5,7 +5,7 @@ use crate::graph::CrateId;
 use crate::hir::comptime::{ComptimeError, InterpreterError};
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
-use crate::hir::type_check::TypeCheckError;
+use crate::hir::type_check::{ExpectingOtherError, TypeCheckError};
 use crate::locations::ReferencesTracker;
 use crate::token::SecondaryAttribute;
 use crate::usage_tracker::UnusedItem;
@@ -32,7 +32,7 @@ use noirc_errors::{CustomDiagnostic, Location, Span};
 use fm::FileId;
 use iter_extended::vecmap;
 use rustc_hash::FxHashMap as HashMap;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::fmt::Write;
 use std::ops::IndexMut;
 use std::path::PathBuf;
@@ -214,11 +214,17 @@ impl CompilationError {
     }
 
     pub(crate) fn is_expecting_other_error_error(&self) -> bool {
-        matches!(
-            self,
-            CompilationError::TypeError(TypeCheckError::ExpectingOtherError { .. })
-                | CompilationError::InterpreterError(InterpreterError::ExpectingOtherError { .. })
-        )
+        self.as_expecting_other_error_error().is_some()
+    }
+
+    pub(crate) fn as_expecting_other_error_error(&self) -> Option<&ExpectingOtherError> {
+        match self {
+            CompilationError::TypeError(TypeCheckError::ExpectingOtherError(e))
+            | CompilationError::InterpreterError(InterpreterError::ExpectingOtherError(e)) => {
+                Some(e)
+            }
+            _ => None,
+        }
     }
 
     pub(crate) fn should_be_filtered(&self) -> bool {
@@ -381,6 +387,18 @@ impl DefCollector {
 
         if errors.iter().any(|error| !error.is_expecting_other_error_error() && error.is_error()) {
             errors.retain(|error| !error.is_expecting_other_error_error());
+        } else {
+            // All errors are "expecting other" but nothing else was found.
+            // They might appear multiple times, so deduplicate them.
+            let mut seen: HashSet<ExpectingOtherError> = HashSet::new();
+            errors.retain(|error| match error.as_expecting_other_error_error() {
+                Some(o) if seen.contains(o) => false,
+                Some(o) => {
+                    seen.insert(o.clone());
+                    true
+                }
+                None => true,
+            });
         }
         errors
     }

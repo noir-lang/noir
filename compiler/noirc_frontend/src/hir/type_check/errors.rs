@@ -268,7 +268,7 @@ pub enum TypeCheckError {
 }
 
 /// An error which is only shown to the user if there are no other errors emitted.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ExpectingOtherError {
     pub message: String,
     pub location: Location,
