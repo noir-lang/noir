@@ -214,6 +214,22 @@ mod tests {
     }
 
     #[test]
+    fn witness_constrained_to_constant_is_dead() {
+        // w0 is private and constrained to equal 5, but it has no connection
+        // to any public parameter or return value, so it is considered dead.
+        let circuit = parse_circuit(
+            "
+            private parameters: [w0]
+            public parameters: []
+            return values: []
+            ASSERT w0 = 5
+            ",
+        );
+        let dead = find_dead_witnesses(&circuit);
+        assert_eq!(dead, HashSet::from([Witness(0)]));
+    }
+
+    #[test]
     fn isolated_witness_is_dead() {
         // w0 is public, w1 is connected to w0, but w2 is private and in no constraint
         let circuit = parse_circuit(
@@ -298,7 +314,7 @@ mod tests {
     }
 
     #[test]
-    fn memory_propagation() {
+    fn memory_read_propagates_liveness() {
         // w0 is public, stored in memory block b0.
         // MemoryOp reads from b0 into w1 (value).
         // w1 is connected to w2 (return) via AssertZero.
@@ -314,7 +330,48 @@ mod tests {
             ",
         );
         let dead = find_dead_witnesses(&circuit);
-        assert!(dead.is_empty(), "All witnesses should be live via memory: {dead:?}");
+        assert!(dead.is_empty(), "All witnesses should be live via memory read: {dead:?}");
+    }
+
+    #[test]
+    fn memory_write_propagates_liveness() {
+        // w0 is public, w1 is private. b0 is initialized with w0.
+        // w1 is written into b0, then w2 is read from b0.
+        // w2 is connected to w3 (return) via AssertZero.
+        // All should be live because w0, w1, and w2 share block b0.
+        let circuit = parse_circuit(
+            "
+            private parameters: [w1]
+            public parameters: [w0]
+            return values: [w3]
+            INIT b0 = [w0]
+            WRITE b0[0] = w1
+            READ w2 = b0[0]
+            ASSERT w3 = w2
+            ",
+        );
+        let dead = find_dead_witnesses(&circuit);
+        assert!(dead.is_empty(), "All witnesses should be live via memory write: {dead:?}");
+    }
+
+    #[test]
+    fn memory_block_isolated_from_public_is_dead() {
+        // w0 is public (seed), w1 is return, connected via AssertZero → live.
+        // w2 and w3 are private, stored in b0 and read back — but b0 has
+        // no connection to any public/return witness, so w2 and w3 are dead.
+        let circuit = parse_circuit(
+            "
+            private parameters: [w2]
+            public parameters: [w0]
+            return values: [w1]
+            ASSERT w1 = w0
+            INIT b0 = [w2]
+            READ w3 = b0[0]
+            ",
+        );
+        let dead = find_dead_witnesses(&circuit);
+        assert!(dead.contains(&Witness(2)), "w2 should be dead: {dead:?}");
+        assert!(dead.contains(&Witness(3)), "w3 should be dead: {dead:?}");
     }
 
     #[test]

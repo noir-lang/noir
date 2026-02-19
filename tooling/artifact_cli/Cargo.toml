@@ -20,6 +20,10 @@ path = "src/lib.rs"
 name = "noir-execute"
 path = "src/bin/execute.rs"
 
+[[bin]]
+name = "noir-check-dead-witnesses"
+path = "src/bin/check_dead_witnesses.rs"
+
 [dependencies]
 clap.workspace = true
 color-eyre.workspace = true

@@ -91,6 +91,12 @@ pub enum CliError {
     #[error("Unknown contract function '{name}'; options: {names:?}")]
     UnknownContractFn { name: String, names: Vec<String> },
 
+    #[error("{0}")]
+    Generic(String),
+
+    #[error("Dead witnesses found in circuit")]
+    DeadWitnessesFound,
+
     #[error("Failed to save program '{0}':\n{1}")]
     FailedToSaveProgram(String, Box<CliError>),
 
