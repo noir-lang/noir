@@ -78,7 +78,7 @@ fn do_not_infer_partial_global_types() {
                                       ^ The placeholder `_` is not allowed in global definitions
                    ^^^^^^^ Globals must have a specified type
                                            ~~~~~~~~~~~~~~~~~~~~~~~ Inferred type is `fmtstr<20, (str<5>,)>`
-        pub global TUPLE_WITH_MULTIPLE: ([str<_>], [[Field; _]; 3]) = 
+        pub global TUPLE_WITH_MULTIPLE: ([str<_>], [[Field; _]; 3]) =
                                               ^ The placeholder `_` is not allowed in global definitions
                                                             ^ The placeholder `_` is not allowed in global definitions
                    ^^^^^^^^^^^^^^^^^^^ Globals must have a specified type
@@ -158,17 +158,17 @@ fn lazy_literal_globals() {
     let src = "
     global bar: Foo = Foo::new();
     global foo: u32 = 1;
-    
+
     struct Foo {
        foo: u32
     }
-    
+
     impl Foo {
         fn new() -> Self {
             Self { foo }
         }
     }
-    
+
     fn main() {
         let _ = bar;
     }
@@ -239,9 +239,9 @@ fn global_closure_with_undefined_variable_method_call() {
 fn regression_11489_mutually_recursive_function() {
     let src = r#"
     global foo: Field = bar();
+                        ^^^^^ Expected a function, but found a(n) Field
            ^^^ Dependency cycle found
            ~~~ 'foo' recursively depends on itself: foo -> bar -> foo
-                        ^^^^^ Expected a function, but found a(n) Field
 
     global bar: Field = foo();
     "#;
@@ -265,8 +265,9 @@ fn regression_11489_mutually_recursive_typed_function() {
 fn regression_11489_function() {
     let src = r#"
     global foo: Field = foo();
-           ^^^ Dependency cycle found
-           ~~~ 'foo' recursively depends on itself: foo -> foo
+                        ^^^^^ Expected global to be a let statement or expression but found: Error
+           // ^^^ Dependency cycle found
+           // ~~~ 'foo' recursively depends on itself: foo -> foo
     "#;
     check_errors(src);
 }
@@ -275,8 +276,9 @@ fn regression_11489_function() {
 fn regression_11489_typed_function() {
     let src = r#"
     global foo: fn() = foo();
-           ^^^ Dependency cycle found
-           ~~~ 'foo' recursively depends on itself: foo -> foo
+                       ^^^^^ Expected global to be a let statement or expression but found: Error
+           // ^^^ Dependency cycle found
+           // ~~~ 'foo' recursively depends on itself: foo -> foo
     "#;
     check_errors(src);
 }
@@ -285,9 +287,9 @@ fn regression_11489_typed_function() {
 fn regression_11489_value() {
     let src = r#"
     global foo: Field = foo;
-           ^^^ Dependency cycle found
-           ~~~ 'foo' recursively depends on itself: foo -> foo
                         ^^^ Failed to resolve this global
+           // ^^^ Dependency cycle found
+           // ~~~ 'foo' recursively depends on itself: foo -> foo
     "#;
     check_errors(src);
 }
@@ -309,8 +311,9 @@ fn regression_11489_mutually_recursive_value() {
 fn regression_11489_comptime_function() {
     let src = r#"
     comptime global foo: Field = foo();
-                    ^^^ Dependency cycle found
-                    ~~~ 'foo' recursively depends on itself: foo -> foo
+                                 ^^^^^ Expected global to be a let statement or expression but found: Error
+                    // ^^^ Dependency cycle found
+                    // ~~~ 'foo' recursively depends on itself: foo -> foo
     "#;
     check_errors(src);
 }
@@ -319,9 +322,9 @@ fn regression_11489_comptime_function() {
 fn regression_11489_comptime_value() {
     let src = r#"
     comptime global foo: Field = foo;
-                    ^^^ Dependency cycle found
-                    ~~~ 'foo' recursively depends on itself: foo -> foo
                                  ^^^ Failed to resolve this global
+                    // ^^^ Dependency cycle found
+                    // ~~~ 'foo' recursively depends on itself: foo -> foo
     "#;
     check_errors(src);
 }

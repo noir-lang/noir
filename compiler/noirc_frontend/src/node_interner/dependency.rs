@@ -4,7 +4,7 @@ use noirc_errors::Location;
 use petgraph::{
     algo::tarjan_scc,
     graph::{DiGraph, NodeIndex as PetGraphIndex},
-    visit::{EdgeRef, GraphBase},
+    visit::GraphBase,
 };
 
 use crate::{
@@ -138,16 +138,25 @@ impl NodeInterner {
                 }
             };
 
-        // Checking for single-node cycles
-        for edge_reference in self.dependency_graph.edge_references() {
-            let source = edge_reference.source();
-            let target = edge_reference.target();
-            if source == target {
-                let scc_index = 0;
-                let node_index = source;
-                push_error_from_index(&[source], scc_index, node_index);
-            }
-        }
+        // Checking for single-node cycles.
+        //
+        // Enabling this highlights errors such as `type Alias = Alias;`,
+        // however it also emits errors for things like `type Foo = u32; impl Foo {}`,
+        // ie. if there is an impl for something that shouldn't have one, _unless_
+        // there is an `fn main() {}` as well, in which case the error does not appear.
+        // Since all corresponding unit tests seem to carry at least another error,
+        // and this behavior is strange, and the SCC below only looks for more than 1,
+        // for now it's left commented out.
+        //
+        // for edge_reference in self.dependency_graph.edge_references() {
+        //     let source = edge_reference.source();
+        //     let target = edge_reference.target();
+        //     if source == target {
+        //         let scc_index = 0;
+        //         let node_index = source;
+        //         push_error_from_index(&[source], scc_index, node_index);
+        //     }
+        // }
 
         let strongly_connected_components = tarjan_scc(&self.dependency_graph);
         for scc in strongly_connected_components {
