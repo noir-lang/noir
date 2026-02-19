@@ -32,7 +32,12 @@ pub fn run(args: CheckDeadWitnessesCommand) -> Result<(), CliError> {
     for (i, circuit) in circuits.iter().enumerate() {
         let dead_witnesses = find_dead_witnesses(circuit);
         if !dead_witnesses.is_empty() {
-            eprintln!("func {i}: dead witnesses: {dead_witnesses:?}");
+            let dead_witnesses = dead_witnesses
+                .into_iter()
+                .map(|witness| witness.to_string())
+                .collect::<Vec<_>>()
+                .join(", ");
+            eprintln!("func {i}: dead witnesses: {{{dead_witnesses}}}");
             has_dead = true;
         }
     }
