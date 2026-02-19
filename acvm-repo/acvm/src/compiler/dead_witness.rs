@@ -218,10 +218,10 @@ mod tests {
     fn all_live_simple() {
         // w0 is public, w1 is connected to w0 via AssertZero, w1 is a return value
         let src = "
-        private parameters: []
-        public parameters: [w0]
-        return values: [w1]
-        ASSERT w1 = w0
+            private parameters: []
+            public parameters: [w0]
+            return values: [w1]
+            ASSERT w1 = w0
         ";
         assert_no_dead_witnesses(src);
     }
@@ -231,10 +231,10 @@ mod tests {
         // w0 is private and constrained to equal 5, but it has no connection
         // to any public parameter or return value, so it is considered dead.
         let src = "
-        private parameters: [w0]
-        public parameters: []
-        return values: []
-        ASSERT w0 = 5
+            private parameters: [w0]
+            public parameters: []
+            return values: []
+            ASSERT w0 = 5
         ";
         assert_dead_witnesses(src, &[Witness(0)]);
     }
@@ -243,10 +243,10 @@ mod tests {
     fn isolated_witness_is_dead() {
         // w0 is public, w1 is connected to w0, but w2 is private and in no constraint
         let src = "
-        private parameters: [w2]
-        public parameters: [w0]
-        return values: [w1]
-        ASSERT w1 = w0
+            private parameters: [w2]
+            public parameters: [w0]
+            return values: [w1]
+            ASSERT w1 = w0
         ";
         assert_dead_witnesses(src, &[Witness(2)]);
     }
@@ -256,11 +256,11 @@ mod tests {
         // w0 is public, w1 is return. w0->w1 is live.
         // w2->w3 via AssertZero but neither connects to public I/O → both dead
         let src = "
-        private parameters: [w2, w3]
-        public parameters: [w0]
-        return values: [w1]
-        ASSERT w1 = w0
-        ASSERT w3 = w2
+            private parameters: [w2, w3]
+            public parameters: [w0]
+            return values: [w1]
+            ASSERT w1 = w0
+            ASSERT w3 = w2
         ";
         assert_dead_witnesses(src, &[Witness(2), Witness(3)]);
     }
@@ -271,10 +271,10 @@ mod tests {
         // Brillig doesn't create constraint edges, so w1 is dead
         // unless connected via another ACIR constraint.
         let src = "
-        private parameters: []
-        public parameters: [w0]
-        return values: []
-        BRILLIG CALL func: 0, predicate: 1, inputs: [w0], outputs: [w1]
+            private parameters: []
+            public parameters: [w0]
+            return values: []
+            BRILLIG CALL func: 0, predicate: 1, inputs: [w0], outputs: [w1]
         ";
         assert_dead_witnesses(src, &[Witness(1)]);
     }
@@ -284,11 +284,11 @@ mod tests {
         // w0 is public (seed, trivially live), Brillig produces w1,
         // w1 is connected to w2 (return) via AssertZero → all live.
         let src = "
-        private parameters: []
-        public parameters: [w0]
-        return values: [w2]
-        BRILLIG CALL func: 0, predicate: 1, inputs: [w0], outputs: [w1]
-        ASSERT w2 = w1
+            private parameters: []
+            public parameters: [w0]
+            return values: [w2]
+            BRILLIG CALL func: 0, predicate: 1, inputs: [w0], outputs: [w1]
+            ASSERT w2 = w1
         ";
         assert_no_dead_witnesses(src);
     }
@@ -298,17 +298,14 @@ mod tests {
         // w0 is private (not public), feeds into Brillig which produces w1.
         // w1 is connected to w2 (return) via AssertZero.
         // w0 is dead because it's not a seed and only appears in Brillig (no constraint edges).
-        let circuit = parse_circuit(
-            "
+        let src = "
             private parameters: [w0]
             public parameters: []
             return values: [w2]
             BRILLIG CALL func: 0, predicate: 1, inputs: [w0], outputs: [w1]
             ASSERT w2 = w1
-            ",
-        );
-        let dead = find_dead_witnesses(&circuit);
-        assert_eq!(dead, HashSet::from([Witness(0)]));
+        ";
+        assert_dead_witnesses(src, &[Witness(0)]);
     }
 
     #[test]
@@ -318,12 +315,12 @@ mod tests {
         // w1 is connected to w2 (return) via AssertZero.
         // All should be live because w0 and w1 share block b0.
         let src = "
-        private parameters: []
-        public parameters: [w0]
-        return values: [w2]
-        INIT b0 = [w0]
-        READ w1 = b0[0]
-        ASSERT w2 = w1
+            private parameters: []
+            public parameters: [w0]
+            return values: [w2]
+            INIT b0 = [w0]
+            READ w1 = b0[0]
+            ASSERT w2 = w1
         ";
         assert_no_dead_witnesses(src);
     }
@@ -335,13 +332,13 @@ mod tests {
         // w2 is connected to w3 (return) via AssertZero.
         // All should be live because w0, w1, and w2 share block b0.
         let src = "
-        private parameters: [w1]
-        public parameters: [w0]
-        return values: [w3]
-        INIT b0 = [w0]
-        WRITE b0[0] = w1
-        READ w2 = b0[0]
-        ASSERT w3 = w2
+            private parameters: [w1]
+            public parameters: [w0]
+            return values: [w3]
+            INIT b0 = [w0]
+            WRITE b0[0] = w1
+            READ w2 = b0[0]
+            ASSERT w3 = w2
         ";
         assert_no_dead_witnesses(src);
     }
@@ -367,10 +364,10 @@ mod tests {
         // w0 is public, AND produces w2 from w0 and w1.
         // w2 is a return value. w1 should be live because blackbox connects all.
         let src = "
-        private parameters: [w1]
-        public parameters: [w0]
-        return values: [w2]
-        BLACKBOX::AND lhs: w0, rhs: w1, output: w2, bits: 32
+            private parameters: [w1]
+            public parameters: [w0]
+            return values: [w2]
+            BLACKBOX::AND lhs: w0, rhs: w1, output: w2, bits: 32
         ";
         assert_no_dead_witnesses(src);
     }
@@ -380,10 +377,10 @@ mod tests {
         // w0 is public, Call takes w0 as input and produces w1.
         // w1 is a return value. All live.
         let src = "
-        private parameters: []
-        public parameters: [w0]
-        return values: [w1]
-        CALL func: 0, predicate: 1, inputs: [w0], outputs: [w1]
+            private parameters: []
+            public parameters: [w0]
+            return values: [w1]
+            CALL func: 0, predicate: 1, inputs: [w0], outputs: [w1]
         ";
         assert_no_dead_witnesses(src);
     }
@@ -391,9 +388,9 @@ mod tests {
     #[test]
     fn empty_circuit() {
         let src = "
-        private parameters: []
-        public parameters: []
-        return values: []
+            private parameters: []
+            public parameters: []
+            return values: []
         ";
         assert_no_dead_witnesses(src);
     }
