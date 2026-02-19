@@ -2878,6 +2878,7 @@ fn function_def_set_return_public(
 
     let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
     func_meta.return_visibility = if public { Visibility::Public } else { Visibility::Private };
+    func_meta.return_visibility_location = location;
 
     Ok(Value::Unit)
 }
@@ -2895,6 +2896,7 @@ fn function_def_set_return_data(
 
     let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
     func_meta.return_visibility = Visibility::ReturnData;
+    func_meta.return_visibility_location = location;
 
     Ok(Value::Unit)
 }
