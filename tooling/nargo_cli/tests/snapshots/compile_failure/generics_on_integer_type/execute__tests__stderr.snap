@@ -16,4 +16,11 @@ error: i32 expects 0 generics but 1 was given
   │                --------
   │
 
-Aborting due to 2 previous errors
+error: i32 expects 0 generics but 1 was given
+  ┌─ src/main.nr:3:16
+  │
+3 │     let _ = i32::<bool>::default();
+  │                --------
+  │
+
+Aborting due to 3 previous errors
