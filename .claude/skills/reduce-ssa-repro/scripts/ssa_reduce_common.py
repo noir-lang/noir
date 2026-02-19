@@ -45,10 +45,12 @@ def try_remove_instruction(ssa_text, line_idx):
     """Try removing a single instruction line."""
     lines = ssa_text.split('\n')
     line = lines[line_idx].strip()
+    # Don't remove block headers, terminators, structural lines, or function definitions
     if (not line or line.startswith('b') or line.startswith('}') or
         line.startswith('jmp') or line.startswith('jmpif') or
         line.startswith('return') or line.startswith('//') or
-        line.startswith('g') or 'fn ' in line or line == '{'):
+        line.startswith('g') or line.startswith('acir(') or
+        line.startswith('brillig(') or line == '{'):
         return None
 
     m = re.match(r'(v\d+)\s*=', line)
