@@ -204,6 +204,16 @@ mod tests {
         assert!(dead.is_empty(), "Expected no dead witnesses, got: {dead:?}");
     }
 
+    fn assert_dead_witnesses(src: &str, expected: &[Witness]) {
+        let circuit = parse_circuit(src);
+        let dead = find_dead_witnesses(&circuit);
+        assert_eq!(
+            dead,
+            expected.iter().copied().collect(),
+            "Expected dead witnesses {expected:?}, got: {dead:?}"
+        );
+    }
+
     #[test]
     fn all_live_simple() {
         // w0 is public, w1 is connected to w0 via AssertZero, w1 is a return value
@@ -220,48 +230,39 @@ mod tests {
     fn witness_constrained_to_constant_is_dead() {
         // w0 is private and constrained to equal 5, but it has no connection
         // to any public parameter or return value, so it is considered dead.
-        let circuit = parse_circuit(
-            "
-            private parameters: [w0]
-            public parameters: []
-            return values: []
-            ASSERT w0 = 5
-            ",
-        );
-        let dead = find_dead_witnesses(&circuit);
-        assert_eq!(dead, HashSet::from([Witness(0)]));
+        let src = "
+        private parameters: [w0]
+        public parameters: []
+        return values: []
+        ASSERT w0 = 5
+        ";
+        assert_dead_witnesses(src, &[Witness(0)]);
     }
 
     #[test]
     fn isolated_witness_is_dead() {
         // w0 is public, w1 is connected to w0, but w2 is private and in no constraint
-        let circuit = parse_circuit(
-            "
-            private parameters: [w2]
-            public parameters: [w0]
-            return values: [w1]
-            ASSERT w1 = w0
-            ",
-        );
-        let dead = find_dead_witnesses(&circuit);
-        assert_eq!(dead, HashSet::from([Witness(2)]));
+        let src = "
+        private parameters: [w2]
+        public parameters: [w0]
+        return values: [w1]
+        ASSERT w1 = w0
+        ";
+        assert_dead_witnesses(src, &[Witness(2)]);
     }
 
     #[test]
     fn chain_of_dead_witnesses() {
         // w0 is public, w1 is return. w0->w1 is live.
         // w2->w3 via AssertZero but neither connects to public I/O → both dead
-        let circuit = parse_circuit(
-            "
-            private parameters: [w2, w3]
-            public parameters: [w0]
-            return values: [w1]
-            ASSERT w1 = w0
-            ASSERT w3 = w2
-            ",
-        );
-        let dead = find_dead_witnesses(&circuit);
-        assert_eq!(dead, HashSet::from([Witness(2), Witness(3)]));
+        let src = "
+        private parameters: [w2, w3]
+        public parameters: [w0]
+        return values: [w1]
+        ASSERT w1 = w0
+        ASSERT w3 = w2
+        ";
+        assert_dead_witnesses(src, &[Witness(2), Witness(3)]);
     }
 
     #[test]
@@ -269,16 +270,13 @@ mod tests {
         // w0 is public input, w1 is Brillig output.
         // Brillig doesn't create constraint edges, so w1 is dead
         // unless connected via another ACIR constraint.
-        let circuit = parse_circuit(
-            "
-            private parameters: []
-            public parameters: [w0]
-            return values: []
-            BRILLIG CALL func: 0, predicate: 1, inputs: [w0], outputs: [w1]
-            ",
-        );
-        let dead = find_dead_witnesses(&circuit);
-        assert!(dead.contains(&Witness(1)), "Brillig output w1 should be dead");
+        let src = "
+        private parameters: []
+        public parameters: [w0]
+        return values: []
+        BRILLIG CALL func: 0, predicate: 1, inputs: [w0], outputs: [w1]
+        ";
+        assert_dead_witnesses(src, &[Witness(1)]);
     }
 
     #[test]
@@ -353,19 +351,15 @@ mod tests {
         // w0 is public (seed), w1 is return, connected via AssertZero → live.
         // w2 and w3 are private, stored in b0 and read back — but b0 has
         // no connection to any public/return witness, so w2 and w3 are dead.
-        let circuit = parse_circuit(
-            "
+        let src = "
             private parameters: [w2]
             public parameters: [w0]
             return values: [w1]
             ASSERT w1 = w0
             INIT b0 = [w2]
             READ w3 = b0[0]
-            ",
-        );
-        let dead = find_dead_witnesses(&circuit);
-        assert!(dead.contains(&Witness(2)), "w2 should be dead: {dead:?}");
-        assert!(dead.contains(&Witness(3)), "w3 should be dead: {dead:?}");
+        ";
+        assert_dead_witnesses(src, &[Witness(2), Witness(3)]);
     }
 
     #[test]
