@@ -310,8 +310,13 @@ impl<'a> ValueMerger<'a> {
             side_effects,
         ) {
             Some(ArrayGetOptimizationResult::Value(value)) => value,
-            Some(ArrayGetOptimizationResult::ArrayGet(array)) => {
-                let get = Instruction::ArrayGet { array, index };
+            Some(ArrayGetOptimizationResult::ArrayGet(new_array)) => {
+                assert_ne!(
+                    new_array, array,
+                    "ArrayGetOptimizationResult::ArrayGet returned the same array_id"
+                );
+
+                let get = Instruction::ArrayGet { array: new_array, index };
                 self.dfg
                     .insert_instruction_and_results(get, self.block, typevars, self.call_stack)
                     .first()

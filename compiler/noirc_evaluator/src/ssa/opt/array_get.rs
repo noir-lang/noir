@@ -141,8 +141,13 @@ impl Function {
                             let [result] = context.dfg.instruction_result(instruction_id);
                             context.replace_value(result, new_value);
                         }
-                        ArrayGetOptimizationResult::ArrayGet(array) => {
-                            let array_get = Instruction::ArrayGet { array, index };
+                        ArrayGetOptimizationResult::ArrayGet(new_array) => {
+                            assert_ne!(
+                                new_array, array,
+                                "ArrayGetOptimizationResult::ArrayGet returned the same array_id"
+                            );
+
+                            let array_get = Instruction::ArrayGet { array: new_array, index };
                             let [result] = context.dfg.instruction_result(instruction_id);
                             let result_typ = context.dfg.type_of_value(result);
                             let ctrl_typevars = Some(vec![result_typ]);

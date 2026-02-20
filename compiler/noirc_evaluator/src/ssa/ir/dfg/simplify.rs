@@ -384,10 +384,15 @@ fn try_optimize_array_get_from_previous_instructions(
     );
     match result {
         Some(ArrayGetOptimizationResult::Value(value)) => SimplifyResult::SimplifiedTo(value),
-        Some(ArrayGetOptimizationResult::ArrayGet(array_id)) => {
+        Some(ArrayGetOptimizationResult::ArrayGet(new_array_id)) => {
+            assert_ne!(
+                new_array_id, array_id,
+                "ArrayGetOptimizationResult::ArrayGet returned the same array_id"
+            );
+
             let index = dfg.make_constant(target_index, NumericType::length_type());
             SimplifyResult::SimplifiedToInstruction(Instruction::ArrayGet {
-                array: array_id,
+                array: new_array_id,
                 index,
             })
         }
