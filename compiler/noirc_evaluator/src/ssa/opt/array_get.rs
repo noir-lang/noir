@@ -183,6 +183,7 @@ pub(crate) fn try_optimize_array_get_from_previous_instructions(
     dfg: &DataFlowGraph,
     side_effects: Option<&ArrayGetOptimizationSideEffects>,
 ) -> Option<ArrayGetOptimizationResult> {
+    let original_array_id = array_id;
     let target_index_u32 = target_index.try_to_u32()?;
 
     // Arbitrary number of maximum tries just to prevent this optimization from taking too long.
@@ -239,6 +240,11 @@ pub(crate) fn try_optimize_array_get_from_previous_instructions(
         } else if let Value::Param { typ: Type::Array(_, length), .. } = &dfg[array_id]
             && target_index_u32 < length.0
         {
+            // There's no optimization if we end up getting from the original array
+            if array_id == original_array_id {
+                return None;
+            }
+
             return Some(ArrayGetOptimizationResult::ArrayGet(array_id));
         }
 
