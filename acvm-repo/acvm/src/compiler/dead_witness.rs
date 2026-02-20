@@ -64,10 +64,9 @@ fn extract_opcode_edges<F: AcirField>(opcode: &Opcode<F>) -> OpcodeEdges {
             witnesses.extend(black_box_func_call.get_outputs_vec());
             OpcodeEdges { connected: witnesses.clone(), witnesses, block: None }
         }
-        Opcode::Call { inputs, outputs, predicate, .. } => {
-            let mut witnesses: Vec<Witness> =
+        Opcode::Call { inputs, outputs, .. } => {
+            let witnesses: Vec<Witness> =
                 inputs.iter().copied().chain(outputs.iter().copied()).collect();
-            witnesses.extend(expr_witnesses(predicate));
             OpcodeEdges { connected: witnesses.clone(), witnesses, block: None }
         }
         Opcode::BrilligCall { outputs, .. } => {
