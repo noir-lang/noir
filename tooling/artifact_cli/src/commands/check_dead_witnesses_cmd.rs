@@ -75,15 +75,21 @@ fn show_dead_witnesses<F: AcirField>(
 ) {
     eprintln!("Found some dead witnesses in function {function_number}:");
 
-    if function_number == 0 {
-        // Check if any of the dead witnesses are in private parameters
-        let dead_witnesses_in_private_parameters = circuit
-            .private_parameters
-            .intersection(&dead_witnesses)
-            .copied()
-            .collect::<BTreeSet<_>>();
+    // Check if any of the dead witnesses are in private parameters.
+    let dead_witnesses_in_private_parameters =
+        circuit.private_parameters.intersection(&dead_witnesses).copied().collect::<BTreeSet<_>>();
 
-        if !dead_witnesses_in_private_parameters.is_empty() {
+    if !dead_witnesses_in_private_parameters.is_empty() {
+        // Since we'll show these dead witnesses related to a private parameter, we can remove them
+        // from the total set of dead witnesses so we later only show dead witnesses related to
+        // non-private parameters.
+        for witness in &dead_witnesses_in_private_parameters {
+            dead_witnesses.remove(&witness);
+        }
+
+        // We can pinpoint which ABI input parameters are these dead witnesses for, but only
+        // for the main function because we only track the ABI for the main function.
+        if function_number == 0 {
             // Replicate the ABI in a structure that allows us to track the dead status of each parameter and nested type.
             let (mut abi_parameter_statuses, witness_index_to_path) =
                 AbiStatusComputer::default().compute(&program.abi.parameters);
@@ -92,11 +98,6 @@ fn show_dead_witnesses<F: AcirField>(
             for witness in dead_witnesses_in_private_parameters {
                 let path = &witness_index_to_path[&(witness.0 as usize)];
                 mark_abi_parameter_as_dead(&mut abi_parameter_statuses, path, 0);
-
-                // Since we'll show this dead witness related to a private parameter, we can remove it
-                // from the set of dead witnesses so we later only show dead witnesses related to
-                // non-private parameters.
-                dead_witnesses.remove(&witness);
             }
 
             // Bubble up the "dead" status of children up to their parents
@@ -106,6 +107,14 @@ fn show_dead_witnesses<F: AcirField>(
 
             eprintln!(" - Dead witnesses in program inputs:");
             show_dead_abi_parameter_statuses(&abi_parameter_statuses, &mut Vec::new());
+        } else {
+            // For non-main functions, at least say that these are for program inputs
+            let comma_separated_witnesses = dead_witnesses_in_private_parameters
+                .iter()
+                .map(|w| w.to_string())
+                .collect::<Vec<_>>()
+                .join(", ");
+            eprintln!(" - Dead witnesses in program inputs: {{{comma_separated_witnesses}}}");
         }
     }
 
@@ -113,6 +122,7 @@ fn show_dead_witnesses<F: AcirField>(
         return;
     }
 
+    // Try to find the locations of the remaining dead witnesses in the source code.
     let debug_info = &program.debug_symbols.debug_infos[function_number];
     let opcode_location_to_dead_witnesses =
         compute_call_stack_id_to_dead_witnesses(&mut dead_witnesses, circuit, debug_info);
@@ -139,11 +149,13 @@ fn show_dead_witnesses<F: AcirField>(
         return;
     }
 
-    let dead_witnesses =
-        dead_witnesses.into_iter().map(|w| w.to_string()).collect::<Vec<_>>().join(", ");
-    eprintln!(" - Dead witnesses with unknown locations: {{{dead_witnesses}}}");
+    let comma_separated_witnesses =
+        dead_witnesses.iter().map(|w| w.to_string()).collect::<Vec<_>>().join(", ");
+    eprintln!(" - Dead witnesses with unknown locations: {{{comma_separated_witnesses}}}");
 }
 
+/// Computes a mapping from [`CallStackId`] to the set of dead witness that happen at that given call stack.
+/// While this is done, gathered witnesses are also removed from `dead_witnesses`.
 fn compute_call_stack_id_to_dead_witnesses<F: AcirField>(
     dead_witnesses: &mut BTreeSet<Witness>,
     circuit: &Circuit<F>,
@@ -153,6 +165,8 @@ fn compute_call_stack_id_to_dead_witnesses<F: AcirField>(
 
     for (index, opcode) in circuit.opcodes.iter().enumerate() {
         let opcode_witnesses = opcode_witnesses(opcode);
+
+        // Check if there any dead witness happens in this opcode
         let intersection =
             opcode_witnesses.intersection(dead_witnesses).copied().collect::<BTreeSet<_>>();
         if intersection.is_empty() {
@@ -176,7 +190,7 @@ fn compute_call_stack_id_to_dead_witnesses<F: AcirField>(
     call_stack_id_to_witnesses
 }
 
-/// Extract all witnesses relevant to dead witnesses from an opcode.
+/// Extract all witnesses (relevant to dead witnesses) from an opcode.
 fn opcode_witnesses<F: AcirField>(opcode: &Opcode<F>) -> BTreeSet<Witness> {
     match opcode {
         Opcode::AssertZero(expression) => expr_witnesses(expression).collect(),
