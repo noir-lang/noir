@@ -67,11 +67,11 @@ use crate::{
 };
 use rustc_hash::FxHashMap as HashMap;
 
-/// Maximum number of instructions (after unrolling) for Brillig loops to be
-/// force-unrolled regardless of the cost model. Loops with no function calls,
-/// constant bounds, and no breaks whose unrolled instruction count is at or
-/// below this threshold will always be unrolled.
-pub const FORCE_UNROLL_THRESHOLD: usize = 32;
+/// Maximum Brillig-weighted cost (after unrolling) for Brillig loops to be
+/// force-unrolled regardless of the cost model. Loops with constant bounds
+/// and no breaks whose unrolled cost is at or below this threshold will
+/// always be unrolled.
+pub const FORCE_UNROLL_THRESHOLD: usize = 100;
 
 impl Ssa {
     /// Loop unrolling can return errors, since ACIR functions need to be fully unrolled.
@@ -879,17 +879,25 @@ impl Loop {
         (loads, stores)
     }
 
-    /// Count the number of instructions in the loop, including the terminating jumps.
+    /// Count the Brillig-weighted cost of instructions in the loop, including terminators.
     fn count_all_instructions(&self, function: &Function) -> usize {
-        let iter = self.blocks.iter().map(|block| {
-            let block = &function.dfg[*block];
-            block.instructions().len() + usize::from(block.terminator().is_some())
-        });
-        iter.sum()
+        self.blocks
+            .iter()
+            .map(|block_id| {
+                let block = &function.dfg[*block_id];
+                let instr_cost: usize = block
+                    .instructions()
+                    .iter()
+                    .map(|id| function.dfg[*id].cost(*id, &function.dfg))
+                    .sum();
+                let term_cost = block.terminator().map(|t| t.cost()).unwrap_or(0);
+                instr_cost + term_cost
+            })
+            .sum()
     }
 
-    /// Count the number of increments to the induction variable.
-    /// It should be one, but it can be duplicated.
+    /// Compute the Brillig-weighted cost of induction variable increments.
+    /// There should be one increment, but it can be duplicated.
     /// The increment should be in the block where the back-edge was found.
     fn count_induction_increments(&self, function: &Function) -> usize {
         let back = &function.dfg[self.back_edge_start];
@@ -898,14 +906,18 @@ impl Loop {
 
         back.instructions()
             .iter()
-            .filter(|instruction| {
-                let instruction = &function.dfg[**instruction];
-                matches!(instruction,
+            .filter_map(|id| {
+                let instruction = &function.dfg[*id];
+                match instruction {
                     Instruction::Binary(Binary { lhs, operator: BinaryOp::Add { .. }, rhs: _ })
-                        if *lhs == induction_var
-                )
+                        if *lhs == induction_var =>
+                    {
+                        Some(instruction.cost(*id, &function.dfg))
+                    }
+                    _ => None,
+                }
             })
-            .count()
+            .sum()
     }
 
     /// Whether this loop should be unrolled when compiling to Brillig.
@@ -990,9 +1002,9 @@ struct BoilerplateStats {
     loads: usize,
     /// Number of stores into pre-header references in the loop.
     stores: usize,
-    /// Number of increments to the induction variable (might be duplicated).
+    /// Brillig-weighted cost of induction variable increments (might be duplicated).
     increments: usize,
-    /// Number of instructions in the loop, including boilerplate,
+    /// Brillig-weighted cost of instructions in the loop, including boilerplate,
     /// but excluding the boilerplate which is outside the loop.
     all_instructions: usize,
     /// Indicate whether the comparison with the upper bound has been simplified out.
@@ -1000,21 +1012,26 @@ struct BoilerplateStats {
 }
 
 impl BoilerplateStats {
-    /// Instruction count if we leave the loop as-is.
-    /// It's the instructions in the loop, plus the one to kick it off in the pre-header.
+    /// Brillig-weighted cost if we leave the loop as-is.
+    /// It's the cost of the loop body, plus the pre-header jmp that kicks it off.
     fn baseline_instructions(&self) -> usize {
-        self.all_instructions + 1
+        // Pre-header jmp has 1 argument (the induction variable initial value):
+        // Brillig cost = 1 (jump) + 1 (move for 1 arg) = 2
+        self.all_instructions + 2
     }
 
-    /// Estimated number of _useful_ instructions, which is the ones in the loop
-    /// minus all in-loop boilerplate.
+    /// Estimated Brillig-weighted cost of _useful_ instructions, which is the
+    /// cost of the loop minus all in-loop boilerplate.
     fn useful_instructions(&self) -> usize {
-        // Two jumps + plus the comparison with the upper bound.
-        // This could be just 2 if the comparison has been simplified out.
-        let boilerplate = if self.has_const_zero_jump_condition { 2 } else { 3 };
-        // Be conservative and only assume that mem2reg gets rid of load followed by store.
-        // NB we have not checked that these are actual pairs.
+        // Brillig costs: JmpIf=2, Jmp(1 induction var arg)=2, Lt comparison=1
+        let boilerplate = if self.has_const_zero_jump_condition {
+            2 + 2 // jmpif + jmp (with 1 induction var arg)
+        } else {
+            1 + 2 + 2 // lt + jmpif + jmp (with 1 induction var arg)
+        };
+        // Load=1, Store=1 in Brillig (matches current *2 for pairs)
         let load_and_store = self.loads.min(self.stores) * 2;
+        // Induction increments: Brillig-weighted cost
         let total_boilerplate = self.increments + load_and_store + boilerplate;
         assert!(
             total_boilerplate <= self.all_instructions,
@@ -1526,7 +1543,7 @@ mod tests {
         assert_eq!(stores, 1);
 
         let all = loop0.count_all_instructions(function);
-        assert_eq!(all, 7);
+        assert_eq!(all, 13);
     }
 
     #[test]
@@ -1534,12 +1551,12 @@ mod tests {
         let ssa = brillig_unroll_test_case();
         let stats = loop0_stats(&ssa);
         assert_eq!(stats.iterations, 4);
-        assert_eq!(stats.all_instructions, 2 + 5); // Instructions in b1 and b3
-        assert_eq!(stats.increments, 1);
+        assert_eq!(stats.all_instructions, 3 + 10); // Brillig-weighted cost in b1 and b3
+        assert_eq!(stats.increments, 3); // checked add cost on u32
         assert_eq!(stats.loads, 1);
         assert_eq!(stats.stores, 1);
-        assert_eq!(stats.useful_instructions(), 1); // Adding to sum
-        assert_eq!(stats.baseline_instructions(), 8);
+        assert_eq!(stats.useful_instructions(), 3); // add to sum (checked u32 = 3)
+        assert_eq!(stats.baseline_instructions(), 15);
         assert!(stats.is_small());
     }
 
@@ -1578,13 +1595,14 @@ mod tests {
         let ssa = Ssa::from_str(&brillig_unroll_test_case_6470(2)).unwrap();
         let stats = loop0_stats(&ssa);
         assert_eq!(stats.iterations, 2);
-        assert_eq!(stats.all_instructions, 2 + 8); // Instructions in b1 and b3
-        assert_eq!(stats.increments, 2);
+        assert_eq!(stats.all_instructions, 3 + 19); // Brillig-weighted cost in b1 and b3
+        assert_eq!(stats.increments, 2); // 2x unchecked_add (cost 1 each)
         assert_eq!(stats.loads, 1);
         assert_eq!(stats.stores, 1);
-        assert_eq!(stats.useful_instructions(), 3); // cast, array get, add, array set
-        assert_eq!(stats.baseline_instructions(), 11);
-        assert!(stats.is_small());
+        assert_eq!(stats.useful_instructions(), 13); // array_get(3) + add(3) + array_set(7)
+        assert_eq!(stats.baseline_instructions(), 24);
+        // Not small with Brillig weights: 13*2=26 > 24, but within force-unroll threshold
+        assert!(!stats.is_small());
     }
 
     #[test]
@@ -1681,7 +1699,7 @@ mod tests {
     /// Test that with more iterations it's not unrolled.
     #[test]
     fn test_brillig_unroll_6470_large() {
-        // 13 iterations × 4 useful instructions = 52, above FORCE_UNROLL_THRESHOLD (32)
+        // 13 iterations × 13 useful Brillig cost = 169, above FORCE_UNROLL_THRESHOLD (100)
         let parse_ssa = || Ssa::from_str(&brillig_unroll_test_case_6470(13)).unwrap();
         let ssa = parse_ssa();
         let stats = loop0_stats(&ssa);
