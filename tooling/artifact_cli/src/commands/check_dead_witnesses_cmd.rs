@@ -84,7 +84,7 @@ fn show_dead_witnesses<F: AcirField>(
         // from the total set of dead witnesses so we later only show dead witnesses related to
         // non-private parameters.
         for witness in &dead_witnesses_in_private_parameters {
-            dead_witnesses.remove(&witness);
+            dead_witnesses.remove(witness);
         }
 
         // We can pinpoint which ABI input parameters are these dead witnesses for, but only
