@@ -22,14 +22,14 @@ use crate::ssa::{
 /// When that function has no control flow, it generally means we can expect all loads and stores within the
 /// function to be resolved upon inlining. Inlining this type of basic function both reduces the number of
 /// loads/stores to be executed and enables the compiler to continue optimizing at the inline site.
+#[cfg(test)]
 pub(crate) const MAX_INSTRUCTIONS: usize = 10;
 
-/// The maximum Brillig weight for a function to be considered "simple" by the inlining cost model.
-/// This is used in `compute_function_should_be_inlined` where instruction weights are in Brillig
-/// cost units (not raw SSA instruction count). A value of 80 covers the worst case of 10 SSA
-/// instructions at maximum per-instruction cost (checked u32 mul = 8 opcodes each).
-/// The `inline_simple_functions` pass handles the common case using raw SSA count;
-/// this threshold acts as a safety net in the cost model.
+/// The maximum Brillig weight for a function to be considered "simple" and eligible for
+/// inlining by the `inline_simple_functions` pass and the `compute_function_should_be_inlined`
+/// cost model. Uses Brillig cost units (not raw SSA instruction count). A value of 80 covers
+/// the worst case of 10 SSA instructions at maximum per-instruction cost (checked u32 mul = 8
+/// opcodes each).
 pub const MAX_SIMPLE_FUNCTION_WEIGHT: usize = 80;
 
 /// Information about a function to aid the decision about whether to inline it or not.

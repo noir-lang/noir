@@ -3,7 +3,7 @@
 //! Functions are still restricted to not be inlined if they are recursive or marked with no predicates.
 //!
 //! A simple function is defined as the following:
-//! - Contains no more than a specified [maximum][crate::ssa::opt::inlining::inline_info::MAX_INSTRUCTIONS] instructions
+//! - Has a Brillig weight within the [budget][crate::ssa::opt::inlining::inline_info::MAX_SIMPLE_FUNCTION_WEIGHT]
 //! - The function only has a single block (e.g. no control flow or conditional branches)
 //! - It is not marked with the [no predicates inline type][noirc_frontend::monomorphization::ast::InlineType::NoPredicates]
 
@@ -16,7 +16,7 @@ use crate::ssa::{
         function::{Function, RuntimeType},
     },
     opt::brillig_entry_points::get_brillig_entry_points,
-    opt::inlining::inline_info::MAX_INSTRUCTIONS,
+    opt::inlining::inline_info::MAX_SIMPLE_FUNCTION_WEIGHT,
     ssa_gen::Ssa,
 };
 
@@ -53,20 +53,19 @@ impl Ssa {
 
             let entry_block_id = callee.entry_block();
             let entry_block = &callee.dfg[entry_block_id];
-            let instructions = entry_block.instructions();
 
             // Only inline functions with a single block
             if entry_block.successors().next().is_some() {
                 return false;
             }
 
-            // Only inline functions with `MAX_INSTRUCTIONS` or less instructions
-            if instructions.len() > MAX_INSTRUCTIONS {
+            // Only inline functions within the Brillig weight budget
+            if callee.cost() > MAX_SIMPLE_FUNCTION_WEIGHT {
                 return false;
             }
 
             // Inline zero instructions
-            if instructions.is_empty() {
+            if entry_block.instructions().is_empty() {
                 return true;
             }
 
@@ -134,8 +133,9 @@ mod tests {
     /// This test is here to make clear that this SSA pass does not attempt multiple passes.
     #[test]
     fn does_not_inline_functions_that_require_multiple_passes() {
-        // f2 has greater than 10 instructions, which should prevent it from
-        // being inlined into f0 on the first run of this pass.
+        // f2's Brillig weight exceeds MAX_SIMPLE_FUNCTION_WEIGHT (80) due to 12 calls
+        // (each costing 7) + 1 add + return = 87, which prevents it from being inlined
+        // into f0 on the first run of this pass.
         let src = "
         acir(inline) fn main f0 {
           b0(v0: Field):
@@ -160,8 +160,10 @@ mod tests {
             v8 = call f1(v0) -> Field
             v9 = call f1(v0) -> Field
             v10 = call f1(v0) -> Field
-            v11 = add v1, v2
-            return v11
+            v11 = call f1(v0) -> Field
+            v12 = call f1(v0) -> Field
+            v13 = add v1, v2
+            return v13
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
@@ -280,27 +282,30 @@ mod tests {
     }
 
     #[test]
-    fn does_not_inline_function_with_multiple_instructions() {
+    fn does_not_inline_function_with_high_brillig_weight() {
+        // Checked u32 muls cost 8 Brillig opcodes each, so 10 muls + 1 checked add
+        // gives a total Brillig weight of 85 (3 + 80 + return 2), exceeding
+        // MAX_SIMPLE_FUNCTION_WEIGHT (80).
         let src = "
         acir(inline) fn main f0 {
-          b0(v0: Field):
-            v1 = call f1(v0) -> Field
+          b0(v0: u32):
+            v1 = call f1(v0) -> u32
             return v1
         }
 
         acir(inline) fn foo f1 {
-          b0(v0: Field):
-            v1 = add v0, Field 1
-            v2 = mul v1, Field 2
-            v3 = mul v2, Field 2
-            v4 = mul v3, Field 2
-            v5 = mul v4, Field 2
-            v6 = mul v5, Field 2
-            v7 = mul v6, Field 2
-            v8 = mul v7, Field 2
-            v9 = mul v8, Field 2
-            v10 = mul v9, Field 2
-            v11 = mul v10, Field 2
+          b0(v0: u32):
+            v1 = add v0, u32 1
+            v2 = mul v1, u32 2
+            v3 = mul v2, u32 2
+            v4 = mul v3, u32 2
+            v5 = mul v4, u32 2
+            v6 = mul v5, u32 2
+            v7 = mul v6, u32 2
+            v8 = mul v7, u32 2
+            v9 = mul v8, u32 2
+            v10 = mul v9, u32 2
+            v11 = mul v10, u32 2
             return v11
         }
         ";
