@@ -295,7 +295,7 @@
 <a href=#295 id=295 data-nosnippet>295</a>
 <a href=#296 id=296 data-nosnippet>296</a>    <span class="doccomment">/// Combines linear terms with the same witness by summing their coefficients.
 <a href=#297 id=297 data-nosnippet>297</a>    /// For example `w1 + 2*w1` becomes `3*w1`.
-<a href=#298 id=298 data-nosnippet>298</a>    </span><span class="kw">fn </span>combine_linear_terms&lt;F: AcirField&gt;(
+<a href=#298 id=298 data-nosnippet>298</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>combine_linear_terms&lt;F: AcirField&gt;(
 <a href=#299 id=299 data-nosnippet>299</a>        linear_combinations: <span class="kw-2">&amp;</span>[(F, Witness)],
 <a href=#300 id=300 data-nosnippet>300</a>    ) -&gt; Vec&lt;(F, Witness)&gt; {
 <a href=#301 id=301 data-nosnippet>301</a>        <span class="kw">let </span><span class="kw-2">mut </span>combined_linear_combinations = std::collections::HashMap::new();
@@ -318,7 +318,7 @@
 <a href=#318 id=318 data-nosnippet>318</a>    <span class="doccomment">/// Combines multiplication terms with the same witnesses by summing their coefficients.
 <a href=#319 id=319 data-nosnippet>319</a>    /// For example `w1*w2 + 2*w2*w1` becomes `3*w1*w2`. If a coefficient ends up being zero,
 <a href=#320 id=320 data-nosnippet>320</a>    /// the term is removed.
-<a href=#321 id=321 data-nosnippet>321</a>    </span><span class="kw">fn </span>combine_mul_terms&lt;F: AcirField&gt;(
+<a href=#321 id=321 data-nosnippet>321</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>combine_mul_terms&lt;F: AcirField&gt;(
 <a href=#322 id=322 data-nosnippet>322</a>        mul_terms: <span class="kw-2">&amp;</span>[(F, Witness, Witness)],
 <a href=#323 id=323 data-nosnippet>323</a>    ) -&gt; Vec&lt;(F, Witness, Witness)&gt; {
 <a href=#324 id=324 data-nosnippet>324</a>        <span class="comment">// This is similar to GeneralOptimizer::simplify_mul_terms but it's duplicated because
