@@ -22,8 +22,8 @@ pub(super) fn mark_abi_parameter_as_dead(
         AbiParameterTypeStatus::Tuple(tuple) => {
             mark_abi_parameter_type_as_dead(&mut tuple.types, path, index + 1);
         }
-        AbiParameterTypeStatus::Struct(strukt) => {
-            mark_abi_parameter_as_dead(&mut strukt.fields, path, index + 1);
+        AbiParameterTypeStatus::Struct(struct_) => {
+            mark_abi_parameter_as_dead(&mut struct_.fields, path, index + 1);
         }
     }
 }
@@ -46,8 +46,8 @@ fn mark_abi_parameter_type_as_dead(
         AbiParameterTypeStatus::Tuple(tuple) => {
             mark_abi_parameter_type_as_dead(&mut tuple.types, path, index + 1);
         }
-        AbiParameterTypeStatus::Struct(strukt) => {
-            mark_abi_parameter_as_dead(&mut strukt.fields, path, index + 1);
+        AbiParameterTypeStatus::Struct(struct_) => {
+            mark_abi_parameter_as_dead(&mut struct_.fields, path, index + 1);
         }
     }
 }
