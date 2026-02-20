@@ -40,7 +40,7 @@ pub(crate) struct ValueMerger<'a> {
     /// When arrays or vectors are merged as a result of an `if ... else` instruction,
     /// a new array will be built that does `array_get` on the arrays on the "then" and
     /// "else" branches, and combine those values. These newly inserted `array_get` could
-    /// be optimized by reusing previously inserted instructions, such as an `array_get` at
+    /// be optimized by reusing previously inserted instructions, such as an `array_set` at
     /// the same index as the one in the `array_get`. However, this is only safe to do
     /// if we know the side effects var of those two instructions is the same. Hence, that
     /// information can optionally be specified here.

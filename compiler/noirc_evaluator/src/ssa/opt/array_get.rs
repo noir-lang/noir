@@ -11,7 +11,7 @@
 //! because we get from `v1` at `index 0`, but `v1` is the result of setting the value "42"
 //! at `index 0`, we can conclude that `v2` will be "42", and so this SSA pass will do that.
 //! However, this is only safe to do if the `array_set` happened under the same side effects
-//! variable as the array_get. For example, in this case:
+//! variable as the `array_get`. For example, in this case:
 //!
 //! ```text
 //! enable_side_effects v100
@@ -71,10 +71,10 @@
 //! `v3` is getting from index 0.
 //!
 //! This module also provides a [`try_optimize_array_get_from_previous_instructions`] function
-//! that is used in other SSA-related optimizations. For example,whenever an `array_get` is inserted
-//! into a [`DFG`][crate::ssa::ir::dfg::DataFlowGraph]: in this case a previous array_set with the
-//! same index as the array_get cannot be used because we don't know under which side effects var it
-//! happens. However, array_set with a different known index can be skipped through to eventually
+//! that is used in other SSA-related optimizations. For example, whenever an `array_get` is inserted
+//! into a [`DFG`][crate::ssa::ir::dfg::DataFlowGraph]: in this case a previous `array_set` with the
+//! same index as the `array_get` cannot be used because we don't know under which side effects var it
+//! happens. However, `array_set` with a different known index can be skipped through to eventually
 //! reach a `make_array` or param.
 use std::collections::HashMap;
 
