@@ -71,7 +71,7 @@ use rustc_hash::FxHashMap as HashMap;
 /// force-unrolled regardless of the cost model. Loops with constant bounds
 /// and no breaks whose unrolled cost is at or below this threshold will
 /// always be unrolled.
-pub const FORCE_UNROLL_THRESHOLD: usize = 240;
+pub const FORCE_UNROLL_THRESHOLD: usize = 128;
 
 impl Ssa {
     /// Loop unrolling can return errors, since ACIR functions need to be fully unrolled.
