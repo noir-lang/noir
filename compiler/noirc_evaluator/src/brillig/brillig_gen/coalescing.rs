@@ -620,7 +620,7 @@ mod tests {
         // must be skipped because v1 is already a param-side target within this jmp.
         // Without this check, both v2 and v3 would try to reuse v1's register.
         // If v2 died early and its register got reclaimed while v3 was still live
-        // we would get corrupted values. 
+        // we would get corrupted values.
         // In this specific case though even though the liveness intervals of v2 and v3 overlap
         // they are safe to coalesce. This type of analysis will be easier once we add liveness intervals.
         let src = "
