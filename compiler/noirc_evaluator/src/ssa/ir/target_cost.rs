@@ -140,6 +140,11 @@ impl Instruction {
                         3 + arguments.len() + results.len()
                     }
                     Value::Intrinsic(intrinsic) => match intrinsic {
+                        // 1 BlackBoxOp + input/output array setup
+                        Intrinsic::BlackBox(_) => {
+                            let results = dfg.instruction_results(id);
+                            3 + arguments.len() + results.len()
+                        }
                         // Single opcode intrinsics
                         Intrinsic::ArrayLen
                         | Intrinsic::FieldLessThan
@@ -147,25 +152,16 @@ impl Instruction {
                         | Intrinsic::VectorRefCount
                         | Intrinsic::IsUnconstrained => 1,
 
-                        // Vector operations: procedure call + metadata + RC check + mem copy
+                        // procedure call + metadata + RC check + mem copy
                         Intrinsic::VectorPushBack | Intrinsic::VectorPushFront => 60,
                         Intrinsic::VectorPopBack | Intrinsic::VectorPopFront => 40,
                         Intrinsic::VectorInsert | Intrinsic::VectorRemove => 60,
 
-                        // BlackBox: 1 BlackBoxOp + input/output array setup
-                        Intrinsic::BlackBox(_) => {
-                            let results = dfg.instruction_results(id);
-                            3 + arguments.len() + results.len()
-                        }
-
-                        // ToBits/ToRadix: radix decomposition + optional reverse
+                        // radix decomposition + optional reverse
                         Intrinsic::ToBits(_) => 20,
                         Intrinsic::ToRadix(_) => 12,
 
-                        // DerivePedersenGenerators: similar to BlackBox
-                        Intrinsic::DerivePedersenGenerators => 10,
-
-                        // AsVector: array-to-vector conversion with metadata setup
+                        // array-to-vector conversion with metadata setup
                         Intrinsic::AsVector => 5,
 
                         // Removed before Brillig codegen / compile-time only
@@ -175,6 +171,7 @@ impl Instruction {
                         | Intrinsic::StaticAssert
                         | Intrinsic::AsWitness
                         | Intrinsic::ApplyRangeConstraint
+                        | Intrinsic::DerivePedersenGenerators
                         | Intrinsic::Hint(_) => 0,
                     },
 
