@@ -4,157 +4,162 @@
 <a href=#4 id=4 data-nosnippet>4</a>//! simpler form until the IR only has a single function remaining with 1 block within it.
 <a href=#5 id=5 data-nosnippet>5</a>//! Generally, these passes are also expected to minimize the final amount of instructions.
 <a href=#6 id=6 data-nosnippet>6</a>
-<a href=#7 id=7 data-nosnippet>7</a></span><span class="kw">mod </span>array_set;
-<a href=#8 id=8 data-nosnippet>8</a><span class="kw">mod </span>as_vector_length;
-<a href=#9 id=9 data-nosnippet>9</a><span class="kw">mod </span>basic_conditional;
-<a href=#10 id=10 data-nosnippet>10</a><span class="kw">mod </span>black_box_bypass;
-<a href=#11 id=11 data-nosnippet>11</a><span class="kw">mod </span>brillig_array_get_and_set;
-<a href=#12 id=12 data-nosnippet>12</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>brillig_entry_points;
-<a href=#13 id=13 data-nosnippet>13</a><span class="kw">mod </span>check_u128_mul_overflow;
-<a href=#14 id=14 data-nosnippet>14</a><span class="kw">mod </span>checked_to_unchecked;
-<a href=#15 id=15 data-nosnippet>15</a><span class="attr">#[cfg(debug_assertions)]
-<a href=#16 id=16 data-nosnippet>16</a></span><span class="kw">mod </span>checks;
-<a href=#17 id=17 data-nosnippet>17</a><span class="kw">mod </span>constant_folding;
-<a href=#18 id=18 data-nosnippet>18</a><span class="kw">mod </span>defunctionalize;
-<a href=#19 id=19 data-nosnippet>19</a><span class="kw">mod </span>die;
-<a href=#20 id=20 data-nosnippet>20</a><span class="kw">mod </span>evaluate_static_assert_and_assert_constant;
-<a href=#21 id=21 data-nosnippet>21</a><span class="kw">mod </span>expand_signed_checks;
-<a href=#22 id=22 data-nosnippet>22</a><span class="kw">mod </span>expand_signed_math;
-<a href=#23 id=23 data-nosnippet>23</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>flatten_cfg;
-<a href=#24 id=24 data-nosnippet>24</a><span class="kw">mod </span>hint;
-<a href=#25 id=25 data-nosnippet>25</a><span class="kw">mod </span>inline_simple_functions;
-<a href=#26 id=26 data-nosnippet>26</a><span class="kw">mod </span>inlining;
-<a href=#27 id=27 data-nosnippet>27</a><span class="kw">mod </span>loop_invariant;
-<a href=#28 id=28 data-nosnippet>28</a><span class="kw">mod </span>make_constrain_not_equal;
-<a href=#29 id=29 data-nosnippet>29</a><span class="kw">mod </span>mem2reg;
-<a href=#30 id=30 data-nosnippet>30</a><span class="kw">mod </span>normalize_value_ids;
-<a href=#31 id=31 data-nosnippet>31</a><span class="kw">mod </span>preprocess_fns;
-<a href=#32 id=32 data-nosnippet>32</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>pure;
-<a href=#33 id=33 data-nosnippet>33</a><span class="kw">mod </span>rc;
-<a href=#34 id=34 data-nosnippet>34</a><span class="kw">mod </span>remove_bit_shifts;
-<a href=#35 id=35 data-nosnippet>35</a><span class="kw">mod </span>remove_enable_side_effects;
-<a href=#36 id=36 data-nosnippet>36</a><span class="kw">mod </span>remove_if_else;
-<a href=#37 id=37 data-nosnippet>37</a><span class="kw">mod </span>remove_truncate_after_range_check;
-<a href=#38 id=38 data-nosnippet>38</a><span class="kw">mod </span>remove_unreachable_functions;
-<a href=#39 id=39 data-nosnippet>39</a><span class="kw">mod </span>remove_unreachable_instructions;
-<a href=#40 id=40 data-nosnippet>40</a><span class="kw">mod </span>remove_unused_instructions;
-<a href=#41 id=41 data-nosnippet>41</a><span class="kw">mod </span>simple_optimization;
-<a href=#42 id=42 data-nosnippet>42</a><span class="kw">mod </span>simplify_cfg;
-<a href=#43 id=43 data-nosnippet>43</a><span class="kw">mod </span>unrolling;
-<a href=#44 id=44 data-nosnippet>44</a>
-<a href=#45 id=45 data-nosnippet>45</a><span class="kw">pub use </span>constant_folding::DEFAULT_MAX_ITER <span class="kw">as </span>CONSTANT_FOLDING_MAX_ITER;
-<a href=#46 id=46 data-nosnippet>46</a><span class="kw">pub use </span>inlining::MAX_SIMPLE_FUNCTION_WEIGHT <span class="kw">as </span>INLINING_MAX_INSTRUCTIONS;
-<a href=#47 id=47 data-nosnippet>47</a><span class="kw">pub use </span>unrolling::FORCE_UNROLL_THRESHOLD;
-<a href=#48 id=48 data-nosnippet>48</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>unrolling::{LoopOrder, Loops};
-<a href=#49 id=49 data-nosnippet>49</a>
-<a href=#50 id=50 data-nosnippet>50</a><span class="attr">#[cfg(test)]
-<a href=#51 id=51 data-nosnippet>51</a></span><span class="kw">use </span><span class="kw">crate</span>::ssa::{
-<a href=#52 id=52 data-nosnippet>52</a>    interpreter::{errors::InterpreterError, value::Value},
-<a href=#53 id=53 data-nosnippet>53</a>    ssa_gen::Ssa,
-<a href=#54 id=54 data-nosnippet>54</a>};
-<a href=#55 id=55 data-nosnippet>55</a>
-<a href=#56 id=56 data-nosnippet>56</a><span class="doccomment">/// Asserts that the given SSA, after normalizing its IDs and printing it,
-<a href=#57 id=57 data-nosnippet>57</a>/// is equal to the expected string. Normalization is done so the IDs don't
-<a href=#58 id=58 data-nosnippet>58</a>/// shift depending on whether temporary intermediate values were created.
-<a href=#59 id=59 data-nosnippet>59</a></span><span class="attr">#[cfg(test)]
-<a href=#60 id=60 data-nosnippet>60</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>assert_normalized_ssa_equals(<span class="kw-2">mut </span>ssa: Ssa, expected: <span class="kw-2">&amp;</span>str) {
-<a href=#61 id=61 data-nosnippet>61</a>    <span class="kw">use crate</span>::{ssa::Ssa, trim_comments_from_lines, trim_leading_whitespace_from_lines};
-<a href=#62 id=62 data-nosnippet>62</a>
-<a href=#63 id=63 data-nosnippet>63</a>    <span class="comment">// Clean up the expected SSA a bit
-<a href=#64 id=64 data-nosnippet>64</a>    </span><span class="kw">let </span>expected = trim_leading_whitespace_from_lines(expected);
-<a href=#65 id=65 data-nosnippet>65</a>    <span class="kw">let </span>expected = trim_comments_from_lines(<span class="kw-2">&amp;</span>expected);
-<a href=#66 id=66 data-nosnippet>66</a>
-<a href=#67 id=67 data-nosnippet>67</a>    <span class="comment">// First check if `expected` is valid SSA by parsing it, otherwise
-<a href=#68 id=68 data-nosnippet>68</a>    // the comparison will always fail but it won't be clear that it's because
-<a href=#69 id=69 data-nosnippet>69</a>    // expected is not valid.
-<a href=#70 id=70 data-nosnippet>70</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>expected_ssa = <span class="kw">match </span>Ssa::from_str(<span class="kw-2">&amp;</span>expected) {
-<a href=#71 id=71 data-nosnippet>71</a>        <span class="prelude-val">Ok</span>(ssa) =&gt; ssa,
-<a href=#72 id=72 data-nosnippet>72</a>        <span class="prelude-val">Err</span>(err) =&gt; {
-<a href=#73 id=73 data-nosnippet>73</a>            <span class="macro">panic!</span>(<span class="string">"`expected` argument of `assert_ssa_equals` is not valid SSA:\n{err:?}"</span>)
-<a href=#74 id=74 data-nosnippet>74</a>        }
-<a href=#75 id=75 data-nosnippet>75</a>    };
-<a href=#76 id=76 data-nosnippet>76</a>
-<a href=#77 id=77 data-nosnippet>77</a>    <span class="comment">// We won't exactly compare `expected` against `ssa`:
-<a href=#78 id=78 data-nosnippet>78</a>    // we parse it, normalize it and turn it back into a string.
-<a href=#79 id=79 data-nosnippet>79</a>    // This allows us to use any names and not just `b0`, `b1`, `v0`, `v1`, etc.
-<a href=#80 id=80 data-nosnippet>80</a>    // which is what the SSA printer produces.
-<a href=#81 id=81 data-nosnippet>81</a>    </span>expected_ssa.normalize_ids();
-<a href=#82 id=82 data-nosnippet>82</a>
-<a href=#83 id=83 data-nosnippet>83</a>    ssa.normalize_ids();
-<a href=#84 id=84 data-nosnippet>84</a>
-<a href=#85 id=85 data-nosnippet>85</a>    <span class="kw">let </span>ssa = ssa.print_without_locations().to_string();
-<a href=#86 id=86 data-nosnippet>86</a>    <span class="kw">let </span>ssa = ssa.trim_end();
+<a href=#7 id=7 data-nosnippet>7</a></span><span class="kw">mod </span>array_get;
+<a href=#8 id=8 data-nosnippet>8</a><span class="kw">mod </span>array_set;
+<a href=#9 id=9 data-nosnippet>9</a><span class="kw">mod </span>as_vector_length;
+<a href=#10 id=10 data-nosnippet>10</a><span class="kw">mod </span>basic_conditional;
+<a href=#11 id=11 data-nosnippet>11</a><span class="kw">mod </span>black_box_bypass;
+<a href=#12 id=12 data-nosnippet>12</a><span class="kw">mod </span>brillig_array_get_and_set;
+<a href=#13 id=13 data-nosnippet>13</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>brillig_entry_points;
+<a href=#14 id=14 data-nosnippet>14</a><span class="kw">mod </span>check_u128_mul_overflow;
+<a href=#15 id=15 data-nosnippet>15</a><span class="kw">mod </span>checked_to_unchecked;
+<a href=#16 id=16 data-nosnippet>16</a><span class="attr">#[cfg(debug_assertions)]
+<a href=#17 id=17 data-nosnippet>17</a></span><span class="kw">mod </span>checks;
+<a href=#18 id=18 data-nosnippet>18</a><span class="kw">mod </span>constant_folding;
+<a href=#19 id=19 data-nosnippet>19</a><span class="kw">mod </span>defunctionalize;
+<a href=#20 id=20 data-nosnippet>20</a><span class="kw">mod </span>die;
+<a href=#21 id=21 data-nosnippet>21</a><span class="kw">mod </span>evaluate_static_assert_and_assert_constant;
+<a href=#22 id=22 data-nosnippet>22</a><span class="kw">mod </span>expand_signed_checks;
+<a href=#23 id=23 data-nosnippet>23</a><span class="kw">mod </span>expand_signed_math;
+<a href=#24 id=24 data-nosnippet>24</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>flatten_cfg;
+<a href=#25 id=25 data-nosnippet>25</a><span class="kw">mod </span>hint;
+<a href=#26 id=26 data-nosnippet>26</a><span class="kw">mod </span>inline_simple_functions;
+<a href=#27 id=27 data-nosnippet>27</a><span class="kw">mod </span>inlining;
+<a href=#28 id=28 data-nosnippet>28</a><span class="kw">mod </span>loop_invariant;
+<a href=#29 id=29 data-nosnippet>29</a><span class="kw">mod </span>make_constrain_not_equal;
+<a href=#30 id=30 data-nosnippet>30</a><span class="kw">mod </span>mem2reg;
+<a href=#31 id=31 data-nosnippet>31</a><span class="kw">mod </span>normalize_value_ids;
+<a href=#32 id=32 data-nosnippet>32</a><span class="kw">mod </span>preprocess_fns;
+<a href=#33 id=33 data-nosnippet>33</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>pure;
+<a href=#34 id=34 data-nosnippet>34</a><span class="kw">mod </span>rc;
+<a href=#35 id=35 data-nosnippet>35</a><span class="kw">mod </span>remove_bit_shifts;
+<a href=#36 id=36 data-nosnippet>36</a><span class="kw">mod </span>remove_enable_side_effects;
+<a href=#37 id=37 data-nosnippet>37</a><span class="kw">mod </span>remove_if_else;
+<a href=#38 id=38 data-nosnippet>38</a><span class="kw">mod </span>remove_truncate_after_range_check;
+<a href=#39 id=39 data-nosnippet>39</a><span class="kw">mod </span>remove_unreachable_functions;
+<a href=#40 id=40 data-nosnippet>40</a><span class="kw">mod </span>remove_unreachable_instructions;
+<a href=#41 id=41 data-nosnippet>41</a><span class="kw">mod </span>remove_unused_instructions;
+<a href=#42 id=42 data-nosnippet>42</a><span class="kw">mod </span>simple_optimization;
+<a href=#43 id=43 data-nosnippet>43</a><span class="kw">mod </span>simplify_cfg;
+<a href=#44 id=44 data-nosnippet>44</a><span class="kw">mod </span>unrolling;
+<a href=#45 id=45 data-nosnippet>45</a>
+<a href=#46 id=46 data-nosnippet>46</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>array_get::{
+<a href=#47 id=47 data-nosnippet>47</a>    ArrayGetOptimizationResult, ArrayGetOptimizationSideEffects,
+<a href=#48 id=48 data-nosnippet>48</a>    try_optimize_array_get_from_previous_instructions,
+<a href=#49 id=49 data-nosnippet>49</a>};
+<a href=#50 id=50 data-nosnippet>50</a><span class="kw">pub use </span>constant_folding::DEFAULT_MAX_ITER <span class="kw">as </span>CONSTANT_FOLDING_MAX_ITER;
+<a href=#51 id=51 data-nosnippet>51</a><span class="kw">pub use </span>inlining::MAX_SIMPLE_FUNCTION_WEIGHT <span class="kw">as </span>INLINING_MAX_INSTRUCTIONS;
+<a href=#52 id=52 data-nosnippet>52</a><span class="kw">pub use </span>unrolling::FORCE_UNROLL_THRESHOLD;
+<a href=#53 id=53 data-nosnippet>53</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>unrolling::{LoopOrder, Loops};
+<a href=#54 id=54 data-nosnippet>54</a>
+<a href=#55 id=55 data-nosnippet>55</a><span class="attr">#[cfg(test)]
+<a href=#56 id=56 data-nosnippet>56</a></span><span class="kw">use </span><span class="kw">crate</span>::ssa::{
+<a href=#57 id=57 data-nosnippet>57</a>    interpreter::{errors::InterpreterError, value::Value},
+<a href=#58 id=58 data-nosnippet>58</a>    ssa_gen::Ssa,
+<a href=#59 id=59 data-nosnippet>59</a>};
+<a href=#60 id=60 data-nosnippet>60</a>
+<a href=#61 id=61 data-nosnippet>61</a><span class="doccomment">/// Asserts that the given SSA, after normalizing its IDs and printing it,
+<a href=#62 id=62 data-nosnippet>62</a>/// is equal to the expected string. Normalization is done so the IDs don't
+<a href=#63 id=63 data-nosnippet>63</a>/// shift depending on whether temporary intermediate values were created.
+<a href=#64 id=64 data-nosnippet>64</a></span><span class="attr">#[cfg(test)]
+<a href=#65 id=65 data-nosnippet>65</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>assert_normalized_ssa_equals(<span class="kw-2">mut </span>ssa: Ssa, expected: <span class="kw-2">&amp;</span>str) {
+<a href=#66 id=66 data-nosnippet>66</a>    <span class="kw">use crate</span>::{ssa::Ssa, trim_comments_from_lines, trim_leading_whitespace_from_lines};
+<a href=#67 id=67 data-nosnippet>67</a>
+<a href=#68 id=68 data-nosnippet>68</a>    <span class="comment">// Clean up the expected SSA a bit
+<a href=#69 id=69 data-nosnippet>69</a>    </span><span class="kw">let </span>expected = trim_leading_whitespace_from_lines(expected);
+<a href=#70 id=70 data-nosnippet>70</a>    <span class="kw">let </span>expected = trim_comments_from_lines(<span class="kw-2">&amp;</span>expected);
+<a href=#71 id=71 data-nosnippet>71</a>
+<a href=#72 id=72 data-nosnippet>72</a>    <span class="comment">// First check if `expected` is valid SSA by parsing it, otherwise
+<a href=#73 id=73 data-nosnippet>73</a>    // the comparison will always fail but it won't be clear that it's because
+<a href=#74 id=74 data-nosnippet>74</a>    // expected is not valid.
+<a href=#75 id=75 data-nosnippet>75</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>expected_ssa = <span class="kw">match </span>Ssa::from_str(<span class="kw-2">&amp;</span>expected) {
+<a href=#76 id=76 data-nosnippet>76</a>        <span class="prelude-val">Ok</span>(ssa) =&gt; ssa,
+<a href=#77 id=77 data-nosnippet>77</a>        <span class="prelude-val">Err</span>(err) =&gt; {
+<a href=#78 id=78 data-nosnippet>78</a>            <span class="macro">panic!</span>(<span class="string">"`expected` argument of `assert_ssa_equals` is not valid SSA:\n{err:?}"</span>)
+<a href=#79 id=79 data-nosnippet>79</a>        }
+<a href=#80 id=80 data-nosnippet>80</a>    };
+<a href=#81 id=81 data-nosnippet>81</a>
+<a href=#82 id=82 data-nosnippet>82</a>    <span class="comment">// We won't exactly compare `expected` against `ssa`:
+<a href=#83 id=83 data-nosnippet>83</a>    // we parse it, normalize it and turn it back into a string.
+<a href=#84 id=84 data-nosnippet>84</a>    // This allows us to use any names and not just `b0`, `b1`, `v0`, `v1`, etc.
+<a href=#85 id=85 data-nosnippet>85</a>    // which is what the SSA printer produces.
+<a href=#86 id=86 data-nosnippet>86</a>    </span>expected_ssa.normalize_ids();
 <a href=#87 id=87 data-nosnippet>87</a>
-<a href=#88 id=88 data-nosnippet>88</a>    <span class="kw">let </span>expected_ssa = expected_ssa.print_without_locations().to_string();
-<a href=#89 id=89 data-nosnippet>89</a>    <span class="kw">let </span>expected_ssa = expected_ssa.trim_end();
-<a href=#90 id=90 data-nosnippet>90</a>
-<a href=#91 id=91 data-nosnippet>91</a>    <span class="kw">if </span>ssa == expected_ssa {
-<a href=#92 id=92 data-nosnippet>92</a>        <span class="kw">return</span>;
-<a href=#93 id=93 data-nosnippet>93</a>    }
-<a href=#94 id=94 data-nosnippet>94</a>
-<a href=#95 id=95 data-nosnippet>95</a>    <span class="kw">if </span>expected != expected_ssa {
-<a href=#96 id=96 data-nosnippet>96</a>        <span class="macro">println!</span>(<span class="string">"Expected (before ID normalization):\n~~~\n{expected}\n~~~\n"</span>);
-<a href=#97 id=97 data-nosnippet>97</a>    }
-<a href=#98 id=98 data-nosnippet>98</a>
-<a href=#99 id=99 data-nosnippet>99</a>    <span class="macro">println!</span>(<span class="string">"Expected (after ID normalization):\n~~~\n{expected_ssa}\n~~~\n"</span>);
-<a href=#100 id=100 data-nosnippet>100</a>    <span class="macro">println!</span>(<span class="string">"Got:\n~~~\n{ssa}\n~~~"</span>);
-<a href=#101 id=101 data-nosnippet>101</a>    <span class="macro">similar_asserts::assert_eq!</span>(expected_ssa, ssa);
-<a href=#102 id=102 data-nosnippet>102</a>}
+<a href=#88 id=88 data-nosnippet>88</a>    ssa.normalize_ids();
+<a href=#89 id=89 data-nosnippet>89</a>
+<a href=#90 id=90 data-nosnippet>90</a>    <span class="kw">let </span>ssa = ssa.print_without_locations().to_string();
+<a href=#91 id=91 data-nosnippet>91</a>    <span class="kw">let </span>ssa = ssa.trim_end();
+<a href=#92 id=92 data-nosnippet>92</a>
+<a href=#93 id=93 data-nosnippet>93</a>    <span class="kw">let </span>expected_ssa = expected_ssa.print_without_locations().to_string();
+<a href=#94 id=94 data-nosnippet>94</a>    <span class="kw">let </span>expected_ssa = expected_ssa.trim_end();
+<a href=#95 id=95 data-nosnippet>95</a>
+<a href=#96 id=96 data-nosnippet>96</a>    <span class="kw">if </span>ssa == expected_ssa {
+<a href=#97 id=97 data-nosnippet>97</a>        <span class="kw">return</span>;
+<a href=#98 id=98 data-nosnippet>98</a>    }
+<a href=#99 id=99 data-nosnippet>99</a>
+<a href=#100 id=100 data-nosnippet>100</a>    <span class="kw">if </span>expected != expected_ssa {
+<a href=#101 id=101 data-nosnippet>101</a>        <span class="macro">println!</span>(<span class="string">"Expected (before ID normalization):\n~~~\n{expected}\n~~~\n"</span>);
+<a href=#102 id=102 data-nosnippet>102</a>    }
 <a href=#103 id=103 data-nosnippet>103</a>
-<a href=#104 id=104 data-nosnippet>104</a><span class="doccomment">/// Compare the textural representation of the SSA after normalizing its IDs to a snapshot.
-<a href=#105 id=105 data-nosnippet>105</a>///
-<a href=#106 id=106 data-nosnippet>106</a>/// # Example:
-<a href=#107 id=107 data-nosnippet>107</a>///
-<a href=#108 id=108 data-nosnippet>108</a>/// ```ignore
-<a href=#109 id=109 data-nosnippet>109</a>/// let ssa = todo!();
-<a href=#110 id=110 data-nosnippet>110</a>/// assert_ssa_snapshot!(ssa, @r"
-<a href=#111 id=111 data-nosnippet>111</a>///   acir(inline) fn main f0 {
-<a href=#112 id=112 data-nosnippet>112</a>///       b0(v0: Field):
-<a href=#113 id=113 data-nosnippet>113</a>///         return v0
-<a href=#114 id=114 data-nosnippet>114</a>///     }
-<a href=#115 id=115 data-nosnippet>115</a>/// ");
-<a href=#116 id=116 data-nosnippet>116</a>/// ```
-<a href=#117 id=117 data-nosnippet>117</a>/// Or without taking ownership:
-<a href=#118 id=118 data-nosnippet>118</a>/// ```ignore
-<a href=#119 id=119 data-nosnippet>119</a>/// let mut ssa = todo!();
-<a href=#120 id=120 data-nosnippet>120</a>/// assert_ssa_snapshot!(&amp;mut ssa, @r"
-<a href=#121 id=121 data-nosnippet>121</a>///   acir(inline) fn main f0 {
-<a href=#122 id=122 data-nosnippet>122</a>///       b0(v0: Field):
-<a href=#123 id=123 data-nosnippet>123</a>///         return v0
-<a href=#124 id=124 data-nosnippet>124</a>///     }
-<a href=#125 id=125 data-nosnippet>125</a>/// ");
-<a href=#126 id=126 data-nosnippet>126</a>/// ```
-<a href=#127 id=127 data-nosnippet>127</a></span><span class="attr">#[macro_export]
-<a href=#128 id=128 data-nosnippet>128</a></span><span class="macro">macro_rules!</span> assert_ssa_snapshot {
-<a href=#129 id=129 data-nosnippet>129</a>    (<span class="macro-nonterminal">$ssa</span>:expr, $(<span class="macro-nonterminal">$arg</span>:tt)<span class="kw-2">*</span>) =&gt; {
-<a href=#130 id=130 data-nosnippet>130</a>        <span class="attr">#[allow(unused_mut)]
-<a href=#131 id=131 data-nosnippet>131</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>mut_ssa = <span class="macro-nonterminal">$ssa</span>;
-<a href=#132 id=132 data-nosnippet>132</a>        mut_ssa.normalize_ids();
-<a href=#133 id=133 data-nosnippet>133</a>        <span class="kw">let </span>ssa_string = mut_ssa.print_without_locations().to_string();
-<a href=#134 id=134 data-nosnippet>134</a>        <span class="macro">insta::assert_snapshot!</span>(ssa_string, $(<span class="macro-nonterminal">$arg</span>)<span class="kw-2">*</span>)
-<a href=#135 id=135 data-nosnippet>135</a>    };
-<a href=#136 id=136 data-nosnippet>136</a>}
-<a href=#137 id=137 data-nosnippet>137</a>
-<a href=#138 id=138 data-nosnippet>138</a><span class="doccomment">/// Assert that running a certain pass on the SSA does nothing.
-<a href=#139 id=139 data-nosnippet>139</a></span><span class="attr">#[cfg(test)]
-<a href=#140 id=140 data-nosnippet>140</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>assert_ssa_does_not_change(src: <span class="kw-2">&amp;</span>str, pass: <span class="kw">impl </span>FnOnce(Ssa) -&gt; Ssa) {
-<a href=#141 id=141 data-nosnippet>141</a>    <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-<a href=#142 id=142 data-nosnippet>142</a>    <span class="kw">let </span>ssa = pass(ssa);
-<a href=#143 id=143 data-nosnippet>143</a>    assert_normalized_ssa_equals(ssa, src);
-<a href=#144 id=144 data-nosnippet>144</a>}
-<a href=#145 id=145 data-nosnippet>145</a>
-<a href=#146 id=146 data-nosnippet>146</a><span class="doccomment">/// Assert that running a certain pass on the SSA does not change the execution result.
-<a href=#147 id=147 data-nosnippet>147</a></span><span class="attr">#[cfg(test)]
-<a href=#148 id=148 data-nosnippet>148</a></span><span class="kw">fn </span>assert_pass_does_not_affect_execution(
-<a href=#149 id=149 data-nosnippet>149</a>    ssa: Ssa,
-<a href=#150 id=150 data-nosnippet>150</a>    inputs: Vec&lt;Value&gt;,
-<a href=#151 id=151 data-nosnippet>151</a>    ssa_pass: <span class="kw">impl </span>FnOnce(Ssa) -&gt; Ssa,
-<a href=#152 id=152 data-nosnippet>152</a>) -&gt; (Ssa, <span class="prelude-ty">Result</span>&lt;Vec&lt;Value&gt;, InterpreterError&gt;) {
-<a href=#153 id=153 data-nosnippet>153</a>    <span class="kw">let </span>before = ssa.interpret(inputs.clone());
-<a href=#154 id=154 data-nosnippet>154</a>
-<a href=#155 id=155 data-nosnippet>155</a>    <span class="kw">let </span>new_ssa = ssa_pass(ssa);
-<a href=#156 id=156 data-nosnippet>156</a>
-<a href=#157 id=157 data-nosnippet>157</a>    <span class="kw">let </span>after = new_ssa.interpret(inputs);
-<a href=#158 id=158 data-nosnippet>158</a>    <span class="macro">assert_eq!</span>(before, after, <span class="string">"SSA pass has resulted in a different execution result"</span>);
-<a href=#159 id=159 data-nosnippet>159</a>    (new_ssa, after)
-<a href=#160 id=160 data-nosnippet>160</a>}</code></pre></div></section></main></body></html>
+<a href=#104 id=104 data-nosnippet>104</a>    <span class="macro">println!</span>(<span class="string">"Expected (after ID normalization):\n~~~\n{expected_ssa}\n~~~\n"</span>);
+<a href=#105 id=105 data-nosnippet>105</a>    <span class="macro">println!</span>(<span class="string">"Got:\n~~~\n{ssa}\n~~~"</span>);
+<a href=#106 id=106 data-nosnippet>106</a>    <span class="macro">similar_asserts::assert_eq!</span>(expected_ssa, ssa);
+<a href=#107 id=107 data-nosnippet>107</a>}
+<a href=#108 id=108 data-nosnippet>108</a>
+<a href=#109 id=109 data-nosnippet>109</a><span class="doccomment">/// Compare the textural representation of the SSA after normalizing its IDs to a snapshot.
+<a href=#110 id=110 data-nosnippet>110</a>///
+<a href=#111 id=111 data-nosnippet>111</a>/// # Example:
+<a href=#112 id=112 data-nosnippet>112</a>///
+<a href=#113 id=113 data-nosnippet>113</a>/// ```ignore
+<a href=#114 id=114 data-nosnippet>114</a>/// let ssa = todo!();
+<a href=#115 id=115 data-nosnippet>115</a>/// assert_ssa_snapshot!(ssa, @r"
+<a href=#116 id=116 data-nosnippet>116</a>///   acir(inline) fn main f0 {
+<a href=#117 id=117 data-nosnippet>117</a>///       b0(v0: Field):
+<a href=#118 id=118 data-nosnippet>118</a>///         return v0
+<a href=#119 id=119 data-nosnippet>119</a>///     }
+<a href=#120 id=120 data-nosnippet>120</a>/// ");
+<a href=#121 id=121 data-nosnippet>121</a>/// ```
+<a href=#122 id=122 data-nosnippet>122</a>/// Or without taking ownership:
+<a href=#123 id=123 data-nosnippet>123</a>/// ```ignore
+<a href=#124 id=124 data-nosnippet>124</a>/// let mut ssa = todo!();
+<a href=#125 id=125 data-nosnippet>125</a>/// assert_ssa_snapshot!(&amp;mut ssa, @r"
+<a href=#126 id=126 data-nosnippet>126</a>///   acir(inline) fn main f0 {
+<a href=#127 id=127 data-nosnippet>127</a>///       b0(v0: Field):
+<a href=#128 id=128 data-nosnippet>128</a>///         return v0
+<a href=#129 id=129 data-nosnippet>129</a>///     }
+<a href=#130 id=130 data-nosnippet>130</a>/// ");
+<a href=#131 id=131 data-nosnippet>131</a>/// ```
+<a href=#132 id=132 data-nosnippet>132</a></span><span class="attr">#[macro_export]
+<a href=#133 id=133 data-nosnippet>133</a></span><span class="macro">macro_rules!</span> assert_ssa_snapshot {
+<a href=#134 id=134 data-nosnippet>134</a>    (<span class="macro-nonterminal">$ssa</span>:expr, $(<span class="macro-nonterminal">$arg</span>:tt)<span class="kw-2">*</span>) =&gt; {
+<a href=#135 id=135 data-nosnippet>135</a>        <span class="attr">#[allow(unused_mut)]
+<a href=#136 id=136 data-nosnippet>136</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>mut_ssa = <span class="macro-nonterminal">$ssa</span>;
+<a href=#137 id=137 data-nosnippet>137</a>        mut_ssa.normalize_ids();
+<a href=#138 id=138 data-nosnippet>138</a>        <span class="kw">let </span>ssa_string = mut_ssa.print_without_locations().to_string();
+<a href=#139 id=139 data-nosnippet>139</a>        <span class="macro">insta::assert_snapshot!</span>(ssa_string, $(<span class="macro-nonterminal">$arg</span>)<span class="kw-2">*</span>)
+<a href=#140 id=140 data-nosnippet>140</a>    };
+<a href=#141 id=141 data-nosnippet>141</a>}
+<a href=#142 id=142 data-nosnippet>142</a>
+<a href=#143 id=143 data-nosnippet>143</a><span class="doccomment">/// Assert that running a certain pass on the SSA does nothing.
+<a href=#144 id=144 data-nosnippet>144</a></span><span class="attr">#[cfg(test)]
+<a href=#145 id=145 data-nosnippet>145</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>assert_ssa_does_not_change(src: <span class="kw-2">&amp;</span>str, pass: <span class="kw">impl </span>FnOnce(Ssa) -&gt; Ssa) {
+<a href=#146 id=146 data-nosnippet>146</a>    <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#147 id=147 data-nosnippet>147</a>    <span class="kw">let </span>ssa = pass(ssa);
+<a href=#148 id=148 data-nosnippet>148</a>    assert_normalized_ssa_equals(ssa, src);
+<a href=#149 id=149 data-nosnippet>149</a>}
+<a href=#150 id=150 data-nosnippet>150</a>
+<a href=#151 id=151 data-nosnippet>151</a><span class="doccomment">/// Assert that running a certain pass on the SSA does not change the execution result.
+<a href=#152 id=152 data-nosnippet>152</a></span><span class="attr">#[cfg(test)]
+<a href=#153 id=153 data-nosnippet>153</a></span><span class="kw">fn </span>assert_pass_does_not_affect_execution(
+<a href=#154 id=154 data-nosnippet>154</a>    ssa: Ssa,
+<a href=#155 id=155 data-nosnippet>155</a>    inputs: Vec&lt;Value&gt;,
+<a href=#156 id=156 data-nosnippet>156</a>    ssa_pass: <span class="kw">impl </span>FnOnce(Ssa) -&gt; Ssa,
+<a href=#157 id=157 data-nosnippet>157</a>) -&gt; (Ssa, <span class="prelude-ty">Result</span>&lt;Vec&lt;Value&gt;, InterpreterError&gt;) {
+<a href=#158 id=158 data-nosnippet>158</a>    <span class="kw">let </span>before = ssa.interpret(inputs.clone());
+<a href=#159 id=159 data-nosnippet>159</a>
+<a href=#160 id=160 data-nosnippet>160</a>    <span class="kw">let </span>new_ssa = ssa_pass(ssa);
+<a href=#161 id=161 data-nosnippet>161</a>
+<a href=#162 id=162 data-nosnippet>162</a>    <span class="kw">let </span>after = new_ssa.interpret(inputs);
+<a href=#163 id=163 data-nosnippet>163</a>    <span class="macro">assert_eq!</span>(before, after, <span class="string">"SSA pass has resulted in a different execution result"</span>);
+<a href=#164 id=164 data-nosnippet>164</a>    (new_ssa, after)
+<a href=#165 id=165 data-nosnippet>165</a>}</code></pre></div></section></main></body></html>
