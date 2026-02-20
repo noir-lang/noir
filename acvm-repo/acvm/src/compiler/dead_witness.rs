@@ -1,6 +1,10 @@
 use acir::{
     AcirField,
-    circuit::{Circuit, Opcode, brillig::BrilligOutputs, opcodes::BlockId},
+    circuit::{
+        Circuit, Opcode,
+        brillig::BrilligOutputs,
+        opcodes::{BlockId, BlockType},
+    },
     native_types::{Expression, Witness},
 };
 use rayon::prelude::*;
@@ -31,8 +35,9 @@ struct OpcodeEdges {
     connected: Vec<Witness>,
     /// New witnesses to register (all witnesses seen in the opcode).
     witnesses: Vec<Witness>,
-    /// If this opcode touches a memory block, the block ID and associated witnesses.
-    block: Option<(BlockId, Vec<Witness>)>,
+    /// If this opcode touches a memory block, the block ID, the block type ([`BlockType::Memory`] for
+    /// memory ops other than INIT) and associated witnesses.
+    block: Option<(BlockId, BlockType, Vec<Witness>)>,
 }
 
 struct Graph {
@@ -42,6 +47,8 @@ struct Graph {
     witness_blocks: HashMap<Witness, Vec<BlockId>>,
     /// Forward index: block ID -> all witnesses in that block.
     block_witnesses: HashMap<BlockId, HashSet<Witness>>,
+    /// Witnesses that are stored in an INIT RETURNDATA block.
+    return_data: HashSet<Witness>,
 }
 
 /// Extract edges from a single opcode (pure, no shared state).
@@ -75,12 +82,12 @@ fn extract_opcode_edges<F: AcirField>(opcode: &Opcode<F>) -> OpcodeEdges {
             }
             OpcodeEdges { connected: Vec::new(), witnesses, block: None }
         }
-        Opcode::MemoryInit { block_id, init, .. } => {
+        Opcode::MemoryInit { block_id, init, block_type } => {
             let witnesses: Vec<Witness> = init.to_vec();
             OpcodeEdges {
                 connected: Vec::new(),
                 witnesses: witnesses.clone(),
-                block: Some((*block_id, witnesses)),
+                block: Some((*block_id, *block_type, witnesses)),
             }
         }
         Opcode::MemoryOp { block_id, op } => {
@@ -91,7 +98,7 @@ fn extract_opcode_edges<F: AcirField>(opcode: &Opcode<F>) -> OpcodeEdges {
             OpcodeEdges {
                 connected: Vec::new(),
                 witnesses: witnesses.clone(),
-                block: Some((*block_id, witnesses)),
+                block: Some((*block_id, BlockType::Memory, witnesses)),
             }
         }
     }
@@ -112,6 +119,7 @@ fn build_graph<F: AcirField + Send + Sync>(circuit: &Circuit<F>) -> Graph {
         .copied()
         .collect();
     let mut block_witnesses: HashMap<BlockId, HashSet<Witness>> = HashMap::new();
+    let mut return_data = HashSet::new();
 
     for edges in opcode_edges {
         all_witnesses.extend(edges.witnesses);
@@ -126,7 +134,11 @@ fn build_graph<F: AcirField + Send + Sync>(circuit: &Circuit<F>) -> Graph {
         }
 
         // Accumulate block witnesses
-        if let Some((block_id, block_ws)) = edges.block {
+        if let Some((block_id, block_type, block_ws)) = edges.block {
+            if matches!(block_type, BlockType::ReturnData) {
+                return_data.extend(block_ws.clone());
+            }
+
             block_witnesses.entry(block_id).or_default().extend(block_ws);
         }
     }
@@ -139,7 +151,7 @@ fn build_graph<F: AcirField + Send + Sync>(circuit: &Circuit<F>) -> Graph {
         }
     }
 
-    Graph { adjacency, all_witnesses, witness_blocks, block_witnesses }
+    Graph { adjacency, all_witnesses, witness_blocks, block_witnesses, return_data }
 }
 
 /// BFS from seeds to find all reachable witnesses, return unreachable ones.
@@ -147,8 +159,14 @@ fn find_dead<F: AcirField>(graph: &Graph, circuit: &Circuit<F>) -> BTreeSet<Witn
     let mut visited: HashSet<Witness> = HashSet::new();
     let mut queue: VecDeque<Witness> = VecDeque::new();
 
-    // Seeds: public parameters + return values
-    for witness in circuit.public_parameters.0.iter().chain(circuit.return_values.0.iter()) {
+    // Seeds: public parameters + return values + return data
+    for witness in circuit
+        .public_parameters
+        .0
+        .iter()
+        .chain(circuit.return_values.0.iter())
+        .chain(graph.return_data.iter())
+    {
         if graph.all_witnesses.contains(witness) && visited.insert(*witness) {
             queue.push_back(*witness);
         }
@@ -381,6 +399,20 @@ mod tests {
             public parameters: [w0]
             return values: [w1]
             CALL func: 0, predicate: 1, inputs: [w0], outputs: [w1]
+        ";
+        assert_no_dead_witnesses(src);
+    }
+
+    #[test]
+    fn returndata_is_not_dead() {
+        // w0 is private, it's constrained against w1, and then w1 is stored in return data.
+        // That means w1 is live, and so is w0.
+        let src = "
+        private parameters: [w0]
+        public parameters: []
+        return values: []
+        ASSERT w1 = w0
+        INIT RETURNDATA b0 = [w1]
         ";
         assert_no_dead_witnesses(src);
     }
