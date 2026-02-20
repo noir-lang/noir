@@ -17,7 +17,7 @@
 //!   - Brillig functions may contain loops using `continue` or `break` which this pass does not
 //!     support the unrolling of (running the pass on such functions is not an error).
 //!   - Brillig functions only have small loops unrolled, where a small loop is defined as a loop
-//!     which, when unrolled, is estimated to have the same or fewer total instructions as it
+//!     which, when unrolled, is estimated to have the same or fewer total cost as it
 //!     has when not unrolled.
 //!   - Unrolling may be reverted for brillig functions if the increase in instruction count is
 //!     greater than `max_bytecode_increase_percent` (if set).
@@ -880,7 +880,7 @@ impl Loop {
     }
 
     /// Count the Brillig-weighted cost of instructions in the loop, including terminators.
-    fn count_all_instructions(&self, function: &Function) -> usize {
+    fn count_loop_cost(&self, function: &Function) -> usize {
         self.blocks
             .iter()
             .map(|block_id| {
@@ -926,7 +926,7 @@ impl Loop {
     /// 1. It has constant bounds and no breaks (`boilerplate_stats` + `is_fully_executed`)
     /// 2. AND either:
     ///    a. The cost model predicts unrolling reduces code size (`is_small`), OR
-    ///    b. The total unrolled instruction count is within the force-unroll threshold
+    ///    b. The total unrolled cost is within the force-unroll threshold
     fn should_unroll_in_brillig(
         &self,
         function: &Function,
@@ -936,7 +936,7 @@ impl Loop {
         let threshold = force_unroll_threshold;
         self.boilerplate_stats(function, cfg)
             .map(|s| {
-                let force_unroll = s.unrolled_instructions() <= threshold;
+                let force_unroll = s.unrolled_cost() <= threshold;
                 (force_unroll || s.is_small()) && self.is_fully_executed(cfg)
             })
             .unwrap_or_default()
@@ -955,7 +955,7 @@ impl Loop {
 
         let (loads, stores) = self.count_loads_and_stores(function, &refs);
         let increments = self.count_induction_increments(function);
-        let all_instructions = self.count_all_instructions(function);
+        let total_cost = self.count_loop_cost(function);
 
         // Currently we don't iterate in reverse, so if upper <= lower it means 0 iterations.
         let iterations: usize = upper
@@ -971,7 +971,7 @@ impl Loop {
             loads,
             stores,
             increments,
-            all_instructions,
+            total_cost,
             has_const_zero_jump_condition: self.has_const_zero_jump_condition(&function.dfg),
         })
     }
@@ -1006,7 +1006,7 @@ struct BoilerplateStats {
     increments: usize,
     /// Brillig-weighted cost of instructions in the loop, including boilerplate,
     /// but excluding the boilerplate which is outside the loop.
-    all_instructions: usize,
+    total_cost: usize,
     /// Indicate whether the comparison with the upper bound has been simplified out.
     has_const_zero_jump_condition: bool,
 }
@@ -1014,15 +1014,15 @@ struct BoilerplateStats {
 impl BoilerplateStats {
     /// Brillig-weighted cost if we leave the loop as-is.
     /// It's the cost of the loop body, plus the pre-header jmp that kicks it off.
-    fn baseline_instructions(&self) -> usize {
+    fn baseline_cost(&self) -> usize {
         // Pre-header jmp has 1 argument (the induction variable initial value):
         // Brillig cost = 1 (jump) + 1 (move for 1 arg) = 2
-        self.all_instructions + 2
+        self.total_cost + 2
     }
 
     /// Estimated Brillig-weighted cost of _useful_ instructions, which is the
     /// cost of the loop minus all in-loop boilerplate.
-    fn useful_instructions(&self) -> usize {
+    fn useful_cost(&self) -> usize {
         // Brillig costs: JmpIf=2, Jmp(1 induction var arg)=2, Lt comparison=1
         let boilerplate = if self.has_const_zero_jump_condition {
             2 + 2 // jmpif + jmp (with 1 induction var arg)
@@ -1034,23 +1034,23 @@ impl BoilerplateStats {
         // Induction increments: Brillig-weighted cost
         let total_boilerplate = self.increments + load_and_store + boilerplate;
         assert!(
-            total_boilerplate <= self.all_instructions,
-            "Boilerplate instructions exceed total instructions in loop"
+            total_boilerplate <= self.total_cost,
+            "Boilerplate cost exceeds total cost in loop"
         );
-        self.all_instructions.saturating_sub(total_boilerplate)
+        self.total_cost.saturating_sub(total_boilerplate)
     }
 
-    /// Estimated number of instructions if we unroll the loop.
-    fn unrolled_instructions(&self) -> usize {
-        self.useful_instructions() * self.iterations
+    /// Estimated Brillig-weighted cost if we unroll the loop.
+    fn unrolled_cost(&self) -> usize {
+        self.useful_cost() * self.iterations
     }
 
     /// A small loop is where if we unroll it into the pre-header then considering the
     /// number of iterations we still end up with a smaller bytecode than if we leave
     /// the blocks in tact with all the boilerplate involved in jumping, and the extra
-    /// reference access instructions.
+    /// reference access overhead.
     fn is_small(&self) -> bool {
-        self.unrolled_instructions() < self.baseline_instructions()
+        self.unrolled_cost() < self.baseline_cost()
     }
 }
 
@@ -1542,7 +1542,7 @@ mod tests {
         assert_eq!(loads, 1);
         assert_eq!(stores, 1);
 
-        let all = loop0.count_all_instructions(function);
+        let all = loop0.count_loop_cost(function);
         assert_eq!(all, 13);
     }
 
@@ -1551,12 +1551,12 @@ mod tests {
         let ssa = brillig_unroll_test_case();
         let stats = loop0_stats(&ssa);
         assert_eq!(stats.iterations, 4);
-        assert_eq!(stats.all_instructions, 3 + 10); // Brillig-weighted cost in b1 and b3
+        assert_eq!(stats.total_cost, 3 + 10); // Brillig-weighted cost in b1 and b3
         assert_eq!(stats.increments, 3); // checked add cost on u32
         assert_eq!(stats.loads, 1);
         assert_eq!(stats.stores, 1);
-        assert_eq!(stats.useful_instructions(), 3); // add to sum (checked u32 = 3)
-        assert_eq!(stats.baseline_instructions(), 15);
+        assert_eq!(stats.useful_cost(), 3); // add to sum (checked u32 = 3)
+        assert_eq!(stats.baseline_cost(), 15);
         assert!(stats.is_small());
     }
 
@@ -1573,7 +1573,7 @@ mod tests {
 
         let stats = loop0_stats(&ssa);
         assert_eq!(stats.iterations, 0);
-        assert_eq!(stats.unrolled_instructions(), 0);
+        assert_eq!(stats.unrolled_cost(), 0);
     }
 
     #[test]
@@ -1595,12 +1595,12 @@ mod tests {
         let ssa = Ssa::from_str(&brillig_unroll_test_case_6470(2)).unwrap();
         let stats = loop0_stats(&ssa);
         assert_eq!(stats.iterations, 2);
-        assert_eq!(stats.all_instructions, 3 + 19); // Brillig-weighted cost in b1 and b3
+        assert_eq!(stats.total_cost, 3 + 19); // Brillig-weighted cost in b1 and b3
         assert_eq!(stats.increments, 2); // 2x unchecked_add (cost 1 each)
         assert_eq!(stats.loads, 1);
         assert_eq!(stats.stores, 1);
-        assert_eq!(stats.useful_instructions(), 13); // array_get(3) + add(3) + array_set(7)
-        assert_eq!(stats.baseline_instructions(), 24);
+        assert_eq!(stats.useful_cost(), 13); // array_get(3) + add(3) + array_set(7)
+        assert_eq!(stats.baseline_cost(), 24);
         // Not small with Brillig weights: 13*2=26 > 24, but within force-unroll threshold
         assert!(!stats.is_small());
     }
@@ -1705,7 +1705,7 @@ mod tests {
         let stats = loop0_stats(&ssa);
         assert!(!stats.is_small(), "the loop should be considered large");
         assert!(
-            stats.unrolled_instructions() > FORCE_UNROLL_THRESHOLD,
+            stats.unrolled_cost() > FORCE_UNROLL_THRESHOLD,
             "the loop should exceed the force-unroll threshold"
         );
 
@@ -1736,7 +1736,7 @@ mod tests {
     ///
     /// This uses a loop with 6 iterations where:
     /// - is_small() = false (unrolled cost exceeds baseline)
-    /// - unrolled_instructions = 24 (within default threshold of 32)
+    /// - unrolled_cost = 24 (within default threshold of 32)
     ///
     /// With the default threshold, this loop would be force-unrolled.
     /// With threshold=0, it should NOT be unrolled.
@@ -1749,7 +1749,7 @@ mod tests {
         let stats = loop0_stats(&ssa);
         assert!(!stats.is_small(), "loop should not be small according to cost model");
         assert!(
-            stats.unrolled_instructions() <= FORCE_UNROLL_THRESHOLD,
+            stats.unrolled_cost() <= FORCE_UNROLL_THRESHOLD,
             "loop should be within default force-unroll threshold"
         );
 
