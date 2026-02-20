@@ -6,14 +6,27 @@
 //! parameter's register, eliminating the mov at the jmp site.
 
 use crate::ssa::ir::{
+    basic_block::BasicBlockId,
+    cfg::ControlFlowGraph,
     function::Function,
     instruction::TerminatorInstruction,
     value::{Value, ValueId},
 };
 
-use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use super::variable_liveness::VariableLiveness;
+
+/// Check if param-side coalescing is safe: the destination must have exactly
+/// one predecessor, and arg must not be live-in to dest.
+fn can_coalesce_param_side(
+    arg: &ValueId,
+    destination: &BasicBlockId,
+    dest_live_in: &HashSet<ValueId>,
+    cfg: &ControlFlowGraph,
+) -> bool {
+    cfg.predecessors(*destination).count() == 1 && !dest_live_in.contains(arg)
+}
 
 /// Maps SSA ValueIds to partners whose register they should reuse.
 ///
@@ -55,13 +68,19 @@ impl CoalescingMap {
             let dest_live_in = liveness.get_live_in(destination);
             let instructions = func.dfg[block_id].instructions();
 
+            // Track values used as param-side targets within this jmp to prevent
+            // two params of the same destination from reusing the same register.
+            let mut param_side_targets = HashSet::default();
+
             for (arg, param) in arguments.iter().zip(params.iter()) {
                 if arg == param {
                     continue;
                 }
 
-                // If arg or param is already in the map, skip to avoid conflicts.
-                if coalesced.contains_key(arg) || coalesced.contains_key(param) {
+                // Skip if this arg or param is already committed to a coalescing.
+                // - Arg-side guard: the same arg must not map to multiple params across jmps.
+                // - Param-side guard: two params in the same jmp must not reuse the same arg's register.
+                if coalesced.contains_key(arg) || param_side_targets.contains(arg) {
                     continue;
                 }
 
@@ -75,58 +94,55 @@ impl CoalescingMap {
                 }
 
                 match &func.dfg[*arg] {
-                    Value::Instruction { instruction: defining_inst, .. }
-                        if instructions.iter().any(|inst_id| inst_id == defining_inst) =>
-                    {
-                        // Arg-side: instruction defined in this block.
-
-                        // If arg is live-in to the destination block and the destination has
-                        // other predecessors, we must not coalesce. When the destination is a
-                        // loop header (or merge point), other predecessors will write different
-                        // values to param's register on subsequent iterations, destroying arg's
-                        // value while it is still needed.
-                        if dest_live_in.contains(arg) && cfg.predecessors(*destination).count() > 1
+                    Value::Instruction { instruction: defining_inst, .. } => {
+                        if let Some(def_pos) =
+                            instructions.iter().position(|id| id == defining_inst)
                         {
-                            continue;
-                        }
+                            // Arg-side: instruction defined in this block.
 
-                        let live_in = liveness.get_live_in(&block_id);
+                            // If arg is live-in to the destination block and the destination has
+                            // other predecessors, we must not coalesce. When the destination is a
+                            // loop header (or merge point), other predecessors will write different
+                            // values to param's register on subsequent iterations, destroying arg's
+                            // value while it is still needed.
+                            if dest_live_in.contains(arg)
+                                && cfg.predecessors(*destination).count() > 1
+                            {
+                                continue;
+                            }
 
-                        if !live_in.contains(param) {
-                            // param is not live-in to the source block, so the defining instruction
-                            // can safely write to param's register without clobbering anything.
-                            coalesced.insert(*arg, *param);
-                            continue;
-                        }
+                            let live_in = liveness.get_live_in(&block_id);
 
-                        // Check if param is used in the defining instruction or any subsequent
-                        // instruction, or in the block terminator.
-                        let def_pos = instructions
-                            .iter()
-                            .position(|inst_id| inst_id == defining_inst)
-                            .unwrap();
+                            if !live_in.contains(param) {
+                                // param is not live-in to the source block, so the defining instruction
+                                // can safely write to param's register without clobbering anything.
+                                coalesced.insert(*arg, *param);
+                                continue;
+                            }
 
-                        let param_used_at_or_after = instructions[def_pos..]
-                            .iter()
-                            .any(|inst_id| func.dfg[*inst_id].any_value(|v| v == *param))
-                            || func.dfg[block_id].unwrap_terminator().any_value(|v| v == *param);
+                            // Check if param is used in the defining instruction or any subsequent
+                            // instruction, or in the block terminator.
+                            let param_used_at_or_after = instructions[def_pos..]
+                                .iter()
+                                .any(|inst_id| func.dfg[*inst_id].any_value(|v| v == *param))
+                                || func.dfg[block_id]
+                                    .unwrap_terminator()
+                                    .any_value(|v| v == *param);
 
-                        if !param_used_at_or_after {
-                            coalesced.insert(*arg, *param);
+                            if !param_used_at_or_after {
+                                coalesced.insert(*arg, *param);
+                            }
+                        } else if can_coalesce_param_side(arg, destination, dest_live_in, &cfg) {
+                            // Param-side: instruction from another block.
+                            coalesced.insert(*param, *arg);
+                            param_side_targets.insert(*arg);
                         }
                     }
-                    Value::Instruction { .. } | Value::Param { .. } => {
-                        // Param-side: already-allocated value from another block or a block parameter.
-                        // Safe when:
-                        // 1. dest has exactly one predecessor (source = idom(dest)), ensuring
-                        //    arg is allocated before param's definition point in convert_block_params.
-                        //    (With multiple predecessors, idom(dest) may be an ancestor where arg
-                        //    isn't allocated yet.)
-                        // 2. arg is not live-in to dest (no interference in the destination block).
-                        if cfg.predecessors(*destination).count() == 1
-                            && !dest_live_in.contains(arg)
-                        {
+                    Value::Param { .. } => {
+                        // Param-side: block parameter passthrough.
+                        if can_coalesce_param_side(arg, destination, dest_live_in, &cfg) {
                             coalesced.insert(*param, *arg);
+                            param_side_targets.insert(*arg);
                         }
                     }
                     _ => {} // constants, globals — skip
@@ -595,5 +611,41 @@ mod tests {
             "param-side coalescing requires single-predecessor destination"
         );
         assert_eq!(coalescing.len(), 1);
+    }
+
+    #[test]
+    fn does_not_coalesce_same_arg_to_two_params_param_side() {
+        // v1 is a cross-block instruction result passed as both arguments to b2.
+        // The first pair (v2 -> v1) coalesces param-side, but the second pair (v3 -> v1)
+        // must be skipped because v1 is already a param-side target within this jmp.
+        // Without this check, both v2 and v3 would try to reuse v1's register.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = add v0, Field 1
+            jmp b1()
+          b1():
+            jmp b2(v1, v1)
+          b2(v2: Field, v3: Field):
+            v4 = add v2, v3
+            return v4
+        }
+        ";
+        // b1 is block index 1, both arg indices
+        let (coalescing, ssa) = build_coalescing(src);
+        let func = ssa.main();
+        let (_arg0, param0) = get_jmp_pair(func, 1, 0);
+        let (_arg1, param1) = get_jmp_pair(func, 1, 1);
+
+        // Exactly one of the two params should coalesce with v1
+        let first_coalesced = coalescing.is_coalesced(&param0);
+        let second_coalesced = coalescing.is_coalesced(&param1);
+        assert!(first_coalesced ^ second_coalesced, "exactly one param should coalesce with v1");
+        // The first pair encountered wins
+        assert!(first_coalesced, "first param should coalesce");
+        assert!(
+            !second_coalesced,
+            "second param must not coalesce: v1 is already a param-side target"
+        );
     }
 }
