@@ -6,7 +6,7 @@ use std::{
 use acir::{
     AcirField,
     circuit::{AcirOpcodeLocation, Circuit, Opcode, brillig::BrilligOutputs},
-    native_types::{Expression, Witness},
+    native_types::Witness,
 };
 use acvm::compiler::find_dead_witnesses;
 use clap::Args;
@@ -193,15 +193,17 @@ fn compute_call_stack_id_to_dead_witnesses<F: AcirField>(
 /// Extract all witnesses (relevant to dead witnesses) from an opcode.
 fn opcode_witnesses<F: AcirField>(opcode: &Opcode<F>) -> BTreeSet<Witness> {
     match opcode {
-        Opcode::AssertZero(expression) => expr_witnesses(expression).collect(),
+        Opcode::AssertZero(expression) => expression.witnesses().collect(),
         Opcode::BlackBoxFuncCall(black_box_func_call) => black_box_func_call
             .get_input_witnesses()
             .into_iter()
             .chain(black_box_func_call.get_outputs_vec())
             .collect(),
-        Opcode::MemoryOp { block_id: _, op } => expr_witnesses(&op.index)
-            .chain(expr_witnesses(&op.value))
-            .chain(expr_witnesses(&op.operation))
+        Opcode::MemoryOp { block_id: _, op } => op
+            .index
+            .witnesses()
+            .chain(op.value.witnesses())
+            .chain(op.operation.witnesses())
             .collect(),
         Opcode::MemoryInit { block_id: _, init, block_type: _ } => init.iter().copied().collect(),
         Opcode::BrilligCall { id: _, inputs: _, outputs, predicate: _ } => {
@@ -222,14 +224,6 @@ fn opcode_witnesses<F: AcirField>(opcode: &Opcode<F>) -> BTreeSet<Witness> {
             inputs.iter().copied().chain(outputs.iter().copied()).collect()
         }
     }
-}
-
-/// Extract all witnesses from an expression.
-fn expr_witnesses<F>(expr: &Expression<F>) -> impl Iterator<Item = Witness> + '_ {
-    expr.mul_terms
-        .iter()
-        .flat_map(|i| [i.1, i.2])
-        .chain(expr.linear_combinations.iter().map(|i| i.1))
 }
 
 fn show_dead_abi_parameter_statuses(

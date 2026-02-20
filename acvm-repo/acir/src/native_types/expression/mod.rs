@@ -143,6 +143,14 @@ impl<F> Expression<F> {
         self.mul_terms.iter().is_sorted_by(|a, b| a.1.cmp(&b.1).then(a.2.cmp(&b.2)).is_le())
             && self.linear_combinations.iter().is_sorted_by(|a, b| a.1.cmp(&b.1).is_le())
     }
+
+    /// Returns an iterator over all the witnesses in this expression.
+    pub fn witnesses(&self) -> impl Iterator<Item = Witness> {
+        self.mul_terms
+            .iter()
+            .flat_map(|i| [i.1, i.2])
+            .chain(self.linear_combinations.iter().map(|i| i.1))
+    }
 }
 
 impl<F: AcirField> Expression<F> {

@@ -5,12 +5,10 @@ use acir::{
         brillig::BrilligOutputs,
         opcodes::{BlockId, BlockType},
     },
-    native_types::{Expression, Witness},
+    native_types::Witness,
 };
 use rayon::prelude::*;
 use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
-
-use super::simulator::CircuitSimulator;
 
 /// Find witnesses in a circuit that are "dead" — not transitively connected
 /// to any public input or return value through the constraint graph.
@@ -55,7 +53,7 @@ struct Graph {
 fn extract_opcode_edges<F: AcirField>(opcode: &Opcode<F>) -> OpcodeEdges {
     match opcode {
         Opcode::AssertZero(expr) => {
-            let witnesses: Vec<Witness> = expr_witnesses(expr).collect();
+            let witnesses: Vec<Witness> = expr.witnesses().collect();
             OpcodeEdges { connected: witnesses.clone(), witnesses, block: None }
         }
         Opcode::BlackBoxFuncCall(black_box_func_call) => {
@@ -90,9 +88,11 @@ fn extract_opcode_edges<F: AcirField>(opcode: &Opcode<F>) -> OpcodeEdges {
             }
         }
         Opcode::MemoryOp { block_id, op } => {
-            let witnesses: Vec<Witness> = expr_witnesses(&op.index)
-                .chain(expr_witnesses(&op.value))
-                .chain(expr_witnesses(&op.operation))
+            let witnesses: Vec<Witness> = op
+                .index
+                .witnesses()
+                .chain(op.value.witnesses())
+                .chain(op.operation.witnesses())
                 .collect();
             OpcodeEdges {
                 connected: Vec::new(),
@@ -197,11 +197,6 @@ fn find_dead<F: AcirField>(graph: &Graph, circuit: &Circuit<F>) -> BTreeSet<Witn
     }
 
     graph.all_witnesses.difference(&visited).copied().collect()
-}
-
-/// Extract all witnesses from an expression.
-fn expr_witnesses<F>(expr: &Expression<F>) -> impl Iterator<Item = Witness> + '_ {
-    CircuitSimulator::expr_witness(expr)
 }
 
 #[cfg(test)]
