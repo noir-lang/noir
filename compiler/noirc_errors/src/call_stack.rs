@@ -5,7 +5,9 @@ use std::hash::BuildHasher;
 use crate::Location;
 
 pub type CallStack = Vec<Location>;
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord,
+)]
 pub struct CallStackId(u32);
 
 impl CallStackId {
