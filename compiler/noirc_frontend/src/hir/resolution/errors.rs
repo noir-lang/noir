@@ -224,6 +224,8 @@ pub enum ResolverError {
     VarargsOnFunctionWithNoParameters { location: Location },
     #[error("The last parameter of a #[varargs] function must be a vector")]
     VarargsLastParameterIsNotAVector { location: Location },
+    #[error("`comptime` global used in non-comptime code")]
+    ComptimeGlobalInNonComptimeCode { location: Location, name: String },
 }
 
 impl ResolverError {
@@ -302,6 +304,7 @@ impl ResolverError {
             | ResolverError::BuiltinWithBody { location }
             | ResolverError::VarargsOnNonComptimeFunction { location }
             | ResolverError::VarargsOnFunctionWithNoParameters { location }
+            | ResolverError::ComptimeGlobalInNonComptimeCode { location, .. }
             | ResolverError::VarargsLastParameterIsNotAVector { location }
             | ResolverError::UnnecessaryPub { location, .. }
             | ResolverError::NecessaryPub { location, .. }
@@ -995,6 +998,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     "The last parameter of a #[varargs] function must be a vector".to_string(),
                     String::new(),
+                    *location,
+                )
+            },
+            ResolverError::ComptimeGlobalInNonComptimeCode { location, name } => {
+                Diagnostic::simple_error(
+                    format!("Comptime global `{name}` used in non-comptime code"),
+                    "Consider using a comptime function or block".to_string(),
                     *location,
                 )
             },
