@@ -1699,7 +1699,7 @@ mod tests {
     /// Test that with more iterations it's not unrolled.
     #[test]
     fn test_brillig_unroll_6470_large() {
-        // 13 iterations × 13 useful Brillig cost = 169, above FORCE_UNROLL_THRESHOLD (100)
+        // 13 iterations × 13 useful Brillig cost = 169, above FORCE_UNROLL_THRESHOLD (128)
         let parse_ssa = || Ssa::from_str(&brillig_unroll_test_case_6470(13)).unwrap();
         let ssa = parse_ssa();
         let stats = loop0_stats(&ssa);
@@ -1736,7 +1736,7 @@ mod tests {
     ///
     /// This uses a loop with 6 iterations where:
     /// - is_small() = false (unrolled cost exceeds baseline)
-    /// - unrolled_cost = 24 (within default threshold of 32)
+    /// - unrolled_cost = 78 (within default threshold of 128)
     ///
     /// With the default threshold, this loop would be force-unrolled.
     /// With threshold=0, it should NOT be unrolled.
