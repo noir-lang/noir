@@ -215,10 +215,11 @@ pub(crate) fn try_optimize_array_get_from_previous_instructions(
                                 }) => {
                                     // If there's an array_set with the same index as the array_get, we
                                     // can only apply this optimization if they are under the same predicate.
-                                    if array_set_predicates
+                                    let array_set_predicate = array_set_predicates
                                         .get(&other_instruction_id)
-                                        .is_none_or(|predicate| predicate != side_effects_var)
-                                    {
+                                        .expect("Expected to know the predicate of every array_set preceding this array_get");
+
+                                    if array_set_predicate != side_effects_var {
                                         return None;
                                     }
                                 }
