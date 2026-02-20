@@ -2965,7 +2965,7 @@ mod test {
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants_with_brillig(DEFAULT_MAX_ITER);
+        let ssa = ssa.fold_constants(DEFAULT_MAX_ITER);
         // The `make_array` should be hoisted into b3, not b4.
         assert_ssa_snapshot!(ssa, @r#"
         brillig(inline) impure fn main f0 {
@@ -3029,7 +3029,7 @@ mod test {
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants_with_brillig(DEFAULT_MAX_ITER);
+        let ssa = ssa.fold_constants(DEFAULT_MAX_ITER);
 
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) impure fn main f0 {
@@ -3085,7 +3085,7 @@ mod test {
       }
       ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants_with_brillig(DEFAULT_MAX_ITER);
+        let ssa = ssa.fold_constants(DEFAULT_MAX_ITER);
         let elements = vec![Value::field((-2i128).into()), Value::field((-1i128).into())];
         let inputs = Value::array(elements, vec![Type::field()]);
         let results = ssa.interpret(vec![inputs]).unwrap();
