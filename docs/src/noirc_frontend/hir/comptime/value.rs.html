@@ -439,7 +439,7 @@
 <a href=#439 id=439 data-nosnippet>439</a>                    <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::CannotInlineMacro { typ, value, location });
 <a href=#440 id=440 data-nosnippet>440</a>                }
 <a href=#441 id=441 data-nosnippet>441</a>
-<a href=#442 id=442 data-nosnippet>442</a>                <span class="comment">// Now drop this references and move `expr` out of `self` so we don't have to clone it.
+<a href=#442 id=442 data-nosnippet>442</a>                <span class="comment">// Now drop this reference and move `expr` out of `self` so we don't have to clone it.
 <a href=#443 id=443 data-nosnippet>443</a>                </span><span class="kw">let </span>Value::Expr(expr) = <span class="self">self </span><span class="kw">else </span>{
 <a href=#444 id=444 data-nosnippet>444</a>                    <span class="macro">unreachable!</span>(<span class="string">"Ensured by outer match statement"</span>)
 <a href=#445 id=445 data-nosnippet>445</a>                };
