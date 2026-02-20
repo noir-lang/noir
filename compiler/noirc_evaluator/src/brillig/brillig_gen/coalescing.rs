@@ -43,11 +43,10 @@ impl CoalescingMap {
 
         for block_id in func.reachable_blocks() {
             let block = &func.dfg[block_id];
-            let Some(terminator) = block.terminator() else {
-                continue;
-            };
 
-            let TerminatorInstruction::Jmp { destination, arguments, .. } = terminator else {
+            let Some(TerminatorInstruction::Jmp { destination, arguments, .. }) =
+                block.terminator()
+            else {
                 continue;
             };
 
@@ -80,10 +79,6 @@ impl CoalescingMap {
                         if instructions.iter().any(|inst_id| inst_id == defining_inst) =>
                     {
                         // Arg-side: instruction defined in this block.
-                        let def_pos = instructions
-                            .iter()
-                            .position(|inst_id| inst_id == defining_inst)
-                            .unwrap();
 
                         // If arg is live-in to the destination block and the destination has
                         // other predecessors, we must not coalesce. When the destination is a
@@ -104,34 +99,17 @@ impl CoalescingMap {
                             continue;
                         }
 
-                        // Check if param is used in the defining instruction or any subsequent instruction.
-                        let mut param_used_at_or_after = false;
+                        // Check if param is used in the defining instruction or any subsequent
+                        // instruction, or in the block terminator.
+                        let def_pos = instructions
+                            .iter()
+                            .position(|inst_id| inst_id == defining_inst)
+                            .unwrap();
 
-                        for inst_id in &instructions[def_pos..] {
-                            let instruction = &func.dfg[*inst_id];
-                            let mut found = false;
-                            instruction.for_each_value(|v| {
-                                if v == *param {
-                                    found = true;
-                                }
-                            });
-                            if found {
-                                param_used_at_or_after = true;
-                                break;
-                            }
-                        }
-
-                        // Also check if param is used in the terminator as an argument (not as a
-                        // destination parameter — those are the write side).
-                        if !param_used_at_or_after
-                            && let Some(term) = func.dfg[block_id].terminator()
-                        {
-                            term.for_each_value(|v| {
-                                if v == *param {
-                                    param_used_at_or_after = true;
-                                }
-                            });
-                        }
+                        let param_used_at_or_after = instructions[def_pos..]
+                            .iter()
+                            .any(|inst_id| func.dfg[*inst_id].any_value(|v| v == *param))
+                            || func.dfg[block_id].unwrap_terminator().any_value(|v| v == *param);
 
                         if !param_used_at_or_after {
                             coalesced.insert(*arg, *param);
