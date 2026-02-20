@@ -1,8 +1,10 @@
+use std::collections::unbounded_vec::UnboundedVec;
+
 fn main(x: u32) {
-    let mut vector = [2, 3].as_vector();
-    vector[x] = 4;
+    let mut vector: UnboundedVec<Field> = UnboundedVec::from_array([2, 3]);
+    vector.set(x, 4);
     if x == 0 {
-        vector = vector.push_back(5);
+        vector.push_back(5);
     }
-    assert(vector[x] == 4);
+    assert(vector.get(x) == 4);
 }
