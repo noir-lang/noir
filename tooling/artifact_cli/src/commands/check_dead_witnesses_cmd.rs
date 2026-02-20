@@ -109,12 +109,8 @@ fn show_dead_witnesses<F: AcirField>(
             show_dead_abi_parameter_statuses(&abi_parameter_statuses, &mut Vec::new());
         } else {
             // For non-main functions, at least say that these are for program inputs
-            let comma_separated_witnesses = dead_witnesses_in_private_parameters
-                .iter()
-                .map(|w| w.to_string())
-                .collect::<Vec<_>>()
-                .join(", ");
-            eprintln!(" - Dead witnesses in program inputs: {{{comma_separated_witnesses}}}");
+            let witnesses_string = witnesses_to_string(&dead_witnesses_in_private_parameters);
+            eprintln!(" - Dead witnesses in program inputs: {{{witnesses_string}}}");
         }
     }
 
@@ -135,9 +131,8 @@ fn show_dead_witnesses<F: AcirField>(
     for (call_stack_id, witnesses) in opcode_location_to_dead_witnesses {
         let mut call_stack = debug_info.location_tree.get_call_stack(call_stack_id);
         let location = call_stack.pop().unwrap();
-        let witnesses =
-            witnesses.into_iter().map(|w| w.to_string()).collect::<Vec<String>>().join(", ");
-        let primary_message = format!("Dead witnesses {{{witnesses}}}");
+        let witnesses_string = witnesses_to_string(&witnesses);
+        let primary_message = format!("Dead witnesses {{{witnesses_string}}}");
         let secondary_message = String::new();
         let mut diagnostic =
             CustomDiagnostic::simple_warning(primary_message, secondary_message, location);
@@ -149,9 +144,8 @@ fn show_dead_witnesses<F: AcirField>(
         return;
     }
 
-    let comma_separated_witnesses =
-        dead_witnesses.iter().map(|w| w.to_string()).collect::<Vec<_>>().join(", ");
-    eprintln!(" - Dead witnesses with unknown locations: {{{comma_separated_witnesses}}}");
+    let witnesses_string = witnesses_to_string(&dead_witnesses);
+    eprintln!(" - Dead witnesses with unknown locations: {{{witnesses_string}}}");
 }
 
 /// Computes a mapping from [`CallStackId`] to the set of dead witness that happen at that given call stack.
@@ -253,7 +247,7 @@ fn show_dead_abi_parameter_type_status(status: &AbiParameterTypeStatus, path: &m
         AbiParameterTypeStatus::Array(array) => {
             if array.dead {
                 eprintln!(
-                    "  - {} (witnesses {{w{}, .., w{}}})",
+                    "  - {} (witnesses {{w{},..,w{}}})",
                     path.join(""),
                     array.first_witness_index,
                     array.last_witness_index
@@ -269,7 +263,7 @@ fn show_dead_abi_parameter_type_status(status: &AbiParameterTypeStatus, path: &m
         AbiParameterTypeStatus::Tuple(tuple) => {
             if tuple.dead {
                 eprintln!(
-                    "  - {} (witnesses {{w{}, .., w{}}})",
+                    "  - {} (witnesses {{w{},..,w{}}})",
                     path.join(""),
                     tuple.first_witness_index,
                     tuple.last_witness_index
@@ -285,7 +279,7 @@ fn show_dead_abi_parameter_type_status(status: &AbiParameterTypeStatus, path: &m
         AbiParameterTypeStatus::Struct(struct_) => {
             if struct_.dead {
                 eprintln!(
-                    "  - {} (witnesses {{w{}, .., w{}}})",
+                    "  - {} (witnesses {{w{},..,w{}}})",
                     path.join(""),
                     struct_.first_witness_index,
                     struct_.last_witness_index
@@ -299,4 +293,40 @@ fn show_dead_abi_parameter_type_status(status: &AbiParameterTypeStatus, path: &m
             }
         }
     }
+}
+
+/// Try to show groups of consecutive witnesses as a range, so if we have
+/// {w0, w1, w2, w4, w5, w6, w8, w10} we show it as {w0..w2, w4..w6, w8, w10}
+fn witnesses_to_string(witnesses: &BTreeSet<Witness>) -> String {
+    let mut parts = Vec::new();
+    let mut iter = witnesses.iter();
+
+    let Some(first) = iter.next() else {
+        return String::new();
+    };
+
+    let mut range_start = first.0;
+    let mut range_end = first.0;
+
+    for witness in iter {
+        if witness.0 == range_end + 1 {
+            range_end = witness.0;
+        } else {
+            if range_start == range_end {
+                parts.push(format!("w{range_start}"));
+            } else {
+                parts.push(format!("w{range_start},..,w{range_end}"));
+            }
+            range_start = witness.0;
+            range_end = witness.0;
+        }
+    }
+
+    if range_start == range_end {
+        parts.push(format!("w{range_start}"));
+    } else {
+        parts.push(format!("w{range_start},..,w{range_end}"));
+    }
+
+    parts.join(", ")
 }
