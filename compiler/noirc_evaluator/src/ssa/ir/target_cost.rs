@@ -152,10 +152,17 @@ impl Instruction {
                         | Intrinsic::VectorRefCount
                         | Intrinsic::IsUnconstrained => 1,
 
-                        // procedure call + metadata + RC check + mem copy
-                        Intrinsic::VectorPushBack | Intrinsic::VectorPushFront => 60,
-                        Intrinsic::VectorPopBack | Intrinsic::VectorPopFront => 40,
-                        Intrinsic::VectorInsert | Intrinsic::VectorRemove => 60,
+                        // Vector ops compile to procedure calls. The procedure body
+                        // (RC check, capacity check, mem_copy) is shared global code
+                        // compiled once regardless of inlining. Only count the
+                        // call-site static opcodes: scratch setup moves + Const +
+                        // Call + result moves + element read/writes.
+                        Intrinsic::VectorPushBack
+                        | Intrinsic::VectorPushFront
+                        | Intrinsic::VectorPopBack
+                        | Intrinsic::VectorPopFront
+                        | Intrinsic::VectorInsert
+                        | Intrinsic::VectorRemove => 10,
 
                         // radix decomposition + optional reverse
                         Intrinsic::ToBits(_) => 20,
