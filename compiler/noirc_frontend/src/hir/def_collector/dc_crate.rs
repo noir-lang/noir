@@ -385,22 +385,7 @@ impl DefCollector {
 
         Self::check_unused_items(context, crate_id, &mut errors);
 
-        if errors.iter().any(|error| !error.is_expecting_other_error_error() && error.is_error()) {
-            errors.retain(|error| !error.is_expecting_other_error_error());
-        } else {
-            // All errors are "expecting other" but nothing else was found.
-            // They might appear multiple times, so deduplicate them.
-            let mut seen: HashSet<ExpectingOtherError> = HashSet::new();
-            errors.retain(|error| match error.as_expecting_other_error_error() {
-                Some(o) if seen.contains(o) => false,
-                Some(o) => {
-                    seen.insert(o.clone());
-                    true
-                }
-                None => true,
-            });
-        }
-        errors
+        filter_expecting_other_errors(errors)
     }
 
     /// This method does several things:
@@ -733,4 +718,36 @@ fn inject_prelude(
             }
         }
     }
+}
+
+/// Filter the errors so that:
+/// * if we have any errors which are _not_ [ExpectingOtherError], then we remove all [ExpectingOtherError] instances
+/// * if there are no other kind of errors, then we leave and deduplicate the [ExpectingOtherError]s
+fn filter_expecting_other_errors(mut errors: Vec<CompilationError>) -> Vec<CompilationError> {
+    let has_expected_errors =
+        errors.iter().any(|error| !error.is_expecting_other_error_error() && error.is_error());
+
+    if has_expected_errors {
+        errors.retain(|error| !error.is_expecting_other_error_error());
+        errors
+    } else {
+        dedup_expecting_other_errors(errors)
+    }
+}
+
+/// The same `ExpectingOtherError` can be emitted multiple times.
+/// This function removes duplicates so we don't see the same error
+/// in the output repeatedly.
+fn dedup_expecting_other_errors(mut errors: Vec<CompilationError>) -> Vec<CompilationError> {
+    // Using a HashSet of the inner error, because `CompiliationError` does not implement Ord or Hash.
+    let mut seen: HashSet<ExpectingOtherError> = HashSet::new();
+    errors.retain(|error| match error.as_expecting_other_error_error() {
+        Some(o) if seen.contains(o) => false,
+        Some(o) => {
+            seen.insert(o.clone());
+            true
+        }
+        None => true,
+    });
+    errors
 }
