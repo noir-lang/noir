@@ -132,7 +132,7 @@ impl CoalescingMap {
                             if !param_used_at_or_after {
                                 coalesced.insert(*arg, *param);
                             }
-                        } else if can_coalesce_param_side(arg, destination, dest_live_in, &cfg) {
+                        } else if can_coalesce_param_side(arg, destination, dest_live_in, cfg) {
                             // Param-side: instruction from another block.
                             coalesced.insert(*param, *arg);
                             param_side_targets.insert(*arg);
@@ -140,7 +140,7 @@ impl CoalescingMap {
                     }
                     Value::Param { .. } => {
                         // Param-side: block parameter passthrough.
-                        if can_coalesce_param_side(arg, destination, dest_live_in, &cfg) {
+                        if can_coalesce_param_side(arg, destination, dest_live_in, cfg) {
                             coalesced.insert(*param, *arg);
                             param_side_targets.insert(*arg);
                         }
