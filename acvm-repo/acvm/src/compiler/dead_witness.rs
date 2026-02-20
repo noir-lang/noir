@@ -4,7 +4,7 @@ use acir::{
     native_types::{Expression, Witness},
 };
 use rayon::prelude::*;
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 
 use super::simulator::CircuitSimulator;
 
@@ -19,7 +19,7 @@ use super::simulator::CircuitSimulator;
 /// opcodes do not create constraint edges (they are unconstrained execution).
 /// BFS from seed witnesses (public parameters ∪ return values) determines
 /// reachability; unreachable witnesses are dead.
-pub fn find_dead_witnesses<F: AcirField + Send + Sync>(circuit: &Circuit<F>) -> HashSet<Witness> {
+pub fn find_dead_witnesses<F: AcirField + Send + Sync>(circuit: &Circuit<F>) -> BTreeSet<Witness> {
     let graph = build_graph(circuit);
     find_dead(&graph, circuit)
 }
@@ -143,7 +143,7 @@ fn build_graph<F: AcirField + Send + Sync>(circuit: &Circuit<F>) -> Graph {
 }
 
 /// BFS from seeds to find all reachable witnesses, return unreachable ones.
-fn find_dead<F: AcirField>(graph: &Graph, circuit: &Circuit<F>) -> HashSet<Witness> {
+fn find_dead<F: AcirField>(graph: &Graph, circuit: &Circuit<F>) -> BTreeSet<Witness> {
     let mut visited: HashSet<Witness> = HashSet::new();
     let mut queue: VecDeque<Witness> = VecDeque::new();
 
