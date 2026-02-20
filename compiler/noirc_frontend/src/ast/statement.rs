@@ -128,6 +128,21 @@ impl StatementKind {
                 self
             }
             StatementKind::Comptime(mut statement) => {
+                // `comptime { expr };` => `Semi(comptime { expr })`
+                if semi.is_some() {
+                    if let StatementKind::Expression(Expression {
+                        kind: ExpressionKind::Block(block),
+                        ..
+                    }) = statement.kind
+                    {
+                        let comptime_expr = Expression {
+                            kind: ExpressionKind::Comptime(block, statement.location),
+                            location,
+                        };
+                        return StatementKind::Semi(comptime_expr);
+                    }
+                }
+
                 *statement =
                     statement.add_semicolon(semi, location, last_statement_in_block, emit_error);
                 StatementKind::Comptime(statement)
