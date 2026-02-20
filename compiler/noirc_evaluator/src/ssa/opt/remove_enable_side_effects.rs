@@ -537,6 +537,28 @@ mod tests {
     }
 
     #[test]
+    fn keep_enable_side_effects_before_pure_function_call() {
+        // All user-defined function calls are predicated during ACIR generation,
+        // regardless of purity. The EnableSideEffectsIf before a pure call must
+        // be preserved so that ACIR gen receives the correct predicate.
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1, v1: Field):
+            enable_side_effects v0
+            v2 = call f1(v1) -> Field
+            enable_side_effects u1 1
+            return v2
+        }
+        acir(inline) pure fn my_pure_fn f1 {
+          b0(v0: Field):
+            v1 = add v0, Field 1
+            return v1
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::remove_enable_side_effects);
+    }
+
+    #[test]
     fn keep_enable_side_effects_for_recursive_aggregation() {
         // RecursiveAggregation uses the `current_side_effects_enabled_var` as its predicate
         // during ACIR generation. If `remove_enable_side_effects` drops the `EnableSideEffectsIf`

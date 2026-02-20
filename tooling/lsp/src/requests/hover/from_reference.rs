@@ -455,7 +455,7 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
         string.push_str(&func_modifiers.visibility.to_string());
         string.push(' ');
     }
-    if func_modifiers.is_unconstrained {
+    if func_meta.is_unconstrained() {
         string.push_str("unconstrained ");
     }
     if func_modifiers.is_comptime {

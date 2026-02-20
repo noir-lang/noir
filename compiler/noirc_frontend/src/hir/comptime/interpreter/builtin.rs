@@ -36,7 +36,10 @@ use crate::{
             InterpreterError, Value,
             display::tokens_to_string,
             errors::IResult,
-            interpreter::builtin::builtin_helpers::fragments_to_string,
+            interpreter::{
+                builtin::builtin_helpers::fragments_to_string,
+                builtin_helpers::check_item_crate_matches_current_crate,
+            },
             value::{ExprValue, FormatStringFragment, TypedExpr},
         },
         def_collector::dc_crate::CollectedItems,
@@ -216,8 +219,8 @@ impl Interpreter<'_, '_> {
             "type_as_str" => type_as_str(arguments, return_type, location),
             "type_as_data_type" => type_as_data_type(arguments, return_type, location),
             "type_as_tuple" => type_as_tuple(arguments, return_type, location),
-            "type_def_add_attribute" => type_def_add_attribute(interner, arguments, location),
-            "type_def_add_generic" => type_def_add_generic(interner, arguments, location),
+            "type_def_add_attribute" => type_def_add_attribute(self, arguments, location),
+            "type_def_add_generic" => type_def_add_generic(self, arguments, location),
             "type_def_as_type" => type_def_as_type(interner, arguments, location),
             "type_def_as_type_with_generics" => {
                 type_def_as_type_with_generics(interner, arguments, return_type, location)
@@ -234,7 +237,7 @@ impl Interpreter<'_, '_> {
             "type_def_hash" => type_def_hash(arguments, location),
             "type_def_module" => type_def_module(self, arguments, location),
             "type_def_name" => type_def_name(interner, arguments, location),
-            "type_def_set_fields" => type_def_set_fields(self.elaborator, arguments, location),
+            "type_def_set_fields" => type_def_set_fields(self, arguments, location),
             "type_eq" => type_eq(arguments, location),
             "type_get_trait_impl" => {
                 type_get_trait_impl(interner, arguments, return_type, location)
@@ -413,7 +416,7 @@ fn str_as_ctstring(arguments: Vec<(Value, Location)>, location: Location) -> IRe
 
 // fn add_attribute<let N: u32>(self, attribute: str<N>)
 fn type_def_add_attribute(
-    interner: &mut NodeInterner,
+    interpreter: &mut Interpreter,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
@@ -429,8 +432,11 @@ fn type_def_add_attribute(
         });
     };
 
+    let self_arg = self_argument.0.clone();
     let type_id = get_type_id(self_argument)?;
-    interner.update_type_attributes(type_id, |attributes| {
+    check_item_crate_matches_current_crate(interpreter, &self_arg, type_id.module_id(), location)?;
+
+    interpreter.elaborator.interner.update_type_attributes(type_id, |attributes| {
         attributes.push(attribute);
     });
 
@@ -439,7 +445,7 @@ fn type_def_add_attribute(
 
 // fn add_generic<let N: u32>(self, generic_name: str<N>)
 fn type_def_add_generic(
-    interner: &NodeInterner,
+    interpreter: &Interpreter,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
@@ -462,8 +468,13 @@ fn type_def_add_generic(
         });
     };
 
+    let self_arg = self_argument.0.clone();
     let struct_id = get_type_id(self_argument)?;
-    let the_struct = interner.get_type(struct_id);
+    let struct_module = struct_id.module_id();
+
+    check_item_crate_matches_current_crate(interpreter, &self_arg, struct_module, location)?;
+
+    let the_struct = interpreter.elaborator.interner.get_type(struct_id);
     let mut the_struct = the_struct.borrow_mut();
     let name = Rc::new(generic_name);
 
@@ -478,8 +489,8 @@ fn type_def_add_generic(
         }
     }
 
-    let type_var_kind = Kind::Normal;
-    let type_var = TypeVariable::unbound(interner.next_type_variable_id(), type_var_kind);
+    let type_var_id = interpreter.elaborator.interner.next_type_variable_id();
+    let type_var = TypeVariable::unbound(type_var_id, Kind::Normal);
     let typ = type_var.clone().into_named_generic(&name, None);
     let new_generic = ResolvedGeneric { name, type_var, location: generic_location };
     the_struct.generics.push(new_generic);
@@ -717,14 +728,18 @@ fn type_def_name(
 /// fn set_fields(self, new_fields: [(Quoted, Type, Quoted)]) {}
 /// Returns (name, type) pairs of each field of this TypeDefinition
 fn type_def_set_fields(
-    elaborator: &mut Elaborator,
+    interpreter: &mut Interpreter,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let (the_struct, fields) = check_two_arguments(arguments, location)?;
+    let self_arg = the_struct.0.clone();
     let struct_id = get_type_id(the_struct)?;
+    let struct_module = struct_id.module_id();
 
-    let struct_def = elaborator.interner.get_type(struct_id);
+    check_item_crate_matches_current_crate(interpreter, &self_arg, struct_module, location)?;
+
+    let struct_def = interpreter.elaborator.interner.get_type(struct_id);
     let mut struct_def = struct_def.borrow_mut();
 
     let field_location = fields.1;
@@ -757,7 +772,7 @@ fn type_def_set_fields(
         match name_tokens.first().map(|t| t.token()) {
             Some(Token::Ident(name)) if name_tokens.len() == 1 => {
                 let visibility = parse(
-                    elaborator,
+                    interpreter.elaborator,
                     (visibility, field_location),
                     Parser::parse_item_visibility,
                     "a visibility",
@@ -777,7 +792,7 @@ fn type_def_set_fields(
                 new_fields.push(StructField { visibility, name, typ });
             }
             _ => {
-                let value = name_value.display(elaborator.interner).to_string();
+                let value = name_value.display(interpreter.elaborator.interner).to_string();
                 let location = field_location;
                 return Err(InterpreterError::ExpectedIdentForStructField {
                     value,
@@ -2650,7 +2665,7 @@ fn function_def_is_unconstrained(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let func_id = get_function_def(self_argument)?;
-    let is_unconstrained = interner.function_modifiers(&func_id).is_unconstrained;
+    let is_unconstrained = interner.function_meta(&func_id).is_unconstrained();
     Ok(Value::Bool(is_unconstrained))
 }
 
@@ -2863,6 +2878,7 @@ fn function_def_set_return_public(
 
     let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
     func_meta.return_visibility = if public { Visibility::Public } else { Visibility::Private };
+    func_meta.return_visibility_location = location;
 
     Ok(Value::Unit)
 }
@@ -2880,6 +2896,7 @@ fn function_def_set_return_data(
 
     let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
     func_meta.return_visibility = Visibility::ReturnData;
+    func_meta.return_visibility_location = location;
 
     Ok(Value::Unit)
 }
@@ -2897,8 +2914,9 @@ fn function_def_set_unconstrained(
 
     let unconstrained = get_bool(unconstrained)?;
 
-    let modifiers = interpreter.elaborator.interner.function_modifiers_mut(&func_id);
-    modifiers.is_unconstrained = unconstrained;
+    mutate_func_meta_type(interpreter.elaborator.interner, func_id, |func_meta| {
+        func_meta.set_unconstrained(unconstrained);
+    });
 
     Ok(Value::Unit)
 }
@@ -2922,7 +2940,10 @@ fn module_add_item(
     location: Location,
 ) -> IResult<Value> {
     let (self_argument, item) = check_two_arguments(arguments, location)?;
+    let module_value = self_argument.0.clone();
     let module_id = get_module(self_argument)?;
+
+    check_item_crate_matches_current_crate(interpreter, &module_value, module_id, location)?;
 
     let parser = Parser::parse_top_level_items;
     let top_level_statements = parse(interpreter.elaborator, item, parser, "a top-level item")?;

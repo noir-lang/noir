@@ -50,15 +50,16 @@ pub(super) fn inlining_attributes(
     let attribute = modifiers.attributes.function()?;
     let location = attribute.location;
     let ident = func_meta_name_ident(func, modifiers);
+    let is_unconstrained = func.is_unconstrained();
 
     match &attribute.kind {
-        FunctionAttributeKind::NoPredicates if modifiers.is_unconstrained => {
+        FunctionAttributeKind::NoPredicates if is_unconstrained => {
             Some(ResolverError::NoPredicatesAttributeOnUnconstrained { ident, location })
         }
-        FunctionAttributeKind::Fold if modifiers.is_unconstrained => {
+        FunctionAttributeKind::Fold if is_unconstrained => {
             Some(ResolverError::FoldAttributeOnUnconstrained { ident, location })
         }
-        FunctionAttributeKind::InlineNever if !modifiers.is_unconstrained => {
+        FunctionAttributeKind::InlineNever if !is_unconstrained => {
             Some(ResolverError::InlineNeverAttributeOnConstrained { ident, location })
         }
         _ => None,
@@ -124,7 +125,7 @@ pub(super) fn oracle_not_marked_unconstrained(
     func: &FuncMeta,
     modifiers: &FunctionModifiers,
 ) -> Option<ResolverError> {
-    if modifiers.is_unconstrained {
+    if func.is_unconstrained() {
         return None;
     }
 
@@ -277,8 +278,9 @@ pub(super) fn missing_pub(func: &FuncMeta, modifiers: &FunctionModifiers) -> Opt
         && func.return_type().follow_bindings() != Type::Unit
         && func.return_visibility == Visibility::Private
     {
-        let ident = func_meta_name_ident(func, modifiers);
-        Some(ResolverError::NecessaryPub { ident })
+        let name = modifiers.name.clone();
+        let location = func.return_type.location();
+        Some(ResolverError::NecessaryPub { name, location })
     } else {
         None
     }
@@ -349,9 +351,17 @@ pub(super) fn unnecessary_pub_return(
     modifiers: &FunctionModifiers,
     is_entry_point: bool,
 ) -> Option<ResolverError> {
-    if !is_entry_point && func.return_visibility == Visibility::Public {
-        let ident = func_meta_name_ident(func, modifiers);
-        Some(ResolverError::UnnecessaryPub { ident, position: PubPosition::ReturnType })
+    if is_entry_point {
+        return None;
+    }
+
+    if let Visibility::Public = &func.return_visibility {
+        let name = modifiers.name.clone();
+        Some(ResolverError::UnnecessaryPub {
+            name,
+            location: func.return_visibility_location,
+            position: PubPosition::ReturnType,
+        })
     } else {
         None
     }
@@ -363,11 +373,18 @@ pub(super) fn unnecessary_pub_return(
 pub(super) fn unnecessary_pub_argument(
     func: &NoirFunction,
     arg_visibility: Visibility,
+    arg_visibility_location: Location,
     is_entry_point: bool,
 ) -> Option<ResolverError> {
-    if arg_visibility == Visibility::Public && !is_entry_point {
+    if is_entry_point {
+        return None;
+    }
+
+    if let Visibility::Public = arg_visibility {
+        let name = func.name().to_string();
         Some(ResolverError::UnnecessaryPub {
-            ident: func.name_ident().clone(),
+            name,
+            location: arg_visibility_location,
             position: PubPosition::Parameter,
         })
     } else {
@@ -379,20 +396,24 @@ pub(super) fn unnecessary_pub_argument(
 pub(super) fn databus_on_non_entry_point(
     func: &NoirFunction,
     visibility: Visibility,
+    visibility_location: Location,
     is_entry_point: bool,
 ) -> Option<ResolverError> {
-    if !is_entry_point {
-        match visibility {
-            Visibility::CallData(_) | Visibility::ReturnData => {
-                Some(ResolverError::DataBusOnNonEntryPoint {
-                    ident: func.name_ident().clone(),
-                    visibility: visibility.to_string(),
-                })
-            }
-            _ => None,
+    if is_entry_point {
+        return None;
+    }
+
+    match visibility {
+        Visibility::CallData(_) | Visibility::ReturnData => {
+            let name = func.name().to_string();
+            let visibility = visibility.to_string();
+            Some(ResolverError::DataBusOnNonEntryPoint {
+                name,
+                location: visibility_location,
+                visibility,
+            })
         }
-    } else {
-        None
+        _ => None,
     }
 }
 

@@ -1,3 +1,4 @@
+mod comptime_for;
 mod skip_interpreter_on_fail;
 
 use crate::{
@@ -936,22 +937,6 @@ fn comptime_if_expression() {
 }
 
 #[test]
-fn comptime_for_loop() {
-    let src = r#"
-        fn main() {
-            comptime {
-                let mut sum = 0;
-                for i in 0..3 {
-                    sum += i;
-                }
-                assert_eq(sum, 3);
-            }
-        }
-    "#;
-    assert_no_errors(src);
-}
-
-#[test]
 fn comptime_loop_with_break() {
     let src = r#"
         fn main() {
@@ -1486,6 +1471,34 @@ fn unifies_macro_call_type_with_variable_type_in_comptime_block() {
             let foo: Foo<_> = unquote!(quote { Foo::<10> {} });
             foo.len()
         }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+// Regression test for https://github.com/noir-lang/noir/issues/11575
+#[test]
+fn path_inside_module_attribute() {
+    let src = r#"
+    pub mod one {
+        pub comptime fn attr(_: Module, _: Config) {}
+
+        pub struct Config {}
+
+        impl Config {
+            pub fn new() -> Self {
+                Self {}
+            }
+        }
+    }
+
+    use one::{attr, Config};
+
+    #[attr(Config::new())]
+    mod coco {}
+
+    pub fn main() {
+        let _ = Config::new();
     }
     "#;
     assert_no_errors(src);

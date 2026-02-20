@@ -611,7 +611,7 @@ impl DocItemBuilder<'_> {
     fn convert_function(&mut self, func_id: FuncId) -> Function {
         let modifiers = self.interner.function_modifiers(&func_id);
         let func_meta = self.interner.function_meta(&func_id);
-        let unconstrained = modifiers.is_unconstrained;
+        let unconstrained = func_meta.is_unconstrained();
         let comptime = modifiers.is_comptime;
         let name = modifiers.name.to_string();
         let comments = self.doc_comments(ReferenceId::Function(func_id));
