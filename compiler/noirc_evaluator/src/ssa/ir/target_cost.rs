@@ -164,12 +164,13 @@ impl Instruction {
                         | Intrinsic::VectorInsert
                         | Intrinsic::VectorRemove => 10,
 
-                        // radix decomposition + optional reverse
-                        Intrinsic::ToBits(_) => 20,
-                        Intrinsic::ToRadix(_) => 12,
+                        // Array init + 1 BlackBoxOp::ToRadix + ArrayReverse procedure call
+                        Intrinsic::ToBits(_) => 10,
+                        // Array init + 1 BlackBoxOp::ToRadix (no reverse)
+                        Intrinsic::ToRadix(_) => 8,
 
-                        // array-to-vector conversion with metadata setup
-                        Intrinsic::AsVector => 5,
+                        // Semantic length + vector init + pointer + MemCopy procedure call
+                        Intrinsic::AsVector => 8,
 
                         // Removed before Brillig codegen / compile-time only
                         Intrinsic::ArrayAsStrUnchecked
