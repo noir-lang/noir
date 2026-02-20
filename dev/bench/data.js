@@ -1,107 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771608157045,
+  "lastUpdate": 1771608273868,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "e49f977c35a85375cd9ed5319e160a037d6f3284",
-          "message": "chore: add regression tests for trait resolution issues (#11541)",
-          "timestamp": "2026-02-11T13:49:31Z",
-          "tree_id": "d3295e8f5ffa40d16630bed9a1327e9379d66b2a",
-          "url": "https://github.com/noir-lang/noir/commit/e49f977c35a85375cd9ed5319e160a037d6f3284"
-        },
-        "date": 1770820228885,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 291.05,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 505.51,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 264.11,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 366.24,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 366.24,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 366.24,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 366.24,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 10130,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 10130,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 366.71,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 1090,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 2830,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 366.24,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 98.09,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 184.89,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -4944,6 +4845,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512_100_bytes",
             "value": 184.31,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "32d579f52c4cdbb30662527578a29ad6a8b9f69d",
+          "message": "chore: add skill to minimize SSA pass crashes (#11588)",
+          "timestamp": "2026-02-20T16:35:18Z",
+          "tree_id": "3656662272b2ffac92fc5e13b7f7858a3980d6b1",
+          "url": "https://github.com/noir-lang/noir/commit/32d579f52c4cdbb30662527578a29ad6a8b9f69d"
+        },
+        "date": 1771608110334,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 292.12,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 506.48,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 264.51,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 345.01,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 343.82,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 346.81,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 344.69,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 10110,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 10110,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 347.26,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 1070,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 2810,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 343.87,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 98.08,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 184.24,
             "unit": "MB"
           }
         ]
