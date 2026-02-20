@@ -611,6 +611,17 @@ impl Elaborator<'_> {
             );
         }
 
+        // If a global variable hasn't been defined yet, then we are most likely dealing with a self-dependency-cycle.
+        let definition = self.interner.definition(ident.id);
+        if definition.kind.is_global() && self.interner.try_definition_type(ident.id).is_none() {
+            self.push_err(ResolverError::DependencyCycle {
+                location: ident.location,
+                item: definition.name.clone(),
+                cycle: "the variable definition type hasn't been resolved yet".to_string(),
+            });
+            return Type::Error;
+        }
+
         // An identifiers type may be forall-quantified in the case of generic functions.
         // E.g. `fn foo<T>(t: T, field: Field) -> T` has type `forall T. fn(T, Field) -> T`.
         // We must instantiate identifiers at every call site to replace this T with a new type

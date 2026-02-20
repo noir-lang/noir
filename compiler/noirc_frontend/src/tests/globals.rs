@@ -7,7 +7,8 @@ fn deny_cyclic_globals() {
                ^ Dependency cycle found
                ~ 'A' recursively depends on itself: A -> B -> A
         global B: u32 = A;
-                        ^ Failed to resolve this global
+                        ^ Dependency cycle found
+                        ~ 'A' recursively depends on itself: the variable definition type hasn't been resolved yet
     "#;
     check_errors(src);
 }
@@ -239,11 +240,13 @@ fn global_closure_with_undefined_variable_method_call() {
 fn regression_11489_mutually_recursive_function() {
     let src = r#"
     global foo: Field = bar();
-                        ^^^^^ Expected a function, but found a(n) Field
            ^^^ Dependency cycle found
            ~~~ 'foo' recursively depends on itself: foo -> bar -> foo
+                        ^^^^^ Expected a function, but found a(n) Field
 
     global bar: Field = foo();
+                        ^^^ Dependency cycle found
+                        ~~~ 'foo' recursively depends on itself: the variable definition type hasn't been resolved yet
     "#;
     check_errors(src);
 }
@@ -256,7 +259,8 @@ fn regression_11489_mutually_recursive_typed_function() {
            ~~~ 'foo' recursively depends on itself: foo -> bar -> foo
 
     global bar: fn() = foo;
-                       ^^^ Failed to resolve this global
+                       ^^^ Dependency cycle found
+                       ~~~ 'foo' recursively depends on itself: the variable definition type hasn't been resolved yet
     "#;
     check_errors(src);
 }
@@ -265,9 +269,8 @@ fn regression_11489_mutually_recursive_typed_function() {
 fn regression_11489_function() {
     let src = r#"
     global foo: Field = foo();
-                        ^^^^^ Expected global to be a let statement or expression but found: Error
-           // ^^^ Dependency cycle found
-           // ~~~ 'foo' recursively depends on itself: foo -> foo
+                        ^^^ Dependency cycle found
+                        ~~~ 'foo' recursively depends on itself: the variable definition type hasn't been resolved yet
     "#;
     check_errors(src);
 }
@@ -276,9 +279,8 @@ fn regression_11489_function() {
 fn regression_11489_typed_function() {
     let src = r#"
     global foo: fn() = foo();
-                       ^^^^^ Expected global to be a let statement or expression but found: Error
-           // ^^^ Dependency cycle found
-           // ~~~ 'foo' recursively depends on itself: foo -> foo
+                       ^^^ Dependency cycle found
+                       ~~~ 'foo' recursively depends on itself: the variable definition type hasn't been resolved yet
     "#;
     check_errors(src);
 }
@@ -287,9 +289,8 @@ fn regression_11489_typed_function() {
 fn regression_11489_value() {
     let src = r#"
     global foo: Field = foo;
-                        ^^^ Failed to resolve this global
-           // ^^^ Dependency cycle found
-           // ~~~ 'foo' recursively depends on itself: foo -> foo
+                        ^^^ Dependency cycle found
+                        ~~~ 'foo' recursively depends on itself: the variable definition type hasn't been resolved yet
     "#;
     check_errors(src);
 }
@@ -302,7 +303,8 @@ fn regression_11489_mutually_recursive_value() {
            ~~~ 'foo' recursively depends on itself: foo -> bar -> foo
 
     global bar: Field = foo;
-                        ^^^ Failed to resolve this global
+                        ^^^ Dependency cycle found
+                        ~~~ 'foo' recursively depends on itself: the variable definition type hasn't been resolved yet
     "#;
     check_errors(src);
 }
@@ -311,9 +313,8 @@ fn regression_11489_mutually_recursive_value() {
 fn regression_11489_comptime_function() {
     let src = r#"
     comptime global foo: Field = foo();
-                                 ^^^^^ Expected global to be a let statement or expression but found: Error
-                    // ^^^ Dependency cycle found
-                    // ~~~ 'foo' recursively depends on itself: foo -> foo
+                                 ^^^ Dependency cycle found
+                                 ~~~ 'foo' recursively depends on itself: the variable definition type hasn't been resolved yet
     "#;
     check_errors(src);
 }
@@ -322,9 +323,8 @@ fn regression_11489_comptime_function() {
 fn regression_11489_comptime_value() {
     let src = r#"
     comptime global foo: Field = foo;
-                                 ^^^ Failed to resolve this global
-                    // ^^^ Dependency cycle found
-                    // ~~~ 'foo' recursively depends on itself: foo -> foo
+                                 ^^^ Dependency cycle found
+                                 ~~~ 'foo' recursively depends on itself: the variable definition type hasn't been resolved yet
     "#;
     check_errors(src);
 }
