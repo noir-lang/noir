@@ -137,7 +137,7 @@ fn show_dead_witnesses<F: AcirField>(
         let location = call_stack.pop().unwrap();
         let witnesses =
             witnesses.into_iter().map(|w| w.to_string()).collect::<Vec<String>>().join(", ");
-        let primary_message = format!("Dead witnesses {{{witnesses}}} ({})", call_stack_id.index());
+        let primary_message = format!("Dead witnesses {{{witnesses}}}");
         let secondary_message = String::new();
         let mut diagnostic =
             CustomDiagnostic::simple_warning(primary_message, secondary_message, location);
