@@ -613,7 +613,11 @@ impl Elaborator<'_> {
 
         // If a global variable hasn't been defined yet, then we are most likely dealing with a self-dependency-cycle.
         let definition = self.interner.definition(ident.id);
-        if definition.kind.is_global() && self.interner.try_definition_type(ident.id).is_none() {
+        // Some associated constants also have Global as Kind, and they are not defined when look them up here; want to restrict to global `let` statements.
+        if self.in_comptime_context()
+            && definition.kind.is_global()
+            && self.interner.try_definition_type(ident.id).is_none()
+        {
             self.push_err(ResolverError::DependencyCycle {
                 location: ident.location,
                 item: definition.name.clone(),

@@ -736,6 +736,23 @@ fn associated_constant_direct_access_generic_impl() {
 }
 
 #[test]
+fn associated_constant_on_field() {
+    let src = "
+    trait Foo {
+        let BAR: u32;
+
+        fn bar(_: Self) -> u32 {
+            Foo::BAR
+        }
+    }
+    impl Foo for Field {
+        let BAR: u32 = 254;
+    }
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
 fn associated_constant_direct_access_generic_impl_wrong_struct() {
     // Verify that unification correctly rejects non-matching struct types.
     // We have impl MyTrait for Wrapper<T>, but try to access Other<Field>::N.
