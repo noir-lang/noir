@@ -64,10 +64,11 @@ impl Function {
         F: FnMut(&mut SimpleOptimizationContext<'_, '_>) -> RtResult<()>,
     {
         let mut values_to_replace = ValueMapping::default();
-        let mut enable_side_effects =
-            self.dfg.make_constant(FieldElement::from(1_u128), NumericType::bool());
+        let one = self.dfg.make_constant(FieldElement::from(1_u128), NumericType::bool());
         let reverse_post_order = PostOrder::with_function(self).into_vec_reverse();
         for block_id in reverse_post_order {
+            let mut enable_side_effects = one;
+
             let instruction_ids = self.dfg[block_id].take_instructions();
             self.dfg[block_id].instructions_mut().reserve(instruction_ids.len());
             for instruction_id in &instruction_ids {
