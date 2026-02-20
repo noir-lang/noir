@@ -9,6 +9,8 @@ use acir::{
 };
 use std::collections::HashSet;
 
+use crate::pwg::arithmetic::ExpressionSolver;
+
 /// Simulate solving a circuit symbolically
 /// Instead of evaluating witness values from the inputs, like the PWG module is doing,
 /// this pass simply marks the witness that can be evaluated, from the known inputs,
@@ -55,7 +57,10 @@ impl CircuitSimulator {
         match opcode {
             Opcode::AssertZero(expr) => {
                 let mut unresolved = HashSet::new();
-                for (_, w1, w2) in &expr.mul_terms {
+                let combined_mul_terms = ExpressionSolver::combine_mul_terms(&expr.mul_terms);
+                let combined_linear_terms =
+                    ExpressionSolver::combine_linear_terms(&expr.linear_combinations);
+                for (_, w1, w2) in &combined_mul_terms {
                     if !self.solvable_witnesses.contains(w1) {
                         if !self.solvable_witnesses.contains(w2) {
                             return false;
@@ -66,7 +71,7 @@ impl CircuitSimulator {
                         unresolved.insert(*w2);
                     }
                 }
-                for (_, w) in &expr.linear_combinations {
+                for (_, w) in &combined_linear_terms {
                     if !self.solvable_witnesses.contains(w) {
                         unresolved.insert(*w);
                     }
@@ -385,5 +390,18 @@ mod tests {
         ";
         let circuit = Circuit::from_str(src).unwrap();
         assert_eq!(CircuitSimulator::check_circuit(&circuit), None);
+    }
+
+    #[test]
+    fn reports_some_when_expression_can_simplify() {
+        let src = "
+        private parameters: []
+        public parameters: []
+        return values: []
+        ASSERT w1 = w1
+        ASSERT w2 = w1
+        ";
+        let empty_circuit = Circuit::from_str(src).unwrap();
+        assert_eq!(CircuitSimulator::check_circuit(&empty_circuit), Some(1));
     }
 }
