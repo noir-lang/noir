@@ -81,7 +81,7 @@ impl Ssa {
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{opt::inlining::inline_info::MAX_INSTRUCTIONS, ssa_gen::Ssa},
+        ssa::{opt::inlining::inline_info::MAX_SIMPLE_FUNCTION_WEIGHT, ssa_gen::Ssa},
     };
 
     #[test]
@@ -115,7 +115,7 @@ mod tests {
         "#;
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.preprocess_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+        let ssa = ssa.preprocess_functions(i64::MAX, MAX_SIMPLE_FUNCTION_WEIGHT).unwrap();
 
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {

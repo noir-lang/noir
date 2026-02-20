@@ -20,7 +20,7 @@ use noirc_evaluator::brillig::brillig_ir::{
 use noirc_evaluator::create_program;
 use noirc_evaluator::errors::RuntimeError;
 use noirc_evaluator::ssa::opt::{
-    CONSTANT_FOLDING_MAX_ITER, FORCE_UNROLL_THRESHOLD, INLINING_MAX_INSTRUCTIONS,
+    CONSTANT_FOLDING_MAX_ITER, FORCE_UNROLL_THRESHOLD, MAX_SIMPLE_FUNCTION_WEIGHT,
 };
 use noirc_evaluator::ssa::{
     SsaEvaluatorOptions, SsaLogging, SsaProgramArtifact, create_program_with_minimal_passes,
@@ -186,7 +186,7 @@ pub struct CompileOptions {
 
     /// Setting to decide the maximum weight threshold at which we designate a function
     /// as "small" and thus to always be inlined.
-    #[arg(long, hide = true, allow_hyphen_values = true, default_value_t = INLINING_MAX_INSTRUCTIONS)]
+    #[arg(long, hide = true, allow_hyphen_values = true, default_value_t = MAX_SIMPLE_FUNCTION_WEIGHT)]
     pub small_function_max_instructions: usize,
 
     /// Setting the maximum acceptable increase in Brillig bytecode size due to
@@ -275,7 +275,7 @@ impl Default for CompileOptions {
             enable_brillig_constraints_check_lookback: false,
             inliner_aggressiveness: i64::MAX,
             constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
-            small_function_max_instructions: INLINING_MAX_INSTRUCTIONS,
+            small_function_max_instructions: MAX_SIMPLE_FUNCTION_WEIGHT,
             max_bytecode_increase_percent: None,
             force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
             max_stack_frame_size: MAX_STACK_FRAME_SIZE,

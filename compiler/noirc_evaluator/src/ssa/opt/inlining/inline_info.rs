@@ -14,22 +14,14 @@ use crate::ssa::{
     ssa_gen::Ssa,
 };
 
-/// The maximum number of instructions chosen below is an expert estimation of a "small" function
-/// in our SSA IR. Generally, inlining small functions with no control flow should enable further optimizations
-/// in the compiler while avoiding code size bloat.
-///
-/// For example, a common "simple" function is writing into a mutable reference.
-/// When that function has no control flow, it generally means we can expect all loads and stores within the
-/// function to be resolved upon inlining. Inlining this type of basic function both reduces the number of
-/// loads/stores to be executed and enables the compiler to continue optimizing at the inline site.
-#[cfg(test)]
-pub(crate) const MAX_INSTRUCTIONS: usize = 10;
-
 /// The maximum Brillig weight for a function to be considered "simple" and eligible for
-/// inlining by the `inline_simple_functions` pass and the `compute_function_should_be_inlined`
-/// cost model. Uses Brillig cost units (not raw SSA instruction count). A value of 80 covers
-/// the worst case of 10 SSA instructions at maximum per-instruction cost (checked u32 mul = 8
-/// opcodes each).
+/// unconditional inlining by `inline_simple_functions` and the `compute_function_should_be_inlined`
+/// cost model. Uses Brillig cost units (see [Instruction::cost]).
+///
+/// A value of 80 covers the worst case of 10 SSA instructions at the maximum per-instruction
+/// cost (checked u32 mul = 8 opcodes each). Simple functions are typically single-block helpers
+/// (e.g., writing into a mutable reference) whose inlining resolves loads/stores and enables
+/// further optimizations at the call site.
 pub const MAX_SIMPLE_FUNCTION_WEIGHT: usize = 80;
 
 /// Information about a function to aid the decision about whether to inline it or not.
@@ -353,7 +345,7 @@ mod tests {
         ssa_gen::Ssa,
     };
 
-    use super::{MAX_INSTRUCTIONS, compute_inline_infos};
+    use super::{MAX_SIMPLE_FUNCTION_WEIGHT, compute_inline_infos};
 
     #[test]
     fn mark_mutually_recursive_functions() {
@@ -383,7 +375,7 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let call_graph = CallGraph::from_ssa_weighted(&ssa);
         let inline_infos =
-            compute_inline_infos(&ssa, &call_graph, false, MAX_INSTRUCTIONS, i64::MAX);
+            compute_inline_infos(&ssa, &call_graph, false, MAX_SIMPLE_FUNCTION_WEIGHT, i64::MAX);
 
         let func_0 = inline_infos.get(&Id::test_new(0)).expect("Should have computed inline info");
         assert!(!func_0.is_recursive);
@@ -510,7 +502,7 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         let call_graph = CallGraph::from_ssa_weighted(&ssa);
-        let infos = compute_inline_infos(&ssa, &call_graph, false, MAX_INSTRUCTIONS, 0);
+        let infos = compute_inline_infos(&ssa, &call_graph, false, MAX_SIMPLE_FUNCTION_WEIGHT, 0);
 
         let f1 = infos.get(&Id::test_new(1)).expect("f1 should be analyzed");
         assert!(
@@ -536,36 +528,40 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         let call_graph = CallGraph::from_ssa_weighted(&ssa);
-        let infos = compute_inline_infos(&ssa, &call_graph, false, MAX_INSTRUCTIONS, i64::MIN);
+        let infos =
+            compute_inline_infos(&ssa, &call_graph, false, MAX_SIMPLE_FUNCTION_WEIGHT, i64::MIN);
         let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
         assert!(
             !f1.should_inline,
             "no_predicates functions should NOT be inlined if the flag is false"
         );
 
-        let infos = compute_inline_infos(&ssa, &call_graph, false, MAX_INSTRUCTIONS, 0);
+        let infos = compute_inline_infos(&ssa, &call_graph, false, MAX_SIMPLE_FUNCTION_WEIGHT, 0);
         let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
         assert!(
             !f1.should_inline,
             "no_predicates functions should NOT be inlined if the flag is false"
         );
 
-        let infos = compute_inline_infos(&ssa, &call_graph, false, MAX_INSTRUCTIONS, i64::MAX);
+        let infos =
+            compute_inline_infos(&ssa, &call_graph, false, MAX_SIMPLE_FUNCTION_WEIGHT, i64::MAX);
         let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
         assert!(
             !f1.should_inline,
             "no_predicates functions should NOT be inlined if the flag is false"
         );
 
-        let infos = compute_inline_infos(&ssa, &call_graph, true, MAX_INSTRUCTIONS, i64::MIN);
+        let infos =
+            compute_inline_infos(&ssa, &call_graph, true, MAX_SIMPLE_FUNCTION_WEIGHT, i64::MIN);
         let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
         assert!(f1.should_inline, "no_predicates functions should be inlined if the flag is true");
 
-        let infos = compute_inline_infos(&ssa, &call_graph, true, MAX_INSTRUCTIONS, 0);
+        let infos = compute_inline_infos(&ssa, &call_graph, true, MAX_SIMPLE_FUNCTION_WEIGHT, 0);
         let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
         assert!(f1.should_inline, "no_predicates functions should be inlined if the flag is true");
 
-        let infos = compute_inline_infos(&ssa, &call_graph, true, MAX_INSTRUCTIONS, i64::MAX);
+        let infos =
+            compute_inline_infos(&ssa, &call_graph, true, MAX_SIMPLE_FUNCTION_WEIGHT, i64::MAX);
         let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
         assert!(f1.should_inline, "no_predicates functions should be inlined if the flag is true");
     }
@@ -587,7 +583,7 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         let call_graph = CallGraph::from_ssa_weighted(&ssa);
-        let infos = compute_inline_infos(&ssa, &call_graph, false, MAX_INSTRUCTIONS, 0);
+        let infos = compute_inline_infos(&ssa, &call_graph, false, MAX_SIMPLE_FUNCTION_WEIGHT, 0);
 
         let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
         assert!(f1.should_inline, "inline_always functions should be inlined");
@@ -610,7 +606,8 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         let call_graph = CallGraph::from_ssa_weighted(&ssa);
-        let infos = compute_inline_infos(&ssa, &call_graph, false, MAX_INSTRUCTIONS, i64::MAX);
+        let infos =
+            compute_inline_infos(&ssa, &call_graph, false, MAX_SIMPLE_FUNCTION_WEIGHT, i64::MAX);
 
         let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
         assert!(!f1.should_inline, "inline_never functions should not be inlined");
@@ -631,7 +628,7 @@ mod tests {
         ";
         let ssa = Ssa::from_str(src).unwrap();
         let call_graph = CallGraph::from_ssa_weighted(&ssa);
-        let infos = compute_inline_infos(&ssa, &call_graph, false, MAX_INSTRUCTIONS, 0);
+        let infos = compute_inline_infos(&ssa, &call_graph, false, MAX_SIMPLE_FUNCTION_WEIGHT, 0);
 
         let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
         assert!(!f1.should_inline, "Brillig entry points should never be inlined");
