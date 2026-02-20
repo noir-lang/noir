@@ -259,8 +259,8 @@
 <a href=#259 id=259 data-nosnippet>259</a>            <span class="string">"Constant Folding using constraints"</span>,
 <a href=#260 id=260 data-nosnippet>260</a>        ),
 <a href=#261 id=261 data-nosnippet>261</a>        SsaPass::new(
-<a href=#262 id=262 data-nosnippet>262</a>            |ssa| ssa.fold_constants_with_brillig(options.constant_folding_max_iter),
-<a href=#263 id=263 data-nosnippet>263</a>            <span class="string">"Inlining Brillig Calls"</span>,
+<a href=#262 id=262 data-nosnippet>262</a>            |ssa| ssa.fold_constants(options.constant_folding_max_iter),
+<a href=#263 id=263 data-nosnippet>263</a>            <span class="string">"Constant Folding"</span>,
 <a href=#264 id=264 data-nosnippet>264</a>        ),
 <a href=#265 id=265 data-nosnippet>265</a>        SsaPass::new(Ssa::remove_unreachable_instructions, <span class="string">"Remove Unreachable Instructions"</span>)
 <a href=#266 id=266 data-nosnippet>266</a>            .and_then(Ssa::remove_unreachable_functions),
