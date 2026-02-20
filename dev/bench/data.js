@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771606570835,
+  "lastUpdate": 1771606998213,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23156,48 +23156,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "246cf58ee85d706b7f680dd3265a56b930a903f5",
-          "message": "chore: bring back comments that relate tests to issues (#11543)",
-          "timestamp": "2026-02-11T14:25:45Z",
-          "tree_id": "12c862a77e40d053dc0a9660903f037a6696d9c8",
-          "url": "https://github.com/noir-lang/noir/commit/246cf58ee85d706b7f680dd3265a56b930a903f5"
-        },
-        "date": 1770820100021,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252357,
-            "range": "± 1211",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 219916,
-            "range": "± 4966",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2733187,
-            "range": "± 1633",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -25249,6 +25207,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2725213,
             "range": "± 1562",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "32d579f52c4cdbb30662527578a29ad6a8b9f69d",
+          "message": "chore: add skill to minimize SSA pass crashes (#11588)",
+          "timestamp": "2026-02-20T16:35:18Z",
+          "tree_id": "3656662272b2ffac92fc5e13b7f7858a3980d6b1",
+          "url": "https://github.com/noir-lang/noir/commit/32d579f52c4cdbb30662527578a29ad6a8b9f69d"
+        },
+        "date": 1771606953893,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 250884,
+            "range": "± 3904",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 222271,
+            "range": "± 883",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2724222,
+            "range": "± 1690",
             "unit": "ns/iter"
           }
         ]
