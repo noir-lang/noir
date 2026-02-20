@@ -65,6 +65,19 @@ impl InlineInfo {
 
 pub(crate) type InlineInfos = BTreeMap<FunctionId, InlineInfo>;
 
+/// Build a map from function ID to body weight for all functions that will be inlined.
+/// This is used by the unroller to estimate the true cost of call instructions
+/// to functions that will be inlined (instead of using call overhead as the cost).
+pub(crate) fn inlineable_callee_costs(
+    infos: &InlineInfos,
+) -> rustc_hash::FxHashMap<FunctionId, usize> {
+    infos
+        .iter()
+        .filter(|(_, info)| info.should_inline)
+        .map(|(id, info)| (*id, info.weight.max(0) as usize))
+        .collect()
+}
+
 /// The functions we should inline into (and that should be left in the final program) are:
 ///  - main
 ///  - Any Brillig function called from Acir
