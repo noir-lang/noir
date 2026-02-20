@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Cannot mutate something from an external crate
+  ┌─ src/main.nr:4:5
+  │
+4 │     m.add_item(quote { pub fn bar() {} });
+  │     ------------------------------------- `foo` was declared in `dependency::foo`
+  │
+
+error: Could not resolve 'bar' in path
+  ┌─ src/main.nr:8:22
+  │
+8 │     dependency::foo::bar()
+  │                      ---
+  │
+
+Aborting due to 2 previous errors

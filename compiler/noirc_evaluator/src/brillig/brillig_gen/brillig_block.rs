@@ -143,7 +143,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 allocate_value_with_type(self.brillig_context, Type::unsigned(32)).detach();
             self.brillig_context
                 .const_instruction(new_variable.extract_single_addr(), FieldElement::zero());
-        };
+        }
 
         for (id, value) in globals.values_iter() {
             if !used_globals.contains(&id) {
@@ -280,6 +280,9 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 //      2. mov reg(v3), reg(v2) — reads the NEW v2 instead of old
                 // To prevent this, we save any source that would be overwritten into a
                 // temporary first.
+                // Filter out self-moves (e.g. from coalesced args that already share the param register).
+                moves.retain(|(src, dst)| src != dst);
+
                 let dest_set: HashSet<MemoryAddress> = moves.iter().map(|(_, d)| *d).collect();
                 // `Allocated` automatically deallocates the register when dropped,
                 // so we collect the temporaries here to keep them alive until all
@@ -429,7 +432,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 self.codegen_make_array(instruction_id, array, typ, dfg);
             }
             Instruction::Noop => (),
-        };
+        }
 
         if !self.building_globals {
             let dead_variables = self
@@ -441,7 +444,12 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 // Globals are reserved throughout the entirety of the program
                 let is_global = dfg.is_global(*dead_variable);
                 let is_hoisted_global = self.get_hoisted_global(dfg, *dead_variable).is_some();
-                if !is_global && !is_hoisted_global {
+                let not_global = !is_global && !is_hoisted_global;
+                if not_global && self.function_context.coalescing.is_coalesced(dead_variable) {
+                    // Coalesced arguments share a register with the block parameter,
+                    // so we must not deallocate the register when the argument dies.
+                    self.variables.remove_variable_without_dealloc(dead_variable);
+                } else if not_global {
                     self.variables.remove_variable(
                         dead_variable,
                         self.function_context,

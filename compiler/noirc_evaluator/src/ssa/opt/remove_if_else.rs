@@ -108,6 +108,7 @@ use crate::errors::RtResult;
 
 use crate::ssa::ir::dfg::simplify::value_merger::ValueMerger;
 use crate::ssa::ir::types::NumericType;
+use crate::ssa::opt::ArrayGetOptimizationSideEffects;
 use crate::ssa::opt::simple_optimization::SimpleOptimizationContext;
 use crate::ssa::{
     Ssa,
@@ -188,6 +189,9 @@ impl Context {
             return Ok(());
         }
 
+        // Keeps track of side effect vars associated to each `array_set` instruction.
+        let mut array_set_predicates = std::collections::HashMap::new();
+
         function.simple_optimization_result(|context| {
             let instruction_id = context.instruction_id;
             let instruction = context.instruction();
@@ -222,8 +226,17 @@ impl Context {
                     }
 
                     let call_stack = context.dfg.get_instruction_call_stack_id(instruction_id);
-                    let mut value_merger =
-                        ValueMerger::new(context.dfg, block, &self.vector_sizes, call_stack);
+                    let array_get_optimization_data = Some(ArrayGetOptimizationSideEffects {
+                        side_effects_var: context.enable_side_effects,
+                        array_set_predicates: &array_set_predicates,
+                    });
+                    let mut value_merger = ValueMerger::new(
+                        context.dfg,
+                        block,
+                        &self.vector_sizes,
+                        call_stack,
+                        array_get_optimization_data,
+                    );
 
                     let value = value_merger.merge_values(
                         then_condition,
@@ -260,6 +273,8 @@ impl Context {
                 }
                 // Track vector sizes through array set instructions
                 Instruction::ArraySet { array, .. } => {
+                    array_set_predicates.insert(instruction_id, context.enable_side_effects);
+
                     let [result] = context.dfg.instruction_result(instruction_id);
                     self.set_capacity(context.dfg, *array, result, |c| c);
                 }
@@ -495,29 +510,12 @@ enum SizeChange {
 
 #[cfg(debug_assertions)]
 fn remove_if_else_pre_check(func: &Function) {
-    // This pass should only run post-flattening.
-    super::flatten_cfg::flatten_cfg_post_check(func);
-
-    // We expect to only encounter `IfElse` instructions on array and vector types.
-    for block_id in func.reachable_blocks() {
-        let instruction_ids = func.dfg[block_id].instructions();
-
-        for instruction_id in instruction_ids {
-            if let Instruction::IfElse { then_value, .. } = &func.dfg[*instruction_id] {
-                // We generally expect that all the results at this point will be either arrays or vectors,
-                // however the flattening makes no guarantee of this: if it needs to merge references or functions
-                // it will do so using IfElse. The ValueMerger already returns appropriate RuntimeErrors to point
-                // at the problem, so we don't assert this expectation.
-
-                // We do expect that numeric values are not used though.
-                let typ = func.dfg.type_of_value(*then_value);
-                assert!(
-                    !matches!(typ, Type::Numeric(_)),
-                    "Numeric values should have been handled during flattening"
-                );
-            }
-        }
-    }
+    // flatten_cfg must have run
+    super::checks::assert_cfg_is_flattened(func);
+    // IfElse should only be on arrays/vectors, not numeric types
+    super::checks::for_each_instruction(func, |instruction, dfg| {
+        super::checks::assert_not_if_else_on_numeric(instruction, dfg);
+    });
 }
 
 /// Post-check condition for [Function::remove_if_else].
@@ -529,20 +527,10 @@ fn remove_if_else_pre_check(func: &Function) {
 /// Otherwise panics.
 #[cfg(debug_assertions)]
 fn remove_if_else_post_check(func: &Function) {
-    // Brillig functions should be unaffected.
-    if func.runtime().is_brillig() {
-        return;
-    }
-
-    // Otherwise there should be no if-else instructions in any reachable block.
-    for block_id in func.reachable_blocks() {
-        let instruction_ids = func.dfg[block_id].instructions();
-        for instruction_id in instruction_ids {
-            if matches!(func.dfg[*instruction_id], Instruction::IfElse { .. }) {
-                panic!("IfElse instruction still remains in ACIR function");
-            }
-        }
-    }
+    // All IfElse instructions should be removed
+    super::checks::for_each_instruction(func, |instruction, _dfg| {
+        super::checks::assert_not_if_else(instruction);
+    });
 }
 
 #[cfg(test)]

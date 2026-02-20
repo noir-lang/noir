@@ -9,6 +9,7 @@ use crate::ast::{
 use crate::elaborator::TypedPath;
 use crate::elaborator::function_context::BindableTypeVariableKind;
 use crate::elaborator::path_resolution::PathResolutionItem;
+use crate::elaborator::patterns::{IdentFromPath, Variable};
 use crate::elaborator::types::{SELF_TYPE_NAME, TraitPathResolutionMethod, WildcardAllowed};
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::resolution::errors::ResolverError;
@@ -17,10 +18,21 @@ use crate::hir_def::expr::{
     HirExpression, HirIdent, HirMethodReference, HirTraitMethodReference, ImplKind, TraitItem,
 };
 use crate::node_interner::pusher::{HasLocation, PushedExpr};
-use crate::node_interner::{DefinitionId, DefinitionInfo, DefinitionKind, ExprId, TraitImplKind};
+use crate::node_interner::{
+    DefinitionId, DefinitionInfo, DefinitionKind, ExprId, TraitImplKind, TypeAliasId,
+};
 use crate::{Kind, Type, TypeBindings};
 use iter_extended::vecmap;
 use noirc_errors::Location;
+
+/// The result of [`Elaborator::resolve_variable`].
+#[allow(clippy::large_enum_variant)]
+pub(crate) enum VariableResolution {
+    /// The path resolved to a variable or a definition.
+    Ident(HirIdent, Option<PathResolutionItem>),
+    /// The path resolved to a type alias that is numeric, infinitely recursive or one that errored.
+    TypeAlias(TypeAliasId),
+}
 
 impl Elaborator<'_> {
     pub(super) fn elaborate_variable(&mut self, variable: Path) -> (ExprId, Type) {
@@ -59,35 +71,41 @@ impl Elaborator<'_> {
         let resolved_turbofish = variable.segments.last().unwrap().generics.clone();
 
         let location = variable.location;
-        let (expr, item) = self.resolve_variable(variable);
-        let definition_id = expr.id;
+        let variable_resolution = self.resolve_variable(variable);
 
-        if let Some(PathResolutionItem::TypeAlias(alias)) = item {
-            // A type alias to a numeric generics is considered like a variable,
-            // but it is not a real variable so it does not resolve to a valid Identifier.
-            // In order to handle this, we retrieve the numeric generics expression that the type aliases to.
-            let type_alias = self.interner.get_type_alias(alias);
-            if let Some(expr) = &type_alias.borrow().numeric_expr {
-                // Extract the declared numeric type from the type alias's kind.
-                let declared_type = match type_alias.borrow().typ.kind() {
-                    Kind::Numeric(declared_type) => declared_type,
-                    _ => Box::new(Type::Error),
-                };
-                let declared_type = *declared_type;
-                let expr_location = type_alias.borrow().location;
-                let expr = UnresolvedTypeExpression::to_expression_kind(expr);
-                let expr = Expression::new(expr, expr_location);
-                let (id, typ) = self.elaborate_expression(expr);
-                // Unify the expression's type with the declared type from the type alias
-                // to ensure proper type checking.
-                self.unify(&typ, &declared_type, || TypeCheckError::TypeMismatch {
-                    expected_typ: declared_type.to_string(),
-                    expr_typ: typ.to_string(),
-                    expr_location,
-                });
-                return (id, declared_type, false, location);
+        let (hir_ident, item) = match variable_resolution {
+            Some(VariableResolution::TypeAlias(type_alias_id)) => {
+                // A type alias to a numeric generics is considered like a variable,
+                // but it is not a real variable so it does not resolve to a valid Identifier.
+                // In order to handle this, we retrieve the numeric generics expression that the type aliases to.
+                let type_alias = self.interner.get_type_alias(type_alias_id);
+                if let Some(expr) = &type_alias.borrow().numeric_expr {
+                    // Extract the declared numeric type from the type alias's kind.
+                    let declared_type = match type_alias.borrow().typ.kind() {
+                        Kind::Numeric(declared_type) => declared_type,
+                        _ => Box::new(Type::Error),
+                    };
+                    let declared_type = *declared_type;
+                    let expr_location = type_alias.borrow().location;
+                    let expr = UnresolvedTypeExpression::to_expression_kind(expr);
+                    let expr = Expression::new(expr, expr_location);
+                    let (id, typ) = self.elaborate_expression(expr);
+                    // Unify the expression's type with the declared type from the type alias
+                    // to ensure proper type checking.
+                    self.unify(&typ, &declared_type, || TypeCheckError::TypeMismatch {
+                        expected_typ: declared_type.to_string(),
+                        expr_typ: typ.to_string(),
+                        expr_location,
+                    });
+                    return (id, declared_type, false, location);
+                }
+                (None, None)
             }
-        }
+            Some(VariableResolution::Ident(ident, item)) => (Some(ident), item),
+            None => (None, None),
+        };
+
+        let definition_id = hir_ident.as_ref().map(|ident| ident.id);
 
         let (type_generics, self_generic) = if let Some(item) = item {
             self.resolve_item_turbofish_and_self_type(item)
@@ -95,7 +113,7 @@ impl Elaborator<'_> {
             (Vec::new(), None)
         };
 
-        let definition = self.interner.try_definition(definition_id);
+        let definition = definition_id.map(|id| self.interner.definition(id));
         let is_comptime_local = !self.in_comptime_context()
             && definition.is_some_and(DefinitionInfo::is_comptime_local);
         let definition_kind = definition.as_ref().map(|definition| definition.kind.clone());
@@ -139,18 +157,28 @@ impl Elaborator<'_> {
             None
         };
 
-        let id = self.intern_expr(HirExpression::Ident(expr.clone(), generics.clone()), location);
+        let (id, typ) = if let Some(hir_ident) = hir_ident {
+            let id = self
+                .intern_expr(HirExpression::Ident(hir_ident.clone(), generics.clone()), location);
 
-        // TODO: set this to `true`. See https://github.com/noir-lang/noir/issues/8687
-        let push_required_type_variables = self.current_trait.is_none();
-        let typ = self.type_check_variable_with_bindings(
-            expr,
-            &id,
-            generics,
-            bindings,
-            push_required_type_variables,
-        );
-        let id = self.intern_expr_type(id, typ.clone());
+            // TODO: set this to `true`. See https://github.com/noir-lang/noir/issues/8687
+            let push_required_type_variables = self.current_trait.is_none();
+            let typ = self.type_check_variable_with_bindings(
+                hir_ident,
+                &id,
+                generics,
+                bindings,
+                push_required_type_variables,
+            );
+            let id = self.intern_expr_type(id, typ.clone());
+            (id, typ)
+        } else {
+            let expr = HirExpression::Error;
+            let id = self.intern_expr(expr, location);
+            let typ = Type::Error;
+            let id = self.intern_expr_type(id, typ.clone());
+            (id, typ)
+        };
 
         (id, typ, is_comptime_local, location)
     }
@@ -242,51 +270,58 @@ impl Elaborator<'_> {
     }
 
     /// Resolve a [TypedPath] to a [HirIdent] of either some trait method, or a local or global variable.
-    fn resolve_variable(&mut self, path: TypedPath) -> (HirIdent, Option<PathResolutionItem>) {
+    fn resolve_variable(&mut self, path: TypedPath) -> Option<VariableResolution> {
         if let Some(trait_path_resolution) = self.resolve_trait_generic_path(&path) {
             self.push_errors(trait_path_resolution.errors);
 
             return match trait_path_resolution.method {
-                TraitPathResolutionMethod::NotATraitMethod(func_id) => (
-                    HirIdent {
+                TraitPathResolutionMethod::NotATraitMethod(func_id) => {
+                    let ident = HirIdent {
                         location: path.location,
                         id: self.interner.function_definition_id(func_id),
                         impl_kind: ImplKind::NotATraitMethod,
-                    },
-                    trait_path_resolution.item,
-                ),
+                    };
+                    Some(VariableResolution::Ident(ident, trait_path_resolution.item))
+                }
 
-                TraitPathResolutionMethod::TraitItem(item) => (
-                    HirIdent {
+                TraitPathResolutionMethod::TraitItem(item) => {
+                    let ident = HirIdent {
                         location: path.location,
                         id: item.definition,
                         impl_kind: ImplKind::TraitItem(item),
-                    },
-                    trait_path_resolution.item,
-                ),
+                    };
+                    Some(VariableResolution::Ident(ident, trait_path_resolution.item))
+                }
 
                 TraitPathResolutionMethod::MultipleTraitsInScope => {
-                    // An error has already been pushed, return a dummy identifier
-                    let hir_ident = HirIdent {
-                        location: path.location,
-                        id: DefinitionId::dummy_id(),
-                        impl_kind: ImplKind::NotATraitMethod,
-                    };
-                    (hir_ident, trait_path_resolution.item)
+                    // An error has already been pushed, don't return an identifier
+                    None
                 }
             };
         }
+
+        // The location of variables or definitions we register (for LSP) must be that of the
+        // path's last segment, as intermediate segments solve to other definitions.
+        let location = path.last_ident().location();
 
         // If the Path is being used as an Expression, then it is referring to a global from a separate module
         // Otherwise, then it is referring to an Identifier
         // This lookup allows support of such statements: let x = foo::bar::SOME_GLOBAL + 10;
         // If the expression is a singular indent, we search the resolver's current scope as normal.
-        let location = path.location;
-        let ((hir_ident, var_scope_index), item) = self.get_ident_from_path(path);
-
-        self.handle_hir_ident(&hir_ident, var_scope_index, location);
-
-        (hir_ident, item)
+        let ident_from_path = self.get_ident_from_path(path);
+        ident_from_path.map(|ident_from_path| match ident_from_path {
+            IdentFromPath::Variable(variable) => {
+                self.handle_local_variable(&variable);
+                let hir_ident = HirIdent::non_trait_method(variable.ident.id, location);
+                VariableResolution::Ident(hir_ident, None)
+            }
+            IdentFromPath::Definition { id, item } => {
+                self.handle_definition_id(id, location);
+                let hir_ident = HirIdent::non_trait_method(id, location);
+                VariableResolution::Ident(hir_ident, Some(item))
+            }
+            IdentFromPath::TypeAlias(type_alias_id) => VariableResolution::TypeAlias(type_alias_id),
+        })
     }
 
     /// Solve any generics that are part of the path before the function, for example:
@@ -488,23 +523,14 @@ impl Elaborator<'_> {
     /// * mark the item currently being elaborated as a dependency of it
     /// * elaborate a global definition, if needed
     /// * add local identifiers to lambda captures
-    pub(crate) fn handle_hir_ident(
-        &mut self,
-        hir_ident: &HirIdent,
-        var_scope_index: usize,
-        location: Location,
-    ) {
-        if hir_ident.id == DefinitionId::dummy_id() {
-            return;
-        }
-
-        match self.interner.definition(hir_ident.id).kind {
+    pub(crate) fn handle_definition_id(&mut self, definition_id: DefinitionId, location: Location) {
+        match self.interner.definition(definition_id).kind {
             DefinitionKind::Function(func_id) => {
                 if let Some(current_item) = self.current_item {
                     self.interner.add_function_dependency(current_item, func_id);
                 }
 
-                self.interner.add_function_reference(func_id, hir_ident.location);
+                self.interner.add_function_reference(func_id, location);
             }
             DefinitionKind::Global(global_id) => {
                 self.elaborate_global_if_unresolved(&global_id);
@@ -512,29 +538,40 @@ impl Elaborator<'_> {
                     self.interner.add_global_dependency(current_item, global_id);
                 }
 
-                self.interner.add_global_reference(global_id, hir_ident.location);
+                let global = self.interner.get_global_definition(global_id);
+                if global.comptime && !self.in_comptime_context() {
+                    self.push_err(ResolverError::ComptimeGlobalInNonComptimeCode {
+                        location,
+                        name: global.name.clone(),
+                    });
+                }
+
+                self.interner.add_global_reference(global_id, location);
             }
             DefinitionKind::NumericGeneric(_, ref numeric_typ) => {
                 // Initialize numeric generics to a polymorphic integer type in case
                 // they're used in expressions. We must do this here since type_check_variable
                 // does not check definition kinds and otherwise expects parameters to
                 // already be typed.
-                if self.interner.definition_type(hir_ident.id) == Type::Error {
+                if self.interner.definition_type(definition_id) == Type::Error {
                     let type_var_kind = Kind::Numeric(numeric_typ.clone());
                     let typ = self.type_variable_with_kind(type_var_kind);
-                    self.interner.push_definition_type(hir_ident.id, typ);
+                    self.interner.push_definition_type(definition_id, typ);
                 }
             }
             DefinitionKind::Local(_) => {
-                // only local variables can be captured by closures.
-                self.resolve_local_variable(hir_ident.clone(), var_scope_index);
-
-                self.interner.add_local_reference(hir_ident.id, location);
+                // Handled separately in `handle_local_variable`
             }
             DefinitionKind::AssociatedConstant(..) => {
                 // Nothing to do here
             }
         }
+    }
+
+    pub(crate) fn handle_local_variable(&mut self, variable: &Variable) {
+        self.check_if_variable_is_captured_by_closure(variable);
+        let hir_ident = &variable.ident;
+        self.interner.add_local_reference(hir_ident.id, hir_ident.location);
     }
 
     /// Starting with empty bindings, perform the type checking of an interned expression
@@ -588,13 +625,13 @@ impl Elaborator<'_> {
         // variable to handle generic functions.
         let t = self.type_substitute_trait_as_type(&ident);
 
-        let definition = self.interner.try_definition(ident.id);
-        let function_generic_count = definition.map_or(0, |definition| match &definition.kind {
+        let definition = self.interner.definition(ident.id);
+        let function_generic_count = match definition.kind {
             DefinitionKind::Function(function) => {
-                self.interner.function_modifiers(function).generic_count
+                self.interner.function_modifiers(&function).generic_count
             }
             _ => 0,
-        });
+        };
 
         let location = self.interner.expr_location(expr_id);
 
@@ -647,9 +684,8 @@ impl Elaborator<'_> {
         // because of the assumed constraint.
         //
         // If we try to find a trait implementation for `'1` before finding one for `'2` we'll never find it.
-        if let Some(definition) = self.interner.try_definition(ident.id)
-            && let DefinitionKind::Function(function) = definition.kind
-        {
+        let definition = self.interner.definition(ident.id);
+        if let DefinitionKind::Function(function) = definition.kind {
             let function = self.interner.function_meta(&function);
             for mut constraint in function.all_trait_constraints().cloned().collect::<Vec<_>>() {
                 constraint.apply_bindings(&bindings);

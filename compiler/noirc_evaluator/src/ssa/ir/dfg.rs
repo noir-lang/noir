@@ -638,8 +638,8 @@ impl DataFlowGraph {
     /// Similar to `get_numeric_constant` but returns the value as a signed or unsigned integer.
     /// Returns `None` if the given value is not an integer constant.
     pub(crate) fn get_integer_constant(&self, value: ValueId) -> Option<IntegerConstant> {
-        self.get_numeric_constant_with_type(value)
-            .and_then(|(f, t)| IntegerConstant::from_numeric_constant(f, t))
+        let (f, t) = self.get_numeric_constant_with_type(value)?;
+        IntegerConstant::from_numeric_constant(f, t)
     }
 
     /// Returns the field element and type represented by this value if it is a numeric constant.
@@ -701,7 +701,7 @@ impl DataFlowGraph {
             let u64_value = field_value.try_to_u64()?;
             if u64_value > 255 {
                 return None;
-            };
+            }
             let byte = u64_value as u8;
             bytes.push(byte);
         }
@@ -812,17 +812,26 @@ impl DataFlowGraph {
     /// Uses value information to determine whether an instruction is from
     /// this function's DFG or the global space's DFG.
     pub(crate) fn get_local_or_global_instruction(&self, value: ValueId) -> Option<&Instruction> {
+        self.get_local_or_global_instruction_with_id(value).map(|(instruction, _id)| instruction)
+    }
+
+    /// Uses value information to determine whether an instruction is from
+    /// this function's DFG or the global space's DFG, including the instruction ID.
+    pub(crate) fn get_local_or_global_instruction_with_id(
+        &self,
+        value: ValueId,
+    ) -> Option<(&Instruction, InstructionId)> {
         match &self[value] {
-            Value::Instruction { instruction, .. } => {
+            Value::Instruction { instruction: instruction_id, .. } => {
                 let instruction = if self.is_global(value) {
-                    let instruction = &self.globals[*instruction];
+                    let instruction = &self.globals[*instruction_id];
                     // We expect to only have MakeArray instructions in the global space
                     assert!(matches!(instruction, Instruction::MakeArray { .. }));
                     instruction
                 } else {
-                    &self[*instruction]
+                    &self[*instruction_id]
                 };
-                Some(instruction)
+                Some((instruction, *instruction_id))
             }
             _ => None,
         }

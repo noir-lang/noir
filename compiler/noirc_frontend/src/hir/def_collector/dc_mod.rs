@@ -267,7 +267,6 @@ impl ModCollector<'_> {
                 impl_id: None,
                 resolved_object_type: None,
                 resolved_generics: Vec::new(),
-                resolved_trait_generics: Vec::new(),
                 unresolved_associated_types: Vec::new(),
             };
 
@@ -579,7 +578,6 @@ impl ModCollector<'_> {
                             visibility: trait_definition.visibility,
                             // TODO(Maddiaa): Investigate trait implementations with attributes see: https://github.com/noir-lang/noir/issues/2629
                             attributes: crate::token::Attributes::empty(),
-                            is_unconstrained: *is_unconstrained,
                             generic_count: generics.len(),
                             is_comptime: *is_comptime,
                             name_location: location,
@@ -810,7 +808,7 @@ impl ModCollector<'_> {
                 Err(error) => {
                     errors.push(error.into());
                 }
-            };
+            }
         }
         errors
     }
@@ -1263,6 +1261,17 @@ pub fn collect_struct(
     let result = def_map[module_id].declare_type(name.clone(), visibility, id);
 
     let parent_module_id = ModuleId { krate, local_id: module_id };
+
+    // ABI attributes are only meaningful within contracts, so error if used elsewhere.
+    if !def_map[module_id].is_contract {
+        for attr in &unresolved.struct_def.attributes {
+            if matches!(attr.kind, SecondaryAttributeKind::Abi(_)) {
+                definition_errors.push(
+                    ResolverError::AbiAttributeOutsideContract { location: attr.location }.into(),
+                );
+            }
+        }
+    }
 
     let has_allow_dead_code =
         unresolved.struct_def.attributes.iter().any(|attr| attr.kind.is_allow("dead_code"));
