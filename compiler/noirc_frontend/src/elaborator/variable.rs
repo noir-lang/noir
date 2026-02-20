@@ -538,6 +538,14 @@ impl Elaborator<'_> {
                     self.interner.add_global_dependency(current_item, global_id);
                 }
 
+                let global = self.interner.get_global_definition(global_id);
+                if global.comptime && !self.in_comptime_context() {
+                    self.push_err(ResolverError::ComptimeGlobalInNonComptimeCode {
+                        location,
+                        name: global.name.clone(),
+                    });
+                }
+
                 self.interner.add_global_reference(global_id, location);
             }
             DefinitionKind::NumericGeneric(_, ref numeric_typ) => {
