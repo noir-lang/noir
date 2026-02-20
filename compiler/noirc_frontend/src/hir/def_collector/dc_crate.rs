@@ -213,11 +213,11 @@ impl CompilationError {
         CustomDiagnostic::from(self).is_error()
     }
 
-    pub(crate) fn is_expecting_other_error_error(&self) -> bool {
-        self.as_expecting_other_error_error().is_some()
+    pub(crate) fn is_expecting_other_error(&self) -> bool {
+        self.as_expecting_other_error().is_some()
     }
 
-    pub(crate) fn as_expecting_other_error_error(&self) -> Option<&ExpectingOtherError> {
+    pub(crate) fn as_expecting_other_error(&self) -> Option<&ExpectingOtherError> {
         match self {
             CompilationError::TypeError(TypeCheckError::ExpectingOtherError(e))
             | CompilationError::InterpreterError(InterpreterError::ExpectingOtherError(e)) => {
@@ -725,10 +725,10 @@ fn inject_prelude(
 /// * if there are no other kind of errors, then we leave and deduplicate the [ExpectingOtherError]s
 fn filter_expecting_other_errors(mut errors: Vec<CompilationError>) -> Vec<CompilationError> {
     let has_expected_errors =
-        errors.iter().any(|error| !error.is_expecting_other_error_error() && error.is_error());
+        errors.iter().any(|error| !error.is_expecting_other_error() && error.is_error());
 
     if has_expected_errors {
-        errors.retain(|error| !error.is_expecting_other_error_error());
+        errors.retain(|error| !error.is_expecting_other_error());
         errors
     } else {
         dedup_expecting_other_errors(errors)
@@ -739,12 +739,12 @@ fn filter_expecting_other_errors(mut errors: Vec<CompilationError>) -> Vec<Compi
 /// This function removes duplicates so we don't see the same error
 /// in the output repeatedly.
 fn dedup_expecting_other_errors(mut errors: Vec<CompilationError>) -> Vec<CompilationError> {
-    // Using a HashSet of the inner error, because `CompiliationError` does not implement Ord or Hash.
+    // Using a HashSet of the inner error, because CompilationError does not implement Ord or Hash.
     let mut seen: HashSet<ExpectingOtherError> = HashSet::new();
-    errors.retain(|error| match error.as_expecting_other_error_error() {
-        Some(o) if seen.contains(o) => false,
-        Some(o) => {
-            seen.insert(o.clone());
+    errors.retain(|error| match error.as_expecting_other_error() {
+        Some(e) if seen.contains(e) => false,
+        Some(e) => {
+            seen.insert(e.clone());
             true
         }
         None => true,
