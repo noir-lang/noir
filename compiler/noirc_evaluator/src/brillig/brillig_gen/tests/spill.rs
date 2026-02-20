@@ -37,10 +37,13 @@ fn brillig_spill_and_reload() {
     // Bytecode layout:
     //   0-3:   Prologue — save spill base (sp[1]), reserve 1 spill slot
     //   4:     v2 = v0 + v1
-    //   5-6:   v3 = v0 + 2
-    //   7-11:  Spill v2 → spill[0], then v4 = v0 + 3 (evicts v2 to free sp[4])
+    //   5:     Init constant 2
+    //   6-9:   Spill v2 → spill[0]  (mov base, const offset, add addr, store)
+    //   10:    v3 = v0 + 2  (reuses sp[4] freed by spill)
+    //   11:    Init constant 3
     //   12:    v4 = v1 + 3
-    //   13-17: Reload v2 from spill[0], v5 = v2 + v3
+    //   13-16: Reload v2 from spill[0]  (mov base, const offset, add addr, load)
+    //   17:    v5 = v2 + v3
     //   18:    v6 = v5 + v4
     //   19:    Move result to return slot
     //   20:    Return
@@ -100,14 +103,14 @@ fn brillig_spill_successor_params() {
     let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     // Bytecode layout:
     //   0-3:   Prologue — save spill base (sp[1]), reserve 3 spill slots
-    //   4-7:   Store v0 → spill[0]  (addr = spill_base + 0)
-    //   8-11:  Store v0 → spill[1]  (addr = spill_base + 1)
-    //   12-15: Store v0 → spill[2]  (addr = spill_base + 2)
+    //   4-7:   Spill v0 → spill[0]  (mov base, const 0, add addr, store)
+    //   8-11:  Spill v0 → spill[1]  (mov base, const 1, add addr, store)
+    //   12-15: Spill v0 → spill[2]  (mov base, const 2, add addr, store)
     //   16:    Jump to b1
-    //   17-20: Reload v1 from spill[0]
-    //   21-24: Reload v2 from spill[1]
+    //   17-20: Reload v1 from spill[0]  (mov base, const 0, add addr, load)
+    //   21-24: Reload v2 from spill[1]  (mov base, const 1, add addr, load)
     //   25:    v4 = v1 + v2
-    //   26-29: Reload v3 from spill[2]
+    //   26-29: Reload v3 from spill[2]  (mov base, const 2, add addr, load)
     //   30:    v5 = v4 + v3
     //   31:    Move result to return slot
     //   32:    Return
