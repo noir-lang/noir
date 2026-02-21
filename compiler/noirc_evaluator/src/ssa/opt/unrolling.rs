@@ -339,6 +339,8 @@ pub(crate) struct Loops {
     pub(crate) dom: DominatorTree,
     /// Body weights of callees that will be inlined, used to estimate the true cost
     /// of call instructions in loop bodies instead of using call overhead.
+    /// Callers of unrolling set this to the
+    /// actual map of inlineable callee body weights when available.
     pub(crate) callee_costs: HashMap<FunctionId, usize>,
 }
 
