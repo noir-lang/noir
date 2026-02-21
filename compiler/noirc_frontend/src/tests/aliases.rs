@@ -1,4 +1,8 @@
-use crate::tests::{UnstableFeature, assert_no_errors, check_errors, check_errors_using_features};
+use crate::test_utils::stdlib_src;
+use crate::tests::{
+    UnstableFeature, assert_no_errors, check_errors, check_errors_using_features,
+    check_errors_with_stdlib,
+};
 
 #[test]
 fn allows_usage_of_type_alias_as_argument_type() {
@@ -909,4 +913,18 @@ fn regression_10764_underscore_impl() {
     }
     "#;
     check_errors(src);
+}
+
+#[test]
+fn regression_6398() {
+    let src = r#"
+    use crate::ops::arith::Add;
+
+    type MyField = Field;
+
+    fn main() {
+        let _ = MyField::add(1, 2);
+    }
+    "#;
+    check_errors_with_stdlib(src, [stdlib_src::ADD]);
 }

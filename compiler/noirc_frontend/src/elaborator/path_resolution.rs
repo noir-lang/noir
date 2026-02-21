@@ -1049,11 +1049,6 @@ fn get_type_alias_module_def_id(type_alias: &Shared<TypeAlias>) -> Option<Module
     match &type_alias.typ {
         Type::DataType(type_id, _generics) => Some(type_id.borrow().id.module_id()),
         Type::Alias(type_alias, _generics) => get_type_alias_module_def_id(type_alias),
-        Type::Error => None,
-        _ => {
-            // For now we only allow type aliases that point to data types.
-            // The more general case is captured here: https://github.com/noir-lang/noir/issues/6398
-            panic!("Type alias in path not pointing to a data type is not yet supported")
-        }
+        _ => None,
     }
 }
