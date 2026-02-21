@@ -914,13 +914,13 @@ impl Loop {
                     .iter()
                     .map(|id| {
                         let instr = &function.dfg[*id];
-                        if let Instruction::Call { func, .. } = instr {
-                            if let Value::Function(func_id) = function.dfg[*func] {
-                                if let Some(&body_cost) = callee_costs.get(&func_id) {
-                                    return body_cost;
-                                }
-                            }
+                        if let Instruction::Call { func, .. } = instr
+                            && let Value::Function(func_id) = function.dfg[*func]
+                            && let Some(&body_cost) = callee_costs.get(&func_id)
+                        {
+                            return body_cost;
                         }
+
                         instr.cost(*id, &function.dfg)
                     })
                     .sum();
