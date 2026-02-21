@@ -199,6 +199,7 @@
         "metaprogramming",
         "metas",
         "microcontroller",
+        "mimalloc",
         "minreq",
         "mktemp",
         "monomorphization",
