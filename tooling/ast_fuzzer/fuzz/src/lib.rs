@@ -6,7 +6,7 @@ use noir_ast_fuzzer::compare::{
 };
 use noirc_abi::input_parser::Format;
 use noirc_evaluator::ssa::opt::{
-    CONSTANT_FOLDING_MAX_ITER, FORCE_UNROLL_THRESHOLD, INLINING_MAX_INSTRUCTIONS,
+    CONSTANT_FOLDING_MAX_ITER, FORCE_UNROLL_THRESHOLD, MAX_SIMPLE_FUNCTION_WEIGHT,
 };
 use noirc_evaluator::ssa::{SsaPass, primary_passes};
 use noirc_evaluator::{
@@ -37,7 +37,7 @@ pub fn default_ssa_options() -> SsaEvaluatorOptions {
         enable_brillig_constraints_check_lookback: false,
         inliner_aggressiveness: 0,
         constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
-        small_function_max_instruction: INLINING_MAX_INSTRUCTIONS,
+        small_function_max_instruction: MAX_SIMPLE_FUNCTION_WEIGHT,
         max_bytecode_increase_percent: None,
         force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
         skip_passes: Default::default(),

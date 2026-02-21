@@ -13,7 +13,7 @@ use noirc_evaluator::ssa::{
 };
 use noirc_evaluator::ssa::{SsaLogging, ir::function::Function};
 use noirc_evaluator::ssa::{
-    opt::{CONSTANT_FOLDING_MAX_ITER, INLINING_MAX_INSTRUCTIONS},
+    opt::{CONSTANT_FOLDING_MAX_ITER, MAX_SIMPLE_FUNCTION_WEIGHT},
     ssa_gen::Ssa,
 };
 
@@ -253,7 +253,7 @@ fn ssa_to_acir_program(ssa: Ssa) -> AcirProgram<FieldElement> {
         skip_brillig_constraints_check: true,
         inliner_aggressiveness: 0,
         constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
-        small_function_max_instruction: INLINING_MAX_INSTRUCTIONS,
+        small_function_max_instruction: MAX_SIMPLE_FUNCTION_WEIGHT,
         max_bytecode_increase_percent: None,
         force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
         brillig_options: BrilligOptions::default(),
