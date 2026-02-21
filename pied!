@@ -1,0 +1,22 @@
+[1mdiff --git a/compiler/noirc_evaluator/src/ssa/opt/inlining/inline_info.rs b/compiler/noirc_evaluator/src/ssa/opt/inlining/inline_info.rs[m
+[1mindex 94b111b9b8..5f1d7f1f46 100644[m
+[1m--- a/compiler/noirc_evaluator/src/ssa/opt/inlining/inline_info.rs[m
+[1m+++ b/compiler/noirc_evaluator/src/ssa/opt/inlining/inline_info.rs[m
+[36m@@ -227,7 +227,16 @@[m [mfn compute_function_should_be_inlined([m
+     for neighbor_index in neighbors {[m
+         let callee = call_graph.indices_to_ids()[&neighbor_index];[m
+         if inline_infos.get(&callee).is_some_and(|info| info.should_inline) {[m
+[31m-            total_weight = total_weight.saturating_add(inline_infos[&callee].weight);[m
+[32m+[m[32m            let callee_fn = &ssa.functions[&callee];[m
+[32m+[m[32m            // Inlining replaces the parent's Call instruction with the callee's body[m
+[32m+[m[32m            // and eliminates the callee's Return terminator. Subtract these to avoid[m
+[32m+[m[32m            // double-counting (the Call cost is already in function.cost()).[m
+[32m+[m[32m            let call_cost = 5i64[m
+[32m+[m[32m                + callee_fn.parameters().len() as i64[m
+[32m+[m[32m                + callee_fn.returns().unwrap_or_default().len() as i64;[m
+[32m+[m[32m            let eliminated = call_cost + callee_fn.return_cost();[m
+[32m+[m[32m            let net_weight = inline_infos[&callee].weight.saturating_sub(eliminated);[m
+[32m+[m[32m            total_weight = total_weight.saturating_add(net_weight);[m
+         }[m
+     }[m
+     let times = times_called[&func_id] as i64;[m

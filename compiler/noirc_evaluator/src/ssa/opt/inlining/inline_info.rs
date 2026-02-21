@@ -227,7 +227,16 @@ fn compute_function_should_be_inlined(
     for neighbor_index in neighbors {
         let callee = call_graph.indices_to_ids()[&neighbor_index];
         if inline_infos.get(&callee).is_some_and(|info| info.should_inline) {
-            total_weight = total_weight.saturating_add(inline_infos[&callee].weight);
+            let callee_fn = &ssa.functions[&callee];
+            // Inlining replaces the parent's Call instruction with the callee's body
+            // and eliminates the callee's Return terminator. Subtract these to avoid
+            // double-counting (the Call cost is already in function.cost()).
+            let call_cost = 5i64
+                + callee_fn.parameters().len() as i64
+                + callee_fn.returns().unwrap_or_default().len() as i64;
+            let eliminated = call_cost + callee_fn.return_cost();
+            let net_weight = inline_infos[&callee].weight.saturating_sub(eliminated);
+            total_weight = total_weight.saturating_add(net_weight);
         }
     }
     let times = times_called[&func_id] as i64;
