@@ -22,7 +22,7 @@ use crate::ssa::{
 /// cost (checked u32 mul = 8 opcodes each). Simple functions are typically single-block helpers
 /// (e.g., writing into a mutable reference) whose inlining resolves loads/stores and enables
 /// further optimizations at the call site.
-pub const MAX_SIMPLE_FUNCTION_WEIGHT: usize = 80;
+pub const MAX_SIMPLE_FUNCTION_WEIGHT: usize = 60;
 
 /// Information about a function to aid the decision about whether to inline it or not.
 /// The final decision depends on what we're inlining it into.
