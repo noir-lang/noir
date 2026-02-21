@@ -231,10 +231,9 @@ fn compute_function_should_be_inlined(
             // Inlining replaces the parent's Call instruction with the callee's body
             // and eliminates the callee's Return terminator. Subtract these to avoid
             // double-counting (the Call cost is already in function.cost()).
-            let call_cost = 5i64
-                + callee_fn.parameters().len() as i64
-                + callee_fn.returns().unwrap_or_default().len() as i64;
-            let eliminated = call_cost + callee_fn.return_cost();
+            let call_cost =
+                5 + callee_fn.parameters().len() + callee_fn.returns().unwrap_or_default().len();
+            let eliminated = call_cost as i64 + callee_fn.return_cost();
             let net_weight = inline_infos[&callee].weight.saturating_sub(eliminated);
             total_weight = total_weight.saturating_add(net_weight);
         }

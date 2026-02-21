@@ -135,7 +135,7 @@ impl Instruction {
                         5 + arguments.len() + results.len()
                     }
                     Value::ForeignFunction(_) => {
-                        // ForeignCall opcode + arg marshalling + result unmarshalling
+                        // ForeignCall opcode + args + results
                         let results = dfg.instruction_results(id);
                         3 + arguments.len() + results.len()
                     }
