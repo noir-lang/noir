@@ -96,7 +96,7 @@ pub(crate) type BrilligProcedureRangeMap = BTreeMap<ProcedureDebugId, (usize, us
 
 impl<F: AcirField> GeneratedAcir<F> {
     /// Returns the current witness index.
-    pub fn current_witness_index(&self) -> Witness {
+    pub(crate) fn current_witness_index(&self) -> Witness {
         Witness(self.current_witness_index.unwrap_or(0))
     }
 

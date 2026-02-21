@@ -41,11 +41,7 @@ pub struct Circuit<F: AcirField> {
     /// Name of the function represented by this circuit.
     #[serde(default)] // For backwards compatibility
     pub function_name: String,
-    /// The current highest witness index in the circuit.
-    ///
-    /// This is tracked as an optimization so that when new witness values are created, incrementing this witness
-    /// results in a new unique witness index without needing to scan all opcodes to find the maximum witness index.
-    pub current_witness_index: u32,
+
     /// The circuit opcodes representing the relationship between witness values.
     ///
     /// The opcodes should be further converted into a backend-specific circuit representation.

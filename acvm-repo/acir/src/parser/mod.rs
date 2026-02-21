@@ -182,8 +182,6 @@ impl<'a> Parser<'a> {
     }
 
     pub(crate) fn parse_circuit(&mut self) -> ParseResult<Circuit<FieldElement>> {
-        self.max_witness_index = 0;
-
         let private_parameters = self.parse_private_parameters()?;
         let public_parameters = PublicInputs(self.parse_public_parameters()?);
         let return_values = PublicInputs(self.parse_return_values()?);
@@ -191,7 +189,6 @@ impl<'a> Parser<'a> {
         let opcodes = self.parse_opcodes()?;
 
         Ok(Circuit {
-            current_witness_index: self.max_witness_index,
             opcodes,
             private_parameters,
             public_parameters,
