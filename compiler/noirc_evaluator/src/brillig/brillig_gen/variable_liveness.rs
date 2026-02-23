@@ -396,6 +396,10 @@ impl VariableLiveness {
 
         self
     }
+
+    pub(super) fn cfg(&self) -> &ControlFlowGraph {
+        &self.cfg
+    }
 }
 
 #[cfg(test)]
@@ -898,12 +902,12 @@ mod tests {
         //
         // SSA v0 (condition) → Brillig sp[1]
         // SSA v1 (b3's parameter) → Brillig sp[2] (allocated in b0, dominator of b3)
-        // SSA v2 (27 + 42) → Brillig sp[4] (line 7: result of add)
+        // SSA v2 (27 + 42) → coalesced with v1 → writes directly to sp[2] (line 7)
         // Field 42 constant → sp[3] (line 1)
         // Line 2: jmpif sp[1] branches to b1 or b2
         // Line 4 (b2 path): sp[2] = sp[3] moves constant 42 into v1's register
-        // Line 8 (b1 path): sp[2] = sp[4] moves v2 into v1's register
-        // Line 10 (b3): sp[1] = sp[2] prepares return
+        // Line 7 (b1 path): sp[2] = add sp[1], sp[3] writes directly to v1's register (coalesced)
+        // Line 9 (b3): sp[1] = sp[2] prepares return
         let src = "
         brillig(inline) fn main f0 {
         b0(v0: u1):
@@ -928,11 +932,10 @@ mod tests {
          4: sp[2] = sp[3]
          5: jump to 0
          6: sp[1] = const field 27
-         7: sp[4] = field add sp[1], sp[3]
-         8: sp[2] = sp[4]
-         9: jump to 0
-        10: sp[1] = sp[2]
-        11: return
+         7: sp[2] = field add sp[1], sp[3]
+         8: jump to 0
+         9: sp[1] = sp[2]
+        10: return
         ");
     }
 
@@ -980,12 +983,11 @@ mod tests {
         // SSA v0 (entry parameter) → Brillig sp[1]
         // SSA v1 (v0 + 1) → Brillig sp[4] (line 2: result)
         // SSA v2 (v1 + 2) → Brillig sp[3] (line 4: result)
-        // SSA v3 (v2 * 3) → Brillig sp[4] (line 6: result, last instruction before terminator)
+        // SSA v3 (v2 * 3) → coalesced with v4 → writes directly to sp[2] (line 6)
         // SSA v4 (b1's parameter) → Brillig sp[2] (allocated in b0)
-        // Line 7: sp[2] = sp[4] copies v3 into v4's register (terminator argument)
-        // Line 8: jump to b1
-        // v3 cannot be marked as dead at line 6 because it's used in terminator at line 7
-        // This ensures v3's register (sp[4]) stays valid throughout the copy instruction
+        // Line 6: sp[2] = mul sp[3], sp[1] writes directly to v4's register (coalesced)
+        // Line 7: jump to b1 (no mov needed — v3 already in sp[2])
+        // Line 8 (b1): sp[1] = sp[2] prepares return
         let src = "
         brillig(inline) fn main f0 {
         b0(v0: Field):
@@ -1007,11 +1009,10 @@ mod tests {
          3: sp[1] = const field 2
          4: sp[3] = field add sp[4], sp[1]
          5: sp[1] = const field 3
-         6: sp[4] = field mul sp[3], sp[1]
-         7: sp[2] = sp[4]
-         8: jump to 0
-         9: sp[1] = sp[2]
-        10: return
+         6: sp[2] = field mul sp[3], sp[1]
+         7: jump to 0
+         8: sp[1] = sp[2]
+         9: return
         ");
     }
 }
