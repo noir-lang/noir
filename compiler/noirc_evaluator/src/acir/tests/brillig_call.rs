@@ -53,7 +53,7 @@ fn multiple_brillig_calls_one_bytecode() {
 
     unconstrained func 0: foo
      0: @2 = const u32 1
-     1: @1 = const u32 32839
+     1: @1 = const u32 65607
      2: @0 = const u32 71
      3: call 14
      4: sp[3] = const u32 2
@@ -75,7 +75,7 @@ fn multiple_brillig_calls_one_bytecode() {
     20: sp[5] = const u32 0
     21: trap @[@1; sp[5]]
     22: return
-    23: @4 = const u32 30791
+    23: @4 = const u32 61511
     24: @3 = u32 lt @0, @4
     25: jump if @3 to 28
     26: @1 = indirect const u64 15764276373176857197
@@ -83,7 +83,7 @@ fn multiple_brillig_calls_one_bytecode() {
     28: return
     unconstrained func 1: foo
      0: @2 = const u32 1
-     1: @1 = const u32 32839
+     1: @1 = const u32 65607
      2: @0 = const u32 71
      3: call 14
      4: sp[3] = const u32 2
@@ -105,7 +105,7 @@ fn multiple_brillig_calls_one_bytecode() {
     20: sp[5] = const u32 0
     21: trap @[@1; sp[5]]
     22: return
-    23: @4 = const u32 30791
+    23: @4 = const u32 61511
     24: @3 = u32 lt @0, @4
     25: jump if @3 to 28
     26: @1 = indirect const u64 15764276373176857197
@@ -262,7 +262,7 @@ fn brillig_stdlib_calls_with_regular_brillig_call() {
 
     unconstrained func 0: foo
      0: @2 = const u32 1
-     1: @1 = const u32 32839
+     1: @1 = const u32 65607
      2: @0 = const u32 71
      3: call 16
      4: sp[3] = const u32 2
@@ -286,7 +286,7 @@ fn brillig_stdlib_calls_with_regular_brillig_call() {
     22: sp[5] = const u32 0
     23: trap @[@1; sp[5]]
     24: return
-    25: @4 = const u32 30791
+    25: @4 = const u32 61511
     26: @3 = u32 lt @0, @4
     27: jump if @3 to 30
     28: @1 = indirect const u64 15764276373176857197
@@ -409,7 +409,7 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
 
     unconstrained func 0: foo
      0: @2 = const u32 1
-     1: @1 = const u32 32839
+     1: @1 = const u32 65607
      2: @0 = const u32 71
      3: call 16
      4: sp[3] = const u32 2
@@ -433,7 +433,7 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
     22: sp[5] = const u32 0
     23: trap @[@1; sp[5]]
     24: return
-    25: @4 = const u32 30791
+    25: @4 = const u32 61511
     26: @3 = u32 lt @0, @4
     27: jump if @3 to 30
     28: @1 = indirect const u64 15764276373176857197
