@@ -129,18 +129,17 @@ impl StatementKind {
             }
             StatementKind::Comptime(mut statement) => {
                 // `comptime { expr };` => `Semi(comptime { expr })`
-                if semi.is_some() {
-                    if let StatementKind::Expression(Expression {
+                if semi.is_some()
+                    && let StatementKind::Expression(Expression {
                         kind: ExpressionKind::Block(block),
                         ..
                     }) = statement.kind
-                    {
-                        let comptime_expr = Expression {
-                            kind: ExpressionKind::Comptime(block, statement.location),
-                            location,
-                        };
-                        return StatementKind::Semi(comptime_expr);
-                    }
+                {
+                    let comptime_expr = Expression {
+                        kind: ExpressionKind::Comptime(block, statement.location),
+                        location,
+                    };
+                    return StatementKind::Semi(comptime_expr);
                 }
 
                 *statement =

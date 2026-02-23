@@ -4,7 +4,7 @@ expression: expanded_code
 ---
 fn main() {
     bug();
-    ()
+    ();
 }
 
 fn bug() {
