@@ -444,7 +444,7 @@ fn blake3_slice_regression() {
 /// Convert the SSA input into ACIR and use ACVM to execute it
 /// Returns the ACVM execution status and the value of the 'output' witness value,
 /// unless the provided output is None or the ACVM fails during execution.
-fn execute_ssa(
+pub(crate) fn execute_ssa(
     ssa: Ssa,
     initial_witness: WitnessMap<FieldElement>,
     output: Option<&Witness>,

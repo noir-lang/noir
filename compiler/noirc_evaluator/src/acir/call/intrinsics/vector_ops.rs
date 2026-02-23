@@ -71,7 +71,6 @@ impl Context<'_> {
             };
 
             let mut elements_var = Vec::new();
-            let mut element_size = 0;
             let mut new_vector = self.read_array_with_type(vector.clone(), &vector_typ)?;
             let zero = self.acir_context.add_constant(FieldElement::zero());
 
@@ -79,7 +78,6 @@ impl Context<'_> {
             // push_back corresponding dummy zero values to the AcirValues vector.
             for (elem, ssa_typ) in elements_to_push.iter().zip(vector_types.to_vec()) {
                 let element = self.convert_value(*elem, dfg);
-                element_size += super::arrays::flattened_value_size(&element).to_usize();
                 match element {
                     AcirValue::Var(acir_var, acir_type) => {
                         new_vector.push_back(AcirValue::Var(zero, acir_type));
@@ -129,24 +127,21 @@ impl Context<'_> {
 
             // 3. Write to the dynamic array
 
-            // 3.1 Computes the flatten_idx where to write into the dynamic array:
-            // Use element_type_size if it exists; convert the user index (vector_length) into the AcirValues index,
-            // and then flatten it with element_type_size
-            let mut flatten_idx = if let Some(element_type_sizes) = element_type_sizes {
-                let predicate_index = self
-                    .acir_context
-                    .mul_var(vector_length, self.current_side_effects_enabled_var)?;
-                let acir_element_size = self.acir_context.add_constant(elements_to_push.len());
-                let acir_value_index =
-                    self.acir_context.mul_var(predicate_index, acir_element_size)?;
-                self.acir_context
-                    .read_from_memory(element_type_sizes, &acir_value_index)
-                    .map_err(RuntimeError::from)?
-            } else {
-                // If it does not exist; the array is homogenous and we can simply multiply by size of the array elements
-                let element_size_var = self.acir_context.add_constant(element_size);
-                self.acir_context.mul_var(vector_length, element_size_var)?
-            };
+            // 3.1 Computes the flatten_idx where to write into the dynamic array.
+            // `get_flattened_index` handles both homogeneous (constant element size) and
+            // heterogeneous (element_type_sizes memory lookup with predicate guard) cases.
+            // The `is_safe_index: false` ensures the index is multiplied by the side-effects
+            // predicate to prevent out-of-bounds memory reads when side effects are disabled.
+            let acir_element_size = self.acir_context.add_constant(elements_to_push.len());
+            let acir_value_index = self.acir_context.mul_var(vector_length, acir_element_size)?;
+            let mut flatten_idx = self.get_flattened_index(
+                &vector_typ,
+                result_ids[1],
+                acir_value_index,
+                dfg,
+                false,
+                ElementTypeSizesArrayShift::None,
+            )?;
             // Write the elements to the dynamic array
             for element in &elements_var {
                 self.acir_context.write_to_memory(block_id, &flatten_idx, element)?;
