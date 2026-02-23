@@ -689,12 +689,12 @@ impl DocItemBuilder<'_> {
         }
 
         let imports = self.module_imports.remove(&module.module_id).unwrap();
+        let non_private_imports = imports
+            .into_iter()
+            .filter(|import| import.visibility != ItemVisibility::Private)
+            .collect::<Vec<_>>();
 
-        for import in imports {
-            if import.visibility == ItemVisibility::Private {
-                continue;
-            }
-
+        for import in non_private_imports {
             let item_id = get_module_def_id(import.id, self.interner);
             if let Some(converted_item) = self.item_id_to_converted_item.get(&item_id) {
                 // Check if this is a re-export of a private item. The private item won't show up in
@@ -726,6 +726,11 @@ impl DocItemBuilder<'_> {
                 }),
             ));
         }
+
+        // The module changed (it got new items). Becuase it can still be looked up in
+        // `item_id_to_converted_item` we need to update it's definition there too.
+        self.item_id_to_converted_item.get_mut(&module.id).unwrap().item =
+            Item::Module(module.clone());
     }
 
     fn doc_comments(&mut self, id: ReferenceId) -> Option<(String, Links)> {
