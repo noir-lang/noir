@@ -323,7 +323,15 @@ impl<F: AcirField> GeneratedAcir<F> {
                     proof,
                     public_inputs,
                     key_hash,
-                    proof_type: proof_type.to_u128() as u32,
+                    proof_type: u32::try_from(proof_type.to_u128()).map_err(|_| {
+                        InternalError::General {
+                            message: format!(
+                                "proof_type value {} does not fit into a u32",
+                                proof_type.to_u128()
+                            ),
+                            call_stack: self.get_call_stack(),
+                        }
+                    })?,
                     predicate,
                 }
             }
