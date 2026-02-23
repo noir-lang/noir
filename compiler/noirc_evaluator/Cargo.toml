@@ -48,8 +48,6 @@ num-traits.workspace = true
 test-case.workspace = true
 insta.workspace = true
 noirc_frontend = { workspace = true, features = ["test_utils"] }
-brillig_vm.workspace = true
-acvm_blackbox_solver.workspace = true
 
 [features]
 bn254 = ["noirc_frontend/bn254"]

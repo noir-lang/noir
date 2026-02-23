@@ -6,9 +6,9 @@
 //! that has not yet undergone linking. This means any calls, to both external functions or procedures,
 //! and jumps are expected to be unresolved. Thus any call/jump is expected to still have a label of `0`.
 
-use acvm::FieldElement;
-use acvm_blackbox_solver::StubbedBlackBoxSolver;
-use brillig_vm::VM;
+use acvm::brillig_vm::VM;
+use acvm::{FieldElement, brillig_vm::VMStatus};
+use bn254_blackbox_solver::Bn254BlackBoxSolver;
 
 use crate::{
     brillig::{
@@ -54,11 +54,11 @@ fn execute_bytecode(
     byte_code: Vec<acvm::acir::brillig::Opcode<FieldElement>>,
     calldata: Vec<FieldElement>,
 ) -> Vec<FieldElement> {
-    let solver = StubbedBlackBoxSolver;
+    let solver = Bn254BlackBoxSolver;
     let mut vm = VM::new(calldata, &byte_code, &solver, false, None);
     let status = vm.process_opcodes();
     match status {
-        brillig_vm::VMStatus::Finished { return_data_offset, return_data_size } => {
+        VMStatus::Finished { return_data_offset, return_data_size } => {
             let memory = vm.take_memory();
             (return_data_offset as usize..return_data_offset as usize + return_data_size as usize)
                 .map(|i| {
@@ -66,13 +66,13 @@ fn execute_bytecode(
                 })
                 .collect()
         }
-        brillig_vm::VMStatus::ForeignCallWait { .. } => {
+        VMStatus::ForeignCallWait { .. } => {
             panic!("Unexpected foreign call")
         }
-        brillig_vm::VMStatus::Failure { reason, .. } => {
+        VMStatus::Failure { reason, .. } => {
             panic!("Brillig execution failed: {reason:?}")
         }
-        brillig_vm::VMStatus::InProgress => {
+        VMStatus::InProgress => {
             panic!("VM did not complete")
         }
     }
