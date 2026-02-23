@@ -251,9 +251,9 @@ mod tests {
         assert_eq!(coalescing.get_coalesced(&arg), Some(param));
 
         // Check b2's jmp — constant arg should NOT be coalesced
-        let (arg, _param) = get_jmp_pair(func, 2, 0);
+        let (arg, param) = get_jmp_pair(func, 2, 0);
         assert!(!coalescing.is_coalesced(&arg));
-        // Note: param (v3) IS coalesced — via b1's pair above — so we don't check it here.
+        assert!(!coalescing.is_coalesced(&param));
 
         assert_eq!(coalescing.len(), 1);
     }
@@ -604,19 +604,26 @@ mod tests {
         // b1, arg 0: v2 -> v4. Not coalesced due to multi-predecessor.
         let (coalescing, ssa) = build_coalescing(src);
         let func = ssa.main();
-        let (arg, _param) = get_jmp_pair(func, 1, 0);
+        let (arg, param) = get_jmp_pair(func, 1, 0);
         assert!(
             !coalescing.is_coalesced(&arg),
             "v2 is cross-block, falls to param-side which requires single-predecessor"
         );
-        // Note: param (v4) IS coalesced — via b2's arg-side pair below — so we don't check it here.
-
+        assert!(
+            !coalescing.is_coalesced(&param),
+            "param-side coalescing requires single-predecessor destination"
+        );
         // b2, arg 0: v3 -> v4. v3 is defined in b2 (source block) so this is arg-side.
-        let (arg, _param) = get_jmp_pair(func, 2, 0);
+        let (arg, param) = get_jmp_pair(func, 2, 0);
         // Arg-side coalescing succeeds because v3 is not live-in to b3.
         assert!(
             coalescing.is_coalesced(&arg),
             "arg-side coalescing works even with multi-predecessor dest"
+        );
+        // Param v4 is not a coalescing key on the arg-side path.
+        assert!(
+            !coalescing.is_coalesced(&param),
+            "param-side coalescing requires single-predecessor destination"
         );
         assert_eq!(coalescing.len(), 1);
     }
