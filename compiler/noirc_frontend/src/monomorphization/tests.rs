@@ -1120,6 +1120,7 @@ fn direct_unconstrained_call_rejects_closure_with_mutable_ref() {
         f(1_u32);
         // safety: test
         unsafe { bar(f, 2_u32) }
+                     ^ Cannot pass mutable reference `fn[(&mut u32,)](u32) -> ()` from a constrained runtime to an unconstrained runtime
     }
 
     fn foo(x: &mut u32) -> fn[(&mut u32,)](u32) -> () {
@@ -1130,14 +1131,7 @@ fn direct_unconstrained_call_rejects_closure_with_mutable_ref() {
         f(x);
     }
     "#;
-
-    let err = get_monomorphized_with_options(
-        src,
-        GetProgramOptions { allow_elaborator_errors: true, ..Default::default() },
-    )
-    .expect_err("should fail to monomorphize");
-
-    assert!(matches!(err, MonomorphizationError::ConstrainedReferenceToUnconstrained { .. }));
+    check_monomorphization_error_using_features(src, &[], true);
 }
 
 #[test]
@@ -1151,6 +1145,7 @@ fn indirect_unconstrained_call_rejects_closure_with_mutable_ref() {
         let b = bar;
         // safety: test
         unsafe { b(f, 2_u32) }
+                   ^ Cannot pass mutable reference `fn[(&mut u32,)](u32) -> ()` from a constrained runtime to an unconstrained runtime
     }
 
     fn foo(x: &mut u32) -> fn[(&mut u32,)](u32) -> () {
@@ -1161,16 +1156,7 @@ fn indirect_unconstrained_call_rejects_closure_with_mutable_ref() {
         f(x);
     }
     "#;
-
-    let err = get_monomorphized_with_options(
-        src,
-        GetProgramOptions { allow_elaborator_errors: true, ..Default::default() },
-    )
-    .expect_err("indirect call should also trigger boundary checks and fail to monomorphize");
-    assert!(
-        matches!(err, MonomorphizationError::ConstrainedReferenceToUnconstrained { .. }),
-        "expected a constrained-reference-to-unconstrained monomorphization error, got: {err:?}"
-    );
+    check_monomorphization_error_using_features(src, &[], true);
 }
 
 #[test]
@@ -1179,18 +1165,13 @@ fn pass_ref_from_constrained_to_unconstrained_via_arg() {
     fn main()  {
         // safety: test
         unsafe { foo(&mut 0); }
+                     ^^^^^^ Cannot pass a mutable reference from a constrained runtime to an unconstrained runtime
+                     ^^^^^^ Cannot pass mutable reference `&mut u32` from a constrained runtime to an unconstrained runtime
     }
 
     unconstrained fn foo(_x: &mut u32) {}
     "#;
-
-    let err = get_monomorphized_with_options(
-        src,
-        GetProgramOptions { allow_elaborator_errors: true, ..Default::default() },
-    )
-    .expect_err("should fail to monomorphize");
-
-    assert!(matches!(err, MonomorphizationError::ConstrainedReferenceToUnconstrained { .. }));
+    check_monomorphization_error_using_features(src, &[], true);
 }
 
 #[test]
@@ -1200,6 +1181,8 @@ fn pass_ref_from_unconstrained_to_unconstrained_via_return() {
         // safety: test
         unsafe {
             let _x = foo();
+                     ^^^^^ Cannot pass a mutable reference from a unconstrained runtime to an constrained runtime
+                     ^^^^^ Mutable reference `&mut u32` cannot be returned from an unconstrained runtime to a constrained runtime
         }
     }
 
@@ -1207,14 +1190,7 @@ fn pass_ref_from_unconstrained_to_unconstrained_via_return() {
         &mut 0
     }
     "#;
-
-    let err = get_monomorphized_with_options(
-        src,
-        GetProgramOptions { allow_elaborator_errors: true, ..Default::default() },
-    )
-    .expect_err("should fail to monomorphize");
-
-    assert!(matches!(err, MonomorphizationError::UnconstrainedReferenceReturnToConstrained { .. }));
+    check_monomorphization_error_using_features(src, &[], true);
 }
 
 #[test]
