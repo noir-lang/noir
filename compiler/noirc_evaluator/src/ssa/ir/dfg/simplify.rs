@@ -734,9 +734,8 @@ mod tests {
         assert_normalized_ssa_equals(ssa, src);
     }
 
-    /// Regression test for NOIR-16: ArraySet on constant arrays must not be simplified
-    /// to MakeArray when the side-effects predicate may be false. The simplifier lacks
-    /// predicate context, so folding ArraySet to MakeArray erases predicate dependence
+    /// ArraySet on constant arrays must not be simplified to MakeArray when the side-effects predicate may be false.
+    /// The simplifier lacks predicate context, so folding ArraySet to MakeArray erases predicate dependence
     /// that ACIR lowering relies on.
     #[test]
     fn array_set_constant_folding_must_respect_side_effects_predicate() {
@@ -771,6 +770,52 @@ mod tests {
         let cond_true = vec![Value::bool(true)];
         let unsimplified_result = unsimplified.interpret(cond_true.clone()).unwrap();
         let simplified_result = simplified.interpret(cond_true).unwrap();
+        assert_eq!(
+            unsimplified_result, simplified_result,
+            "both versions must agree when side effects are enabled"
+        );
+    }
+
+    /// array_get through a predicated array_set at the same index
+    /// must not simplify to the written value when predicates may differ.
+    #[test]
+    fn array_get_not_simplified_through_predicated_array_set() {
+        use crate::ssa::interpreter::value::Value;
+        use crate::ssa::ir::types::{NumericType, Type};
+
+        let src = r#"
+            acir(inline) fn main f0 {
+              b0(v0: [Field; 1], v1: Field, v2: u1):
+                enable_side_effects v2
+                v3 = array_set v0, index u32 0, value v1
+                enable_side_effects u1 1
+                v4 = array_get v3, index u32 0 -> Field
+                return v4
+            }
+        "#;
+
+        let unsimplified = Ssa::from_str(src).unwrap();
+        let simplified = Ssa::from_str_simplifying(src).unwrap();
+
+        let arr0 = Value::array(
+            vec![Value::field(0u128.into())],
+            vec![Type::Numeric(NumericType::NativeField)],
+        );
+        let written = Value::field(5u128.into());
+
+        // With side effects disabled, array_set is a no-op: both must return 0.
+        let args = vec![arr0.clone(), written.clone(), Value::bool(false)];
+        let unsimplified_result = unsimplified.interpret(args.clone()).unwrap();
+        let simplified_result = simplified.interpret(args).unwrap();
+        assert_eq!(
+            unsimplified_result, simplified_result,
+            "simplification must not change semantics when side effects are disabled"
+        );
+
+        // With side effects enabled, both must return 5.
+        let args = vec![arr0, written.clone(), Value::bool(true)];
+        let unsimplified_result = unsimplified.interpret(args.clone()).unwrap();
+        let simplified_result = simplified.interpret(args).unwrap();
         assert_eq!(
             unsimplified_result, simplified_result,
             "both versions must agree when side effects are enabled"
