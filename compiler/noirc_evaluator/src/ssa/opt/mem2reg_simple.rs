@@ -18,14 +18,6 @@ use crate::ssa::{
     ssa_gen::Ssa,
 };
 
-/// Arbitrary limit for maximum variables optimized by this pass in each function.
-///
-/// This is because this pass can lead to regressions in certain cases (e.g. the hashmap test)
-/// where variables are modified in inner loops but not outer ones, yet the outer loops would need
-/// to pay for passing around the variables while with the `Load` approach, only the inner loops
-/// paid previously.
-const MAX_VARIABLES_OPTIMIZED: u32 = 10;
-
 impl Ssa {
     pub(crate) fn mem2reg_simple(mut self) -> Ssa {
         for function in self.functions.values_mut() {
@@ -58,13 +50,6 @@ impl Function {
         let mut exit_states = BTreeMap::default();
 
         let mut variables = collect_all_eligible_variables(inserter.function, &blocks);
-
-        // Limit increase in memory usage and brillig regressions by arbitrarily limiting this pass to some variables
-        let mut i = 0;
-        variables.retain(|_, _| {
-            i += 1;
-            i <= MAX_VARIABLES_OPTIMIZED
-        });
 
         add_block_params_and_find_exit_states(
             &blocks,
