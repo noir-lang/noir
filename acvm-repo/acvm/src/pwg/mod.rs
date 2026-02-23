@@ -849,21 +849,23 @@ pub fn insert_value<F: AcirField>(
     value_to_insert: F,
     initial_witness: &mut WitnessMap<F>,
 ) -> Result<(), OpcodeResolutionError<F>> {
-    let optional_old_value = initial_witness.insert(*witness, value_to_insert);
-
-    let old_value = match optional_old_value {
-        Some(old_value) => old_value,
-        None => return Ok(()),
-    };
-
-    if old_value != value_to_insert {
-        return Err(OpcodeResolutionError::UnsatisfiedConstrain {
-            opcode_location: ErrorLocation::Unresolved,
-            payload: None,
-        });
+    use std::collections::btree_map::Entry;
+    match initial_witness.entry(*witness) {
+        Entry::Vacant(e) => {
+            e.insert(value_to_insert);
+            Ok(())
+        }
+        Entry::Occupied(e) => {
+            if *e.get() != value_to_insert {
+                Err(OpcodeResolutionError::UnsatisfiedConstrain {
+                    opcode_location: ErrorLocation::Unresolved,
+                    payload: None,
+                })
+            } else {
+                Ok(())
+            }
+        }
     }
-
-    Ok(())
 }
 
 // Returns one witness belonging to an expression, in no relevant order
