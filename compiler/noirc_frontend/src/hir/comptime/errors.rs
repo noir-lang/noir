@@ -316,6 +316,15 @@ pub enum InterpreterError {
         typ: Type,
         location: Location,
     },
+    ExternalEdit {
+        editor: String,
+        edited: String,
+        location: Location,
+    },
+    ExternalEditNotInFunction {
+        edited: String,
+        location: Location,
+    },
 
     // These cases are not errors, they are just used to prevent us from running more code
     // until the loop can be resumed properly. These cases will never be displayed to users.
@@ -418,6 +427,8 @@ impl InterpreterError {
             | InterpreterError::TraitImplResolutionRecursionLimitReached { location }
             | InterpreterError::AttributeRecursionLimitExceeded { location }
             | InterpreterError::CannotCastNumericToBool { location, .. }
+            | InterpreterError::ExternalEdit { location, .. }
+            | InterpreterError::ExternalEditNotInFunction { location, .. }
             | InterpreterError::CannotModifyExternalItem { location, .. } => *location,
             InterpreterError::FailedToParseMacro { error, .. } => error.location(),
             InterpreterError::NoMatchingImplFound { error } => error.location,
@@ -888,6 +899,16 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             InterpreterError::CannotCastNumericToBool { typ, location } => {
                 let primary = format!("Cannot cast `{typ}` as `bool`");
                 let secondary = "Compare with zero instead: ` != 0`".to_string();
+                CustomDiagnostic::simple_error(primary, secondary, *location)
+            },
+            InterpreterError::ExternalEdit { editor, edited, location } => {
+                let primary = format!("`{editor}` is trying to edit `{edited}`");
+                let secondary = format!("If this is expected, consider adding `#[allow_edits_from(\"{editor}\")]` to `{edited}`");
+                CustomDiagnostic::simple_error(primary, secondary, *location)
+            },
+            InterpreterError::ExternalEditNotInFunction { edited, location } => {
+                let primary = format!("Cannot edit `{edited}` outside of a function");
+                let secondary = "Consider moving this mutation inside a function".to_string();
                 CustomDiagnostic::simple_error(primary, secondary, *location)
             },
         }

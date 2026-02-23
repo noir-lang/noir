@@ -38,7 +38,9 @@ use crate::{
             errors::IResult,
             interpreter::{
                 builtin::builtin_helpers::fragments_to_string,
-                builtin_helpers::check_item_crate_matches_current_crate,
+                builtin_helpers::{
+                    check_item_can_be_modified, check_item_crate_matches_current_crate,
+                },
             },
             value::{ExprValue, FormatStringFragment, TypedExpr},
         },
@@ -2750,6 +2752,7 @@ fn function_def_set_body(
 
     let func_id = get_function_def(self_argument)?;
     check_function_not_yet_resolved(interpreter, func_id, location)?;
+    check_item_can_be_modified(interpreter, func_id, location)?;
 
     let body_argument = get_expr(interpreter.elaborator.interner, body_argument)?;
     let statement_kind = match body_argument {

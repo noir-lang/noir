@@ -526,6 +526,51 @@ pub(super) fn check_function_not_yet_resolved(
     }
 }
 
+/// Returns the fully-qualified path to the given function.
+///
+/// The path will be based on the current crate of the [Elaborator].
+/// E.g. a function in the current crate will start with `crate::foo::bar` but
+/// if this is called in a different crate it may be `libname::foo::bar`
+fn fully_qualified_function_path(f: FuncId, elaborator: &Elaborator) -> String {
+    let function_module = elaborator.interner.function_module(f);
+    let function_name = elaborator.interner.function_name(&f);
+
+    let module_path = fully_qualified_module_path(
+        elaborator.def_maps,
+        elaborator.crate_graph,
+        &elaborator.crate_id,
+        function_module,
+    );
+    format!("{module_path}::{function_name}")
+}
+
+/// Any mutations of an item in Noir must be explicitly allowed by either:
+/// - The modifying attribute being placed directly on the item
+/// - Another attribute being present on the item explicitly allowing edits
+/// - Another attribute being present on one of the item's parent modules, explicitly allowing
+/// edits recursively.
+pub(super) fn check_item_can_be_modified(
+    interpreter: &Interpreter,
+    func_id: FuncId,
+    location: Location,
+) -> IResult<()> {
+    if let Some(current_function) = interpreter.current_function {
+        let editor = fully_qualified_function_path(current_function, interpreter.elaborator);
+
+        let attrs = interpreter.elaborator.interner.function_attributes(&func_id);
+        if attrs.allows_edits_from(&editor) {
+            return Ok(());
+        }
+
+        // TODO: [fully_qualified_function_name] is a similar fn which already exists
+        let edited = fully_qualified_function_path(func_id, interpreter.elaborator);
+        Err(InterpreterError::ExternalEdit { editor, edited, location })
+    } else {
+        let edited = fully_qualified_function_path(func_id, interpreter.elaborator);
+        Err(InterpreterError::ExternalEditNotInFunction { edited, location })
+    }
+}
+
 pub(super) fn lex(input: &str, location: Location) -> Vec<LocatedToken> {
     let (tokens, _) = Lexer::lex(input, location.file);
     let mut tokens: Vec<_> =
@@ -657,6 +702,8 @@ fn secondary_attribute_name(
         SecondaryAttributeKind::UseCallersScope => Some("use_callers_scope".to_string()),
         SecondaryAttributeKind::Allow(_) => Some("allow".to_string()),
         SecondaryAttributeKind::MustUse(_) => Some("must_use".to_string()),
+        SecondaryAttributeKind::AllowEditsFrom(_) => Some("allows_edits_from".to_string()),
+        SecondaryAttributeKind::AllowEditsFromRec(_) => Some("allows_edits_from_rec".to_string()),
     }
 }
 

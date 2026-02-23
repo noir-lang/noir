@@ -265,7 +265,7 @@ pub struct Elaborator<'context> {
     /// True if we are elaborating arguments of a function call to an unconstrained function.
     in_unconstrained_args: bool,
 
-    crate_id: CrateId,
+    pub(crate) crate_id: CrateId,
 
     interpreter_call_stack: im::Vector<Location>,
 

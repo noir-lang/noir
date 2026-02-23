@@ -790,6 +790,13 @@ impl Attributes {
     pub fn has_secondary_attr(&self, kind: &SecondaryAttributeKind) -> bool {
         self.secondary.iter().any(|attr| &attr.kind == kind)
     }
+
+    pub fn allows_edits_from(&self, source: &str) -> bool {
+        self.secondary.iter().any(|attr| match &attr.kind {
+            SecondaryAttributeKind::AllowEditsFrom(item) => item == source,
+            _ => false,
+        })
+    }
 }
 
 /// An Attribute can be either a Primary Attribute or a Secondary Attribute
@@ -954,6 +961,19 @@ pub enum SecondaryAttributeKind {
     /// Instead, `#[must_use]` in Noir promotes this warning to a hard error, with
     /// an optional message for the error.
     MustUse(Option<String>),
+
+    /// Opt-into allowing non-local edits from an attribute or other comptime code.
+    ///
+    /// Attributes may edit the item they're placed on and read from other items in its crate by
+    /// default, but may not edit other items unless opted into by this attribute.
+    AllowEditsFrom(String),
+
+    /// Opt-into allowing non-local edits from an attribute or other comptime code.
+    ///
+    /// Compared to `AllowEditsFrom`, this variant is only valid for modules and will act
+    /// as if `AllowEditsFrom` is placed on each item defined within this module as well as child
+    /// modules.
+    AllowEditsFromRec(String),
 }
 
 impl SecondaryAttributeKind {
@@ -985,6 +1005,8 @@ impl SecondaryAttributeKind {
             SecondaryAttributeKind::Allow(k) => format!("allow({k})"),
             SecondaryAttributeKind::MustUse(None) => "must_use".to_string(),
             SecondaryAttributeKind::MustUse(Some(msg)) => format!("must_use = \"{msg}\""),
+            SecondaryAttributeKind::AllowEditsFrom(msg) => msg.to_string(),
+            SecondaryAttributeKind::AllowEditsFromRec(msg) => msg.to_string(),
         }
     }
 
