@@ -1601,6 +1601,40 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         assert_normalized_ssa_equals(ssa, src);
     }
+
+    #[test]
+    fn inlines_function_with_constant_jmpif_with_args() {
+        let src = "
+        acir(inline) fn foo f0 {
+          b0():
+            v1 = call f1() -> Field
+            return v1
+        }
+
+        acir(inline) fn bar f1 {
+          b0():
+            jmpif u1 0 then: b1(Field 5), else: b2(Field 6)
+          b1(v0: Field):
+            jmp b3(v0)
+          b2(v1: Field):
+            jmp b3(v1)
+          b3(v2: Field):
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn foo f0 {
+          b0():
+            jmp b1(Field 6)
+          b1(v0: Field):
+            jmp b2(v0)
+          b2(v1: Field):
+            return v1
+        }
+        ");
+    }
 }
 
 /// This test module contains tests specifically for inlining small functions which we always expect to be inlined.

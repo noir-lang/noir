@@ -1341,4 +1341,24 @@ mod tests {
 
         assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
     }
+
+    #[test]
+    fn does_not_remove_used_jmpif_arg() {
+        let src = r#"
+        acir(inline) impure fn main f0 {
+          b0(v0: u1):
+            v1 = make_array [u8 1, u8 2] : [u8; 2]
+            v2 = make_array [u8 3, u8 4] : [u8; 2]
+            jmpif v0 then: b1(v1), else: b2(v2)
+          b1(v3: [u8; 2]):
+            jmp b3(v3)
+          b2(v4: [u8; 2]):
+            jmp b3(v4)
+          b3(v5: [u8; 2]):
+            return v5
+        }
+        "#;
+
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination_pre_flattening);
+    }
 }

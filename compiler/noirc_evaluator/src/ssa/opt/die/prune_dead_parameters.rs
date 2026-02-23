@@ -233,6 +233,14 @@ impl Function {
         keep_list: &[bool],
     ) {
         let predecessors = cfg.predecessors(target_block);
+        let remove_args = |args: &mut Vec<ValueId>| {
+            let mut i = 0;
+            args.retain(|_| {
+                i += 1;
+                keep_list[i - 1]
+            });
+        };
+
         for pred in predecessors {
             let terminator = self.dfg[pred].unwrap_terminator_mut();
 
@@ -245,31 +253,16 @@ impl Function {
                     ..
                 } => {
                     if *then_destination == target_block {
-                        let new_args = then_arguments
-                            .iter()
-                            .zip(keep_list.iter())
-                            .filter_map(|(arg, &keep)| if keep { Some(*arg) } else { None })
-                            .collect();
-                        *then_arguments = new_args;
+                        remove_args(then_arguments);
                     }
                     if *else_destination == target_block {
-                        let new_args = else_arguments
-                            .iter()
-                            .zip(keep_list.iter())
-                            .filter_map(|(arg, &keep)| if keep { Some(*arg) } else { None })
-                            .collect();
-                        *else_arguments = new_args;
+                        remove_args(else_arguments);
                     }
                 }
                 TerminatorInstruction::Jmp { destination, arguments, .. } => {
                     // Predecessor must jump to its successor
                     assert_eq!(*destination, target_block);
-                    let new_args = arguments
-                        .iter()
-                        .zip(keep_list.iter())
-                        .filter_map(|(arg, &keep)| if keep { Some(*arg) } else { None })
-                        .collect();
-                    *arguments = new_args;
+                    remove_args(arguments);
                 }
                 TerminatorInstruction::Return { .. } => {
                     unreachable!("ICE: A return block should not be a predecessor");
@@ -711,6 +704,43 @@ mod tests {
             jmp b9()
           b9():
             return
+        }
+        "#);
+    }
+
+    #[test]
+    fn prune_dead_jmpif_args() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0():
+            v0 = call f1(Field 5, Field 10) -> Field
+            return v0
+        }
+        brillig(inline) fn test f1 {
+          b0(v0: Field, v1: Field):
+            jmpif u1 0 then: b1(Field 1, Field 2), else: b1(Field 3, Field 4)
+          b1(v2: Field, v3: Field):
+            return v2
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        // DIE is necessary to fetch the block parameters liveness information
+        let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false);
+        let ssa = ssa.prune_dead_parameters(&die_result.unused_parameters);
+
+        // Of b1's params, expect only `v2` above to get removed
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) fn main f0 {
+          b0():
+            v1 = call f1() -> Field
+            return v1
+        }
+        brillig(inline) fn test f1 {
+          b0():
+            jmpif u1 0 then: b1(Field 1), else: b1(Field 3)
+          b1(v0: Field):
+            return v0
         }
         "#);
     }

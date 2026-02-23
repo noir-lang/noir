@@ -1,6 +1,6 @@
 //! Mem2reg algorithm adapted from the paper: <https://bernsteinbear.com/assets/img/bebenita-ssa.pdf>
 use iter_extended::vecmap;
-use rustc_hash::FxHashSet;
+use rustc_hash::FxHashSet as HashSet;
 use std::collections::BTreeMap;
 
 use crate::ssa::{
@@ -17,6 +17,14 @@ use crate::ssa::{
     },
     ssa_gen::Ssa,
 };
+
+/// Arbitrary limit for maximum variables optimized by this pass in each function.
+///
+/// This is because this pass can lead to regressions in certain cases (e.g. the hashmap test)
+/// where variables are modified in inner loops but not outer ones, yet the outer loops would need
+/// to pay for passing around the variables while with the `Load` approach, only the inner loops
+/// paid previously.
+const MAX_VARIABLES_OPTIMIZED: u32 = 10;
 
 impl Ssa {
     pub(crate) fn mem2reg_simple(mut self) -> Ssa {
@@ -51,11 +59,11 @@ impl Function {
 
         let mut variables = collect_all_eligible_variables(inserter.function, &blocks);
 
-        // Limit increase in memory usage by arbitrarily limiting this pass to 100 variables
+        // Limit increase in memory usage and brillig regressions by arbitrarily limiting this pass to some variables
         let mut i = 0;
         variables.retain(|_, _| {
             i += 1;
-            i <= 100
+            i <= MAX_VARIABLES_OPTIMIZED
         });
 
         add_block_params_and_find_exit_states(
@@ -81,7 +89,7 @@ impl Function {
 
 /// Find the starting & ending states of each variable in each block.
 ///
-/// This will add a block parameter for every variable in `variable` that
+/// This will add a block parameter for every variable in `variables` that
 /// is alive in each block. This parameter will always be the entry state
 /// of that variable, while the exit state will be empty (variable was not changed)
 /// or filled with the most recent Store value to the variable in the block.
@@ -101,9 +109,8 @@ fn add_block_params_and_find_exit_states(
             block,
             &mut inserter.function.dfg,
         );
-        entry_states.insert(block, entry_state.clone());
-
-        let exit_state = abstract_interpret_block(inserter, block, entry_state);
+        let exit_state = abstract_interpret_block(inserter, block, &entry_state);
+        entry_states.insert(block, entry_state);
         exit_states.insert(block, exit_state);
     }
 }
@@ -246,7 +253,6 @@ fn keep_argument_mask(
             // and unchanged in another (argument can only equal parameter in the case of back-edges)
             .filter(|arg| arg != parameter);
 
-        // The entry block is excluded so we always expec
         let first_arg = args
             .next()
             .expect("Entry block is excluded so there should always be >= 1 predecessor");
@@ -325,8 +331,8 @@ fn retain_items_from_mask(items: &mut Vec<ValueId>, mask: &[bool]) {
     items.shrink_to_fit();
 }
 
-/// Adds an argument to the `Jmp` terminator of the current block, panicking if the terminator is
-/// not a `Jmp`.
+/// Adds an argument to the terminator of the current block, panicking if the terminator
+/// is not a `Jmp` or `JmpIf`.
 fn add_terminator_argument(
     function: &mut Function,
     arg: ValueId,
@@ -364,7 +370,7 @@ fn add_terminator_argument(
 fn abstract_interpret_block(
     inserter: &mut FunctionInserter,
     block: BasicBlockId,
-    entry_state: StateVec,
+    entry_state: &StateVec,
 ) -> StateVec {
     // Any variables not in the exit_state by function end are assumed to be unchanged from the entry_state
     let mut exit_state = StateVec::new();
@@ -406,7 +412,7 @@ fn collect_all_eligible_variables(
 
     // Workaround for https://github.com/noir-lang/noir/issues/11482
     // If the declaration block of an allocate has no starting store then it isn't eligible for mem2reg_simple.
-    let mut variables_with_stores_in_decl_block = FxHashSet::default();
+    let mut variables_with_stores_in_decl_block = HashSet::default();
 
     for block_id in blocks.iter().copied() {
         let block = &function.dfg[block_id];
