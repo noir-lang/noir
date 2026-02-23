@@ -274,3 +274,116 @@ fn use_struct_as_value() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn comptime_block_quote_semicolon() {
+    let src = r#"
+        fn main() {
+            comptime { quote[foo] };
+                             ^^^ cannot find `foo` in this scope
+                             ~~~ not found in this scope
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn let_comptime_block_quote_semicolon() {
+    let src = r#"
+        fn main() {
+            let _ = comptime { quote[foo] };
+                                     ^^^ cannot find `foo` in this scope
+                                     ~~~ not found in this scope
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn comptime_block_inner_semicolon() {
+    let src = r#"
+        fn main() {
+            comptime { foo; }
+                       ^^^ cannot find `foo` in this scope
+                       ~~~ not found in this scope
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn let_comptime_block_inner_semicolon() {
+    let src = r#"
+        fn main() {
+            let _ = comptime { foo; };
+                               ^^^ cannot find `foo` in this scope
+                               ~~~ not found in this scope
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn comptime_block_quote_semicolon_unused_warning() {
+    let src = r#"
+        fn main() {
+            comptime { quote[foo]; };
+                       ^^^^^^^^^^ Unused expression result of type Quoted
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn let_comptime_block_quote_semicolon_unused_warning() {
+    let src = r#"
+        fn main() {
+            let _ = comptime { quote[foo]; };
+                               ^^^^^^^^^^ Unused expression result of type Quoted
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn comptime_block_semicolon_unused_warning() {
+    let src = r#"
+        fn main() {
+            comptime { 1 + 2 };
+                              ^ Unused expression result of type Field
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn comptime_block_inner_semicolon_unused_warning() {
+    let src = r#"
+        fn main() {
+            comptime { 1 + 2; }
+                       ^^^^^ Unused expression result of type Field
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn let_comptime_block_inner_semicolon_unused_warning() {
+    let src = r#"
+        fn main() {
+            let _ = comptime { 1 + 2; };
+                               ^^^^^ Unused expression result of type Field
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn let_comptime_block_semicolon_no_warning() {
+    let src = r#"
+        fn main() {
+            let _ = comptime { 1 + 2 };
+        }
+    "#;
+    assert_no_errors(src);
+}
