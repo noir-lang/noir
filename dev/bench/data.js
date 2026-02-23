@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771860222730,
+  "lastUpdate": 1771866844080,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23166,48 +23166,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "6e0b468fa9d57cfb74d3ebf359f94d34133fc9ca",
-          "message": "feat(ssa): Inlining cost model refinement (#9692)",
-          "timestamp": "2026-02-12T16:49:23Z",
-          "tree_id": "f9c0004f5037d394410ba351185c8703c57ad2d0",
-          "url": "https://github.com/noir-lang/noir/commit/6e0b468fa9d57cfb74d3ebf359f94d34133fc9ca"
-        },
-        "date": 1770916347235,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 253127,
-            "range": "± 733",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 219967,
-            "range": "± 1828",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2732457,
-            "range": "± 31734",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -25259,6 +25217,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2731946,
             "range": "± 2811",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2f24b9af9f705984b3ecd65b8461d6e97f5990be",
+          "message": "fix: detect unconstrained callees via type for indirect calls (#11657)",
+          "timestamp": "2026-02-23T16:42:30Z",
+          "tree_id": "77ed9b1b0b8caff943defce259bacd1a6ef7d8d2",
+          "url": "https://github.com/noir-lang/noir/commit/2f24b9af9f705984b3ecd65b8461d6e97f5990be"
+        },
+        "date": 1771866799179,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 250587,
+            "range": "± 2015",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 220772,
+            "range": "± 701",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2730133,
+            "range": "± 1139",
             "unit": "ns/iter"
           }
         ]
