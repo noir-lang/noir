@@ -216,7 +216,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         //   const scratch_offset, offset      -- spill offset
         //   add  scratch_addr, scratch_addr, scratch_offset  -- compute absolute address
         //   store [scratch_addr], victim_reg  -- store value
-        self.brillig_context.mov_instruction(scratch_addr, ReservedRegisters::spill_base_slot());
+        self.brillig_context.mov_instruction(scratch_addr, ReservedRegisters::spill_base_pointer());
         self.brillig_context
             .const_instruction(SingleAddrVariable::new_usize(scratch_offset), offset.into());
         self.brillig_context.memory_op_instruction(
@@ -251,7 +251,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         //   const scratch_offset, offset      -- spill offset
         //   add  scratch_addr, scratch_addr, scratch_offset  -- compute absolute address
         //   load new_reg, [scratch_addr]      -- load value
-        self.brillig_context.mov_instruction(scratch_addr, ReservedRegisters::spill_base_slot());
+        self.brillig_context.mov_instruction(scratch_addr, ReservedRegisters::spill_base_pointer());
         self.brillig_context.const_instruction(
             SingleAddrVariable::new_usize(scratch_offset),
             spill_info.offset.into(),
@@ -334,7 +334,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 let source_reg = var.extract_register();
                 let (scratch_addr, scratch_offset) = ReservedRegisters::spill_scratch();
                 self.brillig_context
-                    .mov_instruction(scratch_addr, ReservedRegisters::spill_base_slot());
+                    .mov_instruction(scratch_addr, ReservedRegisters::spill_base_pointer());
                 self.brillig_context
                     .const_instruction(SingleAddrVariable::new_usize(scratch_offset), off.into());
                 self.brillig_context.memory_op_instruction(
@@ -501,7 +501,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                             self.function_context.max_spill_offset.max(offset + 1);
                         let (scratch_addr, scratch_offset) = ReservedRegisters::spill_scratch();
                         self.brillig_context
-                            .mov_instruction(scratch_addr, ReservedRegisters::spill_base_slot());
+                            .mov_instruction(scratch_addr, ReservedRegisters::spill_base_pointer());
                         self.brillig_context.const_instruction(
                             SingleAddrVariable::new_usize(scratch_offset),
                             offset.into(),

@@ -85,7 +85,7 @@ impl ReservedRegisters {
     /// Fixed stack slot `sp[1]` holds the per-frame spill base pointer.
     /// Each function's prologue allocates a heap region and stores the pointer here.
     /// Stack-relative addressing means it's automatically preserved across calls.
-    pub(crate) fn spill_base_slot() -> MemoryAddress {
+    pub(crate) fn spill_base_pointer() -> MemoryAddress {
         MemoryAddress::relative(1)
     }
 
@@ -235,7 +235,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         // Save current FMP as spill base
         // [0]: Mov sp[1], @1
         self.obj.byte_code[positions[0]] = BrilligOpcode::Mov {
-            destination: ReservedRegisters::spill_base_slot(),
+            destination: ReservedRegisters::spill_base_pointer(),
             source: ReservedRegisters::free_memory_pointer(),
         };
         // [1]: Const @scratch, actual_spill_size
