@@ -155,14 +155,14 @@ impl Instruction {
                         // Vector ops compile to procedure calls. The procedure body
                         // (RC check, capacity check, mem_copy) is shared global code
                         // compiled once regardless of inlining. Only count the
-                        // call-site static opcodes: scratch setup moves + Const +
-                        // Call + result moves + element read/writes.
+                        // call-site static opcodes: 2 Mov (args to scratch) + 1 Const
+                        // (element count) + 1 Call + 2 Mov (results) + 1 Store (element).
                         Intrinsic::VectorPushBack
                         | Intrinsic::VectorPushFront
                         | Intrinsic::VectorPopBack
                         | Intrinsic::VectorPopFront
                         | Intrinsic::VectorInsert
-                        | Intrinsic::VectorRemove => 10,
+                        | Intrinsic::VectorRemove => 7,
 
                         // Array init + 1 BlackBoxOp::ToRadix + ArrayReverse procedure call
                         Intrinsic::ToBits(_) => 10,
