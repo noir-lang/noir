@@ -33,6 +33,23 @@ fn witness_value<F: AcirField>(
     Ok(*witness_map.get(w).ok_or(OpcodeNotSolvable::MissingAssignment(w.witness_index()))?)
 }
 
+fn check_fits_in_bits<F: AcirField>(
+    value: F,
+    num_bits: u32,
+    opcode_index: usize,
+    opcode_name: &str,
+) -> Result<(), OpcodeResolutionError<F>> {
+    if value.num_bits() > num_bits {
+        return Err(unsatisfied_constraint(
+            opcode_index,
+            format!(
+                "{opcode_name} opcode violation: value {value} does not fit in {num_bits} bits"
+            ),
+        ));
+    }
+    Ok(())
+}
+
 pub fn validate_witness<F: AcirField>(
     backend: &impl BlackBoxFunctionSolver<F>,
     witness_map: WitnessMap<F>,
@@ -77,6 +94,8 @@ pub fn validate_witness<F: AcirField>(
                     BlackBoxFuncCall::AND { lhs, rhs, num_bits, output } => {
                         let lhs_value = input_to_value(&witness_map, *lhs)?;
                         let rhs_value = input_to_value(&witness_map, *rhs)?;
+                        check_fits_in_bits(lhs_value, *num_bits, opcode_index, "AND")?;
+                        check_fits_in_bits(rhs_value, *num_bits, opcode_index, "AND")?;
                         let and_result = bit_and(lhs_value, rhs_value, *num_bits);
                         let output_value = witness_map
                             .get(output)
@@ -93,6 +112,8 @@ pub fn validate_witness<F: AcirField>(
                     BlackBoxFuncCall::XOR { lhs, rhs, num_bits, output } => {
                         let lhs_value = input_to_value(&witness_map, *lhs)?;
                         let rhs_value = input_to_value(&witness_map, *rhs)?;
+                        check_fits_in_bits(lhs_value, *num_bits, opcode_index, "XOR")?;
+                        check_fits_in_bits(rhs_value, *num_bits, opcode_index, "XOR")?;
                         let xor_result = bit_xor(lhs_value, rhs_value, *num_bits);
                         let output_value = witness_map
                             .get(output)
@@ -108,14 +129,7 @@ pub fn validate_witness<F: AcirField>(
                     }
                     BlackBoxFuncCall::RANGE { input, num_bits } => {
                         let value = input_to_value(&witness_map, *input)?;
-                        if value.num_bits() > *num_bits {
-                            return Err(unsatisfied_constraint(
-                                opcode_index,
-                                format!(
-                                    "RANGE opcode violation: value {value} does not fit in {num_bits} bits"
-                                ),
-                            ));
-                        }
+                        check_fits_in_bits(value, *num_bits, opcode_index, "RANGE")?;
                     }
                     BlackBoxFuncCall::Blake2s { inputs, outputs } => {
                         let message_input = get_hash_input(&witness_map, inputs, None, 8)?;
@@ -240,7 +254,7 @@ pub fn validate_witness<F: AcirField>(
                                 || res_y != output_y_value
                                 || res_infinite != output_infinite_value
                             {
-                                //TODO: on check pas les x,y si infinite est true
+                                //TODO: should we check x,y values if infinite is true?
                                 return Err(unsatisfied_constraint(
                                     opcode_index,
                                     format!(
@@ -267,7 +281,7 @@ pub fn validate_witness<F: AcirField>(
                                 || res_y != output_y_value
                                 || res_infinite != output_infinite_value
                             {
-                                //TODO: on check pas les x,y si infinite est true
+                                //TODO: should we check x,y values if infinite is true?
                                 return Err(unsatisfied_constraint(
                                     opcode_index,
                                     format!(
