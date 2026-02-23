@@ -39,6 +39,9 @@ fn can_coalesce_param_side(
 #[derive(Default)]
 pub(crate) struct CoalescingMap {
     coalesced: HashMap<ValueId, ValueId>,
+    /// Reverse mapping: values that are targets of coalescing.
+    /// Maps a coalescing target back to its source.
+    coalesced_reverse: HashMap<ValueId, ValueId>,
 }
 
 impl CoalescingMap {
@@ -150,7 +153,8 @@ impl CoalescingMap {
             }
         }
 
-        Self { coalesced }
+        let coalesced_reverse = coalesced.iter().map(|(k, v)| (*v, *k)).collect::<HashMap<_, _>>();
+        Self { coalesced, coalesced_reverse }
     }
 
     /// Look up whether `value_id` has been coalesced with a partner.
@@ -159,8 +163,16 @@ impl CoalescingMap {
     }
 
     /// Check whether `value_id` is a coalesced argument (i.e., shares a register with a parameter).
+    #[cfg(test)]
     pub(crate) fn is_coalesced(&self, value_id: &ValueId) -> bool {
         self.coalesced.contains_key(value_id)
+    }
+
+    /// Get the coalescing partner of `value_id`, regardless of direction.
+    /// Returns the partner if `value_id` participates in coalescing as either
+    /// the source (key) or target (value) of the mapping.
+    pub(crate) fn get_partner(&self, value_id: &ValueId) -> Option<ValueId> {
+        self.coalesced.get(value_id).or_else(|| self.coalesced_reverse.get(value_id)).copied()
     }
 
     #[cfg(test)]

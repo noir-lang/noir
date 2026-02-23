@@ -3992,8 +3992,10 @@ name = "noirc_evaluator"
 version = "1.0.0-beta.19"
 dependencies = [
  "acvm",
+ "acvm_blackbox_solver",
  "arbtest",
  "bn254_blackbox_solver",
+ "brillig_vm",
  "cfg-if",
  "chrono",
  "fm",

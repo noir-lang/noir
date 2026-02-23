@@ -445,9 +445,14 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 let is_global = dfg.is_global(*dead_variable);
                 let is_hoisted_global = self.get_hoisted_global(dfg, *dead_variable).is_some();
                 let not_global = !is_global && !is_hoisted_global;
-                if not_global && self.function_context.coalescing.is_coalesced(dead_variable) {
-                    // Coalesced arguments share a register with the block parameter,
-                    // so we must not deallocate the register when the argument dies.
+                if not_global
+                    && let Some(partner) =
+                        self.function_context.coalescing.get_partner(dead_variable)
+                    && self.variables.is_allocated(&partner)
+                {
+                    // This value shares a register with a coalescing partner that is
+                    // still alive. We must not deallocate the register yet; it will
+                    // be freed when the partner dies (or at block boundary cleanup).
                     self.variables.remove_variable_without_dealloc(dead_variable);
                 } else if not_global {
                     self.variables.remove_variable(
