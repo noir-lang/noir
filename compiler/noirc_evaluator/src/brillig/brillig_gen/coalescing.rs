@@ -157,7 +157,9 @@ impl CoalescingMap {
         Self { coalesced, coalesced_reverse }
     }
 
-    /// Look up whether `value_id` has been coalesced with a partner.
+    /// Forward-only lookup: if `value_id` is a coalesced arg, returns the param
+    /// whose register it reuses. Used when defining a variable to check whether
+    /// it should share an already-allocated param's register.
     pub(crate) fn get_coalesced(&self, value_id: &ValueId) -> Option<ValueId> {
         self.coalesced.get(value_id).copied()
     }
@@ -168,9 +170,10 @@ impl CoalescingMap {
         self.coalesced.contains_key(value_id)
     }
 
-    /// Get the coalescing partner of `value_id`, regardless of direction.
-    /// Returns the partner if `value_id` participates in coalescing as either
-    /// the source (key) or target (value) of the mapping.
+    /// Bidirectional lookup: returns the coalescing partner of `value_id`,
+    /// regardless of whether it is the arg or the param in the pair. Used when
+    /// a value dies to check whether its partner is still alive and sharing
+    /// the same register.
     pub(crate) fn get_partner(&self, value_id: &ValueId) -> Option<ValueId> {
         self.coalesced.get(value_id).or_else(|| self.coalesced_reverse.get(value_id)).copied()
     }
@@ -248,9 +251,9 @@ mod tests {
         assert_eq!(coalescing.get_coalesced(&arg), Some(param));
 
         // Check b2's jmp — constant arg should NOT be coalesced
-        let (arg, param) = get_jmp_pair(func, 2, 0);
+        let (arg, _param) = get_jmp_pair(func, 2, 0);
         assert!(!coalescing.is_coalesced(&arg));
-        assert!(!coalescing.is_coalesced(&param));
+        // Note: param (v3) IS coalesced — via b1's pair above — so we don't check it here.
 
         assert_eq!(coalescing.len(), 1);
     }
@@ -601,26 +604,19 @@ mod tests {
         // b1, arg 0: v2 -> v4. Not coalesced due to multi-predecessor.
         let (coalescing, ssa) = build_coalescing(src);
         let func = ssa.main();
-        let (arg, param) = get_jmp_pair(func, 1, 0);
+        let (arg, _param) = get_jmp_pair(func, 1, 0);
         assert!(
             !coalescing.is_coalesced(&arg),
             "v2 is cross-block, falls to param-side which requires single-predecessor"
         );
-        assert!(
-            !coalescing.is_coalesced(&param),
-            "param-side coalescing requires single-predecessor destination"
-        );
+        // Note: param (v4) IS coalesced — via b2's arg-side pair below — so we don't check it here.
+
         // b2, arg 0: v3 -> v4. v3 is defined in b2 (source block) so this is arg-side.
-        let (arg, param) = get_jmp_pair(func, 2, 0);
+        let (arg, _param) = get_jmp_pair(func, 2, 0);
         // Arg-side coalescing succeeds because v3 is not live-in to b3.
         assert!(
             coalescing.is_coalesced(&arg),
             "arg-side coalescing works even with multi-predecessor dest"
-        );
-        // Param v4 is not a coalescing key on the arg-side path.
-        assert!(
-            !coalescing.is_coalesced(&param),
-            "param-side coalescing requires single-predecessor destination"
         );
         assert_eq!(coalescing.len(), 1);
     }
