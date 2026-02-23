@@ -60,7 +60,7 @@ impl Ssa {
             }
 
             // Only inline functions within the Brillig weight budget
-            if callee.cost() > 50 {
+            if callee.cost() > MAX_SIMPLE_FUNCTION_WEIGHT / 2 {
                 return false;
             }
 
