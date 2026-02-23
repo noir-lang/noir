@@ -668,7 +668,9 @@ mod tests {
     }
 
     #[test]
-    fn simplifies_array_get_from_previous_array_set_with_make_array() {
+    fn does_not_simplify_array_get_from_previous_array_set_with_make_array() {
+        // As of https://github.com/noir-lang/noir/pull/11659, we no longer simplify array_gets from previous array_sets
+        // as the simplifier lacks predicate context.
         let src = "
         acir(inline) predicate_pure fn main f0 {
           b0():
