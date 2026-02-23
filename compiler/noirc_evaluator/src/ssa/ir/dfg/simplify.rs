@@ -133,26 +133,11 @@ pub(crate) fn simplify(
             }
         }
         Instruction::ArraySet { array: array_id, index: index_id, value, .. } => {
-            let array = dfg.get_array_constant(*array_id);
-            let index = dfg.get_numeric_constant(*index_id);
-            if let (Some((array, _element_type)), Some(index)) = (array, index) {
-                let index =
-                    index.try_to_u32().expect("Expected array index to fit in u32") as usize;
-
-                if index < array.len() {
-                    let elements = array.update(index, *value);
-                    let typ = dfg.type_of_value(*array_id);
-                    let instruction = Instruction::MakeArray { elements, typ };
-                    let new_array = dfg.insert_instruction_and_results(
-                        instruction,
-                        block,
-                        Option::None,
-                        call_stack,
-                    );
-                    return SimplifiedTo(new_array.first());
-                }
-            }
-
+            // Note: we intentionally do NOT fold constant-array ArraySet into MakeArray here.
+            // ArraySet is predicate-dependent (requires_acir_gen_predicate) and must act as a
+            // no-op when the side-effects predicate is false. Rewriting to MakeArray would
+            // unconditionally apply the write, erasing predicate dependence before ACIR lowering
+            // can enforce correct predicated semantics.
             try_optimize_array_set_from_previous_get(dfg, *array_id, *index_id, *value)
         }
         Instruction::Truncate { value, bit_size, max_bit_size } => {
@@ -700,8 +685,9 @@ mod tests {
         acir(inline) predicate_pure fn main f0 {
           b0():
             v2 = make_array [Field 2, Field 3] : [Field; 2]
-            v4 = make_array [Field 4, Field 3] : [Field; 2]
-            return Field 4, Field 3
+            v5 = array_set mut v2, index u32 0, value Field 4
+            v6 = array_get v5, index u32 0 -> Field
+            return v6, Field 3
         }
         ");
     }
@@ -746,5 +732,48 @@ mod tests {
         ";
         let ssa = Ssa::from_str_simplifying(src).unwrap();
         assert_normalized_ssa_equals(ssa, src);
+    }
+
+    /// Regression test for NOIR-16: ArraySet on constant arrays must not be simplified
+    /// to MakeArray when the side-effects predicate may be false. The simplifier lacks
+    /// predicate context, so folding ArraySet to MakeArray erases predicate dependence
+    /// that ACIR lowering relies on.
+    #[test]
+    fn array_set_constant_folding_must_respect_side_effects_predicate() {
+        use crate::ssa::interpreter::value::Value;
+
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1):
+                v1 = make_array [Field 10, Field 11] : [Field; 2]
+                enable_side_effects v0
+                v2 = array_set v1, index u32 0, value Field 99
+                enable_side_effects u1 1
+                v3 = array_get v2, index u32 0 -> Field
+                return v3
+            }
+        ";
+
+        let unsimplified = Ssa::from_str(src).unwrap();
+        let simplified = Ssa::from_str_simplifying(src).unwrap();
+
+        // With side effects disabled (v0 = false), array_set is a no-op:
+        // both versions must return the original value (10).
+        let cond_false = vec![Value::bool(false)];
+        let unsimplified_result = unsimplified.interpret(cond_false.clone()).unwrap();
+        let simplified_result = simplified.interpret(cond_false).unwrap();
+        assert_eq!(
+            unsimplified_result, simplified_result,
+            "simplification must not change semantics when side effects are disabled"
+        );
+
+        // With side effects enabled (v0 = true), both versions should return 99.
+        let cond_true = vec![Value::bool(true)];
+        let unsimplified_result = unsimplified.interpret(cond_true.clone()).unwrap();
+        let simplified_result = simplified.interpret(cond_true).unwrap();
+        assert_eq!(
+            unsimplified_result, simplified_result,
+            "both versions must agree when side effects are enabled"
+        );
     }
 }
