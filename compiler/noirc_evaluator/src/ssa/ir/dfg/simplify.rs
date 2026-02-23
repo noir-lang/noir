@@ -133,11 +133,32 @@ pub(crate) fn simplify(
             }
         }
         Instruction::ArraySet { array: array_id, index: index_id, value, .. } => {
-            // Note: we intentionally do NOT fold constant-array ArraySet into MakeArray here.
-            // ArraySet is predicate-dependent (requires_acir_gen_predicate) and must act as a
-            // no-op when the side-effects predicate is false. Rewriting to MakeArray would
-            // unconditionally apply the write, erasing predicate dependence before ACIR lowering
-            // can enforce correct predicated semantics.
+            // For Brillig functions we can safely fold constant-array ArraySet into MakeArray
+            // since Brillig does not use side-effects predicates. For ACIR functions we must
+            // not fold because ArraySet is predicate-dependent (requires_acir_gen_predicate)
+            // and must act as a no-op when the predicate is false.
+            if dfg.runtime().is_brillig() {
+                let array = dfg.get_array_constant(*array_id);
+                let index = dfg.get_numeric_constant(*index_id);
+                if let (Some((array, _element_type)), Some(index)) = (array, index) {
+                    let index =
+                        index.try_to_u32().expect("Expected array index to fit in u32") as usize;
+
+                    if index < array.len() {
+                        let elements = array.update(index, *value);
+                        let typ = dfg.type_of_value(*array_id);
+                        let instruction = Instruction::MakeArray { elements, typ };
+                        let new_array = dfg.insert_instruction_and_results(
+                            instruction,
+                            block,
+                            Option::None,
+                            call_stack,
+                        );
+                        return SimplifiedTo(new_array.first());
+                    }
+                }
+            }
+
             try_optimize_array_set_from_previous_get(dfg, *array_id, *index_id, *value)
         }
         Instruction::Truncate { value, bit_size, max_bit_size } => {
@@ -668,9 +689,9 @@ mod tests {
     }
 
     #[test]
-    fn does_not_simplify_array_get_from_previous_array_set_with_make_array() {
-        // As of https://github.com/noir-lang/noir/pull/11659, we no longer simplify array_gets from previous array_sets
-        // as the simplifier lacks predicate context.
+    fn does_not_simplify_acir_array_set_to_make_array() {
+        // For ACIR functions, ArraySet must not be folded to MakeArray because
+        // ArraySet is predicate-dependent and the simplifier lacks predicate context.
         let src = "
         acir(inline) predicate_pure fn main f0 {
           b0():
@@ -690,6 +711,32 @@ mod tests {
             v5 = array_set mut v2, index u32 0, value Field 4
             v6 = array_get v5, index u32 0 -> Field
             return v6, Field 3
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_brillig_array_set_to_make_array() {
+        // For Brillig functions, ArraySet on constant arrays can safely be folded
+        // to MakeArray since Brillig does not use side-effects predicates.
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = make_array [Field 2, Field 3] : [Field; 2]
+            v1 = array_set mut v0, index u32 0, value Field 4
+            v2 = array_get v1, index u32 0 -> Field
+            v3 = array_get v1, index u32 1 -> Field
+            return v2, v3
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            v2 = make_array [Field 2, Field 3] : [Field; 2]
+            v4 = make_array [Field 4, Field 3] : [Field; 2]
+            return Field 4, Field 3
         }
         ");
     }

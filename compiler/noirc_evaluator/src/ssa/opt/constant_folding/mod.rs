@@ -1697,7 +1697,7 @@ mod test {
             jmp b1(u32 0)
           b1(v1: u32):
             inc_rc v5
-            v8 = array_set v5, index u32 0, value u8 1
+            v8 = make_array [u8 1] : [u8; 1]
             v10 = lt v1, u32 5
             jmpif v10 then: b2, else: b6
           b2():
