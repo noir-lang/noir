@@ -1244,6 +1244,25 @@ impl Elaborator<'_> {
         let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::Cast);
         let r#type = self.resolve_type(cast.r#type, wildcard_allowed);
         let result = self.check_cast(&lhs, &lhs_type, &r#type, location);
+
+        // `Field as u1` is not supported directly by the backend. Insert an intermediate
+        // cast to u8 to transform it into: `(Field as u8) as u1`.
+        let lhs_could_be_field = match lhs_type.follow_bindings() {
+            Type::FieldElement => true,
+            Type::TypeVariable(ref var) => var.is_integer_or_field(),
+            _ => false,
+        };
+        let lhs = if lhs_could_be_field
+            && matches!(r#type, Type::Integer(Signedness::Unsigned, IntegerBitSize::One))
+        {
+            let u8_type = Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight);
+            let cast_to_u8 =
+                HirExpression::Cast(HirCastExpression { lhs, r#type: u8_type.clone() });
+            self.interner.push_expr_full(cast_to_u8, location, u8_type)
+        } else {
+            lhs
+        };
+
         let expr = HirExpression::Cast(HirCastExpression { lhs, r#type });
         (expr, result)
     }

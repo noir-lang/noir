@@ -994,9 +994,11 @@ impl<F: AcirField> AcirContext<F> {
             num_bits::<u128>() as u32 - a.leading_zeros()
         }
 
+        // When offset is 1, since 2^bits-1 > rhs-(lhs+1) >= 0 - (2^bits)
+        // We want that 2^bits-1 < p - 2^bits, i.e 2^(bits+1) < p+1, i.e bits + 1 < log2(p)
         assert!(
-            bits < F::max_num_bits(),
-            "range check with bit size >= the prime field size is not implemented yet"
+            bits + 1 < F::max_num_bits(),
+            "range check with bit size >= the prime field size -1 is not implemented yet"
         );
 
         // If `rhs` is a constant, we can try to optimize the operation by shifting `lhs + offset` such that if
