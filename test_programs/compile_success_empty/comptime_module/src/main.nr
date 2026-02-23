@@ -66,7 +66,7 @@ comptime fn add_function(m: Module) {
 fn main() {
     let _ = foo::Struct1 {};
 
-    comptime {
+    let final_counter_value = comptime {
         // Check Module::is_contract
         let foo = quote { foo }.as_module().unwrap();
         assert(!foo.is_contract());
@@ -102,9 +102,10 @@ fn main() {
         assert(foo.has_named_attribute("outer_attribute"));
         assert(!bar.has_named_attribute("some_attribute"));
         assert(another_module.has_named_attribute("some_attribute"));
-    }
+        counter
+    };
 
-    assert_eq(counter, 4);
+    assert_eq(final_counter_value, 4);
 
     yet_another_module::generated_outer_function();
     yet_another_module::generated_inner_function();

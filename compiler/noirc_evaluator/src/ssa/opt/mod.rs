@@ -4,6 +4,7 @@
 //! simpler form until the IR only has a single function remaining with 1 block within it.
 //! Generally, these passes are also expected to minimize the final amount of instructions.
 
+mod array_get;
 mod array_set;
 mod as_vector_length;
 mod basic_conditional;
@@ -43,8 +44,12 @@ mod simple_optimization;
 mod simplify_cfg;
 mod unrolling;
 
+pub(crate) use array_get::{
+    ArrayGetOptimizationResult, ArrayGetOptimizationSideEffects,
+    try_optimize_array_get_from_previous_instructions,
+};
 pub use constant_folding::DEFAULT_MAX_ITER as CONSTANT_FOLDING_MAX_ITER;
-pub use inlining::MAX_INSTRUCTIONS as INLINING_MAX_INSTRUCTIONS;
+pub use inlining::MAX_SIMPLE_FUNCTION_WEIGHT as INLINING_MAX_INSTRUCTIONS;
 pub use unrolling::FORCE_UNROLL_THRESHOLD;
 pub(crate) use unrolling::{LoopOrder, Loops};
 

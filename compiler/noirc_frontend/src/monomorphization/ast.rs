@@ -75,11 +75,15 @@ impl Expression {
                 Literal::Bool(_) => borrowed(&Type::Bool),
                 Literal::Unit => borrowed(&Type::Unit),
                 Literal::Str(s) => owned(Type::String(s.len() as u32)),
-                Literal::FmtStr(_, size, expr) => expr.return_type().and_then(|typ| {
+                Literal::FmtStr(_, size, expr) => {
+                    let typ = expr.return_type()?;
                     owned(Type::FmtString(*size as u32, Box::new(typ.into_owned())))
-                }),
+                }
             },
-            Expression::Block(xs) => xs.last().and_then(|x| x.return_type()),
+            Expression::Block(xs) => {
+                let x = xs.last()?;
+                x.return_type()
+            }
             Expression::Unary(unary) => borrowed(&unary.result_type),
             Expression::Binary(binary) => {
                 if binary.operator.is_comparator() {

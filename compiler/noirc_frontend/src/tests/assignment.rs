@@ -33,7 +33,7 @@ fn mutate_in_lvalue_block_expr() {
     insta::assert_snapshot!(expanded, @r"
     fn main() {
         mutate_in_lvalue();
-        ()
+        ();
     }
     
     fn mutate_in_lvalue() {

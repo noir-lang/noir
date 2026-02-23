@@ -495,11 +495,13 @@ pub struct FunctionDefinition {
     pub where_clause: Vec<UnresolvedTraitConstraint>,
     pub return_type: FunctionReturnType,
     pub return_visibility: Visibility,
+    pub return_visibility_location: Location,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Param {
     pub visibility: Visibility,
+    pub visibility_location: Location,
     pub pattern: Pattern,
     pub typ: UnresolvedType,
     pub location: Location,
@@ -854,6 +856,7 @@ impl FunctionDefinition {
             .iter()
             .map(|(ident, unresolved_type)| Param {
                 visibility: Visibility::Private,
+                visibility_location: Location::dummy(),
                 pattern: Pattern::Identifier(ident.clone()),
                 typ: unresolved_type.clone(),
                 location: ident.location().merge(unresolved_type.location),
@@ -873,18 +876,21 @@ impl FunctionDefinition {
             where_clause,
             return_type: return_type.clone(),
             return_visibility: Visibility::Private,
+            return_visibility_location: Location::dummy(),
         }
     }
 
     pub fn signature(&self) -> String {
-        let parameters =
-            vecmap(&self.parameters, |Param { visibility, pattern, typ, location: _ }| {
-                if *visibility == Visibility::Public {
+        let parameters = vecmap(
+            &self.parameters,
+            |Param { visibility, visibility_location: _, pattern, typ, location: _ }| {
+                if matches!(visibility, Visibility::Public) {
                     format!("{pattern}: {visibility} {typ}")
                 } else {
                     format!("{pattern}: {typ}")
                 }
-            });
+            },
+        );
 
         let where_clause = vecmap(&self.where_clause, ToString::to_string);
         let where_clause_str = if !where_clause.is_empty() {

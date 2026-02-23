@@ -292,6 +292,9 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             moves.push((arg_reg, param_reg));
         }
 
+        // Filter out self-moves (e.g. from coalesced args that already share the param register).
+        moves.retain(|(src, dst)| src != dst);
+
         // Block parameter assignments at a jmp must happen "simultaneously".
         // A naive sequential loop can lose values when a source register
         // is overwritten by an earlier move in the same batch. For example, with:
@@ -354,6 +357,9 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             let arg_reg = self.convert_ssa_value(*arg, dfg).extract_register();
             moves.push((arg_reg, param_reg));
         }
+
+        // Filter out self-moves (e.g. from coalesced args that already share the param register).
+        moves.retain(|(src, dst)| src != dst);
 
         // Block parameter assignments at a jmp must happen "simultaneously".
         // A naive sequential loop can lose values when a source register
@@ -518,12 +524,23 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 // Globals are reserved throughout the entirety of the program
                 let is_global = dfg.is_global(*dead_variable);
                 let is_hoisted_global = self.get_hoisted_global(dfg, *dead_variable).is_some();
-                if !is_global && !is_hoisted_global {
-                    self.variables.remove_variable(
-                        dead_variable,
-                        self.function_context,
-                        self.brillig_context,
-                    );
+                let not_global = !is_global && !is_hoisted_global;
+                if not_global {
+                    if let Some(partner) =
+                        self.function_context.coalescing.get_partner(dead_variable)
+                        && self.variables.is_allocated(&partner)
+                    {
+                        // This value shares a register with a coalescing partner that is
+                        // still alive. We must not deallocate the register yet; it will
+                        // be freed when the partner dies (or at block boundary cleanup).
+                        self.variables.remove_variable_without_dealloc(dead_variable);
+                    } else {
+                        self.variables.remove_variable(
+                            dead_variable,
+                            self.function_context,
+                            self.brillig_context,
+                        );
+                    }
                 }
             }
         }

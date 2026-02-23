@@ -5,6 +5,7 @@ mod brillig_call;
 pub(crate) mod brillig_fn;
 pub(crate) mod brillig_globals;
 mod brillig_instructions;
+mod coalescing;
 pub(crate) mod constant_allocation;
 #[cfg(test)]
 mod tests;
@@ -148,7 +149,7 @@ mod entry_point {
         assert_artifact_snapshot!(entry, @r"
         fn main
          0: @2 = const u32 1
-         1: @1 = const u32 65607
+         1: @1 = const u32 32839
          2: @0 = const u32 71
          3: call 16
          4: sp[3] = const u32 2
@@ -171,7 +172,7 @@ mod entry_point {
         21: call 30
         22: sp[1] = sp[3]
         23: return
-        24: @4 = const u32 61511
+        24: @4 = const u32 30791
         25: @3 = u32 lt @0, @4
         26: jump if @3 to 29
         27: @1 = indirect const u64 15764276373176857197
