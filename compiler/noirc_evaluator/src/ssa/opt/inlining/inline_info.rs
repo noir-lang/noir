@@ -66,7 +66,7 @@ impl InlineInfo {
 pub(crate) type InlineInfos = BTreeMap<FunctionId, InlineInfo>;
 
 /// Build a map from function ID to body weight for all functions that will be inlined.
-/// This is used by the unroller to estimate the true cost of call instructions
+/// This is used by loop unrolling to estimate the true cost of call instructions
 /// to functions that will be inlined (instead of using call overhead as the cost).
 pub(crate) fn inlineable_callee_costs(
     infos: &InlineInfos,
