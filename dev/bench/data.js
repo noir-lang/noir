@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771625620618,
+  "lastUpdate": 1771839349872,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23166,48 +23166,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "33ebdadc7a27f0f7573b47400ad5c546df91adcf",
-          "message": "fix: deduce function is unconstrained from FuncMeta type (#11534)",
-          "timestamp": "2026-02-11T17:23:25Z",
-          "tree_id": "5b12dc95cc0398be470838dabb2889f03f02df39",
-          "url": "https://github.com/noir-lang/noir/commit/33ebdadc7a27f0f7573b47400ad5c546df91adcf"
-        },
-        "date": 1770832046870,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 236849,
-            "range": "± 831",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 210597,
-            "range": "± 1929",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2201746,
-            "range": "± 1256",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -25259,6 +25217,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2723080,
             "range": "± 1402",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "33665e96fd02119a8cb2d5706ceb73a30775d8eb",
+          "message": "chore: harden brillig outputs (#11647)",
+          "timestamp": "2026-02-23T09:12:55Z",
+          "tree_id": "03ba7f5a12011b273314fe4d58d9d2c6eec96eee",
+          "url": "https://github.com/noir-lang/noir/commit/33665e96fd02119a8cb2d5706ceb73a30775d8eb"
+        },
+        "date": 1771839303387,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249970,
+            "range": "± 670",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 223602,
+            "range": "± 8920",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2732231,
+            "range": "± 3238",
             "unit": "ns/iter"
           }
         ]
