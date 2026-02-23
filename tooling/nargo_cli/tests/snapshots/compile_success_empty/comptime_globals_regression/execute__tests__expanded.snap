@@ -7,10 +7,10 @@ comptime mut global COUNTER: Field = 2;
 fn main() {
     ();
     ();
-    assert(get_counter() == 2_Field);
+    ()
 }
 
-fn get_counter() -> Field {
+comptime fn get_counter() -> Field {
     COUNTER
 }
 

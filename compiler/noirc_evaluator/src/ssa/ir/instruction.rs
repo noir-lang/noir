@@ -855,6 +855,13 @@ impl Instruction {
             Instruction::Noop => (),
         }
     }
+
+    /// Returns true if any value in this instruction satisfies the predicate.
+    pub(crate) fn any_value(&self, mut f: impl FnMut(ValueId) -> bool) -> bool {
+        let mut found = false;
+        self.for_each_value(|v| found |= f(v));
+        found
+    }
 }
 
 /// Determines whether an ArrayGet or ArraySet index has been shifted by a given value.
@@ -1072,6 +1079,13 @@ impl TerminatorInstruction {
             }
             Unreachable { .. } => (),
         }
+    }
+
+    /// Returns true if any value in this terminator satisfies the predicate.
+    pub(crate) fn any_value(&self, mut f: impl FnMut(ValueId) -> bool) -> bool {
+        let mut found = false;
+        self.for_each_value(|v| found |= f(v));
+        found
     }
 
     /// Apply a function to each value along with its index

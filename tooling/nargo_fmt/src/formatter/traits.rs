@@ -91,6 +91,7 @@ impl Formatter<'_> {
                     .into_iter()
                     .map(|(name, typ)| Param {
                         visibility: Visibility::Private,
+                        visibility_location: Location::dummy(),
                         pattern: Pattern::Identifier(name),
                         typ,
                         location: Location::dummy(), // Doesn't matter
