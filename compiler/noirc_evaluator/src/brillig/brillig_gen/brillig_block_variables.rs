@@ -114,7 +114,7 @@ impl BlockVariables {
         function_context: &FunctionContext,
         brillig_context: &BrilligContext<FieldElement, Registers>,
     ) {
-        assert!(self.available_variables.remove(value_id), "ICE: Variable is not available");
+        self.mark_unavailable(value_id);
 
         // Do not remove the allocation, just get it so we can mark it as free in memory.
         let variable = function_context
