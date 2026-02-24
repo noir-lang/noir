@@ -159,7 +159,7 @@ impl SpillManager {
         offset: usize,
         variable: BrilligVariable,
     ) {
-        assert!(!self.is_spilled(&value_id), "Double-spill of {value_id:?}");
+        assert!(!self.is_spilled(&value_id), "Double-spill of {value_id}");
         let record = self.records.entry(value_id).or_insert(SpillRecord {
             offset,
             variable,
@@ -434,5 +434,64 @@ mod tests {
         sm.remove_spill(&v0);
         assert!(!sm.is_spilled(&v0));
         assert!(sm.free_spill_slots.is_empty());
+    }
+
+    #[test]
+    #[should_panic(expected = "Transient spill leaked across block boundary")]
+    fn begin_block_panics_on_transient_spill_leak() {
+        let mut sm = SpillManager::new();
+        let v0 = Id::test_new(0);
+
+        // Record a transient spill (not permanent), leave it currently spilled
+        let off = sm.allocate_spill_offset();
+        sm.record_spill(v0, off, test_var(0));
+
+        // begin_block should panic because a transient spill is still active
+        let mut live_in = rustc_hash::FxHashSet::default();
+        sm.begin_block(&mut live_in);
+    }
+
+    #[test]
+    #[should_panic(expected = "Double-spill")]
+    fn record_spill_panics_on_double_spill() {
+        let mut sm = SpillManager::new();
+        let v0 = Id::test_new(0);
+
+        let off = sm.allocate_spill_offset();
+        sm.record_spill(v0, off, test_var(0));
+
+        // Attempting to spill v0 again without unmark/remove should panic
+        let off2 = sm.allocate_spill_offset();
+        sm.record_spill(v0, off2, test_var(0));
+    }
+
+    #[test]
+    #[should_panic(expected = "Cannot promote a non-spilled value to permanent")]
+    fn promote_panics_on_non_spilled_value() {
+        let mut sm = SpillManager::new();
+        let v0 = Id::test_new(0);
+
+        // Record a transient spill, then unmark it (simulating a reload)
+        let off = sm.allocate_spill_offset();
+        sm.record_spill(v0, off, test_var(0));
+        sm.unmark_spilled(&v0);
+
+        // Promoting a non-spilled value should panic
+        sm.promote_to_permanent(&v0);
+    }
+
+    #[test]
+    #[should_panic(expected = "Can only re-mark permanent spills")]
+    fn re_mark_panics_on_transient_record() {
+        let mut sm = SpillManager::new();
+        let v0 = Id::test_new(0);
+
+        // Record a transient spill, then unmark it (simulating a reload)
+        let off = sm.allocate_spill_offset();
+        sm.record_spill(v0, off, test_var(0));
+        sm.unmark_spilled(&v0);
+
+        // Re-marking a transient (non-permanent) record should panic
+        sm.re_mark_as_spilled(&v0);
     }
 }
