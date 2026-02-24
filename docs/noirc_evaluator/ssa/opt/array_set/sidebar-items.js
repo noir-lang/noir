@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["array_set_optimization_post_check","array_set_optimization_pre_check","make_mutable"],"struct":["Context"]};
