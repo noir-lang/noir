@@ -283,10 +283,21 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         new_var
     }
 
-    /// Store non-param live-in values of `destination` into permanent spill
-    /// slots. Uses only scratch registers (no register pressure concern).
-    /// The destination's block will see them as spilled via
-    /// the spiller manager and is responsible for emitting reload code.
+    /// Permanently spill non-param values that are live-in to `destination`.
+    ///
+    /// Block parameters are handled separately by [Self::convert_block_params], which
+    /// eagerly spills successor params at definition time (before any Jmp writes
+    /// to them). This method handles the remaining cross-block values — those
+    /// defined in a dominating block that are still live at `destination`.
+    ///
+    /// Together, these two mechanisms ensure that ALL cross-block values go
+    /// through permanent spill slots when spilling is enabled. This is a
+    /// deliberate simplification: rather than tracking which specific values
+    /// could stay in registers across block boundaries (which would require a
+    /// full textbook pre-pass register allocator), we spill everything and let the destination
+    /// block reload on demand. Intra-block register pressure is still managed by LRU eviction.
+    ///
+    /// Our plans for a full register allocator can be found at https://github.com/noir-lang/noir/issues/11638.
     fn spill_non_param_live_ins(&mut self, destination: BasicBlockId, dfg: &DataFlowGraph) {
         if !self.spill_enabled() {
             return;
@@ -303,14 +314,13 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
             let sm = self.function_context.spill_manager.as_mut().unwrap();
 
-            // Already permanently tracked and currently spilled — slot has correct data
+            // Already permanently tracked and currently spilled. The slot has correct data.
             if sm.has_permanent_slot(&value_id) && sm.is_spilled(&value_id) {
                 continue;
             }
 
             // If currently spilled (register was freed/reused) but not yet permanent,
-            // promote the existing spill slot to permanent. No store needed — data is
-            // already in the slot.
+            // promote the existing spill slot to permanent. The data is already in the slot.
             if sm.is_spilled(&value_id) {
                 sm.promote_to_permanent(&value_id);
                 continue;
@@ -335,7 +345,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             // Free the register: the value is now safely in the spill slot.
             // Without this, the register stays allocated but the value is marked
             // as spilled — `lru_victim()` can't reclaim it, creating "phantom"
-            // allocations that exhaust the register file.
+            // allocations that exhaust the register space.
             // If the value is needed later (e.g., as a Jmp argument),
             // `convert_ssa_value` will see it's spilled and reload on demand.
             self.brillig_context.deallocate_register(source_reg);
@@ -442,11 +452,18 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 else_destination,
                 call_stack: _,
             } => {
-                // Store non-param live-ins BEFORE converting the condition to avoid
-                // register overwrites. Both branches' stores execute unconditionally
-                // (only one branch is taken at runtime). The then/else live-in sets
+                // Permanently spill non-param live-ins of BOTH branches BEFORE
+                // converting the condition. The condition conversion may reload a
+                // spilled value, overwriting a register that holds a live-in we
+                // still need to store.
+                //
+                // Both branches' stores execute unconditionally
+                // (only one branch is taken at runtime) but the then/else live-in sets
                 // may overlap. `spill_non_param_live_ins` handles this by skipping
                 // values that already have a permanent spill slot.
+                // Parameters are not spilled here — they are eagerly spilled in
+                // `convert_block_params` and written to their spill slots by the
+                // predecessor's terminator.
                 self.spill_non_param_live_ins(*then_destination, dfg);
                 self.spill_non_param_live_ins(*else_destination, dfg);
                 let condition = self.convert_ssa_single_addr_value(*condition, dfg);
@@ -459,8 +476,11 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 );
             }
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
-                // Store non-param live-ins BEFORE the arg/param parallel moves
-                // to avoid register overwrites.
+                // Permanently spill non-param live-ins BEFORE the arg/param parallel moves.
+                // The parallel moves may overwrite registers that hold values
+                // we need to store to spill slots. By spilling first, we guarantee
+                // the stores read correct register values.
+                // Parameters are not spilled here. They are eagerly spilled at the beginnig of a block's code gen.
                 self.spill_non_param_live_ins(*destination, dfg);
                 let destination_block = &dfg[*destination];
                 let mut moves: Vec<(MemoryAddress, MemoryAddress)> = Vec::new();
