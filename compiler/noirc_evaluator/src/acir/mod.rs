@@ -358,10 +358,9 @@ impl<'a> Context<'a> {
         params: &[ValueId],
         dfg: &DataFlowGraph,
     ) -> Result<Vec<Witness>, RuntimeError> {
-        // We treat the current witness index as the first parameter, but this is only correct
-        // if we haven't created a witness yet, otherwise it would reuse the last witness.
+        // The start witness would be the *next* witness, if we created one.
         let start_witness = match self.acir_context.current_witness_index() {
-            Some(existing) => panic!("ICE: There shouldn't be any witnesses yet; got {existing}"),
+            Some(last) => Witness(last.witness_index().checked_add(1).expect("too many witnesses")),
             None => Witness::default(),
         };
         for &param_id in params {
@@ -389,6 +388,7 @@ impl<'a> Context<'a> {
             }
             self.ssa_values.insert(param_id, value);
         }
+        // Check if we have generated any witnesses.
         let Some(end_witness) = self.acir_context.current_witness_index() else {
             return Ok(Vec::new());
         };
