@@ -306,7 +306,13 @@ pub fn validate_witness<F: AcirField>(
                             &witness_map,
                             inputs,
                         )?;
-
+                        assert_eq!(
+                            outputs.len(),
+                            state.len(),
+                            "Poseidon2 opcode violation: expected {} but found {} results",
+                            state.len(),
+                            outputs.len()
+                        );
                         for (output_witness, value) in outputs.iter().zip(state.into_iter()) {
                             let witness_value = witness_map
                                 .get(output_witness)
