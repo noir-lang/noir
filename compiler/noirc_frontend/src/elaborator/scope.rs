@@ -5,15 +5,12 @@ use crate::elaborator::path_resolution::PathResolution;
 use crate::elaborator::patterns::Variable;
 use crate::hir::def_map::ModuleId;
 
-use crate::hir::scope::{Scope as GenericScope, ScopeTree as GenericScopeTree};
+use crate::hir::scope::ScopeTree as GenericScopeTree;
 use crate::node_interner::{DefinitionKind, TypeAliasId};
 use crate::{
     DataType, Shared,
     hir::resolution::errors::ResolverError,
-    hir_def::{
-        expr::{HirCapturedVar, HirIdent},
-        traits::Trait,
-    },
+    hir_def::{expr::HirCapturedVar, traits::Trait},
     node_interner::{DefinitionId, TraitId, TypeId},
 };
 use crate::{Type, TypeAlias};
@@ -21,7 +18,6 @@ use crate::{Type, TypeAlias};
 use super::path_resolution::{PathResolutionItem, PathResolutionMode, TypedPath};
 use super::{Elaborator, PathResolutionTarget, ResolverMeta};
 
-type Scope = GenericScope<String, ResolverMeta>;
 type ScopeTree = GenericScopeTree<String, ResolverMeta>;
 
 /// The result of [`Elaborator::lookup_item_as_value`].
@@ -174,30 +170,21 @@ impl Elaborator<'_> {
     }
 
     pub fn check_for_unused_variables_in_scope_tree(&mut self, scope_decls: &ScopeTree) {
-        let mut unused_vars = Vec::new();
         for scope in scope_decls.0.iter() {
-            Self::check_for_unused_variables_in_local_scope(scope, &mut unused_vars);
-        }
+            for (variable_name, metadata) in scope.iter() {
+                if !metadata.warn_if_unused || metadata.used || variable_name.starts_with('_') {
+                    continue;
+                }
 
-        for unused_var in unused_vars.iter() {
-            let definition_info = self.interner.definition(unused_var.id);
-            let name = &definition_info.name;
-            if name != ERROR_IDENT && !definition_info.is_global() {
-                let ident = Ident::new(name.to_owned(), unused_var.location);
-                self.push_err(ResolverError::UnusedVariable { ident });
+                let unused_var = &metadata.ident;
+                let definition_info = self.interner.definition(unused_var.id);
+                let name = &definition_info.name;
+                if name != ERROR_IDENT && !definition_info.is_global() {
+                    let ident = Ident::new(name.to_owned(), unused_var.location);
+                    self.push_err(ResolverError::UnusedVariable { ident });
+                }
             }
         }
-    }
-
-    fn check_for_unused_variables_in_local_scope(
-        decl_map: &Scope,
-        unused_vars: &mut Vec<HirIdent>,
-    ) {
-        let unused_variables = decl_map.filter(|(variable_name, metadata)| {
-            let has_underscore_prefix = variable_name.starts_with('_'); // XXX: This is used for development mode, and will be removed
-            metadata.warn_if_unused && !metadata.used && !has_underscore_prefix
-        });
-        unused_vars.extend(unused_variables.map(|(_, meta)| meta.ident.clone()));
     }
 
     pub fn check_for_unnecessary_mut_variables_in_scope_tree(&mut self, scope_decls: &ScopeTree) {
