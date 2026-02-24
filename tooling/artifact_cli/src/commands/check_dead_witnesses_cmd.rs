@@ -270,7 +270,7 @@ fn show_dead_abi_parameter_type_status(status: &AbiParameterTypeStatus, path: &m
                 );
             } else {
                 for (index, typ) in tuple.types.iter().enumerate() {
-                    path.push(format!("[{index}]"));
+                    path.push(format!(".{index}"));
                     show_dead_abi_parameter_type_status(typ, path);
                     path.pop();
                 }
