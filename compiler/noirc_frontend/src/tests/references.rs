@@ -1,7 +1,8 @@
 use crate::{
     elaborator::UnstableFeature,
     tests::{
-        assert_no_errors, check_errors, check_monomorphization_error, get_program_using_features,
+        assert_no_errors, check_errors, check_errors_using_features, check_monomorphization_error,
+        get_program_using_features,
     },
 };
 
@@ -204,4 +205,30 @@ fn mutable_reference_behind_generics_returned_from_oracle() {
     ) -> fn[Env](Field) -> () {}
     "#;
     check_monomorphization_error(src);
+}
+
+#[test]
+fn disallows_mutating_non_mutable_ref_member_access() {
+    let src = r#"
+    fn main() {
+        let s = (0,);
+        let ps = &s;
+        ps.0 = 1;
+        ^^ Variable `ps` must be mutable to be assigned to
+    }
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+}
+
+#[test]
+fn disallows_mutating_non_mutable_ref_array_index() {
+    let src = r#"
+    fn main() {
+        let s = [0];
+        let ps = &s;
+        ps[0] = 1;
+        ^^ Variable `ps` must be mutable to be assigned to
+    }
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::Ownership]);
 }

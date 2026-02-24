@@ -491,7 +491,7 @@ impl Elaborator<'_> {
                 let object_ref = &mut object;
                 let mutable_ref = &mut mutable;
 
-                let dereference_lhs = move |_: &mut Self, _, element_type| {
+                let dereference_lhs = move |_: &mut Self, _, element_type, is_mutable| {
                     // We must create a temporary value first to move out of object_ref before
                     // we eventually reassign to it.
                     let tmp_value = HirLValue::Error { location };
@@ -503,7 +503,7 @@ impl Elaborator<'_> {
                         location,
                         implicitly_added: true,
                     };
-                    *mutable_ref = true;
+                    *mutable_ref |= is_mutable;
                 };
 
                 let name = field_name.as_str();
@@ -550,7 +550,7 @@ impl Elaborator<'_> {
 
                 // Before we check that the lvalue is an array, try to dereference it as many times
                 // as needed to unwrap any `&` or `&mut` wrappers.
-                while let Type::Reference(element, _) = lvalue_type.follow_bindings() {
+                while let Type::Reference(element, is_mutable) = lvalue_type.follow_bindings() {
                     let element_type = element.as_ref().clone();
                     lvalue = HirLValue::Dereference {
                         lvalue: Box::new(lvalue),
@@ -559,8 +559,8 @@ impl Elaborator<'_> {
                         implicitly_added: true,
                     };
                     lvalue_type = *element;
-                    // We know this value to be mutable now since we found an `&mut`
-                    mutable = true;
+                    // We know this value to be mutable now if we found an `&mut`
+                    mutable |= is_mutable;
                 }
 
                 let typ = match lvalue_type.follow_bindings() {
