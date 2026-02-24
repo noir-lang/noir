@@ -1262,6 +1262,17 @@ pub fn collect_struct(
 
     let parent_module_id = ModuleId { krate, local_id: module_id };
 
+    // ABI attributes are only meaningful within contracts, so error if used elsewhere.
+    if !def_map[module_id].is_contract {
+        for attr in &unresolved.struct_def.attributes {
+            if matches!(attr.kind, SecondaryAttributeKind::Abi(_)) {
+                definition_errors.push(
+                    ResolverError::AbiAttributeOutsideContract { location: attr.location }.into(),
+                );
+            }
+        }
+    }
+
     let has_allow_dead_code =
         unresolved.struct_def.attributes.iter().any(|attr| attr.kind.is_allow("dead_code"));
 

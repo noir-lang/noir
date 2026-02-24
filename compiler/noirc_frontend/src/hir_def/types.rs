@@ -2658,8 +2658,13 @@ impl Type {
         }
 
         let recur_on_binding = |id, replacement: &Type| {
-            // Prevent recurring forever if there's a `T := T` binding
-            if replacement.type_variable_id() == Some(id) {
+            // Prevent recurring forever if there's a `T := T` binding.
+            // Following bindings to the next unbound type variable, or non-type-variable,
+            // because a type variable can be bound to a named generic which does have a replacement,
+            // in which case we can end up with an infinite loop like this:
+            // '1 is replaced by '2, where '2 is bound to T'1, which then looks again for the replacement of '1.
+            // By following the '2 to T'1 and seeing '1, we recognize that we would replace with self.
+            if replacement.follow_bindings_shallow().type_variable_id() == Some(id) {
                 replacement.clone()
             } else {
                 replacement.substitute_helper(type_bindings, substitute_bound_typevars)

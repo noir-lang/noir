@@ -191,7 +191,7 @@ fn function_with_error_called_from_comptime_global() {
         comptime global X: Field = bad();
 
         fn main() {
-            let _ = X;
+            let _ = comptime { X };
         }
         ";
     check_errors(src);
@@ -372,7 +372,7 @@ fn function_with_error_in_local_comptime_variable() {
 
         fn main() {
             comptime let _x = bad();
-            assert_eq(FLAG, false); 
+            assert_eq(comptime { FLAG }, false); 
         }
         ";
     check_errors(src);

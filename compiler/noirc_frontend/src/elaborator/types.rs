@@ -37,7 +37,6 @@ use crate::{
         DependencyId, ExprId, FuncId, GlobalValue, TraitId, TraitImplKind, TraitItemId,
     },
     shared::Signedness,
-    token::SecondaryAttributeKind,
 };
 
 use super::{
@@ -419,19 +418,6 @@ impl Elaborator<'_> {
                     });
 
                     return Type::Error;
-                }
-
-                if !self.in_contract()
-                    && self
-                        .interner
-                        .type_attributes(&data_type.borrow().id)
-                        .iter()
-                        .any(|attr| matches!(attr.kind, SecondaryAttributeKind::Abi(_)))
-                {
-                    self.push_err(ResolverError::AbiAttributeOutsideContract {
-                        location: data_type.borrow().name.location(),
-                        usage_location: Some(path.location),
-                    });
                 }
 
                 let (args, _) = self.resolve_type_args_inner(

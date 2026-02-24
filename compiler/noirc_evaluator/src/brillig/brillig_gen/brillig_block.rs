@@ -309,6 +309,9 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
         for value_id in live_in_no_globals {
             if dest_params.contains(&value_id) {
+                // Parameters are eagerly spilled in `convert_block_params` at
+                // definition time. Their spill slots are written by each terminator (see `convert_ssa_terminator`).
+                // Skip them here.
                 continue;
             }
 
@@ -519,6 +522,9 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 //      2. mov reg(v3), reg(v2) — reads the NEW v2 instead of old
                 // To prevent this, we save any source that would be overwritten into a
                 // temporary first.
+                // Filter out self-moves (e.g. from coalesced args that already share the param register).
+                moves.retain(|(src, dst)| src != dst);
+
                 let dest_set: HashSet<MemoryAddress> = moves.iter().map(|(_, d)| *d).collect();
                 // `Allocated` automatically deallocates the register when dropped,
                 // so we collect the temporaries here to keep them alive until all
@@ -698,7 +704,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 // Globals are reserved throughout the entirety of the program
                 let is_global = dfg.is_global(*dead_variable);
                 let is_hoisted_global = self.get_hoisted_global(dfg, *dead_variable).is_some();
-                if !is_global && !is_hoisted_global {
+                let not_global = !is_global && !is_hoisted_global;
+                if not_global {
                     if self.is_spilled(dead_variable) {
                         // Spilled: register was already freed. Just clean up tracking.
                         let sm = self.function_context.spill_manager.as_mut().unwrap();
@@ -710,6 +717,14 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                         if self.variables.is_allocated(dead_variable) {
                             self.variables.mark_unavailable(dead_variable);
                         }
+                    } else if let Some(partner) =
+                        self.function_context.coalescing.get_partner(dead_variable)
+                        && self.variables.is_allocated(&partner)
+                    {
+                        // This value shares a register with a coalescing partner that is
+                        // still alive. We must not deallocate the register yet; it will
+                        // be freed when the partner dies (or at block boundary cleanup).
+                        self.variables.remove_variable_without_dealloc(dead_variable);
                     } else {
                         self.variables.remove_variable(
                             dead_variable,

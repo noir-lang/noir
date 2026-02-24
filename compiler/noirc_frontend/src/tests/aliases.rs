@@ -910,3 +910,16 @@ fn regression_10764_underscore_impl() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn cannot_assign_to_numeric_type_alias() {
+    let src = r#"
+    type N: u32 = 1;
+
+    fn main() {
+        N = 2;
+        ^ expected value, found type alias `N`
+    }
+    "#;
+    check_errors(src);
+}

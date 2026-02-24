@@ -307,8 +307,13 @@ pub enum InterpreterError {
     TraitImplResolutionRecursionLimitReached {
         location: Location,
     },
-    CannotAddItemToExternalCrateModule {
+    CannotModifyExternalItem {
+        item: String,
         module: String,
+        location: Location,
+    },
+    CannotCastNumericToBool {
+        typ: Type,
         location: Location,
     },
 
@@ -412,7 +417,8 @@ impl InterpreterError {
             | InterpreterError::UnexpectedEscapedTokenInQuote { location, .. }
             | InterpreterError::TraitImplResolutionRecursionLimitReached { location }
             | InterpreterError::AttributeRecursionLimitExceeded { location }
-            | InterpreterError::CannotAddItemToExternalCrateModule { location, .. } => *location,
+            | InterpreterError::CannotCastNumericToBool { location, .. }
+            | InterpreterError::CannotModifyExternalItem { location, .. } => *location,
             InterpreterError::FailedToParseMacro { error, .. } => error.location(),
             InterpreterError::NoMatchingImplFound { error } => error.location,
             InterpreterError::DuplicateStructFieldInSetFields { name, .. } => name.location(),
@@ -874,11 +880,16 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let secondary = String::new();
                 CustomDiagnostic::simple_warning(primary, secondary, *location)
             }
-            InterpreterError::CannotAddItemToExternalCrateModule { module, location } => {
-                let primary = format!("Cannot add items to external crate module `{module}`");
-                let secondary = String::new();
-                CustomDiagnostic::simple_warning(primary, secondary, *location)
+            InterpreterError::CannotModifyExternalItem { item, module, location } => {
+                let primary = "Cannot mutate something from an external crate".to_string();
+                let secondary = format!("`{item}` was declared in `{module}`");
+                CustomDiagnostic::simple_error(primary, secondary, *location)
             }
+            InterpreterError::CannotCastNumericToBool { typ, location } => {
+                let primary = format!("Cannot cast `{typ}` as `bool`");
+                let secondary = "Compare with zero instead: ` != 0`".to_string();
+                CustomDiagnostic::simple_error(primary, secondary, *location)
+            },
         }
     }
 }

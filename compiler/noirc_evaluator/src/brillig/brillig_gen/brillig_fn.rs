@@ -17,8 +17,8 @@ use crate::{
 use rustc_hash::FxHashMap as HashMap;
 
 use super::{
-    constant_allocation::ConstantAllocation, spill_manager::SpillManager,
-    variable_liveness::VariableLiveness,
+    coalescing::CoalescingMap, constant_allocation::ConstantAllocation,
+    spill_manager::SpillManager, variable_liveness::VariableLiveness,
 };
 
 /// Information required to compile an SSA [Function] into Brillig bytecode.
@@ -56,6 +56,8 @@ pub(crate) struct FunctionContext {
     /// exceeds the stack frame limit. Persists across blocks so spill state is not lost.
     /// Present only when the function may need spilling (based on liveness analysis).
     pub(crate) spill_manager: Option<SpillManager>,
+    /// Coalescing map for jmp argument → block parameter register sharing.
+    pub(crate) coalescing: CoalescingMap,
 }
 
 impl FunctionContext {
@@ -85,6 +87,7 @@ impl FunctionContext {
         let reverse_post_order = PostOrder::with_function(function).into_vec_reverse();
         let constants = ConstantAllocation::from_function(function);
         let liveness = VariableLiveness::from_function(function, &constants);
+        let coalescing = CoalescingMap::from_function(function, &liveness);
 
         let needs_spill_support =
             liveness.max_live_count + Self::SPILL_MARGIN >= max_stack_frame_size;
@@ -99,6 +102,7 @@ impl FunctionContext {
             is_entry_point,
             constant_allocation: constants,
             spill_manager,
+            coalescing,
         }
     }
 

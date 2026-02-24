@@ -5,6 +5,7 @@ mod brillig_call;
 pub(crate) mod brillig_fn;
 pub(crate) mod brillig_globals;
 mod brillig_instructions;
+mod coalescing;
 pub(crate) mod constant_allocation;
 pub(crate) mod spill_manager;
 #[cfg(test)]
