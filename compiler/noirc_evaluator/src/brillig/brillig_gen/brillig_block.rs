@@ -259,14 +259,14 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         self.ensure_register_capacity(1);
 
         let sm = self.function_context.spill_manager.as_ref().unwrap();
-        let spill_info = *sm.get_spill(&value_id).unwrap();
+        let spill_record = *sm.get_spill(&value_id).unwrap();
 
         let new_reg = self.brillig_context.allocate_register().detach();
 
-        self.codegen_spill_load(spill_info.offset, new_reg);
+        self.codegen_spill_load(spill_record.offset, new_reg);
 
         // Create updated variable with new register
-        let new_var = spill_info.variable.with_register(new_reg);
+        let new_var = spill_record.variable.with_register(new_reg);
 
         // Update SSA mapping to point to new register
         self.function_context.ssa_value_allocations.insert(value_id, new_var);
@@ -304,7 +304,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             let sm = self.function_context.spill_manager.as_mut().unwrap();
 
             // Already permanently tracked and currently spilled — slot has correct data
-            if sm.get_permanent_spill_offset(&value_id).is_some() && sm.is_spilled(&value_id) {
+            if sm.has_permanent_slot(&value_id) && sm.is_spilled(&value_id) {
                 continue;
             }
 
@@ -312,37 +312,33 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             // promote the existing spill slot to permanent. No store needed — data is
             // already in the slot.
             if sm.is_spilled(&value_id) {
-                let existing = *sm.get_spill(&value_id).unwrap();
-                sm.record_permanent_spill(value_id, existing.offset, existing.variable);
+                sm.promote_to_permanent(&value_id);
                 continue;
             }
 
-            let var = *self.function_context.ssa_value_allocations.get(&value_id).unwrap();
-
-            let sm = self.function_context.spill_manager.as_mut().unwrap();
-            if let Some(off) = sm.get_permanent_spill_offset(&value_id) {
-                // Value already has a permanent spill slot from a previous block.
-                // The slot contains valid data (SSA values are immutable), so we
-                // just need to re-mark it as spilled. No store or register
-                // deallocation needed — the register may already be freed if the
-                // value was reloaded and then died in this block.
-                sm.record_spill(value_id, off, var);
-            } else {
-                // First encounter: allocate a permanent slot and store the value.
-                let off = sm.allocate_spill_offset();
-                sm.record_permanent_spill(value_id, off, var);
-
-                let source_reg = var.extract_register();
-                self.codegen_spill_store(off, source_reg);
-
-                // Free the register: the value is now safely in the spill slot.
-                // Without this, the register stays allocated but the value is marked
-                // as spilled — `lru_victim()` can't reclaim it, creating "phantom"
-                // allocations that exhaust the register file.
-                // If the value is needed later (e.g., as a Jmp argument),
-                // `convert_ssa_value` will see it's spilled and reload on demand.
-                self.brillig_context.deallocate_register(source_reg);
+            // Value has a permanent slot but is not currently spilled (was reloaded
+            // in this block). Re-mark it as spilled.
+            if sm.has_permanent_slot(&value_id) {
+                sm.re_mark_as_spilled(&value_id);
+                continue;
             }
+
+            // First encounter: allocate a permanent slot and store the value.
+            let var = *self.function_context.ssa_value_allocations.get(&value_id).unwrap();
+            let sm = self.function_context.spill_manager.as_mut().unwrap();
+            let off = sm.allocate_spill_offset();
+            sm.record_permanent_spill(value_id, off, var);
+
+            let source_reg = var.extract_register();
+            self.codegen_spill_store(off, source_reg);
+
+            // Free the register: the value is now safely in the spill slot.
+            // Without this, the register stays allocated but the value is marked
+            // as spilled — `lru_victim()` can't reclaim it, creating "phantom"
+            // allocations that exhaust the register file.
+            // If the value is needed later (e.g., as a Jmp argument),
+            // `convert_ssa_value` will see it's spilled and reload on demand.
+            self.brillig_context.deallocate_register(source_reg);
         }
     }
 

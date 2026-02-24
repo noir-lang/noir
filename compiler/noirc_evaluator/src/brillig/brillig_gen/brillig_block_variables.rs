@@ -6,7 +6,7 @@
 //! Brillig instructions. "Available" means "has a register currently allocated" — not
 //! merely "is SSA-live". A value can be SSA-live but unavailable if it has been spilled
 //! to the heap spill region. Spill tracking is managed separately by
-//! [`SpillManager`](super::spill_manager::SpillManager).
+//! [SpillManager](super::spill_manager::SpillManager).
 //!
 //! [BlockVariables] cooperates with the [FunctionContext] to manage the mapping from
 //! SSA values to [BrilligVariable]s and with the [BrilligContext] for allocating registers.
@@ -44,7 +44,7 @@ use super::brillig_fn::FunctionContext;
 ///
 /// "Available" specifically means "has a register allocated right now". Values that are
 /// SSA-live but have been spilled to the heap spill region are *not* in this set.
-/// Spill tracking is the responsibility of [`SpillManager`](super::spill_manager::SpillManager).
+/// Spill tracking is the responsibility of [SpillManager](super::spill_manager::SpillManager).
 ///
 /// This structure is instantiated per SSA basic block and initialized from the set of
 /// live-in variables that are not spilled.
