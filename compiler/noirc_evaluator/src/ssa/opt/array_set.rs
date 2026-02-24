@@ -101,6 +101,8 @@ fn fold_array_set_into_make_array(
 mod tests {
     use test_case::test_case;
 
+    use crate::ssa::opt::assert_ssa_does_not_change;
+
     use super::Ssa;
 
     #[test_case("acir")]
@@ -134,5 +136,43 @@ mod tests {
 }}"
         );
         assert_eq!(ssa.to_string().trim(), expected);
+    }
+
+    /// ArraySet on a constant array must not be folded into MakeArray when the
+    /// side-effects predicate is not known to be true, because the array_set may
+    /// not actually execute.
+    #[test]
+    fn does_not_fold_array_set_when_side_effects_predicate_is_unknown() {
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1):
+                v1 = make_array [Field 10, Field 11] : [Field; 2]
+                enable_side_effects v0
+                v2 = array_set v1, index u32 0, value Field 99
+                enable_side_effects u1 1
+                v3 = array_get v2, index u32 0 -> Field
+                return v3
+            }
+        ";
+
+        assert_ssa_does_not_change(src, Ssa::array_set_optimization);
+    }
+
+    /// ArraySet on a non-constant array under an unknown predicate must not be
+    /// folded (the array is a parameter, not a MakeArray, so there is nothing to fold into).
+    #[test]
+    fn does_not_fold_array_set_on_non_constant_array() {
+        let src = r#"
+            acir(inline) fn main f0 {
+              b0(v0: [Field; 1], v1: Field, v2: u1):
+                enable_side_effects v2
+                v3 = array_set v0, index u32 0, value v1
+                enable_side_effects u1 1
+                v4 = array_get v3, index u32 0 -> Field
+                return v4
+            }
+        "#;
+
+        assert_ssa_does_not_change(src, Ssa::array_set_optimization);
     }
 }
