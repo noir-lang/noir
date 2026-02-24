@@ -361,6 +361,9 @@ impl<'a> Context<'a> {
         // We treat the current witness index as the first parameter, but this is only correct
         // if we haven't created a witness yet, otherwise it would reuse the last witness.
         assert!(!self.acir_context.has_witnesses(), "there should be no witnesses yet");
+        if params.is_empty() {
+            return Ok(Vec::new());
+        }
         let start_witness = self.acir_context.current_witness_index().0;
         for &param_id in params {
             let typ = dfg.type_of_value(param_id);

@@ -45,6 +45,9 @@ pub struct Circuit<F: AcirField> {
     ///
     /// This is tracked as an optimization so that when new witness values are created, incrementing this witness
     /// results in a new unique witness index without needing to scan all opcodes to find the maximum witness index.
+    ///
+    /// Note that if the current witness index is 0, it might mean that there were no witnesses created at all,
+    /// or that there was exactly one witness.
     pub current_witness_index: u32,
     /// The circuit opcodes representing the relationship between witness values.
     ///
