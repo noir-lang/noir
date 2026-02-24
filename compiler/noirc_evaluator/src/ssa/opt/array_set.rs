@@ -107,7 +107,6 @@ mod tests {
 
     #[test_case("acir")]
     #[test_case("brillig")]
-
     fn folds_unconditional_array_set_into_make_array(runtime: &str) {
         // For ACIR functions, ArraySet must not be folded to MakeArray because
         // ArraySet is predicate-dependent and the simplifier lacks predicate context.
