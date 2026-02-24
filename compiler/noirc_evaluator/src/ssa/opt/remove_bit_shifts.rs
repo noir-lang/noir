@@ -274,7 +274,7 @@ impl Context<'_, '_, '_> {
                 // Performs the division on the adjusted complement (or the operand if positive)
                 let shifted_complement = self.insert_binary(div_complement, BinaryOp::Div, pow);
                 // For negative numbers, convert back to 2-complement by subtracting 1.
-              
+
                 // Cast to Field and add 2^bit_size to handle underflow; the subsequent truncate
                 // to bit_size bits corrects the extra 2^bit_size.
                 let shifted_complement_field =

@@ -771,10 +771,59 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             return Err(internal(InternalError::TruncateToZeroBits { value_id, max_bit_size }));
         }
 
+        // If the value is an Unfit integer coming from an integer unchecked sub, that means the
+        // sub produced integer underflow — an SSA invariant violation. Report it with the operand IDs/values.
+        let unchecked_int_sub_underflow: Option<(ValueId, ValueId)> = 'check: {
+            if !matches!(
+                value,
+                U8(Unfit(_))
+                    | U16(Unfit(_))
+                    | U32(Unfit(_))
+                    | U64(Unfit(_))
+                    | U128(Unfit(_))
+                    | I8(Unfit(_))
+                    | I16(Unfit(_))
+                    | I32(Unfit(_))
+                    | I64(Unfit(_))
+            ) {
+                break 'check None;
+            }
+            let IrValue::Instruction { instruction, .. } = self.dfg()[value_id] else {
+                break 'check None;
+            };
+            let Instruction::Binary(Binary {
+                operator: BinaryOp::Sub { unchecked: true },
+                lhs,
+                rhs,
+            }) = self.dfg()[instruction]
+            else {
+                break 'check None;
+            };
+            if !matches!(
+                self.dfg().type_of_value(lhs),
+                Type::Numeric(NumericType::Unsigned { .. } | NumericType::Signed { .. })
+            ) {
+                break 'check None;
+            }
+            Some((lhs, rhs))
+        };
+        if let Some((lhs_id, rhs_id)) = unchecked_int_sub_underflow {
+            let lhs_val = self.lookup_numeric(lhs_id, "truncate").ok();
+            let rhs_val = self.lookup_numeric(rhs_id, "truncate").ok();
+            return Err(internal(InternalError::UncheckedSubUnderflow {
+                lhs_id,
+                lhs: lhs_val.map(|v| v.to_string()).unwrap_or_default(),
+                rhs_id,
+                rhs: rhs_val.map(|v| v.to_string()).unwrap_or_default(),
+            }));
+        }
+
+        // Checked (non-unchecked) subtractions may produce Unfit values due to integer underflow;
+        // the integer modulus is added before truncating to correct for it.
         let is_sub = if let IrValue::Instruction { instruction, .. } = self.dfg()[value_id] {
             matches!(
                 self.dfg()[instruction],
-                Instruction::Binary(Binary { operator: BinaryOp::Sub { .. }, .. })
+                Instruction::Binary(Binary { operator: BinaryOp::Sub { unchecked: false }, .. })
             )
         } else {
             false
