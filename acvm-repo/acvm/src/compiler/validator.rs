@@ -309,7 +309,7 @@ pub fn validate_witness<F: AcirField>(
                         assert_eq!(
                             outputs.len(),
                             state.len(),
-                            "Poseidon2 opcode violation: expected {} but found {} results",
+                            "Poseidon2Permutation opcode violation: expected {} but found {} results",
                             state.len(),
                             outputs.len()
                         );
