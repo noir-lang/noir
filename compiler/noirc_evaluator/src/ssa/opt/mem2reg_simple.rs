@@ -1,4 +1,11 @@
 //! Mem2reg algorithm adapted from the paper: <https://bernsteinbear.com/assets/img/bebenita-ssa.pdf>
+//!
+//! The goal is for this new, simpler to eventually replace our existing mem2reg algorithm in `ssa/opt/mem2reg.rs`.
+//! The pre-existing pass however can optimize in more/different cases than this pass. For example,
+//! it can still optimize out stores/loads in some cases even when the reference is aliased. That
+//! other pass has a larger surface area for bugs though and this one is simpler so the goal is to
+//! replace the old pass with this one plus any other, separate passes needed for the features
+//! unhandled here (such as alias analysis).
 use iter_extended::vecmap;
 use rustc_hash::FxHashSet as HashSet;
 use std::collections::BTreeMap;
@@ -33,6 +40,10 @@ impl Ssa {
             // programs which can be hundreds of thousands of blocks with many mutable variables.
             // For a reasonable runtime, we currently only run this on brillig programs which tend
             // to have more reasonable function sizes.
+            //
+            // It'd be advantageous to run this pass earlier in the SSA pipeline in the future (and
+            // for ACIR too) but this requires changes to flattening & unrolling to handle jmpif
+            // arguments which has been excluded for simplicity.
             if function.runtime().is_brillig() {
                 function.mem2reg_simple();
             }
@@ -50,13 +61,10 @@ impl Function {
 
         let blocks = post_order.into_vec_reverse();
 
-        // Note that entry_states, exit_states, and variables are all keyed by the original
+        // Note that `variables` and `entry_values` in variable_states are all keyed by the original
         // ValueId of the `allocate` instruction result. These are all iterated over at some point
         // so it is important we use a deterministic order so that block arguments always correspond
         // to block parameters in the same order.
-        let mut entry_states = BTreeMap::default();
-        let mut exit_states = BTreeMap::default();
-
         let mut variables = collect_all_eligible_variables(inserter.function, &blocks);
 
         // Limit increase in memory usage and brillig regressions by arbitrarily limiting this pass to some variables
@@ -65,26 +73,41 @@ impl Function {
             i += 1;
             i <= MAX_VARIABLES_OPTIMIZED
         });
+        if variables.is_empty() {
+            return;
+        }
 
+        let mut block_states = BlockStates::default();
         add_block_params_and_find_exit_states(
             &blocks,
             &variables,
             &mut dom_tree,
             &mut inserter,
-            &mut entry_states,
-            &mut exit_states,
+            &mut block_states,
         );
-        add_terminator_arguments(
-            &blocks,
-            &variables,
-            &mut inserter,
-            &entry_states,
-            &exit_states,
-            &cfg,
-        );
+        add_terminator_arguments(&blocks, &variables, &mut inserter, &block_states, &cfg);
         remove_params_from_blocks_with_identical_terminator_args(&blocks, &mut inserter, &cfg);
         commit(&mut inserter, &variables, blocks);
     }
+}
+
+/// Contains the starting & ending values of each variable in each block
+#[derive(Default)]
+struct BlockStates {
+    blocks: BTreeMap<BasicBlockId, BlockState>,
+}
+
+/// Contains the starting & ending values of each variable in one block
+#[derive(Default)]
+struct BlockState {
+    /// Maps each variable visible in this block to its starting value in the block. This is always
+    /// a block parameter or a forwarded value from a previous block.
+    entry_state: BTreeMap<ValueId, ValueId>,
+
+    /// Maps each variable modified within this block to the value it is set to at the end of
+    /// the block. Note that to save on memory, we do not store variables which were not modified
+    /// within the block. Their values will be the same as the value in `entry_states`.
+    exit_state: BTreeMap<ValueId, ValueId>,
 }
 
 /// Find the starting & ending states of each variable in each block.
@@ -98,8 +121,7 @@ fn add_block_params_and_find_exit_states(
     variables: &BTreeMap<ValueId, BasicBlockId>,
     dom_tree: &mut DominatorTree,
     inserter: &mut FunctionInserter,
-    entry_states: &mut BTreeMap<BasicBlockId, StateVec>,
-    exit_states: &mut BTreeMap<BasicBlockId, StateVec>,
+    variable_states: &mut BlockStates,
 ) {
     for block in blocks.iter().copied() {
         // All variables visible at the start of the current block
@@ -110,8 +132,7 @@ fn add_block_params_and_find_exit_states(
             &mut inserter.function.dfg,
         );
         let exit_state = abstract_interpret_block(inserter, block, &entry_state);
-        entry_states.insert(block, entry_state);
-        exit_states.insert(block, exit_state);
+        variable_states.blocks.insert(block, BlockState { entry_state, exit_state });
     }
 }
 
@@ -120,19 +141,18 @@ fn add_terminator_arguments(
     blocks: &[BasicBlockId],
     variables: &BTreeMap<ValueId, BasicBlockId>,
     inserter: &mut FunctionInserter,
-    entry_states: &BTreeMap<BasicBlockId, StateVec>,
-    exit_states: &BTreeMap<BasicBlockId, StateVec>,
+    variable_states: &BlockStates,
     cfg: &ControlFlowGraph,
 ) {
     for block in blocks.iter().copied() {
-        for address in entry_states[&block].keys() {
+        for address in variable_states.blocks[&block].entry_state.keys() {
             // If the current block is this variable's source block, no merge is needed.
             if block == variables[address] {
                 continue;
             }
 
             for predecessor in cfg.predecessors(block) {
-                let exit_value = get_exit_value(*address, predecessor, entry_states, exit_states);
+                let exit_value = variable_states.blocks[&predecessor].get_exit_value(*address);
                 add_terminator_argument(inserter.function, exit_value, predecessor, block);
             }
         }
@@ -210,20 +230,18 @@ fn add_visible_variables_as_block_parameters(
         .collect()
 }
 
-/// Gets the "exit value" of a variable, which is its value at the end of the given block.
-///
-/// `variable` should always be a reference.
-fn get_exit_value(
-    variable: ValueId,
-    block: BasicBlockId,
-    entry_states: &BTreeMap<BasicBlockId, StateVec>,
-    exit_states: &BTreeMap<BasicBlockId, StateVec>,
-) -> ValueId {
-    *exit_states[&block]
-        .get(&variable)
-        // To save memory, `exit_states` only contains the value if it changed within the block.
-        // So we have to check `entry_states` for the value if it went unchanged.
-        .unwrap_or_else(|| &entry_states[&block][&variable])
+impl BlockState {
+    /// Gets the "exit value" of a variable, which is its value at the end of the given block.
+    ///
+    /// `variable` should always be a reference.
+    fn get_exit_value(&self, variable: ValueId) -> ValueId {
+        *self
+            .exit_state
+            .get(&variable)
+            // To save memory, `exit_states` only contains the value if it changed within the block.
+            // So we have to check `entry_states` for the value if it went unchanged.
+            .unwrap_or_else(|| &self.entry_state[&variable])
+    }
 }
 
 /// Return a mask indicating whether to keep or remove the corresponding parameter.
