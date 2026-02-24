@@ -987,11 +987,10 @@ mod tests {
          4: sp[3] = sp[4]
          5: jump to 0
          6: sp[2] = const field 27
-         7: sp[5] = field add sp[2], sp[4]
-         8: sp[3] = sp[5]
-         9: jump to 0
-        10: sp[2] = sp[3]
-        11: return
+         7: sp[3] = field add sp[2], sp[4]
+         8: jump to 0
+         9: sp[2] = sp[3]
+        10: return
         ");
     }
 
@@ -1065,11 +1064,10 @@ mod tests {
          3: sp[2] = const field 2
          4: sp[4] = field add sp[5], sp[2]
          5: sp[2] = const field 3
-         6: sp[5] = field mul sp[4], sp[2]
-         7: sp[3] = sp[5]
-         8: jump to 0
-         9: sp[2] = sp[3]
-        10: return
+         6: sp[3] = field mul sp[4], sp[2]
+         7: jump to 0
+         8: sp[2] = sp[3]
+         9: return
         ");
     }
 }
