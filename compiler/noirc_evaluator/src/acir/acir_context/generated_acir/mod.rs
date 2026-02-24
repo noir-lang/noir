@@ -95,14 +95,9 @@ pub(crate) type BrilligOpcodeToLocationsMap = BTreeMap<BrilligOpcodeLocation, Ca
 pub(crate) type BrilligProcedureRangeMap = BTreeMap<ProcedureDebugId, (usize, usize)>;
 
 impl<F: AcirField> GeneratedAcir<F> {
-    /// Check if a witness has been created yet.
-    pub fn has_witnesses(&self) -> bool {
-        self.current_witness_index.is_some()
-    }
-
-    /// Returns the current witness index, or 0 if we haven't created a witness yet.
-    pub fn current_witness_index(&self) -> Witness {
-        Witness(self.current_witness_index.unwrap_or(0))
+    /// Returns the current witness index, or `None` if we haven't created a witness yet.
+    pub fn current_witness_index(&self) -> Option<Witness> {
+        self.current_witness_index.map(Witness)
     }
 
     /// Adds a new opcode into ACIR.

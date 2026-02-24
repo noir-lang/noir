@@ -360,11 +360,10 @@ impl<'a> Context<'a> {
     ) -> Result<Vec<Witness>, RuntimeError> {
         // We treat the current witness index as the first parameter, but this is only correct
         // if we haven't created a witness yet, otherwise it would reuse the last witness.
-        assert!(!self.acir_context.has_witnesses(), "there should be no witnesses yet");
-        if params.is_empty() {
-            return Ok(Vec::new());
-        }
-        let start_witness = self.acir_context.current_witness_index().0;
+        let start_witness = match self.acir_context.current_witness_index() {
+            Some(existing) => panic!("ICE: There shouldn't be any witnesses yet; got {existing}"),
+            None => Witness::default(),
+        };
         for &param_id in params {
             let typ = dfg.type_of_value(param_id);
             let value = self.convert_ssa_block_param(&typ)?;
@@ -390,9 +389,11 @@ impl<'a> Context<'a> {
             }
             self.ssa_values.insert(param_id, value);
         }
-        let end_witness = self.acir_context.current_witness_index().0;
+        let Some(end_witness) = self.acir_context.current_witness_index() else {
+            return Ok(Vec::new());
+        };
         // Range is inclusive, because the for example if there was only one witness, the start and end are both 0.
-        let witnesses = (start_witness..=end_witness).map(Witness::from).collect();
+        let witnesses = (start_witness.0..=end_witness.0).map(Witness::from).collect();
         Ok(witnesses)
     }
 

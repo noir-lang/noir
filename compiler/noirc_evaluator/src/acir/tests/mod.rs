@@ -720,8 +720,7 @@ fn empty_parameters_should_generate_no_witnesses() {
     let (acir, _, _) = ssa.into_acir(&Brillig::default(), &BrilligOptions::default()).unwrap();
     let acir = &acir[0];
 
-    assert!(!acir.has_witnesses());
-    assert_eq!(acir.current_witness_index(), Witness(0));
+    assert!(acir.current_witness_index().is_none());
     assert!(acir.input_witnesses.is_empty());
     assert!(acir.return_witnesses.is_empty());
 }
