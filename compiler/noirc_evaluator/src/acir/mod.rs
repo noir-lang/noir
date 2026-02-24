@@ -358,7 +358,9 @@ impl<'a> Context<'a> {
         params: &[ValueId],
         dfg: &DataFlowGraph,
     ) -> Result<Vec<Witness>, RuntimeError> {
-        // The first witness (if any) is the next one
+        // We treat the current witness index as the first parameter, but this is only correct
+        // if we haven't created a witness yet, otherwise it would reuse the last witness.
+        assert!(!self.acir_context.has_witnesses(), "there should be no witnesses yet");
         let start_witness = self.acir_context.current_witness_index().0;
         for &param_id in params {
             let typ = dfg.type_of_value(param_id);
@@ -386,6 +388,7 @@ impl<'a> Context<'a> {
             self.ssa_values.insert(param_id, value);
         }
         let end_witness = self.acir_context.current_witness_index().0;
+        // Range is inclusive, because the for example if there was only one witness, the start and end are both 0.
         let witnesses = (start_witness..=end_witness).map(Witness::from).collect();
         Ok(witnesses)
     }

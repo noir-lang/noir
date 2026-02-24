@@ -77,6 +77,14 @@ impl<F: AcirField> AcirContext<F> {
         }
     }
 
+    /// Check if a witness has been created yet.
+    pub(crate) fn has_witnesses(&self) -> bool {
+        self.acir_ir.has_witnesses()
+    }
+
+    /// Returns the current witness index:
+    /// * 0 if we haven't created a witness yet
+    /// * the index of the last created witness otherwise (starting with 0)
     pub(crate) fn current_witness_index(&self) -> Witness {
         self.acir_ir.current_witness_index()
     }
@@ -109,8 +117,7 @@ impl<F: AcirField> AcirContext<F> {
         self.vars[&var].as_constant().expect("ICE - expected the variable to be a constant value")
     }
 
-    /// Adds a Variable to the context, whose exact value is resolved at
-    /// runtime.
+    /// Adds a Variable to the context, whose exact value is resolved at runtime.
     pub(crate) fn add_variable(&mut self) -> AcirVar {
         let var_index = self.acir_ir.next_witness_index();
 
