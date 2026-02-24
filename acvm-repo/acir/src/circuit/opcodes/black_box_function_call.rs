@@ -164,13 +164,15 @@ pub enum BlackBoxFuncCall<F> {
     ///     - scalars (witness, N) a vector of low and high limbs of input
     ///     - scalars `[s1_low, s1_high, s2_low, s2_high, ...]`. (witness, N)
     ///       For Barretenberg, they must both be less than 128 bits.
+    ///       Barretenberg implementation of the blackbox also ensures that the scalars do not overflow the Grumpkin scalar field modulus.
+    ///    - predicate (witness) a boolean that disable the constraint when false
     /// - output:
     ///     - a tuple of `x` and `y` coordinates of output
     ///       points computed as `s_low*P+s_high*2^{128}*P`
     ///
     /// Because the Grumpkin scalar field is bigger than the ACIR field, we
     /// provide 2 ACIR fields representing the low and high parts of the Grumpkin
-    /// scalar $a$: `a=low+high*2^{128}`, with `low, high < 2^{128}`
+    /// scalar $a$: `a=low+high*2^{128}`, with `low< 2^{128}` and `high< 2^{126}`
     MultiScalarMul {
         points: Vec<FunctionInput<F>>,
         scalars: Vec<FunctionInput<F>>,
