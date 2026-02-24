@@ -71,11 +71,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         // Filter out spilled values — they don't have valid registers and must not be pre-allocated.
         // Reset the LRU with non-spilled live-in values for this block.
         if let Some(sm) = function_context.spill_manager.as_mut() {
-            // Re-mark eagerly-spilled successor params so they are always reloaded
-            // from the spill slot, regardless of what happened in previous blocks.
-            sm.restore_permanent_spills();
-            live_in_no_globals.retain(|v| !sm.is_spilled(v));
-            sm.reset_lru_for_block(live_in_no_globals.iter().copied());
+            sm.begin_block(&mut live_in_no_globals);
         }
 
         let variables = BlockVariables::new(live_in_no_globals);
@@ -179,9 +175,19 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         new_hoisted_constants
     }
 
+    /// Returns `true` if spilling is enabled for this function.
+    fn spill_enabled(&self) -> bool {
+        self.function_context.spill_manager.is_some()
+    }
+
+    /// Returns `true` if the given value is currently spilled.
+    fn is_spilled(&self, value_id: &ValueId) -> bool {
+        self.function_context.spill_manager.as_ref().is_some_and(|sm| sm.is_spilled(value_id))
+    }
+
     /// Check if allocating `n` more registers would exceed the stack frame limit.
     fn needs_spill_for(&self, n: usize) -> bool {
-        if self.building_globals || self.function_context.spill_manager.is_none() {
+        if self.building_globals || !self.spill_enabled() {
             return false;
         }
         self.brillig_context.registers().available_registers() < n
@@ -194,28 +200,10 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         }
     }
 
-    /// Spill the least-recently-used value to the spill region
-    fn spill_lru_value(&mut self) {
-        // Extract data from spill_manager first (borrow checker prevent mutably borrowing the spill manager
-        // while also accessing ssa_value_allocations immutably)
-        let sm = self.function_context.spill_manager.as_mut().unwrap();
-        let victim_id = sm.lru_victim().expect("No values available to spill");
-        let offset = sm.allocate_spill_offset();
-
-        let victim_var = *self.function_context.ssa_value_allocations.get(&victim_id).unwrap();
-        let victim_reg = victim_var.extract_register();
-
-        // Track that this function needs a spill region
-        self.function_context.did_spill = true;
-        self.function_context.max_spill_offset =
-            self.function_context.max_spill_offset.max(offset + 1);
+    /// Emit a 4-instruction sequence to store `source_reg` into the spill region
+    /// at the given offset relative to the per-frame spill base pointer.
+    fn codegen_spill_store(&mut self, offset: usize, source_reg: MemoryAddress) {
         let (scratch_addr, scratch_offset) = ReservedRegisters::spill_scratch();
-
-        // 4-instruction spill:
-        //   mov  scratch_addr, sp[1]          -- load spill base from stack slot
-        //   const scratch_offset, offset      -- spill offset
-        //   add  scratch_addr, scratch_addr, scratch_offset  -- compute absolute address
-        //   store [scratch_addr], victim_reg  -- store value
         self.brillig_context.mov_instruction(scratch_addr, ReservedRegisters::spill_base_pointer());
         self.brillig_context
             .const_instruction(SingleAddrVariable::new_usize(scratch_offset), offset.into());
@@ -225,7 +213,37 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             scratch_addr,
             BrilligBinaryOp::Add,
         );
-        self.brillig_context.store_instruction(scratch_addr, victim_reg);
+        self.brillig_context.store_instruction(scratch_addr, source_reg);
+    }
+
+    /// Emit a 4-instruction sequence to load a value from the spill region
+    /// at the given offset into `dest_reg`.
+    fn codegen_spill_load(&mut self, offset: usize, dest_reg: MemoryAddress) {
+        let (scratch_addr, scratch_offset) = ReservedRegisters::spill_scratch();
+        self.brillig_context.mov_instruction(scratch_addr, ReservedRegisters::spill_base_pointer());
+        self.brillig_context
+            .const_instruction(SingleAddrVariable::new_usize(scratch_offset), offset.into());
+        self.brillig_context.memory_op_instruction(
+            scratch_addr,
+            scratch_offset,
+            scratch_addr,
+            BrilligBinaryOp::Add,
+        );
+        self.brillig_context.load_instruction(dest_reg, scratch_addr);
+    }
+
+    /// Spill the least-recently-used value to the spill region
+    fn spill_lru_value(&mut self) {
+        // Extract data from spill_manager first (borrow checker prevents mutably borrowing
+        // the spill manager while also accessing ssa_value_allocations immutably)
+        let sm = self.function_context.spill_manager.as_mut().unwrap();
+        let victim_id = sm.lru_victim().expect("No values available to spill");
+        let offset = sm.allocate_spill_offset();
+
+        let victim_var = *self.function_context.ssa_value_allocations.get(&victim_id).unwrap();
+        let victim_reg = victim_var.extract_register();
+
+        self.codegen_spill_store(offset, victim_reg);
 
         // Free the victim's register so it can be reused
         self.brillig_context.deallocate_register(victim_reg);
@@ -242,27 +260,10 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
         let sm = self.function_context.spill_manager.as_ref().unwrap();
         let spill_info = *sm.get_spill(&value_id).unwrap();
-        let (scratch_addr, scratch_offset) = ReservedRegisters::spill_scratch();
 
         let new_reg = self.brillig_context.allocate_register().detach();
 
-        // 4-instruction reload:
-        //   mov  scratch_addr, sp[1]          -- load spill base from stack slot
-        //   const scratch_offset, offset      -- spill offset
-        //   add  scratch_addr, scratch_addr, scratch_offset  -- compute absolute address
-        //   load new_reg, [scratch_addr]      -- load value
-        self.brillig_context.mov_instruction(scratch_addr, ReservedRegisters::spill_base_pointer());
-        self.brillig_context.const_instruction(
-            SingleAddrVariable::new_usize(scratch_offset),
-            spill_info.offset.into(),
-        );
-        self.brillig_context.memory_op_instruction(
-            scratch_addr,
-            scratch_offset,
-            scratch_addr,
-            BrilligBinaryOp::Add,
-        );
-        self.brillig_context.load_instruction(new_reg, scratch_addr);
+        self.codegen_spill_load(spill_info.offset, new_reg);
 
         // Create updated variable with new register
         let new_var = spill_info.variable.with_register(new_reg);
@@ -270,7 +271,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         // Update SSA mapping to point to new register
         self.function_context.ssa_value_allocations.insert(value_id, new_var);
 
-        // Unmark spilled (don't free the slot — loop iterations may re-execute this reload)
+        // Unmark spilled (don't free the slot). The emitted Brillig load opcodes may
+        // re-execute at runtime in a loop iteration, so the slot data must remain valid.
         let sm = self.function_context.spill_manager.as_mut().unwrap();
         sm.unmark_spilled(&value_id);
         sm.touch(value_id);
@@ -286,7 +288,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     /// The destination's block will see them as spilled via
     /// the spiller manager and is responsible for emitting reload code.
     fn spill_non_param_live_ins(&mut self, destination: BasicBlockId, dfg: &DataFlowGraph) {
-        if self.function_context.spill_manager.is_none() {
+        if !self.spill_enabled() {
             return;
         }
 
@@ -330,20 +332,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 let off = sm.allocate_spill_offset();
                 sm.record_permanent_spill(value_id, off, var);
 
-                // 4-instruction store via scratch registers
                 let source_reg = var.extract_register();
-                let (scratch_addr, scratch_offset) = ReservedRegisters::spill_scratch();
-                self.brillig_context
-                    .mov_instruction(scratch_addr, ReservedRegisters::spill_base_pointer());
-                self.brillig_context
-                    .const_instruction(SingleAddrVariable::new_usize(scratch_offset), off.into());
-                self.brillig_context.memory_op_instruction(
-                    scratch_addr,
-                    scratch_offset,
-                    scratch_addr,
-                    BrilligBinaryOp::Add,
-                );
-                self.brillig_context.store_instruction(scratch_addr, source_reg);
+                self.codegen_spill_store(off, source_reg);
 
                 // Free the register: the value is now safely in the spill slot.
                 // Without this, the register stays allocated but the value is marked
@@ -352,10 +342,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 // If the value is needed later (e.g., as a Jmp argument),
                 // `convert_ssa_value` will see it's spilled and reload on demand.
                 self.brillig_context.deallocate_register(source_reg);
-
-                self.function_context.did_spill = true;
-                self.function_context.max_spill_offset =
-                    self.function_context.max_spill_offset.max(off + 1);
             }
         }
     }
@@ -461,8 +447,10 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 call_stack: _,
             } => {
                 // Store non-param live-ins BEFORE converting the condition to avoid
-                // register overwrites. Both branches' stores execute unconditionally.
-                // Extra stores are harmless.
+                // register overwrites. Both branches' stores execute unconditionally
+                // (only one branch is taken at runtime). The then/else live-in sets
+                // may overlap. `spill_non_param_live_ins` handles this by skipping
+                // values that already have a permanent spill slot.
                 self.spill_non_param_live_ins(*then_destination, dfg);
                 self.spill_non_param_live_ins(*else_destination, dfg);
                 let condition = self.convert_ssa_single_addr_value(*condition, dfg);
@@ -496,23 +484,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
                     if let Some(offset) = spill_offset {
                         // Param was spilled — write arg directly to param's spill slot.
-                        self.function_context.did_spill = true;
-                        self.function_context.max_spill_offset =
-                            self.function_context.max_spill_offset.max(offset + 1);
-                        let (scratch_addr, scratch_offset) = ReservedRegisters::spill_scratch();
-                        self.brillig_context
-                            .mov_instruction(scratch_addr, ReservedRegisters::spill_base_pointer());
-                        self.brillig_context.const_instruction(
-                            SingleAddrVariable::new_usize(scratch_offset),
-                            offset.into(),
-                        );
-                        self.brillig_context.memory_op_instruction(
-                            scratch_addr,
-                            scratch_offset,
-                            scratch_addr,
-                            BrilligBinaryOp::Add,
-                        );
-                        self.brillig_context.store_instruction(scratch_addr, arg_reg);
+                        self.codegen_spill_store(offset, arg_reg);
                     } else {
                         let param_reg = self
                             .variables
@@ -596,6 +568,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     // valid data until a Jmp terminator writes to them. Eagerly spill
                     // them so that ALL Jmp sites consistently write to the spill slot
                     // and the target block consistently reloads from it.
+                    // Params of the current block are skipped
+                    // because they already hold valid data from the predecessor.
                     if !own_params.contains(&param_id)
                         && let Some(sm) = self.function_context.spill_manager.as_mut()
                     {
@@ -608,9 +582,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                         let reg = var.extract_register();
                         self.brillig_context.deallocate_register(reg);
                         self.variables.mark_unavailable(&param_id);
-                        self.function_context.did_spill = true;
-                        self.function_context.max_spill_offset =
-                            self.function_context.max_spill_offset.max(offset + 1);
                     }
                 }
                 Type::Function => unreachable!(
@@ -712,12 +683,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 let is_global = dfg.is_global(*dead_variable);
                 let is_hoisted_global = self.get_hoisted_global(dfg, *dead_variable).is_some();
                 if !is_global && !is_hoisted_global {
-                    if self
-                        .function_context
-                        .spill_manager
-                        .as_ref()
-                        .is_some_and(|sm| sm.is_spilled(dead_variable))
-                    {
+                    if self.is_spilled(dead_variable) {
                         // Spilled: register was already freed. Just clean up tracking.
                         let sm = self.function_context.spill_manager.as_mut().unwrap();
                         sm.remove_spill(dead_variable);
@@ -804,12 +770,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     })
                 } else {
                     // Check if spilled, reload if needed
-                    if self
-                        .function_context
-                        .spill_manager
-                        .as_ref()
-                        .is_some_and(|sm| sm.is_spilled(&value_id))
-                    {
+                    if self.is_spilled(&value_id) {
                         return self.reload_spilled_value(value_id);
                     }
                     let var = self.variables.get_allocation(self.function_context, value_id);
@@ -823,12 +784,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 // Check if spilled before is_allocated — spilled values are filtered
                 // out of available_variables at block entry, so is_allocated would
                 // return false even though the value exists.
-                if self
-                    .function_context
-                    .spill_manager
-                    .as_ref()
-                    .is_some_and(|sm| sm.is_spilled(&value_id))
-                {
+                if self.is_spilled(&value_id) {
                     return self.reload_spilled_value(value_id);
                 }
                 // Constants might have been converted previously or not, so we get or create and

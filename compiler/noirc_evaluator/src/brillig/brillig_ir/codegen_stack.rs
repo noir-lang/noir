@@ -235,7 +235,7 @@ mod tests {
             show_opcode_advisories: false,
             layout: LayoutConfig::default(),
         };
-        let mut context = BrilligContext::new("test", &options, false);
+        let mut context = BrilligContext::new("test", &options);
         context.enter_context(Label::function(FunctionId::test_new(0)));
         context
     }

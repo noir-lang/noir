@@ -67,11 +67,6 @@ pub(crate) fn gen_brillig_for(
 
     let options = BrilligOptions { enable_debug_trace: false, ..*options };
 
-    // The entry point must use the same spill_support as the callee so that
-    // parameter offsets (start_offset) align with the function body's register layout.
-    let callee_spill_support =
-        brillig.ssa_function_to_brillig.get(&func.id()).is_some_and(|a| a.spill_support);
-
     let (mut entry_point, stack_start) = BrilligContext::new_entry_point_artifact(
         arguments,
         return_parameters,
@@ -80,7 +75,6 @@ pub(crate) fn gen_brillig_for(
         globals_memory_size,
         func.name(),
         &options,
-        callee_spill_support,
     );
 
     // Link the entry point with all dependencies
@@ -193,8 +187,8 @@ mod entry_point {
     }
 
     /// Snapshot of full entry point compiled with a small frame that forces spilling.
-    /// Verifies that the entry point uses spill_support=true (matching the callee):
-    /// - Parameters placed at sp[2],sp[3] (start_offset=2, slot sp[1] reserved for spill base)
+    /// Verifies the uniform start_offset=2 (sp[0] = prev stack pointer, sp[1] = spill base):
+    /// - Parameters placed at sp[2],sp[3]
     /// - Calldata copy targets sp[2],sp[3] (not sp[1],sp[2])
     #[test]
     fn entry_point_setup_with_spill_support() {
@@ -232,7 +226,7 @@ mod entry_point {
         let entry = gen_brillig_for(ssa.main(), args, &brillig, &options).unwrap();
 
         // Snapshot verifies:
-        // - Parameters at sp[2],sp[3] (start_offset=2, matching callee's spill_support=true)
+        // - Parameters at sp[2],sp[3] (start_offset=2, uniform across all functions)
         // - Spill base allocation at sp[1]
         // - Correct calldata copy to sp[2],sp[3] (not sp[1],sp[2])
         assert_artifact_snapshot!(entry, @r"

@@ -1,10 +1,15 @@
 //! This module handles allocation, tracking, and lifetime management of variables
 //! within a Brillig compiled SSA basic block.
 //!
-//! [BlockVariables] maintains a set of SSA [ValueId]s that are live and available
-//! during the compilation of a single SSA block into Brillig instructions. It cooperates
-//! with the [FunctionContext] to manage the mapping from SSA values to [BrilligVariable]s
-//! and with the [BrilligContext] for allocating registers.
+//! [BlockVariables] maintains a set of SSA [ValueId]s that currently have a register
+//! allocated and usable ("available") during the compilation of a single SSA block into
+//! Brillig instructions. "Available" means "has a register currently allocated" — not
+//! merely "is SSA-live". A value can be SSA-live but unavailable if it has been spilled
+//! to the heap spill region. Spill tracking is managed separately by
+//! [`SpillManager`](super::spill_manager::SpillManager).
+//!
+//! [BlockVariables] cooperates with the [FunctionContext] to manage the mapping from
+//! SSA values to [BrilligVariable]s and with the [BrilligContext] for allocating registers.
 //!
 //! Variables are:
 //! - Allocated when first defined in a block (if not already global or hoisted to the global space).
@@ -34,10 +39,15 @@ use crate::{
 
 use super::brillig_fn::FunctionContext;
 
-/// Tracks SSA variables that are live and usable during Brillig compilation of a block.
+/// Tracks SSA variables that have a register currently allocated and usable during
+/// Brillig compilation of a block.
 ///
-/// This structure is meant to be instantiated per SSA basic block and initialized using the
-/// the set of live variables that must be available at the block's entry.
+/// "Available" specifically means "has a register allocated right now". Values that are
+/// SSA-live but have been spilled to the heap spill region are *not* in this set.
+/// Spill tracking is the responsibility of [`SpillManager`](super::spill_manager::SpillManager).
+///
+/// This structure is instantiated per SSA basic block and initialized from the set of
+/// live-in variables that are not spilled.
 ///
 /// It implements:
 /// - A set of active [ValueId]s that are allocated and usable.

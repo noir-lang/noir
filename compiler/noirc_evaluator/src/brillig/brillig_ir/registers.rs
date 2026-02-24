@@ -150,25 +150,29 @@ pub(crate) struct Stack {
     ///
     /// - offset 0 is always reserved for the previous stack pointer.
     /// - offset 1 is always reserved for the per-frame spill base pointer.
-    /// - `start_offset` is always 2.
+    /// - `start_offset` is always [`Self::START_OFFSET`] (2).
     ///
-    /// We use a uniform start offset across all functions to keep the calling convention
-    /// consistent. `codegen_call` places arguments at `sp[stack_size + self.start()]` using
-    /// the *caller's* start offset, while `codegen_return` writes returns at `sp[self.start()]`
-    /// using the *callee's* start offset. If caller and callee disagree on `start()`, the
-    /// calling convention breaks silently (arguments are misaligned). Since `spill_support` is
-    /// per-function (based on liveness), different functions in the same program can have
-    /// different start offsets if we condition on it. The only safe choice is a uniform start
-    /// offset across all functions. The cost (1 wasted slot per frame) is negligible.
+    /// The offset is uniform across all functions ([`Self::START_OFFSET`] = 2).
+    /// This is required because `codegen_call` places arguments at
+    /// `sp[stack_size + self.start()]` using the *caller's* start offset, while
+    /// `codegen_return` writes returns at `sp[self.start()]` using the *callee's*.
+    /// A mismatch would silently misalign arguments. The cost of the reserved
+    /// sp[1] slot in functions that never spill is negligible.
     start_offset: usize,
 }
 
 impl Stack {
-    pub(crate) fn new(layout: LayoutConfig, _spill_support: bool) -> Self {
-        // Always reserve sp[0] for prev stack pointer and sp[1] for spill base.
-        // See `start_offset` doc comment for why this is unconditional.
-        let start_offset = 2;
-        Self { storage: DeallocationListAllocator::new(start_offset), layout, start_offset }
+    /// Number of reserved slots at the start of each stack frame:
+    /// - sp[0]: previous stack pointer
+    /// - sp[1]: per-frame spill base pointer
+    const START_OFFSET: usize = 2;
+
+    pub(crate) fn new(layout: LayoutConfig) -> Self {
+        Self {
+            storage: DeallocationListAllocator::new(Self::START_OFFSET),
+            layout,
+            start_offset: Self::START_OFFSET,
+        }
     }
 
     /// Check if a `Relative` address is within the bounds of the stack.
@@ -233,8 +237,11 @@ impl RegisterAllocator for Stack {
         preallocated_registers: Vec<MemoryAddress>,
         layout: LayoutConfig,
     ) -> Self {
-        // Always use start_offset=2 to match Stack::new.
-        Self::from_preallocated_registers_with_start(preallocated_registers, layout, 2)
+        Self::from_preallocated_registers_with_start(
+            preallocated_registers,
+            layout,
+            Self::START_OFFSET,
+        )
     }
 
     fn new_from_existing(&self, preallocated_registers: Vec<MemoryAddress>) -> Self {
@@ -814,7 +821,7 @@ mod tests {
 
     #[test]
     fn stack_should_prioritize_returning_low_registers() {
-        let mut stack = Stack::new(LayoutConfig::default(), false);
+        let mut stack = Stack::new(LayoutConfig::default());
         let one = stack.allocate_register();
         let _two = stack.allocate_register();
         let three = stack.allocate_register();

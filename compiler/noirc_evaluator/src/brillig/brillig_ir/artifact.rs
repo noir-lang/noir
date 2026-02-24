@@ -89,11 +89,6 @@ pub struct BrilligArtifact<F> {
     /// If no spilling occurs, the no-ops remain harmless.
     unresolved_spill_prologue: Option<[OpcodeLocation; 3]>,
 
-    /// Whether this function uses spill support (reserves space for per-frame [spill base pointer][crate::brillig::brillig_ir::ReservedRegisters::spill_base_slot]).
-    /// The entry point must create its context with the same spill_support so that parameter
-    /// offsets align with the function body's register layout.
-    pub(crate) spill_support: bool,
-
     /// This field contains the given procedure id if this artifact originates from as procedure
     pub(crate) procedure: Option<ProcedureId>,
     /// Procedure ID mapped to the range of its opcode locations

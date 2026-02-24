@@ -52,15 +52,9 @@ pub(crate) struct FunctionContext {
     pub(crate) constant_allocation: ConstantAllocation,
     /// True if this function is a brillig entry point
     pub(crate) is_entry_point: bool,
-    /// Whether this function needs spill infrastructure (spill base pointer slot, spill region function prologue).
-    /// Determined by comparing [VariableLiveness::max_live_count] to the max stack frame size.
-    pub(crate) spill_support: bool,
-    /// Set to true if any block in this function spilled a value to the heap spill region.
-    pub(crate) did_spill: bool,
-    /// The maximum spill offset used across all blocks (i.e. the number of spill slots needed).
-    pub(crate) max_spill_offset: usize,
     /// Manages spilling of register values to the heap spill region when register pressure
     /// exceeds the stack frame limit. Persists across blocks so spill state is not lost.
+    /// Present only when the function may need spilling (based on liveness analysis).
     pub(crate) spill_manager: Option<SpillManager>,
 }
 
@@ -92,9 +86,10 @@ impl FunctionContext {
         let constants = ConstantAllocation::from_function(function);
         let liveness = VariableLiveness::from_function(function, &constants);
 
-        let spill_support = liveness.max_live_count + Self::SPILL_MARGIN >= max_stack_frame_size;
+        let needs_spill_support =
+            liveness.max_live_count + Self::SPILL_MARGIN >= max_stack_frame_size;
 
-        let spill_manager = if spill_support { Some(SpillManager::new()) } else { None };
+        let spill_manager = if needs_spill_support { Some(SpillManager::new()) } else { None };
 
         Self {
             function_id: Some(id),
@@ -103,11 +98,23 @@ impl FunctionContext {
             liveness,
             is_entry_point,
             constant_allocation: constants,
-            spill_support,
-            did_spill: false,
-            max_spill_offset: 0,
             spill_manager,
         }
+    }
+
+    /// Whether this function has spill infrastructure enabled.
+    pub(crate) fn spill_enabled(&self) -> bool {
+        self.spill_manager.is_some()
+    }
+
+    /// Whether any block in this function actually spilled a value.
+    pub(crate) fn did_spill(&self) -> bool {
+        self.spill_manager.as_ref().is_some_and(|sm| sm.max_spill_offset() > 0)
+    }
+
+    /// The number of spill slots needed (0 if no spilling occurred).
+    pub(crate) fn max_spill_offset(&self) -> usize {
+        self.spill_manager.as_ref().map_or(0, |sm| sm.max_spill_offset())
     }
 
     /// Get the ID of the function this context was created for.

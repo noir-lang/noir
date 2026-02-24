@@ -122,15 +122,14 @@ impl Brillig {
         let mut function_context =
             FunctionContext::new(func, is_entry_point, options.layout.max_stack_frame_size());
 
-        let mut brillig_context =
-            BrilligContext::new(func.name(), options, function_context.spill_support);
+        let mut brillig_context = BrilligContext::new(func.name(), options);
 
         brillig_context.enter_context(Label::function(func.id()));
 
         brillig_context.call_check_max_stack_depth_procedure();
 
         // Only emit spill prologue placeholders when the function may need spilling.
-        if function_context.spill_support {
+        if function_context.spill_enabled() {
             brillig_context.emit_unresolved_spill_prologue();
         }
 
@@ -147,8 +146,8 @@ impl Brillig {
         }
 
         // Resolve: overwrite placeholder NOPs with real allocation if spilling occurred
-        if function_context.did_spill {
-            brillig_context.resolve_spill_prologue(function_context.max_spill_offset);
+        if function_context.did_spill() {
+            brillig_context.resolve_spill_prologue(function_context.max_spill_offset());
         }
 
         if options.show_opcode_advisories {
@@ -158,9 +157,7 @@ impl Brillig {
             brillig_check::show_opcode_advisories(&opcode_advisories, brillig_context.artifact());
         }
 
-        let mut artifact = brillig_context.into_artifact();
-        artifact.spill_support = function_context.spill_support;
-        artifact
+        brillig_context.into_artifact()
     }
 
     pub fn call_stacks(&self) -> &CallStackHelper {

@@ -1,4 +1,4 @@
-use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::brillig::brillig_ir::brillig_variable::BrilligVariable;
 use crate::ssa::ir::value::ValueId;
@@ -23,6 +23,8 @@ pub(crate) struct SpillManager {
     /// in the dominator block) and non-param live-in values (stored at Jmp/JmpIf
     /// to ensure the destination can always reload from a valid slot).
     permanent_spills: HashMap<ValueId, SpillInfo>,
+    /// The maximum number of spill slots needed across all blocks in this function.
+    max_spill_offset: usize,
 }
 
 #[derive(Clone, Copy)]
@@ -41,7 +43,31 @@ impl SpillManager {
             next_spill_offset: 0,
             free_spill_slots: Vec::new(),
             permanent_spills: HashMap::default(),
+            max_spill_offset: 0,
         }
+    }
+
+    /// Prepare spill state for a new block.
+    ///
+    /// 1. Asserts that no transient spills leaked from the previous block
+    ///    (all entries in `spilled` must also be in `permanent_spills`).
+    /// 2. Restores permanently-spilled values into the `spilled` map.
+    /// 3. Removes spilled values from the live-in set (they have no register).
+    /// 4. Resets the LRU with the remaining (non-spilled) live-in values,
+    ///    sorted by [`ValueId`] for deterministic eviction order.
+    pub(crate) fn begin_block(&mut self, live_in: &mut HashSet<ValueId>) {
+        // No transient spills should survive across block boundaries.
+        debug_assert!(
+            self.spilled.keys().all(|v| self.permanent_spills.contains_key(v)),
+            "Transient spill leaked across block boundary"
+        );
+        self.restore_permanent_spills();
+        live_in.retain(|v| !self.is_spilled(v));
+
+        // Sort by ValueId for deterministic LRU initialization order.
+        let mut sorted: Vec<ValueId> = live_in.iter().copied().collect();
+        sorted.sort();
+        self.reset_lru_for_block(sorted.into_iter());
     }
 
     /// Check if a value is currently spilled.
@@ -77,17 +103,28 @@ impl SpillManager {
 
     /// Allocate a spill slot offset, reusing a freed slot if available.
     pub(crate) fn allocate_spill_offset(&mut self) -> usize {
-        if let Some(offset) = self.free_spill_slots.pop() {
+        let offset = if let Some(offset) = self.free_spill_slots.pop() {
             offset
         } else {
             let offset = self.next_spill_offset;
             self.next_spill_offset += 1;
             offset
-        }
+        };
+        self.max_spill_offset = self.max_spill_offset.max(offset + 1);
+        offset
+    }
+
+    /// The maximum number of spill slots used across all blocks.
+    pub(crate) fn max_spill_offset(&self) -> usize {
+        self.max_spill_offset
     }
 
     /// Return the least recently used value that is not currently spilled.
     /// Returns None if there are no eligible values in the LRU.
+    ///
+    /// Note: permanently-spilled values may appear in the LRU if they were
+    /// reloaded (which calls `touch()`). This is correct — a reloaded value
+    /// has a register and is a valid eviction candidate.
     pub(crate) fn lru_victim(&self) -> Option<ValueId> {
         for value_id in &self.lru_order {
             if !self.spilled.contains_key(value_id) {
@@ -104,6 +141,7 @@ impl SpillManager {
         offset: usize,
         variable: BrilligVariable,
     ) {
+        debug_assert!(!self.spilled.contains_key(&value_id), "Double-spill of {value_id:?}");
         self.spilled.insert(value_id, SpillInfo { offset, variable });
     }
 

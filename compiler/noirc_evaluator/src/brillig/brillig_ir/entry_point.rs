@@ -29,9 +29,8 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         globals_memory_size: usize,
         name: &str,
         options: &BrilligOptions,
-        spill_support: bool,
     ) -> (BrilligArtifact<F>, usize) {
-        let mut context = BrilligContext::new(name, options, spill_support);
+        let mut context = BrilligContext::new(name, options);
 
         context.set_globals_memory_size(Some(globals_memory_size));
 
