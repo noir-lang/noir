@@ -256,10 +256,6 @@ pub fn from_parts(mut array: [T; MaxLen], len: u32) -> Self
 Creates a new BoundedVec from the given array and length.
 The given length must be less than or equal to the length of the array.
 
-This function will zero out any elements at or past index `len` of `array`.
-This incurs an extra runtime cost of O(MaxLen). If you are sure your array is
-zeroed after that index, you can use `from_parts_unchecked` to remove the extra loop.
-
 Example:
 
 #include_code from-parts noir_stdlib/src/collections/bounded_vec.nr rust
@@ -273,11 +269,8 @@ pub fn from_parts_unchecked(array: [T; MaxLen], len: u32) -> Self
 Creates a new BoundedVec from the given array and length.
 The given length must be less than or equal to the length of the array.
 
-This function is unsafe because it expects all elements past the `len` index
-of `array` to be zeroed, but does not check for this internally. Use `from_parts`
-for a safe version of this function which does zero out any indices past the
-given length. Invalidating this assumption can notably cause `BoundedVec::eq`
-to give incorrect results since it will check even elements past `len`.
+This function used to be different from `BoundedVec::from_parts`, but is now identical
+and thus deprecated.
 
 Example:
 
