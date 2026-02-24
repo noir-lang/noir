@@ -1,0 +1,8 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: dead_witnesses
+---
+Found some dead witnesses in function 0:
+ - Dead witnesses in program inputs:
+  - xs[0] (witness w0)
+Dead witnesses found in circuit

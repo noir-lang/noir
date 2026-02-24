@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: dead_witnesses
+---
+Found some dead witnesses in function 0:
+ - Dead witnesses in program inputs:
+  - b (witnesses {w0,..,w1})
+warning: Dead witnesses {w3,..,w11}
+   ┌─ /Users/asterite/Projects/noir/test_programs/execution_success/regression_9329/src/main.nr:12:20
+   │
+12 │             b[0] = b[1] + d;
+   │                    --------
+   │
+   = Call stack:
+     1. /Users/asterite/Projects/noir/test_programs/execution_success/regression_9329/src/main.nr:2:13
+
+Dead witnesses found in circuit

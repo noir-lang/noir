@@ -1,0 +1,23 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: dead_witnesses
+---
+Found some dead witnesses in function 0:
+ - Dead witnesses in program inputs:
+  - a (witness w0)
+  - b (witnesses {w1,..,w20})
+warning: Dead witnesses {w21,..,w22}
+  ┌─ /Users/asterite/Projects/noir/test_programs/execution_success/array_oob_regression_7965/src/main.nr:5:14
+  │
+5 │         G_A[((((b[0].0 as u8) + (b[0].0 as u8)) as u32) % 2)]
+  │              ----------------------------------------------
+  │
+
+warning: Dead witnesses {w23,..,w24}
+  ┌─ /Users/asterite/Projects/noir/test_programs/execution_success/array_oob_regression_7965/src/main.nr:5:9
+  │
+5 │         G_A[((((b[0].0 as u8) + (b[0].0 as u8)) as u32) % 2)]
+  │         -----------------------------------------------------
+  │
+
+Dead witnesses found in circuit

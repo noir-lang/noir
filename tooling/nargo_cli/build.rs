@@ -449,7 +449,7 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
             &test_name,
             &test_dir,
             "execute",
-            &format!("execution_success(nargo, test_program_dir, {check_stdout});",),
+            &format!("execution_success(nargo, test_program_dir, force_brillig, {check_stdout});",),
             &MatrixConfig {
                 vary_brillig: !IGNORED_BRILLIG_TESTS.contains(&test_name.as_str()),
                 vary_inliner: true,
@@ -959,7 +959,7 @@ fn generate_minimal_execution_success_tests(test_file: &mut File, test_data_dir:
             &format!(
                 r#"
                 nargo.arg("--minimal-ssa");
-                execution_success(nargo, test_program_dir, {check_stdout});
+                execution_success(nargo, test_program_dir, force_brillig, {check_stdout});
                 "#,
             ),
             &MatrixConfig {

@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: dead_witnesses
+---
+Found some dead witnesses in function 0:
+ - Dead witnesses in program inputs:
+  - a (witnesses {w0,..,w5})
+  - b (witness w6)
+  - c (witness w7)
+warning: Dead witnesses {w9,..,w10}
+  ┌─ /Users/asterite/Projects/noir/test_programs/execution_success/regression_10307/src/main.nr:3:24
+  │
+3 │         let _ = if c { a[b] } else { a[0] };
+  │                        ----
+  │
+
+Dead witnesses found in circuit

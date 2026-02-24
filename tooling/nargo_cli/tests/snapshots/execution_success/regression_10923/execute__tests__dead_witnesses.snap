@@ -1,0 +1,13 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: dead_witnesses
+---
+Found some dead witnesses in function 0:
+warning: Dead witnesses {w6}
+  ┌─ /Users/asterite/Projects/noir/test_programs/execution_success/regression_10923/src/main.nr:4:18
+  │
+4 │         unsafe { func_2_proxy((c as Field)); };
+  │                  --------------------------
+  │
+
+Dead witnesses found in circuit
