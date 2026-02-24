@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771941668898,
+  "lastUpdate": 1771944268880,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23151,48 +23151,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "abe71734d028ff6703f7b3764da169a791304622",
-          "message": "chore(frontend): add regression test for associated constant in return type with generic impl forwarding (#11577)",
-          "timestamp": "2026-02-13T14:27:34Z",
-          "tree_id": "37a77744b737ac7d3c2d22591c3971ccdf1143cd",
-          "url": "https://github.com/noir-lang/noir/commit/abe71734d028ff6703f7b3764da169a791304622"
-        },
-        "date": 1770993007542,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 247914,
-            "range": "± 1562",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 218161,
-            "range": "± 3352",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2729317,
-            "range": "± 2137",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -25244,6 +25202,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2730958,
             "range": "± 1920",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "dbcb0cd03911b524bc6a715f0fa5710b27045507",
+          "message": "chore: atomic insert for WitnessMap (#11658)",
+          "timestamp": "2026-02-24T14:15:41Z",
+          "tree_id": "ee92e782293700f7e8799a94c991113399dea3e6",
+          "url": "https://github.com/noir-lang/noir/commit/dbcb0cd03911b524bc6a715f0fa5710b27045507"
+        },
+        "date": 1771944217851,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 244596,
+            "range": "± 506",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 216285,
+            "range": "± 2126",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2209885,
+            "range": "± 3786",
             "unit": "ns/iter"
           }
         ]
