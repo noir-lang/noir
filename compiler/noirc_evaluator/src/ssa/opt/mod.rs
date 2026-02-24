@@ -5,6 +5,7 @@
 //! Generally, these passes are also expected to minimize the final amount of instructions.
 
 mod array_get;
+mod array_set;
 mod as_vector_length;
 mod basic_conditional;
 mod black_box_bypass;
