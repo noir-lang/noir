@@ -728,7 +728,7 @@ impl DocItemBuilder<'_> {
         }
 
         // The module changed (it got new items). Because it can still be looked up in
-        // `item_id_to_converted_item` we need to update it's definition there too.
+        // `item_id_to_converted_item` we need to update its definition there too.
         self.item_id_to_converted_item.get_mut(&module.id).unwrap().item =
             Item::Module(module.clone());
     }
