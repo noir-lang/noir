@@ -1720,9 +1720,9 @@ mod test {
               v4 = make_array [u8 0]: [u8; 1] // cannot be deduplicated with v1, it's not in the cache
               v5 = array_set v4, index u32 0, value u8 1  // removes v3 from the cache
               v6 = lt v3, u32 5
-              jmpif v6 then: b2(), else: b6()     // iterate the body or exit()
+              jmpif v6 then: b2(), else: b6()     // iterate the body or exit
             b2():                             // loop body
-              jmpif v0 then: b3(), else: b4()     // if-then-else with then and else sharing instructions()
+              jmpif v0 then: b3(), else: b4()     // if-then-else with then and else sharing instructions
             b3():
               v7 = make_array [u8 0]: [u8; 1] // v3 not in cache; stays in place
               jmp b5()

@@ -1119,8 +1119,11 @@ brillig(inline) fn main f0 {
 
     #[test]
     fn add_arg_to_jmpif_block_regression() {
-        // This case would require us to add block arguments to a jmpif. Instead, we modify
-        // the CFG to insert extra blocks. See [Ssa::process_cfg_for_mem2reg_simple] for more details.
+        // Before JmpIf arguments were added, we used to require a separate pass
+        // (Ssa::process_cfg_for_mem2reg_simple) for converting the SSA into a form where we
+        // didn't need to add jmpif arguments. This test was erroring in a corner case of that
+        // analysis previously. Now, we do have jmpif arguments and don't need a preprocessing
+        // step but this test is kept anyway.
         let src = "
             brillig(inline) fn to_le_bits f19 {
               b0(v0: Field):
