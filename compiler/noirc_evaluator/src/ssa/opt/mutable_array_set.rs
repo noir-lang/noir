@@ -1,4 +1,4 @@
-//! The purpose of the `array_set_optimization` SSA pass is to mark `ArraySet` instructions
+//! The purpose of the `mutable_array_set_optimization` SSA pass is to mark `ArraySet` instructions
 //! as mutable _iff_ the array is not potentially shared with the callers or callees of the
 //! function and won't be used again in the function itself either. In other words, if this
 //! is the last time we use this version of the array, we can mutate it in place, and avoid
@@ -74,7 +74,7 @@ fn mutable_array_set_optimization_pre_check(func: &Function) {
     });
 }
 
-/// Post-check condition for [Function::array_set_optimization].
+/// Post-check condition for [Function::mutable_array_set_optimization].
 ///
 /// Panics if a Brillig function contains mutable array set instructions.
 /// Brillig uses ref-counting to decide whether to mutate an array, not mutable flags.
@@ -89,7 +89,7 @@ fn mutable_array_set_optimization_post_check(func: &Function) {
 }
 
 impl Function {
-    fn mutable_array_set_optimization(&mut self) {
+    pub(crate) fn mutable_array_set_optimization(&mut self) {
         if self.runtime().is_brillig() {
             // Brillig is supposed to use ref-counting to decide whether to mutate an array;
             // array mutation was only meant for ACIR. We could use it with Brillig as well,
@@ -280,19 +280,7 @@ mod tests {
                 return v5
             }
             ";
-        let ssa = Ssa::from_str(src).unwrap();
-
-        let ssa = ssa.array_set_optimization();
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) fn main f0 {
-          b0():
-            v1 = make_array [Field 0] : [Field; 1]
-            v4 = array_set v1, index u32 0, value Field 2
-            v5 = make_array [v1, v1] : [[Field; 1]; 2]
-            v6 = array_set v5, index u32 0, value v1
-            return v6
-        }
-        ");
+        assert_ssa_does_not_change(src, Ssa::mutable_array_set_optimization);
     }
 
     #[test]
@@ -312,7 +300,7 @@ mod tests {
                 return v1
             }
             ";
-        assert_ssa_does_not_change(src, Ssa::array_set_optimization);
+        assert_ssa_does_not_change(src, Ssa::mutable_array_set_optimization);
     }
 
     #[test]
@@ -325,7 +313,7 @@ mod tests {
                 return v1
             }
             ";
-        assert_ssa_does_not_change(src, Ssa::array_set_optimization);
+        assert_ssa_does_not_change(src, Ssa::mutable_array_set_optimization);
     }
 
     #[test]
@@ -339,7 +327,7 @@ mod tests {
                 unreachable
             }
             ";
-        assert_ssa_does_not_change(src, Ssa::array_set_optimization);
+        assert_ssa_does_not_change(src, Ssa::mutable_array_set_optimization);
     }
 
     // Demonstrate that we assume that `IfElse` instructions have been
@@ -359,7 +347,7 @@ mod tests {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
-        let _ssa = ssa.array_set_optimization();
+        let _ssa = ssa.mutable_array_set_optimization();
     }
 
     #[test]
@@ -375,7 +363,7 @@ mod tests {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
-        let _ssa = ssa.array_set_optimization();
+        let _ssa = ssa.mutable_array_set_optimization();
     }
 
     #[test]
@@ -391,7 +379,7 @@ mod tests {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
-        let _ssa = ssa.array_set_optimization();
+        let _ssa = ssa.mutable_array_set_optimization();
     }
 
     #[test_case("inline")]
@@ -411,7 +399,7 @@ mod tests {
         }}"
         );
         let ssa = Ssa::from_str(&src).unwrap();
-        let _ssa = ssa.array_set_optimization();
+        let _ssa = ssa.mutable_array_set_optimization();
     }
 
     // Previously, the first array_set instruction, which modifies v2 in the below
@@ -426,7 +414,7 @@ mod tests {
                 return v6, v5
             }
             ";
-        assert_ssa_does_not_change(src, Ssa::array_set_optimization);
+        assert_ssa_does_not_change(src, Ssa::mutable_array_set_optimization);
     }
 
     #[test]
@@ -450,8 +438,9 @@ mod tests {
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
+
         let (ssa, value) =
-            assert_pass_does_not_affect_execution(ssa, vec![], Ssa::array_set_optimization);
+            assert_pass_does_not_affect_execution(ssa, vec![], Ssa::mutable_array_set_optimization);
         assert_eq!(value.unwrap()[0], Value::Numeric(NumericValue::Field(0_u32.into())));
 
         assert_ssa_snapshot!(ssa, @r"
