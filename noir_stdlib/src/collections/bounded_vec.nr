@@ -566,10 +566,12 @@ where
         if self.len == other.len {
             if is_unconstrained() {
                 // safety: we are already in an unconstrained context
-                unsafe { unconstrained_eq(self, other) }
+                unsafe {
+                    unconstrained_eq(self, other)
+                }
             } else {
                 let mut eq = true;
-                for i in 0 .. MaxLen {
+                for i in 0..MaxLen {
                     if i < self.len {
                         eq &= self.storage[i] == other.storage[i];
                     }
@@ -585,11 +587,15 @@ where
 /// Returns true if both BoundedVecs are equal.
 /// Note: This assumes the lengths of both Vecs are already equal!
 /// This function is broken out of `impl Eq for BoundedVec` to make use of `break` in unconstrained code.
-unconstrained fn unconstrained_eq<T, let MaxLen: u32>(a: BoundedVec<T, MaxLen>, b: BoundedVec<T, MaxLen>) -> bool
-    where T: Eq
+unconstrained fn unconstrained_eq<T, let MaxLen: u32>(
+    a: BoundedVec<T, MaxLen>,
+    b: BoundedVec<T, MaxLen>,
+) -> bool
+where
+    T: Eq,
 {
     let mut eq = true;
-    for i in 0 .. a.len {
+    for i in 0..a.len {
         if a.storage[i] != b.storage[i] {
             eq = false;
             break;
