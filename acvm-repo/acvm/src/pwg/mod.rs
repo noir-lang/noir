@@ -947,6 +947,25 @@ mod tests {
     }
 
     #[test]
+    fn insert_value_does_not_overwrite_on_conflict() {
+        use crate::pwg::insert_value;
+
+        let old_value = FieldElement::from(1u128);
+        let new_value = FieldElement::from(2u128);
+        let witness = Witness(0);
+
+        let mut witness_map = WitnessMap::new();
+        insert_value(&witness, old_value, &mut witness_map).expect("first insert should succeed");
+
+        let result = insert_value(&witness, new_value, &mut witness_map);
+        assert!(
+            matches!(result, Err(OpcodeResolutionError::UnsatisfiedConstrain { .. })),
+            "expected UnsatisfiedConstrain error on conflicting insert"
+        );
+        assert_eq!(witness_map[&witness], old_value, "map should still hold the original value");
+    }
+
+    #[test]
     fn errors_when_calling_function_zero() {
         let initial_witness =
             WitnessMap::from(BTreeMap::from_iter([(Witness(1), FieldElement::from(1u128))]));
