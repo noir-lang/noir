@@ -261,7 +261,7 @@ mod tests {
         ssa::{
             Ssa,
             interpreter::value::{NumericValue, Value},
-            opt::assert_ssa_does_not_change,
+            opt::{assert_pass_does_not_affect_execution, assert_ssa_does_not_change},
         },
     };
     use test_case::test_case;
@@ -450,12 +450,10 @@ mod tests {
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
-        let value = &ssa.interpret(vec![]).unwrap()[0];
-        assert_eq!(value, &Value::Numeric(NumericValue::Field(0_u32.into())));
 
-        let ssa = ssa.array_set_optimization();
-        let value = &ssa.interpret(vec![]).unwrap()[0];
-        assert_eq!(value, &Value::Numeric(NumericValue::Field(0_u32.into())));
+        let (ssa, value) =
+            assert_pass_does_not_affect_execution(ssa, vec![], Ssa::array_set_optimization);
+        assert_eq!(value.unwrap()[0], Value::Numeric(NumericValue::Field(0_u32.into())));
 
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
