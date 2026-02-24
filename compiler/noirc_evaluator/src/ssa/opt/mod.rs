@@ -28,6 +28,7 @@ mod inlining;
 mod loop_invariant;
 mod make_constrain_not_equal;
 mod mem2reg;
+mod mutable_array_set;
 mod normalize_value_ids;
 mod preprocess_fns;
 pub(crate) mod pure;
