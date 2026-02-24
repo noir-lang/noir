@@ -716,13 +716,7 @@ fn empty_parameters_should_generate_no_witnesses() {
         return
     }
     ";
-    let ssa = Ssa::from_str(src).unwrap();
-    let (acir, _, _) = ssa.into_acir(&Brillig::default(), &BrilligOptions::default()).unwrap();
-    let acir = &acir[0];
-
-    assert!(acir.current_witness_index().is_none());
-    assert!(acir.input_witnesses.is_empty());
-    assert!(acir.return_witnesses.is_empty());
+    assert_no_witnesses(src);
 }
 
 #[test]
@@ -733,6 +727,10 @@ fn zero_sized_parameters_should_generate_no_witnesses() {
         return
     }
     ";
+    assert_no_witnesses(src);
+}
+
+fn assert_no_witnesses(src: &str) {
     let ssa = Ssa::from_str(src).unwrap();
     let (acir, _, _) = ssa.into_acir(&Brillig::default(), &BrilligOptions::default()).unwrap();
     let acir = &acir[0];
