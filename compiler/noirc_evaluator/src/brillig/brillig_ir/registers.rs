@@ -127,9 +127,6 @@ pub(crate) trait RegisterAllocator {
         preallocated_registers: Vec<MemoryAddress>,
         layout: LayoutConfig,
     ) -> Self;
-    /// Creates a new register context preserving configuration from an existing allocator.
-    /// This is used when resetting registers between blocks while keeping the same start offset.
-    fn new_from_existing(&self, preallocated_registers: Vec<MemoryAddress>) -> Self;
     /// Finds the first register which is followed only by free registers.
     ///
     /// Always returns a [MemoryAddress::Relative] address.
@@ -143,22 +140,19 @@ pub(crate) trait RegisterAllocator {
 
 /// Every brillig stack frame/call context has its own view of register space.
 /// This is maintained by copying these registers to the stack during calls and reading them back.
+///
+/// The first two slots of every frame are reserved:
+/// - sp[0]: previous stack pointer
+/// - sp[1]: per-frame spill base pointer
+///
+/// User-addressable registers start at [`Self::START_OFFSET`] (2). This offset
+/// is uniform across all functions because `codegen_call` places arguments at
+/// `sp[stack_size + self.start()]` using the *caller's* start, while
+/// `codegen_return` writes returns at `sp[self.start()]` using the *callee's*.
+/// A mismatch would silently misalign arguments.
 pub(crate) struct Stack {
     storage: DeallocationListAllocator,
     layout: LayoutConfig,
-    /// The first addressable stack slot.
-    ///
-    /// - offset 0 is always reserved for the previous stack pointer.
-    /// - offset 1 is always reserved for the per-frame spill base pointer.
-    /// - `start_offset` is always [`Self::START_OFFSET`] (2).
-    ///
-    /// The offset is uniform across all functions ([`Self::START_OFFSET`] = 2).
-    /// This is required because `codegen_call` places arguments at
-    /// `sp[stack_size + self.start()]` using the *caller's* start offset, while
-    /// `codegen_return` writes returns at `sp[self.start()]` using the *callee's*.
-    /// A mismatch would silently misalign arguments. The cost of the reserved
-    /// sp[1] slot in functions that never spill is negligible.
-    start_offset: usize,
 }
 
 impl Stack {
@@ -168,11 +162,7 @@ impl Stack {
     const START_OFFSET: usize = 2;
 
     pub(crate) fn new(layout: LayoutConfig) -> Self {
-        Self {
-            storage: DeallocationListAllocator::new(Self::START_OFFSET),
-            layout,
-            start_offset: Self::START_OFFSET,
-        }
+        Self { storage: DeallocationListAllocator::new(Self::START_OFFSET), layout }
     }
 
     /// Check if a `Relative` address is within the bounds of the stack.
@@ -180,38 +170,13 @@ impl Stack {
     /// Panics if the address is `Direct`.
     fn is_within_bounds(&self, register: MemoryAddress) -> bool {
         let offset = assert_usize(register.unwrap_relative());
-        offset >= self.start_offset && offset < self.end()
-    }
-}
-
-impl Stack {
-    /// Create a new `Stack` from a set of pre-allocated registers, preserving
-    /// the given `start_offset` (which comes from the original Stack).
-    pub(crate) fn from_preallocated_registers_with_start(
-        preallocated_registers: Vec<MemoryAddress>,
-        layout: LayoutConfig,
-        start_offset: usize,
-    ) -> Self {
-        let empty =
-            Self { storage: DeallocationListAllocator::new(start_offset), layout, start_offset };
-        for register in &preallocated_registers {
-            assert!(empty.is_within_bounds(*register), "Register out of stack bounds: {register}");
-        }
-
-        Self {
-            storage: DeallocationListAllocator::from_preallocated_registers(
-                start_offset,
-                vecmap(preallocated_registers, |r| assert_usize(r.unwrap_relative())),
-            ),
-            layout,
-            start_offset,
-        }
+        offset >= Self::START_OFFSET && offset < self.end()
     }
 }
 
 impl RegisterAllocator for Stack {
     fn start(&self) -> usize {
-        self.start_offset
+        Self::START_OFFSET
     }
 
     fn end(&self) -> usize {
@@ -237,19 +202,18 @@ impl RegisterAllocator for Stack {
         preallocated_registers: Vec<MemoryAddress>,
         layout: LayoutConfig,
     ) -> Self {
-        Self::from_preallocated_registers_with_start(
-            preallocated_registers,
-            layout,
-            Self::START_OFFSET,
-        )
-    }
+        let empty = Self { storage: DeallocationListAllocator::new(Self::START_OFFSET), layout };
+        for register in &preallocated_registers {
+            assert!(empty.is_within_bounds(*register), "Register out of stack bounds: {register}");
+        }
 
-    fn new_from_existing(&self, preallocated_registers: Vec<MemoryAddress>) -> Self {
-        Stack::from_preallocated_registers_with_start(
-            preallocated_registers,
-            self.layout,
-            self.start_offset,
-        )
+        Self {
+            storage: DeallocationListAllocator::from_preallocated_registers(
+                Self::START_OFFSET,
+                vecmap(preallocated_registers, |r| assert_usize(r.unwrap_relative())),
+            ),
+            layout,
+        }
     }
 
     fn empty_registers_start(&self) -> MemoryAddress {
@@ -337,10 +301,6 @@ impl RegisterAllocator for ScratchSpace {
             ),
             layout,
         }
-    }
-
-    fn new_from_existing(&self, preallocated_registers: Vec<MemoryAddress>) -> Self {
-        Self::from_preallocated_registers(preallocated_registers, self.layout)
     }
 
     fn empty_registers_start(&self) -> MemoryAddress {
@@ -440,10 +400,6 @@ impl RegisterAllocator for GlobalSpace {
         _layout: LayoutConfig,
     ) -> Self {
         unimplemented!("`GlobalSpace` does not implement `from_preallocated_registers")
-    }
-
-    fn new_from_existing(&self, _preallocated_registers: Vec<MemoryAddress>) -> Self {
-        unimplemented!("`GlobalSpace` does not implement `new_from_existing")
     }
 
     fn empty_registers_start(&self) -> MemoryAddress {
@@ -588,11 +544,10 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
         self.registers_mut().deallocate_register(register);
     }
 
-    /// Resets the registers to a new list of allocated ones.
-    /// Uses `new_from_existing` to preserve allocator-specific configuration
-    /// (e.g., Stack's `start_offset` for spill support).
+    /// Resets the registers to a new list of allocated ones, preserving the current layout.
     pub(crate) fn set_allocated_registers(&mut self, allocated_registers: Vec<MemoryAddress>) {
-        let new_registers = self.registers().new_from_existing(allocated_registers);
+        let layout = self.registers().layout();
+        let new_registers = Registers::from_preallocated_registers(allocated_registers, layout);
         self.registers = Rc::new(RefCell::new(new_registers));
     }
 
