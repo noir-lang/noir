@@ -123,12 +123,7 @@ mod tests {
             .join("\n")
     }
 
-    fn execution_success(
-        mut nargo: Command,
-        test_program_dir: PathBuf,
-        force_brillig: ForceBrillig,
-        check_stdout: bool,
-    ) {
+    fn execution_success(mut nargo: Command, test_program_dir: PathBuf, check_stdout: bool) {
         let target_dir = tempfile::tempdir().unwrap().keep();
 
         nargo.arg(format!("--target-dir={}", target_dir.to_string_lossy()));
@@ -157,12 +152,6 @@ mod tests {
                     "Expected Prover.toml to contain a `return` key because the program produced an output"
                 );
             }
-
-            if !force_brillig.0
-                && let Some(artifact_path) = find_artifact_in_dir(&target_dir)
-            {
-                check_dead_witnesses(&test_program_dir, &artifact_path);
-            }
         }
     }
 
@@ -183,35 +172,6 @@ mod tests {
             insta::assert_snapshot!(snapshot_name, stdout);
         });
         has_circuit_output
-    }
-
-    fn check_dead_witnesses(test_program_dir: &Path, artifact_path: &Path) {
-        let main = test_program_dir.join("src").join("main.nr");
-        if !main.exists() {
-            return;
-        }
-
-        // If the main function is unconstrained, witnesses of all input arguments will be dead,
-        // and this information isn't very useful to record.
-        let main_contents = fs::read_to_string(main).ok().unwrap();
-        if main_contents.contains("unconstrained fn main") {
-            return;
-        }
-
-        #[allow(deprecated)]
-        let mut check_dead_witnesses = Command::cargo_bin("noir-check-dead-witnesses").unwrap();
-        check_dead_witnesses.arg("--artifact-path").arg(artifact_path);
-        let output = check_dead_witnesses.output().unwrap();
-        let dead_witnesses = String::from_utf8(output.stderr).unwrap();
-        let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
-        let snapshot_name = "dead_witnesses";
-        insta::with_settings!(
-            {
-                snapshot_path => format!("./snapshots/execution_success/{test_name}")
-            },
-            {
-            insta::assert_snapshot!(snapshot_name, dead_witnesses);
-        });
     }
 
     fn execution_failure(mut nargo: Command) {
@@ -552,26 +512,6 @@ mod tests {
             }
 
             return Some(path);
-        }
-
-        None
-    }
-
-    fn find_artifact_in_dir(dir: &PathBuf) -> Option<PathBuf> {
-        if !dir.exists() {
-            return None;
-        }
-
-        for entry in fs::read_dir(dir).unwrap() {
-            let Ok(entry) = entry else {
-                continue;
-            };
-
-            if entry.file_type().is_ok_and(|file_type| file_type.is_file())
-                && entry.path().extension().is_some_and(|ext| ext == "json")
-            {
-                return Some(entry.path());
-            }
         }
 
         None

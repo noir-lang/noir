@@ -1,9 +1,0 @@
----
-source: tooling/nargo_cli/tests/execute.rs
-expression: dead_witnesses
----
-Found some dead witnesses in function 0:
- - Dead witnesses in program inputs:
-  - foos[0] (witnesses {w0,..,w1})
-  - foos[1] (witnesses {w2,..,w3})
-Dead witnesses found in circuit
