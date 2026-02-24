@@ -849,28 +849,9 @@ impl<'a> Context<'a> {
             Value::Instruction { instruction, .. } => {
                 if matches!(
                     &dfg[*instruction],
-                    Instruction::Binary(Binary { operator: BinaryOp::Sub { .. }, .. })
+                    Instruction::Binary(Binary { operator: BinaryOp::Sub { unchecked: true }, .. })
                 ) {
-                    // Subtractions must first have the integer modulus added before truncation can be
-                    // applied. This is done in order to prevent underflow.
-                    //
-                    // FieldElements have max bit size equals to max_num_bits so
-                    // we filter out this bit size because there is no underflow
-                    // for FieldElements. Furthermore, adding a power of two
-                    // would be incorrect for a FieldElement (cf. #8519).
-                    if max_bit_size < FieldElement::max_num_bits() {
-                        // When max_bit_size is max_num_bits() - 1, adding
-                        // 2**max_bit_size to an element of max_bit_size bits
-                        // gives an element of max_num_bits() bits which may overflow
-                        assert!(
-                            max_bit_size != FieldElement::max_num_bits() - 1,
-                            "potential underflow in subtraction when max_bit_size is {max_bit_size}"
-                        );
-                        let integer_modulus = power_of_two::<FieldElement>(max_bit_size);
-                        let integer_modulus = self.acir_context.add_constant(integer_modulus);
-                        var = self.acir_context.add_var(var, integer_modulus)?;
-                        max_bit_size += 1;
-                    }
+                    unreachable!("Truncation of unchecked subtraction");
                 }
             }
             Value::Param { .. } => {

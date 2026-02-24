@@ -276,6 +276,27 @@ impl<'f> Validator<'f> {
                     );
                 }
             }
+            Instruction::Truncate { value, .. } => {
+                // Truncating an unchecked sub is not allowed, because the truncate
+                // is not compatible with a potential underflow due to the unchecked subtraction.
+                if let Value::Instruction { instruction, .. } = &dfg[*value]
+                    && let Instruction::Binary(Binary {
+                        lhs,
+                        operator: BinaryOp::Sub { unchecked: true },
+                        ..
+                    }) = &dfg[*instruction]
+                    && matches!(
+                        dfg.type_of_value(*lhs),
+                        Type::Numeric(NumericType::Unsigned { .. } | NumericType::Signed { .. })
+                    )
+                {
+                    panic!(
+                        "Truncate follows an integer-typed unchecked Sub, which may underflow. \
+                         Use Field arithmetic with an explicit 2^bit_size addition before the \
+                         Sub to prevent integer underflow, then Truncate the Field result."
+                    );
+                }
+            }
             Instruction::EnableSideEffectsIf { condition } => {
                 let condition_type = dfg.type_of_value(*condition);
                 assert_u1(&condition_type, "enable_side_effects condition");
@@ -2015,6 +2036,40 @@ mod tests {
         let ssa = builder.finish();
 
         Validator::new(&ssa.functions[&main_id], &ssa).run();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Truncate follows an integer-typed unchecked Sub, which may underflow"
+    )]
+    fn integer_unchecked_sub_before_truncate_is_rejected() {
+        // An unchecked Sub on integer types whose result feeds a Truncate may underflow:
+        // lhs - rhs wraps to near `p` in the field, making the Truncate output wrong.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8, v1: u8):
+            v2 = unchecked_sub v0, v1
+            v3 = truncate v2 to 8 bits, max_bit_size: 9
+            return v3
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn field_unchecked_sub_before_truncate_is_allowed() {
+        // A Sub on Field type feeding a Truncate is fine: Field arithmetic handles the
+        // wrap-around, and the caller must ensure the value fits in `max_bit_size` bits
+        // (e.g. by adding 2^bit_size to the lhs before subtracting).
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v2 = unchecked_sub v0, v1
+            v3 = truncate v2 to 8 bits, max_bit_size: 9
+            return v3
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
