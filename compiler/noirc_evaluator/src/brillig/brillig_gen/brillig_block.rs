@@ -297,7 +297,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     /// full textbook pre-pass register allocator), we spill everything and let the destination
     /// block reload on demand. Intra-block register pressure is still managed by LRU eviction.
     ///
-    /// Our plans for a full register allocator can be found at https://github.com/noir-lang/noir/issues/11638.
+    /// Our plans for a full register allocator can be found at <https://github.com/noir-lang/noir/issues/11638>.
     fn spill_non_param_live_ins(&mut self, destination: BasicBlockId, dfg: &DataFlowGraph) {
         if !self.spill_enabled() {
             return;

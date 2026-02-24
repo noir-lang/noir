@@ -142,8 +142,8 @@ pub(crate) trait RegisterAllocator {
 /// This is maintained by copying these registers to the stack during calls and reading them back.
 ///
 /// The first two slots of every frame are reserved:
-/// - sp[0]: previous stack pointer
-/// - sp[1]: per-frame spill base pointer
+/// - `sp[0]`: previous stack pointer
+/// - `sp[1]`: per-frame spill base pointer
 ///
 /// User-addressable registers start at [`Self::START_OFFSET`] (2). This offset
 /// is uniform across all functions because `codegen_call` places arguments at
@@ -157,8 +157,8 @@ pub(crate) struct Stack {
 
 impl Stack {
     /// Number of reserved slots at the start of each stack frame:
-    /// - sp[0]: previous stack pointer
-    /// - sp[1]: per-frame spill base pointer
+    /// - `sp[0]`: previous stack pointer
+    /// - `sp[1]`: per-frame spill base pointer
     const START_OFFSET: usize = 2;
 
     pub(crate) fn new(layout: LayoutConfig) -> Self {
