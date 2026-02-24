@@ -225,6 +225,8 @@ impl Elaborator<'_> {
         let (lvalue, lvalue_type, mutable, mut new_statements) =
             self.elaborate_lvalue(assign.lvalue);
 
+        self.mark_lvalue_variables_as_mutated(&lvalue);
+
         if !mutable {
             let (_, name, location) = self.get_lvalue_error_info(&lvalue);
             self.push_err(TypeCheckError::VariableMustBeMutable { name, location });

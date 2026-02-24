@@ -566,7 +566,8 @@ impl Elaborator<'_> {
 
         // The arguments to low-level and oracle functions are always unused so we do not produce warnings for them.
         if !func_meta.is_stub() {
-            self.check_for_unused_variables_in_scope_tree(func_scope_tree);
+            self.check_for_unused_variables_in_scope_tree(&func_scope_tree);
+            self.check_for_unnecessary_mut_variables_in_scope_tree(&func_scope_tree);
         }
 
         // Check that the body can return without calling the function.

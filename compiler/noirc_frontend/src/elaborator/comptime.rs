@@ -170,7 +170,8 @@ impl<'context> Elaborator<'context> {
 
                 let scope = self.scopes.get_mut_scope();
                 let ident = HirIdent::non_trait_method(*definition_id, location);
-                let meta = ResolverMeta { ident, num_times_used: 0, warn_if_unused: false };
+                let meta =
+                    ResolverMeta { ident, used: false, mutated: false, warn_if_unused: false };
                 scope.add_key_value(name.clone(), meta);
             }
         }

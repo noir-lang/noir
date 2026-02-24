@@ -475,7 +475,7 @@ impl Elaborator<'_> {
         }
 
         let second_location = ident.location;
-        let resolver_meta = ResolverMeta { num_times_used: 0, ident, warn_if_unused };
+        let resolver_meta = ResolverMeta { used: false, mutated: false, ident, warn_if_unused };
 
         let old_value = self.scopes.get_mut_scope().add_key_value(name.clone(), resolver_meta);
 
@@ -500,7 +500,7 @@ impl Elaborator<'_> {
 
         let location = name.location();
         if let Some((variable_found, scope)) = variable {
-            variable_found.num_times_used += 1;
+            variable_found.used = true;
             let id = variable_found.ident.id;
             let ident = HirIdent::non_trait_method(id, location);
             let variable = Variable { ident, scope };

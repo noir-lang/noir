@@ -168,12 +168,14 @@ impl Elaborator<'_> {
     pub fn pop_scope(&mut self) {
         let scope = self.scopes.end_scope();
         self.interner.comptime_scopes.pop();
-        self.check_for_unused_variables_in_scope_tree(scope.into());
+        let scope_decls = scope.into();
+        self.check_for_unused_variables_in_scope_tree(&scope_decls);
+        self.check_for_unnecessary_mut_variables_in_scope_tree(&scope_decls);
     }
 
-    pub fn check_for_unused_variables_in_scope_tree(&mut self, scope_decls: ScopeTree) {
+    pub fn check_for_unused_variables_in_scope_tree(&mut self, scope_decls: &ScopeTree) {
         let mut unused_vars = Vec::new();
-        for scope in scope_decls.0.into_iter() {
+        for scope in scope_decls.0.iter() {
             Self::check_for_unused_variables_in_local_scope(scope, &mut unused_vars);
         }
 
@@ -187,12 +189,32 @@ impl Elaborator<'_> {
         }
     }
 
-    fn check_for_unused_variables_in_local_scope(decl_map: Scope, unused_vars: &mut Vec<HirIdent>) {
+    fn check_for_unused_variables_in_local_scope(
+        decl_map: &Scope,
+        unused_vars: &mut Vec<HirIdent>,
+    ) {
         let unused_variables = decl_map.filter(|(variable_name, metadata)| {
             let has_underscore_prefix = variable_name.starts_with('_'); // XXX: This is used for development mode, and will be removed
-            metadata.warn_if_unused && metadata.num_times_used == 0 && !has_underscore_prefix
+            metadata.warn_if_unused && !metadata.used && !has_underscore_prefix
         });
         unused_vars.extend(unused_variables.map(|(_, meta)| meta.ident.clone()));
+    }
+
+    pub fn check_for_unnecessary_mut_variables_in_scope_tree(&mut self, scope_decls: &ScopeTree) {
+        for scope in scope_decls.0.iter() {
+            for (variable_name, metadata) in scope.iter() {
+                if metadata.mutated || variable_name.starts_with('_') {
+                    continue;
+                }
+
+                let ident = &metadata.ident;
+                let definition_info = self.interner.definition(ident.id);
+                if definition_info.mutable && !definition_info.is_global() {
+                    let ident = Ident::new(variable_name.to_owned(), ident.location);
+                    self.push_err(ResolverError::VariableDoesNotNeedToBeMutable { ident });
+                }
+            }
+        }
     }
 
     /// Lookup a given trait by name/path.

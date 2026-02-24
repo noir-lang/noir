@@ -34,7 +34,7 @@ use crate::{
             HirMatch, HirMemberAccess, HirMethodCallExpression, HirPrefixExpression, ImplKind,
             TraitItem,
         },
-        stmt::{HirLetStatement, HirPattern, HirStatement},
+        stmt::{HirLValue, HirLetStatement, HirPattern, HirStatement},
         traits::{ResolvedTraitBound, TraitConstraint},
     },
     node_interner::{
@@ -565,13 +565,22 @@ impl Elaborator<'_> {
     }
 
     /// Check whether we can create a mutable reference over an expression.
-    ///
     /// Pushes an error if it cannot be done.
+    ///
+    /// Also, if the expression is a local variable, marks it as mutated.
     pub(super) fn check_can_mutate(&mut self, expr_id: ExprId, location: Location) {
         match self.interner.expression(&expr_id) {
             HirExpression::Ident(hir_ident, _) => {
                 let definition = self.interner.definition(hir_ident.id);
                 let name = definition.name.clone();
+
+                if let DefinitionKind::Local(_) = definition.kind {
+                    let scope_tree = self.scopes.current_scope_tree();
+                    if let Some((variable, _index)) = scope_tree.find(name.as_str()) {
+                        variable.mutated = true;
+                    }
+                }
+
                 if !definition.mutable {
                     self.push_err(TypeCheckError::CannotMutateImmutableVariable { name, location });
                 } else {
@@ -606,6 +615,35 @@ impl Elaborator<'_> {
             {
                 self.push_err(TypeCheckError::MutableCaptureWithoutRef { name, location });
             }
+        }
+    }
+
+    /// Go over the given `lvalue` and any nested l-values and mark any local variables as mutated.
+    /// However, dereferences do not cause mutation of their inner variables.
+    pub(super) fn mark_lvalue_variables_as_mutated(&mut self, lvalue: &HirLValue) {
+        match lvalue {
+            HirLValue::Ident(hir_ident, _) => {
+                let definition = self.interner.definition(hir_ident.id);
+                let name = definition.name.clone();
+
+                if let DefinitionKind::Local(_) = definition.kind {
+                    let scope_tree = self.scopes.current_scope_tree();
+                    if let Some((variable, _index)) = scope_tree.find(name.as_str()) {
+                        variable.mutated = true;
+                    }
+                }
+            }
+            HirLValue::MemberAccess { object, .. } => {
+                self.mark_lvalue_variables_as_mutated(object);
+            }
+            HirLValue::Index { array, .. } => {
+                self.mark_lvalue_variables_as_mutated(array);
+            }
+            HirLValue::Dereference { .. } => {
+                // A dereference like `*x` means `x` is `&mut Something` so the contents of `x`
+                // can be mutated even if `x` isn't itself `mut`
+            }
+            HirLValue::Error { .. } => (),
         }
     }
 
