@@ -182,5 +182,5 @@ where
     T: Empty + Eq,
 {
     let len = array_length(array);
-    BoundedVec::from_parts_unchecked(array, len)
+    BoundedVec::from_parts(array, len)
 }
