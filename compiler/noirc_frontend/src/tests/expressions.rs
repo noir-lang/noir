@@ -419,6 +419,18 @@ fn unnecessary_mut_on_mut_ref_variable() {
 }
 
 #[test]
+fn does_not_trigger_unnecessary_mut_on_variable_if_annotated_with_allow_unused_mut() {
+    let src = r#"
+    fn main() {
+        #[allow(unused_mut)]
+        let mut x = 1;
+        let _ = x;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn does_not_trigger_unnecessary_mut_if_variable_name_starts_with_underscore() {
     let src = r#"
     fn main() {
@@ -486,6 +498,27 @@ fn does_not_trigger_unnecessary_mut_if_variable_is_used_in_member_access_mut_ref
     fn main() {
         let mut s = S { x: 1 };
         let _ = &mut s.x;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_trigger_unnecessary_mut_if_mut_self_method_is_called() {
+    let src = r#"
+    struct S {
+        x: Field,
+    }
+
+    impl S {
+        fn mutate_self(&mut self) {
+            self.x = 1;
+        }
+    }
+
+    fn main() {
+        let mut s = S { x: 1 };
+        s.mutate_self();
     }
     "#;
     assert_no_errors(src);

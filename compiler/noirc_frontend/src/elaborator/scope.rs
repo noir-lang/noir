@@ -190,7 +190,10 @@ impl Elaborator<'_> {
     pub fn check_for_unnecessary_mut_variables_in_scope_tree(&mut self, scope_decls: &ScopeTree) {
         for scope in scope_decls.0.iter() {
             for (variable_name, metadata) in scope.iter() {
-                if metadata.mutated || variable_name.starts_with('_') {
+                if !metadata.warn_if_not_mutated
+                    || metadata.mutated
+                    || variable_name.starts_with('_')
+                {
                     continue;
                 }
 

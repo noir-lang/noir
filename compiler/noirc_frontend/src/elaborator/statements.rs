@@ -193,6 +193,8 @@ impl Elaborator<'_> {
 
         let warn_if_unused =
             !let_stmt.attributes.iter().any(|attr| attr.kind.is_allow("unused_variables"));
+        let warn_if_not_mutated =
+            !let_stmt.attributes.iter().any(|attr| attr.kind.is_allow("unused_mut"));
 
         let r#type = annotated_type;
         let mut parameter_names_in_list = rustc_hash::FxHashMap::default();
@@ -201,6 +203,7 @@ impl Elaborator<'_> {
             r#type.clone(),
             definition,
             warn_if_unused,
+            warn_if_not_mutated,
             &mut parameter_names_in_list,
         );
 
@@ -288,6 +291,7 @@ impl Elaborator<'_> {
             identifier, false, // mutable
             true,  // allow_shadowing
             true,  // warn_if_unused
+            true,  // warn_if_not_mutated
             kind,
         );
 

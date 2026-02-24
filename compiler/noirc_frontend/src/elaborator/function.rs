@@ -400,6 +400,7 @@ impl Elaborator<'_> {
                 DefinitionKind::Local(None),
                 &mut parameter_idents,
                 true, // warn_if_unused
+                true, // warn_if_not_mutated
                 &mut parameter_names_in_list,
             );
 
@@ -509,6 +510,7 @@ impl Elaborator<'_> {
         for parameter in &func_meta.parameter_idents {
             let name = self.interner.definition_name(parameter.id).to_owned();
             let warn_if_unused = !(func_meta.trait_impl.is_some() && name == "self");
+            let warn_if_not_mutated = false;
             // We allow shadowing here because there's no outer scope to shadow
             // (duplicate parameter names were already checked in `resolve_function_parameters`)
             let allow_shadowing = true;
@@ -516,6 +518,7 @@ impl Elaborator<'_> {
                 name,
                 parameter.clone(),
                 warn_if_unused,
+                warn_if_not_mutated,
                 allow_shadowing,
             );
         }

@@ -154,6 +154,7 @@ pub struct ResolverMeta {
     mutated: bool,
     ident: HirIdent,
     warn_if_unused: bool,
+    warn_if_not_mutated: bool,
 }
 
 type ScopeForest = GenericScopeForest<String, ResolverMeta>;

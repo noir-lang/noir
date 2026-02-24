@@ -2498,11 +2498,10 @@ fn main() {
 
         assert_completion_excluding_auto_import(
             src,
-            vec![simple_completion_item(
-                "allow(unused_variables)",
-                CompletionItemKind::METHOD,
-                None,
-            )],
+            vec![
+                simple_completion_item("allow(unused_variables)", CompletionItemKind::METHOD, None),
+                simple_completion_item("allow(unused_mut)", CompletionItemKind::METHOD, None),
+            ],
         )
         .await;
     }

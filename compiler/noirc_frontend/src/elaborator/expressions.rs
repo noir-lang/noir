@@ -1557,7 +1557,8 @@ impl Elaborator<'_> {
                         pattern,
                         typ.clone(),
                         parameter,
-                        true,
+                        true, // warn_if_unused
+                        true, // warn_if_not_mutated
                         &mut parameter_names_in_list,
                     ),
                     typ,

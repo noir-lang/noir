@@ -627,7 +627,7 @@ impl Elaborator<'_> {
             variables_defined.push(name.clone());
         }
 
-        let id = self.add_variable_decl(name, false, true, true, kind).id;
+        let id = self.add_variable_decl(name, false, true, true, true, kind).id;
         self.interner.push_definition_type(id, expected_type.clone());
         Pattern::Binding(id)
     }
