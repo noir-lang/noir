@@ -87,12 +87,18 @@ impl FunctionContext {
         let reverse_post_order = PostOrder::with_function(function).into_vec_reverse();
         let constants = ConstantAllocation::from_function(function);
         let liveness = VariableLiveness::from_function(function, &constants);
-        let coalescing = CoalescingMap::from_function(function, &liveness);
-
         let needs_spill_support =
             liveness.max_live_count + Self::SPILL_MARGIN >= max_stack_frame_size;
 
         let spill_manager = if needs_spill_support { Some(SpillManager::new()) } else { None };
+
+        // Disable coalescing when spilling is enabled.
+        // Shared registers currently conflicts with the spill eviction mechanism.
+        let coalescing = if spill_manager.is_some() {
+            CoalescingMap::default()
+        } else {
+            CoalescingMap::from_function(function, &liveness)
+        };
 
         Self {
             function_id: Some(id),
