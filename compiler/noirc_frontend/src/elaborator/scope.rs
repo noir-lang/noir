@@ -50,7 +50,7 @@ impl Elaborator<'_> {
     }
 
     /// For each [crate::elaborator::LambdaContext] on the lambda stack with a scope index higher than that
-    /// of the variable, add the [HirIdent] to the list of captures.
+    /// of the variable, add the [crate::elaborator::HirIdent] to the list of captures.
     pub(super) fn check_if_variable_is_captured_by_closure(&mut self, variable: &Variable) {
         // Only local variables can be captured by closures.
         // (the variable might point to a numeric generic like `let N: u32`, which is not captured)
