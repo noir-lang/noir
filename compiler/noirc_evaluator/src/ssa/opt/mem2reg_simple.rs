@@ -470,12 +470,8 @@ fn commit(
             };
 
             if keep {
-                let instruction = &mut inserter.function.dfg[*instruction_id];
-                instruction.map_values_mut(|value| {
-                    FunctionInserter::resolve_detached(value, &inserter.values)
-                });
+                inserter.map_instruction_in_place(*instruction_id);
             }
-
             keep
         });
 
@@ -489,7 +485,10 @@ fn commit(
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{opt::assert_ssa_does_not_change, ssa_gen::Ssa},
+    };
 
     #[test]
     fn test_simple() {
@@ -701,23 +700,7 @@ mod tests {
                 return v5
             }
             ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg_simple();
-        // Should optimize separate allocations
-        assert_ssa_snapshot!(ssa, @r"
-            brillig(inline) fn func f0 {
-              b0():
-                v0 = allocate -> &mut Field
-                store Field 10 at v0
-                v2 = make_array [v0] : [&mut Field; 1]
-                v3 = load v0 -> Field
-                v5 = array_get v2, index u32 0 -> &mut Field
-                store Field 20 at v5
-                v7 = load v0 -> Field
-                v8 = add v3, v7
-                return v8
-            }
-            ");
+        assert_ssa_does_not_change(src, Ssa::mem2reg_simple);
     }
 
     #[test]
