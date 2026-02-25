@@ -37,7 +37,7 @@ impl Elaborator<'_> {
         // Each struct should already be present in the NodeInterner after def collection.
         for (type_id, typ) in structs {
             self.local_module = Some(typ.module_id);
-            self.current_item = Some(DependencyId::Struct(*type_id));
+            self.current_item = Some(DependencyId::Type(*type_id));
 
             let previous_in_comptime_context =
                 std::mem::replace(&mut self.in_comptime_context, typ.struct_def.comptime);
@@ -89,7 +89,7 @@ impl Elaborator<'_> {
         struct_id: TypeId,
     ) -> Vec<StructField> {
         self.recover_generics(|this| {
-            let previous_item = this.current_item.replace(DependencyId::Struct(struct_id));
+            let previous_item = this.current_item.replace(DependencyId::Type(struct_id));
 
             this.resolving_ids.insert(struct_id);
 
