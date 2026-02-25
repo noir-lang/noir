@@ -82,9 +82,7 @@ impl SpillManager {
     /// Move a value to the back of the LRU (most recently used).
     /// If the value isn't tracked yet, add it.
     pub(crate) fn touch(&mut self, value_id: ValueId) {
-        if let Some(pos) = self.lru_order.iter().position(|v| *v == value_id) {
-            self.lru_order.remove(pos);
-        }
+        self.remove_from_lru(value_id);
         self.lru_order.push(value_id);
     }
 
