@@ -80,7 +80,7 @@ cargo test -p nargo_cli --test stdlib-tests -- run_stdlib_tests array  # Stdlib 
 cargo test -p noir_ast_fuzzer --test smoke              # Fuzz tests (quick)
 ```
 
-Integration tests use `insta` for snapshot testing. When adding new tests or changing outputs, review and accept snapshots with `cargo insta review`.
+Integration tests use `insta` for snapshot testing. When adding new tests or changing outputs, accept snapshots with `cargo insta accept`.
 
 ### Testing (JavaScript/TypeScript)
 
