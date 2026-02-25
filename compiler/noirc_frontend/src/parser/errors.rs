@@ -121,6 +121,8 @@ pub enum ParserErrorReason {
     MaximumRecursionDepthExceeded,
     #[error("missing condition for `if` expression")]
     MissingIfCondition,
+    #[error("Struct literals are not allowed in `if` conditions")]
+    StructLiteralInIfCondition,
     #[error("expected an identifier, found reserved identifier `_`")]
     ExpectedIdentifierGotUnderscore,
     #[error(
@@ -334,6 +336,11 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                     let secondary = format!("Please use `::{name}` instead");
                     Diagnostic::simple_warning(primary, secondary, error.location())
                 }
+                ParserErrorReason::StructLiteralInIfCondition => Diagnostic::simple_error(
+                    "Struct literals are not allowed in `if` conditions".to_string(),
+                    "Surround the struct literal with parentheses, for example: `if (MyStruct { field: true }).field { ... }`".to_string(),
+                    error.location(),
+                ),
                 other => {
                     Diagnostic::simple_error(format!("{other}"), String::new(), error.location())
                 }

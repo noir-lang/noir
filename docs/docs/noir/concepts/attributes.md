@@ -22,6 +22,21 @@ Example:
 struct Unused {}
 ```
 
+### `allow(unused_mut)`
+
+When applied on a `let` statement, the compiler won't produce a warning if the variable is `mut` but
+is never mutated.
+
+Example:
+
+```rust
+fn main() {
+    #[allow(unused_mut)]
+    let mut never_mutated = 1;
+    println(never_mutated);
+}
+```
+
 ### `allow(unused_variables)`
 
 When applied on a `let` statement, the compiler won't produce a warning if the variable ends up being unused.

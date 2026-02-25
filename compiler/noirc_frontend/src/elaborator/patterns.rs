@@ -59,6 +59,7 @@ impl Elaborator<'_> {
         expected_type: Type,
         definition_kind: DefinitionKind,
         warn_if_unused: bool,
+        warn_if_not_mutated: bool,
         parameter_names_in_list: &mut HashMap<String, Location>,
     ) -> HirPattern {
         self.elaborate_pattern_mut(
@@ -68,6 +69,7 @@ impl Elaborator<'_> {
             None,
             &mut Vec::new(),
             warn_if_unused,
+            warn_if_not_mutated,
             &mut HashSet::default(),
             parameter_names_in_list,
         )
@@ -78,6 +80,7 @@ impl Elaborator<'_> {
     ///
     /// `parameter_names_in_list` keeps track of parameter names, and their location, across multiple
     /// patterns in a list. If a name is found multiple times, an error is captured.
+    #[allow(clippy::too_many_arguments)]
     pub fn elaborate_pattern_and_store_ids(
         &mut self,
         pattern: Pattern,
@@ -85,6 +88,7 @@ impl Elaborator<'_> {
         definition_kind: DefinitionKind,
         created_ids: &mut Vec<HirIdent>,
         warn_if_unused: bool,
+        warn_if_not_mutated: bool,
         parameter_names_in_list: &mut HashMap<String, Location>,
     ) -> HirPattern {
         self.elaborate_pattern_mut(
@@ -94,6 +98,7 @@ impl Elaborator<'_> {
             None,
             created_ids,
             warn_if_unused,
+            warn_if_not_mutated,
             &mut HashSet::default(),
             parameter_names_in_list,
         )
@@ -116,6 +121,7 @@ impl Elaborator<'_> {
         mutable: Option<Location>,
         new_definitions: &mut Vec<HirIdent>,
         warn_if_unused: bool,
+        warn_if_not_mutated: bool,
         pattern_names: &mut HashSet<String>,
         parameter_names_in_list: &mut HashMap<String, Location>,
     ) -> HirPattern {
@@ -155,6 +161,7 @@ impl Elaborator<'_> {
                         mutable.is_some(),
                         true, // allow_shadowing
                         warn_if_unused,
+                        warn_if_not_mutated,
                         definition,
                     )
                 };
@@ -178,6 +185,7 @@ impl Elaborator<'_> {
                     Some(location),
                     new_definitions,
                     warn_if_unused,
+                    warn_if_not_mutated,
                     pattern_names,
                     parameter_names_in_list,
                 );
@@ -228,6 +236,7 @@ impl Elaborator<'_> {
                         mutable,
                         new_definitions,
                         warn_if_unused,
+                        warn_if_not_mutated,
                         pattern_names,
                         parameter_names_in_list,
                     )
@@ -257,6 +266,7 @@ impl Elaborator<'_> {
                 mutable,
                 new_definitions,
                 warn_if_unused,
+                warn_if_not_mutated,
                 pattern_names,
                 parameter_names_in_list,
             ),
@@ -269,6 +279,7 @@ impl Elaborator<'_> {
                     mutable,
                     new_definitions,
                     warn_if_unused,
+                    warn_if_not_mutated,
                     pattern_names,
                     parameter_names_in_list,
                 )
@@ -298,7 +309,8 @@ impl Elaborator<'_> {
             // shadowing here lets us avoid further errors if we define ERROR_IDENT
             // multiple times.
             let name = ERROR_IDENT.into();
-            let identifier = this.add_variable_decl(name, false, true, true, definition.clone());
+            let identifier =
+                this.add_variable_decl(name, false, true, true, true, definition.clone());
             HirPattern::Identifier(identifier)
         };
 
@@ -396,6 +408,7 @@ impl Elaborator<'_> {
                 mutable,
                 new_definitions,
                 true, // warn_if_unused
+                true, // warn_if_not_mutated
                 pattern_names,
                 parameter_names_in_list,
             );
@@ -447,6 +460,7 @@ impl Elaborator<'_> {
         mutable: bool,
         allow_shadowing: bool,
         warn_if_unused: bool,
+        warn_if_not_mutated: bool,
         definition: DefinitionKind,
     ) -> HirIdent {
         if let DefinitionKind::Global(_) = definition {
@@ -460,7 +474,13 @@ impl Elaborator<'_> {
             self.interner.push_definition(name.clone(), mutable, comptime, definition, location);
         let ident = HirIdent::non_trait_method(id, location);
 
-        self.add_existing_variable_to_scope(name, ident.clone(), warn_if_unused, allow_shadowing);
+        self.add_existing_variable_to_scope(
+            name,
+            ident.clone(),
+            warn_if_unused,
+            warn_if_not_mutated,
+            allow_shadowing,
+        );
 
         ident
     }
@@ -472,6 +492,7 @@ impl Elaborator<'_> {
         name: String,
         ident: HirIdent,
         warn_if_unused: bool,
+        warn_if_not_mutated: bool,
         allow_shadowing: bool,
     ) {
         if name == "_" {
@@ -479,7 +500,13 @@ impl Elaborator<'_> {
         }
 
         let second_location = ident.location;
-        let resolver_meta = ResolverMeta { num_times_used: 0, ident, warn_if_unused };
+        let resolver_meta = ResolverMeta {
+            used: false,
+            mutated: false,
+            ident,
+            warn_if_unused,
+            warn_if_not_mutated,
+        };
 
         let old_value = self.scopes.get_mut_scope().add_key_value(name.clone(), resolver_meta);
 
@@ -504,7 +531,7 @@ impl Elaborator<'_> {
 
         let location = name.location();
         if let Some((variable_found, scope)) = variable {
-            variable_found.num_times_used += 1;
+            variable_found.used = true;
             let id = variable_found.ident.id;
             let ident = HirIdent::non_trait_method(id, location);
             let variable = Variable { ident, scope };

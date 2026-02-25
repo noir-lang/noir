@@ -1419,7 +1419,7 @@ fn typed_expr_as_function_definition(
     let self_argument = check_one_argument(arguments, location)?;
     let typed_expr = get_typed_expr(self_argument)?;
     let option_value = if let TypedExpr::ExprId(expr_id) = typed_expr {
-        let func_id = interner.lookup_function_from_expr(&expr_id);
+        let func_id = interner.lookup_function_from_expr(&expr_id, location)?;
         func_id.map(Value::FunctionDefinition)
     } else {
         None
@@ -2821,6 +2821,7 @@ fn function_def_set_parameters(
                 DefinitionKind::Local(None),
                 &mut parameter_idents,
                 true, // warn_if_unused
+                true, // warn_if_not_mutated
                 &mut parameter_names_in_list,
             )
         });
@@ -2878,6 +2879,7 @@ fn function_def_set_return_public(
 
     let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
     func_meta.return_visibility = if public { Visibility::Public } else { Visibility::Private };
+    func_meta.return_visibility_location = location;
 
     Ok(Value::Unit)
 }
@@ -2895,6 +2897,7 @@ fn function_def_set_return_data(
 
     let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
     func_meta.return_visibility = Visibility::ReturnData;
+    func_meta.return_visibility_location = location;
 
     Ok(Value::Unit)
 }

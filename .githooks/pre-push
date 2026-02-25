@@ -1,0 +1,44 @@
+#!/bin/bash
+
+# Pre-push hook: check formatting and clippy for modified Rust files.
+# Compares the local branch tip against the remote ref being pushed to.
+#
+# To enable, run:
+#   git config core.hooksPath .githooks
+
+while read local_ref local_oid remote_ref remote_oid; do
+    # Skip delete pushes
+    if [ "$local_oid" = "0000000000000000000000000000000000000000" ]; then
+        continue
+    fi
+
+    # If the remote branch doesn't exist yet, compare against the merge base with the default branch
+    if [ "$remote_oid" = "0000000000000000000000000000000000000000" ]; then
+        base=$(git merge-base HEAD origin/master 2>/dev/null || echo HEAD~1)
+    else
+        base="$remote_oid"
+    fi
+
+    # Check if any Rust files changed
+    if git diff --name-only "$base" "$local_oid" -- '*.rs' | grep -q .; then
+        echo "pre-push: Rust files changed, checking formatting..."
+        if ! just format-check 2>&1; then
+            echo ""
+            echo "pre-push: cargo fmt --all would produce changes."
+            echo "pre-push: Run 'just format' and amend/commit before pushing."
+            exit 1
+        fi
+        echo "pre-push: Formatting check passed."
+
+        echo "pre-push: Rust files changed, checking clippy..."
+        if ! CI=1 just clippy 2>&1; then
+            echo ""
+            echo "pre-push: clippy found warnings/errors."
+            echo "pre-push: Fix clippy issues before pushing."
+            exit 1
+        fi
+        echo "pre-push: Clippy check passed."
+    fi
+done
+
+exit 0
