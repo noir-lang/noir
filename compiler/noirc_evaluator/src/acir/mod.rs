@@ -358,8 +358,11 @@ impl<'a> Context<'a> {
         params: &[ValueId],
         dfg: &DataFlowGraph,
     ) -> Result<Vec<Witness>, RuntimeError> {
-        // The first witness (if any) is the next one
-        let start_witness = self.acir_context.current_witness_index().0;
+        // The start witness would be the *next* witness, if we created one.
+        let start_witness = match self.acir_context.current_witness_index() {
+            Some(last) => Witness(last.witness_index().checked_add(1).expect("too many witnesses")),
+            None => Witness::default(),
+        };
         for &param_id in params {
             let typ = dfg.type_of_value(param_id);
             let value = self.convert_ssa_block_param(&typ)?;
@@ -385,8 +388,12 @@ impl<'a> Context<'a> {
             }
             self.ssa_values.insert(param_id, value);
         }
-        let end_witness = self.acir_context.current_witness_index().0;
-        let witnesses = (start_witness..=end_witness).map(Witness::from).collect();
+        // Check if we have generated any witnesses.
+        let Some(end_witness) = self.acir_context.current_witness_index() else {
+            return Ok(Vec::new());
+        };
+        // Range is inclusive, because the for example if there was only one witness, the start and end are both 0.
+        let witnesses = (start_witness.0..=end_witness.0).map(Witness::from).collect();
         Ok(witnesses)
     }
 
