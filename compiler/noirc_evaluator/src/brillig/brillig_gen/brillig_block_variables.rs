@@ -90,6 +90,17 @@ impl BlockVariables {
         value_id: ValueId,
         dfg: &DataFlowGraph,
     ) -> BrilligVariable {
+        // Check coalescing map — reuse the block parameter's register if coalesced.
+        if let Some(param) = function_context.coalescing.get_coalesced(&value_id) {
+            let variable = *function_context
+                .ssa_value_allocations
+                .get(&param)
+                .expect("ICE: Coalesced parameter not yet allocated");
+            function_context.ssa_value_allocations.insert(value_id, variable);
+            self.available_variables.insert(value_id);
+            return variable;
+        }
+
         let allocated = allocate_value(value_id, brillig_context, dfg);
 
         // Allocators get replaced in each block, with all visible variables becoming pre-allocated
@@ -138,6 +149,14 @@ impl BlockVariables {
         // than the one the variable was defined in, which is why don't rely on automation.
         let register = variable.extract_register();
         brillig_context.deallocate_register(register);
+    }
+
+    /// Removes a coalesced variable without deallocating its register.
+    ///
+    /// This is used for coalesced arguments that share a register with their
+    /// destination block parameter — the parameter still owns the register.
+    pub(crate) fn remove_variable_without_dealloc(&mut self, value_id: &ValueId) {
+        assert!(self.available_variables.remove(value_id), "ICE: Variable is not available");
     }
 
     /// Checks if a variable is allocated and live.

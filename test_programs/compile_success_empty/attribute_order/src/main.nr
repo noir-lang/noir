@@ -3,7 +3,8 @@ mod b;
 
 #[assert_run_order_function(18)]
 fn main() {
-    assert_eq(attributes_run, 19);
+    // TODO: This implies an ordering constraint but we don't actually guarantee ordering of comptime blocks within functions.
+    assert_eq(comptime { attributes_run }, 19);
 }
 
 comptime mut global attributes_run: Field = 0;

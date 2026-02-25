@@ -34,7 +34,8 @@ use registers::{RegisterAllocator, ScratchSpace};
 
 use crate::brillig::assert_u32;
 
-pub(crate) use self::registers::LayoutConfig;
+pub use self::registers::LayoutConfig;
+pub use self::registers::{MAX_SCRATCH_SPACE, MAX_STACK_FRAME_SIZE, NUM_STACK_FRAMES};
 use self::{artifact::BrilligArtifact, debug_show::DebugToString, registers::Stack};
 use acvm::{
     AcirField,

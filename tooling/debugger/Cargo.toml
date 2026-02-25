@@ -30,5 +30,5 @@ bn254_blackbox_solver.workspace = true
 
 [dev-dependencies]
 assert_cmd = "2.0.12"
-rexpect = "0.5.0"
+rexpect = "0.6"
 tempfile.workspace = true

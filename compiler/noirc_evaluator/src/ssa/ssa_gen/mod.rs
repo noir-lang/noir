@@ -522,6 +522,8 @@ impl FunctionContext<'_> {
         location: Location,
         length: Option<ValueId>,
     ) -> Result<Values, RuntimeError> {
+        self.builder.set_location(location);
+
         // base_index = index * type_size
         let index = self.make_array_index(index);
         let type_size_usize = Self::convert_type(element_type).size_of_type();
@@ -564,11 +566,7 @@ impl FunctionContext<'_> {
         // so it's okay to use unchecked operations. The SSA interpreter has been updated to have similar semantics.
         let unchecked = true;
 
-        let base_index = self.builder.set_location(location).insert_binary(
-            index,
-            BinaryOp::Mul { unchecked },
-            type_size,
-        );
+        let base_index = self.builder.insert_binary(index, BinaryOp::Mul { unchecked }, type_size);
 
         let mut field_index = 0u128;
         Ok(Self::map_type(element_type, |typ| {
@@ -1486,7 +1484,12 @@ impl FunctionContext<'_> {
     }
 }
 
-/// Return whether the expression refers to a pure builtin or low level function.
+/// Return whether the expression refers to a pure builtin or low level function
+/// that does not modify its array inputs.
+///
+/// Note: Vector operations like push_front/push_back are "pure" (no side effects)
+/// but they CAN modify their input array in Brillig due to copy-on-write optimization
+/// when the reference count is 1. We must NOT skip clones for these operations.
 fn is_pure_builtin_func(expr: &Expression) -> bool {
     let Expression::Ident(ident) = expr else {
         return false;
@@ -1498,6 +1501,13 @@ fn is_pure_builtin_func(expr: &Expression) -> bool {
     let Some(intrinsic) = Intrinsic::lookup(name) else {
         return false;
     };
+
+    // Vector operations can modify their input array in Brillig when RC=1,
+    // so we must clone them to ensure that they are "pure".
+    if intrinsic.modifies_input_array_in_brillig() {
+        return false;
+    }
+
     matches!(intrinsic.purity(), Purity::Pure | Purity::PureWithPredicate)
 }
 

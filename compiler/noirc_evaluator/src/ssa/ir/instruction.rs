@@ -211,6 +211,24 @@ impl Intrinsic {
         }
     }
 
+    /// Returns true if this intrinsic can modify its input array in Brillig
+    /// due to copy-on-write optimization when the reference count is 1.
+    ///
+    /// This is used to ensure we don't skip clones for these operations,
+    /// even though they're technically "pure" (no observable side effects).
+    /// Without proper reference counting, the caller's array could be corrupted.
+    pub(crate) fn modifies_input_array_in_brillig(&self) -> bool {
+        matches!(
+            self,
+            Intrinsic::VectorPushBack
+                | Intrinsic::VectorPushFront
+                | Intrinsic::VectorPopBack
+                | Intrinsic::VectorPopFront
+                | Intrinsic::VectorInsert
+                | Intrinsic::VectorRemove
+        )
+    }
+
     pub(crate) fn purity(&self) -> Purity {
         match self {
             // These apply a constraint in the form of ACIR opcodes, but they can be deduplicated
@@ -468,7 +486,10 @@ impl Instruction {
             | Instruction::ConstrainNotEqual(..) => true,
 
             Instruction::Call { func, .. } => match dfg[*func] {
-                Value::Function(id) => !matches!(dfg.purity_of(id), Some(Purity::Pure)),
+                // All user-defined function calls are predicated during ACIR generation
+                // (both ACIR and Brillig calls unconditionally pass the side effects predicate),
+                // so this must return true regardless of purity.
+                Value::Function(_) => true,
                 Value::Intrinsic(intrinsic) => {
                     match intrinsic {
                         // These utilize `noirc_evaluator::acir::Context::get_flattened_index` internally
@@ -479,6 +500,10 @@ impl Instruction {
                         // effect variable in the SSA and use it to optimize out memory operations that we know
                         // would fail, but they shouldn't because they might be disabled.
                         Intrinsic::VectorPopFront | Intrinsic::VectorPopBack => true,
+                        // RecursiveAggregation's predicate is injected implicitly from
+                        // `current_side_effects_enabled_var` during ACIR generation, so we
+                        // must preserve the EnableSideEffectsIf that sets it.
+                        Intrinsic::BlackBox(BlackBoxFunc::RecursiveAggregation) => true,
                         _ => false,
                     }
                 }
@@ -830,6 +855,13 @@ impl Instruction {
             Instruction::Noop => (),
         }
     }
+
+    /// Returns true if any value in this instruction satisfies the predicate.
+    pub(crate) fn any_value(&self, mut f: impl FnMut(ValueId) -> bool) -> bool {
+        let mut found = false;
+        self.for_each_value(|v| found |= f(v));
+        found
+    }
 }
 
 /// Determines whether an ArrayGet or ArraySet index has been shifted by a given value.
@@ -1047,6 +1079,13 @@ impl TerminatorInstruction {
             }
             Unreachable { .. } => (),
         }
+    }
+
+    /// Returns true if any value in this terminator satisfies the predicate.
+    pub(crate) fn any_value(&self, mut f: impl FnMut(ValueId) -> bool) -> bool {
+        let mut found = false;
+        self.for_each_value(|v| found |= f(v));
+        found
     }
 
     /// Apply a function to each value along with its index

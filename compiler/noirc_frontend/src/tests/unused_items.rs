@@ -163,8 +163,10 @@ fn does_not_warn_on_unused_global_if_it_has_an_abi_attribute() {
 #[test]
 fn does_not_warn_on_unused_struct_if_it_has_an_abi_attribute() {
     let src = r#"
-    #[abi(dummy)]
-    struct Foo { bar: u8 }
+    contract moo {
+        #[abi(dummy)]
+        struct Foo { bar: u8 }
+    }
     "#;
     assert_no_errors(src);
 }
@@ -200,9 +202,11 @@ fn no_warning_on_inner_struct_when_parent_is_used() {
 #[test]
 fn no_warning_on_struct_if_it_has_an_abi_attribute() {
     let src = r#"
-    #[abi(functions)]
-    struct Foo {
-        a: Field,
+    contract moo {
+        #[abi(functions)]
+        struct Foo {
+            a: Field,
+        }
     }
     "#;
     assert_no_errors(src);
@@ -211,13 +215,15 @@ fn no_warning_on_struct_if_it_has_an_abi_attribute() {
 #[test]
 fn no_warning_on_indirect_struct_if_it_has_an_abi_attribute() {
     let src = r#"
-    struct Bar {
-        field: Field,
-    }
-
-    #[abi(functions)]
-    struct Foo {
-        bar: Bar,
+    contract moo {
+        struct Bar {
+            field: Field,
+        }
+    
+        #[abi(functions)]
+        struct Foo {
+            bar: Bar,
+        }
     }
     "#;
     assert_no_errors(src);

@@ -1,10 +1,11 @@
 //! Lint checks for function attributes, visibility, and usage restrictions.
 
 use crate::{
-    NamedGeneric, SeenDataTypes, Type, TypeBinding,
+    NamedGeneric, Type, TypeBinding,
     ast::{Ident, NoirFunction},
     graph::CrateId,
     hir::{
+        def_collector::dc_crate::CompilationError,
         resolution::errors::{PubPosition, ResolverError},
         type_check::TypeCheckError,
     },
@@ -14,6 +15,7 @@ use crate::{
         stmt::HirStatement,
     },
     node_interner::{DefinitionKind, ExprId, FuncId, FunctionModifiers, NodeInterner},
+    recursion::TypeRecursionContext,
     shared::{ForeignCall, Signedness, Visibility},
     token::{FunctionAttributeKind, SecondaryAttributeKind},
 };
@@ -49,15 +51,16 @@ pub(super) fn inlining_attributes(
     let attribute = modifiers.attributes.function()?;
     let location = attribute.location;
     let ident = func_meta_name_ident(func, modifiers);
+    let is_unconstrained = func.is_unconstrained();
 
     match &attribute.kind {
-        FunctionAttributeKind::NoPredicates if modifiers.is_unconstrained => {
+        FunctionAttributeKind::NoPredicates if is_unconstrained => {
             Some(ResolverError::NoPredicatesAttributeOnUnconstrained { ident, location })
         }
-        FunctionAttributeKind::Fold if modifiers.is_unconstrained => {
+        FunctionAttributeKind::Fold if is_unconstrained => {
             Some(ResolverError::FoldAttributeOnUnconstrained { ident, location })
         }
-        FunctionAttributeKind::InlineNever if !modifiers.is_unconstrained => {
+        FunctionAttributeKind::InlineNever if !is_unconstrained => {
             Some(ResolverError::InlineNeverAttributeOnConstrained { ident, location })
         }
         _ => None,
@@ -123,7 +126,7 @@ pub(super) fn oracle_not_marked_unconstrained(
     func: &FuncMeta,
     modifiers: &FunctionModifiers,
 ) -> Option<ResolverError> {
-    if modifiers.is_unconstrained {
+    if func.is_unconstrained() {
         return None;
     }
 
@@ -154,23 +157,30 @@ pub(super) fn oracle_returns_multiple_vectors(
         return None;
     }
 
-    fn vector_count(typ: &Type, seen_data_types: &mut SeenDataTypes) -> usize {
+    fn vector_count(typ: &Type, mut type_recursion_context: TypeRecursionContext) -> usize {
         match typ {
-            Type::Array(_, item) => vector_count(item, seen_data_types),
-            Type::Vector(typ) => 1 + vector_count(typ, seen_data_types),
-            Type::FmtString(_, item) => vector_count(item, seen_data_types),
-            Type::Tuple(items) => items.iter().map(|typ| vector_count(typ, seen_data_types)).sum(),
+            Type::Array(_, item) => vector_count(item, type_recursion_context.recur()),
+            Type::Vector(typ) => 1 + vector_count(typ, type_recursion_context.recur()),
+            Type::FmtString(_, item) => vector_count(item, type_recursion_context.recur()),
+            Type::Tuple(items) => items
+                .iter()
+                .map(|typ| vector_count(typ, type_recursion_context.clone().recur()))
+                .sum(),
             Type::DataType(def, args) => {
                 let struct_type = def.borrow();
-                let key = (struct_type.id, args.clone());
-                if seen_data_types.insert(key) {
+                if type_recursion_context.insert_data_type(struct_type.id, args.clone()) {
                     if let Some(fields) = struct_type.get_fields(args) {
-                        fields.iter().map(|(_, typ, _)| vector_count(typ, seen_data_types)).sum()
+                        fields
+                            .iter()
+                            .map(|(_, typ, _)| {
+                                vector_count(typ, type_recursion_context.clone().recur())
+                            })
+                            .sum()
                     } else if let Some(variants) = struct_type.get_variants(args) {
                         variants
                             .iter()
                             .flat_map(|(_, types)| types)
-                            .map(|typ| vector_count(typ, seen_data_types))
+                            .map(|typ| vector_count(typ, type_recursion_context.clone().recur()))
                             .sum()
                     } else {
                         0
@@ -182,11 +192,22 @@ pub(super) fn oracle_returns_multiple_vectors(
                     0
                 }
             }
-            Type::Alias(def, args) => vector_count(&def.borrow().get_type(args), seen_data_types),
+            Type::Alias(def, args) => {
+                if type_recursion_context.insert_alias(def.borrow().id, args.clone()) {
+                    vector_count(&def.borrow().get_type(args), type_recursion_context.recur())
+                } else {
+                    // If we bump into a recursive type, we stop counting.
+                    // "zero" isn't strictly correct here, but the recursive type will be an error
+                    // already so this count won't matter in the end.
+                    0
+                }
+            }
             Type::TypeVariable(type_variable)
             | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
                 match &*type_variable.borrow() {
-                    TypeBinding::Bound(binding) => vector_count(binding, seen_data_types),
+                    TypeBinding::Bound(binding) => {
+                        vector_count(binding, type_recursion_context.recur())
+                    }
                     TypeBinding::Unbound(_, _) => 0,
                 }
             }
@@ -207,9 +228,7 @@ pub(super) fn oracle_returns_multiple_vectors(
         }
     }
 
-    let mut seen_data_types = SeenDataTypes::default();
-
-    if vector_count(func.return_type(), &mut seen_data_types) > 1 {
+    if vector_count(func.return_type(), TypeRecursionContext::default()) > 1 {
         let ident = func_meta_name_ident(func, modifiers);
         Some(ResolverError::OracleReturnsMultipleVectors { location: ident.location() })
     } else {
@@ -260,8 +279,9 @@ pub(super) fn missing_pub(func: &FuncMeta, modifiers: &FunctionModifiers) -> Opt
         && func.return_type().follow_bindings() != Type::Unit
         && func.return_visibility == Visibility::Private
     {
-        let ident = func_meta_name_ident(func, modifiers);
-        Some(ResolverError::NecessaryPub { ident })
+        let name = modifiers.name.clone();
+        let location = func.return_type.location();
+        Some(ResolverError::NecessaryPub { name, location })
     } else {
         None
     }
@@ -306,9 +326,13 @@ pub(super) fn unconstrained_function_return(
 pub(super) fn error_if_verify_proof_with_type(
     interner: &NodeInterner,
     func_expr_id: ExprId,
-) -> Option<TypeCheckError> {
+    location: Location,
+) -> Option<CompilationError> {
     // Called function
-    let func_id = interner.lookup_function_from_expr(&func_expr_id)?;
+    let func_id = match interner.lookup_function_from_expr(&func_expr_id, location) {
+        Ok(func_id) => func_id?,
+        Err(error) => return Some(error.into()),
+    };
     let func_name = interner.function_name(&func_id);
 
     // Check if it is verify_proof_with_type and is from the standard library
@@ -317,7 +341,7 @@ pub(super) fn error_if_verify_proof_with_type(
         if module_id.krate.is_stdlib() {
             // Get the function location for the error
             let location = interner.expr_location(&func_expr_id);
-            return Some(TypeCheckError::VerifyProofWithTypeInBrillig { location });
+            return Some(TypeCheckError::VerifyProofWithTypeInBrillig { location }.into());
         }
     }
 
@@ -332,9 +356,17 @@ pub(super) fn unnecessary_pub_return(
     modifiers: &FunctionModifiers,
     is_entry_point: bool,
 ) -> Option<ResolverError> {
-    if !is_entry_point && func.return_visibility == Visibility::Public {
-        let ident = func_meta_name_ident(func, modifiers);
-        Some(ResolverError::UnnecessaryPub { ident, position: PubPosition::ReturnType })
+    if is_entry_point {
+        return None;
+    }
+
+    if let Visibility::Public = &func.return_visibility {
+        let name = modifiers.name.clone();
+        Some(ResolverError::UnnecessaryPub {
+            name,
+            location: func.return_visibility_location,
+            position: PubPosition::ReturnType,
+        })
     } else {
         None
     }
@@ -346,11 +378,18 @@ pub(super) fn unnecessary_pub_return(
 pub(super) fn unnecessary_pub_argument(
     func: &NoirFunction,
     arg_visibility: Visibility,
+    arg_visibility_location: Location,
     is_entry_point: bool,
 ) -> Option<ResolverError> {
-    if arg_visibility == Visibility::Public && !is_entry_point {
+    if is_entry_point {
+        return None;
+    }
+
+    if let Visibility::Public = arg_visibility {
+        let name = func.name().to_string();
         Some(ResolverError::UnnecessaryPub {
-            ident: func.name_ident().clone(),
+            name,
+            location: arg_visibility_location,
             position: PubPosition::Parameter,
         })
     } else {
@@ -362,20 +401,24 @@ pub(super) fn unnecessary_pub_argument(
 pub(super) fn databus_on_non_entry_point(
     func: &NoirFunction,
     visibility: Visibility,
+    visibility_location: Location,
     is_entry_point: bool,
 ) -> Option<ResolverError> {
-    if !is_entry_point {
-        match visibility {
-            Visibility::CallData(_) | Visibility::ReturnData => {
-                Some(ResolverError::DataBusOnNonEntryPoint {
-                    ident: func.name_ident().clone(),
-                    visibility: visibility.to_string(),
-                })
-            }
-            _ => None,
+    if is_entry_point {
+        return None;
+    }
+
+    match visibility {
+        Visibility::CallData(_) | Visibility::ReturnData => {
+            let name = func.name().to_string();
+            let visibility = visibility.to_string();
+            Some(ResolverError::DataBusOnNonEntryPoint {
+                name,
+                location: visibility_location,
+                visibility,
+            })
         }
-    } else {
-        None
+        _ => None,
     }
 }
 

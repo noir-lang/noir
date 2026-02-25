@@ -29,7 +29,7 @@ use crate::ssa::{
 
 pub(super) mod inline_info;
 
-pub use inline_info::MAX_INSTRUCTIONS;
+pub use inline_info::MAX_SIMPLE_FUNCTION_WEIGHT;
 pub(super) use inline_info::{InlineInfo, InlineInfos, compute_inline_infos};
 
 /// An arbitrary limit to the maximum number of recursive call
@@ -575,6 +575,21 @@ impl<'function> PerFunctionContext<'function> {
             .call_stack_data
             .unwind_call_stack(self.context.call_stack, call_stack_len);
 
+        // If the inlined function has no reachable return (e.g., contains `while true {}`),
+        // new_results will be empty even though old_results expects values. The function
+        // diverges, so any code after this call is unreachable. Create a fresh block with
+        // parameters of the correct types as dummy values.
+        if new_results.is_empty() && !old_results.is_empty() {
+            let unreachable_block = self.context.builder.insert_block();
+            for old_result in old_results {
+                let typ = self.source_function.dfg.type_of_value(*old_result);
+                let param = self.context.builder.add_block_parameter(unreachable_block, typ);
+                self.values.insert(*old_result, param);
+            }
+            self.context.builder.switch_to_block(unreachable_block);
+            return Ok(());
+        }
+
         let new_results = InsertInstructionResult::Results(call_id, &new_results);
         Self::insert_new_instruction_results(&mut self.values, old_results, new_results);
         Ok(())
@@ -997,7 +1012,9 @@ mod tests {
 
     #[test]
     fn conditional_inlining() {
-        // In this example we call a larger brillig function 3 times so the inliner refuses to inline the function.
+        // In this example we call a larger brillig function 3 times.
+        // With the Brillig-unit cost model, bar's interface cost (11) exceeds its
+        // own weight (6), so the net cost is negative and bar gets inlined.
         let src = "
         brillig(inline) fn foo f0 {
           b0():
@@ -1020,22 +1037,88 @@ mod tests {
         ";
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.inline_functions(0, MAX_INSTRUCTIONS).unwrap();
-        // No inlining has happened in f0
+        // bar is inlined into foo (3 times), dead branches are simplified
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn foo f0 {
-          b0():
-            v1 = call f1() -> Field
-            v2 = call f1() -> Field
-            v3 = call f1() -> Field
-            return v1
-        }
-        brillig(inline) fn bar f1 {
           b0():
             jmp b1()
           b1():
             jmp b2(Field 1)
           b2(v0: Field):
+            jmp b3()
+          b3():
+            jmp b4(Field 1)
+          b4(v1: Field):
+            jmp b5()
+          b5():
+            jmp b6(Field 1)
+          b6(v2: Field):
             return v0
+        }
+        ");
+    }
+
+    #[test]
+    fn conditional_inlining_not_inlined() {
+        // A heavier function (weight=26) called 3 times with aggressiveness=0.
+        // Cost breakdown:
+        //   interface_cost = 5 (call) + 5 (stack check) + 2 (params) + 1 (return) = 13
+        //   return_cost = 2 (1 return + 1 value)
+        //   inline_cost = 3 * (26 - 2) = 72
+        //   retain_cost = 3 * 13 + 26 = 65
+        //   net_cost = 72 - 65 = 7 >= 0 → NOT INLINED
+        let src = "
+        brillig(inline) fn foo f0 {
+          b0(v0: u32, v1: u1):
+            v2 = call f1(v0, v1) -> u32
+            v3 = call f1(v0, v1) -> u32
+            v4 = call f1(v0, v1) -> u32
+            return v2
+        }
+
+        brillig(inline) fn heavy f1 {
+          b0(v0: u32, v1: u1):
+            jmpif v1 then: b1, else: b2
+          b1():
+            v10 = add v0, u32 1
+            v11 = add v10, u32 2
+            v12 = add v11, u32 3
+            v13 = add v12, u32 4
+            v14 = add v13, u32 5
+            v15 = add v14, u32 6
+            jmp b3(v15)
+          b2():
+            jmp b3(u32 0)
+          b3(v3: u32):
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions(0, MAX_INSTRUCTIONS).unwrap();
+        // heavy is NOT inlined — its weight is too high relative to call count
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn foo f0 {
+          b0(v0: u32, v1: u1):
+            v3 = call f1(v0, v1) -> u32
+            v4 = call f1(v0, v1) -> u32
+            v5 = call f1(v0, v1) -> u32
+            return v3
+        }
+        brillig(inline) fn heavy f1 {
+          b0(v0: u32, v1: u1):
+            jmpif v1 then: b1, else: b2
+          b1():
+            v5 = add v0, u32 1
+            v7 = add v5, u32 2
+            v9 = add v7, u32 3
+            v11 = add v9, u32 4
+            v13 = add v11, u32 5
+            v15 = add v13, u32 6
+            jmp b3(v15)
+          b2():
+            jmp b3(u32 0)
+          b3(v2: u32):
+            return v2
         }
         ");
     }
@@ -1403,6 +1486,81 @@ mod tests {
     }
 
     #[test]
+    fn inline_diverging_function() {
+        // Regression test: inlining a function with no reachable return (e.g., infinite loop)
+        // should not crash. The inlined function's return block is unreachable because the
+        // jmpif condition is a known constant `true`, so only the loop body branch is visited.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = call f1() -> Field
+            return v0
+        }
+        brillig(inline) fn foo f1 {
+          b0():
+            jmp b1()
+          b1():
+            jmpif u1 1 then: b2, else: b3
+          b2():
+            jmp b1()
+          b3():
+            return Field 1
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        // This should not panic
+        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+        // The inlined function diverges, so main should have an infinite loop
+        // and an unreachable block for the dummy return values.
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1()
+          b1():
+            jmp b2()
+          b2():
+            jmp b1()
+        }
+        ");
+    }
+
+    /// Same as [inline_diverging_function] but the loop header has block parameters.
+    #[test]
+    fn inline_diverging_function_with_block_parameters() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = call f1() -> Field
+            return v0
+        }
+        brillig(inline) fn foo f1 {
+          b0():
+            jmp b1(Field 0, Field 1)
+          b1(v0: Field, v1: Field):
+            v2 = add v0, v1
+            jmpif u1 1 then: b2, else: b3
+          b2():
+            jmp b1(v2, v0)
+          b3():
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1(Field 0, Field 1)
+          b1(v0: Field, v1: Field):
+            v4 = add v0, v1
+            jmp b2()
+          b2():
+            jmp b1(v4, v0)
+        }
+        ");
+    }
+
+    #[test]
     fn does_not_inline_acir_fold_functions() {
         let src = "
         acir(inline) fn main f0 {
@@ -1436,7 +1594,7 @@ mod simple_functions {
         assert_ssa_snapshot,
         ssa::{
             Ssa,
-            opt::{assert_normalized_ssa_equals, inlining::MAX_INSTRUCTIONS},
+            opt::{assert_normalized_ssa_equals, inlining::inline_info::MAX_INSTRUCTIONS},
         },
     };
 

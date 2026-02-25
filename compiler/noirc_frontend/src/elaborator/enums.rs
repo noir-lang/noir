@@ -283,7 +283,6 @@ impl Elaborator<'_> {
             name: name_string.clone(),
             visibility: enum_.visibility,
             attributes: Attributes { function: None, secondary: Vec::new() },
-            is_unconstrained: false,
             generic_count: datatype_ref.generics.len(),
             is_comptime: false,
             name_location: location,
@@ -313,6 +312,7 @@ impl Elaborator<'_> {
             parameter_idents: Vec::new(),
             return_type: crate::ast::FunctionReturnType::Ty(self_type_unresolved),
             return_visibility: Visibility::Private,
+            return_visibility_location: Location::dummy(),
             typ: function_type,
             direct_generics: datatype_ref.generics.clone(),
             all_generics: datatype_ref.generics.clone(),
@@ -340,10 +340,10 @@ impl Elaborator<'_> {
                 CompilationError::ResolverError(ResolverError::DuplicateDefinition { .. })
             ) {
                 // Expecting a DefCollectorErrorKind::Duplicate error in this case
-                TypeCheckError::ExpectingOtherError {
-                    message: "define_enum_variant_function: duplicate definition".to_string(),
+                TypeCheckError::expecting_other_error(
+                    "define_enum_variant_function: duplicate definition",
                     location,
-                }
+                )
                 .into()
             } else {
                 error
@@ -627,7 +627,7 @@ impl Elaborator<'_> {
             variables_defined.push(name.clone());
         }
 
-        let id = self.add_variable_decl(name, false, true, true, kind).id;
+        let id = self.add_variable_decl(name, false, true, true, true, kind).id;
         self.interner.push_definition_type(id, expected_type.clone());
         Pattern::Binding(id)
     }

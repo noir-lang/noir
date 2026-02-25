@@ -739,8 +739,11 @@ impl Context<'_> {
                 }
                 Ok(AcirValue::Array(values))
             }
+            Type::Vector(_) => Ok(AcirValue::Array(im::Vector::new())),
             Type::Reference(reference_type) => self.array_zero_value(reference_type.as_ref()),
-            _ => unreachable!("ICE: Expected an array or numeric but got {ssa_type:?}"),
+            Type::Function => {
+                unreachable!("ICE: unexpected Function type in array_zero_value")
+            }
         }
     }
 

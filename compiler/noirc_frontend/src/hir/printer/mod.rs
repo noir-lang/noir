@@ -571,7 +571,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         let modifiers = self.interner.function_modifiers(&func_id);
         let func_meta = self.interner.function_meta(&func_id);
 
-        if modifiers.is_unconstrained {
+        if func_meta.is_unconstrained() {
             self.push_str("unconstrained ");
         }
         if modifiers.is_comptime {
