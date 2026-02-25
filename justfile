@@ -141,6 +141,12 @@ format-noir:
     cargo run -- --program-dir={{ justfile_dir() }}/noir_stdlib fmt --check
     cd ./test_programs && NARGO="{{ justfile_dir() }}/target/debug/nargo" ./format.sh check
 
+# Regenerates the docs site for the Noir standard library.
+stdlib-doc:
+    cd noir_stdlib && nargo doc
+    rm -rf noir_stdlib/docs
+    mv noir_stdlib/target/docs noir_stdlib/docs
+
 # Visualize the CFG after a certain SSA pass and open the Mermaid Live editor.
 
 # This is mostly here for reference: it only works if the pass matches a single unique pass in the pipeline, and there are no errors.
@@ -180,8 +186,3 @@ run-example EXAMPLE:
 # Runs spellcheck on Rust source and markdown files
 spellcheck:
     yarn spellcheck
-
-stdlib_docs:
-    cd noir_stdlib && nargo doc
-    rm -rf noir_stdlib/docs
-    mv noir_stdlib/target/docs noir_stdlib/docs
