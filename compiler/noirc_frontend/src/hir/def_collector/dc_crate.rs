@@ -5,7 +5,7 @@ use crate::graph::CrateId;
 use crate::hir::comptime::{ComptimeError, InterpreterError};
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
-use crate::hir::type_check::TypeCheckError;
+use crate::hir::type_check::{ExpectingOtherError, TypeCheckError};
 use crate::locations::ReferencesTracker;
 use crate::token::SecondaryAttribute;
 use crate::usage_tracker::UnusedItem;
@@ -32,7 +32,7 @@ use noirc_errors::{CustomDiagnostic, Location, Span};
 use fm::FileId;
 use iter_extended::vecmap;
 use rustc_hash::FxHashMap as HashMap;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::fmt::Write;
 use std::ops::IndexMut;
 use std::path::PathBuf;
@@ -222,8 +222,18 @@ impl CompilationError {
         CustomDiagnostic::from(self).is_error()
     }
 
-    pub(crate) fn is_expecting_other_error_error(&self) -> bool {
-        matches!(self, CompilationError::TypeError(TypeCheckError::ExpectingOtherError { .. }))
+    pub(crate) fn is_expecting_other_error(&self) -> bool {
+        self.as_expecting_other_error().is_some()
+    }
+
+    pub(crate) fn as_expecting_other_error(&self) -> Option<&ExpectingOtherError> {
+        match self {
+            CompilationError::TypeError(TypeCheckError::ExpectingOtherError(e))
+            | CompilationError::InterpreterError(InterpreterError::ExpectingOtherError(e)) => {
+                Some(e)
+            }
+            _ => None,
+        }
     }
 
     pub(crate) fn should_be_filtered(&self) -> bool {
@@ -384,10 +394,7 @@ impl DefCollector {
 
         Self::check_unused_items(context, crate_id, &mut errors);
 
-        if errors.iter().any(|error| !error.is_expecting_other_error_error()) {
-            errors.retain(|error| !error.is_expecting_other_error_error());
-        }
-        errors
+        filter_expecting_other_errors(errors)
     }
 
     /// This method does several things:
@@ -782,4 +789,36 @@ fn inject_prelude(
     });
 
     collected_imports.insert(0, directives);
+}
+
+/// Filter the errors so that:
+/// * if we have any errors which are _not_ [ExpectingOtherError], then we remove all [ExpectingOtherError] instances
+/// * if there are no other kind of errors, then we leave and deduplicate the [ExpectingOtherError]s
+fn filter_expecting_other_errors(mut errors: Vec<CompilationError>) -> Vec<CompilationError> {
+    let has_expected_errors =
+        errors.iter().any(|error| !error.is_expecting_other_error() && error.is_error());
+
+    if has_expected_errors {
+        errors.retain(|error| !error.is_expecting_other_error());
+        errors
+    } else {
+        dedup_expecting_other_errors(errors)
+    }
+}
+
+/// The same `ExpectingOtherError` can be emitted multiple times.
+/// This function removes duplicates so we don't see the same error
+/// in the output repeatedly.
+fn dedup_expecting_other_errors(mut errors: Vec<CompilationError>) -> Vec<CompilationError> {
+    // Using a HashSet of the inner error, because CompilationError does not implement Ord or Hash.
+    let mut seen: HashSet<ExpectingOtherError> = HashSet::new();
+    errors.retain(|error| match error.as_expecting_other_error() {
+        Some(e) if seen.contains(e) => false,
+        Some(e) => {
+            seen.insert(e.clone());
+            true
+        }
+        None => true,
+    });
+    errors
 }

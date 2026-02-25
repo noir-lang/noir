@@ -1,16 +1,25 @@
-use acvm::acir::brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength};
+use acvm::{
+    FieldElement,
+    acir::brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength},
+};
 use noirc_errors::{Location, call_stack::CallStackId};
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     brillig::assert_u32,
     errors::{RtResult, RuntimeError},
-    ssa::ir::{
-        basic_block::BasicBlockId,
-        dfg::DataFlowGraph,
-        instruction::{BinaryOp, Instruction},
-        types::{NumericType, Type},
-        value::ValueId,
+    ssa::{
+        ir::{
+            basic_block::BasicBlockId,
+            dfg::DataFlowGraph,
+            instruction::{BinaryOp, Instruction},
+            types::{NumericType, Type},
+            value::ValueId,
+        },
+        opt::{
+            ArrayGetOptimizationResult, ArrayGetOptimizationSideEffects,
+            try_optimize_array_get_from_previous_instructions,
+        },
     },
 };
 
@@ -23,6 +32,19 @@ pub(crate) struct ValueMerger<'a> {
     vector_sizes: &'a HashMap<ValueId, SemanticLength>,
 
     call_stack: CallStackId,
+
+    /// Optional information about the current side effects variable, and what
+    /// side effects variables are applied to each `array_set` instruction that happen
+    /// before the values being merged.
+    ///
+    /// When arrays or vectors are merged as a result of an `if ... else` instruction,
+    /// a new array will be built that does `array_get` on the arrays on the "then" and
+    /// "else" branches, and combine those values. These newly inserted `array_get` could
+    /// be optimized by reusing previously inserted instructions, such as an `array_set` at
+    /// the same index as the one in the `array_get`. However, this is only safe to do
+    /// if we know the side effects var of those two instructions is the same. Hence, that
+    /// information can optionally be specified here.
+    array_get_optimization_side_effects: Option<ArrayGetOptimizationSideEffects<'a>>,
 }
 
 impl<'a> ValueMerger<'a> {
@@ -31,8 +53,9 @@ impl<'a> ValueMerger<'a> {
         block: BasicBlockId,
         vector_sizes: &'a HashMap<ValueId, SemanticLength>,
         call_stack: CallStackId,
+        array_get_optimization_side_effects: Option<ArrayGetOptimizationSideEffects<'a>>,
     ) -> Self {
-        ValueMerger { dfg, block, vector_sizes, call_stack }
+        ValueMerger { dfg, block, vector_sizes, call_stack, array_get_optimization_side_effects }
     }
 
     /// Choose a call stack to return with the [RuntimeError].
@@ -147,7 +170,7 @@ impl<'a> ValueMerger<'a> {
     /// Given an if expression that returns an array: `if c { array1 } else { array2 }`,
     /// this function will recursively merge array1 and array2 into a single resulting array
     /// by creating a new array containing the result of `self.merge_values` for each element.
-    pub(crate) fn merge_array_values(
+    fn merge_array_values(
         &mut self,
         typ: Type,
         then_condition: ValueId,
@@ -166,16 +189,13 @@ impl<'a> ValueMerger<'a> {
 
         for i in 0..len.0 {
             for (element_index, element_type) in element_types.iter().enumerate() {
-                let index = u128::from(i * element_count + element_index as u32).into();
-                let index = self.dfg.make_constant(index, NumericType::length_type());
+                let index_value = u128::from(i * element_count + element_index as u32).into();
+                let index = self.dfg.make_constant(index_value, NumericType::length_type());
 
                 let typevars = Some(vec![element_type.clone()]);
 
                 let mut get_element = |array, typevars| {
-                    let get = Instruction::ArrayGet { array, index };
-                    self.dfg
-                        .insert_instruction_and_results(get, self.block, typevars, self.call_stack)
-                        .first()
+                    self.maybe_optimized_array_get(array, index, index_value, typevars)
                 };
 
                 let then_element = get_element(then_value, typevars.clone());
@@ -235,14 +255,8 @@ impl<'a> ValueMerger<'a> {
 
                 let mut get_element = |array, typevars, len: SemiFlattenedLength| {
                     assert!(index_u32 < len.0, "get_element invoked with an out of bounds index");
-                    let get = Instruction::ArrayGet { array, index };
-                    let results = self.dfg.insert_instruction_and_results(
-                        get,
-                        self.block,
-                        typevars,
-                        self.call_stack,
-                    );
-                    results.first()
+
+                    self.maybe_optimized_array_get(array, index, index_value, typevars)
                 };
 
                 // If it's out of bounds for the "then" vector, a value in the "else" *must* exist.
@@ -279,5 +293,40 @@ impl<'a> ValueMerger<'a> {
         let result =
             self.dfg.insert_instruction_and_results(instruction, self.block, None, call_stack);
         Ok(result.first())
+    }
+
+    fn maybe_optimized_array_get(
+        &mut self,
+        array: ValueId,
+        index: ValueId,
+        index_value: FieldElement,
+        typevars: Option<Vec<Type>>,
+    ) -> ValueId {
+        let side_effects = self.array_get_optimization_side_effects.as_ref();
+        match try_optimize_array_get_from_previous_instructions(
+            array,
+            index_value,
+            self.dfg,
+            side_effects,
+        ) {
+            Some(ArrayGetOptimizationResult::Value(value)) => value,
+            Some(ArrayGetOptimizationResult::ArrayGet(new_array)) => {
+                assert_ne!(
+                    new_array, array,
+                    "ArrayGetOptimizationResult::ArrayGet returned the same array_id"
+                );
+
+                let get = Instruction::ArrayGet { array: new_array, index };
+                self.dfg
+                    .insert_instruction_and_results(get, self.block, typevars, self.call_stack)
+                    .first()
+            }
+            None => {
+                let get = Instruction::ArrayGet { array, index };
+                self.dfg
+                    .insert_instruction_and_results(get, self.block, typevars, self.call_stack)
+                    .first()
+            }
+        }
     }
 }
