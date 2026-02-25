@@ -319,22 +319,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
             let sm = self.function_context.spill_manager.as_mut().unwrap();
 
-            // Already permanently tracked and currently spilled. The slot has correct data.
-            if sm.has_permanent_slot(&value_id) && sm.is_spilled(&value_id) {
-                continue;
-            }
-
-            // If currently spilled (register was freed/reused) but not yet permanent,
-            // promote the existing spill slot to permanent. The data is already in the slot.
-            if sm.is_spilled(&value_id) {
-                sm.promote_to_permanent(&value_id);
-                continue;
-            }
-
-            // Value has a permanent slot but is not currently spilled (was reloaded
-            // in this block). Re-mark it as spilled.
-            if sm.has_permanent_slot(&value_id) {
-                sm.re_mark_as_spilled(&value_id);
+            // If a record already exists, ensure it is permanent and spilled.
+            if sm.ensure_permanent_spill(&value_id) {
                 continue;
             }
 

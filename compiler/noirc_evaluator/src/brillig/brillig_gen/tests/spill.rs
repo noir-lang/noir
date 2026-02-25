@@ -38,15 +38,15 @@ fn brillig_spill_and_reload() {
     //   0-3:   Prologue — save spill base (sp[1]), reserve 1 spill slot
     //   4:     v2 = v0 + v1
     //   5:     Init constant 2
-    //   6-9:   Spill v2 → spill[0]  (mov base, const offset, add addr, store)
-    //   10:    v3 = v0 + 2  (reuses sp[4] freed by spill)
-    //   11:    Init constant 3
-    //   12:    v4 = v1 + 3
-    //   13-16: Reload v2 from spill[0]  (mov base, const offset, add addr, load)
-    //   17:    v5 = v2 + v3
-    //   18:    v6 = v5 + v4
-    //   19:    Move result to return slot
-    //   20:    Return
+    //   6-8:   Spill v2 → spill[0]  (const offset, add addr, store)
+    //   9:     v3 = v0 + 2  (reuses sp[4] freed by spill)
+    //   10:    Init constant 3
+    //   11:    v4 = v1 + 3
+    //   12-14: Reload v2 from spill[0]  (const offset, add addr, load)
+    //   15:    v5 = v2 + v3
+    //   16:    v6 = v5 + v4
+    //   17:    Move result to return slot
+    //   18:    Return
     assert_artifact_snapshot!(main, @r"
     fn main
      0: call 0
@@ -55,21 +55,19 @@ fn brillig_spill_and_reload() {
      3: @1 = u32 add @1, @3
      4: sp[4] = u32 add sp[2], sp[3]
      5: sp[5] = const u32 2
-     6: @3 = sp[1]
-     7: @4 = const u32 0
-     8: @3 = u32 add @3, @4
-     9: store sp[4] at @3
-    10: sp[4] = u32 add sp[2], sp[5]
-    11: sp[2] = const u32 3
-    12: sp[5] = u32 add sp[3], sp[2]
-    13: @3 = sp[1]
-    14: @4 = const u32 0
-    15: @3 = u32 add @3, @4
-    16: sp[3] = load @3
-    17: sp[2] = u32 add sp[3], sp[4]
-    18: sp[3] = u32 add sp[2], sp[5]
-    19: sp[2] = sp[3]
-    20: return
+     6: @4 = const u32 0
+     7: @3 = u32 add sp[1], @4
+     8: store sp[4] at @3
+     9: sp[4] = u32 add sp[2], sp[5]
+    10: sp[2] = const u32 3
+    11: sp[5] = u32 add sp[3], sp[2]
+    12: @4 = const u32 0
+    13: @3 = u32 add sp[1], @4
+    14: sp[3] = load @3
+    15: sp[2] = u32 add sp[3], sp[4]
+    16: sp[3] = u32 add sp[2], sp[5]
+    17: sp[2] = sp[3]
+    18: return
     ");
 }
 
@@ -103,52 +101,46 @@ fn brillig_spill_successor_params() {
     let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     // Bytecode layout:
     //   0-3:   Prologue — save spill base (sp[1]), reserve 3 spill slots
-    //   4-7:   Spill v0 → spill[0]  (mov base, const 0, add addr, store)
-    //   8-11:  Spill v0 → spill[1]  (mov base, const 1, add addr, store)
-    //   12-15: Spill v0 → spill[2]  (mov base, const 2, add addr, store)
-    //   16:    Jump to b1
-    //   17-20: Reload v1 from spill[0]  (mov base, const 0, add addr, load)
-    //   21-24: Reload v2 from spill[1]  (mov base, const 1, add addr, load)
-    //   25:    v4 = v1 + v2
-    //   26-29: Reload v3 from spill[2]  (mov base, const 2, add addr, load)
-    //   30:    v5 = v4 + v3
-    //   31:    Move result to return slot
-    //   32:    Return
+    //   4-6:   Spill v0 → spill[0]  (const 0, add addr, store)
+    //   7-9:   Spill v0 → spill[1]  (const 1, add addr, store)
+    //   10-12: Spill v0 → spill[2]  (const 2, add addr, store)
+    //   13:    Jump to b1
+    //   14-16: Reload v1 from spill[0]  (const 0, add addr, load)
+    //   17-19: Reload v2 from spill[1]  (const 1, add addr, load)
+    //   20:    v4 = v1 + v2
+    //   21-23: Reload v3 from spill[2]  (const 2, add addr, load)
+    //   24:    v5 = v4 + v3
+    //   25:    Move result to return slot
+    //   26:    Return
     assert_artifact_snapshot!(main, @r"
     fn main
      0: call 0
      1: sp[1] = @1
      2: @3 = const u32 3
      3: @1 = u32 add @1, @3
-     4: @3 = sp[1]
-     5: @4 = const u32 0
-     6: @3 = u32 add @3, @4
-     7: store sp[2] at @3
-     8: @3 = sp[1]
-     9: @4 = const u32 1
-    10: @3 = u32 add @3, @4
-    11: store sp[2] at @3
-    12: @3 = sp[1]
-    13: @4 = const u32 2
-    14: @3 = u32 add @3, @4
-    15: store sp[2] at @3
-    16: jump to 0
-    17: @3 = sp[1]
-    18: @4 = const u32 0
-    19: @3 = u32 add @3, @4
-    20: sp[3] = load @3
-    21: @3 = sp[1]
-    22: @4 = const u32 1
-    23: @3 = u32 add @3, @4
-    24: sp[4] = load @3
-    25: sp[2] = u32 add sp[3], sp[4]
-    26: @3 = sp[1]
-    27: @4 = const u32 2
-    28: @3 = u32 add @3, @4
-    29: sp[4] = load @3
-    30: sp[3] = u32 add sp[2], sp[4]
-    31: sp[2] = sp[3]
-    32: return
+     4: @4 = const u32 0
+     5: @3 = u32 add sp[1], @4
+     6: store sp[2] at @3
+     7: @4 = const u32 1
+     8: @3 = u32 add sp[1], @4
+     9: store sp[2] at @3
+    10: @4 = const u32 2
+    11: @3 = u32 add sp[1], @4
+    12: store sp[2] at @3
+    13: jump to 0
+    14: @4 = const u32 0
+    15: @3 = u32 add sp[1], @4
+    16: sp[3] = load @3
+    17: @4 = const u32 1
+    18: @3 = u32 add sp[1], @4
+    19: sp[4] = load @3
+    20: sp[2] = u32 add sp[3], sp[4]
+    21: @4 = const u32 2
+    22: @3 = u32 add sp[1], @4
+    23: sp[4] = load @3
+    24: sp[3] = u32 add sp[2], sp[4]
+    25: sp[2] = sp[3]
+    26: return
     ");
 }
 

@@ -75,6 +75,7 @@ impl SpillManager {
     }
 
     /// Check if a value has a permanent spill slot.
+    #[cfg(test)]
     pub(crate) fn has_permanent_slot(&self, value_id: &ValueId) -> bool {
         self.records.get(value_id).is_some_and(|r| r.is_permanent)
     }
@@ -137,7 +138,7 @@ impl SpillManager {
     /// has a register and is a valid eviction candidate.
     pub(crate) fn lru_victim(&self) -> Option<ValueId> {
         for value_id in &self.lru_order {
-            if !self.records.get(value_id).is_some_and(|r| r.is_currently_spilled) {
+            if !self.is_spilled(value_id) {
                 return Some(*value_id);
             }
         }
@@ -166,6 +167,7 @@ impl SpillManager {
         });
         if record.is_permanent {
             // Permanent record — preserve offset, just re-mark as spilled.
+            assert_eq!(offset, record.offset);
             record.is_currently_spilled = true;
         } else {
             // Transient record from a previous spill/reload cycle — update it.
@@ -250,27 +252,29 @@ impl SpillManager {
         }
     }
 
-    /// Promote an existing transient spill to a permanent spill.
+    /// Ensure a value has a permanent spill slot.
     ///
-    /// The existing slot offset and variable are preserved; only the
-    /// `is_permanent` flag is set. No store is needed — the data is already
-    /// in the slot.
-    pub(crate) fn promote_to_permanent(&mut self, value_id: &ValueId) {
-        if let Some(record) = self.records.get_mut(value_id) {
-            assert!(record.is_currently_spilled, "Cannot promote a non-spilled value to permanent");
-            record.is_permanent = true;
-        }
-    }
-
-    /// Re-mark a permanent record as currently spilled.
+    /// Handles all three cases where a record already exists with a single lookup:
+    /// - Permanent + currently spilled -> no-op (slot has correct data)
+    /// - Currently spilled but not permanent -> promote to permanent
+    /// - Permanent but not currently spilled (reloaded) -> re-mark as spilled
     ///
-    /// Used when a value already has a permanent spill slot from a previous block
-    /// but is not currently marked as spilled.
-    pub(crate) fn re_mark_as_spilled(&mut self, value_id: &ValueId) {
+    /// Returns `true` if a record existed (caller should skip further processing),
+    /// `false` if no record exists (first encounter — caller must allocate a slot).
+    pub(crate) fn ensure_permanent_spill(&mut self, value_id: &ValueId) -> bool {
         if let Some(record) = self.records.get_mut(value_id) {
-            assert!(record.is_permanent, "Can only re-mark permanent spills");
-            record.is_currently_spilled = true;
+            if record.is_permanent && record.is_currently_spilled {
+                // Already permanent and spilled — nothing to do.
+            } else if record.is_currently_spilled {
+                // Transient spill — promote to permanent.
+                record.is_permanent = true;
+            } else if record.is_permanent {
+                // Permanent but reloaded — re-mark as spilled.
+                record.is_currently_spilled = true;
+            }
+            return true;
         }
+        false
     }
 }
 
@@ -432,8 +436,8 @@ mod tests {
         assert!(sm.is_spilled(&v0));
         assert!(!sm.has_permanent_slot(&v0));
 
-        // Promote to permanent
-        sm.promote_to_permanent(&v0);
+        // Promote to permanent via ensure_permanent_spill
+        assert!(sm.ensure_permanent_spill(&v0));
         assert!(sm.is_spilled(&v0));
         assert!(sm.has_permanent_slot(&v0));
         assert_eq!(sm.get_permanent_spill_offset(&v0), Some(0));
@@ -474,32 +478,43 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Cannot promote a non-spilled value to permanent")]
-    fn promote_panics_on_non_spilled_value() {
+    fn ensure_permanent_spill_all_branches() {
         let mut sm = SpillManager::new();
         let v0 = Id::test_new(0);
+        let v1 = Id::test_new(1);
+        let v2 = Id::test_new(2);
+        let v3 = Id::test_new(3);
 
-        // Record a transient spill, then unmark it (simulating a reload)
-        let off = sm.allocate_spill_offset();
-        sm.record_spill(v0, off, test_var(0));
-        sm.unmark_spilled(&v0);
+        // Case 1: No record -> returns false
+        assert!(!sm.ensure_permanent_spill(&v3));
 
-        // Promoting a non-spilled value should panic
-        sm.promote_to_permanent(&v0);
-    }
+        // Case 2: Permanent + currently spilled -> returns true, no state change
+        let off0 = sm.allocate_spill_offset();
+        sm.record_permanent_spill(v0, off0, test_var(0));
+        assert!(sm.is_spilled(&v0));
+        assert!(sm.has_permanent_slot(&v0));
+        assert!(sm.ensure_permanent_spill(&v0));
+        // State unchanged
+        assert!(sm.is_spilled(&v0));
+        assert!(sm.has_permanent_slot(&v0));
 
-    #[test]
-    #[should_panic(expected = "Can only re-mark permanent spills")]
-    fn re_mark_panics_on_transient_record() {
-        let mut sm = SpillManager::new();
-        let v0 = Id::test_new(0);
+        // Case 3: Transient spill (not permanent) -> returns true, promoted to permanent
+        let off1 = sm.allocate_spill_offset();
+        sm.record_spill(v1, off1, test_var(1));
+        assert!(sm.is_spilled(&v1));
+        assert!(!sm.has_permanent_slot(&v1));
+        assert!(sm.ensure_permanent_spill(&v1));
+        assert!(sm.is_spilled(&v1));
+        assert!(sm.has_permanent_slot(&v1));
 
-        // Record a transient spill, then unmark it (simulating a reload)
-        let off = sm.allocate_spill_offset();
-        sm.record_spill(v0, off, test_var(0));
-        sm.unmark_spilled(&v0);
-
-        // Re-marking a transient (non-permanent) record should panic
-        sm.re_mark_as_spilled(&v0);
+        // Case 4: Permanent but reloaded (not currently spilled) -> returns true, re-marked as spilled
+        let off2 = sm.allocate_spill_offset();
+        sm.record_permanent_spill(v2, off2, test_var(2));
+        sm.unmark_spilled(&v2);
+        assert!(!sm.is_spilled(&v2));
+        assert!(sm.has_permanent_slot(&v2));
+        assert!(sm.ensure_permanent_spill(&v2));
+        assert!(sm.is_spilled(&v2));
+        assert!(sm.has_permanent_slot(&v2));
     }
 }
