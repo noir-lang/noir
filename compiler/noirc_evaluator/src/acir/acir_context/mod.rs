@@ -996,7 +996,7 @@ impl<F: AcirField> AcirContext<F> {
             num_bits::<u128>() as u32 - a.leading_zeros()
         }
 
-        // When offset is 1, since 2^bits-1 > rhs-(lhs+1) >= 0 - (2^bits)
+        // When offset is 1, since 2^(bits) - 1 > rhs - (lhs + 1) >= 0 - 2^(bits)
         // We want that 2^(bits) - 1 < p - 2^(bits), i.e 2^(bits+1) < p+1, i.e bits + 1 < log2(p)
         assert!(
             bits + 1 < F::max_num_bits(),
