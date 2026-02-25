@@ -120,7 +120,7 @@ mutation-test base="master": install-rust-tools
 # Checks if there are any pending insta.rs snapshots and errors if any exist.
 check-pending-snapshots:
     #!/usr/bin/env bash
-    snapshots=$(find . -name *.snap.new)
+    snapshots=$(find . -name '*.snap.new' -o -name '*.pending-snap')
     if [[ -n "$snapshots" ]]; then \
       echo "Found pending snapshots:"
       echo ""
