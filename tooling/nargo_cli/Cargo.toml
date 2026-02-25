@@ -77,7 +77,7 @@ clap-markdown = { git = "https://github.com/noir-lang/clap-markdown", rev = "450
 
 notify = "6.1.1"
 notify-debouncer-full = "0.3.1"
-termion = "3.0.0"
+termion = "4"
 
 # Logs
 tracing.workspace = true
@@ -95,7 +95,7 @@ tempfile.workspace = true
 dirs.workspace = true
 assert_cmd = "2.0.8"
 assert_fs = "1.0.10"
-predicates = "2.1.5"
+predicates = "3"
 fm.workspace = true
 criterion.workspace = true
 pprof.workspace = true
