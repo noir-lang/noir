@@ -2093,8 +2093,7 @@ impl<'interner> Monomorphizer<'interner> {
             self.check_arguments_crossing_runtime_boundaries(&call)?;
         }
 
-        let func_type = self.interner.id_type(call.func);
-
+        let func_type = self.interner.id_type(call.func).follow_bindings();
         let mut arguments = Vec::with_capacity(call.arguments.len());
         if let Type::Function(params, _, _, callee_unconstrained) = &func_type {
             assert_eq!(params.len(), call.arguments.len(), "ICE: Unexpected number of call args");
@@ -2867,17 +2866,19 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
-    /// Check that an identifier refers to an unconstrained user defined function.
-    ///
-    /// Returns `false` for any other kind of expression.
+    /// Check whether a call expression's callee is an unconstrained function.
+    /// Resolves the callee's type (following bindings) and checks for unconstrained status
+    /// both on direct function types and on `(constrained_fn, unconstrained_fn)` tuple pairs
+    /// used when functions are bound to local variables.
     fn function_is_unconstrained(&self, function: ExprId) -> bool {
-        if let HirExpression::Ident(ident, _) = self.interner.expression(&function)
-            && let DefinitionKind::Function(func_id) = self.interner.definition(ident.id).kind
-        {
-            return self.interner.function_meta(&func_id).is_unconstrained();
+        let typ = self.interner.id_type(function).follow_bindings();
+        match &typ {
+            Type::Function(_, _, _, unconstrained) => *unconstrained,
+            Type::Tuple(elements) => {
+                elements.iter().any(|e| matches!(e, Type::Function(_, _, _, true)))
+            }
+            _ => false,
         }
-
-        false
     }
 
     fn function_is_oracle(&self, function: ExprId) -> bool {

@@ -151,7 +151,7 @@ impl Elaborator<'_> {
                 let message = format!(
                     "elaborate_variable_inner: unused resolved_turbofish: {unused_resolved_turbofish:?}"
                 );
-                self.push_err(TypeCheckError::ExpectingOtherError { message, location });
+                self.push_err(TypeCheckError::expecting_other_error(message, location));
             }
 
             None
@@ -248,15 +248,16 @@ impl Elaborator<'_> {
         // Check if the constant exists in the trait definition (even if impl is missing it).
         // This prevents spurious "Could not resolve" errors inside trait methods when the impl is missing the constant,
         // since the "missing associated constant" error is reported elsewhere.
-        let trait_impl = self.interner.get_trait_implementation(*trait_impl_id);
-        let trait_id = trait_impl.borrow().trait_id;
-        let trait_ = self.interner.get_trait(trait_id);
-        if let Some(definition_id) = trait_.associated_constant_ids.get(name).copied() {
-            let numeric_type = self.interner.definition_type(definition_id);
-            let hir_ident = HirIdent::non_trait_method(definition_id, location);
-            let hir_expr = HirExpression::Ident(hir_ident, None);
-            let id = self.interner.push_expr_full(hir_expr, location, numeric_type.clone());
-            return Some((id, numeric_type));
+        if let Some(trait_impl) = self.interner.try_get_trait_implementation(*trait_impl_id) {
+            let trait_id = trait_impl.borrow().trait_id;
+            let trait_ = self.interner.get_trait(trait_id);
+            if let Some(definition_id) = trait_.associated_constant_ids.get(name).copied() {
+                let numeric_type = self.interner.definition_type(definition_id);
+                let hir_ident = HirIdent::non_trait_method(definition_id, location);
+                let hir_expr = HirExpression::Ident(hir_ident, None);
+                let id = self.interner.push_expr_full(hir_expr, location, numeric_type.clone());
+                return Some((id, numeric_type));
+            }
         }
 
         // Check the `Self::method_name` case when `Self` is a primitive type (2 segments)
@@ -617,6 +618,21 @@ impl Elaborator<'_> {
                 method.assumed,
                 &mut bindings,
             );
+        }
+
+        // If a global variable hasn't been defined yet, then we are most likely dealing with a self-dependency-cycle.
+        let definition = self.interner.definition(ident.id);
+        // Some associated constants also have Global as Kind, and they are not defined when look them up here; want to restrict to global `let` statements.
+        if self.in_comptime_context()
+            && definition.kind.is_global()
+            && self.interner.try_definition_type(ident.id).is_none()
+        {
+            self.push_err(ResolverError::DependencyCycle {
+                location: ident.location,
+                item: definition.name.clone(),
+                cycle: "the variable definition type hasn't been resolved yet".to_string(),
+            });
+            return Type::Error;
         }
 
         // An identifiers type may be forall-quantified in the case of generic functions.
