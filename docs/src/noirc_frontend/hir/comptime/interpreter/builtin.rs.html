@@ -1419,7 +1419,7 @@
 <a href=#1419 id=1419 data-nosnippet>1419</a>    <span class="kw">let </span>self_argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
 <a href=#1420 id=1420 data-nosnippet>1420</a>    <span class="kw">let </span>typed_expr = get_typed_expr(self_argument)<span class="question-mark">?</span>;
 <a href=#1421 id=1421 data-nosnippet>1421</a>    <span class="kw">let </span>option_value = <span class="kw">if let </span>TypedExpr::ExprId(expr_id) = typed_expr {
-<a href=#1422 id=1422 data-nosnippet>1422</a>        <span class="kw">let </span>func_id = interner.lookup_function_from_expr(<span class="kw-2">&amp;</span>expr_id);
+<a href=#1422 id=1422 data-nosnippet>1422</a>        <span class="kw">let </span>func_id = interner.lookup_function_from_expr(<span class="kw-2">&amp;</span>expr_id, location)<span class="question-mark">?</span>;
 <a href=#1423 id=1423 data-nosnippet>1423</a>        func_id.map(Value::FunctionDefinition)
 <a href=#1424 id=1424 data-nosnippet>1424</a>    } <span class="kw">else </span>{
 <a href=#1425 id=1425 data-nosnippet>1425</a>        <span class="prelude-val">None

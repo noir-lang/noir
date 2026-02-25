@@ -368,10 +368,10 @@
 <a href=#368 id=368 data-nosnippet>368</a>        <span class="kw">let </span><span class="prelude-val">Ok</span>(PathResolutionItem::Trait(trait_id)) =
 <a href=#369 id=369 data-nosnippet>369</a>            <span class="self">self</span>.resolve_path_or_error(trait_path.clone(), PathResolutionTarget::Type)
 <a href=#370 id=370 data-nosnippet>370</a>        <span class="kw">else </span>{
-<a href=#371 id=371 data-nosnippet>371</a>            <span class="self">self</span>.push_err(TypeCheckError::ExpectingOtherError {
-<a href=#372 id=372 data-nosnippet>372</a>                message: <span class="string">"add_missing_named_generics: missing trait"</span>.to_string(),
-<a href=#373 id=373 data-nosnippet>373</a>                location: trait_path.location,
-<a href=#374 id=374 data-nosnippet>374</a>            });
+<a href=#371 id=371 data-nosnippet>371</a>            <span class="self">self</span>.push_err(TypeCheckError::expecting_other_error(
+<a href=#372 id=372 data-nosnippet>372</a>                <span class="string">"add_missing_named_generics: missing trait"</span>,
+<a href=#373 id=373 data-nosnippet>373</a>                object.location,
+<a href=#374 id=374 data-nosnippet>374</a>            ));
 <a href=#375 id=375 data-nosnippet>375</a>            <span class="kw">return </span>Vec::new();
 <a href=#376 id=376 data-nosnippet>376</a>        };
 <a href=#377 id=377 data-nosnippet>377</a>
@@ -626,10 +626,10 @@
 <a href=#626 id=626 data-nosnippet>626</a>                <span class="kw">return</span>;
 <a href=#627 id=627 data-nosnippet>627</a>            }
 <a href=#628 id=628 data-nosnippet>628</a>            <span class="prelude-val">Err</span>(error) =&gt; {
-<a href=#629 id=629 data-nosnippet>629</a>                <span class="self">self</span>.push_err(TypeCheckError::ExpectingOtherError {
-<a href=#630 id=630 data-nosnippet>630</a>                    message: <span class="macro">format!</span>(<span class="string">"Elaborator::add_trait_bound_to_scope: encountered error while running add_assumed_trait_implementation: {error:?}"</span>),
+<a href=#629 id=629 data-nosnippet>629</a>                <span class="self">self</span>.push_err(TypeCheckError::expecting_other_error(
+<a href=#630 id=630 data-nosnippet>630</a>                    <span class="macro">format!</span>(<span class="string">"Elaborator::add_trait_bound_to_scope: encountered error while running add_assumed_trait_implementation: {error:?}"</span>),
 <a href=#631 id=631 data-nosnippet>631</a>                    location,
-<a href=#632 id=632 data-nosnippet>632</a>                });
+<a href=#632 id=632 data-nosnippet>632</a>                ));
 <a href=#633 id=633 data-nosnippet>633</a>            }
 <a href=#634 id=634 data-nosnippet>634</a>        }
 <a href=#635 id=635 data-nosnippet>635</a>
@@ -855,10 +855,10 @@
 <a href=#855 id=855 data-nosnippet>855</a>    <span class="comment">// If the trait implementation is not defined in the interner then there was a previous
 <a href=#856 id=856 data-nosnippet>856</a>    // error in resolving the trait path and there is likely no trait for this impl.
 <a href=#857 id=857 data-nosnippet>857</a>    </span><span class="kw">let </span><span class="prelude-val">Some</span>(impl_) = interner.try_get_trait_implementation(impl_id) <span class="kw">else </span>{
-<a href=#858 id=858 data-nosnippet>858</a>        errors.push(TypeCheckError::ExpectingOtherError {
-<a href=#859 id=859 data-nosnippet>859</a>            message: <span class="string">"check_trait_impl_method_matches_declaration: missing trait impl"</span>.to_string(),
-<a href=#860 id=860 data-nosnippet>860</a>            location: noir_function.def.location,
-<a href=#861 id=861 data-nosnippet>861</a>        });
+<a href=#858 id=858 data-nosnippet>858</a>        errors.push(TypeCheckError::expecting_other_error(
+<a href=#859 id=859 data-nosnippet>859</a>            <span class="string">"check_trait_impl_method_matches_declaration: missing trait impl"</span>,
+<a href=#860 id=860 data-nosnippet>860</a>            meta.name.location,
+<a href=#861 id=861 data-nosnippet>861</a>        ));
 <a href=#862 id=862 data-nosnippet>862</a>        <span class="kw">return </span>errors;
 <a href=#863 id=863 data-nosnippet>863</a>    };
 <a href=#864 id=864 data-nosnippet>864</a>
@@ -943,93 +943,92 @@
 <a href=#943 id=943 data-nosnippet>943</a>            <span class="kw-2">&amp;mut </span>errors,
 <a href=#944 id=944 data-nosnippet>944</a>        );
 <a href=#945 id=945 data-nosnippet>945</a>    } <span class="kw">else </span>{
-<a href=#946 id=946 data-nosnippet>946</a>        errors.push(TypeCheckError::ExpectingOtherError {
-<a href=#947 id=947 data-nosnippet>947</a>            message: <span class="string">"check_trait_impl_method_matches_declaration: missing trait method function"
-<a href=#948 id=948 data-nosnippet>948</a>                </span>.to_string(),
-<a href=#949 id=949 data-nosnippet>949</a>            location: meta.name.location,
-<a href=#950 id=950 data-nosnippet>950</a>        });
-<a href=#951 id=951 data-nosnippet>951</a>    }
-<a href=#952 id=952 data-nosnippet>952</a>
-<a href=#953 id=953 data-nosnippet>953</a>    errors
-<a href=#954 id=954 data-nosnippet>954</a>}
-<a href=#955 id=955 data-nosnippet>955</a>
-<a href=#956 id=956 data-nosnippet>956</a><span class="doccomment">/// Check the given function type matches the expected one.
-<a href=#957 id=957 data-nosnippet>957</a>///
-<a href=#958 id=958 data-nosnippet>958</a>/// This is used to check if a trait impl's function type matches the declared function in the
-<a href=#959 id=959 data-nosnippet>959</a>/// original trait declaration - while handling the appropriate generic substitutions.
-<a href=#960 id=960 data-nosnippet>960</a></span><span class="kw">fn </span>check_function_type_matches_expected_type(
-<a href=#961 id=961 data-nosnippet>961</a>    expected: <span class="kw-2">&amp;</span>Type,
-<a href=#962 id=962 data-nosnippet>962</a>    meta: <span class="kw-2">&amp;</span>FuncMeta,
-<a href=#963 id=963 data-nosnippet>963</a>    method_name: <span class="kw-2">&amp;</span>str,
-<a href=#964 id=964 data-nosnippet>964</a>    noir_function: <span class="kw-2">&amp;</span>NoirFunction,
-<a href=#965 id=965 data-nosnippet>965</a>    trait_name: <span class="kw-2">&amp;</span>str,
-<a href=#966 id=966 data-nosnippet>966</a>    errors: <span class="kw-2">&amp;mut </span>Vec&lt;TypeCheckError&gt;,
-<a href=#967 id=967 data-nosnippet>967</a>) {
-<a href=#968 id=968 data-nosnippet>968</a>    <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
-<a href=#969 id=969 data-nosnippet>969</a>    <span class="kw">let </span>actual = meta.typ.as_monotype();
-<a href=#970 id=970 data-nosnippet>970</a>    <span class="kw">let </span>location = meta.name.location;
-<a href=#971 id=971 data-nosnippet>971</a>    <span class="kw">if let </span>(
-<a href=#972 id=972 data-nosnippet>972</a>        Type::Function(params_a, ret_a, env_a, unconstrained_a),
-<a href=#973 id=973 data-nosnippet>973</a>        Type::Function(params_b, ret_b, env_b, unconstrained_b),
-<a href=#974 id=974 data-nosnippet>974</a>    ) = (expected, actual)
-<a href=#975 id=975 data-nosnippet>975</a>    {
-<a href=#976 id=976 data-nosnippet>976</a>        <span class="comment">// Shouldn't need to unify envs, they should always be equal since they're both free functions
-<a href=#977 id=977 data-nosnippet>977</a>        </span><span class="macro">assert_eq!</span>(env_a, env_b, <span class="string">"envs should match as they're both free functions"</span>);
-<a href=#978 id=978 data-nosnippet>978</a>
-<a href=#979 id=979 data-nosnippet>979</a>        <span class="kw">if </span>unconstrained_a != unconstrained_b {
-<a href=#980 id=980 data-nosnippet>980</a>            errors.push(TypeCheckError::UnconstrainedMismatch {
-<a href=#981 id=981 data-nosnippet>981</a>                item: method_name.to_string(),
-<a href=#982 id=982 data-nosnippet>982</a>                expected: <span class="kw-2">*</span>unconstrained_a,
-<a href=#983 id=983 data-nosnippet>983</a>                location,
-<a href=#984 id=984 data-nosnippet>984</a>            });
-<a href=#985 id=985 data-nosnippet>985</a>        }
-<a href=#986 id=986 data-nosnippet>986</a>
-<a href=#987 id=987 data-nosnippet>987</a>        <span class="kw">if </span>params_a.len() == params_b.len() {
-<a href=#988 id=988 data-nosnippet>988</a>            <span class="kw">for </span>(i, (a, b)) <span class="kw">in </span>params_a.iter().zip(params_b.iter()).enumerate() {
-<a href=#989 id=989 data-nosnippet>989</a>                <span class="kw">if </span>a.try_unify(b, <span class="kw-2">&amp;mut </span>bindings).is_err() {
-<a href=#990 id=990 data-nosnippet>990</a>                    <span class="kw">let </span>parameter_location = noir_function.def.parameters.get(i);
-<a href=#991 id=991 data-nosnippet>991</a>                    <span class="kw">let </span>parameter_location = parameter_location.map(|param| param.typ.location);
-<a href=#992 id=992 data-nosnippet>992</a>                    <span class="kw">let </span>parameter_location =
-<a href=#993 id=993 data-nosnippet>993</a>                        parameter_location.unwrap_or_else(|| meta.parameters.<span class="number">0</span>[i].<span class="number">0</span>.location());
-<a href=#994 id=994 data-nosnippet>994</a>
-<a href=#995 id=995 data-nosnippet>995</a>                    errors.push(TypeCheckError::TraitMethodParameterTypeMismatch {
-<a href=#996 id=996 data-nosnippet>996</a>                        method_name: method_name.to_string(),
-<a href=#997 id=997 data-nosnippet>997</a>                        expected_typ: a.to_string(),
-<a href=#998 id=998 data-nosnippet>998</a>                        actual_typ: b.to_string(),
-<a href=#999 id=999 data-nosnippet>999</a>                        parameter_location,
-<a href=#1000 id=1000 data-nosnippet>1000</a>                        parameter_index: i + <span class="number">1</span>,
-<a href=#1001 id=1001 data-nosnippet>1001</a>                    });
-<a href=#1002 id=1002 data-nosnippet>1002</a>                }
-<a href=#1003 id=1003 data-nosnippet>1003</a>            }
-<a href=#1004 id=1004 data-nosnippet>1004</a>
-<a href=#1005 id=1005 data-nosnippet>1005</a>            <span class="kw">if </span>ret_b.try_unify(ret_a, <span class="kw-2">&amp;mut </span>bindings).is_err() {
-<a href=#1006 id=1006 data-nosnippet>1006</a>                errors.push(TypeCheckError::TypeMismatch {
-<a href=#1007 id=1007 data-nosnippet>1007</a>                    expected_typ: ret_a.to_string(),
-<a href=#1008 id=1008 data-nosnippet>1008</a>                    expr_typ: ret_b.to_string(),
-<a href=#1009 id=1009 data-nosnippet>1009</a>                    expr_location: meta.return_type.location(),
-<a href=#1010 id=1010 data-nosnippet>1010</a>                });
-<a href=#1011 id=1011 data-nosnippet>1011</a>            }
-<a href=#1012 id=1012 data-nosnippet>1012</a>        } <span class="kw">else </span>{
-<a href=#1013 id=1013 data-nosnippet>1013</a>            errors.push(TypeCheckError::MismatchTraitImplNumParameters {
-<a href=#1014 id=1014 data-nosnippet>1014</a>                actual_num_parameters: params_b.len(),
-<a href=#1015 id=1015 data-nosnippet>1015</a>                expected_num_parameters: params_a.len(),
-<a href=#1016 id=1016 data-nosnippet>1016</a>                trait_name: trait_name.to_string(),
-<a href=#1017 id=1017 data-nosnippet>1017</a>                method_name: method_name.to_string(),
-<a href=#1018 id=1018 data-nosnippet>1018</a>                location,
-<a href=#1019 id=1019 data-nosnippet>1019</a>            });
-<a href=#1020 id=1020 data-nosnippet>1020</a>        }
-<a href=#1021 id=1021 data-nosnippet>1021</a>    }
-<a href=#1022 id=1022 data-nosnippet>1022</a>
-<a href=#1023 id=1023 data-nosnippet>1023</a>    <span class="comment">// If result bindings is not empty, a type variable was bound which means the two
-<a href=#1024 id=1024 data-nosnippet>1024</a>    // signatures were not a perfect match. Note that this relies on us already binding
-<a href=#1025 id=1025 data-nosnippet>1025</a>    // all the expected generics to each other prior to this check.
-<a href=#1026 id=1026 data-nosnippet>1026</a>    </span><span class="kw">if </span>!bindings.is_empty() {
-<a href=#1027 id=1027 data-nosnippet>1027</a>        <span class="kw">let </span>expected_typ = expected.to_string();
-<a href=#1028 id=1028 data-nosnippet>1028</a>        <span class="kw">let </span>expr_typ = actual.to_string();
-<a href=#1029 id=1029 data-nosnippet>1029</a>        errors.push(TypeCheckError::TypeMismatch {
-<a href=#1030 id=1030 data-nosnippet>1030</a>            expected_typ,
-<a href=#1031 id=1031 data-nosnippet>1031</a>            expr_typ,
-<a href=#1032 id=1032 data-nosnippet>1032</a>            expr_location: location,
-<a href=#1033 id=1033 data-nosnippet>1033</a>        });
-<a href=#1034 id=1034 data-nosnippet>1034</a>    }
-<a href=#1035 id=1035 data-nosnippet>1035</a>}</code></pre></div></section></main></body></html>
+<a href=#946 id=946 data-nosnippet>946</a>        errors.push(TypeCheckError::expecting_other_error(
+<a href=#947 id=947 data-nosnippet>947</a>            <span class="string">"check_trait_impl_method_matches_declaration: missing trait method function"</span>,
+<a href=#948 id=948 data-nosnippet>948</a>            meta.name.location,
+<a href=#949 id=949 data-nosnippet>949</a>        ));
+<a href=#950 id=950 data-nosnippet>950</a>    }
+<a href=#951 id=951 data-nosnippet>951</a>
+<a href=#952 id=952 data-nosnippet>952</a>    errors
+<a href=#953 id=953 data-nosnippet>953</a>}
+<a href=#954 id=954 data-nosnippet>954</a>
+<a href=#955 id=955 data-nosnippet>955</a><span class="doccomment">/// Check the given function type matches the expected one.
+<a href=#956 id=956 data-nosnippet>956</a>///
+<a href=#957 id=957 data-nosnippet>957</a>/// This is used to check if a trait impl's function type matches the declared function in the
+<a href=#958 id=958 data-nosnippet>958</a>/// original trait declaration - while handling the appropriate generic substitutions.
+<a href=#959 id=959 data-nosnippet>959</a></span><span class="kw">fn </span>check_function_type_matches_expected_type(
+<a href=#960 id=960 data-nosnippet>960</a>    expected: <span class="kw-2">&amp;</span>Type,
+<a href=#961 id=961 data-nosnippet>961</a>    meta: <span class="kw-2">&amp;</span>FuncMeta,
+<a href=#962 id=962 data-nosnippet>962</a>    method_name: <span class="kw-2">&amp;</span>str,
+<a href=#963 id=963 data-nosnippet>963</a>    noir_function: <span class="kw-2">&amp;</span>NoirFunction,
+<a href=#964 id=964 data-nosnippet>964</a>    trait_name: <span class="kw-2">&amp;</span>str,
+<a href=#965 id=965 data-nosnippet>965</a>    errors: <span class="kw-2">&amp;mut </span>Vec&lt;TypeCheckError&gt;,
+<a href=#966 id=966 data-nosnippet>966</a>) {
+<a href=#967 id=967 data-nosnippet>967</a>    <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
+<a href=#968 id=968 data-nosnippet>968</a>    <span class="kw">let </span>actual = meta.typ.as_monotype();
+<a href=#969 id=969 data-nosnippet>969</a>    <span class="kw">let </span>location = meta.name.location;
+<a href=#970 id=970 data-nosnippet>970</a>    <span class="kw">if let </span>(
+<a href=#971 id=971 data-nosnippet>971</a>        Type::Function(params_a, ret_a, env_a, unconstrained_a),
+<a href=#972 id=972 data-nosnippet>972</a>        Type::Function(params_b, ret_b, env_b, unconstrained_b),
+<a href=#973 id=973 data-nosnippet>973</a>    ) = (expected, actual)
+<a href=#974 id=974 data-nosnippet>974</a>    {
+<a href=#975 id=975 data-nosnippet>975</a>        <span class="comment">// Shouldn't need to unify envs, they should always be equal since they're both free functions
+<a href=#976 id=976 data-nosnippet>976</a>        </span><span class="macro">assert_eq!</span>(env_a, env_b, <span class="string">"envs should match as they're both free functions"</span>);
+<a href=#977 id=977 data-nosnippet>977</a>
+<a href=#978 id=978 data-nosnippet>978</a>        <span class="kw">if </span>unconstrained_a != unconstrained_b {
+<a href=#979 id=979 data-nosnippet>979</a>            errors.push(TypeCheckError::UnconstrainedMismatch {
+<a href=#980 id=980 data-nosnippet>980</a>                item: method_name.to_string(),
+<a href=#981 id=981 data-nosnippet>981</a>                expected: <span class="kw-2">*</span>unconstrained_a,
+<a href=#982 id=982 data-nosnippet>982</a>                location,
+<a href=#983 id=983 data-nosnippet>983</a>            });
+<a href=#984 id=984 data-nosnippet>984</a>        }
+<a href=#985 id=985 data-nosnippet>985</a>
+<a href=#986 id=986 data-nosnippet>986</a>        <span class="kw">if </span>params_a.len() == params_b.len() {
+<a href=#987 id=987 data-nosnippet>987</a>            <span class="kw">for </span>(i, (a, b)) <span class="kw">in </span>params_a.iter().zip(params_b.iter()).enumerate() {
+<a href=#988 id=988 data-nosnippet>988</a>                <span class="kw">if </span>a.try_unify(b, <span class="kw-2">&amp;mut </span>bindings).is_err() {
+<a href=#989 id=989 data-nosnippet>989</a>                    <span class="kw">let </span>parameter_location = noir_function.def.parameters.get(i);
+<a href=#990 id=990 data-nosnippet>990</a>                    <span class="kw">let </span>parameter_location = parameter_location.map(|param| param.typ.location);
+<a href=#991 id=991 data-nosnippet>991</a>                    <span class="kw">let </span>parameter_location =
+<a href=#992 id=992 data-nosnippet>992</a>                        parameter_location.unwrap_or_else(|| meta.parameters.<span class="number">0</span>[i].<span class="number">0</span>.location());
+<a href=#993 id=993 data-nosnippet>993</a>
+<a href=#994 id=994 data-nosnippet>994</a>                    errors.push(TypeCheckError::TraitMethodParameterTypeMismatch {
+<a href=#995 id=995 data-nosnippet>995</a>                        method_name: method_name.to_string(),
+<a href=#996 id=996 data-nosnippet>996</a>                        expected_typ: a.to_string(),
+<a href=#997 id=997 data-nosnippet>997</a>                        actual_typ: b.to_string(),
+<a href=#998 id=998 data-nosnippet>998</a>                        parameter_location,
+<a href=#999 id=999 data-nosnippet>999</a>                        parameter_index: i + <span class="number">1</span>,
+<a href=#1000 id=1000 data-nosnippet>1000</a>                    });
+<a href=#1001 id=1001 data-nosnippet>1001</a>                }
+<a href=#1002 id=1002 data-nosnippet>1002</a>            }
+<a href=#1003 id=1003 data-nosnippet>1003</a>
+<a href=#1004 id=1004 data-nosnippet>1004</a>            <span class="kw">if </span>ret_b.try_unify(ret_a, <span class="kw-2">&amp;mut </span>bindings).is_err() {
+<a href=#1005 id=1005 data-nosnippet>1005</a>                errors.push(TypeCheckError::TypeMismatch {
+<a href=#1006 id=1006 data-nosnippet>1006</a>                    expected_typ: ret_a.to_string(),
+<a href=#1007 id=1007 data-nosnippet>1007</a>                    expr_typ: ret_b.to_string(),
+<a href=#1008 id=1008 data-nosnippet>1008</a>                    expr_location: meta.return_type.location(),
+<a href=#1009 id=1009 data-nosnippet>1009</a>                });
+<a href=#1010 id=1010 data-nosnippet>1010</a>            }
+<a href=#1011 id=1011 data-nosnippet>1011</a>        } <span class="kw">else </span>{
+<a href=#1012 id=1012 data-nosnippet>1012</a>            errors.push(TypeCheckError::MismatchTraitImplNumParameters {
+<a href=#1013 id=1013 data-nosnippet>1013</a>                actual_num_parameters: params_b.len(),
+<a href=#1014 id=1014 data-nosnippet>1014</a>                expected_num_parameters: params_a.len(),
+<a href=#1015 id=1015 data-nosnippet>1015</a>                trait_name: trait_name.to_string(),
+<a href=#1016 id=1016 data-nosnippet>1016</a>                method_name: method_name.to_string(),
+<a href=#1017 id=1017 data-nosnippet>1017</a>                location,
+<a href=#1018 id=1018 data-nosnippet>1018</a>            });
+<a href=#1019 id=1019 data-nosnippet>1019</a>        }
+<a href=#1020 id=1020 data-nosnippet>1020</a>    }
+<a href=#1021 id=1021 data-nosnippet>1021</a>
+<a href=#1022 id=1022 data-nosnippet>1022</a>    <span class="comment">// If result bindings is not empty, a type variable was bound which means the two
+<a href=#1023 id=1023 data-nosnippet>1023</a>    // signatures were not a perfect match. Note that this relies on us already binding
+<a href=#1024 id=1024 data-nosnippet>1024</a>    // all the expected generics to each other prior to this check.
+<a href=#1025 id=1025 data-nosnippet>1025</a>    </span><span class="kw">if </span>!bindings.is_empty() {
+<a href=#1026 id=1026 data-nosnippet>1026</a>        <span class="kw">let </span>expected_typ = expected.to_string();
+<a href=#1027 id=1027 data-nosnippet>1027</a>        <span class="kw">let </span>expr_typ = actual.to_string();
+<a href=#1028 id=1028 data-nosnippet>1028</a>        errors.push(TypeCheckError::TypeMismatch {
+<a href=#1029 id=1029 data-nosnippet>1029</a>            expected_typ,
+<a href=#1030 id=1030 data-nosnippet>1030</a>            expr_typ,
+<a href=#1031 id=1031 data-nosnippet>1031</a>            expr_location: location,
+<a href=#1032 id=1032 data-nosnippet>1032</a>        });
+<a href=#1033 id=1033 data-nosnippet>1033</a>    }
+<a href=#1034 id=1034 data-nosnippet>1034</a>}</code></pre></div></section></main></body></html>

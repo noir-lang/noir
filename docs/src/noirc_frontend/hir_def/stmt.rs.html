@@ -9,7 +9,7 @@
 <a href=#9 id=9 data-nosnippet>9</a>/// the Statement AST node. Unlike the AST node, any nested nodes
 <a href=#10 id=10 data-nosnippet>10</a>/// are referred to indirectly via ExprId or StmtId, which can be
 <a href=#11 id=11 data-nosnippet>11</a>/// used to retrieve the relevant node via the NodeInterner.
-<a href=#12 id=12 data-nosnippet>12</a></span><span class="attr">#[derive(Debug, Clone)]
+<a href=#12 id=12 data-nosnippet>12</a></span><span class="attr">#[derive(Debug, Clone, PartialEq, Eq)]
 <a href=#13 id=13 data-nosnippet>13</a></span><span class="kw">pub enum </span>HirStatement {
 <a href=#14 id=14 data-nosnippet>14</a>    Let(HirLetStatement),
 <a href=#15 id=15 data-nosnippet>15</a>    Assign(HirAssignStatement),
@@ -24,7 +24,7 @@
 <a href=#24 id=24 data-nosnippet>24</a>    Error,
 <a href=#25 id=25 data-nosnippet>25</a>}
 <a href=#26 id=26 data-nosnippet>26</a>
-<a href=#27 id=27 data-nosnippet>27</a><span class="attr">#[derive(Debug, Clone)]
+<a href=#27 id=27 data-nosnippet>27</a><span class="attr">#[derive(Debug, Clone, PartialEq, Eq)]
 <a href=#28 id=28 data-nosnippet>28</a></span><span class="kw">pub struct </span>HirLetStatement {
 <a href=#29 id=29 data-nosnippet>29</a>    <span class="kw">pub </span>pattern: HirPattern,
 <a href=#30 id=30 data-nosnippet>30</a>    <span class="kw">pub </span>r#type: Type,
@@ -63,7 +63,7 @@
 <a href=#63 id=63 data-nosnippet>63</a>    }
 <a href=#64 id=64 data-nosnippet>64</a>}
 <a href=#65 id=65 data-nosnippet>65</a>
-<a href=#66 id=66 data-nosnippet>66</a><span class="attr">#[derive(Debug, Clone)]
+<a href=#66 id=66 data-nosnippet>66</a><span class="attr">#[derive(Debug, Clone, PartialEq, Eq)]
 <a href=#67 id=67 data-nosnippet>67</a></span><span class="kw">pub struct </span>HirForStatement {
 <a href=#68 id=68 data-nosnippet>68</a>    <span class="kw">pub </span>identifier: HirIdent,
 <a href=#69 id=69 data-nosnippet>69</a>    <span class="kw">pub </span>start_range: ExprId,
@@ -73,7 +73,7 @@
 <a href=#73 id=73 data-nosnippet>73</a>}
 <a href=#74 id=74 data-nosnippet>74</a>
 <a href=#75 id=75 data-nosnippet>75</a><span class="doccomment">/// Corresponds to `lvalue = expression;` in the source code
-<a href=#76 id=76 data-nosnippet>76</a></span><span class="attr">#[derive(Debug, Clone)]
+<a href=#76 id=76 data-nosnippet>76</a></span><span class="attr">#[derive(Debug, Clone, PartialEq, Eq)]
 <a href=#77 id=77 data-nosnippet>77</a></span><span class="kw">pub struct </span>HirAssignStatement {
 <a href=#78 id=78 data-nosnippet>78</a>    <span class="kw">pub </span>lvalue: HirLValue,
 <a href=#79 id=79 data-nosnippet>79</a>    <span class="kw">pub </span>expression: ExprId,

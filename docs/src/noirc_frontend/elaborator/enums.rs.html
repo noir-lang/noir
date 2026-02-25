@@ -340,10 +340,10 @@
 <a href=#340 id=340 data-nosnippet>340</a>                CompilationError::ResolverError(ResolverError::DuplicateDefinition { .. })
 <a href=#341 id=341 data-nosnippet>341</a>            ) {
 <a href=#342 id=342 data-nosnippet>342</a>                <span class="comment">// Expecting a DefCollectorErrorKind::Duplicate error in this case
-<a href=#343 id=343 data-nosnippet>343</a>                </span>TypeCheckError::ExpectingOtherError {
-<a href=#344 id=344 data-nosnippet>344</a>                    message: <span class="string">"define_enum_variant_function: duplicate definition"</span>.to_string(),
+<a href=#343 id=343 data-nosnippet>343</a>                </span>TypeCheckError::expecting_other_error(
+<a href=#344 id=344 data-nosnippet>344</a>                    <span class="string">"define_enum_variant_function: duplicate definition"</span>,
 <a href=#345 id=345 data-nosnippet>345</a>                    location,
-<a href=#346 id=346 data-nosnippet>346</a>                }
+<a href=#346 id=346 data-nosnippet>346</a>                )
 <a href=#347 id=347 data-nosnippet>347</a>                .into()
 <a href=#348 id=348 data-nosnippet>348</a>            } <span class="kw">else </span>{
 <a href=#349 id=349 data-nosnippet>349</a>                error
