@@ -1,0 +1,11 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+pub fn main(input: [u32; 1]) -> pub u32 {
+    let mut vec: [u32] = input.as_vector();
+    let (_vec, _): ([u32], u32) = vec.pop_back();
+    vec = _vec;
+    vec[1_u32] = 10_u32;
+    vec[0_u32]
+}
