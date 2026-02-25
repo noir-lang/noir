@@ -1,11 +1,7 @@
 use crate::elaborator::UnstableFeature;
 
-use crate::{
-    parser::ParserErrorReason,
-    tests::{
-        CompilationError, assert_no_errors, check_errors, check_errors_using_features,
-        get_program_using_features,
-    },
+use crate::tests::{
+    assert_no_errors, check_errors, check_errors_using_features, get_program_using_features,
 };
 
 #[test]

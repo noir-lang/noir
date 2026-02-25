@@ -485,6 +485,7 @@ impl Elaborator<'_> {
                 Some(DependencyId::Function(_)) => "function",
                 Some(DependencyId::Global(_)) => "global",
                 Some(DependencyId::Alias(_)) => "type alias",
+                Some(DependencyId::Struct(_)) => "struct",
                 _ => {
                     return;
                 }

@@ -390,3 +390,14 @@ fn deny_cyclic_structs() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn errors_if_using_comptime_type_in_non_comptime_struct() {
+    let src = r#"
+    pub struct Foo {
+        quoted: Quoted,
+                ^^^^^^ Comptime-only type `Quoted` cannot be used in non-comptime struct
+    }
+    "#;
+    check_errors(src);
+}
