@@ -17,6 +17,7 @@ use crate::{
         UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression,
     },
     elaborator::{
+        ScopeForest,
         patterns::IdentFromPath,
         types::{WildcardAllowed, WildcardDisallowedContext},
     },
@@ -38,7 +39,8 @@ use crate::{
         traits::{ResolvedTraitBound, TraitConstraint},
     },
     node_interner::{
-        DefinitionId, DefinitionKind, ExprId, FuncId, InternedStatementKind, StmtId, TraitItemId,
+        DefinitionId, DefinitionInfo, DefinitionKind, ExprId, FuncId, InternedStatementKind,
+        StmtId, TraitItemId,
         pusher::{HasLocation, PushedExpr},
     },
     shared::Signedness,
@@ -573,13 +575,7 @@ impl Elaborator<'_> {
             HirExpression::Ident(hir_ident, _) => {
                 let definition = self.interner.definition(hir_ident.id);
                 let name = definition.name.clone();
-
-                if let DefinitionKind::Local(_) = definition.kind {
-                    let scope_tree = self.scopes.current_scope_tree();
-                    if let Some((variable, _index)) = scope_tree.find(name.as_str()) {
-                        variable.mutated = true;
-                    }
-                }
+                Self::mark_local_variable_as_mutated(definition, &mut self.scopes);
 
                 if !definition.mutable {
                     self.push_err(TypeCheckError::CannotMutateImmutableVariable { name, location });
@@ -624,14 +620,7 @@ impl Elaborator<'_> {
         match lvalue {
             HirLValue::Ident(hir_ident, _) => {
                 let definition = self.interner.definition(hir_ident.id);
-                let name = definition.name.clone();
-
-                if let DefinitionKind::Local(_) = definition.kind {
-                    let scope_tree = self.scopes.current_scope_tree();
-                    if let Some((variable, _index)) = scope_tree.find(name.as_str()) {
-                        variable.mutated = true;
-                    }
-                }
+                Self::mark_local_variable_as_mutated(definition, &mut self.scopes);
             }
             HirLValue::MemberAccess { object, .. } => {
                 self.mark_lvalue_variables_as_mutated(object);
@@ -644,6 +633,17 @@ impl Elaborator<'_> {
                 // can be mutated even if `x` isn't itself `mut`
             }
             HirLValue::Error { .. } => (),
+        }
+    }
+
+    /// If the given definition corresponds to a local variable, find a local variable with the
+    /// given definition name and mark it as mutated.
+    fn mark_local_variable_as_mutated(definition: &DefinitionInfo, scopes: &mut ScopeForest) {
+        if matches!(definition.kind, DefinitionKind::Local(_)) {
+            let scope_tree = scopes.current_scope_tree();
+            if let Some((variable, _index)) = scope_tree.find(&definition.name) {
+                variable.mutated = true;
+            }
         }
     }
 
