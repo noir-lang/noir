@@ -2821,6 +2821,7 @@ fn function_def_set_parameters(
                 DefinitionKind::Local(None),
                 &mut parameter_idents,
                 true, // warn_if_unused
+                true, // warn_if_not_mutated
                 &mut parameter_names_in_list,
             )
         });

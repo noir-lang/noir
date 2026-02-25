@@ -247,6 +247,7 @@ impl Elaborator<'_> {
                     ident, false, // mutable
                     false, // allow_shadowing
                     false, // warn_if_unused
+                    false, // warn_if_not_mutated
                     definition,
                 );
                 self.interner.push_definition_type(hir_ident.id, *typ.clone());
