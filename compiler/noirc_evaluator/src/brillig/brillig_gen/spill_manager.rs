@@ -187,7 +187,7 @@ impl SpillManager {
     /// The LRU is inherently per-block (tracks which in-register values can be evicted),
     /// so resetting at block entry is correct. As instructions execute, `touch()` establishes
     /// real usage order.
-    pub(crate) fn reset_lru_for_block(&mut self, live_in: impl Iterator<Item = ValueId>) {
+    fn reset_lru_for_block(&mut self, live_in: impl Iterator<Item = ValueId>) {
         self.lru_order.clear();
         for value_id in live_in {
             if !self.is_spilled(value_id) {
