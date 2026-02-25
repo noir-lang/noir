@@ -119,7 +119,7 @@ impl FunctionContext {
 
     /// Whether any block in this function actually spilled a value.
     pub(crate) fn did_spill(&self) -> bool {
-        self.spill_manager.as_ref().is_some_and(|sm| sm.max_spill_offset() > 0)
+        self.max_spill_offset() > 0
     }
 
     /// The number of spill slots needed (0 if no spilling occurred).
