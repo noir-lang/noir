@@ -271,18 +271,25 @@ impl Context<'_> {
             return Ok(results);
         }
 
-        // For unknown length under a side effect variable, we want to multiply with the side effect variable
-        // to ensure we don't end up trying to look up an item at index -1, when the semantic length is 0.
         let is_unknown_length = dfg.get_numeric_constant(vector_length_id).is_none();
 
-        let one = self.acir_context.add_constant(FieldElement::one());
-        let mut new_vector_length_var = self.acir_context.sub_var(vector_length_var, one)?;
-
         if is_unknown_length {
-            new_vector_length_var = self
-                .acir_context
-                .mul_var(new_vector_length_var, self.current_side_effects_enabled_var)?;
+            // Check that the vector length is not zero.
+            // This is different from the previous check as this is a runtime check.
+            let zero = self.acir_context.add_constant(FieldElement::zero());
+            let assert_message = self.acir_context.generate_assertion_message_payload(
+                "Attempt to pop_back from an empty vector".to_string(),
+            );
+            self.acir_context.assert_neq_var(
+                vector_length_var,
+                zero,
+                self.current_side_effects_enabled_var,
+                Some(assert_message),
+            )?;
         }
+
+        let one = self.acir_context.add_constant(FieldElement::one());
+        let new_vector_length_var = self.acir_context.sub_var(vector_length_var, one)?;
 
         // For a pop back operation we want to fetch from the `length - 1` as this is the
         // last valid index that can be accessed in a vector. After the pop back operation
@@ -392,25 +399,27 @@ impl Context<'_> {
             return Ok(results);
         }
 
-        // Check that the vector length is not zero.
-        // This is different from the previous check as this is a runtime check.
-        let zero = self.acir_context.add_constant(FieldElement::zero());
-        let assert_message = self.acir_context.generate_assertion_message_payload(
-            "Attempt to pop_front from an empty vector".to_string(),
-        );
-        self.acir_context.assert_neq_var(
-            vector_length_var,
-            zero,
-            self.current_side_effects_enabled_var,
-            Some(assert_message),
-        )?;
+        let is_unknown_length = dfg.get_numeric_constant(vector_length_id).is_none();
+
+        if is_unknown_length {
+            // Check that the vector length is not zero.
+            // This is different from the previous check as this is a runtime check.
+            let zero = self.acir_context.add_constant(FieldElement::zero());
+            let assert_message = self.acir_context.generate_assertion_message_payload(
+                "Attempt to pop_front from an empty vector".to_string(),
+            );
+            self.acir_context.assert_neq_var(
+                vector_length_var,
+                zero,
+                self.current_side_effects_enabled_var,
+                Some(assert_message),
+            )?;
+        }
 
         let one = self.acir_context.add_constant(FieldElement::one());
-        let new_vector_length = self.acir_context.sub_var(vector_length_var, one)?;
+        let new_vector_length_var = self.acir_context.sub_var(vector_length_var, one)?;
 
-        let vector = self.convert_value(vector_contents_id, dfg);
-
-        let mut new_vector = self.read_array_with_type(vector, &vector_type)?;
+        let mut new_vector = self.read_array_with_type(vector_contents_value, &vector_type)?;
 
         let mut popped_elements: Vec<AcirValue> = Vec::new();
         let mut var_index = self.acir_context.add_constant(FieldElement::zero());
@@ -426,7 +435,7 @@ impl Context<'_> {
         let popped_elements_size = popped_elements.len();
 
         new_vector = new_vector.slice(popped_elements_size..);
-        popped_elements.push(AcirValue::Var(new_vector_length, NumericType::length_type()));
+        popped_elements.push(AcirValue::Var(new_vector_length_var, NumericType::length_type()));
         popped_elements.push(AcirValue::Array(new_vector));
 
         Ok(popped_elements)
