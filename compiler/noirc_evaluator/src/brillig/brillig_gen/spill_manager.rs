@@ -205,10 +205,20 @@ impl SpillManager {
         offset: usize,
         variable: BrilligVariable,
     ) {
-        self.records.insert(
-            value_id,
-            SpillRecord { offset, variable, is_permanent: true, is_currently_spilled: true },
-        );
+        self.records
+            .entry(value_id)
+            .and_modify(|record| {
+                assert_eq!(record.offset, offset);
+                record.is_permanent = true;
+                record.is_currently_spilled = true;
+                record.variable = variable;
+            })
+            .or_insert(SpillRecord {
+                offset,
+                variable,
+                is_permanent: true,
+                is_currently_spilled: true,
+            });
     }
 
     /// Get the permanent spill slot offset for a value, if any.
