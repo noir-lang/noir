@@ -1,3 +1,4 @@
+use crate::meta::ctstring::AsCtString;
 use crate::meta::derive_via;
 
 #[derive_via(derive_eq)]
@@ -134,127 +135,77 @@ impl<let N: u32> Eq for str<N> {
     }
 }
 
+comptime fn make_tuple_eq_body(n: u32) -> Quoted {
+    let mut body = f"self.0.eq(other.0)".as_ctstring();
+    for i in 1u32..n {
+        body = body.append_fmtstr(f" & self.{i}.eq(other.{i})");
+    }
+    f"{body}".quoted_contents()
+}
+
 impl<A: Eq, B: Eq> Eq for (A, B) {
     fn eq(self, other: (A, B)) -> bool {
-        self.0.eq(other.0) & self.1.eq(other.1)
+        make_tuple_eq_body!(2u32)
     }
 }
 
 impl<A: Eq, B: Eq, C: Eq> Eq for (A, B, C) {
     fn eq(self, other: (A, B, C)) -> bool {
-        self.0.eq(other.0) & self.1.eq(other.1) & self.2.eq(other.2)
+        make_tuple_eq_body!(3u32)
     }
 }
 
 impl<A: Eq, B: Eq, C: Eq, D: Eq> Eq for (A, B, C, D) {
     fn eq(self, other: (A, B, C, D)) -> bool {
-        self.0.eq(other.0) & self.1.eq(other.1) & self.2.eq(other.2) & self.3.eq(other.3)
+        make_tuple_eq_body!(4u32)
     }
 }
 
 impl<A: Eq, B: Eq, C: Eq, D: Eq, E: Eq> Eq for (A, B, C, D, E) {
     fn eq(self, other: (A, B, C, D, E)) -> bool {
-        self.0.eq(other.0)
-            & self.1.eq(other.1)
-            & self.2.eq(other.2)
-            & self.3.eq(other.3)
-            & self.4.eq(other.4)
+        make_tuple_eq_body!(5u32)
     }
 }
+
 impl<A: Eq, B: Eq, C: Eq, D: Eq, E: Eq, F: Eq> Eq for (A, B, C, D, E, F) {
     fn eq(self, other: (A, B, C, D, E, F)) -> bool {
-        self.0.eq(other.0)
-            & self.1.eq(other.1)
-            & self.2.eq(other.2)
-            & self.3.eq(other.3)
-            & self.4.eq(other.4)
-            & self.5.eq(other.5)
+        make_tuple_eq_body!(6u32)
     }
 }
 
 impl<A: Eq, B: Eq, C: Eq, D: Eq, E: Eq, F: Eq, G: Eq> Eq for (A, B, C, D, E, F, G) {
     fn eq(self, other: (A, B, C, D, E, F, G)) -> bool {
-        self.0.eq(other.0)
-            & self.1.eq(other.1)
-            & self.2.eq(other.2)
-            & self.3.eq(other.3)
-            & self.4.eq(other.4)
-            & self.5.eq(other.5)
-            & self.6.eq(other.6)
+        make_tuple_eq_body!(7u32)
     }
 }
 
 impl<A: Eq, B: Eq, C: Eq, D: Eq, E: Eq, F: Eq, G: Eq, H: Eq> Eq for (A, B, C, D, E, F, G, H) {
     fn eq(self, other: (A, B, C, D, E, F, G, H)) -> bool {
-        self.0.eq(other.0)
-            & self.1.eq(other.1)
-            & self.2.eq(other.2)
-            & self.3.eq(other.3)
-            & self.4.eq(other.4)
-            & self.5.eq(other.5)
-            & self.6.eq(other.6)
-            & self.7.eq(other.7)
+        make_tuple_eq_body!(8u32)
     }
 }
 
 impl<A: Eq, B: Eq, C: Eq, D: Eq, E: Eq, F: Eq, G: Eq, H: Eq, I: Eq> Eq for (A, B, C, D, E, F, G, H, I) {
     fn eq(self, other: (A, B, C, D, E, F, G, H, I)) -> bool {
-        self.0.eq(other.0)
-            & self.1.eq(other.1)
-            & self.2.eq(other.2)
-            & self.3.eq(other.3)
-            & self.4.eq(other.4)
-            & self.5.eq(other.5)
-            & self.6.eq(other.6)
-            & self.7.eq(other.7)
-            & self.8.eq(other.8)
+        make_tuple_eq_body!(9u32)
     }
 }
+
 impl<A: Eq, B: Eq, C: Eq, D: Eq, E: Eq, F: Eq, G: Eq, H: Eq, I: Eq, J: Eq> Eq for (A, B, C, D, E, F, G, H, I, J) {
     fn eq(self, other: (A, B, C, D, E, F, G, H, I, J)) -> bool {
-        self.0.eq(other.0)
-            & self.1.eq(other.1)
-            & self.2.eq(other.2)
-            & self.3.eq(other.3)
-            & self.4.eq(other.4)
-            & self.5.eq(other.5)
-            & self.6.eq(other.6)
-            & self.7.eq(other.7)
-            & self.8.eq(other.8)
-            & self.9.eq(other.9)
+        make_tuple_eq_body!(10u32)
     }
 }
 
 impl<A: Eq, B: Eq, C: Eq, D: Eq, E: Eq, F: Eq, G: Eq, H: Eq, I: Eq, J: Eq, K: Eq> Eq for (A, B, C, D, E, F, G, H, I, J, K) {
     fn eq(self, other: (A, B, C, D, E, F, G, H, I, J, K)) -> bool {
-        self.0.eq(other.0)
-            & self.1.eq(other.1)
-            & self.2.eq(other.2)
-            & self.3.eq(other.3)
-            & self.4.eq(other.4)
-            & self.5.eq(other.5)
-            & self.6.eq(other.6)
-            & self.7.eq(other.7)
-            & self.8.eq(other.8)
-            & self.9.eq(other.9)
-            & self.10.eq(other.10)
+        make_tuple_eq_body!(11u32)
     }
 }
 
 impl<A: Eq, B: Eq, C: Eq, D: Eq, E: Eq, F: Eq, G: Eq, H: Eq, I: Eq, J: Eq, K: Eq, L: Eq> Eq for (A, B, C, D, E, F, G, H, I, J, K, L) {
     fn eq(self, other: (A, B, C, D, E, F, G, H, I, J, K, L)) -> bool {
-        self.0.eq(other.0)
-            & self.1.eq(other.1)
-            & self.2.eq(other.2)
-            & self.3.eq(other.3)
-            & self.4.eq(other.4)
-            & self.5.eq(other.5)
-            & self.6.eq(other.6)
-            & self.7.eq(other.7)
-            & self.8.eq(other.8)
-            & self.9.eq(other.9)
-            & self.10.eq(other.10)
-            & self.11.eq(other.11)
+        make_tuple_eq_body!(12u32)
     }
 }
 
@@ -491,25 +442,22 @@ where
 }
 
 comptime fn make_tuple_ord_body(n: u32) -> Quoted {
+    let last = n - 1u32;
     let mut body = f"let mut result = self.0.cmp(other.0);".as_ctstring();
-    for i in 1u32..n {
+    for i in 1u32..last {
         body = body.append_fmtstr(
             f" if result == Ordering::equal() {{ result = self.{i}.cmp(other.{i}); }}",
         );
     }
-    body = body.append_str(" result");
+    body = body.append_fmtstr(
+        f" if result != Ordering::equal() {{ result }} else {{ self.{last}.cmp(other.{last}) }}",
+    );
     f"{body}".quoted_contents()
 }
 
 impl<A: Ord, B: Ord> Ord for (A, B) {
     fn cmp(self, other: (A, B)) -> Ordering {
-        let result = self.0.cmp(other.0);
-
-        if result != Ordering::equal() {
-            result
-        } else {
-            self.1.cmp(other.1)
-        }
+        make_tuple_ord_body!(2u32)
     }
 }
 
