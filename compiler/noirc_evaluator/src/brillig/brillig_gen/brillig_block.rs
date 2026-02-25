@@ -483,7 +483,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 // The parallel moves may overwrite registers that hold values
                 // we need to store to spill slots. By spilling first, we guarantee
                 // the stores read correct register values.
-                // Parameters are not spilled here. They are eagerly spilled at the beginnig of a block's code gen.
+                // Parameters are not spilled here. They are eagerly spilled at the beginning of a block's code gen.
                 self.spill_non_param_live_ins(*destination, dfg);
                 let destination_block = &dfg[*destination];
                 let mut moves: Vec<(MemoryAddress, MemoryAddress)> = Vec::new();
