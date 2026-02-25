@@ -105,7 +105,6 @@ regex.workspace = true
 serde.workspace = true
 similar.workspace = true
 sha2.workspace = true
-sha3.workspace = true
 iai = "0.1.1"
 test-case.workspace = true
 light-poseidon = "0.3.0"
