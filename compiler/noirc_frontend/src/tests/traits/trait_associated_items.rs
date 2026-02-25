@@ -1845,3 +1845,18 @@ fn associated_constant_in_return_type_with_generic_impl_forwarding() {
     "#;
     assert_no_errors(src);
 }
+
+// Regression test for https://github.com/noir-lang/noir/issues/11655
+#[test]
+fn self_method_call_on_trait_impl_for_unknown_trait() {
+    let src = r#"
+    impl Unknown for Field {
+         ^^^^^^^ Trait Unknown not found
+        fn unknown() {
+            Self::method()
+                  ^^^^^^ No method named 'method' found for type 'Field'
+        }
+    }
+    "#;
+    check_errors(src);
+}
