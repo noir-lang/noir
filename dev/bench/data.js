@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772023483196,
+  "lastUpdate": 1772025679101,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23151,48 +23151,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "460c0175eccb856b0a0eef49db885e7bc98b4866",
-          "message": "fix: error on `Module::add_item` if a module is from an external crate (#11585)",
-          "timestamp": "2026-02-13T20:02:07Z",
-          "tree_id": "241de5dfc0d3eb046f9b02620bb9a88ed418e30d",
-          "url": "https://github.com/noir-lang/noir/commit/460c0175eccb856b0a0eef49db885e7bc98b4866"
-        },
-        "date": 1771014212857,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 248295,
-            "range": "± 1477",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 218069,
-            "range": "± 4115",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2731341,
-            "range": "± 25346",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -25244,6 +25202,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3137760,
             "range": "± 1524",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "20c2ef90fd076db994ce1ff21ff582bd00934443",
+          "message": "chore: update justfile (#11682)",
+          "timestamp": "2026-02-25T13:17:59Z",
+          "tree_id": "23dec9ac13c5a52157ce994f0513d6e18685ef92",
+          "url": "https://github.com/noir-lang/noir/commit/20c2ef90fd076db994ce1ff21ff582bd00934443"
+        },
+        "date": 1772025633268,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 250779,
+            "range": "± 1158",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 221299,
+            "range": "± 2578",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2733371,
+            "range": "± 7181",
             "unit": "ns/iter"
           }
         ]
