@@ -204,15 +204,14 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         }
     }
 
-    /// Emit a 4-instruction sequence to store `source_reg` into the spill region
+    /// Emit a 3-instruction sequence to store `source_reg` into the spill region
     /// at the given offset relative to the per-frame spill base pointer.
     fn codegen_spill_store(&mut self, offset: usize, source_reg: MemoryAddress) {
         let (scratch_addr, scratch_offset) = ReservedRegisters::spill_scratch();
-        self.brillig_context.mov_instruction(scratch_addr, ReservedRegisters::spill_base_pointer());
         self.brillig_context
             .const_instruction(SingleAddrVariable::new_usize(scratch_offset), offset.into());
         self.brillig_context.memory_op_instruction(
-            scratch_addr,
+            ReservedRegisters::spill_base_pointer(),
             scratch_offset,
             scratch_addr,
             BrilligBinaryOp::Add,
@@ -220,15 +219,14 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         self.brillig_context.store_instruction(scratch_addr, source_reg);
     }
 
-    /// Emit a 4-instruction sequence to load a value from the spill region
+    /// Emit a 3-instruction sequence to load a value from the spill region
     /// at the given offset into `dest_reg`.
     fn codegen_spill_load(&mut self, offset: usize, dest_reg: MemoryAddress) {
         let (scratch_addr, scratch_offset) = ReservedRegisters::spill_scratch();
-        self.brillig_context.mov_instruction(scratch_addr, ReservedRegisters::spill_base_pointer());
         self.brillig_context
             .const_instruction(SingleAddrVariable::new_usize(scratch_offset), offset.into());
         self.brillig_context.memory_op_instruction(
-            scratch_addr,
+            ReservedRegisters::spill_base_pointer(),
             scratch_offset,
             scratch_addr,
             BrilligBinaryOp::Add,
