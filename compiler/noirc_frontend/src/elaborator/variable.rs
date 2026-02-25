@@ -151,7 +151,7 @@ impl Elaborator<'_> {
                 let message = format!(
                     "elaborate_variable_inner: unused resolved_turbofish: {unused_resolved_turbofish:?}"
                 );
-                self.push_err(TypeCheckError::ExpectingOtherError { message, location });
+                self.push_err(TypeCheckError::expecting_other_error(message, location));
             }
 
             None
@@ -618,6 +618,21 @@ impl Elaborator<'_> {
                 method.assumed,
                 &mut bindings,
             );
+        }
+
+        // If a global variable hasn't been defined yet, then we are most likely dealing with a self-dependency-cycle.
+        let definition = self.interner.definition(ident.id);
+        // Some associated constants also have Global as Kind, and they are not defined when look them up here; want to restrict to global `let` statements.
+        if self.in_comptime_context()
+            && definition.kind.is_global()
+            && self.interner.try_definition_type(ident.id).is_none()
+        {
+            self.push_err(ResolverError::DependencyCycle {
+                location: ident.location,
+                item: definition.name.clone(),
+                cycle: "the variable definition type hasn't been resolved yet".to_string(),
+            });
+            return Type::Error;
         }
 
         // An identifiers type may be forall-quantified in the case of generic functions.
