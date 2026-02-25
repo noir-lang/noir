@@ -81,7 +81,7 @@ fn mutable_reference_to_array_element_as_func_arg() {
         *x += 1;
     }
     fn main() {
-let state: [u32; 4] = [1, 2, 3, 4];
+        let state: [u32; 4] = [1, 2, 3, 4];
         foo(&mut state[0]);
                  ^^^^^^^^ Mutable references to array elements are currently unsupported
                  ~~~~~~~~ Try storing the element in a fresh variable first
