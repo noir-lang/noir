@@ -177,7 +177,7 @@ pub unconstrained fn find_index_hint<T, let N: u32, Env>(
     index
 }
 
-pub unconstrained fn array_to_bounded_vec<T, let N: u32>(array: [T; N]) -> BoundedVec<T, N>
+pub unconstrained fn array_to_bounded_vec<T, let N: u32>(mut array: [T; N]) -> BoundedVec<T, N>
 where
     T: Empty + Eq,
 {

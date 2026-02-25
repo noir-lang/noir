@@ -196,7 +196,9 @@ Returns the internal array within this vector.
 Since arrays in Noir are immutable, mutating the returned storage array will not mutate
 the storage held internally by this vector.
 
-Note that uninitialized elements may be zeroed out!
+Note that the values of uninitialized elements may differ for two `BoundedVecs` considered equal by `impl Eq for BoundedVec`!
+This can lead to underconstrained bugs if a `BoundedVec` or its storage is returned from unconstrained code into constrained
+code and the values of the elements past the `BoundedVec`'s length are used in the circuit logic at all.
 
 Example:
 
