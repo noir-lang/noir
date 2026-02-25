@@ -261,10 +261,24 @@ pub enum TypeCheckError {
     },
     #[error("Type annotation needed on array literal")]
     TypeAnnotationNeededOnArrayLiteral { is_array: bool, location: Location },
-    #[error("Expecting another error: {message}")]
-    ExpectingOtherError { message: String, location: Location },
+    #[error("Expecting another error: {}", (.0).message)]
+    ExpectingOtherError(ExpectingOtherError),
     #[error("Cannot call `std::verify_proof_with_type` in unconstrained context")]
     VerifyProofWithTypeInBrillig { location: Location },
+}
+
+/// An error which is only shown to the user if there are no other errors emitted.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ExpectingOtherError {
+    pub message: String,
+    pub location: Location,
+}
+
+impl<'a> From<&'a ExpectingOtherError> for Diagnostic {
+    fn from(error: &'a ExpectingOtherError) -> Self {
+        let secondary = "".to_string();
+        Diagnostic::simple_error(error.message.to_string(), secondary, error.location)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -359,8 +373,8 @@ impl TypeCheckError {
             | TypeCheckError::TupleMismatch { location, .. }
             | TypeCheckError::TypeAnnotationNeededOnItem { location, .. }
             | TypeCheckError::TypeAnnotationNeededOnArrayLiteral { location, .. }
-            | TypeCheckError::ExpectingOtherError { location, .. }
             | TypeCheckError::VerifyProofWithTypeInBrillig { location } => *location,
+            TypeCheckError::ExpectingOtherError(error) => error.location,
             TypeCheckError::DuplicateNamedTypeArg { name: ident, .. }
             | TypeCheckError::NoSuchNamedTypeArg { name: ident, .. } => ident.location(),
 
@@ -370,6 +384,17 @@ impl TypeCheckError {
             TypeCheckError::Context { err, .. } => err.location(),
             TypeCheckError::ResolverError(resolver_error) => resolver_error.location(),
         }
+    }
+
+    /// An error which is only shown to the user if there are no other errors emitted.
+    pub(crate) fn expecting_other_error<S: Into<String>>(
+        message: S,
+        location: Location,
+    ) -> TypeCheckError {
+        TypeCheckError::ExpectingOtherError(ExpectingOtherError {
+            message: message.into(),
+            location,
+        })
     }
 }
 
@@ -802,10 +827,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 let secondary = format!("Could not determine the type of the {array_or_vector}");
                 Diagnostic::simple_error(message, secondary, *location)
             }
-            TypeCheckError::ExpectingOtherError { message, location } => {
-                let secondary = "".to_string();
-                Diagnostic::simple_error(message.to_string(), secondary, *location)
-            }
+            TypeCheckError::ExpectingOtherError(error) => error.into()
         }
     }
 }
