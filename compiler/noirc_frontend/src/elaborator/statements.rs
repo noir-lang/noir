@@ -457,8 +457,15 @@ impl Elaborator<'_> {
                         let ident = HirIdent::non_trait_method(id, location);
                         self.elaborate_lvalue_ident(ident, location)
                     }
-                    Ok(IdentFromPath::TypeAlias(_)) => {
-                        (HirLValue::Error { location }, Type::Error, false, Vec::new())
+                    Ok(IdentFromPath::TypeAlias(type_alias_id)) => {
+                        let type_alias = self.interner.get_type_alias(type_alias_id);
+                        self.push_err(ResolverError::Expected {
+                            location,
+                            expected: "value",
+                            found: format!("type alias `{}`", type_alias.borrow().name),
+                        });
+                        let mutable = true;
+                        (HirLValue::Error { location }, Type::Error, mutable, Vec::new())
                     }
                     Err(error) => {
                         // We couldn't find a variable or global. Let's see if the identifier refers to something
