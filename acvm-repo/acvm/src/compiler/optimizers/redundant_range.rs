@@ -178,6 +178,20 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
                         )
                     })
                 }
+                // Barretenberg implementation of the AND and XOR blackbox constrain the inputs and output to be 'num_bit' bits
+                Opcode::BlackBoxFuncCall(BlackBoxFuncCall::AND { lhs, rhs, num_bits, output })
+                | Opcode::BlackBoxFuncCall(BlackBoxFuncCall::XOR { lhs, rhs, num_bits, output }) => {
+                    let mut witnesses = Vec::new();
+                    if let FunctionInput::Witness(witness) = lhs {
+                        witnesses.push(*witness);
+                    }
+                    if let FunctionInput::Witness(witness) = rhs {
+                        witnesses.push(*witness);
+                    }
+                    witnesses.push(*output);
+
+                    witnesses.into_iter().map(|witness| (witness, *num_bits, true)).next()
+                }
                 Opcode::BlackBoxFuncCall(BlackBoxFuncCall::MultiScalarMul {
                     scalars,
                     predicate,
