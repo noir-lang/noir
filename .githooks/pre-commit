@@ -11,7 +11,7 @@ if [ -n "$snapshots" ]; then
     echo ""
     echo "$snapshots"
     echo ""
-    echo "pre-commit: Accept or remove these snapshots before committing."
+    echo "pre-commit: Review, then accept or remove these snapshots before committing."
     echo "pre-commit: Run 'cargo insta accept' to accept all pending snapshots."
     exit 1
 fi
