@@ -162,6 +162,7 @@ impl NodeFinder<'_> {
             }
             AttributeTarget::Let => {
                 self.suggest_allow("unused_variables", prefix);
+                self.suggest_allow("unused_mut", prefix);
             }
         }
     }

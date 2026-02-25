@@ -85,10 +85,10 @@ impl Elaborator<'_> {
             });
         } else if get_type_method_key(&self_type).is_none() {
             let error: CompilationError = if self_type == Type::Error {
-                TypeCheckError::ExpectingOtherError {
-                    message: "collect_trait_impl: missing trait type".to_string(),
-                    location: self_type_location,
-                }
+                TypeCheckError::expecting_other_error(
+                    "collect_trait_impl: missing trait type",
+                    self_type_location,
+                )
                 .into()
             } else {
                 ResolverError::TypeUnsupportedForTraitImpl {
@@ -137,10 +137,10 @@ impl Elaborator<'_> {
                         // This too can happen if the associated type is specified directly in the impl trait generics,
                         // like `impl<H> BuildHasher<H = H>`, where `H` is a named generic but its resolution isn't delayed.
                         // This can't be done in code, but it could happen with unquoted types.
-                        self.push_err(TypeCheckError::ExpectingOtherError {
-                            message: "collect_trait_impl: missing associated type".to_string(),
-                            location: trait_impl.object_type.location,
-                        });
+                        self.push_err(TypeCheckError::expecting_other_error(
+                            "collect_trait_impl: missing associated type",
+                            trait_impl.object_type.location,
+                        ));
                         continue;
                     };
                     let wildcard_allowed =
@@ -202,10 +202,10 @@ impl Elaborator<'_> {
             for func_id in &methods {
                 if self.interner.set_function_trait(*func_id, self_type.clone(), trait_id).is_some()
                 {
-                    self.push_err(TypeCheckError::ExpectingOtherError {
-                        message: "collect_trait_impl: overlapping function trait".to_string(),
+                    self.push_err(TypeCheckError::expecting_other_error(
+                        "collect_trait_impl: overlapping function trait",
                         location,
-                    });
+                    ));
                 }
 
                 // A trait impl method has the same visibility as its trait
@@ -225,10 +225,10 @@ impl Elaborator<'_> {
                     Ident::new(name, trait_impl.r#trait.location)
                 }
                 _ => {
-                    self.push_err(TypeCheckError::ExpectingOtherError {
-                        message: "collect_trait_impl: missing trait type".to_string(),
+                    self.push_err(TypeCheckError::expecting_other_error(
+                        "collect_trait_impl: missing trait type",
                         location,
-                    });
+                    ));
                     Ident::new(trait_impl.r#trait.to_string(), trait_impl.r#trait.location)
                 }
             };
@@ -582,31 +582,26 @@ impl Elaborator<'_> {
         trait_impl: &UnresolvedTraitImpl,
     ) {
         let Some(trait_id) = trait_impl.trait_id else {
-            self.push_err(TypeCheckError::ExpectingOtherError {
-                message:
-                    "check_trait_impl_where_clause_matches_trait_where_clause: missing trait ID"
-                        .to_string(),
-                location: trait_impl.object_type.location,
-            });
+            self.push_err(TypeCheckError::expecting_other_error(
+                "check_trait_impl_where_clause_matches_trait_where_clause: missing trait ID",
+                trait_impl.object_type.location,
+            ));
             return;
         };
 
         let Some(impl_id) = trait_impl.impl_id else {
-            self.push_err(TypeCheckError::ExpectingOtherError {
-                message:
-                    "check_trait_impl_where_clause_matches_trait_where_clause: missing impl ID"
-                        .to_string(),
-                location: trait_impl.object_type.location,
-            });
+            self.push_err(TypeCheckError::expecting_other_error(
+                "check_trait_impl_where_clause_matches_trait_where_clause: missing impl ID",
+                trait_impl.object_type.location,
+            ));
             return;
         };
 
         let Some(the_trait) = self.interner.try_get_trait(trait_id) else {
-            self.push_err(TypeCheckError::ExpectingOtherError {
-                message: "check_trait_impl_where_clause_matches_trait_where_clause: missing trait"
-                    .to_string(),
-                location: trait_impl.object_type.location,
-            });
+            self.push_err(TypeCheckError::expecting_other_error(
+                "check_trait_impl_where_clause_matches_trait_where_clause: missing trait",
+                trait_impl.object_type.location,
+            ));
             return;
         };
 
@@ -640,10 +635,10 @@ impl Elaborator<'_> {
             let Some(trait_constraint_trait) =
                 self.interner.try_get_trait(trait_constraint.trait_bound.trait_id)
             else {
-                self.push_err(TypeCheckError::ExpectingOtherError {
-                    message: "check_trait_impl_where_clause_matches_trait_where_clause: missing trait constraint trait".to_string(),
-                    location: *error_location,
-                });
+                self.push_err(TypeCheckError::expecting_other_error(
+                    "check_trait_impl_where_clause_matches_trait_where_clause: missing trait constraint trait",
+                    *error_location,
+                ));
                 continue;
             };
             let trait_constraint_trait_name = trait_constraint_trait.name.to_string();
@@ -721,34 +716,34 @@ impl Elaborator<'_> {
 
     pub(super) fn check_parent_traits_are_implemented(&mut self, trait_impl: &UnresolvedTraitImpl) {
         let Some(trait_id) = trait_impl.trait_id else {
-            self.push_err(TypeCheckError::ExpectingOtherError {
-                message: "check_parent_traits_are_implemented: missing trait ID".to_string(),
-                location: trait_impl.object_type.location,
-            });
+            self.push_err(TypeCheckError::expecting_other_error(
+                "check_parent_traits_are_implemented: missing trait ID",
+                trait_impl.object_type.location,
+            ));
             return;
         };
 
         let Some(object_type) = &trait_impl.resolved_object_type else {
-            self.push_err(TypeCheckError::ExpectingOtherError {
-                message: "check_parent_traits_are_implemented: missing object type".to_string(),
-                location: trait_impl.object_type.location,
-            });
+            self.push_err(TypeCheckError::expecting_other_error(
+                "check_parent_traits_are_implemented: missing object type",
+                trait_impl.object_type.location,
+            ));
             return;
         };
 
         let Some(the_trait) = self.interner.try_get_trait(trait_id) else {
-            self.push_err(TypeCheckError::ExpectingOtherError {
-                message: "check_parent_traits_are_implemented: missing trait".to_string(),
-                location: trait_impl.object_type.location,
-            });
+            self.push_err(TypeCheckError::expecting_other_error(
+                "check_parent_traits_are_implemented: missing trait",
+                trait_impl.object_type.location,
+            ));
             return;
         };
 
         let Some(impl_id) = trait_impl.impl_id else {
-            self.push_err(TypeCheckError::ExpectingOtherError {
-                message: "check_parent_traits_are_implemented: missing impl ID".to_string(),
-                location: trait_impl.object_type.location,
-            });
+            self.push_err(TypeCheckError::expecting_other_error(
+                "check_parent_traits_are_implemented: missing impl ID",
+                trait_impl.object_type.location,
+            ));
             return;
         };
 
