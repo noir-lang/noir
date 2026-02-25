@@ -150,12 +150,13 @@ async-lsp = { version = "0.2.2", default-features = false }
 tower = "0.5"
 
 # Wasm
-wasm-bindgen = { version = "=0.2.100", features = ["serde-serialize"] }
-wasm-bindgen-test = "0.3.50"
-wasm-bindgen-futures = "0.4.50"
+# NOTE: when bumping wasm-bindgen, also update wasm-bindgen-cli in justfile and .github/workflows/release.yml
+wasm-bindgen = { version = "=0.2.113", features = ["serde-serialize"] }
+wasm-bindgen-test = "0.3.63"
+wasm-bindgen-futures = "0.4.63"
 console_error_panic_hook = "0.1.7"
-gloo-utils = { version = "0.1", features = ["serde"] }
-js-sys = "0.3.62"
+gloo-utils = { version = "0.2", features = ["serde"] }
+js-sys = "0.3.90"
 getrandom = "^0.3.3"
 
 # Debugger

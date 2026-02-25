@@ -194,8 +194,11 @@ impl CSatTransformer {
                         }
                     }
 
-                    // Now we have used up 2 spaces in our assert-zero opcode. The width now dictates how many more we can add
-                    let mut remaining_space = self.width - 2 - 1; // We minus 1 because we need an extra space to contain the intermediate variable
+                    let used_space = intermediate_opcode.linear_combinations.len();
+                    assert!(used_space < self.width);
+
+                    // Now we have used up "used_space" spaces in our assert-zero opcode. The width now dictates how many more we can add
+                    let mut remaining_space = self.width - used_space - 1; // We minus 1 because we need an extra space to contain the intermediate variable
                     // Keep adding terms until we have no more left, or we reach the width
                     let mut remaining_linear_terms =
                         Vec::with_capacity(opcode.linear_combinations.len());
@@ -557,6 +560,75 @@ mod tests {
             expr,
             &mut num_witness,
         );
+    }
+
+    #[test]
+    fn full_opcode_scan_optimization_extracts_full_opcodes() {
+        // Expression: x*x + a*b + x + a + b + c + d + e + f + g
+        //
+        // With width=3 and two mul terms, full_opcode_scan_optimization extracts each
+        // mul term together with 2 linear terms into an intermediate variable:
+        //   t0 = x*x + x + g      (Witness 8)
+        //   t1 = a*b + a + b      (Witness 9)
+        //
+        // The remaining expression becomes: t0 + t1 + c + d + e + f
+        let x = Witness(0);
+        let a = Witness(1);
+        let b = Witness(2);
+        let c = Witness(3);
+        let d = Witness(4);
+        let e = Witness(5);
+        let f = Witness(6);
+        let g = Witness(7);
+
+        let opcode = Expression {
+            mul_terms: vec![(FieldElement::one(), x, x), (FieldElement::one(), a, b)],
+            linear_combinations: vec![
+                (FieldElement::one(), x),
+                (FieldElement::one(), a),
+                (FieldElement::one(), b),
+                (FieldElement::one(), c),
+                (FieldElement::one(), d),
+                (FieldElement::one(), e),
+                (FieldElement::one(), f),
+                (FieldElement::one(), g),
+            ],
+            q_c: FieldElement::zero(),
+        };
+
+        let mut intermediate_variables: IndexMap<
+            Expression<FieldElement>,
+            (FieldElement, Witness),
+        > = IndexMap::new();
+        let mut num_witness = 8u32;
+
+        let mut optimizer = CSatTransformer::new(3);
+        for w in [x, a, b, c, d, e, f, g] {
+            optimizer.mark_solvable(w);
+        }
+
+        let result = optimizer.full_opcode_scan_optimization(
+            opcode,
+            &mut intermediate_variables,
+            &mut num_witness,
+        );
+
+        // Both mul terms were replaced by intermediate variables; no mul terms remain.
+        assert!(result.mul_terms.is_empty(), "all mul terms should be absorbed");
+
+        // Each intermediate variable is full: it has 2 linear terms.
+        for intermediate in intermediate_variables.keys() {
+            assert!(
+                intermediate.mul_terms.len() == 1,
+                "intermediate variables should be full opcodes"
+            );
+            assert!(
+                intermediate.linear_combinations.len() == 2,
+                "intermediate variables should be full opcodes"
+            );
+        }
+        // Remaining linear terms: c, d, e, f+ t0, t1 (intermediate vars).
+        assert_eq!(result.linear_combinations.len(), 6);
     }
 
     #[test]

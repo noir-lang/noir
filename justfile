@@ -28,7 +28,7 @@ install-rust-tools: install-binstall
 # Installs tools necessary for working with Javascript code
 install-js-tools: install-binstall
     cargo binstall wasm-pack@0.13.1 -y {{ cargo-binstall-args }}
-    cargo binstall wasm-bindgen-cli@0.2.100 -y {{ cargo-binstall-args }}
+    cargo binstall wasm-bindgen-cli@0.2.113 -y {{ cargo-binstall-args }}
     cargo binstall wasm-opt@0.116.1 -y {{ cargo-binstall-args }}
 
 # Installs Playwright (necessary for Javascript browser tests but slow to install)
@@ -120,7 +120,7 @@ mutation-test base="master": install-rust-tools
 # Checks if there are any pending insta.rs snapshots and errors if any exist.
 check-pending-snapshots:
     #!/usr/bin/env bash
-    snapshots=$(find . -name *.snap.new)
+    snapshots=$(find . -name '*.snap.new' -o -name '*.pending-snap')
     if [[ -n "$snapshots" ]]; then \
       echo "Found pending snapshots:"
       echo ""
