@@ -280,7 +280,7 @@ impl Context<'_, '_, '_> {
                 let shifted_complement_field =
                     self.insert_cast(shifted_complement, NumericType::NativeField);
                 let modulus = self.field_constant(
-                    FieldElement::from(2u32).pow(&FieldElement::from(bit_size as u128)),
+                    FieldElement::from(2u32).pow(&FieldElement::from(u128::from(bit_size))),
                 );
                 let shifted = self.insert_binary(
                     shifted_complement_field,
@@ -292,7 +292,8 @@ impl Context<'_, '_, '_> {
                     BinaryOp::Sub { unchecked: true },
                     lhs_sign_as_field,
                 );
-                self.insert_truncate(shifted, bit_size, bit_size + 1)
+                let truncated = self.insert_truncate(shifted, bit_size, bit_size + 1);
+                self.insert_cast(truncated, lhs_typ)
             }
 
             NumericType::NativeField => unreachable!("Bit shifts are disallowed on `Field` type"),
