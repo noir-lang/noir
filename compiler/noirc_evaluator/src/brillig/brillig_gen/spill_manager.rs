@@ -52,8 +52,9 @@ impl SpillManager {
     ///    (all currently-spilled entries must also be permanent).
     /// 2. Restores permanently-spilled values by marking them as currently spilled.
     /// 3. Removes spilled values from the live-in set (they have no register).
-    /// 4. Resets the LRU with the remaining (non-spilled) live-in values,
-    ///    sorted by [`ValueId`] for deterministic eviction order.
+    /// 4. Updates the LRU: retains existing entries still live-in and not spilled
+    ///    (preserving eviction hints from the previous block), then appends any
+    ///    new live-in values sorted by [ValueId] for determinism.
     pub(crate) fn begin_block(&mut self, live_in: &mut HashSet<ValueId>) {
         // No transient spills should survive across block boundaries.
         assert!(
@@ -62,11 +63,7 @@ impl SpillManager {
         );
         self.restore_permanent_spills();
         live_in.retain(|v| !self.is_spilled(v));
-
-        // Sort by ValueId for deterministic LRU initialization order.
-        let mut sorted: Vec<ValueId> = live_in.iter().copied().collect();
-        sorted.sort();
-        self.reset_lru_for_block(sorted.into_iter());
+        self.reset_lru_for_block(live_in);
     }
 
     /// Check if a value is currently spilled.
@@ -182,18 +179,25 @@ impl SpillManager {
         self.records.get(value_id).filter(|r| r.is_currently_spilled)
     }
 
-    /// Reset the LRU for a new block, populating it with live-in values that are not spilled.
+    /// Reset the LRU for a new block, retaining ordering from the previous block.
     ///
-    /// The LRU is inherently per-block (tracks which in-register values can be evicted),
-    /// so resetting at block entry is correct. As instructions execute, `touch()` establishes
-    /// real usage order.
-    fn reset_lru_for_block(&mut self, live_in: impl Iterator<Item = ValueId>) {
-        self.lru_order.clear();
-        for value_id in live_in {
-            if !self.is_spilled(&value_id) {
-                self.lru_order.push(value_id);
-            }
-        }
+    /// Entries already in `lru_order` that are still live-in and not spilled are kept
+    /// in their existing order (preserving eviction hints from the previous block).
+    /// New live-in values not yet in the LRU are appended, sorted by [ValueId] for
+    /// determinism.
+    fn reset_lru_for_block(&mut self, live_in: &HashSet<ValueId>) {
+        let records = &self.records;
+        let is_spilled = |v: &ValueId| records.get(v).is_some_and(|r| r.is_currently_spilled);
+
+        // Retain existing entries that are still live-in and not spilled.
+        self.lru_order.retain(|v| live_in.contains(v) && !is_spilled(v));
+
+        // Collect live-in values not already present in LRU, sorted for determinism.
+        let existing: HashSet<ValueId> = self.lru_order.iter().copied().collect();
+        let mut new_entries: Vec<ValueId> =
+            live_in.iter().copied().filter(|v| !existing.contains(v) && !is_spilled(v)).collect();
+        new_entries.sort();
+        self.lru_order.extend(new_entries);
     }
 
     /// Record a value as permanently spilled.
