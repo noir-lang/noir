@@ -108,7 +108,7 @@ fn unchecked_mul_should_not_have_range_check() {
 #[test]
 fn no_zero_bits_range_check() {
     let src = "
-    acir(inline) fn main f0 {   
+    acir(inline) fn main f0 {
         b0(v0: Field):
             v1 = truncate v0 to 8 bits, max_bit_size: 254
             v2 = cast v1 as u8
@@ -708,4 +708,36 @@ proptest! {
         test_operators(&operators, "u8", &[lhs,rhs]);
         test_operators(&operators, "i8", &[lhs,rhs]);
     }
+}
+
+#[test]
+fn empty_parameters_should_generate_no_witnesses() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0():
+        return
+    }
+    ";
+    assert_no_witnesses(src);
+}
+
+#[test]
+fn zero_sized_parameters_should_generate_no_witnesses() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: [u8; 0]):
+        return
+    }
+    ";
+    assert_no_witnesses(src);
+}
+
+fn assert_no_witnesses(src: &str) {
+    let ssa = Ssa::from_str(src).unwrap();
+    let (acir, _, _) = ssa.into_acir(&Brillig::default(), &BrilligOptions::default()).unwrap();
+    let acir = &acir[0];
+
+    assert!(acir.current_witness_index().is_none());
+    assert!(acir.input_witnesses.is_empty());
+    assert!(acir.return_witnesses.is_empty());
 }
