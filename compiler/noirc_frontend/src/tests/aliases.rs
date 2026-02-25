@@ -62,7 +62,7 @@ fn double_alias_in_path() {
     type FooAlias1 = Foo;
     type FooAlias2 = FooAlias1;
 
-    fn main() { 
+    fn main() {
         let _ = FooAlias2::new();
     }
     "#;
@@ -73,16 +73,16 @@ fn double_alias_in_path() {
 fn double_generic_alias_in_path() {
     let src = r#"
     struct Foo<T> {}
-    
+
     impl<T> Foo<T> {
         fn new() -> Self {
             Self {}
         }
     }
-    
+
     type FooAlias1 = Foo<i32>;
     type FooAlias2 = FooAlias1;
-    
+
     fn main() {
         let _ = FooAlias2::new();
     }
@@ -531,7 +531,7 @@ fn regression_10352_trait_as_type() {
 fn regression_10352_string() {
     let src = r#"
     type Alias = str<Alias>;
-    
+
     fn main(_: Alias) {}
                ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
                ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
