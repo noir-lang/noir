@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["MAX_INSTRUCTIONS","MAX_SIMPLE_FUNCTION_WEIGHT"],"fn":["compute_bottom_up_order","compute_function_should_be_inlined","compute_inline_infos"],"struct":["InlineInfo"],"type":["InlineInfos"]};
+window.SIDEBAR_ITEMS = {"constant":["MAX_INSTRUCTIONS","MAX_SIMPLE_FUNCTION_WEIGHT"],"fn":["compute_bottom_up_order","compute_function_should_be_inlined","compute_inline_infos","inlineable_callee_costs"],"struct":["InlineInfo"],"type":["InlineInfos"]};
