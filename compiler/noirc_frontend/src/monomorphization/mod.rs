@@ -1279,8 +1279,8 @@ impl<'interner> Monomorphizer<'interner> {
         // of both (constrained, unconstrained). This is used only as an optimization to avoid
         // unnecessary monomorphization when calling a known function.
         use_current_runtime: bool,
-        // If true, evaluate some builtins to function values. This is disabled when codegening the
-        // function in a function call since we can avoid creating a new function and instead
+        // If true, evaluate some builtins to function values. This is disabled when code-generating
+        // the function in a function call since we can avoid creating a new function and instead
         // inline the body directly which keeps some minimal SSA pass tests working.
         evaluate_builtin: bool,
     ) -> Result<ast::Expression, MonomorphizationError> {
@@ -2093,8 +2093,7 @@ impl<'interner> Monomorphizer<'interner> {
             self.check_arguments_crossing_runtime_boundaries(&call)?;
         }
 
-        let func_type = self.interner.id_type(call.func);
-
+        let func_type = self.interner.id_type(call.func).follow_bindings();
         let mut arguments = Vec::with_capacity(call.arguments.len());
         if let Type::Function(params, _, _, callee_unconstrained) = &func_type {
             assert_eq!(params.len(), call.arguments.len(), "ICE: Unexpected number of call args");
@@ -2121,7 +2120,7 @@ impl<'interner> Monomorphizer<'interner> {
             for id in &call.arguments {
                 arguments.push(self.expr(*id)?);
             }
-        };
+        }
 
         let hir_arguments = vecmap(&call.arguments, |id| self.interner.expression(id));
 
@@ -2403,6 +2402,9 @@ impl<'interner> Monomorphizer<'interner> {
                 let reference = Box::new(self.lvalue(*lvalue)?);
                 let element_type = Self::convert_type(&element_type, location)?;
                 ast::LValue::Dereference { reference, element_type }
+            }
+            HirLValue::Error { .. } => {
+                unreachable!("Encountered Error node during monomorphization");
             }
         };
 
@@ -2830,8 +2832,7 @@ impl<'interner> Monomorphizer<'interner> {
     /// Returns `true` if a function itself unconstrained, or we are currently monomorphizing an
     /// unconstrained function, in which case all callees are treated as unconstrained.
     fn is_unconstrained(&self, func_id: node_interner::FuncId) -> bool {
-        self.in_unconstrained_function
-            || self.interner.function_modifiers(&func_id).is_unconstrained
+        self.in_unconstrained_function || self.interner.function_meta(&func_id).is_unconstrained()
     }
 
     // Functions are represented as pairs of (constrained, unconstrained) versions of the same
@@ -2865,17 +2866,19 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
-    /// Check that an identifier refers to an unconstrained user defined function.
-    ///
-    /// Returns `false` for any other kind of expression.
+    /// Check whether a call expression's callee is an unconstrained function.
+    /// Resolves the callee's type (following bindings) and checks for unconstrained status
+    /// both on direct function types and on `(constrained_fn, unconstrained_fn)` tuple pairs
+    /// used when functions are bound to local variables.
     fn function_is_unconstrained(&self, function: ExprId) -> bool {
-        if let HirExpression::Ident(ident, _) = self.interner.expression(&function)
-            && let DefinitionKind::Function(func_id) = self.interner.definition(ident.id).kind
-        {
-            return self.interner.function_modifiers(&func_id).is_unconstrained;
+        let typ = self.interner.id_type(function).follow_bindings();
+        match &typ {
+            Type::Function(_, _, _, unconstrained) => *unconstrained,
+            Type::Tuple(elements) => {
+                elements.iter().any(|e| matches!(e, Type::Function(_, _, _, true)))
+            }
+            _ => false,
         }
-
-        false
     }
 
     fn function_is_oracle(&self, function: ExprId) -> bool {
@@ -3008,6 +3011,9 @@ fn resolve_trait_item_impl(
 
     match trait_impl {
         TraitImplKind::Normal(impl_id) => Ok(impl_id),
+        TraitImplKind::Prepared { .. } => {
+            unreachable!("ICE: Prepared trait impl should have been replaced by a Normal one")
+        }
         TraitImplKind::Assumed { object_type, trait_generics } => {
             let location = interner.expr_location(&expr_id);
 
@@ -3035,6 +3041,11 @@ fn resolve_trait_item_impl(
                 }
                 Ok((TraitImplKind::Assumed { .. }, _instantiation_bindings)) => {
                     Err(InterpreterError::NoImpl { location })
+                }
+                Ok((TraitImplKind::Prepared { .. }, _)) => {
+                    unreachable!(
+                        "ICE: Prepared trait impl should have been replaced by a Normal one"
+                    )
                 }
                 Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType) => {
                     Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location })

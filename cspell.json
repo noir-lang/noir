@@ -156,6 +156,7 @@
         "homomorphic",
         "iconst",
         "idents",
+        "idom",
         "ilog",
         "impls",
         "indexmap",

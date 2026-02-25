@@ -516,8 +516,8 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
 
     /// Returns the `FileId` of the file associated with the innermost function on the call stack.
     fn get_current_file(&self) -> Option<FileId> {
-        self.get_current_source_location()
-            .and_then(|locations| locations.last().map(|location| location.file))
+        let locations = self.get_current_source_location()?;
+        locations.last().map(|location| location.file)
     }
 
     /// Returns the (possible) stack of source locations corresponding to the

@@ -819,7 +819,7 @@ impl Elaborator<'_> {
             let trait_id = trait_id.expect("The None option was already considered before");
             if let Some(name) = starting_module.find_trait_in_scope(trait_id) {
                 results.push((trait_id, name, item));
-            };
+            }
         }
 
         if results.is_empty() {
@@ -965,7 +965,7 @@ impl Elaborator<'_> {
         for (func_id, trait_id) in &trait_methods {
             if let Some(name) = starting_module.find_trait_in_scope(*trait_id) {
                 results.push((*trait_id, *func_id, name));
-            };
+            }
         }
 
         if results.is_empty() {

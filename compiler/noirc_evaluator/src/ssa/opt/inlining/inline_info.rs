@@ -8,7 +8,7 @@ use crate::ssa::{
     ir::{
         call_graph::{CallGraph, called_functions},
         dfg::DataFlowGraph,
-        function::{Function, FunctionId},
+        function::FunctionId,
         instruction::{Instruction, Intrinsic},
     },
     ssa_gen::Ssa,
@@ -22,7 +22,15 @@ use crate::ssa::{
 /// When that function has no control flow, it generally means we can expect all loads and stores within the
 /// function to be resolved upon inlining. Inlining this type of basic function both reduces the number of
 /// loads/stores to be executed and enables the compiler to continue optimizing at the inline site.
-pub const MAX_INSTRUCTIONS: usize = 10;
+pub(crate) const MAX_INSTRUCTIONS: usize = 10;
+
+/// The maximum Brillig weight for a function to be considered "simple" by the inlining cost model.
+/// This is used in `compute_function_should_be_inlined` where instruction weights are in Brillig
+/// cost units (not raw SSA instruction count). A value of 80 covers the worst case of 10 SSA
+/// instructions at maximum per-instruction cost (checked u32 mul = 8 opcodes each).
+/// The `inline_simple_functions` pass handles the common case using raw SSA count;
+/// this threshold acts as a safety net in the cost model.
+pub const MAX_SIMPLE_FUNCTION_WEIGHT: usize = 80;
 
 /// Information about a function to aid the decision about whether to inline it or not.
 /// The final decision depends on what we're inlining it into.
@@ -149,12 +157,12 @@ pub(crate) fn compute_inline_infos(
 /// - the cost of inlining outweighs the cost of not doing so
 ///
 /// The total weight of a function and its cost are computed in this method.
-/// The total weight is calculated by taking the function's own weight and multiplying
-/// it by the weight of each callee. We then determine the cost of inlining to be
-/// the times a function has been called multiplied by its total weight.
+/// The total weight is calculated by taking the function's own weight and adding
+/// the weight of each callee that will be inlined. We then determine the cost of
+/// inlining to be the times a function has been called multiplied by (total weight
+/// minus return cost), since a function's return terminator is eliminated when inlined.
 ///
-/// To determine the cost of retaining a function we first need the function interface cost,
-/// computed in [compute_function_interface_cost].
+/// To determine the cost of retaining a function we first need the [function interface cost][crate::ssa::ir::function::Function::call_overhead],
 /// The cost of retaining of a function is then (times a function has been called) * (interface cost) + total weight.
 ///
 /// A function's net cost is then (cost of inlining - cost of retaining).
@@ -214,7 +222,7 @@ fn compute_function_should_be_inlined(
     };
 
     let neighbors = call_graph.graph().neighbors(index);
-    let mut total_weight = compute_function_own_weight(function) as i64;
+    let mut total_weight = function.cost() as i64;
     let instruction_weight = total_weight;
     for neighbor_index in neighbors {
         let callee = call_graph.indices_to_ids()[&neighbor_index];
@@ -223,8 +231,9 @@ fn compute_function_should_be_inlined(
         }
     }
     let times = times_called[&func_id] as i64;
-    let interface_cost = compute_function_interface_cost(function) as i64;
-    let inline_cost = times.saturating_mul(total_weight);
+    let interface_cost = function.call_overhead() as i64;
+    let return_cost = function.return_cost();
+    let inline_cost = times.saturating_mul(total_weight.saturating_sub(return_cost));
     let retain_cost = times.saturating_mul(interface_cost) + total_weight;
     let net_cost = inline_cost.saturating_sub(retain_cost);
     let info = inline_infos.entry(func_id).or_default();
@@ -282,11 +291,8 @@ pub(crate) fn compute_bottom_up_order(
     });
 
     // Start with the weight of the functions in isolation, then accumulate as we pop off the ones they call.
-    let own_weights = ssa
-        .functions
-        .iter()
-        .map(|(id, f)| (*id, compute_function_own_weight(f)))
-        .collect::<HashMap<_, _>>();
+    let own_weights =
+        ssa.functions.iter().map(|(id, f)| (*id, f.cost())).collect::<HashMap<_, _>>();
     let mut weights = own_weights.clone();
 
     // Seed the queue with functions that don't call anything.
@@ -339,31 +345,15 @@ pub(crate) fn compute_bottom_up_order(
     }
 }
 
-/// Compute a weight of a function based on the number of instructions in its reachable blocks.
-fn compute_function_own_weight(func: &Function) -> usize {
-    let mut weight = 0;
-    for block_id in func.reachable_blocks() {
-        weight += func.dfg[block_id].instructions().len() + 1; // We add one for the terminator
-    }
-    // We use an approximation of the average increase in instruction ratio from SSA to Brillig
-    // In order to get the actual weight we'd need to codegen this function to brillig.
-    weight
-}
-
-/// Compute interface cost of a function based on the number of inputs and outputs.
-fn compute_function_interface_cost(func: &Function) -> usize {
-    func.parameters().len() + func.returns().unwrap_or_default().len()
-}
-
 #[cfg(test)]
 mod tests {
     use crate::ssa::{
         ir::{call_graph::CallGraph, map::Id},
-        opt::inlining::{MAX_INSTRUCTIONS, inline_info::compute_bottom_up_order},
+        opt::inlining::inline_info::compute_bottom_up_order,
         ssa_gen::Ssa,
     };
 
-    use super::compute_inline_infos;
+    use super::{MAX_INSTRUCTIONS, compute_inline_infos};
 
     #[test]
     fn mark_mutually_recursive_functions() {
@@ -473,7 +463,10 @@ mod tests {
         assert_eq!(ids[3], 0, "main: last, it's the entry");
 
         // Check own weights
-        assert_eq!(ows, [2, 7, 7, 4]);
+        // decrement: sub(3, checked u32) + return(2) = 5
+        // is_even/is_odd: b0(eq=1 + jmpif=2) + b1(call=7 + call=7 + jmp=2) + b2(jmp=2) + b3(return=2) = 23
+        // main: call(7) + eq(1) + constrain(4) + return(1) = 13
+        assert_eq!(ows, [5, 23, 23, 13]);
 
         // Check transitive weights
         assert_eq!(tws[0], ows[0], "decrement");

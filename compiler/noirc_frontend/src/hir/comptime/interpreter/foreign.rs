@@ -348,7 +348,7 @@ mod tests {
                 Err(InvalidInComptimeContext { .. }) => {}
                 Err(Unimplemented { .. }) => not_implemented.push(name),
                 Err(other) => panic!("unexpected error: {other:?}"),
-            };
+            }
         }
 
         assert!(

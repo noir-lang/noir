@@ -212,7 +212,7 @@ fn comptime_global_using_nested_quoted_type() {
     comptime global foo: [Quoted; 1] = [quote { 1 }];
 
     fn main() {
-        let _ = foo;
+        let _ = comptime { foo };
     }
     ";
     assert_no_errors(src);

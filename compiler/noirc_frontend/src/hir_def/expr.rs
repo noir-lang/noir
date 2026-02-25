@@ -269,8 +269,8 @@ impl HirMethodReference {
         match self {
             HirMethodReference::FuncId(func_id) => Some(*func_id),
             HirMethodReference::TraitItemId(HirTraitMethodReference { definition, .. }) => {
-                match &interner.try_definition(*definition)?.kind {
-                    DefinitionKind::Function(func_id) => Some(*func_id),
+                match interner.definition(*definition).kind {
+                    DefinitionKind::Function(func_id) => Some(func_id),
                     _ => None,
                 }
             }

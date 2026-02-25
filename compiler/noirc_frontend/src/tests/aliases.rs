@@ -285,17 +285,15 @@ fn type_alias_to_numeric_as_generic() {
 }
 
 #[test]
-fn self_referring_type_alias_with_generics_is_not_allowed() {
+fn self_referring_type_alias_with_generics_is_allowed() {
     let src = r#"
         type Id<T> = T;
 
         fn main() {
             let _: Id<Id<Field>> = 1;
-                   ^^ Binding `Id<Id<Field>>` here to the `_` inside would create a cyclic type
-                   ~~ Cyclic types have unlimited size and are prohibited in Noir
         }
     "#;
-    check_errors(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -908,6 +906,19 @@ fn regression_10764_underscore_impl() {
          ^^^ Non-enum, non-struct type used in impl
          ~~~ Only enum and struct types may have implementation methods
         fn foo() { }
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn cannot_assign_to_numeric_type_alias() {
+    let src = r#"
+    type N: u32 = 1;
+
+    fn main() {
+        N = 2;
+        ^ expected value, found type alias `N`
     }
     "#;
     check_errors(src);

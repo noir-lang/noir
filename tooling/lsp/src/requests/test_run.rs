@@ -68,7 +68,7 @@ fn on_test_run_request_inner(
                     message: Some("The project failed to compile".into()),
                 };
                 return Ok(result);
-            };
+            }
 
             let test_functions = context.get_all_test_functions_in_crate_matching(
                 &crate_id,

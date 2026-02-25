@@ -132,7 +132,7 @@ fn initialize_witness_map_internal(witness: &[WitnessValue]) -> (Vec<FieldElemen
                     witness_vec.extend(values);
                 }
             }
-        };
+        }
     }
     (witness_vec, types)
 }

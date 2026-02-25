@@ -160,7 +160,7 @@ impl Parser<'_> {
     ) -> Option<Vec<UnresolvedType>> {
         if self.token.token() != &Token::Less {
             return None;
-        };
+        }
 
         let generics = self.parse_generic_type_args();
         for (name, _typ) in &generics.named_args {

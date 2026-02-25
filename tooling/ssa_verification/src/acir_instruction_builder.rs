@@ -235,7 +235,16 @@ impl InstructionArtifacts {
 /// Converts SSA to ACIR program
 fn ssa_to_acir_program(ssa: Ssa) -> AcirProgram<FieldElement> {
     // third brillig names, fourth errors
-    let builder = SsaBuilder::from_ssa(ssa, SsaLogging::None, false, None);
+    let ssa_logging_hide_unchanged = false;
+    let print_codegen_timings = false;
+    let files = None;
+    let builder = SsaBuilder::from_ssa(
+        ssa,
+        SsaLogging::None,
+        ssa_logging_hide_unchanged,
+        print_codegen_timings,
+        files,
+    );
     let ssa_evaluator_options = SsaEvaluatorOptions {
         ssa_logging: SsaLogging::None,
         print_codegen_timings: false,
@@ -250,6 +259,7 @@ fn ssa_to_acir_program(ssa: Ssa) -> AcirProgram<FieldElement> {
         brillig_options: BrilligOptions::default(),
         enable_brillig_constraints_check_lookback: false,
         skip_passes: vec![],
+        ssa_logging_hide_unchanged: false,
     };
     let (acir_functions, brillig, _) = match optimize_ssa_builder_into_acir(
         builder,
@@ -270,7 +280,10 @@ fn ssa_to_acir_program(ssa: Ssa) -> AcirProgram<FieldElement> {
 
         private_params.extend(ret_values.iter().cloned());
         let circuit: Circuit<FieldElement> = Circuit {
-            current_witness_index: acir_func.current_witness_index().witness_index(),
+            current_witness_index: acir_func
+                .current_witness_index()
+                .unwrap_or_default()
+                .witness_index(),
             opcodes: acir_func.opcodes.clone(),
             private_parameters: private_params.clone(),
             ..Circuit::<FieldElement>::default()

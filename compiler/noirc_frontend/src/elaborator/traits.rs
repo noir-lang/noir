@@ -178,7 +178,8 @@ use crate::{
     },
     elaborator::{
         PathResolutionMode, PathResolutionTarget, WildcardDisallowedContext,
-        path_resolution::PathResolutionItem, types::WildcardAllowed,
+        path_resolution::PathResolutionItem,
+        types::{SELF_TYPE_NAME, WildcardAllowed},
     },
     hir::{
         comptime::InterpreterError,
@@ -396,6 +397,9 @@ impl Elaborator<'_> {
                 let typ = type_var.clone().into_implicit_named_generic(
                     &associated_type.name,
                     Some((object_name.as_str(), trait_name.as_str())),
+                    // Preserve the association from the new type var to the original.
+                    // We need it when type checking function signatures using AsTraitPath.
+                    associated_type.type_var.id(),
                 );
 
                 let name = match &typ {
@@ -516,6 +520,7 @@ impl Elaborator<'_> {
             let constraint = the_trait.as_constraint(the_trait.name.location());
             let self_type =
                 self.self_type.clone().expect("Expected a self type if there's a current trait");
+
             self.add_trait_bound_to_scope(
                 location,
                 &self_type,
@@ -628,6 +633,19 @@ impl Elaborator<'_> {
             }
         }
 
+        if let Type::TypeVariable(self_var) = object
+            && self_var.borrow().is_unbound()
+            && self.current_trait.is_some()
+        {
+            // This would end up duplicating parent trait bounds we turned into where clauses on Self.
+            // The reason is that in `add_trait_constraints_to_scope` we add the self-type of the current trait
+            // as an assumed implementation, on an unbound type variable like '1. Then in `resolve_trait_methods`
+            // we also add the parent traits as where clauses, but on Self'1. If we end up with assumed impls
+            // for both '1 and Self'1, then when we look up an impl for Self'1, it finds both and errors out.
+            // So we skip the parents, because it would be redundant with the Self bounds.
+            return;
+        }
+
         // Also add assumed implementations for the parent traits, if any
         if let Some(trait_bounds) =
             self.interner.try_get_trait(trait_id).map(|the_trait| the_trait.trait_bounds.clone())
@@ -680,10 +698,10 @@ impl Elaborator<'_> {
                     let name_location = the_trait.name.location();
 
                     this.add_existing_generic(
-                        &UnresolvedGeneric::from(Ident::from("Self")),
+                        &UnresolvedGeneric::from(Ident::from(SELF_TYPE_NAME)),
                         name_location,
                         &ResolvedGeneric {
-                            name: Rc::new("Self".to_owned()),
+                            name: Rc::new(SELF_TYPE_NAME.to_string()),
                             type_var: self_typevar,
                             location: name_location,
                         },
@@ -694,6 +712,19 @@ impl Elaborator<'_> {
 
                     // Attach any trait constraints on the trait to the function,
                     where_clause.extend(unresolved_trait.trait_def.where_clause.clone());
+
+                    // Treat any parent traits as syntactic sugar for a `where Self: <parent>` clause.
+                    // XXX: In `nargo expand` this shows up as a duplicate in both parent and where.
+                    for parent_bound in &unresolved_trait.trait_def.bounds {
+                        where_clause.push(UnresolvedTraitConstraint {
+                            typ: UnresolvedType::from_path(Path::from_single(
+                                SELF_TYPE_NAME.to_string(),
+                                parent_bound.trait_path.location,
+                            )),
+                            trait_bound: parent_bound.clone(),
+                        });
+                    }
+
                     let mut def = FunctionDefinition::normal(
                         name,
                         *is_unconstrained,
@@ -833,10 +864,11 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
 
     let impl_ = impl_.borrow();
     let trait_info = interner.get_trait(impl_.trait_id);
+    let ordered_generics = interner.get_ordered_generics_for_impl(impl_id);
 
-    if trait_info.generics.len() != impl_.trait_generics.len() {
+    if trait_info.generics.len() != ordered_generics.len() {
         let expected = trait_info.generics.len();
-        let found = impl_.trait_generics.len();
+        let found = ordered_generics.len();
         let location = impl_.ident.location();
         let item = trait_info.name.to_string();
         errors.push(TypeCheckError::GenericCountMismatch { item, expected, found, location });
@@ -846,7 +878,7 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
     let mut bindings = interner.trait_to_impl_bindings(
         impl_.trait_id,
         impl_id,
-        &impl_.trait_generics,
+        ordered_generics,
         impl_.typ.clone(),
     );
 
@@ -874,6 +906,31 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
             let arg = impl_fn_generic.clone().into_named_generic(name, None);
             bindings.insert(trait_fn_generic.id(), (trait_fn_generic.clone(), trait_fn_kind, arg));
         }
+
+        // There is special handling expected for parent traits. Say we have code like this:
+        //
+        //    trait Foo { type Bar; }                                       // `Bar`     becomes `Bar'1`
+        //    trait Bar: Foo { fn foo_bar() -> <Self as Foo>::Bar }         // `foo_bar` becomes `forall '7 '3. fn() -> Self::Bar'7 ~> '1`, with '1 being NamedGeneric::original_type_var
+        //    struct Baz {}
+        //    impl Foo for Baz { type Bar = u32; }                          // `Bar`     becomes `<Baz as Foo>::Bar'5 -> u32`
+        //    impl Bar for Baz { fn foo_bar() -> <Self as Foo>::Bar { 0 } } // `foo_bar` becomes `fn() -> <Baz as Foo>::Bar'5 -> u32`
+        //
+        // We want to verify that the two `foo_bar` methods have compatible metas without having to do any further bindings during unification,
+        // which would be rejected by `check_function_type_matches_expected_type`. To do so we must add a replacement from '7 to '5.
+        // For this to happen we expect that `bindings` will contain a '1-to-'5 replacement, which will apply to '7, because '1 is its original.
+        trait_fn_meta.typ.visit(&mut |typ| {
+            if let Type::NamedGeneric(NamedGeneric {
+                type_var,
+                original_type_var_id: Some(original_id),
+                ..
+            }) = typ
+                && !bindings.contains_key(&type_var.id())
+                && let Some(replacement) = bindings.get(original_id)
+            {
+                bindings.insert(type_var.id(), replacement.clone());
+            }
+            true
+        });
 
         let (declaration_type, _) = trait_fn_meta.typ.instantiate_with_bindings(bindings, interner);
 

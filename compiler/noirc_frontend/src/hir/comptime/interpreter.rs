@@ -575,11 +575,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     /// Mutate an existing variable, potentially from a prior scope
     fn mutate(&mut self, id: DefinitionId, argument: Value, location: Location) -> IResult<()> {
-        // If the id is a dummy, assume the error was already issued elsewhere
-        if id == DefinitionId::dummy_id() {
-            return Ok(());
-        }
-
         for scope in self.elaborator.interner.comptime_scopes.iter_mut().rev() {
             if let Entry::Occupied(mut entry) = scope.entry(id) {
                 match entry.get() {
@@ -612,12 +607,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             }
         }
 
-        if id == DefinitionId::dummy_id() {
-            Err(InterpreterError::VariableNotInScope { location })
-        } else {
-            let name = self.elaborator.interner.definition_name(id).to_string();
-            Err(InterpreterError::NonComptimeVarReferenced { name, location })
-        }
+        let name = self.elaborator.interner.definition_name(id).to_string();
+        Err(InterpreterError::NonComptimeVarReferenced { name, location })
     }
 
     /// Evaluate an expression and return the result.
@@ -690,10 +681,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     /// Evaluates a variable
     pub(super) fn evaluate_ident(&mut self, ident: HirIdent, id: ExprId) -> IResult<Value> {
-        let definition = self.elaborator.interner.try_definition(ident.id).ok_or_else(|| {
-            let location = self.elaborator.interner.expr_location(&id);
-            InterpreterError::VariableNotInScope { location }
-        })?;
+        let definition = self.elaborator.interner.definition(ident.id);
 
         if let ImplKind::TraitItem(item) = ident.impl_kind {
             return self.evaluate_trait_item(item, id);
@@ -1406,6 +1394,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let new_array = constructor(elements.update(index, rhs), typ);
                 self.store_lvalue(*array, new_array)
             }
+            HirLValue::Error { location } => Err(InterpreterError::VariableNotInScope { location }),
         }
     }
 
@@ -1496,6 +1485,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let index = self.evaluate(*index)?;
                 let (elements, index) = bounds_check(array, index, *location)?;
                 Ok(elements[index].clone())
+            }
+            HirLValue::Error { location } => {
+                Err(InterpreterError::VariableNotInScope { location: *location })
             }
         }
     }

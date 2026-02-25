@@ -283,21 +283,32 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         for output in outputs.iter() {
             match output {
                 BrilligOutputs::Simple(witness) => {
-                    insert_value(witness, memory[current_ret_data_idx].to_field(), witness_map)?;
-                    current_ret_data_idx += 1;
+                    let value = memory
+                        .get(current_ret_data_idx)
+                        .expect("Return data index exceeds memory bounds");
+                    insert_value(witness, value.to_field(), witness_map)?;
+                    current_ret_data_idx =
+                        current_ret_data_idx.checked_add(1).expect("Return data index overflow");
                 }
                 BrilligOutputs::Array(witness_arr) => {
                     for witness in witness_arr.iter() {
-                        let value = &memory[current_ret_data_idx];
+                        let value = memory
+                            .get(current_ret_data_idx)
+                            .expect("Return data index exceeds memory bounds");
                         insert_value(witness, value.to_field(), witness_map)?;
-                        current_ret_data_idx += 1;
+                        current_ret_data_idx = current_ret_data_idx
+                            .checked_add(1)
+                            .expect("Return data index overflow");
                     }
                 }
             }
         }
 
+        let expected_end = return_data_offset
+            .checked_add(return_data_size)
+            .expect("Return data offset and size overflow");
         assert!(
-            current_ret_data_idx == return_data_offset + return_data_size,
+            current_ret_data_idx == expected_end,
             "Brillig VM did not write the expected number of return values"
         );
         Ok(())
@@ -323,8 +334,13 @@ fn extract_failure_payload_from_memory<F: AcirField>(
     if revert_data_size == 0 {
         None
     } else {
-        let mut revert_values_iter =
-            memory[revert_data_offset..(revert_data_offset + revert_data_size)].iter();
+        let end = revert_data_offset
+            .checked_add(revert_data_size)
+            .expect("Revert data offset and size overflow");
+        let mut revert_values_iter = memory
+            .get(revert_data_offset..end)
+            .expect("Revert data offset and size exceed memory bounds")
+            .iter();
         let error_selector = ErrorSelector::new(
             revert_values_iter
                 .next()

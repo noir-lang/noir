@@ -1,0 +1,6 @@
+[package]
+name = "comptime_global_in_runtime_code"
+type = "bin"
+authors = [""]
+
+[dependencies]

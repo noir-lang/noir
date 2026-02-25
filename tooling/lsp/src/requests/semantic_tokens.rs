@@ -456,7 +456,7 @@ impl Visitor for SemanticTokenCollector<'_> {
         let name_location = module.name.location();
         if let Some(reference) = self.args.interner.reference_at_location(name_location) {
             self.process_reference_id(reference);
-        };
+        }
 
         true
     }
@@ -465,7 +465,7 @@ impl Visitor for SemanticTokenCollector<'_> {
         let name_location = function.name_ident().location();
         if let Some(reference) = self.args.interner.reference_at_location(name_location) {
             self.process_reference_id(reference);
-        };
+        }
 
         false
     }
@@ -474,13 +474,13 @@ impl Visitor for SemanticTokenCollector<'_> {
         let name_location = noir_struct.name.location();
         if let Some(reference) = self.args.interner.reference_at_location(name_location) {
             self.process_reference_id(reference);
-        };
+        }
 
         for field in noir_struct.fields.iter() {
             let field_name_location = field.item.name.location();
             if let Some(reference) = self.args.interner.reference_at_location(field_name_location) {
                 self.process_reference_id(reference);
-            };
+            }
         }
 
         false
@@ -490,14 +490,14 @@ impl Visitor for SemanticTokenCollector<'_> {
         let name_location = noir_enum.name.location();
         if let Some(reference) = self.args.interner.reference_at_location(name_location) {
             self.process_reference_id(reference);
-        };
+        }
 
         for variant in noir_enum.variants.iter() {
             let variant_name_location = variant.item.name.location();
             if let Some(reference) = self.args.interner.reference_at_location(variant_name_location)
             {
                 self.process_reference_id(reference);
-            };
+            }
         }
 
         false
@@ -507,7 +507,7 @@ impl Visitor for SemanticTokenCollector<'_> {
         let name_location = noir_trait.name.location();
         if let Some(reference) = self.args.interner.reference_at_location(name_location) {
             self.process_reference_id(reference);
-        };
+        }
 
         for item in noir_trait.items.iter() {
             if let TraitItem::Function { name, .. } = &item.item {
@@ -516,7 +516,7 @@ impl Visitor for SemanticTokenCollector<'_> {
                     self.args.interner.reference_at_location(func_name_location)
                 {
                     self.process_reference_id(reference);
-                };
+                }
             }
         }
 
@@ -527,7 +527,7 @@ impl Visitor for SemanticTokenCollector<'_> {
         let name_location = let_statement.pattern.location();
         if let Some(reference) = self.args.interner.reference_at_location(name_location) {
             self.process_reference_id(reference);
-        };
+        }
         false
     }
 
@@ -535,7 +535,7 @@ impl Visitor for SemanticTokenCollector<'_> {
         let name_location = type_alias.name.location();
         if let Some(reference) = self.args.interner.reference_at_location(name_location) {
             self.process_reference_id(reference);
-        };
+        }
         false
     }
 }

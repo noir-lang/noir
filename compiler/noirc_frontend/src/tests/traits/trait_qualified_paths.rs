@@ -533,3 +533,26 @@ fn self_resolves_correctly_when_multiple_trait_impls_exist() {
     "#;
     assert_no_errors(src);
 }
+
+/// Regression test for https://github.com/noir-lang/noir/issues/11539
+#[test]
+fn generic_substitution_with_turbofish_trait_method() {
+    let src = r#"
+    pub struct Foo<let Y: u32> {}
+
+    pub trait Bar {
+        comptime fn bar();
+    }
+
+    impl<let X: u32> Bar for Foo<X> {
+        comptime fn bar() {}
+    }
+
+    pub fn f<let X: u32>() {
+        Foo::<X>::bar();
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}

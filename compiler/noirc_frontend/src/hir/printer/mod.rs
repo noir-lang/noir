@@ -246,7 +246,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         if visibility != ItemVisibility::Private {
             self.push_str(&visibility.to_string());
             self.push(' ');
-        };
+        }
     }
 
     fn show_visibility(&mut self, visibility: Visibility) {
@@ -469,6 +469,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         let trait_impl = self.interner.get_trait_implementation(trait_impl_id);
         let trait_impl = trait_impl.borrow();
         let trait_ = self.interner.get_trait(trait_impl.trait_id);
+        let trait_generics = self.interner.get_trait_generics_for_impl(trait_impl_id);
 
         self.push_str("impl");
         self.show_generic_type_variables(&item_trait_impl.generics);
@@ -482,7 +483,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         );
 
         let use_colons = false;
-        self.show_generic_types(&trait_impl.trait_generics, use_colons);
+        self.show_generic_types(&trait_generics.ordered, use_colons);
 
         self.push_str(" for ");
         self.show_type(&trait_impl.typ);
@@ -496,8 +497,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
 
         let mut printed_item = false;
 
-        let named = self.interner.get_associated_types_for_impl(trait_impl_id);
-        for named_type in named {
+        for named_type in &trait_generics.named {
             if printed_item {
                 self.push_str("\n\n");
             }
@@ -563,7 +563,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         if let GlobalValue::Resolved(value) = &global_info.value {
             self.push_str(" = ");
             self.show_value(value);
-        };
+        }
         self.push_str(";");
     }
 
@@ -571,7 +571,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         let modifiers = self.interner.function_modifiers(&func_id);
         let func_meta = self.interner.function_meta(&func_id);
 
-        if modifiers.is_unconstrained {
+        if func_meta.is_unconstrained() {
             self.push_str("unconstrained ");
         }
         if modifiers.is_comptime {
@@ -1117,6 +1117,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                 let trait_impl = self.interner.get_trait_implementation(trait_impl_id);
                 let trait_impl = trait_impl.borrow();
                 let trait_ = self.interner.get_trait(trait_impl.trait_id);
+                let ordered_generics = self.interner.get_ordered_generics_for_impl(trait_impl_id);
                 self.show_reference_to_module_def_id(
                     ModuleDefId::TraitId(trait_impl.trait_id),
                     trait_.visibility,
@@ -1124,7 +1125,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                 );
 
                 let use_colons = true;
-                self.show_generic_types(&trait_impl.trait_generics, use_colons);
+                self.show_generic_types(ordered_generics, use_colons);
 
                 self.push_str("::");
 

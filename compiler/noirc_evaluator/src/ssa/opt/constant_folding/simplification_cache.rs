@@ -35,7 +35,7 @@ impl SimplificationCache {
                 // so we check whether `simple` is a better simplification than the current one.
                 if let Some((_, simpler)) = simplify(dfg, *existing, simple) {
                     *existing = simpler;
-                };
+                }
             })
             .or_insert(simple);
     }

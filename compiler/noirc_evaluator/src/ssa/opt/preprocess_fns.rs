@@ -55,6 +55,8 @@ impl Ssa {
             function.as_vector_optimization();
             // Prepare for unrolling
             function.loop_invariant_code_motion();
+            // Clear out constant jmpifs to ensure that loops are properly unrolled.
+            function.simplify_function();
             // We might not be able to unroll all loops without fully inlining them, so ignore errors.
             // Use default threshold for force-unrolling.
             let _ = function.unroll_loops_iteratively(FORCE_UNROLL_THRESHOLD);
@@ -79,7 +81,7 @@ impl Ssa {
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{opt::inlining::MAX_INSTRUCTIONS, ssa_gen::Ssa},
+        ssa::{opt::inlining::inline_info::MAX_INSTRUCTIONS, ssa_gen::Ssa},
     };
 
     #[test]

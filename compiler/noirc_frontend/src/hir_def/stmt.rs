@@ -157,4 +157,7 @@ pub enum HirLValue {
         implicitly_added: bool,
         location: Location,
     },
+    Error {
+        location: Location,
+    },
 }

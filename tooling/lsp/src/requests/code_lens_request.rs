@@ -157,7 +157,7 @@ impl Visitor for CodeLensVisitor<'_> {
                 .unwrap_or_default();
             self.lenses.push(test_lens(self.workspace, self.package, &func_name, range));
             self.lenses.push(debug_test_lens(self.workspace, self.package, func_name, range));
-        };
+        }
 
         false
     }

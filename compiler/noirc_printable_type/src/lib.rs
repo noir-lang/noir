@@ -132,7 +132,8 @@ impl<F: AcirField> std::fmt::Display for PrintableValueDisplay<F> {
             Self::FmtString(template, values) => {
                 let mut values_iter = values.iter();
                 write_template_replacing_interpolations(template, fmt, || {
-                    values_iter.next().and_then(|(value, typ)| to_string(value, typ))
+                    let (value, typ) = values_iter.next()?;
+                    to_string(value, typ)
                 })
             }
         }
@@ -160,7 +161,7 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
             let mut uint_cast = f.to_u128();
             if *width != 128 {
                 uint_cast &= (1 << width) - 1;
-            };
+            }
 
             output.push_str(&uint_cast.to_string());
         }

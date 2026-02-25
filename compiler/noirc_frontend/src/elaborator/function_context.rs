@@ -164,8 +164,10 @@ impl Elaborator<'_> {
     }
 
     fn check_trait_constraints(&mut self, trait_constraints: Vec<LocalTraitConstraint>) {
+        let current_trait_self = self.current_trait.and_then(|_| self.self_type.clone());
+
         for local in trait_constraints {
-            match local.constraint.find_impl(self.interner) {
+            match local.constraint.find_impl(self.interner, current_trait_self.as_ref()) {
                 Ok((impl_kind, instantiation_bindings)) => {
                     if local.select_impl {
                         self.select_impl(local.expr, impl_kind, instantiation_bindings);

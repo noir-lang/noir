@@ -156,7 +156,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
                             self.call_stack.extend(brillig_call_stack);
                         }
                         _ => (),
-                    };
+                    }
 
                     return Err(NargoError::ExecutionError(execution_error_from(
                         error,

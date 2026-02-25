@@ -49,7 +49,7 @@ fn semver_check_package(package: &Package, compiler_version: &Version) -> Result
                 required_compiler_version: version.clone(),
                 compiler_version_found: strip_build_meta_data(compiler_version),
             });
-        };
+        }
     }
 
     // Check that all of this package's dependencies' compiler version requirements are satisfied
@@ -112,7 +112,7 @@ mod tests {
             panic!(
                 "semver check should have passed. compiler version is 0.1.0 and required version from the package is 0.1.0\n error: {err:?}"
             )
-        };
+        }
 
         package.compiler_required_version = Some("0.2.0".to_string());
         let got_err = match semver_check_package(&package, &compiler_version) {
@@ -165,7 +165,7 @@ mod tests {
             panic!(
                 "semver check should have passed. compiler version is 0.1.0 and required version from the package is 0.1.0\n error: {err:?}"
             )
-        };
+        }
 
         package.dependencies.insert(
             CrateName::from_str("test_dep_invalid").unwrap(),
@@ -205,7 +205,7 @@ mod tests {
             panic!(
                 "semver check should have passed. compiler version is 0.2.0 and required version from the package is >=0.1.0\n error: {err:?}"
             )
-        };
+        }
     }
 
     #[test]
@@ -225,7 +225,7 @@ mod tests {
 
         if let Err(err) = semver_check_package(&package, &compiler_version) {
             panic!("{err}");
-        };
+        }
     }
 
     #[test]
@@ -247,6 +247,6 @@ mod tests {
             panic!(
                 "semver check should have passed. compiler version is 0.1.0+build_data and required version from the package is 0.1.0\n The build data should be ignored\n error: {err:?}"
             )
-        };
+        }
     }
 }

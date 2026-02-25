@@ -34,30 +34,31 @@ pub(super) fn hover_from_reference(
     position: Position,
     args: &ProcessRequestCallbackArgs,
 ) -> Option<Hover> {
-    utils::position_to_byte_index(args.files, file_id, &position)
-        .and_then(|byte_index| {
-            let file = args.files.get_file(file_id).unwrap();
-            let source = file.source();
-            let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
+    let (reference, link_lsp_location) =
+        utils::position_to_byte_index(args.files, file_id, &position)
+            .and_then(|byte_index| {
+                let file = args.files.get_file(file_id).unwrap();
+                let source = file.source();
+                let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
-            let mut finder = VisitorReferenceFinder::new(file_id, source, byte_index, args);
-            finder.find(&parsed_module)
-        })
-        .or_else(|| {
-            args.interner.reference_at_location(args.location).map(|reference| (reference, None))
-        })
-        .and_then(|(reference, link_lsp_location)| {
-            let location = args.interner.reference_location(reference);
-            let lsp_location = link_lsp_location
-                .or_else(|| to_lsp_location(args.files, location.file, location.span));
-            format_reference(reference, args).map(|formatted| Hover {
-                range: lsp_location.map(|location| location.range),
-                contents: HoverContents::Markup(MarkupContent {
-                    kind: MarkupKind::Markdown,
-                    value: formatted,
-                }),
+                let mut finder = VisitorReferenceFinder::new(file_id, source, byte_index, args);
+                finder.find(&parsed_module)
             })
-        })
+            .or_else(|| {
+                args.interner
+                    .reference_at_location(args.location)
+                    .map(|reference| (reference, None))
+            })?;
+    let location = args.interner.reference_location(reference);
+    let lsp_location =
+        link_lsp_location.or_else(|| to_lsp_location(args.files, location.file, location.span));
+    format_reference(reference, args).map(|formatted| Hover {
+        range: lsp_location.map(|location| location.range),
+        contents: HoverContents::Markup(MarkupContent {
+            kind: MarkupKind::Markdown,
+            value: formatted,
+        }),
+    })
 }
 
 pub(super) fn format_reference(
@@ -362,8 +363,9 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
         let trait_impl = trait_impl.borrow();
         let trait_ = args.interner.get_trait(trait_impl.trait_id);
 
-        let generics = trait_impl
-            .trait_generics
+        let ordered_generics = args.interner.get_ordered_generics_for_impl(trait_impl_id);
+
+        let generics = ordered_generics
             .iter()
             .filter_map(|generic| {
                 if let Type::NamedGeneric(generic) = generic {
@@ -389,9 +391,9 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
 
         string.push(' ');
         string.push_str(trait_.name.as_str());
-        if !trait_impl.trait_generics.is_empty() {
+        if !ordered_generics.is_empty() {
             string.push('<');
-            for (index, generic) in trait_impl.trait_generics.iter().enumerate() {
+            for (index, generic) in ordered_generics.iter().enumerate() {
                 if index > 0 {
                     string.push_str(", ");
                 }
@@ -453,7 +455,7 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
         string.push_str(&func_modifiers.visibility.to_string());
         string.push(' ');
     }
-    if func_modifiers.is_unconstrained {
+    if func_meta.is_unconstrained() {
         string.push_str("unconstrained ");
     }
     if func_modifiers.is_comptime {

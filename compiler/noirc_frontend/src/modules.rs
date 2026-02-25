@@ -183,7 +183,7 @@ pub fn module_full_path(
                 }
             }
         }
-    };
+    }
 
     segments.reverse();
     segments.join("::")

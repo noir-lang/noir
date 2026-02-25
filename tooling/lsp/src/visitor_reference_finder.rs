@@ -185,7 +185,7 @@ impl Visitor for VisitorReferenceFinder<'_> {
         let name_location = parsed_sub_module.name.location();
         if let Some(reference) = self.args.interner.reference_at_location(name_location) {
             self.find_in_reference_doc_comments(reference);
-        };
+        }
 
         // Switch `self.module_id` to the submodule
         let previous_module_id = self.module_id;
@@ -209,7 +209,7 @@ impl Visitor for VisitorReferenceFinder<'_> {
         let name_location = function.name_ident().location();
         if let Some(reference) = self.args.interner.reference_at_location(name_location) {
             self.find_in_reference_doc_comments(reference);
-        };
+        }
 
         self.intersects_span(span)
     }
@@ -218,13 +218,13 @@ impl Visitor for VisitorReferenceFinder<'_> {
         let name_location = noir_struct.name.location();
         if let Some(reference) = self.args.interner.reference_at_location(name_location) {
             self.find_in_reference_doc_comments(reference);
-        };
+        }
 
         for field in noir_struct.fields.iter() {
             let field_name_location = field.item.name.location();
             if let Some(reference) = self.args.interner.reference_at_location(field_name_location) {
                 self.find_in_reference_doc_comments(reference);
-            };
+            }
         }
 
         false
@@ -234,14 +234,14 @@ impl Visitor for VisitorReferenceFinder<'_> {
         let name_location = noir_enum.name.location();
         if let Some(reference) = self.args.interner.reference_at_location(name_location) {
             self.find_in_reference_doc_comments(reference);
-        };
+        }
 
         for variant in noir_enum.variants.iter() {
             let variant_name_location = variant.item.name.location();
             if let Some(reference) = self.args.interner.reference_at_location(variant_name_location)
             {
                 self.find_in_reference_doc_comments(reference);
-            };
+            }
         }
 
         false
@@ -251,7 +251,7 @@ impl Visitor for VisitorReferenceFinder<'_> {
         let name_location = noir_trait.name.location();
         if let Some(reference) = self.args.interner.reference_at_location(name_location) {
             self.find_in_reference_doc_comments(reference);
-        };
+        }
 
         for item in noir_trait.items.iter() {
             if let TraitItem::Function { name, .. } = &item.item {
@@ -260,7 +260,7 @@ impl Visitor for VisitorReferenceFinder<'_> {
                     self.args.interner.reference_at_location(func_name_location)
                 {
                     self.find_in_reference_doc_comments(reference);
-                };
+                }
             }
         }
 
@@ -271,7 +271,7 @@ impl Visitor for VisitorReferenceFinder<'_> {
         let name_location = let_statement.pattern.location();
         if let Some(reference) = self.args.interner.reference_at_location(name_location) {
             self.find_in_reference_doc_comments(reference);
-        };
+        }
         false
     }
 
@@ -279,7 +279,7 @@ impl Visitor for VisitorReferenceFinder<'_> {
         let name_location = type_alias.name.location();
         if let Some(reference) = self.args.interner.reference_at_location(name_location) {
             self.find_in_reference_doc_comments(reference);
-        };
+        }
         false
     }
 

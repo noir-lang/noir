@@ -329,21 +329,35 @@ fn constructor_private_field() {
 }
 
 #[test]
-fn abi_attribute_outside_contract() {
+fn deny_abi_attribute_on_struct_outside_contract() {
     let src = r#"
-        pub contract moo {
+        pub mod moo {
             #[abi(hello)]
+            ^^^^^^^^^^^^^ #[abi(tag)] attributes can only be used in contracts
+            ~~~~~~~~~~~~~ misplaced #[abi(tag)] attribute
             pub struct Foo {}
-                       ^^^ #[abi(tag)] attributes can only be used in contracts
-                       ~~~ misplaced #[abi(tag)] attribute
         }
 
         pub fn foo(_: moo::Foo) {}
-                      ~~~~~~~~ the type is used outside of a contract
 
         fn main() {}
     "#;
     check_errors(src);
+}
+
+#[test]
+fn allow_abi_attribute_on_struct_inside_contract() {
+    let src = r#"
+        pub contract moo {
+            #[abi(hello)]
+            pub struct Foo {}
+        }
+
+        pub fn foo(_: moo::Foo) {}
+
+        fn main() {}
+    "#;
+    assert_no_errors(src);
 }
 
 #[test]

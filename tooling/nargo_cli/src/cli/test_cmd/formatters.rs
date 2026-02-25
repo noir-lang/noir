@@ -283,7 +283,9 @@ impl Formatter for TerseFormatter {
         // but we also want the output to be readable in case the terminal isn't maximized.
         const MAX_TESTS_PER_LINE: usize = 88;
 
-        if current_test_count % MAX_TESTS_PER_LINE == 0 && current_test_count < total_test_count {
+        if current_test_count.is_multiple_of(MAX_TESTS_PER_LINE)
+            && current_test_count < total_test_count
+        {
             writeln!(writer, " {current_test_count}/{total_test_count}")?;
         }
 

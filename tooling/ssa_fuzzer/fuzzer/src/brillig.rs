@@ -32,10 +32,12 @@ use std::process::{Child, Command, Stdio};
 use std::sync::{Mutex, OnceLock};
 use std::{collections::HashMap, time::Instant};
 
-lazy_static::lazy_static! {
-    static ref SIMULATOR_BIN_PATH: String = std::env::var("SIMULATOR_BIN_PATH").expect("SIMULATOR_BIN_PATH must be set");
-    static ref TRANSPILER_BIN_PATH: String = std::env::var("TRANSPILER_BIN_PATH").expect("TRANSPILER_BIN_PATH must be set");
-}
+static SIMULATOR_BIN_PATH: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
+    std::env::var("SIMULATOR_BIN_PATH").expect("SIMULATOR_BIN_PATH must be set")
+});
+static TRANSPILER_BIN_PATH: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
+    std::env::var("TRANSPILER_BIN_PATH").expect("TRANSPILER_BIN_PATH must be set")
+});
 
 /// Global simulator process that stays alive across calls
 static SIMULATOR_PROCESS: OnceLock<Mutex<Option<SimulatorProcess>>> = OnceLock::new();
@@ -269,7 +271,7 @@ impl SimulatorProcess {
                     panic!("Failed to decode simulator response: {e}");
                 }
             }
-        };
+        }
         let response_line = String::from_utf8(response_line).unwrap();
         log::debug!("Gz decoding response time {:?}", gz_decode_step.elapsed());
         log::debug!("Decoding response time {:?}", decode_step.elapsed());

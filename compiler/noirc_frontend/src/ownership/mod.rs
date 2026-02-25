@@ -17,7 +17,8 @@
 //! clones arrays (increments their reference counts) in the following situations which roughly
 //! correspond to where a `Copy` variable in Rust would be copied:
 //! - Variables are copied on each use, except for the last use where they are moved.
-//!   - If a variable's last use is in a loop that it was not defined in, it is copied instead of moved.
+//!   - If a variable's last use is in a loop that it was not defined in, it is copied instead of moved,
+//!     except if the last use is also reassigning the variable, killing the reference to its previous value.
 //!   - The last use analysis isn't sophisticated on struct fields. It will count `a.b` and `a.c`
 //!     both as uses of `a`. Even if both could conceptually be moved, only the last usage will be
 //!     moved and the first (say `a.b`) will still be cloned.
@@ -213,7 +214,7 @@ impl Context {
         }
     }
 
-    /// Whenever an ident is used it is always cloned unless it is the last use of the ident (not in a loop).
+    /// Whenever an ident is used it is always cloned unless it is the last use of the ident (not in a loop, unless it's also reassigning the ident).
     fn should_clone_ident(&self, ident: &Ident) -> bool {
         match &ident.definition {
             Definition::Local(local_id) => {

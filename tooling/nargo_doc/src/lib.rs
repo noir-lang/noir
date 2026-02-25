@@ -414,9 +414,21 @@ impl DocItemBuilder<'_> {
         let trait_ = self.interner.get_trait(trait_impl.trait_id);
         let trait_name = trait_.name.to_string();
         let trait_id = get_trait_id(trait_.id, self.interner);
-        let trait_generics = vecmap(&trait_impl.trait_generics, |typ| self.convert_type(typ));
         let r#type = self.convert_type(&trait_impl.typ);
-        TraitImpl { r#type, generics, methods, trait_id, trait_name, trait_generics, where_clause }
+        let ordered_generics =
+            vecmap(self.interner.get_ordered_generics_for_impl(trait_impl_id), |typ| {
+                self.convert_type(typ)
+            });
+
+        TraitImpl {
+            r#type,
+            generics,
+            methods,
+            trait_id,
+            trait_name,
+            trait_generics: ordered_generics,
+            where_clause,
+        }
     }
 
     fn convert_trait_constraint(
@@ -599,7 +611,7 @@ impl DocItemBuilder<'_> {
     fn convert_function(&mut self, func_id: FuncId) -> Function {
         let modifiers = self.interner.function_modifiers(&func_id);
         let func_meta = self.interner.function_meta(&func_id);
-        let unconstrained = modifiers.is_unconstrained;
+        let unconstrained = func_meta.is_unconstrained();
         let comptime = modifiers.is_comptime;
         let name = modifiers.name.to_string();
         let comments = self.doc_comments(ReferenceId::Function(func_id));
