@@ -504,7 +504,7 @@ impl DeallocationListAllocator {
         Self { deallocated_registers, next_free_register_index, start_register_index: start }
     }
 
-    /// Number of registers that can be allocated without exceeding `max`.
+    /// Number of registers that can be allocated without exceeding the `max` register index.
     fn available_registers(&self, max: usize) -> usize {
         let reusable = self.deallocated_registers.len();
         let remaining = max.saturating_sub(self.next_free_register_index);
