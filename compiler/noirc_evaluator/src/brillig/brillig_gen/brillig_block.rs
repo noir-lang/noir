@@ -194,6 +194,10 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     }
 
     /// Ensure there is capacity for `n` more register allocations by spilling if necessary.
+    ///
+    /// This is required because temporary registers can be allocated in in procedures where
+    /// we don't have access to the spill manager the context necessary to properly spill an
+    /// SSA variable, so we have to make room in anticipation of such need.
     pub(crate) fn ensure_register_capacity(&mut self, n: usize) {
         while self.needs_spill_for(n) {
             self.spill_lru_value();
