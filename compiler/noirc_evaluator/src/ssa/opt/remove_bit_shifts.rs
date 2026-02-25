@@ -935,7 +935,8 @@ mod tests {
                 v13 = add v11, Field 4294967296
                 v14 = sub v13, v4
                 v15 = truncate v14 to 32 bits, max_bit_size: 33
-                return v15
+                v16 = cast v15 as i32
+                return v16
             }
             ");
         }
@@ -1015,7 +1016,8 @@ mod tests {
                 v69 = add v67, Field 4294967296
                 v70 = sub v69, v61
                 v71 = truncate v70 to 32 bits, max_bit_size: 33
-                return v71
+                v72 = cast v71 as i32
+                return v72
             }
             "#);
         }
