@@ -134,53 +134,127 @@ impl<let N: u32> Eq for str<N> {
     }
 }
 
-impl<A, B> Eq for (A, B)
-where
-    A: Eq,
-    B: Eq,
-{
+impl<A: Eq, B: Eq> Eq for (A, B) {
     fn eq(self, other: (A, B)) -> bool {
         self.0.eq(other.0) & self.1.eq(other.1)
     }
 }
 
-impl<A, B, C> Eq for (A, B, C)
-where
-    A: Eq,
-    B: Eq,
-    C: Eq,
-{
+impl<A: Eq, B: Eq, C: Eq> Eq for (A, B, C) {
     fn eq(self, other: (A, B, C)) -> bool {
         self.0.eq(other.0) & self.1.eq(other.1) & self.2.eq(other.2)
     }
 }
 
-impl<A, B, C, D> Eq for (A, B, C, D)
-where
-    A: Eq,
-    B: Eq,
-    C: Eq,
-    D: Eq,
-{
+impl<A: Eq, B: Eq, C: Eq, D: Eq> Eq for (A, B, C, D) {
     fn eq(self, other: (A, B, C, D)) -> bool {
         self.0.eq(other.0) & self.1.eq(other.1) & self.2.eq(other.2) & self.3.eq(other.3)
     }
 }
 
-impl<A, B, C, D, E> Eq for (A, B, C, D, E)
-where
-    A: Eq,
-    B: Eq,
-    C: Eq,
-    D: Eq,
-    E: Eq,
-{
+impl<A: Eq, B: Eq, C: Eq, D: Eq, E: Eq> Eq for (A, B, C, D, E) {
     fn eq(self, other: (A, B, C, D, E)) -> bool {
         self.0.eq(other.0)
             & self.1.eq(other.1)
             & self.2.eq(other.2)
             & self.3.eq(other.3)
             & self.4.eq(other.4)
+    }
+}
+impl<A: Eq, B: Eq, C: Eq, D: Eq, E: Eq, F: Eq> Eq for (A, B, C, D, E, F) {
+    fn eq(self, other: (A, B, C, D, E, F)) -> bool {
+        self.0.eq(other.0)
+            & self.1.eq(other.1)
+            & self.2.eq(other.2)
+            & self.3.eq(other.3)
+            & self.4.eq(other.4)
+            & self.5.eq(other.5)
+    }
+}
+
+impl<A: Eq, B: Eq, C: Eq, D: Eq, E: Eq, F: Eq, G: Eq> Eq for (A, B, C, D, E, F, G) {
+    fn eq(self, other: (A, B, C, D, E, F, G)) -> bool {
+        self.0.eq(other.0)
+            & self.1.eq(other.1)
+            & self.2.eq(other.2)
+            & self.3.eq(other.3)
+            & self.4.eq(other.4)
+            & self.5.eq(other.5)
+            & self.6.eq(other.6)
+    }
+}
+
+impl<A: Eq, B: Eq, C: Eq, D: Eq, E: Eq, F: Eq, G: Eq, H: Eq> Eq for (A, B, C, D, E, F, G, H) {
+    fn eq(self, other: (A, B, C, D, E, F, G, H)) -> bool {
+        self.0.eq(other.0)
+            & self.1.eq(other.1)
+            & self.2.eq(other.2)
+            & self.3.eq(other.3)
+            & self.4.eq(other.4)
+            & self.5.eq(other.5)
+            & self.6.eq(other.6)
+            & self.7.eq(other.7)
+    }
+}
+
+impl<A: Eq, B: Eq, C: Eq, D: Eq, E: Eq, F: Eq, G: Eq, H: Eq, I: Eq> Eq for (A, B, C, D, E, F, G, H, I) {
+    fn eq(self, other: (A, B, C, D, E, F, G, H, I)) -> bool {
+        self.0.eq(other.0)
+            & self.1.eq(other.1)
+            & self.2.eq(other.2)
+            & self.3.eq(other.3)
+            & self.4.eq(other.4)
+            & self.5.eq(other.5)
+            & self.6.eq(other.6)
+            & self.7.eq(other.7)
+            & self.8.eq(other.8)
+    }
+}
+impl<A: Eq, B: Eq, C: Eq, D: Eq, E: Eq, F: Eq, G: Eq, H: Eq, I: Eq, J: Eq> Eq for (A, B, C, D, E, F, G, H, I, J) {
+    fn eq(self, other: (A, B, C, D, E, F, G, H, I, J)) -> bool {
+        self.0.eq(other.0)
+            & self.1.eq(other.1)
+            & self.2.eq(other.2)
+            & self.3.eq(other.3)
+            & self.4.eq(other.4)
+            & self.5.eq(other.5)
+            & self.6.eq(other.6)
+            & self.7.eq(other.7)
+            & self.8.eq(other.8)
+            & self.9.eq(other.9)
+    }
+}
+
+impl<A: Eq, B: Eq, C: Eq, D: Eq, E: Eq, F: Eq, G: Eq, H: Eq, I: Eq, J: Eq, K: Eq> Eq for (A, B, C, D, E, F, G, H, I, J, K) {
+    fn eq(self, other: (A, B, C, D, E, F, G, H, I, J, K)) -> bool {
+        self.0.eq(other.0)
+            & self.1.eq(other.1)
+            & self.2.eq(other.2)
+            & self.3.eq(other.3)
+            & self.4.eq(other.4)
+            & self.5.eq(other.5)
+            & self.6.eq(other.6)
+            & self.7.eq(other.7)
+            & self.8.eq(other.8)
+            & self.9.eq(other.9)
+            & self.10.eq(other.10)
+    }
+}
+
+impl<A: Eq, B: Eq, C: Eq, D: Eq, E: Eq, F: Eq, G: Eq, H: Eq, I: Eq, J: Eq, K: Eq, L: Eq> Eq for (A, B, C, D, E, F, G, H, I, J, K, L) {
+    fn eq(self, other: (A, B, C, D, E, F, G, H, I, J, K, L)) -> bool {
+        self.0.eq(other.0)
+            & self.1.eq(other.1)
+            & self.2.eq(other.2)
+            & self.3.eq(other.3)
+            & self.4.eq(other.4)
+            & self.5.eq(other.5)
+            & self.6.eq(other.6)
+            & self.7.eq(other.7)
+            & self.8.eq(other.8)
+            & self.9.eq(other.9)
+            & self.10.eq(other.10)
+            & self.11.eq(other.11)
     }
 }
 
