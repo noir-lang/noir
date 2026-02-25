@@ -150,9 +150,11 @@ pub(crate) const MAX_MACRO_EXPANSION_DEPTH: usize = 32;
 /// ResolverMetas are tagged onto each definition to track how many times they are used
 #[derive(Debug, PartialEq, Eq)]
 pub struct ResolverMeta {
-    num_times_used: usize,
+    used: bool,
+    mutated: bool,
     ident: HirIdent,
     warn_if_unused: bool,
+    warn_if_not_mutated: bool,
 }
 
 type ScopeForest = GenericScopeForest<String, ResolverMeta>;

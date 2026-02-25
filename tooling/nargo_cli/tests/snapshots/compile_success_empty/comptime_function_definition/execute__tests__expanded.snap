@@ -17,6 +17,7 @@ pub fn foo(
     (b, c): (i32, i32),
 ) -> i32 {
     let _: (i32, Field, Field, Field, bool, i32, i32) = (w, y, x, some_field, a, b, c);
+    a = true;
     1_i32
 }
 

@@ -522,6 +522,8 @@ impl FunctionContext<'_> {
         location: Location,
         length: Option<ValueId>,
     ) -> Result<Values, RuntimeError> {
+        self.builder.set_location(location);
+
         // base_index = index * type_size
         let index = self.make_array_index(index);
         let type_size_usize = Self::convert_type(element_type).size_of_type();
@@ -564,11 +566,7 @@ impl FunctionContext<'_> {
         // so it's okay to use unchecked operations. The SSA interpreter has been updated to have similar semantics.
         let unchecked = true;
 
-        let base_index = self.builder.set_location(location).insert_binary(
-            index,
-            BinaryOp::Mul { unchecked },
-            type_size,
-        );
+        let base_index = self.builder.insert_binary(index, BinaryOp::Mul { unchecked }, type_size);
 
         let mut field_index = 0u128;
         Ok(Self::map_type(element_type, |typ| {

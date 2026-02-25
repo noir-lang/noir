@@ -149,7 +149,7 @@ fn mutating_references() {
 #[test]
 fn mutating_mutable_references() {
     let program = "comptime fn main() -> pub i64 {
-        let mut x = &mut 3;
+        let x = &mut 3;
         *x = 4;
         *x
     }";

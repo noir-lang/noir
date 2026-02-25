@@ -78,7 +78,7 @@ fn main(x: Field) {
     assert(bar.f3() == 30_Field, "3");
     assert(bar.f4() == 4_Field, "4");
     assert(bar.f5() == 50_Field, "5");
-    let mut bar_mut: Bar = Bar {};
+    let bar_mut: Bar = Bar {};
     assert(bar_mut.f1() == 10_Field, "10");
     assert(bar_mut.f2() == 2_Field, "12");
     assert(bar_mut.f3() == 30_Field, "13");

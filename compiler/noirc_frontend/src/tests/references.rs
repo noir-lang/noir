@@ -61,7 +61,7 @@ fn mutable_reference_to_field_of_mutable_reference() {
 fn auto_dereferences_array_access() {
     let src = r#"
     fn main() {
-        let mut ref_array = &mut &mut &mut [0, 1, 2];
+        let ref_array = &mut &mut &mut [0, 1, 2];
         assert(ref_array[2] == 2);
     }
     "#;
@@ -111,7 +111,7 @@ fn constrained_reference_to_unconstrained() {
 fn immutable_references_with_ownership_feature() {
     let src = r#"
         unconstrained fn main() {
-            let mut array = [1, 2, 3];
+            let array = [1, 2, 3];
             borrow(&array);
         }
 
@@ -126,7 +126,7 @@ fn immutable_references_with_ownership_feature() {
 fn immutable_references_without_ownership_feature() {
     let src = r#"
         fn main() {
-            let mut array = [1, 2, 3];
+            let array = [1, 2, 3];
             borrow(&array);
                    ^^^^^^ This requires the unstable feature 'ownership' which is not enabled
                    ~~~~~~ Pass -Zownership to nargo to enable this feature at your own risk.
