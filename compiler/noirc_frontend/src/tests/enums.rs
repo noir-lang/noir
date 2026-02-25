@@ -436,3 +436,14 @@ fn regression_7651() {
     let features = vec![UnstableFeature::Enums];
     check_errors_using_features(src, &features);
 }
+
+#[test]
+fn errors_if_using_comptime_type_in_non_comptime_enum() {
+    let src = r#"
+    pub enum Foo {
+        Quoted(Quoted),
+               ^^^^^^ Comptime-only type `Quoted` cannot be used in non-comptime enum
+    }
+    "#;
+    check_errors(src);
+}

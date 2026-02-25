@@ -480,21 +480,28 @@ impl Elaborator<'_> {
 
     /// Reports an error if `typ` is a comptime-only type and we are in runtime code.
     fn check_comptime_type_in_runtime_code(&mut self, typ: &Type, location: Location) {
-        if let Type::Quoted(quoted) = typ {
-            let item = match self.current_item {
-                Some(DependencyId::Function(_)) => "function",
-                Some(DependencyId::Global(_)) => "global",
-                Some(DependencyId::Alias(_)) => "type alias",
-                Some(DependencyId::Type(_)) => "struct",
-                _ => {
-                    return;
-                }
-            };
-            if !self.in_comptime_context() {
-                let typ = quoted.to_string();
-                self.push_err(ResolverError::ComptimeTypeInNonComptimeItem { location, typ, item });
-            }
+        let Type::Quoted(quoted) = typ else {
+            return;
+        };
+
+        if self.in_comptime_context() {
+            return;
         }
+
+        let item = match self.current_item {
+            Some(DependencyId::Function(_)) => "function",
+            Some(DependencyId::Global(_)) => "global",
+            Some(DependencyId::Alias(_)) => "type alias",
+            Some(DependencyId::Type(type_id)) => {
+                if self.interner.get_type(type_id).borrow().is_struct() { "struct" } else { "enum" }
+            }
+            _ => {
+                return;
+            }
+        };
+
+        let typ = quoted.to_string();
+        self.push_err(ResolverError::ComptimeTypeInNonComptimeItem { location, typ, item });
     }
 
     fn lookup_type_variable(
