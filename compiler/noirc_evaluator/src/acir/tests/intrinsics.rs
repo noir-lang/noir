@@ -272,8 +272,22 @@ fn vector_pop_back_unknown_length() {
     BLACKBOX::RANGE input: w1, bits: 1
     ASSERT w2 = 1
     INIT b0 = [w2]
-    ASSERT w3 = w1*w1 - w1
-    READ w4 = b0[w3]
+    BRILLIG CALL func: 0, predicate: w1, inputs: [w1], outputs: [w3]
+    ASSERT w4 = w1*w3
+    ASSERT w1 = w1*w4
+    ASSERT w5 = w1*w1 - w1
+    READ w6 = b0[w5]
+
+    unconstrained func 0: directive_invert
+    0: @21 = const u32 1
+    1: @20 = const u32 0
+    2: @0 = calldata copy [@20; @21]
+    3: @2 = const field 0
+    4: @3 = field eq @0, @2
+    5: jump if @3 to 8
+    6: @1 = const field 1
+    7: @0 = field field_div @1, @0
+    8: stop @[@20; @21]
     ");
 }
 

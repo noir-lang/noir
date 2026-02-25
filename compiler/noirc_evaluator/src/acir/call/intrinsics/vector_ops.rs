@@ -336,7 +336,16 @@ impl Context<'_> {
         }
 
         let one = self.acir_context.add_constant(FieldElement::one());
-        let new_vector_length_var = self.acir_context.sub_var(vector_length_var, one)?;
+        let mut new_vector_length_var = self.acir_context.sub_var(vector_length_var, one)?;
+
+        // For unknown length under a side effect variable, we want to multiply with the side effect variable
+        // to ensure we don't end up trying to look up an item at index -1, when the semantic length is 0,
+        // which can fail a circuit even when the side effects are disabled.
+        if is_unknown_length {
+            new_vector_length_var = self
+                .acir_context
+                .mul_var(new_vector_length_var, self.current_side_effects_enabled_var)?;
+        }
 
         Ok(new_vector_length_var)
     }
