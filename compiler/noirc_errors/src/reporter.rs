@@ -284,7 +284,7 @@ pub fn stack_trace<'files>(
     let repeating_sequences = find_repeating_sequences(call_stack);
 
     let mut result = "Call stack:\n".to_string();
-    let mut index = 0;
+    let mut index = 1;
 
     for (sequence, times) in repeating_sequences {
         for (i, call_item) in sequence.iter().copied().enumerate() {
