@@ -1,6 +1,6 @@
 use crate::acir::arrays::ElementTypeSizesArrayShift;
 use crate::acir::types::{flat_element_types, flat_numeric_types};
-use crate::acir::{AcirDynamicArray, AcirValue};
+use crate::acir::{AcirDynamicArray, AcirValue, AcirVar};
 use crate::brillig::assert_u32;
 use crate::errors::RuntimeError;
 use crate::ssa::ir::types::{NumericType, Type};
@@ -244,7 +244,6 @@ impl Context<'_> {
         let vector_length_id = arguments[0];
         let vector_contents_id = arguments[1];
         let vector_length_value = self.convert_value(vector_length_id, dfg);
-        let vector_length_var = vector_length_value.clone().into_var()?;
         let block_id = self.ensure_array_is_initialized(vector_contents_id, dfg)?;
         let vector_contents_value = self.convert_value(vector_contents_id, dfg);
         let vector_type = dfg.type_of_value(vector_contents_id);
@@ -271,25 +270,8 @@ impl Context<'_> {
             return Ok(results);
         }
 
-        let is_unknown_length = dfg.get_numeric_constant(vector_length_id).is_none();
-
-        if is_unknown_length {
-            // Check that the vector length is not zero.
-            // This is different from the previous check as this is a runtime check.
-            let zero = self.acir_context.add_constant(FieldElement::zero());
-            let assert_message = self.acir_context.generate_assertion_message_payload(
-                "Attempt to pop_back from an empty vector".to_string(),
-            );
-            self.acir_context.assert_neq_var(
-                vector_length_var,
-                zero,
-                self.current_side_effects_enabled_var,
-                Some(assert_message),
-            )?;
-        }
-
-        let one = self.acir_context.add_constant(FieldElement::one());
-        let new_vector_length_var = self.acir_context.sub_var(vector_length_var, one)?;
+        let new_vector_length_var =
+            self.vector_pop_new_length(dfg, vector_length_id, vector_length_value)?;
 
         // For a pop back operation we want to fetch from the `length - 1` as this is the
         // last valid index that can be accessed in a vector. After the pop back operation
@@ -322,6 +304,41 @@ impl Context<'_> {
         results.append(&mut popped_elements);
 
         Ok(results)
+    }
+
+    /// Compute the new vector length after popping one value from it.
+    ///
+    /// Assumes that we already handled the constant zero case.
+    /// If the length is _not_ a known constant, it inserts a constraint
+    /// to assert that the length is not zero.
+    fn vector_pop_new_length(
+        &mut self,
+        dfg: &DataFlowGraph,
+        vector_length_id: ValueId,
+        vector_length_value: AcirValue,
+    ) -> Result<AcirVar, RuntimeError> {
+        let vector_length_var = vector_length_value.clone().into_var()?;
+        let is_unknown_length = dfg.get_numeric_constant(vector_length_id).is_none();
+
+        if is_unknown_length {
+            // Check that the vector length is not zero.
+            // This is different from the previous check as this is a runtime check.
+            let zero = self.acir_context.add_constant(FieldElement::zero());
+            let assert_message = self.acir_context.generate_assertion_message_payload(
+                "Attempt to pop_front from an empty vector".to_string(),
+            );
+            self.acir_context.assert_neq_var(
+                vector_length_var,
+                zero,
+                self.current_side_effects_enabled_var,
+                Some(assert_message),
+            )?;
+        }
+
+        let one = self.acir_context.add_constant(FieldElement::one());
+        let new_vector_length_var = self.acir_context.sub_var(vector_length_var, one)?;
+
+        Ok(new_vector_length_var)
     }
 
     /// Removes and returns one or more elements from the front of a non-nested vector.
@@ -371,7 +388,6 @@ impl Context<'_> {
         let vector_length_id = arguments[0];
         let vector_contents_id = arguments[1];
         let vector_length_value = self.convert_value(vector_length_id, dfg);
-        let vector_length_var = vector_length_value.clone().into_var()?;
         let block_id = self.ensure_array_is_initialized(vector_contents_id, dfg)?;
         let vector_contents_value = self.convert_value(vector_contents_id, dfg);
         let vector_type = dfg.type_of_value(vector_contents_id);
@@ -399,25 +415,8 @@ impl Context<'_> {
             return Ok(results);
         }
 
-        let is_unknown_length = dfg.get_numeric_constant(vector_length_id).is_none();
-
-        if is_unknown_length {
-            // Check that the vector length is not zero.
-            // This is different from the previous check as this is a runtime check.
-            let zero = self.acir_context.add_constant(FieldElement::zero());
-            let assert_message = self.acir_context.generate_assertion_message_payload(
-                "Attempt to pop_front from an empty vector".to_string(),
-            );
-            self.acir_context.assert_neq_var(
-                vector_length_var,
-                zero,
-                self.current_side_effects_enabled_var,
-                Some(assert_message),
-            )?;
-        }
-
-        let one = self.acir_context.add_constant(FieldElement::one());
-        let new_vector_length_var = self.acir_context.sub_var(vector_length_var, one)?;
+        let new_vector_length_var =
+            self.vector_pop_new_length(dfg, vector_length_id, vector_length_value)?;
 
         let mut new_vector = self.read_array_with_type(vector_contents_value, &vector_type)?;
 
