@@ -190,7 +190,7 @@ impl SpillManager {
     pub(crate) fn reset_lru_for_block(&mut self, live_in: impl Iterator<Item = ValueId>) {
         self.lru_order.clear();
         for value_id in live_in {
-            if !self.records.get(&value_id).is_some_and(|r| r.is_currently_spilled) {
+            if !self.is_spilled(value_id) {
                 self.lru_order.push(value_id);
             }
         }
