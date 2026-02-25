@@ -640,6 +640,7 @@ impl NodeInterner {
             Type::Error,
             generics,
             typ.type_alias_def.visibility,
+            typ.type_alias_def.comptime,
             ModuleId { krate: typ.crate_id, local_id: typ.module_id },
         )));
 

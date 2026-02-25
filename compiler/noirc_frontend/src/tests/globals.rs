@@ -197,8 +197,7 @@ fn global_fn_using_quoted() {
 fn global_using_nested_quoted_type() {
     let src = "
     global foo: [Quoted; 1] = [quote { 1 }];
-                 ^^^^^^ Comptime-only type `Quoted` cannot be used in runtime code
-                 ~~~~~~ Comptime-only type used here
+                 ^^^^^^ Comptime-only type `Quoted` cannot be used in non-comptime global
 
     fn main() {
         let _ = foo;

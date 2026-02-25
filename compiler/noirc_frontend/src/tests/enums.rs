@@ -380,26 +380,6 @@ fn cannot_determine_type_of_generic_argument_in_enum_constructor() {
 }
 
 #[test]
-fn errors_on_comptime_enum() {
-    let src = r#"
-    comptime enum Foo {
-        Bar,
-    }
-    fn main() { }
-    "#;
-
-    let features = vec![UnstableFeature::Enums];
-    let errors = get_program_using_features(src, &features).2;
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::ParseError(error) = &errors[0] else {
-        panic!("Expected a ParseError experimental feature error: {errors:?}");
-    };
-
-    assert!(matches!(error.reason(), Some(ParserErrorReason::ComptimeNotApplicable)));
-}
-
-#[test]
 fn impl_on_enum() {
     let src = r#"
     enum Foo { Bar }

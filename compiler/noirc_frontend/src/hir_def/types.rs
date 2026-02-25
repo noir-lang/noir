@@ -768,6 +768,7 @@ pub struct TypeAlias {
     pub typ: Type,
     pub generics: ResolvedGenerics,
     pub visibility: ItemVisibility,
+    pub comptime: bool,
     pub location: Location,
     /// Optional expression, used by type aliases to numeric generics
     pub numeric_expr: Option<UnresolvedTypeExpression>,
@@ -812,9 +813,20 @@ impl TypeAlias {
         typ: Type,
         generics: ResolvedGenerics,
         visibility: ItemVisibility,
+        comptime: bool,
         module_id: ModuleId,
     ) -> TypeAlias {
-        TypeAlias { id, typ, name, location, generics, visibility, module_id, numeric_expr: None }
+        TypeAlias {
+            id,
+            typ,
+            name,
+            location,
+            generics,
+            visibility,
+            comptime,
+            module_id,
+            numeric_expr: None,
+        }
     }
 
     pub fn set_type_and_generics(

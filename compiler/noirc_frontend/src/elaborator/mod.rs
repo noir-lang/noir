@@ -697,6 +697,9 @@ impl<'context> Elaborator<'context> {
     fn define_type_alias(&mut self, alias_id: TypeAliasId, alias: UnresolvedTypeAlias) {
         self.local_module = Some(alias.module_id);
 
+        let old_comptime_value =
+            std::mem::replace(&mut self.in_comptime_context, alias.type_alias_def.comptime);
+
         let name = &alias.type_alias_def.name;
         let visibility = alias.type_alias_def.visibility;
         let location = alias.type_alias_def.location;
@@ -746,6 +749,8 @@ impl<'context> Elaborator<'context> {
         }
         self.interner.set_type_alias(alias_id, typ, generics, num_expr);
         self.generics.clear();
+
+        self.in_comptime_context = old_comptime_value;
     }
 
     /// True if we're currently within a constrained function or lambda.
