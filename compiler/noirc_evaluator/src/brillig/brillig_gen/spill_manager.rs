@@ -100,14 +100,14 @@ impl SpillManager {
     /// For permanent records, this just clears `is_currently_spilled`.
     /// For transient records, the record is removed entirely and the slot is freed.
     pub(crate) fn remove_spill(&mut self, value_id: &ValueId) {
-        if let Some(record) = self.records.get(value_id) {
-            if record.is_permanent {
-                // Keep the record but mark as not currently spilled.
-                self.records.get_mut(value_id).unwrap().is_currently_spilled = false;
+        if let std::collections::hash_map::Entry::Occupied(mut entry) =
+            self.records.entry(*value_id)
+        {
+            if entry.get().is_permanent {
+                entry.get_mut().is_currently_spilled = false;
             } else {
-                let offset = record.offset;
-                self.records.remove(value_id);
-                self.free_spill_slots.push(offset);
+                let record = entry.remove();
+                self.free_spill_slots.push(record.offset);
             }
         }
     }
@@ -259,7 +259,8 @@ impl SpillManager {
     /// - Currently spilled but not permanent -> promote to permanent
     /// - Permanent but not currently spilled (reloaded) -> re-mark as spilled
     ///
-    /// Returns `true` if a record existed (caller should skip further processing),
+    /// # Returns
+    /// `true` if a record existed (caller should skip further processing),
     /// `false` if no record exists (first encounter — caller must allocate a slot).
     pub(crate) fn ensure_permanent_spill(&mut self, value_id: &ValueId) -> bool {
         if let Some(record) = self.records.get_mut(value_id) {
