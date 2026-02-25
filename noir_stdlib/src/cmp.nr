@@ -490,11 +490,18 @@ where
     }
 }
 
-impl<A, B> Ord for (A, B)
-where
-    A: Ord,
-    B: Ord,
-{
+comptime fn make_tuple_ord_body(n: u32) -> Quoted {
+    let mut body = f"let mut result = self.0.cmp(other.0);".as_ctstring();
+    for i in 1u32..n {
+        body = body.append_fmtstr(
+            f" if result == Ordering::equal() {{ result = self.{i}.cmp(other.{i}); }}",
+        );
+    }
+    body = body.append_str(" result");
+    f"{body}".quoted_contents()
+}
+
+impl<A: Ord, B: Ord> Ord for (A, B) {
     fn cmp(self, other: (A, B)) -> Ordering {
         let result = self.0.cmp(other.0);
 
@@ -506,81 +513,63 @@ where
     }
 }
 
-impl<A, B, C> Ord for (A, B, C)
-where
-    A: Ord,
-    B: Ord,
-    C: Ord,
-{
+impl<A: Ord, B: Ord, C: Ord> Ord for (A, B, C) {
     fn cmp(self, other: (A, B, C)) -> Ordering {
-        let mut result = self.0.cmp(other.0);
-
-        if result == Ordering::equal() {
-            result = self.1.cmp(other.1);
-        }
-
-        if result == Ordering::equal() {
-            result = self.2.cmp(other.2);
-        }
-
-        result
+        make_tuple_ord_body!(3u32)
     }
 }
 
-impl<A, B, C, D> Ord for (A, B, C, D)
-where
-    A: Ord,
-    B: Ord,
-    C: Ord,
-    D: Ord,
-{
+impl<A: Ord, B: Ord, C: Ord, D: Ord> Ord for (A, B, C, D) {
     fn cmp(self, other: (A, B, C, D)) -> Ordering {
-        let mut result = self.0.cmp(other.0);
-
-        if result == Ordering::equal() {
-            result = self.1.cmp(other.1);
-        }
-
-        if result == Ordering::equal() {
-            result = self.2.cmp(other.2);
-        }
-
-        if result == Ordering::equal() {
-            result = self.3.cmp(other.3);
-        }
-
-        result
+        make_tuple_ord_body!(4u32)
     }
 }
 
-impl<A, B, C, D, E> Ord for (A, B, C, D, E)
-where
-    A: Ord,
-    B: Ord,
-    C: Ord,
-    D: Ord,
-    E: Ord,
-{
+impl<A: Ord, B: Ord, C: Ord, D: Ord, E: Ord> Ord for (A, B, C, D, E) {
     fn cmp(self, other: (A, B, C, D, E)) -> Ordering {
-        let mut result = self.0.cmp(other.0);
+        make_tuple_ord_body!(5u32)
+    }
+}
 
-        if result == Ordering::equal() {
-            result = self.1.cmp(other.1);
-        }
+impl<A: Ord, B: Ord, C: Ord, D: Ord, E: Ord, F: Ord> Ord for (A, B, C, D, E, F) {
+    fn cmp(self, other: (A, B, C, D, E, F)) -> Ordering {
+        make_tuple_ord_body!(6u32)
+    }
+}
 
-        if result == Ordering::equal() {
-            result = self.2.cmp(other.2);
-        }
+impl<A: Ord, B: Ord, C: Ord, D: Ord, E: Ord, F: Ord, G: Ord> Ord for (A, B, C, D, E, F, G) {
+    fn cmp(self, other: (A, B, C, D, E, F, G)) -> Ordering {
+        make_tuple_ord_body!(7u32)
+    }
+}
 
-        if result == Ordering::equal() {
-            result = self.3.cmp(other.3);
-        }
+impl<A: Ord, B: Ord, C: Ord, D: Ord, E: Ord, F: Ord, G: Ord, H: Ord> Ord for (A, B, C, D, E, F, G, H) {
+    fn cmp(self, other: (A, B, C, D, E, F, G, H)) -> Ordering {
+        make_tuple_ord_body!(8u32)
+    }
+}
 
-        if result == Ordering::equal() {
-            result = self.4.cmp(other.4);
-        }
+impl<A: Ord, B: Ord, C: Ord, D: Ord, E: Ord, F: Ord, G: Ord, H: Ord, I: Ord> Ord for (A, B, C, D, E, F, G, H, I) {
+    fn cmp(self, other: (A, B, C, D, E, F, G, H, I)) -> Ordering {
+        make_tuple_ord_body!(9u32)
+    }
+}
 
-        result
+impl<A: Ord, B: Ord, C: Ord, D: Ord, E: Ord, F: Ord, G: Ord, H: Ord, I: Ord, J: Ord> Ord for (A, B, C, D, E, F, G, H, I, J) {
+    fn cmp(self, other: (A, B, C, D, E, F, G, H, I, J)) -> Ordering {
+        make_tuple_ord_body!(10u32)
+    }
+}
+
+impl<A: Ord, B: Ord, C: Ord, D: Ord, E: Ord, F: Ord, G: Ord, H: Ord, I: Ord, J: Ord, K: Ord> Ord for (A, B, C, D, E, F, G, H, I, J, K) {
+    fn cmp(self, other: (A, B, C, D, E, F, G, H, I, J, K)) -> Ordering {
+        make_tuple_ord_body!(11u32)
+    }
+}
+
+impl<A: Ord, B: Ord, C: Ord, D: Ord, E: Ord, F: Ord, G: Ord, H: Ord, I: Ord, J: Ord, K: Ord, L: Ord> Ord for (A, B, C, D, E, F, G, H, I, J, K, L) {
+    fn cmp(self, other: (A, B, C, D, E, F, G, H, I, J, K, L)) -> Ordering {
+        make_tuple_ord_body!(12u32)
     }
 }
 
