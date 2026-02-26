@@ -26,7 +26,7 @@ use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 use crate::errors::CliError;
 
 use super::{LockType, PackageOptions, WorkspaceCommand};
-use noir_artifact_cli::fs::inputs::write_inputs_to_file;
+use noir_artifact_cli::fs::inputs::write_inputs_to_file_with_format;
 
 /// Run the fuzzing harnesses for this program
 #[derive(Debug, Clone, Args)]
@@ -462,7 +462,7 @@ fn display_fuzzing_report_and_store(
                     + &package.name.to_string()
                     + "-"
                     + fuzzing_harness_name;
-                write_inputs_to_file(
+                write_inputs_to_file_with_format(
                     fuzzing_failure_path.clone(),
                     &file_name,
                     Format::Toml,
