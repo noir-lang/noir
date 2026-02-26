@@ -769,6 +769,8 @@ impl Elaborator<'_> {
                     return None;
                 };
 
+                let global_value =
+                    crate::hir_def::types::constant_from_signed_field(global_value, &kind);
                 let Ok(global_value) = kind.ensure_value_fits(global_value, location) else {
                     self.push_err(ResolverError::GlobalDoesNotFitItsType {
                         location,
@@ -824,7 +826,10 @@ impl Elaborator<'_> {
                     ));
                 }
 
-                Type::Constant(int, suffix_kind)
+                Type::Constant(
+                    crate::hir_def::types::constant_from_signed_field(int, &suffix_kind),
+                    suffix_kind,
+                )
             }
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, location) => {
                 let (lhs_location, rhs_location) = (lhs.location(), rhs.location());

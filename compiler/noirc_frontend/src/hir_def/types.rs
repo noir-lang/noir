@@ -20,6 +20,117 @@ use crate::{
     signed_field::{AbsU128, SignedField},
     token::IntegerTypeSuffix,
 };
+
+/// The concrete value stored in a [`Type::Constant`].
+/// The variant matches the kind of the constant:
+/// - [`ConstantValue::Field`] for `Kind::Numeric(Type::FieldElement)`
+/// - [`ConstantValue::Integer`] for integer kinds (except `u128`)
+/// - [`ConstantValue::U128`] for `Kind::Numeric(Type::Integer(Unsigned, U128))`
+#[derive(Debug, Copy, Clone, serde::Serialize, serde::Deserialize)]
+pub enum ConstantValue {
+    Field(FieldElement),
+    Integer(i128),
+    U128(u128),
+}
+
+impl ConstantValue {
+    /// Convert to a [`SignedField`] for use in arithmetic or error messages.
+    pub fn to_signed_field(self) -> SignedField {
+        match self {
+            Self::Field(fe) => SignedField::positive(fe),
+            Self::Integer(i) => SignedField::from_signed(i),
+            Self::U128(u) => SignedField::positive(u),
+        }
+    }
+
+    /// Construct the zero value for the given kind.
+    pub(crate) fn zero(kind: &Kind) -> Self {
+        match kind.integral_maximum_size() {
+            None => Self::Field(FieldElement::zero()),
+            Some(max) if max.to_u128() == u128::MAX => Self::U128(0),
+            Some(_) => Self::Integer(0),
+        }
+    }
+
+    /// Construct the one value for the given kind.
+    pub(crate) fn one(kind: &Kind) -> Self {
+        match kind.integral_maximum_size() {
+            None => Self::Field(FieldElement::one()),
+            Some(max) if max.to_u128() == u128::MAX => Self::U128(1),
+            Some(_) => Self::Integer(1),
+        }
+    }
+
+    pub fn is_zero(&self) -> bool {
+        match self {
+            Self::Field(fe) => fe.is_zero(),
+            Self::Integer(i) => *i == 0,
+            Self::U128(u) => *u == 0,
+        }
+    }
+
+    pub fn is_one(&self) -> bool {
+        match self {
+            Self::Field(fe) => fe.is_one(),
+            Self::Integer(i) => *i == 1,
+            Self::U128(u) => *u == 1,
+        }
+    }
+
+    pub(crate) fn to_u32(self) -> Option<u32> {
+        match self {
+            Self::Integer(i) => u32::try_from(i).ok(),
+            Self::U128(u) => u32::try_from(u).ok(),
+            Self::Field(fe) => u32::try_from(fe.to_u128()).ok(),
+        }
+    }
+}
+
+impl PartialEq for ConstantValue {
+    fn eq(&self, other: &Self) -> bool {
+        self.to_signed_field() == other.to_signed_field()
+    }
+}
+
+impl Eq for ConstantValue {}
+
+impl std::hash::Hash for ConstantValue {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.to_signed_field().hash(state);
+    }
+}
+
+impl Ord for ConstantValue {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.to_signed_field().cmp(&other.to_signed_field())
+    }
+}
+
+impl PartialOrd for ConstantValue {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl std::fmt::Display for ConstantValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Field(fe) => write!(f, "{fe}"),
+            Self::Integer(i) => write!(f, "{i}"),
+            Self::U128(u) => write!(f, "{u}"),
+        }
+    }
+}
+
+/// Convert a [`SignedField`] to a [`ConstantValue`] for storage in [`Type::Constant`].
+/// The `kind` determines which variant to use.
+pub(crate) fn constant_from_signed_field(sf: SignedField, kind: &Kind) -> ConstantValue {
+    match kind.integral_maximum_size() {
+        None => ConstantValue::Field(sf.to_field_element()),
+        Some(max) if max.to_u128() == u128::MAX => ConstantValue::U128(sf.to_u128()),
+        Some(_) => ConstantValue::Integer(sf.to_i128()),
+    }
+}
 use iter_extended::vecmap;
 use noirc_errors::Location;
 use noirc_printable_type::PrintableType;
@@ -134,7 +245,7 @@ pub enum Type {
     /// 1. an Array's size type variable
     ///    bind to an integer without special checks to bind it to a non-type.
     /// 2. values to be used at the type level
-    Constant(SignedField, Kind),
+    Constant(ConstantValue, Kind),
 
     /// The type of quoted code in macros. This is always a comptime-only type
     Quoted(QuotedType),
@@ -287,11 +398,12 @@ impl Kind {
     /// Ensure the given value fits in self.integral_maximum_size()
     pub(crate) fn ensure_value_fits(
         &self,
-        value: SignedField,
+        value: ConstantValue,
         location: Location,
-    ) -> Result<SignedField, TypeCheckError> {
+    ) -> Result<ConstantValue, TypeCheckError> {
+        let sf = value.to_signed_field();
         if let Some(maximum_size) = self.integral_maximum_size()
-            && value > SignedField::positive(maximum_size)
+            && sf > SignedField::positive(maximum_size)
         {
             return Err(TypeCheckError::OverflowingConstant {
                 value,
@@ -302,7 +414,7 @@ impl Kind {
         }
 
         if let Some(minimum_size) = self.integral_minimum_size()
-            && value < minimum_size
+            && sf < minimum_size
         {
             return Err(TypeCheckError::UnderflowingConstant {
                 value,
@@ -2401,36 +2513,36 @@ impl Type {
     /// If this type is a Type::Constant (used in array lengths), or is bound
     /// to a Type::Constant, return the constant as a u32.
     pub fn evaluate_to_u32(&self, location: Location) -> Result<u32, TypeCheckError> {
-        self.evaluate_to_signed_field(&Kind::u32(), location).map(|signed_field| {
-            signed_field
-                .try_to_unsigned::<u32>()
-                .expect("ICE: size should have already been checked by evaluate_to_field_element")
+        self.evaluate_to_constant(&Kind::u32(), location).map(|value| {
+            value
+                .to_u32()
+                .expect("ICE: size should have already been checked by evaluate_to_constant")
         })
     }
 
     // TODO(https://github.com/noir-lang/noir/issues/6260): remove
     // the unifies checks once all kinds checks are implemented?
-    pub(crate) fn evaluate_to_signed_field(
+    pub(crate) fn evaluate_to_constant(
         &self,
         kind: &Kind,
         location: Location,
-    ) -> Result<SignedField, TypeCheckError> {
+    ) -> Result<ConstantValue, TypeCheckError> {
         let run_simplifications = true;
-        self.evaluate_to_signed_field_helper(kind, location, run_simplifications)
+        self.evaluate_to_constant_helper(kind, location, run_simplifications)
     }
 
-    /// `evaluate_to_field_element` with optional generic arithmetic simplifications
-    pub(crate) fn evaluate_to_signed_field_helper(
+    /// `evaluate_to_constant` with optional generic arithmetic simplifications
+    pub(crate) fn evaluate_to_constant_helper(
         &self,
         kind: &Kind,
         location: Location,
         run_simplifications: bool,
-    ) -> Result<SignedField, TypeCheckError> {
+    ) -> Result<ConstantValue, TypeCheckError> {
         if let Some((binding, binding_kind)) = self.get_inner_type_variable() {
             match &*binding.borrow() {
                 TypeBinding::Bound(binding) => {
                     if kind.unifies(&binding_kind) {
-                        return binding.evaluate_to_signed_field_helper(
+                        return binding.evaluate_to_constant_helper(
                             &binding_kind,
                             location,
                             run_simplifications,
@@ -2456,12 +2568,12 @@ impl Type {
             Type::InfixExpr(lhs, op, rhs, _) => {
                 let infix_kind = lhs.infix_kind(&rhs);
                 if kind.unifies(&infix_kind) {
-                    let lhs_value = lhs.evaluate_to_signed_field_helper(
+                    let lhs_value = lhs.evaluate_to_constant_helper(
                         &infix_kind,
                         location,
                         run_simplifications,
                     )?;
-                    let rhs_value = rhs.evaluate_to_signed_field_helper(
+                    let rhs_value = rhs.evaluate_to_constant_helper(
                         &infix_kind,
                         location,
                         run_simplifications,
@@ -2476,13 +2588,13 @@ impl Type {
                 }
             }
             Type::CheckedCast { from, to } => {
-                let to_value = to.evaluate_to_signed_field(kind, location)?;
+                let to_value = to.evaluate_to_constant(kind, location)?;
 
                 // if both 'to' and 'from' evaluate to a constant,
                 // return None unless they match
                 let skip_simplifications = false;
                 if let Ok(from_value) =
-                    from.evaluate_to_signed_field_helper(kind, location, skip_simplifications)
+                    from.evaluate_to_constant_helper(kind, location, skip_simplifications)
                 {
                     if to_value == from_value {
                         Ok(to_value)
@@ -3277,7 +3389,7 @@ impl Type {
 impl From<u8> for Type {
     fn from(value: u8) -> Self {
         Type::Constant(
-            value.into(),
+            ConstantValue::Integer(i128::from(value)),
             Kind::numeric(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)),
         )
     }
@@ -3285,13 +3397,16 @@ impl From<u8> for Type {
 
 impl From<u32> for Type {
     fn from(value: u32) -> Self {
-        Type::Constant(value.into(), Kind::u32())
+        Type::Constant(ConstantValue::Integer(i128::from(value)), Kind::u32())
     }
 }
 
 impl From<SignedField> for Type {
     fn from(value: SignedField) -> Self {
-        Type::Constant(value, Kind::numeric(Type::FieldElement))
+        Type::Constant(
+            ConstantValue::Field(value.to_field_element()),
+            Kind::numeric(Type::FieldElement),
+        )
     }
 }
 
@@ -3299,65 +3414,98 @@ impl BinaryTypeOperator {
     /// Perform the actual rust numeric operation associated with this operator
     pub fn function(
         self,
-        a: SignedField,
-        b: SignedField,
+        a: ConstantValue,
+        b: ConstantValue,
         kind: &Kind,
         location: Location,
-    ) -> Result<SignedField, TypeCheckError> {
+    ) -> Result<ConstantValue, TypeCheckError> {
         match kind.integral_maximum_size() {
-            None => match self {
-                BinaryTypeOperator::Addition => Ok(a + b),
-                BinaryTypeOperator::Subtraction => Ok(a - b),
-                BinaryTypeOperator::Multiplication => Ok(a * b),
-                BinaryTypeOperator::Division => (!b.is_zero())
-                    .then(|| a / b)
-                    .ok_or(TypeCheckError::DivisionByZero { lhs: a, rhs: b, location }),
-                BinaryTypeOperator::Modulo => {
-                    Err(TypeCheckError::ModuloOnFields { lhs: a, rhs: b, location })
-                }
-            },
-            Some(maximum_size) => {
-                if maximum_size.to_u128() == u128::MAX {
-                    // For u128 operations we need to use u128
-                    let a = a.to_u128();
-                    let b = b.to_u128();
-
-                    let err = TypeCheckError::FailingBinaryOp {
-                        op: self,
-                        lhs: a.to_string(),
-                        rhs: b.to_string(),
+            None => {
+                // Field arithmetic. Extract a FieldElement from any ConstantValue variant.
+                let extract_fe = |v: ConstantValue| -> FieldElement {
+                    match v {
+                        ConstantValue::Field(fe) => fe,
+                        ConstantValue::U128(u) => FieldElement::from(u),
+                        ConstantValue::Integer(i) => FieldElement::from(i as u128),
+                    }
+                };
+                let fa = extract_fe(a);
+                let fb = extract_fe(b);
+                match self {
+                    BinaryTypeOperator::Addition => Ok(ConstantValue::Field(fa + fb)),
+                    BinaryTypeOperator::Subtraction => Ok(ConstantValue::Field(fa - fb)),
+                    BinaryTypeOperator::Multiplication => Ok(ConstantValue::Field(fa * fb)),
+                    BinaryTypeOperator::Division => {
+                        if fb.is_zero() {
+                            Err(TypeCheckError::DivisionByZero {
+                                lhs: ConstantValue::Field(fa),
+                                rhs: ConstantValue::Field(fb),
+                                location,
+                            })
+                        } else {
+                            Ok(ConstantValue::Field(fa / fb))
+                        }
+                    }
+                    BinaryTypeOperator::Modulo => Err(TypeCheckError::ModuloOnFields {
+                        lhs: ConstantValue::Field(fa),
+                        rhs: ConstantValue::Field(fb),
                         location,
-                    };
-                    let result = match self {
-                        BinaryTypeOperator::Addition => a.checked_add(b).ok_or(err)?,
-                        BinaryTypeOperator::Subtraction => a.checked_sub(b).ok_or(err)?,
-                        BinaryTypeOperator::Multiplication => a.checked_mul(b).ok_or(err)?,
-                        BinaryTypeOperator::Division => a.checked_div(b).ok_or(err)?,
-                        BinaryTypeOperator::Modulo => a.checked_rem(b).ok_or(err)?,
-                    };
-
-                    Ok(result.into())
-                } else {
-                    // Every other type first in i128, allowing both positive and negative values
-                    let a = a.to_i128();
-                    let b = b.to_i128();
-
-                    let err = TypeCheckError::FailingBinaryOp {
-                        op: self,
-                        lhs: a.to_string(),
-                        rhs: b.to_string(),
-                        location,
-                    };
-                    let result = match self {
-                        BinaryTypeOperator::Addition => a.checked_add(b).ok_or(err)?,
-                        BinaryTypeOperator::Subtraction => a.checked_sub(b).ok_or(err)?,
-                        BinaryTypeOperator::Multiplication => a.checked_mul(b).ok_or(err)?,
-                        BinaryTypeOperator::Division => a.checked_div(b).ok_or(err)?,
-                        BinaryTypeOperator::Modulo => a.checked_rem(b).ok_or(err)?,
-                    };
-
-                    kind.ensure_value_fits(result.into(), location)
+                    }),
                 }
+            }
+            Some(max) if max.to_u128() == u128::MAX => {
+                // u128 arithmetic: extract a u128 from any ConstantValue variant.
+                let extract_u128 = |v: ConstantValue| -> u128 {
+                    match v {
+                        ConstantValue::U128(u) => u,
+                        ConstantValue::Integer(i) => i as u128,
+                        ConstantValue::Field(fe) => fe.to_u128(),
+                    }
+                };
+                let au = extract_u128(a);
+                let bu = extract_u128(b);
+                let err = TypeCheckError::FailingBinaryOp {
+                    op: self,
+                    lhs: au.to_string(),
+                    rhs: bu.to_string(),
+                    location,
+                };
+                let result = match self {
+                    BinaryTypeOperator::Addition => au.checked_add(bu).ok_or(err)?,
+                    BinaryTypeOperator::Subtraction => au.checked_sub(bu).ok_or(err)?,
+                    BinaryTypeOperator::Multiplication => au.checked_mul(bu).ok_or(err)?,
+                    BinaryTypeOperator::Division => au.checked_div(bu).ok_or(err)?,
+                    BinaryTypeOperator::Modulo => au.checked_rem(bu).ok_or(err)?,
+                };
+                kind.ensure_value_fits(ConstantValue::U128(result), location)
+            }
+            Some(_) => {
+                // Signed or small unsigned integer arithmetic: extract an i128.
+                // Unsigned types (u1..u64) store values in U128 or (when kind was unbound
+                // at creation) in Field — convert either to i128. Signed types use Integer.
+                let extract_i128 = |v: ConstantValue| -> i128 {
+                    match v {
+                        ConstantValue::Integer(i) => i,
+                        ConstantValue::U128(u) => u as i128,
+                        ConstantValue::Field(fe) => fe.to_u128() as i128,
+                    }
+                };
+                let ai = extract_i128(a);
+                let bi = extract_i128(b);
+                let err = TypeCheckError::FailingBinaryOp {
+                    op: self,
+                    lhs: ai.to_string(),
+                    rhs: bi.to_string(),
+                    location,
+                };
+                let result = match self {
+                    BinaryTypeOperator::Addition => ai.checked_add(bi).ok_or(err)?,
+                    BinaryTypeOperator::Subtraction => ai.checked_sub(bi).ok_or(err)?,
+                    BinaryTypeOperator::Multiplication => ai.checked_mul(bi).ok_or(err)?,
+                    BinaryTypeOperator::Division => ai.checked_div(bi).ok_or(err)?,
+                    BinaryTypeOperator::Modulo => ai.checked_rem(bi).ok_or(err)?,
+                };
+                kind.ensure_value_fits(ConstantValue::Integer(result), location)
             }
         }
     }
@@ -3830,7 +3978,10 @@ mod tests {
     fn create_nested_array(depth: usize) -> Type {
         let mut typ = Type::FieldElement;
         for _ in 0..depth {
-            typ = Type::Array(Box::new(Type::Constant(1.into(), Kind::u32())), Box::new(typ));
+            typ = Type::Array(
+                Box::new(Type::Constant(ConstantValue::Integer(1), Kind::u32())),
+                Box::new(typ),
+            );
         }
         typ
     }

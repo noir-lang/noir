@@ -7,8 +7,8 @@ use crate::{
     ast::{Ident, UnsupportedNumericGenericType},
     elaborator::{TypedPath, types::WildcardDisallowedContext},
     hir::{comptime::Value, type_check::TypeCheckError},
+    hir_def::types::ConstantValue,
     parser::ParserError,
-    signed_field::SignedField,
     usage_tracker::UnusedItem,
 };
 
@@ -111,7 +111,7 @@ pub enum ResolverError {
     #[error("Globals used in a type position must be integers")]
     NonIntegralGlobalType { location: Location, global_value: Value },
     #[error("Global value `{global_value}` does not fit its kind's range")]
-    GlobalDoesNotFitItsType { location: Location, global_value: SignedField, kind: Kind },
+    GlobalDoesNotFitItsType { location: Location, global_value: ConstantValue, kind: Kind },
     #[error("Self-referential types are not supported")]
     SelfReferentialType { location: Location },
     #[error("#[no_predicates] attribute is only allowed on constrained functions")]
@@ -138,9 +138,9 @@ pub enum ResolverError {
     AssociatedConstantsMustBeNumeric { location: Location },
     #[error("Computing `{lhs} {op} {rhs}` failed with error {err}")]
     BinaryOpError {
-        lhs: SignedField,
+        lhs: ConstantValue,
         op: crate::BinaryTypeOperator,
-        rhs: SignedField,
+        rhs: ConstantValue,
         err: Box<TypeCheckError>,
         location: Location,
     },

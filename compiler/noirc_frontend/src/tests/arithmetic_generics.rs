@@ -4,10 +4,11 @@ use core::panic;
 
 use crate::hir::type_check::TypeCheckError;
 use crate::hir_def::types::BinaryTypeOperator;
+use crate::hir_def::types::ConstantValue;
 use crate::monomorphization::errors::MonomorphizationError;
-use crate::signed_field::SignedField;
 use crate::test_utils::get_monomorphized;
 use crate::tests::{assert_no_errors, check_errors};
+use acvm::AcirField;
 
 #[test]
 fn arithmetic_generics_canonicalization_deduplication_regression() {
@@ -122,8 +123,8 @@ fn arithmetic_generics_checked_cast_indirect_zeros() {
     {
         match err {
             TypeCheckError::ModuloOnFields { lhs, rhs, .. } => {
-                assert_eq!(lhs.clone(), SignedField::zero());
-                assert_eq!(rhs.clone(), SignedField::zero());
+                assert_eq!(*lhs, ConstantValue::Field(acvm::FieldElement::zero()));
+                assert_eq!(*rhs, ConstantValue::Field(acvm::FieldElement::zero()));
             }
             _ => panic!("expected ModuloOnFields, but found: {err:?}"),
         }
