@@ -359,7 +359,7 @@ mod tests {
             "
         acir(inline) fn main f0 {{
           b0(v0: u1):
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             v2 = mul u128 {}, u128 {}
             jmp b2()

@@ -443,7 +443,9 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             TerminatorInstruction::JmpIf {
                 condition,
                 then_destination,
+                then_arguments,
                 else_destination,
+                else_arguments,
                 call_stack: _,
             } => {
                 // Permanently spill non-param live-ins of BOTH branches BEFORE
@@ -461,13 +463,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 self.spill_non_param_live_ins(*then_destination, dfg);
                 self.spill_non_param_live_ins(*else_destination, dfg);
                 let condition = self.convert_ssa_single_addr_value(*condition, dfg);
-                self.brillig_context.jump_if_instruction(
-                    condition.address,
-                    self.create_block_label_for_current_function(*then_destination),
-                );
-                self.brillig_context.jump_instruction(
-                    self.create_block_label_for_current_function(*else_destination),
-                );
+                self.jmpif_to_then_block(dfg, condition, *then_destination, then_arguments);
+                self.jmp(dfg, *else_destination, else_arguments);
             }
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
                 // Permanently spill non-param live-ins BEFORE the arg/param parallel moves.
@@ -476,68 +473,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 // the stores read correct register values.
                 // Parameters are not spilled here. They are eagerly spilled at the beginning of a block's code gen.
                 self.spill_non_param_live_ins(*destination, dfg);
-                let destination_block = &dfg[*destination];
-                let mut moves: Vec<(MemoryAddress, MemoryAddress)> = Vec::new();
-                for (arg, param) in arguments.iter().zip(destination_block.parameters()) {
-                    let arg_var = self.convert_ssa_value(*arg, dfg);
-                    let arg_reg = arg_var.extract_register();
-
-                    // Check if the param was eagerly spilled as a successor block
-                    // param. Use the permanent record (not the transient `spilled`
-                    // map) so ALL Jmp sites consistently write to the spill slot,
-                    // regardless of compilation order.
-                    let spill_offset = self
-                        .function_context
-                        .spill_manager
-                        .as_ref()
-                        .and_then(|sm| sm.get_permanent_spill_offset(param));
-
-                    if let Some(offset) = spill_offset {
-                        // Param was spilled — write arg directly to param's spill slot.
-                        self.codegen_spill_store(offset, arg_reg);
-                    } else {
-                        let param_reg = self
-                            .variables
-                            .get_allocation(self.function_context, *param)
-                            .extract_register();
-                        moves.push((arg_reg, param_reg));
-                    }
-                }
-
-                // Block parameter assignments at a jmp must happen "simultaneously".
-                // A naive sequential loop can lose values when a source register
-                // is overwritten by an earlier move in the same batch. For example, with:
-                //   `jmp b1(v1, v2, u32 10)` where b1(v2, v3, v4):
-                // Sequential execution would:
-                //      1. mov reg(v2), reg(v1) — overwrites old v3
-                //      2. mov reg(v3), reg(v2) — reads the NEW v2 instead of old
-                // To prevent this, we save any source that would be overwritten into a
-                // temporary first.
-                // Filter out self-moves (e.g. from coalesced args that already share the param register).
-                moves.retain(|(src, dst)| src != dst);
-
-                let dest_set: HashSet<MemoryAddress> = moves.iter().map(|(_, d)| *d).collect();
-                // `Allocated` automatically deallocates the register when dropped,
-                // so we collect the temporaries here to keep them alive until all
-                // moves have been emitted.
-                let mut temps = Vec::new();
-                for (src, _dst) in &mut moves {
-                    if dest_set.contains(src) {
-                        let temp = self.brillig_context.allocate_register();
-                        self.brillig_context.mov_instruction(*temp, *src);
-                        *src = *temp;
-                        temps.push(temp);
-                    }
-                }
-
-                for (src, dst) in &moves {
-                    if src != dst {
-                        self.brillig_context.mov_instruction(*dst, *src);
-                    }
-                }
-
-                self.brillig_context
-                    .jump_instruction(self.create_block_label_for_current_function(*destination));
+                self.jmp(dfg, *destination, arguments);
             }
             TerminatorInstruction::Return { return_values, .. } => {
                 let return_registers = vecmap(return_values, |value_id| {
@@ -550,6 +486,110 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 // If we assume this is unreachable code then there's nothing to do here
             }
         }
+    }
+
+    fn jmp(&mut self, dfg: &DataFlowGraph, destination: BasicBlockId, arguments: &[ValueId]) {
+        let moves = self.jmp_setup(dfg, destination, arguments);
+        for (src, dst) in &moves {
+            self.brillig_context.mov_instruction(*dst, *src);
+        }
+
+        self.brillig_context
+            .jump_instruction(self.create_block_label_for_current_function(destination));
+    }
+
+    fn jmp_setup(
+        &mut self,
+        dfg: &DataFlowGraph,
+        destination: BasicBlockId,
+        arguments: &[ValueId],
+    ) -> Vec<(MemoryAddress, MemoryAddress)> {
+        let destination_block = &dfg[destination];
+        let mut moves: Vec<(MemoryAddress, MemoryAddress)> = Vec::new();
+
+        assert_eq!(arguments.len(), destination_block.parameters().len());
+        for (arg, param) in arguments.iter().zip(destination_block.parameters()) {
+            let arg_var = self.convert_ssa_value(*arg, dfg);
+            let arg_reg = arg_var.extract_register();
+
+            // Check if the param was eagerly spilled as a successor block
+            // param. Use the permanent record (not the transient `spilled`
+            // map) so ALL Jmp sites consistently write to the spill slot,
+            // regardless of compilation order.
+            let spill_offset = self
+                .function_context
+                .spill_manager
+                .as_ref()
+                .and_then(|sm| sm.get_permanent_spill_offset(param));
+
+            if let Some(offset) = spill_offset {
+                // Param was spilled — write arg directly to param's spill slot.
+                self.codegen_spill_store(offset, arg_reg);
+            } else {
+                let param_reg =
+                    self.variables.get_allocation(self.function_context, *param).extract_register();
+                moves.push((arg_reg, param_reg));
+            }
+        }
+
+        moves.retain(|(src, dst)| src != dst);
+        // Block parameter assignments at a jmp must happen "simultaneously".
+        // A naive sequential loop can lose values when a source register
+        // is overwritten by an earlier move in the same batch. For example, with:
+        //   `jmp b1(v1, v2, u32 10)` where b1(v2, v3, v4):
+        // Sequential execution would:
+        //      1. mov reg(v2), reg(v1) — overwrites old v3
+        //      2. mov reg(v3), reg(v2) — reads the NEW v2 instead of old
+        // To prevent this, we save any source that would be overwritten into a
+        // temporary first.
+        let dest_set: HashSet<MemoryAddress> = moves.iter().map(|(_, d)| *d).collect();
+
+        // `Allocated` automatically deallocates the register when dropped,
+        // so we collect the temporaries here to keep them alive until all
+        // moves have been emitted.
+        let mut temps = Vec::new();
+        for (src, _dst) in &mut moves {
+            if dest_set.contains(src) {
+                let temp = self.brillig_context.allocate_register();
+                self.brillig_context.mov_instruction(*temp, *src);
+                *src = *temp;
+                temps.push(temp);
+            }
+        }
+        moves
+    }
+
+    /// Conditionally move only the `then_arguments` of a jmpif terminator then
+    /// conditionally jump to `then_destination` if `condition` is true.
+    ///
+    /// A `JmpIf` terminator roughly translates into:
+    /// ```brillig
+    /// <conditional-move of then-arguments>
+    /// jmpif condition then_block
+    /// <unconditional move of else-arguments>
+    /// jmp else_block
+    /// ```
+    /// Because we don't want to overwrite the parameters of the then-block if we don't end up
+    /// taking that branch, the then arguments must be only conditionally moved while the else
+    /// arguments can be moved unconditionally.
+    fn jmpif_to_then_block(
+        &mut self,
+        dfg: &DataFlowGraph,
+        condition: SingleAddrVariable,
+        then_destination: BasicBlockId,
+        then_arguments: &[ValueId],
+    ) {
+        let moves = self.jmp_setup(dfg, then_destination, then_arguments);
+        for (src, dst) in &moves {
+            // The else_address is the same as the destination here to avoid modification if the
+            // condition is false.
+            self.brillig_context.conditional_move_instruction(condition.address, *src, *dst, *dst);
+        }
+
+        self.brillig_context.jump_if_instruction(
+            condition.address,
+            self.create_block_label_for_current_function(then_destination),
+        );
     }
 
     /// Allocates the block parameters that the given block is defining.
@@ -968,10 +1008,10 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 BrilligVariable::SingleAddr(else_address),
             ) => {
                 self.brillig_context.conditional_move_instruction(
-                    then_condition,
-                    then_address,
-                    else_address,
-                    result.extract_single_addr(),
+                    then_condition.address,
+                    then_address.address,
+                    else_address.address,
+                    result.extract_single_addr().address,
                 );
             }
             (
@@ -981,10 +1021,10 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 // Pointer to the array which result from the if-else
                 let pointer = self.brillig_context.allocate_register();
                 self.brillig_context.conditional_move_instruction(
-                    then_condition,
-                    SingleAddrVariable::new_usize(then_array.pointer),
-                    SingleAddrVariable::new_usize(else_array.pointer),
-                    SingleAddrVariable::new_usize(*pointer),
+                    then_condition.address,
+                    then_array.pointer,
+                    else_array.pointer,
+                    *pointer,
                 );
                 let if_else_array = BrilligArray { pointer: *pointer, size: then_array.size };
                 // Copy the if-else array to the result
@@ -998,10 +1038,10 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 // Pointer to the vector which result from the if-else
                 let pointer = self.brillig_context.allocate_register();
                 self.brillig_context.conditional_move_instruction(
-                    then_condition,
-                    SingleAddrVariable::new_usize(then_vector.pointer),
-                    SingleAddrVariable::new_usize(else_vector.pointer),
-                    SingleAddrVariable::new_usize(*pointer),
+                    then_condition.address,
+                    then_vector.pointer,
+                    else_vector.pointer,
+                    *pointer,
                 );
                 let if_else_vector = BrilligVector { pointer: *pointer };
                 // Copy the if-else vector to the result

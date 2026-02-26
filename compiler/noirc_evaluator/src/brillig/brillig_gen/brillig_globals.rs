@@ -487,7 +487,7 @@ mod tests {
               jmp b1(u32 0)
           b1(v7: u32):
               v11 = lt v7, u32 2
-              jmpif v11 then: b3, else: b2
+              jmpif v11 then: b3(), else: b2()
           b2():
               v12 = load v8 -> Field
               v13 = eq v12, Field 0

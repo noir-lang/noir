@@ -318,7 +318,7 @@ impl FuzzerBuilder {
         then_destination: BasicBlockId,
         else_destination: BasicBlockId,
     ) {
-        self.builder.terminate_with_jmpif(condition, then_destination, else_destination);
+        self.builder.terminate_with_jmpif_no_args(condition, then_destination, else_destination);
     }
 
     pub fn insert_add_to_memory(&mut self, lhs: TypedValue) -> TypedValue {
