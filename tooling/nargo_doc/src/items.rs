@@ -194,6 +194,7 @@ pub struct Struct {
     pub fields: Vec<StructField>,
     /// `true` if the struct has any private fields, besides the public ones listed in `fields`.
     pub has_private_fields: bool,
+    pub comptime: bool,
     pub impls: Vec<Impl>,
     pub trait_impls: Vec<TraitImpl>,
     pub comments: Option<Comments>,
@@ -358,6 +359,7 @@ pub struct TypeAlias {
     pub name: String,
     pub generics: Vec<Generic>,
     pub r#type: Type,
+    pub comptime: bool,
     pub comments: Option<Comments>,
 }
 
