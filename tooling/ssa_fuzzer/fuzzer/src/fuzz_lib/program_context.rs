@@ -268,7 +268,7 @@ impl FuzzerProgramContext {
 
     /// Returns program compiled from the builder
     pub(crate) fn get_program(self) -> Result<CompiledProgram, FuzzerBuilderError> {
-        self.builder.compile(self.program_context_options.compile_options.clone())
+        self.builder.compile(self.program_context_options.compile_options)
     }
 
     pub(crate) fn get_mode(&self) -> FuzzerMode {

@@ -355,7 +355,7 @@ mod tests {
 
         // Copy everything from the original directory to the new directory
         // (because some dependencies might be there and might be needed for the expanded code to work)
-        copy_dir_all(test_program_dir.clone(), temp_dir.clone()).unwrap();
+        copy_dir_all(&test_program_dir, temp_dir.clone()).unwrap();
 
         // Create a main file for the expanded code
         fs::write(temp_dir.join("src").join("main.nr"), expanded_code).unwrap();
@@ -386,7 +386,7 @@ mod tests {
     fn nargo_expand_compile(test_program_dir: PathBuf, prefix: &'static str) {
         #[allow(deprecated)]
         let mut nargo = Command::cargo_bin("nargo").unwrap();
-        nargo.arg("--program-dir").arg(test_program_dir.clone());
+        nargo.arg("--program-dir").arg(&test_program_dir);
         nargo.arg("expand").arg("--force").arg("--disable-comptime-printing");
 
         // Enable enums as an unstable feature
@@ -412,7 +412,7 @@ mod tests {
 
         // Copy everything from the original directory to the new directory
         // (because some dependencies might be there and might be needed for the expanded code to work)
-        copy_dir_all(test_program_dir.clone(), temp_dir.clone()).unwrap();
+        copy_dir_all(test_program_dir, temp_dir.clone()).unwrap();
 
         // Create a main file for the expanded code
         fs::write(temp_dir.join("src").join("main.nr"), expanded_code).unwrap();

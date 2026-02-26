@@ -1009,7 +1009,7 @@ impl<
                 acir_failed,
                 counterexample,
             }) => {
-                let reason = match acir_failed {
+                let failure_reason = match acir_failed {
                     true => {
                         format!("ACIR failed while brillig executed with no issues: {status}")
                     }
@@ -1019,25 +1019,20 @@ impl<
                 };
 
                 FuzzTestResult::ProgramFailure(ProgramFailureResult {
-                    failure_reason: reason,
-                    counterexample: counterexample.clone(),
+                    failure_reason,
+                    counterexample,
                 })
             }
             HarnessExecutionOutcome::CounterExample(CounterExampleOutcome {
                 case_id: _,
-                exit_reason: status,
+                exit_reason: failure_reason,
                 counterexample,
-            }) => {
-                let reason = status.to_string();
-                FuzzTestResult::ProgramFailure(ProgramFailureResult {
-                    failure_reason: reason,
-                    counterexample: counterexample.clone(),
-                })
-            }
+            }) => FuzzTestResult::ProgramFailure(ProgramFailureResult {
+                failure_reason,
+                counterexample,
+            }),
             HarnessExecutionOutcome::ForeignCallFailure(foreign_call_error_in_fuzzing) => {
-                FuzzTestResult::ForeignCallFailure(
-                    foreign_call_error_in_fuzzing.exit_reason.to_string(),
-                )
+                FuzzTestResult::ForeignCallFailure(foreign_call_error_in_fuzzing.exit_reason)
             }
         }
     }

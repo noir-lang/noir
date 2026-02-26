@@ -162,6 +162,7 @@
         "indexmap",
         "injective",
         "injectivity",
+        "inlineable",
         "Inlines",
         "insta",
         "instrumenter",

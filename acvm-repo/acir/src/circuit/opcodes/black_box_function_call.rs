@@ -164,13 +164,15 @@ pub enum BlackBoxFuncCall<F> {
     ///     - scalars (witness, N) a vector of low and high limbs of input
     ///     - scalars `[s1_low, s1_high, s2_low, s2_high, ...]`. (witness, N)
     ///       For Barretenberg, they must both be less than 128 bits.
+    ///       Barretenberg implementation of the blackbox also ensures that the scalars do not overflow the Grumpkin scalar field modulus.
+    ///    - predicate (witness) a boolean that disable the constraint when false
     /// - output:
     ///     - a tuple of `x` and `y` coordinates of output
     ///       points computed as `s_low*P+s_high*2^{128}*P`
     ///
     /// Because the Grumpkin scalar field is bigger than the ACIR field, we
     /// provide 2 ACIR fields representing the low and high parts of the Grumpkin
-    /// scalar $a$: `a=low+high*2^{128}`, with `low, high < 2^{128}`
+    /// scalar $a$: `a=low+high*2^{128}`, with `low< 2^{128}` and `high< 2^{126}`
     MultiScalarMul {
         points: Vec<FunctionInput<F>>,
         scalars: Vec<FunctionInput<F>>,
@@ -665,7 +667,7 @@ mod arb {
                 });
 
             let case_blake3 =
-                (input_arr_8.clone(), witness_arr_32.clone()).prop_map(|(inputs, outputs)| {
+                (input_arr_8.clone(), witness_arr_32).prop_map(|(inputs, outputs)| {
                     BlackBoxFuncCall::Blake3 { inputs: inputs.to_vec(), outputs }
                 });
 
@@ -693,8 +695,8 @@ mod arb {
             let case_ecdsa_secp256r1 = (
                 input_arr_32.clone(),
                 input_arr_32.clone(),
-                input_arr_64.clone(),
-                input_arr_32.clone(),
+                input_arr_64,
+                input_arr_32,
                 witness.clone(),
                 input.clone(),
             )
@@ -730,11 +732,11 @@ mod arb {
 
             let case_embedded_curve_add = (
                 input_arr_3.clone(),
-                input_arr_3.clone(),
+                input_arr_3,
                 input.clone(),
                 witness.clone(),
                 witness.clone(),
-                witness.clone(),
+                witness,
             )
                 .prop_map(|(input1, input2, predicate, w1, w2, w3)| {
                     BlackBoxFuncCall::EmbeddedCurveAdd {
@@ -745,7 +747,7 @@ mod arb {
                     }
                 });
 
-            let case_keccakf1600 = (input_arr_25.clone(), witness_arr_25.clone())
+            let case_keccakf1600 = (input_arr_25, witness_arr_25)
                 .prop_map(|(inputs, outputs)| BlackBoxFuncCall::Keccakf1600 { inputs, outputs });
 
             let case_recursive_aggregation = (
@@ -754,7 +756,7 @@ mod arb {
                 input_vec.clone(),
                 input.clone(),
                 any::<u32>(),
-                input.clone(),
+                input,
             )
                 .prop_map(
                     |(verification_key, proof, public_inputs, key_hash, proof_type, predicate)| {
@@ -770,7 +772,7 @@ mod arb {
                 );
 
             let case_poseidon2_permutation =
-                (input_vec.clone(), witness_vec.clone()).prop_map(|(inputs, outputs)| {
+                (input_vec, witness_vec).prop_map(|(inputs, outputs)| {
                     BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs }
                 });
 
