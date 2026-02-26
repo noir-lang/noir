@@ -40,8 +40,9 @@ fn can_coalesce_param_side(
 pub(crate) struct CoalescingMap {
     coalesced: HashMap<ValueId, ValueId>,
     /// Reverse mapping: values that are targets of coalescing.
-    /// Maps a coalescing target back to its source.
-    coalesced_reverse: HashMap<ValueId, ValueId>,
+    /// Maps a coalescing target back to all its sources (multiple values
+    /// can map to the same hub value).
+    coalesced_reverse: HashMap<ValueId, Vec<ValueId>>,
 }
 
 impl CoalescingMap {
@@ -153,7 +154,10 @@ impl CoalescingMap {
             }
         }
 
-        let coalesced_reverse = coalesced.iter().map(|(k, v)| (*v, *k)).collect::<HashMap<_, _>>();
+        let mut coalesced_reverse: HashMap<ValueId, Vec<ValueId>> = HashMap::default();
+        for (k, v) in &coalesced {
+            coalesced_reverse.entry(*v).or_default().push(*k);
+        }
         Self { coalesced, coalesced_reverse }
     }
 
@@ -170,12 +174,41 @@ impl CoalescingMap {
         self.coalesced.contains_key(value_id)
     }
 
-    /// Bidirectional lookup: returns the coalescing partner of `value_id`,
-    /// regardless of whether it is the arg or the param in the pair. Used when
-    /// a value dies to check whether its partner is still alive and sharing
-    /// the same register.
-    pub(crate) fn get_partner(&self, value_id: &ValueId) -> Option<ValueId> {
-        self.coalesced.get(value_id).or_else(|| self.coalesced_reverse.get(value_id)).copied()
+    /// Check whether any value sharing a register with `value_id` through
+    /// coalescing is still alive (i.e., satisfies the `is_alive` predicate).
+    ///
+    /// Multiple values can share a register through a "hub" pattern:
+    /// e.g., `v1 → v_hub ← v3` means v1, v_hub, and v3 all share one register.
+    /// When `v1` dies we must check whether `v_hub` or any sibling (like `v3`)
+    /// is still alive before deallocating the register.
+    pub(crate) fn has_live_partner(
+        &self,
+        value_id: &ValueId,
+        is_alive: impl Fn(&ValueId) -> bool,
+    ) -> bool {
+        // Forward: check the hub this value maps to
+        if let Some(hub) = self.coalesced.get(value_id) {
+            if is_alive(hub) {
+                return true;
+            }
+            // Also check siblings: other values that map to the same hub
+            if let Some(siblings) = self.coalesced_reverse.get(hub) {
+                for sibling in siblings {
+                    if sibling != value_id && is_alive(sibling) {
+                        return true;
+                    }
+                }
+            }
+        }
+        // Reverse: this value is a hub — check all values that map to it
+        if let Some(sources) = self.coalesced_reverse.get(value_id) {
+            for source in sources {
+                if is_alive(source) {
+                    return true;
+                }
+            }
+        }
+        false
     }
 
     #[cfg(test)]
