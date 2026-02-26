@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Attempt to % with overflow
+  ┌─ src/main.nr:2:5
+  │
+2 │     -128_i8 % -1
+  │     ------------
+  │
+
+Error interpreting main function
