@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772132885690,
+  "lastUpdate": 1772135812645,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23151,48 +23151,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "a4c32f0c7e5eb6b71391f69bd1b526a8df7c98fb",
-          "message": "fix: perform abi check on struct on declaration, not usage (#11628)",
-          "timestamp": "2026-02-19T00:22:21Z",
-          "tree_id": "367a7a8809ea7af6f8f9e82eda7e541439b03a9d",
-          "url": "https://github.com/noir-lang/noir/commit/a4c32f0c7e5eb6b71391f69bd1b526a8df7c98fb"
-        },
-        "date": 1771461890357,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 215730,
-            "range": "± 3098",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 203384,
-            "range": "± 711",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3138801,
-            "range": "± 1540",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -25244,6 +25202,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3137908,
             "range": "± 4015",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "30f2e0e4d926656744de50248778e618dc0e043f",
+          "message": "chore: enable more lints (#11709)",
+          "timestamp": "2026-02-26T19:53:28Z",
+          "tree_id": "b4eca5a9dc4bfad8da777f73703ddd62c1372e07",
+          "url": "https://github.com/noir-lang/noir/commit/30f2e0e4d926656744de50248778e618dc0e043f"
+        },
+        "date": 1772135768688,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 250755,
+            "range": "± 754",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 219864,
+            "range": "± 3864",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2743295,
+            "range": "± 2612",
             "unit": "ns/iter"
           }
         ]
