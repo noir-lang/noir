@@ -623,11 +623,10 @@ pub fn analyze_brillig_program_before_fuzzing(
     let main_function = &program_bytecode.functions[0];
     let starting_opcode = &main_function.opcodes[0];
 
-    let fuzzed_brillig_function_id = match starting_opcode {
-        Opcode::BrilligCall { id, .. } => id,
-        _ => panic!(
+    let Opcode::BrilligCall { id: fuzzed_brillig_function_id, .. } = starting_opcode else {
+        panic!(
             "If a method is compiled to brillig, the first opcode in ACIR has to be brillig call"
-        ),
+        );
     };
     // Get the brillig code
     let fuzzed_brillig_function =

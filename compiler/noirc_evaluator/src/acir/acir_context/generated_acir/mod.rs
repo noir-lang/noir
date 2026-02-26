@@ -782,9 +782,8 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
 /// fn sha256<N>(_input : [u8; N]) -> [u8; 32] {}
 /// ``
 fn intrinsics_check_inputs(name: BlackBoxFunc, input_count: usize) {
-    let expected_num_inputs = match black_box_func_expected_input_size(name) {
-        Some(expected_num_inputs) => expected_num_inputs,
-        None => return,
+    let Some(expected_num_inputs) = black_box_func_expected_input_size(name) else {
+        return;
     };
 
     assert_eq!(
@@ -815,9 +814,8 @@ fn intrinsics_check_inputs(name: BlackBoxFunc, input_count: usize) {
 /// ) -> [Field; N] {}
 /// ``
 fn intrinsics_check_outputs(name: BlackBoxFunc, output_count: usize) {
-    let expected_num_outputs = match black_box_expected_output_size(name) {
-        Some(expected_num_inputs) => expected_num_inputs,
-        None => return,
+    let Some(expected_num_outputs) = black_box_expected_output_size(name) else {
+        return;
     };
 
     assert_eq!(

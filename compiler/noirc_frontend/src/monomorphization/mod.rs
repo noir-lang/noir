@@ -1685,11 +1685,8 @@ impl<'interner> Monomorphizer<'interner> {
                 // Default any remaining unbound type variables.
                 // This should only happen if the variable in question is unused
                 // and within a larger generic type.
-                let default = match type_var_kind.default_type() {
-                    Some(typ) => typ,
-                    None => {
-                        return Err(MonomorphizationError::NoDefaultType { location });
-                    }
+                let Some(default) = type_var_kind.default_type() else {
+                    return Err(MonomorphizationError::NoDefaultType { location });
                 };
 
                 let monomorphized_default =
@@ -1860,11 +1857,8 @@ impl<'interner> Monomorphizer<'interner> {
                 // Default any remaining unbound type variables.
                 // This should only happen if the variable in question is unused
                 // and within a larger generic type.
-                let default = match type_var_kind.default_type() {
-                    Some(typ) => typ,
-                    None => {
-                        return Err(MonomorphizationError::NoDefaultType { location });
-                    }
+                let Some(default) = type_var_kind.default_type() else {
+                    return Err(MonomorphizationError::NoDefaultType { location });
                 };
 
                 Self::check_type(&default, location)
@@ -2008,16 +2002,10 @@ impl<'interner> Monomorphizer<'interner> {
         function_type: HirType,
         trait_item_id: TraitItemId,
     ) -> Result<ast::Expression, MonomorphizationError> {
-        let func_id = match self.lookup_function(
-            func_id,
-            expr_id,
-            &function_type,
-            &[],
-            Some(trait_item_id),
-            true,
-        )? {
-            Definition::Function(func_id) => func_id,
-            _ => unreachable!(),
+        let Definition::Function(func_id) =
+            self.lookup_function(func_id, expr_id, &function_type, &[], Some(trait_item_id), true)?
+        else {
+            unreachable!();
         };
 
         let location = self.interner.expr_location(&expr_id);

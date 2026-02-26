@@ -159,9 +159,8 @@ impl NodeInterner {
         let expr_lhs = &expr_member_access.lhs;
         let expr_rhs = &expr_member_access.rhs;
 
-        let lhs_self_struct = match self.id_type(expr_lhs) {
-            Type::DataType(struct_type, _) => struct_type,
-            _ => return None,
+        let Type::DataType(lhs_self_struct, _) = self.id_type(expr_lhs) else {
+            return None;
         };
 
         let struct_type = lhs_self_struct.borrow();

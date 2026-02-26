@@ -239,11 +239,8 @@ impl<F: AcirField> AcirContext<F> {
 
     /// Converts an [`AcirVar`] to an [`Expression`]
     pub(crate) fn var_to_expression(&self, var: AcirVar) -> Result<Expression<F>, InternalError> {
-        let var_data = match self.vars.get(&var) {
-            Some(var_data) => var_data,
-            None => {
-                return Err(InternalError::UndeclaredAcirVar { call_stack: self.get_call_stack() });
-            }
+        let Some(var_data) = self.vars.get(&var) else {
+            return Err(InternalError::UndeclaredAcirVar { call_stack: self.get_call_stack() });
         };
         Ok(var_data.to_expression().into_owned())
     }

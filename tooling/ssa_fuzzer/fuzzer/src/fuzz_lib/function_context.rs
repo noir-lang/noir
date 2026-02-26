@@ -719,9 +719,8 @@ impl<'a> FuzzerFunctionContext<'a> {
     /// This function is used to find end of the block for merging
     /// If block has no end, it means it has branches in the sub CFG, so we need to merge children blocks first
     fn end_of_block(&self, block_id: BasicBlockId) -> Option<BasicBlockId> {
-        let block = match self.stored_blocks.get(&block_id) {
-            Some(block) => block,
-            None => unreachable!("Block not found in stored blocks."),
+        let Some(block) = self.stored_blocks.get(&block_id) else {
+            unreachable!("Block not found in stored blocks.");
         };
 
         if block.context.children_blocks.is_empty() {

@@ -120,9 +120,8 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>> DapSession<
         self.send_stopped_event(StoppedEventReason::Entry)?;
 
         while self.running {
-            let req = match self.server.poll_request()? {
-                Some(req) => req,
-                None => break,
+            let Some(req) = self.server.poll_request()? else {
+                break;
             };
             match req.command {
                 Command::Disconnect(_) => {

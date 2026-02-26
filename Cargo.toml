@@ -100,6 +100,7 @@ explicit_into_iter_loop = "warn"
 flat_map_option = "warn"
 manual_is_variant_and = "warn"
 match_wildcard_for_single_variants = "warn"
+manual_let_else = "warn"
 
 [workspace.dependencies]
 
