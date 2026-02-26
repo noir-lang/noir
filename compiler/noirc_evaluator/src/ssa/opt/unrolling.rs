@@ -924,7 +924,7 @@ impl Loop {
                         instr.cost(*id, &function.dfg)
                     })
                     .sum();
-                let term_cost = block.terminator().map(|t| t.cost()).unwrap_or(0);
+                let term_cost = block.terminator().map_or(0, |t| t.cost());
                 instr_cost + term_cost
             })
             .sum()

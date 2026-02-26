@@ -85,7 +85,7 @@ fn arb_ssa_roundtrip() {
         // Print to str and parse back.
         let mut ssa2 = Ssa::from_str_no_validation(&ssa1.print_without_locations().to_string())
             .unwrap_or_else(|e| {
-                let msg = passes.last().map(|p| p.msg()).unwrap_or("Initial SSA");
+                let msg = passes.last().map_or("Initial SSA", |p| p.msg());
                 print_ast_and_panic(&format!(
                     "Could not parse SSA after step {last_pass} ({msg}): \n{e:?}"
                 ))
