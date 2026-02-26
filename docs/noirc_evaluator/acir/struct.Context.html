@@ -318,7 +318,7 @@ access its elements.</p>
     value: <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="enum" href="types/enum.AcirValue.html" title="enum noirc_evaluator::acir::types::AcirValue">AcirValue</a>&gt;,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.unit.html">()</a>, <a class="enum" href="../errors/enum.InternalError.html" title="enum noirc_evaluator::errors::InternalError">InternalError</a>&gt;</h4></section></summary><div class="docblock"><p>Initializes an array with the given values and caches the fact that we
 have initialized this array.</p>
-</div></details></div></details><details class="toggle implementors-toggle" open><summary><section id="impl-Context%3C'_%3E-1" class="impl"><a class="src rightside" href="../../src/noirc_evaluator/acir/call/intrinsics/vector_ops.rs.html#13-911">Source</a><a href="#impl-Context%3C'_%3E-1" class="anchor">§</a><h3 class="code-header">impl <a class="struct" href="struct.Context.html" title="struct noirc_evaluator::acir::Context">Context</a>&lt;'_&gt;</h3></section></summary><div class="impl-items"><details class="toggle method-toggle" open><summary><section id="method.convert_vector_push_back" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/call/intrinsics/vector_ops.rs.html#29-160">Source</a><h4 class="code-header">pub(super) fn <a href="#method.convert_vector_push_back" class="fn">convert_vector_push_back</a>(
+</div></details></div></details><details class="toggle implementors-toggle" open><summary><section id="impl-Context%3C'_%3E-1" class="impl"><a class="src rightside" href="../../src/noirc_evaluator/acir/call/intrinsics/vector_ops.rs.html#13-896">Source</a><a href="#impl-Context%3C'_%3E-1" class="anchor">§</a><h3 class="code-header">impl <a class="struct" href="struct.Context.html" title="struct noirc_evaluator::acir::Context">Context</a>&lt;'_&gt;</h3></section></summary><div class="impl-items"><details class="toggle method-toggle" open><summary><section id="method.convert_vector_push_back" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/call/intrinsics/vector_ops.rs.html#29-160">Source</a><h4 class="code-header">pub(super) fn <a href="#method.convert_vector_push_back" class="fn">convert_vector_push_back</a>(
     &amp;mut self,
     arguments: &amp;[<a class="type" href="../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>],
     dfg: &amp;<a class="struct" href="../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
@@ -438,7 +438,7 @@ consistently with the element’s type.</p>
 It asserts that the current side effects must be disabled (predicate = 0), otherwise fails
 with “cannot pop from a vector with length 0”. This prevents reading from empty memory blocks
 which would cause “Index out of bounds” errors.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.convert_vector_insert" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/call/intrinsics/vector_ops.rs.html#490-681">Source</a><h4 class="code-header">pub(super) fn <a href="#method.convert_vector_insert" class="fn">convert_vector_insert</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.convert_vector_insert" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/call/intrinsics/vector_ops.rs.html#483-666">Source</a><h4 class="code-header">pub(super) fn <a href="#method.convert_vector_insert" class="fn">convert_vector_insert</a>(
     &amp;mut self,
     arguments: &amp;[<a class="type" href="../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>],
     dfg: &amp;<a class="struct" href="../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
@@ -479,12 +479,7 @@ shifting a contiguous region of elements upward to make room for the new ones:</
 </li>
 <li>Initialize a new memory block for the resulting vector, ensuring its type information is preserved.</li>
 </ol>
-<h5 id="empty-vector-handling-2"><a class="doc-anchor" href="#empty-vector-handling-2">§</a>Empty Vector Handling</h5>
-<p>If the vector has zero length, this function skips the memory read and returns zero values.
-It asserts that the current side effects must be disabled (predicate = 0), otherwise fails
-with “Index out of bounds, vector has size 0”. This prevents reading from empty memory blocks
-which would cause “Index out of bounds” errors.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.convert_vector_remove" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/call/intrinsics/vector_ops.rs.html#728-879">Source</a><h4 class="code-header">pub(super) fn <a href="#method.convert_vector_remove" class="fn">convert_vector_remove</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.convert_vector_remove" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/call/intrinsics/vector_ops.rs.html#713-864">Source</a><h4 class="code-header">pub(super) fn <a href="#method.convert_vector_remove" class="fn">convert_vector_remove</a>(
     &amp;mut self,
     arguments: &amp;[<a class="type" href="../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>],
     dfg: &amp;<a class="struct" href="../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
@@ -536,12 +531,12 @@ and is safe to do as we are decreasing the vector length which gates vector acce
 <ol start="4">
 <li>Initialize a new memory block for the resulting vector, ensuring its type information is preserved.</li>
 </ol>
-<h5 id="empty-vector-handling-3"><a class="doc-anchor" href="#empty-vector-handling-3">§</a>Empty Vector Handling</h5>
+<h5 id="empty-vector-handling-2"><a class="doc-anchor" href="#empty-vector-handling-2">§</a>Empty Vector Handling</h5>
 <p>If the vector has zero length, this function skips the memory read and returns zero values.
 It asserts that the current side effects must be disabled (predicate = 0), otherwise fails
 with “Index out of bounds, vector has size 0”. This prevents reading from empty memory blocks
 which would cause “Index out of bounds” errors.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.is_index_safe" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/call/intrinsics/vector_ops.rs.html#882-910">Source</a><h4 class="code-header">fn <a href="#method.is_index_safe" class="fn">is_index_safe</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.is_index_safe" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/call/intrinsics/vector_ops.rs.html#867-895">Source</a><h4 class="code-header">fn <a href="#method.is_index_safe" class="fn">is_index_safe</a>(
     index: <a class="type" href="../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     dfg: &amp;<a class="struct" href="../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
     vector_typ: &amp;<a class="enum" href="../ssa/ir/types/enum.Type.html" title="enum noirc_evaluator::ssa::ir::types::Type">Type</a>,
