@@ -41,7 +41,9 @@ fn ssa_to_acir_program_with_debug_info(src: &str) -> (Program<FieldElement>, Vec
 }
 
 /// Attempts to convert SSA to ACIR, returning the error if compilation fails.
-fn try_ssa_to_acir(src: &str) -> Result<(Program<FieldElement>, Vec<DebugInfo>), RuntimeError> {
+pub(crate) fn try_ssa_to_acir(
+    src: &str,
+) -> Result<(Program<FieldElement>, Vec<DebugInfo>), RuntimeError> {
     let ssa = Ssa::from_str(src).unwrap();
     let arg_size_and_visibilities = ssa
         .functions
