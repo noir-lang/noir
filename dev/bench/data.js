@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772128485809,
+  "lastUpdate": 1772130561929,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23151,48 +23151,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d45f2b130fe33fc992197aaa88f8f957a32fc864",
-          "message": "fix: Fix casting negative fields to Field (#11618)",
-          "timestamp": "2026-02-18T18:18:49Z",
-          "tree_id": "a8defc9d3f0ceebc5a2f277bf44919fd27c4332b",
-          "url": "https://github.com/noir-lang/noir/commit/d45f2b130fe33fc992197aaa88f8f957a32fc864"
-        },
-        "date": 1771442882423,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 243378,
-            "range": "± 1598",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 212671,
-            "range": "± 5141",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2205653,
-            "range": "± 3128",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -25244,6 +25202,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2210105,
             "range": "± 1984",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "c7f68162779a8fbdb960cda210a94d4c04bbd23d",
+          "message": "chore: remove redundant clones and enforce in clippy (#11705)",
+          "timestamp": "2026-02-26T18:01:32Z",
+          "tree_id": "d490da307f75147312160b2c0af52c72d60a73bf",
+          "url": "https://github.com/noir-lang/noir/commit/c7f68162779a8fbdb960cda210a94d4c04bbd23d"
+        },
+        "date": 1772130518817,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 256443,
+            "range": "± 753",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 225975,
+            "range": "± 6164",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2730284,
+            "range": "± 1580",
             "unit": "ns/iter"
           }
         ]
