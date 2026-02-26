@@ -28,6 +28,8 @@ impl Ssa {
             aggressiveness,
         );
 
+        let callee_costs = inlining::inline_info::inlineable_callee_costs(&inline_infos);
+
         let should_inline_call =
             |callee: &Function| -> bool { InlineInfo::should_inline(&inline_infos, callee.id()) };
 
@@ -59,7 +61,7 @@ impl Ssa {
             function.simplify_function();
             // We might not be able to unroll all loops without fully inlining them, so ignore errors.
             // Use default threshold for force-unrolling.
-            let _ = function.unroll_loops_iteratively(FORCE_UNROLL_THRESHOLD);
+            let _ = function.unroll_loops_iteratively(FORCE_UNROLL_THRESHOLD, &callee_costs);
             // Reduce the number of redundant stores/loads after unrolling
             function.mem2reg();
 

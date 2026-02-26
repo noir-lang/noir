@@ -136,7 +136,13 @@ fn create_input_toml_template(
                 );
                 toml::Value::Table(default_value_map)
             }
-            _ => toml::Value::String("".to_owned()),
+            AbiType::Field | AbiType::Integer { .. } => toml::Value::Integer(0),
+            AbiType::Boolean => toml::Value::Boolean(false),
+            AbiType::Tuple { fields } => {
+                let default_value_vec = fields.into_iter().map(default_value).collect();
+                toml::Value::Array(default_value_vec)
+            }
+            AbiType::String { length } => toml::Value::String("_".repeat(length as usize)),
         }
     }
 
@@ -152,6 +158,7 @@ fn create_input_toml_template(
 
 #[cfg(test)]
 mod tests {
+    use insta::assert_snapshot;
     use noirc_abi::{AbiParameter, AbiType, AbiVisibility, Sign};
 
     use super::create_input_toml_template;
@@ -181,19 +188,24 @@ mod tests {
                 },
             ),
             typed_param("e", AbiType::Boolean),
+            typed_param(
+                "f",
+                AbiType::Tuple { fields: vec![AbiType::Field, AbiType::String { length: 5 }] },
+            ),
         ];
 
         let toml_str = create_input_toml_template(parameters, None);
 
-        let expected_toml_str = r#"a = ""
-b = ""
-c = ["", ""]
-e = ""
+        assert_snapshot!(toml_str, @r#"
+        a = 0
+        b = 0
+        c = [0, 0]
+        e = false
+        f = [0, "_____"]
 
-[d]
-d1 = ""
-d2 = ["", "", ""]
-"#;
-        assert_eq!(toml_str, expected_toml_str);
+        [d]
+        d1 = 0
+        d2 = [0, 0, 0]
+        "#);
     }
 }

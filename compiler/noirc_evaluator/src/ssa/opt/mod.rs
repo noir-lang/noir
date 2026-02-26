@@ -5,7 +5,6 @@
 //! Generally, these passes are also expected to minimize the final amount of instructions.
 
 mod array_get;
-mod array_set;
 mod as_vector_length;
 mod basic_conditional;
 mod black_box_bypass;
@@ -29,6 +28,7 @@ mod loop_invariant;
 mod make_constrain_not_equal;
 mod mem2reg;
 mod mem2reg_simple;
+mod mutable_array_set;
 mod normalize_value_ids;
 mod preprocess_fns;
 pub(crate) mod pure;
