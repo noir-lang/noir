@@ -68,61 +68,6 @@ fn recursive_type_with_alias_errors() {
 }
 
 #[test]
-fn mutually_recursive_types_error() {
-    // cSpell:disable
-    let src = "
-        fn main() {
-            let _zero = Even::Zero;
-        }
-
-        enum Even {
-            Zero,
-            ^^^^ Type `Odd` is recursive
-            ~~~~ All types in Noir must have a known size at compile-time
-            Succ(Odd),
-        }
-
-        enum Odd {
-            One,
-            Succ(Even),
-        }
-        ";
-    // cSpell:enable
-    let features = vec![UnstableFeature::Enums];
-    check_monomorphization_error_using_features(src, &features, false);
-}
-
-#[test]
-fn mutually_recursive_types_with_structs_error() {
-    // cSpell:disable
-    let src = "
-        fn main() {
-            let _zero = Even::Zero;
-        }
-
-        enum Even {
-            Zero,
-            ^^^^ Type `EvenSucc` is recursive
-            ~~~~ All types in Noir must have a known size at compile-time
-            Succ(EvenSucc),
-        }
-
-        pub struct EvenSucc { inner: Odd }
-
-        enum Odd {
-            One,
-            Succ(OddSucc),
-        }
-
-        pub struct OddSucc { inner: Even }
-        ";
-
-    // cSpell:enable
-    let features = vec![UnstableFeature::Enums];
-    check_monomorphization_error_using_features(src, &features, false);
-}
-
-#[test]
 fn simple_closure_with_no_captured_variables() {
     let src = r#"
     fn main(y: call_data(0) Field) -> pub Field {

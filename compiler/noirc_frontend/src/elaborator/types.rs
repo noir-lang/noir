@@ -372,6 +372,19 @@ impl Elaborator<'_> {
         mode: PathResolutionMode,
         wildcard_allowed: WildcardAllowed,
     ) -> Type {
+        let location = path.location;
+        let typ = self.resolve_named_type_helper(path, args, mode, wildcard_allowed);
+        self.check_comptime_type_in_non_comptime_item(&typ, location);
+        typ
+    }
+
+    fn resolve_named_type_helper(
+        &mut self,
+        path: TypedPath,
+        args: GenericTypeArgs,
+        mode: PathResolutionMode,
+        wildcard_allowed: WildcardAllowed,
+    ) -> Type {
         if args.is_empty()
             && let Some(typ) = self.lookup_generic_or_global_type(&path, mode)
         {
@@ -383,7 +396,7 @@ impl Elaborator<'_> {
         // Check if the path is a type variable first. We currently disallow generics on type
         // variables since we do not support higher-kinded types.
         if let Some(typ) = self.lookup_type_variable(&path, &args, wildcard_allowed) {
-            self.check_comptime_type_in_runtime_code(&typ, location);
+            self.check_comptime_type_in_non_comptime_item(&typ, location);
             return typ;
         }
 
@@ -436,14 +449,7 @@ impl Elaborator<'_> {
                 Type::DataType(data_type, args)
             }
             Ok(PathResolutionItem::PrimitiveType(primitive_type)) => {
-                let typ = self.instantiate_primitive_type(
-                    primitive_type,
-                    args,
-                    location,
-                    wildcard_allowed,
-                );
-                self.check_comptime_type_in_runtime_code(&typ, location);
-                typ
+                self.instantiate_primitive_type(primitive_type, args, location, wildcard_allowed)
             }
             Ok(PathResolutionItem::TraitAssociatedType(associated_type_id)) => {
                 if wildcard_allowed == WildcardAllowed::No(WildcardDisallowedContext::ImplType) {
@@ -478,11 +484,24 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Reports an error if `typ` is a comptime-only type and we are in runtime code.
-    fn check_comptime_type_in_runtime_code(&mut self, typ: &Type, location: Location) {
-        let Type::Quoted(quoted) = typ else {
-            return;
-        };
+    /// Reports an error if `typ` is a comptime-only type and we are not in a comptime item
+    fn check_comptime_type_in_non_comptime_item(&mut self, typ: &Type, location: Location) {
+        match typ {
+            Type::Quoted(_) => (),
+            Type::DataType(data_type, _) => {
+                if !data_type.borrow().comptime {
+                    return;
+                }
+            }
+            Type::Alias(type_alias, _) => {
+                if !type_alias.borrow().comptime {
+                    return;
+                }
+            }
+            _ => {
+                return;
+            }
+        }
 
         if self.in_comptime_context() {
             return;
@@ -500,7 +519,7 @@ impl Elaborator<'_> {
             }
         };
 
-        let typ = quoted.to_string();
+        let typ = typ.to_string();
         self.push_err(ResolverError::ComptimeTypeInNonComptimeItem { location, typ, item });
     }
 

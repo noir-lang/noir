@@ -399,6 +399,7 @@ pub struct DataType {
 
     pub name: Ident,
     pub visibility: ItemVisibility,
+    pub comptime: bool,
 
     /// A type's body is private to force struct fields or enum variants to only be
     /// accessed through get_field(), get_fields(), instantiate(), or similar functions
@@ -515,6 +516,7 @@ impl DataType {
         location: Location,
         generics: ResolvedGenerics,
         visibility: ItemVisibility,
+        comptime: bool,
         is_struct: bool,
     ) -> DataType {
         DataType {
@@ -528,6 +530,7 @@ impl DataType {
                 TypeBody::EnumWithUnknownVariants
             },
             visibility,
+            comptime,
             must_use: MustUse::NoMustUse,
         }
     }

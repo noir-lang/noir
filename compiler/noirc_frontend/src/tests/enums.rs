@@ -447,3 +447,55 @@ fn errors_if_using_comptime_type_in_non_comptime_enum() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn mutually_recursive_types_error() {
+    // cSpell:disable
+    let src = "
+    fn main() {
+        let _zero = Even::Zero;
+    }
+
+    enum Even {
+        Zero,
+        Succ(Odd),
+    }
+
+    enum Odd {
+         ^^^ Dependency cycle found
+         ~~~ 'Odd' recursively depends on itself: Odd -> Even -> Odd
+        One,
+        Succ(Even),
+    }
+    ";
+    // cSpell:enable
+    check_errors_using_features(src, &[UnstableFeature::Enums]);
+}
+
+#[test]
+fn mutually_recursive_types_with_structs_error() {
+    // cSpell:disable
+    let src = "
+    fn main() {
+        let _zero = Even::Zero;
+    }
+
+    enum Even {
+         ^^^^ Dependency cycle found
+         ~~~~ 'Even' recursively depends on itself: Even -> EvenSucc -> Odd -> OddSucc -> Even
+        Zero,
+        Succ(EvenSucc),
+    }
+
+    pub struct EvenSucc { inner: Odd }
+
+    enum Odd {
+        One,
+        Succ(OddSucc),
+    }
+
+    pub struct OddSucc { inner: Even }
+    ";
+    // cSpell:enable
+    check_errors_using_features(src, &[UnstableFeature::Enums]);
+}
