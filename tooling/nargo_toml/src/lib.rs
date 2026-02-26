@@ -233,7 +233,7 @@ impl PackageConfig {
         // Ignore the ones that we don't recognize: maybe they are no longer unstable, but a dependency hasn't been updated.
         let compiler_required_unstable_features =
             self.package.compiler_unstable_features.as_ref().map_or(Vec::new(), |feats| {
-                feats.iter().flat_map(|feat| UnstableFeature::from_str(feat).ok()).collect()
+                feats.iter().filter_map(|feat| UnstableFeature::from_str(feat).ok()).collect()
             });
 
         Ok(Package {
