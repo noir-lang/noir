@@ -26,8 +26,8 @@ pub(crate) struct CheckCommand {
     pub(super) package_options: PackageOptions,
 
     /// Force overwrite of existing files
-    #[clap(long = "overwrite")]
-    pub(super) allow_overwrite: bool,
+    #[clap(long)]
+    overwrite: bool,
 
     #[clap(flatten)]
     compile_options: CompileOptions,
@@ -72,7 +72,7 @@ pub(crate) fn run(args: CheckCommand, workspace: Workspace) -> Result<(), CliErr
             &parsed_files,
             package,
             &args.compile_options,
-            args.allow_overwrite,
+            args.overwrite,
         )?;
     }
     Ok(())
@@ -85,7 +85,7 @@ fn check_package(
     parsed_files: &ParsedFiles,
     package: &Package,
     compile_options: &CompileOptions,
-    allow_overwrite: bool,
+    overwrite: bool,
 ) -> Result<(), CompileError> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
     check_crate_and_report_errors(&mut context, crate_id, compile_options)?;
@@ -97,7 +97,7 @@ fn check_package(
         let path_to_prover_input = package.prover_input_path();
 
         // Before writing the file, check if it exists and whether overwrite is set
-        let should_write_prover = !path_to_prover_input.exists() || allow_overwrite;
+        let should_write_prover = !path_to_prover_input.exists() || overwrite;
 
         if should_write_prover {
             let prover_toml = create_input_toml_template(parameters, return_type);
