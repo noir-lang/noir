@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772054051061,
+  "lastUpdate": 1772112435846,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23140,48 +23140,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "a228ffc89e55a399806494c70bae4c92182628c6",
-          "message": "chore(cli): Configurable Brillig memory layout (#11612)",
-          "timestamp": "2026-02-17T20:54:03Z",
-          "tree_id": "5bda59e0d75960bbf296f9ef4f7b95d2315a2307",
-          "url": "https://github.com/noir-lang/noir/commit/a228ffc89e55a399806494c70bae4c92182628c6"
-        },
-        "date": 1771363127516,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252888,
-            "range": "± 809",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 222824,
-            "range": "± 1477",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2727579,
-            "range": "± 884",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "11c71e40895a37aacb7501db45ece4890dc062cc",
           "message": "chore(ci): Brillig small stack integration tests  (#11613)",
@@ -25224,6 +25182,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2729619,
             "range": "± 33878",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "37f89d3d736becdfa7463d7a78bf85e70dd40852",
+          "message": "chore(deps): bump actions/attest-build-provenance from 3 to 4 in the core-actions group (#11696)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-02-26T12:57:21Z",
+          "tree_id": "094b6e0be0f6f814c4fde4217f0ab8470913e86e",
+          "url": "https://github.com/noir-lang/noir/commit/37f89d3d736becdfa7463d7a78bf85e70dd40852"
+        },
+        "date": 1772112391234,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249549,
+            "range": "± 334",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 218703,
+            "range": "± 4549",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2725126,
+            "range": "± 3318",
             "unit": "ns/iter"
           }
         ]
