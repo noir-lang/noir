@@ -473,7 +473,7 @@ mod spill_runtime {
         brillig(inline) fn main f0 {
           b0(v0: u32):
             v1 = lt v0, u32 10
-            jmpif v1 then: b1, else: b2
+            jmpif v1 then: b1(), else: b2()
           b1():
             v2 = unchecked_add v0, u32 1
             v3 = unchecked_add v0, u32 2
@@ -683,7 +683,7 @@ mod spill_runtime {
             jmp b1(v4, u32 0)
           b1(v5: u32, v6: u32):
             v7 = lt v6, u32 3
-            jmpif v7 then: b2, else: b3
+            jmpif v7 then: b2(), else: b3()
           b2():
             v8 = unchecked_add v5, v0
             v9 = unchecked_add v6, u32 1
@@ -734,7 +734,7 @@ mod spill_runtime {
         brillig(inline) fn main f0 {
           b0(v0: u32):
             v1 = lt v0, u32 10
-            jmpif v1 then: b1, else: b2
+            jmpif v1 then: b1(), else: b2()
           b1():
             v2 = unchecked_add u32 10, u32 20
             v3 = unchecked_add u32 30, u32 40
