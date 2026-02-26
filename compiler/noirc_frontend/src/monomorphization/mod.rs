@@ -1362,11 +1362,15 @@ impl<'interner> Monomorphizer<'interner> {
                 };
                 match associated_type
                     .typ
-                    .evaluate_to_signed_field(&associated_type.typ.kind(), location)
+                    .evaluate_to_constant(&associated_type.typ.kind(), location)
                 {
                     Ok(value) => {
                         let typ = Self::convert_type(&numeric_type, location)?;
-                        Ok(ast::Expression::Literal(ast::Literal::Integer(value, typ, location)))
+                        Ok(ast::Expression::Literal(ast::Literal::Integer(
+                            value.to_signed_field(),
+                            typ,
+                            location,
+                        )))
                     }
                     Err(err) => Err(MonomorphizationError::CannotComputeAssociatedConstant {
                         name: name.clone(),
@@ -1429,7 +1433,7 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<ast::Expression, MonomorphizationError> {
         let expected_kind = Kind::Numeric(Box::new(expected_type.clone()));
         let value = value
-            .evaluate_to_signed_field(&expected_kind, location)
+            .evaluate_to_constant(&expected_kind, location)
             .map_err(|err| MonomorphizationError::UnknownArrayLength { err, location })?;
 
         let expr_kind = Kind::Numeric(Box::new(expr_type.clone()));
@@ -1439,7 +1443,7 @@ impl<'interner> Monomorphizer<'interner> {
         }
 
         let typ = Self::convert_type(&expected_type, location)?;
-        Ok(ast::Expression::Literal(ast::Literal::Integer(value, typ, location)))
+        Ok(ast::Expression::Literal(ast::Literal::Integer(value.to_signed_field(), typ, location)))
     }
 
     fn global_ident(
@@ -1927,11 +1931,11 @@ impl<'interner> Monomorphizer<'interner> {
                 location,
             });
         }
-        let to_value = to.evaluate_to_signed_field(&to.kind(), location);
+        let to_value = to.evaluate_to_constant(&to.kind(), location);
         if let Ok(to_value) = to_value {
             let skip_simplifications = false;
             let from_value =
-                from.evaluate_to_signed_field_helper(&to.kind(), location, skip_simplifications);
+                from.evaluate_to_constant_helper(&to.kind(), location, skip_simplifications);
             if from_value.is_err() || from_value.unwrap() != to_value {
                 return Err(MonomorphizationError::CheckedCastFailed {
                     actual: HirType::Constant(to_value, to.kind()),

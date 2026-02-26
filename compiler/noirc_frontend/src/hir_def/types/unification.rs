@@ -266,7 +266,7 @@ impl Type {
             (Constant(value, kind), other) | (other, Constant(value, kind)) => {
                 let dummy_location = Location::dummy();
                 let other = other.substitute(bindings);
-                if let Ok(other_value) = other.evaluate_to_signed_field(kind, dummy_location) {
+                if let Ok(other_value) = other.evaluate_to_constant(kind, dummy_location) {
                     if *value == other_value && kind.unifies(&other.kind()) {
                         Ok(())
                     } else {
@@ -465,7 +465,7 @@ impl Type {
             let kind = lhs_lhs.infix_kind(lhs_rhs);
             let dummy_location = Location::dummy();
             let lhs_rhs = lhs_rhs.substitute(bindings);
-            if let Ok(value) = lhs_rhs.evaluate_to_signed_field(&kind, dummy_location) {
+            if let Ok(value) = lhs_rhs.evaluate_to_constant(&kind, dummy_location) {
                 let lhs_rhs = Box::new(Type::Constant(value, kind));
                 let new_rhs =
                     Type::inverted_infix_expr(Box::new(other.clone()), lhs_op_inverse, lhs_rhs);
@@ -674,7 +674,10 @@ fn invoke_function_on_expression(
 
 #[cfg(test)]
 mod tests {
-    use crate::{BinaryTypeOperator, Kind, Type, TypeBindings, TypeVariable, TypeVariableId};
+    use crate::{
+        BinaryTypeOperator, Kind, Type, TypeBindings, TypeVariable, TypeVariableId,
+        hir_def::types::ConstantValue,
+    };
 
     struct Types {
         next_type_variable_id: usize,
@@ -697,7 +700,7 @@ mod tests {
     }
 
     fn constant(value: u128) -> Type {
-        Type::Constant(value.into(), Kind::Any)
+        Type::Constant(ConstantValue::Field(acvm::FieldElement::from(value)), Kind::Any)
     }
 
     fn add(a: &Type, b: &Type) -> Type {

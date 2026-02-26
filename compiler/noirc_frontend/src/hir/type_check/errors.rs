@@ -11,7 +11,7 @@ use crate::ast::BinaryOpKind;
 use crate::ast::{ConstrainKind, FunctionReturnType, Ident, IntegerBitSize};
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::traits::TraitConstraint;
-use crate::hir_def::types::{BinaryTypeOperator, Kind, Type};
+use crate::hir_def::types::{BinaryTypeOperator, ConstantValue, Kind, Type};
 use crate::node_interner::NodeInterner;
 use crate::shared::Signedness;
 use crate::signed_field::SignedField;
@@ -35,9 +35,9 @@ pub enum Source {
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum TypeCheckError {
     #[error("Division by zero: {lhs} / {rhs}")]
-    DivisionByZero { lhs: SignedField, rhs: SignedField, location: Location },
+    DivisionByZero { lhs: ConstantValue, rhs: ConstantValue, location: Location },
     #[error("Modulo on Field elements: {lhs} % {rhs}")]
-    ModuloOnFields { lhs: SignedField, rhs: SignedField, location: Location },
+    ModuloOnFields { lhs: ConstantValue, rhs: ConstantValue, location: Location },
     #[error("The value `{expr}` cannot fit into `{ty}` which has range `{range}`")]
     IntegerLiteralDoesNotFitItsType {
         expr: SignedField,
@@ -49,7 +49,7 @@ pub enum TypeCheckError {
         "The value `{value}` cannot fit into `{kind}` which has a maximum size of `{maximum_size}`"
     )]
     OverflowingConstant {
-        value: SignedField,
+        value: ConstantValue,
         kind: Kind,
         maximum_size: FieldElement,
         location: Location,
@@ -58,7 +58,7 @@ pub enum TypeCheckError {
         "The value `{value}` cannot fit into `{kind}` which has a minimum size of `{minimum_size}`"
     )]
     UnderflowingConstant {
-        value: SignedField,
+        value: ConstantValue,
         kind: Kind,
         minimum_size: SignedField,
         location: Location,
@@ -77,8 +77,8 @@ pub enum TypeCheckError {
     TypeCanonicalizationMismatch {
         to: Type,
         from: Type,
-        to_value: SignedField,
-        from_value: SignedField,
+        to_value: ConstantValue,
+        from_value: ConstantValue,
         location: Location,
     },
     #[error("Expected {expected:?} found {found:?}")]

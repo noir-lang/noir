@@ -472,7 +472,7 @@ impl Type {
             Type::Forall(_, typ) => return typ.to_display_ast(),
             Type::Constant(value, kind) => {
                 UnresolvedTypeData::Expression(UnresolvedTypeExpression::Constant(
-                    *value,
+                    value.to_signed_field(),
                     kind.as_integer_type_suffix(),
                     Location::dummy(),
                 ))
@@ -498,9 +498,11 @@ impl Type {
         let location = Location::dummy();
 
         match self.follow_bindings() {
-            Type::Constant(length, kind) => {
-                UnresolvedTypeExpression::Constant(length, kind.as_integer_type_suffix(), location)
-            }
+            Type::Constant(length, kind) => UnresolvedTypeExpression::Constant(
+                length.to_signed_field(),
+                kind.as_integer_type_suffix(),
+                location,
+            ),
             Type::NamedGeneric(NamedGeneric { name, .. }) => {
                 let path = Path::from_single(name.as_ref().clone(), location);
                 UnresolvedTypeExpression::Variable(path)
@@ -550,7 +552,7 @@ impl HirArrayLiteral {
                 let length = match length {
                     Type::Constant(length, kind) => {
                         let suffix = kind.as_integer_type_suffix();
-                        let literal = Literal::Integer(*length, suffix);
+                        let literal = Literal::Integer(length.to_signed_field(), suffix);
                         let expr_kind = ExpressionKind::Literal(literal);
                         Box::new(Expression::new(expr_kind, location))
                     }
