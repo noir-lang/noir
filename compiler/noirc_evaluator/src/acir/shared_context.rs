@@ -211,7 +211,7 @@ mod tests {
         let ptr2 = context.new_generated_pointer();
         context.insert_generated_brillig(
             func_id,
-            args.clone(),
+            args,
             ptr2,
             GeneratedBrillig { byte_code: vec![], ..Default::default() },
         );
@@ -248,7 +248,7 @@ mod tests {
         let code2 = GeneratedBrillig { byte_code: vec![Opcode::Return], ..Default::default() };
         let f1 = Id::test_new(1);
         let ptr2 = context.new_generated_pointer();
-        context.insert_generated_brillig(f1, args.clone(), ptr2, code2.clone());
+        context.insert_generated_brillig(f1, args.clone(), ptr2, code2);
 
         // Check the pointers of both Brillig functions
         let f0_pointer = context.generated_brillig_pointer(f0, args.clone()).unwrap();

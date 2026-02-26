@@ -431,7 +431,7 @@ impl Visitor for DocumentSymbolCollector<'_> {
 
         #[allow(deprecated)]
         self.symbols.push(DocumentSymbol {
-            name: name,
+            name,
             detail: None,
             kind: SymbolKind::NAMESPACE,
             tags: None,

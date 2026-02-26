@@ -453,8 +453,7 @@ mod tests {
         context.codegen_return(&[return_value]);
 
         let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
-        let (vm, return_data_offset, return_data_size) =
-            create_and_run_vm(calldata.clone(), &bytecode);
+        let (vm, return_data_offset, return_data_size) = create_and_run_vm(calldata, &bytecode);
         assert_eq!(return_data_size, 1, "Return data size is incorrect");
         assert_eq!(vm.get_memory()[return_data_offset].to_field(), FieldElement::from(1_usize));
     }
