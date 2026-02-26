@@ -53,7 +53,6 @@ use crate::hir::comptime::InterpreterError;
 use crate::hir::type_check::NoMatchingImplFoundError;
 use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind, TraitItemId};
 use crate::shared::{ForeignCall, Visibility};
-use crate::signed_field::SignedField;
 use crate::token::FunctionAttributeKind;
 use crate::{
     Kind, Type, TypeBinding, TypeBindings,
@@ -1121,7 +1120,6 @@ impl<'interner> Monomorphizer<'interner> {
         let variants = unwrap_enum_type(typ, location)?;
 
         let tag_value = FieldElement::from(constructor.variant_index);
-        let tag_value = SignedField::positive(tag_value);
         let tag = ast::Literal::Integer(tag_value, ast::Type::Field, location);
         let mut fields = vec![ast::Expression::Literal(tag)];
 
@@ -1360,10 +1358,7 @@ impl<'interner> Monomorphizer<'interner> {
                 let Kind::Numeric(numeric_type) = associated_type.typ.kind() else {
                     unreachable!("Expected associated type to be numeric");
                 };
-                match associated_type
-                    .typ
-                    .evaluate_to_signed_field(&associated_type.typ.kind(), location)
-                {
+                match associated_type.typ.evaluate_to_field(&associated_type.typ.kind(), location) {
                     Ok(value) => {
                         let typ = Self::convert_type(&numeric_type, location)?;
                         Ok(ast::Expression::Literal(ast::Literal::Integer(value, typ, location)))
@@ -1429,7 +1424,7 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<ast::Expression, MonomorphizationError> {
         let expected_kind = Kind::Numeric(Box::new(expected_type.clone()));
         let value = value
-            .evaluate_to_signed_field(&expected_kind, location)
+            .evaluate_to_field(&expected_kind, location)
             .map_err(|err| MonomorphizationError::UnknownArrayLength { err, location })?;
 
         let expr_kind = Kind::Numeric(Box::new(expr_type.clone()));
@@ -1927,11 +1922,11 @@ impl<'interner> Monomorphizer<'interner> {
                 location,
             });
         }
-        let to_value = to.evaluate_to_signed_field(&to.kind(), location);
+        let to_value = to.evaluate_to_field(&to.kind(), location);
         if let Ok(to_value) = to_value {
             let skip_simplifications = false;
             let from_value =
-                from.evaluate_to_signed_field_helper(&to.kind(), location, skip_simplifications);
+                from.evaluate_to_field_helper(&to.kind(), location, skip_simplifications);
             if from_value.is_err() || from_value.unwrap() != to_value {
                 return Err(MonomorphizationError::CheckedCastFailed {
                     actual: HirType::Constant(to_value, to.kind()),
@@ -2801,7 +2796,6 @@ impl<'interner> Monomorphizer<'interner> {
                 let operator =
                     if matches!(operator.kind, Less | Greater) { Equal } else { NotEqual };
 
-                let ordering_value = SignedField::positive(ordering_value);
                 let int_value = ast::Literal::Integer(ordering_value, ast::Type::Field, location);
                 let rhs = Box::new(ast::Expression::Literal(int_value));
                 let lhs = Box::new(ast::Expression::ExtractTupleField(Box::new(result), 0));

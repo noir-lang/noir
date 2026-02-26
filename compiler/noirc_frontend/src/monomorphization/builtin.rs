@@ -12,7 +12,6 @@ use crate::{
     },
     node_interner::{self, ExprId},
     shared::{Signedness, Visibility},
-    signed_field::SignedField,
     token::FmtStrFragment,
 };
 
@@ -131,8 +130,7 @@ impl Monomorphizer<'_> {
         let int_type = Type::Integer(Signedness::Unsigned, arr_elem_bits);
 
         let bytes_as_expr = vecmap(bytes, |byte| {
-            let value = SignedField::positive(u32::from(byte));
-            Expression::Literal(Literal::Integer(value, int_type.clone(), location))
+            Expression::Literal(Literal::Integer(byte.into(), int_type.clone(), location))
         });
 
         let typ = Type::Vector(Box::new(int_type));
@@ -151,7 +149,7 @@ impl Monomorphizer<'_> {
         match typ {
             ast::Type::Field | ast::Type::Integer(..) => {
                 let typ = typ.clone();
-                let zero = SignedField::positive(0u32);
+                let zero = FieldElement::zero();
                 ast::Expression::Literal(ast::Literal::Integer(zero, typ, location))
             }
             ast::Type::Bool => ast::Expression::Literal(ast::Literal::Bool(false)),
@@ -317,8 +315,7 @@ impl Monomorphizer<'_> {
     fn modulus_num_bits(location: Location) -> ast::Expression {
         let bits = FieldElement::max_num_bits();
         let typ = ast::Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour);
-        let bits = SignedField::positive(bits);
-        ast::Expression::Literal(ast::Literal::Integer(bits, typ, location))
+        ast::Expression::Literal(ast::Literal::Integer(bits.into(), typ, location))
     }
 }
 

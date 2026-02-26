@@ -17,7 +17,6 @@ use crate::{
     hir_def::types::{self},
     node_interner::{NodeInterner, TraitAssociatedTypeId, TraitId, TypeAliasId},
     recursion::TypeRecursionContext,
-    signed_field::{AbsU128, SignedField},
     token::IntegerTypeSuffix,
 };
 use iter_extended::vecmap;
@@ -134,7 +133,7 @@ pub enum Type {
     /// 1. an Array's size type variable
     ///    bind to an integer without special checks to bind it to a non-type.
     /// 2. values to be used at the type level
-    Constant(SignedField, Kind),
+    Constant(FieldElement, Kind),
 
     /// The type of quoted code in macros. This is always a comptime-only type
     Quoted(QuotedType),
@@ -270,14 +269,14 @@ impl Kind {
         }
     }
 
-    fn integral_maximum_size(&self) -> Option<FieldElement> {
+    fn integral_maximum_size(&self) -> Option<u128> {
         match self.follow_bindings() {
             Kind::Any | Kind::IntegerOrField | Kind::Integer | Kind::Normal => None,
             Self::Numeric(typ) => typ.integral_maximum_size(),
         }
     }
 
-    fn integral_minimum_size(&self) -> Option<SignedField> {
+    fn integral_minimum_size(&self) -> Option<i128> {
         match self.follow_bindings() {
             Kind::Any | Kind::IntegerOrField | Kind::Integer | Kind::Normal => None,
             Self::Numeric(typ) => typ.integral_minimum_size(),
@@ -287,26 +286,21 @@ impl Kind {
     /// Ensure the given value fits in self.integral_maximum_size()
     pub(crate) fn ensure_value_fits(
         &self,
-        value: SignedField,
+        value: FieldElement,
         location: Location,
-    ) -> Result<SignedField, TypeCheckError> {
-        if let Some(maximum_size) = self.integral_maximum_size()
-            && value > SignedField::positive(maximum_size)
+    ) -> Result<FieldElement, TypeCheckError> {
+        // Negative field values are represented as very large fields. So when comparing
+        // we have to check if it is less than the minimum size but greater than the maximum.
+        // Unfortunately, because fields wrap we cannot distinguish between too large or too small.
+        if let Some(minimum_size) = self.integral_minimum_size()
+            && let Some(maximum_size) = self.integral_maximum_size()
+            && value > maximum_size.into()
+            && value < minimum_size.into()
         {
             return Err(TypeCheckError::OverflowingConstant {
                 value,
                 kind: self.clone(),
                 maximum_size,
-                location,
-            });
-        }
-
-        if let Some(minimum_size) = self.integral_minimum_size()
-            && value < minimum_size
-        {
-            return Err(TypeCheckError::UnderflowingConstant {
-                value,
-                kind: self.clone(),
                 minimum_size,
                 location,
             });
@@ -2401,36 +2395,36 @@ impl Type {
     /// If this type is a Type::Constant (used in array lengths), or is bound
     /// to a Type::Constant, return the constant as a u32.
     pub fn evaluate_to_u32(&self, location: Location) -> Result<u32, TypeCheckError> {
-        self.evaluate_to_signed_field(&Kind::u32(), location).map(|signed_field| {
-            signed_field
-                .try_to_unsigned::<u32>()
+        self.evaluate_to_field(&Kind::u32(), location).map(|field| {
+            field
+                .try_to_u32()
                 .expect("ICE: size should have already been checked by evaluate_to_field_element")
         })
     }
 
     // TODO(https://github.com/noir-lang/noir/issues/6260): remove
     // the unifies checks once all kinds checks are implemented?
-    pub(crate) fn evaluate_to_signed_field(
+    pub(crate) fn evaluate_to_field(
         &self,
         kind: &Kind,
         location: Location,
-    ) -> Result<SignedField, TypeCheckError> {
+    ) -> Result<FieldElement, TypeCheckError> {
         let run_simplifications = true;
-        self.evaluate_to_signed_field_helper(kind, location, run_simplifications)
+        self.evaluate_to_field_helper(kind, location, run_simplifications)
     }
 
     /// `evaluate_to_field_element` with optional generic arithmetic simplifications
-    pub(crate) fn evaluate_to_signed_field_helper(
+    pub(crate) fn evaluate_to_field_helper(
         &self,
         kind: &Kind,
         location: Location,
         run_simplifications: bool,
-    ) -> Result<SignedField, TypeCheckError> {
+    ) -> Result<FieldElement, TypeCheckError> {
         if let Some((binding, binding_kind)) = self.get_inner_type_variable() {
             match &*binding.borrow() {
                 TypeBinding::Bound(binding) => {
                     if kind.unifies(&binding_kind) {
-                        return binding.evaluate_to_signed_field_helper(
+                        return binding.evaluate_to_field_helper(
                             &binding_kind,
                             location,
                             run_simplifications,
@@ -2456,16 +2450,10 @@ impl Type {
             Type::InfixExpr(lhs, op, rhs, _) => {
                 let infix_kind = lhs.infix_kind(&rhs);
                 if kind.unifies(&infix_kind) {
-                    let lhs_value = lhs.evaluate_to_signed_field_helper(
-                        &infix_kind,
-                        location,
-                        run_simplifications,
-                    )?;
-                    let rhs_value = rhs.evaluate_to_signed_field_helper(
-                        &infix_kind,
-                        location,
-                        run_simplifications,
-                    )?;
+                    let lhs_value =
+                        lhs.evaluate_to_field_helper(&infix_kind, location, run_simplifications)?;
+                    let rhs_value =
+                        rhs.evaluate_to_field_helper(&infix_kind, location, run_simplifications)?;
                     op.function(lhs_value, rhs_value, &infix_kind, location)
                 } else {
                     Err(TypeCheckError::TypeKindMismatch {
@@ -2476,13 +2464,13 @@ impl Type {
                 }
             }
             Type::CheckedCast { from, to } => {
-                let to_value = to.evaluate_to_signed_field(kind, location)?;
+                let to_value = to.evaluate_to_field(kind, location)?;
 
                 // if both 'to' and 'from' evaluate to a constant,
                 // return None unless they match
                 let skip_simplifications = false;
                 if let Ok(from_value) =
-                    from.evaluate_to_signed_field_helper(kind, location, skip_simplifications)
+                    from.evaluate_to_field_helper(kind, location, skip_simplifications)
                 {
                     if to_value == from_value {
                         Ok(to_value)
@@ -3138,7 +3126,7 @@ impl Type {
         }
     }
 
-    pub(crate) fn integral_maximum_size(&self) -> Option<FieldElement> {
+    pub(crate) fn integral_maximum_size(&self) -> Option<u128> {
         match self {
             Type::FieldElement => None,
             Type::Integer(sign, num_bits) => {
@@ -3147,9 +3135,9 @@ impl Type {
                     max_bit_size -= 1;
                 }
                 let max = if max_bit_size == 128 { u128::MAX } else { (1u128 << max_bit_size) - 1 };
-                Some(max.into())
+                Some(max)
             }
-            Type::Bool => Some(FieldElement::one()),
+            Type::Bool => Some(1),
             Type::TypeVariable(var) => {
                 let binding = &var.1;
                 match &*binding.borrow() {
@@ -3185,22 +3173,22 @@ impl Type {
         }
     }
 
-    pub(crate) fn integral_minimum_size(&self) -> Option<SignedField> {
+    /// Returns the minimum value of this type.
+    ///
+    /// This function returns a `i128` instead of a FieldElement to avoid confusion with negative
+    /// field values being equal to large field values.
+    pub(crate) fn integral_minimum_size(&self) -> Option<i128> {
         match self.follow_bindings_shallow().as_ref() {
             Type::FieldElement => None,
             Type::Integer(sign, num_bits) => {
                 if *sign == Signedness::Unsigned {
-                    return Some(SignedField::zero());
+                    return Some(0);
                 }
 
                 let max_bit_size = num_bits.bit_size() - 1;
-                Some(if max_bit_size == 128 {
-                    SignedField::negative(i128::MIN.abs_u128())
-                } else {
-                    SignedField::negative(1u128 << max_bit_size)
-                })
+                Some(-(1i128 << max_bit_size))
             }
-            Type::Bool => Some(SignedField::zero()),
+            Type::Bool => Some(0),
             Type::TypeVariable(var) => {
                 let binding = &var.1;
                 match &*binding.borrow() {
@@ -3272,6 +3260,24 @@ impl Type {
             _ => None,
         }
     }
+
+    pub fn integer_bit_size(&self) -> Option<u32> {
+        use {IntegerBitSize::*, Signedness::*};
+        match self.follow_bindings_shallow().as_ref() {
+            Type::Integer(Signed, Eight) => Some(8),
+            Type::Integer(Signed, Sixteen) => Some(16),
+            Type::Integer(Signed, ThirtyTwo) => Some(32),
+            Type::Integer(Signed, SixtyFour) => Some(64),
+            Type::Integer(Signed, HundredTwentyEight) => Some(128),
+            Type::Integer(Unsigned, One) => Some(1),
+            Type::Integer(Unsigned, Eight) => Some(8),
+            Type::Integer(Unsigned, Sixteen) => Some(16),
+            Type::Integer(Unsigned, ThirtyTwo) => Some(32),
+            Type::Integer(Unsigned, SixtyFour) => Some(64),
+            Type::Integer(Unsigned, HundredTwentyEight) => Some(128),
+            _ => None,
+        }
+    }
 }
 
 impl From<u8> for Type {
@@ -3289,21 +3295,15 @@ impl From<u32> for Type {
     }
 }
 
-impl From<SignedField> for Type {
-    fn from(value: SignedField) -> Self {
-        Type::Constant(value, Kind::numeric(Type::FieldElement))
-    }
-}
-
 impl BinaryTypeOperator {
     /// Perform the actual rust numeric operation associated with this operator
     pub fn function(
         self,
-        a: SignedField,
-        b: SignedField,
+        a: FieldElement,
+        b: FieldElement,
         kind: &Kind,
         location: Location,
-    ) -> Result<SignedField, TypeCheckError> {
+    ) -> Result<FieldElement, TypeCheckError> {
         match kind.integral_maximum_size() {
             None => match self {
                 BinaryTypeOperator::Addition => Ok(a + b),
@@ -3317,7 +3317,7 @@ impl BinaryTypeOperator {
                 }
             },
             Some(maximum_size) => {
-                if maximum_size.to_u128() == u128::MAX {
+                if maximum_size == u128::MAX {
                     // For u128 operations we need to use u128
                     let a = a.to_u128();
                     let b = b.to_u128();

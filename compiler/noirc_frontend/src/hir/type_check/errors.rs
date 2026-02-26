@@ -14,7 +14,6 @@ use crate::hir_def::traits::TraitConstraint;
 use crate::hir_def::types::{BinaryTypeOperator, Kind, Type};
 use crate::node_interner::NodeInterner;
 use crate::shared::Signedness;
-use crate::signed_field::SignedField;
 use crate::validity::InvalidType;
 
 /// Rust also only shows 3 maximum, even for short patterns.
@@ -35,32 +34,24 @@ pub enum Source {
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum TypeCheckError {
     #[error("Division by zero: {lhs} / {rhs}")]
-    DivisionByZero { lhs: SignedField, rhs: SignedField, location: Location },
+    DivisionByZero { lhs: FieldElement, rhs: FieldElement, location: Location },
     #[error("Modulo on Field elements: {lhs} % {rhs}")]
-    ModuloOnFields { lhs: SignedField, rhs: SignedField, location: Location },
+    ModuloOnFields { lhs: FieldElement, rhs: FieldElement, location: Location },
     #[error("The value `{expr}` cannot fit into `{ty}` which has range `{range}`")]
     IntegerLiteralDoesNotFitItsType {
-        expr: SignedField,
+        expr: FieldElement,
         ty: Type,
         range: String,
         location: Location,
     },
     #[error(
-        "The value `{value}` cannot fit into `{kind}` which has a maximum size of `{maximum_size}`"
+        "The value `{value}` cannot fit into `{kind}` which has a range of {minimum_size}..={maximum_size}"
     )]
     OverflowingConstant {
-        value: SignedField,
+        value: FieldElement,
         kind: Kind,
-        maximum_size: FieldElement,
-        location: Location,
-    },
-    #[error(
-        "The value `{value}` cannot fit into `{kind}` which has a minimum size of `{minimum_size}`"
-    )]
-    UnderflowingConstant {
-        value: SignedField,
-        kind: Kind,
-        minimum_size: SignedField,
+        minimum_size: i128,
+        maximum_size: u128,
         location: Location,
     },
     #[error("Evaluating `{op}` on `{lhs}`, `{rhs}` failed")]
@@ -77,8 +68,8 @@ pub enum TypeCheckError {
     TypeCanonicalizationMismatch {
         to: Type,
         from: Type,
-        to_value: SignedField,
-        from_value: SignedField,
+        to_value: FieldElement,
+        from_value: FieldElement,
         location: Location,
     },
     #[error("Expected {expected:?} found {found:?}")]
@@ -302,7 +293,6 @@ impl TypeCheckError {
             | TypeCheckError::ModuloOnFields { location, .. }
             | TypeCheckError::IntegerLiteralDoesNotFitItsType { location, .. }
             | TypeCheckError::OverflowingConstant { location, .. }
-            | TypeCheckError::UnderflowingConstant { location, .. }
             | TypeCheckError::FailingBinaryOp { location, .. }
             | TypeCheckError::TypeCannotBeUsed { location, .. }
             | TypeCheckError::TypeMismatch { expr_location: location, .. }
@@ -551,7 +541,6 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::FieldComparison { location, .. }
             | TypeCheckError::IntegerLiteralDoesNotFitItsType { location, .. }
             | TypeCheckError::OverflowingConstant { location, .. }
-            | TypeCheckError::UnderflowingConstant { location, .. }
             | TypeCheckError::FailingBinaryOp { location, .. }
             | TypeCheckError::FieldModulo { location }
             | TypeCheckError::FieldNot { location }

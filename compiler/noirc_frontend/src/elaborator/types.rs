@@ -756,7 +756,7 @@ impl Elaborator<'_> {
                     return None;
                 };
 
-                let Some(global_value) = global_value.to_non_negative_signed_field() else {
+                let Some(global_value) = global_value.to_non_negative_field() else {
                     let global_value = global_value.clone();
                     if global_value.is_integral() {
                         self.push_err(ResolverError::NegativeGlobalType { location, global_value });
@@ -1503,12 +1503,7 @@ impl Elaborator<'_> {
 
         use HirExpression::Literal;
         let from_value_opt = match self.interner.expression(from_expr_id) {
-            Literal(HirLiteral::Integer(field)) if !field.is_negative() => {
-                Some(field.absolute_value())
-            }
-
-            // TODO(https://github.com/noir-lang/noir/issues/6247):
-            // handle negative literals
+            Literal(HirLiteral::Integer(field)) => Some(field),
             _ => None,
         };
 
@@ -1542,7 +1537,7 @@ impl Elaborator<'_> {
         if let (Some(from_value), Some(to_maximum_size)) =
             (from_value_opt, to.integral_maximum_size())
             && from_is_polymorphic
-            && from_value > to_maximum_size
+            && from_value > to_maximum_size.into()
         {
             let from = from.clone();
             let to = to.clone();

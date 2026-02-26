@@ -53,7 +53,6 @@ use crate::{
     node_interner::{DefinitionKind, NodeInterner, TraitImplKind},
     parser::{Parser, StatementOrExpressionOrLValue},
     shared::{Signedness, Visibility},
-    signed_field::SignedField,
     token::{Attribute, LocatedToken, Token},
 };
 
@@ -304,9 +303,7 @@ fn apply_range_constraint(
 ) -> IResult<Value> {
     let (value, num_bits) = check_two_arguments(arguments, location)?;
 
-    let input = get_field(value)?;
-    let field = input.to_field_element();
-
+    let field = get_field(value)?;
     let num_bits = get_u32(num_bits)?;
     let field_num_bits = field.num_bits();
 
@@ -1054,7 +1051,7 @@ fn to_le_radix(
     let (limb_count, element_type) = if let Type::Array(length, element_type) = return_type {
         if let Type::Constant(limb_count, kind) = *length {
             if kind.unifies(&Kind::u32()) {
-                (limb_count.to_field_element(), element_type)
+                (limb_count, element_type)
             } else {
                 return Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location });
             }
@@ -1069,7 +1066,7 @@ fn to_le_radix(
         *element_type == Type::Integer(Signedness::Unsigned, IntegerBitSize::One);
 
     // Decompose the integer into its radix digits in little endian form.
-    let decomposed_integer = compute_to_radix_le(value.to_field_element(), radix);
+    let decomposed_integer = compute_to_radix_le(value, radix);
 
     // Validate that the value fits in the requested number of limbs.
     // This matches the runtime behavior in our black box solvers.
@@ -1561,7 +1558,7 @@ where
 // fn zeroed<T>() -> T
 fn zeroed(return_type: Type, location: Location) -> Value {
     match return_type {
-        Type::FieldElement => Value::Field(SignedField::zero()),
+        Type::FieldElement => Value::Field(FieldElement::zero()),
         Type::Array(length_type, elem) => {
             if let Ok(length) = length_type.evaluate_to_u32(location) {
                 let element = zeroed(elem.as_ref().clone(), location);
@@ -2063,7 +2060,7 @@ fn expr_as_index(
     })
 }
 
-// fn as_integer(self) -> Option<(Field, bool)>
+// fn as_integer(self) -> Option<Field>
 fn expr_as_integer(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
@@ -2072,17 +2069,11 @@ fn expr_as_integer(
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type.clone(), location, |expr| match expr {
         ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field, _suffix))) => {
-            Some(Value::Tuple(vec![
-                Shared::new(Value::Field(SignedField::positive(field.absolute_value()))),
-                Shared::new(Value::Bool(field.is_negative())),
-            ]))
+            Some(Value::Field(field))
         }
         ExprValue::Expression(ExpressionKind::Resolved(id)) => {
             if let HirExpression::Literal(HirLiteral::Integer(field)) = interner.expression(&id) {
-                Some(Value::Tuple(vec![
-                    Shared::new(Value::Field(SignedField::positive(field.absolute_value()))),
-                    Shared::new(Value::Bool(field.is_negative())),
-                ]))
+                Some(Value::Field(field))
             } else {
                 None
             }
@@ -3264,10 +3255,8 @@ fn derive_generators(
         let y_big: BigUint = generator.y.into();
         let y = FieldElement::from_be_bytes_reduce(&y_big.to_bytes_be());
         let mut embedded_curve_point_fields = HashMap::default();
-        embedded_curve_point_fields
-            .insert(x_field_name.clone(), Shared::new(Value::Field(SignedField::positive(x))));
-        embedded_curve_point_fields
-            .insert(y_field_name.clone(), Shared::new(Value::Field(SignedField::positive(y))));
+        embedded_curve_point_fields.insert(x_field_name.clone(), Shared::new(Value::Field(x)));
+        embedded_curve_point_fields.insert(y_field_name.clone(), Shared::new(Value::Field(y)));
         embedded_curve_point_fields
             .insert(is_infinite_field_name.clone(), Shared::new(Value::Bool(is_infinite)));
         let embedded_curve_point_struct =

@@ -2,6 +2,7 @@
 //! comptime interpreter when evaluating code.
 use std::{borrow::Cow, rc::Rc, vec};
 
+use acvm::{AcirField, FieldElement};
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
@@ -11,8 +12,8 @@ use crate::{
     Kind, QuotedType, Shared, Type, TypeBindings, TypeVariable,
     ast::{
         ArrayLiteral, BlockExpression, CallExpression, ConstructorExpression, Expression,
-        ExpressionKind, Ident, IntegerBitSize, LValue, LetStatement, Literal, Path, PathKind,
-        PathSegment, Pattern, Statement, StatementKind, UnresolvedType, UnresolvedTypeData,
+        ExpressionKind, Ident, IntegerBitSize, LValue, LetStatement, Path, PathKind, PathSegment,
+        Pattern, Statement, StatementKind, UnresolvedType, UnresolvedTypeData,
     },
     elaborator::Elaborator,
     hir::{
@@ -27,7 +28,6 @@ use crate::{
     node_interner::{ExprId, FuncId, NodeInterner, StmtId, TraitId, TraitImplId, TypeId},
     parser::{Item, Parser},
     shared::Signedness,
-    signed_field::SignedField,
     token::{FmtStrFragment, IntegerTypeSuffix, LocatedToken, Token, Tokens},
 };
 use rustc_hash::FxHashMap as HashMap;
@@ -43,7 +43,7 @@ use super::{
 pub enum Value {
     Unit,
     Bool(bool),
-    Field(SignedField),
+    Field(FieldElement),
     I8(i8),
     I16(i16),
     I32(i32),
@@ -212,53 +212,23 @@ impl Value {
         elaborator: &mut Elaborator,
         location: Location,
     ) -> IResult<Expression> {
+        use crate::ast::Literal::*;
+        use ExpressionKind::Literal;
         let kind = match self {
-            Value::Unit => ExpressionKind::Literal(Literal::Unit),
-            Value::Bool(value) => ExpressionKind::Literal(Literal::Bool(value)),
-            Value::Field(value) => {
-                ExpressionKind::Literal(Literal::Integer(value, Some(IntegerTypeSuffix::Field)))
-            }
-            Value::I8(value) => ExpressionKind::Literal(Literal::Integer(
-                SignedField::from_signed(value),
-                Some(IntegerTypeSuffix::I8),
-            )),
-            Value::I16(value) => ExpressionKind::Literal(Literal::Integer(
-                SignedField::from_signed(value),
-                Some(IntegerTypeSuffix::I16),
-            )),
-            Value::I32(value) => ExpressionKind::Literal(Literal::Integer(
-                SignedField::from_signed(value),
-                Some(IntegerTypeSuffix::I32),
-            )),
-            Value::I64(value) => ExpressionKind::Literal(Literal::Integer(
-                SignedField::from_signed(value),
-                Some(IntegerTypeSuffix::I64),
-            )),
-            Value::U1(value) => ExpressionKind::Literal(Literal::Integer(
-                SignedField::positive(value),
-                Some(IntegerTypeSuffix::U1),
-            )),
-            Value::U8(value) => ExpressionKind::Literal(Literal::Integer(
-                SignedField::positive(u128::from(value)),
-                Some(IntegerTypeSuffix::U8),
-            )),
-            Value::U16(value) => ExpressionKind::Literal(Literal::Integer(
-                SignedField::positive(u128::from(value)),
-                Some(IntegerTypeSuffix::U16),
-            )),
-            Value::U32(value) => ExpressionKind::Literal(Literal::Integer(
-                SignedField::positive(value),
-                Some(IntegerTypeSuffix::U32),
-            )),
-            Value::U64(value) => ExpressionKind::Literal(Literal::Integer(
-                SignedField::positive(value),
-                Some(IntegerTypeSuffix::U64),
-            )),
-            Value::U128(value) => ExpressionKind::Literal(Literal::Integer(
-                SignedField::positive(value),
-                Some(IntegerTypeSuffix::U128),
-            )),
-            Value::String(value) => ExpressionKind::Literal(Literal::Str(unwrap_rc(value))),
+            Value::Unit => Literal(Unit),
+            Value::Bool(value) => Literal(Bool(value)),
+            Value::Field(value) => Literal(Integer(value, Some(IntegerTypeSuffix::Field))),
+            Value::I8(value) => Literal(Integer(value.into(), Some(IntegerTypeSuffix::I8))),
+            Value::I16(value) => Literal(Integer(value.into(), Some(IntegerTypeSuffix::I16))),
+            Value::I32(value) => Literal(Integer(value.into(), Some(IntegerTypeSuffix::I32))),
+            Value::I64(value) => Literal(Integer(value.into(), Some(IntegerTypeSuffix::I64))),
+            Value::U1(value) => Literal(Integer(value.into(), Some(IntegerTypeSuffix::U1))),
+            Value::U8(value) => Literal(Integer(value.into(), Some(IntegerTypeSuffix::U8))),
+            Value::U16(value) => Literal(Integer(value.into(), Some(IntegerTypeSuffix::U16))),
+            Value::U32(value) => Literal(Integer(value.into(), Some(IntegerTypeSuffix::U32))),
+            Value::U64(value) => Literal(Integer(value.into(), Some(IntegerTypeSuffix::U64))),
+            Value::U128(value) => Literal(Integer(value.into(), Some(IntegerTypeSuffix::U128))),
+            Value::String(value) => Literal(Str(unwrap_rc(value))),
             Value::CtString(value) => {
                 // Lower to `std::meta::AsCtString::as_ctstring(contents)`
                 let ident = |name: &str| Ident::new(name.to_string(), location);
@@ -286,8 +256,7 @@ impl Value {
                     segment("AsCtString"),
                     segment("as_ctstring"),
                 ]);
-                let contents = Literal::Str(unwrap_rc(value));
-                let contents = Expression { kind: ExpressionKind::Literal(contents), location };
+                let contents = Expression { kind: Literal(Str(unwrap_rc(value))), location };
                 call(as_ctstring, vec![contents])
             }
             Value::FormatString(fragments, _, length) => {
@@ -337,7 +306,7 @@ impl Value {
                     };
                     new_fragments.push(new_fragment);
                 }
-                let fmtstr = ExpressionKind::Literal(Literal::FmtStr(new_fragments, length));
+                let fmtstr = Literal(FmtStr(new_fragments, length));
                 if has_values {
                     statements.push(Statement {
                         kind: StatementKind::Expression(Expression { kind: fmtstr, location }),
@@ -392,12 +361,12 @@ impl Value {
             Value::Array(elements, _) => {
                 let elements =
                     try_vecmap(elements, |element| element.into_expression(elaborator, location))?;
-                ExpressionKind::Literal(Literal::Array(ArrayLiteral::Standard(elements)))
+                Literal(Array(ArrayLiteral::Standard(elements)))
             }
             Value::Vector(elements, _) => {
                 let elements =
                     try_vecmap(elements, |element| element.into_expression(elaborator, location))?;
-                ExpressionKind::Literal(Literal::Vector(ArrayLiteral::Standard(elements)))
+                Literal(Vector(ArrayLiteral::Standard(elements)))
             }
             Value::Quoted(tokens) => {
                 // Wrap the tokens in '{' and '}' so that we can parse statements as well.
@@ -488,36 +457,16 @@ impl Value {
             Value::Unit => HirExpression::Literal(HirLiteral::Unit),
             Value::Bool(value) => HirExpression::Literal(HirLiteral::Bool(value)),
             Value::Field(value) => HirExpression::Literal(HirLiteral::Integer(value)),
-            Value::I8(value) => {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::from_signed(value)))
-            }
-            Value::I16(value) => {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::from_signed(value)))
-            }
-            Value::I32(value) => {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::from_signed(value)))
-            }
-            Value::I64(value) => {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::from_signed(value)))
-            }
-            Value::U1(value) => {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value)))
-            }
-            Value::U8(value) => HirExpression::Literal(HirLiteral::Integer(SignedField::positive(
-                u128::from(value),
-            ))),
-            Value::U16(value) => HirExpression::Literal(HirLiteral::Integer(
-                SignedField::positive(u128::from(value)),
-            )),
-            Value::U32(value) => {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value)))
-            }
-            Value::U64(value) => {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value)))
-            }
-            Value::U128(value) => {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value)))
-            }
+            Value::I8(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),
+            Value::I16(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),
+            Value::I32(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),
+            Value::I64(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),
+            Value::U1(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),
+            Value::U8(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),
+            Value::U16(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),
+            Value::U32(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),
+            Value::U64(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),
+            Value::U128(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),
             Value::String(value) => HirExpression::Literal(HirLiteral::Str(unwrap_rc(value))),
             Value::FormatString(fragments, _typ, length) => {
                 let mut captures = Vec::new();
@@ -742,11 +691,7 @@ impl Value {
                 }
             }
             Value::Field(value) => {
-                if value.is_negative() {
-                    vec![Token::Minus, Token::Int(value.absolute_value(), None)]
-                } else {
-                    vec![Token::Int(value.absolute_value(), None)]
-                }
+                vec![Token::Int(value, None)]
             }
             Value::String(value) | Value::CtString(value) => {
                 vec![Token::Str(unwrap_rc(value))]
@@ -854,26 +799,39 @@ impl Value {
 
     /// Converts any integral `Value` into a `SignedField`.
     /// Returns `None` for non-integral `Value`s and negative numbers.
-    pub(crate) fn to_non_negative_signed_field(&self) -> Option<SignedField> {
-        let value = self.to_signed_field()?;
-        value.is_positive().then_some(value)
+    pub(crate) fn to_non_negative_field(&self) -> Option<FieldElement> {
+        match self {
+            Value::Field(value) => Some(*value),
+            Value::I8(value) if *value >= 0 => Some((*value).into()),
+            Value::I16(value) if *value >= 0 => Some((*value).into()),
+            Value::I32(value) if *value >= 0 => Some((*value).into()),
+            Value::I64(value) if *value >= 0 => Some((*value).into()),
+            Value::U1(value) => Some((*value).into()),
+            Value::U8(value) => Some((*value).into()),
+            Value::U16(value) => Some((*value).into()),
+            Value::U32(value) => Some((*value).into()),
+            Value::U64(value) => Some((*value).into()),
+            Value::U128(value) => Some((*value).into()),
+            _ => None,
+        }
     }
 
-    /// Converts any integral `Value` into a `SignedField`.
+    /// Converts any integral `Value` into a `FieldElement`.
     /// Returns `None` for non-integral `Value`s
-    pub(crate) fn to_signed_field(&self) -> Option<SignedField> {
+    #[cfg(test)]
+    pub(crate) fn to_field(&self) -> Option<FieldElement> {
         match self {
-            Value::Field(value) => Some(value.into()),
-            Value::I8(value) => Some(value.into()),
-            Value::I16(value) => Some(value.into()),
-            Value::I32(value) => Some(value.into()),
-            Value::I64(value) => Some(value.into()),
-            Value::U1(value) => Some(value.into()),
-            Value::U8(value) => Some(value.into()),
-            Value::U16(value) => Some(value.into()),
-            Value::U32(value) => Some(value.into()),
-            Value::U64(value) => Some(value.into()),
-            Value::U128(value) => Some(value.into()),
+            Value::Field(value) => Some(*value),
+            Value::I8(value) => Some((*value).into()),
+            Value::I16(value) => Some((*value).into()),
+            Value::I32(value) => Some((*value).into()),
+            Value::I64(value) => Some((*value).into()),
+            Value::U1(value) => Some((*value).into()),
+            Value::U8(value) => Some((*value).into()),
+            Value::U16(value) => Some((*value).into()),
+            Value::U32(value) => Some((*value).into()),
+            Value::U64(value) => Some((*value).into()),
+            Value::U128(value) => Some((*value).into()),
             _ => None,
         }
     }

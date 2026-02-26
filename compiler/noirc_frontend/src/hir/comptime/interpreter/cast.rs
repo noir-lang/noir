@@ -5,7 +5,6 @@ use crate::{
     ast::IntegerBitSize,
     hir::comptime::{InterpreterError, Value, errors::IResult},
     shared::Signedness,
-    signed_field::SignedField,
 };
 use acvm::{AcirField, FieldElement, acir::acir_field::truncate_to};
 use noirc_errors::Location;
@@ -94,20 +93,20 @@ fn perform_cast(kind: CastType, lhs: FieldElement) -> FieldElement {
 /// instead of their positive absolute values.
 fn convert_to_field(value: Value, location: Location) -> IResult<FieldElement> {
     Ok(match value {
-        Value::Field(value) => value.to_field_element(),
-        Value::U1(value) => u128::from(value).into(),
-        Value::U8(value) => u128::from(value).into(),
-        Value::U16(value) => u128::from(value).into(),
-        Value::U32(value) => u128::from(value).into(),
-        Value::U64(value) => u128::from(value).into(),
+        Value::Field(value) => value,
+        Value::U1(value) => value.into(),
+        Value::U8(value) => value.into(),
+        Value::U16(value) => value.into(),
+        Value::U32(value) => value.into(),
+        Value::U64(value) => value.into(),
         Value::U128(value) => value.into(),
         // `is_negative` is only used for conversions to Field in which case
         // these should always be positive so that `-1 as i8 as Field == 255`
-        Value::I8(value) => FieldElement::from(i128::from(value as u8)),
-        Value::I16(value) => FieldElement::from(i128::from(value as u16)),
-        Value::I32(value) => FieldElement::from(i128::from(value as u32)),
-        Value::I64(value) => FieldElement::from(i128::from(value as u64)),
-        Value::Bool(value) => FieldElement::from(value),
+        Value::I8(value) => FieldElement::from(value as u8),
+        Value::I16(value) => FieldElement::from(value as u16),
+        Value::I32(value) => FieldElement::from(value as u32),
+        Value::I64(value) => FieldElement::from(value as u64),
+        Value::Bool(value) => value.into(),
         value => {
             let typ = value.get_type().into_owned();
             return Err(InterpreterError::NonNumericCasted { typ, location });
@@ -129,7 +128,7 @@ pub(super) fn evaluate_cast_one_step(
 
     // Now just wrap the Result in a Value
     match output_type.follow_bindings() {
-        Type::FieldElement => Ok(Value::Field(SignedField::new(lhs, false))),
+        Type::FieldElement => Ok(Value::Field(lhs)),
         typ @ Type::Integer(sign, bit_size) => match (sign, bit_size) {
             // These casts are expected to be no-ops
             (Signedness::Unsigned, IntegerBitSize::One) => Ok(Value::U1(lhs.to_u128() != 0)),
@@ -174,7 +173,7 @@ mod tests {
         let typ = Type::FieldElement;
 
         let lhs_values = [
-            Value::Field(SignedField::one()),
+            Value::Field(FieldElement::one()),
             Value::Bool(true),
             Value::U1(true),
             Value::U8(1),
@@ -191,7 +190,7 @@ mod tests {
         for lhs in lhs_values {
             assert_eq!(
                 evaluate_cast_one_step(&typ, location, lhs),
-                Ok(Value::Field(SignedField::one()))
+                Ok(Value::Field(FieldElement::one()))
             );
         }
     }
@@ -210,27 +209,23 @@ mod tests {
             (Value::U64(u64::MAX), unsigned(HundredTwentyEight), Value::U128(u128::from(u64::MAX))),
             // Reinterpret as negative
             (Value::U8(255), signed(Eight), Value::I8(-1)),
-            (Value::Field(SignedField::positive(255u32)), signed(Eight), Value::I8(-1)),
+            (Value::Field(255u32.into()), signed(Eight), Value::I8(-1)),
             // Truncate
             (Value::U16(300), unsigned(Eight), Value::U8(44)),
             (Value::U16(300), signed(Eight), Value::I8(44)),
             (Value::U16(255), signed(Eight), Value::I8(-1)),
-            (Value::Field(SignedField::positive(300u32)), unsigned(Eight), Value::U8(44)),
-            (Value::Field(SignedField::positive(300u32)), signed(Eight), Value::I8(44)),
-            (Value::Field(SignedField::positive(10u32)), unsigned(Sixteen), Value::U16(10)),
-            (Value::Field(SignedField::positive(256u32)), unsigned(Eight), Value::U8(0)),
-            (Value::Field(SignedField::positive(255u32)), unsigned(Eight), Value::U8(255)),
+            (Value::Field(300u32.into()), unsigned(Eight), Value::U8(44)),
+            (Value::Field(300u32.into()), signed(Eight), Value::I8(44)),
+            (Value::Field(10u32.into()), unsigned(Sixteen), Value::U16(10)),
+            (Value::Field(256u32.into()), unsigned(Eight), Value::U8(0)),
+            (Value::Field(255u32.into()), unsigned(Eight), Value::U8(255)),
             (Value::U128(u128::MAX), unsigned(SixtyFour), Value::U64(u64::MAX)),
             // Casting Field -> Field should be a no-op
+            (Value::Field(4u32.into()), Type::FieldElement, Value::Field(4u32.into())),
             (
-                Value::Field(SignedField::positive(4u32)),
+                Value::Field(-FieldElement::from(4u32)),
                 Type::FieldElement,
-                Value::Field(SignedField::positive(4u32)),
-            ),
-            (
-                Value::Field(SignedField::negative(4u32)),
-                Type::FieldElement,
-                Value::Field(SignedField::negative(4u32)),
+                Value::Field(-FieldElement::from(4u32)),
             ),
         ];
 
@@ -260,7 +255,7 @@ mod tests {
             (Value::I8(-100), unsigned(Sixteen), Value::U16(65436)),
             // Casting a negative integer to a field always results in a positive value
             // This is the only case we zero-extend signed integers instead of sign-extending them
-            (Value::I8(-1), Type::FieldElement, Value::Field(SignedField::positive(255u32))),
+            (Value::I8(-1), Type::FieldElement, Value::Field(255u32.into())),
             // Widen negative: sign extend
             (Value::I8(-1), signed(Sixteen), Value::I16(-1)),
             (Value::I8(-100), signed(Sixteen), Value::I16(-100)),
@@ -272,11 +267,11 @@ mod tests {
             (Value::I16(255), signed(Eight), Value::I8(-1)),
             (Value::I16(i16::MIN + 5), signed(Eight), Value::I8(5)),
             (Value::I16(i16::MIN + 5), unsigned(Eight), Value::U8(5)),
-            (Value::Field(SignedField::negative(1u32)), unsigned(Eight), Value::U8(0)),
-            (Value::Field(SignedField::negative(1u32)), signed(Eight), Value::I8(0)),
-            (Value::Field(SignedField::negative(2u32)), unsigned(Sixteen), Value::U16(65535)),
-            (Value::Field(SignedField::negative(2u32)), signed(Sixteen), Value::I16(-1)),
-            (Value::Field(SignedField::positive(u128::MAX)), signed(Eight), Value::I8(-1)),
+            (Value::Field(-FieldElement::from(1u32)), unsigned(Eight), Value::U8(0)),
+            (Value::Field(-FieldElement::from(1u32)), signed(Eight), Value::I8(0)),
+            (Value::Field(-FieldElement::from(2u32)), unsigned(Sixteen), Value::U16(65535)),
+            (Value::Field(-FieldElement::from(2u32)), signed(Sixteen), Value::I16(-1)),
+            (Value::Field(u128::MAX.into()), signed(Eight), Value::I8(-1)),
         ];
 
         for (lhs, typ, expected) in tests {
@@ -292,7 +287,7 @@ mod tests {
     #[test]
     fn bool_cast() {
         let location = Location::dummy();
-        let lhs = Value::Field(SignedField::positive(0u32));
+        let lhs = Value::Field(0u32.into());
         let actual = evaluate_cast_one_step(&Type::Bool, location, lhs.clone());
         assert!(matches!(actual, Err(InterpreterError::CannotCastNumericToBool { .. })));
     }

@@ -1,3 +1,4 @@
+use acvm::FieldElement;
 use noirc_errors::{Location, Span};
 
 use crate::{
@@ -16,7 +17,6 @@ use crate::{
         InternedUnresolvedTypeData, QuotedTypeId,
     },
     parser::{Item, ItemKind, ParsedSubModule},
-    signed_field::SignedField,
     token::{
         FmtStrFragment, IntegerTypeSuffix, MetaAttribute, MetaAttributeName, SecondaryAttribute,
         SecondaryAttributeKind, Tokens,
@@ -174,7 +174,7 @@ pub trait Visitor {
 
     fn visit_literal_integer(
         &mut self,
-        _value: SignedField,
+        _value: FieldElement,
         _suffix: Option<IntegerTypeSuffix>,
         _: Span,
     ) {
@@ -468,7 +468,7 @@ pub trait Visitor {
 
     fn visit_constant_type_expression(
         &mut self,
-        _value: SignedField,
+        _value: FieldElement,
         _suffix: Option<IntegerTypeSuffix>,
         _span: Span,
     ) {

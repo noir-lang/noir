@@ -388,7 +388,7 @@ impl Display for ValuePrinter<'_, '_> {
             }
             Value::Field(value) => {
                 // write!(f, "{value}") // This would display the Field as a number, but it doesn't match the runtime.
-                write!(f, "{}", value.to_field_element().to_short_hex())
+                write!(f, "{}", value.to_short_hex())
             }
             Value::I8(value) => write!(f, "{value}"),
             Value::I16(value) => write!(f, "{value}"),

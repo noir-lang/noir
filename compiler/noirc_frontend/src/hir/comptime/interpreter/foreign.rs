@@ -3,7 +3,6 @@
 use acvm::{BlackBoxResolutionError, FieldElement, blackbox_solver::BlackBoxFunctionSolver};
 use bn254_blackbox_solver::Bn254BlackBoxSolver; // Currently locked to only bn254!
 use im::{Vector, vector};
-use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::{
@@ -12,7 +11,6 @@ use crate::{
         InterpreterError, Value, errors::IResult,
         interpreter::builtin::builtin_helpers::to_byte_array,
     },
-    signed_field::SignedField,
 };
 
 use super::{
@@ -234,13 +232,12 @@ fn poseidon2_permutation(arguments: Vec<(Value, Location)>, location: Location) 
     let input = check_one_argument(arguments, location)?;
 
     let (input, typ) = get_array_map(input, get_field)?;
-    let input = vecmap(input, SignedField::to_field_element);
 
     let fields = Bn254BlackBoxSolver
         .poseidon2_permutation(&input)
         .map_err(|error| InterpreterError::BlackBoxError(error, location))?;
 
-    let array = fields.into_iter().map(|f| Value::Field(SignedField::positive(f))).collect();
+    let array = fields.into_iter().map(Value::Field).collect();
     Ok(Value::Array(array, typ))
 }
 
@@ -280,7 +277,7 @@ fn get_embedded_curve_point(
     let x = get_struct_field("x", &fields, &typ, location, get_field)?;
     let y = get_struct_field("y", &fields, &typ, location, get_field)?;
     let is_infinite = get_struct_field("is_infinite", &fields, &typ, location, get_bool)?;
-    Ok((x.to_field_element(), y.to_field_element(), is_infinite))
+    Ok((x, y, is_infinite))
 }
 
 /// Decode an `EmbeddedCurveScalar` struct.
@@ -292,7 +289,7 @@ fn get_embedded_curve_scalar(
     let (fields, typ) = get_struct_fields("EmbeddedCurveScalar", (value, location))?;
     let lo = get_struct_field("lo", &fields, &typ, location, get_field)?;
     let hi = get_struct_field("hi", &fields, &typ, location, get_field)?;
-    Ok((lo.to_field_element(), hi.to_field_element()))
+    Ok((lo, hi))
 }
 
 fn to_embedded_curve_point(
@@ -302,11 +299,7 @@ fn to_embedded_curve_point(
     typ: Type,
 ) -> Value {
     to_struct(
-        [
-            ("x", Value::Field(SignedField::positive(x))),
-            ("y", Value::Field(SignedField::positive(y))),
-            ("is_infinite", Value::Bool(is_infinite)),
-        ],
+        [("x", Value::Field(x)), ("y", Value::Field(y)), ("is_infinite", Value::Bool(is_infinite))],
         typ,
     )
 }
