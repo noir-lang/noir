@@ -394,7 +394,7 @@ fn static_assert(
     if predicate {
         Ok(Value::Unit)
     } else {
-        failing_constraint(format!("static_assert failed: {message}").clone(), location, call_stack)
+        failing_constraint(format!("static_assert failed: {message}"), location, call_stack)
     }
 }
 
@@ -2070,7 +2070,7 @@ fn expr_as_integer(
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    expr_as(interner, arguments, return_type.clone(), location, |expr| match expr {
+    expr_as(interner, arguments, return_type, location, |expr| match expr {
         ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field, _suffix))) => {
             Some(Value::Tuple(vec![
                 Shared::new(Value::Field(SignedField::positive(field.absolute_value()))),

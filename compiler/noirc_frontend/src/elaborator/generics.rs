@@ -140,12 +140,10 @@ impl Elaborator<'_> {
             }
             IdentOrQuotedType::Quoted(id, location) => {
                 match self.interner.get_quoted_type(*id).follow_bindings() {
-                    Type::NamedGeneric(NamedGeneric { type_var, name, .. }) => {
-                        Ok((type_var.clone(), name))
-                    }
+                    Type::NamedGeneric(NamedGeneric { type_var, name, .. }) => Ok((type_var, name)),
                     other => Err(ResolverError::MacroResultInGenericsListNotAGeneric {
                         location: *location,
-                        typ: other.clone(),
+                        typ: other,
                     }),
                 }
             }

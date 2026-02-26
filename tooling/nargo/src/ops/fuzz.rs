@@ -204,7 +204,7 @@ where
                 acir_and_brillig_programs,
                 acir_executor,
                 brillig_executor,
-                &package_name.clone(),
+                &package_name,
                 context.def_interner.function_name(&fuzzing_harness.id),
                 FuzzedExecutorExecutionConfiguration {
                     num_threads: fuzz_execution_config.num_threads,
@@ -227,7 +227,7 @@ where
                     let unwrapped_acir_program = acir_program_copy.unwrap();
                     let initial_witness = unwrapped_acir_program
                         .abi
-                        .encode(&program_failure_result.counterexample.clone(), None)
+                        .encode(&program_failure_result.counterexample, None)
                         .unwrap();
                     let foreign_call_executor =
                         build_foreign_call_executor(output(show_output), layers::Unhandled);
@@ -264,7 +264,7 @@ where
                             let unwrapped_brillig_program = brillig_program_copy.unwrap();
                             let initial_witness = unwrapped_acir_program
                                 .abi
-                                .encode(&program_failure_result.counterexample.clone(), None)
+                                .encode(&program_failure_result.counterexample, None)
                                 .unwrap();
 
                             // Execute the program with the failing witness

@@ -258,7 +258,7 @@ impl Elaborator<'_> {
                 Err(error) => self.push_err(error),
                 Ok(Err(prev_location)) => {
                     self.push_err(DefCollectorErrorKind::OverlappingImpl {
-                        typ: self_type.clone(),
+                        typ: self_type,
                         location: self_type_location,
                         prev_location,
                     });
@@ -995,7 +995,7 @@ impl Elaborator<'_> {
         let associated_types_behind_type_vars = vecmap(&associated_types, |(name, _typ, kind)| {
             let new_generic_id = self.interner.next_type_variable_id();
             let type_var = TypeVariable::unbound(new_generic_id, kind.clone());
-            let typ = type_var.clone().into_named_generic(
+            let typ = type_var.into_named_generic(
                 &Rc::new(name.to_string()),
                 trait_name.as_ref().map(|tn| (object.as_str(), tn.as_str())),
             );

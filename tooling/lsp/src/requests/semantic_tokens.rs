@@ -43,7 +43,7 @@ pub(crate) fn on_semantic_tokens_full_request(
     params: SemanticTokensParams,
 ) -> impl Future<Output = Result<Option<SemanticTokensResult>, ResponseError>> + use<> {
     let text_document_position_params = TextDocumentPositionParams {
-        text_document: params.text_document.clone(),
+        text_document: params.text_document,
         position: Position { line: 0, character: 0 },
     };
 

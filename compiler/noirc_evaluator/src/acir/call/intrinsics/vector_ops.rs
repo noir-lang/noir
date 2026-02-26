@@ -72,7 +72,7 @@ impl Context<'_> {
 
             let mut elements_var = Vec::new();
             let mut element_size = 0;
-            let mut new_vector = self.read_array_with_type(vector.clone(), &vector_typ)?;
+            let mut new_vector = self.read_array_with_type(vector, &vector_typ)?;
             let zero = self.acir_context.add_constant(FieldElement::zero());
 
             // 1. Convert the elements-to-push into flattened acir_var and at the same time
@@ -317,7 +317,7 @@ impl Context<'_> {
         vector_length_id: ValueId,
         vector_length_value: AcirValue,
     ) -> Result<AcirVar, RuntimeError> {
-        let vector_length_var = vector_length_value.clone().into_var()?;
+        let vector_length_var = vector_length_value.into_var()?;
         let is_unknown_length = dfg.get_numeric_constant(vector_length_id).is_none();
 
         if is_unknown_length {
