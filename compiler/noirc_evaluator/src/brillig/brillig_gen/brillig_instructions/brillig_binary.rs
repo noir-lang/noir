@@ -263,12 +263,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         dfg: &DataFlowGraph,
     ) {
         let [result_value] = dfg.instruction_result(instruction_id);
-        let result_var = self.variables.define_single_addr_variable(
-            self.function_context,
-            self.brillig_context,
-            result_value,
-            dfg,
-        );
+        let result_var = self.define_single_addr_variable(result_value, dfg);
         self.convert_ssa_binary(binary, dfg, result_var);
     }
 

@@ -20,6 +20,7 @@ use acvm::acir::{
 
 impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
     /// Creates an entry point artifact that will jump to the function label provided.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new_entry_point_artifact(
         arguments: Vec<BrilligParameter>,
         return_parameters: Vec<BrilligParameter>,
@@ -93,16 +94,17 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
 
         let return_data_start = self.return_data_start_offset(calldata_size);
 
-        // The heap begins after the end of the stack.
-        // Set initial value of free memory pointer: `return_data_start + return_data_size + self.layout.max_stack_size()`
+        // The stack begins after the calldata region (calldata + return data)
+        let stack_start = return_data_start + return_data_size;
+
+        // The heap begins right after the stack.
+        // Per-function spill regions are allocated from the heap in each function's prologue.
         self.const_instruction(
             SingleAddrVariable::new_usize(ReservedRegisters::free_memory_pointer()),
-            (return_data_start + return_data_size + self.layout().max_stack_size()).into(),
+            (stack_start + self.layout().max_stack_size()).into(),
         );
 
-        // The stack begins after the calldata region (calldata + return data)
         // Set initial value of the stack pointer: `return_data_start + return_data_size`
-        let stack_start = return_data_start + return_data_size;
         self.const_instruction(
             SingleAddrVariable::new_usize(ReservedRegisters::stack_pointer()),
             stack_start.into(),
