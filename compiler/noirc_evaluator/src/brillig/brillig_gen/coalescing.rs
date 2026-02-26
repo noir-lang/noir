@@ -178,7 +178,7 @@ impl CoalescingMap {
     /// coalescing is still alive (i.e., satisfies the `is_alive` predicate).
     ///
     /// Multiple values can share a register through a "hub" pattern:
-    /// e.g., `v1 → v_hub ← v3` means v1, v_hub, and v3 all share one register.
+    /// e.g., `v1 -> v_hub <- v3` means v1, v_hub, and v3 all share one register.
     /// When `v1` dies we must check whether `v_hub` or any sibling (like `v3`)
     /// is still alive before deallocating the register.
     pub(crate) fn has_live_partner(

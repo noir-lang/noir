@@ -81,6 +81,21 @@ impl ReservedRegisters {
     pub(crate) fn usize_one() -> MemoryAddress {
         MemoryAddress::direct(2)
     }
+
+    /// Fixed stack slot `sp[1]` holds the per-frame spill base pointer.
+    /// Each function's prologue allocates a heap region and stores the pointer here.
+    /// Stack-relative addressing means it's automatically preserved across calls.
+    pub(crate) fn spill_base_pointer() -> MemoryAddress {
+        MemoryAddress::relative(1)
+    }
+
+    /// Two scratch addresses used transiently during spill/reload computations.
+    /// These are the first two slots of scratch space (`@3` and `@4`).
+    /// Safe to use because block codegen never uses scratch space directly.
+    pub(crate) fn spill_scratch() -> (MemoryAddress, MemoryAddress) {
+        let start = ScratchSpace::start();
+        (MemoryAddress::direct(assert_u32(start)), MemoryAddress::direct(assert_u32(start + 1)))
+    }
 }
 
 /// Brillig context object that is used while constructing the
@@ -180,6 +195,60 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             can_call_procedures: true,
             globals_memory_size: None,
         }
+    }
+
+    /// Emit 3 placeholder no-op opcodes (self-moves) in the prologue for the spill region
+    /// allocation. Their positions are recorded so they can be overwritten later if the
+    /// function actually spills any values.
+    pub(crate) fn emit_unresolved_spill_prologue(&mut self) {
+        let no_op_register = ReservedRegisters::usize_one();
+        let positions = [
+            self.obj.index_of_next_opcode(),
+            self.obj.index_of_next_opcode() + 1,
+            self.obj.index_of_next_opcode() + 2,
+        ];
+        // Emit 3 harmless self-moves as placeholders
+        for _ in 0..3 {
+            self.push_opcode(BrilligOpcode::Mov {
+                destination: no_op_register,
+                source: no_op_register,
+            });
+        }
+        self.obj.set_unresolved_spill_prologue(positions);
+    }
+
+    /// Overwrite the 3 placeholder no-op opcodes with real spill region allocation instructions.
+    /// Called after all blocks are compiled, only if the function actually spilled values.
+    pub(crate) fn resolve_spill_prologue(&mut self, actual_spill_size: usize) {
+        use acvm::acir::brillig::{BinaryIntOp, BitSize, IntegerBitSize};
+
+        let positions = self
+            .obj
+            .take_unresolved_spill_prologue()
+            .expect("ICE: resolve_spill_prologue called without emit_unresolved_spill_prologue");
+        let (scratch, _) = ReservedRegisters::spill_scratch();
+
+        // Save current FMP as spill base
+        // [0]: Mov sp[1], @1
+        self.obj.byte_code[positions[0]] = BrilligOpcode::Mov {
+            destination: ReservedRegisters::spill_base_pointer(),
+            source: ReservedRegisters::free_memory_pointer(),
+        };
+        // [1]: Const @scratch, actual_spill_size
+        self.obj.byte_code[positions[1]] = BrilligOpcode::Const {
+            destination: scratch,
+            value: F::from(actual_spill_size as u128),
+            bit_size: BitSize::Integer(IntegerBitSize::U32),
+        };
+        // Bump FMP by actual amount
+        // [2]: BinaryIntOp Add @1, @1, @scratch
+        self.obj.byte_code[positions[2]] = BrilligOpcode::BinaryIntOp {
+            op: BinaryIntOp::Add,
+            destination: ReservedRegisters::free_memory_pointer(),
+            bit_size: IntegerBitSize::U32,
+            lhs: ReservedRegisters::free_memory_pointer(),
+            rhs: scratch,
+        };
     }
 }
 
@@ -756,8 +825,13 @@ pub(crate) mod tests {
         }
 
         let status = vm.get_status();
-        // The VM successfully finished executing
-        assert_eq!(status, VMStatus::Finished { return_data_offset: 6, return_data_size: 6 });
+        // The VM successfully finished executing.
+        // The return_data values equal the stack pointer which starts at ReservedRegisters::len() + 3 variables.
+        let expected_sp = assert_u32(ReservedRegisters::len() + 3);
+        assert_eq!(
+            status,
+            VMStatus::Finished { return_data_offset: expected_sp, return_data_size: expected_sp }
+        );
     }
 
     /// Test proving that empty array allocation near heap limit triggers OOM.
