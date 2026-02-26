@@ -816,6 +816,7 @@ impl std::fmt::Display for TypeAlias {
 }
 
 impl TypeAlias {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         id: TypeAliasId,
         name: Ident,
