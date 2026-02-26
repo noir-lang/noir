@@ -161,7 +161,7 @@ impl<'a> VisitorReferenceFinder<'a> {
                         }
                     };
                     let location = lsp_types::Location {
-                        uri: byte_lsp_location.uri.clone(),
+                        uri: byte_lsp_location.uri,
                         range: lsp_types::Range {
                             start: lsp_types::Position { line, character: start },
                             end: lsp_types::Position { line, character: end },

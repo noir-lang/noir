@@ -278,7 +278,7 @@ fn ssa_to_acir_program(ssa: Ssa) -> AcirProgram<FieldElement> {
         let ret_values: BTreeSet<Witness> =
             acir_func.return_witnesses.clone().into_iter().collect();
 
-        private_params.extend(ret_values.iter().cloned());
+        private_params.extend(ret_values.iter().copied());
         let circuit: Circuit<FieldElement> = Circuit {
             current_witness_index: acir_func
                 .current_witness_index()

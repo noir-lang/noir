@@ -1310,7 +1310,6 @@ impl<'interner> Monomorphizer<'interner> {
             DefinitionKind::Function(func_id) => {
                 let mutable = definition.mutable;
                 let name = definition.name.clone();
-                let generics = generics.clone();
                 let func_id = *func_id;
 
                 // Functions are represented as a pair of their constrained and unconstrained versions
@@ -1432,7 +1431,7 @@ impl<'interner> Monomorphizer<'interner> {
             .evaluate_to_signed_field(&expected_kind, location)
             .map_err(|err| MonomorphizationError::UnknownArrayLength { err, location })?;
 
-        let expr_kind = Kind::Numeric(Box::new(expr_type.clone()));
+        let expr_kind = Kind::Numeric(Box::new(expr_type));
         if !expected_kind.unifies(&expr_kind) {
             let message = "ICE: Generic's kind does not match expected type";
             return Err(MonomorphizationError::InternalError { location, message });
@@ -2336,13 +2335,7 @@ impl<'interner> Monomorphizer<'interner> {
         let new_id = self.next_function_id();
         let is_unconstrained = self.is_unconstrained(id);
 
-        self.define_function(
-            id,
-            function_type.clone(),
-            turbofish_generics,
-            is_unconstrained,
-            new_id,
-        );
+        self.define_function(id, function_type, turbofish_generics, is_unconstrained, new_id);
 
         self.queue.push_back((id, new_id, bindings, trait_method, is_unconstrained, expr_location));
         new_id
@@ -2902,7 +2895,7 @@ impl<'interner> Monomorphizer<'interner> {
 /// Return this tuple type's fields or panic
 fn unwrap_tuple_type(typ: &HirType) -> Vec<HirType> {
     match typ.follow_bindings() {
-        HirType::Tuple(fields) => fields.clone(),
+        HirType::Tuple(fields) => fields,
         other => unreachable!("unwrap_tuple_type: expected tuple, found {:?}", other),
     }
 }

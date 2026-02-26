@@ -498,8 +498,7 @@ pub fn decode_string_value<F: AcirField>(field_elements: &[F]) -> String {
         char_byte
     });
 
-    let final_string = String::from_utf8_lossy(&string_as_slice).to_string();
-    final_string.to_owned()
+    String::from_utf8_lossy(&string_as_slice).to_string()
 }
 
 pub enum TryFromParamsError {

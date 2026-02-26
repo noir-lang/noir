@@ -235,7 +235,7 @@ impl<'a, 'b> LimitContext<'a, 'b> {
             limit_id,
             false,
             format!("_{LIMIT_NAME}"),
-            limit_type.clone(),
+            limit_type,
             Visibility::Private,
         ));
     }

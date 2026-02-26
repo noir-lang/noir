@@ -24,7 +24,7 @@ fn on_goto_definition_inner(
         let found_location = args.interner.get_declaration_location_from(args.location)?;
         let file_id = found_location.file;
         let definition_position = to_lsp_location(args.files, file_id, found_location.span)?;
-        let response = GotoDeclarationResponse::from(definition_position).to_owned();
+        let response = GotoDeclarationResponse::from(definition_position);
         Some(response)
     })
 }

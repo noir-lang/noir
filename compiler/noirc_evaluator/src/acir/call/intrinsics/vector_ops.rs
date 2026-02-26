@@ -72,7 +72,7 @@ impl Context<'_> {
 
             let mut elements_var = Vec::new();
             let mut element_size = 0;
-            let mut new_vector = self.read_array_with_type(vector.clone(), &vector_typ)?;
+            let mut new_vector = self.read_array_with_type(vector, &vector_typ)?;
             let zero = self.acir_context.add_constant(FieldElement::zero());
 
             // 1. Convert the elements-to-push into flattened acir_var and at the same time
@@ -317,7 +317,7 @@ impl Context<'_> {
         vector_length_id: ValueId,
         vector_length_value: AcirValue,
     ) -> Result<AcirVar, RuntimeError> {
-        let vector_length_var = vector_length_value.clone().into_var()?;
+        let vector_length_var = vector_length_value.into_var()?;
         let is_unknown_length = dfg.get_numeric_constant(vector_length_id).is_none();
 
         if is_unknown_length {
@@ -480,13 +480,6 @@ impl Context<'_> {
     ///    - If within the insertion window, write values from `flattened_elements`.
     ///    - If above the window, shift elements upward by the size of the inserted data.
     /// 4. Initialize a new memory block for the resulting vector, ensuring its type information is preserved.
-    ///
-    /// # Empty Vector Handling
-    ///
-    /// If the vector has zero length, this function skips the memory read and returns zero values.
-    /// It asserts that the current side effects must be disabled (predicate = 0), otherwise fails
-    /// with "Index out of bounds, vector has size 0". This prevents reading from empty memory blocks
-    /// which would cause "Index out of bounds" errors.
     pub(super) fn convert_vector_insert(
         &mut self,
         arguments: &[ValueId],
@@ -499,24 +492,9 @@ impl Context<'_> {
         let vector_typ = dfg.type_of_value(vector_contents);
         let block_id = self.ensure_array_is_initialized(vector_contents, dfg)?;
 
-        // Check if we're trying to insert into an empty vector
-        if self.has_zero_length(vector_contents, dfg) {
-            // Make sure this code is disabled, or fail with "Index out of bounds".
-            let msg = "Index out of bounds, vector has size 0".to_string();
-            self.acir_context.assert_zero_var(self.current_side_effects_enabled_var, msg)?;
-
-            // Fill the result with default values.
-            let mut results = Vec::with_capacity(result_ids.len());
-
-            // For insert, results are: [new_len, new_vector]
-            let vector_length_value = self.convert_value(arguments[0], dfg);
-            results.push(vector_length_value);
-
-            let vector = self.convert_value(vector_contents, dfg);
-            results.push(vector);
-
-            return Ok(results);
-        }
+        // Check if we're trying to insert into an empty vector.
+        // If so, we must avoid trying to read from the original vector.
+        let has_zero_length = self.has_zero_length(vector_contents, dfg);
 
         let vector = self.convert_value(vector_contents, dfg);
         let insert_index = self.convert_value(arguments[2], dfg).into_var()?;
@@ -630,8 +608,15 @@ impl Context<'_> {
                 self.acir_context.add_var(use_shifted_index_pred, use_current_index_pred)?
             };
 
-            let value_shifted_index =
-                self.acir_context.read_from_memory(block_id, &shifted_index)?;
+            // Read the original value, which we blend with the inserted ones.
+            let value_shifted_index = if has_zero_length {
+                // The original vector is empty, so we cannot read from it.
+                // The `should_insert_value_pred` will always be 1 in this case,
+                // and `not_pred` will be 0, so it doesn't matter what value we use here.
+                one
+            } else {
+                self.acir_context.read_from_memory(block_id, &shifted_index)?
+            };
 
             // Final predicate to determine whether we are within the insertion bounds
             let should_insert_value_pred =

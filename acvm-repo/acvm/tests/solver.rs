@@ -732,7 +732,7 @@ where
     let initial_witness = WitnessMap::from(BTreeMap::from_iter(initial_witness_vec));
 
     let inputs = constant_or_witness_to_function_inputs(inputs, 0, num_bits)?;
-    let op = Opcode::BlackBoxFuncCall(f((inputs.clone(), outputs.clone()))?);
+    let op = Opcode::BlackBoxFuncCall(f((inputs, outputs.clone()))?);
     let opcodes = vec![op];
     let unconstrained_functions = vec![];
     let mut acvm = ACVM::new(&solver, &opcodes, initial_witness, &unconstrained_functions, &[]);

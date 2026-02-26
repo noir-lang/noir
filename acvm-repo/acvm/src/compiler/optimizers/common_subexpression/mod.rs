@@ -589,7 +589,7 @@ mod tests {
         brillig_side_effects.insert(BrilligFunctionId(0), false);
 
         let (_, _, opcodes_hash_stabilized) =
-            transform_internal(acir, acir_opcode_positions.clone(), &brillig_side_effects, None);
+            transform_internal(acir, acir_opcode_positions, &brillig_side_effects, None);
         assert!(!opcodes_hash_stabilized);
     }
 }
