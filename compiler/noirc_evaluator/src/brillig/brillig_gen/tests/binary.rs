@@ -253,9 +253,13 @@ fn brillig_shl() {
     assert_artifact_snapshot!(foo, @r"
     fn foo
     0: call 0
-    1: sp[4] = u32 shl sp[2], sp[3]
-    2: sp[2] = sp[4]
-    3: return
+    1: sp[6] = const u32 32
+    2: sp[5] = u32 lt sp[3], sp[6]
+    3: jump if sp[5] to 0
+    4: call 0
+    5: sp[4] = u32 shl sp[2], sp[3]
+    6: sp[2] = sp[4]
+    7: return
     ");
 }
 
@@ -275,9 +279,13 @@ fn brillig_shr() {
     assert_artifact_snapshot!(foo, @r"
     fn foo
     0: call 0
-    1: sp[4] = u32 shr sp[2], sp[3]
-    2: sp[2] = sp[4]
-    3: return
+    1: sp[6] = const u32 32
+    2: sp[5] = u32 lt sp[3], sp[6]
+    3: jump if sp[5] to 0
+    4: call 0
+    5: sp[4] = u32 shr sp[2], sp[3]
+    6: sp[2] = sp[4]
+    7: return
     ");
 }
 

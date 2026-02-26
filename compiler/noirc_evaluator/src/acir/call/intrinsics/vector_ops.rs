@@ -1,6 +1,6 @@
 use crate::acir::arrays::ElementTypeSizesArrayShift;
 use crate::acir::types::{flat_element_types, flat_numeric_types};
-use crate::acir::{AcirDynamicArray, AcirValue};
+use crate::acir::{AcirDynamicArray, AcirValue, AcirVar};
 use crate::brillig::assert_u32;
 use crate::errors::RuntimeError;
 use crate::ssa::ir::types::{NumericType, Type};
@@ -241,15 +241,15 @@ impl Context<'_> {
         dfg: &DataFlowGraph,
         result_ids: &[ValueId],
     ) -> Result<Vec<AcirValue>, RuntimeError> {
-        let vector_length_var = arguments[0];
-        let vector_contents = arguments[1];
+        let vector_length_id = arguments[0];
+        let vector_contents_id = arguments[1];
+        let vector_length_value = self.convert_value(vector_length_id, dfg);
+        let block_id = self.ensure_array_is_initialized(vector_contents_id, dfg)?;
+        let vector_contents_value = self.convert_value(vector_contents_id, dfg);
+        let vector_type = dfg.type_of_value(vector_contents_id);
 
-        let vector_value = self.convert_value(vector_length_var, dfg);
-        let vector_length = vector_value.clone().into_var()?;
-        let block_id = self.ensure_array_is_initialized(vector_contents, dfg)?;
-        let vector = self.convert_value(vector_contents, dfg);
-
-        if self.has_zero_length(vector_contents, dfg) {
+        // Check if we're trying to pop from a known empty vector.
+        if self.has_zero_length(vector_contents_id, dfg) {
             // Make sure this code is disabled, or fail with "Index out of bounds".
             let msg = "cannot pop from a vector with length 0".to_string();
             self.acir_context.assert_zero_var(self.current_side_effects_enabled_var, msg)?;
@@ -257,9 +257,9 @@ impl Context<'_> {
             // Fill the result with default values.
             let mut results = Vec::with_capacity(result_ids.len());
 
-            // The results shall be: [new len, new vector, ...popped]
-            results.push(vector_value);
-            results.push(vector);
+            // The results shall be: [new len, new vector, ...popped elements]
+            results.push(vector_length_value);
+            results.push(vector_contents_value);
 
             for result_id in &result_ids[2..] {
                 let result_type = dfg.type_of_value(*result_id);
@@ -270,25 +270,14 @@ impl Context<'_> {
             return Ok(results);
         }
 
-        // For unknown length under a side effect variable, we want to multiply with the side effect variable
-        // to ensure we don't end up trying to look up an item at index -1, when the semantic length is 0.
-        let is_unknown_length = dfg.get_numeric_constant(vector_length_var).is_none();
-
-        let one = self.acir_context.add_constant(FieldElement::one());
-        let mut new_vector_length = self.acir_context.sub_var(vector_length, one)?;
-
-        if is_unknown_length {
-            new_vector_length = self
-                .acir_context
-                .mul_var(new_vector_length, self.current_side_effects_enabled_var)?;
-        }
+        let new_vector_length_var =
+            self.vector_pop_new_length(dfg, vector_length_id, vector_length_value)?;
 
         // For a pop back operation we want to fetch from the `length - 1` as this is the
         // last valid index that can be accessed in a vector. After the pop back operation
         // the elements stored at that index will no longer be able to be accessed.
-        let mut var_index = new_vector_length;
+        let mut var_index = new_vector_length_var;
 
-        let vector_type = dfg.type_of_value(vector_contents);
         let item_size = vector_type.element_types();
         // Must read from the flattened last index of the vector in case the vector contains nested arrays.
         let flat_item_size: FlattenedLength =
@@ -302,18 +291,63 @@ impl Context<'_> {
             popped_elements.push(elem);
         }
 
-        let mut new_vector = self.read_array_with_type(vector, &vector_type)?;
+        let mut new_vector_value =
+            self.read_array_with_type(vector_contents_value, &vector_type)?;
         for _ in 0..popped_elements.len() {
-            new_vector.pop_back();
+            new_vector_value.pop_back();
         }
 
         let mut results = vec![
-            AcirValue::Var(new_vector_length, NumericType::length_type()),
-            AcirValue::Array(new_vector),
+            AcirValue::Var(new_vector_length_var, NumericType::length_type()),
+            AcirValue::Array(new_vector_value),
         ];
         results.append(&mut popped_elements);
 
         Ok(results)
+    }
+
+    /// Compute the new vector length after popping one value from it.
+    ///
+    /// Assumes that we already handled the constant zero case.
+    /// If the length is _not_ a known constant, it inserts a constraint
+    /// to assert that the length is not zero.
+    fn vector_pop_new_length(
+        &mut self,
+        dfg: &DataFlowGraph,
+        vector_length_id: ValueId,
+        vector_length_value: AcirValue,
+    ) -> Result<AcirVar, RuntimeError> {
+        let vector_length_var = vector_length_value.clone().into_var()?;
+        let is_unknown_length = dfg.get_numeric_constant(vector_length_id).is_none();
+
+        if is_unknown_length {
+            // Check that the vector length is not zero.
+            // This is different from the previous check as this is a runtime check.
+            let zero = self.acir_context.add_constant(FieldElement::zero());
+            let assert_message = self.acir_context.generate_assertion_message_payload(
+                "Attempt to pop_front from an empty vector".to_string(),
+            );
+            self.acir_context.assert_neq_var(
+                vector_length_var,
+                zero,
+                self.current_side_effects_enabled_var,
+                Some(assert_message),
+            )?;
+        }
+
+        let one = self.acir_context.add_constant(FieldElement::one());
+        let mut new_vector_length_var = self.acir_context.sub_var(vector_length_var, one)?;
+
+        // For unknown length under a side effect variable, we want to multiply with the side effect variable
+        // to ensure we don't end up trying to look up an item at index -1, when the semantic length is 0,
+        // which can fail a circuit even when the side effects are disabled.
+        if is_unknown_length {
+            new_vector_length_var = self
+                .acir_context
+                .mul_var(new_vector_length_var, self.current_side_effects_enabled_var)?;
+        }
+
+        Ok(new_vector_length_var)
     }
 
     /// Removes and returns one or more elements from the front of a non-nested vector.
@@ -360,14 +394,16 @@ impl Context<'_> {
         dfg: &DataFlowGraph,
         result_ids: &[ValueId],
     ) -> Result<Vec<AcirValue>, RuntimeError> {
-        let vector_length = self.convert_value(arguments[0], dfg).into_var()?;
-        let vector_contents = arguments[1];
-
-        let vector_typ = dfg.type_of_value(vector_contents);
-        let block_id = self.ensure_array_is_initialized(vector_contents, dfg)?;
+        let vector_length_id = arguments[0];
+        let vector_contents_id = arguments[1];
+        let vector_length_value = self.convert_value(vector_length_id, dfg);
+        let block_id = self.ensure_array_is_initialized(vector_contents_id, dfg)?;
+        let vector_contents_value = self.convert_value(vector_contents_id, dfg);
+        let vector_type = dfg.type_of_value(vector_contents_id);
+        let element_size = vector_type.element_size();
 
         // Check if we're trying to pop from a known empty vector.
-        if self.has_zero_length(vector_contents, dfg) {
+        if self.has_zero_length(vector_contents_id, dfg) {
             // Make sure this code is disabled, or fail with "Index out of bounds".
             let msg = "cannot pop from a vector with length 0".to_string();
             self.acir_context.assert_zero_var(self.current_side_effects_enabled_var, msg)?;
@@ -375,43 +411,23 @@ impl Context<'_> {
             // Fill the result with default values.
             let mut results = Vec::with_capacity(result_ids.len());
 
-            let element_size = vector_typ.element_size();
-            // For pop_front, results order is: [popped_elements..., new_len, new_vector]
+            // For pop_front, results order is: [...popped elements, new len, new vector]
             for result_id in &result_ids[..element_size.to_usize()] {
                 let result_type = dfg.type_of_value(*result_id);
                 let result_zero = self.array_zero_value(&result_type)?;
                 results.push(result_zero);
             }
 
-            let vector_value = self.convert_value(arguments[0], dfg);
-            results.push(vector_value);
-
-            let vector = self.convert_value(vector_contents, dfg);
-            results.push(vector);
+            results.push(vector_length_value);
+            results.push(vector_contents_value);
 
             return Ok(results);
         }
 
-        // Check that the vector length is not zero.
-        // This is different from the previous check as this is a runtime check.
-        let zero = self.acir_context.add_constant(FieldElement::zero());
-        let assert_message = self.acir_context.generate_assertion_message_payload(
-            "Attempt to pop_front from an empty vector".to_string(),
-        );
-        self.acir_context.assert_neq_var(
-            vector_length,
-            zero,
-            self.current_side_effects_enabled_var,
-            Some(assert_message),
-        )?;
+        let new_vector_length_var =
+            self.vector_pop_new_length(dfg, vector_length_id, vector_length_value)?;
 
-        let one = self.acir_context.add_constant(FieldElement::one());
-        let new_vector_length = self.acir_context.sub_var(vector_length, one)?;
-
-        let vector = self.convert_value(vector_contents, dfg);
-
-        let mut new_vector = self.read_array_with_type(vector, &vector_typ)?;
-        let element_size = vector_typ.element_size();
+        let mut new_vector = self.read_array_with_type(vector_contents_value, &vector_type)?;
 
         let mut popped_elements: Vec<AcirValue> = Vec::new();
         let mut var_index = self.acir_context.add_constant(FieldElement::zero());
@@ -427,7 +443,7 @@ impl Context<'_> {
         let popped_elements_size = popped_elements.len();
 
         new_vector = new_vector.slice(popped_elements_size..);
-        popped_elements.push(AcirValue::Var(new_vector_length, NumericType::length_type()));
+        popped_elements.push(AcirValue::Var(new_vector_length_var, NumericType::length_type()));
         popped_elements.push(AcirValue::Array(new_vector));
 
         Ok(popped_elements)
@@ -464,13 +480,6 @@ impl Context<'_> {
     ///    - If within the insertion window, write values from `flattened_elements`.
     ///    - If above the window, shift elements upward by the size of the inserted data.
     /// 4. Initialize a new memory block for the resulting vector, ensuring its type information is preserved.
-    ///
-    /// # Empty Vector Handling
-    ///
-    /// If the vector has zero length, this function skips the memory read and returns zero values.
-    /// It asserts that the current side effects must be disabled (predicate = 0), otherwise fails
-    /// with "Index out of bounds, vector has size 0". This prevents reading from empty memory blocks
-    /// which would cause "Index out of bounds" errors.
     pub(super) fn convert_vector_insert(
         &mut self,
         arguments: &[ValueId],
@@ -483,24 +492,9 @@ impl Context<'_> {
         let vector_typ = dfg.type_of_value(vector_contents);
         let block_id = self.ensure_array_is_initialized(vector_contents, dfg)?;
 
-        // Check if we're trying to insert into an empty vector
-        if self.has_zero_length(vector_contents, dfg) {
-            // Make sure this code is disabled, or fail with "Index out of bounds".
-            let msg = "Index out of bounds, vector has size 0".to_string();
-            self.acir_context.assert_zero_var(self.current_side_effects_enabled_var, msg)?;
-
-            // Fill the result with default values.
-            let mut results = Vec::with_capacity(result_ids.len());
-
-            // For insert, results are: [new_len, new_vector]
-            let vector_length_value = self.convert_value(arguments[0], dfg);
-            results.push(vector_length_value);
-
-            let vector = self.convert_value(vector_contents, dfg);
-            results.push(vector);
-
-            return Ok(results);
-        }
+        // Check if we're trying to insert into an empty vector.
+        // If so, we must avoid trying to read from the original vector.
+        let has_zero_length = self.has_zero_length(vector_contents, dfg);
 
         let vector = self.convert_value(vector_contents, dfg);
         let insert_index = self.convert_value(arguments[2], dfg).into_var()?;
@@ -614,8 +608,15 @@ impl Context<'_> {
                 self.acir_context.add_var(use_shifted_index_pred, use_current_index_pred)?
             };
 
-            let value_shifted_index =
-                self.acir_context.read_from_memory(block_id, &shifted_index)?;
+            // Read the original value, which we blend with the inserted ones.
+            let value_shifted_index = if has_zero_length {
+                // The original vector is empty, so we cannot read from it.
+                // The `should_insert_value_pred` will always be 1 in this case,
+                // and `not_pred` will be 0, so it doesn't matter what value we use here.
+                one
+            } else {
+                self.acir_context.read_from_memory(block_id, &shifted_index)?
+            };
 
             // Final predicate to determine whether we are within the insertion bounds
             let should_insert_value_pred =

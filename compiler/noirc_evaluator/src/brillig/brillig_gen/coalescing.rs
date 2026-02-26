@@ -177,22 +177,22 @@ impl CoalescingMap {
     /// Check whether any value sharing a register with `value_id` through
     /// coalescing is still alive (i.e., satisfies the `is_alive` predicate).
     ///
-    /// Multiple values can share a register through a "hub" pattern:
-    /// e.g., `v1 → v_hub ← v3` means v1, v_hub, and v3 all share one register.
-    /// When `v1` dies we must check whether `v_hub` or any sibling (like `v3`)
+    /// Multiple values can share a register through the following pattern:
+    /// e.g., `v1 -> v_target <- v3` means v1, v_target, and v3 all share one register.
+    /// When `v1` dies we must check whether `v_target` or any sibling (like `v3`)
     /// is still alive before deallocating the register.
     pub(crate) fn has_live_partner(
         &self,
         value_id: &ValueId,
         is_alive: impl Fn(&ValueId) -> bool,
     ) -> bool {
-        // Forward: check the hub this value maps to
-        if let Some(hub) = self.coalesced.get(value_id) {
-            if is_alive(hub) {
+        // Forward: check the target this value maps to
+        if let Some(target) = self.coalesced.get(value_id) {
+            if is_alive(target) {
                 return true;
             }
-            // Also check siblings: other values that map to the same hub
-            if let Some(siblings) = self.coalesced_reverse.get(hub) {
+            // Also check siblings: other values that map to the same target
+            if let Some(siblings) = self.coalesced_reverse.get(target) {
                 for sibling in siblings {
                     if sibling != value_id && is_alive(sibling) {
                         return true;
@@ -200,7 +200,7 @@ impl CoalescingMap {
                 }
             }
         }
-        // Reverse: this value is a hub — check all values that map to it
+        // Reverse: this value is a target — check all values that map to it
         if let Some(sources) = self.coalesced_reverse.get(value_id) {
             for source in sources {
                 if is_alive(source) {
