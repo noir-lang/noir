@@ -498,6 +498,33 @@ mod tests {
     }
 
     #[test]
+    fn logic_opcode() {
+        // Logic operations implicitly constrain their inputs and outputs to fit within their bit size.
+        let src = "
+        private parameters: [w0, w1]
+        public parameters: []
+        return values: [w2]
+        BLACKBOX::RANGE input: w0, bits: 8
+        BLACKBOX::RANGE input: w1, bits: 8
+        BLACKBOX::XOR lhs: w0, rhs: w1, output: w2, bits: 8
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        assert!(CircuitSimulator::check_circuit(&circuit).is_none());
+
+        let acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
+        let brillig_side_effects = BTreeMap::new();
+        let optimizer = RangeOptimizer::new(circuit, &brillig_side_effects);
+        let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
+        assert!(CircuitSimulator::check_circuit(&optimized_circuit).is_none());
+        assert_circuit_snapshot!(optimized_circuit, @r"
+        private parameters: [w0, w1]
+        public parameters: []
+        return values: [w2]
+        BLACKBOX::XOR lhs: w0, rhs: w1, output: w2, bits: 8
+        ");
+    }
+
+    #[test]
     fn potential_side_effects() {
         // The optimizer should not remove range constraints if doing so might allow invalid side effects to go through.
         let src = "
