@@ -969,11 +969,10 @@ impl Loop {
     ) -> bool {
         let threshold = force_unroll_threshold;
         self.boilerplate_stats(function, &loops.cfg, &loops.callee_costs)
-            .map(|s| {
+            .is_some_and(|s| {
                 let force_unroll = s.unrolled_cost() <= threshold;
                 (force_unroll || s.is_small()) && self.is_fully_executed(&loops.cfg)
             })
-            .unwrap_or_default()
     }
 
     /// Collect boilerplate stats if we can figure out the upper and lower bounds of the loop,

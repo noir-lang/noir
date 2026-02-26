@@ -98,6 +98,7 @@ cloned_instead_of_copied = "warn"
 explicit_iter_loop = "warn"
 explicit_into_iter_loop = "warn"
 flat_map_option = "warn"
+manual_is_variant_and = "warn"
 
 [workspace.dependencies]
 

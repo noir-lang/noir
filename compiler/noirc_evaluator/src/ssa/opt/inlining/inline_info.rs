@@ -59,7 +59,7 @@ impl InlineInfo {
     }
 
     pub(crate) fn should_inline(inline_infos: &InlineInfos, called_func_id: FunctionId) -> bool {
-        inline_infos.get(&called_func_id).map(|info| info.should_inline).unwrap_or_default()
+        inline_infos.get(&called_func_id).is_some_and(|info| info.should_inline)
     }
 }
 

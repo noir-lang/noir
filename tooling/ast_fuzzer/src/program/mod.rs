@@ -229,8 +229,7 @@ impl Context {
                 && self
                     .functions
                     .get(&Program::main_id())
-                    .map(|func| func.unconstrained)
-                    .unwrap_or_default())
+                    .is_some_and(|func| func.unconstrained))
             || bool::arbitrary(u)?;
 
         // We could return a function as well.

@@ -152,8 +152,7 @@ impl Expression {
 
             Expression::Block(expressions) => expressions
                 .last()
-                .map(|x| x.needs_type_inference_from_literal())
-                .unwrap_or_default(),
+                .is_some_and(|x| x.needs_type_inference_from_literal()),
 
             Expression::Unary(unary) => unary.rhs.needs_type_inference_from_literal(),
 
@@ -169,8 +168,7 @@ impl Expression {
                     && if_
                         .alternative
                         .as_ref()
-                        .map(|x| x.needs_type_inference_from_literal())
-                        .unwrap_or_default()
+                        .is_some_and(|x| x.needs_type_inference_from_literal())
             }
             Expression::Match(m) => {
                 m.cases.iter().all(|c| c.branch.needs_type_inference_from_literal())
