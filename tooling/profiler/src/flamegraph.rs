@@ -228,8 +228,7 @@ fn location_to_callsite_label<'files>(
     let filename =
         Path::new(&files.name(location.file).expect("should have a file path").to_string())
             .file_name()
-            .map(|os_str| os_str.to_string_lossy().to_string())
-            .unwrap_or("invalid_path".to_string());
+            .map_or("invalid_path".to_string(), |os_str| os_str.to_string_lossy().to_string());
     let source = files.source(location.file).expect("should have a file source");
 
     let code_vector = source

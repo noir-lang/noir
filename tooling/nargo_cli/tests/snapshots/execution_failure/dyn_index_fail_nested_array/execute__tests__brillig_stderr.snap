@@ -1,0 +1,14 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Assertion failed: Index out of bounds
+  ┌─ src/main.nr:7:12
+  │
+7 │     assert(x[y + 2].a == 5);
+  │            --------
+  │
+  = Call stack:
+    1. src/main.nr:7:12
+
+Failed assertion

@@ -427,7 +427,7 @@ fn type_def_add_attribute(
     let mut parser = Parser::for_str(&attribute, attribute_location.file);
     let Some((Attribute::Secondary(attribute), _span)) = parser.parse_attribute() else {
         return Err(InterpreterError::InvalidAttribute {
-            attribute: attribute.to_string(),
+            attribute: attribute.clone(),
             location: attribute_location,
         });
     };
@@ -2543,7 +2543,7 @@ fn function_def_add_attribute(
     let mut parser = Parser::for_str(&attribute, attribute_location.file);
     let Some((attribute, _span)) = parser.parse_attribute() else {
         return Err(InterpreterError::InvalidAttribute {
-            attribute: attribute.to_string(),
+            attribute: attribute.clone(),
             location: attribute_location,
         });
     };

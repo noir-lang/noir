@@ -47,11 +47,11 @@ impl NargoErrorWithTypes {
     fn user_defined_failure_message(&self) -> Option<String> {
         let unwrap_payload = |payload: &ResolvedAssertionPayload<FieldElement>| {
             match payload {
-                ResolvedAssertionPayload::String(message) => Some(message.to_string()),
+                ResolvedAssertionPayload::String(message) => Some(message.clone()),
                 ResolvedAssertionPayload::Raw(raw) => {
                     let ssa_type = self.1.get(&raw.selector)?;
                     match ssa_type {
-                        ErrorType::String(message) => Some(message.to_string()),
+                        ErrorType::String(message) => Some(message.clone()),
                         ErrorType::Dynamic(_hir_type) => {
                             // This would be the case if we have a format string that needs to be filled with the raw payload
                             // decoded as ABI type. The code generator shouldn't produce this kind. It shouldn't be too difficult
@@ -68,7 +68,7 @@ impl NargoErrorWithTypes {
                 ExecutionError::AssertionFailed(payload, _, _) => unwrap_payload(payload),
                 ExecutionError::SolvingError(error, _) => match error {
                     OpcodeResolutionError::BlackBoxFunctionFailed(_, reason) => {
-                        Some(reason.to_string())
+                        Some(reason.clone())
                     }
                     OpcodeResolutionError::BrilligFunctionFailed {
                         payload: Some(payload), ..

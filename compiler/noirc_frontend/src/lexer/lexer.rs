@@ -1544,11 +1544,10 @@ mod tests {
                                 result_tokens.push(next_token.clone());
                                 expected_token_found |= token_discriminator_opt
                                     .as_ref()
-                                    .map(|token_discriminator| {
+                                    .is_none_or(|token_discriminator| {
                                         discriminant(token_discriminator)
                                             == discriminant(next_token.token())
-                                    })
-                                    .unwrap_or(true);
+                                    });
 
                                 if next_token == Token::EOF {
                                     assert!(lexer.done, "lexer not done when EOF emitted!");

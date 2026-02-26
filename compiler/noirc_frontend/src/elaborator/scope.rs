@@ -170,6 +170,8 @@ impl Elaborator<'_> {
     }
 
     pub fn check_for_unused_variables_in_scope_tree(&mut self, scope_decls: &ScopeTree) {
+        let mut unused_vars = Vec::new();
+
         for scope in &scope_decls.0 {
             for (variable_name, metadata) in scope.iter() {
                 if !metadata.warn_if_unused || metadata.used || variable_name.starts_with('_') {
@@ -181,13 +183,21 @@ impl Elaborator<'_> {
                 let name = &definition_info.name;
                 if name != ERROR_IDENT && !definition_info.is_global() {
                     let ident = Ident::new(name.to_owned(), unused_var.location);
-                    self.push_err(ResolverError::UnusedVariable { ident });
+                    unused_vars.push(ident);
                 }
             }
+        }
+
+        unused_vars.sort_by_key(|ident| ident.location());
+
+        for ident in unused_vars {
+            self.push_err(ResolverError::UnusedVariable { ident });
         }
     }
 
     pub fn check_for_unnecessary_mut_variables_in_scope_tree(&mut self, scope_decls: &ScopeTree) {
+        let mut unnecessary_mut_vars = Vec::new();
+
         for scope in &scope_decls.0 {
             for (variable_name, metadata) in scope.iter() {
                 if !metadata.warn_if_not_mutated
@@ -201,9 +211,15 @@ impl Elaborator<'_> {
                 let definition_info = self.interner.definition(ident.id);
                 if definition_info.mutable && !definition_info.is_global() {
                     let ident = Ident::new(variable_name.to_owned(), ident.location);
-                    self.push_err(ResolverError::VariableDoesNotNeedToBeMutable { ident });
+                    unnecessary_mut_vars.push(ident);
                 }
             }
+        }
+
+        unnecessary_mut_vars.sort_by_key(|ident| ident.location());
+
+        for ident in unnecessary_mut_vars {
+            self.push_err(ResolverError::VariableDoesNotNeedToBeMutable { ident });
         }
     }
 

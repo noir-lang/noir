@@ -1119,7 +1119,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         };
 
         let location = self.elaborator.interner.expr_location(&id);
-        let field_name = name.to_string();
+        let field_name = name.clone();
         Err(InterpreterError::ExpectedStructToHaveField { typ, field_name, location })
     }
 

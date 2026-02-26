@@ -461,7 +461,7 @@ fn toml_to_workspace(
 pub fn read_toml(toml_path: &Path) -> Result<NargoToml, ManifestError> {
     let toml_path = toml_path.normalize();
     let toml_as_string = std::fs::read_to_string(&toml_path)
-        .map_err(|_| ManifestError::ReadFailed(toml_path.to_path_buf()))?;
+        .map_err(|_| ManifestError::ReadFailed(toml_path.clone()))?;
     let root_dir = toml_path.parent().ok_or(ManifestError::MissingParent)?;
     let nargo_toml =
         NargoToml { root_dir: root_dir.to_path_buf(), config: toml_as_string.try_into()? };

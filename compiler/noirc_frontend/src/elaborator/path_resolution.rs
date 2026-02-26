@@ -91,8 +91,7 @@ impl PathResolutionItem {
             PathResolutionItem::Module(module) => {
                 let module_data = interner.try_module_attributes(*module);
                 module_data
-                    .map(|data| format!("module `{}`", data.name))
-                    .unwrap_or_else(|| "module".to_string())
+                    .map_or_else(|| "module".to_string(), |data| format!("module `{}`", data.name))
             }
             PathResolutionItem::Type(type_id) => {
                 let datatype = interner.get_type(*type_id);

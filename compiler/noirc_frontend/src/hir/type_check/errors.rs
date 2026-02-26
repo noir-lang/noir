@@ -277,7 +277,7 @@ pub struct ExpectingOtherError {
 impl<'a> From<&'a ExpectingOtherError> for Diagnostic {
     fn from(error: &'a ExpectingOtherError) -> Self {
         let secondary = "".to_string();
-        Diagnostic::simple_error(error.message.to_string(), secondary, error.location)
+        Diagnostic::simple_error(error.message.clone(), secondary, error.location)
     }
 }
 

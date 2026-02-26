@@ -523,7 +523,7 @@ impl Elaborator<'_> {
         for (name, typ, expr) in trait_impl.associated_constants.drain(..) {
             let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::AssociatedType);
             let resolved_type =
-                typ.map(|typ| self.resolve_type(typ, wildcard_allowed)).unwrap_or(Type::Error);
+                typ.map_or(Type::Error, |typ| self.resolve_type(typ, wildcard_allowed));
             let kind = Kind::numeric(resolved_type);
             let location = expr.location;
             let typ = match UnresolvedTypeExpression::from_expr(expr, location) {
