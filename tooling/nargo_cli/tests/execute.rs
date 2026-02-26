@@ -133,7 +133,7 @@ mod tests {
         let mut has_circuit_output = false;
 
         if check_stdout {
-            has_circuit_output = check_output(&mut nargo, &test_program_dir);
+            has_circuit_output = check_execution_success_stdout(&mut nargo, &test_program_dir);
         }
 
         if has_circuit_output {
@@ -155,7 +155,7 @@ mod tests {
         }
     }
 
-    fn check_output(nargo: &mut Command, test_program_dir: &Path) -> bool {
+    fn check_execution_success_stdout(nargo: &mut Command, test_program_dir: &Path) -> bool {
         let output = nargo.output().unwrap();
         let stdout = String::from_utf8(output.stdout).unwrap();
         let has_circuit_output = stdout.contains("Circuit output:");
@@ -444,7 +444,7 @@ mod tests {
         nargo.assert().success();
 
         if check_stdout {
-            check_output(&mut nargo, &test_program_dir);
+            check_execution_success_stdout(&mut nargo, &test_program_dir);
         }
     }
 
