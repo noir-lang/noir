@@ -466,8 +466,7 @@ fn max_inliner(test_name: &str) -> i64 {
         .iter()
         .chain(&INLINER_OVERRIDES)
         .find(|(n, _)| *n == test_name)
-        .map(|(_, i)| *i)
-        .unwrap_or(i64::MAX)
+        .map_or(i64::MAX, |(_, i)| *i)
 }
 
 fn min_inliner(test_name: &str) -> i64 {
@@ -475,8 +474,7 @@ fn min_inliner(test_name: &str) -> i64 {
         .iter()
         .chain(&INLINER_OVERRIDES)
         .find(|(n, _)| *n == test_name)
-        .map(|(_, i)| *i)
-        .unwrap_or(i64::MIN)
+        .map_or(i64::MIN, |(_, i)| *i)
 }
 
 fn generate_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) {

@@ -896,7 +896,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                         if let FormatStringFragment::Value { name, value } = fragment {
                             // A name might be interpolated multiple times. In that case it will always
                             // have the same value: we just need one `let` for it.
-                            if !seen_names.insert(name.to_string()) {
+                            if !seen_names.insert(name.clone()) {
                                 continue;
                             }
 

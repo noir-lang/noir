@@ -405,7 +405,7 @@ impl<'interner> Monomorphizer<'interner> {
                         let opcode = attribute.kind.foreign().expect(
                             "ICE: function marked as foreign, but attribute kind does not match this",
                         );
-                        Definition::LowLevel(opcode.to_string())
+                        Definition::LowLevel(opcode.clone())
                     }
                     FunctionKind::Builtin => {
                         let attribute = attributes.function().expect("all builtin functions must contain a function attribute which contains the opcode which it links to");
@@ -413,7 +413,7 @@ impl<'interner> Monomorphizer<'interner> {
                             "ICE: function marked as builtin, but attribute kind does not match this",
                         );
                         let location = self.interner.expr_location(&expr_id);
-                        let opcode = opcode.to_string();
+                        let opcode = opcode.clone();
 
                         if evaluate_builtin {
                             match self.try_evaluate_builtin(
@@ -441,7 +441,7 @@ impl<'interner> Monomorphizer<'interner> {
                         let opcode = attribute.kind.oracle().expect(
                             "ICE: function marked as builtin, but attribute kind does not match this",
                         );
-                        Definition::Oracle(opcode.to_string())
+                        Definition::Oracle(opcode.clone())
                     }
                 }
             }
@@ -1050,8 +1050,7 @@ impl<'interner> Monomorphizer<'interner> {
 
         let field_types = unwrap_struct_type(typ, location)?;
 
-        let field_type_map =
-            btree_map(&field_types, |(name, typ, _)| (name.to_string(), typ.clone()));
+        let field_type_map = btree_map(&field_types, |(name, typ, _)| (name.clone(), typ.clone()));
 
         // Create let bindings for each field value first to preserve evaluation order before
         // they are reordered and packed into the resulting tuple
@@ -2568,7 +2567,7 @@ impl<'interner> Monomorphizer<'interner> {
         let mut lambda_fn = Function {
             id: constrained_id,
             name: lambda_name.to_owned(),
-            parameters: parameters.to_vec(),
+            parameters: parameters.clone(),
             body: constrained_body,
             return_type: ret_type.clone(),
             return_visibility: Visibility::Private,

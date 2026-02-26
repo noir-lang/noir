@@ -310,7 +310,7 @@ impl<F> BlackBoxFuncCall<F> {
             BlackBoxFuncCall::Sha256Compression { outputs, .. } => outputs.to_vec(),
 
             BlackBoxFuncCall::AES128Encrypt { outputs, .. }
-            | BlackBoxFuncCall::Poseidon2Permutation { outputs, .. } => outputs.to_vec(),
+            | BlackBoxFuncCall::Poseidon2Permutation { outputs, .. } => outputs.clone(),
 
             BlackBoxFuncCall::AND { output, .. }
             | BlackBoxFuncCall::XOR { output, .. }
@@ -332,7 +332,7 @@ impl<F: Copy + AcirField> BlackBoxFuncCall<F> {
         match self {
             BlackBoxFuncCall::Blake2s { inputs, outputs: _ }
             | BlackBoxFuncCall::Blake3 { inputs, outputs: _ }
-            | BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs: _ } => inputs.to_vec(),
+            | BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs: _ } => inputs.clone(),
 
             BlackBoxFuncCall::Keccakf1600 { inputs, outputs: _ } => inputs.to_vec(),
             BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, outputs: _ } => {

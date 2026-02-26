@@ -708,7 +708,7 @@ impl Elaborator<'_> {
                     );
 
                     let func_id = unresolved_trait.method_ids[name.as_str()];
-                    let mut where_clause = where_clause.to_vec();
+                    let mut where_clause = where_clause.clone();
 
                     // Attach any trait constraints on the trait to the function,
                     where_clause.extend(unresolved_trait.trait_def.where_clause.clone());

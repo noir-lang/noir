@@ -926,7 +926,7 @@ fn process_doc_comments_links(
         let Some(location) = link_target_location(target, args) else {
             continue;
         };
-        let mut line = lines[link.line].to_string();
+        let mut line = lines[link.line].clone();
         let replacement = format_link(&link.name, location);
         line.replace_range(link.start..link.end, &replacement);
         lines[link.line] = line;

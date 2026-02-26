@@ -517,7 +517,7 @@ impl<F: AcirField> AcirContext<F> {
         if let Some(ErrorType::String(message)) =
             self.acir_ir.error_types.get(&ErrorSelector::new(assertion_payload.error_selector))
         {
-            Some(message.to_string())
+            Some(message.clone())
         } else {
             None
         }

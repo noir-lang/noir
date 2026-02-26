@@ -862,9 +862,9 @@ fn function_input_from_option(
     witness: Witness,
     opt_constant: Option<FieldElement>,
 ) -> Result<FunctionInput<FieldElement>, OpcodeResolutionError<FieldElement>> {
-    opt_constant
-        .map(|constant| Ok(FunctionInput::Constant(constant)))
-        .unwrap_or(Ok(FunctionInput::Witness(witness)))
+    opt_constant.map_or(Ok(FunctionInput::Witness(witness)), |constant| {
+        Ok(FunctionInput::Constant(constant))
+    })
 }
 
 fn and_op(

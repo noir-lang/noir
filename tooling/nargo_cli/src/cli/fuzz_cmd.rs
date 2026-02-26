@@ -144,7 +144,7 @@ pub(crate) fn run(args: FuzzCommand, workspace: Workspace) -> Result<(), CliErro
 
     let pattern = match &args.fuzzing_harness_name {
         Some(name) => {
-            let names = vec![name.to_string()];
+            let names = vec![name.clone()];
             if args.exact {
                 FunctionNameMatch::Exact(names)
             } else {
