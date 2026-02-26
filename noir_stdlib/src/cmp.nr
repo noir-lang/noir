@@ -443,7 +443,11 @@ where
 
 comptime fn make_tuple_ord_body(n: u32) -> Quoted {
     let last = n - 1u32;
-    let mut body = f"let mut result = self.0.cmp(other.0);".as_ctstring();
+    let mut body = if last == 1 {
+        f"let result = self.0.cmp(other.0);".as_ctstring()
+    } else {
+        f"let mut result = self.0.cmp(other.0);".as_ctstring()
+    };
     for i in 1u32..last {
         body = body.append_fmtstr(
             f" if result == Ordering::equal() {{ result = self.{i}.cmp(other.{i}); }}",

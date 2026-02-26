@@ -87,7 +87,7 @@ impl InstructionArtifacts {
         let first_variable_type = Self::get_type(first_variable);
         let second_variable_type = Self::get_type(second_variable);
         let ssa = binary_function(op, first_variable_type, second_variable_type);
-        let serialized_ssa = &serde_json::to_string(&ssa).unwrap();
+        let serialized_ssa = serde_json::to_string(&ssa).unwrap();
         let formatted_ssa = format!("{}", ssa.print_without_locations());
 
         let program = ssa_to_acir_program(ssa);
@@ -102,7 +102,7 @@ impl InstructionArtifacts {
         Self {
             instruction_name: name,
             formatted_ssa,
-            serialized_ssa: serialized_ssa.to_string(),
+            serialized_ssa,
             serialized_acir: serialized_program,
         }
     }
@@ -119,7 +119,7 @@ impl InstructionArtifacts {
     }
 
     fn new_by_ssa(ssa: Ssa, instruction_name: String, variable: &Variable) -> Self {
-        let serialized_ssa = &serde_json::to_string(&ssa).unwrap();
+        let serialized_ssa = serde_json::to_string(&ssa).unwrap();
         let formatted_ssa = format!("{}", ssa.print_without_locations());
 
         let program = ssa_to_acir_program(ssa);
@@ -129,7 +129,7 @@ impl InstructionArtifacts {
         Self {
             instruction_name: name,
             formatted_ssa,
-            serialized_ssa: serialized_ssa.to_string(),
+            serialized_ssa,
             serialized_acir: serialized_program,
         }
     }
@@ -278,7 +278,7 @@ fn ssa_to_acir_program(ssa: Ssa) -> AcirProgram<FieldElement> {
         let ret_values: BTreeSet<Witness> =
             acir_func.return_witnesses.clone().into_iter().collect();
 
-        private_params.extend(ret_values.iter().cloned());
+        private_params.extend(ret_values.iter().copied());
         let circuit: Circuit<FieldElement> = Circuit {
             current_witness_index: acir_func
                 .current_witness_index()

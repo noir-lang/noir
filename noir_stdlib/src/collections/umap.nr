@@ -199,7 +199,7 @@ impl<K, V, B> UHashMap<K, V, B> {
         B: BuildHasher,
     {
         // docs:end:iter_mut
-        let mut entries = self.entries();
+        let entries = self.entries();
         let mut new_map = UHashMap::with_hasher(self._build_hasher);
 
         for entry in entries {
@@ -219,7 +219,7 @@ impl<K, V, B> UHashMap<K, V, B> {
         B: BuildHasher,
     {
         // docs:end:iter_keys_mut
-        let mut entries = self.entries();
+        let entries = self.entries();
         let mut new_map = UHashMap::with_hasher(self._build_hasher);
 
         for entry in entries {

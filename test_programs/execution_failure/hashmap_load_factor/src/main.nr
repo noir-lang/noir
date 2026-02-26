@@ -1,10 +1,10 @@
+use poseidon::poseidon2::Poseidon2Hasher;
 use std::collections::map::HashMap;
 use std::hash::BuildHasherDefault;
-use poseidon::poseidon2::Poseidon2Hasher;
 
-struct Entry{
+struct Entry {
     key: Field,
-    value: Field
+    value: Field,
 }
 
 global HASHMAP_CAP: u32 = 8;
@@ -19,7 +19,7 @@ fn main(input: [Entry; HASHMAP_LEN]) {
 }
 
 // In this test we exceed load factor:
-// α_max = 0.75, thus for capacity of 8 and lenght of 6
+// alpha_max = 0.75, thus for capacity of 8 and lenght of 6
 // insertion of new unique key (7-th) should throw assertion error.
 fn test_load_factor(input: [Entry; HASHMAP_LEN]) {
     let mut hashmap = allocate_hashmap();
@@ -28,7 +28,7 @@ fn test_load_factor(input: [Entry; HASHMAP_LEN]) {
         hashmap.insert(entry.key, entry.value);
     }
 
-    // We use prime numbers for testing, 
+    // We use prime numbers for testing,
     // therefore it is guaranteed that doubling key we get unique value.
     let key = input[0].key * 2;
     hashmap.insert(key, input[0].value);

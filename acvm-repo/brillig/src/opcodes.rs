@@ -799,7 +799,7 @@ mod prop_tests {
                             HeapValueType::Array { value_types, size: SemanticLength(size) }
                         }
                     ),
-                    (prop::collection::vec(inner.clone(), 1..3))
+                    (prop::collection::vec(inner, 1..3))
                         .prop_map(|value_types| { HeapValueType::Vector { value_types } }),
                 ]
             })

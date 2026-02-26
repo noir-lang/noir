@@ -549,7 +549,7 @@ impl Constructor {
                 } else
                 /* def is a struct */
                 {
-                    let field_count = def_ref.fields_raw().map(|fields| fields.len()).unwrap_or(0);
+                    let field_count = def_ref.fields_raw().map_or(0, |fields| fields.len());
                     vec![(Constructor::Variant(typ.clone(), 0), field_count)]
                 }
             }

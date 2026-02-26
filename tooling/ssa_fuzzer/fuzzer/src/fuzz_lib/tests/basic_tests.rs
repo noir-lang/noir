@@ -158,7 +158,7 @@ fn test_mutable_variable() {
 
     let typed_memory_0 = Argument { index: 0, value_type: Type::Numeric(NumericType::Field) };
     let load_block = InstructionBlock {
-        instructions: vec![Instruction::LoadFromMemory { memory_addr: typed_memory_0.clone() }],
+        instructions: vec![Instruction::LoadFromMemory { memory_addr: typed_memory_0 }],
     };
     let set_block = InstructionBlock {
         instructions: vec![Instruction::SetToMemory { memory_addr_index: 0, value: arg_5_field }],

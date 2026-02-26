@@ -158,7 +158,7 @@ mod tests {
 
         package.dependencies.insert(
             CrateName::from_str("test_dep_valid").unwrap(),
-            Dependency::Local { package: valid_dependency.clone() },
+            Dependency::Local { package: valid_dependency },
         );
 
         if let Err(err) = semver_check_package(&package, &compiler_version) {
@@ -169,7 +169,7 @@ mod tests {
 
         package.dependencies.insert(
             CrateName::from_str("test_dep_invalid").unwrap(),
-            Dependency::Local { package: invalid_dependency.clone() },
+            Dependency::Local { package: invalid_dependency },
         );
         let got_err = match semver_check_package(&package, &compiler_version) {
             Ok(_) => panic!(

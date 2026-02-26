@@ -372,4 +372,27 @@ mod memory_layout {
 
         let _ = ssa.to_brillig(&BrilligOptions::default());
     }
+
+    /// Regression test: two coalesced values sharing a register through a target
+    /// (v1->v2 arg-side, v3->v2 param-side) both die at the same instruction in b2.
+    /// The partner (v2) is not alive in b2, so both try to deallocate the same
+    /// register — the second attempt must not panic.
+    #[test]
+    fn coalescing_target_double_dealloc() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = add v0, Field 1
+            jmp b1(v1)
+          b1(v2: Field):
+            jmp b2(v2)
+          b2(v3: Field):
+            v4 = eq v3, v1
+            return v4
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let _ = ssa.to_brillig(&BrilligOptions::default());
+    }
 }

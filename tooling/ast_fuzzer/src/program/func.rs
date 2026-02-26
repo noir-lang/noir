@@ -337,7 +337,7 @@ impl<'a> FunctionContext<'a> {
     ///
     /// A variable can become statically known after re-assignment.
     fn is_dynamic(&self, id: &LocalId) -> bool {
-        self.dynamics.current().get(id).cloned().unwrap_or_default()
+        self.dynamics.current().get(id).copied().unwrap_or_default()
     }
 
     /// Mark a variable as dynamic or not dynamic.
@@ -1266,7 +1266,7 @@ impl<'a> FunctionContext<'a> {
 
         // Add the variable so we can use it in subsequent expressions.
         if add_to_scope {
-            self.locals.add(id, mutable, name.clone(), typ.clone());
+            self.locals.add(id, mutable, name.clone(), typ);
         }
 
         self.set_dynamic(id, is_dynamic);
@@ -2094,7 +2094,7 @@ impl<'a> FunctionContext<'a> {
     fn local_ident(&mut self, id: LocalId) -> Ident {
         let (mutable, name, typ) = self.locals.current().get_variable(&id).clone();
         let ident_id = self.next_ident_id();
-        expr::ident_inner(VariableId::Local(id), ident_id, mutable, name, typ.clone())
+        expr::ident_inner(VariableId::Local(id), ident_id, mutable, name, typ)
     }
 
     /// Type of a local variable.
@@ -2139,7 +2139,7 @@ impl<'a> FunctionContext<'a> {
     /// This is used as a workaround when we need a mutable reference over an immutable value.
     fn indirect_ref_mut(&mut self, (expr, is_dyn): TrackedExpression, typ: Type) -> Expression {
         let (let_expr, let_ident) =
-            self.let_var_and_ident(true, typ.clone(), expr.clone(), false, is_dyn, local_name);
+            self.let_var_and_ident(true, typ.clone(), expr, false, is_dyn, local_name);
         let ref_expr = expr::ref_mut(Expression::Ident(let_ident), typ);
         Expression::Block(vec![let_expr, ref_expr])
     }

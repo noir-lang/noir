@@ -278,7 +278,7 @@ impl Type {
                         let new_type = Type::inverted_infix_expr(
                             Box::new(Constant(*value, kind.clone())),
                             inverse,
-                            rhs.clone(),
+                            rhs,
                         );
 
                         new_type.try_unify(&lhs, bindings)?;

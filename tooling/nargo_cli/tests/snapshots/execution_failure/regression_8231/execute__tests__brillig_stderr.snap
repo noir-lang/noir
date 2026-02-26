@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Assertion failed: attempt to add with overflow
+   ┌─ src/main.nr:29:21
+   │
+29 │                 > ((a + a) as u128)
+   │                     -----
+   │
+   = Call stack:
+     1. src/main.nr:5:16
+     2. src/main.nr:29:21
+
+Failed assertion

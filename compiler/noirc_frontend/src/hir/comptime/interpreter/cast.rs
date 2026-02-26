@@ -288,7 +288,7 @@ mod tests {
     fn bool_cast() {
         let location = Location::dummy();
         let lhs = Value::Field(0u32.into());
-        let actual = evaluate_cast_one_step(&Type::Bool, location, lhs.clone());
+        let actual = evaluate_cast_one_step(&Type::Bool, location, lhs);
         assert!(matches!(actual, Err(InterpreterError::CannotCastNumericToBool { .. })));
     }
 }

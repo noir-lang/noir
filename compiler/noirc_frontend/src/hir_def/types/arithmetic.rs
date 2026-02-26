@@ -444,7 +444,7 @@ mod tests {
 
         let one = Type::Constant(FieldElement::one(), Kind::numeric(Type::FieldElement));
         let lhs = x_type.clone() + one.clone();
-        let rhs = one + x_type.clone();
+        let rhs = one + x_type;
 
         // canonicalize
         let lhs = lhs.canonicalize();
@@ -755,6 +755,7 @@ mod proptests {
         // `arithmetic_generics_checked_cast_indirect_zeros`
         #[should_panic(expected = "expected an InfixExpr, but found: ")]
         #[test]
+        #[allow(clippy::redundant_clone)]
         fn instantiate_before_or_after_canonicalize(infix_type_bindings in arbitrary_infix_expr_with_bindings(10)) {
             let (infix, typ, bindings) = infix_type_bindings;
 
@@ -784,6 +785,7 @@ mod proptests {
         }
 
         #[test]
+        #[allow(clippy::redundant_clone)]
         fn instantiate_before_or_after_canonicalize_checked_cast(infix_type_bindings in arbitrary_infix_expr_with_bindings(10)) {
             let (infix, typ, bindings) = infix_type_bindings;
 
@@ -902,10 +904,10 @@ mod proptests {
         use acvm::FieldElement;
 
         let typ = Type::FieldElement;
-        let kind = Kind::numeric(typ.clone());
+        let kind = Kind::numeric(typ);
 
         // Create a type variable N
-        let var_n = TypeVariable::unbound(TypeVariableId(0), kind.clone());
+        let var_n = TypeVariable::unbound(TypeVariableId(0), kind);
         let n = Type::TypeVariable(var_n);
 
         // large_field ≈ 2^200
@@ -915,8 +917,8 @@ mod proptests {
             0x00, 0x00, 0x00, 0x00,
         ]);
 
-        let mul_expr = n.clone() * Type::Constant(large_field, Kind::numeric(Type::FieldElement));
-        let div_expr = mul_expr.clone()
+        let mul_expr = n * Type::Constant(large_field, Kind::numeric(Type::FieldElement));
+        let div_expr = mul_expr
             / Type::Constant(FieldElement::from(2u8), Kind::numeric(Type::FieldElement));
 
         // Canonicalize the expression

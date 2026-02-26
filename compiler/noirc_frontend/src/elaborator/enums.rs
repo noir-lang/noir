@@ -487,7 +487,7 @@ impl Elaborator<'_> {
 
                 let expr = HirExpression::Literal(HirLiteral::Integer(value));
                 let location = expr_location;
-                let expr_id = self.interner.push_expr_full(expr, location, actual.clone());
+                let expr_id = self.interner.push_expr_full(expr, location, actual);
                 self.push_integer_literal_expr_id(expr_id);
 
                 Pattern::Int(value)
@@ -563,7 +563,7 @@ impl Elaborator<'_> {
                     self.expression_to_pattern(field, expected, variables_defined)
                 });
 
-                Pattern::Constructor(Constructor::Tuple(field_types.clone()), fields)
+                Pattern::Constructor(Constructor::Tuple(field_types), fields)
             }
 
             ExpressionKind::Parenthesized(expr) => {
