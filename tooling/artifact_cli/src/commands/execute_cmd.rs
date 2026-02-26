@@ -22,17 +22,21 @@ pub struct ExecuteCommand {
     #[clap(long, short, value_parser = parse_and_normalize_path)]
     pub artifact_path: PathBuf,
 
-    /// Path to the Prover.toml file which contains the inputs and the
+    /// Path to the Prover.toml (or .json) file which contains the inputs and the
     /// optional return value in ABI format.
     #[clap(long, short, value_parser = parse_and_normalize_path)]
     pub prover_file: PathBuf,
+
+    /// Optionally overwrite the `return` entry in the Prover.toml file.
+    #[clap(long, default_value_t = false)]
+    pub overwrite_return: bool,
 
     /// Path to the directory where the output witness should be saved.
     /// If empty then the results are discarded.
     #[clap(long, short, value_parser = parse_and_normalize_path)]
     pub output_dir: Option<PathBuf>,
 
-    /// Write the execution witness to named file
+    /// Write the execution witness to named file.
     ///
     /// Defaults to the name of the circuit being executed.
     #[clap(long, short)]
@@ -59,7 +63,7 @@ pub struct ExecuteCommand {
     #[clap(long, value_parser = parse_and_normalize_path)]
     pub oracle_root_dir: Option<PathBuf>,
 
-    /// Package name for the RPC oracle resolver
+    /// Package name for the RPC oracle resolver.
     #[clap(long)]
     pub oracle_package_name: Option<String>,
 }
@@ -86,12 +90,17 @@ pub fn run(args: ExecuteCommand) -> Result<(), CliError> {
 
     match execute(&circuit, &args) {
         Ok(results) => {
-            execution::save_and_check_witness(
+            execution::save_and_show_witness(
                 &circuit,
-                results,
+                &results,
                 &circuit_name,
                 args.output_dir.as_deref(),
                 args.witness_name.as_deref(),
+            )?;
+            execution::check_return(
+                &circuit,
+                results.return_values,
+                args.overwrite_return.then_some(&args.prover_file),
             )?;
         }
         Err(e) => {
