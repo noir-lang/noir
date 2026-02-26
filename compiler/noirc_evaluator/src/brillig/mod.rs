@@ -799,8 +799,7 @@ mod spill_runtime {
             args.clone(),
         );
         assert_eq!(result, vec![FieldElement::from(200u64)]);
-        let result =
-            compile_and_run_with_layout(src, vec![FieldElement::from(3u64)], layout, args);
+        let result = compile_and_run_with_layout(src, vec![FieldElement::from(3u64)], layout, args);
         assert_eq!(result, vec![FieldElement::from(213u64)]);
     }
 
