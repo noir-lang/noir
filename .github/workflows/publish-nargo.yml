@@ -80,7 +80,7 @@ jobs:
 
       - name: Generate noir binaries attestation
         if: ${{ inputs.publish || github.event_name == 'schedule' }}
-        uses: actions/attest-build-provenance@v3
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: ./noir-${{ matrix.target }}.tar.gz
 
@@ -189,7 +189,7 @@ jobs:
 
       - name: Generate noir binaries attestation
         if: ${{ inputs.publish || github.event_name == 'schedule' }}
-        uses: actions/attest-build-provenance@v3
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: ./noir-${{ matrix.target }}.tar.gz
 
