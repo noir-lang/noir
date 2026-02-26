@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use noirc_driver::{ErrorsAndWarnings, file_manager_with_stdlib, prepare_crate};
+use noirc_errors::reporter::report_all;
 use noirc_frontend::hir::{Context, def_map::parse_file};
 
 #[test]
@@ -28,7 +29,10 @@ fn stdlib_does_not_produce_constant_warnings() -> Result<(), ErrorsAndWarnings> 
     let ((), warnings) =
         noirc_driver::check_crate(&mut context, stdlib_crate_id, &Default::default())?;
 
-    assert_eq!(warnings, Vec::new(), "stdlib is producing {} warnings", warnings.len());
+    if !warnings.is_empty() {
+        report_all(context.file_manager.as_file_map(), &warnings, false, false);
+        panic!("stdlib produced the above warnings");
+    }
 
     Ok(())
 }
