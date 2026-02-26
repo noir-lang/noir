@@ -2,11 +2,13 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-error: Indexing arrays and vectors must be done with `u32`, not `Field`
-  ┌─ src/main.nr:7:14
+error: Index out of bounds, array has size 6, but index was 8
+  ┌─ src/main.nr:7:12
   │
 7 │     assert(x[y + 2].a == 5);
-  │              -----
+  │            --------
   │
+  = Call stack:
+    1. src/main.nr:7:12
 
-Aborting due to 1 previous error
+Failed to solve program: 'Index out of bounds, array has size 6, but index was 8'

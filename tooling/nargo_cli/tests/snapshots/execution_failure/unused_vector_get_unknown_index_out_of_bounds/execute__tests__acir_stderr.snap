@@ -2,11 +2,13 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-error: Indexing arrays and vectors must be done with `u32`, not `Field`
-  ┌─ src/main.nr:3:20
+error: Assertion failed: Index out of bounds
+  ┌─ src/main.nr:3:13
   │
 3 │     let _ = vector[x]; // Index out of bounds
-  │                    -
+  │             ---------
   │
+  = Call stack:
+    1. src/main.nr:3:13
 
-Aborting due to 1 previous error
+Failed assertion

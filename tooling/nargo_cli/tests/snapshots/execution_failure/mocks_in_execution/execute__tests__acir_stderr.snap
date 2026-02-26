@@ -2,18 +2,13 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-warning: Unsafe block must have a safety comment above it
-  ┌─ src/main.nr:3:16
+bug: Brillig function call isn't properly covered by a manual constraint
+  ┌─ src/main.nr:4:26
   │
-3 │     let mock = unsafe { std::test::OracleMock::mock("foo") };
-  │                ------ The comment must start with the "Safety: " word
+4 │     let _mock = unsafe { std::test::OracleMock::mock("foo") };
+  │                          ---------------------------------- This Brillig call's inputs and its return values haven't been sufficiently constrained. This should be done to prevent potential soundness vulnerabilities
   │
+  = Call stack:
+    1. src/main.nr:4:26
 
-error: id is private and not visible from the current module
-  ┌─ src/main.nr:4:20
-  │
-4 │     assert_eq(mock.id, 0);
-  │                    -- id is private
-  │
-
-Aborting due to 1 previous error
+Attempted to call disabled foreign call `create_mock`

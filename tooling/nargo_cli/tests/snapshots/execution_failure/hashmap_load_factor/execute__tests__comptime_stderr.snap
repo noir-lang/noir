@@ -2,11 +2,16 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-error: Non-ASCII character in comment
-   ┌─ src/main.nr:22:1
-   │
-22 │ // α_max = 0.75, thus for capacity of 8 and lenght of 6
-   │ ------------------------------------------------------ Invalid comment character: only ASCII is currently supported.
-   │
+error: Load factor is exceeded, consider increasing the capacity.
+    ┌─ std/collections/map.nr:620:16
+    │
+620 │         assert(!exceeded, "Load factor is exceeded, consider increasing the capacity.");
+    │                --------- Assertion failed
+    │
+    = Call stack:
+      1. src/main.nr:17:4
+      2. src/main.nr:18:5
+      3. src/main.nr:34:5
+      4. std/collections/map.nr:514:9
 
-Aborting due to 1 previous error
+Error interpreting main function

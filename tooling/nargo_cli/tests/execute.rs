@@ -181,11 +181,37 @@ mod tests {
     }
 
     fn execution_failure(mut nargo: Command, test_program_dir: PathBuf, runtime: Runtime) {
+        // First make sure `nargo check` doesn't error. If it does, it means the test is incorrect
+        // as it fails before reaching the execution phase.
+        execution_failure_check_compiles(test_program_dir.clone(), runtime);
+
         nargo
             .assert()
             .failure()
             .stderr(predicate::str::contains("The application panicked (crashed).").not());
         check_execution_failure_stderr(&mut nargo, &test_program_dir, runtime);
+    }
+
+    fn execution_failure_check_compiles(test_program_dir: PathBuf, runtime: Runtime) {
+        #[allow(deprecated)]
+        let mut nargo = Command::cargo_bin("nargo").unwrap();
+        nargo.arg("--program-dir").arg(test_program_dir.clone());
+        nargo.arg("check");
+        match runtime {
+            Runtime::Acir | Runtime::Comptime => (),
+            Runtime::Brillig => {
+                nargo.arg("--force-brillig");
+            }
+        };
+
+        // Enable enums and trait_as_type as unstable features
+        nargo.arg("-Zenums");
+        nargo.arg("-Ztrait_as_type");
+
+        nargo
+            .assert()
+            .success()
+            .stderr(predicate::str::contains("The application panicked (crashed).").not());
     }
 
     fn check_execution_failure_stderr(
