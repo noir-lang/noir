@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772127989808,
+  "lastUpdate": 1772127992230,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -35147,105 +35147,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "efc4e62667b4574d453592db63c633c8d327b57d",
-          "message": "fix: don't skip clone for vector operations in Brillig (#11485)\n\nCo-authored-by: guipublic <47281315+guipublic@users.noreply.github.com>",
-          "timestamp": "2026-02-18T16:55:45Z",
-          "tree_id": "aecd59aeaf81ffba656c52d30e3de687b3450872",
-          "url": "https://github.com/noir-lang/noir/commit/efc4e62667b4574d453592db63c633c8d327b57d"
-        },
-        "date": 1771436561034,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.474,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 1.448,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.302,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 1.756,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 1.7,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1.8,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 1.712,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 3.22,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 2.2,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.802,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 1.87,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 1.888,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 1.624,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.254,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.207,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -40085,6 +39986,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.249,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0e02b0c498a6155eabb3c1f0251c45e9ad85c664",
+          "message": "fix(acir): Handle inserting into an empty vector at index 0 in ACIR (#11703)",
+          "timestamp": "2026-02-26T17:09:00Z",
+          "tree_id": "38d5ffb01d66d20a6092cfb14dfc515cacf81343",
+          "url": "https://github.com/noir-lang/noir/commit/0e02b0c498a6155eabb3c1f0251c45e9ad85c664"
+        },
+        "date": 1772127946695,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.426,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 1.55,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.278,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 1.664,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 1.77,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1.65,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 1.728,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 2.23,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 2.27,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.804,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 1.822,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 1.906,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 1.726,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.272,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.242,
             "unit": "s"
           }
         ]
