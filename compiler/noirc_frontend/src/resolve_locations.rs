@@ -101,7 +101,7 @@ impl NodeInterner {
             Node::Expression(expression) => {
                 self.resolve_expression_location(expression, return_type_location_instead)
             }
-            _ => None,
+            Node::Statement(_) => None,
         }
     }
 

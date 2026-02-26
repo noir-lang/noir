@@ -351,8 +351,8 @@ impl DependencyContext {
                 let location = call_stack.last();
 
                 // If there is no call stack (happens for tests), consider unvisited
-                let visited = location
-                    .is_some_and(|loc| self.visited_locations.contains(&(*callee, *loc)));
+                let visited =
+                    location.is_some_and(|loc| self.visited_locations.contains(&(*callee, *loc)));
 
                 if !visited {
                     let results = function.dfg.instruction_results(*instruction);

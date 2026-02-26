@@ -150,9 +150,9 @@ impl Expression {
         match self {
             Expression::Literal(_) => true,
 
-            Expression::Block(expressions) => expressions
-                .last()
-                .is_some_and(|x| x.needs_type_inference_from_literal()),
+            Expression::Block(expressions) => {
+                expressions.last().is_some_and(|x| x.needs_type_inference_from_literal())
+            }
 
             Expression::Unary(unary) => unary.rhs.needs_type_inference_from_literal(),
 

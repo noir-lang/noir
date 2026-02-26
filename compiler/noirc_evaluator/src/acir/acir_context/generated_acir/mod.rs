@@ -641,8 +641,7 @@ impl<F: AcirField> GeneratedAcir<F> {
             return;
         }
 
-        for (procedure_id, (start_index, end_index)) in &generated_brillig.procedure_locations
-        {
+        for (procedure_id, (start_index, end_index)) in &generated_brillig.procedure_locations {
             self.brillig_procedure_locs
                 .entry(brillig_function_index)
                 .or_default()
@@ -665,7 +664,7 @@ impl<F: AcirField> GeneratedAcir<F> {
     ) {
         let acir_index = match opcode_location {
             OpcodeLocation::Acir(index) => index,
-            _ => panic!("should not have brillig index"),
+            OpcodeLocation::Brillig { .. } => panic!("should not have brillig index"),
         };
 
         match &mut self.opcodes[acir_index] {

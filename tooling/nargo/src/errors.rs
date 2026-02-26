@@ -82,7 +82,7 @@ impl<F: AcirField> NargoError<F> {
                 },
             },
             NargoError::ForeignCallError(error) => Some(error.to_string()),
-            _ => None,
+            NargoError::CompilationError => None,
         }
     }
 }
@@ -138,7 +138,7 @@ fn extract_locations_from_error<F: AcirField>(
             }
             ErrorLocation::Resolved(_) => acir_call_stack.clone(),
         },
-        _ => None,
+        ExecutionError::SolvingError(..) => None,
     }?;
 
     // Insert the top-level Acir location where the Brillig function failed
@@ -167,7 +167,7 @@ fn extract_locations_from_error<F: AcirField>(
             _,
         ) => Some(*function_id),
         ExecutionError::AssertionFailed(_, _, function_id) => *function_id,
-        _ => None,
+        ExecutionError::SolvingError(..) => None,
     };
 
     Some(

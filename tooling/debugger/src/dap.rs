@@ -585,7 +585,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>> DapSession<
         let variables: Vec<_> = match scope {
             ScopeReferences::Locals => self.build_local_variables(),
             ScopeReferences::WitnessMap => self.build_witness_map(),
-            _ => {
+            ScopeReferences::InvalidScope => {
                 eprintln!(
                     "handle_variables with an unknown variables_reference {}",
                     args.variables_reference

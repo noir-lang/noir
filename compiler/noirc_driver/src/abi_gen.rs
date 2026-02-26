@@ -229,7 +229,9 @@ pub(super) fn value_from_hir_expression(context: &Context, expression: HirExpres
                         .collect();
                     AbiValue::Array { value }
                 }
-                _ => unreachable!("Repeated arrays cannot be used in the abi"),
+                HirArrayLiteral::Repeated { .. } => {
+                    unreachable!("Repeated arrays cannot be used in the abi")
+                }
             },
             HirLiteral::Bool(value) => AbiValue::Boolean { value },
             HirLiteral::Str(value) => AbiValue::String { value },

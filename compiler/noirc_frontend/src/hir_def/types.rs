@@ -1061,7 +1061,7 @@ impl TypeVariable {
             TypeBinding::Bound(binding) => {
                 matches!(binding.follow_bindings(), Type::Integer(Signedness::Signed, _))
             }
-            _ => false,
+            TypeBinding::Unbound(..) => false,
         }
     }
 
@@ -1071,7 +1071,7 @@ impl TypeVariable {
             TypeBinding::Bound(binding) => {
                 matches!(binding.follow_bindings(), Type::Integer(Signedness::Unsigned, _))
             }
-            _ => false,
+            TypeBinding::Unbound(..) => false,
         }
     }
 
@@ -2365,7 +2365,7 @@ impl Type {
                 TypeBinding::Bound(typ) => return typ.try_bind_to(var, bindings, kind),
                 // Don't recursively bind the same id to itself
                 TypeBinding::Unbound(id, _) if *id == target_id => return Ok(()),
-                _ => (),
+                TypeBinding::Unbound(..) => (),
             }
         }
 

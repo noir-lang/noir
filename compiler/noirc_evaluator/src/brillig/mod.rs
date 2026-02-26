@@ -106,7 +106,7 @@ impl Brillig {
                 Some(Cow::Owned(compile_procedure(procedure_id, options, stack_start)))
             }
             LabelType::GlobalInit(function_id) => self.globals.get(&function_id).map(Cow::Borrowed),
-            _ => unreachable!("ICE: Expected a function or procedure label"),
+            LabelType::Entrypoint => unreachable!("ICE: Expected a function or procedure label"),
         }
     }
 
