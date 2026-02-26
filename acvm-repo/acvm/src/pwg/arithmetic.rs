@@ -326,7 +326,7 @@ impl ExpressionSolver {
         let mut hash_map = std::collections::HashMap::new();
 
         // Canonicalize the ordering of the multiplication, lets just order by variable name
-        for (scale, w_l, w_r) in mul_terms.iter().cloned() {
+        for (scale, w_l, w_r) in mul_terms.iter().copied() {
             let mut pair = [w_l, w_r];
             pair.sort();
 

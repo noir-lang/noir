@@ -1176,7 +1176,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
             if should_mutate {
                 array.elements.borrow_mut()[index as usize] = value;
-                Value::ArrayOrVector(array.clone())
+                Value::ArrayOrVector(array)
             } else {
                 if !is_rc_one {
                     Self::decrement_rc(&array);

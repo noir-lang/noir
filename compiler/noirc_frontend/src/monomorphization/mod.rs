@@ -405,7 +405,7 @@ impl<'interner> Monomorphizer<'interner> {
                         let opcode = attribute.kind.foreign().expect(
                             "ICE: function marked as foreign, but attribute kind does not match this",
                         );
-                        Definition::LowLevel(opcode.to_string())
+                        Definition::LowLevel(opcode.clone())
                     }
                     FunctionKind::Builtin => {
                         let attribute = attributes.function().expect("all builtin functions must contain a function attribute which contains the opcode which it links to");
@@ -413,7 +413,7 @@ impl<'interner> Monomorphizer<'interner> {
                             "ICE: function marked as builtin, but attribute kind does not match this",
                         );
                         let location = self.interner.expr_location(&expr_id);
-                        let opcode = opcode.to_string();
+                        let opcode = opcode.clone();
 
                         if evaluate_builtin {
                             match self.try_evaluate_builtin(
@@ -441,7 +441,7 @@ impl<'interner> Monomorphizer<'interner> {
                         let opcode = attribute.kind.oracle().expect(
                             "ICE: function marked as builtin, but attribute kind does not match this",
                         );
-                        Definition::Oracle(opcode.to_string())
+                        Definition::Oracle(opcode.clone())
                     }
                 }
             }
@@ -1050,8 +1050,7 @@ impl<'interner> Monomorphizer<'interner> {
 
         let field_types = unwrap_struct_type(typ, location)?;
 
-        let field_type_map =
-            btree_map(&field_types, |(name, typ, _)| (name.to_string(), typ.clone()));
+        let field_type_map = btree_map(&field_types, |(name, typ, _)| (name.clone(), typ.clone()));
 
         // Create let bindings for each field value first to preserve evaluation order before
         // they are reordered and packed into the resulting tuple
@@ -1310,7 +1309,6 @@ impl<'interner> Monomorphizer<'interner> {
             DefinitionKind::Function(func_id) => {
                 let mutable = definition.mutable;
                 let name = definition.name.clone();
-                let generics = generics.clone();
                 let func_id = *func_id;
 
                 // Functions are represented as a pair of their constrained and unconstrained versions
@@ -1432,7 +1430,7 @@ impl<'interner> Monomorphizer<'interner> {
             .evaluate_to_signed_field(&expected_kind, location)
             .map_err(|err| MonomorphizationError::UnknownArrayLength { err, location })?;
 
-        let expr_kind = Kind::Numeric(Box::new(expr_type.clone()));
+        let expr_kind = Kind::Numeric(Box::new(expr_type));
         if !expected_kind.unifies(&expr_kind) {
             let message = "ICE: Generic's kind does not match expected type";
             return Err(MonomorphizationError::InternalError { location, message });
@@ -2336,13 +2334,7 @@ impl<'interner> Monomorphizer<'interner> {
         let new_id = self.next_function_id();
         let is_unconstrained = self.is_unconstrained(id);
 
-        self.define_function(
-            id,
-            function_type.clone(),
-            turbofish_generics,
-            is_unconstrained,
-            new_id,
-        );
+        self.define_function(id, function_type, turbofish_generics, is_unconstrained, new_id);
 
         self.queue.push_back((id, new_id, bindings, trait_method, is_unconstrained, expr_location));
         new_id
@@ -2575,7 +2567,7 @@ impl<'interner> Monomorphizer<'interner> {
         let mut lambda_fn = Function {
             id: constrained_id,
             name: lambda_name.to_owned(),
-            parameters: parameters.to_vec(),
+            parameters: parameters.clone(),
             body: constrained_body,
             return_type: ret_type.clone(),
             return_visibility: Visibility::Private,
@@ -2902,7 +2894,7 @@ impl<'interner> Monomorphizer<'interner> {
 /// Return this tuple type's fields or panic
 fn unwrap_tuple_type(typ: &HirType) -> Vec<HirType> {
     match typ.follow_bindings() {
-        HirType::Tuple(fields) => fields.clone(),
+        HirType::Tuple(fields) => fields,
         other => unreachable!("unwrap_tuple_type: expected tuple, found {:?}", other),
     }
 }

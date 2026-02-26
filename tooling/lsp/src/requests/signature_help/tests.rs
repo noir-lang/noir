@@ -24,7 +24,7 @@ mod signature_help_tests {
                     uri: noir_text_document.clone(),
                     language_id: "noir".to_string(),
                     version: 0,
-                    text: src.to_string(),
+                    text: src.clone(),
                 },
             },
         );

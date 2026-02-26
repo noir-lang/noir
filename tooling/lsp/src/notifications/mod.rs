@@ -113,7 +113,7 @@ fn handle_text_document_open_or_close_notification(
     state: &mut LspState,
     document_uri: Url,
 ) -> Result<(), async_lsp::Error> {
-    let workspace = workspace_from_document_uri(document_uri.clone())?;
+    let workspace = workspace_from_document_uri(document_uri)?;
 
     if state.package_cache.contains_key(&workspace.root_dir) {
         Ok(())

@@ -517,7 +517,7 @@ impl<F: AcirField> AcirContext<F> {
         if let Some(ErrorType::String(message)) =
             self.acir_ir.error_types.get(&ErrorSelector::new(assertion_payload.error_selector))
         {
-            Some(message.to_string())
+            Some(message.clone())
         } else {
             None
         }
@@ -1100,7 +1100,7 @@ impl<F: AcirField> AcirContext<F> {
         let witness = self.var_to_witness(witness_var)?;
         self.acir_ir.range_constraint(witness, bit_size)?;
         if let Some(message) = message {
-            let payload = self.generate_assertion_message_payload(message.clone());
+            let payload = self.generate_assertion_message_payload(message);
             self.acir_ir
                 .assertion_payloads
                 .insert(self.acir_ir.last_acir_opcode_location(), payload);

@@ -39,7 +39,7 @@ pub(crate) fn read_witness_from_file(
         let index =
             Witness(key.trim().parse().map_err(|_| CliError::WitnessIndexError(key.clone()))?);
         if !value.is_str() {
-            return Err(CliError::WitnessValueError(key.clone()));
+            return Err(CliError::WitnessValueError(key));
         }
         let field = FieldElement::from_hex(value.as_str().unwrap()).unwrap();
         witnesses.insert(index, field);

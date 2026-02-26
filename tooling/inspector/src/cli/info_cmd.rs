@@ -156,51 +156,48 @@ fn profile_program_execution(
 pub(crate) fn run(args: InfoCommand) -> eyre::Result<()> {
     let artifact = Artifact::read_from_file(&args.artifact)?;
 
-    let programs = if args.profile_execution {
-        let input_file = resolve_input_file(&args.artifact, args.input_file.as_ref())?;
+    let programs =
+        if args.profile_execution {
+            let input_file = resolve_input_file(&args.artifact, args.input_file.as_ref())?;
 
-        match artifact {
-            Artifact::Program(program) => {
-                let package_name = args
-                    .artifact
-                    .with_extension("")
-                    .file_name()
-                    .map(|s| s.to_string_lossy().to_string())
-                    .unwrap_or_else(|| "artifact".to_string());
-
-                vec![profile_program_execution(program, package_name, &input_file)?]
-            }
-            Artifact::Contract(_) => {
-                unreachable!("profile-execution conflicts with contract-fn argument");
-            }
-        }
-    } else {
-        match artifact {
-            Artifact::Program(program) => {
-                let package_name = args
-                    .artifact
-                    .with_extension("")
-                    .file_name()
-                    .map(|s| s.to_string_lossy().to_string())
-                    .unwrap_or_else(|| "artifact".to_string());
-
-                vec![count_opcodes_and_gates_in_program(program, package_name)]
-            }
-            Artifact::Contract(contract) => contract
-                .functions
-                .into_iter()
-                .filter(|f| args.contract_fn.as_ref().map(|n| *n == f.name).unwrap_or(true))
-                .map(|f| {
-                    let package_name = format!("{}::{}", contract.name, f.name);
-                    let program = f.into_compiled_program(
-                        contract.noir_version.clone(),
-                        contract.file_map.clone(),
+            match artifact {
+                Artifact::Program(program) => {
+                    let package_name = args.artifact.with_extension("").file_name().map_or_else(
+                        || "artifact".to_string(),
+                        |s| s.to_string_lossy().to_string(),
                     );
-                    count_opcodes_and_gates_in_program(program.into(), package_name)
-                })
-                .collect::<Vec<_>>(),
-        }
-    };
+
+                    vec![profile_program_execution(program, package_name, &input_file)?]
+                }
+                Artifact::Contract(_) => {
+                    unreachable!("profile-execution conflicts with contract-fn argument");
+                }
+            }
+        } else {
+            match artifact {
+                Artifact::Program(program) => {
+                    let package_name = args.artifact.with_extension("").file_name().map_or_else(
+                        || "artifact".to_string(),
+                        |s| s.to_string_lossy().to_string(),
+                    );
+
+                    vec![count_opcodes_and_gates_in_program(program, package_name)]
+                }
+                Artifact::Contract(contract) => contract
+                    .functions
+                    .into_iter()
+                    .filter(|f| args.contract_fn.as_ref().is_none_or(|n| *n == f.name))
+                    .map(|f| {
+                        let package_name = format!("{}::{}", contract.name, f.name);
+                        let program = f.into_compiled_program(
+                            contract.noir_version.clone(),
+                            contract.file_map.clone(),
+                        );
+                        count_opcodes_and_gates_in_program(program.into(), package_name)
+                    })
+                    .collect::<Vec<_>>(),
+            }
+        };
 
     let info_report = InfoReport { programs };
     show_info_report(info_report, args.json);

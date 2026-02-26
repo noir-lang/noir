@@ -55,7 +55,7 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
         let function_name = if bytecode.functions.len() > 1 {
             format!("{}_{}", circuit.function_name.as_str(), func_idx)
         } else {
-            circuit.function_name.to_owned()
+            circuit.function_name.clone()
         };
 
         println!("Opcode count for {}: {}", function_name, circuit.opcodes.len());

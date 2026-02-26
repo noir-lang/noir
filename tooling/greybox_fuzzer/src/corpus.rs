@@ -388,7 +388,7 @@ impl Corpus {
         }
         self.brillig_orchestrator.new_testcase(testcase_id);
         self.acir_orchestrator.new_testcase(testcase_id);
-        self.discovered_testcases.insert(testcase_id, new_testcase_value.clone());
+        self.discovered_testcases.insert(testcase_id, new_testcase_value);
         Ok(testcase_id)
     }
 

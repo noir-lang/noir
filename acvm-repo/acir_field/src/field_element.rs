@@ -764,7 +764,7 @@ mod tests {
             // Here we inject a "0" immediately after the "0x" (if it exists) to construct an equivalent
             // hex string with the opposite parity length.
             let insert_index = if hex.starts_with("0x") { 2 } else { 0 };
-            let mut opposite_parity_string = hex.to_string();
+            let mut opposite_parity_string = hex.clone();
             opposite_parity_string.insert(insert_index, '0');
 
             let fe_1: FieldElement::<ark_bn254::Fr> = FieldElement::from_hex(&hex).unwrap();
