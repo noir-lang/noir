@@ -198,8 +198,12 @@ impl Elaborator<'_> {
                 }
 
                 let ident = &metadata.ident;
-                let definition_info = self.interner.definition(ident.id);
+                let definition_info = self.interner.definition_mut(ident.id);
                 if definition_info.mutable && !definition_info.is_global() {
+                    // Since the above error is only a warning, and because the codegen for non-mutable
+                    // variables is usually more efficient, we set the variable's definition to be non-mutable.
+                    definition_info.mutable = false;
+
                     let ident = Ident::new(variable_name.to_owned(), ident.location);
                     self.push_err(ResolverError::VariableDoesNotNeedToBeMutable { ident });
                 }
