@@ -27,6 +27,12 @@ mod tests {
     struct ForceBrillig(pub bool);
     #[derive(Debug, Clone, Copy)]
     struct Inliner(pub i64);
+    #[derive(Debug, Clone, Copy)]
+    enum Runtime {
+        Acir,
+        Brillig,
+        Comptime,
+    }
 
     // These tests fail with stack too deep errors when debug assertions are active
     const IGNORED_BRILLIG_DEBUG_ASSERTIONS_TESTS: [&str; 1] = ["ski_calculus"];
@@ -174,11 +180,38 @@ mod tests {
         has_circuit_output
     }
 
-    fn execution_failure(mut nargo: Command) {
+    fn execution_failure(mut nargo: Command, test_program_dir: PathBuf, runtime: Runtime) {
         nargo
             .assert()
             .failure()
             .stderr(predicate::str::contains("The application panicked (crashed).").not());
+        check_execution_failure_stderr(&mut nargo, &test_program_dir, runtime);
+    }
+
+    fn check_execution_failure_stderr(
+        nargo: &mut Command,
+        test_program_dir: &Path,
+        runtime: Runtime,
+    ) {
+        let output = nargo.output().unwrap();
+        let stderr = String::from_utf8(output.stderr).unwrap();
+        let stderr = remove_noise_lines(stderr);
+        let stderr = delete_test_program_dir_occurrences(stderr, test_program_dir);
+
+        let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
+        let runtime = match runtime {
+            Runtime::Acir => "acir",
+            Runtime::Brillig => "brillig",
+            Runtime::Comptime => "comptime",
+        };
+        let snapshot_name = format!("{runtime}_stderr");
+        insta::with_settings!(
+            {
+                snapshot_path => format!("./snapshots/execution_failure/{test_name}")
+            },
+            {
+            insta::assert_snapshot!(snapshot_name, stderr);
+        });
     }
 
     fn execution_panic(mut nargo: Command) {
@@ -451,13 +484,13 @@ mod tests {
     fn nargo_execute_comptime_expect_failure(test_program_dir: PathBuf) {
         #[allow(deprecated)]
         let mut nargo = Command::cargo_bin("nargo").unwrap();
-        nargo.arg("--program-dir").arg(test_program_dir);
+        nargo.arg("--program-dir").arg(test_program_dir.clone());
         nargo.arg("execute").arg("--force-comptime");
 
         // Enable enums as an unstable feature
         nargo.arg("-Zenums");
 
-        execution_failure(nargo);
+        execution_failure(nargo, test_program_dir, Runtime::Comptime);
     }
 
     fn nargo_execute_brillig_small_stack(test_program_dir: PathBuf) {

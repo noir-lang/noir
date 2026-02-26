@@ -1,0 +1,33 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+warning: This doc comment doesn't document anything
+   ┌─ src/main.nr:17:5
+   │
+17 │     /// Safety: testing context
+   │     --------------------------- Consider changing it to a regular `//` comment
+   │
+
+warning: Unsafe block must have a safety comment above it
+   ┌─ src/main.nr:18:5
+   │
+18 │     unsafe {
+   │     ------ The comment must start with the "Safety: " word
+   │
+
+error: Cannot do not (`!`) on Fields, try casting to an integer first
+  ┌─ src/main.nr:6:42
+  │
+6 │     assert(1 == fold_conditional_wrapper(!x as bool));
+  │                                          --
+  │
+
+error: Cannot cast `Field` as `bool`
+  ┌─ src/main.nr:7:42
+  │
+7 │     assert(1 == fold_conditional_wrapper(x as bool));
+  │                                          --------- Compare with zero instead: ` != 0`
+  │
+
+Aborting due to 2 previous errors

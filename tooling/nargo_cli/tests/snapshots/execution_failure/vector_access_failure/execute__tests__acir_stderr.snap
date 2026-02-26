@@ -1,0 +1,26 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: No method named 'push_back' found for type '[Field; 2]'
+  ┌─ src/main.nr:4:18
+  │
+4 │         vector = vector.push_back(y);
+  │                  -------------------
+  │
+
+error: No method named 'push_back' found for type '[Field; 2]'
+  ┌─ src/main.nr:5:18
+  │
+5 │         vector = vector.push_back(x);
+  │                  -------------------
+  │
+
+error: No method named 'push_back' found for type '[Field; 2]'
+  ┌─ src/main.nr:7:18
+  │
+7 │         vector = vector.push_back(x);
+  │                  -------------------
+  │
+
+Aborting due to 3 previous errors

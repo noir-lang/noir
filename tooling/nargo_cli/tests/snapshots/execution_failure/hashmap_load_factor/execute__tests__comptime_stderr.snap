@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Non-ASCII character in comment
+   ┌─ src/main.nr:22:1
+   │
+22 │ // α_max = 0.75, thus for capacity of 8 and lenght of 6
+   │ ------------------------------------------------------ Invalid comment character: only ASCII is currently supported.
+   │
+
+Aborting due to 1 previous error

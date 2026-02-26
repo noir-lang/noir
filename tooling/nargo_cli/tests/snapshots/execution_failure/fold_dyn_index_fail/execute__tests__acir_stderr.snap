@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Indexing arrays and vectors must be done with `u32`, not `Field`
+  ┌─ src/main.nr:2:7
+  │
+2 │     x[z] = 4;
+  │       -
+  │
+
+error: Indexing arrays and vectors must be done with `u32`, not `Field`
+  ┌─ src/main.nr:9:14
+  │
+9 │     assert(x[idx] != 0);
+  │              ---
+  │
+
+Aborting due to 2 previous errors

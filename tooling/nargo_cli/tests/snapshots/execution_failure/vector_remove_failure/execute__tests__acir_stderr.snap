@@ -1,0 +1,54 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+warning: unused variable removed_vector
+   ┌─ src/main.nr:10:10
+   │
+10 │     let (removed_vector, removed_elem) = vector.remove(10);
+   │          -------------- unused variable
+   │
+
+warning: unused variable removed_elem
+   ┌─ src/main.nr:10:26
+   │
+10 │     let (removed_vector, removed_elem) = vector.remove(10);
+   │                          ------------ unused variable
+   │
+
+error: No method named 'push_back' found for type '[Field; 2]'
+  ┌─ src/main.nr:4:18
+  │
+4 │         vector = vector.push_back(y);
+  │                  -------------------
+  │
+
+error: No method named 'push_back' found for type '[Field; 2]'
+  ┌─ src/main.nr:5:18
+  │
+5 │         vector = vector.push_back(x);
+  │                  -------------------
+  │
+
+error: No method named 'push_back' found for type '[Field; 2]'
+  ┌─ src/main.nr:7:18
+  │
+7 │         vector = vector.push_back(x);
+  │                  -------------------
+  │
+
+error: No method named 'remove' found for type '[Field; 2]'
+   ┌─ src/main.nr:10:42
+   │
+10 │     let (removed_vector, removed_elem) = vector.remove(10);
+   │                                          -----------------
+   │
+
+error: Cannot assign an expression of type (_, _) to a value of type _
+   ┌─ src/main.nr:10:9
+   │
+10 │     let (removed_vector, removed_elem) = vector.remove(10);
+   │         ------------------------------
+   │
+
+Aborting due to 5 previous errors
