@@ -195,14 +195,14 @@ mod tests {
     fn execution_failure_check_compiles(test_program_dir: PathBuf, runtime: Runtime) {
         #[allow(deprecated)]
         let mut nargo = Command::cargo_bin("nargo").unwrap();
-        nargo.arg("--program-dir").arg(test_program_dir.clone());
+        nargo.arg("--program-dir").arg(test_program_dir);
         nargo.arg("check");
         match runtime {
             Runtime::Acir | Runtime::Comptime => (),
             Runtime::Brillig => {
                 nargo.arg("--force-brillig");
             }
-        };
+        }
 
         // Enable enums and trait_as_type as unstable features
         nargo.arg("-Zenums");
