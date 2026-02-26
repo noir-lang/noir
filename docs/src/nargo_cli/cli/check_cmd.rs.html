@@ -26,8 +26,8 @@
 <a href=#26 id=26 data-nosnippet>26</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) package_options: PackageOptions,
 <a href=#27 id=27 data-nosnippet>27</a>
 <a href=#28 id=28 data-nosnippet>28</a>    <span class="doccomment">/// Force overwrite of existing files
-<a href=#29 id=29 data-nosnippet>29</a>    </span><span class="attr">#[clap(long = <span class="string">"overwrite"</span>)]
-<a href=#30 id=30 data-nosnippet>30</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) allow_overwrite: bool,
+<a href=#29 id=29 data-nosnippet>29</a>    </span><span class="attr">#[clap(long)]
+<a href=#30 id=30 data-nosnippet>30</a>    </span>overwrite: bool,
 <a href=#31 id=31 data-nosnippet>31</a>
 <a href=#32 id=32 data-nosnippet>32</a>    <span class="attr">#[clap(flatten)]
 <a href=#33 id=33 data-nosnippet>33</a>    </span>compile_options: CompileOptions,
@@ -72,7 +72,7 @@
 <a href=#72 id=72 data-nosnippet>72</a>            <span class="kw-2">&amp;</span>parsed_files,
 <a href=#73 id=73 data-nosnippet>73</a>            package,
 <a href=#74 id=74 data-nosnippet>74</a>            <span class="kw-2">&amp;</span>args.compile_options,
-<a href=#75 id=75 data-nosnippet>75</a>            args.allow_overwrite,
+<a href=#75 id=75 data-nosnippet>75</a>            args.overwrite,
 <a href=#76 id=76 data-nosnippet>76</a>        )<span class="question-mark">?</span>;
 <a href=#77 id=77 data-nosnippet>77</a>    }
 <a href=#78 id=78 data-nosnippet>78</a>    <span class="prelude-val">Ok</span>(())
@@ -85,7 +85,7 @@
 <a href=#85 id=85 data-nosnippet>85</a>    parsed_files: <span class="kw-2">&amp;</span>ParsedFiles,
 <a href=#86 id=86 data-nosnippet>86</a>    package: <span class="kw-2">&amp;</span>Package,
 <a href=#87 id=87 data-nosnippet>87</a>    compile_options: <span class="kw-2">&amp;</span>CompileOptions,
-<a href=#88 id=88 data-nosnippet>88</a>    allow_overwrite: bool,
+<a href=#88 id=88 data-nosnippet>88</a>    overwrite: bool,
 <a href=#89 id=89 data-nosnippet>89</a>) -&gt; <span class="prelude-ty">Result</span>&lt;(), CompileError&gt; {
 <a href=#90 id=90 data-nosnippet>90</a>    <span class="kw">let </span>(<span class="kw-2">mut </span>context, crate_id) = prepare_package(file_manager, parsed_files, package);
 <a href=#91 id=91 data-nosnippet>91</a>    check_crate_and_report_errors(<span class="kw-2">&amp;mut </span>context, crate_id, compile_options)<span class="question-mark">?</span>;
@@ -93,115 +93,115 @@
 <a href=#93 id=93 data-nosnippet>93</a>    <span class="kw">if </span>package.is_library() || package.is_contract() {
 <a href=#94 id=94 data-nosnippet>94</a>        <span class="comment">// Libraries do not have ABIs while contracts have many, so we cannot generate a `Prover.toml` file.
 <a href=#95 id=95 data-nosnippet>95</a>        </span><span class="prelude-val">Ok</span>(())
-<a href=#96 id=96 data-nosnippet>96</a>    } <span class="kw">else </span>{
-<a href=#97 id=97 data-nosnippet>97</a>        <span class="comment">// XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
-<a href=#98 id=98 data-nosnippet>98</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>((parameters, <span class="kw">_</span>)) = compute_function_abi(<span class="kw-2">&amp;</span>context, <span class="kw-2">&amp;</span>crate_id) {
-<a href=#99 id=99 data-nosnippet>99</a>            <span class="kw">let </span>path_to_prover_input = package.prover_input_path();
-<a href=#100 id=100 data-nosnippet>100</a>
-<a href=#101 id=101 data-nosnippet>101</a>            <span class="comment">// Before writing the file, check if it exists and whether overwrite is set
-<a href=#102 id=102 data-nosnippet>102</a>            </span><span class="kw">let </span>should_write_prover = !path_to_prover_input.exists() || allow_overwrite;
-<a href=#103 id=103 data-nosnippet>103</a>
-<a href=#104 id=104 data-nosnippet>104</a>            <span class="kw">if </span>should_write_prover {
-<a href=#105 id=105 data-nosnippet>105</a>                <span class="kw">let </span>prover_toml = create_input_toml_template(parameters.clone(), <span class="prelude-val">None</span>);
-<a href=#106 id=106 data-nosnippet>106</a>                write_to_file(prover_toml.as_bytes(), <span class="kw-2">&amp;</span>path_to_prover_input)
-<a href=#107 id=107 data-nosnippet>107</a>                    .expect(<span class="string">"failed to write template"</span>);
-<a href=#108 id=108 data-nosnippet>108</a>            } <span class="kw">else </span>{
-<a href=#109 id=109 data-nosnippet>109</a>                <span class="macro">eprintln!</span>(<span class="string">"Note: Prover.toml already exists. Use --overwrite to force overwrite."</span>);
-<a href=#110 id=110 data-nosnippet>110</a>            }
-<a href=#111 id=111 data-nosnippet>111</a>
-<a href=#112 id=112 data-nosnippet>112</a>            <span class="prelude-val">Ok</span>(())
-<a href=#113 id=113 data-nosnippet>113</a>        } <span class="kw">else </span>{
-<a href=#114 id=114 data-nosnippet>114</a>            <span class="prelude-val">Err</span>(CompileError::MissingMainFunction(package.name.clone()))
-<a href=#115 id=115 data-nosnippet>115</a>        }
-<a href=#116 id=116 data-nosnippet>116</a>    }
-<a href=#117 id=117 data-nosnippet>117</a>}
-<a href=#118 id=118 data-nosnippet>118</a>
-<a href=#119 id=119 data-nosnippet>119</a><span class="doccomment">/// Generates the contents of a toml file with fields for each of the passed parameters.
-<a href=#120 id=120 data-nosnippet>120</a></span><span class="kw">fn </span>create_input_toml_template(
-<a href=#121 id=121 data-nosnippet>121</a>    parameters: Vec&lt;AbiParameter&gt;,
-<a href=#122 id=122 data-nosnippet>122</a>    return_type: <span class="prelude-ty">Option</span>&lt;AbiType&gt;,
-<a href=#123 id=123 data-nosnippet>123</a>) -&gt; String {
-<a href=#124 id=124 data-nosnippet>124</a>    <span class="doccomment">/// Returns a default placeholder `toml::Value` for `typ` which
-<a href=#125 id=125 data-nosnippet>125</a>    /// complies with the structure of the specified `AbiType`.
-<a href=#126 id=126 data-nosnippet>126</a>    </span><span class="kw">fn </span>default_value(typ: AbiType) -&gt; toml::Value {
-<a href=#127 id=127 data-nosnippet>127</a>        <span class="kw">match </span>typ {
-<a href=#128 id=128 data-nosnippet>128</a>            AbiType::Array { length, typ } =&gt; {
-<a href=#129 id=129 data-nosnippet>129</a>                <span class="kw">let </span>default_value_vec =
-<a href=#130 id=130 data-nosnippet>130</a>                    std::iter::repeat_n(default_value(<span class="kw-2">*</span>typ), length.try_into().unwrap()).collect();
-<a href=#131 id=131 data-nosnippet>131</a>                toml::Value::Array(default_value_vec)
-<a href=#132 id=132 data-nosnippet>132</a>            }
-<a href=#133 id=133 data-nosnippet>133</a>            AbiType::Struct { fields, .. } =&gt; {
-<a href=#134 id=134 data-nosnippet>134</a>                <span class="kw">let </span>default_value_map = toml::map::Map::from_iter(
-<a href=#135 id=135 data-nosnippet>135</a>                    fields.into_iter().map(|(name, typ)| (name, default_value(typ))),
-<a href=#136 id=136 data-nosnippet>136</a>                );
-<a href=#137 id=137 data-nosnippet>137</a>                toml::Value::Table(default_value_map)
-<a href=#138 id=138 data-nosnippet>138</a>            }
-<a href=#139 id=139 data-nosnippet>139</a>            AbiType::Field | AbiType::Integer { .. } =&gt; toml::Value::Integer(<span class="number">0</span>),
-<a href=#140 id=140 data-nosnippet>140</a>            AbiType::Boolean =&gt; toml::Value::Boolean(<span class="bool-val">false</span>),
-<a href=#141 id=141 data-nosnippet>141</a>            AbiType::Tuple { fields } =&gt; {
-<a href=#142 id=142 data-nosnippet>142</a>                <span class="kw">let </span>default_value_vec = fields.into_iter().map(default_value).collect();
-<a href=#143 id=143 data-nosnippet>143</a>                toml::Value::Array(default_value_vec)
-<a href=#144 id=144 data-nosnippet>144</a>            }
-<a href=#145 id=145 data-nosnippet>145</a>            AbiType::String { length } =&gt; toml::Value::String(<span class="string">"_"</span>.repeat(length <span class="kw">as </span>usize)),
-<a href=#146 id=146 data-nosnippet>146</a>        }
-<a href=#147 id=147 data-nosnippet>147</a>    }
+<a href=#96 id=96 data-nosnippet>96</a>    } <span class="kw">else if let </span><span class="prelude-val">Some</span>((parameters, return_type)) = compute_function_abi(<span class="kw-2">&amp;</span>context, <span class="kw-2">&amp;</span>crate_id) {
+<a href=#97 id=97 data-nosnippet>97</a>        <span class="kw">let </span>path_to_prover_input = package.prover_input_path();
+<a href=#98 id=98 data-nosnippet>98</a>
+<a href=#99 id=99 data-nosnippet>99</a>        <span class="comment">// Before writing the file, check if it exists and whether overwrite is set
+<a href=#100 id=100 data-nosnippet>100</a>        </span><span class="kw">let </span>should_write_prover = !path_to_prover_input.exists() || overwrite;
+<a href=#101 id=101 data-nosnippet>101</a>
+<a href=#102 id=102 data-nosnippet>102</a>        <span class="kw">if </span>should_write_prover {
+<a href=#103 id=103 data-nosnippet>103</a>            <span class="kw">let </span>prover_toml = create_input_toml_template(parameters, return_type);
+<a href=#104 id=104 data-nosnippet>104</a>            write_to_file(prover_toml.as_bytes(), <span class="kw-2">&amp;</span>path_to_prover_input)
+<a href=#105 id=105 data-nosnippet>105</a>                .expect(<span class="string">"failed to write template"</span>);
+<a href=#106 id=106 data-nosnippet>106</a>        } <span class="kw">else </span>{
+<a href=#107 id=107 data-nosnippet>107</a>            <span class="macro">eprintln!</span>(<span class="string">"Note: Prover.toml already exists. Use --overwrite to force overwrite."</span>);
+<a href=#108 id=108 data-nosnippet>108</a>        }
+<a href=#109 id=109 data-nosnippet>109</a>
+<a href=#110 id=110 data-nosnippet>110</a>        <span class="prelude-val">Ok</span>(())
+<a href=#111 id=111 data-nosnippet>111</a>    } <span class="kw">else </span>{
+<a href=#112 id=112 data-nosnippet>112</a>        <span class="prelude-val">Err</span>(CompileError::MissingMainFunction(package.name.clone()))
+<a href=#113 id=113 data-nosnippet>113</a>    }
+<a href=#114 id=114 data-nosnippet>114</a>}
+<a href=#115 id=115 data-nosnippet>115</a>
+<a href=#116 id=116 data-nosnippet>116</a><span class="doccomment">/// Generates the contents of a toml file with fields for each of the passed parameters.
+<a href=#117 id=117 data-nosnippet>117</a></span><span class="kw">fn </span>create_input_toml_template(
+<a href=#118 id=118 data-nosnippet>118</a>    parameters: Vec&lt;AbiParameter&gt;,
+<a href=#119 id=119 data-nosnippet>119</a>    return_type: <span class="prelude-ty">Option</span>&lt;AbiType&gt;,
+<a href=#120 id=120 data-nosnippet>120</a>) -&gt; String {
+<a href=#121 id=121 data-nosnippet>121</a>    <span class="doccomment">/// Returns a default placeholder `toml::Value` for `typ` which
+<a href=#122 id=122 data-nosnippet>122</a>    /// complies with the structure of the specified `AbiType`.
+<a href=#123 id=123 data-nosnippet>123</a>    </span><span class="kw">fn </span>default_value(typ: AbiType) -&gt; toml::Value {
+<a href=#124 id=124 data-nosnippet>124</a>        <span class="kw">match </span>typ {
+<a href=#125 id=125 data-nosnippet>125</a>            AbiType::Array { length, typ } =&gt; {
+<a href=#126 id=126 data-nosnippet>126</a>                <span class="kw">let </span>default_value_vec =
+<a href=#127 id=127 data-nosnippet>127</a>                    std::iter::repeat_n(default_value(<span class="kw-2">*</span>typ), length.try_into().unwrap()).collect();
+<a href=#128 id=128 data-nosnippet>128</a>                toml::Value::Array(default_value_vec)
+<a href=#129 id=129 data-nosnippet>129</a>            }
+<a href=#130 id=130 data-nosnippet>130</a>            AbiType::Struct { fields, .. } =&gt; {
+<a href=#131 id=131 data-nosnippet>131</a>                <span class="kw">let </span>default_value_map = toml::map::Map::from_iter(
+<a href=#132 id=132 data-nosnippet>132</a>                    fields.into_iter().map(|(name, typ)| (name, default_value(typ))),
+<a href=#133 id=133 data-nosnippet>133</a>                );
+<a href=#134 id=134 data-nosnippet>134</a>                toml::Value::Table(default_value_map)
+<a href=#135 id=135 data-nosnippet>135</a>            }
+<a href=#136 id=136 data-nosnippet>136</a>            AbiType::Field | AbiType::Integer { .. } =&gt; toml::Value::Integer(<span class="number">0</span>),
+<a href=#137 id=137 data-nosnippet>137</a>            AbiType::Boolean =&gt; toml::Value::Boolean(<span class="bool-val">false</span>),
+<a href=#138 id=138 data-nosnippet>138</a>            AbiType::Tuple { fields } =&gt; {
+<a href=#139 id=139 data-nosnippet>139</a>                <span class="kw">let </span>default_value_vec = fields.into_iter().map(default_value).collect();
+<a href=#140 id=140 data-nosnippet>140</a>                toml::Value::Array(default_value_vec)
+<a href=#141 id=141 data-nosnippet>141</a>            }
+<a href=#142 id=142 data-nosnippet>142</a>            AbiType::String { length } =&gt; toml::Value::String(<span class="string">"_"</span>.repeat(length <span class="kw">as </span>usize)),
+<a href=#143 id=143 data-nosnippet>143</a>        }
+<a href=#144 id=144 data-nosnippet>144</a>    }
+<a href=#145 id=145 data-nosnippet>145</a>
+<a href=#146 id=146 data-nosnippet>146</a>    <span class="kw">let </span><span class="kw-2">mut </span>map =
+<a href=#147 id=147 data-nosnippet>147</a>        btree_map(parameters, |AbiParameter { name, typ, .. }| (name, default_value(typ)));
 <a href=#148 id=148 data-nosnippet>148</a>
-<a href=#149 id=149 data-nosnippet>149</a>    <span class="kw">let </span><span class="kw-2">mut </span>map =
-<a href=#150 id=150 data-nosnippet>150</a>        btree_map(parameters, |AbiParameter { name, typ, .. }| (name, default_value(typ)));
-<a href=#151 id=151 data-nosnippet>151</a>
-<a href=#152 id=152 data-nosnippet>152</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = return_type {
-<a href=#153 id=153 data-nosnippet>153</a>        map.insert(MAIN_RETURN_NAME.to_owned(), default_value(typ));
-<a href=#154 id=154 data-nosnippet>154</a>    }
+<a href=#149 id=149 data-nosnippet>149</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = return_type {
+<a href=#150 id=150 data-nosnippet>150</a>        map.insert(MAIN_RETURN_NAME.to_owned(), default_value(typ));
+<a href=#151 id=151 data-nosnippet>151</a>    }
+<a href=#152 id=152 data-nosnippet>152</a>
+<a href=#153 id=153 data-nosnippet>153</a>    toml::to_string(<span class="kw-2">&amp;</span>map).unwrap()
+<a href=#154 id=154 data-nosnippet>154</a>}
 <a href=#155 id=155 data-nosnippet>155</a>
-<a href=#156 id=156 data-nosnippet>156</a>    toml::to_string(<span class="kw-2">&amp;</span>map).unwrap()
-<a href=#157 id=157 data-nosnippet>157</a>}
-<a href=#158 id=158 data-nosnippet>158</a>
-<a href=#159 id=159 data-nosnippet>159</a><span class="attr">#[cfg(test)]
-<a href=#160 id=160 data-nosnippet>160</a></span><span class="kw">mod </span>tests {
-<a href=#161 id=161 data-nosnippet>161</a>    <span class="kw">use </span>insta::assert_snapshot;
-<a href=#162 id=162 data-nosnippet>162</a>    <span class="kw">use </span>noirc_abi::{AbiParameter, AbiType, AbiVisibility, Sign};
-<a href=#163 id=163 data-nosnippet>163</a>
-<a href=#164 id=164 data-nosnippet>164</a>    <span class="kw">use </span><span class="kw">super</span>::create_input_toml_template;
-<a href=#165 id=165 data-nosnippet>165</a>
-<a href=#166 id=166 data-nosnippet>166</a>    <span class="attr">#[test]
-<a href=#167 id=167 data-nosnippet>167</a>    </span><span class="kw">fn </span>valid_toml_template() {
-<a href=#168 id=168 data-nosnippet>168</a>        <span class="kw">let </span>typed_param = |name: <span class="kw-2">&amp;</span>str, typ: AbiType| AbiParameter {
-<a href=#169 id=169 data-nosnippet>169</a>            name: name.to_string(),
-<a href=#170 id=170 data-nosnippet>170</a>            typ,
-<a href=#171 id=171 data-nosnippet>171</a>            visibility: AbiVisibility::Public,
-<a href=#172 id=172 data-nosnippet>172</a>        };
-<a href=#173 id=173 data-nosnippet>173</a>        <span class="kw">let </span>parameters = <span class="macro">vec!</span>[
-<a href=#174 id=174 data-nosnippet>174</a>            typed_param(<span class="string">"a"</span>, AbiType::Field),
-<a href=#175 id=175 data-nosnippet>175</a>            typed_param(<span class="string">"b"</span>, AbiType::Integer { sign: Sign::Unsigned, width: <span class="number">32 </span>}),
-<a href=#176 id=176 data-nosnippet>176</a>            typed_param(<span class="string">"c"</span>, AbiType::Array { length: <span class="number">2</span>, typ: Box::new(AbiType::Field) }),
-<a href=#177 id=177 data-nosnippet>177</a>            typed_param(
-<a href=#178 id=178 data-nosnippet>178</a>                <span class="string">"d"</span>,
-<a href=#179 id=179 data-nosnippet>179</a>                AbiType::Struct {
-<a href=#180 id=180 data-nosnippet>180</a>                    path: String::from(<span class="string">"MyStruct"</span>),
-<a href=#181 id=181 data-nosnippet>181</a>                    fields: <span class="macro">vec!</span>[
-<a href=#182 id=182 data-nosnippet>182</a>                        (String::from(<span class="string">"d1"</span>), AbiType::Field),
-<a href=#183 id=183 data-nosnippet>183</a>                        (
-<a href=#184 id=184 data-nosnippet>184</a>                            String::from(<span class="string">"d2"</span>),
-<a href=#185 id=185 data-nosnippet>185</a>                            AbiType::Array { length: <span class="number">3</span>, typ: Box::new(AbiType::Field) },
-<a href=#186 id=186 data-nosnippet>186</a>                        ),
-<a href=#187 id=187 data-nosnippet>187</a>                    ],
-<a href=#188 id=188 data-nosnippet>188</a>                },
-<a href=#189 id=189 data-nosnippet>189</a>            ),
-<a href=#190 id=190 data-nosnippet>190</a>            typed_param(<span class="string">"e"</span>, AbiType::Boolean),
-<a href=#191 id=191 data-nosnippet>191</a>            typed_param(
-<a href=#192 id=192 data-nosnippet>192</a>                <span class="string">"f"</span>,
-<a href=#193 id=193 data-nosnippet>193</a>                AbiType::Tuple { fields: <span class="macro">vec!</span>[AbiType::Field, AbiType::String { length: <span class="number">5 </span>}] },
-<a href=#194 id=194 data-nosnippet>194</a>            ),
-<a href=#195 id=195 data-nosnippet>195</a>        ];
-<a href=#196 id=196 data-nosnippet>196</a>
-<a href=#197 id=197 data-nosnippet>197</a>        <span class="kw">let </span>toml_str = create_input_toml_template(parameters, <span class="prelude-val">None</span>);
-<a href=#198 id=198 data-nosnippet>198</a>
-<a href=#199 id=199 data-nosnippet>199</a>        <span class="macro">assert_snapshot!</span>(toml_str, @<span class="string">r#"
-<a href=#200 id=200 data-nosnippet>200</a>        a = 0
-<a href=#201 id=201 data-nosnippet>201</a>        b = 0
-<a href=#202 id=202 data-nosnippet>202</a>        c = [0, 0]
-<a href=#203 id=203 data-nosnippet>203</a>        e = false
-<a href=#204 id=204 data-nosnippet>204</a>        f = [0, "_____"]
+<a href=#156 id=156 data-nosnippet>156</a><span class="attr">#[cfg(test)]
+<a href=#157 id=157 data-nosnippet>157</a></span><span class="kw">mod </span>tests {
+<a href=#158 id=158 data-nosnippet>158</a>    <span class="kw">use </span>insta::assert_snapshot;
+<a href=#159 id=159 data-nosnippet>159</a>    <span class="kw">use </span>noirc_abi::{AbiParameter, AbiType, AbiVisibility, Sign};
+<a href=#160 id=160 data-nosnippet>160</a>
+<a href=#161 id=161 data-nosnippet>161</a>    <span class="kw">use </span><span class="kw">super</span>::create_input_toml_template;
+<a href=#162 id=162 data-nosnippet>162</a>
+<a href=#163 id=163 data-nosnippet>163</a>    <span class="attr">#[test]
+<a href=#164 id=164 data-nosnippet>164</a>    </span><span class="kw">fn </span>valid_toml_template() {
+<a href=#165 id=165 data-nosnippet>165</a>        <span class="kw">let </span>typed_param = |name: <span class="kw-2">&amp;</span>str, typ: AbiType| AbiParameter {
+<a href=#166 id=166 data-nosnippet>166</a>            name: name.to_string(),
+<a href=#167 id=167 data-nosnippet>167</a>            typ,
+<a href=#168 id=168 data-nosnippet>168</a>            visibility: AbiVisibility::Public,
+<a href=#169 id=169 data-nosnippet>169</a>        };
+<a href=#170 id=170 data-nosnippet>170</a>        <span class="kw">let </span>parameters = <span class="macro">vec!</span>[
+<a href=#171 id=171 data-nosnippet>171</a>            typed_param(<span class="string">"a"</span>, AbiType::Field),
+<a href=#172 id=172 data-nosnippet>172</a>            typed_param(<span class="string">"b"</span>, AbiType::Integer { sign: Sign::Unsigned, width: <span class="number">32 </span>}),
+<a href=#173 id=173 data-nosnippet>173</a>            typed_param(<span class="string">"c"</span>, AbiType::Array { length: <span class="number">2</span>, typ: Box::new(AbiType::Field) }),
+<a href=#174 id=174 data-nosnippet>174</a>            typed_param(
+<a href=#175 id=175 data-nosnippet>175</a>                <span class="string">"d"</span>,
+<a href=#176 id=176 data-nosnippet>176</a>                AbiType::Struct {
+<a href=#177 id=177 data-nosnippet>177</a>                    path: String::from(<span class="string">"MyStruct"</span>),
+<a href=#178 id=178 data-nosnippet>178</a>                    fields: <span class="macro">vec!</span>[
+<a href=#179 id=179 data-nosnippet>179</a>                        (String::from(<span class="string">"d1"</span>), AbiType::Field),
+<a href=#180 id=180 data-nosnippet>180</a>                        (
+<a href=#181 id=181 data-nosnippet>181</a>                            String::from(<span class="string">"d2"</span>),
+<a href=#182 id=182 data-nosnippet>182</a>                            AbiType::Array { length: <span class="number">3</span>, typ: Box::new(AbiType::Field) },
+<a href=#183 id=183 data-nosnippet>183</a>                        ),
+<a href=#184 id=184 data-nosnippet>184</a>                    ],
+<a href=#185 id=185 data-nosnippet>185</a>                },
+<a href=#186 id=186 data-nosnippet>186</a>            ),
+<a href=#187 id=187 data-nosnippet>187</a>            typed_param(<span class="string">"e"</span>, AbiType::Boolean),
+<a href=#188 id=188 data-nosnippet>188</a>            typed_param(
+<a href=#189 id=189 data-nosnippet>189</a>                <span class="string">"f"</span>,
+<a href=#190 id=190 data-nosnippet>190</a>                AbiType::Tuple { fields: <span class="macro">vec!</span>[AbiType::Field, AbiType::String { length: <span class="number">5 </span>}] },
+<a href=#191 id=191 data-nosnippet>191</a>            ),
+<a href=#192 id=192 data-nosnippet>192</a>        ];
+<a href=#193 id=193 data-nosnippet>193</a>
+<a href=#194 id=194 data-nosnippet>194</a>        <span class="kw">let </span>return_type = AbiType::Boolean;
+<a href=#195 id=195 data-nosnippet>195</a>
+<a href=#196 id=196 data-nosnippet>196</a>        <span class="kw">let </span>toml_str = create_input_toml_template(parameters, <span class="prelude-val">Some</span>(return_type));
+<a href=#197 id=197 data-nosnippet>197</a>
+<a href=#198 id=198 data-nosnippet>198</a>        <span class="macro">assert_snapshot!</span>(toml_str, @<span class="string">r#"
+<a href=#199 id=199 data-nosnippet>199</a>        a = 0
+<a href=#200 id=200 data-nosnippet>200</a>        b = 0
+<a href=#201 id=201 data-nosnippet>201</a>        c = [0, 0]
+<a href=#202 id=202 data-nosnippet>202</a>        e = false
+<a href=#203 id=203 data-nosnippet>203</a>        f = [0, "_____"]
+<a href=#204 id=204 data-nosnippet>204</a>        return = false
 <a href=#205 id=205 data-nosnippet>205</a>
 <a href=#206 id=206 data-nosnippet>206</a>        [d]
 <a href=#207 id=207 data-nosnippet>207</a>        d1 = 0

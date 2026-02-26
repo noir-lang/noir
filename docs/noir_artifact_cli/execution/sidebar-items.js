@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["append_input_value_to_string","check_witness","execute","input_value_to_string","save_and_check_witness","save_witness","show_diagnostic"],"struct":["ExecutionResults","ReturnValues"]};
+window.SIDEBAR_ITEMS = {"fn":["append_input_value_to_string","check_return","execute","input_value_to_string","save_and_show_witness","save_return_to_prover_file","save_witness","show_diagnostic"],"struct":["ExecutionResults","ReturnValues"]};
