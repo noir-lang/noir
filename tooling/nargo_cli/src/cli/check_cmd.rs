@@ -93,25 +93,23 @@ fn check_package(
     if package.is_library() || package.is_contract() {
         // Libraries do not have ABIs while contracts have many, so we cannot generate a `Prover.toml` file.
         Ok(())
-    } else {
-        if let Some((parameters, return_type)) = compute_function_abi(&context, &crate_id) {
-            let path_to_prover_input = package.prover_input_path();
+    } else if let Some((parameters, return_type)) = compute_function_abi(&context, &crate_id) {
+        let path_to_prover_input = package.prover_input_path();
 
-            // Before writing the file, check if it exists and whether overwrite is set
-            let should_write_prover = !path_to_prover_input.exists() || allow_overwrite;
+        // Before writing the file, check if it exists and whether overwrite is set
+        let should_write_prover = !path_to_prover_input.exists() || allow_overwrite;
 
-            if should_write_prover {
-                let prover_toml = create_input_toml_template(parameters, return_type);
-                write_to_file(prover_toml.as_bytes(), &path_to_prover_input)
-                    .expect("failed to write template");
-            } else {
-                eprintln!("Note: Prover.toml already exists. Use --overwrite to force overwrite.");
-            }
-
-            Ok(())
+        if should_write_prover {
+            let prover_toml = create_input_toml_template(parameters, return_type);
+            write_to_file(prover_toml.as_bytes(), &path_to_prover_input)
+                .expect("failed to write template");
         } else {
-            Err(CompileError::MissingMainFunction(package.name.clone()))
+            eprintln!("Note: Prover.toml already exists. Use --overwrite to force overwrite.");
         }
+
+        Ok(())
+    } else {
+        Err(CompileError::MissingMainFunction(package.name.clone()))
     }
 }
 
