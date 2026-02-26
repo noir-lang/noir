@@ -97,7 +97,7 @@ impl SpillManager {
     /// For permanent records, this just clears `is_currently_spilled`.
     /// For transient records, the record is removed entirely and the slot is freed.
     /// 
-    /// TODO(https://github.com/noir-lang/noir/issues/11695) - Free globally dead permanent spill slots 
+    /// TODO(<https://github.com/noir-lang/noir/issues/11695>) - Free globally dead permanent spill slots 
     pub(crate) fn remove_spill(&mut self, value_id: &ValueId) {
         if let std::collections::hash_map::Entry::Occupied(mut entry) =
             self.records.entry(*value_id)
