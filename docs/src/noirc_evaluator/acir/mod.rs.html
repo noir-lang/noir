@@ -243,7 +243,7 @@
 <a href=#243 id=243 data-nosnippet>243</a>            }
 <a href=#244 id=244 data-nosnippet>244</a>        }
 <a href=#245 id=245 data-nosnippet>245</a>
-<a href=#246 id=246 data-nosnippet>246</a>        <span class="self">self</span>.data_bus = dfg.data_bus.to_owned();
+<a href=#246 id=246 data-nosnippet>246</a>        <span class="self">self</span>.data_bus = dfg.data_bus.clone();
 <a href=#247 id=247 data-nosnippet>247</a>        <span class="kw">for </span>instruction_id <span class="kw">in </span>entry_block.instructions() {
 <a href=#248 id=248 data-nosnippet>248</a>            warnings.extend(<span class="self">self</span>.convert_ssa_instruction(<span class="kw-2">*</span>instruction_id, dfg, ssa)<span class="question-mark">?</span>);
 <a href=#249 id=249 data-nosnippet>249</a>        }

@@ -517,7 +517,7 @@
 <a href=#517 id=517 data-nosnippet>517</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(ErrorType::String(message)) =
 <a href=#518 id=518 data-nosnippet>518</a>            <span class="self">self</span>.acir_ir.error_types.get(<span class="kw-2">&amp;</span>ErrorSelector::new(assertion_payload.error_selector))
 <a href=#519 id=519 data-nosnippet>519</a>        {
-<a href=#520 id=520 data-nosnippet>520</a>            <span class="prelude-val">Some</span>(message.to_string())
+<a href=#520 id=520 data-nosnippet>520</a>            <span class="prelude-val">Some</span>(message.clone())
 <a href=#521 id=521 data-nosnippet>521</a>        } <span class="kw">else </span>{
 <a href=#522 id=522 data-nosnippet>522</a>            <span class="prelude-val">None
 <a href=#523 id=523 data-nosnippet>523</a>        </span>}

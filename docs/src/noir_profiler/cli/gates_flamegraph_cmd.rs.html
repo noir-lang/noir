@@ -78,7 +78,7 @@
 <a href=#78 id=78 data-nosnippet>78</a>        </span><span class="kw">let </span>function_name = <span class="kw">if </span>num_functions &gt; <span class="number">1 </span>{
 <a href=#79 id=79 data-nosnippet>79</a>            <span class="macro">format!</span>(<span class="string">"{}_{}"</span>, circuit.function_name.as_str(), func_idx)
 <a href=#80 id=80 data-nosnippet>80</a>        } <span class="kw">else </span>{
-<a href=#81 id=81 data-nosnippet>81</a>            circuit.function_name.to_owned()
+<a href=#81 id=81 data-nosnippet>81</a>            circuit.function_name.clone()
 <a href=#82 id=82 data-nosnippet>82</a>        };
 <a href=#83 id=83 data-nosnippet>83</a>
 <a href=#84 id=84 data-nosnippet>84</a>        <span class="macro">println!</span>(

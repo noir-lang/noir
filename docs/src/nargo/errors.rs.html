@@ -67,7 +67,7 @@
 <a href=#67 id=67 data-nosnippet>67</a>        <span class="kw">match </span><span class="self">self </span>{
 <a href=#68 id=68 data-nosnippet>68</a>            NargoError::ExecutionError(error) =&gt; <span class="kw">match </span>error {
 <a href=#69 id=69 data-nosnippet>69</a>                ExecutionError::AssertionFailed(payload, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="kw">match </span>payload {
-<a href=#70 id=70 data-nosnippet>70</a>                    ResolvedAssertionPayload::String(message) =&gt; <span class="prelude-val">Some</span>(message.to_string()),
+<a href=#70 id=70 data-nosnippet>70</a>                    ResolvedAssertionPayload::String(message) =&gt; <span class="prelude-val">Some</span>(message.clone()),
 <a href=#71 id=71 data-nosnippet>71</a>                    ResolvedAssertionPayload::Raw(raw) =&gt; {
 <a href=#72 id=72 data-nosnippet>72</a>                        <span class="kw">let </span>abi_type = error_types.get(<span class="kw-2">&amp;</span>raw.selector)<span class="question-mark">?</span>;
 <a href=#73 id=73 data-nosnippet>73</a>                        <span class="kw">let </span>decoded = display_abi_error(<span class="kw-2">&amp;</span>raw.data, abi_type.clone());
@@ -76,7 +76,7 @@
 <a href=#76 id=76 data-nosnippet>76</a>                },
 <a href=#77 id=77 data-nosnippet>77</a>                ExecutionError::SolvingError(error, <span class="kw">_</span>) =&gt; <span class="kw">match </span>error {
 <a href=#78 id=78 data-nosnippet>78</a>                    OpcodeResolutionError::BlackBoxFunctionFailed(<span class="kw">_</span>, reason) =&gt; {
-<a href=#79 id=79 data-nosnippet>79</a>                        <span class="prelude-val">Some</span>(reason.to_string())
+<a href=#79 id=79 data-nosnippet>79</a>                        <span class="prelude-val">Some</span>(reason.clone())
 <a href=#80 id=80 data-nosnippet>80</a>                    }
 <a href=#81 id=81 data-nosnippet>81</a>                    <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
 <a href=#82 id=82 data-nosnippet>82</a>                },

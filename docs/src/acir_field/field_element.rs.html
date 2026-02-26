@@ -764,7 +764,7 @@
 <a href=#764 id=764 data-nosnippet>764</a>            <span class="comment">// Here we inject a "0" immediately after the "0x" (if it exists) to construct an equivalent
 <a href=#765 id=765 data-nosnippet>765</a>            // hex string with the opposite parity length.
 <a href=#766 id=766 data-nosnippet>766</a>            </span><span class="kw">let </span>insert_index = <span class="kw">if </span>hex.starts_with(<span class="string">"0x"</span>) { <span class="number">2 </span>} <span class="kw">else </span>{ <span class="number">0 </span>};
-<a href=#767 id=767 data-nosnippet>767</a>            <span class="kw">let </span><span class="kw-2">mut </span>opposite_parity_string = hex.to_string();
+<a href=#767 id=767 data-nosnippet>767</a>            <span class="kw">let </span><span class="kw-2">mut </span>opposite_parity_string = hex.clone();
 <a href=#768 id=768 data-nosnippet>768</a>            opposite_parity_string.insert(insert_index, <span class="string">'0'</span>);
 <a href=#769 id=769 data-nosnippet>769</a>
 <a href=#770 id=770 data-nosnippet>770</a>            <span class="kw">let </span>fe_1: FieldElement::&lt;ark_bn254::Fr&gt; = FieldElement::from_hex(<span class="kw-2">&amp;</span>hex).unwrap();

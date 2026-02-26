@@ -523,7 +523,7 @@
 <a href=#523 id=523 data-nosnippet>523</a>        <span class="kw">for </span>(name, typ, expr) <span class="kw">in </span>trait_impl.associated_constants.drain(..) {
 <a href=#524 id=524 data-nosnippet>524</a>            <span class="kw">let </span>wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::AssociatedType);
 <a href=#525 id=525 data-nosnippet>525</a>            <span class="kw">let </span>resolved_type =
-<a href=#526 id=526 data-nosnippet>526</a>                typ.map(|typ| <span class="self">self</span>.resolve_type(typ, wildcard_allowed)).unwrap_or(Type::Error);
+<a href=#526 id=526 data-nosnippet>526</a>                typ.map_or(Type::Error, |typ| <span class="self">self</span>.resolve_type(typ, wildcard_allowed));
 <a href=#527 id=527 data-nosnippet>527</a>            <span class="kw">let </span>kind = Kind::numeric(resolved_type);
 <a href=#528 id=528 data-nosnippet>528</a>            <span class="kw">let </span>location = expr.location;
 <a href=#529 id=529 data-nosnippet>529</a>            <span class="kw">let </span>typ = <span class="kw">match </span>UnresolvedTypeExpression::from_expr(expr, location) {

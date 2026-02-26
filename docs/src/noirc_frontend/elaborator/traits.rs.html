@@ -708,7 +708,7 @@
 <a href=#708 id=708 data-nosnippet>708</a>                    );
 <a href=#709 id=709 data-nosnippet>709</a>
 <a href=#710 id=710 data-nosnippet>710</a>                    <span class="kw">let </span>func_id = unresolved_trait.method_ids[name.as_str()];
-<a href=#711 id=711 data-nosnippet>711</a>                    <span class="kw">let </span><span class="kw-2">mut </span>where_clause = where_clause.to_vec();
+<a href=#711 id=711 data-nosnippet>711</a>                    <span class="kw">let </span><span class="kw-2">mut </span>where_clause = where_clause.clone();
 <a href=#712 id=712 data-nosnippet>712</a>
 <a href=#713 id=713 data-nosnippet>713</a>                    <span class="comment">// Attach any trait constraints on the trait to the function,
 <a href=#714 id=714 data-nosnippet>714</a>                    </span>where_clause.extend(unresolved_trait.trait_def.where_clause.clone());

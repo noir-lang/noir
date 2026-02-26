@@ -277,7 +277,7 @@
 <a href=#277 id=277 data-nosnippet>277</a><span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; From&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>ExpectingOtherError&gt; <span class="kw">for </span>Diagnostic {
 <a href=#278 id=278 data-nosnippet>278</a>    <span class="kw">fn </span>from(error: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>ExpectingOtherError) -&gt; <span class="self">Self </span>{
 <a href=#279 id=279 data-nosnippet>279</a>        <span class="kw">let </span>secondary = <span class="string">""</span>.to_string();
-<a href=#280 id=280 data-nosnippet>280</a>        Diagnostic::simple_error(error.message.to_string(), secondary, error.location)
+<a href=#280 id=280 data-nosnippet>280</a>        Diagnostic::simple_error(error.message.clone(), secondary, error.location)
 <a href=#281 id=281 data-nosnippet>281</a>    }
 <a href=#282 id=282 data-nosnippet>282</a>}
 <a href=#283 id=283 data-nosnippet>283</a>

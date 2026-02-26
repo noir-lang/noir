@@ -427,7 +427,7 @@
 <a href=#427 id=427 data-nosnippet>427</a>    <span class="kw">let </span><span class="kw-2">mut </span>parser = Parser::for_str(<span class="kw-2">&amp;</span>attribute, attribute_location.file);
 <a href=#428 id=428 data-nosnippet>428</a>    <span class="kw">let </span><span class="prelude-val">Some</span>((Attribute::Secondary(attribute), _span)) = parser.parse_attribute() <span class="kw">else </span>{
 <a href=#429 id=429 data-nosnippet>429</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::InvalidAttribute {
-<a href=#430 id=430 data-nosnippet>430</a>            attribute: attribute.to_string(),
+<a href=#430 id=430 data-nosnippet>430</a>            attribute: attribute.clone(),
 <a href=#431 id=431 data-nosnippet>431</a>            location: attribute_location,
 <a href=#432 id=432 data-nosnippet>432</a>        });
 <a href=#433 id=433 data-nosnippet>433</a>    };
@@ -2543,7 +2543,7 @@
 <a href=#2543 id=2543 data-nosnippet>2543</a>    <span class="kw">let </span><span class="kw-2">mut </span>parser = Parser::for_str(<span class="kw-2">&amp;</span>attribute, attribute_location.file);
 <a href=#2544 id=2544 data-nosnippet>2544</a>    <span class="kw">let </span><span class="prelude-val">Some</span>((attribute, _span)) = parser.parse_attribute() <span class="kw">else </span>{
 <a href=#2545 id=2545 data-nosnippet>2545</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::InvalidAttribute {
-<a href=#2546 id=2546 data-nosnippet>2546</a>            attribute: attribute.to_string(),
+<a href=#2546 id=2546 data-nosnippet>2546</a>            attribute: attribute.clone(),
 <a href=#2547 id=2547 data-nosnippet>2547</a>            location: attribute_location,
 <a href=#2548 id=2548 data-nosnippet>2548</a>        });
 <a href=#2549 id=2549 data-nosnippet>2549</a>    };

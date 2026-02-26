@@ -55,7 +55,7 @@
 <a href=#55 id=55 data-nosnippet>55</a>        </span><span class="kw">let </span>function_name = <span class="kw">if </span>bytecode.functions.len() &gt; <span class="number">1 </span>{
 <a href=#56 id=56 data-nosnippet>56</a>            <span class="macro">format!</span>(<span class="string">"{}_{}"</span>, circuit.function_name.as_str(), func_idx)
 <a href=#57 id=57 data-nosnippet>57</a>        } <span class="kw">else </span>{
-<a href=#58 id=58 data-nosnippet>58</a>            circuit.function_name.to_owned()
+<a href=#58 id=58 data-nosnippet>58</a>            circuit.function_name.clone()
 <a href=#59 id=59 data-nosnippet>59</a>        };
 <a href=#60 id=60 data-nosnippet>60</a>
 <a href=#61 id=61 data-nosnippet>61</a>        <span class="macro">println!</span>(<span class="string">"Opcode count for {}: {}"</span>, function_name, circuit.opcodes.len());

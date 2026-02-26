@@ -75,7 +75,7 @@
 <a href=#75 id=75 data-nosnippet>75</a>    }
 <a href=#76 id=76 data-nosnippet>76</a>
 <a href=#77 id=77 data-nosnippet>77</a>    <span class="kw">fn </span>parse_string(param: <span class="kw-2">&amp;</span>ForeignCallParam&lt;F&gt;) -&gt; String {
-<a href=#78 id=78 data-nosnippet>78</a>        <span class="kw">let </span>fields: Vec&lt;<span class="kw">_</span>&gt; = param.fields().to_vec();
+<a href=#78 id=78 data-nosnippet>78</a>        <span class="kw">let </span>fields: Vec&lt;<span class="kw">_</span>&gt; = param.fields();
 <a href=#79 id=79 data-nosnippet>79</a>        decode_string_value(<span class="kw-2">&amp;</span>fields)
 <a href=#80 id=80 data-nosnippet>80</a>    }
 <a href=#81 id=81 data-nosnippet>81</a>}
@@ -207,7 +207,7 @@
 <a href=#207 id=207 data-nosnippet>207</a>        ) = ForeignCall::lookup(foreign_call_name)
 <a href=#208 id=208 data-nosnippet>208</a>        {
 <a href=#209 id=209 data-nosnippet>209</a>            <span class="comment">// Returning an error instead of panicking so this can be tested.
-<a href=#210 id=210 data-nosnippet>210</a>            </span><span class="kw">return </span><span class="prelude-val">Err</span>(ForeignCallError::Disabled(foreign_call.function.to_string()));
+<a href=#210 id=210 data-nosnippet>210</a>            </span><span class="kw">return </span><span class="prelude-val">Err</span>(ForeignCallError::Disabled(foreign_call.function.clone()));
 <a href=#211 id=211 data-nosnippet>211</a>        }
 <a href=#212 id=212 data-nosnippet>212</a>        <span class="prelude-val">Err</span>(ForeignCallError::NoHandler(foreign_call.function.clone()))
 <a href=#213 id=213 data-nosnippet>213</a>    }

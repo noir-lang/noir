@@ -27,7 +27,7 @@
 <a href=#27 id=27 data-nosnippet>27</a>            <span class="kw">for </span>function <span class="kw">in </span>contract
 <a href=#28 id=28 data-nosnippet>28</a>                .functions
 <a href=#29 id=29 data-nosnippet>29</a>                .into_iter()
-<a href=#30 id=30 data-nosnippet>30</a>                .filter(|f| args.contract_fn.as_ref().map(|n| <span class="kw-2">*</span>n == f.name).unwrap_or(<span class="bool-val">true</span>))
+<a href=#30 id=30 data-nosnippet>30</a>                .filter(|f| args.contract_fn.as_ref().is_none_or(|n| <span class="kw-2">*</span>n == f.name))
 <a href=#31 id=31 data-nosnippet>31</a>            {
 <a href=#32 id=32 data-nosnippet>32</a>                <span class="macro">println!</span>(<span class="string">"Compiled ACIR for function '{}':"</span>, function.name);
 <a href=#33 id=33 data-nosnippet>33</a>                <span class="macro">println!</span>(<span class="string">"{}"</span>, function.bytecode);

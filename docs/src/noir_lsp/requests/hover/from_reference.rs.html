@@ -926,7 +926,7 @@
 <a href=#926 id=926 data-nosnippet>926</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(location) = link_target_location(target, args) <span class="kw">else </span>{
 <a href=#927 id=927 data-nosnippet>927</a>            <span class="kw">continue</span>;
 <a href=#928 id=928 data-nosnippet>928</a>        };
-<a href=#929 id=929 data-nosnippet>929</a>        <span class="kw">let </span><span class="kw-2">mut </span>line = lines[link.line].to_string();
+<a href=#929 id=929 data-nosnippet>929</a>        <span class="kw">let </span><span class="kw-2">mut </span>line = lines[link.line].clone();
 <a href=#930 id=930 data-nosnippet>930</a>        <span class="kw">let </span>replacement = format_link(<span class="kw-2">&amp;</span>link.name, location);
 <a href=#931 id=931 data-nosnippet>931</a>        line.replace_range(link.start..link.end, <span class="kw-2">&amp;</span>replacement);
 <a href=#932 id=932 data-nosnippet>932</a>        lines[link.line] = line;

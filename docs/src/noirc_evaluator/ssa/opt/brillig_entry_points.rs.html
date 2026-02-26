@@ -178,7 +178,7 @@
 <a href=#178 id=178 data-nosnippet>178</a>                <span class="kw">continue</span>;
 <a href=#179 id=179 data-nosnippet>179</a>            };
 <a href=#180 id=180 data-nosnippet>180</a>
-<a href=#181 id=181 data-nosnippet>181</a>            <span class="kw">let </span>arguments = arguments.to_vec();
+<a href=#181 id=181 data-nosnippet>181</a>            <span class="kw">let </span>arguments = arguments.clone();
 <a href=#182 id=182 data-nosnippet>182</a>            <span class="kw">let </span>new_function_value_id = function.dfg.import_function(new_func_id);
 <a href=#183 id=183 data-nosnippet>183</a>            function.dfg[instruction_id] =
 <a href=#184 id=184 data-nosnippet>184</a>                Instruction::Call { func: new_function_value_id, arguments };
@@ -315,7 +315,7 @@
 <a href=#315 id=315 data-nosnippet>315</a>                function_to_update: function.id(),
 <a href=#316 id=316 data-nosnippet>316</a>                instruction: instruction_id,
 <a href=#317 id=317 data-nosnippet>317</a>                new_func_to_call: <span class="kw-2">*</span>new_id,
-<a href=#318 id=318 data-nosnippet>318</a>                call_args: arguments.to_vec(),
+<a href=#318 id=318 data-nosnippet>318</a>                call_args: arguments.clone(),
 <a href=#319 id=319 data-nosnippet>319</a>            };
 <a href=#320 id=320 data-nosnippet>320</a>            new_calls_to_update.insert(new_call);
 <a href=#321 id=321 data-nosnippet>321</a>        }

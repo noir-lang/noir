@@ -924,7 +924,7 @@
 <a href=#924 id=924 data-nosnippet>924</a>                        instr.cost(<span class="kw-2">*</span>id, <span class="kw-2">&amp;</span>function.dfg)
 <a href=#925 id=925 data-nosnippet>925</a>                    })
 <a href=#926 id=926 data-nosnippet>926</a>                    .sum();
-<a href=#927 id=927 data-nosnippet>927</a>                <span class="kw">let </span>term_cost = block.terminator().map(|t| t.cost()).unwrap_or(<span class="number">0</span>);
+<a href=#927 id=927 data-nosnippet>927</a>                <span class="kw">let </span>term_cost = block.terminator().map_or(<span class="number">0</span>, |t| t.cost());
 <a href=#928 id=928 data-nosnippet>928</a>                instr_cost + term_cost
 <a href=#929 id=929 data-nosnippet>929</a>            })
 <a href=#930 id=930 data-nosnippet>930</a>            .sum()

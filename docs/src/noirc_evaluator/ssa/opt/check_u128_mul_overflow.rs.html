@@ -92,11 +92,11 @@
 <a href=#92 id=92 data-nosnippet>92</a>    <span class="kw">let </span>rhs_value = dfg.get_numeric_constant(rhs);
 <a href=#93 id=93 data-nosnippet>93</a>
 <a href=#94 id=94 data-nosnippet>94</a>    <span class="macro">assert!</span>(
-<a href=#95 id=95 data-nosnippet>95</a>        lhs_value.map(|value| value.fits_in_u128()).unwrap_or(<span class="bool-val">true</span>),
+<a href=#95 id=95 data-nosnippet>95</a>        lhs_value.is_none_or(|value| value.fits_in_u128()),
 <a href=#96 id=96 data-nosnippet>96</a>        <span class="string">"expected lhs_value to fit in a u128, but found {lhs_value:?}"
 <a href=#97 id=97 data-nosnippet>97</a>    </span>);
 <a href=#98 id=98 data-nosnippet>98</a>    <span class="macro">assert!</span>(
-<a href=#99 id=99 data-nosnippet>99</a>        rhs_value.map(|value| value.fits_in_u128()).unwrap_or(<span class="bool-val">true</span>),
+<a href=#99 id=99 data-nosnippet>99</a>        rhs_value.is_none_or(|value| value.fits_in_u128()),
 <a href=#100 id=100 data-nosnippet>100</a>        <span class="string">"expected rhs_value to fit in a u128, but found {rhs_value:?}"
 <a href=#101 id=101 data-nosnippet>101</a>    </span>);
 <a href=#102 id=102 data-nosnippet>102</a>

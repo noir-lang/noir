@@ -461,7 +461,7 @@
 <a href=#461 id=461 data-nosnippet>461</a></span><span class="kw">pub fn </span>read_toml(toml_path: <span class="kw-2">&amp;</span>Path) -&gt; <span class="prelude-ty">Result</span>&lt;NargoToml, ManifestError&gt; {
 <a href=#462 id=462 data-nosnippet>462</a>    <span class="kw">let </span>toml_path = toml_path.normalize();
 <a href=#463 id=463 data-nosnippet>463</a>    <span class="kw">let </span>toml_as_string = std::fs::read_to_string(<span class="kw-2">&amp;</span>toml_path)
-<a href=#464 id=464 data-nosnippet>464</a>        .map_err(|<span class="kw">_</span>| ManifestError::ReadFailed(toml_path.to_path_buf()))<span class="question-mark">?</span>;
+<a href=#464 id=464 data-nosnippet>464</a>        .map_err(|<span class="kw">_</span>| ManifestError::ReadFailed(toml_path.clone()))<span class="question-mark">?</span>;
 <a href=#465 id=465 data-nosnippet>465</a>    <span class="kw">let </span>root_dir = toml_path.parent().ok_or(ManifestError::MissingParent)<span class="question-mark">?</span>;
 <a href=#466 id=466 data-nosnippet>466</a>    <span class="kw">let </span>nargo_toml =
 <a href=#467 id=467 data-nosnippet>467</a>        NargoToml { root_dir: root_dir.to_path_buf(), config: toml_as_string.try_into()<span class="question-mark">? </span>};

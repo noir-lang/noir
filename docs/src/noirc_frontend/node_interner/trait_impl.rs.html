@@ -210,7 +210,7 @@
 <a href=#210 id=210 data-nosnippet>210</a>        // E.g. if we already have an `impl Foo&lt;Bar = i32&gt; for Baz`, we should
 <a href=#211 id=211 data-nosnippet>211</a>        // reject `impl Foo&lt;Bar = u32&gt; for Baz` if it were to be added.
 <a href=#212 id=212 data-nosnippet>212</a>        </span><span class="kw">let </span>associated_types = <span class="kw-2">&amp;</span>trait_generics.named;
-<a href=#213 id=213 data-nosnippet>213</a>        <span class="kw">let </span>ordered_generics = <span class="kw-2">&amp;</span>trait_generics.ordered.to_vec();
+<a href=#213 id=213 data-nosnippet>213</a>        <span class="kw">let </span>ordered_generics = <span class="kw-2">&amp;</span>trait_generics.ordered.clone();
 <a href=#214 id=214 data-nosnippet>214</a>
 <a href=#215 id=215 data-nosnippet>215</a>        <span class="kw">let </span>associated_types = vecmap(associated_types, |named| {
 <a href=#216 id=216 data-nosnippet>216</a>            <span class="kw">let </span>typ = <span class="self">self</span>.next_type_variable();

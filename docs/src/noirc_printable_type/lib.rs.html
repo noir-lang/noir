@@ -235,7 +235,7 @@
 <a href=#235 id=235 data-nosnippet>235</a>            <span class="kw">let </span>PrintableType::Tuple { types } = typ.as_ref() <span class="kw">else </span>{
 <a href=#236 id=236 data-nosnippet>236</a>                <span class="macro">panic!</span>(<span class="string">"Expected type to be a Tuple for FmtString"</span>);
 <a href=#237 id=237 data-nosnippet>237</a>            };
-<a href=#238 id=238 data-nosnippet>238</a>            <span class="kw">let </span>template = template.to_string();
+<a href=#238 id=238 data-nosnippet>238</a>            <span class="kw">let </span>template = template.clone();
 <a href=#239 id=239 data-nosnippet>239</a>            <span class="kw">let </span>args = values.iter().cloned().zip(types.iter().cloned()).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
 <a href=#240 id=240 data-nosnippet>240</a>            output.push_str(<span class="kw-2">&amp;</span>PrintableValueDisplay::FmtString(template, args).to_string());
 <a href=#241 id=241 data-nosnippet>241</a>        }
@@ -327,7 +327,7 @@
 <a href=#327 id=327 data-nosnippet>327</a>            </span><span class="kw">let </span>(<span class="kw">_</span>, closing_curly) = char_indices.next().unwrap();
 <a href=#328 id=328 data-nosnippet>328</a>            <span class="macro">assert_eq!</span>(closing_curly, <span class="string">'}'</span>);
 <a href=#329 id=329 data-nosnippet>329</a>
-<a href=#330 id=330 data-nosnippet>330</a>            last_index = char_indices.peek().map(|(index, <span class="kw">_</span>)| <span class="kw-2">*</span>index).unwrap_or(template.len());
+<a href=#330 id=330 data-nosnippet>330</a>            last_index = char_indices.peek().map_or(template.len(), |(index, <span class="kw">_</span>)| <span class="kw-2">*</span>index);
 <a href=#331 id=331 data-nosnippet>331</a>            <span class="kw">continue</span>;
 <a href=#332 id=332 data-nosnippet>332</a>        }
 <a href=#333 id=333 data-nosnippet>333</a>
@@ -347,7 +347,7 @@
 <a href=#347 id=347 data-nosnippet>347</a>            <span class="comment">// Skip the second '{'
 <a href=#348 id=348 data-nosnippet>348</a>            </span>char_indices.next().unwrap();
 <a href=#349 id=349 data-nosnippet>349</a>
-<a href=#350 id=350 data-nosnippet>350</a>            last_index = char_indices.peek().map(|(index, <span class="kw">_</span>)| <span class="kw-2">*</span>index).unwrap_or(template.len());
+<a href=#350 id=350 data-nosnippet>350</a>            last_index = char_indices.peek().map_or(template.len(), |(index, <span class="kw">_</span>)| <span class="kw-2">*</span>index);
 <a href=#351 id=351 data-nosnippet>351</a>            <span class="kw">continue</span>;
 <a href=#352 id=352 data-nosnippet>352</a>        }
 <a href=#353 id=353 data-nosnippet>353</a>
@@ -361,7 +361,7 @@
 <a href=#361 id=361 data-nosnippet>361</a>        <span class="comment">// Whatever was inside '{...}' doesn't matter, so skip until we find '}'
 <a href=#362 id=362 data-nosnippet>362</a>        </span><span class="kw">while let </span><span class="prelude-val">Some</span>((<span class="kw">_</span>, char)) = char_indices.next() {
 <a href=#363 id=363 data-nosnippet>363</a>            <span class="kw">if </span>char == <span class="string">'}' </span>{
-<a href=#364 id=364 data-nosnippet>364</a>                last_index = char_indices.peek().map(|(index, <span class="kw">_</span>)| <span class="kw-2">*</span>index).unwrap_or(template.len());
+<a href=#364 id=364 data-nosnippet>364</a>                last_index = char_indices.peek().map_or(template.len(), |(index, <span class="kw">_</span>)| <span class="kw-2">*</span>index);
 <a href=#365 id=365 data-nosnippet>365</a>                <span class="kw">break</span>;
 <a href=#366 id=366 data-nosnippet>366</a>            }
 <a href=#367 id=367 data-nosnippet>367</a>        }

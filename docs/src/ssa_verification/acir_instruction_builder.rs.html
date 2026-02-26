@@ -87,7 +87,7 @@
 <a href=#87 id=87 data-nosnippet>87</a>        <span class="kw">let </span>first_variable_type = <span class="self">Self</span>::get_type(first_variable);
 <a href=#88 id=88 data-nosnippet>88</a>        <span class="kw">let </span>second_variable_type = <span class="self">Self</span>::get_type(second_variable);
 <a href=#89 id=89 data-nosnippet>89</a>        <span class="kw">let </span>ssa = binary_function(op, first_variable_type, second_variable_type);
-<a href=#90 id=90 data-nosnippet>90</a>        <span class="kw">let </span>serialized_ssa = <span class="kw-2">&amp;</span>serde_json::to_string(<span class="kw-2">&amp;</span>ssa).unwrap();
+<a href=#90 id=90 data-nosnippet>90</a>        <span class="kw">let </span>serialized_ssa = serde_json::to_string(<span class="kw-2">&amp;</span>ssa).unwrap();
 <a href=#91 id=91 data-nosnippet>91</a>        <span class="kw">let </span>formatted_ssa = <span class="macro">format!</span>(<span class="string">"{}"</span>, ssa.print_without_locations());
 <a href=#92 id=92 data-nosnippet>92</a>
 <a href=#93 id=93 data-nosnippet>93</a>        <span class="kw">let </span>program = ssa_to_acir_program(ssa);
@@ -102,7 +102,7 @@
 <a href=#102 id=102 data-nosnippet>102</a>        <span class="self">Self </span>{
 <a href=#103 id=103 data-nosnippet>103</a>            instruction_name: name,
 <a href=#104 id=104 data-nosnippet>104</a>            formatted_ssa,
-<a href=#105 id=105 data-nosnippet>105</a>            serialized_ssa: serialized_ssa.to_string(),
+<a href=#105 id=105 data-nosnippet>105</a>            serialized_ssa,
 <a href=#106 id=106 data-nosnippet>106</a>            serialized_acir: serialized_program,
 <a href=#107 id=107 data-nosnippet>107</a>        }
 <a href=#108 id=108 data-nosnippet>108</a>    }
@@ -119,7 +119,7 @@
 <a href=#119 id=119 data-nosnippet>119</a>    }
 <a href=#120 id=120 data-nosnippet>120</a>
 <a href=#121 id=121 data-nosnippet>121</a>    <span class="kw">fn </span>new_by_ssa(ssa: Ssa, instruction_name: String, variable: <span class="kw-2">&amp;</span>Variable) -&gt; <span class="self">Self </span>{
-<a href=#122 id=122 data-nosnippet>122</a>        <span class="kw">let </span>serialized_ssa = <span class="kw-2">&amp;</span>serde_json::to_string(<span class="kw-2">&amp;</span>ssa).unwrap();
+<a href=#122 id=122 data-nosnippet>122</a>        <span class="kw">let </span>serialized_ssa = serde_json::to_string(<span class="kw-2">&amp;</span>ssa).unwrap();
 <a href=#123 id=123 data-nosnippet>123</a>        <span class="kw">let </span>formatted_ssa = <span class="macro">format!</span>(<span class="string">"{}"</span>, ssa.print_without_locations());
 <a href=#124 id=124 data-nosnippet>124</a>
 <a href=#125 id=125 data-nosnippet>125</a>        <span class="kw">let </span>program = ssa_to_acir_program(ssa);
@@ -129,7 +129,7 @@
 <a href=#129 id=129 data-nosnippet>129</a>        <span class="self">Self </span>{
 <a href=#130 id=130 data-nosnippet>130</a>            instruction_name: name,
 <a href=#131 id=131 data-nosnippet>131</a>            formatted_ssa,
-<a href=#132 id=132 data-nosnippet>132</a>            serialized_ssa: serialized_ssa.to_string(),
+<a href=#132 id=132 data-nosnippet>132</a>            serialized_ssa,
 <a href=#133 id=133 data-nosnippet>133</a>            serialized_acir: serialized_program,
 <a href=#134 id=134 data-nosnippet>134</a>        }
 <a href=#135 id=135 data-nosnippet>135</a>    }

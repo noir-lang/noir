@@ -114,7 +114,7 @@
 <a href=#114 id=114 data-nosnippet>114</a>                    last_was_block_comment = <span class="bool-val">false</span>;
 <a href=#115 id=115 data-nosnippet>115</a>                }
 <a href=#116 id=116 data-nosnippet>116</a>                Token::LineComment(comment, <span class="prelude-val">None</span>) =&gt; {
-<a href=#117 id=117 data-nosnippet>117</a>                    <span class="kw">let </span>comment = comment.to_string();
+<a href=#117 id=117 data-nosnippet>117</a>                    <span class="kw">let </span>comment = comment.clone();
 <a href=#118 id=118 data-nosnippet>118</a>
 <a href=#119 id=119 data-nosnippet>119</a>                    <span class="kw">if </span>comment.trim() == <span class="string">"noir-fmt:ignore" </span>{
 <a href=#120 id=120 data-nosnippet>120</a>                        ignore_next = <span class="bool-val">true</span>;
@@ -146,7 +146,7 @@
 <a href=#146 id=146 data-nosnippet>146</a>                    <span class="self">self</span>.written_comments_count += <span class="number">1</span>;
 <a href=#147 id=147 data-nosnippet>147</a>                }
 <a href=#148 id=148 data-nosnippet>148</a>                Token::BlockComment(comment, <span class="prelude-val">None</span>) =&gt; {
-<a href=#149 id=149 data-nosnippet>149</a>                    <span class="kw">let </span>comment = comment.to_string();
+<a href=#149 id=149 data-nosnippet>149</a>                    <span class="kw">let </span>comment = comment.clone();
 <a href=#150 id=150 data-nosnippet>150</a>
 <a href=#151 id=151 data-nosnippet>151</a>                    <span class="kw">if </span>comment.trim() == <span class="string">"noir-fmt:ignore" </span>{
 <a href=#152 id=152 data-nosnippet>152</a>                        ignore_next = <span class="bool-val">true</span>;

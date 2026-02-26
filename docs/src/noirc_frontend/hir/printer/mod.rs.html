@@ -896,7 +896,7 @@
 <a href=#896 id=896 data-nosnippet>896</a>                        <span class="kw">if let </span>FormatStringFragment::Value { name, value } = fragment {
 <a href=#897 id=897 data-nosnippet>897</a>                            <span class="comment">// A name might be interpolated multiple times. In that case it will always
 <a href=#898 id=898 data-nosnippet>898</a>                            // have the same value: we just need one `let` for it.
-<a href=#899 id=899 data-nosnippet>899</a>                            </span><span class="kw">if </span>!seen_names.insert(name.to_string()) {
+<a href=#899 id=899 data-nosnippet>899</a>                            </span><span class="kw">if </span>!seen_names.insert(name.clone()) {
 <a href=#900 id=900 data-nosnippet>900</a>                                <span class="kw">continue</span>;
 <a href=#901 id=901 data-nosnippet>901</a>                            }
 <a href=#902 id=902 data-nosnippet>902</a>

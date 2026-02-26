@@ -203,7 +203,7 @@
 <a href=#203 id=203 data-nosnippet>203</a>        <span class="kw">if </span>deprecated_dep_found {
 <a href=#204 id=204 data-nosnippet>204</a>            <span class="comment">// In the error message, try to include the actual dependency being imported
 <a href=#205 id=205 data-nosnippet>205</a>            </span><span class="kw">let </span>dependency_name = <span class="kw">if let </span>Token::Ident(name) = <span class="self">self</span>.token.token() {
-<a href=#206 id=206 data-nosnippet>206</a>                name.to_string()
+<a href=#206 id=206 data-nosnippet>206</a>                name.clone()
 <a href=#207 id=207 data-nosnippet>207</a>            } <span class="kw">else </span>{
 <a href=#208 id=208 data-nosnippet>208</a>                <span class="string">"dependency"</span>.to_string()
 <a href=#209 id=209 data-nosnippet>209</a>            };

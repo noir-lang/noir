@@ -14,7 +14,7 @@
 <a href=#14 id=14 data-nosnippet>14</a>    </span><span class="kw">pub fn </span>read_from_file(path: <span class="kw-2">&amp;</span>Path) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, CliError&gt; {
 <a href=#15 id=15 data-nosnippet>15</a>        <span class="kw">let </span>file = path.with_extension(<span class="string">"json"</span>);
 <a href=#16 id=16 data-nosnippet>16</a>        <span class="kw">let </span>json = std::fs::read(<span class="kw-2">&amp;</span>file)
-<a href=#17 id=17 data-nosnippet>17</a>            .map_err(|err| FilesystemError::FailedToReadFile(file.to_path_buf(), err))<span class="question-mark">?</span>;
+<a href=#17 id=17 data-nosnippet>17</a>            .map_err(|err| FilesystemError::FailedToReadFile(file.clone(), err))<span class="question-mark">?</span>;
 <a href=#18 id=18 data-nosnippet>18</a>
 <a href=#19 id=19 data-nosnippet>19</a>        <span class="kw">let </span>as_program = || serde_json::from_slice::&lt;ProgramArtifact&gt;(<span class="kw-2">&amp;</span>json).map(Artifact::Program);
 <a href=#20 id=20 data-nosnippet>20</a>        <span class="kw">let </span>as_contract =

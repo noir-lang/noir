@@ -29,7 +29,7 @@
 <a href=#29 id=29 data-nosnippet>29</a>        <span class="kw">let </span>visibility = ItemVisibility::Public;
 <a href=#30 id=30 data-nosnippet>30</a>        id_to_info.insert(module.id.clone(), ItemInfo { path: Vec::new(), uri, class, visibility });
 <a href=#31 id=31 data-nosnippet>31</a>
-<a href=#32 id=32 data-nosnippet>32</a>        path.push(krate.name.to_string());
+<a href=#32 id=32 data-nosnippet>32</a>        path.push(krate.name.clone());
 <a href=#33 id=33 data-nosnippet>33</a>
 <a href=#34 id=34 data-nosnippet>34</a>        <span class="kw">for </span>(visibility, item) <span class="kw">in </span><span class="kw-2">&amp;</span>krate.root_module.items {
 <a href=#35 id=35 data-nosnippet>35</a>            compute_id_to_info_in_item(item, <span class="kw-2">*</span>visibility, <span class="kw-2">&amp;mut </span>id_to_info, <span class="kw-2">&amp;mut </span>path);

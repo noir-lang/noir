@@ -548,10 +548,10 @@
 <a href=#548 id=548 data-nosnippet>548</a>        HirExpression::Index(e) =&gt; check(e.collection) &amp;&amp; check(e.index),
 <a href=#549 id=549 data-nosnippet>549</a>        HirExpression::MemberAccess(e) =&gt; check(e.lhs),
 <a href=#550 id=550 data-nosnippet>550</a>        HirExpression::Call(e) =&gt; check(e.func) &amp;&amp; e.arguments.iter().copied().all(check),
-<a href=#551 id=551 data-nosnippet>551</a>        HirExpression::Constrain(e) =&gt; check(e.<span class="number">0</span>) &amp;&amp; e.<span class="number">2</span>.map(check).unwrap_or(<span class="bool-val">true</span>),
+<a href=#551 id=551 data-nosnippet>551</a>        HirExpression::Constrain(e) =&gt; check(e.<span class="number">0</span>) &amp;&amp; e.<span class="number">2</span>.is_none_or(check),
 <a href=#552 id=552 data-nosnippet>552</a>        HirExpression::Cast(e) =&gt; check(e.lhs),
 <a href=#553 id=553 data-nosnippet>553</a>        HirExpression::If(e) =&gt; {
-<a href=#554 id=554 data-nosnippet>554</a>            check(e.condition) &amp;&amp; (check(e.consequence) || e.alternative.map(check).unwrap_or(<span class="bool-val">true</span>))
+<a href=#554 id=554 data-nosnippet>554</a>            check(e.condition) &amp;&amp; (check(e.consequence) || e.alternative.is_none_or(check))
 <a href=#555 id=555 data-nosnippet>555</a>        }
 <a href=#556 id=556 data-nosnippet>556</a>        HirExpression::Match(e) =&gt; can_return_without_recursing_match(interner, func_id, <span class="kw-2">&amp;</span>e),
 <a href=#557 id=557 data-nosnippet>557</a>        HirExpression::Tuple(e) =&gt; e.iter().copied().all(check),

@@ -1119,7 +1119,7 @@
 <a href=#1119 id=1119 data-nosnippet>1119</a>        };
 <a href=#1120 id=1120 data-nosnippet>1120</a>
 <a href=#1121 id=1121 data-nosnippet>1121</a>        <span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.expr_location(<span class="kw-2">&amp;</span>id);
-<a href=#1122 id=1122 data-nosnippet>1122</a>        <span class="kw">let </span>field_name = name.to_string();
+<a href=#1122 id=1122 data-nosnippet>1122</a>        <span class="kw">let </span>field_name = name.clone();
 <a href=#1123 id=1123 data-nosnippet>1123</a>        <span class="prelude-val">Err</span>(InterpreterError::ExpectedStructToHaveField { typ, field_name, location })
 <a href=#1124 id=1124 data-nosnippet>1124</a>    }
 <a href=#1125 id=1125 data-nosnippet>1125</a>
