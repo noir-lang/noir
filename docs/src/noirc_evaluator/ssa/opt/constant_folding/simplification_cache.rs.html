@@ -23,7 +23,7 @@
 <a href=#23 id=23 data-nosnippet>23</a>    <span class="doccomment">/// Try to find a simplification in a visible block.
 <a href=#24 id=24 data-nosnippet>24</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>get(<span class="kw-2">&amp;</span><span class="self">self</span>, block: BasicBlockId, dom: <span class="kw-2">&amp;</span>DominatorTree) -&gt; <span class="prelude-ty">Option</span>&lt;ValueId&gt; {
 <a href=#25 id=25 data-nosnippet>25</a>        <span class="comment">// Deterministically walk up the dominator chain until we encounter a block that contains a simplification.
-<a href=#26 id=26 data-nosnippet>26</a>        </span>dom.find_map_dominator(block, |b| <span class="self">self</span>.simplifications.get(<span class="kw-2">&amp;</span>b).cloned())
+<a href=#26 id=26 data-nosnippet>26</a>        </span>dom.find_map_dominator(block, |b| <span class="self">self</span>.simplifications.get(<span class="kw-2">&amp;</span>b).copied())
 <a href=#27 id=27 data-nosnippet>27</a>    }
 <a href=#28 id=28 data-nosnippet>28</a>
 <a href=#29 id=29 data-nosnippet>29</a>    <span class="doccomment">/// Add a newly encountered simplification to the cache.

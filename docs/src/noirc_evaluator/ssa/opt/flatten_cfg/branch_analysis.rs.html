@@ -142,7 +142,7 @@
 <a href=#142 id=142 data-nosnippet>142</a>
 <a href=#143 id=143 data-nosnippet>143</a>        <span class="self">self</span>.branch_ends
 <a href=#144 id=144 data-nosnippet>144</a>            .get(<span class="kw-2">&amp;</span>start)
-<a href=#145 id=145 data-nosnippet>145</a>            .cloned()
+<a href=#145 id=145 data-nosnippet>145</a>            .copied()
 <a href=#146 id=146 data-nosnippet>146</a>            .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"should have found the join point for {start}"</span>))
 <a href=#147 id=147 data-nosnippet>147</a>    }
 <a href=#148 id=148 data-nosnippet>148</a>
@@ -170,7 +170,7 @@
 <a href=#170 id=170 data-nosnippet>170</a>    </span><span class="kw">fn </span>complete_parents(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw-2">mut </span>branch: BasicBlockId, <span class="kw-2">mut </span>join: BasicBlockId) {
 <a href=#171 id=171 data-nosnippet>171</a>        <span class="kw">loop </span>{
 <a href=#172 id=172 data-nosnippet>172</a>            <span class="comment">// If we reached the starting point, we can stop.
-<a href=#173 id=173 data-nosnippet>173</a>            </span><span class="kw">let </span><span class="prelude-val">Some</span>(parent) = <span class="self">self</span>.branch_parents.get(<span class="kw-2">&amp;</span>branch).cloned() <span class="kw">else </span>{
+<a href=#173 id=173 data-nosnippet>173</a>            </span><span class="kw">let </span><span class="prelude-val">Some</span>(parent) = <span class="self">self</span>.branch_parents.get(<span class="kw-2">&amp;</span>branch).copied() <span class="kw">else </span>{
 <a href=#174 id=174 data-nosnippet>174</a>                <span class="kw">break</span>;
 <a href=#175 id=175 data-nosnippet>175</a>            };
 <a href=#176 id=176 data-nosnippet>176</a>            <span class="comment">// We can skip this join point (we know it completes this level, not the parent), and look for the next one.

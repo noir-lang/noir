@@ -132,7 +132,7 @@
 <a href=#132 id=132 data-nosnippet>132</a>    <span class="kw">let </span>(pub_key_x, <span class="kw">_</span>) = get_fixed_array_map(pub_key_x, get_u8)<span class="question-mark">?</span>;
 <a href=#133 id=133 data-nosnippet>133</a>    <span class="kw">let </span>(pub_key_y, <span class="kw">_</span>) = get_fixed_array_map(pub_key_y, get_u8)<span class="question-mark">?</span>;
 <a href=#134 id=134 data-nosnippet>134</a>    <span class="kw">let </span>(sig, <span class="kw">_</span>) = get_fixed_array_map(sig, get_u8)<span class="question-mark">?</span>;
-<a href=#135 id=135 data-nosnippet>135</a>    <span class="kw">let </span>(msg_hash, <span class="kw">_</span>) = get_fixed_array_map(msg_hash.clone(), get_u8)<span class="question-mark">?</span>;
+<a href=#135 id=135 data-nosnippet>135</a>    <span class="kw">let </span>(msg_hash, <span class="kw">_</span>) = get_fixed_array_map(msg_hash, get_u8)<span class="question-mark">?</span>;
 <a href=#136 id=136 data-nosnippet>136</a>
 <a href=#137 id=137 data-nosnippet>137</a>    <span class="kw">let </span>is_valid = f(<span class="kw-2">&amp;</span>msg_hash, <span class="kw-2">&amp;</span>pub_key_x, <span class="kw-2">&amp;</span>pub_key_y, <span class="kw-2">&amp;</span>sig)
 <a href=#138 id=138 data-nosnippet>138</a>        .map_err(|e| InterpreterError::BlackBoxError(e, location))<span class="question-mark">?</span>;

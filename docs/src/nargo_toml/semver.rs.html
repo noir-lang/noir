@@ -158,7 +158,7 @@
 <a href=#158 id=158 data-nosnippet>158</a>
 <a href=#159 id=159 data-nosnippet>159</a>        package.dependencies.insert(
 <a href=#160 id=160 data-nosnippet>160</a>            CrateName::from_str(<span class="string">"test_dep_valid"</span>).unwrap(),
-<a href=#161 id=161 data-nosnippet>161</a>            Dependency::Local { package: valid_dependency.clone() },
+<a href=#161 id=161 data-nosnippet>161</a>            Dependency::Local { package: valid_dependency },
 <a href=#162 id=162 data-nosnippet>162</a>        );
 <a href=#163 id=163 data-nosnippet>163</a>
 <a href=#164 id=164 data-nosnippet>164</a>        <span class="kw">if let </span><span class="prelude-val">Err</span>(err) = semver_check_package(<span class="kw-2">&amp;</span>package, <span class="kw-2">&amp;</span>compiler_version) {
@@ -169,7 +169,7 @@
 <a href=#169 id=169 data-nosnippet>169</a>
 <a href=#170 id=170 data-nosnippet>170</a>        package.dependencies.insert(
 <a href=#171 id=171 data-nosnippet>171</a>            CrateName::from_str(<span class="string">"test_dep_invalid"</span>).unwrap(),
-<a href=#172 id=172 data-nosnippet>172</a>            Dependency::Local { package: invalid_dependency.clone() },
+<a href=#172 id=172 data-nosnippet>172</a>            Dependency::Local { package: invalid_dependency },
 <a href=#173 id=173 data-nosnippet>173</a>        );
 <a href=#174 id=174 data-nosnippet>174</a>        <span class="kw">let </span>got_err = <span class="kw">match </span>semver_check_package(<span class="kw-2">&amp;</span>package, <span class="kw-2">&amp;</span>compiler_version) {
 <a href=#175 id=175 data-nosnippet>175</a>            <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; <span class="macro">panic!</span>(

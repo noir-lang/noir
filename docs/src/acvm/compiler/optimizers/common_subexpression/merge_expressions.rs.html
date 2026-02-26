@@ -66,7 +66,7 @@
 <a href=#66 id=66 data-nosnippet>66</a>
 <a href=#67 id=67 data-nosnippet>67</a>        <span class="comment">// Keep track, for each witness, of the gates that use it
 <a href=#68 id=68 data-nosnippet>68</a>        </span><span class="kw">let </span>circuit_io: BTreeSet&lt;Witness&gt; =
-<a href=#69 id=69 data-nosnippet>69</a>            circuit.circuit_arguments().union(<span class="kw-2">&amp;</span>circuit.public_inputs().<span class="number">0</span>).cloned().collect();
+<a href=#69 id=69 data-nosnippet>69</a>            circuit.circuit_arguments().union(<span class="kw-2">&amp;</span>circuit.public_inputs().<span class="number">0</span>).copied().collect();
 <a href=#70 id=70 data-nosnippet>70</a>
 <a href=#71 id=71 data-nosnippet>71</a>        <span class="kw">let </span><span class="kw-2">mut </span>used_witnesses: BTreeMap&lt;Witness, BTreeSet&lt;usize&gt;&gt; = BTreeMap::new();
 <a href=#72 id=72 data-nosnippet>72</a>        <span class="kw">for </span>(i, opcode) <span class="kw">in </span>circuit.opcodes.iter().enumerate() {
@@ -209,7 +209,7 @@
 <a href=#209 id=209 data-nosnippet>209</a>                .collect(),
 <a href=#210 id=210 data-nosnippet>210</a>
 <a href=#211 id=211 data-nosnippet>211</a>            Opcode::MemoryInit { block_id: <span class="kw">_</span>, init, block_type: <span class="kw">_ </span>} =&gt; {
-<a href=#212 id=212 data-nosnippet>212</a>                init.iter().cloned().collect()
+<a href=#212 id=212 data-nosnippet>212</a>                init.iter().copied().collect()
 <a href=#213 id=213 data-nosnippet>213</a>            }
 <a href=#214 id=214 data-nosnippet>214</a>            Opcode::BrilligCall { inputs, outputs, predicate, .. } =&gt; {
 <a href=#215 id=215 data-nosnippet>215</a>                <span class="kw">let </span><span class="kw-2">mut </span>witnesses = BTreeSet::new();
@@ -323,7 +323,7 @@
 <a href=#323 id=323 data-nosnippet>323</a>        ASSERT w2 = 4*w1 + 4
 <a href=#324 id=324 data-nosnippet>324</a>        "</span>;
 <a href=#325 id=325 data-nosnippet>325</a>        <span class="kw">let </span>circuit = Circuit::from_str(src).unwrap();
-<a href=#326 id=326 data-nosnippet>326</a>        <span class="kw">let </span>optimized_circuit = merge_expressions(circuit.clone());
+<a href=#326 id=326 data-nosnippet>326</a>        <span class="kw">let </span>optimized_circuit = merge_expressions(circuit);
 <a href=#327 id=327 data-nosnippet>327</a>        <span class="macro">assert_circuit_snapshot!</span>(optimized_circuit, @<span class="string">r"
 <a href=#328 id=328 data-nosnippet>328</a>        private parameters: [w0]
 <a href=#329 id=329 data-nosnippet>329</a>        public parameters: []

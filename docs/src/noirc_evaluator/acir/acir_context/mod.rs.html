@@ -1100,7 +1100,7 @@
 <a href=#1100 id=1100 data-nosnippet>1100</a>        <span class="kw">let </span>witness = <span class="self">self</span>.var_to_witness(witness_var)<span class="question-mark">?</span>;
 <a href=#1101 id=1101 data-nosnippet>1101</a>        <span class="self">self</span>.acir_ir.range_constraint(witness, bit_size)<span class="question-mark">?</span>;
 <a href=#1102 id=1102 data-nosnippet>1102</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(message) = message {
-<a href=#1103 id=1103 data-nosnippet>1103</a>            <span class="kw">let </span>payload = <span class="self">self</span>.generate_assertion_message_payload(message.clone());
+<a href=#1103 id=1103 data-nosnippet>1103</a>            <span class="kw">let </span>payload = <span class="self">self</span>.generate_assertion_message_payload(message);
 <a href=#1104 id=1104 data-nosnippet>1104</a>            <span class="self">self</span>.acir_ir
 <a href=#1105 id=1105 data-nosnippet>1105</a>                .assertion_payloads
 <a href=#1106 id=1106 data-nosnippet>1106</a>                .insert(<span class="self">self</span>.acir_ir.last_acir_opcode_location(), payload);

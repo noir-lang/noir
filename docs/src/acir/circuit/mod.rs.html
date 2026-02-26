@@ -239,14 +239,14 @@
 <a href=#239 id=239 data-nosnippet>239</a><span class="kw">impl</span>&lt;F: AcirField&gt; Circuit&lt;F&gt; {
 <a href=#240 id=240 data-nosnippet>240</a>    <span class="doccomment">/// Returns all witnesses which are required to execute the circuit successfully.
 <a href=#241 id=241 data-nosnippet>241</a>    </span><span class="kw">pub fn </span>circuit_arguments(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; BTreeSet&lt;Witness&gt; {
-<a href=#242 id=242 data-nosnippet>242</a>        <span class="self">self</span>.private_parameters.union(<span class="kw-2">&amp;</span><span class="self">self</span>.public_parameters.<span class="number">0</span>).cloned().collect()
+<a href=#242 id=242 data-nosnippet>242</a>        <span class="self">self</span>.private_parameters.union(<span class="kw-2">&amp;</span><span class="self">self</span>.public_parameters.<span class="number">0</span>).copied().collect()
 <a href=#243 id=243 data-nosnippet>243</a>    }
 <a href=#244 id=244 data-nosnippet>244</a>
 <a href=#245 id=245 data-nosnippet>245</a>    <span class="doccomment">/// Returns all public inputs. This includes those provided as parameters to the circuit and those
 <a href=#246 id=246 data-nosnippet>246</a>    /// computed as return values.
 <a href=#247 id=247 data-nosnippet>247</a>    </span><span class="kw">pub fn </span>public_inputs(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; PublicInputs {
 <a href=#248 id=248 data-nosnippet>248</a>        <span class="kw">let </span>public_inputs =
-<a href=#249 id=249 data-nosnippet>249</a>            <span class="self">self</span>.public_parameters.<span class="number">0</span>.union(<span class="kw-2">&amp;</span><span class="self">self</span>.return_values.<span class="number">0</span>).cloned().collect();
+<a href=#249 id=249 data-nosnippet>249</a>            <span class="self">self</span>.public_parameters.<span class="number">0</span>.union(<span class="kw-2">&amp;</span><span class="self">self</span>.return_values.<span class="number">0</span>).copied().collect();
 <a href=#250 id=250 data-nosnippet>250</a>        PublicInputs(public_inputs)
 <a href=#251 id=251 data-nosnippet>251</a>    }
 <a href=#252 id=252 data-nosnippet>252</a>}

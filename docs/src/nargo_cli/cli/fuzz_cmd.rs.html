@@ -367,7 +367,7 @@
 <a href=#367 id=367 data-nosnippet>367</a>    <span class="kw">let </span>writer = StandardStream::stderr(ColorChoice::Always);
 <a href=#368 id=368 data-nosnippet>368</a>    <span class="kw">let </span><span class="kw-2">mut </span>writer = writer.lock();
 <a href=#369 id=369 data-nosnippet>369</a>    <span class="kw">let </span>fuzzing_failure_path =
-<a href=#370 id=370 data-nosnippet>370</a>        fuzzing_failure_folder.map(PathBuf::from).unwrap_or(root_path.clone().unwrap_or_default());
+<a href=#370 id=370 data-nosnippet>370</a>        fuzzing_failure_folder.map(PathBuf::from).unwrap_or(root_path.unwrap_or_default());
 <a href=#371 id=371 data-nosnippet>371</a>    <span class="kw">if </span>!fuzzing_failure_path.exists() {
 <a href=#372 id=372 data-nosnippet>372</a>        std::fs::create_dir_all(<span class="kw-2">&amp;</span>fuzzing_failure_path)
 <a href=#373 id=373 data-nosnippet>373</a>            .expect(<span class="string">"Failed to create fuzzing failure directory"</span>);
@@ -470,7 +470,7 @@
 <a href=#470 id=470 data-nosnippet>470</a>                    .set_color(ColorSpec::new().set_fg(<span class="prelude-val">Some</span>(Color::Yellow)))
 <a href=#471 id=471 data-nosnippet>471</a>                    .expect(<span class="string">"Failed to set color"</span>);
 <a href=#472 id=472 data-nosnippet>472</a>                <span class="comment">// TODO(https://github.com/noir-lang/noir/issues/7796): Make the path shorter if possible
-<a href=#473 id=473 data-nosnippet>473</a>                </span><span class="kw">let </span><span class="kw-2">mut </span>full_path_of_example = fuzzing_failure_path.clone().join(file_name);
+<a href=#473 id=473 data-nosnippet>473</a>                </span><span class="kw">let </span><span class="kw-2">mut </span>full_path_of_example = fuzzing_failure_path.join(file_name);
 <a href=#474 id=474 data-nosnippet>474</a>                full_path_of_example.set_extension(PathBuf::from(<span class="string">"toml"</span>));
 <a href=#475 id=475 data-nosnippet>475</a>                <span class="macro">writeln!</span>(writer, <span class="string">"\"{}\""</span>, full_path_of_example.to_str().unwrap())
 <a href=#476 id=476 data-nosnippet>476</a>                    .expect(<span class="string">"Failed to write to stderr"</span>);

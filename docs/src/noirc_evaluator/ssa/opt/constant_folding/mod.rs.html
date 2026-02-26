@@ -152,7 +152,7 @@
 <a href=#152 id=152 data-nosnippet>152</a>                    .iter()
 <a href=#153 id=153 data-nosnippet>153</a>                    .flat_map(|id| <span class="self">self</span>.dfg.instruction_results(<span class="kw-2">*</span>id))
 <a href=#154 id=154 data-nosnippet>154</a>                    .chain(<span class="self">self</span>.dfg.block_parameters(loop_.header).iter())
-<a href=#155 id=155 data-nosnippet>155</a>                    .cloned()
+<a href=#155 id=155 data-nosnippet>155</a>                    .copied()
 <a href=#156 id=156 data-nosnippet>156</a>                    .collect::&lt;HashSet&lt;<span class="kw">_</span>&gt;&gt;();
 <a href=#157 id=157 data-nosnippet>157</a>                (loop_.header, values_defined_in_header)
 <a href=#158 id=158 data-nosnippet>158</a>            })

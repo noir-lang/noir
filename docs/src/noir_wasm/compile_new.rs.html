@@ -202,7 +202,7 @@
 <a href=#202 id=202 data-nosnippet>202</a>    <span class="kw">let </span><span class="kw-2">mut </span>compiler_context = CompilerContext::new(file_source_map);
 <a href=#203 id=203 data-nosnippet>203</a>
 <a href=#204 id=204 data-nosnippet>204</a>    <span class="comment">// Set the root crate
-<a href=#205 id=205 data-nosnippet>205</a>    </span><span class="kw">let </span>root_id = compiler_context.process_root_crate(entry_point.clone());
+<a href=#205 id=205 data-nosnippet>205</a>    </span><span class="kw">let </span>root_id = compiler_context.process_root_crate(entry_point);
 <a href=#206 id=206 data-nosnippet>206</a>
 <a href=#207 id=207 data-nosnippet>207</a>    <span class="kw">let </span>add_noir_lib = |context: <span class="kw-2">&amp;mut </span>CompilerContext, lib_name: <span class="kw-2">&amp;</span>CrateName| -&gt; CrateIDWrapper {
 <a href=#208 id=208 data-nosnippet>208</a>        <span class="kw">let </span>lib_name_string = lib_name.to_string();

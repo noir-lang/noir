@@ -1176,7 +1176,7 @@
 <a href=#1176 id=1176 data-nosnippet>1176</a>
 <a href=#1177 id=1177 data-nosnippet>1177</a>            <span class="kw">if </span>should_mutate {
 <a href=#1178 id=1178 data-nosnippet>1178</a>                array.elements.borrow_mut()[index <span class="kw">as </span>usize] = value;
-<a href=#1179 id=1179 data-nosnippet>1179</a>                Value::ArrayOrVector(array.clone())
+<a href=#1179 id=1179 data-nosnippet>1179</a>                Value::ArrayOrVector(array)
 <a href=#1180 id=1180 data-nosnippet>1180</a>            } <span class="kw">else </span>{
 <a href=#1181 id=1181 data-nosnippet>1181</a>                <span class="kw">if </span>!is_rc_one {
 <a href=#1182 id=1182 data-nosnippet>1182</a>                    <span class="self">Self</span>::decrement_rc(<span class="kw-2">&amp;</span>array);

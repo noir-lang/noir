@@ -42,7 +42,7 @@
 <a href=#42 id=42 data-nosnippet>42</a>            <span class="kw">for </span>entry <span class="kw">in </span>entries {
 <a href=#43 id=43 data-nosnippet>43</a>                <span class="kw">let </span>module_def_id = entry.module_def_id;
 <a href=#44 id=44 data-nosnippet>44</a>                <span class="kw">let </span>visibility = entry.visibility;
-<a href=#45 id=45 data-nosnippet>45</a>                <span class="kw">let </span><span class="kw-2">mut </span>defining_module = entry.defining_module.as_ref().cloned();
+<a href=#45 id=45 data-nosnippet>45</a>                <span class="kw">let </span><span class="kw-2">mut </span>defining_module = entry.defining_module.as_ref().copied();
 <a href=#46 id=46 data-nosnippet>46</a>
 <a href=#47 id=47 data-nosnippet>47</a>                <span class="comment">// If the item is offered via a re-export of it's parent module, this holds the name of the reexport.
 <a href=#48 id=48 data-nosnippet>48</a>                </span><span class="kw">let </span><span class="kw-2">mut </span>intermediate_name = <span class="prelude-val">None</span>;

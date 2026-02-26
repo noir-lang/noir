@@ -84,7 +84,7 @@
 <a href=#84 id=84 data-nosnippet>84</a>    }
 <a href=#85 id=85 data-nosnippet>85</a>
 <a href=#86 id=86 data-nosnippet>86</a>    <span class="kw">pub fn </span>get_file_id(<span class="kw-2">&amp;</span><span class="self">self</span>, file_name: <span class="kw-2">&amp;</span>PathString) -&gt; <span class="prelude-ty">Option</span>&lt;FileId&gt; {
-<a href=#87 id=87 data-nosnippet>87</a>        <span class="self">self</span>.name_to_id.get(file_name).cloned()
+<a href=#87 id=87 data-nosnippet>87</a>        <span class="self">self</span>.name_to_id.get(file_name).copied()
 <a href=#88 id=88 data-nosnippet>88</a>    }
 <a href=#89 id=89 data-nosnippet>89</a>
 <a href=#90 id=90 data-nosnippet>90</a>    <span class="kw">pub fn </span>all_file_ids(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span>FileId&gt; {

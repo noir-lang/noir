@@ -515,7 +515,7 @@
 <a href=#515 id=515 data-nosnippet>515</a>            }
 <a href=#516 id=516 data-nosnippet>516</a>            Instruction::Allocate =&gt; {
 <a href=#517 id=517 data-nosnippet>517</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(RuntimeError::UnknownReference {
-<a href=#518 id=518 data-nosnippet>518</a>                    call_stack: <span class="self">self</span>.acir_context.get_call_stack().clone(),
+<a href=#518 id=518 data-nosnippet>518</a>                    call_stack: <span class="self">self</span>.acir_context.get_call_stack(),
 <a href=#519 id=519 data-nosnippet>519</a>                });
 <a href=#520 id=520 data-nosnippet>520</a>            }
 <a href=#521 id=521 data-nosnippet>521</a>            Instruction::Store { .. } =&gt; {

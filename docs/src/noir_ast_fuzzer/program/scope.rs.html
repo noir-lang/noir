@@ -83,7 +83,7 @@
 <a href=#83 id=83 data-nosnippet>83</a>        <span class="kw">if </span>vs.is_empty() {
 <a href=#84 id=84 data-nosnippet>84</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
 <a href=#85 id=85 data-nosnippet>85</a>        }
-<a href=#86 id=86 data-nosnippet>86</a>        u.choose_iter(vs.iter()).map(<span class="prelude-val">Some</span>).map(|v| v.cloned())
+<a href=#86 id=86 data-nosnippet>86</a>        u.choose_iter(vs.iter()).map(<span class="prelude-val">Some</span>).map(|v| v.copied())
 <a href=#87 id=87 data-nosnippet>87</a>    }
 <a href=#88 id=88 data-nosnippet>88</a>
 <a href=#89 id=89 data-nosnippet>89</a>    <span class="doccomment">/// Choose a random producer of a type matching some criteria.
@@ -109,7 +109,7 @@
 <a href=#109 id=109 data-nosnippet>109</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
 <a href=#110 id=110 data-nosnippet>110</a>        }
 <a href=#111 id=111 data-nosnippet>111</a>
-<a href=#112 id=112 data-nosnippet>112</a>        u.choose_iter(candidates).map(<span class="prelude-val">Some</span>).map(|v| v.cloned())
+<a href=#112 id=112 data-nosnippet>112</a>        u.choose_iter(candidates).map(<span class="prelude-val">Some</span>).map(|v| v.copied())
 <a href=#113 id=113 data-nosnippet>113</a>    }
 <a href=#114 id=114 data-nosnippet>114</a>
 <a href=#115 id=115 data-nosnippet>115</a>    <span class="doccomment">/// Get a variable in scope.

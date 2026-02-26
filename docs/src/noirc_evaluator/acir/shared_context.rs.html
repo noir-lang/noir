@@ -211,7 +211,7 @@
 <a href=#211 id=211 data-nosnippet>211</a>        <span class="kw">let </span>ptr2 = context.new_generated_pointer();
 <a href=#212 id=212 data-nosnippet>212</a>        context.insert_generated_brillig(
 <a href=#213 id=213 data-nosnippet>213</a>            func_id,
-<a href=#214 id=214 data-nosnippet>214</a>            args.clone(),
+<a href=#214 id=214 data-nosnippet>214</a>            args,
 <a href=#215 id=215 data-nosnippet>215</a>            ptr2,
 <a href=#216 id=216 data-nosnippet>216</a>            GeneratedBrillig { byte_code: <span class="macro">vec!</span>[], ..Default::default() },
 <a href=#217 id=217 data-nosnippet>217</a>        );
@@ -248,7 +248,7 @@
 <a href=#248 id=248 data-nosnippet>248</a>        </span><span class="kw">let </span>code2 = GeneratedBrillig { byte_code: <span class="macro">vec!</span>[Opcode::Return], ..Default::default() };
 <a href=#249 id=249 data-nosnippet>249</a>        <span class="kw">let </span>f1 = Id::test_new(<span class="number">1</span>);
 <a href=#250 id=250 data-nosnippet>250</a>        <span class="kw">let </span>ptr2 = context.new_generated_pointer();
-<a href=#251 id=251 data-nosnippet>251</a>        context.insert_generated_brillig(f1, args.clone(), ptr2, code2.clone());
+<a href=#251 id=251 data-nosnippet>251</a>        context.insert_generated_brillig(f1, args.clone(), ptr2, code2);
 <a href=#252 id=252 data-nosnippet>252</a>
 <a href=#253 id=253 data-nosnippet>253</a>        <span class="comment">// Check the pointers of both Brillig functions
 <a href=#254 id=254 data-nosnippet>254</a>        </span><span class="kw">let </span>f0_pointer = context.generated_brillig_pointer(f0, args.clone()).unwrap();

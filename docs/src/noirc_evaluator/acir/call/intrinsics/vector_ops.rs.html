@@ -72,7 +72,7 @@
 <a href=#72 id=72 data-nosnippet>72</a>
 <a href=#73 id=73 data-nosnippet>73</a>            <span class="kw">let </span><span class="kw-2">mut </span>elements_var = Vec::new();
 <a href=#74 id=74 data-nosnippet>74</a>            <span class="kw">let </span><span class="kw-2">mut </span>element_size = <span class="number">0</span>;
-<a href=#75 id=75 data-nosnippet>75</a>            <span class="kw">let </span><span class="kw-2">mut </span>new_vector = <span class="self">self</span>.read_array_with_type(vector.clone(), <span class="kw-2">&amp;</span>vector_typ)<span class="question-mark">?</span>;
+<a href=#75 id=75 data-nosnippet>75</a>            <span class="kw">let </span><span class="kw-2">mut </span>new_vector = <span class="self">self</span>.read_array_with_type(vector, <span class="kw-2">&amp;</span>vector_typ)<span class="question-mark">?</span>;
 <a href=#76 id=76 data-nosnippet>76</a>            <span class="kw">let </span>zero = <span class="self">self</span>.acir_context.add_constant(FieldElement::zero());
 <a href=#77 id=77 data-nosnippet>77</a>
 <a href=#78 id=78 data-nosnippet>78</a>            <span class="comment">// 1. Convert the elements-to-push into flattened acir_var and at the same time
@@ -317,7 +317,7 @@
 <a href=#317 id=317 data-nosnippet>317</a>        vector_length_id: ValueId,
 <a href=#318 id=318 data-nosnippet>318</a>        vector_length_value: AcirValue,
 <a href=#319 id=319 data-nosnippet>319</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirVar, RuntimeError&gt; {
-<a href=#320 id=320 data-nosnippet>320</a>        <span class="kw">let </span>vector_length_var = vector_length_value.clone().into_var()<span class="question-mark">?</span>;
+<a href=#320 id=320 data-nosnippet>320</a>        <span class="kw">let </span>vector_length_var = vector_length_value.into_var()<span class="question-mark">?</span>;
 <a href=#321 id=321 data-nosnippet>321</a>        <span class="kw">let </span>is_unknown_length = dfg.get_numeric_constant(vector_length_id).is_none();
 <a href=#322 id=322 data-nosnippet>322</a>
 <a href=#323 id=323 data-nosnippet>323</a>        <span class="kw">if </span>is_unknown_length {

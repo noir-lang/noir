@@ -750,7 +750,7 @@
 <a href=#750 id=750 data-nosnippet>750</a>    }
 <a href=#751 id=751 data-nosnippet>751</a>
 <a href=#752 id=752 data-nosnippet>752</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_instruction_call_stack_id(<span class="kw-2">&amp;</span><span class="self">self</span>, instruction: InstructionId) -&gt; CallStackId {
-<a href=#753 id=753 data-nosnippet>753</a>        <span class="self">self</span>.locations.get(<span class="kw-2">&amp;</span>instruction).cloned().unwrap_or_default()
+<a href=#753 id=753 data-nosnippet>753</a>        <span class="self">self</span>.locations.get(<span class="kw-2">&amp;</span>instruction).copied().unwrap_or_default()
 <a href=#754 id=754 data-nosnippet>754</a>    }
 <a href=#755 id=755 data-nosnippet>755</a>
 <a href=#756 id=756 data-nosnippet>756</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_call_stack(<span class="kw-2">&amp;</span><span class="self">self</span>, call_stack: CallStackId) -&gt; CallStack {

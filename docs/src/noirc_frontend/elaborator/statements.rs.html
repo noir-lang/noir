@@ -499,242 +499,241 @@
 <a href=#499 id=499 data-nosnippet>499</a>            LValue::MemberAccess { object, field_name, location } =&gt; {
 <a href=#500 id=500 data-nosnippet>500</a>                <span class="kw">let </span>(object, lhs_type, <span class="kw-2">mut </span>mutable, statements) = <span class="self">self</span>.elaborate_lvalue(<span class="kw-2">*</span>object);
 <a href=#501 id=501 data-nosnippet>501</a>                <span class="kw">let </span><span class="kw-2">mut </span>object = Box::new(object);
-<a href=#502 id=502 data-nosnippet>502</a>                <span class="kw">let </span>field_name = field_name.clone();
-<a href=#503 id=503 data-nosnippet>503</a>
-<a href=#504 id=504 data-nosnippet>504</a>                <span class="kw">let </span>object_ref = <span class="kw-2">&amp;mut </span>object;
-<a href=#505 id=505 data-nosnippet>505</a>                <span class="kw">let </span>mutable_ref = <span class="kw-2">&amp;mut </span>mutable;
-<a href=#506 id=506 data-nosnippet>506</a>
-<a href=#507 id=507 data-nosnippet>507</a>                <span class="kw">let </span>dereference_lhs = <span class="kw">move </span>|<span class="kw">_</span>: <span class="kw-2">&amp;mut </span><span class="self">Self</span>, <span class="kw">_</span>, element_type| {
-<a href=#508 id=508 data-nosnippet>508</a>                    <span class="comment">// We must create a temporary value first to move out of object_ref before
-<a href=#509 id=509 data-nosnippet>509</a>                    // we eventually reassign to it.
-<a href=#510 id=510 data-nosnippet>510</a>                    </span><span class="kw">let </span>tmp_value = HirLValue::Error { location };
-<a href=#511 id=511 data-nosnippet>511</a>
-<a href=#512 id=512 data-nosnippet>512</a>                    <span class="kw">let </span>lvalue = std::mem::replace(object_ref, Box::new(tmp_value));
-<a href=#513 id=513 data-nosnippet>513</a>                    <span class="kw-2">**</span>object_ref = HirLValue::Dereference {
-<a href=#514 id=514 data-nosnippet>514</a>                        lvalue,
-<a href=#515 id=515 data-nosnippet>515</a>                        element_type,
-<a href=#516 id=516 data-nosnippet>516</a>                        location,
-<a href=#517 id=517 data-nosnippet>517</a>                        implicitly_added: <span class="bool-val">true</span>,
-<a href=#518 id=518 data-nosnippet>518</a>                    };
-<a href=#519 id=519 data-nosnippet>519</a>                    <span class="kw-2">*</span>mutable_ref = <span class="bool-val">true</span>;
-<a href=#520 id=520 data-nosnippet>520</a>                };
-<a href=#521 id=521 data-nosnippet>521</a>
-<a href=#522 id=522 data-nosnippet>522</a>                <span class="kw">let </span>name = field_name.as_str();
-<a href=#523 id=523 data-nosnippet>523</a>                <span class="kw">let </span>(object_type, field_index) = <span class="self">self
-<a href=#524 id=524 data-nosnippet>524</a>                    </span>.check_field_access(
-<a href=#525 id=525 data-nosnippet>525</a>                        <span class="kw-2">&amp;</span>lhs_type,
-<a href=#526 id=526 data-nosnippet>526</a>                        name,
-<a href=#527 id=527 data-nosnippet>527</a>                        field_name.location(),
-<a href=#528 id=528 data-nosnippet>528</a>                        <span class="prelude-val">Some</span>(dereference_lhs),
-<a href=#529 id=529 data-nosnippet>529</a>                    )
-<a href=#530 id=530 data-nosnippet>530</a>                    .unwrap_or((Type::Error, <span class="number">0</span>));
-<a href=#531 id=531 data-nosnippet>531</a>
-<a href=#532 id=532 data-nosnippet>532</a>                <span class="kw">let </span>field_index = <span class="prelude-val">Some</span>(field_index);
-<a href=#533 id=533 data-nosnippet>533</a>                <span class="kw">let </span>typ = object_type.clone();
-<a href=#534 id=534 data-nosnippet>534</a>                <span class="kw">let </span>lvalue =
-<a href=#535 id=535 data-nosnippet>535</a>                    HirLValue::MemberAccess { object, field_name, field_index, typ, location };
-<a href=#536 id=536 data-nosnippet>536</a>                (lvalue, object_type, mutable, statements)
-<a href=#537 id=537 data-nosnippet>537</a>            }
-<a href=#538 id=538 data-nosnippet>538</a>            LValue::Index { array, index, location } =&gt; {
-<a href=#539 id=539 data-nosnippet>539</a>                <span class="kw">let </span>expr_location = index.location;
-<a href=#540 id=540 data-nosnippet>540</a>                <span class="kw">let </span>(<span class="kw-2">mut </span>index, index_type) = <span class="self">self</span>.elaborate_expression(index);
-<a href=#541 id=541 data-nosnippet>541</a>
-<a href=#542 id=542 data-nosnippet>542</a>                <span class="kw">let </span>expected = Type::u32();
-<a href=#543 id=543 data-nosnippet>543</a>                <span class="self">self</span>.unify(<span class="kw-2">&amp;</span>index_type, <span class="kw-2">&amp;</span>expected, || TypeCheckError::TypeMismatchWithSource {
-<a href=#544 id=544 data-nosnippet>544</a>                    expected: expected.clone(),
-<a href=#545 id=545 data-nosnippet>545</a>                    actual: index_type.clone(),
-<a href=#546 id=546 data-nosnippet>546</a>                    location: expr_location,
-<a href=#547 id=547 data-nosnippet>547</a>                    source: Source::ArrayIndex,
-<a href=#548 id=548 data-nosnippet>548</a>                });
-<a href=#549 id=549 data-nosnippet>549</a>
-<a href=#550 id=550 data-nosnippet>550</a>                <span class="kw">let </span>(<span class="kw-2">mut </span>lvalue, <span class="kw-2">mut </span>lvalue_type, <span class="kw-2">mut </span>mutable, <span class="kw-2">mut </span>statements) =
-<a href=#551 id=551 data-nosnippet>551</a>                    <span class="self">self</span>.elaborate_lvalue(<span class="kw-2">*</span>array);
-<a href=#552 id=552 data-nosnippet>552</a>
-<a href=#553 id=553 data-nosnippet>553</a>                <span class="comment">// Push the index expression to the end of the new statements list, referring to it
-<a href=#554 id=554 data-nosnippet>554</a>                // afterward with a let binding. Note that since we recur first then push to the
-<a href=#555 id=555 data-nosnippet>555</a>                // end of the list we're evaluating side-effects such that in `a[i][j]`, `i` will
-<a href=#556 id=556 data-nosnippet>556</a>                // be evaluated first, followed by `j`.
-<a href=#557 id=557 data-nosnippet>557</a>                </span><span class="kw">if let </span><span class="prelude-val">Some</span>((index_definition, new_index)) =
-<a href=#558 id=558 data-nosnippet>558</a>                    <span class="self">self</span>.fresh_definition_for_lvalue_index(index, index_type, expr_location)
-<a href=#559 id=559 data-nosnippet>559</a>                {
-<a href=#560 id=560 data-nosnippet>560</a>                    index = new_index;
-<a href=#561 id=561 data-nosnippet>561</a>                    statements.push(index_definition);
-<a href=#562 id=562 data-nosnippet>562</a>                }
-<a href=#563 id=563 data-nosnippet>563</a>
-<a href=#564 id=564 data-nosnippet>564</a>                <span class="comment">// Before we check that the lvalue is an array, try to dereference it as many times
-<a href=#565 id=565 data-nosnippet>565</a>                // as needed to unwrap any `&amp;` or `&amp;mut` wrappers.
-<a href=#566 id=566 data-nosnippet>566</a>                </span><span class="kw">while let </span>Type::Reference(element, <span class="kw">_</span>) = lvalue_type.follow_bindings() {
-<a href=#567 id=567 data-nosnippet>567</a>                    <span class="kw">let </span>element_type = element.as_ref().clone();
-<a href=#568 id=568 data-nosnippet>568</a>                    lvalue = HirLValue::Dereference {
-<a href=#569 id=569 data-nosnippet>569</a>                        lvalue: Box::new(lvalue),
-<a href=#570 id=570 data-nosnippet>570</a>                        element_type,
-<a href=#571 id=571 data-nosnippet>571</a>                        location,
-<a href=#572 id=572 data-nosnippet>572</a>                        implicitly_added: <span class="bool-val">true</span>,
-<a href=#573 id=573 data-nosnippet>573</a>                    };
-<a href=#574 id=574 data-nosnippet>574</a>                    lvalue_type = <span class="kw-2">*</span>element;
-<a href=#575 id=575 data-nosnippet>575</a>                    <span class="comment">// We know this value to be mutable now since we found an `&amp;mut`
-<a href=#576 id=576 data-nosnippet>576</a>                    </span>mutable = <span class="bool-val">true</span>;
-<a href=#577 id=577 data-nosnippet>577</a>                }
-<a href=#578 id=578 data-nosnippet>578</a>
-<a href=#579 id=579 data-nosnippet>579</a>                <span class="kw">let </span>typ = <span class="kw">match </span>lvalue_type.follow_bindings() {
-<a href=#580 id=580 data-nosnippet>580</a>                    Type::Array(<span class="kw">_</span>, elem_type) =&gt; <span class="kw-2">*</span>elem_type,
-<a href=#581 id=581 data-nosnippet>581</a>                    Type::Vector(elem_type) =&gt; <span class="kw-2">*</span>elem_type,
-<a href=#582 id=582 data-nosnippet>582</a>                    Type::Error =&gt; Type::Error,
-<a href=#583 id=583 data-nosnippet>583</a>                    Type::String(<span class="kw">_</span>) =&gt; {
-<a href=#584 id=584 data-nosnippet>584</a>                        <span class="kw">let </span>(_id, _lvalue_name, lvalue_location) =
-<a href=#585 id=585 data-nosnippet>585</a>                            <span class="self">self</span>.get_lvalue_error_info(<span class="kw-2">&amp;</span>lvalue);
-<a href=#586 id=586 data-nosnippet>586</a>                        <span class="self">self</span>.push_err(TypeCheckError::StringIndexAssign {
-<a href=#587 id=587 data-nosnippet>587</a>                            location: lvalue_location,
-<a href=#588 id=588 data-nosnippet>588</a>                        });
-<a href=#589 id=589 data-nosnippet>589</a>                        Type::Error
-<a href=#590 id=590 data-nosnippet>590</a>                    }
-<a href=#591 id=591 data-nosnippet>591</a>                    Type::TypeVariable(<span class="kw">_</span>) =&gt; {
-<a href=#592 id=592 data-nosnippet>592</a>                        <span class="self">self</span>.push_err(TypeCheckError::TypeAnnotationsNeededForIndex { location });
-<a href=#593 id=593 data-nosnippet>593</a>                        Type::Error
-<a href=#594 id=594 data-nosnippet>594</a>                    }
-<a href=#595 id=595 data-nosnippet>595</a>                    other =&gt; {
-<a href=#596 id=596 data-nosnippet>596</a>                        <span class="self">self</span>.push_err(TypeCheckError::TypeMismatch {
-<a href=#597 id=597 data-nosnippet>597</a>                            expected_typ: <span class="string">"array"</span>.to_string(),
-<a href=#598 id=598 data-nosnippet>598</a>                            expr_typ: other.to_string(),
-<a href=#599 id=599 data-nosnippet>599</a>                            expr_location: location,
-<a href=#600 id=600 data-nosnippet>600</a>                        });
-<a href=#601 id=601 data-nosnippet>601</a>                        Type::Error
-<a href=#602 id=602 data-nosnippet>602</a>                    }
-<a href=#603 id=603 data-nosnippet>603</a>                };
-<a href=#604 id=604 data-nosnippet>604</a>
-<a href=#605 id=605 data-nosnippet>605</a>                <span class="kw">let </span>array = Box::new(lvalue);
-<a href=#606 id=606 data-nosnippet>606</a>                <span class="kw">let </span>array_type = typ.clone();
-<a href=#607 id=607 data-nosnippet>607</a>                (HirLValue::Index { array, index, typ, location }, array_type, mutable, statements)
-<a href=#608 id=608 data-nosnippet>608</a>            }
-<a href=#609 id=609 data-nosnippet>609</a>            LValue::Dereference(lvalue, location) =&gt; {
-<a href=#610 id=610 data-nosnippet>610</a>                <span class="kw">let </span>(lvalue, reference_type, <span class="kw">_</span>, statements) = <span class="self">self</span>.elaborate_lvalue(<span class="kw-2">*</span>lvalue);
-<a href=#611 id=611 data-nosnippet>611</a>                <span class="kw">let </span>lvalue = Box::new(lvalue);
-<a href=#612 id=612 data-nosnippet>612</a>
-<a href=#613 id=613 data-nosnippet>613</a>                <span class="kw">let </span>element_type = Type::type_variable(<span class="self">self</span>.interner.next_type_variable_id());
-<a href=#614 id=614 data-nosnippet>614</a>
-<a href=#615 id=615 data-nosnippet>615</a>                <span class="comment">// Always expect a mutable reference here since we're storing to it
-<a href=#616 id=616 data-nosnippet>616</a>                </span><span class="kw">let </span>expected_type = Type::Reference(Box::new(element_type.clone()), <span class="bool-val">true</span>);
-<a href=#617 id=617 data-nosnippet>617</a>
-<a href=#618 id=618 data-nosnippet>618</a>                <span class="self">self</span>.unify(<span class="kw-2">&amp;</span>reference_type, <span class="kw-2">&amp;</span>expected_type, || TypeCheckError::TypeMismatch {
-<a href=#619 id=619 data-nosnippet>619</a>                    expected_typ: expected_type.to_string(),
-<a href=#620 id=620 data-nosnippet>620</a>                    expr_typ: reference_type.to_string(),
-<a href=#621 id=621 data-nosnippet>621</a>                    expr_location: location,
-<a href=#622 id=622 data-nosnippet>622</a>                });
-<a href=#623 id=623 data-nosnippet>623</a>
-<a href=#624 id=624 data-nosnippet>624</a>                <span class="comment">// Dereferences are always mutable since we already type checked against a &amp;mut T
-<a href=#625 id=625 data-nosnippet>625</a>                </span><span class="kw">let </span>typ = element_type.clone();
-<a href=#626 id=626 data-nosnippet>626</a>                <span class="kw">let </span>lvalue = HirLValue::Dereference {
-<a href=#627 id=627 data-nosnippet>627</a>                    lvalue,
-<a href=#628 id=628 data-nosnippet>628</a>                    element_type,
-<a href=#629 id=629 data-nosnippet>629</a>                    location,
-<a href=#630 id=630 data-nosnippet>630</a>                    implicitly_added: <span class="bool-val">false</span>,
-<a href=#631 id=631 data-nosnippet>631</a>                };
-<a href=#632 id=632 data-nosnippet>632</a>                (lvalue, typ, <span class="bool-val">true</span>, statements)
-<a href=#633 id=633 data-nosnippet>633</a>            }
-<a href=#634 id=634 data-nosnippet>634</a>            LValue::Interned(id, location) =&gt; {
-<a href=#635 id=635 data-nosnippet>635</a>                <span class="kw">let </span>lvalue = <span class="self">self</span>.interner.get_lvalue(id, location).clone();
-<a href=#636 id=636 data-nosnippet>636</a>                <span class="self">self</span>.elaborate_lvalue(lvalue)
-<a href=#637 id=637 data-nosnippet>637</a>            }
-<a href=#638 id=638 data-nosnippet>638</a>        }
-<a href=#639 id=639 data-nosnippet>639</a>    }
-<a href=#640 id=640 data-nosnippet>640</a>
-<a href=#641 id=641 data-nosnippet>641</a>    <span class="kw">fn </span>elaborate_lvalue_ident(
-<a href=#642 id=642 data-nosnippet>642</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#643 id=643 data-nosnippet>643</a>        ident: HirIdent,
-<a href=#644 id=644 data-nosnippet>644</a>        location: Location,
-<a href=#645 id=645 data-nosnippet>645</a>    ) -&gt; (HirLValue, Type, bool, Vec&lt;StmtId&gt;) {
-<a href=#646 id=646 data-nosnippet>646</a>        <span class="kw">let </span>definition = <span class="self">self</span>.interner.definition(ident.id);
-<a href=#647 id=647 data-nosnippet>647</a>        <span class="kw">let </span>mutable = definition.mutable;
-<a href=#648 id=648 data-nosnippet>648</a>
-<a href=#649 id=649 data-nosnippet>649</a>        <span class="kw">if </span>definition.comptime &amp;&amp; !<span class="self">self</span>.in_comptime_context() {
-<a href=#650 id=650 data-nosnippet>650</a>            <span class="self">self</span>.push_err(ResolverError::MutatingComptimeInNonComptimeContext {
-<a href=#651 id=651 data-nosnippet>651</a>                name: definition.name.clone(),
-<a href=#652 id=652 data-nosnippet>652</a>                location: ident.location,
-<a href=#653 id=653 data-nosnippet>653</a>            });
-<a href=#654 id=654 data-nosnippet>654</a>        }
-<a href=#655 id=655 data-nosnippet>655</a>
-<a href=#656 id=656 data-nosnippet>656</a>        <span class="kw">let </span>typ = <span class="self">self</span>.interner.definition_type(ident.id).instantiate(<span class="self">self</span>.interner).<span class="number">0</span>;
-<a href=#657 id=657 data-nosnippet>657</a>        <span class="kw">let </span>typ = typ.follow_bindings();
-<a href=#658 id=658 data-nosnippet>658</a>
-<a href=#659 id=659 data-nosnippet>659</a>        <span class="self">self</span>.interner.add_local_reference(ident.id, location);
-<a href=#660 id=660 data-nosnippet>660</a>
-<a href=#661 id=661 data-nosnippet>661</a>        (HirLValue::Ident(ident.clone(), typ.clone()), typ, mutable, Vec::new())
-<a href=#662 id=662 data-nosnippet>662</a>    }
-<a href=#663 id=663 data-nosnippet>663</a>
-<a href=#664 id=664 data-nosnippet>664</a>    <span class="kw">fn </span>fresh_definition_for_lvalue_index(
-<a href=#665 id=665 data-nosnippet>665</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#666 id=666 data-nosnippet>666</a>        expr: ExprId,
-<a href=#667 id=667 data-nosnippet>667</a>        typ: Type,
-<a href=#668 id=668 data-nosnippet>668</a>        location: Location,
-<a href=#669 id=669 data-nosnippet>669</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;(StmtId, ExprId)&gt; {
-<a href=#670 id=670 data-nosnippet>670</a>        <span class="comment">// If the original expression trivially cannot have side-effects, don't bother cluttering
-<a href=#671 id=671 data-nosnippet>671</a>        // the output with a let binding. Note that array literals can have side-effects but these
-<a href=#672 id=672 data-nosnippet>672</a>        // would produce type errors anyway.
-<a href=#673 id=673 data-nosnippet>673</a>        </span><span class="kw">if </span><span class="macro">matches!</span>(
-<a href=#674 id=674 data-nosnippet>674</a>            <span class="self">self</span>.interner.expression(<span class="kw-2">&amp;</span>expr),
-<a href=#675 id=675 data-nosnippet>675</a>            HirExpression::Ident(..) | HirExpression::Literal(..)
-<a href=#676 id=676 data-nosnippet>676</a>        ) {
-<a href=#677 id=677 data-nosnippet>677</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#678 id=678 data-nosnippet>678</a>        }
-<a href=#679 id=679 data-nosnippet>679</a>
-<a href=#680 id=680 data-nosnippet>680</a>        <span class="kw">let </span>id = <span class="self">self</span>.interner.push_definition(
-<a href=#681 id=681 data-nosnippet>681</a>            <span class="macro">format!</span>(<span class="string">"i_{}"</span>, <span class="self">self</span>.interner.definition_count()),
+<a href=#502 id=502 data-nosnippet>502</a>
+<a href=#503 id=503 data-nosnippet>503</a>                <span class="kw">let </span>object_ref = <span class="kw-2">&amp;mut </span>object;
+<a href=#504 id=504 data-nosnippet>504</a>                <span class="kw">let </span>mutable_ref = <span class="kw-2">&amp;mut </span>mutable;
+<a href=#505 id=505 data-nosnippet>505</a>
+<a href=#506 id=506 data-nosnippet>506</a>                <span class="kw">let </span>dereference_lhs = <span class="kw">move </span>|<span class="kw">_</span>: <span class="kw-2">&amp;mut </span><span class="self">Self</span>, <span class="kw">_</span>, element_type| {
+<a href=#507 id=507 data-nosnippet>507</a>                    <span class="comment">// We must create a temporary value first to move out of object_ref before
+<a href=#508 id=508 data-nosnippet>508</a>                    // we eventually reassign to it.
+<a href=#509 id=509 data-nosnippet>509</a>                    </span><span class="kw">let </span>tmp_value = HirLValue::Error { location };
+<a href=#510 id=510 data-nosnippet>510</a>
+<a href=#511 id=511 data-nosnippet>511</a>                    <span class="kw">let </span>lvalue = std::mem::replace(object_ref, Box::new(tmp_value));
+<a href=#512 id=512 data-nosnippet>512</a>                    <span class="kw-2">**</span>object_ref = HirLValue::Dereference {
+<a href=#513 id=513 data-nosnippet>513</a>                        lvalue,
+<a href=#514 id=514 data-nosnippet>514</a>                        element_type,
+<a href=#515 id=515 data-nosnippet>515</a>                        location,
+<a href=#516 id=516 data-nosnippet>516</a>                        implicitly_added: <span class="bool-val">true</span>,
+<a href=#517 id=517 data-nosnippet>517</a>                    };
+<a href=#518 id=518 data-nosnippet>518</a>                    <span class="kw-2">*</span>mutable_ref = <span class="bool-val">true</span>;
+<a href=#519 id=519 data-nosnippet>519</a>                };
+<a href=#520 id=520 data-nosnippet>520</a>
+<a href=#521 id=521 data-nosnippet>521</a>                <span class="kw">let </span>name = field_name.as_str();
+<a href=#522 id=522 data-nosnippet>522</a>                <span class="kw">let </span>(object_type, field_index) = <span class="self">self
+<a href=#523 id=523 data-nosnippet>523</a>                    </span>.check_field_access(
+<a href=#524 id=524 data-nosnippet>524</a>                        <span class="kw-2">&amp;</span>lhs_type,
+<a href=#525 id=525 data-nosnippet>525</a>                        name,
+<a href=#526 id=526 data-nosnippet>526</a>                        field_name.location(),
+<a href=#527 id=527 data-nosnippet>527</a>                        <span class="prelude-val">Some</span>(dereference_lhs),
+<a href=#528 id=528 data-nosnippet>528</a>                    )
+<a href=#529 id=529 data-nosnippet>529</a>                    .unwrap_or((Type::Error, <span class="number">0</span>));
+<a href=#530 id=530 data-nosnippet>530</a>
+<a href=#531 id=531 data-nosnippet>531</a>                <span class="kw">let </span>field_index = <span class="prelude-val">Some</span>(field_index);
+<a href=#532 id=532 data-nosnippet>532</a>                <span class="kw">let </span>typ = object_type.clone();
+<a href=#533 id=533 data-nosnippet>533</a>                <span class="kw">let </span>lvalue =
+<a href=#534 id=534 data-nosnippet>534</a>                    HirLValue::MemberAccess { object, field_name, field_index, typ, location };
+<a href=#535 id=535 data-nosnippet>535</a>                (lvalue, object_type, mutable, statements)
+<a href=#536 id=536 data-nosnippet>536</a>            }
+<a href=#537 id=537 data-nosnippet>537</a>            LValue::Index { array, index, location } =&gt; {
+<a href=#538 id=538 data-nosnippet>538</a>                <span class="kw">let </span>expr_location = index.location;
+<a href=#539 id=539 data-nosnippet>539</a>                <span class="kw">let </span>(<span class="kw-2">mut </span>index, index_type) = <span class="self">self</span>.elaborate_expression(index);
+<a href=#540 id=540 data-nosnippet>540</a>
+<a href=#541 id=541 data-nosnippet>541</a>                <span class="kw">let </span>expected = Type::u32();
+<a href=#542 id=542 data-nosnippet>542</a>                <span class="self">self</span>.unify(<span class="kw-2">&amp;</span>index_type, <span class="kw-2">&amp;</span>expected, || TypeCheckError::TypeMismatchWithSource {
+<a href=#543 id=543 data-nosnippet>543</a>                    expected: expected.clone(),
+<a href=#544 id=544 data-nosnippet>544</a>                    actual: index_type.clone(),
+<a href=#545 id=545 data-nosnippet>545</a>                    location: expr_location,
+<a href=#546 id=546 data-nosnippet>546</a>                    source: Source::ArrayIndex,
+<a href=#547 id=547 data-nosnippet>547</a>                });
+<a href=#548 id=548 data-nosnippet>548</a>
+<a href=#549 id=549 data-nosnippet>549</a>                <span class="kw">let </span>(<span class="kw-2">mut </span>lvalue, <span class="kw-2">mut </span>lvalue_type, <span class="kw-2">mut </span>mutable, <span class="kw-2">mut </span>statements) =
+<a href=#550 id=550 data-nosnippet>550</a>                    <span class="self">self</span>.elaborate_lvalue(<span class="kw-2">*</span>array);
+<a href=#551 id=551 data-nosnippet>551</a>
+<a href=#552 id=552 data-nosnippet>552</a>                <span class="comment">// Push the index expression to the end of the new statements list, referring to it
+<a href=#553 id=553 data-nosnippet>553</a>                // afterward with a let binding. Note that since we recur first then push to the
+<a href=#554 id=554 data-nosnippet>554</a>                // end of the list we're evaluating side-effects such that in `a[i][j]`, `i` will
+<a href=#555 id=555 data-nosnippet>555</a>                // be evaluated first, followed by `j`.
+<a href=#556 id=556 data-nosnippet>556</a>                </span><span class="kw">if let </span><span class="prelude-val">Some</span>((index_definition, new_index)) =
+<a href=#557 id=557 data-nosnippet>557</a>                    <span class="self">self</span>.fresh_definition_for_lvalue_index(index, index_type, expr_location)
+<a href=#558 id=558 data-nosnippet>558</a>                {
+<a href=#559 id=559 data-nosnippet>559</a>                    index = new_index;
+<a href=#560 id=560 data-nosnippet>560</a>                    statements.push(index_definition);
+<a href=#561 id=561 data-nosnippet>561</a>                }
+<a href=#562 id=562 data-nosnippet>562</a>
+<a href=#563 id=563 data-nosnippet>563</a>                <span class="comment">// Before we check that the lvalue is an array, try to dereference it as many times
+<a href=#564 id=564 data-nosnippet>564</a>                // as needed to unwrap any `&amp;` or `&amp;mut` wrappers.
+<a href=#565 id=565 data-nosnippet>565</a>                </span><span class="kw">while let </span>Type::Reference(element, <span class="kw">_</span>) = lvalue_type.follow_bindings() {
+<a href=#566 id=566 data-nosnippet>566</a>                    <span class="kw">let </span>element_type = element.as_ref().clone();
+<a href=#567 id=567 data-nosnippet>567</a>                    lvalue = HirLValue::Dereference {
+<a href=#568 id=568 data-nosnippet>568</a>                        lvalue: Box::new(lvalue),
+<a href=#569 id=569 data-nosnippet>569</a>                        element_type,
+<a href=#570 id=570 data-nosnippet>570</a>                        location,
+<a href=#571 id=571 data-nosnippet>571</a>                        implicitly_added: <span class="bool-val">true</span>,
+<a href=#572 id=572 data-nosnippet>572</a>                    };
+<a href=#573 id=573 data-nosnippet>573</a>                    lvalue_type = <span class="kw-2">*</span>element;
+<a href=#574 id=574 data-nosnippet>574</a>                    <span class="comment">// We know this value to be mutable now since we found an `&amp;mut`
+<a href=#575 id=575 data-nosnippet>575</a>                    </span>mutable = <span class="bool-val">true</span>;
+<a href=#576 id=576 data-nosnippet>576</a>                }
+<a href=#577 id=577 data-nosnippet>577</a>
+<a href=#578 id=578 data-nosnippet>578</a>                <span class="kw">let </span>typ = <span class="kw">match </span>lvalue_type.follow_bindings() {
+<a href=#579 id=579 data-nosnippet>579</a>                    Type::Array(<span class="kw">_</span>, elem_type) =&gt; <span class="kw-2">*</span>elem_type,
+<a href=#580 id=580 data-nosnippet>580</a>                    Type::Vector(elem_type) =&gt; <span class="kw-2">*</span>elem_type,
+<a href=#581 id=581 data-nosnippet>581</a>                    Type::Error =&gt; Type::Error,
+<a href=#582 id=582 data-nosnippet>582</a>                    Type::String(<span class="kw">_</span>) =&gt; {
+<a href=#583 id=583 data-nosnippet>583</a>                        <span class="kw">let </span>(_id, _lvalue_name, lvalue_location) =
+<a href=#584 id=584 data-nosnippet>584</a>                            <span class="self">self</span>.get_lvalue_error_info(<span class="kw-2">&amp;</span>lvalue);
+<a href=#585 id=585 data-nosnippet>585</a>                        <span class="self">self</span>.push_err(TypeCheckError::StringIndexAssign {
+<a href=#586 id=586 data-nosnippet>586</a>                            location: lvalue_location,
+<a href=#587 id=587 data-nosnippet>587</a>                        });
+<a href=#588 id=588 data-nosnippet>588</a>                        Type::Error
+<a href=#589 id=589 data-nosnippet>589</a>                    }
+<a href=#590 id=590 data-nosnippet>590</a>                    Type::TypeVariable(<span class="kw">_</span>) =&gt; {
+<a href=#591 id=591 data-nosnippet>591</a>                        <span class="self">self</span>.push_err(TypeCheckError::TypeAnnotationsNeededForIndex { location });
+<a href=#592 id=592 data-nosnippet>592</a>                        Type::Error
+<a href=#593 id=593 data-nosnippet>593</a>                    }
+<a href=#594 id=594 data-nosnippet>594</a>                    other =&gt; {
+<a href=#595 id=595 data-nosnippet>595</a>                        <span class="self">self</span>.push_err(TypeCheckError::TypeMismatch {
+<a href=#596 id=596 data-nosnippet>596</a>                            expected_typ: <span class="string">"array"</span>.to_string(),
+<a href=#597 id=597 data-nosnippet>597</a>                            expr_typ: other.to_string(),
+<a href=#598 id=598 data-nosnippet>598</a>                            expr_location: location,
+<a href=#599 id=599 data-nosnippet>599</a>                        });
+<a href=#600 id=600 data-nosnippet>600</a>                        Type::Error
+<a href=#601 id=601 data-nosnippet>601</a>                    }
+<a href=#602 id=602 data-nosnippet>602</a>                };
+<a href=#603 id=603 data-nosnippet>603</a>
+<a href=#604 id=604 data-nosnippet>604</a>                <span class="kw">let </span>array = Box::new(lvalue);
+<a href=#605 id=605 data-nosnippet>605</a>                <span class="kw">let </span>array_type = typ.clone();
+<a href=#606 id=606 data-nosnippet>606</a>                (HirLValue::Index { array, index, typ, location }, array_type, mutable, statements)
+<a href=#607 id=607 data-nosnippet>607</a>            }
+<a href=#608 id=608 data-nosnippet>608</a>            LValue::Dereference(lvalue, location) =&gt; {
+<a href=#609 id=609 data-nosnippet>609</a>                <span class="kw">let </span>(lvalue, reference_type, <span class="kw">_</span>, statements) = <span class="self">self</span>.elaborate_lvalue(<span class="kw-2">*</span>lvalue);
+<a href=#610 id=610 data-nosnippet>610</a>                <span class="kw">let </span>lvalue = Box::new(lvalue);
+<a href=#611 id=611 data-nosnippet>611</a>
+<a href=#612 id=612 data-nosnippet>612</a>                <span class="kw">let </span>element_type = Type::type_variable(<span class="self">self</span>.interner.next_type_variable_id());
+<a href=#613 id=613 data-nosnippet>613</a>
+<a href=#614 id=614 data-nosnippet>614</a>                <span class="comment">// Always expect a mutable reference here since we're storing to it
+<a href=#615 id=615 data-nosnippet>615</a>                </span><span class="kw">let </span>expected_type = Type::Reference(Box::new(element_type.clone()), <span class="bool-val">true</span>);
+<a href=#616 id=616 data-nosnippet>616</a>
+<a href=#617 id=617 data-nosnippet>617</a>                <span class="self">self</span>.unify(<span class="kw-2">&amp;</span>reference_type, <span class="kw-2">&amp;</span>expected_type, || TypeCheckError::TypeMismatch {
+<a href=#618 id=618 data-nosnippet>618</a>                    expected_typ: expected_type.to_string(),
+<a href=#619 id=619 data-nosnippet>619</a>                    expr_typ: reference_type.to_string(),
+<a href=#620 id=620 data-nosnippet>620</a>                    expr_location: location,
+<a href=#621 id=621 data-nosnippet>621</a>                });
+<a href=#622 id=622 data-nosnippet>622</a>
+<a href=#623 id=623 data-nosnippet>623</a>                <span class="comment">// Dereferences are always mutable since we already type checked against a &amp;mut T
+<a href=#624 id=624 data-nosnippet>624</a>                </span><span class="kw">let </span>typ = element_type.clone();
+<a href=#625 id=625 data-nosnippet>625</a>                <span class="kw">let </span>lvalue = HirLValue::Dereference {
+<a href=#626 id=626 data-nosnippet>626</a>                    lvalue,
+<a href=#627 id=627 data-nosnippet>627</a>                    element_type,
+<a href=#628 id=628 data-nosnippet>628</a>                    location,
+<a href=#629 id=629 data-nosnippet>629</a>                    implicitly_added: <span class="bool-val">false</span>,
+<a href=#630 id=630 data-nosnippet>630</a>                };
+<a href=#631 id=631 data-nosnippet>631</a>                (lvalue, typ, <span class="bool-val">true</span>, statements)
+<a href=#632 id=632 data-nosnippet>632</a>            }
+<a href=#633 id=633 data-nosnippet>633</a>            LValue::Interned(id, location) =&gt; {
+<a href=#634 id=634 data-nosnippet>634</a>                <span class="kw">let </span>lvalue = <span class="self">self</span>.interner.get_lvalue(id, location);
+<a href=#635 id=635 data-nosnippet>635</a>                <span class="self">self</span>.elaborate_lvalue(lvalue)
+<a href=#636 id=636 data-nosnippet>636</a>            }
+<a href=#637 id=637 data-nosnippet>637</a>        }
+<a href=#638 id=638 data-nosnippet>638</a>    }
+<a href=#639 id=639 data-nosnippet>639</a>
+<a href=#640 id=640 data-nosnippet>640</a>    <span class="kw">fn </span>elaborate_lvalue_ident(
+<a href=#641 id=641 data-nosnippet>641</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#642 id=642 data-nosnippet>642</a>        ident: HirIdent,
+<a href=#643 id=643 data-nosnippet>643</a>        location: Location,
+<a href=#644 id=644 data-nosnippet>644</a>    ) -&gt; (HirLValue, Type, bool, Vec&lt;StmtId&gt;) {
+<a href=#645 id=645 data-nosnippet>645</a>        <span class="kw">let </span>definition = <span class="self">self</span>.interner.definition(ident.id);
+<a href=#646 id=646 data-nosnippet>646</a>        <span class="kw">let </span>mutable = definition.mutable;
+<a href=#647 id=647 data-nosnippet>647</a>
+<a href=#648 id=648 data-nosnippet>648</a>        <span class="kw">if </span>definition.comptime &amp;&amp; !<span class="self">self</span>.in_comptime_context() {
+<a href=#649 id=649 data-nosnippet>649</a>            <span class="self">self</span>.push_err(ResolverError::MutatingComptimeInNonComptimeContext {
+<a href=#650 id=650 data-nosnippet>650</a>                name: definition.name.clone(),
+<a href=#651 id=651 data-nosnippet>651</a>                location: ident.location,
+<a href=#652 id=652 data-nosnippet>652</a>            });
+<a href=#653 id=653 data-nosnippet>653</a>        }
+<a href=#654 id=654 data-nosnippet>654</a>
+<a href=#655 id=655 data-nosnippet>655</a>        <span class="kw">let </span>typ = <span class="self">self</span>.interner.definition_type(ident.id).instantiate(<span class="self">self</span>.interner).<span class="number">0</span>;
+<a href=#656 id=656 data-nosnippet>656</a>        <span class="kw">let </span>typ = typ.follow_bindings();
+<a href=#657 id=657 data-nosnippet>657</a>
+<a href=#658 id=658 data-nosnippet>658</a>        <span class="self">self</span>.interner.add_local_reference(ident.id, location);
+<a href=#659 id=659 data-nosnippet>659</a>
+<a href=#660 id=660 data-nosnippet>660</a>        (HirLValue::Ident(ident, typ.clone()), typ, mutable, Vec::new())
+<a href=#661 id=661 data-nosnippet>661</a>    }
+<a href=#662 id=662 data-nosnippet>662</a>
+<a href=#663 id=663 data-nosnippet>663</a>    <span class="kw">fn </span>fresh_definition_for_lvalue_index(
+<a href=#664 id=664 data-nosnippet>664</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#665 id=665 data-nosnippet>665</a>        expr: ExprId,
+<a href=#666 id=666 data-nosnippet>666</a>        typ: Type,
+<a href=#667 id=667 data-nosnippet>667</a>        location: Location,
+<a href=#668 id=668 data-nosnippet>668</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;(StmtId, ExprId)&gt; {
+<a href=#669 id=669 data-nosnippet>669</a>        <span class="comment">// If the original expression trivially cannot have side-effects, don't bother cluttering
+<a href=#670 id=670 data-nosnippet>670</a>        // the output with a let binding. Note that array literals can have side-effects but these
+<a href=#671 id=671 data-nosnippet>671</a>        // would produce type errors anyway.
+<a href=#672 id=672 data-nosnippet>672</a>        </span><span class="kw">if </span><span class="macro">matches!</span>(
+<a href=#673 id=673 data-nosnippet>673</a>            <span class="self">self</span>.interner.expression(<span class="kw-2">&amp;</span>expr),
+<a href=#674 id=674 data-nosnippet>674</a>            HirExpression::Ident(..) | HirExpression::Literal(..)
+<a href=#675 id=675 data-nosnippet>675</a>        ) {
+<a href=#676 id=676 data-nosnippet>676</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#677 id=677 data-nosnippet>677</a>        }
+<a href=#678 id=678 data-nosnippet>678</a>
+<a href=#679 id=679 data-nosnippet>679</a>        <span class="kw">let </span>id = <span class="self">self</span>.interner.push_definition(
+<a href=#680 id=680 data-nosnippet>680</a>            <span class="macro">format!</span>(<span class="string">"i_{}"</span>, <span class="self">self</span>.interner.definition_count()),
+<a href=#681 id=681 data-nosnippet>681</a>            <span class="bool-val">false</span>,
 <a href=#682 id=682 data-nosnippet>682</a>            <span class="bool-val">false</span>,
-<a href=#683 id=683 data-nosnippet>683</a>            <span class="bool-val">false</span>,
-<a href=#684 id=684 data-nosnippet>684</a>            DefinitionKind::Local(<span class="prelude-val">None</span>),
-<a href=#685 id=685 data-nosnippet>685</a>            location,
-<a href=#686 id=686 data-nosnippet>686</a>        );
-<a href=#687 id=687 data-nosnippet>687</a>        <span class="kw">let </span>ident = HirIdent::non_trait_method(id, location);
-<a href=#688 id=688 data-nosnippet>688</a>        <span class="kw">let </span>ident_expr = HirExpression::Ident(ident.clone(), <span class="prelude-val">None</span>);
-<a href=#689 id=689 data-nosnippet>689</a>
-<a href=#690 id=690 data-nosnippet>690</a>        <span class="kw">let </span>ident_id = <span class="self">self</span>.interner.push_expr_full(ident_expr, location, typ.clone());
-<a href=#691 id=691 data-nosnippet>691</a>
-<a href=#692 id=692 data-nosnippet>692</a>        <span class="kw">let </span>pattern = HirPattern::Identifier(ident);
-<a href=#693 id=693 data-nosnippet>693</a>        <span class="kw">let </span>let_ = HirStatement::Let(HirLetStatement::basic(pattern, typ, expr));
-<a href=#694 id=694 data-nosnippet>694</a>        <span class="kw">let </span>let_ = <span class="self">self</span>.interner.push_stmt_full(let_, location);
-<a href=#695 id=695 data-nosnippet>695</a>        <span class="prelude-val">Some</span>((let_, ident_id))
-<a href=#696 id=696 data-nosnippet>696</a>    }
-<a href=#697 id=697 data-nosnippet>697</a>
-<a href=#698 id=698 data-nosnippet>698</a>    <span class="kw">fn </span>elaborate_comptime_statement(
-<a href=#699 id=699 data-nosnippet>699</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#700 id=700 data-nosnippet>700</a>        statement: Statement,
-<a href=#701 id=701 data-nosnippet>701</a>        target_type: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Type&gt;,
-<a href=#702 id=702 data-nosnippet>702</a>    ) -&gt; (HirStatement, Type) {
-<a href=#703 id=703 data-nosnippet>703</a>        <span class="kw">let </span>location = statement.location;
-<a href=#704 id=704 data-nosnippet>704</a>        <span class="kw">let </span>hir_statement = <span class="self">self</span>.elaborate_in_comptime_context(|this| {
-<a href=#705 id=705 data-nosnippet>705</a>            <span class="kw">let </span>(hir_statement, typ) = this.elaborate_statement(statement);
-<a href=#706 id=706 data-nosnippet>706</a>
-<a href=#707 id=707 data-nosnippet>707</a>            <span class="comment">// If the comptime statement is expected to return a specific type, unify their types.
-<a href=#708 id=708 data-nosnippet>708</a>            // This for example allows this code to compile:
-<a href=#709 id=709 data-nosnippet>709</a>            //
-<a href=#710 id=710 data-nosnippet>710</a>            // ```
-<a href=#711 id=711 data-nosnippet>711</a>            // fn foo() -&gt; u8 {
-<a href=#712 id=712 data-nosnippet>712</a>            //   comptime { 1 }
-<a href=#713 id=713 data-nosnippet>713</a>            // }
-<a href=#714 id=714 data-nosnippet>714</a>            // ```
-<a href=#715 id=715 data-nosnippet>715</a>            //
-<a href=#716 id=716 data-nosnippet>716</a>            // If we don't do this, "1" will end up with the default integer or field type,
-<a href=#717 id=717 data-nosnippet>717</a>            // which is Field.
-<a href=#718 id=718 data-nosnippet>718</a>            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(target_type) = target_type {
-<a href=#719 id=719 data-nosnippet>719</a>                this.unify(<span class="kw-2">&amp;</span>typ, target_type, || TypeCheckError::TypeMismatch {
-<a href=#720 id=720 data-nosnippet>720</a>                    expected_typ: target_type.to_string(),
-<a href=#721 id=721 data-nosnippet>721</a>                    expr_typ: typ.to_string(),
-<a href=#722 id=722 data-nosnippet>722</a>                    expr_location: location,
-<a href=#723 id=723 data-nosnippet>723</a>                });
-<a href=#724 id=724 data-nosnippet>724</a>            }
-<a href=#725 id=725 data-nosnippet>725</a>
-<a href=#726 id=726 data-nosnippet>726</a>            hir_statement
-<a href=#727 id=727 data-nosnippet>727</a>        });
-<a href=#728 id=728 data-nosnippet>728</a>
-<a href=#729 id=729 data-nosnippet>729</a>        <span class="comment">// Run the interpreter - it will check if execution has been halted
-<a href=#730 id=730 data-nosnippet>730</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>interpreter = <span class="self">self</span>.setup_interpreter();
-<a href=#731 id=731 data-nosnippet>731</a>        <span class="kw">let </span>value = interpreter.evaluate_statement(hir_statement);
-<a href=#732 id=732 data-nosnippet>732</a>
-<a href=#733 id=733 data-nosnippet>733</a>        <span class="kw">let </span>(expr, typ) = <span class="self">self</span>.inline_comptime_value(value, location);
-<a href=#734 id=734 data-nosnippet>734</a>
-<a href=#735 id=735 data-nosnippet>735</a>        <span class="kw">let </span>location = <span class="self">self</span>.interner.id_location(hir_statement);
-<a href=#736 id=736 data-nosnippet>736</a>        <span class="self">self</span>.debug_comptime(location, |interner| expr.to_display_ast(interner).kind);
-<a href=#737 id=737 data-nosnippet>737</a>
-<a href=#738 id=738 data-nosnippet>738</a>        (HirStatement::Expression(expr), typ)
-<a href=#739 id=739 data-nosnippet>739</a>    }
-<a href=#740 id=740 data-nosnippet>740</a>}</code></pre></div></section></main></body></html>
+<a href=#683 id=683 data-nosnippet>683</a>            DefinitionKind::Local(<span class="prelude-val">None</span>),
+<a href=#684 id=684 data-nosnippet>684</a>            location,
+<a href=#685 id=685 data-nosnippet>685</a>        );
+<a href=#686 id=686 data-nosnippet>686</a>        <span class="kw">let </span>ident = HirIdent::non_trait_method(id, location);
+<a href=#687 id=687 data-nosnippet>687</a>        <span class="kw">let </span>ident_expr = HirExpression::Ident(ident.clone(), <span class="prelude-val">None</span>);
+<a href=#688 id=688 data-nosnippet>688</a>
+<a href=#689 id=689 data-nosnippet>689</a>        <span class="kw">let </span>ident_id = <span class="self">self</span>.interner.push_expr_full(ident_expr, location, typ.clone());
+<a href=#690 id=690 data-nosnippet>690</a>
+<a href=#691 id=691 data-nosnippet>691</a>        <span class="kw">let </span>pattern = HirPattern::Identifier(ident);
+<a href=#692 id=692 data-nosnippet>692</a>        <span class="kw">let </span>let_ = HirStatement::Let(HirLetStatement::basic(pattern, typ, expr));
+<a href=#693 id=693 data-nosnippet>693</a>        <span class="kw">let </span>let_ = <span class="self">self</span>.interner.push_stmt_full(let_, location);
+<a href=#694 id=694 data-nosnippet>694</a>        <span class="prelude-val">Some</span>((let_, ident_id))
+<a href=#695 id=695 data-nosnippet>695</a>    }
+<a href=#696 id=696 data-nosnippet>696</a>
+<a href=#697 id=697 data-nosnippet>697</a>    <span class="kw">fn </span>elaborate_comptime_statement(
+<a href=#698 id=698 data-nosnippet>698</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#699 id=699 data-nosnippet>699</a>        statement: Statement,
+<a href=#700 id=700 data-nosnippet>700</a>        target_type: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Type&gt;,
+<a href=#701 id=701 data-nosnippet>701</a>    ) -&gt; (HirStatement, Type) {
+<a href=#702 id=702 data-nosnippet>702</a>        <span class="kw">let </span>location = statement.location;
+<a href=#703 id=703 data-nosnippet>703</a>        <span class="kw">let </span>hir_statement = <span class="self">self</span>.elaborate_in_comptime_context(|this| {
+<a href=#704 id=704 data-nosnippet>704</a>            <span class="kw">let </span>(hir_statement, typ) = this.elaborate_statement(statement);
+<a href=#705 id=705 data-nosnippet>705</a>
+<a href=#706 id=706 data-nosnippet>706</a>            <span class="comment">// If the comptime statement is expected to return a specific type, unify their types.
+<a href=#707 id=707 data-nosnippet>707</a>            // This for example allows this code to compile:
+<a href=#708 id=708 data-nosnippet>708</a>            //
+<a href=#709 id=709 data-nosnippet>709</a>            // ```
+<a href=#710 id=710 data-nosnippet>710</a>            // fn foo() -&gt; u8 {
+<a href=#711 id=711 data-nosnippet>711</a>            //   comptime { 1 }
+<a href=#712 id=712 data-nosnippet>712</a>            // }
+<a href=#713 id=713 data-nosnippet>713</a>            // ```
+<a href=#714 id=714 data-nosnippet>714</a>            //
+<a href=#715 id=715 data-nosnippet>715</a>            // If we don't do this, "1" will end up with the default integer or field type,
+<a href=#716 id=716 data-nosnippet>716</a>            // which is Field.
+<a href=#717 id=717 data-nosnippet>717</a>            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(target_type) = target_type {
+<a href=#718 id=718 data-nosnippet>718</a>                this.unify(<span class="kw-2">&amp;</span>typ, target_type, || TypeCheckError::TypeMismatch {
+<a href=#719 id=719 data-nosnippet>719</a>                    expected_typ: target_type.to_string(),
+<a href=#720 id=720 data-nosnippet>720</a>                    expr_typ: typ.to_string(),
+<a href=#721 id=721 data-nosnippet>721</a>                    expr_location: location,
+<a href=#722 id=722 data-nosnippet>722</a>                });
+<a href=#723 id=723 data-nosnippet>723</a>            }
+<a href=#724 id=724 data-nosnippet>724</a>
+<a href=#725 id=725 data-nosnippet>725</a>            hir_statement
+<a href=#726 id=726 data-nosnippet>726</a>        });
+<a href=#727 id=727 data-nosnippet>727</a>
+<a href=#728 id=728 data-nosnippet>728</a>        <span class="comment">// Run the interpreter - it will check if execution has been halted
+<a href=#729 id=729 data-nosnippet>729</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>interpreter = <span class="self">self</span>.setup_interpreter();
+<a href=#730 id=730 data-nosnippet>730</a>        <span class="kw">let </span>value = interpreter.evaluate_statement(hir_statement);
+<a href=#731 id=731 data-nosnippet>731</a>
+<a href=#732 id=732 data-nosnippet>732</a>        <span class="kw">let </span>(expr, typ) = <span class="self">self</span>.inline_comptime_value(value, location);
+<a href=#733 id=733 data-nosnippet>733</a>
+<a href=#734 id=734 data-nosnippet>734</a>        <span class="kw">let </span>location = <span class="self">self</span>.interner.id_location(hir_statement);
+<a href=#735 id=735 data-nosnippet>735</a>        <span class="self">self</span>.debug_comptime(location, |interner| expr.to_display_ast(interner).kind);
+<a href=#736 id=736 data-nosnippet>736</a>
+<a href=#737 id=737 data-nosnippet>737</a>        (HirStatement::Expression(expr), typ)
+<a href=#738 id=738 data-nosnippet>738</a>    }
+<a href=#739 id=739 data-nosnippet>739</a>}</code></pre></div></section></main></body></html>

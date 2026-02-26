@@ -2374,7 +2374,7 @@
 <a href=#2374 id=2374 data-nosnippet>2374</a>        </span><span class="kw">if </span>this.occurs(target_id) {
 <a href=#2375 id=2375 data-nosnippet>2375</a>            <span class="prelude-val">Err</span>(UnificationError)
 <a href=#2376 id=2376 data-nosnippet>2376</a>        } <span class="kw">else </span>{
-<a href=#2377 id=2377 data-nosnippet>2377</a>            bindings.insert(target_id, (var.clone(), this.kind(), this.clone()));
+<a href=#2377 id=2377 data-nosnippet>2377</a>            bindings.insert(target_id, (var.clone(), this.kind(), this));
 <a href=#2378 id=2378 data-nosnippet>2378</a>            <span class="prelude-val">Ok</span>(())
 <a href=#2379 id=2379 data-nosnippet>2379</a>        }
 <a href=#2380 id=2380 data-nosnippet>2380</a>    }
@@ -2487,8 +2487,8 @@
 <a href=#2487 id=2487 data-nosnippet>2487</a>                    <span class="kw">if </span>to_value == from_value {
 <a href=#2488 id=2488 data-nosnippet>2488</a>                        <span class="prelude-val">Ok</span>(to_value)
 <a href=#2489 id=2489 data-nosnippet>2489</a>                    } <span class="kw">else </span>{
-<a href=#2490 id=2490 data-nosnippet>2490</a>                        <span class="kw">let </span>to = <span class="kw-2">*</span>to.clone();
-<a href=#2491 id=2491 data-nosnippet>2491</a>                        <span class="kw">let </span>from = <span class="kw-2">*</span>from.clone();
+<a href=#2490 id=2490 data-nosnippet>2490</a>                        <span class="kw">let </span>to = <span class="kw-2">*</span>to;
+<a href=#2491 id=2491 data-nosnippet>2491</a>                        <span class="kw">let </span>from = <span class="kw-2">*</span>from;
 <a href=#2492 id=2492 data-nosnippet>2492</a>                        <span class="prelude-val">Err</span>(TypeCheckError::TypeCanonicalizationMismatch {
 <a href=#2493 id=2493 data-nosnippet>2493</a>                            to,
 <a href=#2494 id=2494 data-nosnippet>2494</a>                            from,

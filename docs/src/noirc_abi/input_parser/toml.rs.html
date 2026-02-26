@@ -248,7 +248,7 @@
 <a href=#248 id=248 data-nosnippet>248</a>        <span class="attr">#[test]
 <a href=#249 id=249 data-nosnippet>249</a>        </span><span class="kw">fn </span>signed_integer_serialization_roundtrip((typ, value) <span class="kw">in </span>arb_signed_integer_type_and_value()) {
 <a href=#250 id=250 data-nosnippet>250</a>            <span class="kw">let </span>string_input = TomlTypes::String(value.to_string());
-<a href=#251 id=251 data-nosnippet>251</a>            <span class="kw">let </span>input_value = InputValue::try_from_toml(string_input.clone(), <span class="kw-2">&amp;</span>typ, <span class="string">"foo"</span>).expect(<span class="string">"should be parsable"</span>);
+<a href=#251 id=251 data-nosnippet>251</a>            <span class="kw">let </span>input_value = InputValue::try_from_toml(string_input, <span class="kw-2">&amp;</span>typ, <span class="string">"foo"</span>).expect(<span class="string">"should be parsable"</span>);
 <a href=#252 id=252 data-nosnippet>252</a>            <span class="kw">let </span>TomlTypes::String(output_string) = TomlTypes::try_from_input_value(<span class="kw-2">&amp;</span>input_value, <span class="kw-2">&amp;</span>typ).expect(<span class="string">"should be serializable"</span>) <span class="kw">else </span>{
 <a href=#253 id=253 data-nosnippet>253</a>                <span class="macro">panic!</span>(<span class="string">"wrong type output"</span>);
 <a href=#254 id=254 data-nosnippet>254</a>            };

@@ -25,7 +25,7 @@
 <a href=#25 id=25 data-nosnippet>25</a>    params: DocumentSymbolParams,
 <a href=#26 id=26 data-nosnippet>26</a>) -&gt; <span class="kw">impl </span>Future&lt;Output = <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;DocumentSymbolResponse&gt;, ResponseError&gt;&gt; + <span class="kw">use</span>&lt;&gt; {
 <a href=#27 id=27 data-nosnippet>27</a>    <span class="kw">let </span>text_document_position_params = TextDocumentPositionParams {
-<a href=#28 id=28 data-nosnippet>28</a>        text_document: params.text_document.clone(),
+<a href=#28 id=28 data-nosnippet>28</a>        text_document: params.text_document,
 <a href=#29 id=29 data-nosnippet>29</a>        position: Position { line: <span class="number">0</span>, character: <span class="number">0 </span>},
 <a href=#30 id=30 data-nosnippet>30</a>    };
 <a href=#31 id=31 data-nosnippet>31</a>
@@ -431,7 +431,7 @@
 <a href=#431 id=431 data-nosnippet>431</a>
 <a href=#432 id=432 data-nosnippet>432</a>        <span class="attr">#[allow(deprecated)]
 <a href=#433 id=433 data-nosnippet>433</a>        </span><span class="self">self</span>.symbols.push(DocumentSymbol {
-<a href=#434 id=434 data-nosnippet>434</a>            name: name.to_string(),
+<a href=#434 id=434 data-nosnippet>434</a>            name,
 <a href=#435 id=435 data-nosnippet>435</a>            detail: <span class="prelude-val">None</span>,
 <a href=#436 id=436 data-nosnippet>436</a>            kind: SymbolKind::NAMESPACE,
 <a href=#437 id=437 data-nosnippet>437</a>            tags: <span class="prelude-val">None</span>,

@@ -337,7 +337,7 @@
 <a href=#337 id=337 data-nosnippet>337</a>    ///
 <a href=#338 id=338 data-nosnippet>338</a>    /// A variable can become statically known after re-assignment.
 <a href=#339 id=339 data-nosnippet>339</a>    </span><span class="kw">fn </span>is_dynamic(<span class="kw-2">&amp;</span><span class="self">self</span>, id: <span class="kw-2">&amp;</span>LocalId) -&gt; bool {
-<a href=#340 id=340 data-nosnippet>340</a>        <span class="self">self</span>.dynamics.current().get(id).cloned().unwrap_or_default()
+<a href=#340 id=340 data-nosnippet>340</a>        <span class="self">self</span>.dynamics.current().get(id).copied().unwrap_or_default()
 <a href=#341 id=341 data-nosnippet>341</a>    }
 <a href=#342 id=342 data-nosnippet>342</a>
 <a href=#343 id=343 data-nosnippet>343</a>    <span class="doccomment">/// Mark a variable as dynamic or not dynamic.
@@ -1266,7 +1266,7 @@
 <a href=#1266 id=1266 data-nosnippet>1266</a>
 <a href=#1267 id=1267 data-nosnippet>1267</a>        <span class="comment">// Add the variable so we can use it in subsequent expressions.
 <a href=#1268 id=1268 data-nosnippet>1268</a>        </span><span class="kw">if </span>add_to_scope {
-<a href=#1269 id=1269 data-nosnippet>1269</a>            <span class="self">self</span>.locals.add(id, mutable, name.clone(), typ.clone());
+<a href=#1269 id=1269 data-nosnippet>1269</a>            <span class="self">self</span>.locals.add(id, mutable, name.clone(), typ);
 <a href=#1270 id=1270 data-nosnippet>1270</a>        }
 <a href=#1271 id=1271 data-nosnippet>1271</a>
 <a href=#1272 id=1272 data-nosnippet>1272</a>        <span class="self">self</span>.set_dynamic(id, is_dynamic);
@@ -2094,7 +2094,7 @@
 <a href=#2094 id=2094 data-nosnippet>2094</a>    </span><span class="kw">fn </span>local_ident(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: LocalId) -&gt; Ident {
 <a href=#2095 id=2095 data-nosnippet>2095</a>        <span class="kw">let </span>(mutable, name, typ) = <span class="self">self</span>.locals.current().get_variable(<span class="kw-2">&amp;</span>id).clone();
 <a href=#2096 id=2096 data-nosnippet>2096</a>        <span class="kw">let </span>ident_id = <span class="self">self</span>.next_ident_id();
-<a href=#2097 id=2097 data-nosnippet>2097</a>        expr::ident_inner(VariableId::Local(id), ident_id, mutable, name, typ.clone())
+<a href=#2097 id=2097 data-nosnippet>2097</a>        expr::ident_inner(VariableId::Local(id), ident_id, mutable, name, typ)
 <a href=#2098 id=2098 data-nosnippet>2098</a>    }
 <a href=#2099 id=2099 data-nosnippet>2099</a>
 <a href=#2100 id=2100 data-nosnippet>2100</a>    <span class="doccomment">/// Type of a local variable.
@@ -2139,7 +2139,7 @@
 <a href=#2139 id=2139 data-nosnippet>2139</a>    /// This is used as a workaround when we need a mutable reference over an immutable value.
 <a href=#2140 id=2140 data-nosnippet>2140</a>    </span><span class="kw">fn </span>indirect_ref_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, (expr, is_dyn): TrackedExpression, typ: Type) -&gt; Expression {
 <a href=#2141 id=2141 data-nosnippet>2141</a>        <span class="kw">let </span>(let_expr, let_ident) =
-<a href=#2142 id=2142 data-nosnippet>2142</a>            <span class="self">self</span>.let_var_and_ident(<span class="bool-val">true</span>, typ.clone(), expr.clone(), <span class="bool-val">false</span>, is_dyn, local_name);
+<a href=#2142 id=2142 data-nosnippet>2142</a>            <span class="self">self</span>.let_var_and_ident(<span class="bool-val">true</span>, typ.clone(), expr, <span class="bool-val">false</span>, is_dyn, local_name);
 <a href=#2143 id=2143 data-nosnippet>2143</a>        <span class="kw">let </span>ref_expr = expr::ref_mut(Expression::Ident(let_ident), typ);
 <a href=#2144 id=2144 data-nosnippet>2144</a>        Expression::Block(<span class="macro">vec!</span>[let_expr, ref_expr])
 <a href=#2145 id=2145 data-nosnippet>2145</a>    }

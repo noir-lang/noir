@@ -394,7 +394,7 @@
 <a href=#394 id=394 data-nosnippet>394</a>    <span class="kw">if </span>predicate {
 <a href=#395 id=395 data-nosnippet>395</a>        <span class="prelude-val">Ok</span>(Value::Unit)
 <a href=#396 id=396 data-nosnippet>396</a>    } <span class="kw">else </span>{
-<a href=#397 id=397 data-nosnippet>397</a>        failing_constraint(<span class="macro">format!</span>(<span class="string">"static_assert failed: {message}"</span>).clone(), location, call_stack)
+<a href=#397 id=397 data-nosnippet>397</a>        failing_constraint(<span class="macro">format!</span>(<span class="string">"static_assert failed: {message}"</span>), location, call_stack)
 <a href=#398 id=398 data-nosnippet>398</a>    }
 <a href=#399 id=399 data-nosnippet>399</a>}
 <a href=#400 id=400 data-nosnippet>400</a>
@@ -2070,7 +2070,7 @@
 <a href=#2070 id=2070 data-nosnippet>2070</a>    return_type: Type,
 <a href=#2071 id=2071 data-nosnippet>2071</a>    location: Location,
 <a href=#2072 id=2072 data-nosnippet>2072</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#2073 id=2073 data-nosnippet>2073</a>    expr_as(interner, arguments, return_type.clone(), location, |expr| <span class="kw">match </span>expr {
+<a href=#2073 id=2073 data-nosnippet>2073</a>    expr_as(interner, arguments, return_type, location, |expr| <span class="kw">match </span>expr {
 <a href=#2074 id=2074 data-nosnippet>2074</a>        ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field, _suffix))) =&gt; {
 <a href=#2075 id=2075 data-nosnippet>2075</a>            <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[
 <a href=#2076 id=2076 data-nosnippet>2076</a>                Shared::new(Value::Field(SignedField::positive(field.absolute_value()))),

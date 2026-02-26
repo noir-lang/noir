@@ -463,7 +463,7 @@
 <a href=#463 id=463 data-nosnippet>463</a>                <span class="kw">if </span>value.absolute_value() &gt; max.into() || value.is_negative() {
 <a href=#464 id=464 data-nosnippet>464</a>                    <span class="kw">return </span><span class="prelude-val">Some</span>(TypeCheckError::IntegerLiteralDoesNotFitItsType {
 <a href=#465 id=465 data-nosnippet>465</a>                        expr: value,
-<a href=#466 id=466 data-nosnippet>466</a>                        ty: typ.clone(),
+<a href=#466 id=466 data-nosnippet>466</a>                        ty: typ,
 <a href=#467 id=467 data-nosnippet>467</a>                        range: <span class="macro">format!</span>(<span class="string">"0..={max}"</span>),
 <a href=#468 id=468 data-nosnippet>468</a>                        location,
 <a href=#469 id=469 data-nosnippet>469</a>                    });
@@ -480,7 +480,7 @@
 <a href=#480 id=480 data-nosnippet>480</a>                <span class="kw">if </span>(is_negative &amp;&amp; abs &gt; min.into()) || (!is_negative &amp;&amp; abs &gt; max.into()) {
 <a href=#481 id=481 data-nosnippet>481</a>                    <span class="kw">return </span><span class="prelude-val">Some</span>(TypeCheckError::IntegerLiteralDoesNotFitItsType {
 <a href=#482 id=482 data-nosnippet>482</a>                        expr: value,
-<a href=#483 id=483 data-nosnippet>483</a>                        ty: typ.clone(),
+<a href=#483 id=483 data-nosnippet>483</a>                        ty: typ,
 <a href=#484 id=484 data-nosnippet>484</a>                        range: <span class="macro">format!</span>(<span class="string">"-{min}..={max}"</span>),
 <a href=#485 id=485 data-nosnippet>485</a>                        location,
 <a href=#486 id=486 data-nosnippet>486</a>                    });
@@ -547,14 +547,14 @@
 <a href=#547 id=547 data-nosnippet>547</a>        HirExpression::Infix(e) =&gt; check(e.lhs) &amp;&amp; check(e.rhs),
 <a href=#548 id=548 data-nosnippet>548</a>        HirExpression::Index(e) =&gt; check(e.collection) &amp;&amp; check(e.index),
 <a href=#549 id=549 data-nosnippet>549</a>        HirExpression::MemberAccess(e) =&gt; check(e.lhs),
-<a href=#550 id=550 data-nosnippet>550</a>        HirExpression::Call(e) =&gt; check(e.func) &amp;&amp; e.arguments.iter().cloned().all(check),
+<a href=#550 id=550 data-nosnippet>550</a>        HirExpression::Call(e) =&gt; check(e.func) &amp;&amp; e.arguments.iter().copied().all(check),
 <a href=#551 id=551 data-nosnippet>551</a>        HirExpression::Constrain(e) =&gt; check(e.<span class="number">0</span>) &amp;&amp; e.<span class="number">2</span>.map(check).unwrap_or(<span class="bool-val">true</span>),
 <a href=#552 id=552 data-nosnippet>552</a>        HirExpression::Cast(e) =&gt; check(e.lhs),
 <a href=#553 id=553 data-nosnippet>553</a>        HirExpression::If(e) =&gt; {
 <a href=#554 id=554 data-nosnippet>554</a>            check(e.condition) &amp;&amp; (check(e.consequence) || e.alternative.map(check).unwrap_or(<span class="bool-val">true</span>))
 <a href=#555 id=555 data-nosnippet>555</a>        }
 <a href=#556 id=556 data-nosnippet>556</a>        HirExpression::Match(e) =&gt; can_return_without_recursing_match(interner, func_id, <span class="kw-2">&amp;</span>e),
-<a href=#557 id=557 data-nosnippet>557</a>        HirExpression::Tuple(e) =&gt; e.iter().cloned().all(check),
+<a href=#557 id=557 data-nosnippet>557</a>        HirExpression::Tuple(e) =&gt; e.iter().copied().all(check),
 <a href=#558 id=558 data-nosnippet>558</a>        HirExpression::Unsafe(b) =&gt; check_block(b),
 <a href=#559 id=559 data-nosnippet>559</a>        <span class="comment">// Rust doesn't check the lambda body (it might not be called).
 <a href=#560 id=560 data-nosnippet>560</a>        </span>HirExpression::Lambda(<span class="kw">_</span>)

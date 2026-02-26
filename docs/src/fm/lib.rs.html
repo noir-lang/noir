@@ -70,7 +70,7 @@
 <a href=#70 id=70 data-nosnippet>70</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(file_id) = <span class="self">self</span>.path_to_id.get(<span class="kw-2">&amp;</span>file_name) {
 <a href=#71 id=71 data-nosnippet>71</a>            <span class="kw">return </span><span class="prelude-val">Some</span>(<span class="kw-2">*</span>file_id);
 <a href=#72 id=72 data-nosnippet>72</a>        }
-<a href=#73 id=73 data-nosnippet>73</a>        <span class="kw">let </span>file_name_path_buf = file_name.to_path_buf();
+<a href=#73 id=73 data-nosnippet>73</a>        <span class="kw">let </span>file_name_path_buf = file_name;
 <a href=#74 id=74 data-nosnippet>74</a>
 <a href=#75 id=75 data-nosnippet>75</a>        <span class="comment">// Otherwise we add the file
 <a href=#76 id=76 data-nosnippet>76</a>        </span><span class="kw">let </span>file_id = <span class="self">self</span>.file_map.add_file(file_name_path_buf.clone().into(), source);
@@ -162,7 +162,7 @@
 <a href=#162 id=162 data-nosnippet>162</a>    <span class="kw">let </span><span class="kw-2">mut </span>components = components.peekable();
 <a href=#163 id=163 data-nosnippet>163</a>
 <a href=#164 id=164 data-nosnippet>164</a>    <span class="comment">// Preserve path prefix if one exists.
-<a href=#165 id=165 data-nosnippet>165</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>normalized_path = <span class="kw">if let </span><span class="prelude-val">Some</span>(c @ Component::Prefix(..)) = components.peek().cloned() {
+<a href=#165 id=165 data-nosnippet>165</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>normalized_path = <span class="kw">if let </span><span class="prelude-val">Some</span>(c @ Component::Prefix(..)) = components.peek().copied() {
 <a href=#166 id=166 data-nosnippet>166</a>        components.next();
 <a href=#167 id=167 data-nosnippet>167</a>        PathBuf::from(c.as_os_str())
 <a href=#168 id=168 data-nosnippet>168</a>    } <span class="kw">else </span>{

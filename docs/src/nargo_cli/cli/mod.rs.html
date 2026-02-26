@@ -259,7 +259,7 @@
 <a href=#259 id=259 data-nosnippet>259</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>workspace = read_workspace(<span class="kw-2">&amp;</span>workspace_dir, selection)<span class="question-mark">?</span>;
 <a href=#260 id=260 data-nosnippet>260</a>    <span class="comment">// Optionally override the target directory. It's only done here because most commands like the LSP and DAP
 <a href=#261 id=261 data-nosnippet>261</a>    // don't read or write artifacts, so they don't use the target directory.
-<a href=#262 id=262 data-nosnippet>262</a>    </span>workspace.target_dir = config.target_dir.clone();
+<a href=#262 id=262 data-nosnippet>262</a>    </span>workspace.target_dir = config.target_dir;
 <a href=#263 id=263 data-nosnippet>263</a>    <span class="comment">// Lock manifests if the command needs it.
 <a href=#264 id=264 data-nosnippet>264</a>    </span><span class="kw">let </span>_locks = <span class="kw">match </span>cmd.lock_type() {
 <a href=#265 id=265 data-nosnippet>265</a>        LockType::None =&gt; <span class="prelude-val">None</span>,
