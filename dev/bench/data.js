@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772124382745,
+  "lastUpdate": 1772124778690,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23156,48 +23156,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "ea8f830b66b767af727e7f233dd59cb6c7db8c77",
-          "message": "fix(ssa): Try not to hoist into loop headers during constant folding (#11616)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-02-18T16:24:27Z",
-          "tree_id": "db39adadd0c55443d76c509a87329b23218f161e",
-          "url": "https://github.com/noir-lang/noir/commit/ea8f830b66b767af727e7f233dd59cb6c7db8c77"
-        },
-        "date": 1771433295748,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 243306,
-            "range": "± 2007",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 212902,
-            "range": "± 2643",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2205714,
-            "range": "± 3808",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "6868747b15bace052b2d9f82be226b8523a747bc",
           "message": "fix(frontend): Follow bindings in `Type::substitute` to avoid infinite loop (#11624)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
           "timestamp": "2026-02-18T16:50:49Z",
@@ -25239,6 +25197,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2208471,
             "range": "± 2554",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "a1793afd174cb0a2baa296698a10da0b232d8d27",
+          "message": "chore: remove unnecessary `mut` in the stdlib (#11699)",
+          "timestamp": "2026-02-26T16:24:39Z",
+          "tree_id": "39d6f86fad98e4f7127cce69a5622b2ae28c7d58",
+          "url": "https://github.com/noir-lang/noir/commit/a1793afd174cb0a2baa296698a10da0b232d8d27"
+        },
+        "date": 1772124735324,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249347,
+            "range": "± 995",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 217628,
+            "range": "± 3601",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2726375,
+            "range": "± 1642",
             "unit": "ns/iter"
           }
         ]
