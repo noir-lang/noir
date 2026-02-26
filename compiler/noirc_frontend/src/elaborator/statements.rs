@@ -499,7 +499,6 @@ impl Elaborator<'_> {
             LValue::MemberAccess { object, field_name, location } => {
                 let (object, lhs_type, mut mutable, statements) = self.elaborate_lvalue(*object);
                 let mut object = Box::new(object);
-                let field_name = field_name.clone();
 
                 let object_ref = &mut object;
                 let mutable_ref = &mut mutable;
@@ -632,7 +631,7 @@ impl Elaborator<'_> {
                 (lvalue, typ, true, statements)
             }
             LValue::Interned(id, location) => {
-                let lvalue = self.interner.get_lvalue(id, location).clone();
+                let lvalue = self.interner.get_lvalue(id, location);
                 self.elaborate_lvalue(lvalue)
             }
         }
@@ -658,7 +657,7 @@ impl Elaborator<'_> {
 
         self.interner.add_local_reference(ident.id, location);
 
-        (HirLValue::Ident(ident.clone(), typ.clone()), typ, mutable, Vec::new())
+        (HirLValue::Ident(ident, typ.clone()), typ, mutable, Vec::new())
     }
 
     fn fresh_definition_for_lvalue_index(

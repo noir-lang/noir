@@ -767,7 +767,7 @@ fn compile_contract_inner(
                         AbiType::Struct { path, fields }
                     })
                     .collect();
-                (tag.to_string(), structs)
+                (tag, structs)
             })
             .collect();
 

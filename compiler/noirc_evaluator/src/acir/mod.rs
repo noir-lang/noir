@@ -515,7 +515,7 @@ impl<'a> Context<'a> {
             }
             Instruction::Allocate => {
                 return Err(RuntimeError::UnknownReference {
-                    call_stack: self.acir_context.get_call_stack().clone(),
+                    call_stack: self.acir_context.get_call_stack(),
                 });
             }
             Instruction::Store { .. } => {

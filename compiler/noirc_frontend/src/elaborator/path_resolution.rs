@@ -783,7 +783,7 @@ impl Elaborator<'_> {
             current_module_id,
             visibility,
         ) {
-            errors.push(PathResolutionError::Private(name.clone()));
+            errors.push(PathResolutionError::Private(name));
         }
 
         item

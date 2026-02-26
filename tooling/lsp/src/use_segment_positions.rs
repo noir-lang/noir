@@ -69,7 +69,7 @@ impl UseSegmentPositions {
 
         loop {
             let use_segment_position =
-                self.use_segment_positions.get(&parent_path).cloned().unwrap_or_default();
+                self.use_segment_positions.get(&parent_path).copied().unwrap_or_default();
 
             if let UseSegmentPosition::NoneOrMultiple = use_segment_position {
                 if let Some(next_name) = segments.pop() {

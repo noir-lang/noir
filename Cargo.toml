@@ -91,6 +91,10 @@ non_std_lazy_statics = "warn"
 return_and_then = "warn"
 unnecessary_unwrap = "warn"
 unnecessary_debug_formatting = "warn"
+redundant_clone = "warn"
+clone_on_copy = "warn"
+unnecessary_to_owned = "warn"
+cloned_instead_of_copied = "warn"
 
 [workspace.dependencies]
 

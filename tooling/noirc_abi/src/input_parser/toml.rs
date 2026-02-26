@@ -248,7 +248,7 @@ mod tests {
         #[test]
         fn signed_integer_serialization_roundtrip((typ, value) in arb_signed_integer_type_and_value()) {
             let string_input = TomlTypes::String(value.to_string());
-            let input_value = InputValue::try_from_toml(string_input.clone(), &typ, "foo").expect("should be parsable");
+            let input_value = InputValue::try_from_toml(string_input, &typ, "foo").expect("should be parsable");
             let TomlTypes::String(output_string) = TomlTypes::try_from_input_value(&input_value, &typ).expect("should be serializable") else {
                 panic!("wrong type output");
             };
