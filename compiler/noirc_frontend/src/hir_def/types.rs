@@ -420,8 +420,10 @@ pub enum MustUse {
 }
 
 enum TypeBody {
-    /// A type with no body is still in the process of being created
-    None,
+    /// A struct whose fields have not yet been resolved.
+    StructWithUnknownFields,
+    /// An enum whose variants have not yet been resolved.
+    EnumWithUnknownVariants,
     Struct(Vec<StructField>),
 
     #[allow(unused)]
@@ -513,13 +515,18 @@ impl DataType {
         location: Location,
         generics: ResolvedGenerics,
         visibility: ItemVisibility,
+        is_struct: bool,
     ) -> DataType {
         DataType {
             id,
             name,
             location,
             generics,
-            body: TypeBody::None,
+            body: if is_struct {
+                TypeBody::StructWithUnknownFields
+            } else {
+                TypeBody::EnumWithUnknownVariants
+            },
             visibility,
             must_use: MustUse::NoMustUse,
         }
@@ -535,10 +542,10 @@ impl DataType {
 
     pub(crate) fn init_variants(&mut self) {
         match &mut self.body {
-            TypeBody::None => {
+            TypeBody::EnumWithUnknownVariants => {
                 self.body = TypeBody::Enum(vec![]);
             }
-            _ => panic!("Called init_variants but body was None"),
+            _ => panic!("Called init_variants but body was not EnumWithUnknownVariants"),
         }
     }
 
@@ -550,11 +557,11 @@ impl DataType {
     }
 
     pub fn is_struct(&self) -> bool {
-        matches!(&self.body, TypeBody::Struct(_))
+        matches!(&self.body, TypeBody::StructWithUnknownFields | TypeBody::Struct(_))
     }
 
     pub fn is_enum(&self) -> bool {
-        matches!(&self.body, TypeBody::Enum(_))
+        matches!(&self.body, TypeBody::EnumWithUnknownVariants | TypeBody::Enum(_))
     }
 
     /// Retrieve the fields of this type with no modifications.

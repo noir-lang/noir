@@ -1230,6 +1230,7 @@ pub fn collect_struct(
             let attributes = unresolved.struct_def.attributes.clone();
             let local_id = module_id.local_id;
             let visibility = unresolved.struct_def.visibility;
+            let is_struct = true;
             interner.new_type(
                 name,
                 span,
@@ -1239,6 +1240,7 @@ pub fn collect_struct(
                 krate,
                 local_id,
                 file_id,
+                is_struct,
             )
         }
         Err(error) => {
@@ -1345,6 +1347,7 @@ pub fn collect_enum(
             let attributes = unresolved.enum_def.attributes.clone();
             let local_id = module_id.local_id;
             let visibility = unresolved.enum_def.visibility;
+            let is_struct = false;
             interner.new_type(
                 name,
                 span,
@@ -1354,6 +1357,7 @@ pub fn collect_enum(
                 krate,
                 local_id,
                 file_id,
+                is_struct,
             )
         }
         Err(error) => {

@@ -616,11 +616,12 @@ impl NodeInterner {
         krate: CrateId,
         local_id: LocalModuleId,
         file_id: FileId,
+        is_struct: bool,
     ) -> TypeId {
         let type_id = TypeId(ModuleId { krate, local_id });
 
         let location = Location::new(span, file_id);
-        let new_type = DataType::new(type_id, name, location, generics, visibility);
+        let new_type = DataType::new(type_id, name, location, generics, visibility, is_struct);
         self.data_types.insert(type_id, Shared::new(new_type));
         self.type_attributes.insert(type_id, attributes);
         type_id
