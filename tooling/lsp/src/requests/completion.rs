@@ -184,7 +184,7 @@ impl<'a> NodeFinder<'a> {
             let mut items = std::mem::take(&mut self.completion_items);
 
             // Show items that start with underscore last in the list
-            for item in items.iter_mut() {
+            for item in &mut items {
                 if item.label.starts_with('_') {
                     item.sort_text = Some(underscore_sort_text());
                 }

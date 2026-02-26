@@ -1842,7 +1842,7 @@ impl Type {
                 false
             }
             Type::Tuple(types) => {
-                for typ in types.iter() {
+                for typ in types {
                     if typ.contains_vector_helper(type_recursion_context.clone().recur()) {
                         return true;
                     }

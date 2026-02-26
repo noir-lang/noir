@@ -657,7 +657,7 @@ impl<F: AcirField> AcirContext<F> {
                 if expression.is_linear() =>
             {
                 let mut expr = Expression::default();
-                for term in expression.linear_combinations.iter() {
+                for term in &expression.linear_combinations {
                     expr.push_multiplication_term(term.0, term.1, witness);
                 }
                 expr.push_addition_term(expression.q_c, witness);
@@ -674,7 +674,7 @@ impl<F: AcirField> AcirContext<F> {
                 if let Some((lin, univariate)) = degree_one {
                     let mut expr = Expression::default();
                     let rhs_term = univariate.linear_combinations[0];
-                    for term in lin.linear_combinations.iter() {
+                    for term in &lin.linear_combinations {
                         expr.push_multiplication_term(term.0 * rhs_term.0, term.1, rhs_term.1);
                     }
                     expr.push_addition_term(lin.q_c * rhs_term.0, rhs_term.1);

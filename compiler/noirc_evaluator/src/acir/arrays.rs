@@ -1051,7 +1051,7 @@ impl Context<'_> {
                 let mut var_index = self.acir_context.add_constant(FieldElement::zero());
                 // Reconstruct each element with its proper structure
                 for _ in 0..num_elements.0 {
-                    for element_typ in element_types.iter() {
+                    for element_typ in element_types {
                         let element =
                             self.array_get_value(element_typ, block_id, &mut var_index)?;
                         result.push_back(element);

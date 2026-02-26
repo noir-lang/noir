@@ -170,7 +170,7 @@ impl Elaborator<'_> {
     }
 
     pub fn check_for_unused_variables_in_scope_tree(&mut self, scope_decls: &ScopeTree) {
-        for scope in scope_decls.0.iter() {
+        for scope in &scope_decls.0 {
             for (variable_name, metadata) in scope.iter() {
                 if !metadata.warn_if_unused || metadata.used || variable_name.starts_with('_') {
                     continue;
@@ -188,7 +188,7 @@ impl Elaborator<'_> {
     }
 
     pub fn check_for_unnecessary_mut_variables_in_scope_tree(&mut self, scope_decls: &ScopeTree) {
-        for scope in scope_decls.0.iter() {
+        for scope in &scope_decls.0 {
             for (variable_name, metadata) in scope.iter() {
                 if !metadata.warn_if_not_mutated
                     || metadata.mutated

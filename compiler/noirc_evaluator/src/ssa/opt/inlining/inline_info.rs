@@ -104,7 +104,7 @@ pub(crate) fn compute_inline_infos(
     );
 
     // Handle ACIR functions.
-    for (func_id, function) in ssa.functions.iter() {
+    for (func_id, function) in &ssa.functions {
         if function.runtime().is_brillig() {
             continue;
         }
@@ -128,7 +128,7 @@ pub(crate) fn compute_inline_infos(
     // Find mutual recursion in our call graph
     let recursive_functions = call_graph.get_recursive_functions();
     let small_function_max_instructions = small_function_max_instructions as i64;
-    for recursive_func in recursive_functions.iter() {
+    for recursive_func in &recursive_functions {
         inline_infos.entry(*recursive_func).or_default().is_recursive = true;
         compute_function_should_be_inlined(
             ssa,

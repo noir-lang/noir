@@ -815,7 +815,7 @@ impl Elaborator<'_> {
         // Gather a list of items for which their trait is in scope.
         let mut results = Vec::new();
 
-        for (trait_id, item) in values.iter() {
+        for (trait_id, item) in values {
             let trait_id = trait_id.expect("The None option was already considered before");
             if let Some(name) = starting_module.find_trait_in_scope(trait_id) {
                 results.push((trait_id, name, item));

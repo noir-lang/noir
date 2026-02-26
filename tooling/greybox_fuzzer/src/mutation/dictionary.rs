@@ -80,12 +80,12 @@ fn add_elements_from_input_value_to_vector(
         // String bytes are easy to brute force, so we don't add them to the dictionary
         InputValue::String(_) => (),
         InputValue::Struct(input_value_map) => {
-            for (_, value) in input_value_map.iter() {
+            for value in input_value_map.values() {
                 add_elements_from_input_value_to_vector(elements_for_dictionary, value);
             }
         }
         InputValue::Vec(input_value_vec) => {
-            for value in input_value_vec.iter() {
+            for value in input_value_vec {
                 add_elements_from_input_value_to_vector(elements_for_dictionary, value);
             }
         }
@@ -99,7 +99,7 @@ pub fn add_elements_from_input_map_to_vector_without_abi(
     input_map: &InputMap,
     elements_for_dictionary: &mut Vec<FieldElement>,
 ) {
-    for (_, value) in input_map.iter() {
+    for value in input_map.values() {
         add_elements_from_input_value_to_vector(elements_for_dictionary, value);
     }
 }
@@ -126,7 +126,7 @@ impl FullDictionary {
                     InputValue::String(inner_string) => inner_string,
                     _ => panic!("Shouldn't be used with other input value types"),
                 };
-                for character in initial_string.as_bytes().iter() {
+                for character in initial_string.as_bytes() {
                     full_dictionary.insert(FieldElement::from(i128::from(*character)));
                 }
             }
@@ -135,7 +135,7 @@ impl FullDictionary {
                     InputValue::Vec(previous_input_vector) => previous_input_vector,
                     _ => panic!("Mismatch of AbiType and InputValue should not happen"),
                 };
-                for element in input_vector.iter() {
+                for element in input_vector {
                     Self::collect_dictionary_from_input_value(typ, element, full_dictionary);
                 }
             }
@@ -145,7 +145,7 @@ impl FullDictionary {
                     InputValue::Struct(previous_input_struct) => previous_input_struct,
                     _ => panic!("Mismatch of AbiType and InputValue should not happen"),
                 };
-                for (name, typ) in fields.iter() {
+                for (name, typ) in fields {
                     Self::collect_dictionary_from_input_value(
                         typ,
                         &input_struct[name],
@@ -176,7 +176,7 @@ impl FullDictionary {
         input: &InputMap,
         full_dictionary: &mut HashSet<FieldElement>,
     ) {
-        for param in abi.parameters.iter() {
+        for param in &abi.parameters {
             Self::collect_dictionary_from_input_value(
                 &param.typ,
                 &input[&param.name],

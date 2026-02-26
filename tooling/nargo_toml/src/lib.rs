@@ -165,7 +165,7 @@ impl PackageConfig {
         })?;
 
         let mut dependencies: BTreeMap<CrateName, Dependency> = BTreeMap::new();
-        for (name, dep_config) in self.dependencies.iter() {
+        for (name, dep_config) in &self.dependencies {
             let name = name.parse().map_err(|_| ManifestError::InvalidDependencyName {
                 toml: root_dir.join("Nargo.toml"),
                 name: name.into(),

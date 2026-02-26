@@ -371,7 +371,7 @@ impl DependencyContext {
                     // another registered Brillig call, update the tainted sets of
                     // the wrapped call instead
                     let mut wrapped_call_found = false;
-                    for (_, tainted_call) in self.tainted.iter_mut() {
+                    for tainted_call in self.tainted.values_mut() {
                         if current_tainted.is_wrapper(tainted_call) {
                             tainted_call.update_results_children(results);
                             wrapped_call_found = true;
@@ -395,7 +395,7 @@ impl DependencyContext {
         });
 
         // Then, go over the instructions
-        for instruction in function.dfg[block].instructions().iter() {
+        for instruction in function.dfg[block].instructions() {
             let mut arguments = Vec::new();
             let mut results = Vec::new();
 
@@ -407,7 +407,7 @@ impl DependencyContext {
             });
 
             // Collect non-constant instruction results
-            for value_id in function.dfg.instruction_results(*instruction).iter() {
+            for value_id in function.dfg.instruction_results(*instruction) {
                 if !is_numeric_constant(function, *value_id) {
                     results.push(*value_id);
                 }
@@ -771,7 +771,7 @@ impl Context {
     ) {
         let instructions = function.dfg[block].instructions();
 
-        for instruction in instructions.iter() {
+        for instruction in instructions {
             let mut instruction_arguments_and_results = BTreeSet::new();
 
             // Insert non-constant instruction arguments
@@ -781,7 +781,7 @@ impl Context {
                 }
             });
             // And non-constant results
-            for value_id in function.dfg.instruction_results(*instruction).iter() {
+            for value_id in function.dfg.instruction_results(*instruction) {
                 if !is_numeric_constant(function, *value_id) {
                     instruction_arguments_and_results.insert(*value_id);
                 }
@@ -889,7 +889,7 @@ impl Context {
         let mut value_dictionary: HashMap<ValueId, usize> = HashMap::default();
         let mut parsed_value_set: BTreeSet<ValueId> = BTreeSet::default();
 
-        for set in current.iter() {
+        for set in current {
             // Check if the set has any of the ValueIds we've encountered at previous iterations
             let intersection: BTreeSet<ValueId> =
                 set.intersection(&parsed_value_set).copied().collect();
@@ -900,7 +900,7 @@ impl Context {
                 updated_sets.insert(new_set_id, set.clone());
 
                 // Add each entry to a dictionary for quick lookups of which ValueId is in which updated set
-                for entry in set.iter() {
+                for entry in set {
                     value_dictionary.insert(*entry, new_set_id);
                 }
                 new_set_id += 1;
@@ -914,7 +914,7 @@ impl Context {
             let mut largest_set_index = usize::MAX;
 
             // We need to find the largest set to move as few elements as possible
-            for set_id in joining_sets_ids.iter() {
+            for set_id in &joining_sets_ids {
                 if updated_sets[set_id].len() > largest_set_size {
                     (largest_set_index, largest_set_size) = (*set_id, updated_sets[set_id].len());
                 }
@@ -925,9 +925,9 @@ impl Context {
                 updated_sets.remove(&largest_set_index).expect("Set should be in the hashmap");
 
             // For each of other sets that need to be joined
-            for set_id in joining_sets_ids.iter() {
+            for set_id in &joining_sets_ids {
                 // Map each element to the largest set and insert it
-                for element in updated_sets[set_id].iter() {
+                for element in &updated_sets[set_id] {
                     value_dictionary[element] = largest_set_index;
                     largest_set.insert(*element);
                 }
@@ -936,7 +936,7 @@ impl Context {
             }
 
             // Join the new set with the largest sets
-            for element in set.iter() {
+            for element in set {
                 value_dictionary.insert(*element, largest_set_index);
                 largest_set.insert(*element);
             }

@@ -375,7 +375,7 @@ impl Display for Token {
             },
             Token::Quote(ref stream) => {
                 write!(f, "quote {{")?;
-                for token in stream.0.iter() {
+                for token in &stream.0 {
                     write!(f, " {token}")?;
                 }
                 write!(f, "}}")

@@ -1410,7 +1410,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let lvalue_ref = lvalue.borrow();
         match (&*lvalue_ref, rvalue) {
             (Value::Struct(lvalue_fields, _), Value::Struct(mut rvalue_fields, _)) => {
-                for (name, lvalue) in lvalue_fields.iter() {
+                for (name, lvalue) in lvalue_fields {
                     let Some(rvalue) = rvalue_fields.remove(name) else {
                         // Defensive check: If we reach here, it indicates a type system bug
                         panic!(

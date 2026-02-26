@@ -272,7 +272,7 @@ fn ssa_to_acir_program(ssa: Ssa) -> AcirProgram<FieldElement> {
 
     let mut functions: Vec<Circuit<FieldElement>> = Vec::new();
 
-    for acir_func in acir_functions.iter() {
+    for acir_func in &acir_functions {
         let mut private_params: BTreeSet<Witness> =
             acir_func.input_witnesses.clone().into_iter().collect();
         let ret_values: BTreeSet<Witness> =

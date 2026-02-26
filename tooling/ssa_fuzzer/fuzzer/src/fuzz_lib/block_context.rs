@@ -587,7 +587,7 @@ impl BlockContext {
                 }
                 let mut points_vec = Vec::new();
                 let mut scalars_vec = Vec::new();
-                for (p, s) in points_and_scalars.iter() {
+                for (p, s) in &points_and_scalars {
                     let point = self.ssa_point_from_instruction_point(builder, *p);
                     let scalar = self.ssa_scalar_from_instruction_scalar(*s);
                     if point.is_none() || scalar.is_none() {

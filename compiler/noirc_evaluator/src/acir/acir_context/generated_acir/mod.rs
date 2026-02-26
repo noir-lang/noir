@@ -633,7 +633,7 @@ impl<F: AcirField> GeneratedAcir<F> {
             return;
         }
 
-        for (error_selector, error_type) in generated_brillig.error_types.iter() {
+        for (error_selector, error_type) in &generated_brillig.error_types {
             self.record_error_type(*error_selector, error_type.clone());
         }
 
@@ -641,7 +641,7 @@ impl<F: AcirField> GeneratedAcir<F> {
             return;
         }
 
-        for (procedure_id, (start_index, end_index)) in generated_brillig.procedure_locations.iter()
+        for (procedure_id, (start_index, end_index)) in &generated_brillig.procedure_locations
         {
             self.brillig_procedure_locs
                 .entry(brillig_function_index)
@@ -649,7 +649,7 @@ impl<F: AcirField> GeneratedAcir<F> {
                 .insert(procedure_id.to_debug_id(), (*start_index, *end_index));
         }
 
-        for (brillig_index, call_stack) in generated_brillig.locations.iter() {
+        for (brillig_index, call_stack) in &generated_brillig.locations {
             self.brillig_locations
                 .entry(brillig_function_index)
                 .or_default()

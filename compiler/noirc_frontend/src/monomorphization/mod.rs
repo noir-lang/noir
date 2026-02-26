@@ -327,7 +327,7 @@ impl<'interner> Monomorphizer<'interner> {
         let (debug_variables, debug_functions, debug_types) =
             self.debug_type_tracker.extract_vars_and_types();
 
-        for f in functions.iter_mut() {
+        for f in &mut functions {
             let is_acir_entry_point = !self.force_unconstrained && f.inline_type.is_entry_point();
             f.is_entry_point = is_acir_entry_point || f.id == Program::main_id();
         }

@@ -184,7 +184,7 @@ impl<'a> FuzzerFunctionContext<'a> {
     ) -> Self {
         let mut ids = HashMap::new();
 
-        for (value, type_) in values_types.into_iter() {
+        for (value, type_) in values_types {
             let field_element = value;
             ids.entry(Type::Numeric(type_))
                 .or_insert(Vec::new())
@@ -812,7 +812,7 @@ impl<'a> FuzzerFunctionContext<'a> {
         // save all not-terminated blocks to stored_blocks
         self.finalize_cycles();
         self.not_terminated_blocks.push_back(self.current_block.clone());
-        for block in self.not_terminated_blocks.iter() {
+        for block in &self.not_terminated_blocks {
             self.stored_blocks.insert(block.block_id, block.clone());
         }
 

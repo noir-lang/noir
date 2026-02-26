@@ -285,7 +285,7 @@ impl LoopContext {
         pre_header: BasicBlockId,
     ) -> Self {
         let mut defined_in_loop = HashSet::default();
-        for block in loop_.blocks.iter() {
+        for block in &loop_.blocks {
             let params = inserter.function.dfg.block_parameters(*block);
             defined_in_loop.extend(params);
             for instruction_id in inserter.function.dfg[*block].instructions() {
@@ -414,7 +414,7 @@ impl<'f> LoopInvariantContext<'f> {
     ) {
         let mut loop_context = LoopContext::new(&self.inserter, &self.cfg, loop_, pre_header);
 
-        for block in loop_.blocks.iter() {
+        for block in &loop_.blocks {
             let mut block_context =
                 self.init_block_context(&mut loop_context, loop_, all_loops, *block);
 
@@ -538,7 +538,7 @@ impl<'f> LoopInvariantContext<'f> {
         all_predecessors: &BTreeSet<BasicBlockId>,
     ) -> Option<&'a Loop> {
         // Now check for nested loops within the current loop
-        for nested in all_loops.iter() {
+        for nested in all_loops {
             if !nested.blocks.contains(&block) {
                 // Skip unrelated loops
                 continue;
@@ -585,7 +585,7 @@ impl<'f> LoopInvariantContext<'f> {
             return false;
         }
         // If the block is part of any nested loop, they have to execute as well.
-        for nested in all_loops.iter() {
+        for nested in all_loops {
             if !nested.blocks.contains(&block) {
                 continue;
             }

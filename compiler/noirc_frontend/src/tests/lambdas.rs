@@ -274,7 +274,7 @@ fn get_program_captures(src: &str) -> Vec<Vec<String>> {
 }
 
 fn find_lambda_captures(stmts: &[StmtId], interner: &NodeInterner, result: &mut Vec<Vec<String>>) {
-    for stmt_id in stmts.iter() {
+    for stmt_id in stmts {
         let hir_stmt = interner.statement(stmt_id);
         let expr_id = match hir_stmt {
             HirStatement::Expression(expr_id) => expr_id,
@@ -303,7 +303,7 @@ fn get_lambda_captures(
     if let HirExpression::Lambda(lambda_expr) = expr {
         let mut cur_capture = Vec::new();
 
-        for capture in lambda_expr.captures.iter() {
+        for capture in &lambda_expr.captures {
             cur_capture.push(interner.definition(capture.ident.id).name.clone());
         }
         result.push(cur_capture);
