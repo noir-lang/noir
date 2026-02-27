@@ -214,7 +214,7 @@ fn disallows_mutating_non_mutable_ref_member_access() {
         let s = (0,);
         let ps = &s;
         ps.0 = 1;
-        ^^ Variable `ps` must be mutable to be assigned to
+        ^^ `ps` is a `&` reference, so it cannot be written to
     }
     "#;
     check_errors_using_features(src, &[UnstableFeature::Ownership]);
@@ -227,7 +227,42 @@ fn disallows_mutating_non_mutable_ref_array_index() {
         let s = [0];
         let ps = &s;
         ps[0] = 1;
-        ^^ Variable `ps` must be mutable to be assigned to
+        ^^ `ps` is a `&` reference, so it cannot be written to
+    }
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+}
+
+#[test]
+fn disallows_mutating_non_mutable_nested_reference_in_tuple_1() {
+    let src = r#"
+    fn main() {
+        let x = (&(0,),);
+        x.0.0 = 1;
+        ^^^^^ Cannot assign to `x.0.0`, which is behind a `&` reference
+    }
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+}
+
+#[test]
+fn allows_mutating_mutable_reference_inside_non_mutable_reference() {
+    let src = r#"
+    fn main() {
+        let x = &(&mut (0,),);
+        x.0.0 = 1;
+    }
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+}
+
+#[test]
+fn disallows_mutating_non_mutable_reference_inside_mutable_reference() {
+    let src = r#"
+    fn main() {
+        let x = &mut (&(0,),);
+        x.0.0 = 1;
+        ^^^^^ Cannot assign to `x.0.0`, which is behind a `&` reference
     }
     "#;
     check_errors_using_features(src, &[UnstableFeature::Ownership]);
