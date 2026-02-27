@@ -327,15 +327,15 @@ fn regression_9907() {
     unconstrained fn main$f0() -> pub [[Field; 1]; 1] {
         foo$f1([[3405691582]])
     }
-    unconstrained fn foo$f1(mut a$l0: [[Field; 1]; 1]) -> [[Field; 1]; 1] {
+    unconstrained fn foo$f1(a$l0: [[Field; 1]; 1]) -> [[Field; 1]; 1] {
         let mut b$l1 = bar$f2(a$l0.clone())[0].clone();
-        let mut x$l2 = 0;
+        let x$l2 = 0;
         while (x$l2 != 0) {
         };
         b$l1[0] = 3735928559;
         a$l0
     }
-    unconstrained fn bar$f2(mut a$l3: [[Field; 1]; 1]) -> [[Field; 1]; 1] {
+    unconstrained fn bar$f2(a$l3: [[Field; 1]; 1]) -> [[Field; 1]; 1] {
         a$l3
     }
     ");
