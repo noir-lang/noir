@@ -198,7 +198,7 @@ where
 
     /// Remove a variable from all scopes.
     pub fn remove(&mut self, id: &K) {
-        for scope in self.0.iter_mut() {
+        for scope in &mut self.0 {
             scope.remove(id);
         }
     }

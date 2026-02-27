@@ -180,7 +180,7 @@ pub(crate) fn process_workspace(
 
     let parsed_files = parse_diff(&workspace_file_manager, state);
 
-    for package in workspace.into_iter() {
+    for package in workspace {
         let (mut context, crate_id) =
             crate::prepare_package(&workspace_file_manager, &parsed_files, package);
 
@@ -376,7 +376,7 @@ fn publish_diagnostics(
     let files = fm.as_file_map();
     let mut diagnostics_per_url: HashMap<Url, Vec<Diagnostic>> = HashMap::default();
 
-    for custom_diagnostic in custom_diagnostics.into_iter() {
+    for custom_diagnostic in custom_diagnostics {
         let file = custom_diagnostic.file;
         let path = fm.path(file).expect("file must exist to have emitted diagnostic");
         if let Some(uri) = uri_from_path(path)

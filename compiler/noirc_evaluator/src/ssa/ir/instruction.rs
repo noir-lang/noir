@@ -656,7 +656,7 @@ impl Instruction {
                             payload_values.iter().map(|&value| f(value)).collect(),
                         )
                     }
-                    _ => error.clone(),
+                    ConstrainError::StaticString(_) => error.clone(),
                 });
                 Instruction::Constrain(lhs, rhs, assert_message)
             }
@@ -672,7 +672,7 @@ impl Instruction {
                             payload_values.iter().map(|&value| f(value)).collect(),
                         )
                     }
-                    _ => error.clone(),
+                    ConstrainError::StaticString(_) => error.clone(),
                 });
                 Instruction::ConstrainNotEqual(lhs, rhs, assert_message)
             }

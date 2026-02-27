@@ -629,7 +629,7 @@ mod reflection {
                 );
                 // cSpell:enable
 
-                for (i, v) in variants.iter() {
+                for (i, v) in variants {
                     let variant = &v.name;
                     body.push_str(&format!(
                         r#"

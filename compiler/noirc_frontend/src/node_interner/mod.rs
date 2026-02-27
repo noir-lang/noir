@@ -1666,7 +1666,7 @@ impl NodeInterner {
     /// changes, to clear the definitions of the previous version of the file.
     pub fn clear_in_file(&mut self, file: FileId) {
         // Clear in methods
-        for (_key, methods) in self.methods.iter_mut() {
+        for methods in self.methods.values_mut() {
             for (_name, methods) in methods.iter_mut() {
                 methods.direct.retain(|method| {
                     let func_id = method.method;
@@ -1681,12 +1681,12 @@ impl NodeInterner {
         }
 
         // Clear in auto import names
-        for (_name, entries) in self.auto_import_names.iter_mut() {
+        for entries in self.auto_import_names.values_mut() {
             entries.retain(|entry| entry.file != file);
         }
 
         // Clear in reexports
-        for (_module_def_if, reexports) in self.reexports.iter_mut() {
+        for reexports in self.reexports.values_mut() {
             reexports.retain(|reexport| reexport.name.location().file != file);
         }
 
