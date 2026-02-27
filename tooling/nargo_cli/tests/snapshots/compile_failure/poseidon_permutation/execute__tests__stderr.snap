@@ -6,10 +6,10 @@ error: the input length must equal the state size in the Poseidon2 config; expec
     ┌─ std/hash/mod.nr:145:5
     │  
 145 │ ╭     static_assert(
-146 │ │          N == POSEIDON2_CONFIG_STATE_SIZE,
-147 │ │          f"the input length must equal the state size in the Poseidon2 config; expected {POSEIDON2_CONFIG_STATE_SIZE}, got {N}",
-148 │ │      );
-    │ ╰──────'
+146 │ │         N == POSEIDON2_CONFIG_STATE_SIZE,
+147 │ │         f"the input length must equal the state size in the Poseidon2 config; expected {POSEIDON2_CONFIG_STATE_SIZE}, got {N}",
+148 │ │     );
+    │ ╰─────'
     │  
     = Call stack:
       1. src/main.nr:6:9
