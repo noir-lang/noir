@@ -225,7 +225,6 @@ pub fn gen_range(
                     let e = Field::from(e);
                     (s, e)
                 }
-                _ => unreachable!("invalid bit size for range: {integer_bit_size} (unsigned)"),
             };
             ((s, false), (e, false))
         }
