@@ -206,29 +206,12 @@ impl AcirVar {
     }
 }
 
-/// Assumes `typ` is an array or vector type with nested numeric types, arrays or vectors
-/// (recursively) and returns a flat list of all the contained numeric types.
-///
-/// Panics if `self` is not an array or vector type or if a function or reference type
-/// is found along the way.
-///
-/// For example, for `Vector([(u32, u32, [Field; 3])])`, this returns `[u32, u32, Field]`.
-#[allow(dead_code)]
-pub(crate) fn flat_numeric_types(typ: &SsaType) -> Vec<NumericType> {
-    match typ {
-        SsaType::Array(..) | SsaType::Vector(..) => {
-            let mut flat_types = Vec::new();
-            collect_flat_numeric_types(typ, &mut flat_types);
-            flat_types
-        }
-        _ => panic!("Called flat_numeric_types on a non-array/vector type"),
-    }
-}
-
 /// Returns the fully flattened numeric types for one element of a vector/array,
 /// recursively flattening nested arrays.
 ///
 /// For example, for `Vector([(u32, u32, [Field; 3])])`, this returns `[u32, u32, Field, Field, Field]`.
+///
+/// Panics if called on anything but an array or vector type.
 pub(crate) fn flat_element_types(typ: &SsaType) -> Vec<NumericType> {
     match typ {
         SsaType::Vector(element_types) | SsaType::Array(element_types, _) => {
@@ -243,7 +226,6 @@ pub(crate) fn flat_element_types(typ: &SsaType) -> Vec<NumericType> {
 }
 
 /// Helper function for `flat_element_types` that fully flattens arrays using the length.
-/// This is different from `collect_flat_numeric_types` which returns just the first element.
 fn collect_fully_flattened_numeric_types(typ: &SsaType, flat_types: &mut Vec<NumericType>) {
     match typ {
         SsaType::Numeric(numeric_type) => {
@@ -261,21 +243,5 @@ fn collect_fully_flattened_numeric_types(typ: &SsaType, flat_types: &mut Vec<Num
             panic!("Cannot fully flatten a vector type - vectors have dynamic length")
         }
         _ => panic!("Called collect_fully_flattened_numeric_types on unsupported type"),
-    }
-}
-
-/// Helper function for `flat_numeric_types` that recursively collects all numeric types
-/// into `flat_types`.
-fn collect_flat_numeric_types(typ: &SsaType, flat_types: &mut Vec<NumericType>) {
-    match typ {
-        SsaType::Numeric(numeric_type) => {
-            flat_types.push(*numeric_type);
-        }
-        SsaType::Array(types, _) | SsaType::Vector(types) => {
-            for typ in types.iter() {
-                collect_flat_numeric_types(typ, flat_types);
-            }
-        }
-        _ => panic!("Called collect_flat_numeric_types on non-array/vector/number type"),
     }
 }
