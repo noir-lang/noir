@@ -1006,17 +1006,7 @@ fn append_value_to_string(value: &Value, string: &mut String) -> Option<()> {
     match value {
         Value::Unit => string.push_str("()"),
         Value::Bool(value) => string.push_str(&value.to_string()),
-        Value::Field(field_element) => string.push_str(&field_element.to_string()),
-        Value::I8(value) => string.push_str(&value.to_string()),
-        Value::I16(value) => string.push_str(&value.to_string()),
-        Value::I32(value) => string.push_str(&value.to_string()),
-        Value::I64(value) => string.push_str(&value.to_string()),
-        Value::U1(value) => string.push_str(&value.to_string()),
-        Value::U8(value) => string.push_str(&value.to_string()),
-        Value::U16(value) => string.push_str(&value.to_string()),
-        Value::U32(value) => string.push_str(&value.to_string()),
-        Value::U64(value) => string.push_str(&value.to_string()),
-        Value::U128(value) => string.push_str(&value.to_string()),
+        Value::Integer(value) => string.push_str(&value.to_string()),
         Value::String(value) | Value::CtString(value) => string.push_str(&value.to_string()),
         Value::Tuple(values) => {
             let len = values.iter().len();

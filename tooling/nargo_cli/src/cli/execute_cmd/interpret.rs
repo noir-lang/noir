@@ -166,41 +166,41 @@ fn input_value_to_comptime_value(input: &InputValue, typ: &Type, location: Locat
                 .expect("Could not convert field value to integer");
             match numeric_value {
                 NumericValue::Field(_) => panic!("Field should not happen here"),
-                NumericValue::U1(value) => Value::U1(value),
+                NumericValue::U1(value) => Value::u1(value),
                 NumericValue::U8(fitted) => match fitted {
-                    Fitted::Fit(value) => Value::U8(value),
+                    Fitted::Fit(value) => Value::u8(value),
                     Fitted::Unfit(..) => panic!("input value does not fit in u8"),
                 },
                 NumericValue::U16(fitted) => match fitted {
-                    Fitted::Fit(value) => Value::U16(value),
+                    Fitted::Fit(value) => Value::u16(value),
                     Fitted::Unfit(..) => panic!("input value does not fit in u16"),
                 },
                 NumericValue::U32(fitted) => match fitted {
-                    Fitted::Fit(value) => Value::U32(value),
+                    Fitted::Fit(value) => Value::u32(value),
                     Fitted::Unfit(..) => panic!("input value does not fit in u32"),
                 },
                 NumericValue::U64(fitted) => match fitted {
-                    Fitted::Fit(value) => Value::U64(value),
+                    Fitted::Fit(value) => Value::u64(value),
                     Fitted::Unfit(..) => panic!("input value does not fit in u64"),
                 },
                 NumericValue::U128(fitted) => match fitted {
-                    Fitted::Fit(value) => Value::U128(value),
+                    Fitted::Fit(value) => Value::u128(value),
                     Fitted::Unfit(..) => panic!("input value does not fit in u128"),
                 },
                 NumericValue::I8(fitted) => match fitted {
-                    Fitted::Fit(value) => Value::I8(value),
+                    Fitted::Fit(value) => Value::i8(value),
                     Fitted::Unfit(..) => panic!("input value does not fit in i8"),
                 },
                 NumericValue::I16(fitted) => match fitted {
-                    Fitted::Fit(value) => Value::I16(value),
+                    Fitted::Fit(value) => Value::i16(value),
                     Fitted::Unfit(..) => panic!("input value does not fit in i16"),
                 },
                 NumericValue::I32(fitted) => match fitted {
-                    Fitted::Fit(value) => Value::I32(value),
+                    Fitted::Fit(value) => Value::i32(value),
                     Fitted::Unfit(..) => panic!("input value does not fit in i32"),
                 },
                 NumericValue::I64(fitted) => match fitted {
-                    Fitted::Fit(value) => Value::I64(value),
+                    Fitted::Fit(value) => Value::i64(value),
                     Fitted::Unfit(..) => panic!("input value does not fit in i64"),
                 },
             }
@@ -209,7 +209,7 @@ fn input_value_to_comptime_value(input: &InputValue, typ: &Type, location: Locat
             let InputValue::Field(value) = input else {
                 panic!("expected field input for field element type");
             };
-            Value::Field(*value)
+            Value::field(*value)
         }
         Type::Array(length, element_typ) => {
             let length =
@@ -296,18 +296,7 @@ fn output_value_to_string(value: &Value, context: &Context) -> String {
     match value {
         Value::Unit => "()".to_string(),
         Value::Bool(value) => value.to_string(),
-        Value::Field(signed_field) => signed_field.to_short_hex(),
-        Value::I8(value) => value.to_string(),
-        Value::I16(value) => value.to_string(),
-        Value::I32(value) => value.to_string(),
-        Value::I64(value) => value.to_string(),
-        Value::U1(false) => "0".to_string(),
-        Value::U1(true) => "1".to_string(),
-        Value::U8(value) => value.to_string(),
-        Value::U16(value) => value.to_string(),
-        Value::U32(value) => value.to_string(),
-        Value::U64(value) => value.to_string(),
-        Value::U128(value) => value.to_string(),
+        Value::Integer(value) => value.to_string(),
         Value::String(string) => {
             format!("{string:?}")
         }

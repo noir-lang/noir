@@ -117,18 +117,18 @@ pub enum TypedExpr {
 
 macro_rules! int_constructor {
     ($name: ident, $capitalized: ident) => {
-        pub(crate) fn $name(x: $name) -> Self {
+        pub fn $name(x: $name) -> Self {
             Value::Integer(Integer::$capitalized(x))
         }
     };
 }
 
 impl Value {
-    pub(crate) fn field(x: FieldElement) -> Self {
+    pub fn field(x: FieldElement) -> Self {
         Value::Integer(Integer::Field(x))
     }
 
-    pub(crate) fn u1(x: bool) -> Self {
+    pub fn u1(x: bool) -> Self {
         Value::Integer(Integer::U1(x))
     }
 

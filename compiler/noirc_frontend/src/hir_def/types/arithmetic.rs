@@ -746,7 +746,7 @@ mod proptests {
     fn numeric_value_to_type(value: Value) -> Type {
         let kind_type = value.get_type();
         let kind = Kind::numeric(kind_type.into_owned());
-        let value = value.to_field().expect("ICE: numeric_value_to_type: expected a field");
+        let value = value.as_field().expect("ICE: numeric_value_to_type: expected a field");
         Type::Constant(value, kind)
     }
 
