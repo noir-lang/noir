@@ -91,7 +91,7 @@ const IGNORED_BRILLIG_SMALL_STACK_TESTS: [&str; 4] = [
 
 /// Some tests are explicitly ignored in brillig due to them failing.
 /// These should be fixed and removed from this list.
-const IGNORED_BRILLIG_TESTS: [&str; 12] = [
+const IGNORED_BRILLIG_TESTS: [&str; 11] = [
     // bit sizes for bigint operation doesn't match up.
     "bigint",
     // ICE due to looking for function which doesn't exist.
@@ -107,8 +107,6 @@ const IGNORED_BRILLIG_TESTS: [&str; 12] = [
     "is_unconstrained",
     // The output depends on function IDs of lambdas, and with --force-brillig we only get one kind.
     "regression_10158",
-    // In Brillig we don't end up executing the call which makes ACIR and the interpreter fail (with a flattened CFG).
-    "poseidon_permutation",
 ];
 
 /// Tests which aren't expected to work with the default minimum inliner cases.
@@ -168,10 +166,7 @@ const PANICKING_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 5] = [
 
 const PANICKING_COMPTIME_INTERPRET_EXECUTION_FAILURE_TESTS: [&str; 0] = [];
 
-const IGNORED_COMPTIME_INTERPRET_EXECUTION_FAILURE_TESTS: [&str; 1] = [
-    // Similar to Brillig, in comptime we don't make the call that would fail the circuit.
-    "poseidon_permutation",
-];
+const IGNORED_COMPTIME_INTERPRET_EXECUTION_FAILURE_TESTS: [&str; 0] = [];
 
 /// We usually check that the stdout of `nargo execute --force-comptime` matches
 /// that of `nargo execute`, but in some cases the output doesn't match and it's not clear
