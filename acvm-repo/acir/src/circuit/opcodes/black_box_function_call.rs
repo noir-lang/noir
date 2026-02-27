@@ -246,13 +246,10 @@ pub enum BlackBoxFuncCall<F> {
     /// outputting the permuted state.
     ///
     /// This operation will fail if the length of the inputs do not match
-    /// the backend configuration. This is currently not enforced by the
-    /// Noir stdlib, but the [Poseidon library](https://github.com/noir-lang/poseidon) matches
-    /// the expectations of Barretenberg and the solvers used by nargo.
-    ///
-    /// Since the opcode doesn't take a predicate, a mismatch causes a
-    /// runtime failure even if the call happens on a disabled branch.
-    /// This is different than in Brillig, where the call would not happen.
+    /// the backend configuration, but a match with the statically configured
+    /// black box solver is enforced by static assertions, to avoid having a
+    /// different outcome between runtimes based on whether the SSA has
+    /// been flattened or not.
     Poseidon2Permutation {
         /// Input state for the permutation of Poseidon2
         inputs: Vec<FunctionInput<F>>,
