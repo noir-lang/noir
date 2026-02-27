@@ -167,7 +167,7 @@ fn input_value_to_comptime_value(input: &InputValue, typ: &Type, location: Locat
                 .expect("Could not convert field value to integer");
             match numeric_value {
                 NumericValue::Field(_) => panic!("Field should not happen here"),
-                NumericValue::U1(value) => Value::U1(value),
+                NumericValue::U1(value) => Value::Bool(value),
                 NumericValue::U8(fitted) => match fitted {
                     Fitted::Fit(value) => Value::U8(value),
                     Fitted::Unfit(..) => panic!("input value does not fit in u8"),
@@ -296,14 +296,12 @@ fn input_value_to_comptime_value(input: &InputValue, typ: &Type, location: Locat
 fn output_value_to_string(value: &Value, context: &Context) -> String {
     match value {
         Value::Unit => "()".to_string(),
-        Value::Bool(value) => value.to_string(),
+        Value::Bool(value) => if *value { "1" } else { "0" }.to_string(),
         Value::Field(signed_field) => signed_field.to_field_element().to_short_hex(),
         Value::I8(value) => value.to_string(),
         Value::I16(value) => value.to_string(),
         Value::I32(value) => value.to_string(),
         Value::I64(value) => value.to_string(),
-        Value::U1(false) => "0".to_string(),
-        Value::U1(true) => "1".to_string(),
         Value::U8(value) => value.to_string(),
         Value::U16(value) => value.to_string(),
         Value::U32(value) => value.to_string(),

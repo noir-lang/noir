@@ -1011,7 +1011,6 @@ fn append_value_to_string(value: &Value, string: &mut String) -> Option<()> {
         Value::I16(value) => string.push_str(&value.to_string()),
         Value::I32(value) => string.push_str(&value.to_string()),
         Value::I64(value) => string.push_str(&value.to_string()),
-        Value::U1(value) => string.push_str(&value.to_string()),
         Value::U8(value) => string.push_str(&value.to_string()),
         Value::U16(value) => string.push_str(&value.to_string()),
         Value::U32(value) => string.push_str(&value.to_string()),
