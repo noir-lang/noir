@@ -136,9 +136,13 @@ pub(super) fn simplify_call(
                 if let Some(IntegerConstant::Unsigned { value: vector_len, .. }) =
                     dfg.get_integer_constant(arguments[0])
                 {
+                    let elements_size = element_type.element_size();
+                    let semi_flattened_vector_len =
+                        SemanticLength(vector_len as u32) * elements_size;
+
                     // This simplification, which push back directly on the vector, only works if the real vector_len is the
-                    // the length of the vector.
-                    if vector_len as usize == vector.len() {
+                    // the length of the vector (taking the elements size into account).
+                    if semi_flattened_vector_len == SemiFlattenedLength(vector.len() as u32) {
                         for elem in &arguments[2..] {
                             vector.push_back(*elem);
                         }
@@ -147,8 +151,6 @@ pub(super) fn simplify_call(
                             increment_vector_length(arguments[0], dfg, block, call_stack);
 
                         let new_vector = make_array(dfg, vector, element_type, block, call_stack);
-                        dbg!(&new_vector_length, &new_vector);
-
                         return SimplifyResult::SimplifiedToMultiple(vec![
                             new_vector_length,
                             new_vector,
@@ -984,7 +986,7 @@ mod tests {
     }
 
     #[test]
-    fn simplifies_vector_push_back_from_previous_make_array() {
+    fn simplifies_vector_push_back_from_make_array_with_references() {
         let src = "
         acir(inline) predicate_pure fn main f0 {
           b0(v2: &mut u1, v4: &mut u1):
@@ -1004,6 +1006,52 @@ mod tests {
             store u1 0 at v3
             v5 = make_array [v0, v1, v3] : [&mut u1]
             return u32 3, v5
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_vector_push_back_from_make_array_simple() {
+        let src = r#"
+        acir(inline) fn main func {
+          b0():
+            v0 = make_array [Field 1, Field 2] : [Field]
+            v2, v3 = call vector_push_back(u32 2, v0, Field 3) -> (u32, [Field])
+            return v2, v3
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v2 = make_array [Field 1, Field 2] : [Field]
+            v4 = make_array [Field 1, Field 2, Field 3] : [Field]
+            v5 = make_array [Field 1, Field 2, Field 3] : [Field]
+            v6 = make_array [Field 1, Field 2, Field 3] : [Field]
+            return u32 3, v6
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_vector_push_back_from_make_array_complex() {
+        let src = r#"
+        acir(inline) fn main func {
+          b0():
+            v0 = make_array [Field 1, Field 2, Field 3, Field 4] : [(Field, Field)]
+            v2, v3 = call vector_push_back(u32 2, v0, Field 5, Field 6) -> (u32, [(Field, Field)])
+            return v2, v3
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v4 = make_array [Field 1, Field 2, Field 3, Field 4] : [(Field, Field)]
+            v7 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [(Field, Field)]
+            return u32 3, v7
         }
         ");
     }
