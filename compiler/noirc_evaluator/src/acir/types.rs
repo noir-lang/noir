@@ -208,8 +208,11 @@ impl AcirVar {
 
 /// Assumes `typ` is an array or vector type with nested numeric types, arrays or vectors
 /// (recursively) and returns a flat list of all the contained numeric types.
+///
 /// Panics if `self` is not an array or vector type or if a function or reference type
 /// is found along the way.
+///
+/// For example, for `Vector([(u32, u32, [Field; 3])])`, this returns `[u32, u32, Field]`.
 pub(crate) fn flat_numeric_types(typ: &SsaType) -> Vec<NumericType> {
     match typ {
         SsaType::Array(..) | SsaType::Vector(..) => {
@@ -223,7 +226,8 @@ pub(crate) fn flat_numeric_types(typ: &SsaType) -> Vec<NumericType> {
 
 /// Returns the fully flattened numeric types for one element of a vector/array,
 /// recursively flattening nested arrays.
-/// For example, for Vector([(u32, u32, [Field; 3])]), this returns [u32, u32, Field, Field, Field].
+///
+/// For example, for `Vector([(u32, u32, [Field; 3])])`, this returns `[u32, u32, Field, Field, Field]`.
 pub(crate) fn flat_element_types(typ: &SsaType) -> Vec<NumericType> {
     match typ {
         SsaType::Vector(element_types) | SsaType::Array(element_types, _) => {

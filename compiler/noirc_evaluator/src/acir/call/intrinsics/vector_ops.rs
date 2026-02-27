@@ -654,6 +654,7 @@ impl Context<'_> {
             };
 
         let value_types = flat_numeric_types(&vector_typ);
+        assert_eq!(vector_size.to_usize() % value_types.len(), 0);
 
         let result = AcirValue::DynamicArray(AcirDynamicArray {
             block_id: result_block_id,
@@ -848,6 +849,7 @@ impl Context<'_> {
             };
 
         let value_types = flat_numeric_types(&vector_typ);
+        assert_eq!(result_size.to_usize() % value_types.len(), 0);
 
         let result = AcirValue::DynamicArray(AcirDynamicArray {
             block_id: result_block_id,
