@@ -243,7 +243,7 @@ impl<'a> Context<'a> {
             }
         }
 
-        self.data_bus = dfg.data_bus.to_owned();
+        self.data_bus = dfg.data_bus.clone();
         for instruction_id in entry_block.instructions() {
             warnings.extend(self.convert_ssa_instruction(*instruction_id, dfg, ssa)?);
         }

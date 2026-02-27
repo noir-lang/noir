@@ -78,15 +78,15 @@ fn main() -> Result<(), String> {
 /// Tests expected to fail with `--force-brillig --max-stack-frame-size 64`
 /// because they need register spilling (not yet implemented).
 /// Remove tests from this list as spilling is implemented.
-const IGNORED_BRILLIG_SMALL_STACK_TESTS: [&str; 8] = [
+const IGNORED_BRILLIG_SMALL_STACK_TESTS: [&str; 4] = [
+    // TODO: Enabling this would require an indirect call convention. We are returning more args than allowed in the stack.
+    // To enable this code we would need to pass/return call args through a pointer.
     "brillig_block_parameter_liveness",
-    "hashmap",
-    "poseidon_bn254_hash_width_3",
-    "poseidonsponge_x5_254",
+    // These tests rely on specific inliner settings, while we only run
+    // the small stack tests with the default maximally aggressive inliner.
     "reference_counts_inliner_0",
     "reference_counts_inliner_min",
     "reference_counts_vectors_inliner_0",
-    "regression_5252",
 ];
 
 /// Some tests are explicitly ignored in brillig due to them failing.
@@ -385,6 +385,12 @@ fn generate_test_cases(
 {test_cases}
 fn test_{test_name}(force_brillig: ForceBrillig, inliner_aggressiveness: Inliner) {{
     let test_program_dir = PathBuf::from("{test_dir}");
+    #[allow(unused_variables)]
+    let runtime = if force_brillig.0 {{
+        Runtime::Brillig
+    }} else {{
+        Runtime::Acir
+    }};
 
     #[allow(unused_mut)]
     let mut nargo = setup_nargo(&test_program_dir, "{test_command}", force_brillig, inliner_aggressiveness);
@@ -466,8 +472,7 @@ fn max_inliner(test_name: &str) -> i64 {
         .iter()
         .chain(&INLINER_OVERRIDES)
         .find(|(n, _)| *n == test_name)
-        .map(|(_, i)| *i)
-        .unwrap_or(i64::MAX)
+        .map_or(i64::MAX, |(_, i)| *i)
 }
 
 fn min_inliner(test_name: &str) -> i64 {
@@ -475,8 +480,7 @@ fn min_inliner(test_name: &str) -> i64 {
         .iter()
         .chain(&INLINER_OVERRIDES)
         .find(|(n, _)| *n == test_name)
-        .map(|(_, i)| *i)
-        .unwrap_or(i64::MIN)
+        .map_or(i64::MIN, |(_, i)| *i)
 }
 
 fn generate_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) {
@@ -498,7 +502,7 @@ fn generate_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) 
             &test_name,
             &test_dir,
             "execute",
-            "execution_failure(nargo);",
+            "execution_failure(nargo, test_program_dir, runtime);",
             &MatrixConfig { vary_brillig: true, ..Default::default() },
         );
     }

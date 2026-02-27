@@ -67,7 +67,7 @@ impl<F: AcirField> NargoError<F> {
         match self {
             NargoError::ExecutionError(error) => match error {
                 ExecutionError::AssertionFailed(payload, _, _) => match payload {
-                    ResolvedAssertionPayload::String(message) => Some(message.to_string()),
+                    ResolvedAssertionPayload::String(message) => Some(message.clone()),
                     ResolvedAssertionPayload::Raw(raw) => {
                         let abi_type = error_types.get(&raw.selector)?;
                         let decoded = display_abi_error(&raw.data, abi_type.clone());
@@ -76,7 +76,7 @@ impl<F: AcirField> NargoError<F> {
                 },
                 ExecutionError::SolvingError(error, _) => match error {
                     OpcodeResolutionError::BlackBoxFunctionFailed(_, reason) => {
-                        Some(reason.to_string())
+                        Some(reason.clone())
                     }
                     _ => None,
                 },

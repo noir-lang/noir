@@ -14,7 +14,7 @@ impl Artifact {
     pub fn read_from_file(path: &Path) -> Result<Self, CliError> {
         let file = path.with_extension("json");
         let json = std::fs::read(&file)
-            .map_err(|err| FilesystemError::FailedToReadFile(file.to_path_buf(), err))?;
+            .map_err(|err| FilesystemError::FailedToReadFile(file.clone(), err))?;
 
         let as_program = || serde_json::from_slice::<ProgramArtifact>(&json).map(Artifact::Program);
         let as_contract =

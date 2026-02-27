@@ -136,7 +136,7 @@ impl InputValue {
                     } else {
                         return Err(InputTypecheckingError::MissingField {
                             path,
-                            expected_field: field_name.to_string(),
+                            expected_field: field_name.clone(),
                             found_fields: map.keys().cloned().collect(),
                         });
                     }
@@ -144,7 +144,7 @@ impl InputValue {
 
                 if map.len() > fields.len() {
                     let expected_fields: HashSet<String> =
-                        fields.iter().map(|(field, _)| field.to_string()).collect();
+                        fields.iter().map(|(field, _)| field.clone()).collect();
                     let extra_field = map.keys().find(|&key| !expected_fields.contains(key)).cloned().expect("`map` is larger than the expected type's `fields` so it must contain an unexpected field");
                     return Err(InputTypecheckingError::UnexpectedField {
                         path,

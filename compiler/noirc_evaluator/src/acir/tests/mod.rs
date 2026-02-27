@@ -552,7 +552,7 @@ fn test_operators(
     for op in operators {
         let (src, with_output) = generate_test_instruction_from_operator(op);
         let output = if with_output { Some(Witness(len)) } else { None };
-        let ssa = Ssa::from_str(&(main.to_owned() + &src)).unwrap();
+        let ssa = Ssa::from_str(&(main.clone() + &src)).unwrap();
         // ssa execution
         let ssa_interpreter_result = ssa.interpret(vec![inputs_int.clone()]);
         // acir execution

@@ -548,10 +548,10 @@ fn can_return_without_recursing(interner: &NodeInterner, func_id: FuncId, expr_i
         HirExpression::Index(e) => check(e.collection) && check(e.index),
         HirExpression::MemberAccess(e) => check(e.lhs),
         HirExpression::Call(e) => check(e.func) && e.arguments.iter().copied().all(check),
-        HirExpression::Constrain(e) => check(e.0) && e.2.map(check).unwrap_or(true),
+        HirExpression::Constrain(e) => check(e.0) && e.2.is_none_or(check),
         HirExpression::Cast(e) => check(e.lhs),
         HirExpression::If(e) => {
-            check(e.condition) && (check(e.consequence) || e.alternative.map(check).unwrap_or(true))
+            check(e.condition) && (check(e.consequence) || e.alternative.is_none_or(check))
         }
         HirExpression::Match(e) => can_return_without_recursing_match(interner, func_id, &e),
         HirExpression::Tuple(e) => e.iter().copied().all(check),

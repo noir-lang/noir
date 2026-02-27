@@ -244,7 +244,7 @@ impl FuzzerProgramContext {
                 )
             } else {
                 FuzzerFunctionContext::new(
-                    stored_function.types.to_vec(),
+                    stored_function.types.clone(),
                     &self.instruction_blocks,
                     self.program_context_options.clone(),
                     stored_function.function.return_type.clone(),
