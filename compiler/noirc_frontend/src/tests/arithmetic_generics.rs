@@ -287,3 +287,16 @@ fn numeric_generic_arithmetic_in_return_type_concat() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn arithmetic_generics_division_on_type_constants() {
+    let src = r#"
+        fn foo<let N: u32>(_x: [Field; N]) {}
+
+        fn main() {
+            // 11 / 2 = 5
+            foo::<11 / 2>([0; 5]);
+        }
+    "#;
+    assert_no_errors(src);
+}

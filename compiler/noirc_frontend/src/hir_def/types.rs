@@ -277,6 +277,13 @@ impl Kind {
         }
     }
 
+    fn is_definitely_field_element(&self) -> bool {
+        match self.follow_bindings() {
+            Self::Numeric(typ) => matches!(*typ, Type::FieldElement),
+            _ => false,
+        }
+    }
+
     fn integral_minimum_size(&self) -> Option<SignedField> {
         match self.follow_bindings() {
             Kind::Any | Kind::IntegerOrField | Kind::Integer | Kind::Normal => None,
@@ -3300,9 +3307,25 @@ impl BinaryTypeOperator {
                 BinaryTypeOperator::Addition => Ok(a + b),
                 BinaryTypeOperator::Subtraction => Ok(a - b),
                 BinaryTypeOperator::Multiplication => Ok(a * b),
-                BinaryTypeOperator::Division => (!b.is_zero())
-                    .then(|| a / b)
-                    .ok_or(TypeCheckError::DivisionByZero { lhs: a, rhs: b, location }),
+                BinaryTypeOperator::Division => {
+                    if b.is_zero() {
+                        return Err(TypeCheckError::DivisionByZero { lhs: a, rhs: b, location });
+                    }
+                    if kind.is_definitely_field_element() {
+                        Ok(a / b)
+                    } else {
+                        let a_i128 = a.to_i128();
+                        let b_i128 = b.to_i128();
+                        let err = TypeCheckError::FailingBinaryOp {
+                            op: self,
+                            lhs: a_i128.to_string(),
+                            rhs: b_i128.to_string(),
+                            location,
+                        };
+                        let result = a_i128.checked_div(b_i128).ok_or(err)?;
+                        Ok(result.into())
+                    }
+                }
                 BinaryTypeOperator::Modulo => {
                     Err(TypeCheckError::ModuloOnFields { lhs: a, rhs: b, location })
                 }
