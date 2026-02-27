@@ -138,7 +138,7 @@ fn fold_array_set_into_make_array(
     }
 
     let can_fold = dfg.get_numeric_constant(side_effects_var).is_some_and(|var| var.is_one())
-        || make_array_predicates[&instruction_id] == side_effects_var;
+        || make_array_predicates.get(&instruction_id) == Some(&side_effects_var);
     if !can_fold {
         // The array_set and make_array are under different predicates, and the array_set predicate is not `true`,
         // so we can't fold them together.
