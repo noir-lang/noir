@@ -6,7 +6,7 @@ use acvm::{
     AcirField as _, FieldElement,
     acir::{
         BlackBoxFunc,
-        brillig::lengths::{SemanticLength, SemiFlattenedLength},
+        brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength},
     },
 };
 use bn254_blackbox_solver::derive_generators;
@@ -147,6 +147,8 @@ pub(super) fn simplify_call(
                             increment_vector_length(arguments[0], dfg, block, call_stack);
 
                         let new_vector = make_array(dfg, vector, element_type, block, call_stack);
+                        dbg!(&new_vector_length, &new_vector);
+
                         return SimplifyResult::SimplifiedToMultiple(vec![
                             new_vector_length,
                             new_vector,
@@ -508,6 +510,12 @@ fn simplify_vector_push_back(
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> SimplifyResult {
+    // TODO(#2752): We need to handle the element_type size to appropriately handle vectors of complex types.
+    // This is reliant on dynamic indices of non-homogenous vectors also being implemented.
+    if element_type.element_size() != ElementTypesLength(1) {
+        return SimplifyResult::None;
+    }
+
     // The capacity must be an integer so that we can compare it against the vector length
     let capacity = dfg.make_constant((vector.len() as u128).into(), NumericType::length_type());
     let len_equals_capacity_instr =
