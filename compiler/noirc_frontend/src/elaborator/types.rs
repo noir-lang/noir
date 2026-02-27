@@ -732,10 +732,9 @@ impl Elaborator<'_> {
                 let reference_location = path.location;
                 self.interner.add_global_reference(id, reference_location);
                 let opt_global_let_statement = self.interner.get_global_let_statement(id);
-                let kind = opt_global_let_statement
-                    .as_ref()
-                    .map(|let_statement| Kind::numeric(let_statement.r#type.clone()))
-                    .unwrap_or(Kind::u32());
+                let kind = opt_global_let_statement.as_ref().map_or(Kind::u32(), |let_statement| {
+                    Kind::numeric(let_statement.r#type.clone())
+                });
 
                 let Some(stmt) = opt_global_let_statement else {
                     if self.elaborate_global_if_unresolved(&id) {
@@ -818,10 +817,10 @@ impl Elaborator<'_> {
                 };
 
                 if !suffix_kind.unifies(expected_kind) {
-                    self.push_err(TypeCheckError::ExpectingOtherError {
-                        message: format!("convert_expression_type: {suffix_kind} does not unify with expected {expected_kind}"),
+                    self.push_err(TypeCheckError::expecting_other_error(
+                        format!("convert_expression_type: {suffix_kind} does not unify with expected {expected_kind}"),
                         location,
-                    });
+                    ));
                 }
 
                 Type::Constant(int, suffix_kind)
@@ -1988,11 +1987,10 @@ impl Elaborator<'_> {
                 });
             }
             Type::Error => {
-                self.push_err(TypeCheckError::ExpectingOtherError {
-                    message: "type_check_operator_method: encountered method_type of type 'error'"
-                        .to_string(),
+                self.push_err(TypeCheckError::expecting_other_error(
+                    "type_check_operator_method: encountered method_type of type 'error'",
                     location,
-                });
+                ));
             }
             other => {
                 unreachable!(
@@ -2555,8 +2553,7 @@ impl Elaborator<'_> {
         if !is_current_func_constrained {
             // Check if we're calling verify_proof_with_type in an unconstrained context
             self.run_lint(|elaborator| {
-                lints::error_if_verify_proof_with_type(elaborator.interner, call.func)
-                    .map(Into::into)
+                lints::error_if_verify_proof_with_type(elaborator.interner, call.func, location)
             });
         }
 
@@ -2567,8 +2564,14 @@ impl Elaborator<'_> {
                 false
             };
 
-        let is_unconstrained_call =
-            func_type_is_unconstrained || self.is_unconstrained_call(call.func);
+        let func_is_unconstrained_call = match self.is_unconstrained_call(call.func, location) {
+            Ok(result) => result,
+            Err(error) => {
+                self.push_err(error);
+                false
+            }
+        };
+        let is_unconstrained_call = func_type_is_unconstrained || func_is_unconstrained_call;
         let crossing_runtime_boundary = is_current_func_constrained && is_unconstrained_call;
 
         if crossing_runtime_boundary {
@@ -2599,11 +2602,16 @@ impl Elaborator<'_> {
     }
 
     /// Check if the callee is an unconstrained function, or a variable referring to one.
-    fn is_unconstrained_call(&self, expr: ExprId) -> bool {
-        if let Some(func_id) = self.interner.lookup_function_from_expr(&expr) {
-            self.interner.function_meta(&func_id).is_unconstrained()
+    fn is_unconstrained_call(
+        &self,
+        expr: ExprId,
+        location: Location,
+    ) -> Result<bool, CompilationError> {
+        if let Some(func_id) = self.interner.lookup_function_from_expr(&expr, location)? {
+            let meta = self.interner.function_meta(&func_id);
+            Ok(meta.is_unconstrained())
         } else {
-            false
+            Ok(false)
         }
     }
 

@@ -162,10 +162,7 @@ fn validate_ssa_or_err(ssa: Ssa) -> Result<Ssa, RuntimeError> {
         } else {
             format!("{payload:?}")
         };
-        let err = RuntimeError::SsaValidationError {
-            message: message.to_owned(),
-            call_stack: CallStack::default(),
-        };
+        let err = RuntimeError::SsaValidationError { message, call_stack: CallStack::default() };
         Err(err)
     } else {
         Ok(ssa)
@@ -522,6 +519,8 @@ impl FunctionContext<'_> {
         location: Location,
         length: Option<ValueId>,
     ) -> Result<Values, RuntimeError> {
+        self.builder.set_location(location);
+
         // base_index = index * type_size
         let index = self.make_array_index(index);
         let type_size_usize = Self::convert_type(element_type).size_of_type();
@@ -564,11 +563,7 @@ impl FunctionContext<'_> {
         // so it's okay to use unchecked operations. The SSA interpreter has been updated to have similar semantics.
         let unchecked = true;
 
-        let base_index = self.builder.set_location(location).insert_binary(
-            index,
-            BinaryOp::Mul { unchecked },
-            type_size,
-        );
+        let base_index = self.builder.insert_binary(index, BinaryOp::Mul { unchecked }, type_size);
 
         let mut field_index = 0u128;
         Ok(Self::map_type(element_type, |typ| {
@@ -781,7 +776,7 @@ impl FunctionContext<'_> {
         self.define(for_expr.index_variable, loop_index.into());
 
         let result = self.codegen_expression(&for_expr.block);
-        self.codegen_unless_break_or_continue(result.clone(), |this, _| {
+        self.codegen_unless_break_or_continue(result, |this, _| {
             let new_loop_index = this.make_offset(loop_index, 1, true);
             this.builder.terminate_with_jmp(loop_entry, vec![new_loop_index]);
         })?;

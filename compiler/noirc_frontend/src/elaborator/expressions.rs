@@ -17,6 +17,7 @@ use crate::{
         UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression,
     },
     elaborator::{
+        ScopeForest,
         patterns::IdentFromPath,
         types::{WildcardAllowed, WildcardDisallowedContext},
     },
@@ -34,11 +35,12 @@ use crate::{
             HirMatch, HirMemberAccess, HirMethodCallExpression, HirPrefixExpression, ImplKind,
             TraitItem,
         },
-        stmt::{HirLetStatement, HirPattern, HirStatement},
+        stmt::{HirLValue, HirLetStatement, HirPattern, HirStatement},
         traits::{ResolvedTraitBound, TraitConstraint},
     },
     node_interner::{
-        DefinitionId, DefinitionKind, ExprId, FuncId, InternedStatementKind, StmtId, TraitItemId,
+        DefinitionId, DefinitionInfo, DefinitionKind, ExprId, FuncId, InternedStatementKind,
+        StmtId, TraitItemId,
         pusher::{HasLocation, PushedExpr},
     },
     shared::Signedness,
@@ -400,7 +402,7 @@ impl Elaborator<'_> {
                 );
 
                 let first_elem_type = Type::TypeVariable(type_variable);
-                let first_location = elements.first().map(|elem| elem.location).unwrap_or(location);
+                let first_location = elements.first().map_or(location, |elem| elem.location);
 
                 let elements = vecmap(elements.into_iter().enumerate(), |(i, elem)| {
                     let location = elem.location;
@@ -463,7 +465,7 @@ impl Elaborator<'_> {
         for fragment in &fragments {
             if let FmtStrFragment::Interpolation(ident_name, location) = fragment {
                 let (typ, expr_id) = match self
-                    .get_ident_from_path(TypedPath::from_single(ident_name.to_string(), *location))
+                    .get_ident_from_path(TypedPath::from_single(ident_name.clone(), *location))
                 {
                     Some(IdentFromPath::Variable(variable)) => {
                         self.handle_local_variable(&variable);
@@ -565,13 +567,16 @@ impl Elaborator<'_> {
     }
 
     /// Check whether we can create a mutable reference over an expression.
-    ///
     /// Pushes an error if it cannot be done.
+    ///
+    /// Also, if the expression is a local variable, marks it as mutated.
     pub(super) fn check_can_mutate(&mut self, expr_id: ExprId, location: Location) {
         match self.interner.expression(&expr_id) {
             HirExpression::Ident(hir_ident, _) => {
                 let definition = self.interner.definition(hir_ident.id);
                 let name = definition.name.clone();
+                Self::mark_local_variable_as_mutated(definition, &mut self.scopes);
+
                 if !definition.mutable {
                     self.push_err(TypeCheckError::CannotMutateImmutableVariable { name, location });
                 } else {
@@ -605,6 +610,39 @@ impl Elaborator<'_> {
             if !typ.is_mutable_ref() && lambda_context.captures.iter().any(|var| var.ident.id == id)
             {
                 self.push_err(TypeCheckError::MutableCaptureWithoutRef { name, location });
+            }
+        }
+    }
+
+    /// Go over the given `lvalue` and any nested l-values and mark any local variables as mutated.
+    /// However, dereferences do not cause mutation of their inner variables.
+    pub(super) fn mark_lvalue_variables_as_mutated(&mut self, lvalue: &HirLValue) {
+        match lvalue {
+            HirLValue::Ident(hir_ident, _) => {
+                let definition = self.interner.definition(hir_ident.id);
+                Self::mark_local_variable_as_mutated(definition, &mut self.scopes);
+            }
+            HirLValue::MemberAccess { object, .. } => {
+                self.mark_lvalue_variables_as_mutated(object);
+            }
+            HirLValue::Index { array, .. } => {
+                self.mark_lvalue_variables_as_mutated(array);
+            }
+            HirLValue::Dereference { .. } => {
+                // A dereference like `*x` means `x` is `&mut Something` so the contents of `x`
+                // can be mutated even if `x` isn't itself `mut`
+            }
+            HirLValue::Error { .. } => (),
+        }
+    }
+
+    /// If the given definition corresponds to a local variable, find a local variable with the
+    /// given definition name and mark it as mutated.
+    fn mark_local_variable_as_mutated(definition: &DefinitionInfo, scopes: &mut ScopeForest) {
+        if matches!(definition.kind, DefinitionKind::Local(_)) {
+            let scope_tree = scopes.current_scope_tree();
+            if let Some((variable, _index)) = scope_tree.find(&definition.name) {
+                variable.mutated = true;
             }
         }
     }
@@ -817,15 +855,14 @@ impl Elaborator<'_> {
 
         let location = object_location.merge(method_name_location);
 
-        let (function_id, function_name) = method_ref.clone().into_function_id_and_name(
+        let (function_id, function_name) = method_ref.into_function_id_and_name(
             object_type.clone(),
             generics.clone(),
             location,
             self.interner,
         );
 
-        let func_type =
-            self.type_check_variable(function_name.clone(), &function_id, generics.clone());
+        let func_type = self.type_check_variable(function_name, &function_id, generics.clone());
 
         let function_id = self.intern_expr_type(function_id, func_type.clone());
 
@@ -1131,7 +1168,7 @@ impl Elaborator<'_> {
 
             let expected_index_and_visibility =
                 expected_field.map(|(index, visibility, _)| (index, visibility));
-            let expected_type = expected_field.map(|(_, _, typ)| typ).unwrap_or(&&Type::Error);
+            let expected_type = expected_field.map_or(&&Type::Error, |(_, _, typ)| typ);
 
             let field_location = field.location;
             let (resolved, field_type) = self.elaborate_expression(field);
@@ -1519,7 +1556,8 @@ impl Elaborator<'_> {
                         pattern,
                         typ.clone(),
                         parameter,
-                        true,
+                        true, // warn_if_unused
+                        true, // warn_if_not_mutated
                         &mut parameter_names_in_list,
                     ),
                     typ,
@@ -1760,7 +1798,7 @@ impl Elaborator<'_> {
         let mut bindings = TypeBindings::default();
 
         // In `<Type as Trait>::method` we know `Self` is `Type` so we bind that now
-        bindings.insert(self_type.id(), (self_type, kind, constraint.typ.clone()));
+        bindings.insert(self_type.id(), (self_type, kind, constraint.typ));
 
         // TODO: set this to `true`. See https://github.com/noir-lang/noir/issues/8687
         let push_required_type_variables = self.current_trait.is_none();

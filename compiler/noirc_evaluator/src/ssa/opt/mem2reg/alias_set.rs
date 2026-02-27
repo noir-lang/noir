@@ -48,7 +48,7 @@ impl AliasSet {
     /// Otherwise, it is the union of both alias sets.
     pub(super) fn unify(&mut self, other: &Self) {
         if let (Some(self_aliases), Some(other_aliases)) = (&mut self.aliases, &other.aliases) {
-            self_aliases.extend(other_aliases.iter().cloned());
+            self_aliases.extend(other_aliases.iter().copied());
         } else {
             self.aliases = None;
         }

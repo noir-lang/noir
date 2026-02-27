@@ -394,7 +394,7 @@ fn static_assert(
     if predicate {
         Ok(Value::Unit)
     } else {
-        failing_constraint(format!("static_assert failed: {message}").clone(), location, call_stack)
+        failing_constraint(format!("static_assert failed: {message}"), location, call_stack)
     }
 }
 
@@ -427,7 +427,7 @@ fn type_def_add_attribute(
     let mut parser = Parser::for_str(&attribute, attribute_location.file);
     let Some((Attribute::Secondary(attribute), _span)) = parser.parse_attribute() else {
         return Err(InterpreterError::InvalidAttribute {
-            attribute: attribute.to_string(),
+            attribute: attribute.clone(),
             location: attribute_location,
         });
     };
@@ -1419,7 +1419,7 @@ fn typed_expr_as_function_definition(
     let self_argument = check_one_argument(arguments, location)?;
     let typed_expr = get_typed_expr(self_argument)?;
     let option_value = if let TypedExpr::ExprId(expr_id) = typed_expr {
-        let func_id = interner.lookup_function_from_expr(&expr_id);
+        let func_id = interner.lookup_function_from_expr(&expr_id, location)?;
         func_id.map(Value::FunctionDefinition)
     } else {
         None
@@ -2070,7 +2070,7 @@ fn expr_as_integer(
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    expr_as(interner, arguments, return_type.clone(), location, |expr| match expr {
+    expr_as(interner, arguments, return_type, location, |expr| match expr {
         ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field, _suffix))) => {
             Some(Value::Tuple(vec![
                 Shared::new(Value::Field(SignedField::positive(field.absolute_value()))),
@@ -2543,7 +2543,7 @@ fn function_def_add_attribute(
     let mut parser = Parser::for_str(&attribute, attribute_location.file);
     let Some((attribute, _span)) = parser.parse_attribute() else {
         return Err(InterpreterError::InvalidAttribute {
-            attribute: attribute.to_string(),
+            attribute: attribute.clone(),
             location: attribute_location,
         });
     };
@@ -2821,6 +2821,7 @@ fn function_def_set_parameters(
                 DefinitionKind::Local(None),
                 &mut parameter_idents,
                 true, // warn_if_unused
+                true, // warn_if_not_mutated
                 &mut parameter_names_in_list,
             )
         });

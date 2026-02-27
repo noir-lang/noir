@@ -193,10 +193,10 @@ impl NodeInterner {
         // We don't need to return an error since we expect an error to already be issued when
         // the error type is created.
         if object_type == Type::Error {
-            return Err(TypeCheckError::ExpectingOtherError {
-                message: "collect_trait_impl: missing trait type".to_string(),
+            return Err(TypeCheckError::expecting_other_error(
+                "collect_trait_impl: missing trait type",
                 location,
-            }
+            )
             .into());
         }
 
@@ -210,7 +210,7 @@ impl NodeInterner {
         // E.g. if we already have an `impl Foo<Bar = i32> for Baz`, we should
         // reject `impl Foo<Bar = u32> for Baz` if it were to be added.
         let associated_types = &trait_generics.named;
-        let ordered_generics = &trait_generics.ordered.to_vec();
+        let ordered_generics = &trait_generics.ordered.clone();
 
         let associated_types = vecmap(associated_types, |named| {
             let typ = self.next_type_variable();
