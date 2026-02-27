@@ -4,12 +4,12 @@ fn main(b: bool) -> pub bool {
 
     // safety: test
     unsafe {
-        // This should print `([1, 0].as_vector(), true, [100].as_vector())`, not `([1, 0].as_vector(), false, [1].as_vector())`
+        // This should print `([true, false].as_vector(), true, [100].as_vector())`, not `([true, false].as_vector(), false, [1].as_vector())`
         func_5((
             if b {
-                [1, 0].as_vector()
+                [true, false].as_vector()
             } else {
-                [0, 0, 0, 0].as_vector()
+                [false, false, false, false].as_vector()
             }, true, [100].as_vector(),
         ))
     }
