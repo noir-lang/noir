@@ -105,7 +105,7 @@ impl LiveIntervals {
         func: &Function,
         liveness: &VariableLiveness,
         constants: &ConstantAllocation,
-        rpo: &[BasicBlockId],
+        post_order: &[BasicBlockId],
     ) -> Self {
         let mut result = Self {
             block_entry_points: HashMap::default(),
@@ -116,26 +116,26 @@ impl LiveIntervals {
         };
 
         // Step 0: Assign program points in reverse post-order (RPO).
-        result.assign_program_points(func, rpo);
+        result.assign_program_points(func, post_order);
 
         // Step 1: Build intervals by processing blocks in post-order.
-        result.build_intervals(func, liveness, rpo);
+        result.build_intervals(func, liveness, post_order);
 
         // Step 2: Post-process for Noir's idom allocation of block params.
         result.adjust_block_param_defs(liveness);
 
         // Step 3: Handle constants allocated at specific block entries.
-        result.adjust_constant_defs(constants, rpo);
+        result.adjust_constant_defs(constants, post_order);
 
         result
     }
 
     /// Assign monotonically increasing program points to block entries,
     /// instructions, and terminators in RPO.
-    fn assign_program_points(&mut self, func: &Function, rpo: &[BasicBlockId]) {
+    fn assign_program_points(&mut self, func: &Function, post_order: &[BasicBlockId]) {
         let mut index: u32 = 0;
 
-        for &block_id in rpo {
+        for &block_id in post_order.iter().rev() {
             // Block entry point.
             self.block_entry_points.insert(block_id, ProgramPoint(index));
             index += 1;
@@ -166,7 +166,7 @@ impl LiveIntervals {
     /// ```text
     /// BUILDINTERVALS
     ///
-    /// for each block b in reverse order do          <- rpo.iter().rev()
+    /// for each block b in reverse order do          <- post_order iter (== reverse RPO)
     ///   live = union of successor.liveIn for each   <- liveness.get_live_out() (equivalent:
     ///          successor of b                         live_out = ∪ live_in(s) for successors s)
     ///   for each phi function phi of successors     <- terminator.for_each_value() — adds jmp args
@@ -206,11 +206,11 @@ impl LiveIntervals {
         &mut self,
         func: &Function,
         liveness: &VariableLiveness,
-        rpo: &[BasicBlockId],
+        post_order: &[BasicBlockId],
     ) {
-        // Process blocks in reverse RPO (post-order) so that successors are
+        // Process blocks in post-order so that successors are
         // processed before predecessors, matching the Wimmer algorithm.
-        for &block_id in rpo.iter().rev() {
+        for &block_id in post_order {
             let block = &func.dfg[block_id];
             let block_entry = self.block_entry_points[&block_id];
             let block_end = self.terminator_points.get(&block_id).copied().unwrap_or(block_entry);
@@ -282,8 +282,12 @@ impl LiveIntervals {
     ///
     /// Constants from `ConstantAllocation::allocated_in_block` are materialized
     /// at specific block entries. We extend their def to match.
-    fn adjust_constant_defs(&mut self, constants: &ConstantAllocation, rpo: &[BasicBlockId]) {
-        for &block_id in rpo {
+    fn adjust_constant_defs(
+        &mut self,
+        constants: &ConstantAllocation,
+        post_order: &[BasicBlockId],
+    ) {
+        for &block_id in post_order.iter().rev() {
             let entry_point = self.block_entry_points[&block_id];
             for constant_id in constants.allocated_in_block(block_id) {
                 if let Some(interval) = self.intervals.get_mut(&constant_id) {
@@ -407,8 +411,8 @@ mod tests {
         let func = ssa.main();
         let constants = ConstantAllocation::from_function(func);
         let liveness = VariableLiveness::from_function(func, &constants);
-        let rpo = PostOrder::with_function(func).into_vec_reverse();
-        let intervals = LiveIntervals::from_function(func, &liveness, &constants, &rpo);
+        let post_order = PostOrder::with_function(func).into_vec();
+        let intervals = LiveIntervals::from_function(func, &liveness, &constants, &post_order);
         (intervals, ssa)
     }
 
@@ -435,8 +439,7 @@ mod tests {
         ";
         let (intervals, ssa) = build_intervals(src);
         let func = ssa.main();
-        let post_order = PostOrder::with_function(func);
-        let rpo = post_order.into_vec_reverse();
+        let rpo = PostOrder::with_function(func).into_vec_reverse();
 
         let [b0] = block_ids();
         assert_eq!(rpo, vec![b0]);
@@ -497,8 +500,7 @@ mod tests {
         ";
         let (intervals, ssa) = build_intervals(src);
         let func = ssa.main();
-        let post_order = PostOrder::with_function(func);
-        let rpo = post_order.into_vec_reverse();
+        let rpo = PostOrder::with_function(func).into_vec_reverse();
 
         let [b0, b1, b2, b3] = block_ids();
         assert_eq!(rpo, vec![b0, b2, b1, b3]);
@@ -564,8 +566,7 @@ mod tests {
         ";
         let (intervals, ssa) = build_intervals(src);
         let func = ssa.main();
-        let post_order = PostOrder::with_function(func);
-        let rpo = post_order.into_vec_reverse();
+        let rpo = PostOrder::with_function(func).into_vec_reverse();
 
         let [b0, b1, b2, b3] = block_ids();
         assert_eq!(rpo, vec![b0, b1, b3, b2]);
@@ -637,8 +638,7 @@ mod tests {
         ";
         let (intervals, ssa) = build_intervals(src);
         let func = ssa.main();
-        let post_order = PostOrder::with_function(func);
-        let rpo = post_order.into_vec_reverse();
+        let rpo = PostOrder::with_function(func).into_vec_reverse();
 
         let [b0, b1, b2, b3, b4, b5, b6] = block_ids();
         assert_eq!(rpo, vec![b0, b1, b5, b2, b3, b6, b4]);
@@ -744,8 +744,7 @@ mod tests {
         ";
         let (intervals, ssa) = build_intervals(src);
         let func = ssa.main();
-        let post_order = PostOrder::with_function(func);
-        let rpo = post_order.into_vec_reverse();
+        let rpo = PostOrder::with_function(func).into_vec_reverse();
 
         let [b0, b1, b2, b3] = block_ids();
         assert_eq!(rpo, vec![b0, b2, b1, b3]);
@@ -785,8 +784,7 @@ mod tests {
         ";
         let (intervals, ssa) = build_intervals(src);
         let func = ssa.main();
-        let post_order = PostOrder::with_function(func);
-        let rpo = post_order.into_vec_reverse();
+        let rpo = PostOrder::with_function(func).into_vec_reverse();
 
         let [b0, b1, b2, b3] = block_ids();
         assert_eq!(rpo, vec![b0, b2, b1, b3]);
@@ -837,8 +835,7 @@ mod tests {
         ";
         let (intervals, ssa) = build_intervals(src);
         let func = ssa.main();
-        let post_order = PostOrder::with_function(func);
-        let rpo = post_order.into_vec_reverse();
+        let rpo = PostOrder::with_function(func).into_vec_reverse();
 
         let [b0, b1, b2, b3] = block_ids();
         assert_eq!(rpo, vec![b0, b1, b3, b2]);
