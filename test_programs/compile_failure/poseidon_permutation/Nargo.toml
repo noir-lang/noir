@@ -1,5 +1,5 @@
 [package]
-name = "brillig_poseidon_permutation"
+name = "poseidon_permutation"
 type = "bin"
 authors = [""]
 
