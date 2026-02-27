@@ -91,7 +91,7 @@ const IGNORED_BRILLIG_SMALL_STACK_TESTS: [&str; 4] = [
 
 /// Some tests are explicitly ignored in brillig due to them failing.
 /// These should be fixed and removed from this list.
-const IGNORED_BRILLIG_TESTS: [&str; 11] = [
+const IGNORED_BRILLIG_TESTS: [&str; 12] = [
     // bit sizes for bigint operation doesn't match up.
     "bigint",
     // ICE due to looking for function which doesn't exist.
@@ -107,6 +107,8 @@ const IGNORED_BRILLIG_TESTS: [&str; 11] = [
     "is_unconstrained",
     // The output depends on function IDs of lambdas, and with --force-brillig we only get one kind.
     "regression_10158",
+    // In Brillig we don't end up executing the call which makes ACIR and the interpreter fail (with a flattened CFG).
+    "poseidon_permutation",
 ];
 
 /// Tests which aren't expected to work with the default minimum inliner cases.
@@ -150,9 +152,11 @@ const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 2] = [
     "reference_counts_inliner_max",
 ];
 
+const IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 0] = [];
+
 /// `nargo execute --force-comptime` ignored tests because of bugs or because some
 /// programs don't behave the same way in comptime (for example: reference counting).
-const IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 5] = [
+const PANICKING_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 5] = [
     // These check reference counts, which aren't tracked in comptime code
     "reference_counts_inliner_0",
     "reference_counts_inliner_max",
@@ -162,7 +166,13 @@ const IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS: [&str; 5] = [
     "regression_7323",
 ];
 
-const IGNORED_COMPTIME_INTERPRET_EXECUTION_FAILURE_TESTS: [&str; 0] = [];
+const PANICKING_COMPTIME_INTERPRET_EXECUTION_FAILURE_TESTS: [&str; 0] = [];
+
+const IGNORED_COMPTIME_INTERPRET_EXECUTION_FAILURE_TESTS: [&str; 1] = [
+    // Similar to Brillig, in comptime we don't make the call that would fail the circuit.
+    "poseidon_permutation",
+];
+
 /// We usually check that the stdout of `nargo execute --force-comptime` matches
 /// that of `nargo execute`, but in some cases the output doesn't match and it's not clear
 /// this can be solved.
@@ -503,7 +513,10 @@ fn generate_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) 
             &test_dir,
             "execute",
             "execution_failure(nargo, test_program_dir, runtime);",
-            &MatrixConfig { vary_brillig: true, ..Default::default() },
+            &MatrixConfig {
+                vary_brillig: !IGNORED_BRILLIG_TESTS.contains(&test_name.as_str()),
+                ..Default::default()
+            },
         );
     }
     writeln!(test_file, "}}").unwrap();
@@ -547,8 +560,11 @@ fn generate_comptime_interpret_execution_success_tests(test_file: &mut File, tes
     )
     .unwrap();
     for (test_name, test_dir) in test_cases {
+        if IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS.contains(&test_name.as_str()) {
+            continue;
+        }
         let should_panic =
-            if IGNORED_COMPTIME_INTERPRET_EXECUTION_TESTS.contains(&test_name.as_str()) {
+            if PANICKING_COMPTIME_INTERPRET_EXECUTION_TESTS.contains(&test_name.as_str()) {
                 "#[should_panic]"
             } else {
                 ""
@@ -587,8 +603,11 @@ fn generate_comptime_interpret_execution_failure_tests(test_file: &mut File, tes
     .unwrap();
 
     for (test_name, test_dir) in test_cases {
+        if IGNORED_COMPTIME_INTERPRET_EXECUTION_FAILURE_TESTS.contains(&test_name.as_str()) {
+            continue;
+        }
         let should_panic =
-            if IGNORED_COMPTIME_INTERPRET_EXECUTION_FAILURE_TESTS.contains(&test_name.as_str()) {
+            if PANICKING_COMPTIME_INTERPRET_EXECUTION_FAILURE_TESTS.contains(&test_name.as_str()) {
                 "#[should_panic]"
             } else {
                 ""
@@ -927,7 +946,10 @@ fn generate_interpret_execution_failure_tests(test_file: &mut File, test_data_di
             &test_dir,
             "interpret",
             "interpret_execution_failure(nargo);",
-            &MatrixConfig { vary_brillig: true, ..Default::default() },
+            &MatrixConfig {
+                vary_brillig: !IGNORED_BRILLIG_TESTS.contains(&test_name.as_str()),
+                ..Default::default()
+            },
         );
     }
     writeln!(test_file, "}}").unwrap();
