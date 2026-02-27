@@ -204,8 +204,6 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores,
         // then try to free memory before inlining, which involves copying a instructions.
         SsaPass::new(Ssa::mem2reg, "Mem2Reg").and_then(Ssa::remove_unused_instructions),
-        SsaPass::new(Ssa::array_set_optimization, "ArraySet optimization"),
-        SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
         // Run the inlining pass again to handle functions with `InlineType::NoPredicates`.
         // Before flattening is run, we treat functions marked with the `InlineType::NoPredicates` as an entry point.
         // This pass must come immediately following `mem2reg` as the succeeding passes
@@ -219,6 +217,8 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             },
             "Inlining",
         ),
+        SsaPass::new(Ssa::array_set_optimization, "ArraySet optimization"),
+        SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
         SsaPass::new_try(Ssa::remove_if_else, "Remove IfElse"),
         SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
         SsaPass::new(
