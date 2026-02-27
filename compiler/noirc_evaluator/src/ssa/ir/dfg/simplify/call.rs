@@ -981,4 +981,50 @@ mod tests {
         }
         ");
     }
+
+    #[test]
+    fn simplifies_vector_push_back_from_make_array_simple() {
+        let src = r#"
+        acir(inline) fn main func {
+          b0():
+            v0 = make_array [Field 1, Field 2] : [Field]
+            v2, v3 = call vector_push_back(u32 2, v0, Field 3) -> (u32, [Field])
+            return v2, v3
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v2 = make_array [Field 1, Field 2] : [Field]
+            v4 = make_array [Field 1, Field 2, Field 3] : [Field]
+            v5 = make_array [Field 1, Field 2, Field 3] : [Field]
+            v6 = make_array [Field 1, Field 2, Field 3] : [Field]
+            return u32 3, v6
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_vector_push_back_from_make_array_complex() {
+        let src = r#"
+        acir(inline) fn main func {
+          b0():
+            v0 = make_array [Field 1, Field 2, Field 3, Field 4] : [(Field, Field)]
+            v2, v3 = call vector_push_back(u32 2, v0, Field 5, Field 6) -> (u32, [(Field, Field)])
+            return v2, v3
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v4 = make_array [Field 1, Field 2, Field 3, Field 4] : [(Field, Field)]
+            v9, v10 = call vector_push_back(u32 2, v4, Field 5, Field 6) -> (u32, [(Field, Field)])
+            return v9, v10
+        }
+        ");
+    }
 }
