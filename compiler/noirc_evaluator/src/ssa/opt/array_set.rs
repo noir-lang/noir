@@ -1,6 +1,6 @@
 //! Optimizes `array_set` instructions by turning then into `make_array` instructions when they
 //! set a known index on a previous `make_array` instruction, as long as both instructions
-//! are under the same side-effects predicate.
+//! are under the same side-effects predicate or the side effects var for the `array_set` is `true`.
 //!
 //! For example, this:
 //!
@@ -137,8 +137,11 @@ fn fold_array_set_into_make_array(
         return None;
     }
 
-    if make_array_predicates[&instruction_id] != side_effects_var {
-        // The array_set and make_array are under different predicates, so we can't fold them together.
+    let can_fold = dfg.get_numeric_constant(side_effects_var).is_some_and(|var| var.is_one())
+        || make_array_predicates[&instruction_id] == side_effects_var;
+    if !can_fold {
+        // The array_set and make_array are under different predicates, and the array_set predicate is not `true`,
+        // so we can't fold them together.
         return None;
     }
 
@@ -264,6 +267,36 @@ mod tests {
             v4 = make_array [Field 2, Field 3] : [Field; 2]
             v6 = make_array [Field 4, Field 3] : [Field; 2]
             enable_side_effects v1
+            return Field 4, Field 3
+        }
+        ");
+    }
+
+    #[test]
+    fn folds_conditional_array_set_into_make_array_when_array_set_predicate_is_true() {
+        // The array_set here can be folded into the make_array because they are both under the same predicate.
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v4: u1):
+            enable_side_effects v4
+            v0 = make_array [Field 2, Field 3] : [Field; 2]
+            enable_side_effects u1 1
+            v1 = array_set v0, index u32 0, value Field 4
+            v2 = array_get v1, index u32 0 -> Field
+            v3 = array_get v1, index u32 1 -> Field
+            return v2, v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.array_set_optimization();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            v3 = make_array [Field 2, Field 3] : [Field; 2]
+            enable_side_effects u1 1
+            v6 = make_array [Field 4, Field 3] : [Field; 2]
             return Field 4, Field 3
         }
         ");
