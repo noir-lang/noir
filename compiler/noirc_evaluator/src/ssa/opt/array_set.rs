@@ -137,7 +137,15 @@ fn fold_array_set_into_make_array(
         return None;
     }
 
-    let can_fold = dfg.get_numeric_constant(side_effects_var).is_some_and(|var| var.is_one())
+    let side_effects_var_value = dfg.get_numeric_constant(side_effects_var);
+
+    // If the current side effects var is `u1 0`, the `array_set` will never execute. In that case we
+    // can make its return value be the original `make_array` it's (not) modifying.
+    if side_effects_var_value.is_some_and(|var| var.is_zero()) {
+        return Some(elements.clone());
+    }
+
+    let can_fold = side_effects_var_value.is_some_and(|var| var.is_one())
         || make_array_predicates.get(&instruction_id) == Some(&side_effects_var);
     if !can_fold {
         // The array_set and make_array are under different predicates, and the array_set predicate is not `true`,
@@ -298,6 +306,33 @@ mod tests {
             enable_side_effects u1 1
             v6 = make_array [Field 4, Field 3] : [Field; 2]
             return Field 4, Field 3
+        }
+        ");
+    }
+
+    #[test]
+    fn replaces_turned_off_array_set_with_the_make_array_it_is_modifying() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v4: u1):
+            enable_side_effects v4
+            v0 = make_array [Field 2, Field 3] : [Field; 2]
+            enable_side_effects u1 0
+            v1 = array_set v0, index u32 0, value Field 4
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.array_set_optimization();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            v3 = make_array [Field 2, Field 3] : [Field; 2]
+            enable_side_effects u1 0
+            v5 = make_array [Field 2, Field 3] : [Field; 2]
+            return v5
         }
         ");
     }
