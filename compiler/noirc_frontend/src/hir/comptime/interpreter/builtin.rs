@@ -75,7 +75,7 @@ impl Interpreter<'_, '_> {
             "apply_range_constraint" => apply_range_constraint(arguments, location, call_stack),
             "array_as_str_unchecked" => array_as_str_unchecked(arguments, location),
             "array_len" => array_len(arguments, location),
-            "array_refcount" => Ok(Value::U32(0)),
+            "array_refcount" => Ok(Value::u32(0)),
             "assert_constant" => Ok(Value::Unit),
             "as_vector" => as_vector(arguments, location),
             "as_witness" => as_witness(arguments, location),
@@ -188,7 +188,7 @@ impl Interpreter<'_, '_> {
             "vector_pop_front" => vector_pop_front(arguments, location, call_stack),
             "vector_push_back" => vector_push_back(arguments, location),
             "vector_push_front" => vector_push_front(arguments, location),
-            "vector_refcount" => Ok(Value::U32(0)),
+            "vector_refcount" => Ok(Value::u32(0)),
             "vector_remove" => vector_remove(arguments, location, call_stack),
             "static_assert" => static_assert(interner, arguments, location, call_stack),
             "str_as_bytes" => str_as_bytes(arguments, location),
@@ -287,7 +287,7 @@ fn array_len(arguments: Vec<(Value, Location)>, location: Location) -> IResult<V
     let (argument, argument_location) = check_one_argument(arguments, location)?;
 
     match argument {
-        Value::Array(values, _) | Value::Vector(values, _) => Ok(Value::U32(values.len() as u32)),
+        Value::Array(values, _) | Value::Vector(values, _) => Ok(Value::u32(values.len() as u32)),
         value => {
             let expected = "array".to_string();
             let actual = value.get_type().into_owned();
@@ -399,7 +399,7 @@ fn str_as_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IResul
     let string = check_one_argument(arguments, location)?;
     let string = get_str(string)?;
 
-    let bytes: Vector<Value> = string.bytes().map(Value::U8).collect();
+    let bytes: Vector<Value> = string.bytes().map(Value::u8).collect();
     let byte_array_type = byte_array_type(bytes.len());
     Ok(Value::Array(bytes, byte_array_type))
 }
@@ -1007,7 +1007,7 @@ fn to_be_bits(
     call_stack: &Vector<Location>,
 ) -> IResult<Value> {
     let value = check_one_argument(arguments, location)?;
-    let radix = (Value::U32(2), value.1);
+    let radix = (Value::u32(2), value.1);
     to_be_radix(vec![value, radix], return_type, location, call_stack)
 }
 
@@ -1018,7 +1018,7 @@ fn to_le_bits(
     call_stack: &Vector<Location>,
 ) -> IResult<Value> {
     let value = check_one_argument(arguments, location)?;
-    let radix = (Value::U32(2), value.1);
+    let radix = (Value::u32(2), value.1);
     to_le_radix(vec![value, radix], return_type, location, call_stack)
 }
 
@@ -1082,7 +1082,7 @@ fn to_le_radix(
             None => 0,
         };
         // The only built-ins that use these either return `[u1; N]` or `[u8; N]`
-        if return_type_is_bits { Value::U1(digit != 0) } else { Value::U8(digit) }
+        if return_type_is_bits { Value::u1(digit != 0) } else { Value::u8(digit) }
     });
 
     let len: u32 = decomposed_integer
@@ -1133,7 +1133,7 @@ fn type_as_constant(
         // since arithmetic generics may be `Type::InfixExpr`s which evaluate to
         // constants but are not actually the `Type::Constant` variant.
         match typ.evaluate_to_u32(location) {
-            Ok(constant) => Ok(Some(Value::U32(constant))),
+            Ok(constant) => Ok(Some(Value::u32(constant))),
             Err(err) => {
                 // Evaluating to a non-constant returns 'None' in user code
                 if err.is_non_constant_evaluated() {
@@ -1156,7 +1156,7 @@ fn type_as_integer(
     type_as(arguments, return_type, location, |typ| {
         if let Type::Integer(sign, bits) = typ {
             let sign = Shared::new(Value::Bool(sign.is_signed()));
-            let bit_size = Shared::new(Value::U8(bits.bit_size()));
+            let bit_size = Shared::new(Value::u8(bits.bit_size()));
             Some(Value::Tuple(vec![sign, bit_size]))
         } else {
             None
@@ -1558,7 +1558,7 @@ where
 // fn zeroed<T>() -> T
 fn zeroed(return_type: Type, location: Location) -> Value {
     match return_type {
-        Type::FieldElement => Value::Field(FieldElement::zero()),
+        Type::FieldElement => Value::field(FieldElement::zero()),
         Type::Array(length_type, elem) => {
             if let Ok(length) = length_type.evaluate_to_u32(location) {
                 let element = zeroed(elem.as_ref().clone(), location);
@@ -1571,17 +1571,17 @@ fn zeroed(return_type: Type, location: Location) -> Value {
         }
         Type::Vector(_) => Value::Vector(Vector::new(), return_type),
         Type::Integer(sign, bits) => match (sign, bits) {
-            (Signedness::Unsigned, IntegerBitSize::One) => Value::U1(false),
-            (Signedness::Unsigned, IntegerBitSize::Eight) => Value::U8(0),
-            (Signedness::Unsigned, IntegerBitSize::Sixteen) => Value::U16(0),
-            (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => Value::U32(0),
-            (Signedness::Unsigned, IntegerBitSize::SixtyFour) => Value::U64(0),
-            (Signedness::Unsigned, IntegerBitSize::HundredTwentyEight) => Value::U128(0),
+            (Signedness::Unsigned, IntegerBitSize::One) => Value::u1(false),
+            (Signedness::Unsigned, IntegerBitSize::Eight) => Value::u8(0),
+            (Signedness::Unsigned, IntegerBitSize::Sixteen) => Value::u16(0),
+            (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => Value::u32(0),
+            (Signedness::Unsigned, IntegerBitSize::SixtyFour) => Value::u64(0),
+            (Signedness::Unsigned, IntegerBitSize::HundredTwentyEight) => Value::u128(0),
             (Signedness::Signed, IntegerBitSize::One) => unreachable!("invalid type: i1"),
-            (Signedness::Signed, IntegerBitSize::Eight) => Value::I8(0),
-            (Signedness::Signed, IntegerBitSize::Sixteen) => Value::I16(0),
-            (Signedness::Signed, IntegerBitSize::ThirtyTwo) => Value::I32(0),
-            (Signedness::Signed, IntegerBitSize::SixtyFour) => Value::I64(0),
+            (Signedness::Signed, IntegerBitSize::Eight) => Value::i8(0),
+            (Signedness::Signed, IntegerBitSize::Sixteen) => Value::i16(0),
+            (Signedness::Signed, IntegerBitSize::ThirtyTwo) => Value::i32(0),
+            (Signedness::Signed, IntegerBitSize::SixtyFour) => Value::i64(0),
             (Signedness::Signed, IntegerBitSize::HundredTwentyEight) => {
                 unreachable!("invalid type: i128")
             }
@@ -2069,11 +2069,11 @@ fn expr_as_integer(
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type, location, |expr| match expr {
         ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field, _suffix))) => {
-            Some(Value::Field(field))
+            Some(Value::field(field))
         }
         ExprValue::Expression(ExpressionKind::Resolved(id)) => {
             if let HirExpression::Literal(HirLiteral::Integer(field)) = interner.expression(&id) {
-                Some(Value::Field(field))
+                Some(Value::field(field))
             } else {
                 None
             }
@@ -3102,7 +3102,7 @@ fn modulus_be_bits(arguments: Vec<(Value, Location)>, location: Location) -> IRe
     check_argument_count(0, &arguments, location)?;
 
     let bits = FieldElement::modulus().to_radix_be(2);
-    let bits_vector = bits.into_iter().map(|bit| Value::U1(bit != 0)).collect();
+    let bits_vector = bits.into_iter().map(|bit| Value::u1(bit != 0)).collect();
 
     let int_type = Type::Integer(Signedness::Unsigned, IntegerBitSize::One);
     let typ = Type::Vector(Box::new(int_type));
@@ -3113,7 +3113,7 @@ fn modulus_be_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IR
     check_argument_count(0, &arguments, location)?;
 
     let bytes = FieldElement::modulus().to_bytes_be();
-    let bytes_vector = bytes.into_iter().map(Value::U8).collect();
+    let bytes_vector = bytes.into_iter().map(Value::u8).collect();
 
     let int_type = Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight);
     let typ = Type::Vector(Box::new(int_type));
@@ -3139,7 +3139,7 @@ fn modulus_le_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IR
 fn modulus_num_bits(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     check_argument_count(0, &arguments, location)?;
     let bits = FieldElement::max_num_bits().into();
-    Ok(Value::U64(bits))
+    Ok(Value::u64(bits))
 }
 
 // fn quoted_eq(_first: Quoted, _second: Quoted) -> bool
@@ -3255,8 +3255,8 @@ fn derive_generators(
         let y_big: BigUint = generator.y.into();
         let y = FieldElement::from_be_bytes_reduce(&y_big.to_bytes_be());
         let mut embedded_curve_point_fields = HashMap::default();
-        embedded_curve_point_fields.insert(x_field_name.clone(), Shared::new(Value::Field(x)));
-        embedded_curve_point_fields.insert(y_field_name.clone(), Shared::new(Value::Field(y)));
+        embedded_curve_point_fields.insert(x_field_name.clone(), Shared::new(Value::field(x)));
+        embedded_curve_point_fields.insert(y_field_name.clone(), Shared::new(Value::field(y)));
         embedded_curve_point_fields
             .insert(is_infinite_field_name.clone(), Shared::new(Value::Bool(is_infinite)));
         let embedded_curve_point_struct =

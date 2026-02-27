@@ -1,10 +1,10 @@
 use acvm::AcirField as _;
 
+use super::{IResult, InterpreterError, Value};
 use crate::ast::BinaryOpKind;
 use crate::hir::Location;
+use crate::hir::comptime::Integer;
 use crate::hir_def::expr::HirBinaryOp;
-
-use super::{IResult, InterpreterError, Value};
 
 pub(super) fn evaluate_infix(
     lhs_value: Value,
@@ -44,7 +44,7 @@ pub(super) fn evaluate_infix(
         ) => {
             match ($lhs_value, $rhs_value) {
                 $(
-                (Value::$lhs_var($lhs), Value::$rhs_var($rhs)) => {
+                (Value::Integer(Integer::$lhs_var($lhs)), Value::Integer(Integer::$rhs_var($rhs))) => {
                     Ok(Value::$res_var(($expr).ok_or(math_error($op))?))
                 },
                 )*
@@ -60,17 +60,17 @@ pub(super) fn evaluate_infix(
         (($lhs_value:ident as $lhs:ident $op:literal $rhs_value:ident as $rhs:ident) { field: $field_expr:expr, int: $int_expr:expr, u1: $u1_expr:expr, }) => {
             match_values! {
                 ($lhs_value as $lhs $op $rhs_value as $rhs) {
-                    (Field, Field) to Field => Some($field_expr),
-                    (I8,  I8)      to I8    => $int_expr,
-                    (I16, I16)     to I16   => $int_expr,
-                    (I32, I32)     to I32   => $int_expr,
-                    (I64, I64)     to I64   => $int_expr,
-                    (U1,  U1)      to U1    => $u1_expr,
-                    (U8,  U8)      to U8    => $int_expr,
-                    (U16, U16)     to U16   => $int_expr,
-                    (U32, U32)     to U32   => $int_expr,
-                    (U64, U64)     to U64   => $int_expr,
-                    (U128, U128)   to U128  => $int_expr,
+                    (Field, Field) to field => Some($field_expr),
+                    (I8,  I8)      to i8    => $int_expr,
+                    (I16, I16)     to i16   => $int_expr,
+                    (I32, I32)     to i32   => $int_expr,
+                    (I64, I64)     to i64   => $int_expr,
+                    (U1,  U1)      to u1    => $u1_expr,
+                    (U8,  U8)      to u8    => $int_expr,
+                    (U16, U16)     to u16   => $int_expr,
+                    (U32, U32)     to u32   => $int_expr,
+                    (U64, U64)     to u64   => $int_expr,
+                    (U128, U128)   to u128  => $int_expr,
                 }
             }
         };
@@ -82,7 +82,6 @@ pub(super) fn evaluate_infix(
             match_values! {
                 ($lhs_value as $lhs $op $rhs_value as $rhs) {
                     (Field, Field) to Bool => Some($expr),
-                    (Bool, Bool)   to Bool => Some($expr),
                     (I8,  I8)      to Bool => Some($expr),
                     (I16, I16)     to Bool => Some($expr),
                     (I32, I32)     to Bool => Some($expr),
@@ -93,6 +92,7 @@ pub(super) fn evaluate_infix(
                     (U32, U32)     to Bool => Some($expr),
                     (U64, U64)     to Bool => Some($expr),
                     (U128, U128)   to Bool => Some($expr),
+                    (Bool, Bool)   to Bool => Some($expr),
                 }
             }
         };
@@ -104,16 +104,16 @@ pub(super) fn evaluate_infix(
             match_values! {
                 ($lhs_value as $lhs $op $rhs_value as $rhs) {
                     (Bool, Bool)   to Bool => Some($expr),
-                    (I8,  I8)      to I8   => Some($expr),
-                    (I16, I16)     to I16  => Some($expr),
-                    (I32, I32)     to I32  => Some($expr),
-                    (I64, I64)     to I64  => Some($expr),
-                    (U1,  U1)      to U1   => Some($expr),
-                    (U8,  U8)      to U8   => Some($expr),
-                    (U16, U16)     to U16  => Some($expr),
-                    (U32, U32)     to U32  => Some($expr),
-                    (U64, U64)     to U64  => Some($expr),
-                    (U128, U128)   to U128  => Some($expr),
+                    (I8,  I8)      to i8   => Some($expr),
+                    (I16, I16)     to i16  => Some($expr),
+                    (I32, I32)     to i32  => Some($expr),
+                    (I64, I64)     to i64  => Some($expr),
+                    (U1,  U1)      to u1   => Some($expr),
+                    (U8,  U8)      to u8   => Some($expr),
+                    (U16, U16)     to u16  => Some($expr),
+                    (U32, U32)     to u32  => Some($expr),
+                    (U64, U64)     to u64  => Some($expr),
+                    (U128, U128)   to u128  => Some($expr),
                 }
             }
         };
@@ -124,16 +124,16 @@ pub(super) fn evaluate_infix(
         (($lhs_value:ident as $lhs:ident $op:literal $rhs_value:ident as $rhs:ident) { int: $int_expr:expr, u1: $u1_expr:expr, }) => {
             match_values! {
                 ($lhs_value as $lhs $op $rhs_value as $rhs) {
-                    (I8,  I8)      to I8   => $int_expr,
-                    (I16, I16)     to I16  => $int_expr,
-                    (I32, I32)     to I32  => $int_expr,
-                    (I64, I64)     to I64  => $int_expr,
-                    (U1,  U1)      to U1   => $u1_expr,
-                    (U8,  U8)      to U8   => $int_expr,
-                    (U16, U16)     to U16  => $int_expr,
-                    (U32, U32)     to U32  => $int_expr,
-                    (U64, U64)     to U64  => $int_expr,
-                    (U128, U128)   to U128 => $int_expr,
+                    (I8,  I8)      to i8   => $int_expr,
+                    (I16, I16)     to i16  => $int_expr,
+                    (I32, I32)     to i32  => $int_expr,
+                    (I64, I64)     to i64  => $int_expr,
+                    (U1,  U1)      to u1   => $u1_expr,
+                    (U8,  U8)      to u8   => $int_expr,
+                    (U16, U16)     to u16  => $int_expr,
+                    (U32, U32)     to u32  => $int_expr,
+                    (U64, U64)     to u64  => $int_expr,
+                    (U128, U128)   to u128 => $int_expr,
                 }
             }
         };

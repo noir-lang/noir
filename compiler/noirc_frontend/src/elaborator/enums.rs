@@ -867,17 +867,7 @@ impl Elaborator<'_> {
 
         let value = match constant {
             Value::Bool(value) => value.into(),
-            Value::Field(value) => value,
-            Value::I8(value) => value.into(),
-            Value::I16(value) => value.into(),
-            Value::I32(value) => value.into(),
-            Value::I64(value) => value.into(),
-            Value::U1(value) => value.into(),
-            Value::U8(value) => u128::from(value).into(),
-            Value::U16(value) => u128::from(value).into(),
-            Value::U32(value) => value.into(),
-            Value::U64(value) => value.into(),
-            Value::U128(value) => value.into(),
+            Value::Integer(int) => int.as_field(),
             Value::Zeroed(_) => FieldElement::zero(),
             _ => {
                 self.push_err(ResolverError::NonIntegerGlobalUsedInPattern { location });

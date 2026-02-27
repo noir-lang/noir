@@ -918,8 +918,8 @@ mod proptests {
         ]);
 
         let mul_expr = n * Type::Constant(large_field, Kind::numeric(Type::FieldElement));
-        let div_expr = mul_expr
-            / Type::Constant(FieldElement::from(2u8), Kind::numeric(Type::FieldElement));
+        let div_expr =
+            mul_expr / Type::Constant(FieldElement::from(2u8), Kind::numeric(Type::FieldElement));
 
         // Canonicalize the expression
         let canonicalized = div_expr.canonicalize();
