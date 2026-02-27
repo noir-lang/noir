@@ -226,11 +226,7 @@ impl Context {
         // If `main` is unconstrained, it won't call ACIR, so no point generating ACIR functions.
         let unconstrained = self.config.force_brillig
             || (!is_main
-                && self
-                    .functions
-                    .get(&Program::main_id())
-                    .map(|func| func.unconstrained)
-                    .unwrap_or_default())
+                && self.functions.get(&Program::main_id()).is_some_and(|func| func.unconstrained))
             || bool::arbitrary(u)?;
 
         // We could return a function as well.

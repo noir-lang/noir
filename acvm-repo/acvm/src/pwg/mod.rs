@@ -580,7 +580,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         let (_, assertion_descriptor) =
             self.assertion_payloads.iter().find(|(loc, _)| location == *loc)?;
         let mut fields = Vec::new();
-        for expr in assertion_descriptor.payload.iter() {
+        for expr in &assertion_descriptor.payload {
             match expr {
                 ExpressionOrMemory::Expression(expr) => {
                     let value = get_value(expr, &self.witness_map).ok()?;

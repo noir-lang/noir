@@ -1357,7 +1357,7 @@ fn force_if_chunks_to_multiple_lines(group: &mut ChunkGroup, group_tag: GroupTag
         group.force_multiple_lines = true;
     }
 
-    for chunk in group.chunks.iter_mut() {
+    for chunk in &mut group.chunks {
         if let Chunk::Group(inner_group) = chunk {
             force_if_chunks_to_multiple_lines(inner_group, group_tag);
         }

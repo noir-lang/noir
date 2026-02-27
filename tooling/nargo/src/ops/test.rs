@@ -334,19 +334,16 @@ pub fn test_status_program_compile_pass(
     debug: &[DebugInfo],
     circuit_execution: &Result<WitnessStack<FieldElement>, NargoError<FieldElement>>,
 ) -> TestStatus {
-    let circuit_execution_err = match circuit_execution {
+    let Err(circuit_execution_err) = circuit_execution else {
         // Circuit execution was successful; ie no errors or unsatisfied constraints
         // were encountered.
-        Ok(_) => {
-            if test_function.should_fail() {
-                return TestStatus::Fail {
-                    message: "error: Test passed when it should have failed".to_string(),
-                    error_diagnostic: None,
-                };
-            }
-            return TestStatus::Pass;
+        if test_function.should_fail() {
+            return TestStatus::Fail {
+                message: "error: Test passed when it should have failed".to_string(),
+                error_diagnostic: None,
+            };
         }
-        Err(err) => err,
+        return TestStatus::Pass;
     };
 
     // If we reach here, then the circuit execution failed.
@@ -378,9 +375,8 @@ pub fn check_expected_failure_message(
     // #[test(should_fail)] will not produce any message
     // #[test(should_fail_with = "reason")] will produce a message
     //
-    let expected_failure_message = match test_function.failure_reason() {
-        Some(reason) => reason,
-        None => return TestStatus::Pass,
+    let Some(expected_failure_message) = test_function.failure_reason() else {
+        return TestStatus::Pass;
     };
 
     // Match the failure message that the user will see, i.e. the failed_assertion

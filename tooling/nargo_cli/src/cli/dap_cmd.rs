@@ -301,9 +301,7 @@ fn analyze_test_result<R: Read, W: Write>(
 }
 
 fn run_preflight_check(args: DapCommand) -> Result<(), DapError> {
-    let project_folder = if let Some(project_folder) = args.preflight_project_folder {
-        project_folder
-    } else {
+    let Some(project_folder) = args.preflight_project_folder else {
         return Err(DapError::PreFlightGenericError("Noir Debugger could not initialize because the IDE (for example, VS Code) did not specify a project folder to debug.".into()));
     };
 

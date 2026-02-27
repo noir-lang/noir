@@ -70,10 +70,9 @@ impl BlockContext {
         arg: NumericArgument,
         instruction: InstructionWithOneArg,
     ) {
-        let value = self.get_stored_variable(&Type::Numeric(arg.numeric_type), arg.index);
-        let value = match value {
-            Some(value) => value,
-            _ => return,
+        let Some(value) = self.get_stored_variable(&Type::Numeric(arg.numeric_type), arg.index)
+        else {
+            return;
         };
         let result = instruction(builder, value);
         self.store_variable(&result);
@@ -90,9 +89,8 @@ impl BlockContext {
         let instr_lhs = self.get_stored_variable(&Type::Numeric(lhs.numeric_type), lhs.index);
         // We ignore type of the second argument, because all binary instructions must use the same type
         let instr_rhs = self.get_stored_variable(&Type::Numeric(lhs.numeric_type), rhs.index);
-        let (instr_lhs, instr_rhs) = match (instr_lhs, instr_rhs) {
-            (Some(acir_lhs), Some(acir_rhs)) => (acir_lhs, acir_rhs),
-            _ => return,
+        let (Some(instr_lhs), Some(instr_rhs)) = (instr_lhs, instr_rhs) else {
+            return;
         };
         let result = instruction(builder, instr_lhs, instr_rhs);
         self.store_variable(&result);
@@ -145,10 +143,10 @@ impl BlockContext {
                 if !self.options.instruction_options.cast_enabled {
                     return;
                 }
-                let value = self.get_stored_variable(&Type::Numeric(lhs.numeric_type), lhs.index);
-                let value = match value {
-                    Some(value) => value,
-                    _ => return,
+                let Some(value) =
+                    self.get_stored_variable(&Type::Numeric(lhs.numeric_type), lhs.index)
+                else {
+                    return;
                 };
                 let result = builder.insert_cast(value, Type::Numeric(type_));
                 self.store_variable(&result);
@@ -253,9 +251,8 @@ impl BlockContext {
                 // inserts lhs' = lhs + rhs
                 let lhs_orig = self.get_stored_variable(&Type::Numeric(NumericType::Field), lhs);
                 let rhs = self.get_stored_variable(&Type::Numeric(NumericType::Field), rhs);
-                let (lhs_orig, rhs) = match (lhs_orig, rhs) {
-                    (Some(lhs_orig), Some(rhs)) => (lhs_orig, rhs),
-                    _ => return,
+                let (Some(lhs_orig), Some(rhs)) = (lhs_orig, rhs) else {
+                    return;
                 };
                 let lhs_add_rhs =
                     builder.insert_add_instruction_checked(lhs_orig.clone(), rhs.clone());
@@ -272,9 +269,8 @@ impl BlockContext {
             Instruction::MulDivConstrain { lhs, rhs } => {
                 let lhs_orig = self.get_stored_variable(&Type::Numeric(NumericType::Field), lhs);
                 let rhs = self.get_stored_variable(&Type::Numeric(NumericType::Field), rhs);
-                let (lhs_orig, rhs) = match (lhs_orig, rhs) {
-                    (Some(lhs_orig), Some(rhs)) => (lhs_orig, rhs),
-                    _ => return,
+                let (Some(lhs_orig), Some(rhs)) = (lhs_orig, rhs) else {
+                    return;
                 };
                 // inserts lhs' = lhs * rhs
                 let lhs_mul_rhs =
@@ -293,9 +289,8 @@ impl BlockContext {
                     return;
                 }
 
-                let value = match self.get_stored_variable(&lhs.value_type, lhs.index) {
-                    Some(value) => value,
-                    _ => return,
+                let Some(value) = self.get_stored_variable(&lhs.value_type, lhs.index) else {
+                    return;
                 };
 
                 let addr = builder.insert_add_to_memory(value);
@@ -318,9 +313,8 @@ impl BlockContext {
                     return;
                 }
                 let addresses = self.get_stored_references_to_type(&value.value_type);
-                let value = match self.get_stored_variable(&value.value_type, value.index) {
-                    Some(value) => value,
-                    _ => return,
+                let Some(value) = self.get_stored_variable(&value.value_type, value.index) else {
+                    return;
                 };
                 let address = if addresses.is_empty() {
                     let addr = builder.insert_add_to_memory(value.clone());
@@ -334,19 +328,17 @@ impl BlockContext {
 
             Instruction::CreateArray { elements_indices, element_type } => {
                 // insert to both acir and brillig builders
-                let array = match self.insert_array(builder, elements_indices, element_type) {
-                    Some(array) => array,
-                    _ => return,
+                let Some(array) = self.insert_array(builder, elements_indices, element_type) else {
+                    return;
                 };
                 self.store_variable(&array);
             }
             Instruction::ArrayGet { array_index, index, safe_index } => {
                 // insert array get to both acir and brillig builders
-                let index = match self
-                    .get_stored_variable(&Type::Numeric(index.numeric_type), index.index)
-                {
-                    Some(index) => index,
-                    _ => return,
+                let Some(index) =
+                    self.get_stored_variable(&Type::Numeric(index.numeric_type), index.index)
+                else {
+                    return;
                 };
                 let value = self.insert_array_get(
                     builder,
@@ -361,11 +353,10 @@ impl BlockContext {
             }
             Instruction::ArraySet { array_index, index, value_index, safe_index } => {
                 // get the index from the stored variables
-                let index =
-                    self.get_stored_variable(&Type::Numeric(index.numeric_type), index.index);
-                let index = match index {
-                    Some(index) => index,
-                    _ => return,
+                let Some(index) =
+                    self.get_stored_variable(&Type::Numeric(index.numeric_type), index.index)
+                else {
+                    return;
                 };
                 // cast the index to u32
                 let index_casted = builder.insert_cast(index, Type::Numeric(NumericType::U32));
@@ -427,10 +418,10 @@ impl BlockContext {
                 if !self.options.instruction_options.field_to_bytes_to_field_enabled {
                     return;
                 }
-                let field = self.get_stored_variable(&Type::Numeric(NumericType::Field), field_idx);
-                let field = match field {
-                    Some(field) => field,
-                    _ => return,
+                let Some(field) =
+                    self.get_stored_variable(&Type::Numeric(NumericType::Field), field_idx)
+                else {
+                    return;
                 };
                 let bytes = builder.insert_to_le_radix(field, 256, 32);
                 let field = builder.insert_from_le_radix(bytes, 256);
@@ -440,10 +431,10 @@ impl BlockContext {
                 if !self.options.instruction_options.blake2s_hash_enabled {
                     return;
                 }
-                let input = self.get_stored_variable(&Type::Numeric(NumericType::Field), field_idx);
-                let input = match input {
-                    Some(input) => input,
-                    _ => return,
+                let Some(input) =
+                    self.get_stored_variable(&Type::Numeric(NumericType::Field), field_idx)
+                else {
+                    return;
                 };
                 if limbs_count == 0 {
                     return;
@@ -457,10 +448,10 @@ impl BlockContext {
                 if !self.options.instruction_options.blake3_hash_enabled {
                     return;
                 }
-                let input = self.get_stored_variable(&Type::Numeric(NumericType::Field), field_idx);
-                let input = match input {
-                    Some(input) => input,
-                    _ => return,
+                let Some(input) =
+                    self.get_stored_variable(&Type::Numeric(NumericType::Field), field_idx)
+                else {
+                    return;
                 };
                 if limbs_count == 0 {
                     return;
@@ -474,13 +465,12 @@ impl BlockContext {
                 if !self.options.instruction_options.keccakf1600_hash_enabled {
                     return;
                 }
-                let input = match self.insert_array(
+                let Some(input) = self.insert_array(
                     builder,
                     u64_indices.to_vec(),
                     Type::Numeric(NumericType::U64),
-                ) {
-                    Some(input) => input,
-                    _ => return,
+                ) else {
+                    return;
                 };
                 let hash_array_u64 = builder.insert_keccakf1600_permutation(input);
                 self.store_variable(&hash_array_u64);
@@ -504,20 +494,19 @@ impl BlockContext {
                 if input_limbs_count == 0 {
                     return;
                 }
-                let input =
-                    match self.get_stored_variable(&Type::Numeric(NumericType::Field), input_idx) {
-                        Some(input) => input,
-                        _ => return,
-                    };
-                let key =
-                    match self.get_stored_variable(&Type::Numeric(NumericType::Field), key_idx) {
-                        Some(key) => key,
-                        _ => return,
-                    };
-                let iv = match self.get_stored_variable(&Type::Numeric(NumericType::Field), iv_idx)
-                {
-                    Some(iv) => iv,
-                    _ => return,
+                let Some(input) =
+                    self.get_stored_variable(&Type::Numeric(NumericType::Field), input_idx)
+                else {
+                    return;
+                };
+                let Some(key) =
+                    self.get_stored_variable(&Type::Numeric(NumericType::Field), key_idx)
+                else {
+                    return;
+                };
+                let Some(iv) = self.get_stored_variable(&Type::Numeric(NumericType::Field), iv_idx)
+                else {
+                    return;
                 };
                 let input_bytes = builder.insert_to_le_radix(input, 256, input_limbs_count);
                 let key_bytes = builder.insert_to_le_radix(key, 256, 16);
@@ -534,21 +523,19 @@ impl BlockContext {
                 if !self.options.instruction_options.sha256_compression_enabled {
                     return;
                 }
-                let input = match self.insert_array(
+                let Some(input) = self.insert_array(
                     builder,
                     input_indices.to_vec(),
                     Type::Numeric(NumericType::U32),
-                ) {
-                    Some(input) => input,
-                    _ => return,
+                ) else {
+                    return;
                 };
-                let state = match self.insert_array(
+                let Some(state) = self.insert_array(
                     builder,
                     state_indices.to_vec(),
                     Type::Numeric(NumericType::U32),
-                ) {
-                    Some(state) => state,
-                    _ => return,
+                ) else {
+                    return;
                 };
                 let compressed = builder.insert_sha256_compression(input, state);
                 self.store_variable(&compressed);
@@ -587,7 +574,7 @@ impl BlockContext {
                 }
                 let mut points_vec = Vec::new();
                 let mut scalars_vec = Vec::new();
-                for (p, s) in points_and_scalars.iter() {
+                for (p, s) in &points_and_scalars {
                     let point = self.ssa_point_from_instruction_point(builder, *p);
                     let scalar = self.ssa_scalar_from_instruction_scalar(*s);
                     if point.is_none() || scalar.is_none() {
@@ -709,11 +696,7 @@ impl BlockContext {
         let elements = elements_indices
             .iter()
             .map(|index| self.get_stored_variable(&element_type, *index))
-            .collect::<Option<Vec<TypedValue>>>();
-        let elements = match elements {
-            Some(elements) => elements,
-            _ => return None,
-        };
+            .collect::<Option<Vec<TypedValue>>>()?;
         if elements.is_empty() {
             return None;
         }
@@ -753,11 +736,7 @@ impl BlockContext {
         if arrays.is_empty() {
             return None;
         }
-        let array = arrays.get(array_index % arrays.len());
-        let array = match array {
-            Some(array) => array,
-            _ => return None,
-        };
+        let array = arrays.get(array_index % arrays.len())?;
         // references are not supported for array get with dynamic index
         if array.type_of_variable.type_contains_reference() && !index_is_constant {
             return None;
@@ -804,11 +783,7 @@ impl BlockContext {
         if arrays.is_empty() {
             return None;
         }
-        let array = arrays.get(array_index % arrays.len());
-        let array = match array {
-            Some(array) => array,
-            _ => return None,
-        };
+        let array = arrays.get(array_index % arrays.len())?;
 
         let is_array_of_references =
             array.type_of_variable.unwrap_array_element_type().type_contains_reference();
@@ -817,12 +792,10 @@ impl BlockContext {
         if is_array_of_references && !index_is_constant {
             return None;
         }
-        let value = self
-            .get_stored_variable(&array.type_of_variable.unwrap_array_element_type(), value_index);
-        let value = match value {
-            Some(value) => value,
-            _ => return None,
-        };
+        let value = self.get_stored_variable(
+            &array.type_of_variable.unwrap_array_element_type(),
+            value_index,
+        )?;
         let new_array = builder.insert_array_set(array.clone(), index, value, safe_index);
         Some(new_array)
     }

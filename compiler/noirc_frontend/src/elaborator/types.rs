@@ -2356,17 +2356,14 @@ impl Elaborator<'_> {
         location: Location,
         object_location: Location,
     ) -> Option<HirMethodReference> {
-        let func_id = match self.current_item {
-            Some(DependencyId::Function(id)) => id,
-            _ => {
-                // Unexpected method outside a function.
-                self.push_err(TypeCheckError::UnresolvedMethodCall {
-                    method_name: method_name.to_string(),
-                    object_type: object_type.clone(),
-                    location,
-                });
-                return None;
-            }
+        let Some(DependencyId::Function(func_id)) = self.current_item else {
+            // Unexpected method outside a function.
+            self.push_err(TypeCheckError::UnresolvedMethodCall {
+                method_name: method_name.to_string(),
+                object_type: object_type.clone(),
+                location,
+            });
+            return None;
         };
 
         // The function we are elaborating, ie. where we make the method call from.
