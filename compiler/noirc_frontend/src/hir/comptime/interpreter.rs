@@ -1772,32 +1772,32 @@ fn evaluate_integer(typ: Type, value: SignedField, location: Location) -> IResul
             }
         }
         Integer(Unsigned, Eight) => {
-            evaluate!(u8)
+            evaluate_unsigned!(u8)
         }
         Integer(Unsigned, Sixteen) => {
-            evaluate!(u16)
+            evaluate_unsigned!(u16)
         }
         Integer(Unsigned, ThirtyTwo) => {
-            evaluate!(u32)
+            evaluate_unsigned!(u32)
         }
         Integer(Unsigned, SixtyFour) => {
-            evaluate!(u64)
+            evaluate_unsigned!(u64)
         }
         Integer(Unsigned, HundredTwentyEight) => {
-            evaluate!(u128)
+            evaluate_unsigned!(u128)
         }
         Integer(Signed, One) => Err(InterpreterError::TypeUnsupported { typ, location }),
         Integer(Signed, Eight) => {
-            evaluate!(i8)
+            evaluate_signed!(i8)
         }
         Integer(Signed, Sixteen) => {
-            evaluate!(i16)
+            evaluate_signed!(i16)
         }
         Integer(Signed, ThirtyTwo) => {
-            evaluate!(i32)
+            evaluate_signed!(i32)
         }
         Integer(Signed, SixtyFour) => {
-            evaluate!(i64)
+            evaluate_signed!(i64)
         }
         Integer(Signed, HundredTwentyEight) => {
             Err(InterpreterError::TypeUnsupported { typ, location })

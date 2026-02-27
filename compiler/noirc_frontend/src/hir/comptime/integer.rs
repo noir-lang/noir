@@ -7,12 +7,13 @@ use crate::{
     ast::{ExpressionKind, IntegerBitSize},
     hir_def::expr::{HirExpression, HirLiteral},
     shared::Signedness,
+    signed_field::SignedField,
     token::{IntegerTypeSuffix, Token},
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Integer {
-    Field(FieldElement),
+    Field(SignedField),
     I8(i8),
     I16(i16),
     I32(i32),
@@ -30,7 +31,7 @@ impl Integer {
     /// Returns `None` for negative integers.
     pub(crate) fn as_non_negative_field(&self) -> Option<FieldElement> {
         match self {
-            Integer::Field(value) => Some(*value),
+            Integer::Field(value) => Some(value.to_field_element()),
             Integer::I8(value) if *value >= 0 => Some((*value).into()),
             Integer::I16(value) if *value >= 0 => Some((*value).into()),
             Integer::I32(value) if *value >= 0 => Some((*value).into()),
@@ -45,10 +46,8 @@ impl Integer {
         }
     }
 
-    /// Converts this [Integer] to a [FieldElement]. Any negative values are
-    /// encoded as negative fields such that `-7 == -FieldElement::from(7)`.
-    /// In other words, the resulting field is not in two's complement form.
-    pub(crate) fn as_field(self) -> FieldElement {
+    /// Converts this [Integer] to a [SignedField].
+    pub(crate) fn as_signed_field(self) -> SignedField {
         match self {
             Integer::Field(value) => value,
             Integer::I8(value) => value.into(),
@@ -65,11 +64,12 @@ impl Integer {
     }
 
     /// Converts this [Integer] to a [FieldElement]. Any negative values are
-    /// encoded in two's complement such that `-x_iN == 2^N - x`.
-    /// In other words, the resulting field is not in two's complement form.
+    /// encoded in two's complement such that `-x_iN == 2^N - x`. Note that
+    /// this is only true for the various signed types. Negative [Integer::Field]
+    /// values will still be encoded as ordinary negative fields.
     pub(crate) fn as_field_twos_complement(self) -> FieldElement {
         match self {
-            Integer::Field(value) => value,
+            Integer::Field(value) => value.to_field_element(),
             Integer::I8(value) => (value as u8).into(),
             Integer::I16(value) => (value as u16).into(),
             Integer::I32(value) => (value as u32).into(),
@@ -198,7 +198,11 @@ impl Integer {
                 }
             }
             Integer::Field(value) => {
-                vec![Token::Int(value, None)]
+                if value.is_negative() {
+                    vec![Token::Minus, Token::Int(value.absolute_value(), None)]
+                } else {
+                    vec![Token::Int(value.absolute_value(), None)]
+                }
             }
         }
     }
@@ -223,9 +227,12 @@ impl Integer {
 impl Display for Integer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Integer::Field(value) => {
+            Integer::Field(value) if value.is_negative() => {
                 // write!(f, "{value}") // This would display the Field as a number, but it doesn't match the runtime.
-                write!(f, "{}", value.to_short_hex())
+                write!(f, "-{}", value.absolute_value().to_short_hex())
+            }
+            Integer::Field(value) => {
+                write!(f, "{}", value.absolute_value().to_short_hex())
             }
             Integer::I8(value) => write!(f, "{value}"),
             Integer::I16(value) => write!(f, "{value}"),

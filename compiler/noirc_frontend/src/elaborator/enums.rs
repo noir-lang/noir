@@ -868,8 +868,8 @@ impl Elaborator<'_> {
 
         let value = match constant {
             Value::Bool(value) => value.into(),
-            Value::Integer(int) => int.as_field(),
-            Value::Zeroed(_) => FieldElement::zero(),
+            Value::Integer(int) => int.as_signed_field(),
+            Value::Zeroed(_) => SignedField::zero(),
             _ => {
                 self.push_err(ResolverError::NonIntegerGlobalUsedInPattern { location });
                 return Pattern::Error;

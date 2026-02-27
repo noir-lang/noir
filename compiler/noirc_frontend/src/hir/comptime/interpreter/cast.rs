@@ -211,9 +211,9 @@ mod tests {
             // Casting Field -> Field should be a no-op
             (Value::field(4u32.into()), Type::FieldElement, Value::field(4u32.into())),
             (
-                Value::field(-FieldElement::from(4u32)),
+                Value::field(SignedField::negative(4u32)),
                 Type::FieldElement,
-                Value::field(-FieldElement::from(4u32)),
+                Value::field(SignedField::negative(4u32)),
             ),
         ];
 

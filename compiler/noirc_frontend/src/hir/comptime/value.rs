@@ -2,7 +2,6 @@
 //! comptime interpreter when evaluating code.
 use std::{borrow::Cow, rc::Rc, vec};
 
-use acvm::FieldElement;
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
@@ -12,8 +11,8 @@ use crate::{
     Kind, QuotedType, Shared, Type, TypeBindings, TypeVariable,
     ast::{
         ArrayLiteral, BlockExpression, CallExpression, ConstructorExpression, Expression,
-        ExpressionKind, Ident, IntegerBitSize, LValue, LetStatement, Literal, Path, PathKind,
-        PathSegment, Pattern, Statement, StatementKind, UnresolvedType, UnresolvedTypeData,
+        ExpressionKind, Ident, LValue, LetStatement, Path, PathKind, PathSegment, Pattern,
+        Statement, StatementKind, UnresolvedType, UnresolvedTypeData,
     },
     elaborator::Elaborator,
     hir::{
@@ -28,9 +27,8 @@ use crate::{
     },
     node_interner::{ExprId, FuncId, NodeInterner, StmtId, TraitId, TraitImplId, TypeId},
     parser::{Item, Parser},
-    shared::Signedness,
     signed_field::SignedField,
-    token::{FmtStrFragment, IntegerTypeSuffix, LocatedToken, Token, Tokens},
+    token::{FmtStrFragment, LocatedToken, Token, Tokens},
 };
 use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
@@ -119,18 +117,18 @@ pub enum TypedExpr {
 
 macro_rules! int_constructor {
     ($name: ident, $capitalized: ident) => {
-        pub(crate) fn $name(x: $name) -> Self {
+        pub fn $name(x: $name) -> Self {
             Value::Integer(Integer::$capitalized(x))
         }
     };
 }
 
 impl Value {
-    pub(crate) fn field(x: FieldElement) -> Self {
+    pub fn field(x: SignedField) -> Self {
         Value::Integer(Integer::Field(x))
     }
 
-    pub(crate) fn u1(x: bool) -> Self {
+    pub fn u1(x: bool) -> Self {
         Value::Integer(Integer::U1(x))
     }
 
@@ -218,11 +216,12 @@ impl Value {
         elaborator: &mut Elaborator,
         location: Location,
     ) -> IResult<Expression> {
+        use crate::ast::Literal::*;
         let kind = match self {
-            Value::Unit => Literal(Unit),
-            Value::Bool(value) => Literal(Bool(value)),
+            Value::Unit => ExpressionKind::Literal(Unit),
+            Value::Bool(value) => ExpressionKind::Literal(Bool(value)),
             Value::Integer(value) => value.into_expression_kind(),
-            Value::String(value) => Literal(Str(unwrap_rc(value))),
+            Value::String(value) => ExpressionKind::Literal(Str(unwrap_rc(value))),
             Value::CtString(value) => {
                 // Lower to `std::meta::AsCtString::as_ctstring(contents)`
                 let ident = |name: &str| Ident::new(name.to_string(), location);
@@ -250,8 +249,8 @@ impl Value {
                     segment("AsCtString"),
                     segment("as_ctstring"),
                 ]);
-                let contents = Literal::Str(unwrap_rc(value));
-                let contents = Expression { kind: ExpressionKind::Literal(contents), location };
+                let kind = ExpressionKind::Literal(Str(unwrap_rc(value)));
+                let contents = Expression { kind, location };
                 call(as_ctstring, vec![contents])
             }
             Value::FormatString(fragments, _, length) => {
@@ -301,7 +300,7 @@ impl Value {
                     };
                     new_fragments.push(new_fragment);
                 }
-                let fmtstr = ExpressionKind::Literal(Literal::FmtStr(new_fragments, length));
+                let fmtstr = ExpressionKind::Literal(FmtStr(new_fragments, length));
                 if has_values {
                     statements.push(Statement {
                         kind: StatementKind::Expression(Expression { kind: fmtstr, location }),
@@ -356,12 +355,12 @@ impl Value {
             Value::Array(elements, _) => {
                 let elements =
                     try_vecmap(elements, |element| element.into_expression(elaborator, location))?;
-                ExpressionKind::Literal(Literal::Array(ArrayLiteral::Standard(elements)))
+                ExpressionKind::Literal(Array(ArrayLiteral::Standard(elements)))
             }
             Value::Vector(elements, _) => {
                 let elements =
                     try_vecmap(elements, |element| element.into_expression(elaborator, location))?;
-                ExpressionKind::Literal(Literal::Vector(ArrayLiteral::Standard(elements)))
+                ExpressionKind::Literal(Vector(ArrayLiteral::Standard(elements)))
             }
             Value::Quoted(tokens) => {
                 // Wrap the tokens in '{' and '}' so that we can parse statements as well.
@@ -674,7 +673,7 @@ impl Value {
         }
     }
 
-    /// Converts any integral `Value` into a `SignedField`.
+    /// Converts any non-negative integer `Value` into a `SignedField`.
     /// Returns `None` for non-integral `Value`s and negative numbers.
     pub(crate) fn as_non_negative_signed_field(&self) -> Option<SignedField> {
         match self {
@@ -683,14 +682,11 @@ impl Value {
         }
     }
 
-    /// Converts any integral `Value` into a `FieldElement`.
-    /// Returns `None` for non-integral `Value`s. Any negative values are
-    /// encoded as negative fields such that `-7 == -FieldElement::from(7)`.
-    /// In other words, the resulting field is not in two's complement form.
+    /// Converts any integral `Value` into a `SignedField`.
     #[cfg(test)]
-    pub(crate) fn as_field(&self) -> Option<FieldElement> {
+    pub(crate) fn as_signed_field(&self) -> Option<SignedField> {
         match self {
-            Value::Integer(int) => Some(int.as_field()),
+            Value::Integer(int) => Some(int.as_signed_field()),
             _ => None,
         }
     }
