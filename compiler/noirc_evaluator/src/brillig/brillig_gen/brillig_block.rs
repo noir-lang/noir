@@ -527,10 +527,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 // Param was spilled — write arg directly to param's spill slot.
                 self.codegen_spill_store(offset, arg_reg);
             } else {
-                let param_reg = self
-                    .variables
-                    .get_allocation(self.function_context, *param)
-                    .extract_register();
+                let param_reg =
+                    self.variables.get_allocation(self.function_context, *param).extract_register();
 
                 // Filter out self-moves (e.g. from coalesced args that already share the param register).
                 if arg_reg != param_reg {
