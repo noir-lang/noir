@@ -24,8 +24,6 @@ const IMPL_SEARCH_RECURSION_LIMIT: u32 = 10;
 pub(crate) enum TraitLookupMode {
     /// Does not look up implementations for bindable object types, but matches any [TraitImplKind].
     Default,
-    /// Does not look up implementations for bindable object types, and matches only [TraitImplKind::Prepared].
-    PreparedOnly,
     /// Looks up implementation for bindable object types, and matches only [TraitImplKind::Assumed].
     /// The returned bindings are not expected to be applied.
     SelfAssumedOnly,
@@ -217,13 +215,8 @@ impl NodeInterner {
             NamedType { name: named.name.clone(), typ }
         });
 
-        // Remove any prepared implementation.
-        self.remove_prepared_trait_implementation(
-            &instantiated_object_type,
-            trait_id,
-            ordered_generics,
-            &associated_types,
-        );
+        // Remove any prepared implementation for this impl.
+        self.remove_prepared_trait_implementation(trait_id, impl_id);
 
         let existing = self.try_lookup_trait_implementation(
             &instantiated_object_type,
@@ -239,8 +232,9 @@ impl NodeInterner {
                 let existing_impl = existing_impl.borrow();
                 return Ok(Err(existing_impl.ident.location()));
             }
-            Ok((TraitImplKind::Prepared(impl_id), ..)) => {
-                unreachable!("ICE: Prepared should have been removed; found {impl_id:?}");
+            Ok((TraitImplKind::Prepared(_), ..)) => {
+                // A different Prepared impl matched — this is expected because
+                // prepared impls are placeholders and don't count as real overlap.
             }
             Err(_) | Ok((TraitImplKind::Assumed { .. }, ..)) => {
                 // Ignoring overlapping `TraitImplKind::Assumed` impls here is perfectly fine.
@@ -319,48 +313,14 @@ impl NodeInterner {
         Ok((impl_kind, bindings, instantiation_bindings))
     }
 
-    /// Remove any matching [TraitImplKind::Prepared] for this object and trait.
-    ///
-    /// Returns an error if there were multiple matches, or if the object type could not be matched.
+    /// Remove the [TraitImplKind::Prepared] entry for the given impl, if one exists.
     pub(crate) fn remove_prepared_trait_implementation(
         &mut self,
-        object_type: &Type,
         trait_id: TraitId,
-        trait_generics: &[Type],
-        trait_associated_types: &[NamedType],
+        impl_id: TraitImplId,
     ) {
-        let mut bindings = TypeBindings::default();
-        match self.lookup_trait_implementation_helper(
-            object_type,
-            trait_id,
-            trait_generics,
-            trait_associated_types,
-            &mut bindings,
-            TraitLookupMode::PreparedOnly,
-            IMPL_SEARCH_RECURSION_LIMIT,
-        ) {
-            Ok((TraitImplKind::Prepared(impl_id), _)) => {
-                let entries = self.trait_implementation_map.entry(trait_id).or_default();
-                entries.retain(|(_, kind)| !matches!(kind, TraitImplKind::Prepared(prepared_impl_id) if *prepared_impl_id == impl_id));
-            }
-            Ok(_) => {
-                unreachable!("only looking for TraitImplKind::Prepared");
-            }
-            Err(
-                ImplSearchErrorKind::NoImplFound(_)
-                | ImplSearchErrorKind::NoMatching(_)
-                | ImplSearchErrorKind::RecursionLimitReached,
-            ) => {
-                // Wasn't found, nothing to remove.
-            }
-            Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType) => {
-                // Can't match this object type, so we don't know if there is a prepared impl.
-            }
-            Err(ImplSearchErrorKind::MultipleMatching(m)) => {
-                // We should take care to only add one prepared impl.
-                unreachable!("ICE: Multiple Prepared traits: {m:?}")
-            }
-        }
+        let entries = self.trait_implementation_map.entry(trait_id).or_default();
+        entries.retain(|(_, kind)| !matches!(kind, TraitImplKind::Prepared(id) if *id == impl_id));
     }
 
     /// Returns the trait implementation if found along with the instantiation bindings for
@@ -423,9 +383,6 @@ impl NodeInterner {
         for (existing_object_type, impl_kind) in impls {
             let skip = match mode {
                 TraitLookupMode::Default => false,
-                TraitLookupMode::PreparedOnly => {
-                    !matches!(impl_kind, TraitImplKind::Prepared { .. })
-                }
                 TraitLookupMode::SelfAssumedOnly => {
                     !matches!(impl_kind, TraitImplKind::Assumed { .. })
                 }

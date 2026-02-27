@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use crate::{
-    Kind, Type, TypeBinding, TypeBindings, TypeVariableId,
+    Kind, Type, TypeBindings, TypeVariableId,
     hir_def::types::NamedGeneric,
     node_interner::{FuncId, TraitId},
 };
@@ -104,63 +104,15 @@ impl Methods {
         result: &mut Vec<(TypeVariableId, crate::TypeVariable, Kind)>,
         seen: &mut HashSet<TypeVariableId>,
     ) {
-        match typ {
-            Type::NamedGeneric(NamedGeneric { type_var, .. }) => {
+        typ.visit(&mut |typ| {
+            if let Type::NamedGeneric(NamedGeneric { type_var, .. }) = typ {
                 let id = type_var.id();
                 if seen.insert(id) {
                     result.push((id, type_var.clone(), type_var.kind()));
                 }
             }
-            Type::Array(size, element) => {
-                Self::collect_named_generics(size, result, seen);
-                Self::collect_named_generics(element, result, seen);
-            }
-            Type::Vector(element) | Type::String(element) | Type::Reference(element, _) => {
-                Self::collect_named_generics(element, result, seen);
-            }
-            Type::FmtString(size, fields) | Type::CheckedCast { from: size, to: fields } => {
-                Self::collect_named_generics(size, result, seen);
-                Self::collect_named_generics(fields, result, seen);
-            }
-            Type::DataType(_, args) | Type::Alias(_, args) => {
-                for arg in args {
-                    Self::collect_named_generics(arg, result, seen);
-                }
-            }
-            Type::Tuple(fields) => {
-                for field in fields {
-                    Self::collect_named_generics(field, result, seen);
-                }
-            }
-            Type::Function(args, ret, env, _) => {
-                for arg in args {
-                    Self::collect_named_generics(arg, result, seen);
-                }
-                Self::collect_named_generics(ret, result, seen);
-                Self::collect_named_generics(env, result, seen);
-            }
-            Type::Forall(_, inner) => {
-                Self::collect_named_generics(inner, result, seen);
-            }
-            Type::InfixExpr(left, _, right, _) => {
-                Self::collect_named_generics(left, result, seen);
-                Self::collect_named_generics(right, result, seen);
-            }
-            Type::TypeVariable(type_var) => {
-                if let TypeBinding::Bound(typ) = &*type_var.borrow() {
-                    Self::collect_named_generics(typ, result, seen);
-                }
-            }
-            // These types don't contain NamedGenerics
-            Type::FieldElement
-            | Type::Integer(..)
-            | Type::Bool
-            | Type::Unit
-            | Type::Quoted(..)
-            | Type::Error
-            | Type::Constant(..)
-            | Type::TraitAsType(..) => {}
-        }
+            true
+        });
     }
 
     pub(super) fn find_direct_method(
