@@ -224,14 +224,13 @@ impl Elaborator<'_> {
     pub(super) fn elaborate_assign(&mut self, assign: AssignStatement) -> (HirStatement, Type) {
         let expr_location = assign.expression.location;
         let (expression, expr_type) = self.elaborate_expression(assign.expression);
-        let lvalue_clone = assign.lvalue.clone();
         let (lvalue, lvalue_type, mutable, mut new_statements) =
             self.elaborate_lvalue(assign.lvalue);
 
         self.mark_lvalue_variables_as_mutated(&lvalue);
 
         if !mutable {
-            self.push_assign_to_immutable_lvalue_error(&lvalue, lvalue_clone);
+            self.push_assign_to_immutable_lvalue_error(&lvalue, &lvalue);
         } else {
             let (id, name, location) = self.get_lvalue_error_info(&lvalue);
             if let Some(id) = id {
@@ -262,7 +261,11 @@ impl Elaborator<'_> {
         }
     }
 
-    fn push_assign_to_immutable_lvalue_error(&mut self, lvalue: &HirLValue, main_lvalue: LValue) {
+    fn push_assign_to_immutable_lvalue_error(
+        &mut self,
+        lvalue: &HirLValue,
+        main_lvalue: &HirLValue,
+    ) {
         match lvalue {
             HirLValue::Ident(ident, _) => {
                 let definition = self.interner.definition(ident.id);
@@ -284,7 +287,7 @@ impl Elaborator<'_> {
                     let location = ident.location;
                     self.push_err(TypeCheckError::CannotAssignToReference { name, location });
                 } else {
-                    let lvalue = main_lvalue.to_string();
+                    let lvalue = main_lvalue.to_display_ast(self.interner).to_string();
                     let location = main_lvalue.location();
                     self.push_err(TypeCheckError::CannotAssignToLValueBehindReference {
                         lvalue,
