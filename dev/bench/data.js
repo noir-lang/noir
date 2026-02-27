@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772200567871,
+  "lastUpdate": 1772207880511,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23166,48 +23166,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "163862677+noirwhal@users.noreply.github.com",
-            "name": "noirwhal",
-            "username": "noirwhal"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "1455a0a9455f6d76d5fd6182a4cf534a6584442f",
-          "message": "chore: bump external pinned commits (#11642)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
-          "timestamp": "2026-02-20T13:57:12Z",
-          "tree_id": "1cbc84697a23681d2173c9e39d3f8d48fd95a40d",
-          "url": "https://github.com/noir-lang/noir/commit/1455a0a9455f6d76d5fd6182a4cf534a6584442f"
-        },
-        "date": 1771597111709,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 250149,
-            "range": "± 514",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 221284,
-            "range": "± 3987",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2724725,
-            "range": "± 1060",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -25259,6 +25217,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2637153,
             "range": "± 42646",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "873b17be0ed7c84a5cc1df6da6dd42e324306832",
+          "message": "chore: validate input bit size for AND and XOR (#11663)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-02-27T15:19:09Z",
+          "tree_id": "fca3dff66b260f1bd75351f5e43b646b250f3692",
+          "url": "https://github.com/noir-lang/noir/commit/873b17be0ed7c84a5cc1df6da6dd42e324306832"
+        },
+        "date": 1772207834255,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249407,
+            "range": "± 1101",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 222155,
+            "range": "± 4214",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2741402,
+            "range": "± 1594",
             "unit": "ns/iter"
           }
         ]
