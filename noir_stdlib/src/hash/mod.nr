@@ -143,9 +143,9 @@ pub fn poseidon2_permutation<let N: u32>(input: [Field; N], state_len: u32) -> [
     assert_eq(input.len(), state_len);
 
     static_assert(
-         N == POSEIDON2_CONFIG_STATE_SIZE,
-         f"the input length must equal the state size in the Poseidon2 config; expected {POSEIDON2_CONFIG_STATE_SIZE}, got {N}",
-     );
+        N == POSEIDON2_CONFIG_STATE_SIZE,
+        f"the input length must equal the state size in the Poseidon2 config; expected {POSEIDON2_CONFIG_STATE_SIZE}, got {N}",
+    );
     poseidon2_permutation_internal(input)
 }
 
