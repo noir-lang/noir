@@ -14,7 +14,7 @@ fn main(b: bool) -> pub bool {
         ))
     }
 }
-fn func_5(a: ([u1], bool, [u32])) -> bool {
+fn func_5(a: ([bool], bool, [u32])) -> bool {
     println(a);
     a.1
 }

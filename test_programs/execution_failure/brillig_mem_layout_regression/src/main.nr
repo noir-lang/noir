@@ -36,7 +36,7 @@ unconstrained fn main(a: bool) -> pub i8 {
     }
 }
 unconstrained fn func_1(
-    mut b: (Field, &mut u128, (u1, bool, u8), (Field, u8), [i64; 4]),
+    mut b: (Field, &mut u128, (bool, bool, u8), (Field, u8), [i64; 4]),
     ctx_limit: &mut u32,
 ) -> bool {
     if ((*ctx_limit) == 0_u32) {
