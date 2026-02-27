@@ -560,9 +560,8 @@ impl Value {
                     Ok((Ident::new(unwrap_rc(name), location), field))
                 })?;
 
-                let (r#type, struct_generics) = match typ.follow_bindings() {
-                    Type::DataType(def, generics) => (def, generics),
-                    _ => return Err(InterpreterError::NonStructInConstructor { typ, location }),
+                let Type::DataType(r#type, struct_generics) = typ.follow_bindings() else {
+                    return Err(InterpreterError::NonStructInConstructor { typ, location });
                 };
 
                 HirExpression::Constructor(HirConstructorExpression {
@@ -573,9 +572,8 @@ impl Value {
             }
             Value::Enum(variant_index, args, typ) => {
                 // Enum constants can have generic types but aren't functions
-                let r#type = match typ.unwrap_forall().1.follow_bindings() {
-                    Type::DataType(def, _) => def,
-                    _ => return Err(InterpreterError::NonEnumInConstructor { typ, location }),
+                let Type::DataType(r#type, _) = typ.unwrap_forall().1.follow_bindings() else {
+                    return Err(InterpreterError::NonEnumInConstructor { typ, location });
                 };
 
                 let arguments =

@@ -942,7 +942,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                     if !self.in_unconstrained_context()
                         && self.functions[&id].runtime().is_brillig()
                     {
-                        for argument in arguments.iter_mut() {
+                        for argument in &mut arguments {
                             Self::reset_array_state(argument)?;
                         }
                     }
@@ -1019,7 +1019,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
             Value::ArrayOrVector(array_value) => {
                 let mut elements = array_value.elements.borrow().to_vec();
-                for element in elements.iter_mut() {
+                for element in &mut elements {
                     Self::reset_array_state(element)?;
                 }
                 array_value.elements = Shared::new(elements);
@@ -1176,7 +1176,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
             if should_mutate {
                 array.elements.borrow_mut()[index as usize] = value;
-                Value::ArrayOrVector(array.clone())
+                Value::ArrayOrVector(array)
             } else {
                 if !is_rc_one {
                     Self::decrement_rc(&array);

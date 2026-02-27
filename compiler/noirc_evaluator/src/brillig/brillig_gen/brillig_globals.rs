@@ -98,7 +98,7 @@ impl BrilligGlobalsInit {
 
         // Mark any globals used in a Brillig entry point.
         // Using the information collected we can determine which globals an entry point must initialize.
-        for (entry_point, entry_point_inner_calls) in brillig_entry_points.iter() {
+        for (entry_point, entry_point_inner_calls) in &brillig_entry_points {
             // Increment the use-count of local constants in this entry point.
             let entry_func = &ssa.functions[entry_point];
             Self::mark_globals_for_hoisting(
@@ -109,7 +109,7 @@ impl BrilligGlobalsInit {
             );
 
             // Increment the use-count of local constants in all functions called by the entry point.
-            for inner_call in entry_point_inner_calls.iter() {
+            for inner_call in entry_point_inner_calls {
                 let inner_func = &ssa.functions[inner_call];
                 Self::mark_globals_for_hoisting(
                     &mut constant_usage,

@@ -147,7 +147,7 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                 Internal(InternalError::ConstantDoesNotFitInType { constant, .. }),
             ) => {
                 // The value should be a `NumericValue` display format, which is `<type> <value>`.
-                let value = value.split_once(' ').map(|(_, value)| value).unwrap_or(value);
+                let value = value.split_once(' ').map_or(value.as_str(), |(_, value)| value);
                 value == constant.to_string()
             }
             (Internal(_), _) | (_, Internal(_)) => {
@@ -163,7 +163,7 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                     (start < end).then(|| &s[start..=end])
                 }
                 fn details_or_sanitize(s: &str) -> String {
-                    details(s).map(|s| s.to_string()).unwrap_or_else(|| sanitize_ssa(s))
+                    details(s).map_or_else(|| sanitize_ssa(s), |s| s.to_string())
                 }
                 details_or_sanitize(i1) == details_or_sanitize(i2)
             }

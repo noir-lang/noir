@@ -152,7 +152,7 @@ impl Function {
                     .iter()
                     .flat_map(|id| self.dfg.instruction_results(*id))
                     .chain(self.dfg.block_parameters(loop_.header).iter())
-                    .cloned()
+                    .copied()
                     .collect::<HashSet<_>>();
                 (loop_.header, values_defined_in_header)
             })

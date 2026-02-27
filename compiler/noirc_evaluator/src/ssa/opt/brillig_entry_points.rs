@@ -178,7 +178,7 @@ fn resolve_cloned_function_call_sites(
                 continue;
             };
 
-            let arguments = arguments.to_vec();
+            let arguments = arguments.clone();
             let new_function_value_id = function.dfg.import_function(new_func_id);
             function.dfg[instruction_id] =
                 Instruction::Call { func: new_function_value_id, arguments };
@@ -315,7 +315,7 @@ fn collect_callsites_to_rewrite(
                 function_to_update: function.id(),
                 instruction: instruction_id,
                 new_func_to_call: *new_id,
-                call_args: arguments.to_vec(),
+                call_args: arguments.clone(),
             };
             new_calls_to_update.insert(new_call);
         }
@@ -412,7 +412,7 @@ pub(crate) fn build_inner_call_to_entry_points(
         HashMap::default();
 
     // We only need to generate globals for entry points
-    for (entry_point, entry_point_inner_calls) in brillig_entry_points.iter() {
+    for (entry_point, entry_point_inner_calls) in brillig_entry_points {
         for inner_call in entry_point_inner_calls {
             inner_call_to_entry_point.entry(*inner_call).or_default().insert(*entry_point);
         }

@@ -449,11 +449,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
     }
 
     pub(super) fn is_source_location_in_debug_module(&self, location: &Location) -> bool {
-        self.debug_artifact
-            .file_map
-            .get(&location.file)
-            .map(is_debug_file_in_debug_crate)
-            .unwrap_or(false)
+        self.debug_artifact.file_map.get(&location.file).is_some_and(is_debug_file_in_debug_crate)
     }
 
     /// Find an opcode location matching a source code location

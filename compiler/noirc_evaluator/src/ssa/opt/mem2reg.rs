@@ -265,7 +265,7 @@ impl<'f> PerFunctionContext<'f> {
 
         let mut all_terminator_values = HashSet::default();
         let mut per_func_block_params: HashSet<ValueId> = HashSet::default();
-        for (block_id, references) in self.blocks.iter_mut() {
+        for (block_id, references) in &mut self.blocks {
             let block_params = self.inserter.function.dfg.block_parameters(*block_id);
             per_func_block_params.extend(block_params.iter());
             let terminator = self.inserter.function.dfg[*block_id].unwrap_terminator();
@@ -292,8 +292,8 @@ impl<'f> PerFunctionContext<'f> {
     ) {
         // If we never load from an address within a function we can remove all stores to that address.
         // This rule does not apply to reference parameters, which we must also check for before removing these stores.
-        for (_, block) in self.blocks.iter() {
-            for (store_address, store_instruction) in block.last_stores.iter() {
+        for block in self.blocks.values() {
+            for (store_address, store_instruction) in &block.last_stores {
                 let store_alias_used = self.is_store_alias_used(
                     store_address,
                     block,
@@ -387,7 +387,7 @@ impl<'f> PerFunctionContext<'f> {
         let aliases = references.get_aliases_for_value(value);
         if aliases.is_unknown() {
             if let Some((elements, _)) = dfg.get_array_constant(value) {
-                for element in elements.iter() {
+                for element in &elements {
                     Self::for_each_value_alias(*element, references, dfg, callback);
                 }
             } else {

@@ -213,7 +213,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
     /// Updates the current status of the VM.
     /// Returns the given status.
     fn status(&mut self, status: VMStatus<F>) -> &VMStatus<F> {
-        self.status = status.clone();
+        self.status = status;
         &self.status
     }
 

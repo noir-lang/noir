@@ -239,11 +239,8 @@ impl<F: AcirField> AcirContext<F> {
 
     /// Converts an [`AcirVar`] to an [`Expression`]
     pub(crate) fn var_to_expression(&self, var: AcirVar) -> Result<Expression<F>, InternalError> {
-        let var_data = match self.vars.get(&var) {
-            Some(var_data) => var_data,
-            None => {
-                return Err(InternalError::UndeclaredAcirVar { call_stack: self.get_call_stack() });
-            }
+        let Some(var_data) = self.vars.get(&var) else {
+            return Err(InternalError::UndeclaredAcirVar { call_stack: self.get_call_stack() });
         };
         Ok(var_data.to_expression().into_owned())
     }
@@ -517,7 +514,7 @@ impl<F: AcirField> AcirContext<F> {
         if let Some(ErrorType::String(message)) =
             self.acir_ir.error_types.get(&ErrorSelector::new(assertion_payload.error_selector))
         {
-            Some(message.to_string())
+            Some(message.clone())
         } else {
             None
         }
@@ -657,7 +654,7 @@ impl<F: AcirField> AcirContext<F> {
                 if expression.is_linear() =>
             {
                 let mut expr = Expression::default();
-                for term in expression.linear_combinations.iter() {
+                for term in &expression.linear_combinations {
                     expr.push_multiplication_term(term.0, term.1, witness);
                 }
                 expr.push_addition_term(expression.q_c, witness);
@@ -674,7 +671,7 @@ impl<F: AcirField> AcirContext<F> {
                 if let Some((lin, univariate)) = degree_one {
                     let mut expr = Expression::default();
                     let rhs_term = univariate.linear_combinations[0];
-                    for term in lin.linear_combinations.iter() {
+                    for term in &lin.linear_combinations {
                         expr.push_multiplication_term(term.0 * rhs_term.0, term.1, rhs_term.1);
                     }
                     expr.push_addition_term(lin.q_c * rhs_term.0, rhs_term.1);
@@ -1109,7 +1106,7 @@ impl<F: AcirField> AcirContext<F> {
         let witness = self.var_to_witness(witness_var)?;
         self.acir_ir.range_constraint(witness, bit_size)?;
         if let Some(message) = message {
-            let payload = self.generate_assertion_message_payload(message.clone());
+            let payload = self.generate_assertion_message_payload(message);
             self.acir_ir
                 .assertion_payloads
                 .insert(self.acir_ir.last_acir_opcode_location(), payload);

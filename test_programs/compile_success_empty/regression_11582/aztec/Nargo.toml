@@ -1,0 +1,7 @@
+[package]
+name = "aztec"
+type = "lib"
+authors = [""]
+compiler_unstable_features = []
+
+[dependencies]

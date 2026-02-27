@@ -511,7 +511,7 @@ impl Translator {
                     elements.push_back(element_id);
                 }
 
-                let instruction = Instruction::MakeArray { elements, typ: make_array.typ.clone() };
+                let instruction = Instruction::MakeArray { elements, typ: make_array.typ };
                 let block = self.globals_function.entry_block();
                 let call_stack = CallStackId::root();
                 self.globals_function

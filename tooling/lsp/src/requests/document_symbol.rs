@@ -25,7 +25,7 @@ pub(crate) fn on_document_symbol_request(
     params: DocumentSymbolParams,
 ) -> impl Future<Output = Result<Option<DocumentSymbolResponse>, ResponseError>> + use<> {
     let text_document_position_params = TextDocumentPositionParams {
-        text_document: params.text_document.clone(),
+        text_document: params.text_document,
         position: Position { line: 0, character: 0 },
     };
 
@@ -431,7 +431,7 @@ impl Visitor for DocumentSymbolCollector<'_> {
 
         #[allow(deprecated)]
         self.symbols.push(DocumentSymbol {
-            name: name.to_string(),
+            name,
             detail: None,
             kind: SymbolKind::NAMESPACE,
             tags: None,

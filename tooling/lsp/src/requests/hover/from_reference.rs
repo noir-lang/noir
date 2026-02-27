@@ -247,7 +247,7 @@ fn format_enum_variant(
 
     append_doc_comments(ReferenceId::EnumVariant(id, field_index), &mut string, args);
 
-    for typ in variant.params.iter() {
+    for typ in &variant.params {
         string.push_str(&go_to_type_links(typ, args.interner, args.files));
     }
 
@@ -926,7 +926,7 @@ fn process_doc_comments_links(
         let Some(location) = link_target_location(target, args) else {
             continue;
         };
-        let mut line = lines[link.line].to_string();
+        let mut line = lines[link.line].clone();
         let replacement = format_link(&link.name, location);
         line.replace_range(link.start..link.end, &replacement);
         lines[link.line] = line;
