@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772192147196,
+  "lastUpdate": 1772194578191,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23176,48 +23176,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "76ff5b8e8157f702f3dad20825ccec58f2b46f53",
-          "message": "chore(stdlib)!: remove deprecated type `Vec` from stdlib (#11282)",
-          "timestamp": "2026-02-20T12:59:39Z",
-          "tree_id": "832b70f8e473169efa5a675c72e5ae9b497b48fe",
-          "url": "https://github.com/noir-lang/noir/commit/76ff5b8e8157f702f3dad20825ccec58f2b46f53"
-        },
-        "date": 1771593715119,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 250909,
-            "range": "± 426",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 221273,
-            "range": "± 1461",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2734097,
-            "range": "± 2884",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "ef63b3ac585f58caf9052ea3befab651ceff77cc",
           "message": "chore: always interpret brillig calls (#9769)",
           "timestamp": "2026-02-20T13:32:01Z",
@@ -25259,6 +25217,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2209604,
             "range": "± 3590",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "72797635+Savio-Sou@users.noreply.github.com",
+            "name": "Savio",
+            "username": "Savio-Sou"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7e647e33f3c051cf792f9e158d9565336b595abc",
+          "message": "chore(docs): Add missing `;` in integer wrapping code example (#11711)",
+          "timestamp": "2026-02-27T11:47:27Z",
+          "tree_id": "9a7e79f83985cbdb57c8eae5cb7aa090b728dcf7",
+          "url": "https://github.com/noir-lang/noir/commit/7e647e33f3c051cf792f9e158d9565336b595abc"
+        },
+        "date": 1772194533057,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 250432,
+            "range": "± 482",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 219525,
+            "range": "± 3561",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2743870,
+            "range": "± 1917",
             "unit": "ns/iter"
           }
         ]
