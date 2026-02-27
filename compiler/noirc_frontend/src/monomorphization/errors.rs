@@ -3,6 +3,7 @@ use noirc_errors::{CustomDiagnostic, Location};
 use crate::{
     Type,
     hir::{comptime::InterpreterError, type_check::TypeCheckError},
+    validity::InvalidType,
 };
 
 #[derive(Debug)]
@@ -27,6 +28,8 @@ pub enum MonomorphizationError {
     UnconstrainedVectorReturnToConstrained { typ: String, location: Location },
     ReferenceReturnedFromOracle { typ: String, location: Location },
     VectorWithNestedArrayReturnedFromOracle { typ: String, location: Location },
+    InvalidTypeForEntryPoint { invalid_type: InvalidType, location: Location },
+    ComplexType { complexity: usize, max_complexity: usize, location: Location },
 }
 
 impl MonomorphizationError {
@@ -52,9 +55,9 @@ impl MonomorphizationError {
             }
             | MonomorphizationError::UnconstrainedVectorReturnToConstrained { location, .. }
             | MonomorphizationError::ReferenceReturnedFromOracle { location, .. }
-            | MonomorphizationError::VectorWithNestedArrayReturnedFromOracle { location, .. } => {
-                *location
-            }
+            | MonomorphizationError::VectorWithNestedArrayReturnedFromOracle { location, .. }
+            | MonomorphizationError::InvalidTypeForEntryPoint { location, .. }
+            | MonomorphizationError::ComplexType { location, .. } => *location,
             MonomorphizationError::InterpreterError(error) => error.location(),
         }
     }
@@ -159,6 +162,34 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                 format!(
                     "Vector with nested array `{typ}` cannot be returned from an oracle function"
                 )
+            }
+            MonomorphizationError::InvalidTypeForEntryPoint { invalid_type, location } => {
+                let primary_message =
+                    "Invalid type found in the entry point to a program".to_string();
+                let mut diagnostic =
+                    CustomDiagnostic::simple_error(primary_message, String::new(), *location);
+                diagnostic.secondaries.clear();
+
+                if matches!(
+                    invalid_type,
+                    InvalidType::StructField { .. } | InvalidType::Alias { .. }
+                ) {
+                    diagnostic.add_secondary(
+                        "This type has an invalid entry point type inside it".to_string(),
+                        *location,
+                    );
+                }
+
+                diagnostic.add_note("Note: vectors, references, empty arrays, empty strings, or any type containing them may not be used in main, contract functions, test functions, fuzz functions or foldable functions.".to_string());
+                invalid_type.add_to_diagnostic(*location, &mut diagnostic);
+                return diagnostic;
+            }
+            MonomorphizationError::ComplexType { complexity, max_complexity, location } => {
+                let message = format!(
+                    "Type is too complex (complexity: {complexity}, max: {max_complexity})",
+                );
+                let secondary = "This usually happens with exponentially growing types. Consider simplifying the type structure.".to_string();
+                return CustomDiagnostic::simple_error(message, secondary, *location);
             }
         };
 

@@ -372,7 +372,7 @@ impl FuzzerBuilder {
             .insert_call(
                 function,
                 arguments.iter().map(|i| i.value_id).collect(),
-                vec![result_type.clone().into()],
+                vec![result_type.into()],
             )
             .first()
             .unwrap()
@@ -431,7 +431,7 @@ impl FuzzerBuilder {
             .import_intrinsic("to_le_radix")
             .expect("to_le_radix intrinsic should be available");
         let element_type = Type::Numeric(NumericType::U8);
-        let result_type = Type::Array(Arc::new(vec![element_type.clone()]), u32::from(limb_count));
+        let result_type = Type::Array(Arc::new(vec![element_type]), u32::from(limb_count));
         let result = self.builder.insert_call(
             intrinsic,
             vec![field_value.value_id, radix],
@@ -610,8 +610,8 @@ impl FuzzerBuilder {
             .builder
             .import_intrinsic("aes128_encrypt")
             .expect("aes128_encrypt intrinsic should be available");
-        // With auto padding disabled in libaes, output size equals input size.
-        // Input must be a multiple of 16 (pre-padded).
+        // The blackbox does not apply padding, so output size equals input size.
+        // Callers must pad inputs in Noir; input length must be a multiple of 16.
         let return_type = Type::Array(Arc::new(vec![Type::Numeric(NumericType::U8)]), input_size);
         let result = self.builder.insert_call(
             intrinsic,
@@ -670,7 +670,7 @@ impl FuzzerBuilder {
         index: TypedValue,
         array: TypedValue,
     ) -> TypedValue {
-        match array.type_of_variable.clone() {
+        match array.type_of_variable {
             Type::Array(_, array_length) => {
                 let array_length_id =
                     self.builder.numeric_constant(array_length, NumericType::U32.into());
@@ -695,7 +695,7 @@ impl FuzzerBuilder {
     ) -> TypedValue {
         assert!(index.type_of_variable == Type::Numeric(NumericType::U32));
         let index = if safe_index {
-            self.insert_index_mod_array_length(index.clone(), array.clone())
+            self.insert_index_mod_array_length(index, array.clone())
         } else {
             index
         };
@@ -725,13 +725,13 @@ impl FuzzerBuilder {
 
         assert!(index.type_of_variable == Type::Numeric(NumericType::U32));
         let index = if safe_index {
-            self.insert_index_mod_array_length(index.clone(), array.clone())
+            self.insert_index_mod_array_length(index, array.clone())
         } else {
             index
         };
         let res =
             self.builder.insert_array_set(array.value_id, index.value_id, value.value_id, false);
-        TypedValue::new(res, Type::Array(array_type.clone(), array_length))
+        TypedValue::new(res, Type::Array(array_type, array_length))
     }
 
     /// Performs a curve point multiplication with a scalar
@@ -781,15 +781,13 @@ impl FuzzerBuilder {
                 SemanticLength(1),
             ),
         );
-        let return_type = Type::Array(
-            Arc::new(vec![field_type.clone(), field_type.clone(), boolean_type.clone()]),
-            1,
-        );
+        let return_type =
+            Type::Array(Arc::new(vec![field_type.clone(), field_type.clone(), boolean_type]), 1);
         let predicate = self.builder.numeric_constant(1_u32, NumericType::Boolean.into());
         let result = self.builder.insert_call(
             intrinsic,
             vec![basic_point, scalar_id, predicate],
-            vec![return_type.clone().into()],
+            vec![return_type.into()],
         );
         assert_eq!(result.len(), 1);
         let result = result[0];
@@ -865,7 +863,7 @@ impl FuzzerBuilder {
         let result = self.builder.insert_call(
             intrinsic,
             vec![point_ids_array, scalar_ids_array, predicate],
-            vec![return_type.clone().into()],
+            vec![return_type.into()],
         );
         assert_eq!(result.len(), 1);
         let result = result[0];
@@ -900,8 +898,7 @@ impl FuzzerBuilder {
             Arc::new(vec![field_type.clone(), field_type.clone(), boolean_type.clone()]),
             1,
         );
-        let result =
-            self.builder.insert_call(intrinsic, arguments, vec![return_type.clone().into()]);
+        let result = self.builder.insert_call(intrinsic, arguments, vec![return_type.into()]);
         assert_eq!(result.len(), 1);
         let result = result[0];
         let x_idx = self.builder.numeric_constant(0_u32, NumericType::U32.into());

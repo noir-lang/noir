@@ -27,6 +27,12 @@ mod tests {
     struct ForceBrillig(pub bool);
     #[derive(Debug, Clone, Copy)]
     struct Inliner(pub i64);
+    #[derive(Debug, Clone, Copy)]
+    enum Runtime {
+        Acir,
+        Brillig,
+        Comptime,
+    }
 
     // These tests fail with stack too deep errors when debug assertions are active
     const IGNORED_BRILLIG_DEBUG_ASSERTIONS_TESTS: [&str; 1] = ["ski_calculus"];
@@ -133,7 +139,7 @@ mod tests {
         let mut has_circuit_output = false;
 
         if check_stdout {
-            has_circuit_output = check_output(&mut nargo, &test_program_dir);
+            has_circuit_output = check_execution_success_stdout(&mut nargo, &test_program_dir);
         }
 
         if has_circuit_output {
@@ -155,7 +161,7 @@ mod tests {
         }
     }
 
-    fn check_output(nargo: &mut Command, test_program_dir: &Path) -> bool {
+    fn check_execution_success_stdout(nargo: &mut Command, test_program_dir: &Path) -> bool {
         let output = nargo.output().unwrap();
         let stdout = String::from_utf8(output.stdout).unwrap();
         let has_circuit_output = stdout.contains("Circuit output:");
@@ -174,11 +180,64 @@ mod tests {
         has_circuit_output
     }
 
-    fn execution_failure(mut nargo: Command) {
+    fn execution_failure(mut nargo: Command, test_program_dir: PathBuf, runtime: Runtime) {
+        // First make sure `nargo check` doesn't error. If it does, it means the test is incorrect
+        // as it fails before reaching the execution phase.
+        execution_failure_check_compiles(test_program_dir.clone(), runtime);
+
         nargo
             .assert()
             .failure()
             .stderr(predicate::str::contains("The application panicked (crashed).").not());
+        check_execution_failure_stderr(&mut nargo, &test_program_dir, runtime);
+    }
+
+    fn execution_failure_check_compiles(test_program_dir: PathBuf, runtime: Runtime) {
+        #[allow(deprecated)]
+        let mut nargo = Command::cargo_bin("nargo").unwrap();
+        nargo.arg("--program-dir").arg(test_program_dir);
+        nargo.arg("check");
+        match runtime {
+            Runtime::Acir | Runtime::Comptime => (),
+            Runtime::Brillig => {
+                nargo.arg("--force-brillig");
+            }
+        }
+
+        // Enable enums and trait_as_type as unstable features
+        nargo.arg("-Zenums");
+        nargo.arg("-Ztrait_as_type");
+
+        nargo
+            .assert()
+            .success()
+            .stderr(predicate::str::contains("The application panicked (crashed).").not());
+    }
+
+    fn check_execution_failure_stderr(
+        nargo: &mut Command,
+        test_program_dir: &Path,
+        runtime: Runtime,
+    ) {
+        let output = nargo.output().unwrap();
+        let stderr = String::from_utf8(output.stderr).unwrap();
+        let stderr = remove_noise_lines(stderr);
+        let stderr = delete_test_program_dir_occurrences(stderr, test_program_dir);
+
+        let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
+        let runtime = match runtime {
+            Runtime::Acir => "acir",
+            Runtime::Brillig => "brillig",
+            Runtime::Comptime => "comptime",
+        };
+        let snapshot_name = format!("{runtime}_stderr");
+        insta::with_settings!(
+            {
+                snapshot_path => format!("./snapshots/execution_failure/{test_name}")
+            },
+            {
+            insta::assert_snapshot!(snapshot_name, stderr);
+        });
     }
 
     fn execution_panic(mut nargo: Command) {
@@ -355,7 +414,7 @@ mod tests {
 
         // Copy everything from the original directory to the new directory
         // (because some dependencies might be there and might be needed for the expanded code to work)
-        copy_dir_all(test_program_dir.clone(), temp_dir.clone()).unwrap();
+        copy_dir_all(&test_program_dir, temp_dir.clone()).unwrap();
 
         // Create a main file for the expanded code
         fs::write(temp_dir.join("src").join("main.nr"), expanded_code).unwrap();
@@ -386,7 +445,7 @@ mod tests {
     fn nargo_expand_compile(test_program_dir: PathBuf, prefix: &'static str) {
         #[allow(deprecated)]
         let mut nargo = Command::cargo_bin("nargo").unwrap();
-        nargo.arg("--program-dir").arg(test_program_dir.clone());
+        nargo.arg("--program-dir").arg(&test_program_dir);
         nargo.arg("expand").arg("--force").arg("--disable-comptime-printing");
 
         // Enable enums as an unstable feature
@@ -412,7 +471,7 @@ mod tests {
 
         // Copy everything from the original directory to the new directory
         // (because some dependencies might be there and might be needed for the expanded code to work)
-        copy_dir_all(test_program_dir.clone(), temp_dir.clone()).unwrap();
+        copy_dir_all(test_program_dir, temp_dir.clone()).unwrap();
 
         // Create a main file for the expanded code
         fs::write(temp_dir.join("src").join("main.nr"), expanded_code).unwrap();
@@ -444,20 +503,41 @@ mod tests {
         nargo.assert().success();
 
         if check_stdout {
-            check_output(&mut nargo, &test_program_dir);
+            check_execution_success_stdout(&mut nargo, &test_program_dir);
         }
     }
 
     fn nargo_execute_comptime_expect_failure(test_program_dir: PathBuf) {
         #[allow(deprecated)]
         let mut nargo = Command::cargo_bin("nargo").unwrap();
-        nargo.arg("--program-dir").arg(test_program_dir);
+        nargo.arg("--program-dir").arg(test_program_dir.clone());
         nargo.arg("execute").arg("--force-comptime");
 
         // Enable enums as an unstable feature
         nargo.arg("-Zenums");
 
-        execution_failure(nargo);
+        execution_failure(nargo, test_program_dir, Runtime::Comptime);
+    }
+
+    fn nargo_execute_brillig_small_stack(test_program_dir: PathBuf) {
+        #[allow(deprecated)]
+        let mut nargo = Command::cargo_bin("nargo").unwrap();
+        nargo.arg("--program-dir").arg(test_program_dir.clone());
+        nargo.arg("execute").arg("--force").arg("--force-brillig");
+        nargo.arg("--max-stack-frame-size").arg("64");
+
+        let skip_brillig_debug_assertions = IGNORED_BRILLIG_DEBUG_ASSERTIONS_TESTS
+            .into_iter()
+            .any(|test_to_skip| test_program_dir.ends_with(test_to_skip));
+        if !skip_brillig_debug_assertions {
+            nargo.arg("--enable-brillig-debug-assertions");
+        }
+
+        // Enable enums and trait_as_type as unstable features
+        nargo.arg("-Zenums");
+        nargo.arg("-Ztrait_as_type");
+
+        nargo.assert().success();
     }
 
     fn run_nargo_fmt(target_dir: PathBuf) {
@@ -480,15 +560,15 @@ mod tests {
 
             let path = entry.path();
 
-            if entry.file_type().is_ok_and(|file_type| file_type.is_dir()) {
-                if let Some(prover_toml) = find_prover_toml_in_dir(&path) {
-                    return Some(prover_toml);
-                }
+            if entry.file_type().is_ok_and(|file_type| file_type.is_dir())
+                && let Some(prover_toml) = find_prover_toml_in_dir(&path)
+            {
+                return Some(prover_toml);
             }
 
             if path.file_name().is_none_or(|name| name != "Prover.toml") {
                 continue;
-            };
+            }
 
             return Some(path);
         }

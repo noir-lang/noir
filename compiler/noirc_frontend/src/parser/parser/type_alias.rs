@@ -20,7 +20,7 @@ impl Parser<'_> {
             self.expected_identifier();
             return TypeAlias {
                 visibility,
-                name: self.unknown_ident_at_previous_token_end(),
+                name: self.empty_ident_at_previous_token_end(),
                 generics: Vec::new(),
                 typ: UnresolvedType { typ: UnresolvedTypeData::Error, location },
                 location: start_location,

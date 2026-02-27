@@ -67,7 +67,7 @@ fn main(x: Field) {
     assert(bar.f4() == 4, "4");
     assert(bar.f5() == 50, "5");
 
-    let mut bar_mut = Bar {};
+    let bar_mut = Bar {};
     // Impls on mutable references are temporarily disabled
     // assert_eq((&mut bar_mut).f1(), 101);
     // assert((&mut bar_mut).f2() == 2, "7");

@@ -94,6 +94,10 @@ pub enum RuntimeError {
     },
     #[error("SSA validation failed: {message}")]
     SsaValidationError { message: String, call_stack: CallStack },
+    #[error(
+        "The return value has {num_witnesses} elements which exceeds the limit of {max_witnesses}"
+    )]
+    ReturnLimitExceeded { num_witnesses: usize, max_witnesses: usize, call_stack: CallStack },
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Error)]
@@ -145,7 +149,8 @@ impl RuntimeError {
             | RuntimeError::UnknownReference { call_stack }
             | RuntimeError::RecursionLimit { call_stack, .. }
             | RuntimeError::UnconstrainedCallingConstrained { call_stack, .. }
-            | RuntimeError::SsaValidationError { call_stack, .. } => call_stack,
+            | RuntimeError::SsaValidationError { call_stack, .. }
+            | RuntimeError::ReturnLimitExceeded { call_stack, .. } => call_stack,
         }
     }
 }
@@ -172,7 +177,7 @@ impl RuntimeError {
             RuntimeError::SsaValidationError { message, call_stack} => {
                 // At the moment SSA validation error is just a caught panic, it doesn't have a call stack.
                 let location =
-                    call_stack.last().cloned().unwrap_or_else(Location::dummy);
+                    call_stack.last().copied().unwrap_or_else(Location::dummy);
 
                 let mut diagnostic = CustomDiagnostic::simple_error(
                     format!("SSA validation error: {message}"),
@@ -195,7 +200,7 @@ impl RuntimeError {
                 let primary_message = self.to_string();
                 // Unrolling sometimes has to produce an empty call stack.
                 let location =
-                    self.call_stack().last().cloned().unwrap_or_else(Location::dummy);
+                    self.call_stack().last().copied().unwrap_or_else(Location::dummy);
 
                 CustomDiagnostic::simple_error(
                     primary_message,

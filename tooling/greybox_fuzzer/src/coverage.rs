@@ -356,7 +356,7 @@ impl AccumulatedFuzzerCoverage {
         let mut add_to_leavers = |x| {
             if let Some(leaver_id) = x {
                 potential_leavers.insert(leaver_id);
-            };
+            }
         };
 
         self.merge_branch_coverage(new_coverage, &mut add_to_leavers);

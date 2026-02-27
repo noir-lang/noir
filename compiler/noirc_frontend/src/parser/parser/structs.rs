@@ -23,7 +23,7 @@ impl Parser<'_> {
         let Some(name) = self.eat_non_underscore_ident() else {
             self.expected_identifier();
             return self.empty_struct(
-                self.unknown_ident_at_previous_token_end(),
+                self.empty_ident_at_previous_token_end(),
                 attributes,
                 visibility,
                 Vec::new(),

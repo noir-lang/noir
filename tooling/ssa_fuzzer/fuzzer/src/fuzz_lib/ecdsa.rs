@@ -18,7 +18,7 @@ fn generate_ecdsa_signature_secp256k1_internal(msg: &[u8]) -> SignatureSsaPrepar
     let signing_key = SigningKey::generate();
     let signature: Signature = signing_key.sign(msg);
     let verifying_key = VerifyingKey::from(&signing_key); // == public key
-    let public_key_bytes = verifying_key.to_encoded_point(/*compress = */ false).to_bytes();
+    let public_key_bytes = verifying_key.to_sec1_point(/*compress = */ false).to_bytes();
     let signature_bytes = if signature.s().is_high().into() {
         signature.normalize_s().to_bytes()
     } else {
@@ -40,7 +40,7 @@ fn generate_ecdsa_signature_secp256r1_internal(msg: &[u8]) -> SignatureSsaPrepar
     let signing_key = SigningKey::generate();
     let signature: Signature = signing_key.sign(msg);
     let verifying_key = VerifyingKey::from(&signing_key); // == public key
-    let public_key_bytes = verifying_key.to_encoded_point(/*compress = */ false).to_bytes();
+    let public_key_bytes = verifying_key.to_sec1_point(/*compress = */ false).to_bytes();
     let signature_bytes = if signature.s().is_high().into() {
         signature.normalize_s().to_bytes()
     } else {

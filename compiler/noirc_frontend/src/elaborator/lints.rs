@@ -5,6 +5,7 @@ use crate::{
     ast::{Ident, NoirFunction},
     graph::CrateId,
     hir::{
+        def_collector::dc_crate::CompilationError,
         resolution::errors::{PubPosition, ResolverError},
         type_check::TypeCheckError,
     },
@@ -13,9 +14,8 @@ use crate::{
         function::FuncMeta,
         stmt::HirStatement,
     },
-    node_interner::{
-        DefinitionId, DefinitionKind, ExprId, FuncId, FunctionModifiers, NodeInterner,
-    },
+    node_interner::{DefinitionKind, ExprId, FuncId, FunctionModifiers, NodeInterner},
+    recursion::TypeRecursionContext,
     shared::{ForeignCall, Signedness, Visibility},
     token::{FunctionAttributeKind, SecondaryAttributeKind},
 };
@@ -29,12 +29,11 @@ pub(super) fn deprecated_function(interner: &NodeInterner, expr: ExprId) -> Opti
         return None;
     };
 
-    let Some(DefinitionKind::Function(func_id)) = interner.try_definition(id).map(|def| &def.kind)
-    else {
+    let DefinitionKind::Function(func_id) = interner.definition(id).kind else {
         return None;
     };
 
-    let attributes = interner.function_attributes(func_id);
+    let attributes = interner.function_attributes(&func_id);
     attributes.get_deprecated_note().map(|note| TypeCheckError::CallDeprecated {
         name: interner.definition_name(id).to_string(),
         note,
@@ -52,15 +51,16 @@ pub(super) fn inlining_attributes(
     let attribute = modifiers.attributes.function()?;
     let location = attribute.location;
     let ident = func_meta_name_ident(func, modifiers);
+    let is_unconstrained = func.is_unconstrained();
 
     match &attribute.kind {
-        FunctionAttributeKind::NoPredicates if modifiers.is_unconstrained => {
+        FunctionAttributeKind::NoPredicates if is_unconstrained => {
             Some(ResolverError::NoPredicatesAttributeOnUnconstrained { ident, location })
         }
-        FunctionAttributeKind::Fold if modifiers.is_unconstrained => {
+        FunctionAttributeKind::Fold if is_unconstrained => {
             Some(ResolverError::FoldAttributeOnUnconstrained { ident, location })
         }
-        FunctionAttributeKind::InlineNever if !modifiers.is_unconstrained => {
+        FunctionAttributeKind::InlineNever if !is_unconstrained => {
             Some(ResolverError::InlineNeverAttributeOnConstrained { ident, location })
         }
         _ => None,
@@ -126,7 +126,7 @@ pub(super) fn oracle_not_marked_unconstrained(
     func: &FuncMeta,
     modifiers: &FunctionModifiers,
 ) -> Option<ResolverError> {
-    if modifiers.is_unconstrained {
+    if func.is_unconstrained() {
         return None;
     }
 
@@ -157,27 +157,57 @@ pub(super) fn oracle_returns_multiple_vectors(
         return None;
     }
 
-    fn vector_count(typ: &Type) -> usize {
+    fn vector_count(typ: &Type, mut type_recursion_context: TypeRecursionContext) -> usize {
         match typ {
-            Type::Array(_, item) => vector_count(item),
-            Type::Vector(typ) => 1 + vector_count(typ),
-            Type::FmtString(_, item) => vector_count(item),
-            Type::Tuple(items) => items.iter().map(vector_count).sum(),
+            Type::Array(_, item) => vector_count(item, type_recursion_context.recur()),
+            Type::Vector(typ) => 1 + vector_count(typ, type_recursion_context.recur()),
+            Type::FmtString(_, item) => vector_count(item, type_recursion_context.recur()),
+            Type::Tuple(items) => items
+                .iter()
+                .map(|typ| vector_count(typ, type_recursion_context.clone().recur()))
+                .sum(),
             Type::DataType(def, args) => {
                 let struct_type = def.borrow();
-                if let Some(fields) = struct_type.get_fields(args) {
-                    fields.iter().map(|(_, typ, _)| vector_count(typ)).sum()
-                } else if let Some(variants) = struct_type.get_variants(args) {
-                    variants.iter().flat_map(|(_, types)| types).map(vector_count).sum()
+                if type_recursion_context.insert_data_type(struct_type.id, args.clone()) {
+                    if let Some(fields) = struct_type.get_fields(args) {
+                        fields
+                            .iter()
+                            .map(|(_, typ, _)| {
+                                vector_count(typ, type_recursion_context.clone().recur())
+                            })
+                            .sum()
+                    } else if let Some(variants) = struct_type.get_variants(args) {
+                        variants
+                            .iter()
+                            .flat_map(|(_, types)| types)
+                            .map(|typ| vector_count(typ, type_recursion_context.clone().recur()))
+                            .sum()
+                    } else {
+                        0
+                    }
                 } else {
+                    // If we bump into a recursive type, we stop counting.
+                    // "zero" isn't strictly correct here, but the recursive type will be an error
+                    // already so this count won't matter in the end.
                     0
                 }
             }
-            Type::Alias(def, args) => vector_count(&def.borrow().get_type(args)),
+            Type::Alias(def, args) => {
+                if type_recursion_context.insert_alias(def.borrow().id, args.clone()) {
+                    vector_count(&def.borrow().get_type(args), type_recursion_context.recur())
+                } else {
+                    // If we bump into a recursive type, we stop counting.
+                    // "zero" isn't strictly correct here, but the recursive type will be an error
+                    // already so this count won't matter in the end.
+                    0
+                }
+            }
             Type::TypeVariable(type_variable)
             | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
                 match &*type_variable.borrow() {
-                    TypeBinding::Bound(binding) => vector_count(binding),
+                    TypeBinding::Bound(binding) => {
+                        vector_count(binding, type_recursion_context.recur())
+                    }
                     TypeBinding::Unbound(_, _) => 0,
                 }
             }
@@ -198,7 +228,7 @@ pub(super) fn oracle_returns_multiple_vectors(
         }
     }
 
-    if vector_count(func.return_type()) > 1 {
+    if vector_count(func.return_type(), TypeRecursionContext::default()) > 1 {
         let ident = func_meta_name_ident(func, modifiers);
         Some(ResolverError::OracleReturnsMultipleVectors { location: ident.location() })
     } else {
@@ -249,8 +279,9 @@ pub(super) fn missing_pub(func: &FuncMeta, modifiers: &FunctionModifiers) -> Opt
         && func.return_type().follow_bindings() != Type::Unit
         && func.return_visibility == Visibility::Private
     {
-        let ident = func_meta_name_ident(func, modifiers);
-        Some(ResolverError::NecessaryPub { ident })
+        let name = modifiers.name.clone();
+        let location = func.return_type.location();
+        Some(ResolverError::NecessaryPub { name, location })
     } else {
         None
     }
@@ -295,9 +326,13 @@ pub(super) fn unconstrained_function_return(
 pub(super) fn error_if_verify_proof_with_type(
     interner: &NodeInterner,
     func_expr_id: ExprId,
-) -> Option<TypeCheckError> {
+    location: Location,
+) -> Option<CompilationError> {
     // Called function
-    let func_id = interner.lookup_function_from_expr(&func_expr_id)?;
+    let func_id = match interner.lookup_function_from_expr(&func_expr_id, location) {
+        Ok(func_id) => func_id?,
+        Err(error) => return Some(error.into()),
+    };
     let func_name = interner.function_name(&func_id);
 
     // Check if it is verify_proof_with_type and is from the standard library
@@ -306,7 +341,7 @@ pub(super) fn error_if_verify_proof_with_type(
         if module_id.krate.is_stdlib() {
             // Get the function location for the error
             let location = interner.expr_location(&func_expr_id);
-            return Some(TypeCheckError::VerifyProofWithTypeInBrillig { location });
+            return Some(TypeCheckError::VerifyProofWithTypeInBrillig { location }.into());
         }
     }
 
@@ -321,9 +356,17 @@ pub(super) fn unnecessary_pub_return(
     modifiers: &FunctionModifiers,
     is_entry_point: bool,
 ) -> Option<ResolverError> {
-    if !is_entry_point && func.return_visibility == Visibility::Public {
-        let ident = func_meta_name_ident(func, modifiers);
-        Some(ResolverError::UnnecessaryPub { ident, position: PubPosition::ReturnType })
+    if is_entry_point {
+        return None;
+    }
+
+    if let Visibility::Public = &func.return_visibility {
+        let name = modifiers.name.clone();
+        Some(ResolverError::UnnecessaryPub {
+            name,
+            location: func.return_visibility_location,
+            position: PubPosition::ReturnType,
+        })
     } else {
         None
     }
@@ -335,11 +378,18 @@ pub(super) fn unnecessary_pub_return(
 pub(super) fn unnecessary_pub_argument(
     func: &NoirFunction,
     arg_visibility: Visibility,
+    arg_visibility_location: Location,
     is_entry_point: bool,
 ) -> Option<ResolverError> {
-    if arg_visibility == Visibility::Public && !is_entry_point {
+    if is_entry_point {
+        return None;
+    }
+
+    if let Visibility::Public = arg_visibility {
+        let name = func.name().to_string();
         Some(ResolverError::UnnecessaryPub {
-            ident: func.name_ident().clone(),
+            name,
+            location: arg_visibility_location,
             position: PubPosition::Parameter,
         })
     } else {
@@ -351,20 +401,24 @@ pub(super) fn unnecessary_pub_argument(
 pub(super) fn databus_on_non_entry_point(
     func: &NoirFunction,
     visibility: Visibility,
+    visibility_location: Location,
     is_entry_point: bool,
 ) -> Option<ResolverError> {
-    if !is_entry_point {
-        match visibility {
-            Visibility::CallData(_) | Visibility::ReturnData => {
-                Some(ResolverError::DataBusOnNonEntryPoint {
-                    ident: func.name_ident().clone(),
-                    visibility: visibility.to_string(),
-                })
-            }
-            _ => None,
+    if is_entry_point {
+        return None;
+    }
+
+    match visibility {
+        Visibility::CallData(_) | Visibility::ReturnData => {
+            let name = func.name().to_string();
+            let visibility = visibility.to_string();
+            Some(ResolverError::DataBusOnNonEntryPoint {
+                name,
+                location: visibility_location,
+                visibility,
+            })
         }
-    } else {
-        None
+        _ => None,
     }
 }
 
@@ -409,7 +463,7 @@ pub(crate) fn check_integer_literal_fits_its_type(
                 if value.absolute_value() > max.into() || value.is_negative() {
                     return Some(TypeCheckError::IntegerLiteralDoesNotFitItsType {
                         expr: value,
-                        ty: typ.clone(),
+                        ty: typ,
                         range: format!("0..={max}"),
                         location,
                     });
@@ -426,7 +480,7 @@ pub(crate) fn check_integer_literal_fits_its_type(
                 if (is_negative && abs > min.into()) || (!is_negative && abs > max.into()) {
                     return Some(TypeCheckError::IntegerLiteralDoesNotFitItsType {
                         expr: value,
-                        ty: typ.clone(),
+                        ty: typ,
                         range: format!("-{min}..={max}"),
                         location,
                     });
@@ -485,9 +539,6 @@ fn can_return_without_recursing(interner: &NodeInterner, func_id: FuncId, expr_i
 
     match interner.expression(&expr_id) {
         HirExpression::Ident(ident, _) => {
-            if ident.id == DefinitionId::dummy_id() {
-                return true;
-            }
             let definition = interner.definition(ident.id);
             if let DefinitionKind::Function(id) = definition.kind { func_id != id } else { true }
         }
@@ -496,14 +547,14 @@ fn can_return_without_recursing(interner: &NodeInterner, func_id: FuncId, expr_i
         HirExpression::Infix(e) => check(e.lhs) && check(e.rhs),
         HirExpression::Index(e) => check(e.collection) && check(e.index),
         HirExpression::MemberAccess(e) => check(e.lhs),
-        HirExpression::Call(e) => check(e.func) && e.arguments.iter().cloned().all(check),
-        HirExpression::Constrain(e) => check(e.0) && e.2.map(check).unwrap_or(true),
+        HirExpression::Call(e) => check(e.func) && e.arguments.iter().copied().all(check),
+        HirExpression::Constrain(e) => check(e.0) && e.2.is_none_or(check),
         HirExpression::Cast(e) => check(e.lhs),
         HirExpression::If(e) => {
-            check(e.condition) && (check(e.consequence) || e.alternative.map(check).unwrap_or(true))
+            check(e.condition) && (check(e.consequence) || e.alternative.is_none_or(check))
         }
         HirExpression::Match(e) => can_return_without_recursing_match(interner, func_id, &e),
-        HirExpression::Tuple(e) => e.iter().cloned().all(check),
+        HirExpression::Tuple(e) => e.iter().copied().all(check),
         HirExpression::Unsafe(b) => check_block(b),
         // Rust doesn't check the lambda body (it might not be called).
         HirExpression::Lambda(_)

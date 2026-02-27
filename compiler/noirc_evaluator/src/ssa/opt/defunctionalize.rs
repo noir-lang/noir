@@ -421,7 +421,7 @@ fn find_dynamic_dispatches(func: &Function) -> BTreeSet<Signature> {
                     }
                 }
                 _ => continue,
-            };
+            }
         }
     }
     dispatches

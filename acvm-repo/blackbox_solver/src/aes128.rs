@@ -1,29 +1,26 @@
 use crate::BlackBoxResolutionError;
-use libaes::Cipher; // cSpell:disable-line
+use aes::cipher::{BlockEncryptMut, KeyIvInit, block_padding::NoPadding};
+
+type Aes128CbcEnc = cbc::Encryptor<aes::Aes128>; // cSpell:disable-line
 
 pub fn aes128_encrypt(
     inputs: &[u8],
     iv: [u8; 16],
     key: [u8; 16],
 ) -> Result<Vec<u8>, BlackBoxResolutionError> {
-    if inputs.len() % 16 != 0 {
+    if !inputs.len().is_multiple_of(16) {
         return Err(BlackBoxResolutionError::Failed(
             acir::BlackBoxFunc::AES128Encrypt,
             "input length must be a multiple of 16".to_string(),
         ));
     }
 
-    let mut cipher = Cipher::new_128(&key);
-    // Disable auto padding - input must be block-aligned (multiple of 16)
-    // and output will be the same size as input.
-    // See: https://github.com/keepsimple1/libaes/blob/e45afaa1e9f248375e797a52eaf40eeb0ba8515a/tests/aes.rs#L325
-    cipher.set_auto_padding(false);
-    let encrypted = cipher.cbc_encrypt(&iv, inputs);
+    let mut buffer = inputs.to_vec();
+    // This blackbox does not apply padding; callers must pad inputs in Noir before calling.
+    // The expect cannot fail because we verify block-alignment above.
+    Aes128CbcEnc::new(&key.into(), &iv.into())
+        .encrypt_padded_mut::<NoPadding>(&mut buffer, inputs.len())
+        .expect("input length is block-aligned");
 
-    // We validate input.len() % 16 == 0 above, and libaes with auto_padding disabled only returns empty for non-block-aligned input.
-    if encrypted.is_empty() && !inputs.is_empty() {
-        unreachable!("AES encryption returned empty output for non-empty block-aligned input");
-    }
-
-    Ok(encrypted)
+    Ok(buffer)
 }

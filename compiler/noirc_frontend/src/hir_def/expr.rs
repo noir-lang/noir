@@ -269,8 +269,8 @@ impl HirMethodReference {
         match self {
             HirMethodReference::FuncId(func_id) => Some(*func_id),
             HirMethodReference::TraitItemId(HirTraitMethodReference { definition, .. }) => {
-                match &interner.try_definition(*definition)?.kind {
-                    DefinitionKind::Function(func_id) => Some(*func_id),
+                match interner.definition(*definition).kind {
+                    DefinitionKind::Function(func_id) => Some(func_id),
                     _ => None,
                 }
             }
@@ -549,7 +549,7 @@ impl Constructor {
                 } else
                 /* def is a struct */
                 {
-                    let field_count = def_ref.fields_raw().map(|fields| fields.len()).unwrap_or(0);
+                    let field_count = def_ref.fields_raw().map_or(0, |fields| fields.len());
                     vec![(Constructor::Variant(typ.clone(), 0), field_count)]
                 }
             }

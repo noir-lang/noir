@@ -9,11 +9,4 @@ error: trait `std::meta::ctstring::AsCtString` which provides `as_ctstring` is i
   │                         ---------------------
   │
 
-error: Type annotation needed
-  ┌─ src/main.nr:6:22
-  │
-6 │         let result = half(string);
-  │                      ---- Could not determine the value of the generic argument `N` declared on the function `half`
-  │
-
-Aborting due to 2 previous errors
+Aborting due to 1 previous error

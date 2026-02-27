@@ -22,7 +22,7 @@ use crate::{
     },
     ssa::{
         ir::{basic_block::BasicBlockId, function::Function},
-        opt::Loops,
+        opt::{LoopOrder, Loops},
     },
 };
 
@@ -70,7 +70,7 @@ pub(crate) fn opcode_advisories<F: AcirField>(
 
     // Find each loop in the function. If a block is part of a loop and writes to an address,
     // we need to consider all blocks that we can get to from the header as a potential descendant.
-    let blocks_in_loops: HashMap<BasicBlockId, _> = Loops::find_all(function)
+    let blocks_in_loops: HashMap<BasicBlockId, _> = Loops::find_all(function, LoopOrder::OutsideIn)
         .yet_to_unroll
         .into_iter()
         .map(|loop_| (loop_.header, loop_.blocks))
@@ -398,17 +398,17 @@ impl OpcodeAddressVisitor for AdvisoryCollector<'_> {
 
         if !ignore_unused {
             if let Some(read_at) = self.reads.get(addr) {
-                if let Some(write_at) = self.writes.get(addr) {
-                    if write_at < read_at {
-                        self.add_advisory(
-                            location,
-                            OpcodeAdvisory::OverwrittenBeforeRead {
-                                addr: *addr,
-                                write_at: *write_at,
-                                read_at: *read_at,
-                            },
-                        );
-                    }
+                if let Some(write_at) = self.writes.get(addr)
+                    && write_at < read_at
+                {
+                    self.add_advisory(
+                        location,
+                        OpcodeAdvisory::OverwrittenBeforeRead {
+                            addr: *addr,
+                            write_at: *write_at,
+                            read_at: *read_at,
+                        },
+                    );
                 }
             } else if !self.reads_in_descendants.contains(addr) {
                 self.add_advisory(location, OpcodeAdvisory::NeverRead { addr: *addr });

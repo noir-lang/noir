@@ -79,14 +79,7 @@ fn fix_line_comment(comment: String) -> String {
 
 /// Strips leading '*' from a block comment if all non-empty lines have it.
 fn fix_block_comment(comment: String) -> String {
-    let all_stars = comment.lines().enumerate().all(|(index, line)| {
-        if index == 0 || line.trim().is_empty() {
-            // The first line never has a star. Then we ignore empty lines.
-            true
-        } else {
-            line.trim_start().starts_with('*')
-        }
-    });
+    let all_stars = block_comment_has_all_leading_stars(&comment);
 
     let mut fixed_comment = String::new();
     for (index, line) in comment.lines().enumerate() {
@@ -94,11 +87,9 @@ fn fix_block_comment(comment: String) -> String {
             fixed_comment.push('\n');
         }
 
-        if all_stars {
-            if let Some(line) = line.trim_start().strip_prefix("*") {
-                fixed_comment.push_str(line.strip_prefix(' ').unwrap_or(line));
-                continue;
-            }
+        if all_stars && let Some(line) = line.trim_start().strip_prefix("*") {
+            fixed_comment.push_str(line.strip_prefix(' ').unwrap_or(line));
+            continue;
         }
 
         if let Some(line) = line.strip_prefix(' ') {
@@ -109,6 +100,18 @@ fn fix_block_comment(comment: String) -> String {
         fixed_comment.push_str(line);
     }
     fixed_comment.trim().to_string()
+}
+
+/// Returns true if a block comment has a '*' at the start of every non-empty line.
+pub fn block_comment_has_all_leading_stars(comment: &str) -> bool {
+    comment.lines().enumerate().all(|(index, line)| {
+        if index == 0 || line.trim().is_empty() {
+            // The first line never has a star. Then we ignore empty lines.
+            true
+        } else {
+            line.trim_start().starts_with('*')
+        }
+    })
 }
 
 #[cfg(test)]

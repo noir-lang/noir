@@ -45,6 +45,9 @@ pub struct Circuit<F: AcirField> {
     ///
     /// This is tracked as an optimization so that when new witness values are created, incrementing this witness
     /// results in a new unique witness index without needing to scan all opcodes to find the maximum witness index.
+    ///
+    /// Note that if the current witness index is 0, it might mean that there were no witnesses created at all,
+    /// or that there was exactly one witness.
     pub current_witness_index: u32,
     /// The circuit opcodes representing the relationship between witness values.
     ///
@@ -236,14 +239,14 @@ impl std::fmt::Display for BrilligOpcodeLocation {
 impl<F: AcirField> Circuit<F> {
     /// Returns all witnesses which are required to execute the circuit successfully.
     pub fn circuit_arguments(&self) -> BTreeSet<Witness> {
-        self.private_parameters.union(&self.public_parameters.0).cloned().collect()
+        self.private_parameters.union(&self.public_parameters.0).copied().collect()
     }
 
     /// Returns all public inputs. This includes those provided as parameters to the circuit and those
     /// computed as return values.
     pub fn public_inputs(&self) -> PublicInputs {
         let public_inputs =
-            self.public_parameters.0.union(&self.return_values.0).cloned().collect();
+            self.public_parameters.0.union(&self.return_values.0).copied().collect();
         PublicInputs(public_inputs)
     }
 }

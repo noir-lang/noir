@@ -149,7 +149,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             // With a limit we shouldn't wrap around, but just in case we wanted move this outside,
             // use a safe wrap-around increment.
             self.step_counter = self.step_counter.wrapping_add(1);
-        };
+        }
         Ok(())
     }
 
@@ -229,7 +229,10 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     /// function calls within the same SSA.
     pub(crate) fn interpret_globals(&mut self) -> IResult<()> {
         assert_eq!(self.call_stack.len(), 1, "should be in the global context");
-        let (_, function) = self.functions.first_key_value().unwrap();
+        let Some((_, function)) = self.functions.first_key_value() else {
+            return Ok(());
+        };
+
         let globals = &function.dfg.globals;
         for (global_id, global) in globals.values_iter() {
             let value = match global {
@@ -379,13 +382,12 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
         self.call_stack.pop();
 
-        if self.options.trace {
-            if let Some(context) = self.call_stack.last() {
-                if let Some(function_id) = context.called_function {
-                    let function = &self.functions[&function_id];
-                    println!("back in function {} ({})", function_id, function.name());
-                }
-            }
+        if self.options.trace
+            && let Some(context) = self.call_stack.last()
+            && let Some(function_id) = context.called_function
+        {
+            let function = &self.functions[&function_id];
+            println!("back in function {} ({})", function_id, function.name());
         }
 
         Ok(return_values)
@@ -475,12 +477,11 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         length: u32,
     ) -> IResult<u32> {
         self.lookup_helper(value_id, instruction, "u32", Value::as_u32).map_err(|e| {
-            if matches!(e, InterpreterError::Internal(InternalError::TypeError { .. })) {
-                if let Ok(Value::Numeric(NumericValue::U32(Fitted::Unfit(index)))) =
+            if matches!(e, InterpreterError::Internal(InternalError::TypeError { .. }))
+                && let Ok(Value::Numeric(NumericValue::U32(Fitted::Unfit(index)))) =
                     self.lookup(value_id)
-                {
-                    return InterpreterError::IndexOutOfBounds { index, length };
-                }
+            {
+                return InterpreterError::IndexOutOfBounds { index, length };
             }
             e
         })
@@ -1175,7 +1176,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
             if should_mutate {
                 array.elements.borrow_mut()[index as usize] = value;
-                Value::ArrayOrVector(array.clone())
+                Value::ArrayOrVector(array)
             } else {
                 if !is_rc_one {
                     Self::decrement_rc(&array);

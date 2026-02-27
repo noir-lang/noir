@@ -616,6 +616,7 @@ fn test_inc_rc() {
 }
 
 #[test]
+#[ignore = "Bring back once we emit dec_rc instructions again"]
 fn test_dec_rc() {
     let src = "
         brillig(inline) fn main f0 {

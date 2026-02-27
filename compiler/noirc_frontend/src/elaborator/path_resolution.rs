@@ -91,8 +91,7 @@ impl PathResolutionItem {
             PathResolutionItem::Module(module) => {
                 let module_data = interner.try_module_attributes(*module);
                 module_data
-                    .map(|data| format!("module `{}`", data.name))
-                    .unwrap_or_else(|| "module".to_string())
+                    .map_or_else(|| "module".to_string(), |data| format!("module `{}`", data.name))
             }
             PathResolutionItem::Type(type_id) => {
                 let datatype = interner.get_type(*type_id);
@@ -257,7 +256,7 @@ impl TypedPath {
     /// Construct a [PathKind::Plain] from a single identifier segment.
     pub fn from_ident(name: Ident) -> TypedPath {
         let location = name.location();
-        let segment = TypedPathSegment { ident: name, generics: None, location };
+        let segment = TypedPathSegment::without_generics(name, location);
         TypedPath::plain(vec![segment], location)
     }
 
@@ -325,6 +324,10 @@ pub struct TypedPathSegment {
 }
 
 impl TypedPathSegment {
+    pub(crate) fn without_generics(ident: Ident, location: Location) -> TypedPathSegment {
+        TypedPathSegment { ident, generics: None, location }
+    }
+
     /// Returns the span where turbofish can happen. For example:
     ///
     /// ```noir
@@ -434,20 +437,21 @@ impl Elaborator<'_> {
         let mut module_id = self.module_id();
         let mut intermediate_item = IntermediatePathResolutionItem::Module;
 
-        if path.kind == PathKind::Plain && path.first_name() == Some(SELF_TYPE_NAME) {
-            if let Some(Type::DataType(datatype, _)) = &self.self_type {
-                let datatype = datatype.borrow();
-                if path.segments.len() == 1 {
-                    return Ok(PathResolution {
-                        item: PathResolutionItem::Type(datatype.id),
-                        errors: Vec::new(),
-                    });
-                }
-
-                module_id = datatype.id.module_id();
-                path.segments.remove(0);
-                intermediate_item = IntermediatePathResolutionItem::SelfType;
+        if path.kind == PathKind::Plain
+            && path.first_name() == Some(SELF_TYPE_NAME)
+            && let Some(Type::DataType(datatype, _)) = &self.self_type
+        {
+            let datatype = datatype.borrow();
+            if path.segments.len() == 1 {
+                return Ok(PathResolution {
+                    item: PathResolutionItem::Type(datatype.id),
+                    errors: Vec::new(),
+                });
             }
+
+            module_id = datatype.id.module_id();
+            path.segments.remove(0);
+            intermediate_item = IntermediatePathResolutionItem::SelfType;
         }
 
         let last_segment_turbofish_location = path
@@ -778,7 +782,7 @@ impl Elaborator<'_> {
             current_module_id,
             visibility,
         ) {
-            errors.push(PathResolutionError::Private(name.clone()));
+            errors.push(PathResolutionError::Private(name));
         }
 
         item
@@ -814,7 +818,7 @@ impl Elaborator<'_> {
             let trait_id = trait_id.expect("The None option was already considered before");
             if let Some(name) = starting_module.find_trait_in_scope(trait_id) {
                 results.push((trait_id, name, item));
-            };
+            }
         }
 
         if results.is_empty() {
@@ -960,7 +964,7 @@ impl Elaborator<'_> {
         for (func_id, trait_id) in &trait_methods {
             if let Some(name) = starting_module.find_trait_in_scope(*trait_id) {
                 results.push((*trait_id, *func_id, name));
-            };
+            }
         }
 
         if results.is_empty() {

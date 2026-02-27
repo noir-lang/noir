@@ -41,7 +41,9 @@ fn ssa_to_acir_program_with_debug_info(src: &str) -> (Program<FieldElement>, Vec
 }
 
 /// Attempts to convert SSA to ACIR, returning the error if compilation fails.
-fn try_ssa_to_acir(src: &str) -> Result<(Program<FieldElement>, Vec<DebugInfo>), RuntimeError> {
+pub(crate) fn try_ssa_to_acir(
+    src: &str,
+) -> Result<(Program<FieldElement>, Vec<DebugInfo>), RuntimeError> {
     let ssa = Ssa::from_str(src).unwrap();
     let arg_size_and_visibilities = ssa
         .functions
@@ -106,7 +108,7 @@ fn unchecked_mul_should_not_have_range_check() {
 #[test]
 fn no_zero_bits_range_check() {
     let src = "
-    acir(inline) fn main f0 {   
+    acir(inline) fn main f0 {
         b0(v0: Field):
             v1 = truncate v0 to 8 bits, max_bit_size: 254
             v2 = cast v1 as u8
@@ -397,6 +399,32 @@ fn databus() {
 }
 
 #[test]
+fn databus_deduplicate_call_and_return_data() {
+    // call_data and return_data are the same
+    let src = "
+    acir(inline) pure fn main f0 {
+    call_data(0): array: v1, indices: []
+    return_data: v1
+    b0(v0: Field):
+        v1 = make_array [v0] : [Field; 1]
+        return v1
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    // Check that RETURNDATA and CALLDATA are distinct blocks
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: []
+    ASSERT w1 = w0
+    INIT RETURNDATA b0 = [w1]
+    INIT CALLDATA 0 b1 = [w0]
+    ");
+}
+
+#[test]
 fn blake3_slice_regression() {
     // Sanity check for blake3 black box call brillig codegen.
     let src = "
@@ -515,7 +543,7 @@ fn test_operators(
         'u' => NumericType::Unsigned { bit_size: typ[1..].parse().unwrap() },
         _ => unreachable!("invalid numeric type"),
     };
-    let inputs_int = Value::array_from_iter(inputs.iter().cloned(), num_type).unwrap();
+    let inputs_int = Value::array_from_iter(inputs.iter().copied(), num_type).unwrap();
     let inputs =
         inputs.iter().enumerate().map(|(i, f)| (Witness(i as u32), *f)).collect::<BTreeMap<_, _>>();
     let len = inputs.len() as u32;
@@ -524,7 +552,7 @@ fn test_operators(
     for op in operators {
         let (src, with_output) = generate_test_instruction_from_operator(op);
         let output = if with_output { Some(Witness(len)) } else { None };
-        let ssa = Ssa::from_str(&(main.to_owned() + &src)).unwrap();
+        let ssa = Ssa::from_str(&(main.clone() + &src)).unwrap();
         // ssa execution
         let ssa_interpreter_result = ssa.interpret(vec![inputs_int.clone()]);
         // acir execution
@@ -680,4 +708,36 @@ proptest! {
         test_operators(&operators, "u8", &[lhs,rhs]);
         test_operators(&operators, "i8", &[lhs,rhs]);
     }
+}
+
+#[test]
+fn empty_parameters_should_generate_no_witnesses() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0():
+        return
+    }
+    ";
+    assert_no_witnesses(src);
+}
+
+#[test]
+fn zero_sized_parameters_should_generate_no_witnesses() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: [u8; 0]):
+        return
+    }
+    ";
+    assert_no_witnesses(src);
+}
+
+fn assert_no_witnesses(src: &str) {
+    let ssa = Ssa::from_str(src).unwrap();
+    let (acir, _, _) = ssa.into_acir(&Brillig::default(), &BrilligOptions::default()).unwrap();
+    let acir = &acir[0];
+
+    assert!(acir.current_witness_index().is_none());
+    assert!(acir.input_witnesses.is_empty());
+    assert!(acir.return_witnesses.is_empty());
 }

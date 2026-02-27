@@ -2,7 +2,7 @@ use crate::{
     hir_def::{expr::HirExpression, stmt::HirStatement},
     node_interner::{NodeInterner, StmtId},
     test_utils::get_program,
-    tests::{assert_no_errors, check_errors},
+    tests::{assert_no_errors, check_errors, check_monomorphization_error},
 };
 
 #[test]
@@ -408,10 +408,10 @@ fn mutate_with_reference_in_lambda() {
 }
 
 #[test]
-fn mutate_with_reference_marked_mutable_in_lambda() {
+fn mutate_with_mut_reference_in_lambda() {
     let src = r#"
     fn main() {
-        let mut x = &mut 3;
+        let x = &mut 3;
         let f = || {
             *x += 2;
         };
@@ -464,12 +464,13 @@ fn allow_capturing_mut_variable_only_used_immutably() {
     let src = r#"
     fn main() {
         let mut x = 3;
+                ^ variable does not need to be mutable
         let f = || x;
         let _x2 = f();
         assert(x == 3);
     }
     "#;
-    assert_no_errors(src);
+    check_errors(src);
 }
 
 #[test]
@@ -573,4 +574,18 @@ fn errors_on_duplicate_lambda_parameter_name() {
     }
     "#;
     check_errors(src);
+}
+
+#[test]
+fn lambda_refers_to_numeric_generic() {
+    let src = r#"
+    fn main() -> pub bool {
+        foo::<10>()
+    }
+
+    fn foo<let N: u32>() -> bool {
+        (|x| x == N)(10)
+    }
+    "#;
+    check_monomorphization_error(src);
 }

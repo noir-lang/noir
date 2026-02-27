@@ -113,7 +113,7 @@ fn handle_text_document_open_or_close_notification(
     state: &mut LspState,
     document_uri: Url,
 ) -> Result<(), async_lsp::Error> {
-    let workspace = workspace_from_document_uri(document_uri.clone())?;
+    let workspace = workspace_from_document_uri(document_uri)?;
 
     if state.package_cache.contains_key(&workspace.root_dir) {
         Ok(())
@@ -379,12 +379,11 @@ fn publish_diagnostics(
     for custom_diagnostic in custom_diagnostics.into_iter() {
         let file = custom_diagnostic.file;
         let path = fm.path(file).expect("file must exist to have emitted diagnostic");
-        if let Some(uri) = uri_from_path(path) {
-            if let Some(diagnostic) =
+        if let Some(uri) = uri_from_path(path)
+            && let Some(diagnostic) =
                 custom_diagnostic_to_diagnostic(custom_diagnostic, files, fm, uri.clone())
-            {
-                diagnostics_per_url.entry(uri).or_default().push(diagnostic);
-            }
+        {
+            diagnostics_per_url.entry(uri).or_default().push(diagnostic);
         }
     }
 

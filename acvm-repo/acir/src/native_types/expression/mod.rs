@@ -315,10 +315,10 @@ impl<F: AcirField> Expression<F> {
                 let y = &mul_term.2;
                 if witness == x {
                     found_x = true;
-                };
+                }
                 if witness == y {
                     found_y = true;
-                };
+                }
                 if found_x & found_y {
                     break;
                 }

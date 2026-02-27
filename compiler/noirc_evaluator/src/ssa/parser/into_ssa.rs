@@ -511,7 +511,7 @@ impl Translator {
                     elements.push_back(element_id);
                 }
 
-                let instruction = Instruction::MakeArray { elements, typ: make_array.typ.clone() };
+                let instruction = Instruction::MakeArray { elements, typ: make_array.typ };
                 let block = self.globals_function.entry_block();
                 let call_stack = CallStackId::root();
                 self.globals_function
@@ -529,10 +529,10 @@ impl Translator {
         identifier: Identifier,
         value_id: ValueId,
     ) -> Result<(), SsaError> {
-        if let Some(vars) = self.variables.get(&self.current_function_id()) {
-            if vars.contains_key(&identifier.name) {
-                return Err(SsaError::VariableAlreadyDefined(identifier));
-            }
+        if let Some(vars) = self.variables.get(&self.current_function_id())
+            && vars.contains_key(&identifier.name)
+        {
+            return Err(SsaError::VariableAlreadyDefined(identifier));
         }
 
         let entry = self.variables.entry(self.current_function_id()).or_default();

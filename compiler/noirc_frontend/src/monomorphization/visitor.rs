@@ -57,6 +57,9 @@ where
                     visit_expr_be_mut(expr, b, e, i);
                 }
             }
+            Literal::Repeated { element, .. } => {
+                visit_expr_be_mut(element, b, e, i);
+            }
             Literal::Integer(_, _, _) | Literal::Bool(_) | Literal::Unit | Literal::Str(_) => {}
             Literal::FmtStr(_, _, expr) => {
                 visit_expr_be_mut(expr, b, e, i);
@@ -221,6 +224,9 @@ where
                 for expr in &array_literal.contents {
                     visit_expr_be(expr, b, e, i);
                 }
+            }
+            Literal::Repeated { element, .. } => {
+                visit_expr_be(element, b, e, i);
             }
             Literal::Integer(_, _, _) | Literal::Bool(_) | Literal::Unit | Literal::Str(_) => {}
             Literal::FmtStr(_, _, expr) => {

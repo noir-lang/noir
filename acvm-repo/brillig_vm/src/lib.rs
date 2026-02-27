@@ -213,7 +213,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
     /// Updates the current status of the VM.
     /// Returns the given status.
     fn status(&mut self, status: VMStatus<F>) -> &VMStatus<F> {
-        self.status = status.clone();
+        self.status = status;
         &self.status
     }
 
@@ -351,7 +351,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                     Ok(false) => {
                         // Not a free memory op, carry on as a regular binary operation.
                     }
-                };
+                }
                 if let Err(error) = self.process_binary_int_op(*op, *bit_size, *lhs, *rhs, *result)
                 {
                     self.fail(error.to_string())

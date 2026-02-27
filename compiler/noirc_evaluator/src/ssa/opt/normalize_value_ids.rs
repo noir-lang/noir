@@ -1,3 +1,11 @@
+//! This is a debugging pass which re-inserts each instruction
+//! and block in a fresh DFG context for each function so that ValueIds,
+//! BasicBlockIds, and FunctionIds are always identical for the same SSA code.
+//!
+//! During normal compilation this is often not the case since prior passes
+//! may increase the ID counter so that later passes start at different offsets,
+//! even if they contain the same SSA code.
+
 use std::{collections::BTreeMap, sync::Arc};
 
 use crate::ssa::{
@@ -14,13 +22,8 @@ use iter_extended::vecmap;
 use rustc_hash::FxHashMap as HashMap;
 
 impl Ssa {
-    /// This is a debugging pass which re-inserts each instruction
-    /// and block in a fresh DFG context for each function so that ValueIds,
-    /// BasicBlockIds, and FunctionIds are always identical for the same SSA code.
-    ///
-    /// During normal compilation this is often not the case since prior passes
-    /// may increase the ID counter so that later passes start at different offsets,
-    /// even if they contain the same SSA code.
+    /// Re-inserts each instruction and block in a fresh DFG context for each function so that
+    /// ValueIds, BasicBlockIds, and FunctionIds are always identical for the same SSA code.
     pub fn normalize_ids(&mut self) {
         let mut context = Context::default();
         context.populate_functions(&self.functions);

@@ -11,7 +11,7 @@ use wasm_bindgen::prelude::{JsValue, wasm_bindgen};
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(extends = Map, js_name = "WitnessMap", typescript_type = "WitnessMap")]
-    #[derive(Clone, Debug, PartialEq, Eq)]
+    #[derive(Clone, Debug, PartialEq)]
     pub type JsWitnessMap;
 
     #[wasm_bindgen(constructor, js_class = "Map")]

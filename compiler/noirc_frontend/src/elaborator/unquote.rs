@@ -2,6 +2,7 @@
 
 use crate::{
     ast::Path,
+    hir::comptime::Interpreter,
     token::{Keyword, LocatedToken, Token, Tokens},
 };
 
@@ -28,36 +29,42 @@ impl Elaborator<'_> {
                 continue;
             }
 
+            if Token::Backslash == token {
+                if let Err(error) =
+                    Interpreter::escape_token(&mut tokens, &mut new_tokens, location)
+                {
+                    self.push_err(error);
+                }
+                continue;
+            }
+
             let is_unquote = matches!(token, Token::DollarSign);
             new_tokens.push(LocatedToken::new(token, location));
 
-            if is_unquote {
-                if let Some(next) = tokens.next() {
-                    let location = next.location();
+            if is_unquote && let Some(next) = tokens.next() {
+                let location = next.location();
 
-                    match next.into_token() {
-                        Token::Ident(name) => {
-                            // Don't want the leading `$` anymore
-                            new_tokens.pop();
-                            let path = Path::from_single(name, location);
-                            let (expr_id, _) = self.elaborate_variable(path);
-                            new_tokens
-                                .push(LocatedToken::new(Token::UnquoteMarker(expr_id), location));
-                        }
-                        // If we see `$crate` resolve the crate to the current crate now so it
-                        // stays even if the rest of the quote is unquoted elsewhere.
-                        Token::Keyword(Keyword::Crate) => {
-                            new_tokens.pop();
-                            let token = Token::InternedCrate(self.crate_id);
-                            new_tokens.push(LocatedToken::new(token, location));
-                        }
-                        Token::Quote(tokens) => {
-                            new_tokens.pop();
-                            let tokens = self.find_unquoted_exprs_tokens(tokens);
-                            new_tokens.push(LocatedToken::new(Token::Quote(tokens), location));
-                        }
-                        other_next => new_tokens.push(LocatedToken::new(other_next, location)),
+                match next.into_token() {
+                    Token::Ident(name) => {
+                        // Don't want the leading `$` anymore
+                        new_tokens.pop();
+                        let path = Path::from_single(name, location);
+                        let (expr_id, _) = self.elaborate_variable(path);
+                        new_tokens.push(LocatedToken::new(Token::UnquoteMarker(expr_id), location));
                     }
+                    // If we see `$crate` resolve the crate to the current crate now so it
+                    // stays even if the rest of the quote is unquoted elsewhere.
+                    Token::Keyword(Keyword::Crate) => {
+                        new_tokens.pop();
+                        let token = Token::InternedCrate(self.crate_id);
+                        new_tokens.push(LocatedToken::new(token, location));
+                    }
+                    Token::Quote(tokens) => {
+                        new_tokens.pop();
+                        let tokens = self.find_unquoted_exprs_tokens(tokens);
+                        new_tokens.push(LocatedToken::new(Token::Quote(tokens), location));
+                    }
+                    other_next => new_tokens.push(LocatedToken::new(other_next, location)),
                 }
             }
         }

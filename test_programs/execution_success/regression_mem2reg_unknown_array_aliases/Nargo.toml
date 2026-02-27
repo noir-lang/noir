@@ -1,0 +1,6 @@
+[package]
+name = "regression_mem2reg_unknown_array_aliases"
+type = "bin"
+authors = [""]
+
+[dependencies]

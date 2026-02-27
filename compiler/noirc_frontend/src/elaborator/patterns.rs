@@ -5,6 +5,8 @@ use noirc_errors::{Located, Location};
 use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
 
+use crate::elaborator::scope::ItemAsValue;
+use crate::node_interner::DefinitionId;
 use crate::{
     DataType, Kind, Type, TypeAlias,
     ast::{ERROR_IDENT, Ident, ItemVisibility, Path, PathSegment, Pattern},
@@ -14,13 +16,31 @@ use crate::{
         type_check::{Source, TypeCheckError},
     },
     hir_def::{expr::HirIdent, stmt::HirPattern},
-    node_interner::{DefinitionId, DefinitionKind, FuncId, TypeAliasId, TypeId},
+    node_interner::{DefinitionKind, FuncId, TypeAliasId, TypeId},
 };
 
 use super::{
     Elaborator, ResolverMeta,
     path_resolution::{PathResolutionItem, TypedPath, TypedPathSegment},
 };
+
+/// Represents a variable in the source code.
+pub(crate) struct Variable {
+    /// The identifier of the variable.
+    pub(crate) ident: HirIdent,
+    /// The scope index where the variable is declared.
+    pub(crate) scope: usize,
+}
+
+/// The result of [`Elaborator::get_ident_from_path`] and [`Elaborator::get_ident_from_path_or_error`].
+pub(crate) enum IdentFromPath {
+    /// A variable was found.
+    Variable(Variable),
+    /// A definition was found.
+    Definition { id: DefinitionId, item: PathResolutionItem },
+    /// A type alias that is numeric, infinitely recursive or one that errored, was found.
+    TypeAlias(TypeAliasId),
+}
 
 impl Elaborator<'_> {
     /// Elaborate a pattern, which can appear in a `let <pattern> = <expr>`, or a `match` statement.
@@ -38,6 +58,7 @@ impl Elaborator<'_> {
         expected_type: Type,
         definition_kind: DefinitionKind,
         warn_if_unused: bool,
+        warn_if_not_mutated: bool,
         parameter_names_in_list: &mut HashMap<String, Location>,
     ) -> HirPattern {
         self.elaborate_pattern_mut(
@@ -47,6 +68,7 @@ impl Elaborator<'_> {
             None,
             &mut Vec::new(),
             warn_if_unused,
+            warn_if_not_mutated,
             &mut HashSet::default(),
             parameter_names_in_list,
         )
@@ -57,6 +79,7 @@ impl Elaborator<'_> {
     ///
     /// `parameter_names_in_list` keeps track of parameter names, and their location, across multiple
     /// patterns in a list. If a name is found multiple times, an error is captured.
+    #[allow(clippy::too_many_arguments)]
     pub fn elaborate_pattern_and_store_ids(
         &mut self,
         pattern: Pattern,
@@ -64,6 +87,7 @@ impl Elaborator<'_> {
         definition_kind: DefinitionKind,
         created_ids: &mut Vec<HirIdent>,
         warn_if_unused: bool,
+        warn_if_not_mutated: bool,
         parameter_names_in_list: &mut HashMap<String, Location>,
     ) -> HirPattern {
         self.elaborate_pattern_mut(
@@ -73,6 +97,7 @@ impl Elaborator<'_> {
             None,
             created_ids,
             warn_if_unused,
+            warn_if_not_mutated,
             &mut HashSet::default(),
             parameter_names_in_list,
         )
@@ -95,6 +120,7 @@ impl Elaborator<'_> {
         mutable: Option<Location>,
         new_definitions: &mut Vec<HirIdent>,
         warn_if_unused: bool,
+        warn_if_not_mutated: bool,
         pattern_names: &mut HashSet<String>,
         parameter_names_in_list: &mut HashMap<String, Location>,
     ) -> HirPattern {
@@ -134,6 +160,7 @@ impl Elaborator<'_> {
                         mutable.is_some(),
                         true, // allow_shadowing
                         warn_if_unused,
+                        warn_if_not_mutated,
                         definition,
                     )
                 };
@@ -157,6 +184,7 @@ impl Elaborator<'_> {
                     Some(location),
                     new_definitions,
                     warn_if_unused,
+                    warn_if_not_mutated,
                     pattern_names,
                     parameter_names_in_list,
                 );
@@ -185,14 +213,14 @@ impl Elaborator<'_> {
 
                 // Only check tuple arity if the expected type was actually a tuple.
                 // If it wasn't, we've already issued a type mismatch error above.
-                if let Some(field_types) = &field_types {
-                    if fields.len() != field_types.len() {
-                        self.push_err(TypeCheckError::TupleMismatch {
-                            tuple_types: field_types.clone(),
-                            actual_count: fields.len(),
-                            location,
-                        });
-                    }
+                if let Some(field_types) = &field_types
+                    && fields.len() != field_types.len()
+                {
+                    self.push_err(TypeCheckError::TupleMismatch {
+                        tuple_types: field_types.clone(),
+                        actual_count: fields.len(),
+                        location,
+                    });
                 }
 
                 let fields = vecmap(fields.into_iter().enumerate(), |(i, field)| {
@@ -207,6 +235,7 @@ impl Elaborator<'_> {
                         mutable,
                         new_definitions,
                         warn_if_unused,
+                        warn_if_not_mutated,
                         pattern_names,
                         parameter_names_in_list,
                     )
@@ -236,6 +265,7 @@ impl Elaborator<'_> {
                 mutable,
                 new_definitions,
                 warn_if_unused,
+                warn_if_not_mutated,
                 pattern_names,
                 parameter_names_in_list,
             ),
@@ -248,6 +278,7 @@ impl Elaborator<'_> {
                     mutable,
                     new_definitions,
                     warn_if_unused,
+                    warn_if_not_mutated,
                     pattern_names,
                     parameter_names_in_list,
                 )
@@ -277,7 +308,8 @@ impl Elaborator<'_> {
             // shadowing here lets us avoid further errors if we define ERROR_IDENT
             // multiple times.
             let name = ERROR_IDENT.into();
-            let identifier = this.add_variable_decl(name, false, true, true, definition.clone());
+            let identifier =
+                this.add_variable_decl(name, false, true, true, true, definition.clone());
             HirPattern::Identifier(identifier)
         };
 
@@ -372,6 +404,7 @@ impl Elaborator<'_> {
                 mutable,
                 new_definitions,
                 true, // warn_if_unused
+                true, // warn_if_not_mutated
                 pattern_names,
                 parameter_names_in_list,
             );
@@ -423,6 +456,7 @@ impl Elaborator<'_> {
         mutable: bool,
         allow_shadowing: bool,
         warn_if_unused: bool,
+        warn_if_not_mutated: bool,
         definition: DefinitionKind,
     ) -> HirIdent {
         if let DefinitionKind::Global(_) = definition {
@@ -436,7 +470,13 @@ impl Elaborator<'_> {
             self.interner.push_definition(name.clone(), mutable, comptime, definition, location);
         let ident = HirIdent::non_trait_method(id, location);
 
-        self.add_existing_variable_to_scope(name, ident.clone(), warn_if_unused, allow_shadowing);
+        self.add_existing_variable_to_scope(
+            name,
+            ident.clone(),
+            warn_if_unused,
+            warn_if_not_mutated,
+            allow_shadowing,
+        );
 
         ident
     }
@@ -448,6 +488,7 @@ impl Elaborator<'_> {
         name: String,
         ident: HirIdent,
         warn_if_unused: bool,
+        warn_if_not_mutated: bool,
         allow_shadowing: bool,
     ) {
         if name == "_" {
@@ -455,18 +496,22 @@ impl Elaborator<'_> {
         }
 
         let second_location = ident.location;
-        let resolver_meta = ResolverMeta { num_times_used: 0, ident, warn_if_unused };
+        let resolver_meta = ResolverMeta {
+            used: false,
+            mutated: false,
+            ident,
+            warn_if_unused,
+            warn_if_not_mutated,
+        };
 
         let old_value = self.scopes.get_mut_scope().add_key_value(name.clone(), resolver_meta);
 
-        if !allow_shadowing {
-            if let Some(old_value) = old_value {
-                self.push_err(ResolverError::DuplicateDefinition {
-                    name,
-                    first_location: old_value.ident.location,
-                    second_location,
-                });
-            }
+        if !allow_shadowing && let Some(old_value) = old_value {
+            self.push_err(ResolverError::DuplicateDefinition {
+                name,
+                first_location: old_value.ident.location,
+                second_location,
+            });
         }
     }
 
@@ -475,16 +520,18 @@ impl Elaborator<'_> {
     /// If the variable is not found, an error is returned.
     ///
     /// This method is private and is expected to be called through [Self::get_ident_from_path_or_error].
-    fn use_variable(&mut self, name: &Ident) -> Result<(HirIdent, usize), ResolverError> {
+    fn use_variable(&mut self, name: &Ident) -> Result<Variable, ResolverError> {
         // Find the definition for this Ident
         let scope_tree = self.scopes.current_scope_tree();
         let variable = scope_tree.find(name.as_str());
 
         let location = name.location();
         if let Some((variable_found, scope)) = variable {
-            variable_found.num_times_used += 1;
+            variable_found.used = true;
             let id = variable_found.ident.id;
-            Ok((HirIdent::non_trait_method(id, location), scope))
+            let ident = HirIdent::non_trait_method(id, location);
+            let variable = Variable { ident, scope };
+            Ok(variable)
         } else {
             Err(ResolverError::VariableNotDeclared {
                 name: name.to_string(),
@@ -646,14 +693,15 @@ impl Elaborator<'_> {
     pub(crate) fn validate_path(&mut self, path: Path) -> TypedPath {
         let mut segments = vecmap(path.segments, |segment| self.validate_path_segment(segment));
 
-        if let Some(first_segment) = segments.first_mut() {
-            if first_segment.generics.is_some() && first_segment.ident.is_self_type_name() {
-                self.push_err(PathResolutionError::TurbofishNotAllowedOnItem {
-                    item: "self type".to_string(),
-                    location: first_segment.turbofish_location(),
-                });
-                first_segment.generics = None;
-            }
+        if let Some(first_segment) = segments.first_mut()
+            && first_segment.generics.is_some()
+            && first_segment.ident.is_self_type_name()
+        {
+            self.push_err(PathResolutionError::TurbofishNotAllowedOnItem {
+                item: "self type".to_string(),
+                location: first_segment.turbofish_location(),
+            });
+            first_segment.generics = None;
         }
 
         TypedPath {
@@ -725,76 +773,69 @@ impl Elaborator<'_> {
 
     /// Resolve a [TypedPath] into a local or global [HirIdent].
     ///
-    /// If it cannot be found, then it pushes the error and returns an ident with a [DefinitionId::dummy_id].
-    pub(crate) fn get_ident_from_path(
-        &mut self,
-        path: TypedPath,
-    ) -> ((HirIdent, usize), Option<PathResolutionItem>) {
-        let location = Location::new(path.last_ident().span(), path.location.file);
-
-        self.get_ident_from_path_or_error(path).unwrap_or_else(|error| {
-            self.push_err(error);
-            let id = DefinitionId::dummy_id();
-            ((HirIdent::non_trait_method(id, location), 0), None)
-        })
+    /// If it cannot be found, then it pushes the error and returns [None].
+    pub(crate) fn get_ident_from_path(&mut self, path: TypedPath) -> Option<IdentFromPath> {
+        match self.get_ident_from_path_or_error(path) {
+            Ok(value) => Some(value),
+            Err(error) => {
+                self.push_err(error);
+                None
+            }
+        }
     }
 
     /// Resolve a [TypedPath] into a local or global [HirIdent], or return `Err` if it could not be found.
     pub(crate) fn get_ident_from_path_or_error(
         &mut self,
         path: TypedPath,
-    ) -> Result<((HirIdent, usize), Option<PathResolutionItem>), ResolverError> {
-        let location = Location::new(path.last_ident().span(), path.location.file);
-        let use_variable_result = path.as_single_segment().map(|segment| {
-            let result = self.use_variable(&segment.ident);
-            if result.is_ok() && segment.generics.is_some() {
-                let item = "local variables".to_string();
-                let location = segment.turbofish_location();
-                self.push_err(PathResolutionError::TurbofishNotAllowedOnItem { item, location });
-            }
-            result
-        });
-
-        let error = match use_variable_result {
-            Some(Ok(found)) => return Ok((found, None)),
-            // Try to look it up as a global, but still issue the first error if we fail
-            Some(Err(error)) => match self.lookup_item_as_value(path) {
-                Ok((id, item)) => {
-                    return Ok(((HirIdent::non_trait_method(id, location), 0), Some(item)));
-                }
-                Err(ResolverError::PathResolutionError(..)) => {
-                    // A path resolution error is more specific than a "variable not found"
-                    return Err(error);
-                }
-                Err(global_error) => match error {
-                    // If the path was "_" then we want to preseve that error as it's clearer
-                    // than the error of an item not being found (it will mention that "_" is
-                    // not valid as an expression).
-                    ResolverError::VariableNotDeclared { name, .. } if name != "_" => {
-                        return Err(global_error);
+    ) -> Result<IdentFromPath, ResolverError> {
+        // If the path is a single segment, try to resolve it as a local variable first
+        let use_variable_error = match path.as_single_segment() {
+            Some(segment) => match self.use_variable(&segment.ident) {
+                Ok(variable) => {
+                    // Succeed even if the variable has turbofish on it, but report an error for that
+                    if segment.generics.is_some() {
+                        let item = "local variables".to_string();
+                        let location = segment.turbofish_location();
+                        let error =
+                            PathResolutionError::TurbofishNotAllowedOnItem { item, location };
+                        self.push_err(error);
                     }
-                    _ => {
-                        return Err(error);
-                    }
-                },
-            },
-            None => match self.lookup_item_as_value(path) {
-                Ok((dummy_id, PathResolutionItem::TypeAlias(type_alias_id)))
-                    if dummy_id == DefinitionId::dummy_id() =>
-                {
-                    // Allow path which resolves to a type alias
-                    return Ok((
-                        (HirIdent::non_trait_method(dummy_id, location), 4),
-                        Some(PathResolutionItem::TypeAlias(type_alias_id)),
-                    ));
+                    return Ok(IdentFromPath::Variable(variable));
                 }
-                Ok((id, item)) => {
-                    return Ok(((HirIdent::non_trait_method(id, location), 0), Some(item)));
-                }
-                Err(error) => error,
+                Err(error) => Some(error),
             },
+            None => None,
         };
 
-        Err(error)
+        match self.lookup_item_as_value(path) {
+            Ok(ItemAsValue::Definition { id, item }) => Ok(IdentFromPath::Definition { id, item }),
+            Ok(ItemAsValue::TypeAlias(type_alias_id)) => {
+                Ok(IdentFromPath::TypeAlias(type_alias_id))
+            }
+            Err(ResolverError::PathResolutionError(PathResolutionError::Unresolved(ident))) => {
+                // If we can't resolve a path, but we have an error from trying to resolve a variable
+                // (in which case the path was a single segment), prefer saying "variable not found"
+                // instead of "Cannot resolve '...' in path".
+                match use_variable_error {
+                    Some(error) => Err(error),
+                    None => Err(ResolverError::PathResolutionError(
+                        PathResolutionError::Unresolved(ident),
+                    )),
+                }
+            }
+            Err(item_as_value_error) => {
+                match use_variable_error {
+                    // If the path was "_" then we want to preserve that error as it's clearer
+                    // than the error of an item not being found (it will mention that "_" is
+                    // not valid as an expression).
+                    Some(ResolverError::VariableNotDeclared { name, .. }) if name != "_" => {
+                        Err(item_as_value_error)
+                    }
+                    Some(use_variable_error) => Err(use_variable_error),
+                    None => Err(item_as_value_error),
+                }
+            }
+        }
     }
 }

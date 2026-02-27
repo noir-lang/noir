@@ -17,7 +17,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.85.0
+        uses: dtolnay/rust-toolchain@1.89.0
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -31,7 +31,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: nargo
           path: ./target/release/nargo
@@ -59,7 +59,7 @@ jobs:
         run: nargo doc
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: stdlib-docs
           path: ./noir_stdlib/target/docs
@@ -83,7 +83,7 @@ jobs:
         run: rm -rf ./stdlib
 
       - name: Download stdlib docs
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: stdlib-docs
           path: ./stdlib

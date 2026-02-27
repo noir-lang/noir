@@ -23,7 +23,7 @@ jobs:
       - uses: taiki-e/install-action@just
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@1.85.0
+        uses: dtolnay/rust-toolchain@1.89.0
 
       - name: Configure cache
         uses: Swatinem/rust-cache@v2
@@ -47,7 +47,7 @@ jobs:
         run: rm target/doc/.lock
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: rustdoc
           path: target/doc
@@ -67,7 +67,7 @@ jobs:
         run: rm -rf ./docs
 
       - name: Download rustdoc output
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: rustdoc
           path: ./docs

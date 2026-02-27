@@ -42,7 +42,7 @@ impl CodeActionFinder<'_> {
             for entry in entries {
                 let module_def_id = entry.module_def_id;
                 let visibility = entry.visibility;
-                let mut defining_module = entry.defining_module.as_ref().cloned();
+                let mut defining_module = entry.defining_module.as_ref().copied();
 
                 // If the item is offered via a re-export of it's parent module, this holds the name of the reexport.
                 let mut intermediate_name = None;

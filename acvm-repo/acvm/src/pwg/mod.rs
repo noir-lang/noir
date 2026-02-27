@@ -567,7 +567,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
                     }
                     // All other errors are thrown normally.
                     _ => (),
-                };
+                }
                 self.fail(error)
             }
         }
@@ -638,7 +638,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         let result = solver.solve().inspect_err(|_| {
             if self.brillig_fuzzing_active {
                 self.brillig_fuzzing_trace = Some(solver.get_fuzzing_trace());
-            };
+            }
         })?;
 
         match result {
@@ -849,21 +849,23 @@ pub fn insert_value<F: AcirField>(
     value_to_insert: F,
     initial_witness: &mut WitnessMap<F>,
 ) -> Result<(), OpcodeResolutionError<F>> {
-    let optional_old_value = initial_witness.insert(*witness, value_to_insert);
-
-    let old_value = match optional_old_value {
-        Some(old_value) => old_value,
-        None => return Ok(()),
-    };
-
-    if old_value != value_to_insert {
-        return Err(OpcodeResolutionError::UnsatisfiedConstrain {
-            opcode_location: ErrorLocation::Unresolved,
-            payload: None,
-        });
+    use std::collections::btree_map::Entry;
+    match initial_witness.entry(*witness) {
+        Entry::Vacant(e) => {
+            e.insert(value_to_insert);
+            Ok(())
+        }
+        Entry::Occupied(e) => {
+            if *e.get() != value_to_insert {
+                Err(OpcodeResolutionError::UnsatisfiedConstrain {
+                    opcode_location: ErrorLocation::Unresolved,
+                    payload: None,
+                })
+            } else {
+                Ok(())
+            }
+        }
     }
-
-    Ok(())
 }
 
 // Returns one witness belonging to an expression, in no relevant order
@@ -942,6 +944,25 @@ mod tests {
         let mut acvm = ACVM::new(&backend, &opcodes, initial_witness, &[], &[]);
         assert_eq!(acvm.solve(), ACVMStatus::Solved);
         assert_eq!(acvm.witness_map()[&Witness(5)], FieldElement::from(0u128));
+    }
+
+    #[test]
+    fn insert_value_does_not_overwrite_on_conflict() {
+        use crate::pwg::insert_value;
+
+        let old_value = FieldElement::from(1u128);
+        let new_value = FieldElement::from(2u128);
+        let witness = Witness(0);
+
+        let mut witness_map = WitnessMap::new();
+        insert_value(&witness, old_value, &mut witness_map).expect("first insert should succeed");
+
+        let result = insert_value(&witness, new_value, &mut witness_map);
+        assert!(
+            matches!(result, Err(OpcodeResolutionError::UnsatisfiedConstrain { .. })),
+            "expected UnsatisfiedConstrain error on conflicting insert"
+        );
+        assert_eq!(witness_map[&witness], old_value, "map should still hold the original value");
     }
 
     #[test]

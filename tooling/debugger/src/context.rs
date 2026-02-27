@@ -449,11 +449,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
     }
 
     pub(super) fn is_source_location_in_debug_module(&self, location: &Location) -> bool {
-        self.debug_artifact
-            .file_map
-            .get(&location.file)
-            .map(is_debug_file_in_debug_crate)
-            .unwrap_or(false)
+        self.debug_artifact.file_map.get(&location.file).is_some_and(is_debug_file_in_debug_crate)
     }
 
     /// Find an opcode location matching a source code location
@@ -516,8 +512,8 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
 
     /// Returns the `FileId` of the file associated with the innermost function on the call stack.
     fn get_current_file(&self) -> Option<FileId> {
-        self.get_current_source_location()
-            .and_then(|locations| locations.last().map(|location| location.file))
+        let locations = self.get_current_source_location()?;
+        locations.last().map(|location| location.file)
     }
 
     /// Returns the (possible) stack of source locations corresponding to the

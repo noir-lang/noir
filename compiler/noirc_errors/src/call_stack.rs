@@ -81,10 +81,10 @@ impl CallStackHelper {
     /// Adds a location to the call stack, maintaining the location cache along the way.
     pub fn add_child(&mut self, call_stack: CallStackId, location: Location) -> CallStackId {
         let key = rustc_hash::FxBuildHasher.hash_one(location);
-        if let Some(result) = self.locations[call_stack.index()].children_hash.get(&key) {
-            if self.locations[result.index()].value == location {
-                return *result;
-            }
+        if let Some(result) = self.locations[call_stack.index()].children_hash.get(&key)
+            && self.locations[result.index()].value == location
+        {
+            return *result;
         }
         let new_location = LocationNode::new(Some(call_stack), location);
         let key = rustc_hash::FxBuildHasher.hash_one(new_location.value);

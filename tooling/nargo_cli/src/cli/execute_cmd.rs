@@ -27,6 +27,10 @@ pub(crate) struct ExecuteCommand {
     #[clap(long, short, default_value = PROVER_INPUT_FILE)]
     prover_name: String,
 
+    /// Optionally overwrite the `return` entry in the prover file.
+    #[clap(long, default_value_t = false)]
+    pub overwrite_return: bool,
+
     #[clap(flatten)]
     pub(super) package_options: PackageOptions,
 
@@ -74,6 +78,7 @@ pub(crate) fn run(args: ExecuteCommand, workspace: Workspace) -> Result<(), CliE
         let cmd = noir_artifact_cli::commands::execute_cmd::ExecuteCommand {
             artifact_path: program_artifact_path,
             prover_file,
+            overwrite_return: args.overwrite_return,
             output_dir: Some(workspace.target_directory_path()),
             witness_name: Some(
                 args.witness_name.clone().unwrap_or_else(|| package.name.to_string()),

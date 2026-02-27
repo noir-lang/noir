@@ -1,3 +1,4 @@
+mod comptime_for;
 mod skip_interpreter_on_fail;
 
 use crate::{
@@ -936,22 +937,6 @@ fn comptime_if_expression() {
 }
 
 #[test]
-fn comptime_for_loop() {
-    let src = r#"
-        fn main() {
-            comptime {
-                let mut sum = 0;
-                for i in 0..3 {
-                    sum += i;
-                }
-                assert_eq(sum, 3);
-            }
-        }
-    "#;
-    assert_no_errors(src);
-}
-
-#[test]
 fn comptime_loop_with_break() {
     let src = r#"
         fn main() {
@@ -1226,13 +1211,10 @@ fn error_on_self_on_trait_impl_for_comptime_type_on_non_comptime_function_with_i
 
 #[test]
 fn zeroed_comptime_type() {
-    let mut stdlib = stdlib_src::ZEROED.to_string();
-    stdlib.push_str(
-        "
+    let module_hash_str = "
         #[builtin(module_hash)]
         comptime fn module_hash(_module: Module) -> Field {}
-    ",
-    );
+    ";
     let src = r#"
     fn main() {
         comptime {
@@ -1243,7 +1225,7 @@ fn zeroed_comptime_type() {
         }
     }
     "#;
-    check_errors_with_stdlib(src, &stdlib);
+    check_errors_with_stdlib(src, [stdlib_src::ZEROED, module_hash_str]);
 }
 
 #[test]
@@ -1413,6 +1395,110 @@ fn substitute_unquoted_in_nested_quote() {
 
     pub comptime fn do_func(body: fn(u32) -> Quoted) -> Quoted {
         body(123)
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn invalid_quote_escape() {
+    let src = r#"
+        fn main() {
+            comptime {
+                let _ = quote { \1 };
+                                 ^ `1` cannot be escaped in quoted expressions
+                                 ~ Only `$` may be escaped in `quote` expressions
+            }
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn escape_nested_unquote() {
+    let src = r#"
+        // unroll_loop has been modified to remove stdlib fns so it no longer conceptually unrolls loops
+        pub comptime fn unroll_loop(start: u32, end: u32, body: fn(u32) -> Quoted) -> Quoted {
+            let mut iterations = quote[];
+            for i in start..end {
+                iterations = body(i);
+            }
+            iterations
+        }
+
+        pub fn u64s_to_bytes(row: [u64; 4]) -> [u8; 32] {
+            let mut result: [u8; 32] = [0; 32];
+            unroll_loop!(
+                0_u32,
+                4_u32,
+                |i| {
+                    quote {
+                    $unroll_loop!(0_u32, 8_u32, |j| {
+                        let i = $i;
+                        let byte_idx = i * 8 + j;
+                        let shift = (j * 8) as u64;
+                        quote {
+                            result[\$byte_idx] = (((row[$i] >> \$shift) << 56) >> 56) as u8;
+                        }
+                    });
+                }
+                },
+            );
+
+            result
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn unifies_macro_call_type_with_variable_type_in_comptime_block() {
+    let src = r#"
+    comptime fn unquote(code: Quoted) -> Quoted {
+        code
+    }
+
+    struct Foo<let N: u32> {}
+
+    impl<let N: u32> Foo<N> {
+        fn len(_self: Self) -> u32 {
+            N
+        }
+    }
+
+    fn main() -> pub u32 {
+        comptime {
+            let foo: Foo<_> = unquote!(quote { Foo::<10> {} });
+            foo.len()
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+// Regression test for https://github.com/noir-lang/noir/issues/11575
+#[test]
+fn path_inside_module_attribute() {
+    let src = r#"
+    pub mod one {
+        pub comptime fn attr(_: Module, _: Config) {}
+
+        pub struct Config {}
+
+        impl Config {
+            pub fn new() -> Self {
+                Self {}
+            }
+        }
+    }
+
+    use one::{attr, Config};
+
+    #[attr(Config::new())]
+    mod coco {}
+
+    pub fn main() {
+        let _ = Config::new();
     }
     "#;
     assert_no_errors(src);

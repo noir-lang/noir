@@ -11,7 +11,7 @@ use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::{
-    Kind, Type, TypeVariable,
+    Kind, ResolvedGeneric, Type, TypeVariable,
     ast::{
         BlockExpression, FunctionKind, Ident, NoirFunction, Param, UnresolvedGenerics,
         UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
@@ -49,6 +49,11 @@ impl Elaborator<'_> {
         impls: &mut ImplMap,
         trait_impls: &mut [UnresolvedTraitImpl],
     ) {
+        // Prepare all trait impls, so we can refer to `<Object as Trait>::Type` in function signatures.
+        let trait_constraints_and_generics = vecmap(trait_impls.iter_mut(), |trait_impl| {
+            self.prepare_trait_impl_for_function_meta_definition(trait_impl)
+        });
+
         // Define metas for regular functions
         for function_set in functions {
             self.define_function_metas_for_functions(function_set, &[]);
@@ -60,8 +65,10 @@ impl Elaborator<'_> {
         }
 
         // Define metas for trait impl functions
-        for trait_impl in trait_impls {
-            self.define_function_metas_for_trait_impl(trait_impl);
+        for (trait_impl, (trait_constraints, generics)) in
+            trait_impls.iter_mut().zip(trait_constraints_and_generics)
+        {
+            self.define_function_metas_for_trait_impl(trait_impl, trait_constraints, generics);
         }
     }
 
@@ -110,14 +117,16 @@ impl Elaborator<'_> {
 
     /// Defines function metadata for all methods within a trait impl.
     /// This handles trait resolution, generics, associated types, and constraint checking.
-    fn define_function_metas_for_trait_impl(&mut self, trait_impl: &mut UnresolvedTraitImpl) {
-        // Prepare the trait impl
-        let new_generics_trait_constraints =
-            self.prepare_trait_impl_for_function_meta_definition(trait_impl);
-
+    fn define_function_metas_for_trait_impl(
+        &mut self,
+        trait_impl: &mut UnresolvedTraitImpl,
+        new_generics_trait_constraints: Vec<(TraitConstraint, Location)>,
+        generics: Vec<ResolvedGeneric>,
+    ) {
         // Set up trait impl state
         self.current_trait_impl = trait_impl.impl_id;
         self.self_type = trait_impl.methods.self_type.clone();
+        self.generics = generics;
 
         // Now define the function metas with the constraints from where clause desugaring
         self.define_function_metas_for_functions(
@@ -183,10 +192,12 @@ impl Elaborator<'_> {
         let is_entry_point = func.is_entry_point(self.is_function_in_contract(), is_crate_root);
         // Temporary allow vectors for contract functions, until contracts are re-factored.
         if !func.attributes().has_contract_library_method() {
-            if let Err(err) = self.check_if_type_is_valid_for_program_output(
+            let output = true;
+            if let Err(err) = Self::check_if_type_is_valid_for_program(
                 &return_type,
                 is_entry_point || func.is_test_or_fuzz(),
                 func.has_inline_attribute(),
+                output,
                 func.return_type().location,
             ) {
                 self.push_err(err);
@@ -242,6 +253,7 @@ impl Elaborator<'_> {
             parameter_idents,
             return_type: func.def.return_type.clone(),
             return_visibility: func.def.return_visibility,
+            return_visibility_location: func.def.return_visibility_location,
             has_body: !func.def.body.is_empty(),
             trait_constraints,
             extra_trait_constraints,
@@ -336,12 +348,26 @@ impl Elaborator<'_> {
         let mut parameter_names_in_list = rustc_hash::FxHashMap::default();
         let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::FunctionParameter);
 
-        for Param { visibility, pattern, typ, location: _ } in func.parameters().iter().cloned() {
+        for Param { visibility, visibility_location, pattern, typ, location: _ } in
+            func.parameters().iter().cloned()
+        {
             self.run_lint(|_| {
-                lints::unnecessary_pub_argument(func, visibility, is_pub_allowed).map(Into::into)
+                lints::unnecessary_pub_argument(
+                    func,
+                    visibility,
+                    visibility_location,
+                    is_pub_allowed,
+                )
+                .map(Into::into)
             });
             self.run_lint(|_| {
-                lints::databus_on_non_entry_point(func, visibility, is_entry_point).map(Into::into)
+                lints::databus_on_non_entry_point(
+                    func,
+                    visibility,
+                    visibility_location,
+                    is_entry_point,
+                )
+                .map(Into::into)
             });
             let type_location = typ.location;
             let typ = match typ.typ {
@@ -353,10 +379,12 @@ impl Elaborator<'_> {
                 _ => self.resolve_type_with_kind(typ, &Kind::Normal, wildcard_allowed),
             };
 
-            if let Err(err) = self.check_if_type_is_valid_for_program_input(
+            let output = false;
+            if let Err(err) = Self::check_if_type_is_valid_for_program(
                 &typ,
                 is_entry_point || is_test_or_fuzz,
                 has_inline_attribute,
+                output,
                 type_location,
             ) {
                 self.push_err(err);
@@ -372,6 +400,7 @@ impl Elaborator<'_> {
                 DefinitionKind::Local(None),
                 &mut parameter_idents,
                 true, // warn_if_unused
+                true, // warn_if_not_mutated
                 &mut parameter_names_in_list,
             );
 
@@ -386,61 +415,24 @@ impl Elaborator<'_> {
     /// function. If the given type is not sized (e.g. contains a vector or NamedGeneric type), an
     /// error is issued.
     fn check_if_type_is_valid_for_program(
-        &self,
         typ: &Type,
         is_entry_point: bool,
         has_inline_attribute: bool,
-        allow_empty_arrays: bool,
+        output: bool,
         location: Location,
     ) -> Result<(), TypeCheckError> {
-        if is_entry_point {
-            if let Some(invalid_type) = typ.program_input_validity(allow_empty_arrays) {
-                return Err(TypeCheckError::InvalidTypeForEntryPoint { invalid_type, location });
-            }
+        if is_entry_point && let Some(invalid_type) = typ.program_validity(output) {
+            return Err(TypeCheckError::InvalidTypeForEntryPoint { invalid_type, location });
         }
 
-        if has_inline_attribute {
-            if let Some(invalid_type) = typ.non_inlined_function_input_validity() {
-                return Err(TypeCheckError::InvalidTypeForEntryPoint { invalid_type, location });
-            }
+        if has_inline_attribute
+            && !output
+            && let Some(invalid_type) = typ.non_inlined_function_input_validity()
+        {
+            return Err(TypeCheckError::InvalidTypeForEntryPoint { invalid_type, location });
         }
 
         Ok(())
-    }
-
-    fn check_if_type_is_valid_for_program_input(
-        &self,
-        typ: &Type,
-        is_entry_point: bool,
-        has_inline_attribute: bool,
-        location: Location,
-    ) -> Result<(), TypeCheckError> {
-        self.check_if_type_is_valid_for_program(
-            typ,
-            is_entry_point,
-            has_inline_attribute,
-            false,
-            location,
-        )
-    }
-
-    fn check_if_type_is_valid_for_program_output(
-        &self,
-        typ: &Type,
-        is_entry_point: bool,
-        has_inline_attribute: bool,
-        location: Location,
-    ) -> Result<(), TypeCheckError> {
-        match typ.follow_bindings() {
-            Type::Unit => Ok(()),
-            _ => self.check_if_type_is_valid_for_program(
-                typ,
-                is_entry_point,
-                has_inline_attribute,
-                true,
-                location,
-            ),
-        }
     }
 
     fn run_function_lints(&mut self, func: &FuncMeta, modifiers: &FunctionModifiers) {
@@ -518,6 +510,7 @@ impl Elaborator<'_> {
         for parameter in &func_meta.parameter_idents {
             let name = self.interner.definition_name(parameter.id).to_owned();
             let warn_if_unused = !(func_meta.trait_impl.is_some() && name == "self");
+            let warn_if_not_mutated = false;
             // We allow shadowing here because there's no outer scope to shadow
             // (duplicate parameter names were already checked in `resolve_function_parameters`)
             let allow_shadowing = true;
@@ -525,6 +518,7 @@ impl Elaborator<'_> {
                 name,
                 parameter.clone(),
                 warn_if_unused,
+                warn_if_not_mutated,
                 allow_shadowing,
             );
         }
@@ -575,7 +569,8 @@ impl Elaborator<'_> {
 
         // The arguments to low-level and oracle functions are always unused so we do not produce warnings for them.
         if !func_meta.is_stub() {
-            self.check_for_unused_variables_in_scope_tree(func_scope_tree);
+            self.check_for_unused_variables_in_scope_tree(&func_scope_tree);
+            self.check_for_unnecessary_mut_variables_in_scope_tree(&func_scope_tree);
         }
 
         // Check that the body can return without calling the function.

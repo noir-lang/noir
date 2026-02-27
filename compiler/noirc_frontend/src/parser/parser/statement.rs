@@ -234,13 +234,15 @@ impl Parser<'_> {
                 Token::Percent => Some(BinaryOpKind::Modulo),
                 Token::Ampersand => Some(BinaryOpKind::And),
                 Token::Caret => Some(BinaryOpKind::Xor),
-                Token::ShiftLeft => Some(BinaryOpKind::ShiftLeft),
                 Token::Pipe => Some(BinaryOpKind::Or),
                 _ => None,
             }
         } else if self.at(Token::Greater) && self.next_is(Token::GreaterEqual) {
             // >>=
             Some(BinaryOpKind::ShiftRight)
+        } else if self.at(Token::Less) && self.next_is(Token::LessEqual) {
+            // <<=
+            Some(BinaryOpKind::ShiftLeft)
         } else {
             None
         };
@@ -264,7 +266,7 @@ impl Parser<'_> {
 
         let Some(identifier) = self.eat_ident() else {
             self.expected_identifier();
-            let identifier = self.unknown_ident_at_previous_token_end();
+            let identifier = self.empty_ident_at_previous_token_end();
             return Some(self.empty_for_loop(identifier, start_location));
         };
 

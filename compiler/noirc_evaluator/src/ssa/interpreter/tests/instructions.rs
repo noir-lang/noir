@@ -1008,6 +1008,7 @@ fn increment_rc_disabled_in_acir() {
 }
 
 #[test]
+#[ignore = "Bring back once we emit dec_rc instructions again"]
 fn decrement_rc() {
     let value = expect_value(
         "

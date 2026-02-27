@@ -1,9 +1,9 @@
-/// An SSA pass for ACIR functions that transforms "less than", "div" and "mod" operation on
-/// signed integers into equivalent sequences of operations that rely on unsigned integers.
-///
-/// The purpose of this pass is to avoid ACIR having to handle signed integers "less than",
-/// "div" and "mod" operations (for simplicity), while also allowing further optimizations to
-/// be done during subsequent SSA passes on the expanded instructions.
+//! An SSA pass for ACIR functions that transforms "less than", "div" and "mod" operation on
+//! signed integers into equivalent sequences of operations that rely on unsigned integers.
+//!
+//! The purpose of this pass is to avoid ACIR having to handle signed integers "less than",
+//! "div" and "mod" operations (for simplicity), while also allowing further optimizations to
+//! be done during subsequent SSA passes on the expanded instructions.
 use acvm::FieldElement;
 
 use crate::ssa::{
@@ -303,22 +303,17 @@ impl Context<'_, '_, '_> {
 
 /// Post-check condition for [Function::expand_signed_math].
 ///
-/// Succeeds if:
-///   - `func` does not contain any signed "less than" ops
-///
-/// Otherwise panics.
+/// Panics if:
+///   - Any ACIR function contains signed Lt, Div, or Mod operations.
 #[cfg(debug_assertions)]
 fn expand_signed_math_post_check(func: &Function) {
-    for block_id in func.reachable_blocks() {
-        let instruction_ids = func.dfg[block_id].instructions();
-        for instruction_id in instruction_ids {
-            if let Instruction::Binary(binary) = &func.dfg[*instruction_id] {
-                if func.dfg.type_of_value(binary.lhs).is_signed() && binary.operator == BinaryOp::Lt
-                {
-                    panic!("Checked signed 'less than' has not been removed")
-                }
-            }
-        }
+    if func.runtime().is_acir() {
+        // All signed Lt, Div, and Mod should be expanded in ACIR functions
+        super::checks::for_each_instruction(func, |instruction, dfg| {
+            super::checks::assert_not_signed_lt(instruction, dfg);
+            super::checks::assert_not_signed_div(instruction, dfg);
+            super::checks::assert_not_signed_mod(instruction, dfg);
+        });
     }
 }
 

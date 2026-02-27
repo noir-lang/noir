@@ -22,12 +22,15 @@ pub use errors::ParserError;
 pub use errors::ParserErrorReason;
 use noirc_errors::Location;
 pub use parser::{
-    Parser, StatementOrExpressionOrLValue, parse_program, parse_program_with_dummy_file,
+    Parser, StatementOrExpressionOrLValue, block_comment_has_all_leading_stars, parse_program,
+    parse_program_with_dummy_file,
 };
 
 #[derive(Clone, Default)]
 pub struct SortedModule {
-    pub imports: Vec<ImportStatement>,
+    /// Each entry is a batch of imports that was desugared into possibly multiple imports.
+    /// See also [`crate::hir::def_collector::dc_crate::ImportDirectiveBatch`].
+    pub imports: Vec<Vec<ImportStatement>>,
     pub functions: Vec<Documented<NoirFunction>>,
     pub structs: Vec<Documented<NoirStruct>>,
     pub enums: Vec<Documented<NoirEnumeration>>,
@@ -57,8 +60,10 @@ impl std::fmt::Display for SortedModule {
             writeln!(f, "{decl};")?;
         }
 
-        for import in &self.imports {
-            writeln!(f, "{import};")?;
+        for batch in &self.imports {
+            for import in batch {
+                writeln!(f, "{import};")?;
+            }
         }
 
         for (global_const, _visibility) in &self.globals {
@@ -269,7 +274,7 @@ impl SortedModule {
     }
 
     fn push_import(&mut self, import_stmt: UseTree, visibility: ItemVisibility) {
-        self.imports.extend(import_stmt.desugar(None, visibility));
+        self.imports.push(import_stmt.desugar(None, visibility));
     }
 
     fn push_module_decl(&mut self, mod_decl: ModuleDeclaration, doc_comments: Vec<DocComment>) {

@@ -95,9 +95,9 @@ pub(crate) type BrilligOpcodeToLocationsMap = BTreeMap<BrilligOpcodeLocation, Ca
 pub(crate) type BrilligProcedureRangeMap = BTreeMap<ProcedureDebugId, (usize, usize)>;
 
 impl<F: AcirField> GeneratedAcir<F> {
-    /// Returns the current witness index.
-    pub fn current_witness_index(&self) -> Witness {
-        Witness(self.current_witness_index.unwrap_or(0))
+    /// Returns the current witness index, or `None` if we haven't created a witness yet.
+    pub fn current_witness_index(&self) -> Option<Witness> {
+        self.current_witness_index.map(Witness)
     }
 
     /// Adds a new opcode into ACIR.
@@ -134,8 +134,9 @@ impl<F: AcirField> GeneratedAcir<F> {
         std::mem::take(&mut self.opcodes)
     }
 
-    /// Updates the witness index counter and returns
-    /// the next witness index.
+    /// Updates the current witness index to its next value and returns it:
+    /// * if this is the first witness, the current witness is set to 0
+    /// * otherwise the current witness index is increased by 1
     pub(crate) fn next_witness_index(&mut self) -> Witness {
         if let Some(current_index) = self.current_witness_index {
             self.current_witness_index.replace(current_index + 1);
@@ -323,7 +324,15 @@ impl<F: AcirField> GeneratedAcir<F> {
                     proof,
                     public_inputs,
                     key_hash,
-                    proof_type: proof_type.to_u128() as u32,
+                    proof_type: u32::try_from(proof_type.to_u128()).map_err(|_| {
+                        InternalError::General {
+                            message: format!(
+                                "proof_type value {} does not fit into a u32",
+                                proof_type.to_u128()
+                            ),
+                            call_stack: self.get_call_stack(),
+                        }
+                    })?,
                     predicate,
                 }
             }
@@ -584,7 +593,7 @@ impl<F: AcirField> GeneratedAcir<F> {
                 num_bits: F::max_num_bits(),
                 call_stack: self.get_call_stack(),
             });
-        };
+        }
         let constraint = if num_bits == 0 {
             AcirOpcode::AssertZero(Expression::from(witness))
         } else {

@@ -14,7 +14,7 @@ use crate::ssa::ir::{
 };
 
 use super::variable_liveness::{is_variable, variables_used_in_instruction};
-use crate::ssa::opt::Loops;
+use crate::ssa::opt::{LoopOrder, Loops};
 
 /// Indicate where a variable was used in a block.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -43,7 +43,7 @@ pub(crate) struct ConstantAllocation {
 impl ConstantAllocation {
     /// Run the constant allocation algorithm for a [Function] and return the decisions.
     pub(crate) fn from_function(func: &Function) -> Self {
-        let loops = Loops::find_all(func);
+        let loops = Loops::find_all(func, LoopOrder::OutsideIn);
         let blocks_within_loops =
             loops.yet_to_unroll.into_iter().flat_map(|_loop| _loop.blocks).collect();
 

@@ -111,6 +111,7 @@ pub struct FuncMeta {
     pub return_type: FunctionReturnType,
 
     pub return_visibility: Visibility,
+    pub return_visibility_location: Location,
 
     /// The type of this function. Either a Type::Function
     /// or a Type::Forall for generic functions.
@@ -193,6 +194,38 @@ impl FuncMeta {
     /// an empty body, and we don't check for unused parameters.
     pub fn is_stub(&self) -> bool {
         self.kind.can_ignore_return_type()
+    }
+
+    pub fn is_unconstrained(&self) -> bool {
+        match &self.typ {
+            Type::Function(_, _, _, unconstrained) => {
+                return *unconstrained;
+            }
+            Type::Forall(_, typ) => {
+                if let Type::Function(_, _, _, unconstrained) = typ.as_ref() {
+                    return *unconstrained;
+                }
+            }
+            _ => (),
+        }
+        unreachable!("A function type can only be Function or Forall(Function)")
+    }
+
+    pub fn set_unconstrained(&mut self, unconstrained: bool) {
+        match &mut self.typ {
+            Type::Function(_, _, _, unconstrained_field) => {
+                *unconstrained_field = unconstrained;
+                return;
+            }
+            Type::Forall(_, typ) => {
+                if let Type::Function(_, _, _, unconstrained_field) = typ.as_mut() {
+                    *unconstrained_field = unconstrained;
+                    return;
+                }
+            }
+            _ => (),
+        }
+        unreachable!("A function type can only be Function or Forall(Function)")
     }
 
     /// Gives the (uninstantiated) return type of this function.
