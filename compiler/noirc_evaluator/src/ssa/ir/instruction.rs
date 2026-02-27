@@ -84,6 +84,11 @@ pub enum Intrinsic {
     /// arguments: vector length, vector contents, remove index
     /// result: a vector with without the element at `remove index`
     VectorRemove,
+    /// VectorEnumerate - Iterate over a vector, calling a closure for each index.
+    /// arguments: length, vec, acir_closure, brillig_closure, index, rev
+    /// The closure signature is fn([T], u32, u32) -> T at Noir level (iteration_index, user_index).
+    /// result: (u32, [T]) - length and the modified vector after writing closure results via ArraySet
+    VectorEnumerate,
     /// ApplyRangeConstraint - Enforces the `bit size` of the first argument via a range check.
     /// arguments: value id, bit size (constant)
     /// result: applies a range check constraint to the input. It is replaced by a RangeCheck instruction during simplification.
@@ -135,6 +140,8 @@ pub enum Intrinsic {
     /// result: reference count of `vector`. In unconstrained context, the reference count is stored alongside the vector.
     /// in constrained context, it will be 0.
     VectorRefCount,
+    /// ResizeArray - TODO
+    ResizeArray,
 }
 
 impl std::fmt::Display for Intrinsic {
@@ -151,6 +158,7 @@ impl std::fmt::Display for Intrinsic {
             Intrinsic::VectorPopFront => write!(f, "vector_pop_front"),
             Intrinsic::VectorInsert => write!(f, "vector_insert"),
             Intrinsic::VectorRemove => write!(f, "vector_remove"),
+            Intrinsic::VectorEnumerate => write!(f, "vector_enumerate"),
             Intrinsic::StrAsBytes => write!(f, "str_as_bytes"),
             Intrinsic::ApplyRangeConstraint => write!(f, "apply_range_constraint"),
             Intrinsic::ToBits(Endian::Big) => write!(f, "to_be_bits"),
@@ -165,6 +173,7 @@ impl std::fmt::Display for Intrinsic {
             Intrinsic::FieldLessThan => write!(f, "field_less_than"),
             Intrinsic::ArrayRefCount => write!(f, "array_refcount"),
             Intrinsic::VectorRefCount => write!(f, "vector_refcount"),
+            Intrinsic::ResizeArray => write!(f, "resize_array"),
         }
     }
 }
@@ -191,8 +200,9 @@ impl Intrinsic {
             Intrinsic::ToBits(_) | Intrinsic::ToRadix(_) => true,
 
             // These imply a check that the vector is non-empty and should fail otherwise.
-            Intrinsic::VectorPopBack | Intrinsic::VectorPopFront | Intrinsic::VectorRemove | Intrinsic::VectorInsert => true,
-
+            Intrinsic::VectorPopBack | Intrinsic::VectorPopFront | Intrinsic::VectorRemove
+             | Intrinsic::VectorInsert => true,
+            Intrinsic::ResizeArray | Intrinsic::VectorEnumerate => true,
             Intrinsic::ArrayLen
             | Intrinsic::ArrayAsStrUnchecked
             | Intrinsic::AsVector
@@ -246,7 +256,8 @@ impl Intrinsic {
             Intrinsic::VectorPopBack
             | Intrinsic::VectorPopFront
             | Intrinsic::VectorRemove
-            | Intrinsic::VectorInsert => Purity::PureWithPredicate,
+            | Intrinsic::VectorInsert
+            | Intrinsic::VectorEnumerate => Purity::PureWithPredicate,
 
             Intrinsic::AssertConstant
             | Intrinsic::StaticAssert
@@ -274,6 +285,7 @@ impl Intrinsic {
             "vector_pop_front" => Some(Intrinsic::VectorPopFront),
             "vector_insert" => Some(Intrinsic::VectorInsert),
             "vector_remove" => Some(Intrinsic::VectorRemove),
+            "vector_enumerate" => Some(Intrinsic::VectorEnumerate),
             "str_as_bytes" => Some(Intrinsic::StrAsBytes),
             "to_le_radix" => Some(Intrinsic::ToRadix(Endian::Little)),
             "to_be_radix" => Some(Intrinsic::ToRadix(Endian::Big)),
@@ -286,6 +298,7 @@ impl Intrinsic {
             "black_box" => Some(Intrinsic::Hint(Hint::BlackBox)),
             "array_refcount" => Some(Intrinsic::ArrayRefCount),
             "vector_refcount" => Some(Intrinsic::VectorRefCount),
+            "resize_array" => Some(Intrinsic::ResizeArray),
 
             other => BlackBoxFunc::lookup(other).map(Intrinsic::BlackBox),
         }

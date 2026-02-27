@@ -20,6 +20,7 @@ mod die;
 mod evaluate_static_assert_and_assert_constant;
 mod expand_signed_checks;
 mod expand_signed_math;
+mod expand_vector_enumerate;
 pub(crate) mod flatten_cfg;
 mod hint;
 mod inline_simple_functions;
@@ -50,6 +51,7 @@ pub(crate) use array_get::{
 pub use constant_folding::DEFAULT_MAX_ITER as CONSTANT_FOLDING_MAX_ITER;
 pub use inlining::MAX_SIMPLE_FUNCTION_WEIGHT as INLINING_MAX_INSTRUCTIONS;
 pub use unrolling::FORCE_UNROLL_THRESHOLD;
+pub(crate) use remove_unreachable_instructions::zeroed_value;
 pub(crate) use unrolling::{LoopOrder, Loops};
 
 #[cfg(test)]

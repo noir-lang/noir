@@ -256,7 +256,8 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                     | Intrinsic::VectorPushFront
                     | Intrinsic::VectorPopFront
                     | Intrinsic::VectorInsert
-                    | Intrinsic::VectorRemove => {
+                    | Intrinsic::VectorRemove
+                    | Intrinsic::VectorEnumerate { .. } => {
                         self.convert_ssa_vector_intrinsic_call(
                             dfg,
                             &dfg[func],
@@ -282,7 +283,6 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                             true,
                         );
                     }
-
                     Intrinsic::ToRadix(endianness) => {
                         let [result] = dfg.instruction_result(instruction_id);
 
@@ -348,6 +348,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                             "Expected {intrinsic} to have been removing during SSA optimizations"
                         )
                     }
+                    Intrinsic::ResizeArray => todo!(),
                 }
             }
             Value::Instruction { .. }

@@ -44,7 +44,7 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         function::{Function, FunctionId, RuntimeType, Signature},
-        instruction::{BinaryOp, Instruction},
+        instruction::{BinaryOp, Instruction, Intrinsic},
         types::{NumericType, Type},
         value::{Value, ValueId},
     },
@@ -252,6 +252,14 @@ fn remove_first_class_functions_in_instruction(
     func: &mut Function,
     instruction: &mut Instruction,
 ) -> bool {
+    // Check if this is a vector_enumerate call BEFORE creating the map_value closure,
+    // to avoid borrow conflicts (the closure captures &mut func).
+    let is_vector_enumerate = if let Instruction::Call { func: call_func, .. } = instruction {
+        matches!(&func.dfg[*call_func], Value::Intrinsic(Intrinsic::VectorEnumerate))
+    } else {
+        false
+    };
+
     let mut modified = false;
     let mut map_value = |value: ValueId| {
         if let Some(new_value) = map_function_to_field(func, value) {
@@ -263,7 +271,13 @@ fn remove_first_class_functions_in_instruction(
     };
 
     if let Instruction::Call { func: _, arguments } = instruction {
-        for arg in arguments {
+        // Skip defunctionalizing vector_enumerate's closure arguments (args[2] and args[3])
+        // so they remain as Value::Function. This keeps the closure functions alive through
+        // DCE and allows expand_vector_enumerate to look them up directly at expansion time.
+        for (i, arg) in arguments.iter_mut().enumerate() {
+            if is_vector_enumerate && (i == 2 || i == 3) {
+                continue; // Keep closure args as Value::Function
+            }
             *arg = map_value(*arg);
         }
     } else if let Instruction::MakeArray { typ, .. } = instruction {
@@ -386,8 +400,18 @@ fn visit_values_other_than_call_target(func: &Function, mut f: impl FnMut(&Value
 
             // Handle call instructions separately. Functions used in their function field
             // don't have to be first-class values.
-            if let Instruction::Call { arguments, .. } = instruction {
-                arguments.iter().for_each(|value_id| process_value(*value_id));
+            if let Instruction::Call { func: call_func, arguments } = instruction {
+                // Skip vector_enumerate's closure arguments (args[2] and args[3]) — they
+                // should not be treated as first-class function values since they are only
+                // used by the expand_vector_enumerate pass for manual inlining.
+                let is_vector_enumerate =
+                    matches!(&func.dfg[*call_func], Value::Intrinsic(Intrinsic::VectorEnumerate));
+                for (i, value_id) in arguments.iter().enumerate() {
+                    if is_vector_enumerate && (i == 2 || i == 3) {
+                        continue;
+                    }
+                    process_value(*value_id);
+                }
             } else {
                 instruction.for_each_value(&mut process_value);
             }

@@ -369,6 +369,11 @@ pub(super) fn simplify_call(
                 SimplifyResult::None
             }
         }
+        Intrinsic::VectorEnumerate { .. } => {
+            // Vector enumerate is handled by a dedicated pass after inlining
+            // See: expand_vector_enumerate.rs
+            SimplifyResult::None
+        }
         Intrinsic::ArrayRefCount | Intrinsic::VectorRefCount => {
             if dfg.runtime.is_acir() {
                 // In ACIR, ref counts are not tracked so we always simplify them to zero.
@@ -377,6 +382,52 @@ pub(super) fn simplify_call(
             } else {
                 SimplifyResult::None
             }
+        }
+        Intrinsic::ResizeArray => {
+            let array = arguments[1];
+            if let Some(IntegerConstant::Signed { value: offset, .. }) =
+                dfg.get_integer_constant(arguments[2])
+            {
+                // Try to get length from arguments[0] first (works when length is constant),
+                // then fall back to inferring from the array value itself (works when the
+                // array comes from MakeArray, even if the length argument is dynamic).
+                let loaded = if let Some(known_length) = dfg.get_numeric_constant(arguments[0]) {
+                    let length = known_length.to_u128() as usize;
+                    load_array_elements_with_length(array, length, dfg, block, call_stack)
+                } else {
+                    load_array_elements(array, dfg, block, call_stack)
+                };
+                if let Some((mut elements, element_types)) = loaded {
+                    let zeroed: Vec<ValueId> = element_types
+                        .iter()
+                        .map(|elem_typ| make_zeroed_value(dfg, block, call_stack, elem_typ))
+                        .collect();
+
+                    if offset > 0 {
+                        for _ in 0..offset {
+                            for &zero in &zeroed {
+                                elements.push_back(zero);
+                            }
+                        }
+                    } else if offset < 0 {
+                        let to_remove = (-offset) as usize * element_types.len();
+                        for _ in 0..to_remove {
+                            elements.pop_back();
+                        }
+                    }
+                    let new_capacity = elements.len() as u32 / element_types.len() as u32;
+                    let new_typ = Type::Vector(element_types);
+                    let new_vector = make_array(dfg, elements, new_typ, block, call_stack);
+
+                    let new_length = dfg.make_constant(
+                        FieldElement::from(new_capacity as u128),
+                        NumericType::length_type(),
+                    );
+                    return SimplifyResult::SimplifiedToMultiple(vec![new_length, new_vector]);
+                }
+            }
+
+            SimplifyResult::None
         }
     };
 
@@ -799,6 +850,125 @@ fn simplify_derive_generators(
         }
     } else {
         unreachable!("Unexpected number of arguments to derive_generators");
+    }
+}
+
+/// Load all elements from an array or vector by inserting ArrayGet instructions for each index.
+/// Returns the loaded elements as a flat Vector along with the element types,
+/// or None if the type is not an array/vector or the capacity is unknown.
+///
+/// For composite element types (e.g., `[(Field, Field); N]`), this loads all flattened
+/// elements in order.
+fn load_array_elements(
+    array_value: ValueId,
+    dfg: &mut DataFlowGraph,
+    block: BasicBlockId,
+    call_stack: CallStackId,
+) -> Option<(im::Vector<ValueId>, Arc<Vec<Type>>)> {
+    let typ = dfg.type_of_value(array_value);
+
+    let (element_types, capacity) = match &typ {
+        Type::Array(element_types, SemanticLength(len)) => (element_types.clone(), *len),
+        Type::Vector(element_types) => {
+            // For vectors, get capacity from the MakeArray instruction
+            let capacity = dfg.try_get_vector_capacity(array_value)?;
+            (element_types.clone(), capacity.0)
+        }
+        _ => return None,
+    };
+    let length = capacity;
+
+    let flattened_length = length as usize * element_types.len();
+    let mut elements = im::Vector::new();
+
+    for i in 0..flattened_length {
+        // Determine which element type this index corresponds to
+        let element_type = element_types[i % element_types.len()].clone();
+
+        let index = dfg.make_constant(FieldElement::from(i as u128), NumericType::length_type());
+        let get_instruction = Instruction::ArrayGet { array: array_value, index };
+        let element = dfg
+            .insert_instruction_and_results(
+                get_instruction,
+                block,
+                Some(vec![element_type]),
+                call_stack,
+            )
+            .first();
+        elements.push_back(element);
+    }
+
+    Some((elements, element_types))
+}
+
+/// Like `load_array_elements`, but uses an explicit length instead of trying to infer
+/// the capacity from the vector value. This is needed when the vector is the result of
+/// ArraySet chains where the capacity can't be determined from the value alone.
+fn load_array_elements_with_length(
+    array_value: ValueId,
+    length: usize,
+    dfg: &mut DataFlowGraph,
+    block: BasicBlockId,
+    call_stack: CallStackId,
+) -> Option<(im::Vector<ValueId>, Arc<Vec<Type>>)> {
+    let typ = dfg.type_of_value(array_value);
+
+    let element_types = match &typ {
+        Type::Array(element_types, _) => element_types.clone(),
+        Type::Vector(element_types) => element_types.clone(),
+        _ => return None,
+    };
+
+    let flattened_length = length * element_types.len();
+    let mut elements = im::Vector::new();
+
+    for i in 0..flattened_length {
+        let element_type = element_types[i % element_types.len()].clone();
+        let index = dfg.make_constant(FieldElement::from(i as u128), NumericType::length_type());
+        let get_instruction = Instruction::ArrayGet { array: array_value, index };
+        let element = dfg
+            .insert_instruction_and_results(
+                get_instruction,
+                block,
+                Some(vec![element_type]),
+                call_stack,
+            )
+            .first();
+        elements.push_back(element);
+    }
+
+    Some((elements, element_types))
+}
+
+/// Create a zeroed value for a given type.
+/// Panics if the type is `Type::Function` or `Type::Reference` as these are not expected
+/// in array elements during simplification.
+fn make_zeroed_value(
+    dfg: &mut DataFlowGraph,
+    block: BasicBlockId,
+    call_stack: CallStackId,
+    typ: &Type,
+) -> ValueId {
+    match typ {
+        Type::Numeric(numeric_type) => dfg.make_constant(FieldElement::zero(), *numeric_type),
+        Type::Array(element_types, len) => {
+            let mut array = im::Vector::new();
+            for _ in 0..len.0 {
+                for elem_typ in element_types.iter() {
+                    array.push_back(make_zeroed_value(dfg, block, call_stack, elem_typ));
+                }
+            }
+            let instruction = Instruction::MakeArray { elements: array, typ: typ.clone() };
+            dfg.insert_instruction_and_results(instruction, block, None, call_stack).first()
+        }
+        Type::Vector(_) => {
+            let array = im::Vector::new();
+            let instruction = Instruction::MakeArray { elements: array, typ: typ.clone() };
+            dfg.insert_instruction_and_results(instruction, block, None, call_stack).first()
+        }
+        Type::Reference(_) | Type::Function => {
+            unreachable!("Unexpected type {typ} in array element during simplification")
+        }
     }
 }
 

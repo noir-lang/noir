@@ -452,7 +452,7 @@ fn binary_operator_is_unchecked(operator: BinaryOp) -> bool {
     }
 }
 
-fn zeroed_value(
+pub(crate) fn zeroed_value(
     dfg: &mut DataFlowGraph,
     func_id: FunctionId,
     block_id: BasicBlockId,

@@ -632,8 +632,47 @@ impl<'f> Validator<'f> {
                 let result_type = self.assert_one_result(instruction, "VectorRefCount");
                 assert_u32(&result_type, "VectorRefCount result");
             }
+            Intrinsic::VectorEnumerate { .. } => {
+                // fn enumerate<T>(vec: [T], closure: fn([T], u32, u32) -> T, index: u32, rev: bool) -> [T]
+                // SSA args: length, vec, acir_closure, brillig_closure, index, rev
+                assert!(arguments.len() >= 6, "VectorEnumerate must have 6 arguments");
+
+                let vector_length_type = self.function.dfg.type_of_value(arguments[0]);
+                assert_u32(&vector_length_type, "VectorEnumerate vector length");
+
+                let vector_type = self.function.dfg.type_of_value(arguments[1]);
+                assert_vector(&vector_type, "VectorEnumerate vector");
+
+                // Returns (u32, [T]) — length and modified vector data
+                let results = self.function.dfg.instruction_results(instruction);
+                assert_eq!(results.len(), 2, "Expected two results for VectorEnumerate");
+            }
             Intrinsic::BlackBox(blackbox) => {
                 self.type_check_black_box(instruction, arguments, blackbox);
+            }
+            Intrinsic::ResizeArray => {
+                // fn resize_array<T>(from: [T], adjust: i32) -> [T] {}
+                // In SSA, vectors are (length, contents), so 3 arguments total
+                assert_arguments_length(arguments, 3, "ResizeArray");
+
+                let vector_length_type = self.function.dfg.type_of_value(arguments[0]);
+                assert_u32(&vector_length_type, "ResizeArray input length");
+
+                let vector_type = self.function.dfg.type_of_value(arguments[1]);
+                let vector_element_types = assert_vector(&vector_type, "ResizeArray input vector");
+
+                let adjust_type = self.function.dfg.type_of_value(arguments[2]);
+                assert_i32(&adjust_type, "ResizeArray adjust");
+
+                let (result_length_type, result_vector_type) =
+                    self.assert_two_results(instruction, "ResizeArray");
+                assert_u32(&result_length_type, "ResizeArray result length");
+                let result_element_types =
+                    assert_vector(&result_vector_type, "ResizeArray result vector");
+                assert_eq!(
+                    vector_element_types, result_element_types,
+                    "ResizeArray input element types must match output element types"
+                );
             }
         }
     }
@@ -1110,6 +1149,12 @@ fn assert_u1(typ: &Type, object: &str) {
 fn assert_u8(typ: &Type, object: &str) {
     if !matches!(typ, Type::Numeric(NumericType::Unsigned { bit_size: 8 })) {
         panic!("{object} must be u8, not {typ}");
+    }
+}
+
+fn assert_i32(typ: &Type, object: &str) {
+    if !matches!(typ, Type::Numeric(NumericType::Signed { bit_size: 32 })) {
+        panic!("{object} must be i32, not {typ}");
     }
 }
 

@@ -72,6 +72,9 @@ impl<W: Write> Interpreter<'_, W> {
             Intrinsic::VectorPopFront => self.vector_pop_front(args),
             Intrinsic::VectorInsert => self.vector_insert(args),
             Intrinsic::VectorRemove => self.vector_remove(args),
+            Intrinsic::VectorEnumerate { .. } => {
+                todo!("vector_enumerate SSA interpreter not yet implemented")
+            }
             Intrinsic::ApplyRangeConstraint => {
                 Err(InterpreterError::Internal(InternalError::UnexpectedInstruction {
                     reason: "Intrinsic::ApplyRangeConstraint should have been converted to a RangeCheck instruction",
@@ -493,6 +496,7 @@ impl<W: Write> Interpreter<'_, W> {
                 }
                 Ok(vec![Value::from_constant(rc.into(), NumericType::unsigned(32))?])
             }
+            Intrinsic::ResizeArray => todo!(),
         }
     }
 
