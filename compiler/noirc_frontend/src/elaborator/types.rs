@@ -755,7 +755,7 @@ impl Elaborator<'_> {
                     return None;
                 };
 
-                let Some(global_value) = global_value.as_non_negative_field() else {
+                let Some(global_value) = global_value.as_integer() else {
                     let global_value = global_value.clone();
                     if global_value.is_integral() {
                         self.push_err(ResolverError::NegativeGlobalType { location, global_value });
@@ -768,7 +768,8 @@ impl Elaborator<'_> {
                     return None;
                 };
 
-                let Ok(global_value) = kind.ensure_value_fits(global_value, location) else {
+                if !kind.matches_integer(global_value) {
+                    let global_value = *global_value;
                     self.push_err(ResolverError::GlobalDoesNotFitItsType {
                         location,
                         global_value,
@@ -777,7 +778,7 @@ impl Elaborator<'_> {
                     return None;
                 };
 
-                Some(Type::Constant(global_value, kind))
+                Some(Type::Constant(*global_value, kind))
             }
             _ => None,
         }
@@ -850,7 +851,7 @@ impl Elaborator<'_> {
                             });
                             return Type::Error;
                         }
-                        match op.function(lhs, rhs, &lhs_kind, location) {
+                        match op.function(lhs, rhs, location) {
                             Ok(result) => Type::Constant(result, lhs_kind),
                             Err(err) => {
                                 let err = Box::new(err);

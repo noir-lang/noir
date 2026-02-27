@@ -7,7 +7,7 @@ use crate::{
     Kind, Type,
     ast::{Ident, UnsupportedNumericGenericType},
     elaborator::{TypedPath, types::WildcardDisallowedContext},
-    hir::{comptime::Value, type_check::TypeCheckError},
+    hir::{comptime::{Integer, Value}, type_check::TypeCheckError},
     parser::ParserError,
     usage_tracker::UnusedItem,
 };
@@ -111,7 +111,7 @@ pub enum ResolverError {
     #[error("Globals used in a type position must be integers")]
     NonIntegralGlobalType { location: Location, global_value: Value },
     #[error("Global value `{global_value}` does not fit its kind's range")]
-    GlobalDoesNotFitItsType { location: Location, global_value: FieldElement, kind: Kind },
+    GlobalDoesNotFitItsType { location: Location, global_value: Integer, kind: Kind },
     #[error("Self-referential types are not supported")]
     SelfReferentialType { location: Location },
     #[error("#[no_predicates] attribute is only allowed on constrained functions")]
@@ -138,9 +138,9 @@ pub enum ResolverError {
     AssociatedConstantsMustBeNumeric { location: Location },
     #[error("Computing `{lhs} {op} {rhs}` failed with error {err}")]
     BinaryOpError {
-        lhs: FieldElement,
+        lhs: Integer,
         op: crate::BinaryTypeOperator,
-        rhs: FieldElement,
+        rhs: Integer,
         err: Box<TypeCheckError>,
         location: Location,
     },

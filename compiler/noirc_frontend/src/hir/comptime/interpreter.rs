@@ -1738,8 +1738,8 @@ fn evaluate_integer(typ: Type, value: FieldElement, location: Location) -> IResu
     use Type::*;
 
     macro_rules! evaluate {
-        ($typ:ident) => {{
-            let value = try_field_to_int(value)
+        ($typ:ident, $signed:expr) => {{
+            let value = try_field_to_int(value, $signed)
                 .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
             Ok(Value::$typ(value))
         }};
@@ -1757,34 +1757,16 @@ fn evaluate_integer(typ: Type, value: FieldElement, location: Location) -> IResu
                 Err(InterpreterError::IntegerOutOfRangeForType { value, typ, location })
             }
         }
-        Integer(Unsigned, Eight) => {
-            evaluate!(u8)
-        }
-        Integer(Unsigned, Sixteen) => {
-            evaluate!(u16)
-        }
-        Integer(Unsigned, ThirtyTwo) => {
-            evaluate!(u32)
-        }
-        Integer(Unsigned, SixtyFour) => {
-            evaluate!(u64)
-        }
-        Integer(Unsigned, HundredTwentyEight) => {
-            evaluate!(u128)
-        }
+        Integer(Unsigned, Eight) => evaluate!(u8, false),
+        Integer(Unsigned, Sixteen) => evaluate!(u16, false),
+        Integer(Unsigned, ThirtyTwo) => evaluate!(u32, false),
+        Integer(Unsigned, SixtyFour) => evaluate!(u64, false),
+        Integer(Unsigned, HundredTwentyEight) => evaluate!(u128, false),
         Integer(Signed, One) => Err(InterpreterError::TypeUnsupported { typ, location }),
-        Integer(Signed, Eight) => {
-            evaluate!(i8)
-        }
-        Integer(Signed, Sixteen) => {
-            evaluate!(i16)
-        }
-        Integer(Signed, ThirtyTwo) => {
-            evaluate!(i32)
-        }
-        Integer(Signed, SixtyFour) => {
-            evaluate!(i64)
-        }
+        Integer(Signed, Eight) => evaluate!(i8, true),
+        Integer(Signed, Sixteen) => evaluate!(i16, true),
+        Integer(Signed, ThirtyTwo) => evaluate!(i32, true),
+        Integer(Signed, SixtyFour) => evaluate!(i64, true),
         Integer(Signed, HundredTwentyEight) => {
             Err(InterpreterError::TypeUnsupported { typ, location })
         }
@@ -1793,11 +1775,21 @@ fn evaluate_integer(typ: Type, value: FieldElement, location: Location) -> IResu
 }
 
 /// Convert a [FieldElement] into an integer type (up to u128),
-/// returning None if the value does not fit.
-fn try_field_to_int<T: TryFrom<u128>>(field: FieldElement) -> Option<T> {
+/// returning None if the value does not fit. Expects the given field to be in normal form such
+/// that `-7 == -FieldElement::from(7)`.
+fn try_field_to_int<T: TryFrom<u128> + TryFrom<i128>>(
+    field: FieldElement,
+    signed: bool,
+) -> Option<T> {
     assert!(size_of::<T>() <= size_of::<u128>());
-    let u128_value = field.try_into_u128()?;
-    u128_value.try_into().ok()
+
+    if signed {
+        let i128_value = field.try_into_i128()?;
+        i128_value.try_into().ok()
+    } else {
+        let u128_value = field.try_into_u128()?;
+        u128_value.try_into().ok()
+    }
 }
 
 /// Bounds check the given array and index pair.

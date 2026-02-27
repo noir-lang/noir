@@ -550,7 +550,7 @@ impl HirArrayLiteral {
                 let length = match length {
                     Type::Constant(length, kind) => {
                         let suffix = kind.as_integer_type_suffix();
-                        let literal = Literal::Integer(*length, suffix);
+                        let literal = Literal::Integer(length.as_field(), suffix);
                         let expr_kind = ExpressionKind::Literal(literal);
                         Box::new(Expression::new(expr_kind, location))
                     }

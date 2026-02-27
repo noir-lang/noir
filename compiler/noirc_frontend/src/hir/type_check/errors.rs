@@ -9,6 +9,7 @@ use thiserror::Error;
 
 use crate::ast::BinaryOpKind;
 use crate::ast::{ConstrainKind, FunctionReturnType, Ident, IntegerBitSize};
+use crate::hir::comptime::Integer;
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::traits::TraitConstraint;
 use crate::hir_def::types::{BinaryTypeOperator, Kind, Type};
@@ -34,7 +35,7 @@ pub enum Source {
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum TypeCheckError {
     #[error("Division by zero: {lhs} / {rhs}")]
-    DivisionByZero { lhs: FieldElement, rhs: FieldElement, location: Location },
+    DivisionByZero { lhs: Integer, rhs: Integer, location: Location },
     #[error("Modulo on Field elements: {lhs} % {rhs}")]
     ModuloOnFields { lhs: FieldElement, rhs: FieldElement, location: Location },
     #[error("The value `{expr}` cannot fit into `{ty}` which has range `{range}`")]

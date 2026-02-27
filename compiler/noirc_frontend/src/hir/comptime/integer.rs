@@ -10,7 +10,7 @@ use crate::{
     token::{IntegerTypeSuffix, Token},
 };
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Integer {
     Field(FieldElement),
     I8(i8),
@@ -166,36 +166,16 @@ impl Integer {
                 vec![Token::Int(value.into(), Some(IntegerTypeSuffix::U128))]
             }
             Integer::I8(value) => {
-                if value < 0 {
-                    let int = Token::Int(value.unsigned_abs().into(), Some(IntegerTypeSuffix::I8));
-                    vec![Token::Minus, int]
-                } else {
-                    vec![Token::Int(value.into(), Some(IntegerTypeSuffix::I8))]
-                }
+                vec![Token::Int(value.into(), Some(IntegerTypeSuffix::I8))]
             }
             Integer::I16(value) => {
-                if value < 0 {
-                    let int = Token::Int(value.unsigned_abs().into(), Some(IntegerTypeSuffix::I16));
-                    vec![Token::Minus, int]
-                } else {
-                    vec![Token::Int(value.into(), Some(IntegerTypeSuffix::I16))]
-                }
+                vec![Token::Int(value.into(), Some(IntegerTypeSuffix::I16))]
             }
             Integer::I32(value) => {
-                if value < 0 {
-                    let int = Token::Int(value.unsigned_abs().into(), Some(IntegerTypeSuffix::I32));
-                    vec![Token::Minus, int]
-                } else {
-                    vec![Token::Int(value.into(), Some(IntegerTypeSuffix::I32))]
-                }
+                vec![Token::Int(value.into(), Some(IntegerTypeSuffix::I32))]
             }
             Integer::I64(value) => {
-                if value < 0 {
-                    let int = Token::Int(value.unsigned_abs().into(), Some(IntegerTypeSuffix::I64));
-                    vec![Token::Minus, int]
-                } else {
-                    vec![Token::Int(value.into(), Some(IntegerTypeSuffix::I64))]
-                }
+                vec![Token::Int(value.into(), Some(IntegerTypeSuffix::I64))]
             }
             Integer::Field(value) => {
                 vec![Token::Int(value, None)]
@@ -238,6 +218,142 @@ impl Display for Integer {
             Integer::U32(value) => write!(f, "{value}"),
             Integer::U64(value) => write!(f, "{value}"),
             Integer::U128(value) => write!(f, "{value}"),
+        }
+    }
+}
+
+// All [Integer] operations return [None] on overflow or type mismatch
+impl std::ops::Add for Integer {
+    type Output = Option<Self>;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        match (self, rhs) {
+            (Integer::Field(lhs), Integer::Field(rhs)) => Some(Integer::Field(lhs + rhs)),
+            (Integer::U1(lhs), Integer::U1(rhs)) => {
+                let result = lhs as u32 + rhs as u32;
+                (result != 2).then(|| Integer::U1(result != 0))
+            }
+            (Integer::U8(lhs), Integer::U8(rhs)) => lhs.checked_add(rhs).map(Integer::U8),
+            (Integer::U16(lhs), Integer::U16(rhs)) => lhs.checked_add(rhs).map(Integer::U16),
+            (Integer::U32(lhs), Integer::U32(rhs)) => lhs.checked_add(rhs).map(Integer::U32),
+            (Integer::U64(lhs), Integer::U64(rhs)) => lhs.checked_add(rhs).map(Integer::U64),
+            (Integer::U128(lhs), Integer::U128(rhs)) => lhs.checked_add(rhs).map(Integer::U128),
+            (Integer::I8(lhs), Integer::I8(rhs)) => lhs.checked_add(rhs).map(Integer::I8),
+            (Integer::I16(lhs), Integer::I16(rhs)) => lhs.checked_add(rhs).map(Integer::I16),
+            (Integer::I32(lhs), Integer::I32(rhs)) => lhs.checked_add(rhs).map(Integer::I32),
+            (Integer::I64(lhs), Integer::I64(rhs)) => lhs.checked_add(rhs).map(Integer::I64),
+            _ => None,
+        }
+    }
+}
+
+impl std::ops::Sub for Integer {
+    type Output = Option<Self>;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        match (self, rhs) {
+            (Integer::Field(lhs), Integer::Field(rhs)) => Some(Integer::Field(lhs - rhs)),
+            (Integer::U1(lhs), Integer::U1(rhs)) => {
+                let result = lhs as i32 - rhs as i32;
+                (result > 0).then(|| Integer::U1(result != 0))
+            }
+            (Integer::U8(lhs), Integer::U8(rhs)) => lhs.checked_sub(rhs).map(Integer::U8),
+            (Integer::U16(lhs), Integer::U16(rhs)) => lhs.checked_sub(rhs).map(Integer::U16),
+            (Integer::U32(lhs), Integer::U32(rhs)) => lhs.checked_sub(rhs).map(Integer::U32),
+            (Integer::U64(lhs), Integer::U64(rhs)) => lhs.checked_sub(rhs).map(Integer::U64),
+            (Integer::U128(lhs), Integer::U128(rhs)) => lhs.checked_sub(rhs).map(Integer::U128),
+            (Integer::I8(lhs), Integer::I8(rhs)) => lhs.checked_sub(rhs).map(Integer::I8),
+            (Integer::I16(lhs), Integer::I16(rhs)) => lhs.checked_sub(rhs).map(Integer::I16),
+            (Integer::I32(lhs), Integer::I32(rhs)) => lhs.checked_sub(rhs).map(Integer::I32),
+            (Integer::I64(lhs), Integer::I64(rhs)) => lhs.checked_sub(rhs).map(Integer::I64),
+            _ => None,
+        }
+    }
+}
+
+impl std::ops::Mul for Integer {
+    type Output = Option<Self>;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        match (self, rhs) {
+            (Integer::Field(lhs), Integer::Field(rhs)) => Some(Integer::Field(lhs * rhs)),
+            (Integer::U1(lhs), Integer::U1(rhs)) => Some(Integer::U1((lhs as u32 * rhs as u32) != 0)),
+            (Integer::U8(lhs), Integer::U8(rhs)) => lhs.checked_mul(rhs).map(Integer::U8),
+            (Integer::U16(lhs), Integer::U16(rhs)) => lhs.checked_mul(rhs).map(Integer::U16),
+            (Integer::U32(lhs), Integer::U32(rhs)) => lhs.checked_mul(rhs).map(Integer::U32),
+            (Integer::U64(lhs), Integer::U64(rhs)) => lhs.checked_mul(rhs).map(Integer::U64),
+            (Integer::U128(lhs), Integer::U128(rhs)) => lhs.checked_mul(rhs).map(Integer::U128),
+            (Integer::I8(lhs), Integer::I8(rhs)) => lhs.checked_mul(rhs).map(Integer::I8),
+            (Integer::I16(lhs), Integer::I16(rhs)) => lhs.checked_mul(rhs).map(Integer::I16),
+            (Integer::I32(lhs), Integer::I32(rhs)) => lhs.checked_mul(rhs).map(Integer::I32),
+            (Integer::I64(lhs), Integer::I64(rhs)) => lhs.checked_mul(rhs).map(Integer::I64),
+            _ => None,
+        }
+    }
+}
+
+impl std::ops::Div for Integer {
+    type Output = Option<Self>;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        match (self, rhs) {
+            (Integer::Field(lhs), Integer::Field(rhs)) => Some(Integer::Field(lhs / rhs)),
+            (Integer::U1(lhs), Integer::U1(rhs)) => {
+                let result = lhs as u32 + rhs as u32;
+                (result != 2).then(|| Integer::U1(result != 0))
+            }
+            (Integer::U8(lhs), Integer::U8(rhs)) => lhs.checked_div(rhs).map(Integer::U8),
+            (Integer::U16(lhs), Integer::U16(rhs)) => lhs.checked_div(rhs).map(Integer::U16),
+            (Integer::U32(lhs), Integer::U32(rhs)) => lhs.checked_sub(rhs).map(Integer::U32),
+            (Integer::U64(lhs), Integer::U64(rhs)) => lhs.checked_sub(rhs).map(Integer::U64),
+            (Integer::U128(lhs), Integer::U128(rhs)) => lhs.checked_sub(rhs).map(Integer::U128),
+            (Integer::I8(lhs), Integer::I8(rhs)) => lhs.checked_sub(rhs).map(Integer::I8),
+            (Integer::I16(lhs), Integer::I16(rhs)) => lhs.checked_sub(rhs).map(Integer::I16),
+            (Integer::I32(lhs), Integer::I32(rhs)) => lhs.checked_sub(rhs).map(Integer::I32),
+            (Integer::I64(lhs), Integer::I64(rhs)) => lhs.checked_sub(rhs).map(Integer::I64),
+            _ => None,
+        }
+    }
+}
+
+impl Integer {
+    /// `self < rhs`
+    /// Similar to the derived `impl Ord for Integer` but will return `None` when the integer
+    /// variants do not match.
+    pub fn lt(&self, rhs: &Self) -> Option<bool> {
+        match (self, rhs) {
+            (Integer::Field(lhs), Integer::Field(rhs)) => Some(lhs < rhs),
+            (Integer::U1(lhs), Integer::U1(rhs)) => Some(lhs < rhs),
+            (Integer::U8(lhs), Integer::U8(rhs)) => Some(lhs < rhs),
+            (Integer::U16(lhs), Integer::U16(rhs)) => Some(lhs < rhs),
+            (Integer::U32(lhs), Integer::U32(rhs)) => Some(lhs < rhs),
+            (Integer::U64(lhs), Integer::U64(rhs)) => Some(lhs < rhs),
+            (Integer::U128(lhs), Integer::U128(rhs)) => Some(lhs < rhs),
+            (Integer::I8(lhs), Integer::I8(rhs)) => Some(lhs < rhs),
+            (Integer::I16(lhs), Integer::I16(rhs)) => Some(lhs < rhs),
+            (Integer::I32(lhs), Integer::I32(rhs)) => Some(lhs < rhs),
+            (Integer::I64(lhs), Integer::I64(rhs)) => Some(lhs < rhs),
+            _ => None,
+        }
+    }
+
+    /// `self <= rhs`
+    /// Similar to the derived `impl Ord for Integer` but will return `None` when the integer
+    /// variants do not match.
+    pub fn lte(&self, rhs: &Self) -> Option<bool> {
+        match (self, rhs) {
+            (Integer::Field(lhs), Integer::Field(rhs)) => Some(lhs <= rhs),
+            (Integer::U1(lhs), Integer::U1(rhs)) => Some(lhs <= rhs),
+            (Integer::U8(lhs), Integer::U8(rhs)) => Some(lhs <= rhs),
+            (Integer::U16(lhs), Integer::U16(rhs)) => Some(lhs <= rhs),
+            (Integer::U32(lhs), Integer::U32(rhs)) => Some(lhs <= rhs),
+            (Integer::U64(lhs), Integer::U64(rhs)) => Some(lhs <= rhs),
+            (Integer::U128(lhs), Integer::U128(rhs)) => Some(lhs <= rhs),
+            (Integer::I8(lhs), Integer::I8(rhs)) => Some(lhs <= rhs),
+            (Integer::I16(lhs), Integer::I16(rhs)) => Some(lhs <= rhs),
+            (Integer::I32(lhs), Integer::I32(rhs)) => Some(lhs <= rhs),
+            (Integer::I64(lhs), Integer::I64(rhs)) => Some(lhs <= rhs),
+            _ => None,
         }
     }
 }

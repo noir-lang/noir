@@ -675,11 +675,9 @@ impl Value {
         }
     }
 
-    /// Converts any integral `Value` into a `SignedField`.
-    /// Returns `None` for non-integral `Value`s and negative numbers.
-    pub(crate) fn as_non_negative_field(&self) -> Option<FieldElement> {
+    pub(crate) fn as_integer(&self) -> Option<&Integer> {
         match self {
-            Value::Integer(int) => int.as_non_negative_field(),
+            Value::Integer(int) => Some(int),
             _ => None,
         }
     }

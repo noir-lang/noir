@@ -11,6 +11,7 @@ use crate::{
     ast::{BinaryOpKind, IntegerBitSize, ItemVisibility, UnresolvedTypeExpression},
     elaborator::types::SELF_TYPE_NAME,
     hir::{
+        comptime::Integer,
         def_map::ModuleId,
         type_check::{TypeCheckError, generics::TraitGenerics},
     },
@@ -133,7 +134,7 @@ pub enum Type {
     /// 1. an Array's size type variable
     ///    bind to an integer without special checks to bind it to a non-type.
     /// 2. values to be used at the type level
-    Constant(FieldElement, Kind),
+    Constant(Integer, Kind),
 
     /// The type of quoted code in macros. This is always a comptime-only type
     Quoted(QuotedType),
@@ -280,6 +281,17 @@ impl Kind {
         match self.follow_bindings() {
             Kind::Any | Kind::IntegerOrField | Kind::Integer | Kind::Normal => None,
             Self::Numeric(typ) => typ.integral_minimum_size(),
+        }
+    }
+
+    /// True if the type of the given integer is compatible with this [Kind]
+    pub(crate) fn matches_integer(&self, int: &Integer) -> bool {
+        match self {
+            Kind::Any => true,
+            Kind::Normal => false,
+            Kind::IntegerOrField => false,
+            Kind::Integer => false,
+            Kind::Numeric(numeric) => **numeric == int.get_type(),
         }
     }
 
@@ -3299,66 +3311,25 @@ impl BinaryTypeOperator {
     /// Perform the actual rust numeric operation associated with this operator
     pub fn function(
         self,
-        a: FieldElement,
-        b: FieldElement,
-        kind: &Kind,
+        a: Integer,
+        b: Integer,
         location: Location,
-    ) -> Result<FieldElement, TypeCheckError> {
-        match kind.integral_maximum_size() {
-            None => match self {
-                BinaryTypeOperator::Addition => Ok(a + b),
-                BinaryTypeOperator::Subtraction => Ok(a - b),
-                BinaryTypeOperator::Multiplication => Ok(a * b),
-                BinaryTypeOperator::Division => (!b.is_zero())
-                    .then(|| a / b)
-                    .ok_or(TypeCheckError::DivisionByZero { lhs: a, rhs: b, location }),
-                BinaryTypeOperator::Modulo => {
-                    Err(TypeCheckError::ModuloOnFields { lhs: a, rhs: b, location })
-                }
-            },
-            Some(maximum_size) => {
-                if maximum_size == u128::MAX {
-                    // For u128 operations we need to use u128
-                    let a = a.to_u128();
-                    let b = b.to_u128();
+    ) -> Result<Integer, TypeCheckError> {
+        let error = TypeCheckError::FailingBinaryOp {
+            op: self,
+            lhs: a.to_string(),
+            rhs: b.to_string(),
+            location,
+        };
 
-                    let err = TypeCheckError::FailingBinaryOp {
-                        op: self,
-                        lhs: a.to_string(),
-                        rhs: b.to_string(),
-                        location,
-                    };
-                    let result = match self {
-                        BinaryTypeOperator::Addition => a.checked_add(b).ok_or(err)?,
-                        BinaryTypeOperator::Subtraction => a.checked_sub(b).ok_or(err)?,
-                        BinaryTypeOperator::Multiplication => a.checked_mul(b).ok_or(err)?,
-                        BinaryTypeOperator::Division => a.checked_div(b).ok_or(err)?,
-                        BinaryTypeOperator::Modulo => a.checked_rem(b).ok_or(err)?,
-                    };
-
-                    Ok(result.into())
-                } else {
-                    // Every other type first in i128, allowing both positive and negative values
-                    let a = a.to_i128();
-                    let b = b.to_i128();
-
-                    let err = TypeCheckError::FailingBinaryOp {
-                        op: self,
-                        lhs: a.to_string(),
-                        rhs: b.to_string(),
-                        location,
-                    };
-                    let result = match self {
-                        BinaryTypeOperator::Addition => a.checked_add(b).ok_or(err)?,
-                        BinaryTypeOperator::Subtraction => a.checked_sub(b).ok_or(err)?,
-                        BinaryTypeOperator::Multiplication => a.checked_mul(b).ok_or(err)?,
-                        BinaryTypeOperator::Division => a.checked_div(b).ok_or(err)?,
-                        BinaryTypeOperator::Modulo => a.checked_rem(b).ok_or(err)?,
-                    };
-
-                    kind.ensure_value_fits(result.into(), location)
-                }
+        match self {
+            BinaryTypeOperator::Addition => (a + b).ok_or(error),
+            BinaryTypeOperator::Subtraction => (a + b).ok_or(error),
+            BinaryTypeOperator::Multiplication => (a + b).ok_or(error),
+            BinaryTypeOperator::Division => {
+                (a + b).ok_or(TypeCheckError::DivisionByZero { lhs: a, rhs: b, location })
             }
+            BinaryTypeOperator::Modulo => (a + b).ok_or(error),
         }
     }
 
