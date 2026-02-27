@@ -247,7 +247,7 @@ pub enum BlackBoxFuncCall<F> {
     ///
     /// This operation will fail if the length of the inputs do not match
     /// the backend configuration. This is currently not enforced by the
-    /// Noir stdlib, but the https://github.com/noir-lang/poseidon matches
+    /// Noir stdlib, but the [Poseidon library](https://github.com/noir-lang/poseidon) matches
     /// the expectations of Barretenberg and the solvers used by nargo.
     ///
     /// Since the opcode doesn't take a predicate, a mismatch causes a
