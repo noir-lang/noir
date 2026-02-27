@@ -10,7 +10,6 @@ impl<let X: u32> Bar for Foo<X, u8> {
     }
 }
 
-// TODO: compiles if comment out this block
 impl<let X: u32> Bar for Foo<X, u16> {
     fn bar() -> Field {
         2
