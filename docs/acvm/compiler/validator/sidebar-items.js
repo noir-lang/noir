@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["unsatisfied_constraint","validate_witness","witness_value"]};
+window.SIDEBAR_ITEMS = {"fn":["check_fits_in_bits","unsatisfied_constraint","validate_witness","witness_value"]};
