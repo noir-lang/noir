@@ -133,32 +133,30 @@ pub(super) fn simplify_call(
         Intrinsic::VectorPushBack => {
             let vector = dfg.get_array_constant(arguments[1]);
             if let Some((mut vector, element_type)) = vector {
-                // TODO(#2752): We need to handle the element_type size to appropriately handle vectors of complex types.
-                // This is reliant on dynamic indices of non-homogenous vectors also being implemented.
-                if element_type.element_size() != ElementTypesLength(1) {
-                    if let Some(IntegerConstant::Unsigned { value: vector_len, .. }) =
-                        dfg.get_integer_constant(arguments[0])
-                    {
-                        // This simplification, which push back directly on the vector, only works if the real vector_len is the
-                        // the length of the vector.
-                        if vector_len as usize == vector.len() {
-                            // Old code before implementing multiple vector mergers
-                            for elem in &arguments[2..] {
-                                vector.push_back(*elem);
-                            }
+                if let Some(IntegerConstant::Unsigned { value: vector_len, .. }) =
+                    dfg.get_integer_constant(arguments[0])
+                {
+                    let elements_size = element_type.element_size();
+                    let semi_flattened_vector_len =
+                        SemanticLength(vector_len as u32) * elements_size;
 
-                            let new_vector_length =
-                                increment_vector_length(arguments[0], dfg, block, call_stack);
-
-                            let new_vector =
-                                make_array(dfg, vector, element_type, block, call_stack);
-                            return SimplifyResult::SimplifiedToMultiple(vec![
-                                new_vector_length,
-                                new_vector,
-                            ]);
+                    // This simplification, which push back directly on the vector, only works if the real vector_len is the
+                    // the length of the vector (taking the elements size into account).
+                    if semi_flattened_vector_len == SemiFlattenedLength(vector.len() as u32) {
+                        // Old code before implementing multiple vector mergers
+                        for elem in &arguments[2..] {
+                            vector.push_back(*elem);
                         }
+
+                        let new_vector_length =
+                            increment_vector_length(arguments[0], dfg, block, call_stack);
+
+                        let new_vector = make_array(dfg, vector, element_type, block, call_stack);
+                        return SimplifyResult::SimplifiedToMultiple(vec![
+                            new_vector_length,
+                            new_vector,
+                        ]);
                     }
-                    return SimplifyResult::None;
                 }
 
                 simplify_vector_push_back(vector, element_type, arguments, dfg, block, call_stack)
@@ -515,6 +513,12 @@ fn simplify_vector_push_back(
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> SimplifyResult {
+    // TODO(#2752): We need to handle the element_type size to appropriately handle vectors of complex types.
+    // This is reliant on dynamic indices of non-homogenous vectors also being implemented.
+    if element_type.element_size() != ElementTypesLength(1) {
+        return SimplifyResult::None;
+    }
+
     // The capacity must be an integer so that we can compare it against the vector length
     let capacity = dfg.make_constant((vector.len() as u128).into(), NumericType::length_type());
     let len_equals_capacity_instr =
@@ -1022,8 +1026,8 @@ mod tests {
         acir(inline) fn main f0 {
           b0():
             v4 = make_array [Field 1, Field 2, Field 3, Field 4] : [(Field, Field)]
-            v9, v10 = call vector_push_back(u32 2, v4, Field 5, Field 6) -> (u32, [(Field, Field)])
-            return v9, v10
+            v7 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [(Field, Field)]
+            return u32 3, v7
         }
         ");
     }
