@@ -2,6 +2,7 @@
 //! comptime interpreter when evaluating code.
 use std::{borrow::Cow, rc::Rc, vec};
 
+use acvm::FieldElement;
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
@@ -16,8 +17,9 @@ use crate::{
     },
     elaborator::Elaborator,
     hir::{
-        comptime::interpreter::builtin_helpers::fragments_to_string,
-        def_collector::dc_crate::CompilationError, def_map::ModuleId,
+        comptime::{Integer, interpreter::builtin_helpers::fragments_to_string},
+        def_collector::dc_crate::CompilationError,
+        def_map::ModuleId,
         type_check::generics::TraitGenerics,
     },
     hir_def::expr::{
@@ -43,17 +45,7 @@ use super::{
 pub enum Value {
     Unit,
     Bool(bool),
-    Field(SignedField),
-    I8(i8),
-    I16(i16),
-    I32(i32),
-    I64(i64),
-    U1(bool),
-    U8(u8),
-    U16(u16),
-    U32(u32),
-    U64(u64),
-    U128(u128),
+    Integer(Integer),
     String(Rc<String>),
     FormatString(Rc<Vec<FormatStringFragment>>, Type, u32 /* length */),
     CtString(Rc<String>),
@@ -125,7 +117,33 @@ pub enum TypedExpr {
     StmtId(StmtId),
 }
 
+macro_rules! int_constructor {
+    ($name: ident, $capitalized: ident) => {
+        pub(crate) fn $name(x: $name) -> Self {
+            Value::Integer(Integer::$capitalized(x))
+        }
+    };
+}
+
 impl Value {
+    pub(crate) fn field(x: FieldElement) -> Self {
+        Value::Integer(Integer::Field(x))
+    }
+
+    pub(crate) fn u1(x: bool) -> Self {
+        Value::Integer(Integer::U1(x))
+    }
+
+    int_constructor!(u8, U8);
+    int_constructor!(u16, U16);
+    int_constructor!(u32, U32);
+    int_constructor!(u64, U64);
+    int_constructor!(u128, U128);
+    int_constructor!(i8, I8);
+    int_constructor!(i16, I16);
+    int_constructor!(i32, I32);
+    int_constructor!(i64, I64);
+
     pub(crate) fn expression(expr: ExpressionKind) -> Self {
         Value::Expr(Box::new(ExprValue::Expression(expr)))
     }
@@ -148,19 +166,7 @@ impl Value {
         Cow::Owned(match self {
             Value::Unit => Type::Unit,
             Value::Bool(_) => Type::Bool,
-            Value::Field(_) => Type::FieldElement,
-            Value::I8(_) => Type::Integer(Signedness::Signed, IntegerBitSize::Eight),
-            Value::I16(_) => Type::Integer(Signedness::Signed, IntegerBitSize::Sixteen),
-            Value::I32(_) => Type::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo),
-            Value::I64(_) => Type::Integer(Signedness::Signed, IntegerBitSize::SixtyFour),
-            Value::U1(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::One),
-            Value::U8(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight),
-            Value::U16(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::Sixteen),
-            Value::U32(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo),
-            Value::U64(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour),
-            Value::U128(_) => {
-                Type::Integer(Signedness::Unsigned, IntegerBitSize::HundredTwentyEight)
-            }
+            Value::Integer(value) => value.get_type(),
             Value::String(value) => {
                 let length: u32 = value
                     .len()
@@ -213,52 +219,10 @@ impl Value {
         location: Location,
     ) -> IResult<Expression> {
         let kind = match self {
-            Value::Unit => ExpressionKind::Literal(Literal::Unit),
-            Value::Bool(value) => ExpressionKind::Literal(Literal::Bool(value)),
-            Value::Field(value) => {
-                ExpressionKind::Literal(Literal::Integer(value, Some(IntegerTypeSuffix::Field)))
-            }
-            Value::I8(value) => ExpressionKind::Literal(Literal::Integer(
-                SignedField::from_signed(value),
-                Some(IntegerTypeSuffix::I8),
-            )),
-            Value::I16(value) => ExpressionKind::Literal(Literal::Integer(
-                SignedField::from_signed(value),
-                Some(IntegerTypeSuffix::I16),
-            )),
-            Value::I32(value) => ExpressionKind::Literal(Literal::Integer(
-                SignedField::from_signed(value),
-                Some(IntegerTypeSuffix::I32),
-            )),
-            Value::I64(value) => ExpressionKind::Literal(Literal::Integer(
-                SignedField::from_signed(value),
-                Some(IntegerTypeSuffix::I64),
-            )),
-            Value::U1(value) => ExpressionKind::Literal(Literal::Integer(
-                SignedField::positive(value),
-                Some(IntegerTypeSuffix::U1),
-            )),
-            Value::U8(value) => ExpressionKind::Literal(Literal::Integer(
-                SignedField::positive(u128::from(value)),
-                Some(IntegerTypeSuffix::U8),
-            )),
-            Value::U16(value) => ExpressionKind::Literal(Literal::Integer(
-                SignedField::positive(u128::from(value)),
-                Some(IntegerTypeSuffix::U16),
-            )),
-            Value::U32(value) => ExpressionKind::Literal(Literal::Integer(
-                SignedField::positive(value),
-                Some(IntegerTypeSuffix::U32),
-            )),
-            Value::U64(value) => ExpressionKind::Literal(Literal::Integer(
-                SignedField::positive(value),
-                Some(IntegerTypeSuffix::U64),
-            )),
-            Value::U128(value) => ExpressionKind::Literal(Literal::Integer(
-                SignedField::positive(value),
-                Some(IntegerTypeSuffix::U128),
-            )),
-            Value::String(value) => ExpressionKind::Literal(Literal::Str(unwrap_rc(value))),
+            Value::Unit => Literal(Unit),
+            Value::Bool(value) => Literal(Bool(value)),
+            Value::Integer(value) => value.into_expression_kind(),
+            Value::String(value) => Literal(Str(unwrap_rc(value))),
             Value::CtString(value) => {
                 // Lower to `std::meta::AsCtString::as_ctstring(contents)`
                 let ident = |name: &str| Ident::new(name.to_string(), location);
@@ -487,37 +451,7 @@ impl Value {
         let expression = match self {
             Value::Unit => HirExpression::Literal(HirLiteral::Unit),
             Value::Bool(value) => HirExpression::Literal(HirLiteral::Bool(value)),
-            Value::Field(value) => HirExpression::Literal(HirLiteral::Integer(value)),
-            Value::I8(value) => {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::from_signed(value)))
-            }
-            Value::I16(value) => {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::from_signed(value)))
-            }
-            Value::I32(value) => {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::from_signed(value)))
-            }
-            Value::I64(value) => {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::from_signed(value)))
-            }
-            Value::U1(value) => {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value)))
-            }
-            Value::U8(value) => HirExpression::Literal(HirLiteral::Integer(SignedField::positive(
-                u128::from(value),
-            ))),
-            Value::U16(value) => HirExpression::Literal(HirLiteral::Integer(
-                SignedField::positive(u128::from(value)),
-            )),
-            Value::U32(value) => {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value)))
-            }
-            Value::U64(value) => {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value)))
-            }
-            Value::U128(value) => {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value)))
-            }
+            Value::Integer(int) => int.into_hir_expression(),
             Value::String(value) => HirExpression::Literal(HirLiteral::Str(unwrap_rc(value))),
             Value::FormatString(fragments, _typ, length) => {
                 let mut captures = Vec::new();
@@ -640,6 +574,8 @@ impl Value {
             Value::Unit => {
                 vec![Token::LeftParen, Token::RightParen]
             }
+            Value::Bool(bool) => vec![Token::Bool(bool)],
+            Value::Integer(value) => value.into_tokens(),
             Value::Quoted(tokens) => return Ok(unwrap_rc(tokens)),
             Value::Type(typ) => vec![Token::QuotedType(interner.push_quoted_type(typ))],
             Value::Expr(expr) => match *expr {
@@ -668,84 +604,6 @@ impl Value {
                 vec![Token::QuotedType(interner.push_quoted_type(typ))]
             }
             Value::TypedExpr(TypedExpr::ExprId(expr_id)) => vec![Token::UnquoteMarker(expr_id)],
-            Value::Bool(bool) => vec![Token::Bool(bool)],
-            Value::U1(bool) => {
-                vec![Token::Int(u128::from(bool).into(), Some(IntegerTypeSuffix::U1))]
-            }
-            Value::U8(value) => {
-                vec![Token::Int(u128::from(value).into(), Some(IntegerTypeSuffix::U8))]
-            }
-            Value::U16(value) => {
-                vec![Token::Int(u128::from(value).into(), Some(IntegerTypeSuffix::U16))]
-            }
-            Value::U32(value) => {
-                vec![Token::Int(u128::from(value).into(), Some(IntegerTypeSuffix::U32))]
-            }
-            Value::U64(value) => {
-                vec![Token::Int(u128::from(value).into(), Some(IntegerTypeSuffix::U64))]
-            }
-            Value::U128(value) => {
-                vec![Token::Int(value.into(), Some(IntegerTypeSuffix::U128))]
-            }
-            Value::I8(value) => {
-                if value < 0 {
-                    vec![
-                        Token::Minus,
-                        Token::Int(
-                            u128::from(value.unsigned_abs()).into(),
-                            Some(IntegerTypeSuffix::I8),
-                        ),
-                    ]
-                } else {
-                    vec![Token::Int((value as u128).into(), Some(IntegerTypeSuffix::I8))]
-                }
-            }
-            Value::I16(value) => {
-                if value < 0 {
-                    vec![
-                        Token::Minus,
-                        Token::Int(
-                            u128::from(value.unsigned_abs()).into(),
-                            Some(IntegerTypeSuffix::I16),
-                        ),
-                    ]
-                } else {
-                    vec![Token::Int((value as u128).into(), Some(IntegerTypeSuffix::I16))]
-                }
-            }
-            Value::I32(value) => {
-                if value < 0 {
-                    vec![
-                        Token::Minus,
-                        Token::Int(
-                            u128::from(value.unsigned_abs()).into(),
-                            Some(IntegerTypeSuffix::I32),
-                        ),
-                    ]
-                } else {
-                    vec![Token::Int((value as u128).into(), Some(IntegerTypeSuffix::I32))]
-                }
-            }
-            Value::I64(value) => {
-                if value < 0 {
-                    vec![
-                        Token::Minus,
-                        Token::Int(
-                            u128::from(value.unsigned_abs()).into(),
-                            Some(IntegerTypeSuffix::I64),
-                        ),
-                    ]
-                } else {
-                    vec![Token::Int((value as u128).into(), Some(IntegerTypeSuffix::I64))]
-                }
-            }
-            Value::Field(value) => {
-                if value.is_negative() {
-                    vec![Token::Minus, Token::Int(value.absolute_value(), None)]
-                } else {
-                    vec![Token::Int(value.absolute_value(), None)]
-                }
-            }
             Value::String(value) | Value::CtString(value) => {
                 vec![Token::Str(unwrap_rc(value))]
             }
@@ -764,37 +622,13 @@ impl Value {
 
     /// Returns false for non-integral `Value`s.
     pub(crate) fn is_integral(&self) -> bool {
-        use Value::*;
-        matches!(
-            self,
-            Field(_)
-                | I8(_)
-                | I16(_)
-                | I32(_)
-                | I64(_)
-                | U1(_)
-                | U8(_)
-                | U16(_)
-                | U32(_)
-                | U64(_)
-                | U128(_)
-        )
+        matches!(self, Value::Integer(_))
     }
 
     pub(crate) fn is_zero(&self) -> bool {
         use Value::*;
         match self {
-            Field(value) => value.is_zero(),
-            I8(value) => *value == 0,
-            I16(value) => *value == 0,
-            I32(value) => *value == 0,
-            I64(value) => *value == 0,
-            U1(value) => !*value,
-            U8(value) => *value == 0,
-            U16(value) => *value == 0,
-            U32(value) => *value == 0,
-            U64(value) => *value == 0,
-            U128(value) => *value == 0,
+            Integer(value) => value.is_zero(),
             _ => false,
         }
     }
@@ -821,17 +655,7 @@ impl Value {
             Value::Pointer(shared, _, _) => shared.borrow().contains_function_or_closure(),
             Value::Unit
             | Value::Bool(_)
-            | Value::Field(_)
-            | Value::I8(_)
-            | Value::I16(_)
-            | Value::I32(_)
-            | Value::I64(_)
-            | Value::U1(_)
-            | Value::U8(_)
-            | Value::U16(_)
-            | Value::U32(_)
-            | Value::U64(_)
-            | Value::U128(_)
+            | Value::Integer(_)
             | Value::String(_)
             | Value::FormatString(_, _, _)
             | Value::CtString(_)
@@ -852,26 +676,21 @@ impl Value {
 
     /// Converts any integral `Value` into a `SignedField`.
     /// Returns `None` for non-integral `Value`s and negative numbers.
-    pub(crate) fn to_non_negative_signed_field(&self) -> Option<SignedField> {
-        let value = self.to_signed_field()?;
-        value.is_positive().then_some(value)
+    pub(crate) fn as_non_negative_signed_field(&self) -> Option<SignedField> {
+        match self {
+            Value::Integer(int) => int.as_non_negative_field().map(SignedField::positive),
+            _ => None,
+        }
     }
 
-    /// Converts any integral `Value` into a `SignedField`.
-    /// Returns `None` for non-integral `Value`s
-    pub(crate) fn to_signed_field(&self) -> Option<SignedField> {
+    /// Converts any integral `Value` into a `FieldElement`.
+    /// Returns `None` for non-integral `Value`s. Any negative values are
+    /// encoded as negative fields such that `-7 == -FieldElement::from(7)`.
+    /// In other words, the resulting field is not in two's complement form.
+    #[cfg(test)]
+    pub(crate) fn as_field(&self) -> Option<FieldElement> {
         match self {
-            Value::Field(value) => Some(value.into()),
-            Value::I8(value) => Some(value.into()),
-            Value::I16(value) => Some(value.into()),
-            Value::I32(value) => Some(value.into()),
-            Value::I64(value) => Some(value.into()),
-            Value::U1(value) => Some(value.into()),
-            Value::U8(value) => Some(value.into()),
-            Value::U16(value) => Some(value.into()),
-            Value::U32(value) => Some(value.into()),
-            Value::U64(value) => Some(value.into()),
-            Value::U128(value) => Some(value.into()),
+            Value::Integer(int) => Some(int.as_field()),
             _ => None,
         }
     }
@@ -899,13 +718,12 @@ impl Value {
         }
     }
 
+    /// True if this value is negative.
+    /// Defaults to false if this value is not negative or is not an integer.
     pub fn is_negative(&self) -> bool {
         match self {
-            Value::I8(x) => *x < 0,
-            Value::I16(x) => *x < 0,
-            Value::I32(x) => *x < 0,
-            Value::I64(x) => *x < 0,
-            _ => false, // Unsigned or Field types are never negative
+            Value::Integer(int) => int.is_negative(),
+            _ => false,
         }
     }
 

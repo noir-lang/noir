@@ -240,7 +240,7 @@ fn poseidon2_permutation(arguments: Vec<(Value, Location)>, location: Location) 
         .poseidon2_permutation(&input)
         .map_err(|error| InterpreterError::BlackBoxError(error, location))?;
 
-    let array = fields.into_iter().map(|f| Value::Field(SignedField::positive(f))).collect();
+    let array = fields.into_iter().map(|f| Value::field(SignedField::positive(f))).collect();
     Ok(Value::Array(array, typ))
 }
 
@@ -253,7 +253,7 @@ fn keccakf1600(arguments: Vec<(Value, Location)>, location: Location) -> IResult
     let result_lanes = acvm::blackbox_solver::keccakf1600(state)
         .map_err(|error| InterpreterError::BlackBoxError(error, location))?;
 
-    let array: Vector<Value> = result_lanes.into_iter().map(Value::U64).collect();
+    let array: Vector<Value> = result_lanes.into_iter().map(Value::u64).collect();
     Ok(Value::Array(array, typ))
 }
 
@@ -266,7 +266,7 @@ fn sha256_compression(arguments: Vec<(Value, Location)>, location: Location) -> 
 
     acvm::blackbox_solver::sha256_compression(&mut state, &input);
 
-    let state = state.into_iter().map(Value::U32).collect();
+    let state = state.into_iter().map(Value::u32).collect();
     Ok(Value::Array(state, typ))
 }
 
@@ -303,8 +303,8 @@ fn to_embedded_curve_point(
 ) -> Value {
     to_struct(
         [
-            ("x", Value::Field(SignedField::positive(x))),
-            ("y", Value::Field(SignedField::positive(y))),
+            ("x", Value::field(SignedField::positive(x))),
+            ("y", Value::field(SignedField::positive(y))),
             ("is_infinite", Value::Bool(is_infinite)),
         ],
         typ,

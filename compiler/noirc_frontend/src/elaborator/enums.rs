@@ -867,19 +867,9 @@ impl Elaborator<'_> {
         });
 
         let value = match constant {
-            Value::Bool(value) => SignedField::positive(value),
-            Value::Field(value) => value,
-            Value::I8(value) => SignedField::from_signed(value),
-            Value::I16(value) => SignedField::from_signed(value),
-            Value::I32(value) => SignedField::from_signed(value),
-            Value::I64(value) => SignedField::from_signed(value),
-            Value::U1(value) => SignedField::positive(value),
-            Value::U8(value) => SignedField::positive(u128::from(value)),
-            Value::U16(value) => SignedField::positive(u128::from(value)),
-            Value::U32(value) => SignedField::positive(value),
-            Value::U64(value) => SignedField::positive(value),
-            Value::U128(value) => SignedField::positive(value),
-            Value::Zeroed(_) => SignedField::positive(0u32),
+            Value::Bool(value) => value.into(),
+            Value::Integer(int) => int.as_field(),
+            Value::Zeroed(_) => FieldElement::zero(),
             _ => {
                 self.push_err(ResolverError::NonIntegerGlobalUsedInPattern { location });
                 return Pattern::Error;
