@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772217976431,
+  "lastUpdate": 1772220369889,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23166,48 +23166,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "32d579f52c4cdbb30662527578a29ad6a8b9f69d",
-          "message": "chore: add skill to minimize SSA pass crashes (#11588)",
-          "timestamp": "2026-02-20T16:35:18Z",
-          "tree_id": "3656662272b2ffac92fc5e13b7f7858a3980d6b1",
-          "url": "https://github.com/noir-lang/noir/commit/32d579f52c4cdbb30662527578a29ad6a8b9f69d"
-        },
-        "date": 1771606953893,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 250884,
-            "range": "± 3904",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 222271,
-            "range": "± 883",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2724222,
-            "range": "± 1690",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25259,6 +25217,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3143913,
             "range": "± 26725",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "65c393913680ed3fcf03e359136860a6b4bde530",
+          "message": "fix: `<Type>::trait_method` and `Type::trait_method` fixes (#11636)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-02-27T18:58:24Z",
+          "tree_id": "8e9834883ecbce62fdc1294cce2d4878985fe056",
+          "url": "https://github.com/noir-lang/noir/commit/65c393913680ed3fcf03e359136860a6b4bde530"
+        },
+        "date": 1772220323207,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 215931,
+            "range": "± 786",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 201303,
+            "range": "± 3571",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3137722,
+            "range": "± 4457",
             "unit": "ns/iter"
           }
         ]
