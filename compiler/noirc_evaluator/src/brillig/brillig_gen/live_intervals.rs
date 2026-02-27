@@ -40,7 +40,7 @@ use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use super::{constant_allocation::ConstantAllocation, variable_liveness::VariableLiveness};
 
-/// Monotonic index assigned to block entries, instructions, and terminators in RPO order.
+/// Monotonic index assigned to block entries, instructions, and terminators in RPO.
 ///
 /// Program points form a total order over the function. A lower value means
 /// "earlier in execution" (in RPO traversal order). This is used to define
@@ -115,10 +115,10 @@ impl LiveIntervals {
             max_point: ProgramPoint(0),
         };
 
-        // Step 0: Assign program points in RPO order.
+        // Step 0: Assign program points in reverse post-order (RPO).
         result.assign_program_points(func, rpo);
 
-        // Step 1: Build intervals by processing blocks in reverse RPO (post-order).
+        // Step 1: Build intervals by processing blocks in post-order.
         result.build_intervals(func, liveness, rpo);
 
         // Step 2: Post-process for Noir's idom allocation of block params.
@@ -131,7 +131,7 @@ impl LiveIntervals {
     }
 
     /// Assign monotonically increasing program points to block entries,
-    /// instructions, and terminators in RPO order.
+    /// instructions, and terminators in RPO.
     fn assign_program_points(&mut self, func: &Function, rpo: &[BasicBlockId]) {
         let mut index: u32 = 0;
 
@@ -157,7 +157,7 @@ impl LiveIntervals {
         self.max_point = ProgramPoint(index.saturating_sub(1));
     }
 
-    /// Build intervals by processing blocks in reverse post-order.
+    /// Build intervals by processing blocks in post-order (reverse of RPO).
     ///
     /// Implements BUILDINTERVALS from Wimmer & Franz 2010, Section 4.1.
     /// The pseudocode below shows the original algorithm on the left and our
@@ -319,7 +319,7 @@ impl LiveIntervals {
         self.intervals.get(&value)
     }
 
-    /// Check whether two values' intervals overlap (conservative interference).
+    /// Check whether two values' intervals overlap.
     #[cfg(test)]
     pub(crate) fn interferes(&self, a: ValueId, b: ValueId) -> bool {
         match (self.intervals.get(&a), self.intervals.get(&b)) {
