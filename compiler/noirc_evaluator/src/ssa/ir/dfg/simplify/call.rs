@@ -1003,9 +1003,7 @@ mod tests {
           b0():
             v2 = make_array [Field 1, Field 2] : [Field]
             v4 = make_array [Field 1, Field 2, Field 3] : [Field]
-            v5 = make_array [Field 1, Field 2, Field 3] : [Field]
-            v6 = make_array [Field 1, Field 2, Field 3] : [Field]
-            return u32 3, v6
+            return u32 3, v4
         }
         ");
     }
