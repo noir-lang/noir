@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772209140475,
+  "lastUpdate": 1772216849196,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23166,48 +23166,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "dhruvcoding67@gmail.com",
-            "name": "Dhruv Sharma",
-            "username": "illegalcall"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "721d7abfb54722ededf21b082cc093c08c1e4871",
-          "message": "fix(noirc_frontend): improve error for struct literal in if condition (#11557)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-02-20T16:32:42Z",
-          "tree_id": "00e0b80df58d80aca648e5aaea45806878115ca8",
-          "url": "https://github.com/noir-lang/noir/commit/721d7abfb54722ededf21b082cc093c08c1e4871"
-        },
-        "date": 1771605312906,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 250045,
-            "range": "± 1699",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 221084,
-            "range": "± 3350",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2725213,
-            "range": "± 1562",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -25259,6 +25217,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2744519,
             "range": "± 8570",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "38bb8a455b7244ba842a891f16b9587620642ad2",
+          "message": "fix: correct bit size assumption for bound constraint (#11654)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-02-27T17:57:31Z",
+          "tree_id": "750e9774aa6e6ea2cc198e61897c53e02cceda80",
+          "url": "https://github.com/noir-lang/noir/commit/38bb8a455b7244ba842a891f16b9587620642ad2"
+        },
+        "date": 1772216803198,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 216824,
+            "range": "± 2705",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 202755,
+            "range": "± 2172",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3143913,
+            "range": "± 26725",
             "unit": "ns/iter"
           }
         ]
