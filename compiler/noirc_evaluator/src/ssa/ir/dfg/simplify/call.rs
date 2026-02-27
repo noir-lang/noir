@@ -6,7 +6,7 @@ use acvm::{
     AcirField as _, FieldElement,
     acir::{
         BlackBoxFunc,
-        brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength},
+        brillig::lengths::{SemanticLength, SemiFlattenedLength},
     },
 };
 use bn254_blackbox_solver::derive_generators;
@@ -133,32 +133,25 @@ pub(super) fn simplify_call(
         Intrinsic::VectorPushBack => {
             let vector = dfg.get_array_constant(arguments[1]);
             if let Some((mut vector, element_type)) = vector {
-                // TODO(#2752): We need to handle the element_type size to appropriately handle vectors of complex types.
-                // This is reliant on dynamic indices of non-homogenous vectors also being implemented.
-                if element_type.element_size() != ElementTypesLength(1) {
-                    if let Some(IntegerConstant::Unsigned { value: vector_len, .. }) =
-                        dfg.get_integer_constant(arguments[0])
-                    {
-                        // This simplification, which push back directly on the vector, only works if the real vector_len is the
-                        // the length of the vector.
-                        if vector_len as usize == vector.len() {
-                            // Old code before implementing multiple vector mergers
-                            for elem in &arguments[2..] {
-                                vector.push_back(*elem);
-                            }
-
-                            let new_vector_length =
-                                increment_vector_length(arguments[0], dfg, block, call_stack);
-
-                            let new_vector =
-                                make_array(dfg, vector, element_type, block, call_stack);
-                            return SimplifyResult::SimplifiedToMultiple(vec![
-                                new_vector_length,
-                                new_vector,
-                            ]);
+                if let Some(IntegerConstant::Unsigned { value: vector_len, .. }) =
+                    dfg.get_integer_constant(arguments[0])
+                {
+                    // This simplification, which push back directly on the vector, only works if the real vector_len is the
+                    // the length of the vector.
+                    if vector_len as usize == vector.len() {
+                        for elem in &arguments[2..] {
+                            vector.push_back(*elem);
                         }
+
+                        let new_vector_length =
+                            increment_vector_length(arguments[0], dfg, block, call_stack);
+
+                        let new_vector = make_array(dfg, vector, element_type, block, call_stack);
+                        return SimplifyResult::SimplifiedToMultiple(vec![
+                            new_vector_length,
+                            new_vector,
+                        ]);
                     }
-                    return SimplifyResult::None;
                 }
 
                 simplify_vector_push_back(vector, element_type, arguments, dfg, block, call_stack)
@@ -978,6 +971,31 @@ mod tests {
             v0 = make_array [] : [(); 1]
             v1 = make_array [] : [()]
             return
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_vector_push_back_from_previous_make_array() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v2: &mut u1, v4: &mut u1):
+            v5 = make_array [v2, v4] : [&mut u1]
+            v6 = allocate -> &mut u1
+            store u1 0 at v6
+            v14, v15 = call vector_push_back(u32 2, v5, v6) -> (u32, [&mut u1])
+            return v14, v15
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: &mut u1, v1: &mut u1):
+            v2 = make_array [v0, v1] : [&mut u1]
+            v3 = allocate -> &mut u1
+            store u1 0 at v3
+            v5 = make_array [v0, v1, v3] : [&mut u1]
+            return u32 3, v5
         }
         ");
     }
