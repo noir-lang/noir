@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["type_of_binary_operation"],"struct":["BrilligBlock"]};
+window.SIDEBAR_ITEMS = {"fn":["live_in_no_globals","type_of_binary_operation"],"struct":["BrilligBlock"]};

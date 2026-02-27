@@ -196,7 +196,7 @@
 <a href=#196 id=196 data-nosnippet>196</a>    <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_gen::brillig_fn::FunctionContext;
 <a href=#197 id=197 data-nosnippet>197</a>    <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::artifact::{BrilligParameter, Label};
 <a href=#198 id=198 data-nosnippet>198</a>    <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::brillig_variable::BrilligVariable;
-<a href=#199 id=199 data-nosnippet>199</a>    <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::registers::Stack;
+<a href=#199 id=199 data-nosnippet>199</a>    <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::registers::{MAX_STACK_FRAME_SIZE, Stack};
 <a href=#200 id=200 data-nosnippet>200</a>    <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::tests::{
 <a href=#201 id=201 data-nosnippet>201</a>        create_and_run_vm, create_context, create_entry_point_bytecode,
 <a href=#202 id=202 data-nosnippet>202</a>    };
@@ -215,7 +215,7 @@
 <a href=#215 id=215 data-nosnippet>215</a>        <span class="kw">let </span><span class="kw-2">mut </span>brillig_context = create_context(ssa.main_id);
 <a href=#216 id=216 data-nosnippet>216</a>        brillig_context.enter_context(Label::block(ssa.main_id, Id::test_new(<span class="number">0</span>)));
 <a href=#217 id=217 data-nosnippet>217</a>
-<a href=#218 id=218 data-nosnippet>218</a>        <span class="kw">let </span>function_context = FunctionContext::new(ssa.main(), <span class="bool-val">true</span>);
+<a href=#218 id=218 data-nosnippet>218</a>        <span class="kw">let </span>function_context = FunctionContext::new(ssa.main(), <span class="bool-val">true</span>, MAX_STACK_FRAME_SIZE);
 <a href=#219 id=219 data-nosnippet>219</a>        (ssa, function_context, brillig_context)
 <a href=#220 id=220 data-nosnippet>220</a>    }
 <a href=#221 id=221 data-nosnippet>221</a>
