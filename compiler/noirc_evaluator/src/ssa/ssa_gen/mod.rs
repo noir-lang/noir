@@ -162,10 +162,7 @@ fn validate_ssa_or_err(ssa: Ssa) -> Result<Ssa, RuntimeError> {
         } else {
             format!("{payload:?}")
         };
-        let err = RuntimeError::SsaValidationError {
-            message: message.to_owned(),
-            call_stack: CallStack::default(),
-        };
+        let err = RuntimeError::SsaValidationError { message, call_stack: CallStack::default() };
         Err(err)
     } else {
         Ok(ssa)
@@ -779,7 +776,7 @@ impl FunctionContext<'_> {
         self.define(for_expr.index_variable, loop_index.into());
 
         let result = self.codegen_expression(&for_expr.block);
-        self.codegen_unless_break_or_continue(result.clone(), |this, _| {
+        self.codegen_unless_break_or_continue(result, |this, _| {
             let new_loop_index = this.make_offset(loop_index, 1, true);
             this.builder.terminate_with_jmp(loop_entry, vec![new_loop_index]);
         })?;

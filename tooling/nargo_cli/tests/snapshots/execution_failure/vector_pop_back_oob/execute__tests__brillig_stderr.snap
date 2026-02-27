@@ -1,0 +1,14 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Assertion failed: Index out of bounds
+  ┌─ src/main.nr:9:23
+  │
+9 │         let (s2, x) = vector.pop_back();
+  │                       ---------------
+  │
+  = Call stack:
+    1. src/main.nr:9:23
+
+Failed assertion

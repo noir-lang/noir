@@ -318,12 +318,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     /// Define the result variable on the stack, then allocate 1 memory slot on the heap point the reference variable at it.
     pub(crate) fn codegen_allocate(&mut self, instruction_id: InstructionId, dfg: &DataFlowGraph) {
         let [result_id] = dfg.instruction_result(instruction_id);
-        let pointer = self.variables.define_single_addr_variable(
-            self.function_context,
-            self.brillig_context,
-            result_id,
-            dfg,
-        );
+        let pointer = self.define_single_addr_variable(result_id, dfg);
         self.brillig_context.codegen_allocate_immediate_mem(pointer.address, 1);
     }
 
@@ -345,12 +340,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     ) {
         let [result_id] = dfg.instruction_result(instruction_id);
 
-        let target_variable = self.variables.define_variable(
-            self.function_context,
-            self.brillig_context,
-            result_id,
-            dfg,
-        );
+        let target_variable = self.define_variable(result_id, dfg);
 
         let address_variable = self.convert_ssa_single_addr_value(address, dfg);
 
@@ -367,12 +357,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         dfg: &DataFlowGraph,
     ) {
         let [result_id] = dfg.instruction_result(instruction_id);
-        let destination_variable = self.variables.define_variable(
-            self.function_context,
-            self.brillig_context,
-            result_id,
-            dfg,
-        );
+        let destination_variable = self.define_variable(result_id, dfg);
 
         let array_variable = self.convert_ssa_value(array, dfg);
         let index_variable = self.convert_ssa_single_addr_value(index, dfg);
@@ -403,12 +388,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         let value_variable = self.convert_ssa_value(value, dfg);
 
         let [result_id] = dfg.instruction_result(instruction_id);
-        let destination_variable = self.variables.define_variable(
-            self.function_context,
-            self.brillig_context,
-            result_id,
-            dfg,
-        );
+        let destination_variable = self.define_variable(result_id, dfg);
 
         // Constants are assumed to have been offset just before Brillig gen.
         let has_offset = dfg.get_numeric_constant(index).is_some();
@@ -435,14 +415,14 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         let [result_id] = dfg.instruction_result(instruction_id);
         assert!(!self.variables.is_allocated(&result_id), "ICE: array already allocated");
 
+        // Ensure headroom for the result register + temporaries needed by the
+        // initialization and item-writing codegen below (items_pointer, write_pointer,
+        // plus codegen temps that are allocated through BrilligContext directly).
+        self.ensure_register_capacity(4);
+
         // Allocate memory for the array or vector. It will consist of a single register,
         // and the initialization below will further set up its memory layout.
-        let new_variable = self.variables.define_variable(
-            self.function_context,
-            self.brillig_context,
-            result_id,
-            dfg,
-        );
+        let new_variable = self.define_variable(result_id, dfg);
 
         // Initialize the variable, which allocates memory on the heap to hold the metadata and the items.
         match new_variable {

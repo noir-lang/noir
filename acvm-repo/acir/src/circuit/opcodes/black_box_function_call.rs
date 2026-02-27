@@ -310,7 +310,7 @@ impl<F> BlackBoxFuncCall<F> {
             BlackBoxFuncCall::Sha256Compression { outputs, .. } => outputs.to_vec(),
 
             BlackBoxFuncCall::AES128Encrypt { outputs, .. }
-            | BlackBoxFuncCall::Poseidon2Permutation { outputs, .. } => outputs.to_vec(),
+            | BlackBoxFuncCall::Poseidon2Permutation { outputs, .. } => outputs.clone(),
 
             BlackBoxFuncCall::AND { output, .. }
             | BlackBoxFuncCall::XOR { output, .. }
@@ -332,7 +332,7 @@ impl<F: Copy + AcirField> BlackBoxFuncCall<F> {
         match self {
             BlackBoxFuncCall::Blake2s { inputs, outputs: _ }
             | BlackBoxFuncCall::Blake3 { inputs, outputs: _ }
-            | BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs: _ } => inputs.to_vec(),
+            | BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs: _ } => inputs.clone(),
 
             BlackBoxFuncCall::Keccakf1600 { inputs, outputs: _ } => inputs.to_vec(),
             BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, outputs: _ } => {
@@ -667,7 +667,7 @@ mod arb {
                 });
 
             let case_blake3 =
-                (input_arr_8.clone(), witness_arr_32.clone()).prop_map(|(inputs, outputs)| {
+                (input_arr_8.clone(), witness_arr_32).prop_map(|(inputs, outputs)| {
                     BlackBoxFuncCall::Blake3 { inputs: inputs.to_vec(), outputs }
                 });
 
@@ -695,8 +695,8 @@ mod arb {
             let case_ecdsa_secp256r1 = (
                 input_arr_32.clone(),
                 input_arr_32.clone(),
-                input_arr_64.clone(),
-                input_arr_32.clone(),
+                input_arr_64,
+                input_arr_32,
                 witness.clone(),
                 input.clone(),
             )
@@ -732,11 +732,11 @@ mod arb {
 
             let case_embedded_curve_add = (
                 input_arr_3.clone(),
-                input_arr_3.clone(),
+                input_arr_3,
                 input.clone(),
                 witness.clone(),
                 witness.clone(),
-                witness.clone(),
+                witness,
             )
                 .prop_map(|(input1, input2, predicate, w1, w2, w3)| {
                     BlackBoxFuncCall::EmbeddedCurveAdd {
@@ -747,7 +747,7 @@ mod arb {
                     }
                 });
 
-            let case_keccakf1600 = (input_arr_25.clone(), witness_arr_25.clone())
+            let case_keccakf1600 = (input_arr_25, witness_arr_25)
                 .prop_map(|(inputs, outputs)| BlackBoxFuncCall::Keccakf1600 { inputs, outputs });
 
             let case_recursive_aggregation = (
@@ -756,7 +756,7 @@ mod arb {
                 input_vec.clone(),
                 input.clone(),
                 any::<u32>(),
-                input.clone(),
+                input,
             )
                 .prop_map(
                     |(verification_key, proof, public_inputs, key_hash, proof_type, predicate)| {
@@ -772,7 +772,7 @@ mod arb {
                 );
 
             let case_poseidon2_permutation =
-                (input_vec.clone(), witness_vec.clone()).prop_map(|(inputs, outputs)| {
+                (input_vec, witness_vec).prop_map(|(inputs, outputs)| {
                     BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs }
                 });
 

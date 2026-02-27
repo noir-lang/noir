@@ -259,7 +259,7 @@ where
     let mut workspace = read_workspace(&workspace_dir, selection)?;
     // Optionally override the target directory. It's only done here because most commands like the LSP and DAP
     // don't read or write artifacts, so they don't use the target directory.
-    workspace.target_dir = config.target_dir.clone();
+    workspace.target_dir = config.target_dir;
     // Lock manifests if the command needs it.
     let _locks = match cmd.lock_type() {
         LockType::None => None,

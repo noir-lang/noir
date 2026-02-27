@@ -175,8 +175,7 @@ fn find_links_in_markdown_line(line: &str, regex: &Regex) -> impl Iterator<Item 
         let link = captures
             .get(3)
             .or(captures.get(4))
-            .map(|capture| capture.as_str().to_string())
-            .unwrap_or_else(|| word.clone());
+            .map_or_else(|| word.clone(), |capture| capture.as_str().to_string());
 
         // If the left bracket it escaped (`\[`) then it's not a link.
         // There's no need to check the right bracket as `\` is not a valid path character.
