@@ -4,7 +4,7 @@ use noirc_errors::Location;
 use crate::hir_def::expr::HirExpression;
 use crate::hir_def::types::Type;
 
-use crate::node_interner::{DefinitionId, DefinitionKind, Node, NodeInterner};
+use crate::node_interner::{DefinitionKind, Node, NodeInterner};
 
 impl NodeInterner {
     /// Scans the interner for the item which is located at that [Location]
@@ -37,15 +37,15 @@ impl NodeInterner {
         let mut location_candidate: Option<(&Index, &Location, &Type)> = None;
 
         for (index, interned_location) in self.id_to_location.iter() {
-            if interned_location.contains(&location) {
-                if let Some(typ) = self.try_id_type(*index) {
-                    if let Some(current_location) = location_candidate {
-                        if interned_location.span.is_smaller(&current_location.1.span) {
-                            location_candidate = Some((index, interned_location, typ));
-                        }
-                    } else {
+            if interned_location.contains(&location)
+                && let Some(typ) = self.try_id_type(*index)
+            {
+                if let Some(current_location) = location_candidate {
+                    if interned_location.span.is_smaller(&current_location.1.span) {
                         location_candidate = Some((index, interned_location, typ));
                     }
+                } else {
+                    location_candidate = Some((index, interned_location, typ));
                 }
             }
         }
@@ -73,11 +73,10 @@ impl NodeInterner {
 
     pub fn get_declaration_location_from(&self, location: Location) -> Option<Location> {
         self.try_resolve_trait_method_declaration(location).or_else(|| {
-            self.find_location_index(location)
-                .and_then(|index| self.resolve_location(index, false))
-                .and_then(|found_impl_location| {
-                    self.try_resolve_trait_method_declaration(found_impl_location)
-                })
+            let found_impl_location = self
+                .find_location_index(location)
+                .and_then(|index| self.resolve_location(index, false))?;
+            self.try_resolve_trait_method_declaration(found_impl_location)
         })
     }
 
@@ -123,18 +122,14 @@ impl NodeInterner {
     ) -> Option<Location> {
         match expression {
             HirExpression::Ident(ident, _) => {
-                if ident.id != DefinitionId::dummy_id() {
-                    let definition_info = self.definition(ident.id);
-                    match definition_info.kind {
-                        DefinitionKind::Function(func_id) => {
-                            Some(self.function_meta(&func_id).location)
-                        }
-                        DefinitionKind::Local(_local_id) => Some(definition_info.location),
-                        DefinitionKind::Global(_global_id) => Some(definition_info.location),
-                        _ => None,
+                let definition_info = self.definition(ident.id);
+                match definition_info.kind {
+                    DefinitionKind::Function(func_id) => {
+                        Some(self.function_meta(&func_id).location)
                     }
-                } else {
-                    None
+                    DefinitionKind::Local(_local_id) => Some(definition_info.location),
+                    DefinitionKind::Global(_global_id) => Some(definition_info.location),
+                    _ => None,
                 }
             }
             HirExpression::Constructor(expr) => {
@@ -183,16 +178,12 @@ impl NodeInterner {
     /// Example:
     /// impl Foo for Bar { ... } -> trait Foo { ... }
     fn try_resolve_trait_impl_location(&self, location: Location) -> Option<Location> {
-        self.trait_implementations
-            .iter()
-            .find(|shared_trait_impl| {
-                let trait_impl = shared_trait_impl.1.borrow();
-                trait_impl.file == location.file && trait_impl.ident.span().contains(&location.span)
-            })
-            .and_then(|shared_trait_impl| {
-                let trait_impl = shared_trait_impl.1.borrow();
-                self.traits.get(&trait_impl.trait_id).map(|trait_| trait_.location)
-            })
+        let shared_trait_impl = self.trait_implementations.iter().find(|shared_trait_impl| {
+            let trait_impl = shared_trait_impl.1.borrow();
+            trait_impl.file == location.file && trait_impl.ident.span().contains(&location.span)
+        })?;
+        let trait_impl = shared_trait_impl.1.borrow();
+        self.traits.get(&trait_impl.trait_id).map(|trait_| trait_.location)
     }
 
     /// Attempts to resolve [Location] of [Trait][crate::hir_def::traits::Trait]'s [TraitFunction][crate::hir_def::traits::TraitFunction] declaration based on the [Location] of a [TraitFunction][crate::hir_def::traits::TraitFunction] call.
@@ -213,25 +204,22 @@ impl NodeInterner {
     /// ```
     ///
     fn try_resolve_trait_method_declaration(&self, location: Location) -> Option<Location> {
-        self.func_meta
-            .iter()
-            .find(|(_, func_meta)| func_meta.location.contains(&location))
-            .and_then(|(func_id, _func_meta)| {
-                let (_, trait_id) = self.get_function_trait(func_id)?;
+        let (func_id, _func_meta) =
+            self.func_meta.iter().find(|(_, func_meta)| func_meta.location.contains(&location))?;
+        let (_, trait_id) = self.get_function_trait(func_id)?;
 
-                let mut methods = self.traits.get(&trait_id)?.methods.iter();
-                let method =
-                    methods.find(|method| method.name.as_str() == self.function_name(func_id));
-                method.map(|method| method.location)
-            })
+        let mut methods = self.traits.get(&trait_id)?.methods.iter();
+        let method = methods.find(|method| method.name.as_str() == self.function_name(func_id));
+        method.map(|method| method.location)
     }
 
     /// Attempts to resolve [Location] of [Type] based on [Location] of reference in code
     pub(crate) fn try_resolve_type_ref(&self, location: Location) -> Option<Location> {
-        self.try_type_ref_at_location(location).and_then(|typ| match typ {
+        let typ = self.try_type_ref_at_location(location)?;
+        match typ {
             Type::DataType(struct_typ, _) => Some(struct_typ.borrow().location),
             _ => None,
-        })
+        }
     }
 
     pub fn try_type_ref_at_location(&self, location: Location) -> Option<Type> {

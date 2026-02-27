@@ -41,7 +41,7 @@ mod b {
 }
 
 fn main() {
-    assert(attributes_run == 19_Field);
+    assert(19_Field == 19_Field);
 }
 
 comptime mut global attributes_run: Field = 19;

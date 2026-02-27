@@ -128,6 +128,20 @@ impl StatementKind {
                 self
             }
             StatementKind::Comptime(mut statement) => {
+                // `comptime { expr };` => `Semi(comptime { expr })`
+                if semi.is_some()
+                    && let StatementKind::Expression(Expression {
+                        kind: ExpressionKind::Block(block),
+                        ..
+                    }) = statement.kind
+                {
+                    let comptime_expr = Expression {
+                        kind: ExpressionKind::Comptime(block, statement.location),
+                        location,
+                    };
+                    return StatementKind::Semi(comptime_expr);
+                }
+
                 *statement =
                     statement.add_semicolon(semi, location, last_statement_in_block, emit_error);
                 StatementKind::Comptime(statement)
@@ -319,7 +333,7 @@ pub struct ImportStatement {
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub enum PathKind {
     Crate,
-    Dep,
+    Absolute,
     Plain,
     Super,
     /// This path is a Crate or Dep path which always points to the given crate.
@@ -957,7 +971,7 @@ impl Display for PathKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             PathKind::Crate => write!(f, "crate"),
-            PathKind::Dep => write!(f, "dep"),
+            PathKind::Absolute => write!(f, ""),
             PathKind::Super => write!(f, "super"),
             PathKind::Plain => write!(f, "plain"),
             PathKind::Resolved(_) => write!(f, "$crate"),

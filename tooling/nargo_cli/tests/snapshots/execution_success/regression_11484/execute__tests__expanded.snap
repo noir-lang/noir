@@ -1,0 +1,16 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    let mut y: u32 = 0_u32;
+    let mut x: u32 = 0_u32;
+    let n: u32 = 17_u32;
+    for i in 0_u32..n {
+        x = 10_u32;
+        y = i;
+    }
+    println(y);
+    assert(y == (n - 1_u32));
+    assert(x == 10_u32);
+}

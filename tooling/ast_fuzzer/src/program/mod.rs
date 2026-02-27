@@ -43,7 +43,7 @@ pub fn arb_program(u: &mut Unstructured, config: Config) -> arbitrary::Result<Pr
 /// Generate an arbitrary monomorphized AST to be reversed into a valid comptime
 /// Noir, with a single comptime function called from main with literal arguments.
 pub fn arb_program_comptime(u: &mut Unstructured, config: Config) -> arbitrary::Result<Program> {
-    let mut config = config.clone();
+    let mut config = config;
     // Comptime should use Brillig feature set
     config.force_brillig = true;
 
@@ -66,7 +66,7 @@ pub fn arb_program_comptime(u: &mut Unstructured, config: Config) -> arbitrary::
     let decl_main = FunctionDeclaration {
         name: "main".into(),
         params: vec![],
-        return_type: decl_inner.return_type.clone(),
+        return_type: decl_inner.return_type,
         return_visibility: Visibility::Public,
         inline_type: InlineType::default(),
         unconstrained: false,
@@ -344,7 +344,7 @@ impl Context {
 
     /// Generate random function bodies.
     fn gen_functions(&mut self, u: &mut Unstructured) -> arbitrary::Result<()> {
-        let ids = self.function_declarations.keys().cloned().collect::<Vec<_>>();
+        let ids = self.function_declarations.keys().copied().collect::<Vec<_>>();
         for id in ids {
             self.gen_function(u, id)?;
         }

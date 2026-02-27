@@ -25,7 +25,7 @@ pub(crate) fn on_document_symbol_request(
     params: DocumentSymbolParams,
 ) -> impl Future<Output = Result<Option<DocumentSymbolResponse>, ResponseError>> + use<> {
     let text_document_position_params = TextDocumentPositionParams {
-        text_document: params.text_document.clone(),
+        text_document: params.text_document,
         position: Position { line: 0, character: 0 },
     };
 
@@ -296,10 +296,10 @@ impl Visitor for DocumentSymbolCollector<'_> {
         }
 
         // If there's a body, extend the span to include it
-        if let Some(body) = body {
-            if let Some(statement) = body.statements.last() {
-                span = Span::from(span.start()..statement.location.span.end());
-            }
+        if let Some(body) = body
+            && let Some(statement) = body.statements.last()
+        {
+            span = Span::from(span.start()..statement.location.span.end());
         }
 
         let Some(location) = self.to_lsp_location(span) else {
@@ -431,7 +431,7 @@ impl Visitor for DocumentSymbolCollector<'_> {
 
         #[allow(deprecated)]
         self.symbols.push(DocumentSymbol {
-            name: name.to_string(),
+            name,
             detail: None,
             kind: SymbolKind::NAMESPACE,
             tags: None,

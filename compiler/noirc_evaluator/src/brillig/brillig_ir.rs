@@ -17,7 +17,7 @@ pub(crate) mod registers;
 
 mod codegen_binary;
 mod codegen_calls;
-mod codegen_control_flow;
+pub(crate) mod codegen_control_flow;
 mod codegen_intrinsic;
 mod codegen_memory;
 mod codegen_stack;
@@ -34,7 +34,8 @@ use registers::{RegisterAllocator, ScratchSpace};
 
 use crate::brillig::assert_u32;
 
-pub(crate) use self::registers::LayoutConfig;
+pub use self::registers::LayoutConfig;
+pub use self::registers::{MAX_SCRATCH_SPACE, MAX_STACK_FRAME_SIZE, NUM_STACK_FRAMES};
 use self::{artifact::BrilligArtifact, debug_show::DebugToString, registers::Stack};
 use acvm::{
     AcirField,
@@ -79,6 +80,21 @@ impl ReservedRegisters {
     /// This register stores a 1_usize constant.
     pub(crate) fn usize_one() -> MemoryAddress {
         MemoryAddress::direct(2)
+    }
+
+    /// Fixed stack slot `sp[1]` holds the per-frame spill base pointer.
+    /// Each function's prologue allocates a heap region and stores the pointer here.
+    /// Stack-relative addressing means it's automatically preserved across calls.
+    pub(crate) fn spill_base_pointer() -> MemoryAddress {
+        MemoryAddress::relative(1)
+    }
+
+    /// Two scratch addresses used transiently during spill/reload computations.
+    /// These are the first two slots of scratch space (`@3` and `@4`).
+    /// Safe to use because block codegen never uses scratch space directly.
+    pub(crate) fn spill_scratch() -> (MemoryAddress, MemoryAddress) {
+        let start = ScratchSpace::start();
+        (MemoryAddress::direct(assert_u32(start)), MemoryAddress::direct(assert_u32(start + 1)))
     }
 }
 
@@ -179,6 +195,60 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             can_call_procedures: true,
             globals_memory_size: None,
         }
+    }
+
+    /// Emit 3 placeholder no-op opcodes (self-moves) in the prologue for the spill region
+    /// allocation. Their positions are recorded so they can be overwritten later if the
+    /// function actually spills any values.
+    pub(crate) fn emit_unresolved_spill_prologue(&mut self) {
+        let no_op_register = ReservedRegisters::usize_one();
+        let positions = [
+            self.obj.index_of_next_opcode(),
+            self.obj.index_of_next_opcode() + 1,
+            self.obj.index_of_next_opcode() + 2,
+        ];
+        // Emit 3 harmless self-moves as placeholders
+        for _ in 0..3 {
+            self.push_opcode(BrilligOpcode::Mov {
+                destination: no_op_register,
+                source: no_op_register,
+            });
+        }
+        self.obj.set_unresolved_spill_prologue(positions);
+    }
+
+    /// Overwrite the 3 placeholder no-op opcodes with real spill region allocation instructions.
+    /// Called after all blocks are compiled, only if the function actually spilled values.
+    pub(crate) fn resolve_spill_prologue(&mut self, actual_spill_size: usize) {
+        use acvm::acir::brillig::{BinaryIntOp, BitSize, IntegerBitSize};
+
+        let positions = self
+            .obj
+            .take_unresolved_spill_prologue()
+            .expect("ICE: resolve_spill_prologue called without emit_unresolved_spill_prologue");
+        let (scratch, _) = ReservedRegisters::spill_scratch();
+
+        // Save current FMP as spill base
+        // [0]: Mov sp[1], @1
+        self.obj.byte_code[positions[0]] = BrilligOpcode::Mov {
+            destination: ReservedRegisters::spill_base_pointer(),
+            source: ReservedRegisters::free_memory_pointer(),
+        };
+        // [1]: Const @scratch, actual_spill_size
+        self.obj.byte_code[positions[1]] = BrilligOpcode::Const {
+            destination: scratch,
+            value: F::from(actual_spill_size as u128),
+            bit_size: BitSize::Integer(IntegerBitSize::U32),
+        };
+        // Bump FMP by actual amount
+        // [2]: BinaryIntOp Add @1, @1, @scratch
+        self.obj.byte_code[positions[2]] = BrilligOpcode::BinaryIntOp {
+            op: BinaryIntOp::Add,
+            destination: ReservedRegisters::free_memory_pointer(),
+            bit_size: IntegerBitSize::U32,
+            lhs: ReservedRegisters::free_memory_pointer(),
+            rhs: scratch,
+        };
     }
 }
 
@@ -750,13 +820,18 @@ pub(crate) mod tests {
                     panic!("We are performing a mem copy when it should have been skipped");
                 }
                 _ => {}
-            };
+            }
             vm.process_opcode();
         }
 
         let status = vm.get_status();
-        // The VM successfully finished executing
-        assert_eq!(status, VMStatus::Finished { return_data_offset: 6, return_data_size: 6 });
+        // The VM successfully finished executing.
+        // The return_data values equal the stack pointer which starts at ReservedRegisters::len() + 3 variables.
+        let expected_sp = assert_u32(ReservedRegisters::len() + 3);
+        assert_eq!(
+            status,
+            VMStatus::Finished { return_data_offset: expected_sp, return_data_size: expected_sp }
+        );
     }
 
     /// Test proving that empty array allocation near heap limit triggers OOM.
@@ -894,5 +969,88 @@ pub(crate) mod tests {
 
         // This call should panic with "Call arguments would exceed stack frame bounds"
         context.codegen_call(FunctionId::test_new(1), &arguments, &[]);
+    }
+
+    /// Test that jmp block parameter passing handles the parallel-move problem correctly.
+    ///
+    /// When a jmp instruction passes block parameters where a source register is also a
+    /// destination for another parameter, the sequential mov loop can overwrite values.
+    /// For example, `jmp b1(v1, v2, u32 10)` where b1(v2, v3, v4):
+    ///   1. mov reg(v2), reg(v1) — overwrites old v3
+    ///   2. mov reg(v3), reg(v2) — reads the NEW v2 instead of old
+    ///
+    /// This test verifies the fix by running a loop where v3 should get the old v2 value.
+    #[test]
+    fn jmp_block_params_parallel_move() {
+        let src = r#"
+            brillig(inline) impure fn main f0 {
+              b0():
+                jmp b1(u32 0, u32 0, u32 0)
+              b1(v3: u32, v35: u32, v36: u32):
+                v5 = lt v3, u32 17
+                jmpif v5 then: b2, else: b3
+              b2():
+                v8 = unchecked_add v3, u32 1
+                jmp b1(v8, v3, u32 10)
+              b3():
+                constrain v35 == u32 16
+                constrain v36 == u32 10
+                return
+            }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let main = ssa.main();
+        let options = BrilligOptions::default();
+        let brillig = ssa.to_brillig(&options);
+        let generated = gen_brillig_for(main, vec![], &brillig, &options).unwrap();
+
+        let mut vm = VM::new(vec![], &generated.byte_code, &DummyBlackBoxSolver, false, None);
+        let status = vm.process_opcodes();
+        assert_eq!(
+            status,
+            VMStatus::Finished { return_data_offset: 0, return_data_size: 0 },
+            "VM should finish successfully; v35 should be 16 and v36 should be 10"
+        );
+    }
+
+    /// Test that the parallel-move fix preserves temporary registers across all moves.
+    ///
+    /// When two block parameters are swapped (`jmp b1(v1, v0, ...)`  where `b1(v0, v1, ...)`),
+    /// both sources are also destinations, so both need temporaries. If the temporaries are
+    /// freed too early, the register allocator can reuse the same address for the second
+    /// temp, overwriting the first saved value.
+    #[test]
+    fn jmp_block_params_parallel_move_swap() {
+        let src = r#"
+            brillig(inline) impure fn main f0 {
+              b0():
+                jmp b1(u32 0, u32 1, u32 0)
+              b1(v0: u32, v1: u32, v2: u32):
+                v3 = lt v2, u32 1
+                jmpif v3 then: b2, else: b3
+              b2():
+                v4 = unchecked_add v2, u32 1
+                jmp b1(v1, v0, v4)
+              b3():
+                constrain v0 == u32 1
+                constrain v1 == u32 0
+                return
+            }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let main = ssa.main();
+        let options = BrilligOptions::default();
+        let brillig = ssa.to_brillig(&options);
+        let generated = gen_brillig_for(main, vec![], &brillig, &options).unwrap();
+
+        let mut vm = VM::new(vec![], &generated.byte_code, &DummyBlackBoxSolver, false, None);
+        let status = vm.process_opcodes();
+        assert_eq!(
+            status,
+            VMStatus::Finished { return_data_offset: 0, return_data_size: 0 },
+            "VM should finish successfully; v0 and v1 should be swapped after one iteration"
+        );
     }
 }

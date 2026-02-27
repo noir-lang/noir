@@ -183,7 +183,7 @@ pub fn module_full_path(
                 }
             }
         }
-    };
+    }
 
     segments.reverse();
     segments.join("::")
@@ -232,7 +232,7 @@ pub fn module_def_id_relative_path(
             format!("{module_path}::{name}")
         }
     } else {
-        module_path.clone()
+        module_path
     };
 
     Some(path)

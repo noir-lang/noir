@@ -57,7 +57,7 @@ Test cases are auto-generated from these directories by `tooling/nargo_cli/build
 
 ## Build & Development Commands
 
-The project uses `just` as a task runner and `cargo` for Rust builds. Minimum Rust version: 1.87.0. Run `just --list` to see all available commands.
+The project uses `just` as a task runner and `cargo` for Rust builds. Minimum Rust version: 1.89.0. Run `just --list` to see all available commands.
 
 ### Building
 
@@ -80,7 +80,10 @@ cargo test -p nargo_cli --test stdlib-tests -- run_stdlib_tests array  # Stdlib 
 cargo test -p noir_ast_fuzzer --test smoke              # Fuzz tests (quick)
 ```
 
-Integration tests use `insta` for snapshot testing. When adding new tests or changing outputs, review and accept snapshots with `cargo insta review`.
+Integration tests use `insta` for snapshot testing. When adding new tests or changing outputs:
+- **Do NOT use `cargo insta review`** — it launches an interactive TUI that cannot be used from a CLI agent. Instead, read `.snap.new` files directly to review before accepting.
+- `cargo insta accept` — accept all pending snapshots non-interactively
+- `cargo insta accept --filter <pattern>` — accept specific snapshots
 
 ### Testing (JavaScript/TypeScript)
 

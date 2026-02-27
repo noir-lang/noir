@@ -161,7 +161,7 @@ pub(crate) fn compile_procedure<F: AcirField + DebugToString>(
         ProcedureId::RevertWithString(error_string) => {
             compile_error_with_string_procedure(&mut brillig_context, error_string);
         }
-    };
+    }
 
     brillig_context.return_instruction();
     brillig_context.into_artifact()

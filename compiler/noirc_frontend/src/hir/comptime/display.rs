@@ -489,9 +489,9 @@ impl Display for ValuePrinter<'_, '_> {
             Value::TraitImpl(trait_impl_id) => {
                 let trait_impl = self.interner.get_trait_implementation(*trait_impl_id);
                 let trait_impl = trait_impl.borrow();
+                let ordered_generics = self.interner.get_ordered_generics_for_impl(*trait_impl_id);
 
-                let generic_string =
-                    vecmap(&trait_impl.trait_generics, ToString::to_string).join(", ");
+                let generic_string = vecmap(ordered_generics, ToString::to_string).join(", ");
                 let generic_string = if generic_string.is_empty() {
                     generic_string
                 } else {

@@ -1,4 +1,4 @@
-use dep::std::convert::From;
+use std::convert::From;
 
 struct MyU128 {
     lo: Field,
@@ -25,7 +25,7 @@ impl From<u32> for MyU128 {
 
 fn main() {
     let x: u64 = 0;
-    let mut small_int = MyU128::from(x);
+    let small_int = MyU128::from(x);
     assert(small_int.lo == x as Field);
     let u32_3: u32 = 3;
     assert(MyU128::from(u32_3).lo == 3);

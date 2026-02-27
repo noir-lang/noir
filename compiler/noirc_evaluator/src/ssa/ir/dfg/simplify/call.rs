@@ -551,7 +551,14 @@ fn simplify_vector_push_back(
     vector_sizes.insert(set_last_vector_value, vector_size / element_size);
     vector_sizes.insert(new_vector, vector_size / element_size);
 
-    let mut value_merger = ValueMerger::new(dfg, block, &vector_sizes, call_stack);
+    let array_get_optimization_side_effects = None;
+    let mut value_merger = ValueMerger::new(
+        dfg,
+        block,
+        &vector_sizes,
+        call_stack,
+        array_get_optimization_side_effects,
+    );
 
     let Ok(new_vector) = value_merger.merge_values(
         len_not_equals_capacity,
@@ -778,7 +785,7 @@ fn simplify_derive_generators(
             }
             let len = results.len() as u32;
             assert!(
-                len % 3 == 0,
+                len.is_multiple_of(3),
                 "The number of results from derive_generators must be a multiple of 3"
             );
             let typ = Type::Array(

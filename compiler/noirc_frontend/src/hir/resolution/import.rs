@@ -189,7 +189,7 @@ fn path_segment_to_typed_path_segment(segment: PathSegment) -> TypedPathSegment 
 /// Given a `TypedPath` and a [ModuleId] it's being used in, this function returns a `TypedPath`
 /// and a [ModuleId] where that `TypedPath` should be resolved.
 ///
-/// For a [PathKind::Dep] with a value such as `dep::foo::bar::baz`, the path will be turned into a
+/// For a [PathKind::Absolute] with a value such as `::foo::bar::baz`, the path will be turned into a
 /// [PathKind::Plain] with the first segment (the crate `foo`) removed, leaving just `bar::baz`
 /// to be resolved within `foo`. For other cases the path kind stays the same, it's just paired
 /// up with the module where it should be looked up. If the module cannot be found, and error is
@@ -223,8 +223,8 @@ pub(crate) fn first_segment_is_always_visible(
         PathKind::Crate | PathKind::Super => true,
         PathKind::Plain => importing_module == starting_module,
         PathKind::Resolved(_) => false,
-        PathKind::Dep => {
-            unreachable!("ICE: Dep path kinds should have been turned into Plain.")
+        PathKind::Absolute => {
+            unreachable!("ICE: Absolute path kinds should have been turned into Plain.")
         }
     }
 }
@@ -241,7 +241,7 @@ impl PathResolutionTargetResolver<'_, '_> {
         match path.kind {
             PathKind::Crate => self.resolve_crate_path(path, self.importing_module.krate),
             PathKind::Plain => self.resolve_plain_path(path, self.importing_module),
-            PathKind::Dep => self.resolve_dep_path(path),
+            PathKind::Absolute => self.resolve_absolute_path(path),
             PathKind::Super => self.resolve_super_path(path),
             PathKind::Resolved(crate_id) => self.resolve_crate_path(path, crate_id),
         }
@@ -262,7 +262,7 @@ impl PathResolutionTargetResolver<'_, '_> {
 
     /// Resolve a path such as `foo::bar`:
     /// * check if `foo` module can be found in the current importing module
-    /// * if not, treat the path as if it were `dep::foo::bar` and look for a `foo` crate instead
+    /// * if not, treat the path as if it were `::foo::bar` and look for a `foo` crate instead
     fn resolve_plain_path(
         &mut self,
         path: TypedPath,
@@ -278,16 +278,16 @@ impl PathResolutionTargetResolver<'_, '_> {
             &path.segments.first().expect("ICE: could not fetch first segment").ident;
         if get_module(self.def_maps, current_module).find_name(first_segment).is_none() {
             // Resolve externally when first segment is unresolved
-            return self.resolve_dep_path(path);
+            return self.resolve_absolute_path(path);
         }
 
         Ok((path, current_module))
     }
 
-    /// Resolve a path such as `dep::foo:bar::baz`:
+    /// Resolve a path such as `::foo:bar::baz`:
     /// * find the `foo` crate among the dependencies of the current importing module
     /// * remove the crate `foo` from the path, returning a plain path `bar::baz` along with the dependency module
-    fn resolve_dep_path(
+    fn resolve_absolute_path(
         &mut self,
         mut path: TypedPath,
     ) -> Result<(TypedPath, ModuleId), PathResolutionError> {

@@ -10,7 +10,9 @@
 //! This pass works by tracking the last use location for each variable with a
 //! "loop index" and a `Branches` enumeration.
 //! - The loop index tracks the loop level the variable was declared in. A variable
-//!   must be cloned in any loop with an index greater than the variable's own loop index.
+//!   must be cloned in any loop with an index greater than the variable's own loop index,
+//!   except if we are reassigning a variable, which effectively kills the reference to
+//!   its previous value, in which case the variable can be moved.
 //!   Note that "loop index" refers to how nested we are within loops. A function starts
 //!   in index 0, and when we enter the body of a `loop {}` or `for _ in a..b {}`, the index
 //!   increments by 1. So `b` in `loop { for _ in 0..1 { b } }` would have index `2`.
@@ -24,8 +26,10 @@
 //!   area for future optimization. E.g. the program `a.b.c; a.e.f` will result in `a` being
 //!   cloned in its entirety in the first statement. Note that this is lessened in the overall
 //!   ownership pass such that only `.c` is cloned but it is still an area for improvement.
+
 use crate::monomorphization::ast::{self, IdentId, LocalId};
 use crate::monomorphization::ast::{Expression, Function, Literal};
+use iter_extended::vecmap;
 use rustc_hash::FxHashMap as HashMap;
 
 use super::Context;
@@ -152,6 +156,11 @@ struct LastUseContext {
     ///   ```
     ///   `x` above has two last uses, one in each if branch.
     last_uses: HashMap<LocalId, (/*loop index*/ usize, Branches)>,
+
+    /// When a variable is overwritten in an assignment, we can treat the last uses so far
+    /// as confirmed, because the reassignment essentially kills the reference to the previous
+    /// version and redeclares it as new.
+    confirmed_moves: HashMap<LocalId, Vec<IdentId>>,
 }
 
 impl Context {
@@ -163,6 +172,7 @@ impl Context {
         let mut context = LastUseContext {
             current_loop_and_branch: Vec::new(),
             last_uses: HashMap::default(),
+            confirmed_moves: HashMap::default(),
             next_id: 0,
         };
 
@@ -290,12 +300,34 @@ impl LastUseContext {
         }
     }
 
+    /// Navigate the `Branches` tree along the given path and extract only
+    /// the sub-tree at the leaf, replacing it with `Branches::None`.
+    /// Sibling branches are left untouched.
+    fn extract_branch_at_path(
+        branches: &mut Branches,
+        path: &[(IfOrMatchId, BranchId)],
+    ) -> Branches {
+        match path {
+            [] => std::mem::replace(branches, Branches::None),
+            [(if_id, branch_id), rest @ ..] => {
+                if let Branches::IfOrMatch(id, map) = branches
+                    && *id == *if_id
+                    && let Some(branch) = map.get_mut(branch_id)
+                {
+                    return Self::extract_branch_at_path(branch, rest);
+                }
+                Branches::None
+            }
+        }
+    }
+
     /// Collect the last use(s) of every local variable.
     fn get_variables_to_move(self) -> HashMap<LocalId, Vec<IdentId>> {
-        self.last_uses
-            .into_iter()
-            .map(|(definition, (_, last_uses))| (definition, last_uses.flatten_uses()))
-            .collect()
+        let mut moves = self.confirmed_moves;
+        for (id, (_, branches)) in self.last_uses {
+            moves.entry(id).or_default().extend(branches.flatten_uses());
+        }
+        moves
     }
 
     fn track_variables_in_expression(&mut self, expr: &Expression) {
@@ -350,6 +382,8 @@ impl LastUseContext {
                     self.track_variables_in_expression(element);
                 }
             }
+
+            Literal::Repeated { element, .. } => self.track_variables_in_expression(element),
         }
     }
 
@@ -372,23 +406,44 @@ impl LastUseContext {
     }
 
     fn track_variables_in_for(&mut self, for_expr: &ast::For) {
+        // The start and end range are evaluated once before the loop begins,
+        // so they are tracked outside the loop scope.
         self.track_variables_in_expression(&for_expr.start_range);
         self.track_variables_in_expression(&for_expr.end_range);
-        self.track_variables_in_loop(&for_expr.block);
+        self.track_variables_in_loop_exprs(&[&for_expr.block]);
     }
 
     fn track_variables_in_while(&mut self, while_expr: &ast::While) {
-        self.push_loop_scope();
         // The condition is evaluated on every iteration of the loop and thus must be included in the loop scope.
-        self.track_variables_in_expression(&while_expr.condition);
-        self.track_variables_in_expression(&while_expr.body);
-        self.pop_loop_scope();
+        self.track_variables_in_loop_exprs(&[&while_expr.condition, &while_expr.body]);
     }
 
     fn track_variables_in_loop(&mut self, loop_body: &Expression) {
+        self.track_variables_in_loop_exprs(&[loop_body]);
+    }
+
+    /// Track variables in a loop body. Each expression in `loop_exprs` must be
+    /// an expression that is evaluated on each iteration of the loop.
+    fn track_variables_in_loop_exprs(&mut self, loop_exprs: &[&Expression]) {
+        // Save the current loop index of the variables we are tracking.
+        // They *might* be reassigned inside the loop, which would change their index, but we need to restore them after.
+        let orig_indices = vecmap(&self.last_uses, |(id, (index, _))| (*id, *index));
+
         self.push_loop_scope();
-        self.track_variables_in_expression(loop_body);
+        for expr in loop_exprs {
+            self.track_variables_in_expression(expr);
+        }
         self.pop_loop_scope();
+
+        for (id, orig_index) in orig_indices {
+            if let Some((index, branches)) = self.last_uses.get_mut(&id)
+                && *index != orig_index
+            {
+                *index = orig_index;
+                // If the value is still accessible outside the loop, don't move it inside the loop after it has been redeclared.
+                *branches = Branches::None;
+            }
+        }
     }
 
     fn track_variables_in_if(&mut self, if_expr: &ast::If) {
@@ -462,7 +517,41 @@ impl LastUseContext {
     }
 
     fn track_variables_in_assign(&mut self, assign: &ast::Assign) {
+        // See if we are reassigning a variable, killing the reference to its previous value.
+        // (Since we have a separate `Let` to declare variables, any `Assign` to an `Ident` is a reassignment).
+        // Only considering simple variables here, not member access or indexing; those would require a more
+        // careful analysis and potentially a different algorithm.
+        let variable = match &assign.lvalue {
+            ast::LValue::Ident(ast::Ident {
+                definition: ast::Definition::Local(local_id), ..
+            }) => Some(*local_id),
+            _ => None,
+        };
+
+        if let Some(local_id) = &variable {
+            // Adjust its loop index to be the current loop, so that `remember_use_of_variable`
+            // remembers any last use, rather than clear out its current state.
+            let current_index = self.loop_index();
+            if let Some((index, _)) = self.last_uses.get_mut(local_id) {
+                *index = current_index;
+            }
+        }
+
         self.track_variables_in_expression(&assign.expression);
+
+        if let Some(local_id) = variable {
+            // Confirm any last uses we have on the variable at this point (which may be in `assign.expression`),
+            // From here on it acts as a newly declared variable with no history.
+            if let Some((_, branches)) = self.last_uses.get_mut(&local_id) {
+                let path = self
+                    .current_loop_and_branch
+                    .last()
+                    .expect("We should always have at least 1 path");
+                let extracted = Self::extract_branch_at_path(branches, path);
+                self.confirmed_moves.entry(local_id).or_default().extend(extracted.flatten_uses());
+                return;
+            }
+        }
         self.track_variables_in_lvalue(&assign.lvalue, false /* nested */);
     }
 

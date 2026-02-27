@@ -658,11 +658,11 @@ impl Context<'_> {
         match &value {
             AcirValue::Var(acir_var, typ) => {
                 let array_typ = dfg.type_of_value(array);
-                if let Type::Numeric(numeric_type) = array_typ.first() {
-                    if numeric_type.bit_size::<FieldElement>() <= typ.bit_size::<FieldElement>() {
-                        // first element is compatible
-                        index_side_effect = false;
-                    }
+                if let Type::Numeric(numeric_type) = array_typ.first()
+                    && numeric_type.bit_size::<FieldElement>() <= typ.bit_size::<FieldElement>()
+                {
+                    // first element is compatible
+                    index_side_effect = false;
                 }
 
                 if index_side_effect {
@@ -739,8 +739,11 @@ impl Context<'_> {
                 }
                 Ok(AcirValue::Array(values))
             }
+            Type::Vector(_) => Ok(AcirValue::Array(im::Vector::new())),
             Type::Reference(reference_type) => self.array_zero_value(reference_type.as_ref()),
-            _ => unreachable!("ICE: Expected an array or numeric but got {ssa_type:?}"),
+            Type::Function => {
+                unreachable!("ICE: unexpected Function type in array_zero_value")
+            }
         }
     }
 

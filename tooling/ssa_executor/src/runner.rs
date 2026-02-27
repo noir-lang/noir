@@ -33,7 +33,7 @@ fn execute<B: BlackBoxFunctionSolver<FieldElement> + Default>(
 ) -> Result<WitnessStack<FieldElement>, NargoError<FieldElement>> {
     execute_program(
         program,
-        initial_witness.clone(),
+        initial_witness,
         &B::default(),
         &mut DefaultForeignCallBuilder::default().build(),
     )

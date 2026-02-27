@@ -37,7 +37,14 @@
 ) -> <a href="../../std/embedded_curve_ops/struct.EmbeddedCurvePoint.html" class="struct">EmbeddedCurvePoint</a></code></pre>
 
 <div class="comments">
-<p>This function assumes that the points are on the curve</p>
+<p>Elliptic curve addition
+IMPORTANT: this function is expected to perform a full addition in order to handle all corner cases:</p>
+<ul>
+<li>points on the curve</li>
+<li>point doubling</li>
+<li>point at infinity
+As a result, you may not get optimal performance, depending on the assumptions of your inputs.</li>
+</ul>
 </div>
 </main>
 </span>

@@ -88,9 +88,8 @@ impl RedisManager {
     }
 }
 
-lazy_static::lazy_static! {
-    static ref REDIS_MANAGER: Arc<Mutex<Option<RedisManager>>> = Arc::new(Mutex::new(None));
-}
+static REDIS_MANAGER: std::sync::LazyLock<Arc<Mutex<Option<RedisManager>>>> =
+    std::sync::LazyLock::new(|| Arc::new(Mutex::new(None)));
 
 pub(crate) fn get_redis_manager() -> Arc<Mutex<Option<RedisManager>>> {
     REDIS_MANAGER.clone()

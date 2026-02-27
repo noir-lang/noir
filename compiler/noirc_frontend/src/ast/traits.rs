@@ -156,7 +156,7 @@ impl Display for NoirTrait {
         let where_clause = vecmap(&self.where_clause, ToString::to_string);
         if !where_clause.is_empty() {
             write!(f, " where {}", where_clause.join(", "))?;
-        };
+        }
 
         writeln!(f, " {{")?;
 

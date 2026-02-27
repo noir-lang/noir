@@ -132,7 +132,7 @@ fn ecdsa_secp256_verify(
     let (pub_key_x, _) = get_fixed_array_map(pub_key_x, get_u8)?;
     let (pub_key_y, _) = get_fixed_array_map(pub_key_y, get_u8)?;
     let (sig, _) = get_fixed_array_map(sig, get_u8)?;
-    let (msg_hash, _) = get_fixed_array_map(msg_hash.clone(), get_u8)?;
+    let (msg_hash, _) = get_fixed_array_map(msg_hash, get_u8)?;
 
     let is_valid = f(&msg_hash, &pub_key_x, &pub_key_y, &sig)
         .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
@@ -348,7 +348,7 @@ mod tests {
                 Err(InvalidInComptimeContext { .. }) => {}
                 Err(Unimplemented { .. }) => not_implemented.push(name),
                 Err(other) => panic!("unexpected error: {other:?}"),
-            };
+            }
         }
 
         assert!(

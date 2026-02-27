@@ -73,7 +73,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.87.0
+        uses: dtolnay/rust-toolchain@1.89.0
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -104,7 +104,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.87.0
+        uses: dtolnay/rust-toolchain@1.89.0
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -140,7 +140,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.87.0
+        uses: dtolnay/rust-toolchain@1.89.0
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -179,7 +179,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.87.0
+        uses: dtolnay/rust-toolchain@1.89.0
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -525,12 +525,7 @@ jobs:
   test-examples:
     name: Example scripts
     runs-on: ubuntu-24.04
-    needs:
-      [
-        build-binaries,
-        build-acvm-js,
-        build-noirc-abi,
-      ]
+    needs: [build-binaries, build-acvm-js, build-noirc-abi]
     timeout-minutes: 30
     permissions:
       contents: read
@@ -790,7 +785,7 @@ jobs:
           rm -rf ./docs
           mv ./target/docs .
           if ! git diff --exit-code; then
-            echo "nargo doc produced changes on noir_stdlib. Please run `just stdlib_docs`, then commit and push any changes."
+            echo "nargo doc produced changes on noir_stdlib. Please run `just stdlib-doc`, then commit and push any changes."
             exit 1
           fi
 

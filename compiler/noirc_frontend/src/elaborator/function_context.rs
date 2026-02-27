@@ -6,7 +6,7 @@ use crate::{
     Kind, Type, TypeBindings,
     elaborator::lints::check_integer_literal_fits_its_type,
     hir::{
-        comptime::Value,
+        comptime::{InterpreterError, Value},
         type_check::{NoMatchingImplFoundError, TypeCheckError},
     },
     hir_def::traits::TraitConstraint,
@@ -164,8 +164,10 @@ impl Elaborator<'_> {
     }
 
     fn check_trait_constraints(&mut self, trait_constraints: Vec<LocalTraitConstraint>) {
+        let current_trait_self = self.current_trait.and_then(|_| self.self_type.clone());
+
         for local in trait_constraints {
-            match local.constraint.find_impl(self.interner) {
+            match local.constraint.find_impl(self.interner, current_trait_self.as_ref()) {
                 Ok((impl_kind, instantiation_bindings)) => {
                     if local.select_impl {
                         self.select_impl(local.expr, impl_kind, instantiation_bindings);
@@ -227,12 +229,18 @@ impl Elaborator<'_> {
             ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType => {
                 self.push_err(TypeCheckError::TypeAnnotationsNeededForMethodCall { location });
             }
-            ImplSearchErrorKind::Nested(constraints) => {
+            ImplSearchErrorKind::NoImplFound(constraints)
+            | ImplSearchErrorKind::NoMatching(constraints) => {
                 if let Some(error) =
                     NoMatchingImplFoundError::new(self.interner, constraints, location)
                 {
                     self.push_err(TypeCheckError::NoMatchingImplFound(error));
                 }
+            }
+            ImplSearchErrorKind::RecursionLimitReached => {
+                self.push_err(InterpreterError::TraitImplResolutionRecursionLimitReached {
+                    location,
+                });
             }
             ImplSearchErrorKind::MultipleMatching(candidates) => {
                 let object_type = object_type.clone();

@@ -1,7 +1,7 @@
 //! Tests for trait implementation validation.
 //! Validates duplicate impls, impl target correctness, missing associated items, and generic counts.
 
-use crate::tests::check_errors;
+use crate::tests::{assert_no_errors, check_errors};
 
 #[test]
 fn check_trait_impl_for_non_type() {
@@ -277,6 +277,21 @@ fn trait_impl_associated_type_without_body() {
 }
 
 #[test]
+fn trait_impl_overlap() {
+    let src = r#"
+    trait Trait { }
+
+    impl<T> Trait for T { }
+            ~~~~~ Previous impl defined here
+    impl Trait for u32 { }
+                   ^^^ Impl for type `u32` overlaps with existing impl
+                   ~~~ Overlapping impl
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn regression_6581_impl_only() {
     let src = "
     trait Foo {
@@ -319,5 +334,172 @@ fn regression_6581_using_impl_method() {
         println(().foo());
     }
     ";
+    check_errors(src);
+}
+
+#[test]
+fn multiple_trait_impls_different_type_params() {
+    let src = r#"
+    struct Container<T> {
+        value: T,
+    }
+
+    trait Convert {
+        fn convert(self) -> Field;
+    }
+
+    impl Convert for Container<Field> {
+        fn convert(self) -> Field {
+            self.value
+        }
+    }
+
+    impl Convert for Container<bool> {
+        fn convert(self) -> Field {
+            if self.value { 1 } else { 0 }
+        }
+    }
+
+    fn main() {
+        let c1 = Container { value: 42 as Field };
+        let c2 = Container { value: true };
+        let _ = c1.convert();
+        let _ = c2.convert();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn multiple_trait_impls_numeric_and_type_params() {
+    let src = r#"
+    struct Buffer<let N: u32, T> {
+        data: [T; N],
+    }
+
+    trait Sum {
+        fn sum(self) -> Field;
+    }
+
+    impl<let N: u32> Sum for Buffer<N, Field> {
+        fn sum(self) -> Field {
+            let mut s: Field = 0;
+            for i in 0..N {
+                s += self.data[i];
+            }
+            s
+        }
+    }
+
+    impl<let N: u32> Sum for Buffer<N, bool> {
+        fn sum(self) -> Field {
+            let mut s: Field = 0;
+            for i in 0..N {
+                if self.data[i] { s += 1; }
+            }
+            s
+        }
+    }
+
+    fn main() {
+        let b1 = Buffer { data: [1, 2, 3] };
+        let b2 = Buffer { data: [true, false, true] };
+        assert(b1.sum() == 6);
+        assert(b2.sum() == 2);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn specialized_impls_for_different_concrete_types() {
+    let src = r#"
+    trait Describe {
+        fn describe(self) -> Field;
+    }
+
+    struct Tagged<T> {
+        tag: Field,
+        inner: T,
+    }
+
+    impl Describe for Tagged<Field> {
+        fn describe(self) -> Field {
+            self.tag + self.inner
+        }
+    }
+
+    impl Describe for Tagged<bool> {
+        fn describe(self) -> Field {
+            if self.inner { self.tag } else { 0 }
+        }
+    }
+
+    impl Describe for Tagged<u32> {
+        fn describe(self) -> Field {
+            self.tag + self.inner as Field
+        }
+    }
+
+    fn main() {
+        let t1 = Tagged { tag: 1, inner: 2 as Field };
+        let t2 = Tagged { tag: 3, inner: true };
+        let t3 = Tagged { tag: 4, inner: 5 as u32 };
+        assert(t1.describe() == 3);
+        assert(t2.describe() == 3);
+        assert(t3.describe() == 9);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn generic_struct_implementing_generic_trait() {
+    let src = r#"
+    trait Convert<U> {
+        fn convert(self) -> U;
+    }
+
+    struct Wrapper<T> {
+        val: T,
+    }
+
+    impl Convert<Field> for Wrapper<u32> {
+        fn convert(self) -> Field {
+            self.val as Field
+        }
+    }
+
+    impl Convert<Field> for Wrapper<bool> {
+        fn convert(self) -> Field {
+            if self.val { 1 } else { 0 }
+        }
+    }
+
+    fn to_field<T>(w: T) -> Field where T: Convert<Field> {
+        w.convert()
+    }
+
+    fn main() {
+        let w1 = Wrapper { val: 42 as u32 };
+        let w2 = Wrapper { val: true };
+        assert(to_field(w1) == 42);
+        assert(to_field(w2) == 1);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn overlapping_generic_impls() {
+    let src = r#"
+    pub struct Foo<T> {}
+    pub trait Bar {}
+    impl<T> Bar for Foo<T> {}
+            ~~~ Previous impl defined here
+    impl<T> Bar for Foo<T> {}
+                    ^^^^^^ Impl for type `Foo<T>` overlaps with existing impl
+                    ~~~~~~ Overlapping impl
+    "#;
     check_errors(src);
 }

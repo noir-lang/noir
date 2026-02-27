@@ -717,6 +717,9 @@ impl ItemPrinter<'_, '_> {
                 self.push_str("*");
                 self.show_hir_lvalue(*lvalue);
             }
+            HirLValue::Error { .. } => {
+                unreachable!("error nodes should not happen")
+            }
         }
     }
 

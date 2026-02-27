@@ -283,7 +283,7 @@ impl<'a> TestRunner<'a> {
                 }
                 // If we are running all tests in a crate, having none is not an error
                 FunctionNameMatch::Anything => {}
-            };
+            }
         }
 
         if all_passed { Ok(()) } else { Err(CliError::Generic(String::new())) }

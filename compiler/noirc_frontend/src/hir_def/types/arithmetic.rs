@@ -76,34 +76,30 @@ impl Type {
 
                 // evaluate_to_field_element also calls canonicalize so if we just called
                 // `self.evaluate_to_field_element(..)` we'd get infinite recursion.
-                if let Ok(lhs_value) = lhs_evaluated {
-                    if let Ok(rhs_value) = rhs_evaluated {
-                        if let Ok(result) = op.function(lhs_value, rhs_value, &kind, dummy_location)
-                        {
-                            return Type::Constant(result, kind);
-                        }
-                    }
+                if let Ok(lhs_value) = lhs_evaluated
+                    && let Ok(rhs_value) = rhs_evaluated
+                    && let Ok(result) = op.function(lhs_value, rhs_value, &kind, dummy_location)
+                {
+                    return Type::Constant(result, kind);
                 }
 
                 let lhs = lhs.canonicalize_helper(found_checked_cast, run_simplifications);
                 let rhs = rhs.canonicalize_helper(found_checked_cast, run_simplifications);
 
                 // See if this is `X * 1` or `X / 1` in which case we can simplify it to `X`
-                if matches!(op, BinaryTypeOperator::Multiplication | BinaryTypeOperator::Division) {
-                    if let Ok(rhs_value) = rhs_evaluated {
-                        if rhs_value.is_one() {
-                            return lhs;
-                        }
-                    }
+                if matches!(op, BinaryTypeOperator::Multiplication | BinaryTypeOperator::Division)
+                    && let Ok(rhs_value) = rhs_evaluated
+                    && rhs_value.is_one()
+                {
+                    return lhs;
                 }
 
                 // See if this is `X + 0` or `X - 0`, in which case we can simplify it to `X`
-                if matches!(op, BinaryTypeOperator::Addition | BinaryTypeOperator::Subtraction) {
-                    if let Ok(rhs_value) = rhs_evaluated {
-                        if rhs_value.is_zero() {
-                            return lhs;
-                        }
-                    }
+                if matches!(op, BinaryTypeOperator::Addition | BinaryTypeOperator::Subtraction)
+                    && let Ok(rhs_value) = rhs_evaluated
+                    && rhs_value.is_zero()
+                {
+                    return lhs;
                 }
 
                 if !run_simplifications {
@@ -417,6 +413,7 @@ mod tests {
             type_var: TypeVariable::unbound(TypeVariableId(0), Kind::u32()),
             name: std::rc::Rc::new("N".to_owned()),
             implicit: false,
+            original_type_var_id: None,
         });
         let n_minus_one: Type = n.clone() - 1u32.into();
         let checked_cast_n_minus_one =
@@ -444,7 +441,7 @@ mod tests {
         let x_type = Type::TypeVariable(x_var.clone());
 
         let lhs = x_type.clone() + SignedField::one().into();
-        let rhs = Type::from(SignedField::one()) + x_type.clone();
+        let rhs = Type::from(SignedField::one()) + x_type;
 
         // canonicalize
         let lhs = lhs.canonicalize();
@@ -756,6 +753,7 @@ mod proptests {
         // `arithmetic_generics_checked_cast_indirect_zeros`
         #[should_panic(expected = "expected an InfixExpr, but found: ")]
         #[test]
+        #[allow(clippy::redundant_clone)]
         fn instantiate_before_or_after_canonicalize(infix_type_bindings in arbitrary_infix_expr_with_bindings(10)) {
             let (infix, typ, bindings) = infix_type_bindings;
 
@@ -785,6 +783,7 @@ mod proptests {
         }
 
         #[test]
+        #[allow(clippy::redundant_clone)]
         fn instantiate_before_or_after_canonicalize_checked_cast(infix_type_bindings in arbitrary_infix_expr_with_bindings(10)) {
             let (infix, typ, bindings) = infix_type_bindings;
 
@@ -903,10 +902,10 @@ mod proptests {
         use acvm::FieldElement;
 
         let typ = Type::FieldElement;
-        let kind = Kind::numeric(typ.clone());
+        let kind = Kind::numeric(typ);
 
         // Create a type variable N
-        let var_n = TypeVariable::unbound(TypeVariableId(0), kind.clone());
+        let var_n = TypeVariable::unbound(TypeVariableId(0), kind);
         let n = Type::TypeVariable(var_n);
 
         // large_field ≈ 2^200
@@ -916,8 +915,8 @@ mod proptests {
             0x00, 0x00, 0x00, 0x00,
         ]));
 
-        let mul_expr = n.clone() * large_field.into();
-        let div_expr = mul_expr.clone() / SignedField::from(2u8).into();
+        let mul_expr = n * large_field.into();
+        let div_expr = mul_expr / SignedField::from(2u8).into();
 
         // Canonicalize the expression
         let canonicalized = div_expr.canonicalize();

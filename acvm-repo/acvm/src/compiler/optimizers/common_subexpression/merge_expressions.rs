@@ -66,7 +66,7 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
 
         // Keep track, for each witness, of the gates that use it
         let circuit_io: BTreeSet<Witness> =
-            circuit.circuit_arguments().union(&circuit.public_inputs().0).cloned().collect();
+            circuit.circuit_arguments().union(&circuit.public_inputs().0).copied().collect();
 
         let mut used_witnesses: BTreeMap<Witness, BTreeSet<usize>> = BTreeMap::new();
         for (i, opcode) in circuit.opcodes.iter().enumerate() {
@@ -117,29 +117,27 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
                                 Some(Opcode::AssertZero(expr_use)),
                                 Some(Opcode::AssertZero(expr_define)),
                             ) = (target_opcode, source_opcode)
-                            {
-                                if let Some(expr) =
+                                && let Some(expr) =
                                     Self::merge_expression(&expr_use, &expr_define, w)
-                                {
-                                    self.modified_gates.insert(target, Opcode::AssertZero(expr));
-                                    self.deleted_gates.insert(source);
-                                    // Update the 'used_witnesses' map to account for the merge.
-                                    let witness_list = CircuitSimulator::expr_witness(&expr_use);
-                                    let witness_list = witness_list
-                                        .chain(CircuitSimulator::expr_witness(&expr_define));
+                            {
+                                self.modified_gates.insert(target, Opcode::AssertZero(expr));
+                                self.deleted_gates.insert(source);
+                                // Update the 'used_witnesses' map to account for the merge.
+                                let witness_list = CircuitSimulator::expr_witness(&expr_use);
+                                let witness_list = witness_list
+                                    .chain(CircuitSimulator::expr_witness(&expr_define));
 
-                                    for w2 in witness_list {
-                                        if !circuit_io.contains(&w2) {
-                                            used_witnesses.entry(w2).and_modify(|v| {
-                                                v.insert(target);
-                                                v.remove(&source);
-                                            });
-                                        }
+                                for w2 in witness_list {
+                                    if !circuit_io.contains(&w2) {
+                                        used_witnesses.entry(w2).and_modify(|v| {
+                                            v.insert(target);
+                                            v.remove(&source);
+                                        });
                                     }
-                                    // We need to stop here and continue with the next opcode
-                                    // because the merge invalidates the current opcode.
-                                    break;
                                 }
+                                // We need to stop here and continue with the next opcode
+                                // because the merge invalidates the current opcode.
+                                break;
                             }
                         }
                     }
@@ -211,7 +209,7 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
                 .collect(),
 
             Opcode::MemoryInit { block_id: _, init, block_type: _ } => {
-                init.iter().cloned().collect()
+                init.iter().copied().collect()
             }
             Opcode::BrilligCall { inputs, outputs, predicate, .. } => {
                 let mut witnesses = BTreeSet::new();
@@ -325,7 +323,7 @@ mod tests {
         ASSERT w2 = 4*w1 + 4
         ";
         let circuit = Circuit::from_str(src).unwrap();
-        let optimized_circuit = merge_expressions(circuit.clone());
+        let optimized_circuit = merge_expressions(circuit);
         assert_circuit_snapshot!(optimized_circuit, @r"
         private parameters: [w0]
         public parameters: []

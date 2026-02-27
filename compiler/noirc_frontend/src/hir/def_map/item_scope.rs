@@ -94,9 +94,8 @@ impl ItemScope {
     ///
     /// Methods introduced without trait take priority and hide methods with the same name that come from a trait.
     pub fn find_func_with_name(&self, func_name: &Ident) -> Option<FuncId> {
-        Self::find_name_in(func_name, &self.values).and_then(|(module_def, _, _)| {
-            if let ModuleDefId::FunctionId(id) = module_def { Some(*id) } else { None }
-        })
+        let (module_def, _, _) = Self::find_name_in(func_name, &self.values)?;
+        if let ModuleDefId::FunctionId(id) = module_def { Some(*id) } else { None }
     }
 
     /// Look for an [Ident] in both `types` and `values`.
@@ -104,8 +103,8 @@ impl ItemScope {
     /// Returns the preferred, unambiguous result in both.
     pub fn find_name(&self, name: &Ident) -> PerNs {
         PerNs {
-            types: Self::find_name_in(name, &self.types).cloned(),
-            values: Self::find_name_in(name, &self.values).cloned(),
+            types: Self::find_name_in(name, &self.types).copied(),
+            values: Self::find_name_in(name, &self.values).copied(),
         }
     }
 
@@ -115,8 +114,8 @@ impl ItemScope {
     /// or one in a specific trait (regardless of the presence of other traits).
     pub fn find_name_for_trait_id(&self, name: &Ident, trait_id: &Option<TraitId>) -> PerNs {
         PerNs {
-            types: self.types.get(name).and_then(|t| t.get(trait_id)).cloned(),
-            values: self.values.get(name).and_then(|v| v.get(trait_id)).cloned(),
+            types: self.types.get(name).and_then(|t| t.get(trait_id)).copied(),
+            values: self.values.get(name).and_then(|v| v.get(trait_id)).copied(),
         }
     }
 

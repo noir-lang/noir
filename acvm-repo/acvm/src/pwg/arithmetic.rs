@@ -295,7 +295,7 @@ impl ExpressionSolver {
 
     /// Combines linear terms with the same witness by summing their coefficients.
     /// For example `w1 + 2*w1` becomes `3*w1`.
-    fn combine_linear_terms<F: AcirField>(
+    pub(crate) fn combine_linear_terms<F: AcirField>(
         linear_combinations: &[(F, Witness)],
     ) -> Vec<(F, Witness)> {
         let mut combined_linear_combinations = std::collections::HashMap::new();
@@ -318,7 +318,7 @@ impl ExpressionSolver {
     /// Combines multiplication terms with the same witnesses by summing their coefficients.
     /// For example `w1*w2 + 2*w2*w1` becomes `3*w1*w2`. If a coefficient ends up being zero,
     /// the term is removed.
-    fn combine_mul_terms<F: AcirField>(
+    pub(crate) fn combine_mul_terms<F: AcirField>(
         mul_terms: &[(F, Witness, Witness)],
     ) -> Vec<(F, Witness, Witness)> {
         // This is similar to GeneralOptimizer::simplify_mul_terms but it's duplicated because
@@ -326,7 +326,7 @@ impl ExpressionSolver {
         let mut hash_map = std::collections::HashMap::new();
 
         // Canonicalize the ordering of the multiplication, lets just order by variable name
-        for (scale, w_l, w_r) in mul_terms.iter().cloned() {
+        for (scale, w_l, w_r) in mul_terms.iter().copied() {
             let mut pair = [w_l, w_r];
             pair.sort();
 

@@ -219,11 +219,11 @@ mod tests {
 
     #[test]
     fn parse_with_dep_prefix() {
-        let src = "use dep::foo;";
+        let src = "use ::foo;";
         let (use_tree, visibility) = parse_use_tree_no_errors(src);
         assert_eq!(visibility, ItemVisibility::Private);
-        assert_eq!(use_tree.prefix.kind, PathKind::Dep);
-        assert_eq!("dep::foo", use_tree.to_string());
+        assert_eq!(use_tree.prefix.kind, PathKind::Absolute);
+        assert_eq!("::foo", use_tree.to_string());
         let UseTreeKind::Path(ident, alias) = use_tree.kind else {
             panic!("Expected path");
         };

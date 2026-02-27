@@ -98,7 +98,14 @@ By definition, the scalar field of the embedded curve is base field of the provi
 It may not fit into a Field element, so it is represented with two Field elements; its low and high limbs.</div></li>
 </ul>
 <h2 id="functions">Functions</h2><ul class="item-list">
-<li><div class="item-name"><a href="fn.embedded_curve_add.html" class="fn">embedded_curve_add</a></div><div class="item-description">This function assumes that the points are on the curve</div></li>
+<li><div class="item-name"><a href="fn.embedded_curve_add.html" class="fn">embedded_curve_add</a></div><div class="item-description">Elliptic curve addition
+IMPORTANT: this function is expected to perform a full addition in order to handle all corner cases:</p>
+<ul>
+<li>points on the curve</li>
+<li>point doubling</li>
+<li>point at infinity
+As a result, you may not get optimal performance, depending on the assumptions of your inputs.</li>
+</ul></div></li>
 <li><div class="item-name"><a href="fn.fixed_base_scalar_mul.html" class="fn">fixed_base_scalar_mul</a></div><div class="item-description"></div></li>
 <li><div class="item-name"><a href="fn.multi_scalar_mul.html" class="fn">multi_scalar_mul</a></div><div class="item-description"></div></li>
 </ul>

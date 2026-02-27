@@ -4,10 +4,10 @@ use acvm::acir::circuit::ErrorSelector;
 use noirc_errors::call_stack::CallStackId;
 use std::collections::{BTreeMap, HashMap};
 
-use crate::ErrorType;
-use crate::ssa::ir::{basic_block::BasicBlockId, function::FunctionId};
-
 use super::procedures::ProcedureId;
+use crate::ErrorType;
+use crate::brillig::assert_usize;
+use crate::ssa::ir::{basic_block::BasicBlockId, function::FunctionId};
 
 /// Represents a parameter or a return value of an entry point function.
 #[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
@@ -19,6 +19,21 @@ pub(crate) enum BrilligParameter {
     /// A vector parameter or return value. Holds the type of a vector item.
     /// Only known-length vectors can be passed to brillig entry points, so the size is available as well.
     Vector(Vec<BrilligParameter>, SemanticLength),
+}
+
+impl BrilligParameter {
+    /// Computes the size of a parameter if it was flattened
+    pub(crate) fn flattened_size(&self) -> usize {
+        match self {
+            BrilligParameter::SingleAddr(_) => 1,
+            BrilligParameter::Array(item_types, item_count)
+            | BrilligParameter::Vector(item_types, item_count) => {
+                let size_of_item: usize =
+                    item_types.iter().map(|param| param.flattened_size()).sum();
+                assert_usize(item_count.0) * size_of_item
+            }
+        }
+    }
 }
 
 /// The result of compiling and linking brillig artifacts.
@@ -67,6 +82,12 @@ pub struct BrilligArtifact<F> {
     call_stack_id: CallStackId,
     /// Name of the function, only used for debugging purposes.
     pub(crate) name: String,
+
+    /// Positions of the 3 placeholder no-op opcodes emitted in the function prologue for
+    /// the per-frame spill region allocation. If the function actually spills, these are
+    /// overwritten with real allocation instructions after a function's code generation is complete.
+    /// If no spilling occurs, the no-ops remain harmless.
+    unresolved_spill_prologue: Option<[OpcodeLocation; 3]>,
 
     /// This field contains the given procedure id if this artifact originates from as procedure
     pub(crate) procedure: Option<ProcedureId>,
@@ -358,6 +379,16 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
 
     pub(crate) fn set_call_stack(&mut self, call_stack: CallStackId) {
         self.call_stack_id = call_stack;
+    }
+
+    /// Record the positions of 3 placeholder no-op opcodes for the spill prologue.
+    pub(crate) fn set_unresolved_spill_prologue(&mut self, positions: [OpcodeLocation; 3]) {
+        self.unresolved_spill_prologue = Some(positions);
+    }
+
+    /// Get the recorded spill prologue positions, consuming them.
+    pub(crate) fn take_unresolved_spill_prologue(&mut self) -> Option<[OpcodeLocation; 3]> {
+        self.unresolved_spill_prologue.take()
     }
 
     #[cfg(test)]

@@ -77,7 +77,10 @@ impl<F: AcirField> AcirContext<F> {
         }
     }
 
-    pub(crate) fn current_witness_index(&self) -> Witness {
+    /// Returns the current witness index:
+    /// * `None` if we haven't created a witness yet
+    /// * the index of the last created witness otherwise (starting with 0)
+    pub(crate) fn current_witness_index(&self) -> Option<Witness> {
         self.acir_ir.current_witness_index()
     }
 
@@ -109,8 +112,7 @@ impl<F: AcirField> AcirContext<F> {
         self.vars[&var].as_constant().expect("ICE - expected the variable to be a constant value")
     }
 
-    /// Adds a Variable to the context, whose exact value is resolved at
-    /// runtime.
+    /// Adds a Variable to the context, whose exact value is resolved at runtime.
     pub(crate) fn add_variable(&mut self) -> AcirVar {
         let var_index = self.acir_ir.next_witness_index();
 
@@ -128,11 +130,11 @@ impl<F: AcirField> AcirContext<F> {
             return Ok(());
         }
 
-        if let Some(w) = self.var_to_expression(lhs)?.to_witness() {
-            if self.acir_ir.input_witnesses.contains(&w) {
-                //Input witnesses are not replaced
-                return Ok(());
-            }
+        if let Some(w) = self.var_to_expression(lhs)?.to_witness()
+            && self.acir_ir.input_witnesses.contains(&w)
+        {
+            //Input witnesses are not replaced
+            return Ok(());
         }
 
         let lhs_data = self.vars.remove(&lhs).ok_or_else(|| InternalError::UndeclaredAcirVar {
@@ -511,15 +513,14 @@ impl<F: AcirField> AcirContext<F> {
         &self,
         assert_message: Option<&AssertionPayload<F>>,
     ) -> Option<String> {
-        assert_message.as_ref().and_then(|assertion_payload| {
-            if let Some(ErrorType::String(message)) =
-                self.acir_ir.error_types.get(&ErrorSelector::new(assertion_payload.error_selector))
-            {
-                Some(message.to_string())
-            } else {
-                None
-            }
-        })
+        let assertion_payload = assert_message.as_ref()?;
+        if let Some(ErrorType::String(message)) =
+            self.acir_ir.error_types.get(&ErrorSelector::new(assertion_payload.error_selector))
+        {
+            Some(message.clone())
+        } else {
+            None
+        }
     }
 
     /// Constrains the `lhs` and `rhs` to be non-equal.
@@ -1099,7 +1100,7 @@ impl<F: AcirField> AcirContext<F> {
         let witness = self.var_to_witness(witness_var)?;
         self.acir_ir.range_constraint(witness, bit_size)?;
         if let Some(message) = message {
-            let payload = self.generate_assertion_message_payload(message.clone());
+            let payload = self.generate_assertion_message_payload(message);
             self.acir_ir
                 .assertion_payloads
                 .insert(self.acir_ir.last_acir_opcode_location(), payload);

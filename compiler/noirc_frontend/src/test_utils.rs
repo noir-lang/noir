@@ -156,7 +156,7 @@ pub(crate) fn get_program_with_options(
             None,
             location,
             Vec::new(),
-            inner_attributes.clone(),
+            inner_attributes,
             false, // is contract
             false, // is struct
         );

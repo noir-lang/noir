@@ -83,7 +83,7 @@ where
         if vs.is_empty() {
             return Ok(None);
         }
-        u.choose_iter(vs.iter()).map(Some).map(|v| v.cloned())
+        u.choose_iter(vs.iter()).map(Some).map(|v| v.copied())
     }
 
     /// Choose a random producer of a type matching some criteria.
@@ -109,7 +109,7 @@ where
             return Ok(None);
         }
 
-        u.choose_iter(candidates).map(Some).map(|v| v.cloned())
+        u.choose_iter(candidates).map(Some).map(|v| v.copied())
     }
 
     /// Get a variable in scope.

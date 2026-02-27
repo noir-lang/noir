@@ -54,7 +54,7 @@ impl From<serde_json::Error> for InputParserError {
 pub enum AbiError {
     #[error("Received parameters not expected by ABI: {0:?}")]
     UnexpectedParams(Vec<String>),
-    #[error("The value passed for parameter `{}` does not match the specified type:\n{0}", .0.path())]
+    #[error("The value passed for parameter `{path}` does not match the specified type:\n{inner}", path = .0.path(), inner = .0)]
     TypeMismatch(#[from] InputTypecheckingError),
     #[error("ABI expects the parameter `{0}`, but this was not found")]
     MissingParam(String),

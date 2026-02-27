@@ -439,7 +439,7 @@ impl Value {
                     return Err(InterpreterError::CannotInlineMacro { typ, value, location });
                 }
 
-                // Now drop this references and move `expr` out of `self` so we don't have to clone it.
+                // Now drop this reference and move `expr` out of `self` so we don't have to clone it.
                 let Value::Expr(expr) = self else {
                     unreachable!("Ensured by outer match statement")
                 };

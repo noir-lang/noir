@@ -656,10 +656,7 @@ fn repeated_array() {
     let program = get_monomorphized(src).unwrap();
     insta::assert_snapshot!(program, @r"
     fn main$f0() -> () {
-        let _a$l1 = {
-            let repeated_element$l0 = (1 + 2);
-            [repeated_element$l0, repeated_element$l0, repeated_element$l0]
-        }
+        let _a$l0 = [(1 + 2); 3]
     }
     ");
 }
@@ -678,10 +675,7 @@ fn repeated_array_zero() {
     let program = get_monomorphized(src).unwrap();
     insta::assert_snapshot!(program, @r"
     fn main$f0() -> () {
-        let _a$l1 = {
-            let repeated_element$l0 = foo$f1();
-            @[]
-        }
+        let _a$l0 = @[foo$f1(); 0]
     }
     fn foo$f1() -> Field {
         (1 + 2)
@@ -1118,7 +1112,7 @@ fn match_guard_becomes_if_then_else() {
 }
 
 #[test]
-fn pass_ref_from_constrained_to_unconstrained_via_closure() {
+fn direct_unconstrained_call_rejects_closure_with_mutable_ref() {
     let src = r#"
     fn main()  {
         let mut x = 0;
@@ -1126,6 +1120,7 @@ fn pass_ref_from_constrained_to_unconstrained_via_closure() {
         f(1_u32);
         // safety: test
         unsafe { bar(f, 2_u32) }
+                     ^ Cannot pass mutable reference `fn[(&mut u32,)](u32) -> ()` from a constrained runtime to an unconstrained runtime
     }
 
     fn foo(x: &mut u32) -> fn[(&mut u32,)](u32) -> () {
@@ -1136,14 +1131,32 @@ fn pass_ref_from_constrained_to_unconstrained_via_closure() {
         f(x);
     }
     "#;
+    check_monomorphization_error_using_features(src, &[], true);
+}
 
-    let err = get_monomorphized_with_options(
-        src,
-        GetProgramOptions { allow_elaborator_errors: true, ..Default::default() },
-    )
-    .expect_err("should fail to monomorphize");
+#[test]
+fn indirect_unconstrained_call_rejects_closure_with_mutable_ref() {
+    // When an unconstrained function is called indirectly through a local binding,
+    // the boundary check should still detect the reference crossing.
+    let src = r#"
+    fn main()  {
+        let mut x = 0;
+        let f = foo(&mut x);
+        let b = bar;
+        // safety: test
+        unsafe { b(f, 2_u32) }
+                   ^ Cannot pass mutable reference `fn[(&mut u32,)](u32) -> ()` from a constrained runtime to an unconstrained runtime
+    }
 
-    assert!(matches!(err, MonomorphizationError::ConstrainedReferenceToUnconstrained { .. }));
+    fn foo(x: &mut u32) -> fn[(&mut u32,)](u32) -> () {
+        |y| { *x = y; }
+    }
+
+    unconstrained fn bar<Env>(f: fn[Env](u32) -> (), x: u32) {
+        f(x);
+    }
+    "#;
+    check_monomorphization_error_using_features(src, &[], true);
 }
 
 #[test]
@@ -1152,18 +1165,13 @@ fn pass_ref_from_constrained_to_unconstrained_via_arg() {
     fn main()  {
         // safety: test
         unsafe { foo(&mut 0); }
+                     ^^^^^^ Cannot pass a mutable reference from a constrained runtime to an unconstrained runtime
+                     ^^^^^^ Cannot pass mutable reference `&mut u32` from a constrained runtime to an unconstrained runtime
     }
 
     unconstrained fn foo(_x: &mut u32) {}
     "#;
-
-    let err = get_monomorphized_with_options(
-        src,
-        GetProgramOptions { allow_elaborator_errors: true, ..Default::default() },
-    )
-    .expect_err("should fail to monomorphize");
-
-    assert!(matches!(err, MonomorphizationError::ConstrainedReferenceToUnconstrained { .. }));
+    check_monomorphization_error_using_features(src, &[], true);
 }
 
 #[test]
@@ -1173,6 +1181,8 @@ fn pass_ref_from_unconstrained_to_unconstrained_via_return() {
         // safety: test
         unsafe {
             let _x = foo();
+                     ^^^^^ Cannot pass a mutable reference from a unconstrained runtime to an constrained runtime
+                     ^^^^^ Mutable reference `&mut u32` cannot be returned from an unconstrained runtime to a constrained runtime
         }
     }
 
@@ -1180,14 +1190,7 @@ fn pass_ref_from_unconstrained_to_unconstrained_via_return() {
         &mut 0
     }
     "#;
-
-    let err = get_monomorphized_with_options(
-        src,
-        GetProgramOptions { allow_elaborator_errors: true, ..Default::default() },
-    )
-    .expect_err("should fail to monomorphize");
-
-    assert!(matches!(err, MonomorphizationError::UnconstrainedReferenceReturnToConstrained { .. }));
+    check_monomorphization_error_using_features(src, &[], true);
 }
 
 #[test]
@@ -1356,6 +1359,17 @@ fn out_of_order_globals() {
         (x$l2 + FOO$g1)
     }
     ");
+}
+
+#[test]
+fn very_large_array() {
+    let src = r#"
+    fn main() {
+        // 1.3 billion elements 
+        let _arr: [Field; 1294967295] = [0; 1294967295];
+    }
+    "#;
+    assert!(get_monomorphized(src).is_ok());
 }
 
 #[test]

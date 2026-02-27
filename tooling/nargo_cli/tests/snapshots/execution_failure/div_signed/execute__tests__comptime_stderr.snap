@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+warning: Unsafe block must have a safety comment above it
+  ┌─ src/main.nr:3:13
+  │
+3 │     let b = unsafe {
+  │             ------ The comment must start with the "Safety: " word
+  │
+
+error: Attempt to / with overflow
+   ┌─ src/main.nr:11:6
+   │
+11 │     (a / -1)
+   │      ------
+   │
+
+Error interpreting main function

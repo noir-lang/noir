@@ -31,10 +31,11 @@ mod types;
 use crate::brillig::Brillig;
 use crate::brillig::brillig_gen::gen_brillig_for;
 use crate::errors::{InternalError, RuntimeError};
+
 use crate::ssa::{
     function_builder::data_bus::DataBus,
     ir::{
-        dfg::DataFlowGraph,
+        dfg::{DataFlowGraph, MAX_ELEMENTS},
         function::{Function, RuntimeType},
         instruction::{
             Binary, BinaryOp, ConstrainError, Instruction, InstructionId, TerminatorInstruction,
@@ -194,8 +195,7 @@ impl<'a> Context<'a> {
         self.acir_context.acir_ir.input_witnesses =
             self.convert_ssa_block_params(entry_block.parameters(), dfg)?;
 
-        let num_return_witnesses =
-            self.get_num_return_witnesses(entry_block.unwrap_terminator(), dfg);
+        let num_return_witnesses = dfg.get_num_return_witnesses(main_func)?;
 
         // Create a witness for each return witness we have to guarantee that the return witnesses match the standard
         // layout for serializing those types as if they were being passed as inputs.
@@ -243,7 +243,7 @@ impl<'a> Context<'a> {
             }
         }
 
-        self.data_bus = dfg.data_bus.to_owned();
+        self.data_bus = dfg.data_bus.clone();
         for instruction_id in entry_block.instructions() {
             warnings.extend(self.convert_ssa_instruction(*instruction_id, dfg, ssa)?);
         }
@@ -289,6 +289,25 @@ impl<'a> Context<'a> {
 
         self.acir_context.acir_ir.input_witnesses = self.acir_context.extract_witnesses(&inputs);
         let returns = main_func.returns().unwrap_or_default();
+
+        // Check the flattened size of return values to avoid OOM during Brillig entry point generation
+        let num_return_values: usize = returns
+            .iter()
+            .map(|result_id| dfg.type_of_value(*result_id).flattened_size().to_usize())
+            .sum();
+        if num_return_values > MAX_ELEMENTS {
+            let entry_block = &dfg[main_func.entry_block()];
+            let call_stack_id = match entry_block.unwrap_terminator() {
+                TerminatorInstruction::Return { call_stack, .. } => *call_stack,
+                _ => unreachable!("ICE: expected return terminator"),
+            };
+            let call_stack = dfg.call_stack_data.get_call_stack(call_stack_id);
+            return Err(RuntimeError::ReturnLimitExceeded {
+                num_witnesses: num_return_values,
+                max_witnesses: MAX_ELEMENTS,
+                call_stack,
+            });
+        }
 
         let outputs: Vec<AcirType> =
             vecmap(returns, |result_id| dfg.type_of_value(*result_id).into());
@@ -339,8 +358,11 @@ impl<'a> Context<'a> {
         params: &[ValueId],
         dfg: &DataFlowGraph,
     ) -> Result<Vec<Witness>, RuntimeError> {
-        // The first witness (if any) is the next one
-        let start_witness = self.acir_context.current_witness_index().0;
+        // The start witness would be the *next* witness, if we created one.
+        let start_witness = match self.acir_context.current_witness_index() {
+            Some(last) => Witness(last.witness_index().checked_add(1).expect("too many witnesses")),
+            None => Witness::default(),
+        };
         for &param_id in params {
             let typ = dfg.type_of_value(param_id);
             let value = self.convert_ssa_block_param(&typ)?;
@@ -366,8 +388,12 @@ impl<'a> Context<'a> {
             }
             self.ssa_values.insert(param_id, value);
         }
-        let end_witness = self.acir_context.current_witness_index().0;
-        let witnesses = (start_witness..=end_witness).map(Witness::from).collect();
+        // Check if we have generated any witnesses.
+        let Some(end_witness) = self.acir_context.current_witness_index() else {
+            return Ok(Vec::new());
+        };
+        // Range is inclusive, because the for example if there was only one witness, the start and end are both 0.
+        let witnesses = (start_witness.0..=end_witness.0).map(Witness::from).collect();
         Ok(witnesses)
     }
 
@@ -489,7 +515,7 @@ impl<'a> Context<'a> {
             }
             Instruction::Allocate => {
                 return Err(RuntimeError::UnknownReference {
-                    call_stack: self.acir_context.get_call_stack().clone(),
+                    call_stack: self.acir_context.get_call_stack(),
                 });
             }
             Instruction::Store { .. } => {
@@ -585,26 +611,6 @@ impl<'a> Context<'a> {
         let [result_id] = dfg.instruction_result(instruction);
         let typ = dfg.type_of_value(result_id).unwrap_numeric();
         self.define_result(dfg, instruction, AcirValue::Var(result, typ));
-    }
-
-    /// Converts an SSA terminator's return values into their ACIR representations
-    fn get_num_return_witnesses(
-        &self,
-        terminator: &TerminatorInstruction,
-        dfg: &DataFlowGraph,
-    ) -> usize {
-        let return_values = match terminator {
-            TerminatorInstruction::Return { return_values, .. } => return_values,
-            TerminatorInstruction::Unreachable { .. } => return 0,
-            // TODO(https://github.com/noir-lang/noir/issues/4616): Enable recursion on foldable/non-inlined ACIR functions
-            TerminatorInstruction::JmpIf { .. } | TerminatorInstruction::Jmp { .. } => {
-                unreachable!("ICE: Program must have a singular return")
-            }
-        };
-
-        return_values
-            .iter()
-            .fold(0, |acc, value_id| acc + dfg.type_of_value(*value_id).flattened_size().to_usize())
     }
 
     /// Converts an SSA terminator's return values into their ACIR representations
@@ -881,7 +887,7 @@ impl<'a> Context<'a> {
             _ => unreachable!(
                 "ICE: Truncates are only ever applied to the result of a binary op or a param"
             ),
-        };
+        }
 
         self.acir_context.truncate_var(var, bit_size, max_bit_size)
     }

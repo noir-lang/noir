@@ -154,13 +154,12 @@ impl Context {
         let mut to_remove = HashSet::default();
 
         for instruction in function.dfg[last_block].instructions() {
-            if let Instruction::DecrementRc { value, .. } = &function.dfg[*instruction] {
-                if let Some(inc_rc) = pop_rc_for(*value, function, &mut self.inc_rcs) {
-                    if !inc_rc.possibly_mutated {
-                        to_remove.insert(inc_rc.id);
-                        to_remove.insert(*instruction);
-                    }
-                }
+            if let Instruction::DecrementRc { value, .. } = &function.dfg[*instruction]
+                && let Some(inc_rc) = pop_rc_for(*value, function, &mut self.inc_rcs)
+                && !inc_rc.possibly_mutated
+            {
+                to_remove.insert(inc_rc.id);
+                to_remove.insert(*instruction);
             }
         }
 

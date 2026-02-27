@@ -531,6 +531,9 @@ impl HirLValue {
                 let lvalue = Box::new(lvalue.to_display_ast(interner));
                 LValue::Dereference(lvalue, *location)
             }
+            HirLValue::Error { location } => {
+                LValue::Path(Path::from_single("(unknown-variable)".to_string(), *location))
+            }
         }
     }
 }

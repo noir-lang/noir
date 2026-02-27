@@ -16,7 +16,11 @@ use crate::{
         PrefixExpression, StatementKind, TraitBound, UnaryOp, UnresolvedTraitConstraint,
         UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression,
     },
-    elaborator::types::{WildcardAllowed, WildcardDisallowedContext},
+    elaborator::{
+        ScopeForest,
+        patterns::IdentFromPath,
+        types::{WildcardAllowed, WildcardDisallowedContext},
+    },
     hir::{
         comptime::{self, InterpreterError},
         def_collector::dc_crate::CompilationError,
@@ -31,11 +35,12 @@ use crate::{
             HirMatch, HirMemberAccess, HirMethodCallExpression, HirPrefixExpression, ImplKind,
             TraitItem,
         },
-        stmt::{HirLetStatement, HirPattern, HirStatement},
+        stmt::{HirLValue, HirLetStatement, HirPattern, HirStatement},
         traits::{ResolvedTraitBound, TraitConstraint},
     },
     node_interner::{
-        DefinitionId, DefinitionKind, ExprId, FuncId, InternedStatementKind, StmtId, TraitItemId,
+        DefinitionId, DefinitionInfo, DefinitionKind, ExprId, FuncId, InternedStatementKind,
+        StmtId, TraitItemId,
         pusher::{HasLocation, PushedExpr},
     },
     shared::Signedness,
@@ -397,7 +402,7 @@ impl Elaborator<'_> {
                 );
 
                 let first_elem_type = Type::TypeVariable(type_variable);
-                let first_location = elements.first().map(|elem| elem.location).unwrap_or(location);
+                let first_location = elements.first().map_or(location, |elem| elem.location);
 
                 let elements = vecmap(elements.into_iter().enumerate(), |(i, elem)| {
                     let location = elem.location;
@@ -459,15 +464,26 @@ impl Elaborator<'_> {
 
         for fragment in &fragments {
             if let FmtStrFragment::Interpolation(ident_name, location) = fragment {
-                let ((hir_ident, var_scope_index), _) = self
-                    .get_ident_from_path(TypedPath::from_single(ident_name.to_string(), *location));
-                self.handle_hir_ident(&hir_ident, var_scope_index, *location);
-
-                let hir_expr = HirExpression::Ident(hir_ident.clone(), None);
-                let expr_id = self.intern_expr(hir_expr, *location);
-                let typ = self.type_check_variable(hir_ident, &expr_id, None);
-                let expr_id = self.intern_expr_type(expr_id, typ.clone());
-
+                let (typ, expr_id) = match self
+                    .get_ident_from_path(TypedPath::from_single(ident_name.clone(), *location))
+                {
+                    Some(IdentFromPath::Variable(variable)) => {
+                        self.handle_local_variable(&variable);
+                        self.elaborate_fmt_string_ident(variable.ident, *location)
+                    }
+                    Some(IdentFromPath::Definition { id, item: _ }) => {
+                        self.handle_definition_id(id, *location);
+                        let hir_ident = HirIdent::non_trait_method(id, *location);
+                        self.elaborate_fmt_string_ident(hir_ident, *location)
+                    }
+                    Some(IdentFromPath::TypeAlias(_)) | None => {
+                        let hir_expr = HirExpression::Error;
+                        let expr_id = self.intern_expr(hir_expr, *location);
+                        let typ = Type::Error;
+                        let expr_id = self.intern_expr_type(expr_id, typ.clone());
+                        (typ, expr_id)
+                    }
+                };
                 capture_types.push(typ);
                 fmt_str_idents.push(expr_id);
             }
@@ -478,6 +494,18 @@ impl Elaborator<'_> {
             if capture_types.is_empty() { Type::Unit } else { Type::Tuple(capture_types) };
         let typ = Type::FmtString(Box::new(len), Box::new(fmtstr_type));
         (HirExpression::Literal(HirLiteral::FmtStr(fragments, fmt_str_idents, length)), typ)
+    }
+
+    fn elaborate_fmt_string_ident(
+        &mut self,
+        hir_ident: HirIdent,
+        location: Location,
+    ) -> (Type, ExprId) {
+        let hir_expr = HirExpression::Ident(hir_ident.clone(), None);
+        let expr_id = self.intern_expr(hir_expr, location);
+        let typ = self.type_check_variable(hir_ident, &expr_id, None);
+        let expr_id = self.intern_expr_type(expr_id, typ.clone());
+        (typ, expr_id)
     }
 
     fn elaborate_prefix(&mut self, prefix: PrefixExpression, location: Location) -> (ExprId, Type) {
@@ -539,21 +567,20 @@ impl Elaborator<'_> {
     }
 
     /// Check whether we can create a mutable reference over an expression.
-    ///
     /// Pushes an error if it cannot be done.
+    ///
+    /// Also, if the expression is a local variable, marks it as mutated.
     pub(super) fn check_can_mutate(&mut self, expr_id: ExprId, location: Location) {
         match self.interner.expression(&expr_id) {
             HirExpression::Ident(hir_ident, _) => {
-                if let Some(definition) = self.interner.try_definition(hir_ident.id) {
-                    let name = definition.name.clone();
-                    if !definition.mutable {
-                        self.push_err(TypeCheckError::CannotMutateImmutableVariable {
-                            name,
-                            location,
-                        });
-                    } else {
-                        self.check_can_mutate_lambda_capture(hir_ident.id, name, location);
-                    }
+                let definition = self.interner.definition(hir_ident.id);
+                let name = definition.name.clone();
+                Self::mark_local_variable_as_mutated(definition, &mut self.scopes);
+
+                if !definition.mutable {
+                    self.push_err(TypeCheckError::CannotMutateImmutableVariable { name, location });
+                } else {
+                    self.check_can_mutate_lambda_capture(hir_ident.id, name, location);
                 }
             }
             HirExpression::Index(_) => {
@@ -583,6 +610,39 @@ impl Elaborator<'_> {
             if !typ.is_mutable_ref() && lambda_context.captures.iter().any(|var| var.ident.id == id)
             {
                 self.push_err(TypeCheckError::MutableCaptureWithoutRef { name, location });
+            }
+        }
+    }
+
+    /// Go over the given `lvalue` and any nested l-values and mark any local variables as mutated.
+    /// However, dereferences do not cause mutation of their inner variables.
+    pub(super) fn mark_lvalue_variables_as_mutated(&mut self, lvalue: &HirLValue) {
+        match lvalue {
+            HirLValue::Ident(hir_ident, _) => {
+                let definition = self.interner.definition(hir_ident.id);
+                Self::mark_local_variable_as_mutated(definition, &mut self.scopes);
+            }
+            HirLValue::MemberAccess { object, .. } => {
+                self.mark_lvalue_variables_as_mutated(object);
+            }
+            HirLValue::Index { array, .. } => {
+                self.mark_lvalue_variables_as_mutated(array);
+            }
+            HirLValue::Dereference { .. } => {
+                // A dereference like `*x` means `x` is `&mut Something` so the contents of `x`
+                // can be mutated even if `x` isn't itself `mut`
+            }
+            HirLValue::Error { .. } => (),
+        }
+    }
+
+    /// If the given definition corresponds to a local variable, find a local variable with the
+    /// given definition name and mark it as mutated.
+    fn mark_local_variable_as_mutated(definition: &DefinitionInfo, scopes: &mut ScopeForest) {
+        if matches!(definition.kind, DefinitionKind::Local(_)) {
+            let scope_tree = scopes.current_scope_tree();
+            if let Some((variable, _index)) = scope_tree.find(&definition.name) {
+                variable.mutated = true;
             }
         }
     }
@@ -795,15 +855,14 @@ impl Elaborator<'_> {
 
         let location = object_location.merge(method_name_location);
 
-        let (function_id, function_name) = method_ref.clone().into_function_id_and_name(
+        let (function_id, function_name) = method_ref.into_function_id_and_name(
             object_type.clone(),
             generics.clone(),
             location,
             self.interner,
         );
 
-        let func_type =
-            self.type_check_variable(function_name.clone(), &function_id, generics.clone());
+        let func_type = self.type_check_variable(function_name, &function_id, generics.clone());
 
         let function_id = self.intern_expr_type(function_id, func_type.clone());
 
@@ -1109,7 +1168,7 @@ impl Elaborator<'_> {
 
             let expected_index_and_visibility =
                 expected_field.map(|(index, visibility, _)| (index, visibility));
-            let expected_type = expected_field.map(|(_, _, typ)| typ).unwrap_or(&&Type::Error);
+            let expected_type = expected_field.map_or(&&Type::Error, |(_, _, typ)| typ);
 
             let field_location = field.location;
             let (resolved, field_type) = self.elaborate_expression(field);
@@ -1497,7 +1556,8 @@ impl Elaborator<'_> {
                         pattern,
                         typ.clone(),
                         parameter,
-                        true,
+                        true, // warn_if_unused
+                        true, // warn_if_not_mutated
                         &mut parameter_names_in_list,
                     ),
                     typ,
@@ -1622,23 +1682,19 @@ impl Elaborator<'_> {
         &self,
         func: ExprId,
         location: Location,
-    ) -> Result<Option<FuncId>, ResolverError> {
+    ) -> Result<FuncId, ResolverError> {
         match self.interner.expression(&func) {
             HirExpression::Ident(ident, _generics) => {
-                if let Some(definition) = self.interner.try_definition(ident.id) {
-                    if let DefinitionKind::Function(function) = definition.kind {
-                        let meta = self.interner.function_modifiers(&function);
-                        if meta.is_comptime {
-                            Ok(Some(function))
-                        } else {
-                            Err(ResolverError::MacroIsNotComptime { location })
-                        }
+                let definition = self.interner.definition(ident.id);
+                if let DefinitionKind::Function(function) = definition.kind {
+                    let meta = self.interner.function_modifiers(&function);
+                    if meta.is_comptime {
+                        Ok(function)
                     } else {
-                        Err(ResolverError::InvalidSyntaxInMacroCall { location })
+                        Err(ResolverError::MacroIsNotComptime { location })
                     }
                 } else {
-                    // Assume a name resolution error has already been issued
-                    Ok(None)
+                    Err(ResolverError::InvalidSyntaxInMacroCall { location })
                 }
             }
             _ => Err(ResolverError::InvalidSyntaxInMacroCall { location }),
@@ -1659,7 +1715,7 @@ impl Elaborator<'_> {
         });
 
         let function = match self.try_get_comptime_function(func, location) {
-            Ok(function) => function?,
+            Ok(function) => function,
             Err(error) => {
                 self.push_err(error);
                 return None;
@@ -1742,7 +1798,7 @@ impl Elaborator<'_> {
         let mut bindings = TypeBindings::default();
 
         // In `<Type as Trait>::method` we know `Self` is `Type` so we bind that now
-        bindings.insert(self_type.id(), (self_type, kind, constraint.typ.clone()));
+        bindings.insert(self_type.id(), (self_type, kind, constraint.typ));
 
         // TODO: set this to `true`. See https://github.com/noir-lang/noir/issues/8687
         let push_required_type_variables = self.current_trait.is_none();

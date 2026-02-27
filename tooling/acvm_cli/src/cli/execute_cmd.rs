@@ -51,12 +51,8 @@ fn run_command(args: ExecuteCommand) -> Result<String, CliError> {
     let output_witness_string = create_output_witness_string(
         &output_witness.peek().expect("Should have a witness stack item").witness,
     )?;
-    if args.output_witness.is_some() {
-        save_witness_to_dir(
-            &output_witness,
-            &args.output_witness.unwrap(),
-            &args.working_directory,
-        )?;
+    if let Some(output_witness_path) = args.output_witness {
+        save_witness_to_dir(&output_witness, &output_witness_path, &args.working_directory)?;
     }
     Ok(output_witness_string)
 }

@@ -27,7 +27,7 @@ fn object_type_must_be_known_in_method_call() {
     let src = r#"
     pub fn foo<let N: u32>() -> [Field; N] {
         let array = [];
-        let mut bar = array[0];
+        let bar = array[0];
         let _ = bar.len();
                 ^^^ Object type is unknown in method call
                 ~~~ Type must be known by this point to know which method to call
@@ -335,17 +335,16 @@ fn constructor_private_field() {
 }
 
 #[test]
-fn abi_attribute_outside_contract() {
+fn deny_abi_attribute_on_struct_outside_contract() {
     let src = r#"
-        pub contract moo {
+        pub mod moo {
             #[abi(hello)]
+            ^^^^^^^^^^^^^ #[abi(tag)] attributes can only be used in contracts
+            ~~~~~~~~~~~~~ misplaced #[abi(tag)] attribute
             pub struct Foo {}
-                       ^^^ #[abi(tag)] attributes can only be used in contracts
-                       ~~~ misplaced #[abi(tag)] attribute
         }
 
         pub fn foo(_: moo::Foo) {}
-                      ~~~~~~~~ the type is used outside of a contract
 
         fn main() {}
     "#;
@@ -393,6 +392,21 @@ fn non_overlapping_inherent_impls() {
             let _ = Foo { _x: 1_i32 };
             let _ = Foo { _x: 1_u64 };
         }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn allow_abi_attribute_on_struct_inside_contract() {
+    let src = r#"
+        pub contract moo {
+            #[abi(hello)]
+            pub struct Foo {}
+        }
+
+        pub fn foo(_: moo::Foo) {}
+
+        fn main() {}
     "#;
     assert_no_errors(src);
 }
