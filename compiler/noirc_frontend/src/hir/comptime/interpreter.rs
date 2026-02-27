@@ -35,7 +35,6 @@
 use std::collections::VecDeque;
 use std::{collections::hash_map::Entry, rc::Rc};
 
-use acvm::AcirField;
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
@@ -1528,7 +1527,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             }
         } else if start_type.is_unsigned() {
             let get_index = match start_value {
-                Value::U1(_) => |i| Value::U1(i == 1),
                 Value::U8(_) => |i| Value::U8(i as u8),
                 Value::U16(_) => |i| Value::U16(i as u16),
                 Value::U32(_) => |i| Value::U32(i as u32),
@@ -1760,16 +1758,6 @@ fn evaluate_integer(typ: Type, value: SignedField, location: Location) -> IResul
 
     match typ {
         FieldElement => Ok(Value::Field(value)),
-        Integer(Unsigned, One) => {
-            let field_value = value.to_field_element();
-            if field_value.is_zero() {
-                Ok(Value::U1(false))
-            } else if field_value.is_one() {
-                Ok(Value::U1(true))
-            } else {
-                Err(InterpreterError::IntegerOutOfRangeForType { value, typ, location })
-            }
-        }
         Integer(Unsigned, Eight) => {
             evaluate_unsigned!(U8)
         }
@@ -1785,7 +1773,6 @@ fn evaluate_integer(typ: Type, value: SignedField, location: Location) -> IResul
         Integer(Unsigned, HundredTwentyEight) => {
             evaluate_unsigned!(U128)
         }
-        Integer(Signed, One) => Err(InterpreterError::TypeUnsupported { typ, location }),
         Integer(Signed, Eight) => {
             evaluate_signed!(I8)
         }
@@ -1858,7 +1845,6 @@ fn evaluate_prefix_with_value(rhs: Value, operator: UnaryOp, location: Location)
                 .checked_neg()
                 .map(Value::I64)
                 .ok_or_else(|| InterpreterError::NegateWithOverflow { location }),
-            Value::U1(_) => Err(InterpreterError::CannotApplyMinusToType { location, typ: "u1" }),
             Value::U8(_) => Err(InterpreterError::CannotApplyMinusToType { location, typ: "u8" }),
             Value::U16(_) => Err(InterpreterError::CannotApplyMinusToType { location, typ: "u16" }),
             Value::U32(_) => Err(InterpreterError::CannotApplyMinusToType { location, typ: "u32" }),
@@ -1878,7 +1864,6 @@ fn evaluate_prefix_with_value(rhs: Value, operator: UnaryOp, location: Location)
             Value::I16(value) => Ok(Value::I16(!value)),
             Value::I32(value) => Ok(Value::I32(!value)),
             Value::I64(value) => Ok(Value::I64(!value)),
-            Value::U1(value) => Ok(Value::U1(!value)),
             Value::U8(value) => Ok(Value::U8(!value)),
             Value::U16(value) => Ok(Value::U16(!value)),
             Value::U32(value) => Ok(Value::U32(!value)),
@@ -1910,7 +1895,6 @@ fn evaluate_prefix_with_value(rhs: Value, operator: UnaryOp, location: Location)
 
 fn to_u128(value: Value) -> Option<u128> {
     match value {
-        Value::U1(value) => Some(u128::from(value)),
         Value::U8(value) => Some(u128::from(value)),
         Value::U16(value) => Some(u128::from(value)),
         Value::U32(value) => Some(u128::from(value)),

@@ -48,7 +48,6 @@ pub enum Value {
     I16(i16),
     I32(i32),
     I64(i64),
-    U1(bool),
     U8(u8),
     U16(u16),
     U32(u32),
@@ -153,7 +152,6 @@ impl Value {
             Value::I16(_) => Type::Integer(Signedness::Signed, IntegerBitSize::Sixteen),
             Value::I32(_) => Type::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo),
             Value::I64(_) => Type::Integer(Signedness::Signed, IntegerBitSize::SixtyFour),
-            Value::U1(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::One),
             Value::U8(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight),
             Value::U16(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::Sixteen),
             Value::U32(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo),
@@ -233,10 +231,6 @@ impl Value {
             Value::I64(value) => ExpressionKind::Literal(Literal::Integer(
                 SignedField::from_signed(value),
                 Some(IntegerTypeSuffix::I64),
-            )),
-            Value::U1(value) => ExpressionKind::Literal(Literal::Integer(
-                SignedField::positive(value),
-                Some(IntegerTypeSuffix::U1),
             )),
             Value::U8(value) => ExpressionKind::Literal(Literal::Integer(
                 SignedField::positive(u128::from(value)),
@@ -500,9 +494,6 @@ impl Value {
             Value::I64(value) => {
                 HirExpression::Literal(HirLiteral::Integer(SignedField::from_signed(value)))
             }
-            Value::U1(value) => {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value)))
-            }
             Value::U8(value) => HirExpression::Literal(HirLiteral::Integer(SignedField::positive(
                 u128::from(value),
             ))),
@@ -671,9 +662,6 @@ impl Value {
             }
             Value::TypedExpr(TypedExpr::ExprId(expr_id)) => vec![Token::UnquoteMarker(expr_id)],
             Value::Bool(bool) => vec![Token::Bool(bool)],
-            Value::U1(bool) => {
-                vec![Token::Int(u128::from(bool).into(), Some(IntegerTypeSuffix::U1))]
-            }
             Value::U8(value) => {
                 vec![Token::Int(u128::from(value).into(), Some(IntegerTypeSuffix::U8))]
             }
@@ -774,7 +762,6 @@ impl Value {
                 | I16(_)
                 | I32(_)
                 | I64(_)
-                | U1(_)
                 | U8(_)
                 | U16(_)
                 | U32(_)
@@ -791,7 +778,6 @@ impl Value {
             I16(value) => *value == 0,
             I32(value) => *value == 0,
             I64(value) => *value == 0,
-            U1(value) => !*value,
             U8(value) => *value == 0,
             U16(value) => *value == 0,
             U32(value) => *value == 0,
@@ -828,7 +814,6 @@ impl Value {
             | Value::I16(_)
             | Value::I32(_)
             | Value::I64(_)
-            | Value::U1(_)
             | Value::U8(_)
             | Value::U16(_)
             | Value::U32(_)
@@ -868,7 +853,6 @@ impl Value {
             Value::I16(value) => Some(value.into()),
             Value::I32(value) => Some(value.into()),
             Value::I64(value) => Some(value.into()),
-            Value::U1(value) => Some(value.into()),
             Value::U8(value) => Some(value.into()),
             Value::U16(value) => Some(value.into()),
             Value::U32(value) => Some(value.into()),

@@ -873,7 +873,7 @@ impl Elaborator<'_> {
             Value::I16(value) => SignedField::from_signed(value),
             Value::I32(value) => SignedField::from_signed(value),
             Value::I64(value) => SignedField::from_signed(value),
-            Value::U1(value) => SignedField::positive(value),
+
             Value::U8(value) => SignedField::positive(u128::from(value)),
             Value::U16(value) => SignedField::positive(u128::from(value)),
             Value::U32(value) => SignedField::positive(value),

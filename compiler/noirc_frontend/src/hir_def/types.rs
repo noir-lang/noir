@@ -3263,7 +3263,7 @@ impl Type {
             Type::Integer(Signed, Sixteen) => Some(IntegerTypeSuffix::I16),
             Type::Integer(Signed, ThirtyTwo) => Some(IntegerTypeSuffix::I32),
             Type::Integer(Signed, SixtyFour) => Some(IntegerTypeSuffix::I64),
-            Type::Integer(Unsigned, One) => Some(IntegerTypeSuffix::U1),
+
             Type::Integer(Unsigned, Eight) => Some(IntegerTypeSuffix::U8),
             Type::Integer(Unsigned, Sixteen) => Some(IntegerTypeSuffix::U16),
             Type::Integer(Unsigned, ThirtyTwo) => Some(IntegerTypeSuffix::U32),

@@ -20,7 +20,6 @@ pub(super) fn evaluate_infix(
         let rhs = rhs_type.clone();
         InterpreterError::InvalidValuesForBinary { lhs, rhs, location, operator }
     };
-    let shl_overflow = || InterpreterError::BinaryOperationOverflow { operator: "<<", location };
     let shr_overflow = || InterpreterError::BinaryOperationOverflow { operator: ">>", location };
     let math_error = |operator| InterpreterError::BinaryOperationOverflow { location, operator };
 
@@ -57,7 +56,7 @@ pub(super) fn evaluate_infix(
 
     /// Generate matches for arithmetic operations on `Field` and integers.
     macro_rules! match_arithmetic {
-        (($lhs_value:ident as $lhs:ident $op:literal $rhs_value:ident as $rhs:ident) { field: $field_expr:expr, int: $int_expr:expr, u1: $u1_expr:expr, }) => {
+        (($lhs_value:ident as $lhs:ident $op:literal $rhs_value:ident as $rhs:ident) { field: $field_expr:expr, int: $int_expr:expr, }) => {
             match_values! {
                 ($lhs_value as $lhs $op $rhs_value as $rhs) {
                     (Field, Field) to Field => Some($field_expr),
@@ -65,7 +64,6 @@ pub(super) fn evaluate_infix(
                     (I16, I16)     to I16   => $int_expr,
                     (I32, I32)     to I32   => $int_expr,
                     (I64, I64)     to I64   => $int_expr,
-                    (U1,  U1)      to U1    => $u1_expr,
                     (U8,  U8)      to U8    => $int_expr,
                     (U16, U16)     to U16   => $int_expr,
                     (U32, U32)     to U32   => $int_expr,
@@ -87,7 +85,6 @@ pub(super) fn evaluate_infix(
                     (I16, I16)     to Bool => Some($expr),
                     (I32, I32)     to Bool => Some($expr),
                     (I64, I64)     to Bool => Some($expr),
-                    (U1,  U1)      to Bool => Some($expr),
                     (U8,  U8)      to Bool => Some($expr),
                     (U16, U16)     to Bool => Some($expr),
                     (U32, U32)     to Bool => Some($expr),
@@ -108,7 +105,6 @@ pub(super) fn evaluate_infix(
                     (I16, I16)     to I16  => Some($expr),
                     (I32, I32)     to I32  => Some($expr),
                     (I64, I64)     to I64  => Some($expr),
-                    (U1,  U1)      to U1   => Some($expr),
                     (U8,  U8)      to U8   => Some($expr),
                     (U16, U16)     to U16  => Some($expr),
                     (U32, U32)     to U32  => Some($expr),
@@ -121,14 +117,13 @@ pub(super) fn evaluate_infix(
 
     /// Generate matches for operations on just integer values.
     macro_rules! match_integer {
-        (($lhs_value:ident as $lhs:ident $op:literal $rhs_value:ident as $rhs:ident) { int: $int_expr:expr, u1: $u1_expr:expr, }) => {
+        (($lhs_value:ident as $lhs:ident $op:literal $rhs_value:ident as $rhs:ident) { int: $int_expr:expr, }) => {
             match_values! {
                 ($lhs_value as $lhs $op $rhs_value as $rhs) {
                     (I8,  I8)      to I8   => $int_expr,
                     (I16, I16)     to I16  => $int_expr,
                     (I32, I32)     to I32  => $int_expr,
                     (I64, I64)     to I64  => $int_expr,
-                    (U1,  U1)      to U1   => $u1_expr,
                     (U8,  U8)      to U8   => $int_expr,
                     (U16, U16)     to U16  => $int_expr,
                     (U32, U32)     to U32  => $int_expr,
@@ -145,21 +140,18 @@ pub(super) fn evaluate_infix(
             (lhs_value as lhs "+" rhs_value as rhs) {
                 field: lhs + rhs,
                 int: lhs.checked_add(rhs),
-                u1: if lhs && rhs { None } else { Some(lhs | rhs) },
             }
         },
         BinaryOpKind::Subtract => match_arithmetic! {
             (lhs_value as lhs "-" rhs_value as rhs) {
                 field: lhs - rhs,
                 int: lhs.checked_sub(rhs),
-                u1: if !lhs && rhs { None } else { Some(lhs & !rhs) },
             }
         },
         BinaryOpKind::Multiply => match_arithmetic! {
             (lhs_value as lhs "*" rhs_value as rhs) {
                 field: lhs * rhs,
                 int: lhs.checked_mul(rhs),
-                u1: Some(lhs & rhs),
             }
         },
         BinaryOpKind::Divide => match_arithmetic! {
@@ -170,10 +162,6 @@ pub(super) fn evaluate_infix(
                     lhs / rhs
                 },
                 int: lhs.checked_div(rhs),
-                u1: {
-                    let _ = rhs; // Avoid unused variable warning
-                    Some(lhs)
-                },
             }
         },
         BinaryOpKind::Equal => match_cmp! {
@@ -216,7 +204,6 @@ pub(super) fn evaluate_infix(
                     };
                     lhs.checked_shr(rhs)
                 },
-                u1: if rhs { return Err(shr_overflow())} else { Some(lhs) },
             }
         },
         #[allow(trivial_numeric_casts)]
@@ -232,16 +219,11 @@ pub(super) fn evaluate_infix(
                     };
                     lhs.checked_shl(rhs)
                 },
-                u1: if rhs { return Err(shl_overflow())} else { Some(lhs) },
             }
         },
         BinaryOpKind::Modulo => match_integer! {
             (lhs_value as lhs "%" rhs_value as rhs) {
                 int: lhs.checked_rem(rhs),
-                u1: {
-                    let _ = lhs; // Avoid unused variable warning
-                    if rhs { Some(false) } else { None }
-                },
             }
         },
     }

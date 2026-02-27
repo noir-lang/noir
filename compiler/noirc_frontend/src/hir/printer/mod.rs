@@ -875,7 +875,6 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             Value::I16(value) => self.push_str(&value.to_string()),
             Value::I32(value) => self.push_str(&value.to_string()),
             Value::I64(value) => self.push_str(&value.to_string()),
-            Value::U1(value) => self.push_str(&value.to_string()),
             Value::U8(value) => self.push_str(&value.to_string()),
             Value::U16(value) => self.push_str(&value.to_string()),
             Value::U32(value) => self.push_str(&value.to_string()),

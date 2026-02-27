@@ -373,7 +373,6 @@ impl Elaborator<'_> {
             Some(IntegerTypeSuffix::I16) => Integer(Signed, IntegerBitSize::Sixteen),
             Some(IntegerTypeSuffix::I32) => Integer(Signed, IntegerBitSize::ThirtyTwo),
             Some(IntegerTypeSuffix::I64) => Integer(Signed, IntegerBitSize::SixtyFour),
-            Some(IntegerTypeSuffix::U1) => Integer(Unsigned, IntegerBitSize::One),
             Some(IntegerTypeSuffix::U8) => Integer(Unsigned, IntegerBitSize::Eight),
             Some(IntegerTypeSuffix::U16) => Integer(Unsigned, IntegerBitSize::Sixteen),
             Some(IntegerTypeSuffix::U32) => Integer(Unsigned, IntegerBitSize::ThirtyTwo),

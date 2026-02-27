@@ -17,7 +17,7 @@ impl Field {
         __assert_max_bit_size(self, BIT_SIZE);
     }
 
-    /// Decomposes `self` into its little endian bit decomposition as a `[u1; N]` array.
+    /// Decomposes `self` into its little endian bit decomposition as a `[bool; N]` array.
     /// This array will be zero padded should not all bits be necessary to represent `self`.
     ///
     /// # Failures
@@ -27,7 +27,7 @@ impl Field {
     /// # Safety
     /// The bit decomposition returned is canonical and is guaranteed to not overflow the modulus.
     // docs:start:to_le_bits
-    pub fn to_le_bits<let N: u32>(self: Self) -> [u1; N] {
+    pub fn to_le_bits<let N: u32>(self: Self) -> [bool; N] {
         // docs:end:to_le_bits
         let bits = __to_le_bits(self);
 
@@ -39,7 +39,7 @@ impl Field {
             for i in 0..N {
                 if !ok {
                     if (bits[N - 1 - i] != p[N - 1 - i]) {
-                        assert(p[N - 1 - i] == 1);
+                        assert(p[N - 1 - i]);
                         ok = true;
                     }
                 }
@@ -49,7 +49,7 @@ impl Field {
         bits
     }
 
-    /// Decomposes `self` into its big endian bit decomposition as a `[u1; N]` array.
+    /// Decomposes `self` into its big endian bit decomposition as a `[bool; N]` array.
     /// This array will be zero padded should not all bits be necessary to represent `self`.
     ///
     /// # Failures
@@ -59,7 +59,7 @@ impl Field {
     /// # Safety
     /// The bit decomposition returned is canonical and is guaranteed to not overflow the modulus.
     // docs:start:to_be_bits
-    pub fn to_be_bits<let N: u32>(self: Self) -> [u1; N] {
+    pub fn to_be_bits<let N: u32>(self: Self) -> [bool; N] {
         // docs:end:to_be_bits
         let bits = __to_be_bits(self);
 
@@ -71,7 +71,7 @@ impl Field {
             for i in 0..N {
                 if !ok {
                     if (bits[i] != p[i]) {
-                        assert(p[i] == 1);
+                        assert(p[i]);
                         ok = true;
                     }
                 }
@@ -180,7 +180,7 @@ impl Field {
     // using a bigger bit size impacts negatively the performance and should be done only if the exponent does not fit in 32 bits
     pub fn pow_32(self, exponent: Field) -> Field {
         let mut r: Field = 1;
-        let b: [u1; 32] = exponent.to_le_bits();
+        let b: [bool; 32] = exponent.to_le_bits();
 
         for i in 1..33 {
             r *= r;
@@ -189,9 +189,9 @@ impl Field {
         r
     }
 
-    // Parity of (prime) Field element, i.e. sgn0(x mod p) = 0 if x `elem` {0, ..., p-1} is even, otherwise sgn0(x mod p) = 1.
-    pub fn sgn0(self) -> u1 {
-        self as u1
+    // Parity of (prime) Field element, i.e. sgn0(x mod p) = false if x `elem` {0, ..., p-1} is even, otherwise sgn0(x mod p) = true.
+    pub fn sgn0(self) -> bool {
+        (self as u8) % 2 == 1
     }
 
     pub fn lt(self, another: Field) -> bool {
@@ -244,7 +244,7 @@ fn __to_le_radix<let N: u32>(value: Field, radix: u32) -> [u8; N] {}
 #[builtin(to_be_radix)]
 fn __to_be_radix<let N: u32>(value: Field, radix: u32) -> [u8; N] {}
 
-/// Decomposes `self` into its little endian bit decomposition as a `[u1; N]` array.
+/// Decomposes `self` into its little endian bit decomposition as a `[bool; N]` array.
 /// This array will be zero padded should not all bits be necessary to represent `self`.
 ///
 /// # Failures
@@ -256,9 +256,9 @@ fn __to_be_radix<let N: u32>(value: Field, radix: u32) -> [u8; N] {}
 /// (e.g. 254 for the BN254 field) allow for multiple bit decompositions. This is due to how the `Field` will
 /// wrap around due to overflow when verifying the decomposition.
 #[builtin(to_le_bits)]
-fn __to_le_bits<let N: u32>(value: Field) -> [u1; N] {}
+fn __to_le_bits<let N: u32>(value: Field) -> [bool; N] {}
 
-/// Decomposes `self` into its big endian bit decomposition as a `[u1; N]` array.
+/// Decomposes `self` into its big endian bit decomposition as a `[bool; N]` array.
 /// This array will be zero padded should not all bits be necessary to represent `self`.
 ///
 /// # Failures
@@ -270,16 +270,16 @@ fn __to_le_bits<let N: u32>(value: Field) -> [u1; N] {}
 /// (e.g. 254 for the BN254 field) allow for multiple bit decompositions. This is due to how the `Field` will
 /// wrap around due to overflow when verifying the decomposition.
 #[builtin(to_be_bits)]
-fn __to_be_bits<let N: u32>(value: Field) -> [u1; N] {}
+fn __to_be_bits<let N: u32>(value: Field) -> [bool; N] {}
 
 #[builtin(modulus_num_bits)]
 pub comptime fn modulus_num_bits() -> u64 {}
 
 #[builtin(modulus_be_bits)]
-pub comptime fn modulus_be_bits() -> [u1] {}
+pub comptime fn modulus_be_bits() -> [bool] {}
 
 #[builtin(modulus_le_bits)]
-pub comptime fn modulus_le_bits() -> [u1] {}
+pub comptime fn modulus_le_bits() -> [bool] {}
 
 #[builtin(modulus_be_bytes)]
 pub comptime fn modulus_be_bytes() -> [u8] {}
@@ -347,8 +347,8 @@ mod tests {
     // docs:start:to_be_bits_example
     fn test_to_be_bits() {
         let field = 2;
-        let bits: [u1; 8] = field.to_be_bits();
-        assert_eq(bits, [0, 0, 0, 0, 0, 0, 1, 0]);
+        let bits: [bool; 8] = field.to_be_bits();
+        assert_eq(bits, [false, false, false, false, false, false, true, false]);
     }
     // docs:end:to_be_bits_example
 
@@ -356,8 +356,8 @@ mod tests {
     // docs:start:to_le_bits_example
     fn test_to_le_bits() {
         let field = 2;
-        let bits: [u1; 8] = field.to_le_bits();
-        assert_eq(bits, [0, 1, 0, 0, 0, 0, 0, 0]);
+        let bits: [bool; 8] = field.to_le_bits();
+        assert_eq(bits, [false, true, false, false, false, false, false, false]);
     }
     // docs:end:to_le_bits_example
 
@@ -492,8 +492,8 @@ mod tests {
     unconstrained fn test_large_field_values_unconstrained() {
         let large_field = 0xffffffffffffffff;
 
-        let bits: [u1; 64] = large_field.to_le_bits();
-        assert_eq(bits[0], 1);
+        let bits: [bool; 64] = large_field.to_le_bits();
+        assert_eq(bits[0], true);
 
         let bytes: [u8; 8] = large_field.to_le_bytes();
         assert_eq(Field::from_le_bytes::<8>(bytes), large_field);
@@ -506,8 +506,8 @@ mod tests {
     fn test_large_field_values() {
         let large_val = 0xffffffffffffffff;
 
-        let bits: [u1; 64] = large_val.to_le_bits();
-        assert_eq(bits[0], 1);
+        let bits: [bool; 64] = large_val.to_le_bits();
+        assert_eq(bits[0], true);
 
         let bytes: [u8; 8] = large_val.to_le_bytes();
         assert_eq(Field::from_le_bytes::<8>(bytes), large_val);
@@ -518,18 +518,18 @@ mod tests {
 
     #[test]
     fn test_decomposition_edge_cases() {
-        let zero_bits: [u1; 8] = 0.to_le_bits();
-        assert_eq(zero_bits, [0; 8]);
+        let zero_bits: [bool; 8] = 0.to_le_bits();
+        assert_eq(zero_bits, [false; 8]);
 
         let zero_bytes: [u8; 8] = 0.to_le_bytes();
         assert_eq(zero_bytes, [0; 8]);
 
-        let one_bits: [u1; 8] = 1.to_le_bits();
-        let expected: [u1; 8] = [1, 0, 0, 0, 0, 0, 0, 0];
+        let one_bits: [bool; 8] = 1.to_le_bits();
+        let expected: [bool; 8] = [true, false, false, false, false, false, false, false];
         assert_eq(one_bits, expected);
 
-        let pow2_bits: [u1; 8] = 4.to_le_bits();
-        let expected: [u1; 8] = [0, 0, 1, 0, 0, 0, 0, 0];
+        let pow2_bits: [bool; 8] = 4.to_le_bits();
+        let expected: [bool; 8] = [false, false, true, false, false, false, false, false];
         assert_eq(pow2_bits, expected);
     }
 
@@ -550,22 +550,22 @@ mod tests {
 
     #[test]
     fn test_sgn0() {
-        assert_eq(0.sgn0(), 0);
-        assert_eq(2.sgn0(), 0);
-        assert_eq(4.sgn0(), 0);
-        assert_eq(100.sgn0(), 0);
+        assert_eq(0.sgn0(), false);
+        assert_eq(2.sgn0(), false);
+        assert_eq(4.sgn0(), false);
+        assert_eq(100.sgn0(), false);
 
-        assert_eq(1.sgn0(), 1);
-        assert_eq(3.sgn0(), 1);
-        assert_eq(5.sgn0(), 1);
-        assert_eq(101.sgn0(), 1);
+        assert_eq(1.sgn0(), true);
+        assert_eq(3.sgn0(), true);
+        assert_eq(5.sgn0(), true);
+        assert_eq(101.sgn0(), true);
     }
 
     #[test(should_fail_with = "Field failed to decompose into specified 8 limbs")]
     fn test_bit_decomposition_overflow() {
         // 8 bits can't represent large field values
         let large_val = 0x1000000000000000;
-        let _: [u1; 8] = large_val.to_le_bits();
+        let _: [bool; 8] = large_val.to_le_bits();
     }
 
     #[test(should_fail_with = "Field failed to decompose into specified 4 limbs")]
@@ -659,7 +659,7 @@ mod tests {
 
     /// Convert a little endian bit array to a field element.
     /// If the provided bit array overflows the field modulus then the Field will silently wrap around.
-    fn from_le_bits<let N: u32>(bits: [u1; N]) -> Field {
+    fn from_le_bits<let N: u32>(bits: [bool; N]) -> Field {
         static_assert(
             N <= modulus_le_bits().len(),
             "N must be less than or equal to modulus_le_bits().len()",
@@ -676,7 +676,7 @@ mod tests {
 
     /// Convert a big endian bit array to a field element.
     /// If the provided bit array overflows the field modulus then the Field will silently wrap around.
-    fn from_be_bits<let N: u32>(bits: [u1; N]) -> Field {
+    fn from_be_bits<let N: u32>(bits: [bool; N]) -> Field {
         let mut v = 1;
         let mut result = 0;
 
@@ -691,40 +691,40 @@ mod tests {
     fn test_to_from_be_bits_bn254_edge_cases() {
         if crate::compat::is_bn254() {
             // checking that decrementing this bit produces the expected 254 BE bits for (modulus - 1)
-            let mut p_minus_1_bits: [u1; 254] = modulus_be_bits().as_array();
-            assert(p_minus_1_bits[254 - 1] > 0);
-            p_minus_1_bits[254 - 1] -= 1;
+            let mut p_minus_1_bits: [bool; 254] = modulus_be_bits().as_array();
+            assert(p_minus_1_bits[254 - 1]);
+            p_minus_1_bits[254 - 1] = false;
 
             let p_minus_1 = from_be_bits::<254>(p_minus_1_bits);
             assert_eq(p_minus_1 + 1, 0);
 
             // checking that converting (modulus - 1) from and then to 254 BE bits produces the same bits
-            let p_minus_1_converted_bits: [u1; 254] = p_minus_1.to_be_bits();
+            let p_minus_1_converted_bits: [bool; 254] = p_minus_1.to_be_bits();
             assert_eq(p_minus_1_converted_bits, p_minus_1_bits);
 
             // checking that incrementing this bit produces 254 BE bits for (modulus + 4)
-            let mut p_plus_4_bits: [u1; 254] = modulus_be_bits().as_array();
-            assert(p_plus_4_bits[254 - 3] < 1);
-            p_plus_4_bits[254 - 3] += 1;
+            let mut p_plus_4_bits: [bool; 254] = modulus_be_bits().as_array();
+            assert(!p_plus_4_bits[254 - 3]);
+            p_plus_4_bits[254 - 3] = true;
 
             let p_plus_4 = from_be_bits::<254>(p_plus_4_bits);
             assert_eq(p_plus_4, 4);
 
             // checking that converting p_plus_4 to 254 BE bits produces the same
             // bit set to 1 as p_plus_4_bits and otherwise zeroes
-            let mut p_plus_4_converted_bits: [u1; 254] = p_plus_4.to_be_bits();
-            assert_eq(p_plus_4_converted_bits[254 - 3], 1);
-            p_plus_4_converted_bits[254 - 3] = 0;
-            assert_eq(p_plus_4_converted_bits, [0; 254]);
+            let mut p_plus_4_converted_bits: [bool; 254] = p_plus_4.to_be_bits();
+            assert(p_plus_4_converted_bits[254 - 3]);
+            p_plus_4_converted_bits[254 - 3] = false;
+            assert_eq(p_plus_4_converted_bits, [false; 254]);
 
             // checking that Field::from_be_bits::<254> on the Field modulus produces 0
             assert_eq(modulus_be_bits().len(), 254);
             let p = from_be_bits::<254>(modulus_be_bits().as_array());
             assert_eq(p, 0);
 
-            // checking that converting 0 to 254 BE bytes produces 254 zeroes
-            let p_bits: [u1; 254] = 0.to_be_bits();
-            assert_eq(p_bits, [0; 254]);
+            // checking that converting 0 to 254 BE bits produces 254 false values
+            let p_bits: [bool; 254] = 0.to_be_bits();
+            assert_eq(p_bits, [false; 254]);
         }
     }
 
@@ -732,40 +732,40 @@ mod tests {
     fn test_to_from_le_bits_bn254_edge_cases() {
         if crate::compat::is_bn254() {
             // checking that decrementing this bit produces the expected 254 LE bits for (modulus - 1)
-            let mut p_minus_1_bits: [u1; 254] = modulus_le_bits().as_array();
-            assert(p_minus_1_bits[0] > 0);
-            p_minus_1_bits[0] -= 1;
+            let mut p_minus_1_bits: [bool; 254] = modulus_le_bits().as_array();
+            assert(p_minus_1_bits[0]);
+            p_minus_1_bits[0] = false;
 
             let p_minus_1 = from_le_bits::<254>(p_minus_1_bits);
             assert_eq(p_minus_1 + 1, 0);
 
             // checking that converting (modulus - 1) from and then to 254 BE bits produces the same bits
-            let p_minus_1_converted_bits: [u1; 254] = p_minus_1.to_le_bits();
+            let p_minus_1_converted_bits: [bool; 254] = p_minus_1.to_le_bits();
             assert_eq(p_minus_1_converted_bits, p_minus_1_bits);
 
             // checking that incrementing this bit produces 254 LE bits for (modulus + 4)
-            let mut p_plus_4_bits: [u1; 254] = modulus_le_bits().as_array();
-            assert(p_plus_4_bits[2] < 1);
-            p_plus_4_bits[2] += 1;
+            let mut p_plus_4_bits: [bool; 254] = modulus_le_bits().as_array();
+            assert(!p_plus_4_bits[2]);
+            p_plus_4_bits[2] = true;
 
             let p_plus_4 = from_le_bits::<254>(p_plus_4_bits);
             assert_eq(p_plus_4, 4);
 
             // checking that converting p_plus_4 to 254 LE bits produces the same
             // bit set to 1 as p_plus_4_bits and otherwise zeroes
-            let mut p_plus_4_converted_bits: [u1; 254] = p_plus_4.to_le_bits();
-            assert_eq(p_plus_4_converted_bits[2], 1);
-            p_plus_4_converted_bits[2] = 0;
-            assert_eq(p_plus_4_converted_bits, [0; 254]);
+            let mut p_plus_4_converted_bits: [bool; 254] = p_plus_4.to_le_bits();
+            assert(p_plus_4_converted_bits[2]);
+            p_plus_4_converted_bits[2] = false;
+            assert_eq(p_plus_4_converted_bits, [false; 254]);
 
             // checking that Field::from_le_bits::<254> on the Field modulus produces 0
             assert_eq(modulus_le_bits().len(), 254);
             let p = from_le_bits::<254>(modulus_le_bits().as_array());
             assert_eq(p, 0);
 
-            // checking that converting 0 to 254 LE bytes produces 254 zeroes
-            let p_bits: [u1; 254] = 0.to_le_bits();
-            assert_eq(p_bits, [0; 254]);
+            // checking that converting 0 to 254 LE bits produces 254 false values
+            let p_bits: [bool; 254] = 0.to_le_bits();
+            assert_eq(p_bits, [false; 254]);
         }
     }
 }

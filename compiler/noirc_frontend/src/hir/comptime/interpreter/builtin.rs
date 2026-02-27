@@ -1065,8 +1065,7 @@ fn to_le_radix(
         return Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location });
     };
 
-    let return_type_is_bits =
-        *element_type == Type::Integer(Signedness::Unsigned, IntegerBitSize::One);
+    let return_type_is_bits = *element_type == Type::Bool;
 
     // Decompose the integer into its radix digits in little endian form.
     let decomposed_integer = compute_to_radix_le(value.to_field_element(), radix);
@@ -1085,7 +1084,7 @@ fn to_le_radix(
             None => 0,
         };
         // The only built-ins that use these either return `[u1; N]` or `[u8; N]`
-        if return_type_is_bits { Value::U1(digit != 0) } else { Value::U8(digit) }
+        if return_type_is_bits { Value::Bool(digit != 0) } else { Value::U8(digit) }
     });
 
     let len: u32 = decomposed_integer
@@ -1574,13 +1573,11 @@ fn zeroed(return_type: Type, location: Location) -> Value {
         }
         Type::Vector(_) => Value::Vector(Vector::new(), return_type),
         Type::Integer(sign, bits) => match (sign, bits) {
-            (Signedness::Unsigned, IntegerBitSize::One) => Value::U1(false),
             (Signedness::Unsigned, IntegerBitSize::Eight) => Value::U8(0),
             (Signedness::Unsigned, IntegerBitSize::Sixteen) => Value::U16(0),
             (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => Value::U32(0),
             (Signedness::Unsigned, IntegerBitSize::SixtyFour) => Value::U64(0),
             (Signedness::Unsigned, IntegerBitSize::HundredTwentyEight) => Value::U128(0),
-            (Signedness::Signed, IntegerBitSize::One) => unreachable!("invalid type: i1"),
             (Signedness::Signed, IntegerBitSize::Eight) => Value::I8(0),
             (Signedness::Signed, IntegerBitSize::Sixteen) => Value::I16(0),
             (Signedness::Signed, IntegerBitSize::ThirtyTwo) => Value::I32(0),
@@ -3111,10 +3108,9 @@ fn modulus_be_bits(arguments: Vec<(Value, Location)>, location: Location) -> IRe
     check_argument_count(0, &arguments, location)?;
 
     let bits = FieldElement::modulus().to_radix_be(2);
-    let bits_vector = bits.into_iter().map(|bit| Value::U1(bit != 0)).collect();
+    let bits_vector = bits.into_iter().map(|bit| Value::Bool(bit != 0)).collect();
 
-    let int_type = Type::Integer(Signedness::Unsigned, IntegerBitSize::One);
-    let typ = Type::Vector(Box::new(int_type));
+    let typ = Type::Vector(Box::new(Type::Bool));
     Ok(Value::Vector(bits_vector, typ))
 }
 
