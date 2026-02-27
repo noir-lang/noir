@@ -771,8 +771,6 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             return Err(internal(InternalError::TruncateToZeroBits { value_id, max_bit_size }));
         }
 
-        self.check_unchecked_int_sub_underflow(&value, value_id)?;
-
         // Checked (non-unchecked) subtractions may produce Unfit values due to integer underflow;
         // the integer modulus is added before truncating to correct for it.
         let is_sub = if let IrValue::Instruction { instruction, .. } = self.dfg()[value_id] {
@@ -855,53 +853,6 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         };
 
         self.define(result, Value::Numeric(truncated))
-    }
-
-    /// If `value` is an `Unfit` integer produced by an unchecked integer subtraction, returns an
-    /// `UncheckedSubUnderflow` error. Otherwise returns `Ok(())`.
-    fn check_unchecked_int_sub_underflow(
-        &self,
-        value: &NumericValue,
-        value_id: ValueId,
-    ) -> IResult<()> {
-        use Fitted::*;
-        use NumericValue::*;
-        if !matches!(
-            value,
-            U8(Unfit(_))
-                | U16(Unfit(_))
-                | U32(Unfit(_))
-                | U64(Unfit(_))
-                | U128(Unfit(_))
-                | I8(Unfit(_))
-                | I16(Unfit(_))
-                | I32(Unfit(_))
-                | I64(Unfit(_))
-        ) {
-            return Ok(());
-        }
-        let IrValue::Instruction { instruction, .. } = self.dfg()[value_id] else {
-            return Ok(());
-        };
-        let Instruction::Binary(Binary { operator: BinaryOp::Sub { unchecked: true }, lhs, rhs }) =
-            self.dfg()[instruction]
-        else {
-            return Ok(());
-        };
-        if !matches!(
-            self.dfg().type_of_value(lhs),
-            Type::Numeric(NumericType::Unsigned { .. } | NumericType::Signed { .. })
-        ) {
-            return Ok(());
-        }
-        let lhs_val = self.lookup_numeric(lhs, "truncate").ok();
-        let rhs_val = self.lookup_numeric(rhs, "truncate").ok();
-        Err(internal(InternalError::UncheckedSubUnderflow {
-            lhs_id: lhs,
-            lhs: lhs_val.map(|v| v.to_string()).unwrap_or_default(),
-            rhs_id: rhs,
-            rhs: rhs_val.map(|v| v.to_string()).unwrap_or_default(),
-        }))
     }
 
     fn interpret_range_check(
@@ -1665,7 +1616,13 @@ fn evaluate_binary(
             )
         }
         BinaryOp::Sub { unchecked: true } => {
-            apply_int_binop!(lhs, rhs, binary, num_traits::CheckedSub::checked_sub, |a, b| a - b)
+            apply_int_binop_opt!(
+                lhs,
+                rhs,
+                binary,
+                num_traits::CheckedSub::checked_sub,
+                display_binary
+            )
         }
         BinaryOp::Mul { unchecked: false } => {
             // Only unsigned multiplication has side effects
@@ -1876,11 +1833,11 @@ fn interpret_u1_binary_op(
             }
         }
         BinaryOp::Sub { unchecked: true } => {
-            // (0, 0) -> 0
-            // (0, 1) -> 1  (underflow)
-            // (1, 0) -> 1
-            // (1, 1) -> 0
-            lhs ^ rhs
+            if !lhs && rhs {
+                return Err(overflow());
+            } else {
+                lhs ^ rhs
+            }
         }
         BinaryOp::Sub { unchecked: false } => {
             if !lhs && rhs {

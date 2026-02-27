@@ -255,15 +255,19 @@ impl Context<'_, '_, '_> {
         unsigned_type: NumericType,
         bit_size: u32,
     ) -> ValueId {
-        let max_power_of_two = self.numeric_constant(1_u128 << (bit_size - 1), unsigned_type);
-
+        let max_power_of_two =
+            self.numeric_constant(1_u128 << (bit_size - 1), NumericType::NativeField);
+        let value_as_field = self.insert_cast(value, NumericType::NativeField);
         let intermediate =
-            self.insert_binary(max_power_of_two, BinaryOp::Sub { unchecked: true }, value);
+            self.insert_binary(max_power_of_two, BinaryOp::Sub { unchecked: true }, value_as_field);
+        let value_is_negative = self.insert_cast(value_is_negative, NumericType::NativeField);
         let intermediate =
             self.insert_binary(intermediate, BinaryOp::Mul { unchecked: true }, value_is_negative);
-        let two = self.numeric_constant(2_u128, unsigned_type);
+        let two = self.numeric_constant(2_u128, NumericType::NativeField);
         let intermediate = self.insert_binary(intermediate, BinaryOp::Mul { unchecked: true }, two);
-        self.insert_binary(value, BinaryOp::Add { unchecked: true }, intermediate)
+        let result =
+            self.insert_binary(value_as_field, BinaryOp::Add { unchecked: true }, intermediate);
+        self.insert_cast(result, unsigned_type)
     }
 
     /// Insert a numeric constant into the current function
@@ -415,29 +419,38 @@ mod tests {
             constrain v8 == u1 0, "Attempt to divide with overflow"
             v10 = div v2, u8 128
             v11 = div v3, u8 128
-            v12 = unchecked_sub u8 128, v2
-            v13 = unchecked_mul v12, v10
-            v15 = unchecked_mul v13, u8 2
-            v16 = unchecked_add v2, v15
-            v17 = unchecked_sub u8 128, v3
-            v18 = unchecked_mul v17, v11
-            v19 = unchecked_mul v18, u8 2
-            v20 = unchecked_add v3, v19
-            v21 = div v16, v20
-            v22 = cast v10 as u1
-            v23 = cast v11 as u1
-            v24 = xor v22, v23
-            v25 = cast v24 as u8
-            v26 = unchecked_sub u8 128, v21
-            v27 = unchecked_mul v26, v25
-            v28 = unchecked_mul v27, u8 2
-            v29 = unchecked_add v21, v28
-            v31 = eq v21, u8 0
-            v32 = not v31
-            v33 = cast v32 as u8
-            v34 = unchecked_mul v29, v33
-            v35 = cast v34 as i8
-            return v35
+            v12 = cast v0 as Field
+            v14 = sub Field 128, v12
+            v15 = cast v10 as Field
+            v16 = mul v14, v15
+            v18 = mul v16, Field 2
+            v19 = add v12, v18
+            v20 = cast v19 as u8
+            v21 = cast v1 as Field
+            v22 = sub Field 128, v21
+            v23 = cast v11 as Field
+            v24 = mul v22, v23
+            v25 = mul v24, Field 2
+            v26 = add v21, v25
+            v27 = cast v26 as u8
+            v28 = div v20, v27
+            v29 = cast v10 as u1
+            v30 = cast v11 as u1
+            v31 = xor v29, v30
+            v32 = cast v31 as u8
+            v33 = cast v28 as Field
+            v34 = sub Field 128, v33
+            v35 = cast v31 as Field
+            v36 = mul v34, v35
+            v37 = mul v36, Field 2
+            v38 = add v33, v37
+            v39 = cast v38 as u8
+            v41 = eq v28, u8 0
+            v42 = not v41
+            v43 = cast v42 as u8
+            v44 = unchecked_mul v39, v43
+            v45 = cast v44 as i8
+            return v45
         }
         "#);
     }
@@ -485,26 +498,35 @@ mod tests {
             constrain v8 == u1 0, "Attempt to calculate the remainder with overflow"
             v10 = div v2, u8 128
             v11 = div v3, u8 128
-            v12 = unchecked_sub u8 128, v2
-            v13 = unchecked_mul v12, v10
-            v15 = unchecked_mul v13, u8 2
-            v16 = unchecked_add v2, v15
-            v17 = unchecked_sub u8 128, v3
-            v18 = unchecked_mul v17, v11
-            v19 = unchecked_mul v18, u8 2
-            v20 = unchecked_add v3, v19
-            v21 = mod v16, v20
-            v22 = cast v10 as u1
-            v23 = unchecked_sub u8 128, v21
-            v24 = unchecked_mul v23, v10
-            v25 = unchecked_mul v24, u8 2
-            v26 = unchecked_add v21, v25
-            v28 = eq v21, u8 0
-            v29 = not v28
-            v30 = cast v29 as u8
-            v31 = unchecked_mul v26, v30
-            v32 = cast v31 as i8
-            return v32
+            v12 = cast v0 as Field
+            v14 = sub Field 128, v12
+            v15 = cast v10 as Field
+            v16 = mul v14, v15
+            v18 = mul v16, Field 2
+            v19 = add v12, v18
+            v20 = cast v19 as u8
+            v21 = cast v1 as Field
+            v22 = sub Field 128, v21
+            v23 = cast v11 as Field
+            v24 = mul v22, v23
+            v25 = mul v24, Field 2
+            v26 = add v21, v25
+            v27 = cast v26 as u8
+            v28 = mod v20, v27
+            v29 = cast v10 as u1
+            v30 = cast v28 as Field
+            v31 = sub Field 128, v30
+            v32 = cast v10 as Field
+            v33 = mul v31, v32
+            v34 = mul v33, Field 2
+            v35 = add v30, v34
+            v36 = cast v35 as u8
+            v38 = eq v28, u8 0
+            v39 = not v38
+            v40 = cast v39 as u8
+            v41 = unchecked_mul v36, v40
+            v42 = cast v41 as i8
+            return v42
         }
         "#);
     }

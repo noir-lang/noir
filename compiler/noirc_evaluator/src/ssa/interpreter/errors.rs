@@ -117,10 +117,6 @@ pub enum InternalError {
     #[error("Unsupported numeric type `{typ}`")]
     UnsupportedNumericType { typ: NumericType },
     #[error(
-        "SSA invariant violated: unchecked_sub {lhs_id} - {rhs_id} ({lhs} - {rhs}) underflows."
-    )]
-    UncheckedSubUnderflow { lhs_id: ValueId, lhs: String, rhs_id: ValueId, rhs: String },
-    #[error(
         "Invalid bit size of `{bit_size}` given to truncate, maximum size allowed for unsigned values is {MAX_UNSIGNED_BIT_SIZE}"
     )]
     InvalidUnsignedTruncateBitSize { bit_size: u32 },
