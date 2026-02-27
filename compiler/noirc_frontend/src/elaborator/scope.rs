@@ -200,10 +200,7 @@ impl Elaborator<'_> {
 
         for scope in scope_decls.0.iter() {
             for (variable_name, metadata) in scope.iter() {
-                if !metadata.warn_if_not_mutated
-                    || metadata.mutated
-                    || variable_name.starts_with('_')
-                {
+                if metadata.mutated {
                     continue;
                 }
 
@@ -213,6 +210,10 @@ impl Elaborator<'_> {
                     // Since the above error is only a warning, and because the codegen for non-mutable
                     // variables is usually more efficient, we set the variable's definition to be non-mutable.
                     definition_info.mutable = false;
+
+                    if !metadata.warn_if_not_mutated || variable_name.starts_with('_') {
+                        continue;
+                    }
 
                     let ident = Ident::new(variable_name.to_owned(), ident.location);
                     unnecessary_mut_vars.push(ident);
