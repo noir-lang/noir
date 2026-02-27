@@ -745,7 +745,7 @@ impl DataFlowGraph {
     }
 
     pub(crate) fn get_instruction_call_stack_id(&self, instruction: InstructionId) -> CallStackId {
-        self.locations.get(&instruction).cloned().unwrap_or_default()
+        self.locations.get(&instruction).copied().unwrap_or_default()
     }
 
     pub(crate) fn get_call_stack(&self, call_stack: CallStackId) -> CallStack {

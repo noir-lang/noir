@@ -110,6 +110,9 @@ pub(crate) struct VariableLiveness {
     /// list of some other block which this one immediately dominates, with values to be
     /// assigned in the terminators of the predecessors of that block.
     param_definitions: HashMap<BasicBlockId, Vec<ValueId>>,
+    /// The maximum number of variables simultaneously live at any point in the function.
+    /// Computed after `last_uses` by walking each block instruction-by-instruction.
+    pub(crate) max_live_count: usize,
 }
 
 impl VariableLiveness {
@@ -132,10 +135,12 @@ impl VariableLiveness {
             live_in: HashMap::default(),
             last_uses: HashMap::default(),
             param_definitions: HashMap::default(),
+            max_live_count: 0,
         }
         .compute_block_param_definitions(func, &loops.dom)
         .compute_live_in_of_blocks(func, constants, back_edges)
         .compute_last_uses(func)
+        .compute_max_live_count(func)
     }
 
     /// The set of values that are alive before the block starts executing.
@@ -394,6 +399,56 @@ impl VariableLiveness {
             self.last_uses.insert(block_id, block_last_uses);
         }
 
+        self
+    }
+
+    /// Compute [VariableLiveness::max_live_count].
+    ///
+    /// Walk each block instruction-by-instruction, tracking how many variables are
+    /// simultaneously alive: start with `live_in`, add variables defined by each
+    /// instruction (including block param definitions), and subtract dead variables
+    /// from `last_uses`. Record the highest count across all blocks.
+    ///
+    /// For `MakeArray` instructions, also account for the element count: during Brillig
+    /// codegen, each unique element value is materialized as a separate register, which
+    /// can far exceed the SSA-level variable count.
+    fn compute_max_live_count(mut self, func: &Function) -> Self {
+        let mut max_count: usize = 0;
+
+        for block_id in func.reachable_blocks() {
+            let block = &func.dfg[block_id];
+            let live_in = self.get_live_in(&block_id);
+            let last_uses = self.get_last_uses(&block_id);
+
+            // Start with the live-in set plus variables defined at block entry
+            // (block param definitions are allocated before the first instruction).
+            let param_defs = self.defined_block_params(&block_id);
+            let mut current_count = live_in.len() + param_defs.len();
+            max_count = max_count.max(current_count);
+
+            for instruction_id in block.instructions() {
+                let instruction = &func.dfg[*instruction_id];
+
+                // MakeArray materializes each element as a register during Brillig codegen.
+                // Count the number of unique element values to estimate register pressure.
+                if let Instruction::MakeArray { elements, .. } = instruction {
+                    let unique_elements: HashSet<_> = elements.iter().copied().collect();
+                    max_count = max_count.max(current_count + unique_elements.len());
+                }
+
+                // Add results defined by this instruction.
+                let results = func.dfg.instruction_results(*instruction_id);
+                current_count += results.len();
+                max_count = max_count.max(current_count);
+
+                // Subtract variables that die after this instruction.
+                if let Some(dead) = last_uses.get(instruction_id) {
+                    current_count = current_count.saturating_sub(dead.len());
+                }
+            }
+        }
+
+        self.max_live_count = max_count;
         self
     }
 
@@ -798,9 +853,9 @@ mod tests {
         assert_artifact_snapshot!(main, @r"
         fn main
         0: call 0
-        1: sp[2] = const field 10
-        2: sp[3] = field add sp[1], sp[2]
-        3: sp[1] = sp[3]
+        1: sp[3] = const field 10
+        2: sp[4] = field add sp[2], sp[3]
+        3: sp[2] = sp[4]
         4: return
         ");
     }
@@ -832,13 +887,13 @@ mod tests {
         assert_artifact_snapshot!(main, @r"
         fn main
         0: call 0
-        1: sp[2] = const field 1
-        2: sp[3] = field add sp[1], sp[2]
-        3: sp[1] = const field 2
-        4: sp[2] = field add sp[3], sp[1]
-        5: sp[1] = const field 3
-        6: sp[3] = field add sp[2], sp[1]
-        7: sp[1] = sp[3]
+        1: sp[3] = const field 1
+        2: sp[4] = field add sp[2], sp[3]
+        3: sp[2] = const field 2
+        4: sp[3] = field add sp[4], sp[2]
+        5: sp[2] = const field 3
+        6: sp[4] = field add sp[3], sp[2]
+        7: sp[2] = sp[4]
         8: return
         ");
     }
@@ -876,20 +931,20 @@ mod tests {
         assert_artifact_snapshot!(main, @r"
         fn main
          0: call 0
-         1: sp[3] = const u32 0
-         2: sp[4] = const u32 1
-         3: sp[2] = sp[3]
+         1: sp[4] = const u32 0
+         2: sp[5] = const u32 1
+         3: sp[3] = sp[4]
          4: jump to 0
-         5: sp[3] = u32 lt sp[2], sp[1]
-         6: jump if sp[3] to 0
+         5: sp[4] = u32 lt sp[3], sp[2]
+         6: jump if sp[4] to 0
          7: jump to 0
-         8: sp[1] = sp[2]
+         8: sp[2] = sp[3]
          9: return
-        10: sp[3] = u32 add sp[2], sp[4]
-        11: sp[5] = u32 lt_eq sp[2], sp[3]
-        12: jump if sp[5] to 0
+        10: sp[4] = u32 add sp[3], sp[5]
+        11: sp[6] = u32 lt_eq sp[3], sp[4]
+        12: jump if sp[6] to 0
         13: call 0
-        14: sp[2] = sp[3]
+        14: sp[3] = sp[4]
         15: jump to 0
         ");
     }
@@ -926,15 +981,15 @@ mod tests {
         assert_artifact_snapshot!(main, @r"
         fn main
          0: call 0
-         1: sp[3] = const field 42
-         2: jump if sp[1] to 0
+         1: sp[4] = const field 42
+         2: jump if sp[2] to 0
          3: jump to 0
-         4: sp[2] = sp[3]
+         4: sp[3] = sp[4]
          5: jump to 0
-         6: sp[1] = const field 27
-         7: sp[2] = field add sp[1], sp[3]
+         6: sp[2] = const field 27
+         7: sp[3] = field add sp[2], sp[4]
          8: jump to 0
-         9: sp[1] = sp[2]
+         9: sp[2] = sp[3]
         10: return
         ");
     }
@@ -966,11 +1021,11 @@ mod tests {
         assert_artifact_snapshot!(main, @r"
         fn main
         0: call 0
-        1: sp[2] = const field 100
-        2: sp[3] = field add sp[1], sp[2]
-        3: sp[2] = const field 200
-        4: sp[4] = field mul sp[1], sp[2]
-        5: sp[1] = field add sp[3], sp[4]
+        1: sp[3] = const field 100
+        2: sp[4] = field add sp[2], sp[3]
+        3: sp[3] = const field 200
+        4: sp[5] = field mul sp[2], sp[3]
+        5: sp[2] = field add sp[4], sp[5]
         6: return
         ");
     }
@@ -1004,14 +1059,14 @@ mod tests {
         assert_artifact_snapshot!(main, @r"
         fn main
          0: call 0
-         1: sp[3] = const field 1
-         2: sp[4] = field add sp[1], sp[3]
-         3: sp[1] = const field 2
-         4: sp[3] = field add sp[4], sp[1]
-         5: sp[1] = const field 3
-         6: sp[2] = field mul sp[3], sp[1]
+         1: sp[4] = const field 1
+         2: sp[5] = field add sp[2], sp[4]
+         3: sp[2] = const field 2
+         4: sp[4] = field add sp[5], sp[2]
+         5: sp[2] = const field 3
+         6: sp[3] = field mul sp[4], sp[2]
          7: jump to 0
-         8: sp[1] = sp[2]
+         8: sp[2] = sp[3]
          9: return
         ");
     }

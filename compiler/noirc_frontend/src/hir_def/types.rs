@@ -2374,7 +2374,7 @@ impl Type {
         if this.occurs(target_id) {
             Err(UnificationError)
         } else {
-            bindings.insert(target_id, (var.clone(), this.kind(), this.clone()));
+            bindings.insert(target_id, (var.clone(), this.kind(), this));
             Ok(())
         }
     }
@@ -2487,8 +2487,8 @@ impl Type {
                     if to_value == from_value {
                         Ok(to_value)
                     } else {
-                        let to = *to.clone();
-                        let from = *from.clone();
+                        let to = *to;
+                        let from = *from;
                         Err(TypeCheckError::TypeCanonicalizationMismatch {
                             to,
                             from,

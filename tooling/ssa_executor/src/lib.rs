@@ -129,10 +129,8 @@ mod tests {
             witness_map.insert(Witness(i), FieldElement::from(1_u32));
         }
         witness_map.insert(Witness(6), FieldElement::from(0_u32));
-        let acir_result =
-            execute_ssa(acir_ssa.to_string(), witness_map.clone(), CompileOptions::default());
-        let brillig_result =
-            execute_ssa(brillig_ssa.to_string(), witness_map, CompileOptions::default());
+        let acir_result = execute_ssa(acir_ssa, witness_map.clone(), CompileOptions::default());
+        let brillig_result = execute_ssa(brillig_ssa, witness_map, CompileOptions::default());
         match (acir_result, brillig_result) {
             (Err(acir), Ok(_brillig)) => panic!("Acir failed with: {acir}, brillig succeeded"),
             (Ok(_acir), Err(brillig)) => panic!("Acir succeeded, brillig failed: {brillig}"),

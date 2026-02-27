@@ -142,7 +142,7 @@ impl<'cfg> Context<'cfg> {
 
         self.branch_ends
             .get(&start)
-            .cloned()
+            .copied()
             .unwrap_or_else(|| panic!("should have found the join point for {start}"))
     }
 
@@ -170,7 +170,7 @@ impl<'cfg> Context<'cfg> {
     fn complete_parents(&mut self, mut branch: BasicBlockId, mut join: BasicBlockId) {
         loop {
             // If we reached the starting point, we can stop.
-            let Some(parent) = self.branch_parents.get(&branch).cloned() else {
+            let Some(parent) = self.branch_parents.get(&branch).copied() else {
                 break;
             };
             // We can skip this join point (we know it completes this level, not the parent), and look for the next one.

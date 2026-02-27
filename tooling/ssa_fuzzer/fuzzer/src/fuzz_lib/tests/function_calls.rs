@@ -266,7 +266,7 @@ fn call_in_if_else() {
     };
 
     // use the same commands, but add boolean block at the beginning
-    let mut commands = commands_for_main.clone();
+    let mut commands = commands_for_main;
     commands.insert(
         0,
         FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 4 },
@@ -389,7 +389,7 @@ fn test_does_not_insert_too_many_instructions_with_function_calls() {
     // with max 1000 instructions both functions should be executed
     // and the result should be the output of the first function
     let options = FuzzerOptions { max_instructions_num: 1000, ..FuzzerOptions::default() };
-    let result = fuzz_target(data.clone(), default_runtimes(), options);
+    let result = fuzz_target(data, default_runtimes(), options);
     match result.get_return_witnesses().is_empty() {
         true => {
             panic!("Program failed to execute");

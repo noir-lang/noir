@@ -178,7 +178,7 @@ fn resolve_cloned_function_call_sites(
                 continue;
             };
 
-            let arguments = arguments.to_vec();
+            let arguments = arguments.clone();
             let new_function_value_id = function.dfg.import_function(new_func_id);
             function.dfg[instruction_id] =
                 Instruction::Call { func: new_function_value_id, arguments };
@@ -315,7 +315,7 @@ fn collect_callsites_to_rewrite(
                 function_to_update: function.id(),
                 instruction: instruction_id,
                 new_func_to_call: *new_id,
-                call_args: arguments.to_vec(),
+                call_args: arguments.clone(),
             };
             new_calls_to_update.insert(new_call);
         }
