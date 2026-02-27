@@ -6,6 +6,10 @@ use crate::embedded_curve_ops::{
     EmbeddedCurvePoint, EmbeddedCurveScalar, multi_scalar_mul, multi_scalar_mul_array_return,
 };
 use crate::meta::derive_via;
+use crate::static_assert;
+
+/// The size of the state accepted by the backend in `poseidon2_permutation`.
+global POSEIDON2_CONFIG_STATE_SIZE: u32 = poseidon2_config_state_size();
 
 #[foreign(sha256_compression)]
 // docs:start:sha256_compression
@@ -137,11 +141,19 @@ fn from_field_unsafe(scalar: Field) -> EmbeddedCurveScalar {
 
 pub fn poseidon2_permutation<let N: u32>(input: [Field; N], state_len: u32) -> [Field; N] {
     assert_eq(input.len(), state_len);
+
+    static_assert(
+         N == POSEIDON2_CONFIG_STATE_SIZE,
+         f"the input length must equal the state size in the Poseidon2 config; expected {POSEIDON2_CONFIG_STATE_SIZE}, got {N}",
+     );
     poseidon2_permutation_internal(input)
 }
 
 #[foreign(poseidon2_permutation)]
 fn poseidon2_permutation_internal<let N: u32>(input: [Field; N]) -> [Field; N] {}
+
+#[foreign(poseidon2_config_state_size)]
+comptime fn poseidon2_config_state_size() -> u32 {}
 
 // Generic hashing support.
 // Partially ported and impacted by rust.
