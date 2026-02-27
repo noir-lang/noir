@@ -186,7 +186,7 @@
 <a href=#186 id=186 data-nosnippet>186</a>            {
 <a href=#187 id=187 data-nosnippet>187</a>                <span class="kw">let </span>procedure_locs = debug_symbols.brillig_procedure_locs.get(<span class="kw-2">&amp;</span>brillig_function_id);
 <a href=#188 id=188 data-nosnippet>188</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(procedure_locs) = procedure_locs {
-<a href=#189 id=189 data-nosnippet>189</a>                    <span class="kw">for </span>(procedure, range) <span class="kw">in </span>procedure_locs.iter() {
+<a href=#189 id=189 data-nosnippet>189</a>                    <span class="kw">for </span>(procedure, range) <span class="kw">in </span>procedure_locs {
 <a href=#190 id=190 data-nosnippet>190</a>                        <span class="kw">if </span>brillig_location.<span class="number">0 </span>&gt;= range.<span class="number">0 </span>&amp;&amp; brillig_location.<span class="number">0 </span>&lt;= range.<span class="number">1 </span>{
 <a href=#191 id=191 data-nosnippet>191</a>                            procedure_id = <span class="prelude-val">Some</span>(<span class="kw-2">*</span>procedure);
 <a href=#192 id=192 data-nosnippet>192</a>                            <span class="kw">break</span>;
@@ -277,7 +277,7 @@
 <a href=#277 id=277 data-nosnippet>277</a>) -&gt; Vec&lt;String&gt; {
 <a href=#278 id=278 data-nosnippet>278</a>    <span class="kw">let </span><span class="kw-2">mut </span>result_vector = Vec::with_capacity(folded_stack_items.len());
 <a href=#279 id=279 data-nosnippet>279</a>
-<a href=#280 id=280 data-nosnippet>280</a>    <span class="kw">for </span>(location, folded_stack_item) <span class="kw">in </span>folded_stack_items.iter() {
+<a href=#280 id=280 data-nosnippet>280</a>    <span class="kw">for </span>(location, folded_stack_item) <span class="kw">in </span>folded_stack_items {
 <a href=#281 id=281 data-nosnippet>281</a>        <span class="kw">if </span>folded_stack_item.total_samples &gt; <span class="number">0 </span>{
 <a href=#282 id=282 data-nosnippet>282</a>            <span class="kw">let </span>frame_list: Vec&lt;String&gt; =
 <a href=#283 id=283 data-nosnippet>283</a>                parent_stacks.iter().cloned().chain(std::iter::once(location.clone())).collect();

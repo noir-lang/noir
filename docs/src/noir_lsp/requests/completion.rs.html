@@ -184,7 +184,7 @@
 <a href=#184 id=184 data-nosnippet>184</a>            <span class="kw">let </span><span class="kw-2">mut </span>items = std::mem::take(<span class="kw-2">&amp;mut </span><span class="self">self</span>.completion_items);
 <a href=#185 id=185 data-nosnippet>185</a>
 <a href=#186 id=186 data-nosnippet>186</a>            <span class="comment">// Show items that start with underscore last in the list
-<a href=#187 id=187 data-nosnippet>187</a>            </span><span class="kw">for </span>item <span class="kw">in </span>items.iter_mut() {
+<a href=#187 id=187 data-nosnippet>187</a>            </span><span class="kw">for </span>item <span class="kw">in </span><span class="kw-2">&amp;mut </span>items {
 <a href=#188 id=188 data-nosnippet>188</a>                <span class="kw">if </span>item.label.starts_with(<span class="string">'_'</span>) {
 <a href=#189 id=189 data-nosnippet>189</a>                    item.sort_text = <span class="prelude-val">Some</span>(underscore_sort_text());
 <a href=#190 id=190 data-nosnippet>190</a>                }
@@ -1951,7 +1951,7 @@
 <a href=#1951 id=1951 data-nosnippet>1951</a>        Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) =&gt; {
 <a href=#1952 id=1952 data-nosnippet>1952</a>            <span class="kw">match </span><span class="kw-2">&amp;*</span>var.borrow() {
 <a href=#1953 id=1953 data-nosnippet>1953</a>                TypeBinding::Bound(typ) =&gt; get_field_type(typ, name),
-<a href=#1954 id=1954 data-nosnippet>1954</a>                <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+<a href=#1954 id=1954 data-nosnippet>1954</a>                TypeBinding::Unbound(..) =&gt; <span class="prelude-val">None</span>,
 <a href=#1955 id=1955 data-nosnippet>1955</a>            }
 <a href=#1956 id=1956 data-nosnippet>1956</a>        }
 <a href=#1957 id=1957 data-nosnippet>1957</a>        <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
@@ -1968,7 +1968,7 @@
 <a href=#1968 id=1968 data-nosnippet>1968</a>        Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) =&gt; {
 <a href=#1969 id=1969 data-nosnippet>1969</a>            <span class="kw">match </span><span class="kw-2">&amp;*</span>var.borrow() {
 <a href=#1970 id=1970 data-nosnippet>1970</a>                TypeBinding::Bound(typ) =&gt; get_array_element_type(typ.clone()),
-<a href=#1971 id=1971 data-nosnippet>1971</a>                <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+<a href=#1971 id=1971 data-nosnippet>1971</a>                TypeBinding::Unbound(..) =&gt; <span class="prelude-val">None</span>,
 <a href=#1972 id=1972 data-nosnippet>1972</a>            }
 <a href=#1973 id=1973 data-nosnippet>1973</a>        }
 <a href=#1974 id=1974 data-nosnippet>1974</a>        <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,

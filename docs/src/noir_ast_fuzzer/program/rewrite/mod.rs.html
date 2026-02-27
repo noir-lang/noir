@@ -53,14 +53,14 @@
 <a href=#53 id=53 data-nosnippet>53</a>///
 <a href=#54 id=54 data-nosnippet>54</a>/// The function also takes care of changing all function pointers into unconstrained ones.
 <a href=#55 id=55 data-nosnippet>55</a></span><span class="kw">pub fn </span>change_all_functions_into_unconstrained(<span class="kw-2">mut </span>program: Program) -&gt; Program {
-<a href=#56 id=56 data-nosnippet>56</a>    <span class="kw">for </span>f <span class="kw">in </span>program.functions.iter_mut() {
+<a href=#56 id=56 data-nosnippet>56</a>    <span class="kw">for </span>f <span class="kw">in </span><span class="kw-2">&amp;mut </span>program.functions {
 <a href=#57 id=57 data-nosnippet>57</a>        <span class="kw">if </span>f.unconstrained {
 <a href=#58 id=58 data-nosnippet>58</a>            <span class="kw">continue</span>;
 <a href=#59 id=59 data-nosnippet>59</a>        }
 <a href=#60 id=60 data-nosnippet>60</a>        <span class="comment">// Modify the function.
 <a href=#61 id=61 data-nosnippet>61</a>        </span>f.unconstrained = <span class="bool-val">true</span>;
 <a href=#62 id=62 data-nosnippet>62</a>        <span class="comment">// Modify any function pointers it takes.
-<a href=#63 id=63 data-nosnippet>63</a>        </span><span class="kw">for </span>(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, typ, <span class="kw">_</span>) <span class="kw">in </span>f.parameters.iter_mut() {
+<a href=#63 id=63 data-nosnippet>63</a>        </span><span class="kw">for </span>(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, typ, <span class="kw">_</span>) <span class="kw">in </span><span class="kw-2">&amp;mut </span>f.parameters {
 <a href=#64 id=64 data-nosnippet>64</a>            <span class="kw">if let </span>Type::Function(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, unconstrained) = types::unref_mut(typ) {
 <a href=#65 id=65 data-nosnippet>65</a>                <span class="kw-2">*</span>unconstrained = <span class="bool-val">true</span>;
 <a href=#66 id=66 data-nosnippet>66</a>            }

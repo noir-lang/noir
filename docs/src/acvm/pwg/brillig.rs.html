@@ -118,7 +118,7 @@
 <a href=#118 id=118 data-nosnippet>118</a>                },
 <a href=#119 id=119 data-nosnippet>119</a>                BrilligInputs::Array(expr_arr) =&gt; {
 <a href=#120 id=120 data-nosnippet>120</a>                    <span class="comment">// Attempt to fetch all array input values
-<a href=#121 id=121 data-nosnippet>121</a>                    </span><span class="kw">for </span>expr <span class="kw">in </span>expr_arr.iter() {
+<a href=#121 id=121 data-nosnippet>121</a>                    </span><span class="kw">for </span>expr <span class="kw">in </span>expr_arr {
 <a href=#122 id=122 data-nosnippet>122</a>                        <span class="kw">match </span>get_value(expr, initial_witness) {
 <a href=#123 id=123 data-nosnippet>123</a>                            <span class="prelude-val">Ok</span>(value) =&gt; calldata.push(value),
 <a href=#124 id=124 data-nosnippet>124</a>                            <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; {
@@ -280,7 +280,7 @@
 <a href=#280 id=280 data-nosnippet>280</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), OpcodeResolutionError&lt;F&gt;&gt; {
 <a href=#281 id=281 data-nosnippet>281</a>        <span class="kw">let </span>memory = <span class="self">self</span>.vm.get_memory();
 <a href=#282 id=282 data-nosnippet>282</a>        <span class="kw">let </span><span class="kw-2">mut </span>current_ret_data_idx = return_data_offset;
-<a href=#283 id=283 data-nosnippet>283</a>        <span class="kw">for </span>output <span class="kw">in </span>outputs.iter() {
+<a href=#283 id=283 data-nosnippet>283</a>        <span class="kw">for </span>output <span class="kw">in </span>outputs {
 <a href=#284 id=284 data-nosnippet>284</a>            <span class="kw">match </span>output {
 <a href=#285 id=285 data-nosnippet>285</a>                BrilligOutputs::Simple(witness) =&gt; {
 <a href=#286 id=286 data-nosnippet>286</a>                    <span class="kw">let </span>value = memory
@@ -291,7 +291,7 @@
 <a href=#291 id=291 data-nosnippet>291</a>                        current_ret_data_idx.checked_add(<span class="number">1</span>).expect(<span class="string">"Return data index overflow"</span>);
 <a href=#292 id=292 data-nosnippet>292</a>                }
 <a href=#293 id=293 data-nosnippet>293</a>                BrilligOutputs::Array(witness_arr) =&gt; {
-<a href=#294 id=294 data-nosnippet>294</a>                    <span class="kw">for </span>witness <span class="kw">in </span>witness_arr.iter() {
+<a href=#294 id=294 data-nosnippet>294</a>                    <span class="kw">for </span>witness <span class="kw">in </span>witness_arr {
 <a href=#295 id=295 data-nosnippet>295</a>                        <span class="kw">let </span>value = memory
 <a href=#296 id=296 data-nosnippet>296</a>                            .get(current_ret_data_idx)
 <a href=#297 id=297 data-nosnippet>297</a>                            .expect(<span class="string">"Return data index exceeds memory bounds"</span>);

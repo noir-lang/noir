@@ -1061,7 +1061,7 @@
 <a href=#1061 id=1061 data-nosnippet>1061</a>            TypeBinding::Bound(binding) =&gt; {
 <a href=#1062 id=1062 data-nosnippet>1062</a>                <span class="macro">matches!</span>(binding.follow_bindings(), Type::Integer(Signedness::Signed, <span class="kw">_</span>))
 <a href=#1063 id=1063 data-nosnippet>1063</a>            }
-<a href=#1064 id=1064 data-nosnippet>1064</a>            <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+<a href=#1064 id=1064 data-nosnippet>1064</a>            TypeBinding::Unbound(..) =&gt; <span class="bool-val">false</span>,
 <a href=#1065 id=1065 data-nosnippet>1065</a>        }
 <a href=#1066 id=1066 data-nosnippet>1066</a>    }
 <a href=#1067 id=1067 data-nosnippet>1067</a>
@@ -1071,7 +1071,7 @@
 <a href=#1071 id=1071 data-nosnippet>1071</a>            TypeBinding::Bound(binding) =&gt; {
 <a href=#1072 id=1072 data-nosnippet>1072</a>                <span class="macro">matches!</span>(binding.follow_bindings(), Type::Integer(Signedness::Unsigned, <span class="kw">_</span>))
 <a href=#1073 id=1073 data-nosnippet>1073</a>            }
-<a href=#1074 id=1074 data-nosnippet>1074</a>            <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+<a href=#1074 id=1074 data-nosnippet>1074</a>            TypeBinding::Unbound(..) =&gt; <span class="bool-val">false</span>,
 <a href=#1075 id=1075 data-nosnippet>1075</a>        }
 <a href=#1076 id=1076 data-nosnippet>1076</a>    }
 <a href=#1077 id=1077 data-nosnippet>1077</a>
@@ -1842,7 +1842,7 @@
 <a href=#1842 id=1842 data-nosnippet>1842</a>                <span class="bool-val">false
 <a href=#1843 id=1843 data-nosnippet>1843</a>            </span>}
 <a href=#1844 id=1844 data-nosnippet>1844</a>            Type::Tuple(types) =&gt; {
-<a href=#1845 id=1845 data-nosnippet>1845</a>                <span class="kw">for </span>typ <span class="kw">in </span>types.iter() {
+<a href=#1845 id=1845 data-nosnippet>1845</a>                <span class="kw">for </span>typ <span class="kw">in </span>types {
 <a href=#1846 id=1846 data-nosnippet>1846</a>                    <span class="kw">if </span>typ.contains_vector_helper(type_recursion_context.clone().recur()) {
 <a href=#1847 id=1847 data-nosnippet>1847</a>                        <span class="kw">return </span><span class="bool-val">true</span>;
 <a href=#1848 id=1848 data-nosnippet>1848</a>                    }
@@ -2365,7 +2365,7 @@
 <a href=#2365 id=2365 data-nosnippet>2365</a>                TypeBinding::Bound(typ) =&gt; <span class="kw">return </span>typ.try_bind_to(var, bindings, kind),
 <a href=#2366 id=2366 data-nosnippet>2366</a>                <span class="comment">// Don't recursively bind the same id to itself
 <a href=#2367 id=2367 data-nosnippet>2367</a>                </span>TypeBinding::Unbound(id, <span class="kw">_</span>) <span class="kw">if </span><span class="kw-2">*</span>id == target_id =&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>(()),
-<a href=#2368 id=2368 data-nosnippet>2368</a>                <span class="kw">_ </span>=&gt; (),
+<a href=#2368 id=2368 data-nosnippet>2368</a>                TypeBinding::Unbound(..) =&gt; (),
 <a href=#2369 id=2369 data-nosnippet>2369</a>            }
 <a href=#2370 id=2370 data-nosnippet>2370</a>        }
 <a href=#2371 id=2371 data-nosnippet>2371</a>

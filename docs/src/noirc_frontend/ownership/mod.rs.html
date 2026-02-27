@@ -55,7 +55,7 @@
 <a href=#55 id=55 data-nosnippet>55</a>    ///
 <a href=#56 id=56 data-nosnippet>56</a>    /// This should only be called once, before converting to SSA.
 <a href=#57 id=57 data-nosnippet>57</a>    </span><span class="kw">pub fn </span>handle_ownership(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
-<a href=#58 id=58 data-nosnippet>58</a>        <span class="kw">for </span>function <span class="kw">in </span><span class="self">self</span>.functions.iter_mut() {
+<a href=#58 id=58 data-nosnippet>58</a>        <span class="kw">for </span>function <span class="kw">in </span><span class="kw-2">&amp;mut </span><span class="self">self</span>.functions {
 <a href=#59 id=59 data-nosnippet>59</a>            function.handle_ownership();
 <a href=#60 id=60 data-nosnippet>60</a>        }
 <a href=#61 id=61 data-nosnippet>61</a>        <span class="self">self
@@ -244,7 +244,7 @@
 <a href=#244 id=244 data-nosnippet>244</a>            Literal::FmtStr(<span class="kw">_</span>, <span class="kw">_</span>, captures) =&gt; <span class="self">self</span>.handle_expression(captures),
 <a href=#245 id=245 data-nosnippet>245</a>
 <a href=#246 id=246 data-nosnippet>246</a>            Literal::Array(array) | Literal::Vector(array) =&gt; {
-<a href=#247 id=247 data-nosnippet>247</a>                <span class="kw">for </span>element <span class="kw">in </span>array.contents.iter_mut() {
+<a href=#247 id=247 data-nosnippet>247</a>                <span class="kw">for </span>element <span class="kw">in </span><span class="kw-2">&amp;mut </span>array.contents {
 <a href=#248 id=248 data-nosnippet>248</a>                    <span class="self">self</span>.handle_expression(element);
 <a href=#249 id=249 data-nosnippet>249</a>                }
 <a href=#250 id=250 data-nosnippet>250</a>            }

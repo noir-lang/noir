@@ -287,7 +287,7 @@
 <a href=#287 id=287 data-nosnippet>287</a>                        ForeignCallParam::Single(value) =&gt; {
 <a href=#288 id=288 data-nosnippet>288</a>                            <span class="self">self</span>.write_value_to_memory(<span class="kw-2">*</span>value_addr, value, <span class="kw-2">*</span>bit_size)<span class="question-mark">?</span>;
 <a href=#289 id=289 data-nosnippet>289</a>                        }
-<a href=#290 id=290 data-nosnippet>290</a>                        <span class="kw">_ </span>=&gt; {
+<a href=#290 id=290 data-nosnippet>290</a>                        ForeignCallParam::Array(<span class="kw">_</span>) =&gt; {
 <a href=#291 id=291 data-nosnippet>291</a>                            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
 <a href=#292 id=292 data-nosnippet>292</a>                                <span class="string">"Function result size does not match brillig bytecode. Expected 1 result but got {output:?}"
 <a href=#293 id=293 data-nosnippet>293</a>                            </span>));

@@ -265,7 +265,7 @@
 <a href=#265 id=265 data-nosnippet>265</a>
 <a href=#266 id=266 data-nosnippet>266</a>        <span class="kw">let </span><span class="kw-2">mut </span>all_terminator_values = HashSet::default();
 <a href=#267 id=267 data-nosnippet>267</a>        <span class="kw">let </span><span class="kw-2">mut </span>per_func_block_params: HashSet&lt;ValueId&gt; = HashSet::default();
-<a href=#268 id=268 data-nosnippet>268</a>        <span class="kw">for </span>(block_id, references) <span class="kw">in </span><span class="self">self</span>.blocks.iter_mut() {
+<a href=#268 id=268 data-nosnippet>268</a>        <span class="kw">for </span>(block_id, references) <span class="kw">in </span><span class="kw-2">&amp;mut </span><span class="self">self</span>.blocks {
 <a href=#269 id=269 data-nosnippet>269</a>            <span class="kw">let </span>block_params = <span class="self">self</span>.inserter.function.dfg.block_parameters(<span class="kw-2">*</span>block_id);
 <a href=#270 id=270 data-nosnippet>270</a>            per_func_block_params.extend(block_params.iter());
 <a href=#271 id=271 data-nosnippet>271</a>            <span class="kw">let </span>terminator = <span class="self">self</span>.inserter.function.dfg[<span class="kw-2">*</span>block_id].unwrap_terminator();
@@ -292,8 +292,8 @@
 <a href=#292 id=292 data-nosnippet>292</a>    ) {
 <a href=#293 id=293 data-nosnippet>293</a>        <span class="comment">// If we never load from an address within a function we can remove all stores to that address.
 <a href=#294 id=294 data-nosnippet>294</a>        // This rule does not apply to reference parameters, which we must also check for before removing these stores.
-<a href=#295 id=295 data-nosnippet>295</a>        </span><span class="kw">for </span>(<span class="kw">_</span>, block) <span class="kw">in </span><span class="self">self</span>.blocks.iter() {
-<a href=#296 id=296 data-nosnippet>296</a>            <span class="kw">for </span>(store_address, store_instruction) <span class="kw">in </span>block.last_stores.iter() {
+<a href=#295 id=295 data-nosnippet>295</a>        </span><span class="kw">for </span>block <span class="kw">in </span><span class="self">self</span>.blocks.values() {
+<a href=#296 id=296 data-nosnippet>296</a>            <span class="kw">for </span>(store_address, store_instruction) <span class="kw">in </span><span class="kw-2">&amp;</span>block.last_stores {
 <a href=#297 id=297 data-nosnippet>297</a>                <span class="kw">let </span>store_alias_used = <span class="self">self</span>.is_store_alias_used(
 <a href=#298 id=298 data-nosnippet>298</a>                    store_address,
 <a href=#299 id=299 data-nosnippet>299</a>                    block,
@@ -387,7 +387,7 @@
 <a href=#387 id=387 data-nosnippet>387</a>        <span class="kw">let </span>aliases = references.get_aliases_for_value(value);
 <a href=#388 id=388 data-nosnippet>388</a>        <span class="kw">if </span>aliases.is_unknown() {
 <a href=#389 id=389 data-nosnippet>389</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>((elements, <span class="kw">_</span>)) = dfg.get_array_constant(value) {
-<a href=#390 id=390 data-nosnippet>390</a>                <span class="kw">for </span>element <span class="kw">in </span>elements.iter() {
+<a href=#390 id=390 data-nosnippet>390</a>                <span class="kw">for </span>element <span class="kw">in </span><span class="kw-2">&amp;</span>elements {
 <a href=#391 id=391 data-nosnippet>391</a>                    <span class="self">Self</span>::for_each_value_alias(<span class="kw-2">*</span>element, references, dfg, callback);
 <a href=#392 id=392 data-nosnippet>392</a>                }
 <a href=#393 id=393 data-nosnippet>393</a>            } <span class="kw">else </span>{

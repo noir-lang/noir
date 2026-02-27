@@ -172,7 +172,7 @@
 <a href=#172 id=172 data-nosnippet>172</a>    <span class="kw">pub fn </span>check_for_unused_variables_in_scope_tree(<span class="kw-2">&amp;mut </span><span class="self">self</span>, scope_decls: <span class="kw-2">&amp;</span>ScopeTree) {
 <a href=#173 id=173 data-nosnippet>173</a>        <span class="kw">let </span><span class="kw-2">mut </span>unused_vars = Vec::new();
 <a href=#174 id=174 data-nosnippet>174</a>
-<a href=#175 id=175 data-nosnippet>175</a>        <span class="kw">for </span>scope <span class="kw">in </span>scope_decls.<span class="number">0</span>.iter() {
+<a href=#175 id=175 data-nosnippet>175</a>        <span class="kw">for </span>scope <span class="kw">in </span><span class="kw-2">&amp;</span>scope_decls.<span class="number">0 </span>{
 <a href=#176 id=176 data-nosnippet>176</a>            <span class="kw">for </span>(variable_name, metadata) <span class="kw">in </span>scope.iter() {
 <a href=#177 id=177 data-nosnippet>177</a>                <span class="kw">if </span>!metadata.warn_if_unused || metadata.used || variable_name.starts_with(<span class="string">'_'</span>) {
 <a href=#178 id=178 data-nosnippet>178</a>                    <span class="kw">continue</span>;
@@ -198,7 +198,7 @@
 <a href=#198 id=198 data-nosnippet>198</a>    <span class="kw">pub fn </span>check_for_unnecessary_mut_variables_in_scope_tree(<span class="kw-2">&amp;mut </span><span class="self">self</span>, scope_decls: <span class="kw-2">&amp;</span>ScopeTree) {
 <a href=#199 id=199 data-nosnippet>199</a>        <span class="kw">let </span><span class="kw-2">mut </span>unnecessary_mut_vars = Vec::new();
 <a href=#200 id=200 data-nosnippet>200</a>
-<a href=#201 id=201 data-nosnippet>201</a>        <span class="kw">for </span>scope <span class="kw">in </span>scope_decls.<span class="number">0</span>.iter() {
+<a href=#201 id=201 data-nosnippet>201</a>        <span class="kw">for </span>scope <span class="kw">in </span><span class="kw-2">&amp;</span>scope_decls.<span class="number">0 </span>{
 <a href=#202 id=202 data-nosnippet>202</a>            <span class="kw">for </span>(variable_name, metadata) <span class="kw">in </span>scope.iter() {
 <a href=#203 id=203 data-nosnippet>203</a>                <span class="kw">if </span>!metadata.warn_if_not_mutated
 <a href=#204 id=204 data-nosnippet>204</a>                    || metadata.mutated

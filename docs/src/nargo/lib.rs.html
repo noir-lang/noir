@@ -37,7 +37,7 @@
 <a href=#37 id=37 data-nosnippet>37</a>    parent_crate: CrateId,
 <a href=#38 id=38 data-nosnippet>38</a>    dependencies: <span class="kw-2">&amp;</span>BTreeMap&lt;CrateName, Dependency&gt;,
 <a href=#39 id=39 data-nosnippet>39</a>) {
-<a href=#40 id=40 data-nosnippet>40</a>    <span class="kw">for </span>(dep_name, dep) <span class="kw">in </span>dependencies.iter() {
+<a href=#40 id=40 data-nosnippet>40</a>    <span class="kw">for </span>(dep_name, dep) <span class="kw">in </span>dependencies {
 <a href=#41 id=41 data-nosnippet>41</a>        <span class="kw">match </span>dep {
 <a href=#42 id=42 data-nosnippet>42</a>            Dependency::Remote { package } | Dependency::Local { package } =&gt; {
 <a href=#43 id=43 data-nosnippet>43</a>                <span class="kw">let </span>crate_id = prepare_dependency(context, <span class="kw-2">&amp;</span>package.entry_path);
@@ -75,7 +75,7 @@
 <a href=#75 id=75 data-nosnippet>75</a>    // doesn't exist in the filesystem.
 <a href=#76 id=76 data-nosnippet>76</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>filenames = Vec::new();
 <a href=#77 id=77 data-nosnippet>77</a>    <span class="kw">let </span><span class="kw-2">mut </span>seen_filenames = HashSet::new();
-<a href=#78 id=78 data-nosnippet>78</a>    <span class="kw">for </span>package <span class="kw">in </span>workspace.clone().into_iter() {
+<a href=#78 id=78 data-nosnippet>78</a>    <span class="kw">for </span>package <span class="kw">in </span><span class="kw-2">&amp;</span>workspace.clone() {
 <a href=#79 id=79 data-nosnippet>79</a>        collect_all_files_in_package(
 <a href=#80 id=80 data-nosnippet>80</a>            package,
 <a href=#81 id=81 data-nosnippet>81</a>            <span class="kw-2">&amp;mut </span>filenames,
@@ -170,7 +170,7 @@
 <a href=#170 id=170 data-nosnippet>170</a>    seen_filenames: <span class="kw-2">&amp;mut </span>HashSet&lt;PathBuf&gt;,
 <a href=#171 id=171 data-nosnippet>171</a>    processed_entry_paths: <span class="kw-2">&amp;mut </span>HashSet&lt;PathBuf&gt;,
 <a href=#172 id=172 data-nosnippet>172</a>) {
-<a href=#173 id=173 data-nosnippet>173</a>    <span class="kw">for </span>(<span class="kw">_</span>, dep) <span class="kw">in </span>package.dependencies.iter() {
+<a href=#173 id=173 data-nosnippet>173</a>    <span class="kw">for </span>dep <span class="kw">in </span>package.dependencies.values() {
 <a href=#174 id=174 data-nosnippet>174</a>        <span class="kw">match </span>dep {
 <a href=#175 id=175 data-nosnippet>175</a>            Dependency::Local { package } | Dependency::Remote { package } =&gt; {
 <a href=#176 id=176 data-nosnippet>176</a>                collect_all_files_in_package(

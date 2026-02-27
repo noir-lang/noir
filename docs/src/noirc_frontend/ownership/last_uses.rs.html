@@ -378,7 +378,7 @@
 <a href=#378 id=378 data-nosnippet>378</a>            Literal::FmtStr(<span class="kw">_</span>, <span class="kw">_</span>, captures) =&gt; <span class="self">self</span>.track_variables_in_expression(captures),
 <a href=#379 id=379 data-nosnippet>379</a>
 <a href=#380 id=380 data-nosnippet>380</a>            Literal::Array(array) | Literal::Vector(array) =&gt; {
-<a href=#381 id=381 data-nosnippet>381</a>                <span class="kw">for </span>element <span class="kw">in </span>array.contents.iter() {
+<a href=#381 id=381 data-nosnippet>381</a>                <span class="kw">for </span>element <span class="kw">in </span><span class="kw-2">&amp;</span>array.contents {
 <a href=#382 id=382 data-nosnippet>382</a>                    <span class="self">self</span>.track_variables_in_expression(element);
 <a href=#383 id=383 data-nosnippet>383</a>                }
 <a href=#384 id=384 data-nosnippet>384</a>            }

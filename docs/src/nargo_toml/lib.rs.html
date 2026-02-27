@@ -165,7 +165,7 @@
 <a href=#165 id=165 data-nosnippet>165</a>        })<span class="question-mark">?</span>;
 <a href=#166 id=166 data-nosnippet>166</a>
 <a href=#167 id=167 data-nosnippet>167</a>        <span class="kw">let </span><span class="kw-2">mut </span>dependencies: BTreeMap&lt;CrateName, Dependency&gt; = BTreeMap::new();
-<a href=#168 id=168 data-nosnippet>168</a>        <span class="kw">for </span>(name, dep_config) <span class="kw">in </span><span class="self">self</span>.dependencies.iter() {
+<a href=#168 id=168 data-nosnippet>168</a>        <span class="kw">for </span>(name, dep_config) <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.dependencies {
 <a href=#169 id=169 data-nosnippet>169</a>            <span class="kw">let </span>name = name.parse().map_err(|<span class="kw">_</span>| ManifestError::InvalidDependencyName {
 <a href=#170 id=170 data-nosnippet>170</a>                toml: root_dir.join(<span class="string">"Nargo.toml"</span>),
 <a href=#171 id=171 data-nosnippet>171</a>                name: name.into(),
@@ -233,7 +233,7 @@
 <a href=#233 id=233 data-nosnippet>233</a>        // Ignore the ones that we don't recognize: maybe they are no longer unstable, but a dependency hasn't been updated.
 <a href=#234 id=234 data-nosnippet>234</a>        </span><span class="kw">let </span>compiler_required_unstable_features =
 <a href=#235 id=235 data-nosnippet>235</a>            <span class="self">self</span>.package.compiler_unstable_features.as_ref().map_or(Vec::new(), |feats| {
-<a href=#236 id=236 data-nosnippet>236</a>                feats.iter().flat_map(|feat| UnstableFeature::from_str(feat).ok()).collect()
+<a href=#236 id=236 data-nosnippet>236</a>                feats.iter().filter_map(|feat| UnstableFeature::from_str(feat).ok()).collect()
 <a href=#237 id=237 data-nosnippet>237</a>            });
 <a href=#238 id=238 data-nosnippet>238</a>
 <a href=#239 id=239 data-nosnippet>239</a>        <span class="prelude-val">Ok</span>(Package {

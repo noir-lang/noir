@@ -81,231 +81,228 @@
 <a href=#81 id=81 data-nosnippet>81</a>    <span class="comment">// Link the entry point with all dependencies
 <a href=#82 id=82 data-nosnippet>82</a>    </span><span class="kw">while let </span><span class="prelude-val">Some</span>(unresolved_fn_label) = entry_point.first_unresolved_function_call() {
 <a href=#83 id=83 data-nosnippet>83</a>        <span class="kw">let </span>artifact = <span class="kw-2">&amp;</span>brillig.find_by_label(unresolved_fn_label.clone(), <span class="kw-2">&amp;</span>options, stack_start);
-<a href=#84 id=84 data-nosnippet>84</a>        <span class="kw">let </span>artifact = <span class="kw">match </span>artifact {
-<a href=#85 id=85 data-nosnippet>85</a>            <span class="prelude-val">Some</span>(artifact) =&gt; artifact,
-<a href=#86 id=86 data-nosnippet>86</a>            <span class="prelude-val">None </span>=&gt; {
-<a href=#87 id=87 data-nosnippet>87</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(InternalError::General {
-<a href=#88 id=88 data-nosnippet>88</a>                    message: <span class="macro">format!</span>(<span class="string">"Cannot find linked fn {unresolved_fn_label}"</span>),
-<a href=#89 id=89 data-nosnippet>89</a>                    call_stack: CallStack::new(),
-<a href=#90 id=90 data-nosnippet>90</a>                }
-<a href=#91 id=91 data-nosnippet>91</a>                .into());
-<a href=#92 id=92 data-nosnippet>92</a>            }
-<a href=#93 id=93 data-nosnippet>93</a>        };
-<a href=#94 id=94 data-nosnippet>94</a>        entry_point.link_with(artifact);
-<a href=#95 id=95 data-nosnippet>95</a>        <span class="comment">// Insert the range of opcode locations occupied by a procedure
-<a href=#96 id=96 data-nosnippet>96</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(procedure_id) = <span class="kw-2">&amp;</span>artifact.procedure {
-<a href=#97 id=97 data-nosnippet>97</a>            <span class="kw">let </span>num_opcodes = entry_point.byte_code.len();
-<a href=#98 id=98 data-nosnippet>98</a>            <span class="kw">let </span>previous_num_opcodes = entry_point.byte_code.len() - artifact.byte_code.len();
-<a href=#99 id=99 data-nosnippet>99</a>            <span class="comment">// We subtract one as to keep the range inclusive on both ends
-<a href=#100 id=100 data-nosnippet>100</a>            </span>entry_point
-<a href=#101 id=101 data-nosnippet>101</a>                .procedure_locations
-<a href=#102 id=102 data-nosnippet>102</a>                .insert(procedure_id.clone(), (previous_num_opcodes, num_opcodes - <span class="number">1</span>));
-<a href=#103 id=103 data-nosnippet>103</a>        }
-<a href=#104 id=104 data-nosnippet>104</a>    }
-<a href=#105 id=105 data-nosnippet>105</a>    <span class="comment">// Generate the final bytecode
-<a href=#106 id=106 data-nosnippet>106</a>    </span><span class="prelude-val">Ok</span>(entry_point.finish())
-<a href=#107 id=107 data-nosnippet>107</a>}
-<a href=#108 id=108 data-nosnippet>108</a>
-<a href=#109 id=109 data-nosnippet>109</a><span class="attr">#[cfg(test)]
-<a href=#110 id=110 data-nosnippet>110</a></span><span class="kw">mod </span>entry_point {
-<a href=#111 id=111 data-nosnippet>111</a>    <span class="kw">use crate</span>::{
-<a href=#112 id=112 data-nosnippet>112</a>        assert_artifact_snapshot,
-<a href=#113 id=113 data-nosnippet>113</a>        brillig::{
-<a href=#114 id=114 data-nosnippet>114</a>            BrilligOptions,
-<a href=#115 id=115 data-nosnippet>115</a>            brillig_gen::gen_brillig_for,
-<a href=#116 id=116 data-nosnippet>116</a>            brillig_ir::{LayoutConfig, artifact::BrilligParameter, registers::MAX_SCRATCH_SPACE},
-<a href=#117 id=117 data-nosnippet>117</a>        },
-<a href=#118 id=118 data-nosnippet>118</a>        ssa::ssa_gen::Ssa,
-<a href=#119 id=119 data-nosnippet>119</a>    };
-<a href=#120 id=120 data-nosnippet>120</a>
-<a href=#121 id=121 data-nosnippet>121</a>    <span class="attr">#[test]
-<a href=#122 id=122 data-nosnippet>122</a>    </span><span class="kw">fn </span>entry_point_setup_basic() {
-<a href=#123 id=123 data-nosnippet>123</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#124 id=124 data-nosnippet>124</a>        brillig(inline) fn main f0 {
-<a href=#125 id=125 data-nosnippet>125</a>          b0(v0: u32, v1: u32):
-<a href=#126 id=126 data-nosnippet>126</a>            v2 = add v0, v1
-<a href=#127 id=127 data-nosnippet>127</a>            return v2
-<a href=#128 id=128 data-nosnippet>128</a>        }
-<a href=#129 id=129 data-nosnippet>129</a>        "</span>;
-<a href=#130 id=130 data-nosnippet>130</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-<a href=#131 id=131 data-nosnippet>131</a>        <span class="kw">let </span>options = BrilligOptions::default();
-<a href=#132 id=132 data-nosnippet>132</a>        <span class="kw">let </span>brillig = ssa.to_brillig(<span class="kw-2">&amp;</span>options);
+<a href=#84 id=84 data-nosnippet>84</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(artifact) = artifact <span class="kw">else </span>{
+<a href=#85 id=85 data-nosnippet>85</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(InternalError::General {
+<a href=#86 id=86 data-nosnippet>86</a>                message: <span class="macro">format!</span>(<span class="string">"Cannot find linked fn {unresolved_fn_label}"</span>),
+<a href=#87 id=87 data-nosnippet>87</a>                call_stack: CallStack::new(),
+<a href=#88 id=88 data-nosnippet>88</a>            }
+<a href=#89 id=89 data-nosnippet>89</a>            .into());
+<a href=#90 id=90 data-nosnippet>90</a>        };
+<a href=#91 id=91 data-nosnippet>91</a>        entry_point.link_with(artifact);
+<a href=#92 id=92 data-nosnippet>92</a>        <span class="comment">// Insert the range of opcode locations occupied by a procedure
+<a href=#93 id=93 data-nosnippet>93</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(procedure_id) = <span class="kw-2">&amp;</span>artifact.procedure {
+<a href=#94 id=94 data-nosnippet>94</a>            <span class="kw">let </span>num_opcodes = entry_point.byte_code.len();
+<a href=#95 id=95 data-nosnippet>95</a>            <span class="kw">let </span>previous_num_opcodes = entry_point.byte_code.len() - artifact.byte_code.len();
+<a href=#96 id=96 data-nosnippet>96</a>            <span class="comment">// We subtract one as to keep the range inclusive on both ends
+<a href=#97 id=97 data-nosnippet>97</a>            </span>entry_point
+<a href=#98 id=98 data-nosnippet>98</a>                .procedure_locations
+<a href=#99 id=99 data-nosnippet>99</a>                .insert(procedure_id.clone(), (previous_num_opcodes, num_opcodes - <span class="number">1</span>));
+<a href=#100 id=100 data-nosnippet>100</a>        }
+<a href=#101 id=101 data-nosnippet>101</a>    }
+<a href=#102 id=102 data-nosnippet>102</a>    <span class="comment">// Generate the final bytecode
+<a href=#103 id=103 data-nosnippet>103</a>    </span><span class="prelude-val">Ok</span>(entry_point.finish())
+<a href=#104 id=104 data-nosnippet>104</a>}
+<a href=#105 id=105 data-nosnippet>105</a>
+<a href=#106 id=106 data-nosnippet>106</a><span class="attr">#[cfg(test)]
+<a href=#107 id=107 data-nosnippet>107</a></span><span class="kw">mod </span>entry_point {
+<a href=#108 id=108 data-nosnippet>108</a>    <span class="kw">use crate</span>::{
+<a href=#109 id=109 data-nosnippet>109</a>        assert_artifact_snapshot,
+<a href=#110 id=110 data-nosnippet>110</a>        brillig::{
+<a href=#111 id=111 data-nosnippet>111</a>            BrilligOptions,
+<a href=#112 id=112 data-nosnippet>112</a>            brillig_gen::gen_brillig_for,
+<a href=#113 id=113 data-nosnippet>113</a>            brillig_ir::{LayoutConfig, artifact::BrilligParameter, registers::MAX_SCRATCH_SPACE},
+<a href=#114 id=114 data-nosnippet>114</a>        },
+<a href=#115 id=115 data-nosnippet>115</a>        ssa::ssa_gen::Ssa,
+<a href=#116 id=116 data-nosnippet>116</a>    };
+<a href=#117 id=117 data-nosnippet>117</a>
+<a href=#118 id=118 data-nosnippet>118</a>    <span class="attr">#[test]
+<a href=#119 id=119 data-nosnippet>119</a>    </span><span class="kw">fn </span>entry_point_setup_basic() {
+<a href=#120 id=120 data-nosnippet>120</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#121 id=121 data-nosnippet>121</a>        brillig(inline) fn main f0 {
+<a href=#122 id=122 data-nosnippet>122</a>          b0(v0: u32, v1: u32):
+<a href=#123 id=123 data-nosnippet>123</a>            v2 = add v0, v1
+<a href=#124 id=124 data-nosnippet>124</a>            return v2
+<a href=#125 id=125 data-nosnippet>125</a>        }
+<a href=#126 id=126 data-nosnippet>126</a>        "</span>;
+<a href=#127 id=127 data-nosnippet>127</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#128 id=128 data-nosnippet>128</a>        <span class="kw">let </span>options = BrilligOptions::default();
+<a href=#129 id=129 data-nosnippet>129</a>        <span class="kw">let </span>brillig = ssa.to_brillig(<span class="kw-2">&amp;</span>options);
+<a href=#130 id=130 data-nosnippet>130</a>
+<a href=#131 id=131 data-nosnippet>131</a>        <span class="kw">let </span>args = <span class="macro">vec!</span>[BrilligParameter::SingleAddr(<span class="number">32</span>), BrilligParameter::SingleAddr(<span class="number">32</span>)];
+<a href=#132 id=132 data-nosnippet>132</a>        <span class="kw">let </span>entry = gen_brillig_for(ssa.main(), args, <span class="kw-2">&amp;</span>brillig, <span class="kw-2">&amp;</span>options).unwrap();
 <a href=#133 id=133 data-nosnippet>133</a>
-<a href=#134 id=134 data-nosnippet>134</a>        <span class="kw">let </span>args = <span class="macro">vec!</span>[BrilligParameter::SingleAddr(<span class="number">32</span>), BrilligParameter::SingleAddr(<span class="number">32</span>)];
-<a href=#135 id=135 data-nosnippet>135</a>        <span class="kw">let </span>entry = gen_brillig_for(ssa.main(), args, <span class="kw-2">&amp;</span>brillig, <span class="kw-2">&amp;</span>options).unwrap();
-<a href=#136 id=136 data-nosnippet>136</a>
-<a href=#137 id=137 data-nosnippet>137</a>        <span class="comment">// foo is a very simple function returning the addition of its inputs, which is done at line 18.
-<a href=#138 id=138 data-nosnippet>138</a>        // The rest of the code is some overhead added to every brillig function for handling inputs, outputs, globals, ...
-<a href=#139 id=139 data-nosnippet>139</a>        //
-<a href=#140 id=140 data-nosnippet>140</a>        // Here is a breakdown of the code:
-<a href=#141 id=141 data-nosnippet>141</a>        // Line 1-9: The function starts with the handling of the inputs via the 'calldata copy'
-<a href=#142 id=142 data-nosnippet>142</a>        // The inputs are put in registers 1 and 2
-<a href=#143 id=143 data-nosnippet>143</a>        // Line 10: Calling the part that deals with brillig globals. In this simple example, there are no globals so
-<a href=#144 id=144 data-nosnippet>144</a>        // it just returns immediately.
-<a href=#145 id=145 data-nosnippet>145</a>        // Line 11: Calling the check_max_stack_depth_procedure (Lines 24-29), via the call 24. Returning from
-<a href=#146 id=146 data-nosnippet>146</a>        // this procedure is going to line 18 (right after the call 24 on line 17)
-<a href=#147 id=147 data-nosnippet>147</a>        // Line 18: the actual body of the function, which is a single add instruction.
-<a href=#148 id=148 data-nosnippet>148</a>        // Line 19-21: An overflow check on the addition, which will trap if the addition overflowed.
-<a href=#149 id=149 data-nosnippet>149</a>        // Line 22: Moving the result of the addition into the return register (register 1)
-<a href=#150 id=150 data-nosnippet>150</a>        // Line 23: Returning from the function body, which goes back to line 12
-<a href=#151 id=151 data-nosnippet>151</a>        // Line 12-15: Handling the return data, moving the return value into the right place in memory and stopping execution.
-<a href=#152 id=152 data-nosnippet>152</a>        </span><span class="macro">assert_artifact_snapshot!</span>(entry, @<span class="string">r"
-<a href=#153 id=153 data-nosnippet>153</a>        fn main
-<a href=#154 id=154 data-nosnippet>154</a>         0: @2 = const u32 1
-<a href=#155 id=155 data-nosnippet>155</a>         1: @1 = const u32 32839
-<a href=#156 id=156 data-nosnippet>156</a>         2: @0 = const u32 71
-<a href=#157 id=157 data-nosnippet>157</a>         3: call 16
-<a href=#158 id=158 data-nosnippet>158</a>         4: sp[4] = const u32 2
-<a href=#159 id=159 data-nosnippet>159</a>         5: sp[5] = const u32 0
-<a href=#160 id=160 data-nosnippet>160</a>         6: @68 = calldata copy [sp[5]; sp[4]]
-<a href=#161 id=161 data-nosnippet>161</a>         7: @68 = cast @68 to u32
-<a href=#162 id=162 data-nosnippet>162</a>         8: @69 = cast @69 to u32
-<a href=#163 id=163 data-nosnippet>163</a>         9: sp[2] = @68
-<a href=#164 id=164 data-nosnippet>164</a>        10: sp[3] = @69
-<a href=#165 id=165 data-nosnippet>165</a>        11: call 17
-<a href=#166 id=166 data-nosnippet>166</a>        12: @70 = sp[2]
-<a href=#167 id=167 data-nosnippet>167</a>        13: sp[3] = const u32 70
-<a href=#168 id=168 data-nosnippet>168</a>        14: sp[4] = const u32 1
-<a href=#169 id=169 data-nosnippet>169</a>        15: stop @[sp[3]; sp[4]]
-<a href=#170 id=170 data-nosnippet>170</a>        16: return
-<a href=#171 id=171 data-nosnippet>171</a>        17: call 24
-<a href=#172 id=172 data-nosnippet>172</a>        18: sp[4] = u32 add sp[2], sp[3]
-<a href=#173 id=173 data-nosnippet>173</a>        19: sp[5] = u32 lt_eq sp[2], sp[4]
-<a href=#174 id=174 data-nosnippet>174</a>        20: jump if sp[5] to 22
-<a href=#175 id=175 data-nosnippet>175</a>        21: call 30
-<a href=#176 id=176 data-nosnippet>176</a>        22: sp[2] = sp[4]
-<a href=#177 id=177 data-nosnippet>177</a>        23: return
-<a href=#178 id=178 data-nosnippet>178</a>        24: @4 = const u32 30791
-<a href=#179 id=179 data-nosnippet>179</a>        25: @3 = u32 lt @0, @4
-<a href=#180 id=180 data-nosnippet>180</a>        26: jump if @3 to 29
-<a href=#181 id=181 data-nosnippet>181</a>        27: @1 = indirect const u64 15764276373176857197
-<a href=#182 id=182 data-nosnippet>182</a>        28: trap @[@1; @2]
-<a href=#183 id=183 data-nosnippet>183</a>        29: return
-<a href=#184 id=184 data-nosnippet>184</a>        30: @1 = indirect const u64 14990209321349310352
-<a href=#185 id=185 data-nosnippet>185</a>        31: trap @[@1; @2]
-<a href=#186 id=186 data-nosnippet>186</a>        32: return
-<a href=#187 id=187 data-nosnippet>187</a>        "</span>);
-<a href=#188 id=188 data-nosnippet>188</a>    }
-<a href=#189 id=189 data-nosnippet>189</a>
-<a href=#190 id=190 data-nosnippet>190</a>    <span class="doccomment">/// Snapshot of full entry point compiled with a small frame that forces spilling.
-<a href=#191 id=191 data-nosnippet>191</a>    /// Verifies the uniform start_offset=2 (sp[0] = prev stack pointer, sp[1] = spill base):
-<a href=#192 id=192 data-nosnippet>192</a>    /// - Parameters placed at sp[2],sp[3]
-<a href=#193 id=193 data-nosnippet>193</a>    /// - Calldata copy targets sp[2],sp[3] (not sp[1],sp[2])
-<a href=#194 id=194 data-nosnippet>194</a>    </span><span class="attr">#[test]
-<a href=#195 id=195 data-nosnippet>195</a>    </span><span class="kw">fn </span>entry_point_setup_with_spill_support() {
-<a href=#196 id=196 data-nosnippet>196</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#197 id=197 data-nosnippet>197</a>        brillig(inline) fn main f0 {
-<a href=#198 id=198 data-nosnippet>198</a>          b0(v0: u32, v1: u32):
-<a href=#199 id=199 data-nosnippet>199</a>            v2 = unchecked_add v0, v1
-<a href=#200 id=200 data-nosnippet>200</a>            v3 = unchecked_add v0, u32 2
-<a href=#201 id=201 data-nosnippet>201</a>            v4 = unchecked_add v0, u32 3
-<a href=#202 id=202 data-nosnippet>202</a>            v5 = unchecked_add v1, u32 4
-<a href=#203 id=203 data-nosnippet>203</a>            v6 = unchecked_add v1, u32 5
-<a href=#204 id=204 data-nosnippet>204</a>            v7 = unchecked_add v0, u32 6
-<a href=#205 id=205 data-nosnippet>205</a>            v8 = unchecked_add v1, u32 7
-<a href=#206 id=206 data-nosnippet>206</a>            v9 = unchecked_add v0, u32 8
-<a href=#207 id=207 data-nosnippet>207</a>            v10 = unchecked_add v1, u32 9
-<a href=#208 id=208 data-nosnippet>208</a>            v11 = unchecked_add v0, u32 10
-<a href=#209 id=209 data-nosnippet>209</a>            v12 = unchecked_add v2, v3
-<a href=#210 id=210 data-nosnippet>210</a>            v13 = unchecked_add v12, v4
-<a href=#211 id=211 data-nosnippet>211</a>            v14 = unchecked_add v13, v5
-<a href=#212 id=212 data-nosnippet>212</a>            v15 = unchecked_add v14, v6
-<a href=#213 id=213 data-nosnippet>213</a>            v16 = unchecked_add v15, v7
-<a href=#214 id=214 data-nosnippet>214</a>            v17 = unchecked_add v16, v8
-<a href=#215 id=215 data-nosnippet>215</a>            v18 = unchecked_add v17, v9
-<a href=#216 id=216 data-nosnippet>216</a>            v19 = unchecked_add v18, v10
-<a href=#217 id=217 data-nosnippet>217</a>            v20 = unchecked_add v19, v11
-<a href=#218 id=218 data-nosnippet>218</a>            return v20
-<a href=#219 id=219 data-nosnippet>219</a>        }
-<a href=#220 id=220 data-nosnippet>220</a>        "</span>;
-<a href=#221 id=221 data-nosnippet>221</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-<a href=#222 id=222 data-nosnippet>222</a>        <span class="kw">let </span>layout = LayoutConfig::new(<span class="number">12</span>, <span class="number">16</span>, MAX_SCRATCH_SPACE);
-<a href=#223 id=223 data-nosnippet>223</a>        <span class="kw">let </span>options = BrilligOptions { layout, ..Default::default() };
-<a href=#224 id=224 data-nosnippet>224</a>        <span class="kw">let </span>brillig = ssa.to_brillig(<span class="kw-2">&amp;</span>options);
+<a href=#134 id=134 data-nosnippet>134</a>        <span class="comment">// foo is a very simple function returning the addition of its inputs, which is done at line 18.
+<a href=#135 id=135 data-nosnippet>135</a>        // The rest of the code is some overhead added to every brillig function for handling inputs, outputs, globals, ...
+<a href=#136 id=136 data-nosnippet>136</a>        //
+<a href=#137 id=137 data-nosnippet>137</a>        // Here is a breakdown of the code:
+<a href=#138 id=138 data-nosnippet>138</a>        // Line 1-9: The function starts with the handling of the inputs via the 'calldata copy'
+<a href=#139 id=139 data-nosnippet>139</a>        // The inputs are put in registers 1 and 2
+<a href=#140 id=140 data-nosnippet>140</a>        // Line 10: Calling the part that deals with brillig globals. In this simple example, there are no globals so
+<a href=#141 id=141 data-nosnippet>141</a>        // it just returns immediately.
+<a href=#142 id=142 data-nosnippet>142</a>        // Line 11: Calling the check_max_stack_depth_procedure (Lines 24-29), via the call 24. Returning from
+<a href=#143 id=143 data-nosnippet>143</a>        // this procedure is going to line 18 (right after the call 24 on line 17)
+<a href=#144 id=144 data-nosnippet>144</a>        // Line 18: the actual body of the function, which is a single add instruction.
+<a href=#145 id=145 data-nosnippet>145</a>        // Line 19-21: An overflow check on the addition, which will trap if the addition overflowed.
+<a href=#146 id=146 data-nosnippet>146</a>        // Line 22: Moving the result of the addition into the return register (register 1)
+<a href=#147 id=147 data-nosnippet>147</a>        // Line 23: Returning from the function body, which goes back to line 12
+<a href=#148 id=148 data-nosnippet>148</a>        // Line 12-15: Handling the return data, moving the return value into the right place in memory and stopping execution.
+<a href=#149 id=149 data-nosnippet>149</a>        </span><span class="macro">assert_artifact_snapshot!</span>(entry, @<span class="string">r"
+<a href=#150 id=150 data-nosnippet>150</a>        fn main
+<a href=#151 id=151 data-nosnippet>151</a>         0: @2 = const u32 1
+<a href=#152 id=152 data-nosnippet>152</a>         1: @1 = const u32 32839
+<a href=#153 id=153 data-nosnippet>153</a>         2: @0 = const u32 71
+<a href=#154 id=154 data-nosnippet>154</a>         3: call 16
+<a href=#155 id=155 data-nosnippet>155</a>         4: sp[4] = const u32 2
+<a href=#156 id=156 data-nosnippet>156</a>         5: sp[5] = const u32 0
+<a href=#157 id=157 data-nosnippet>157</a>         6: @68 = calldata copy [sp[5]; sp[4]]
+<a href=#158 id=158 data-nosnippet>158</a>         7: @68 = cast @68 to u32
+<a href=#159 id=159 data-nosnippet>159</a>         8: @69 = cast @69 to u32
+<a href=#160 id=160 data-nosnippet>160</a>         9: sp[2] = @68
+<a href=#161 id=161 data-nosnippet>161</a>        10: sp[3] = @69
+<a href=#162 id=162 data-nosnippet>162</a>        11: call 17
+<a href=#163 id=163 data-nosnippet>163</a>        12: @70 = sp[2]
+<a href=#164 id=164 data-nosnippet>164</a>        13: sp[3] = const u32 70
+<a href=#165 id=165 data-nosnippet>165</a>        14: sp[4] = const u32 1
+<a href=#166 id=166 data-nosnippet>166</a>        15: stop @[sp[3]; sp[4]]
+<a href=#167 id=167 data-nosnippet>167</a>        16: return
+<a href=#168 id=168 data-nosnippet>168</a>        17: call 24
+<a href=#169 id=169 data-nosnippet>169</a>        18: sp[4] = u32 add sp[2], sp[3]
+<a href=#170 id=170 data-nosnippet>170</a>        19: sp[5] = u32 lt_eq sp[2], sp[4]
+<a href=#171 id=171 data-nosnippet>171</a>        20: jump if sp[5] to 22
+<a href=#172 id=172 data-nosnippet>172</a>        21: call 30
+<a href=#173 id=173 data-nosnippet>173</a>        22: sp[2] = sp[4]
+<a href=#174 id=174 data-nosnippet>174</a>        23: return
+<a href=#175 id=175 data-nosnippet>175</a>        24: @4 = const u32 30791
+<a href=#176 id=176 data-nosnippet>176</a>        25: @3 = u32 lt @0, @4
+<a href=#177 id=177 data-nosnippet>177</a>        26: jump if @3 to 29
+<a href=#178 id=178 data-nosnippet>178</a>        27: @1 = indirect const u64 15764276373176857197
+<a href=#179 id=179 data-nosnippet>179</a>        28: trap @[@1; @2]
+<a href=#180 id=180 data-nosnippet>180</a>        29: return
+<a href=#181 id=181 data-nosnippet>181</a>        30: @1 = indirect const u64 14990209321349310352
+<a href=#182 id=182 data-nosnippet>182</a>        31: trap @[@1; @2]
+<a href=#183 id=183 data-nosnippet>183</a>        32: return
+<a href=#184 id=184 data-nosnippet>184</a>        "</span>);
+<a href=#185 id=185 data-nosnippet>185</a>    }
+<a href=#186 id=186 data-nosnippet>186</a>
+<a href=#187 id=187 data-nosnippet>187</a>    <span class="doccomment">/// Snapshot of full entry point compiled with a small frame that forces spilling.
+<a href=#188 id=188 data-nosnippet>188</a>    /// Verifies the uniform start_offset=2 (sp[0] = prev stack pointer, sp[1] = spill base):
+<a href=#189 id=189 data-nosnippet>189</a>    /// - Parameters placed at sp[2],sp[3]
+<a href=#190 id=190 data-nosnippet>190</a>    /// - Calldata copy targets sp[2],sp[3] (not sp[1],sp[2])
+<a href=#191 id=191 data-nosnippet>191</a>    </span><span class="attr">#[test]
+<a href=#192 id=192 data-nosnippet>192</a>    </span><span class="kw">fn </span>entry_point_setup_with_spill_support() {
+<a href=#193 id=193 data-nosnippet>193</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#194 id=194 data-nosnippet>194</a>        brillig(inline) fn main f0 {
+<a href=#195 id=195 data-nosnippet>195</a>          b0(v0: u32, v1: u32):
+<a href=#196 id=196 data-nosnippet>196</a>            v2 = unchecked_add v0, v1
+<a href=#197 id=197 data-nosnippet>197</a>            v3 = unchecked_add v0, u32 2
+<a href=#198 id=198 data-nosnippet>198</a>            v4 = unchecked_add v0, u32 3
+<a href=#199 id=199 data-nosnippet>199</a>            v5 = unchecked_add v1, u32 4
+<a href=#200 id=200 data-nosnippet>200</a>            v6 = unchecked_add v1, u32 5
+<a href=#201 id=201 data-nosnippet>201</a>            v7 = unchecked_add v0, u32 6
+<a href=#202 id=202 data-nosnippet>202</a>            v8 = unchecked_add v1, u32 7
+<a href=#203 id=203 data-nosnippet>203</a>            v9 = unchecked_add v0, u32 8
+<a href=#204 id=204 data-nosnippet>204</a>            v10 = unchecked_add v1, u32 9
+<a href=#205 id=205 data-nosnippet>205</a>            v11 = unchecked_add v0, u32 10
+<a href=#206 id=206 data-nosnippet>206</a>            v12 = unchecked_add v2, v3
+<a href=#207 id=207 data-nosnippet>207</a>            v13 = unchecked_add v12, v4
+<a href=#208 id=208 data-nosnippet>208</a>            v14 = unchecked_add v13, v5
+<a href=#209 id=209 data-nosnippet>209</a>            v15 = unchecked_add v14, v6
+<a href=#210 id=210 data-nosnippet>210</a>            v16 = unchecked_add v15, v7
+<a href=#211 id=211 data-nosnippet>211</a>            v17 = unchecked_add v16, v8
+<a href=#212 id=212 data-nosnippet>212</a>            v18 = unchecked_add v17, v9
+<a href=#213 id=213 data-nosnippet>213</a>            v19 = unchecked_add v18, v10
+<a href=#214 id=214 data-nosnippet>214</a>            v20 = unchecked_add v19, v11
+<a href=#215 id=215 data-nosnippet>215</a>            return v20
+<a href=#216 id=216 data-nosnippet>216</a>        }
+<a href=#217 id=217 data-nosnippet>217</a>        "</span>;
+<a href=#218 id=218 data-nosnippet>218</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#219 id=219 data-nosnippet>219</a>        <span class="kw">let </span>layout = LayoutConfig::new(<span class="number">12</span>, <span class="number">16</span>, MAX_SCRATCH_SPACE);
+<a href=#220 id=220 data-nosnippet>220</a>        <span class="kw">let </span>options = BrilligOptions { layout, ..Default::default() };
+<a href=#221 id=221 data-nosnippet>221</a>        <span class="kw">let </span>brillig = ssa.to_brillig(<span class="kw-2">&amp;</span>options);
+<a href=#222 id=222 data-nosnippet>222</a>
+<a href=#223 id=223 data-nosnippet>223</a>        <span class="kw">let </span>args = <span class="macro">vec!</span>[BrilligParameter::SingleAddr(<span class="number">32</span>), BrilligParameter::SingleAddr(<span class="number">32</span>)];
+<a href=#224 id=224 data-nosnippet>224</a>        <span class="kw">let </span>entry = gen_brillig_for(ssa.main(), args, <span class="kw-2">&amp;</span>brillig, <span class="kw-2">&amp;</span>options).unwrap();
 <a href=#225 id=225 data-nosnippet>225</a>
-<a href=#226 id=226 data-nosnippet>226</a>        <span class="kw">let </span>args = <span class="macro">vec!</span>[BrilligParameter::SingleAddr(<span class="number">32</span>), BrilligParameter::SingleAddr(<span class="number">32</span>)];
-<a href=#227 id=227 data-nosnippet>227</a>        <span class="kw">let </span>entry = gen_brillig_for(ssa.main(), args, <span class="kw-2">&amp;</span>brillig, <span class="kw-2">&amp;</span>options).unwrap();
-<a href=#228 id=228 data-nosnippet>228</a>
-<a href=#229 id=229 data-nosnippet>229</a>        <span class="comment">// Snapshot verifies:
-<a href=#230 id=230 data-nosnippet>230</a>        // - Parameters at sp[2],sp[3] (start_offset=2, uniform across all functions)
-<a href=#231 id=231 data-nosnippet>231</a>        // - Spill base allocation at sp[1]
-<a href=#232 id=232 data-nosnippet>232</a>        // - Correct calldata copy to sp[2],sp[3] (not sp[1],sp[2])
-<a href=#233 id=233 data-nosnippet>233</a>        </span><span class="macro">assert_artifact_snapshot!</span>(entry, @<span class="string">r"
-<a href=#234 id=234 data-nosnippet>234</a>        fn main
-<a href=#235 id=235 data-nosnippet>235</a>         0: @2 = const u32 1
-<a href=#236 id=236 data-nosnippet>236</a>         1: @1 = const u32 263
-<a href=#237 id=237 data-nosnippet>237</a>         2: @0 = const u32 71
-<a href=#238 id=238 data-nosnippet>238</a>         3: call 16
-<a href=#239 id=239 data-nosnippet>239</a>         4: sp[4] = const u32 2
-<a href=#240 id=240 data-nosnippet>240</a>         5: sp[5] = const u32 0
-<a href=#241 id=241 data-nosnippet>241</a>         6: @68 = calldata copy [sp[5]; sp[4]]
-<a href=#242 id=242 data-nosnippet>242</a>         7: @68 = cast @68 to u32
-<a href=#243 id=243 data-nosnippet>243</a>         8: @69 = cast @69 to u32
-<a href=#244 id=244 data-nosnippet>244</a>         9: sp[2] = @68
-<a href=#245 id=245 data-nosnippet>245</a>        10: sp[3] = @69
-<a href=#246 id=246 data-nosnippet>246</a>        11: call 17
-<a href=#247 id=247 data-nosnippet>247</a>        12: @70 = sp[2]
-<a href=#248 id=248 data-nosnippet>248</a>        13: sp[3] = const u32 70
-<a href=#249 id=249 data-nosnippet>249</a>        14: sp[4] = const u32 1
-<a href=#250 id=250 data-nosnippet>250</a>        15: stop @[sp[3]; sp[4]]
-<a href=#251 id=251 data-nosnippet>251</a>        16: return
-<a href=#252 id=252 data-nosnippet>252</a>        17: call 68
-<a href=#253 id=253 data-nosnippet>253</a>        18: sp[1] = @1
-<a href=#254 id=254 data-nosnippet>254</a>        19: @3 = const u32 3
-<a href=#255 id=255 data-nosnippet>255</a>        20: @1 = u32 add @1, @3
-<a href=#256 id=256 data-nosnippet>256</a>        21: sp[4] = u32 add sp[2], sp[3]
-<a href=#257 id=257 data-nosnippet>257</a>        22: sp[5] = const u32 2
-<a href=#258 id=258 data-nosnippet>258</a>        23: sp[6] = u32 add sp[2], sp[5]
-<a href=#259 id=259 data-nosnippet>259</a>        24: sp[5] = const u32 3
-<a href=#260 id=260 data-nosnippet>260</a>        25: sp[7] = u32 add sp[2], sp[5]
-<a href=#261 id=261 data-nosnippet>261</a>        26: sp[5] = const u32 4
-<a href=#262 id=262 data-nosnippet>262</a>        27: sp[8] = u32 add sp[3], sp[5]
-<a href=#263 id=263 data-nosnippet>263</a>        28: sp[5] = const u32 5
-<a href=#264 id=264 data-nosnippet>264</a>        29: sp[9] = u32 add sp[3], sp[5]
-<a href=#265 id=265 data-nosnippet>265</a>        30: sp[5] = const u32 6
-<a href=#266 id=266 data-nosnippet>266</a>        31: sp[10] = u32 add sp[2], sp[5]
-<a href=#267 id=267 data-nosnippet>267</a>        32: sp[5] = const u32 7
-<a href=#268 id=268 data-nosnippet>268</a>        33: sp[11] = u32 add sp[3], sp[5]
-<a href=#269 id=269 data-nosnippet>269</a>        34: sp[5] = const u32 8
-<a href=#270 id=270 data-nosnippet>270</a>        35: @4 = const u32 0
-<a href=#271 id=271 data-nosnippet>271</a>        36: @3 = u32 add sp[1], @4
-<a href=#272 id=272 data-nosnippet>272</a>        37: store sp[4] at @3
-<a href=#273 id=273 data-nosnippet>273</a>        38: sp[4] = u32 add sp[2], sp[5]
-<a href=#274 id=274 data-nosnippet>274</a>        39: sp[5] = const u32 9
-<a href=#275 id=275 data-nosnippet>275</a>        40: @4 = const u32 1
-<a href=#276 id=276 data-nosnippet>276</a>        41: @3 = u32 add sp[1], @4
-<a href=#277 id=277 data-nosnippet>277</a>        42: store sp[6] at @3
-<a href=#278 id=278 data-nosnippet>278</a>        43: sp[6] = u32 add sp[3], sp[5]
-<a href=#279 id=279 data-nosnippet>279</a>        44: sp[3] = const u32 10
-<a href=#280 id=280 data-nosnippet>280</a>        45: sp[5] = u32 add sp[2], sp[3]
-<a href=#281 id=281 data-nosnippet>281</a>        46: @4 = const u32 0
-<a href=#282 id=282 data-nosnippet>282</a>        47: @3 = u32 add sp[1], @4
-<a href=#283 id=283 data-nosnippet>283</a>        48: sp[3] = load @3
-<a href=#284 id=284 data-nosnippet>284</a>        49: @4 = const u32 2
-<a href=#285 id=285 data-nosnippet>285</a>        50: @3 = u32 add sp[1], @4
-<a href=#286 id=286 data-nosnippet>286</a>        51: store sp[7] at @3
-<a href=#287 id=287 data-nosnippet>287</a>        52: @4 = const u32 1
-<a href=#288 id=288 data-nosnippet>288</a>        53: @3 = u32 add sp[1], @4
-<a href=#289 id=289 data-nosnippet>289</a>        54: sp[7] = load @3
-<a href=#290 id=290 data-nosnippet>290</a>        55: sp[2] = u32 add sp[3], sp[7]
-<a href=#291 id=291 data-nosnippet>291</a>        56: @4 = const u32 2
-<a href=#292 id=292 data-nosnippet>292</a>        57: @3 = u32 add sp[1], @4
-<a href=#293 id=293 data-nosnippet>293</a>        58: sp[7] = load @3
-<a href=#294 id=294 data-nosnippet>294</a>        59: sp[3] = u32 add sp[2], sp[7]
-<a href=#295 id=295 data-nosnippet>295</a>        60: sp[2] = u32 add sp[3], sp[8]
-<a href=#296 id=296 data-nosnippet>296</a>        61: sp[3] = u32 add sp[2], sp[9]
-<a href=#297 id=297 data-nosnippet>297</a>        62: sp[2] = u32 add sp[3], sp[10]
-<a href=#298 id=298 data-nosnippet>298</a>        63: sp[3] = u32 add sp[2], sp[11]
-<a href=#299 id=299 data-nosnippet>299</a>        64: sp[2] = u32 add sp[3], sp[4]
-<a href=#300 id=300 data-nosnippet>300</a>        65: sp[3] = u32 add sp[2], sp[6]
-<a href=#301 id=301 data-nosnippet>301</a>        66: sp[2] = u32 add sp[3], sp[5]
-<a href=#302 id=302 data-nosnippet>302</a>        67: return
-<a href=#303 id=303 data-nosnippet>303</a>        68: @4 = const u32 251
-<a href=#304 id=304 data-nosnippet>304</a>        69: @3 = u32 lt @0, @4
-<a href=#305 id=305 data-nosnippet>305</a>        70: jump if @3 to 73
-<a href=#306 id=306 data-nosnippet>306</a>        71: @1 = indirect const u64 15764276373176857197
-<a href=#307 id=307 data-nosnippet>307</a>        72: trap @[@1; @2]
-<a href=#308 id=308 data-nosnippet>308</a>        73: return
-<a href=#309 id=309 data-nosnippet>309</a>        "</span>);
-<a href=#310 id=310 data-nosnippet>310</a>    }
-<a href=#311 id=311 data-nosnippet>311</a>}</code></pre></div></section></main></body></html>
+<a href=#226 id=226 data-nosnippet>226</a>        <span class="comment">// Snapshot verifies:
+<a href=#227 id=227 data-nosnippet>227</a>        // - Parameters at sp[2],sp[3] (start_offset=2, uniform across all functions)
+<a href=#228 id=228 data-nosnippet>228</a>        // - Spill base allocation at sp[1]
+<a href=#229 id=229 data-nosnippet>229</a>        // - Correct calldata copy to sp[2],sp[3] (not sp[1],sp[2])
+<a href=#230 id=230 data-nosnippet>230</a>        </span><span class="macro">assert_artifact_snapshot!</span>(entry, @<span class="string">r"
+<a href=#231 id=231 data-nosnippet>231</a>        fn main
+<a href=#232 id=232 data-nosnippet>232</a>         0: @2 = const u32 1
+<a href=#233 id=233 data-nosnippet>233</a>         1: @1 = const u32 263
+<a href=#234 id=234 data-nosnippet>234</a>         2: @0 = const u32 71
+<a href=#235 id=235 data-nosnippet>235</a>         3: call 16
+<a href=#236 id=236 data-nosnippet>236</a>         4: sp[4] = const u32 2
+<a href=#237 id=237 data-nosnippet>237</a>         5: sp[5] = const u32 0
+<a href=#238 id=238 data-nosnippet>238</a>         6: @68 = calldata copy [sp[5]; sp[4]]
+<a href=#239 id=239 data-nosnippet>239</a>         7: @68 = cast @68 to u32
+<a href=#240 id=240 data-nosnippet>240</a>         8: @69 = cast @69 to u32
+<a href=#241 id=241 data-nosnippet>241</a>         9: sp[2] = @68
+<a href=#242 id=242 data-nosnippet>242</a>        10: sp[3] = @69
+<a href=#243 id=243 data-nosnippet>243</a>        11: call 17
+<a href=#244 id=244 data-nosnippet>244</a>        12: @70 = sp[2]
+<a href=#245 id=245 data-nosnippet>245</a>        13: sp[3] = const u32 70
+<a href=#246 id=246 data-nosnippet>246</a>        14: sp[4] = const u32 1
+<a href=#247 id=247 data-nosnippet>247</a>        15: stop @[sp[3]; sp[4]]
+<a href=#248 id=248 data-nosnippet>248</a>        16: return
+<a href=#249 id=249 data-nosnippet>249</a>        17: call 68
+<a href=#250 id=250 data-nosnippet>250</a>        18: sp[1] = @1
+<a href=#251 id=251 data-nosnippet>251</a>        19: @3 = const u32 3
+<a href=#252 id=252 data-nosnippet>252</a>        20: @1 = u32 add @1, @3
+<a href=#253 id=253 data-nosnippet>253</a>        21: sp[4] = u32 add sp[2], sp[3]
+<a href=#254 id=254 data-nosnippet>254</a>        22: sp[5] = const u32 2
+<a href=#255 id=255 data-nosnippet>255</a>        23: sp[6] = u32 add sp[2], sp[5]
+<a href=#256 id=256 data-nosnippet>256</a>        24: sp[5] = const u32 3
+<a href=#257 id=257 data-nosnippet>257</a>        25: sp[7] = u32 add sp[2], sp[5]
+<a href=#258 id=258 data-nosnippet>258</a>        26: sp[5] = const u32 4
+<a href=#259 id=259 data-nosnippet>259</a>        27: sp[8] = u32 add sp[3], sp[5]
+<a href=#260 id=260 data-nosnippet>260</a>        28: sp[5] = const u32 5
+<a href=#261 id=261 data-nosnippet>261</a>        29: sp[9] = u32 add sp[3], sp[5]
+<a href=#262 id=262 data-nosnippet>262</a>        30: sp[5] = const u32 6
+<a href=#263 id=263 data-nosnippet>263</a>        31: sp[10] = u32 add sp[2], sp[5]
+<a href=#264 id=264 data-nosnippet>264</a>        32: sp[5] = const u32 7
+<a href=#265 id=265 data-nosnippet>265</a>        33: sp[11] = u32 add sp[3], sp[5]
+<a href=#266 id=266 data-nosnippet>266</a>        34: sp[5] = const u32 8
+<a href=#267 id=267 data-nosnippet>267</a>        35: @4 = const u32 0
+<a href=#268 id=268 data-nosnippet>268</a>        36: @3 = u32 add sp[1], @4
+<a href=#269 id=269 data-nosnippet>269</a>        37: store sp[4] at @3
+<a href=#270 id=270 data-nosnippet>270</a>        38: sp[4] = u32 add sp[2], sp[5]
+<a href=#271 id=271 data-nosnippet>271</a>        39: sp[5] = const u32 9
+<a href=#272 id=272 data-nosnippet>272</a>        40: @4 = const u32 1
+<a href=#273 id=273 data-nosnippet>273</a>        41: @3 = u32 add sp[1], @4
+<a href=#274 id=274 data-nosnippet>274</a>        42: store sp[6] at @3
+<a href=#275 id=275 data-nosnippet>275</a>        43: sp[6] = u32 add sp[3], sp[5]
+<a href=#276 id=276 data-nosnippet>276</a>        44: sp[3] = const u32 10
+<a href=#277 id=277 data-nosnippet>277</a>        45: sp[5] = u32 add sp[2], sp[3]
+<a href=#278 id=278 data-nosnippet>278</a>        46: @4 = const u32 0
+<a href=#279 id=279 data-nosnippet>279</a>        47: @3 = u32 add sp[1], @4
+<a href=#280 id=280 data-nosnippet>280</a>        48: sp[3] = load @3
+<a href=#281 id=281 data-nosnippet>281</a>        49: @4 = const u32 2
+<a href=#282 id=282 data-nosnippet>282</a>        50: @3 = u32 add sp[1], @4
+<a href=#283 id=283 data-nosnippet>283</a>        51: store sp[7] at @3
+<a href=#284 id=284 data-nosnippet>284</a>        52: @4 = const u32 1
+<a href=#285 id=285 data-nosnippet>285</a>        53: @3 = u32 add sp[1], @4
+<a href=#286 id=286 data-nosnippet>286</a>        54: sp[7] = load @3
+<a href=#287 id=287 data-nosnippet>287</a>        55: sp[2] = u32 add sp[3], sp[7]
+<a href=#288 id=288 data-nosnippet>288</a>        56: @4 = const u32 2
+<a href=#289 id=289 data-nosnippet>289</a>        57: @3 = u32 add sp[1], @4
+<a href=#290 id=290 data-nosnippet>290</a>        58: sp[7] = load @3
+<a href=#291 id=291 data-nosnippet>291</a>        59: sp[3] = u32 add sp[2], sp[7]
+<a href=#292 id=292 data-nosnippet>292</a>        60: sp[2] = u32 add sp[3], sp[8]
+<a href=#293 id=293 data-nosnippet>293</a>        61: sp[3] = u32 add sp[2], sp[9]
+<a href=#294 id=294 data-nosnippet>294</a>        62: sp[2] = u32 add sp[3], sp[10]
+<a href=#295 id=295 data-nosnippet>295</a>        63: sp[3] = u32 add sp[2], sp[11]
+<a href=#296 id=296 data-nosnippet>296</a>        64: sp[2] = u32 add sp[3], sp[4]
+<a href=#297 id=297 data-nosnippet>297</a>        65: sp[3] = u32 add sp[2], sp[6]
+<a href=#298 id=298 data-nosnippet>298</a>        66: sp[2] = u32 add sp[3], sp[5]
+<a href=#299 id=299 data-nosnippet>299</a>        67: return
+<a href=#300 id=300 data-nosnippet>300</a>        68: @4 = const u32 251
+<a href=#301 id=301 data-nosnippet>301</a>        69: @3 = u32 lt @0, @4
+<a href=#302 id=302 data-nosnippet>302</a>        70: jump if @3 to 73
+<a href=#303 id=303 data-nosnippet>303</a>        71: @1 = indirect const u64 15764276373176857197
+<a href=#304 id=304 data-nosnippet>304</a>        72: trap @[@1; @2]
+<a href=#305 id=305 data-nosnippet>305</a>        73: return
+<a href=#306 id=306 data-nosnippet>306</a>        "</span>);
+<a href=#307 id=307 data-nosnippet>307</a>    }
+<a href=#308 id=308 data-nosnippet>308</a>}</code></pre></div></section></main></body></html>

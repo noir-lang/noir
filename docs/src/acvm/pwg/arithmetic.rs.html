@@ -231,7 +231,7 @@
 <a href=#231 id=231 data-nosnippet>231</a>        <span class="comment">// This is the sum of all of the known variables
 <a href=#232 id=232 data-nosnippet>232</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>result = F::zero();
 <a href=#233 id=233 data-nosnippet>233</a>
-<a href=#234 id=234 data-nosnippet>234</a>        <span class="kw">for </span>term <span class="kw">in </span>linear_combinations.iter() {
+<a href=#234 id=234 data-nosnippet>234</a>        <span class="kw">for </span>term <span class="kw">in </span>linear_combinations {
 <a href=#235 id=235 data-nosnippet>235</a>            <span class="kw">let </span>value = ExpressionSolver::solve_fan_in_term_helper(term, witness_assignments);
 <a href=#236 id=236 data-nosnippet>236</a>            <span class="kw">match </span>value {
 <a href=#237 id=237 data-nosnippet>237</a>                <span class="prelude-val">Some</span>(a) =&gt; result += a,

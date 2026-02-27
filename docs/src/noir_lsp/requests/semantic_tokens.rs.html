@@ -476,7 +476,7 @@
 <a href=#476 id=476 data-nosnippet>476</a>            <span class="self">self</span>.process_reference_id(reference);
 <a href=#477 id=477 data-nosnippet>477</a>        }
 <a href=#478 id=478 data-nosnippet>478</a>
-<a href=#479 id=479 data-nosnippet>479</a>        <span class="kw">for </span>field <span class="kw">in </span>noir_struct.fields.iter() {
+<a href=#479 id=479 data-nosnippet>479</a>        <span class="kw">for </span>field <span class="kw">in </span><span class="kw-2">&amp;</span>noir_struct.fields {
 <a href=#480 id=480 data-nosnippet>480</a>            <span class="kw">let </span>field_name_location = field.item.name.location();
 <a href=#481 id=481 data-nosnippet>481</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(reference) = <span class="self">self</span>.args.interner.reference_at_location(field_name_location) {
 <a href=#482 id=482 data-nosnippet>482</a>                <span class="self">self</span>.process_reference_id(reference);
@@ -492,7 +492,7 @@
 <a href=#492 id=492 data-nosnippet>492</a>            <span class="self">self</span>.process_reference_id(reference);
 <a href=#493 id=493 data-nosnippet>493</a>        }
 <a href=#494 id=494 data-nosnippet>494</a>
-<a href=#495 id=495 data-nosnippet>495</a>        <span class="kw">for </span>variant <span class="kw">in </span>noir_enum.variants.iter() {
+<a href=#495 id=495 data-nosnippet>495</a>        <span class="kw">for </span>variant <span class="kw">in </span><span class="kw-2">&amp;</span>noir_enum.variants {
 <a href=#496 id=496 data-nosnippet>496</a>            <span class="kw">let </span>variant_name_location = variant.item.name.location();
 <a href=#497 id=497 data-nosnippet>497</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(reference) = <span class="self">self</span>.args.interner.reference_at_location(variant_name_location)
 <a href=#498 id=498 data-nosnippet>498</a>            {
@@ -509,7 +509,7 @@
 <a href=#509 id=509 data-nosnippet>509</a>            <span class="self">self</span>.process_reference_id(reference);
 <a href=#510 id=510 data-nosnippet>510</a>        }
 <a href=#511 id=511 data-nosnippet>511</a>
-<a href=#512 id=512 data-nosnippet>512</a>        <span class="kw">for </span>item <span class="kw">in </span>noir_trait.items.iter() {
+<a href=#512 id=512 data-nosnippet>512</a>        <span class="kw">for </span>item <span class="kw">in </span><span class="kw-2">&amp;</span>noir_trait.items {
 <a href=#513 id=513 data-nosnippet>513</a>            <span class="kw">if let </span>TraitItem::Function { name, .. } = <span class="kw-2">&amp;</span>item.item {
 <a href=#514 id=514 data-nosnippet>514</a>                <span class="kw">let </span>func_name_location = name.location();
 <a href=#515 id=515 data-nosnippet>515</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(reference) =

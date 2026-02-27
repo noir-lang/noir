@@ -412,7 +412,7 @@
 <a href=#412 id=412 data-nosnippet>412</a>        HashMap::default();
 <a href=#413 id=413 data-nosnippet>413</a>
 <a href=#414 id=414 data-nosnippet>414</a>    <span class="comment">// We only need to generate globals for entry points
-<a href=#415 id=415 data-nosnippet>415</a>    </span><span class="kw">for </span>(entry_point, entry_point_inner_calls) <span class="kw">in </span>brillig_entry_points.iter() {
+<a href=#415 id=415 data-nosnippet>415</a>    </span><span class="kw">for </span>(entry_point, entry_point_inner_calls) <span class="kw">in </span>brillig_entry_points {
 <a href=#416 id=416 data-nosnippet>416</a>        <span class="kw">for </span>inner_call <span class="kw">in </span>entry_point_inner_calls {
 <a href=#417 id=417 data-nosnippet>417</a>            inner_call_to_entry_point.entry(<span class="kw-2">*</span>inner_call).or_default().insert(<span class="kw-2">*</span>entry_point);
 <a href=#418 id=418 data-nosnippet>418</a>        }

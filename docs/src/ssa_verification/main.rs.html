@@ -50,7 +50,7 @@
 <a href=#50 id=50 data-nosnippet>50</a><span class="doccomment">/// Saves instruction artifacts to files in the artifacts directory
 <a href=#51 id=51 data-nosnippet>51</a>/// Prints the formatted SSA for each artifact and saves the decompressed ACIR
 <a href=#52 id=52 data-nosnippet>52</a></span><span class="kw">fn </span>save_artifacts(all_artifacts: Vec&lt;InstructionArtifacts&gt;, dir: <span class="kw-2">&amp;</span>str) {
-<a href=#53 id=53 data-nosnippet>53</a>    <span class="kw">for </span>artifacts <span class="kw">in </span>all_artifacts.iter() {
+<a href=#53 id=53 data-nosnippet>53</a>    <span class="kw">for </span>artifacts <span class="kw">in </span><span class="kw-2">&amp;</span>all_artifacts {
 <a href=#54 id=54 data-nosnippet>54</a>        <span class="macro">println!</span>(<span class="string">"{}\n{}"</span>, artifacts.instruction_name, artifacts.formatted_ssa);
 <a href=#55 id=55 data-nosnippet>55</a>        <span class="kw">let </span>filename = <span class="macro">format!</span>(<span class="string">"{}{}{}"</span>, dir, artifacts.instruction_name, <span class="string">".acir"</span>);
 <a href=#56 id=56 data-nosnippet>56</a>        <span class="kw">let </span>acir = <span class="kw-2">&amp;</span>artifacts.serialized_acir;

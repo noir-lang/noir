@@ -40,7 +40,7 @@
 <a href=#40 id=40 data-nosnippet>40</a>
 <a href=#41 id=41 data-nosnippet>41</a>        <span class="macro">writeln!</span>(f, <span class="string">"struct {}{} {{"</span>, <span class="self">self</span>.name, generics)<span class="question-mark">?</span>;
 <a href=#42 id=42 data-nosnippet>42</a>
-<a href=#43 id=43 data-nosnippet>43</a>        <span class="kw">for </span>field <span class="kw">in </span><span class="self">self</span>.fields.iter() {
+<a href=#43 id=43 data-nosnippet>43</a>        <span class="kw">for </span>field <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.fields {
 <a href=#44 id=44 data-nosnippet>44</a>            <span class="macro">writeln!</span>(f, <span class="string">"    {}: {},"</span>, field.item.name, field.item.typ)<span class="question-mark">?</span>;
 <a href=#45 id=45 data-nosnippet>45</a>        }
 <a href=#46 id=46 data-nosnippet>46</a>

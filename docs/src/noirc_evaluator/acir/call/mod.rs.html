@@ -216,7 +216,7 @@
 <a href=#216 id=216 data-nosnippet>216</a>                                len / ElementTypesLength(assert_u32(item_types.len()))
 <a href=#217 id=217 data-nosnippet>217</a>                            }
 <a href=#218 id=218 data-nosnippet>218</a>                        }
-<a href=#219 id=219 data-nosnippet>219</a>                        <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: Vector value is not an array"</span>),
+<a href=#219 id=219 data-nosnippet>219</a>                        AcirValue::Var(..) =&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: Vector value is not an array"</span>),
 <a href=#220 id=220 data-nosnippet>220</a>                    };
 <a href=#221 id=221 data-nosnippet>221</a>
 <a href=#222 id=222 data-nosnippet>222</a>                    BrilligParameter::Vector(

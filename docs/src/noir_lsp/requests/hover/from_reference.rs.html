@@ -247,7 +247,7 @@
 <a href=#247 id=247 data-nosnippet>247</a>
 <a href=#248 id=248 data-nosnippet>248</a>    append_doc_comments(ReferenceId::EnumVariant(id, field_index), <span class="kw-2">&amp;mut </span>string, args);
 <a href=#249 id=249 data-nosnippet>249</a>
-<a href=#250 id=250 data-nosnippet>250</a>    <span class="kw">for </span>typ <span class="kw">in </span>variant.params.iter() {
+<a href=#250 id=250 data-nosnippet>250</a>    <span class="kw">for </span>typ <span class="kw">in </span><span class="kw-2">&amp;</span>variant.params {
 <a href=#251 id=251 data-nosnippet>251</a>        string.push_str(<span class="kw-2">&amp;</span>go_to_type_links(typ, args.interner, args.files));
 <a href=#252 id=252 data-nosnippet>252</a>    }
 <a href=#253 id=253 data-nosnippet>253</a>

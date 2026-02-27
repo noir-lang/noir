@@ -271,7 +271,7 @@
 <a href=#271 id=271 data-nosnippet>271</a>                .push((position_in_bytecode + offset, label_id.clone()));
 <a href=#272 id=272 data-nosnippet>272</a>        }
 <a href=#273 id=273 data-nosnippet>273</a>
-<a href=#274 id=274 data-nosnippet>274</a>        <span class="kw">for </span>(position_in_bytecode, call_stack) <span class="kw">in </span>obj.locations.iter() {
+<a href=#274 id=274 data-nosnippet>274</a>        <span class="kw">for </span>(position_in_bytecode, call_stack) <span class="kw">in </span><span class="kw-2">&amp;</span>obj.locations {
 <a href=#275 id=275 data-nosnippet>275</a>            <span class="self">self</span>.locations.insert(position_in_bytecode + offset, <span class="kw-2">*</span>call_stack);
 <a href=#276 id=276 data-nosnippet>276</a>        }
 <a href=#277 id=277 data-nosnippet>277</a>    }

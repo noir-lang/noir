@@ -209,7 +209,7 @@
 <a href=#209 id=209 data-nosnippet>209</a>    }
 <a href=#210 id=210 data-nosnippet>210</a>
 <a href=#211 id=211 data-nosnippet>211</a>    <span class="kw">pub fn </span>add_crate_root(<span class="kw-2">&amp;mut </span><span class="self">self</span>, file_id: FileId) -&gt; CrateId {
-<a href=#212 id=212 data-nosnippet>212</a>        <span class="kw">for </span>(crate_id, crate_data) <span class="kw">in </span><span class="self">self</span>.arena.iter() {
+<a href=#212 id=212 data-nosnippet>212</a>        <span class="kw">for </span>(crate_id, crate_data) <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.arena {
 <a href=#213 id=213 data-nosnippet>213</a>            <span class="kw">if </span>crate_id.is_root() {
 <a href=#214 id=214 data-nosnippet>214</a>                <span class="macro">panic!</span>(<span class="string">"ICE: Cannot add two crate roots to a graph - use `add_crate` instead"</span>);
 <a href=#215 id=215 data-nosnippet>215</a>            }
@@ -257,7 +257,7 @@
 <a href=#257 id=257 data-nosnippet>257</a>    }
 <a href=#258 id=258 data-nosnippet>258</a>
 <a href=#259 id=259 data-nosnippet>259</a>    <span class="kw">pub fn </span>add_stdlib(<span class="kw-2">&amp;mut </span><span class="self">self</span>, file_id: FileId) -&gt; CrateId {
-<a href=#260 id=260 data-nosnippet>260</a>        <span class="kw">for </span>(crate_id, crate_data) <span class="kw">in </span><span class="self">self</span>.arena.iter() {
+<a href=#260 id=260 data-nosnippet>260</a>        <span class="kw">for </span>(crate_id, crate_data) <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.arena {
 <a href=#261 id=261 data-nosnippet>261</a>            <span class="kw">if </span>crate_id.is_stdlib() {
 <a href=#262 id=262 data-nosnippet>262</a>                <span class="macro">panic!</span>(<span class="string">"ICE: Cannot add two stdlib crates to a graph - use `add_crate` instead"</span>);
 <a href=#263 id=263 data-nosnippet>263</a>            }
@@ -275,7 +275,7 @@
 <a href=#275 id=275 data-nosnippet>275</a>    }
 <a href=#276 id=276 data-nosnippet>276</a>
 <a href=#277 id=277 data-nosnippet>277</a>    <span class="kw">pub fn </span>add_crate_root_and_stdlib(<span class="kw-2">&amp;mut </span><span class="self">self</span>, file_id: FileId) -&gt; CrateId {
-<a href=#278 id=278 data-nosnippet>278</a>        <span class="kw">for </span>(crate_id, crate_data) <span class="kw">in </span><span class="self">self</span>.arena.iter() {
+<a href=#278 id=278 data-nosnippet>278</a>        <span class="kw">for </span>(crate_id, crate_data) <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.arena {
 <a href=#279 id=279 data-nosnippet>279</a>            <span class="kw">if </span>crate_id.is_root() {
 <a href=#280 id=280 data-nosnippet>280</a>                <span class="macro">panic!</span>(<span class="string">"ICE: Cannot add two crate roots to a graph - use `add_crate` instead"</span>);
 <a href=#281 id=281 data-nosnippet>281</a>            }
@@ -319,7 +319,7 @@
 <a href=#319 id=319 data-nosnippet>319</a>            <span class="kw">if </span>!visited.insert(source) {
 <a href=#320 id=320 data-nosnippet>320</a>                <span class="kw">return</span>;
 <a href=#321 id=321 data-nosnippet>321</a>            }
-<a href=#322 id=322 data-nosnippet>322</a>            <span class="kw">for </span>dep <span class="kw">in </span>graph[source].dependencies.iter() {
+<a href=#322 id=322 data-nosnippet>322</a>            <span class="kw">for </span>dep <span class="kw">in </span><span class="kw-2">&amp;</span>graph[source].dependencies {
 <a href=#323 id=323 data-nosnippet>323</a>                go(graph, visited, res, dep.crate_id);
 <a href=#324 id=324 data-nosnippet>324</a>            }
 <a href=#325 id=325 data-nosnippet>325</a>            res.push(source);

@@ -642,7 +642,7 @@
 <a href=#642 id=642 data-nosnippet>642</a>            } <span class="kw">else </span>{
 <a href=#643 id=643 data-nosnippet>643</a>                <span class="comment">// If this is the initial processing round, then push testcases from the starting corpus into the set
 <a href=#644 id=644 data-nosnippet>644</a>                </span>testcase_set.reserve(starting_corpus_ids.len());
-<a href=#645 id=645 data-nosnippet>645</a>                <span class="kw">for </span>id <span class="kw">in </span>starting_corpus_ids.iter() {
+<a href=#645 id=645 data-nosnippet>645</a>                <span class="kw">for </span>id <span class="kw">in </span><span class="kw-2">&amp;</span>starting_corpus_ids {
 <a href=#646 id=646 data-nosnippet>646</a>                    testcase_set.push(FuzzTask::without_mutation(<span class="kw-2">*</span>id));
 <a href=#647 id=647 data-nosnippet>647</a>                }
 <a href=#648 id=648 data-nosnippet>648</a>            }
@@ -786,7 +786,7 @@
 <a href=#786 id=786 data-nosnippet>786</a>
 <a href=#787 id=787 data-nosnippet>787</a>            <span class="kw">let </span><span class="kw-2">mut </span>acir_cases_to_execute = Vec::new();
 <a href=#788 id=788 data-nosnippet>788</a>            <span class="comment">// Go through each interesting testcase (new coverage or some issue)
-<a href=#789 id=789 data-nosnippet>789</a>            </span><span class="kw">for </span>index <span class="kw">in </span>analysis_queue.into_iter() {
+<a href=#789 id=789 data-nosnippet>789</a>            </span><span class="kw">for </span>index <span class="kw">in </span>analysis_queue {
 <a href=#790 id=790 data-nosnippet>790</a>                <span class="kw">let </span>fuzzing_outcome = all_fuzzing_results[index].outcome().clone();
 <a href=#791 id=791 data-nosnippet>791</a>                <span class="kw">let </span>(case_id, case, witness, brillig_coverage) = <span class="kw">match </span>fuzzing_outcome {
 <a href=#792 id=792 data-nosnippet>792</a>                    HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
@@ -830,7 +830,7 @@
 <a href=#830 id=830 data-nosnippet>830</a>                <span class="comment">// If there is new coverage
 <a href=#831 id=831 data-nosnippet>831</a>                </span><span class="kw">if </span>new_coverage_discovered {
 <a href=#832 id=832 data-nosnippet>832</a>                    <span class="comment">// Remove testcases from the corpus if they have no unique features
-<a href=#833 id=833 data-nosnippet>833</a>                    </span><span class="kw">for </span><span class="kw-2">&amp;</span>testcase_for_removal <span class="kw">in </span>testcases_to_remove.iter() {
+<a href=#833 id=833 data-nosnippet>833</a>                    </span><span class="kw">for </span><span class="kw-2">&amp;</span>testcase_for_removal <span class="kw">in </span><span class="kw-2">&amp;</span>testcases_to_remove {
 <a href=#834 id=834 data-nosnippet>834</a>                        <span class="self">self</span>.metrics.increment_removed_testcase_count();
 <a href=#835 id=835 data-nosnippet>835</a>                        corpus.remove(testcase_for_removal);
 <a href=#836 id=836 data-nosnippet>836</a>                    }
@@ -896,7 +896,7 @@
 <a href=#896 id=896 data-nosnippet>896</a>            });
 <a href=#897 id=897 data-nosnippet>897</a>
 <a href=#898 id=898 data-nosnippet>898</a>            <span class="comment">// Parse results and if there is an unsuccessful case break out of the loop
-<a href=#899 id=899 data-nosnippet>899</a>            </span><span class="kw">for </span>acir_fuzzing_result <span class="kw">in </span>all_fuzzing_results.into_iter() {
+<a href=#899 id=899 data-nosnippet>899</a>            </span><span class="kw">for </span>acir_fuzzing_result <span class="kw">in </span>all_fuzzing_results {
 <a href=#900 id=900 data-nosnippet>900</a>                <span class="kw">let </span>(case_id, case, witness, brillig_coverage, acir_duration_micros) =
 <a href=#901 id=901 data-nosnippet>901</a>                    <span class="kw">match </span>acir_fuzzing_result {
 <a href=#902 id=902 data-nosnippet>902</a>                        HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
@@ -934,7 +934,7 @@
 <a href=#934 id=934 data-nosnippet>934</a>                <span class="kw">let </span>(new_coverage_discovered, testcases_to_remove) =
 <a href=#935 id=935 data-nosnippet>935</a>                    accumulated_coverage.merge(<span class="kw-2">&amp;</span>new_coverage);
 <a href=#936 id=936 data-nosnippet>936</a>                <span class="kw">if </span>new_coverage_discovered {
-<a href=#937 id=937 data-nosnippet>937</a>                    <span class="kw">for </span><span class="kw-2">&amp;</span>testcase_for_removal <span class="kw">in </span>testcases_to_remove.iter() {
+<a href=#937 id=937 data-nosnippet>937</a>                    <span class="kw">for </span><span class="kw-2">&amp;</span>testcase_for_removal <span class="kw">in </span><span class="kw-2">&amp;</span>testcases_to_remove {
 <a href=#938 id=938 data-nosnippet>938</a>                        <span class="self">self</span>.metrics.increment_removed_testcase_count();
 <a href=#939 id=939 data-nosnippet>939</a>                        corpus.remove(testcase_for_removal);
 <a href=#940 id=940 data-nosnippet>940</a>                    }

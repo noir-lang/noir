@@ -66,7 +66,7 @@
 <a href=#66 id=66 data-nosnippet>66</a>    }
 <a href=#67 id=67 data-nosnippet>67</a>
 <a href=#68 id=68 data-nosnippet>68</a>    <span class="comment">// Rewrite functions.
-<a href=#69 id=69 data-nosnippet>69</a>    </span><span class="kw">for </span>(func_id, func) <span class="kw">in </span>ctx.functions.iter_mut() {
+<a href=#69 id=69 data-nosnippet>69</a>    </span><span class="kw">for </span>(func_id, func) <span class="kw">in </span><span class="kw-2">&amp;mut </span>ctx.functions {
 <a href=#70 id=70 data-nosnippet>70</a>        <span class="kw">let </span><span class="kw-2">mut </span>limit_ctx = LimitContext::new(<span class="kw-2">*</span>func_id, func, <span class="kw-2">&amp;</span>ctx.config);
 <a href=#71 id=71 data-nosnippet>71</a>
 <a href=#72 id=72 data-nosnippet>72</a>        limit_ctx.rewrite_functions(u, <span class="kw-2">&amp;mut </span>proxy_functions)<span class="question-mark">?</span>;
@@ -428,11 +428,11 @@
 <a href=#428 id=428 data-nosnippet>428</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#429 id=429 data-nosnippet>429</a>        proxy_functions: <span class="kw-2">&amp;mut </span>HashMap&lt;FuncId, Function&gt;,
 <a href=#430 id=430 data-nosnippet>430</a>    ) {
-<a href=#431 id=431 data-nosnippet>431</a>        <span class="kw">for </span>(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, param_type, <span class="kw">_</span>) <span class="kw">in </span><span class="self">self</span>.func.parameters.iter_mut() {
+<a href=#431 id=431 data-nosnippet>431</a>        <span class="kw">for </span>(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, param_type, <span class="kw">_</span>) <span class="kw">in </span><span class="kw-2">&amp;mut </span><span class="self">self</span>.func.parameters {
 <a href=#432 id=432 data-nosnippet>432</a>            modify_function_pointer_param_type(param_type, <span class="self">self</span>.func.unconstrained);
 <a href=#433 id=433 data-nosnippet>433</a>        }
 <a href=#434 id=434 data-nosnippet>434</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(proxy) = proxy_functions.get_mut(<span class="kw-2">&amp;</span><span class="self">self</span>.func_id) {
-<a href=#435 id=435 data-nosnippet>435</a>            <span class="kw">for </span>(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, param_type, <span class="kw">_</span>) <span class="kw">in </span>proxy.parameters.iter_mut() {
+<a href=#435 id=435 data-nosnippet>435</a>            <span class="kw">for </span>(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, param_type, <span class="kw">_</span>) <span class="kw">in </span><span class="kw-2">&amp;mut </span>proxy.parameters {
 <a href=#436 id=436 data-nosnippet>436</a>                modify_function_pointer_param_type(param_type, <span class="self">self</span>.func.unconstrained);
 <a href=#437 id=437 data-nosnippet>437</a>            }
 <a href=#438 id=438 data-nosnippet>438</a>        }

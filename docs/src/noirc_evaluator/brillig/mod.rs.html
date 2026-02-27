@@ -106,7 +106,7 @@
 <a href=#106 id=106 data-nosnippet>106</a>                <span class="prelude-val">Some</span>(Cow::Owned(compile_procedure(procedure_id, options, stack_start)))
 <a href=#107 id=107 data-nosnippet>107</a>            }
 <a href=#108 id=108 data-nosnippet>108</a>            LabelType::GlobalInit(function_id) =&gt; <span class="self">self</span>.globals.get(<span class="kw-2">&amp;</span>function_id).map(Cow::Borrowed),
-<a href=#109 id=109 data-nosnippet>109</a>            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: Expected a function or procedure label"</span>),
+<a href=#109 id=109 data-nosnippet>109</a>            LabelType::Entrypoint =&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: Expected a function or procedure label"</span>),
 <a href=#110 id=110 data-nosnippet>110</a>        }
 <a href=#111 id=111 data-nosnippet>111</a>    }
 <a href=#112 id=112 data-nosnippet>112</a>

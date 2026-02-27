@@ -240,7 +240,7 @@
 <a href=#240 id=240 data-nosnippet>240</a>    }
 <a href=#241 id=241 data-nosnippet>241</a>
 <a href=#242 id=242 data-nosnippet>242</a>    <span class="kw">pub fn </span>find_method(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str, interner: <span class="kw-2">&amp;</span>NodeInterner) -&gt; <span class="prelude-ty">Option</span>&lt;DefinitionId&gt; {
-<a href=#243 id=243 data-nosnippet>243</a>        <span class="kw">for </span>method <span class="kw">in </span><span class="self">self</span>.methods.iter() {
+<a href=#243 id=243 data-nosnippet>243</a>        <span class="kw">for </span>method <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.methods {
 <a href=#244 id=244 data-nosnippet>244</a>            <span class="kw">if </span><span class="kw-2">&amp;</span>method.name == name {
 <a href=#245 id=245 data-nosnippet>245</a>                <span class="kw">let </span>id = <span class="kw-2">*</span><span class="self">self</span>.method_ids.get(name).unwrap();
 <a href=#246 id=246 data-nosnippet>246</a>                <span class="kw">return </span><span class="prelude-val">Some</span>(interner.function_definition_id(id));

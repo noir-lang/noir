@@ -272,7 +272,7 @@
 <a href=#272 id=272 data-nosnippet>272</a>
 <a href=#273 id=273 data-nosnippet>273</a>    <span class="kw">let </span><span class="kw-2">mut </span>functions: Vec&lt;Circuit&lt;FieldElement&gt;&gt; = Vec::new();
 <a href=#274 id=274 data-nosnippet>274</a>
-<a href=#275 id=275 data-nosnippet>275</a>    <span class="kw">for </span>acir_func <span class="kw">in </span>acir_functions.iter() {
+<a href=#275 id=275 data-nosnippet>275</a>    <span class="kw">for </span>acir_func <span class="kw">in </span><span class="kw-2">&amp;</span>acir_functions {
 <a href=#276 id=276 data-nosnippet>276</a>        <span class="kw">let </span><span class="kw-2">mut </span>private_params: BTreeSet&lt;Witness&gt; =
 <a href=#277 id=277 data-nosnippet>277</a>            acir_func.input_witnesses.clone().into_iter().collect();
 <a href=#278 id=278 data-nosnippet>278</a>        <span class="kw">let </span>ret_values: BTreeSet&lt;Witness&gt; =

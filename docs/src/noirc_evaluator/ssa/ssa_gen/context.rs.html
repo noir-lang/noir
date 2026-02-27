@@ -993,7 +993,7 @@
 <a href=#993 id=993 data-nosnippet>993</a>            GlobalsGraph::default(),
 <a href=#994 id=994 data-nosnippet>994</a>        );
 <a href=#995 id=995 data-nosnippet>995</a>        <span class="kw">let </span><span class="kw-2">mut </span>globals = BTreeMap::default();
-<a href=#996 id=996 data-nosnippet>996</a>        <span class="kw">for </span>(id, (<span class="kw">_</span>, <span class="kw">_</span>, global)) <span class="kw">in </span>program.globals.iter() {
+<a href=#996 id=996 data-nosnippet>996</a>        <span class="kw">for </span>(id, (<span class="kw">_</span>, <span class="kw">_</span>, global)) <span class="kw">in </span><span class="kw-2">&amp;</span>program.globals {
 <a href=#997 id=997 data-nosnippet>997</a>            <span class="kw">let </span>values = context.codegen_expression(global).unwrap();
 <a href=#998 id=998 data-nosnippet>998</a>            globals.insert(<span class="kw-2">*</span>id, values);
 <a href=#999 id=999 data-nosnippet>999</a>        }

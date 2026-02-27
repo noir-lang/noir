@@ -87,7 +87,7 @@
 <a href=#87 id=87 data-nosnippet>87</a>            </span>.types
 <a href=#88 id=88 data-nosnippet>88</a>            .get(cursor_type_id)
 <a href=#89 id=89 data-nosnippet>89</a>            .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"type unavailable for type id {cursor_type_id:?}"</span>));
-<a href=#90 id=90 data-nosnippet>90</a>        <span class="kw">for </span>index <span class="kw">in </span>indexes.iter() {
+<a href=#90 id=90 data-nosnippet>90</a>        <span class="kw">for </span>index <span class="kw">in </span><span class="kw-2">&amp;</span>indexes {
 <a href=#91 id=91 data-nosnippet>91</a>            (cursor, cursor_type) = <span class="kw">match </span>(cursor, cursor_type) {
 <a href=#92 id=92 data-nosnippet>92</a>                (
 <a href=#93 id=93 data-nosnippet>93</a>                    PrintableValue::Vec { array_elements, is_vector },

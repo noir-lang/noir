@@ -29,7 +29,7 @@
 <a href=#29 id=29 data-nosnippet>29</a>    <span class="kw">let </span><span class="kw-2">mut </span>hash_map: IndexMap&lt;(Witness, Witness), F&gt; = IndexMap::new();
 <a href=#30 id=30 data-nosnippet>30</a>
 <a href=#31 id=31 data-nosnippet>31</a>    <span class="comment">// Canonicalize the ordering of the multiplication, lets just order by variable name
-<a href=#32 id=32 data-nosnippet>32</a>    </span><span class="kw">for </span>(scale, w_l, w_r) <span class="kw">in </span>gate.mul_terms.into_iter() {
+<a href=#32 id=32 data-nosnippet>32</a>    </span><span class="kw">for </span>(scale, w_l, w_r) <span class="kw">in </span>gate.mul_terms {
 <a href=#33 id=33 data-nosnippet>33</a>        <span class="kw">let </span><span class="kw-2">mut </span>pair = [w_l, w_r];
 <a href=#34 id=34 data-nosnippet>34</a>        <span class="comment">// Sort using rust sort algorithm
 <a href=#35 id=35 data-nosnippet>35</a>        </span>pair.sort();
@@ -51,7 +51,7 @@
 <a href=#51 id=51 data-nosnippet>51</a>    <span class="kw">let </span><span class="kw-2">mut </span>hash_map: IndexMap&lt;Witness, F&gt; = IndexMap::new();
 <a href=#52 id=52 data-nosnippet>52</a>
 <a href=#53 id=53 data-nosnippet>53</a>    <span class="comment">// Canonicalize the ordering of the terms, let's just order by variable name
-<a href=#54 id=54 data-nosnippet>54</a>    </span><span class="kw">for </span>(scale, witness) <span class="kw">in </span>gate.linear_combinations.into_iter() {
+<a href=#54 id=54 data-nosnippet>54</a>    </span><span class="kw">for </span>(scale, witness) <span class="kw">in </span>gate.linear_combinations {
 <a href=#55 id=55 data-nosnippet>55</a>        <span class="kw-2">*</span>hash_map.entry(witness).or_insert_with(F::zero) += scale;
 <a href=#56 id=56 data-nosnippet>56</a>    }
 <a href=#57 id=57 data-nosnippet>57</a>

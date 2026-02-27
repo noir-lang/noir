@@ -121,10 +121,10 @@
 <a href=#121 id=121 data-nosnippet>121</a>        })
 <a href=#122 id=122 data-nosnippet>122</a>        .collect::&lt;<span class="prelude-ty">Result</span>&lt;<span class="kw">_</span>, <span class="kw">_</span>&gt;&gt;()<span class="question-mark">?</span>;
 <a href=#123 id=123 data-nosnippet>123</a>    <span class="kw">let </span><span class="kw-2">mut </span>found_harness = <span class="bool-val">false</span>;
-<a href=#124 id=124 data-nosnippet>124</a>    <span class="kw">for </span>(crate_name, discovered_harnesses) <span class="kw">in </span>all_harnesses_by_package.iter() {
+<a href=#124 id=124 data-nosnippet>124</a>    <span class="kw">for </span>(crate_name, discovered_harnesses) <span class="kw">in </span><span class="kw-2">&amp;</span>all_harnesses_by_package {
 <a href=#125 id=125 data-nosnippet>125</a>        <span class="kw">if </span>!discovered_harnesses.is_empty() {
 <a href=#126 id=126 data-nosnippet>126</a>            <span class="macro">println!</span>(<span class="string">"Package {crate_name} contains fuzzing harnesses:"</span>);
-<a href=#127 id=127 data-nosnippet>127</a>            <span class="kw">for </span>harness <span class="kw">in </span>discovered_harnesses.iter() {
+<a href=#127 id=127 data-nosnippet>127</a>            <span class="kw">for </span>harness <span class="kw">in </span>discovered_harnesses {
 <a href=#128 id=128 data-nosnippet>128</a>                <span class="macro">println!</span>(<span class="string">"\t{harness}"</span>);
 <a href=#129 id=129 data-nosnippet>129</a>            }
 <a href=#130 id=130 data-nosnippet>130</a>            found_harness = <span class="bool-val">true</span>;
@@ -263,7 +263,7 @@
 <a href=#263 id=263 data-nosnippet>263</a>    )<span class="question-mark">?</span>;
 <a href=#264 id=264 data-nosnippet>264</a>
 <a href=#265 id=265 data-nosnippet>265</a>    <span class="kw">let </span><span class="kw-2">mut </span>fuzzing_reports = Vec::new();
-<a href=#266 id=266 data-nosnippet>266</a>    <span class="kw">for </span>fuzzing_harness_name <span class="kw">in </span>fuzzing_harnesses.into_iter() {
+<a href=#266 id=266 data-nosnippet>266</a>    <span class="kw">for </span>fuzzing_harness_name <span class="kw">in </span>fuzzing_harnesses {
 <a href=#267 id=267 data-nosnippet>267</a>        <span class="kw">let </span>status = run_fuzzing_harness::&lt;S&gt;(
 <a href=#268 id=268 data-nosnippet>268</a>            file_manager,
 <a href=#269 id=269 data-nosnippet>269</a>            parsed_files,

@@ -123,7 +123,7 @@
 <a href=#123 id=123 data-nosnippet>123</a>
 <a href=#124 id=124 data-nosnippet>124</a>        <span class="macro">writeln!</span>(f, <span class="string">"impl{} {} {{"</span>, generics, <span class="self">self</span>.object_type)<span class="question-mark">?</span>;
 <a href=#125 id=125 data-nosnippet>125</a>
-<a href=#126 id=126 data-nosnippet>126</a>        <span class="kw">for </span>(method, <span class="kw">_</span>) <span class="kw">in </span><span class="self">self</span>.methods.iter() {
+<a href=#126 id=126 data-nosnippet>126</a>        <span class="kw">for </span>(method, <span class="kw">_</span>) <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.methods {
 <a href=#127 id=127 data-nosnippet>127</a>            <span class="kw">let </span>method = method.to_string();
 <a href=#128 id=128 data-nosnippet>128</a>            <span class="kw">for </span>line <span class="kw">in </span>method.lines() {
 <a href=#129 id=129 data-nosnippet>129</a>                <span class="macro">writeln!</span>(f, <span class="string">"    {line}"</span>)<span class="question-mark">?</span>;
@@ -160,7 +160,7 @@
 <a href=#160 id=160 data-nosnippet>160</a>
 <a href=#161 id=161 data-nosnippet>161</a>        <span class="macro">writeln!</span>(f, <span class="string">" {{"</span>)<span class="question-mark">?</span>;
 <a href=#162 id=162 data-nosnippet>162</a>
-<a href=#163 id=163 data-nosnippet>163</a>        <span class="kw">for </span>item <span class="kw">in </span><span class="self">self</span>.items.iter() {
+<a href=#163 id=163 data-nosnippet>163</a>        <span class="kw">for </span>item <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.items {
 <a href=#164 id=164 data-nosnippet>164</a>            <span class="kw">let </span>item = item.to_string();
 <a href=#165 id=165 data-nosnippet>165</a>            <span class="kw">for </span>line <span class="kw">in </span>item.lines() {
 <a href=#166 id=166 data-nosnippet>166</a>                <span class="macro">writeln!</span>(f, <span class="string">"    {line}"</span>)<span class="question-mark">?</span>;
@@ -265,7 +265,7 @@
 <a href=#265 id=265 data-nosnippet>265</a>        }
 <a href=#266 id=266 data-nosnippet>266</a>        <span class="macro">writeln!</span>(f, <span class="string">"{{"</span>)<span class="question-mark">?</span>;
 <a href=#267 id=267 data-nosnippet>267</a>
-<a href=#268 id=268 data-nosnippet>268</a>        <span class="kw">for </span>item <span class="kw">in </span><span class="self">self</span>.items.iter() {
+<a href=#268 id=268 data-nosnippet>268</a>        <span class="kw">for </span>item <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.items {
 <a href=#269 id=269 data-nosnippet>269</a>            <span class="kw">let </span>item = item.to_string();
 <a href=#270 id=270 data-nosnippet>270</a>            <span class="kw">for </span>line <span class="kw">in </span>item.lines() {
 <a href=#271 id=271 data-nosnippet>271</a>                <span class="macro">writeln!</span>(f, <span class="string">"    {line}"</span>)<span class="question-mark">?</span>;

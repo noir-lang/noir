@@ -363,7 +363,7 @@
 <a href=#363 id=363 data-nosnippet>363</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#364 id=364 data-nosnippet>364</a>        indentation_to_set: i32,
 <a href=#365 id=365 data-nosnippet>365</a>    ) {
-<a href=#366 id=366 data-nosnippet>366</a>        <span class="kw">for </span>chunk <span class="kw">in </span><span class="self">self</span>.chunks.iter_mut() {
+<a href=#366 id=366 data-nosnippet>366</a>        <span class="kw">for </span>chunk <span class="kw">in </span><span class="kw-2">&amp;mut </span><span class="self">self</span>.chunks {
 <a href=#367 id=367 data-nosnippet>367</a>            <span class="kw">if let </span>Chunk::Group(group) = chunk {
 <a href=#368 id=368 data-nosnippet>368</a>                <span class="kw">if </span><span class="self">self</span>.kind.is_method_call() &amp;&amp; group.kind.is_expression_list() {
 <a href=#369 id=369 data-nosnippet>369</a>                    group.set_lambda_as_last_expression_in_list_indentation(indentation_to_set);

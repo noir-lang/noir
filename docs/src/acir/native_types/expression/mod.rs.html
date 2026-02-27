@@ -309,7 +309,7 @@
 <a href=#309 id=309 data-nosnippet>309</a>            <span class="kw">let </span><span class="kw-2">mut </span>found_x = <span class="bool-val">false</span>;
 <a href=#310 id=310 data-nosnippet>310</a>            <span class="kw">let </span><span class="kw-2">mut </span>found_y = <span class="bool-val">false</span>;
 <a href=#311 id=311 data-nosnippet>311</a>
-<a href=#312 id=312 data-nosnippet>312</a>            <span class="kw">for </span>term <span class="kw">in </span><span class="self">self</span>.linear_combinations.iter() {
+<a href=#312 id=312 data-nosnippet>312</a>            <span class="kw">for </span>term <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.linear_combinations {
 <a href=#313 id=313 data-nosnippet>313</a>                <span class="kw">let </span>witness = <span class="kw-2">&amp;</span>term.<span class="number">1</span>;
 <a href=#314 id=314 data-nosnippet>314</a>                <span class="kw">let </span>x = <span class="kw-2">&amp;</span>mul_term.<span class="number">1</span>;
 <a href=#315 id=315 data-nosnippet>315</a>                <span class="kw">let </span>y = <span class="kw-2">&amp;</span>mul_term.<span class="number">2</span>;

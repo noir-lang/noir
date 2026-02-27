@@ -229,16 +229,18 @@
 <a href=#229 id=229 data-nosnippet>229</a>                        .collect();
 <a href=#230 id=230 data-nosnippet>230</a>                    AbiValue::Array { value }
 <a href=#231 id=231 data-nosnippet>231</a>                }
-<a href=#232 id=232 data-nosnippet>232</a>                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Repeated arrays cannot be used in the abi"</span>),
-<a href=#233 id=233 data-nosnippet>233</a>            },
-<a href=#234 id=234 data-nosnippet>234</a>            HirLiteral::Bool(value) =&gt; AbiValue::Boolean { value },
-<a href=#235 id=235 data-nosnippet>235</a>            HirLiteral::Str(value) =&gt; AbiValue::String { value },
-<a href=#236 id=236 data-nosnippet>236</a>            HirLiteral::Integer(value) =&gt; AbiValue::Integer {
-<a href=#237 id=237 data-nosnippet>237</a>                value: value.absolute_value().to_hex(),
-<a href=#238 id=238 data-nosnippet>238</a>                sign: value.is_negative(),
-<a href=#239 id=239 data-nosnippet>239</a>            },
-<a href=#240 id=240 data-nosnippet>240</a>            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Literal cannot be used in the abi"</span>),
-<a href=#241 id=241 data-nosnippet>241</a>        },
-<a href=#242 id=242 data-nosnippet>242</a>        <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Type cannot be used in the abi {:?}"</span>, expression),
-<a href=#243 id=243 data-nosnippet>243</a>    }
-<a href=#244 id=244 data-nosnippet>244</a>}</code></pre></div></section></main></body></html>
+<a href=#232 id=232 data-nosnippet>232</a>                HirArrayLiteral::Repeated { .. } =&gt; {
+<a href=#233 id=233 data-nosnippet>233</a>                    <span class="macro">unreachable!</span>(<span class="string">"Repeated arrays cannot be used in the abi"</span>)
+<a href=#234 id=234 data-nosnippet>234</a>                }
+<a href=#235 id=235 data-nosnippet>235</a>            },
+<a href=#236 id=236 data-nosnippet>236</a>            HirLiteral::Bool(value) =&gt; AbiValue::Boolean { value },
+<a href=#237 id=237 data-nosnippet>237</a>            HirLiteral::Str(value) =&gt; AbiValue::String { value },
+<a href=#238 id=238 data-nosnippet>238</a>            HirLiteral::Integer(value) =&gt; AbiValue::Integer {
+<a href=#239 id=239 data-nosnippet>239</a>                value: value.absolute_value().to_hex(),
+<a href=#240 id=240 data-nosnippet>240</a>                sign: value.is_negative(),
+<a href=#241 id=241 data-nosnippet>241</a>            },
+<a href=#242 id=242 data-nosnippet>242</a>            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Literal cannot be used in the abi"</span>),
+<a href=#243 id=243 data-nosnippet>243</a>        },
+<a href=#244 id=244 data-nosnippet>244</a>        <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Type cannot be used in the abi {:?}"</span>, expression),
+<a href=#245 id=245 data-nosnippet>245</a>    }
+<a href=#246 id=246 data-nosnippet>246</a>}</code></pre></div></section></main></body></html>

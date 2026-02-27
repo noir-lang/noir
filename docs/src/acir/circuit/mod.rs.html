@@ -176,7 +176,7 @@
 <a href=#176 id=176 data-nosnippet>176</a>            OpcodeLocation::Brillig { brillig_index, .. } =&gt; {
 <a href=#177 id=177 data-nosnippet>177</a>                <span class="prelude-val">Some</span>(BrilligOpcodeLocation(brillig_index))
 <a href=#178 id=178 data-nosnippet>178</a>            }
-<a href=#179 id=179 data-nosnippet>179</a>            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+<a href=#179 id=179 data-nosnippet>179</a>            OpcodeLocation::Acir(<span class="kw">_</span>) =&gt; <span class="prelude-val">None</span>,
 <a href=#180 id=180 data-nosnippet>180</a>        }
 <a href=#181 id=181 data-nosnippet>181</a>    }
 <a href=#182 id=182 data-nosnippet>182</a>}

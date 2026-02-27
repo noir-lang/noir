@@ -461,7 +461,7 @@
 <a href=#461 id=461 data-nosnippet>461</a>        (<span class="kw-2">*</span>ssa.functions.iter().next().unwrap().<span class="number">1</span>.dfg.function_purities).clone()
 <a href=#462 id=462 data-nosnippet>462</a>    };
 <a href=#463 id=463 data-nosnippet>463</a>
-<a href=#464 id=464 data-nosnippet>464</a>    <span class="kw">for </span>((signature, caller_runtime), variants) <span class="kw">in </span>variants_map.into_iter() {
+<a href=#464 id=464 data-nosnippet>464</a>    <span class="kw">for </span>((signature, caller_runtime), variants) <span class="kw">in </span>variants_map {
 <a href=#465 id=465 data-nosnippet>465</a>        <span class="comment">// Calling an ACIR function from a Brillig runtime is not allowed.
 <a href=#466 id=466 data-nosnippet>466</a>        // We expect all ACIR functions called from Brillig to be specialized
 <a href=#467 id=467 data-nosnippet>467</a>        // as Brillig functions at compile time (e.g., before SSA generation).

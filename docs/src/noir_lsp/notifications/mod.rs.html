@@ -180,7 +180,7 @@
 <a href=#180 id=180 data-nosnippet>180</a>
 <a href=#181 id=181 data-nosnippet>181</a>    <span class="kw">let </span>parsed_files = parse_diff(<span class="kw-2">&amp;</span>workspace_file_manager, state);
 <a href=#182 id=182 data-nosnippet>182</a>
-<a href=#183 id=183 data-nosnippet>183</a>    <span class="kw">for </span>package <span class="kw">in </span>workspace.into_iter() {
+<a href=#183 id=183 data-nosnippet>183</a>    <span class="kw">for </span>package <span class="kw">in </span>workspace {
 <a href=#184 id=184 data-nosnippet>184</a>        <span class="kw">let </span>(<span class="kw-2">mut </span>context, crate_id) =
 <a href=#185 id=185 data-nosnippet>185</a>            <span class="kw">crate</span>::prepare_package(<span class="kw-2">&amp;</span>workspace_file_manager, <span class="kw-2">&amp;</span>parsed_files, package);
 <a href=#186 id=186 data-nosnippet>186</a>
@@ -376,7 +376,7 @@
 <a href=#376 id=376 data-nosnippet>376</a>    <span class="kw">let </span>files = fm.as_file_map();
 <a href=#377 id=377 data-nosnippet>377</a>    <span class="kw">let </span><span class="kw-2">mut </span>diagnostics_per_url: HashMap&lt;Url, Vec&lt;Diagnostic&gt;&gt; = HashMap::default();
 <a href=#378 id=378 data-nosnippet>378</a>
-<a href=#379 id=379 data-nosnippet>379</a>    <span class="kw">for </span>custom_diagnostic <span class="kw">in </span>custom_diagnostics.into_iter() {
+<a href=#379 id=379 data-nosnippet>379</a>    <span class="kw">for </span>custom_diagnostic <span class="kw">in </span>custom_diagnostics {
 <a href=#380 id=380 data-nosnippet>380</a>        <span class="kw">let </span>file = custom_diagnostic.file;
 <a href=#381 id=381 data-nosnippet>381</a>        <span class="kw">let </span>path = fm.path(file).expect(<span class="string">"file must exist to have emitted diagnostic"</span>);
 <a href=#382 id=382 data-nosnippet>382</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(uri) = uri_from_path(path)

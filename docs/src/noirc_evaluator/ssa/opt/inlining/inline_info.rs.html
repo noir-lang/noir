@@ -59,7 +59,7 @@
 <a href=#59 id=59 data-nosnippet>59</a>    }
 <a href=#60 id=60 data-nosnippet>60</a>
 <a href=#61 id=61 data-nosnippet>61</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>should_inline(inline_infos: <span class="kw-2">&amp;</span>InlineInfos, called_func_id: FunctionId) -&gt; bool {
-<a href=#62 id=62 data-nosnippet>62</a>        inline_infos.get(<span class="kw-2">&amp;</span>called_func_id).map(|info| info.should_inline).unwrap_or_default()
+<a href=#62 id=62 data-nosnippet>62</a>        inline_infos.get(<span class="kw-2">&amp;</span>called_func_id).is_some_and(|info| info.should_inline)
 <a href=#63 id=63 data-nosnippet>63</a>    }
 <a href=#64 id=64 data-nosnippet>64</a>}
 <a href=#65 id=65 data-nosnippet>65</a>
@@ -104,7 +104,7 @@
 <a href=#104 id=104 data-nosnippet>104</a>    );
 <a href=#105 id=105 data-nosnippet>105</a>
 <a href=#106 id=106 data-nosnippet>106</a>    <span class="comment">// Handle ACIR functions.
-<a href=#107 id=107 data-nosnippet>107</a>    </span><span class="kw">for </span>(func_id, function) <span class="kw">in </span>ssa.functions.iter() {
+<a href=#107 id=107 data-nosnippet>107</a>    </span><span class="kw">for </span>(func_id, function) <span class="kw">in </span><span class="kw-2">&amp;</span>ssa.functions {
 <a href=#108 id=108 data-nosnippet>108</a>        <span class="kw">if </span>function.runtime().is_brillig() {
 <a href=#109 id=109 data-nosnippet>109</a>            <span class="kw">continue</span>;
 <a href=#110 id=110 data-nosnippet>110</a>        }
@@ -128,7 +128,7 @@
 <a href=#128 id=128 data-nosnippet>128</a>    <span class="comment">// Find mutual recursion in our call graph
 <a href=#129 id=129 data-nosnippet>129</a>    </span><span class="kw">let </span>recursive_functions = call_graph.get_recursive_functions();
 <a href=#130 id=130 data-nosnippet>130</a>    <span class="kw">let </span>small_function_max_instructions = small_function_max_instructions <span class="kw">as </span>i64;
-<a href=#131 id=131 data-nosnippet>131</a>    <span class="kw">for </span>recursive_func <span class="kw">in </span>recursive_functions.iter() {
+<a href=#131 id=131 data-nosnippet>131</a>    <span class="kw">for </span>recursive_func <span class="kw">in </span><span class="kw-2">&amp;</span>recursive_functions {
 <a href=#132 id=132 data-nosnippet>132</a>        inline_infos.entry(<span class="kw-2">*</span>recursive_func).or_default().is_recursive = <span class="bool-val">true</span>;
 <a href=#133 id=133 data-nosnippet>133</a>        compute_function_should_be_inlined(
 <a href=#134 id=134 data-nosnippet>134</a>            ssa,

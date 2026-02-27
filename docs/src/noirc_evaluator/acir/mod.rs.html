@@ -494,453 +494,452 @@
 <a href=#494 id=494 data-nosnippet>494</a>                warnings.extend(<span class="self">self</span>.convert_ssa_call(instruction, dfg, ssa, result_ids)<span class="question-mark">?</span>);
 <a href=#495 id=495 data-nosnippet>495</a>            }
 <a href=#496 id=496 data-nosnippet>496</a>            Instruction::Not(value_id) =&gt; {
-<a href=#497 id=497 data-nosnippet>497</a>                <span class="kw">let </span>(acir_var, typ) = <span class="kw">match </span><span class="self">self</span>.convert_value(<span class="kw-2">*</span>value_id, dfg) {
-<a href=#498 id=498 data-nosnippet>498</a>                    AcirValue::Var(acir_var, typ) =&gt; (acir_var, typ),
-<a href=#499 id=499 data-nosnippet>499</a>                    <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"NOT is only applied to numerics"</span>),
-<a href=#500 id=500 data-nosnippet>500</a>                };
-<a href=#501 id=501 data-nosnippet>501</a>                <span class="kw">let </span>result_acir_var = <span class="self">self</span>.acir_context.not_var(acir_var, typ)<span class="question-mark">?</span>;
-<a href=#502 id=502 data-nosnippet>502</a>                <span class="self">self</span>.define_result_var(dfg, instruction_id, result_acir_var);
-<a href=#503 id=503 data-nosnippet>503</a>            }
-<a href=#504 id=504 data-nosnippet>504</a>            Instruction::Truncate { value, bit_size, max_bit_size } =&gt; {
-<a href=#505 id=505 data-nosnippet>505</a>                <span class="kw">let </span>result_acir_var =
-<a href=#506 id=506 data-nosnippet>506</a>                    <span class="self">self</span>.convert_ssa_truncate(<span class="kw-2">*</span>value, <span class="kw-2">*</span>bit_size, <span class="kw-2">*</span>max_bit_size, dfg)<span class="question-mark">?</span>;
-<a href=#507 id=507 data-nosnippet>507</a>                <span class="self">self</span>.define_result_var(dfg, instruction_id, result_acir_var);
-<a href=#508 id=508 data-nosnippet>508</a>            }
-<a href=#509 id=509 data-nosnippet>509</a>            Instruction::EnableSideEffectsIf { condition } =&gt; {
-<a href=#510 id=510 data-nosnippet>510</a>                <span class="kw">let </span>acir_var = <span class="self">self</span>.convert_numeric_value(<span class="kw-2">*</span>condition, dfg)<span class="question-mark">?</span>;
-<a href=#511 id=511 data-nosnippet>511</a>                <span class="self">self</span>.current_side_effects_enabled_var = acir_var;
-<a href=#512 id=512 data-nosnippet>512</a>            }
-<a href=#513 id=513 data-nosnippet>513</a>            Instruction::ArrayGet { .. } | Instruction::ArraySet { .. } =&gt; {
-<a href=#514 id=514 data-nosnippet>514</a>                <span class="self">self</span>.handle_array_operation(instruction_id, dfg)<span class="question-mark">?</span>;
-<a href=#515 id=515 data-nosnippet>515</a>            }
-<a href=#516 id=516 data-nosnippet>516</a>            Instruction::Allocate =&gt; {
-<a href=#517 id=517 data-nosnippet>517</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(RuntimeError::UnknownReference {
-<a href=#518 id=518 data-nosnippet>518</a>                    call_stack: <span class="self">self</span>.acir_context.get_call_stack(),
-<a href=#519 id=519 data-nosnippet>519</a>                });
-<a href=#520 id=520 data-nosnippet>520</a>            }
-<a href=#521 id=521 data-nosnippet>521</a>            Instruction::Store { .. } =&gt; {
-<a href=#522 id=522 data-nosnippet>522</a>                <span class="macro">unreachable!</span>(<span class="string">"Expected all store instructions to be removed before acir_gen"</span>)
-<a href=#523 id=523 data-nosnippet>523</a>            }
-<a href=#524 id=524 data-nosnippet>524</a>            Instruction::Load { .. } =&gt; {
-<a href=#525 id=525 data-nosnippet>525</a>                <span class="macro">unreachable!</span>(<span class="string">"Expected all load instructions to be removed before acir_gen"</span>)
-<a href=#526 id=526 data-nosnippet>526</a>            }
-<a href=#527 id=527 data-nosnippet>527</a>            Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. } =&gt; {
-<a href=#528 id=528 data-nosnippet>528</a>                <span class="comment">// Only Brillig needs to worry about reference counted arrays
-<a href=#529 id=529 data-nosnippet>529</a>                </span><span class="macro">unreachable!</span>(<span class="string">"Expected all Rc instructions to be removed before acir_gen"</span>)
-<a href=#530 id=530 data-nosnippet>530</a>            }
-<a href=#531 id=531 data-nosnippet>531</a>            Instruction::RangeCheck { value, max_bit_size, assert_message } =&gt; {
-<a href=#532 id=532 data-nosnippet>532</a>                <span class="kw">let </span>acir_var = <span class="self">self</span>.convert_numeric_value(<span class="kw-2">*</span>value, dfg)<span class="question-mark">?</span>;
-<a href=#533 id=533 data-nosnippet>533</a>                <span class="kw">let </span>one = <span class="self">self</span>.acir_context.add_constant(FieldElement::one());
-<a href=#534 id=534 data-nosnippet>534</a>                <span class="comment">// Predicate is one because the predicate has already been
-<a href=#535 id=535 data-nosnippet>535</a>                // handled in the RangeCheck instruction during the flattening pass.
-<a href=#536 id=536 data-nosnippet>536</a>                </span><span class="self">self</span>.acir_context.range_constrain_var(
-<a href=#537 id=537 data-nosnippet>537</a>                    acir_var,
-<a href=#538 id=538 data-nosnippet>538</a>                    <span class="kw-2">*</span>max_bit_size,
-<a href=#539 id=539 data-nosnippet>539</a>                    assert_message.clone(),
-<a href=#540 id=540 data-nosnippet>540</a>                    one,
-<a href=#541 id=541 data-nosnippet>541</a>                )<span class="question-mark">?</span>;
-<a href=#542 id=542 data-nosnippet>542</a>            }
-<a href=#543 id=543 data-nosnippet>543</a>            Instruction::IfElse { .. } =&gt; {
-<a href=#544 id=544 data-nosnippet>544</a>                <span class="macro">unreachable!</span>(<span class="string">"IfElse instruction remaining in acir-gen"</span>)
-<a href=#545 id=545 data-nosnippet>545</a>            }
-<a href=#546 id=546 data-nosnippet>546</a>            Instruction::MakeArray { elements, typ: <span class="kw">_ </span>} =&gt; {
-<a href=#547 id=547 data-nosnippet>547</a>                <span class="kw">let </span>elements = elements.iter().map(|element| <span class="self">self</span>.convert_value(<span class="kw-2">*</span>element, dfg));
-<a href=#548 id=548 data-nosnippet>548</a>                <span class="kw">let </span>value = AcirValue::Array(elements.collect());
-<a href=#549 id=549 data-nosnippet>549</a>                <span class="kw">let </span>[result] = dfg.instruction_result(instruction_id);
-<a href=#550 id=550 data-nosnippet>550</a>                <span class="self">self</span>.ssa_values.insert(result, value);
-<a href=#551 id=551 data-nosnippet>551</a>            }
-<a href=#552 id=552 data-nosnippet>552</a>            Instruction::Noop =&gt; (),
-<a href=#553 id=553 data-nosnippet>553</a>        }
-<a href=#554 id=554 data-nosnippet>554</a>
-<a href=#555 id=555 data-nosnippet>555</a>        <span class="self">self</span>.acir_context.set_call_stack(CallStack::new());
-<a href=#556 id=556 data-nosnippet>556</a>        <span class="prelude-val">Ok</span>(warnings)
-<a href=#557 id=557 data-nosnippet>557</a>    }
-<a href=#558 id=558 data-nosnippet>558</a>
-<a href=#559 id=559 data-nosnippet>559</a>    <span class="doccomment">/// Converts an optional constrain error message into an ACIR assertion payload
-<a href=#560 id=560 data-nosnippet>560</a>    </span><span class="kw">fn </span>convert_constrain_error(
-<a href=#561 id=561 data-nosnippet>561</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#562 id=562 data-nosnippet>562</a>        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
-<a href=#563 id=563 data-nosnippet>563</a>        assert_message: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;ConstrainError&gt;,
-<a href=#564 id=564 data-nosnippet>564</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;AssertionPayload&lt;FieldElement&gt;&gt;, RuntimeError&gt; {
-<a href=#565 id=565 data-nosnippet>565</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(error) = assert_message <span class="kw">else </span>{
-<a href=#566 id=566 data-nosnippet>566</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
-<a href=#567 id=567 data-nosnippet>567</a>        };
-<a href=#568 id=568 data-nosnippet>568</a>
-<a href=#569 id=569 data-nosnippet>569</a>        <span class="kw">let </span>assert_payload = <span class="kw">match </span>error {
-<a href=#570 id=570 data-nosnippet>570</a>            ConstrainError::StaticString(string) =&gt; {
-<a href=#571 id=571 data-nosnippet>571</a>                <span class="self">self</span>.acir_context.generate_assertion_message_payload(string.clone())
-<a href=#572 id=572 data-nosnippet>572</a>            }
-<a href=#573 id=573 data-nosnippet>573</a>            ConstrainError::Dynamic(error_selector, is_string_type, values) =&gt; {
-<a href=#574 id=574 data-nosnippet>574</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(constant_string) =
-<a href=#575 id=575 data-nosnippet>575</a>                    try_to_extract_string_from_error_payload(<span class="kw-2">*</span>is_string_type, values, dfg)
-<a href=#576 id=576 data-nosnippet>576</a>                {
-<a href=#577 id=577 data-nosnippet>577</a>                    <span class="self">self</span>.acir_context.generate_assertion_message_payload(constant_string)
-<a href=#578 id=578 data-nosnippet>578</a>                } <span class="kw">else </span>{
-<a href=#579 id=579 data-nosnippet>579</a>                    <span class="kw">let </span>acir_values: Vec&lt;<span class="kw">_</span>&gt; =
-<a href=#580 id=580 data-nosnippet>580</a>                        vecmap(values, |value| <span class="self">self</span>.convert_value(<span class="kw-2">*</span>value, dfg));
-<a href=#581 id=581 data-nosnippet>581</a>
-<a href=#582 id=582 data-nosnippet>582</a>                    <span class="kw">let </span>expressions_or_memory =
-<a href=#583 id=583 data-nosnippet>583</a>                        <span class="self">self</span>.acir_context.values_to_expressions_or_memory(<span class="kw-2">&amp;</span>acir_values)<span class="question-mark">?</span>;
-<a href=#584 id=584 data-nosnippet>584</a>
-<a href=#585 id=585 data-nosnippet>585</a>                    <span class="kw">let </span>error_selector = error_selector.as_u64();
-<a href=#586 id=586 data-nosnippet>586</a>                    AssertionPayload { error_selector, payload: expressions_or_memory }
-<a href=#587 id=587 data-nosnippet>587</a>                }
-<a href=#588 id=588 data-nosnippet>588</a>            }
-<a href=#589 id=589 data-nosnippet>589</a>        };
-<a href=#590 id=590 data-nosnippet>590</a>        <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(assert_payload))
-<a href=#591 id=591 data-nosnippet>591</a>    }
-<a href=#592 id=592 data-nosnippet>592</a>
-<a href=#593 id=593 data-nosnippet>593</a>    <span class="doccomment">/// Remember the result of an instruction returning a single value
-<a href=#594 id=594 data-nosnippet>594</a>    </span><span class="kw">fn </span>define_result(
-<a href=#595 id=595 data-nosnippet>595</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#596 id=596 data-nosnippet>596</a>        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
-<a href=#597 id=597 data-nosnippet>597</a>        instruction: InstructionId,
-<a href=#598 id=598 data-nosnippet>598</a>        result: AcirValue,
-<a href=#599 id=599 data-nosnippet>599</a>    ) {
-<a href=#600 id=600 data-nosnippet>600</a>        <span class="kw">let </span>[result_id] = dfg.instruction_result(instruction);
-<a href=#601 id=601 data-nosnippet>601</a>        <span class="self">self</span>.ssa_values.insert(result_id, result);
-<a href=#602 id=602 data-nosnippet>602</a>    }
-<a href=#603 id=603 data-nosnippet>603</a>
-<a href=#604 id=604 data-nosnippet>604</a>    <span class="doccomment">/// Remember the result of instruction returning a single numeric value
-<a href=#605 id=605 data-nosnippet>605</a>    </span><span class="kw">fn </span>define_result_var(
-<a href=#606 id=606 data-nosnippet>606</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#607 id=607 data-nosnippet>607</a>        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
-<a href=#608 id=608 data-nosnippet>608</a>        instruction: InstructionId,
-<a href=#609 id=609 data-nosnippet>609</a>        result: AcirVar,
-<a href=#610 id=610 data-nosnippet>610</a>    ) {
-<a href=#611 id=611 data-nosnippet>611</a>        <span class="kw">let </span>[result_id] = dfg.instruction_result(instruction);
-<a href=#612 id=612 data-nosnippet>612</a>        <span class="kw">let </span>typ = dfg.type_of_value(result_id).unwrap_numeric();
-<a href=#613 id=613 data-nosnippet>613</a>        <span class="self">self</span>.define_result(dfg, instruction, AcirValue::Var(result, typ));
-<a href=#614 id=614 data-nosnippet>614</a>    }
-<a href=#615 id=615 data-nosnippet>615</a>
-<a href=#616 id=616 data-nosnippet>616</a>    <span class="doccomment">/// Converts an SSA terminator's return values into their ACIR representations
-<a href=#617 id=617 data-nosnippet>617</a>    </span><span class="kw">fn </span>convert_ssa_return(
-<a href=#618 id=618 data-nosnippet>618</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#619 id=619 data-nosnippet>619</a>        terminator: <span class="kw-2">&amp;</span>TerminatorInstruction,
-<a href=#620 id=620 data-nosnippet>620</a>        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
-<a href=#621 id=621 data-nosnippet>621</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(Vec&lt;AcirVar&gt;, Vec&lt;SsaReport&gt;), RuntimeError&gt; {
-<a href=#622 id=622 data-nosnippet>622</a>        <span class="kw">let </span>(return_values, call_stack) = <span class="kw">match </span>terminator {
-<a href=#623 id=623 data-nosnippet>623</a>            TerminatorInstruction::Return { return_values, call_stack } =&gt; {
-<a href=#624 id=624 data-nosnippet>624</a>                (return_values, <span class="kw-2">*</span>call_stack)
-<a href=#625 id=625 data-nosnippet>625</a>            }
-<a href=#626 id=626 data-nosnippet>626</a>            <span class="comment">// TODO(https://github.com/noir-lang/noir/issues/4616): Enable recursion on foldable/non-inlined ACIR functions
-<a href=#627 id=627 data-nosnippet>627</a>            </span>TerminatorInstruction::JmpIf { .. } | TerminatorInstruction::Jmp { .. } =&gt; {
-<a href=#628 id=628 data-nosnippet>628</a>                <span class="macro">unreachable!</span>(<span class="string">"ICE: Program must have a singular return"</span>)
-<a href=#629 id=629 data-nosnippet>629</a>            }
-<a href=#630 id=630 data-nosnippet>630</a>            TerminatorInstruction::Unreachable { .. } =&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>((<span class="macro">vec!</span>[], <span class="macro">vec!</span>[])),
-<a href=#631 id=631 data-nosnippet>631</a>        };
-<a href=#632 id=632 data-nosnippet>632</a>
-<a href=#633 id=633 data-nosnippet>633</a>        <span class="kw">let </span><span class="kw-2">mut </span>has_constant_return = <span class="bool-val">false</span>;
-<a href=#634 id=634 data-nosnippet>634</a>        <span class="kw">let </span><span class="kw-2">mut </span>return_vars: Vec&lt;AcirVar&gt; = Vec::new();
-<a href=#635 id=635 data-nosnippet>635</a>        <span class="kw">for </span>value_id <span class="kw">in </span>return_values {
-<a href=#636 id=636 data-nosnippet>636</a>            <span class="kw">let </span>value = <span class="self">self</span>.convert_value(<span class="kw-2">*</span>value_id, dfg);
-<a href=#637 id=637 data-nosnippet>637</a>
-<a href=#638 id=638 data-nosnippet>638</a>            <span class="comment">// `value` may or may not be an array reference. Calling `flatten` will expand the array if there is one.
-<a href=#639 id=639 data-nosnippet>639</a>            </span><span class="kw">let </span>acir_vars = <span class="self">self</span>.acir_context.flatten(value)<span class="question-mark">?</span>;
-<a href=#640 id=640 data-nosnippet>640</a>            <span class="kw">for </span>(acir_var, <span class="kw">_</span>) <span class="kw">in </span>acir_vars {
-<a href=#641 id=641 data-nosnippet>641</a>                has_constant_return |= <span class="self">self</span>.acir_context.is_constant(<span class="kw-2">&amp;</span>acir_var);
-<a href=#642 id=642 data-nosnippet>642</a>                return_vars.push(acir_var);
-<a href=#643 id=643 data-nosnippet>643</a>            }
-<a href=#644 id=644 data-nosnippet>644</a>        }
-<a href=#645 id=645 data-nosnippet>645</a>
-<a href=#646 id=646 data-nosnippet>646</a>        <span class="kw">let </span>call_stack = dfg.call_stack_data.get_call_stack(call_stack);
-<a href=#647 id=647 data-nosnippet>647</a>        <span class="kw">let </span>warnings = <span class="kw">if </span>has_constant_return {
-<a href=#648 id=648 data-nosnippet>648</a>            <span class="macro">vec!</span>[SsaReport::Warning(InternalWarning::ReturnConstant { call_stack })]
-<a href=#649 id=649 data-nosnippet>649</a>        } <span class="kw">else </span>{
-<a href=#650 id=650 data-nosnippet>650</a>            Vec::new()
-<a href=#651 id=651 data-nosnippet>651</a>        };
-<a href=#652 id=652 data-nosnippet>652</a>
-<a href=#653 id=653 data-nosnippet>653</a>        <span class="prelude-val">Ok</span>((return_vars, warnings))
-<a href=#654 id=654 data-nosnippet>654</a>    }
-<a href=#655 id=655 data-nosnippet>655</a>
-<a href=#656 id=656 data-nosnippet>656</a>    <span class="doccomment">/// Gets the cached `AcirVar` that was converted from the corresponding `ValueId`. If it does
-<a href=#657 id=657 data-nosnippet>657</a>    /// not already exist in the cache, a conversion is attempted and cached for simple values
-<a href=#658 id=658 data-nosnippet>658</a>    /// that require no further context such as numeric types - values requiring more context
-<a href=#659 id=659 data-nosnippet>659</a>    /// should have already been cached elsewhere.
-<a href=#660 id=660 data-nosnippet>660</a>    ///
-<a href=#661 id=661 data-nosnippet>661</a>    /// Conversion is assumed to have already been performed for instruction results and block
-<a href=#662 id=662 data-nosnippet>662</a>    /// parameters. This is because block parameters are converted before anything else, and
-<a href=#663 id=663 data-nosnippet>663</a>    /// because instructions results are converted when the corresponding instruction is
-<a href=#664 id=664 data-nosnippet>664</a>    /// encountered. (An instruction result cannot be referenced before the instruction occurs.)
-<a href=#665 id=665 data-nosnippet>665</a>    ///
-<a href=#666 id=666 data-nosnippet>666</a>    /// It is not safe to call this function on value ids that represent pointers. Instructions
-<a href=#667 id=667 data-nosnippet>667</a>    /// involving such values are evaluated via a separate path and stored in
-<a href=#668 id=668 data-nosnippet>668</a>    /// `ssa_value_to_array_address` instead.
-<a href=#669 id=669 data-nosnippet>669</a>    </span><span class="kw">fn </span>convert_value(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value_id: ValueId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) -&gt; AcirValue {
-<a href=#670 id=670 data-nosnippet>670</a>        <span class="macro">assert!</span>(
-<a href=#671 id=671 data-nosnippet>671</a>            !<span class="macro">matches!</span>(dfg.type_of_value(value_id), Type::Reference(<span class="kw">_</span>)),
-<a href=#672 id=672 data-nosnippet>672</a>            <span class="string">"convert_value: did not expect a Reference type"
-<a href=#673 id=673 data-nosnippet>673</a>        </span>);
-<a href=#674 id=674 data-nosnippet>674</a>
-<a href=#675 id=675 data-nosnippet>675</a>        <span class="kw">let </span>value = <span class="kw-2">&amp;</span>dfg[value_id];
-<a href=#676 id=676 data-nosnippet>676</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(acir_value) = <span class="self">self</span>.ssa_values.get(<span class="kw-2">&amp;</span>value_id) {
-<a href=#677 id=677 data-nosnippet>677</a>            <span class="kw">return </span>acir_value.clone();
-<a href=#678 id=678 data-nosnippet>678</a>        }
-<a href=#679 id=679 data-nosnippet>679</a>
-<a href=#680 id=680 data-nosnippet>680</a>        <span class="kw">let </span>acir_value = <span class="kw">match </span>value {
-<a href=#681 id=681 data-nosnippet>681</a>            Value::NumericConstant { constant, typ } =&gt; {
-<a href=#682 id=682 data-nosnippet>682</a>                AcirValue::Var(<span class="self">self</span>.acir_context.add_constant(<span class="kw-2">*</span>constant), <span class="kw-2">*</span>typ)
-<a href=#683 id=683 data-nosnippet>683</a>            }
-<a href=#684 id=684 data-nosnippet>684</a>            Value::Intrinsic(..) =&gt; {
-<a href=#685 id=685 data-nosnippet>685</a>                <span class="macro">unreachable!</span>(<span class="string">"ICE: Intrinsics should be resolved via separate logic"</span>)
-<a href=#686 id=686 data-nosnippet>686</a>            }
-<a href=#687 id=687 data-nosnippet>687</a>            Value::Function(function_id) =&gt; {
-<a href=#688 id=688 data-nosnippet>688</a>                <span class="comment">// This conversion is for debugging support only, to allow the
-<a href=#689 id=689 data-nosnippet>689</a>                // debugging instrumentation code to work. Taking the reference
-<a href=#690 id=690 data-nosnippet>690</a>                // of a function in ACIR is useless.
-<a href=#691 id=691 data-nosnippet>691</a>                </span><span class="kw">let </span>id = <span class="self">self</span>.acir_context.add_constant(function_id.to_u32());
-<a href=#692 id=692 data-nosnippet>692</a>                AcirValue::Var(id, NumericType::NativeField)
-<a href=#693 id=693 data-nosnippet>693</a>            }
-<a href=#694 id=694 data-nosnippet>694</a>            Value::ForeignFunction(<span class="kw">_</span>) =&gt; <span class="macro">unimplemented!</span>(
-<a href=#695 id=695 data-nosnippet>695</a>                <span class="string">"Oracle calls directly in constrained functions are not yet available."
-<a href=#696 id=696 data-nosnippet>696</a>            </span>),
-<a href=#697 id=697 data-nosnippet>697</a>            Value::Instruction { .. } | Value::Param { .. } =&gt; {
-<a href=#698 id=698 data-nosnippet>698</a>                <span class="macro">unreachable!</span>(<span class="string">"ICE: Should have been in cache {value_id} {value:?}"</span>)
-<a href=#699 id=699 data-nosnippet>699</a>            }
-<a href=#700 id=700 data-nosnippet>700</a>            Value::Global(<span class="kw">_</span>) =&gt; {
-<a href=#701 id=701 data-nosnippet>701</a>                <span class="macro">unreachable!</span>(<span class="string">"ICE: All globals should have been inlined"</span>);
-<a href=#702 id=702 data-nosnippet>702</a>            }
-<a href=#703 id=703 data-nosnippet>703</a>        };
-<a href=#704 id=704 data-nosnippet>704</a>        <span class="self">self</span>.ssa_values.insert(value_id, acir_value.clone());
-<a href=#705 id=705 data-nosnippet>705</a>        acir_value
-<a href=#706 id=706 data-nosnippet>706</a>    }
-<a href=#707 id=707 data-nosnippet>707</a>
-<a href=#708 id=708 data-nosnippet>708</a>    <span class="kw">fn </span>convert_numeric_value(
-<a href=#709 id=709 data-nosnippet>709</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#710 id=710 data-nosnippet>710</a>        value_id: ValueId,
-<a href=#711 id=711 data-nosnippet>711</a>        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
-<a href=#712 id=712 data-nosnippet>712</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirVar, InternalError&gt; {
-<a href=#713 id=713 data-nosnippet>713</a>        <span class="kw">match </span><span class="self">self</span>.convert_value(value_id, dfg) {
-<a href=#714 id=714 data-nosnippet>714</a>            AcirValue::Var(acir_var, <span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(acir_var),
-<a href=#715 id=715 data-nosnippet>715</a>            AcirValue::Array(array) =&gt; <span class="prelude-val">Err</span>(InternalError::Unexpected {
-<a href=#716 id=716 data-nosnippet>716</a>                expected: <span class="string">"a numeric value"</span>.to_string(),
-<a href=#717 id=717 data-nosnippet>717</a>                found: <span class="macro">format!</span>(<span class="string">"{array:?}"</span>),
-<a href=#718 id=718 data-nosnippet>718</a>                call_stack: <span class="self">self</span>.acir_context.get_call_stack(),
-<a href=#719 id=719 data-nosnippet>719</a>            }),
-<a href=#720 id=720 data-nosnippet>720</a>            AcirValue::DynamicArray(<span class="kw">_</span>) =&gt; <span class="prelude-val">Err</span>(InternalError::Unexpected {
-<a href=#721 id=721 data-nosnippet>721</a>                expected: <span class="string">"a numeric value"</span>.to_string(),
-<a href=#722 id=722 data-nosnippet>722</a>                found: <span class="string">"an array"</span>.to_string(),
-<a href=#723 id=723 data-nosnippet>723</a>                call_stack: <span class="self">self</span>.acir_context.get_call_stack(),
-<a href=#724 id=724 data-nosnippet>724</a>            }),
-<a href=#725 id=725 data-nosnippet>725</a>        }
-<a href=#726 id=726 data-nosnippet>726</a>    }
-<a href=#727 id=727 data-nosnippet>727</a>
-<a href=#728 id=728 data-nosnippet>728</a>    <span class="doccomment">/// Processes a binary operation and converts the result into an `AcirVar`
-<a href=#729 id=729 data-nosnippet>729</a>    </span><span class="kw">fn </span>convert_ssa_binary(
-<a href=#730 id=730 data-nosnippet>730</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#731 id=731 data-nosnippet>731</a>        binary: <span class="kw-2">&amp;</span>Binary,
-<a href=#732 id=732 data-nosnippet>732</a>        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
-<a href=#733 id=733 data-nosnippet>733</a>        predicate: AcirVar,
-<a href=#734 id=734 data-nosnippet>734</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirVar, RuntimeError&gt; {
-<a href=#735 id=735 data-nosnippet>735</a>        <span class="kw">let </span>lhs = <span class="self">self</span>.convert_numeric_value(binary.lhs, dfg)<span class="question-mark">?</span>;
-<a href=#736 id=736 data-nosnippet>736</a>        <span class="kw">let </span>rhs = <span class="self">self</span>.convert_numeric_value(binary.rhs, dfg)<span class="question-mark">?</span>;
-<a href=#737 id=737 data-nosnippet>737</a>        <span class="kw">let </span>num_type = <span class="self">self</span>.type_of_binary_operation(binary, dfg).unwrap_numeric();
-<a href=#738 id=738 data-nosnippet>738</a>
-<a href=#739 id=739 data-nosnippet>739</a>        <span class="kw">if </span>num_type.is_signed()
-<a href=#740 id=740 data-nosnippet>740</a>            &amp;&amp; <span class="macro">matches!</span>(
-<a href=#741 id=741 data-nosnippet>741</a>                binary.operator,
-<a href=#742 id=742 data-nosnippet>742</a>                BinaryOp::Add { unchecked: <span class="bool-val">false </span>}
-<a href=#743 id=743 data-nosnippet>743</a>                    | BinaryOp::Sub { unchecked: <span class="bool-val">false </span>}
-<a href=#744 id=744 data-nosnippet>744</a>                    | BinaryOp::Mul { unchecked: <span class="bool-val">false </span>}
-<a href=#745 id=745 data-nosnippet>745</a>            )
-<a href=#746 id=746 data-nosnippet>746</a>        {
-<a href=#747 id=747 data-nosnippet>747</a>            <span class="macro">panic!</span>(<span class="string">"Checked signed operations should all be removed before ACIRgen"</span>)
-<a href=#748 id=748 data-nosnippet>748</a>        }
-<a href=#749 id=749 data-nosnippet>749</a>
-<a href=#750 id=750 data-nosnippet>750</a>        <span class="kw">let </span>result = <span class="kw">match </span>binary.operator {
-<a href=#751 id=751 data-nosnippet>751</a>            BinaryOp::Add { .. } =&gt; <span class="self">self</span>.acir_context.add_var(lhs, rhs),
-<a href=#752 id=752 data-nosnippet>752</a>            BinaryOp::Sub { .. } =&gt; <span class="self">self</span>.acir_context.sub_var(lhs, rhs),
-<a href=#753 id=753 data-nosnippet>753</a>            BinaryOp::Mul { .. } =&gt; <span class="self">self</span>.acir_context.mul_var(lhs, rhs),
-<a href=#754 id=754 data-nosnippet>754</a>            BinaryOp::Div =&gt; <span class="self">self</span>.acir_context.div_var(lhs, rhs, num_type, predicate),
-<a href=#755 id=755 data-nosnippet>755</a>            <span class="comment">// Note: that this produces unnecessary constraints when
-<a href=#756 id=756 data-nosnippet>756</a>            // this Eq instruction is being used for a constrain statement
-<a href=#757 id=757 data-nosnippet>757</a>            </span>BinaryOp::Eq =&gt; <span class="self">self</span>.acir_context.eq_var(lhs, rhs),
-<a href=#758 id=758 data-nosnippet>758</a>            BinaryOp::Lt =&gt; <span class="kw">match </span>num_type {
-<a href=#759 id=759 data-nosnippet>759</a>                NumericType::Unsigned { bit_size } =&gt; {
-<a href=#760 id=760 data-nosnippet>760</a>                    <span class="self">self</span>.acir_context.less_than_var(lhs, rhs, bit_size)
-<a href=#761 id=761 data-nosnippet>761</a>                }
-<a href=#762 id=762 data-nosnippet>762</a>                <span class="kw">_ </span>=&gt; {
-<a href=#763 id=763 data-nosnippet>763</a>                    <span class="macro">panic!</span>(<span class="string">"ICE: unexpected binary type for Lt operation: {num_type:?}"</span>)
-<a href=#764 id=764 data-nosnippet>764</a>                }
-<a href=#765 id=765 data-nosnippet>765</a>            },
-<a href=#766 id=766 data-nosnippet>766</a>            BinaryOp::Xor =&gt; <span class="self">self</span>.acir_context.xor_var(lhs, rhs, num_type),
-<a href=#767 id=767 data-nosnippet>767</a>            BinaryOp::And =&gt; <span class="self">self</span>.acir_context.and_var(lhs, rhs, num_type),
-<a href=#768 id=768 data-nosnippet>768</a>            BinaryOp::Or =&gt; <span class="self">self</span>.acir_context.or_var(lhs, rhs, num_type),
-<a href=#769 id=769 data-nosnippet>769</a>            BinaryOp::Mod =&gt; <span class="kw">match </span>num_type {
-<a href=#770 id=770 data-nosnippet>770</a>                NumericType::Unsigned { bit_size } =&gt; {
-<a href=#771 id=771 data-nosnippet>771</a>                    <span class="self">self</span>.acir_context.modulo_var(lhs, rhs, bit_size, predicate)
-<a href=#772 id=772 data-nosnippet>772</a>                }
-<a href=#773 id=773 data-nosnippet>773</a>                <span class="kw">_ </span>=&gt; {
-<a href=#774 id=774 data-nosnippet>774</a>                    <span class="macro">panic!</span>(<span class="string">"ICE: unexpected binary type for Mod operation: {num_type:?}"</span>)
-<a href=#775 id=775 data-nosnippet>775</a>                }
-<a href=#776 id=776 data-nosnippet>776</a>            },
-<a href=#777 id=777 data-nosnippet>777</a>            BinaryOp::Shl | BinaryOp::Shr =&gt; <span class="macro">unreachable!</span>(
-<a href=#778 id=778 data-nosnippet>778</a>                <span class="string">"ICE - bit shift operators do not exist in ACIR and should have been replaced"
-<a href=#779 id=779 data-nosnippet>779</a>            </span>),
-<a href=#780 id=780 data-nosnippet>780</a>        }<span class="question-mark">?</span>;
-<a href=#781 id=781 data-nosnippet>781</a>
-<a href=#782 id=782 data-nosnippet>782</a>        <span class="kw">if let </span>NumericType::Unsigned { bit_size } = <span class="kw-2">&amp;</span>num_type {
-<a href=#783 id=783 data-nosnippet>783</a>            <span class="comment">// Check for integer overflow
-<a href=#784 id=784 data-nosnippet>784</a>            </span><span class="self">self</span>.check_unsigned_overflow(result, <span class="kw-2">*</span>bit_size, binary, predicate)
-<a href=#785 id=785 data-nosnippet>785</a>        } <span class="kw">else </span>{
-<a href=#786 id=786 data-nosnippet>786</a>            <span class="prelude-val">Ok</span>(result)
-<a href=#787 id=787 data-nosnippet>787</a>        }
-<a href=#788 id=788 data-nosnippet>788</a>    }
-<a href=#789 id=789 data-nosnippet>789</a>
-<a href=#790 id=790 data-nosnippet>790</a>    <span class="doccomment">/// Adds a range check against the bit size of the result of addition, subtraction or multiplication
-<a href=#791 id=791 data-nosnippet>791</a>    </span><span class="kw">fn </span>check_unsigned_overflow(
-<a href=#792 id=792 data-nosnippet>792</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#793 id=793 data-nosnippet>793</a>        result: AcirVar,
-<a href=#794 id=794 data-nosnippet>794</a>        bit_size: u32,
-<a href=#795 id=795 data-nosnippet>795</a>        binary: <span class="kw-2">&amp;</span>Binary,
-<a href=#796 id=796 data-nosnippet>796</a>        predicate: AcirVar,
-<a href=#797 id=797 data-nosnippet>797</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirVar, RuntimeError&gt; {
-<a href=#798 id=798 data-nosnippet>798</a>        <span class="kw">let </span>msg = <span class="kw">match </span>binary.operator {
-<a href=#799 id=799 data-nosnippet>799</a>            BinaryOp::Add { unchecked: <span class="bool-val">false </span>} =&gt; <span class="string">"attempt to add with overflow"</span>,
-<a href=#800 id=800 data-nosnippet>800</a>            BinaryOp::Sub { unchecked: <span class="bool-val">false </span>} =&gt; <span class="string">"attempt to subtract with overflow"</span>,
-<a href=#801 id=801 data-nosnippet>801</a>            BinaryOp::Mul { unchecked: <span class="bool-val">false </span>} =&gt; <span class="string">"attempt to multiply with overflow"</span>,
-<a href=#802 id=802 data-nosnippet>802</a>            <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>(result),
-<a href=#803 id=803 data-nosnippet>803</a>        };
-<a href=#804 id=804 data-nosnippet>804</a>
-<a href=#805 id=805 data-nosnippet>805</a>        <span class="self">self</span>.acir_context.range_constrain_var(result, bit_size, <span class="prelude-val">Some</span>(msg.to_string()), predicate)
-<a href=#806 id=806 data-nosnippet>806</a>    }
-<a href=#807 id=807 data-nosnippet>807</a>
-<a href=#808 id=808 data-nosnippet>808</a>    <span class="doccomment">/// Operands in a binary operation are checked to have the same type.
-<a href=#809 id=809 data-nosnippet>809</a>    ///
-<a href=#810 id=810 data-nosnippet>810</a>    /// In Noir, binary operands should have the same type due to the language
-<a href=#811 id=811 data-nosnippet>811</a>    /// semantics.
-<a href=#812 id=812 data-nosnippet>812</a>    </span><span class="kw">fn </span>type_of_binary_operation(<span class="kw-2">&amp;</span><span class="self">self</span>, binary: <span class="kw-2">&amp;</span>Binary, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) -&gt; Type {
-<a href=#813 id=813 data-nosnippet>813</a>        <span class="kw">let </span>lhs_type = dfg.type_of_value(binary.lhs);
-<a href=#814 id=814 data-nosnippet>814</a>        <span class="kw">let </span>rhs_type = dfg.type_of_value(binary.rhs);
-<a href=#815 id=815 data-nosnippet>815</a>
-<a href=#816 id=816 data-nosnippet>816</a>        <span class="kw">match </span>(lhs_type, rhs_type) {
-<a href=#817 id=817 data-nosnippet>817</a>            <span class="comment">// Function type should not be possible, since all functions
-<a href=#818 id=818 data-nosnippet>818</a>            // have been inlined.
-<a href=#819 id=819 data-nosnippet>819</a>            </span>(<span class="kw">_</span>, Type::Function) | (Type::Function, <span class="kw">_</span>) =&gt; {
-<a href=#820 id=820 data-nosnippet>820</a>                <span class="macro">unreachable!</span>(<span class="string">"all functions should be inlined"</span>)
-<a href=#821 id=821 data-nosnippet>821</a>            }
-<a href=#822 id=822 data-nosnippet>822</a>            (<span class="kw">_</span>, Type::Reference(<span class="kw">_</span>)) | (Type::Reference(<span class="kw">_</span>), <span class="kw">_</span>) =&gt; {
-<a href=#823 id=823 data-nosnippet>823</a>                <span class="macro">unreachable!</span>(<span class="string">"References are invalid in binary operations"</span>)
-<a href=#824 id=824 data-nosnippet>824</a>            }
-<a href=#825 id=825 data-nosnippet>825</a>            (<span class="kw">_</span>, Type::Array(..)) | (Type::Array(..), <span class="kw">_</span>) =&gt; {
-<a href=#826 id=826 data-nosnippet>826</a>                <span class="macro">unreachable!</span>(<span class="string">"Arrays are invalid in binary operations"</span>)
-<a href=#827 id=827 data-nosnippet>827</a>            }
-<a href=#828 id=828 data-nosnippet>828</a>            (<span class="kw">_</span>, Type::Vector(..)) | (Type::Vector(..), <span class="kw">_</span>) =&gt; {
-<a href=#829 id=829 data-nosnippet>829</a>                <span class="macro">unreachable!</span>(<span class="string">"Arrays are invalid in binary operations"</span>)
-<a href=#830 id=830 data-nosnippet>830</a>            }
-<a href=#831 id=831 data-nosnippet>831</a>            <span class="comment">// If either side is a numeric type, then we expect their types to be
-<a href=#832 id=832 data-nosnippet>832</a>            // the same.
-<a href=#833 id=833 data-nosnippet>833</a>            </span>(Type::Numeric(lhs_type), Type::Numeric(rhs_type)) =&gt; {
-<a href=#834 id=834 data-nosnippet>834</a>                <span class="macro">assert_eq!</span>(lhs_type, rhs_type, <span class="string">"lhs and rhs types in {binary:?} are not the same"</span>);
-<a href=#835 id=835 data-nosnippet>835</a>                Type::Numeric(lhs_type)
-<a href=#836 id=836 data-nosnippet>836</a>            }
-<a href=#837 id=837 data-nosnippet>837</a>        }
-<a href=#838 id=838 data-nosnippet>838</a>    }
-<a href=#839 id=839 data-nosnippet>839</a>
-<a href=#840 id=840 data-nosnippet>840</a>    <span class="doccomment">/// Returns an `AcirVar`that is constrained to be result of the truncation.
-<a href=#841 id=841 data-nosnippet>841</a>    </span><span class="kw">fn </span>convert_ssa_truncate(
-<a href=#842 id=842 data-nosnippet>842</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#843 id=843 data-nosnippet>843</a>        value_id: ValueId,
-<a href=#844 id=844 data-nosnippet>844</a>        bit_size: u32,
-<a href=#845 id=845 data-nosnippet>845</a>        <span class="kw-2">mut </span>max_bit_size: u32,
-<a href=#846 id=846 data-nosnippet>846</a>        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
-<a href=#847 id=847 data-nosnippet>847</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirVar, RuntimeError&gt; {
-<a href=#848 id=848 data-nosnippet>848</a>        <span class="macro">assert_ne!</span>(bit_size, max_bit_size, <span class="string">"Attempted to generate a noop truncation"</span>);
-<a href=#849 id=849 data-nosnippet>849</a>        <span class="macro">assert!</span>(
-<a href=#850 id=850 data-nosnippet>850</a>            bit_size &lt; max_bit_size,
-<a href=#851 id=851 data-nosnippet>851</a>            <span class="string">"Attempted to generate a truncation into size larger than max input"
-<a href=#852 id=852 data-nosnippet>852</a>        </span>);
-<a href=#853 id=853 data-nosnippet>853</a>
-<a href=#854 id=854 data-nosnippet>854</a>        <span class="kw">let </span><span class="kw-2">mut </span>var = <span class="self">self</span>.convert_numeric_value(value_id, dfg)<span class="question-mark">?</span>;
-<a href=#855 id=855 data-nosnippet>855</a>        <span class="kw">match </span><span class="kw-2">&amp;</span>dfg[value_id] {
-<a href=#856 id=856 data-nosnippet>856</a>            Value::Instruction { instruction, .. } =&gt; {
-<a href=#857 id=857 data-nosnippet>857</a>                <span class="kw">if </span><span class="macro">matches!</span>(
-<a href=#858 id=858 data-nosnippet>858</a>                    <span class="kw-2">&amp;</span>dfg[<span class="kw-2">*</span>instruction],
-<a href=#859 id=859 data-nosnippet>859</a>                    Instruction::Binary(Binary { operator: BinaryOp::Sub { .. }, .. })
-<a href=#860 id=860 data-nosnippet>860</a>                ) {
-<a href=#861 id=861 data-nosnippet>861</a>                    <span class="comment">// Subtractions must first have the integer modulus added before truncation can be
-<a href=#862 id=862 data-nosnippet>862</a>                    // applied. This is done in order to prevent underflow.
-<a href=#863 id=863 data-nosnippet>863</a>                    //
-<a href=#864 id=864 data-nosnippet>864</a>                    // FieldElements have max bit size equals to max_num_bits so
-<a href=#865 id=865 data-nosnippet>865</a>                    // we filter out this bit size because there is no underflow
-<a href=#866 id=866 data-nosnippet>866</a>                    // for FieldElements. Furthermore, adding a power of two
-<a href=#867 id=867 data-nosnippet>867</a>                    // would be incorrect for a FieldElement (cf. #8519).
-<a href=#868 id=868 data-nosnippet>868</a>                    </span><span class="kw">if </span>max_bit_size &lt; FieldElement::max_num_bits() {
-<a href=#869 id=869 data-nosnippet>869</a>                        <span class="comment">// When max_bit_size is max_num_bits() - 1, adding
-<a href=#870 id=870 data-nosnippet>870</a>                        // 2**max_bit_size to an element of max_bit_size bits
-<a href=#871 id=871 data-nosnippet>871</a>                        // gives an element of max_num_bits() bits which may overflow
-<a href=#872 id=872 data-nosnippet>872</a>                        </span><span class="macro">assert!</span>(
-<a href=#873 id=873 data-nosnippet>873</a>                            max_bit_size != FieldElement::max_num_bits() - <span class="number">1</span>,
-<a href=#874 id=874 data-nosnippet>874</a>                            <span class="string">"potential underflow in subtraction when max_bit_size is {max_bit_size}"
-<a href=#875 id=875 data-nosnippet>875</a>                        </span>);
-<a href=#876 id=876 data-nosnippet>876</a>                        <span class="kw">let </span>integer_modulus = power_of_two::&lt;FieldElement&gt;(max_bit_size);
-<a href=#877 id=877 data-nosnippet>877</a>                        <span class="kw">let </span>integer_modulus = <span class="self">self</span>.acir_context.add_constant(integer_modulus);
-<a href=#878 id=878 data-nosnippet>878</a>                        var = <span class="self">self</span>.acir_context.add_var(var, integer_modulus)<span class="question-mark">?</span>;
-<a href=#879 id=879 data-nosnippet>879</a>                        max_bit_size += <span class="number">1</span>;
-<a href=#880 id=880 data-nosnippet>880</a>                    }
-<a href=#881 id=881 data-nosnippet>881</a>                }
-<a href=#882 id=882 data-nosnippet>882</a>            }
-<a href=#883 id=883 data-nosnippet>883</a>            Value::Param { .. } =&gt; {
-<a href=#884 id=884 data-nosnippet>884</a>                <span class="comment">// Binary operations on params may have been entirely simplified if the operation
-<a href=#885 id=885 data-nosnippet>885</a>                // results in the identity of the parameter
-<a href=#886 id=886 data-nosnippet>886</a>            </span>}
-<a href=#887 id=887 data-nosnippet>887</a>            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(
-<a href=#888 id=888 data-nosnippet>888</a>                <span class="string">"ICE: Truncates are only ever applied to the result of a binary op or a param"
-<a href=#889 id=889 data-nosnippet>889</a>            </span>),
-<a href=#890 id=890 data-nosnippet>890</a>        }
-<a href=#891 id=891 data-nosnippet>891</a>
-<a href=#892 id=892 data-nosnippet>892</a>        <span class="self">self</span>.acir_context.truncate_var(var, bit_size, max_bit_size)
-<a href=#893 id=893 data-nosnippet>893</a>    }
-<a href=#894 id=894 data-nosnippet>894</a>
-<a href=#895 id=895 data-nosnippet>895</a>    <span class="doccomment">/// Fetch a flat list of [AcirVar].
-<a href=#896 id=896 data-nosnippet>896</a>    ///
-<a href=#897 id=897 data-nosnippet>897</a>    /// Flattens an [AcirValue] into a vector of `AcirVar`.
-<a href=#898 id=898 data-nosnippet>898</a>    ///
-<a href=#899 id=899 data-nosnippet>899</a>    /// This is an extension of [AcirValue::flatten] that also supports [AcirValue::DynamicArray].
-<a href=#900 id=900 data-nosnippet>900</a>    </span><span class="kw">fn </span>flatten(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: <span class="kw-2">&amp;</span>AcirValue) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;AcirVar&gt;, RuntimeError&gt; {
-<a href=#901 id=901 data-nosnippet>901</a>        <span class="prelude-val">Ok</span>(<span class="kw">match </span>value {
-<a href=#902 id=902 data-nosnippet>902</a>            AcirValue::Var(var, <span class="kw">_</span>) =&gt; <span class="macro">vec!</span>[<span class="kw-2">*</span>var],
-<a href=#903 id=903 data-nosnippet>903</a>            AcirValue::Array(array) =&gt; {
-<a href=#904 id=904 data-nosnippet>904</a>                <span class="kw">let </span><span class="kw-2">mut </span>result = Vec::new();
-<a href=#905 id=905 data-nosnippet>905</a>                <span class="kw">for </span>elem <span class="kw">in </span>array {
-<a href=#906 id=906 data-nosnippet>906</a>                    result.extend(<span class="self">self</span>.flatten(elem)<span class="question-mark">?</span>);
-<a href=#907 id=907 data-nosnippet>907</a>                }
-<a href=#908 id=908 data-nosnippet>908</a>                result
-<a href=#909 id=909 data-nosnippet>909</a>            }
-<a href=#910 id=910 data-nosnippet>910</a>            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }) =&gt; {
-<a href=#911 id=911 data-nosnippet>911</a>                <span class="kw">let </span>elements = <span class="self">self</span>.read_dynamic_array(<span class="kw-2">*</span>block_id, <span class="kw-2">*</span>len, value_types);
-<a href=#912 id=912 data-nosnippet>912</a>                <span class="kw">let </span><span class="kw-2">mut </span>result = Vec::new();
-<a href=#913 id=913 data-nosnippet>913</a>
-<a href=#914 id=914 data-nosnippet>914</a>                <span class="kw">for </span>value <span class="kw">in </span>elements {
-<a href=#915 id=915 data-nosnippet>915</a>                    <span class="kw">match </span>value<span class="question-mark">? </span>{
-<a href=#916 id=916 data-nosnippet>916</a>                        AcirValue::Var(var, _typ) =&gt; result.push(var),
-<a href=#917 id=917 data-nosnippet>917</a>                        <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: Dynamic memory should already be flat"</span>),
-<a href=#918 id=918 data-nosnippet>918</a>                    }
-<a href=#919 id=919 data-nosnippet>919</a>                }
-<a href=#920 id=920 data-nosnippet>920</a>                result
-<a href=#921 id=921 data-nosnippet>921</a>            }
-<a href=#922 id=922 data-nosnippet>922</a>        })
-<a href=#923 id=923 data-nosnippet>923</a>    }
-<a href=#924 id=924 data-nosnippet>924</a>}
-<a href=#925 id=925 data-nosnippet>925</a>
-<a href=#926 id=926 data-nosnippet>926</a><span class="doccomment">/// Check post ACIR generation properties
-<a href=#927 id=927 data-nosnippet>927</a>/// * No memory opcodes should be laid down that write to the internal type sizes array.
-<a href=#928 id=928 data-nosnippet>928</a>///   See [arrays] for more information on the type sizes array.
-<a href=#929 id=929 data-nosnippet>929</a></span><span class="attr">#[cfg(debug_assertions)]
-<a href=#930 id=930 data-nosnippet>930</a></span><span class="kw">fn </span>acir_post_check(context: <span class="kw-2">&amp;</span>Context&lt;<span class="lifetime">'_</span>&gt;, acir: <span class="kw-2">&amp;</span>GeneratedAcir&lt;FieldElement&gt;) {
-<a href=#931 id=931 data-nosnippet>931</a>    <span class="kw">use </span>acvm::acir::circuit::Opcode;
-<a href=#932 id=932 data-nosnippet>932</a>    <span class="kw">for </span>opcode <span class="kw">in </span>acir.opcodes() {
-<a href=#933 id=933 data-nosnippet>933</a>        <span class="kw">let </span>Opcode::MemoryOp { block_id, op } = opcode <span class="kw">else </span>{
-<a href=#934 id=934 data-nosnippet>934</a>            <span class="kw">continue</span>;
-<a href=#935 id=935 data-nosnippet>935</a>        };
-<a href=#936 id=936 data-nosnippet>936</a>        <span class="kw">if </span>op.operation.is_one() {
-<a href=#937 id=937 data-nosnippet>937</a>            <span class="comment">// Check that we have no writes to the type size arrays
-<a href=#938 id=938 data-nosnippet>938</a>            </span><span class="kw">let </span>is_type_sizes_array =
-<a href=#939 id=939 data-nosnippet>939</a>                context.element_type_sizes_blocks.values().any(|id| id == block_id);
-<a href=#940 id=940 data-nosnippet>940</a>            <span class="macro">assert!</span>(
-<a href=#941 id=941 data-nosnippet>941</a>                !is_type_sizes_array,
-<a href=#942 id=942 data-nosnippet>942</a>                <span class="string">"ICE: Writes to the internal type sizes array are forbidden"
-<a href=#943 id=943 data-nosnippet>943</a>            </span>);
-<a href=#944 id=944 data-nosnippet>944</a>        }
-<a href=#945 id=945 data-nosnippet>945</a>    }
-<a href=#946 id=946 data-nosnippet>946</a>}</code></pre></div></section></main></body></html>
+<a href=#497 id=497 data-nosnippet>497</a>                <span class="kw">let </span>AcirValue::Var(acir_var, typ) = <span class="self">self</span>.convert_value(<span class="kw-2">*</span>value_id, dfg) <span class="kw">else </span>{
+<a href=#498 id=498 data-nosnippet>498</a>                    <span class="macro">unreachable!</span>(<span class="string">"NOT is only applied to numerics"</span>);
+<a href=#499 id=499 data-nosnippet>499</a>                };
+<a href=#500 id=500 data-nosnippet>500</a>                <span class="kw">let </span>result_acir_var = <span class="self">self</span>.acir_context.not_var(acir_var, typ)<span class="question-mark">?</span>;
+<a href=#501 id=501 data-nosnippet>501</a>                <span class="self">self</span>.define_result_var(dfg, instruction_id, result_acir_var);
+<a href=#502 id=502 data-nosnippet>502</a>            }
+<a href=#503 id=503 data-nosnippet>503</a>            Instruction::Truncate { value, bit_size, max_bit_size } =&gt; {
+<a href=#504 id=504 data-nosnippet>504</a>                <span class="kw">let </span>result_acir_var =
+<a href=#505 id=505 data-nosnippet>505</a>                    <span class="self">self</span>.convert_ssa_truncate(<span class="kw-2">*</span>value, <span class="kw-2">*</span>bit_size, <span class="kw-2">*</span>max_bit_size, dfg)<span class="question-mark">?</span>;
+<a href=#506 id=506 data-nosnippet>506</a>                <span class="self">self</span>.define_result_var(dfg, instruction_id, result_acir_var);
+<a href=#507 id=507 data-nosnippet>507</a>            }
+<a href=#508 id=508 data-nosnippet>508</a>            Instruction::EnableSideEffectsIf { condition } =&gt; {
+<a href=#509 id=509 data-nosnippet>509</a>                <span class="kw">let </span>acir_var = <span class="self">self</span>.convert_numeric_value(<span class="kw-2">*</span>condition, dfg)<span class="question-mark">?</span>;
+<a href=#510 id=510 data-nosnippet>510</a>                <span class="self">self</span>.current_side_effects_enabled_var = acir_var;
+<a href=#511 id=511 data-nosnippet>511</a>            }
+<a href=#512 id=512 data-nosnippet>512</a>            Instruction::ArrayGet { .. } | Instruction::ArraySet { .. } =&gt; {
+<a href=#513 id=513 data-nosnippet>513</a>                <span class="self">self</span>.handle_array_operation(instruction_id, dfg)<span class="question-mark">?</span>;
+<a href=#514 id=514 data-nosnippet>514</a>            }
+<a href=#515 id=515 data-nosnippet>515</a>            Instruction::Allocate =&gt; {
+<a href=#516 id=516 data-nosnippet>516</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(RuntimeError::UnknownReference {
+<a href=#517 id=517 data-nosnippet>517</a>                    call_stack: <span class="self">self</span>.acir_context.get_call_stack(),
+<a href=#518 id=518 data-nosnippet>518</a>                });
+<a href=#519 id=519 data-nosnippet>519</a>            }
+<a href=#520 id=520 data-nosnippet>520</a>            Instruction::Store { .. } =&gt; {
+<a href=#521 id=521 data-nosnippet>521</a>                <span class="macro">unreachable!</span>(<span class="string">"Expected all store instructions to be removed before acir_gen"</span>)
+<a href=#522 id=522 data-nosnippet>522</a>            }
+<a href=#523 id=523 data-nosnippet>523</a>            Instruction::Load { .. } =&gt; {
+<a href=#524 id=524 data-nosnippet>524</a>                <span class="macro">unreachable!</span>(<span class="string">"Expected all load instructions to be removed before acir_gen"</span>)
+<a href=#525 id=525 data-nosnippet>525</a>            }
+<a href=#526 id=526 data-nosnippet>526</a>            Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. } =&gt; {
+<a href=#527 id=527 data-nosnippet>527</a>                <span class="comment">// Only Brillig needs to worry about reference counted arrays
+<a href=#528 id=528 data-nosnippet>528</a>                </span><span class="macro">unreachable!</span>(<span class="string">"Expected all Rc instructions to be removed before acir_gen"</span>)
+<a href=#529 id=529 data-nosnippet>529</a>            }
+<a href=#530 id=530 data-nosnippet>530</a>            Instruction::RangeCheck { value, max_bit_size, assert_message } =&gt; {
+<a href=#531 id=531 data-nosnippet>531</a>                <span class="kw">let </span>acir_var = <span class="self">self</span>.convert_numeric_value(<span class="kw-2">*</span>value, dfg)<span class="question-mark">?</span>;
+<a href=#532 id=532 data-nosnippet>532</a>                <span class="kw">let </span>one = <span class="self">self</span>.acir_context.add_constant(FieldElement::one());
+<a href=#533 id=533 data-nosnippet>533</a>                <span class="comment">// Predicate is one because the predicate has already been
+<a href=#534 id=534 data-nosnippet>534</a>                // handled in the RangeCheck instruction during the flattening pass.
+<a href=#535 id=535 data-nosnippet>535</a>                </span><span class="self">self</span>.acir_context.range_constrain_var(
+<a href=#536 id=536 data-nosnippet>536</a>                    acir_var,
+<a href=#537 id=537 data-nosnippet>537</a>                    <span class="kw-2">*</span>max_bit_size,
+<a href=#538 id=538 data-nosnippet>538</a>                    assert_message.clone(),
+<a href=#539 id=539 data-nosnippet>539</a>                    one,
+<a href=#540 id=540 data-nosnippet>540</a>                )<span class="question-mark">?</span>;
+<a href=#541 id=541 data-nosnippet>541</a>            }
+<a href=#542 id=542 data-nosnippet>542</a>            Instruction::IfElse { .. } =&gt; {
+<a href=#543 id=543 data-nosnippet>543</a>                <span class="macro">unreachable!</span>(<span class="string">"IfElse instruction remaining in acir-gen"</span>)
+<a href=#544 id=544 data-nosnippet>544</a>            }
+<a href=#545 id=545 data-nosnippet>545</a>            Instruction::MakeArray { elements, typ: <span class="kw">_ </span>} =&gt; {
+<a href=#546 id=546 data-nosnippet>546</a>                <span class="kw">let </span>elements = elements.iter().map(|element| <span class="self">self</span>.convert_value(<span class="kw-2">*</span>element, dfg));
+<a href=#547 id=547 data-nosnippet>547</a>                <span class="kw">let </span>value = AcirValue::Array(elements.collect());
+<a href=#548 id=548 data-nosnippet>548</a>                <span class="kw">let </span>[result] = dfg.instruction_result(instruction_id);
+<a href=#549 id=549 data-nosnippet>549</a>                <span class="self">self</span>.ssa_values.insert(result, value);
+<a href=#550 id=550 data-nosnippet>550</a>            }
+<a href=#551 id=551 data-nosnippet>551</a>            Instruction::Noop =&gt; (),
+<a href=#552 id=552 data-nosnippet>552</a>        }
+<a href=#553 id=553 data-nosnippet>553</a>
+<a href=#554 id=554 data-nosnippet>554</a>        <span class="self">self</span>.acir_context.set_call_stack(CallStack::new());
+<a href=#555 id=555 data-nosnippet>555</a>        <span class="prelude-val">Ok</span>(warnings)
+<a href=#556 id=556 data-nosnippet>556</a>    }
+<a href=#557 id=557 data-nosnippet>557</a>
+<a href=#558 id=558 data-nosnippet>558</a>    <span class="doccomment">/// Converts an optional constrain error message into an ACIR assertion payload
+<a href=#559 id=559 data-nosnippet>559</a>    </span><span class="kw">fn </span>convert_constrain_error(
+<a href=#560 id=560 data-nosnippet>560</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#561 id=561 data-nosnippet>561</a>        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+<a href=#562 id=562 data-nosnippet>562</a>        assert_message: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;ConstrainError&gt;,
+<a href=#563 id=563 data-nosnippet>563</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;AssertionPayload&lt;FieldElement&gt;&gt;, RuntimeError&gt; {
+<a href=#564 id=564 data-nosnippet>564</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(error) = assert_message <span class="kw">else </span>{
+<a href=#565 id=565 data-nosnippet>565</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
+<a href=#566 id=566 data-nosnippet>566</a>        };
+<a href=#567 id=567 data-nosnippet>567</a>
+<a href=#568 id=568 data-nosnippet>568</a>        <span class="kw">let </span>assert_payload = <span class="kw">match </span>error {
+<a href=#569 id=569 data-nosnippet>569</a>            ConstrainError::StaticString(string) =&gt; {
+<a href=#570 id=570 data-nosnippet>570</a>                <span class="self">self</span>.acir_context.generate_assertion_message_payload(string.clone())
+<a href=#571 id=571 data-nosnippet>571</a>            }
+<a href=#572 id=572 data-nosnippet>572</a>            ConstrainError::Dynamic(error_selector, is_string_type, values) =&gt; {
+<a href=#573 id=573 data-nosnippet>573</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(constant_string) =
+<a href=#574 id=574 data-nosnippet>574</a>                    try_to_extract_string_from_error_payload(<span class="kw-2">*</span>is_string_type, values, dfg)
+<a href=#575 id=575 data-nosnippet>575</a>                {
+<a href=#576 id=576 data-nosnippet>576</a>                    <span class="self">self</span>.acir_context.generate_assertion_message_payload(constant_string)
+<a href=#577 id=577 data-nosnippet>577</a>                } <span class="kw">else </span>{
+<a href=#578 id=578 data-nosnippet>578</a>                    <span class="kw">let </span>acir_values: Vec&lt;<span class="kw">_</span>&gt; =
+<a href=#579 id=579 data-nosnippet>579</a>                        vecmap(values, |value| <span class="self">self</span>.convert_value(<span class="kw-2">*</span>value, dfg));
+<a href=#580 id=580 data-nosnippet>580</a>
+<a href=#581 id=581 data-nosnippet>581</a>                    <span class="kw">let </span>expressions_or_memory =
+<a href=#582 id=582 data-nosnippet>582</a>                        <span class="self">self</span>.acir_context.values_to_expressions_or_memory(<span class="kw-2">&amp;</span>acir_values)<span class="question-mark">?</span>;
+<a href=#583 id=583 data-nosnippet>583</a>
+<a href=#584 id=584 data-nosnippet>584</a>                    <span class="kw">let </span>error_selector = error_selector.as_u64();
+<a href=#585 id=585 data-nosnippet>585</a>                    AssertionPayload { error_selector, payload: expressions_or_memory }
+<a href=#586 id=586 data-nosnippet>586</a>                }
+<a href=#587 id=587 data-nosnippet>587</a>            }
+<a href=#588 id=588 data-nosnippet>588</a>        };
+<a href=#589 id=589 data-nosnippet>589</a>        <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(assert_payload))
+<a href=#590 id=590 data-nosnippet>590</a>    }
+<a href=#591 id=591 data-nosnippet>591</a>
+<a href=#592 id=592 data-nosnippet>592</a>    <span class="doccomment">/// Remember the result of an instruction returning a single value
+<a href=#593 id=593 data-nosnippet>593</a>    </span><span class="kw">fn </span>define_result(
+<a href=#594 id=594 data-nosnippet>594</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#595 id=595 data-nosnippet>595</a>        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+<a href=#596 id=596 data-nosnippet>596</a>        instruction: InstructionId,
+<a href=#597 id=597 data-nosnippet>597</a>        result: AcirValue,
+<a href=#598 id=598 data-nosnippet>598</a>    ) {
+<a href=#599 id=599 data-nosnippet>599</a>        <span class="kw">let </span>[result_id] = dfg.instruction_result(instruction);
+<a href=#600 id=600 data-nosnippet>600</a>        <span class="self">self</span>.ssa_values.insert(result_id, result);
+<a href=#601 id=601 data-nosnippet>601</a>    }
+<a href=#602 id=602 data-nosnippet>602</a>
+<a href=#603 id=603 data-nosnippet>603</a>    <span class="doccomment">/// Remember the result of instruction returning a single numeric value
+<a href=#604 id=604 data-nosnippet>604</a>    </span><span class="kw">fn </span>define_result_var(
+<a href=#605 id=605 data-nosnippet>605</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#606 id=606 data-nosnippet>606</a>        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+<a href=#607 id=607 data-nosnippet>607</a>        instruction: InstructionId,
+<a href=#608 id=608 data-nosnippet>608</a>        result: AcirVar,
+<a href=#609 id=609 data-nosnippet>609</a>    ) {
+<a href=#610 id=610 data-nosnippet>610</a>        <span class="kw">let </span>[result_id] = dfg.instruction_result(instruction);
+<a href=#611 id=611 data-nosnippet>611</a>        <span class="kw">let </span>typ = dfg.type_of_value(result_id).unwrap_numeric();
+<a href=#612 id=612 data-nosnippet>612</a>        <span class="self">self</span>.define_result(dfg, instruction, AcirValue::Var(result, typ));
+<a href=#613 id=613 data-nosnippet>613</a>    }
+<a href=#614 id=614 data-nosnippet>614</a>
+<a href=#615 id=615 data-nosnippet>615</a>    <span class="doccomment">/// Converts an SSA terminator's return values into their ACIR representations
+<a href=#616 id=616 data-nosnippet>616</a>    </span><span class="kw">fn </span>convert_ssa_return(
+<a href=#617 id=617 data-nosnippet>617</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#618 id=618 data-nosnippet>618</a>        terminator: <span class="kw-2">&amp;</span>TerminatorInstruction,
+<a href=#619 id=619 data-nosnippet>619</a>        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+<a href=#620 id=620 data-nosnippet>620</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(Vec&lt;AcirVar&gt;, Vec&lt;SsaReport&gt;), RuntimeError&gt; {
+<a href=#621 id=621 data-nosnippet>621</a>        <span class="kw">let </span>(return_values, call_stack) = <span class="kw">match </span>terminator {
+<a href=#622 id=622 data-nosnippet>622</a>            TerminatorInstruction::Return { return_values, call_stack } =&gt; {
+<a href=#623 id=623 data-nosnippet>623</a>                (return_values, <span class="kw-2">*</span>call_stack)
+<a href=#624 id=624 data-nosnippet>624</a>            }
+<a href=#625 id=625 data-nosnippet>625</a>            <span class="comment">// TODO(https://github.com/noir-lang/noir/issues/4616): Enable recursion on foldable/non-inlined ACIR functions
+<a href=#626 id=626 data-nosnippet>626</a>            </span>TerminatorInstruction::JmpIf { .. } | TerminatorInstruction::Jmp { .. } =&gt; {
+<a href=#627 id=627 data-nosnippet>627</a>                <span class="macro">unreachable!</span>(<span class="string">"ICE: Program must have a singular return"</span>)
+<a href=#628 id=628 data-nosnippet>628</a>            }
+<a href=#629 id=629 data-nosnippet>629</a>            TerminatorInstruction::Unreachable { .. } =&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>((<span class="macro">vec!</span>[], <span class="macro">vec!</span>[])),
+<a href=#630 id=630 data-nosnippet>630</a>        };
+<a href=#631 id=631 data-nosnippet>631</a>
+<a href=#632 id=632 data-nosnippet>632</a>        <span class="kw">let </span><span class="kw-2">mut </span>has_constant_return = <span class="bool-val">false</span>;
+<a href=#633 id=633 data-nosnippet>633</a>        <span class="kw">let </span><span class="kw-2">mut </span>return_vars: Vec&lt;AcirVar&gt; = Vec::new();
+<a href=#634 id=634 data-nosnippet>634</a>        <span class="kw">for </span>value_id <span class="kw">in </span>return_values {
+<a href=#635 id=635 data-nosnippet>635</a>            <span class="kw">let </span>value = <span class="self">self</span>.convert_value(<span class="kw-2">*</span>value_id, dfg);
+<a href=#636 id=636 data-nosnippet>636</a>
+<a href=#637 id=637 data-nosnippet>637</a>            <span class="comment">// `value` may or may not be an array reference. Calling `flatten` will expand the array if there is one.
+<a href=#638 id=638 data-nosnippet>638</a>            </span><span class="kw">let </span>acir_vars = <span class="self">self</span>.acir_context.flatten(value)<span class="question-mark">?</span>;
+<a href=#639 id=639 data-nosnippet>639</a>            <span class="kw">for </span>(acir_var, <span class="kw">_</span>) <span class="kw">in </span>acir_vars {
+<a href=#640 id=640 data-nosnippet>640</a>                has_constant_return |= <span class="self">self</span>.acir_context.is_constant(<span class="kw-2">&amp;</span>acir_var);
+<a href=#641 id=641 data-nosnippet>641</a>                return_vars.push(acir_var);
+<a href=#642 id=642 data-nosnippet>642</a>            }
+<a href=#643 id=643 data-nosnippet>643</a>        }
+<a href=#644 id=644 data-nosnippet>644</a>
+<a href=#645 id=645 data-nosnippet>645</a>        <span class="kw">let </span>call_stack = dfg.call_stack_data.get_call_stack(call_stack);
+<a href=#646 id=646 data-nosnippet>646</a>        <span class="kw">let </span>warnings = <span class="kw">if </span>has_constant_return {
+<a href=#647 id=647 data-nosnippet>647</a>            <span class="macro">vec!</span>[SsaReport::Warning(InternalWarning::ReturnConstant { call_stack })]
+<a href=#648 id=648 data-nosnippet>648</a>        } <span class="kw">else </span>{
+<a href=#649 id=649 data-nosnippet>649</a>            Vec::new()
+<a href=#650 id=650 data-nosnippet>650</a>        };
+<a href=#651 id=651 data-nosnippet>651</a>
+<a href=#652 id=652 data-nosnippet>652</a>        <span class="prelude-val">Ok</span>((return_vars, warnings))
+<a href=#653 id=653 data-nosnippet>653</a>    }
+<a href=#654 id=654 data-nosnippet>654</a>
+<a href=#655 id=655 data-nosnippet>655</a>    <span class="doccomment">/// Gets the cached `AcirVar` that was converted from the corresponding `ValueId`. If it does
+<a href=#656 id=656 data-nosnippet>656</a>    /// not already exist in the cache, a conversion is attempted and cached for simple values
+<a href=#657 id=657 data-nosnippet>657</a>    /// that require no further context such as numeric types - values requiring more context
+<a href=#658 id=658 data-nosnippet>658</a>    /// should have already been cached elsewhere.
+<a href=#659 id=659 data-nosnippet>659</a>    ///
+<a href=#660 id=660 data-nosnippet>660</a>    /// Conversion is assumed to have already been performed for instruction results and block
+<a href=#661 id=661 data-nosnippet>661</a>    /// parameters. This is because block parameters are converted before anything else, and
+<a href=#662 id=662 data-nosnippet>662</a>    /// because instructions results are converted when the corresponding instruction is
+<a href=#663 id=663 data-nosnippet>663</a>    /// encountered. (An instruction result cannot be referenced before the instruction occurs.)
+<a href=#664 id=664 data-nosnippet>664</a>    ///
+<a href=#665 id=665 data-nosnippet>665</a>    /// It is not safe to call this function on value ids that represent pointers. Instructions
+<a href=#666 id=666 data-nosnippet>666</a>    /// involving such values are evaluated via a separate path and stored in
+<a href=#667 id=667 data-nosnippet>667</a>    /// `ssa_value_to_array_address` instead.
+<a href=#668 id=668 data-nosnippet>668</a>    </span><span class="kw">fn </span>convert_value(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value_id: ValueId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) -&gt; AcirValue {
+<a href=#669 id=669 data-nosnippet>669</a>        <span class="macro">assert!</span>(
+<a href=#670 id=670 data-nosnippet>670</a>            !<span class="macro">matches!</span>(dfg.type_of_value(value_id), Type::Reference(<span class="kw">_</span>)),
+<a href=#671 id=671 data-nosnippet>671</a>            <span class="string">"convert_value: did not expect a Reference type"
+<a href=#672 id=672 data-nosnippet>672</a>        </span>);
+<a href=#673 id=673 data-nosnippet>673</a>
+<a href=#674 id=674 data-nosnippet>674</a>        <span class="kw">let </span>value = <span class="kw-2">&amp;</span>dfg[value_id];
+<a href=#675 id=675 data-nosnippet>675</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(acir_value) = <span class="self">self</span>.ssa_values.get(<span class="kw-2">&amp;</span>value_id) {
+<a href=#676 id=676 data-nosnippet>676</a>            <span class="kw">return </span>acir_value.clone();
+<a href=#677 id=677 data-nosnippet>677</a>        }
+<a href=#678 id=678 data-nosnippet>678</a>
+<a href=#679 id=679 data-nosnippet>679</a>        <span class="kw">let </span>acir_value = <span class="kw">match </span>value {
+<a href=#680 id=680 data-nosnippet>680</a>            Value::NumericConstant { constant, typ } =&gt; {
+<a href=#681 id=681 data-nosnippet>681</a>                AcirValue::Var(<span class="self">self</span>.acir_context.add_constant(<span class="kw-2">*</span>constant), <span class="kw-2">*</span>typ)
+<a href=#682 id=682 data-nosnippet>682</a>            }
+<a href=#683 id=683 data-nosnippet>683</a>            Value::Intrinsic(..) =&gt; {
+<a href=#684 id=684 data-nosnippet>684</a>                <span class="macro">unreachable!</span>(<span class="string">"ICE: Intrinsics should be resolved via separate logic"</span>)
+<a href=#685 id=685 data-nosnippet>685</a>            }
+<a href=#686 id=686 data-nosnippet>686</a>            Value::Function(function_id) =&gt; {
+<a href=#687 id=687 data-nosnippet>687</a>                <span class="comment">// This conversion is for debugging support only, to allow the
+<a href=#688 id=688 data-nosnippet>688</a>                // debugging instrumentation code to work. Taking the reference
+<a href=#689 id=689 data-nosnippet>689</a>                // of a function in ACIR is useless.
+<a href=#690 id=690 data-nosnippet>690</a>                </span><span class="kw">let </span>id = <span class="self">self</span>.acir_context.add_constant(function_id.to_u32());
+<a href=#691 id=691 data-nosnippet>691</a>                AcirValue::Var(id, NumericType::NativeField)
+<a href=#692 id=692 data-nosnippet>692</a>            }
+<a href=#693 id=693 data-nosnippet>693</a>            Value::ForeignFunction(<span class="kw">_</span>) =&gt; <span class="macro">unimplemented!</span>(
+<a href=#694 id=694 data-nosnippet>694</a>                <span class="string">"Oracle calls directly in constrained functions are not yet available."
+<a href=#695 id=695 data-nosnippet>695</a>            </span>),
+<a href=#696 id=696 data-nosnippet>696</a>            Value::Instruction { .. } | Value::Param { .. } =&gt; {
+<a href=#697 id=697 data-nosnippet>697</a>                <span class="macro">unreachable!</span>(<span class="string">"ICE: Should have been in cache {value_id} {value:?}"</span>)
+<a href=#698 id=698 data-nosnippet>698</a>            }
+<a href=#699 id=699 data-nosnippet>699</a>            Value::Global(<span class="kw">_</span>) =&gt; {
+<a href=#700 id=700 data-nosnippet>700</a>                <span class="macro">unreachable!</span>(<span class="string">"ICE: All globals should have been inlined"</span>);
+<a href=#701 id=701 data-nosnippet>701</a>            }
+<a href=#702 id=702 data-nosnippet>702</a>        };
+<a href=#703 id=703 data-nosnippet>703</a>        <span class="self">self</span>.ssa_values.insert(value_id, acir_value.clone());
+<a href=#704 id=704 data-nosnippet>704</a>        acir_value
+<a href=#705 id=705 data-nosnippet>705</a>    }
+<a href=#706 id=706 data-nosnippet>706</a>
+<a href=#707 id=707 data-nosnippet>707</a>    <span class="kw">fn </span>convert_numeric_value(
+<a href=#708 id=708 data-nosnippet>708</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#709 id=709 data-nosnippet>709</a>        value_id: ValueId,
+<a href=#710 id=710 data-nosnippet>710</a>        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+<a href=#711 id=711 data-nosnippet>711</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirVar, InternalError&gt; {
+<a href=#712 id=712 data-nosnippet>712</a>        <span class="kw">match </span><span class="self">self</span>.convert_value(value_id, dfg) {
+<a href=#713 id=713 data-nosnippet>713</a>            AcirValue::Var(acir_var, <span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(acir_var),
+<a href=#714 id=714 data-nosnippet>714</a>            AcirValue::Array(array) =&gt; <span class="prelude-val">Err</span>(InternalError::Unexpected {
+<a href=#715 id=715 data-nosnippet>715</a>                expected: <span class="string">"a numeric value"</span>.to_string(),
+<a href=#716 id=716 data-nosnippet>716</a>                found: <span class="macro">format!</span>(<span class="string">"{array:?}"</span>),
+<a href=#717 id=717 data-nosnippet>717</a>                call_stack: <span class="self">self</span>.acir_context.get_call_stack(),
+<a href=#718 id=718 data-nosnippet>718</a>            }),
+<a href=#719 id=719 data-nosnippet>719</a>            AcirValue::DynamicArray(<span class="kw">_</span>) =&gt; <span class="prelude-val">Err</span>(InternalError::Unexpected {
+<a href=#720 id=720 data-nosnippet>720</a>                expected: <span class="string">"a numeric value"</span>.to_string(),
+<a href=#721 id=721 data-nosnippet>721</a>                found: <span class="string">"an array"</span>.to_string(),
+<a href=#722 id=722 data-nosnippet>722</a>                call_stack: <span class="self">self</span>.acir_context.get_call_stack(),
+<a href=#723 id=723 data-nosnippet>723</a>            }),
+<a href=#724 id=724 data-nosnippet>724</a>        }
+<a href=#725 id=725 data-nosnippet>725</a>    }
+<a href=#726 id=726 data-nosnippet>726</a>
+<a href=#727 id=727 data-nosnippet>727</a>    <span class="doccomment">/// Processes a binary operation and converts the result into an `AcirVar`
+<a href=#728 id=728 data-nosnippet>728</a>    </span><span class="kw">fn </span>convert_ssa_binary(
+<a href=#729 id=729 data-nosnippet>729</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#730 id=730 data-nosnippet>730</a>        binary: <span class="kw-2">&amp;</span>Binary,
+<a href=#731 id=731 data-nosnippet>731</a>        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+<a href=#732 id=732 data-nosnippet>732</a>        predicate: AcirVar,
+<a href=#733 id=733 data-nosnippet>733</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirVar, RuntimeError&gt; {
+<a href=#734 id=734 data-nosnippet>734</a>        <span class="kw">let </span>lhs = <span class="self">self</span>.convert_numeric_value(binary.lhs, dfg)<span class="question-mark">?</span>;
+<a href=#735 id=735 data-nosnippet>735</a>        <span class="kw">let </span>rhs = <span class="self">self</span>.convert_numeric_value(binary.rhs, dfg)<span class="question-mark">?</span>;
+<a href=#736 id=736 data-nosnippet>736</a>        <span class="kw">let </span>num_type = <span class="self">self</span>.type_of_binary_operation(binary, dfg).unwrap_numeric();
+<a href=#737 id=737 data-nosnippet>737</a>
+<a href=#738 id=738 data-nosnippet>738</a>        <span class="kw">if </span>num_type.is_signed()
+<a href=#739 id=739 data-nosnippet>739</a>            &amp;&amp; <span class="macro">matches!</span>(
+<a href=#740 id=740 data-nosnippet>740</a>                binary.operator,
+<a href=#741 id=741 data-nosnippet>741</a>                BinaryOp::Add { unchecked: <span class="bool-val">false </span>}
+<a href=#742 id=742 data-nosnippet>742</a>                    | BinaryOp::Sub { unchecked: <span class="bool-val">false </span>}
+<a href=#743 id=743 data-nosnippet>743</a>                    | BinaryOp::Mul { unchecked: <span class="bool-val">false </span>}
+<a href=#744 id=744 data-nosnippet>744</a>            )
+<a href=#745 id=745 data-nosnippet>745</a>        {
+<a href=#746 id=746 data-nosnippet>746</a>            <span class="macro">panic!</span>(<span class="string">"Checked signed operations should all be removed before ACIRgen"</span>)
+<a href=#747 id=747 data-nosnippet>747</a>        }
+<a href=#748 id=748 data-nosnippet>748</a>
+<a href=#749 id=749 data-nosnippet>749</a>        <span class="kw">let </span>result = <span class="kw">match </span>binary.operator {
+<a href=#750 id=750 data-nosnippet>750</a>            BinaryOp::Add { .. } =&gt; <span class="self">self</span>.acir_context.add_var(lhs, rhs),
+<a href=#751 id=751 data-nosnippet>751</a>            BinaryOp::Sub { .. } =&gt; <span class="self">self</span>.acir_context.sub_var(lhs, rhs),
+<a href=#752 id=752 data-nosnippet>752</a>            BinaryOp::Mul { .. } =&gt; <span class="self">self</span>.acir_context.mul_var(lhs, rhs),
+<a href=#753 id=753 data-nosnippet>753</a>            BinaryOp::Div =&gt; <span class="self">self</span>.acir_context.div_var(lhs, rhs, num_type, predicate),
+<a href=#754 id=754 data-nosnippet>754</a>            <span class="comment">// Note: that this produces unnecessary constraints when
+<a href=#755 id=755 data-nosnippet>755</a>            // this Eq instruction is being used for a constrain statement
+<a href=#756 id=756 data-nosnippet>756</a>            </span>BinaryOp::Eq =&gt; <span class="self">self</span>.acir_context.eq_var(lhs, rhs),
+<a href=#757 id=757 data-nosnippet>757</a>            BinaryOp::Lt =&gt; <span class="kw">match </span>num_type {
+<a href=#758 id=758 data-nosnippet>758</a>                NumericType::Unsigned { bit_size } =&gt; {
+<a href=#759 id=759 data-nosnippet>759</a>                    <span class="self">self</span>.acir_context.less_than_var(lhs, rhs, bit_size)
+<a href=#760 id=760 data-nosnippet>760</a>                }
+<a href=#761 id=761 data-nosnippet>761</a>                <span class="kw">_ </span>=&gt; {
+<a href=#762 id=762 data-nosnippet>762</a>                    <span class="macro">panic!</span>(<span class="string">"ICE: unexpected binary type for Lt operation: {num_type:?}"</span>)
+<a href=#763 id=763 data-nosnippet>763</a>                }
+<a href=#764 id=764 data-nosnippet>764</a>            },
+<a href=#765 id=765 data-nosnippet>765</a>            BinaryOp::Xor =&gt; <span class="self">self</span>.acir_context.xor_var(lhs, rhs, num_type),
+<a href=#766 id=766 data-nosnippet>766</a>            BinaryOp::And =&gt; <span class="self">self</span>.acir_context.and_var(lhs, rhs, num_type),
+<a href=#767 id=767 data-nosnippet>767</a>            BinaryOp::Or =&gt; <span class="self">self</span>.acir_context.or_var(lhs, rhs, num_type),
+<a href=#768 id=768 data-nosnippet>768</a>            BinaryOp::Mod =&gt; <span class="kw">match </span>num_type {
+<a href=#769 id=769 data-nosnippet>769</a>                NumericType::Unsigned { bit_size } =&gt; {
+<a href=#770 id=770 data-nosnippet>770</a>                    <span class="self">self</span>.acir_context.modulo_var(lhs, rhs, bit_size, predicate)
+<a href=#771 id=771 data-nosnippet>771</a>                }
+<a href=#772 id=772 data-nosnippet>772</a>                <span class="kw">_ </span>=&gt; {
+<a href=#773 id=773 data-nosnippet>773</a>                    <span class="macro">panic!</span>(<span class="string">"ICE: unexpected binary type for Mod operation: {num_type:?}"</span>)
+<a href=#774 id=774 data-nosnippet>774</a>                }
+<a href=#775 id=775 data-nosnippet>775</a>            },
+<a href=#776 id=776 data-nosnippet>776</a>            BinaryOp::Shl | BinaryOp::Shr =&gt; <span class="macro">unreachable!</span>(
+<a href=#777 id=777 data-nosnippet>777</a>                <span class="string">"ICE - bit shift operators do not exist in ACIR and should have been replaced"
+<a href=#778 id=778 data-nosnippet>778</a>            </span>),
+<a href=#779 id=779 data-nosnippet>779</a>        }<span class="question-mark">?</span>;
+<a href=#780 id=780 data-nosnippet>780</a>
+<a href=#781 id=781 data-nosnippet>781</a>        <span class="kw">if let </span>NumericType::Unsigned { bit_size } = <span class="kw-2">&amp;</span>num_type {
+<a href=#782 id=782 data-nosnippet>782</a>            <span class="comment">// Check for integer overflow
+<a href=#783 id=783 data-nosnippet>783</a>            </span><span class="self">self</span>.check_unsigned_overflow(result, <span class="kw-2">*</span>bit_size, binary, predicate)
+<a href=#784 id=784 data-nosnippet>784</a>        } <span class="kw">else </span>{
+<a href=#785 id=785 data-nosnippet>785</a>            <span class="prelude-val">Ok</span>(result)
+<a href=#786 id=786 data-nosnippet>786</a>        }
+<a href=#787 id=787 data-nosnippet>787</a>    }
+<a href=#788 id=788 data-nosnippet>788</a>
+<a href=#789 id=789 data-nosnippet>789</a>    <span class="doccomment">/// Adds a range check against the bit size of the result of addition, subtraction or multiplication
+<a href=#790 id=790 data-nosnippet>790</a>    </span><span class="kw">fn </span>check_unsigned_overflow(
+<a href=#791 id=791 data-nosnippet>791</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#792 id=792 data-nosnippet>792</a>        result: AcirVar,
+<a href=#793 id=793 data-nosnippet>793</a>        bit_size: u32,
+<a href=#794 id=794 data-nosnippet>794</a>        binary: <span class="kw-2">&amp;</span>Binary,
+<a href=#795 id=795 data-nosnippet>795</a>        predicate: AcirVar,
+<a href=#796 id=796 data-nosnippet>796</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirVar, RuntimeError&gt; {
+<a href=#797 id=797 data-nosnippet>797</a>        <span class="kw">let </span>msg = <span class="kw">match </span>binary.operator {
+<a href=#798 id=798 data-nosnippet>798</a>            BinaryOp::Add { unchecked: <span class="bool-val">false </span>} =&gt; <span class="string">"attempt to add with overflow"</span>,
+<a href=#799 id=799 data-nosnippet>799</a>            BinaryOp::Sub { unchecked: <span class="bool-val">false </span>} =&gt; <span class="string">"attempt to subtract with overflow"</span>,
+<a href=#800 id=800 data-nosnippet>800</a>            BinaryOp::Mul { unchecked: <span class="bool-val">false </span>} =&gt; <span class="string">"attempt to multiply with overflow"</span>,
+<a href=#801 id=801 data-nosnippet>801</a>            <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>(result),
+<a href=#802 id=802 data-nosnippet>802</a>        };
+<a href=#803 id=803 data-nosnippet>803</a>
+<a href=#804 id=804 data-nosnippet>804</a>        <span class="self">self</span>.acir_context.range_constrain_var(result, bit_size, <span class="prelude-val">Some</span>(msg.to_string()), predicate)
+<a href=#805 id=805 data-nosnippet>805</a>    }
+<a href=#806 id=806 data-nosnippet>806</a>
+<a href=#807 id=807 data-nosnippet>807</a>    <span class="doccomment">/// Operands in a binary operation are checked to have the same type.
+<a href=#808 id=808 data-nosnippet>808</a>    ///
+<a href=#809 id=809 data-nosnippet>809</a>    /// In Noir, binary operands should have the same type due to the language
+<a href=#810 id=810 data-nosnippet>810</a>    /// semantics.
+<a href=#811 id=811 data-nosnippet>811</a>    </span><span class="kw">fn </span>type_of_binary_operation(<span class="kw-2">&amp;</span><span class="self">self</span>, binary: <span class="kw-2">&amp;</span>Binary, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) -&gt; Type {
+<a href=#812 id=812 data-nosnippet>812</a>        <span class="kw">let </span>lhs_type = dfg.type_of_value(binary.lhs);
+<a href=#813 id=813 data-nosnippet>813</a>        <span class="kw">let </span>rhs_type = dfg.type_of_value(binary.rhs);
+<a href=#814 id=814 data-nosnippet>814</a>
+<a href=#815 id=815 data-nosnippet>815</a>        <span class="kw">match </span>(lhs_type, rhs_type) {
+<a href=#816 id=816 data-nosnippet>816</a>            <span class="comment">// Function type should not be possible, since all functions
+<a href=#817 id=817 data-nosnippet>817</a>            // have been inlined.
+<a href=#818 id=818 data-nosnippet>818</a>            </span>(<span class="kw">_</span>, Type::Function) | (Type::Function, <span class="kw">_</span>) =&gt; {
+<a href=#819 id=819 data-nosnippet>819</a>                <span class="macro">unreachable!</span>(<span class="string">"all functions should be inlined"</span>)
+<a href=#820 id=820 data-nosnippet>820</a>            }
+<a href=#821 id=821 data-nosnippet>821</a>            (<span class="kw">_</span>, Type::Reference(<span class="kw">_</span>)) | (Type::Reference(<span class="kw">_</span>), <span class="kw">_</span>) =&gt; {
+<a href=#822 id=822 data-nosnippet>822</a>                <span class="macro">unreachable!</span>(<span class="string">"References are invalid in binary operations"</span>)
+<a href=#823 id=823 data-nosnippet>823</a>            }
+<a href=#824 id=824 data-nosnippet>824</a>            (<span class="kw">_</span>, Type::Array(..)) | (Type::Array(..), <span class="kw">_</span>) =&gt; {
+<a href=#825 id=825 data-nosnippet>825</a>                <span class="macro">unreachable!</span>(<span class="string">"Arrays are invalid in binary operations"</span>)
+<a href=#826 id=826 data-nosnippet>826</a>            }
+<a href=#827 id=827 data-nosnippet>827</a>            (<span class="kw">_</span>, Type::Vector(..)) | (Type::Vector(..), <span class="kw">_</span>) =&gt; {
+<a href=#828 id=828 data-nosnippet>828</a>                <span class="macro">unreachable!</span>(<span class="string">"Arrays are invalid in binary operations"</span>)
+<a href=#829 id=829 data-nosnippet>829</a>            }
+<a href=#830 id=830 data-nosnippet>830</a>            <span class="comment">// If either side is a numeric type, then we expect their types to be
+<a href=#831 id=831 data-nosnippet>831</a>            // the same.
+<a href=#832 id=832 data-nosnippet>832</a>            </span>(Type::Numeric(lhs_type), Type::Numeric(rhs_type)) =&gt; {
+<a href=#833 id=833 data-nosnippet>833</a>                <span class="macro">assert_eq!</span>(lhs_type, rhs_type, <span class="string">"lhs and rhs types in {binary:?} are not the same"</span>);
+<a href=#834 id=834 data-nosnippet>834</a>                Type::Numeric(lhs_type)
+<a href=#835 id=835 data-nosnippet>835</a>            }
+<a href=#836 id=836 data-nosnippet>836</a>        }
+<a href=#837 id=837 data-nosnippet>837</a>    }
+<a href=#838 id=838 data-nosnippet>838</a>
+<a href=#839 id=839 data-nosnippet>839</a>    <span class="doccomment">/// Returns an `AcirVar`that is constrained to be result of the truncation.
+<a href=#840 id=840 data-nosnippet>840</a>    </span><span class="kw">fn </span>convert_ssa_truncate(
+<a href=#841 id=841 data-nosnippet>841</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#842 id=842 data-nosnippet>842</a>        value_id: ValueId,
+<a href=#843 id=843 data-nosnippet>843</a>        bit_size: u32,
+<a href=#844 id=844 data-nosnippet>844</a>        <span class="kw-2">mut </span>max_bit_size: u32,
+<a href=#845 id=845 data-nosnippet>845</a>        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+<a href=#846 id=846 data-nosnippet>846</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirVar, RuntimeError&gt; {
+<a href=#847 id=847 data-nosnippet>847</a>        <span class="macro">assert_ne!</span>(bit_size, max_bit_size, <span class="string">"Attempted to generate a noop truncation"</span>);
+<a href=#848 id=848 data-nosnippet>848</a>        <span class="macro">assert!</span>(
+<a href=#849 id=849 data-nosnippet>849</a>            bit_size &lt; max_bit_size,
+<a href=#850 id=850 data-nosnippet>850</a>            <span class="string">"Attempted to generate a truncation into size larger than max input"
+<a href=#851 id=851 data-nosnippet>851</a>        </span>);
+<a href=#852 id=852 data-nosnippet>852</a>
+<a href=#853 id=853 data-nosnippet>853</a>        <span class="kw">let </span><span class="kw-2">mut </span>var = <span class="self">self</span>.convert_numeric_value(value_id, dfg)<span class="question-mark">?</span>;
+<a href=#854 id=854 data-nosnippet>854</a>        <span class="kw">match </span><span class="kw-2">&amp;</span>dfg[value_id] {
+<a href=#855 id=855 data-nosnippet>855</a>            Value::Instruction { instruction, .. } =&gt; {
+<a href=#856 id=856 data-nosnippet>856</a>                <span class="kw">if </span><span class="macro">matches!</span>(
+<a href=#857 id=857 data-nosnippet>857</a>                    <span class="kw-2">&amp;</span>dfg[<span class="kw-2">*</span>instruction],
+<a href=#858 id=858 data-nosnippet>858</a>                    Instruction::Binary(Binary { operator: BinaryOp::Sub { .. }, .. })
+<a href=#859 id=859 data-nosnippet>859</a>                ) {
+<a href=#860 id=860 data-nosnippet>860</a>                    <span class="comment">// Subtractions must first have the integer modulus added before truncation can be
+<a href=#861 id=861 data-nosnippet>861</a>                    // applied. This is done in order to prevent underflow.
+<a href=#862 id=862 data-nosnippet>862</a>                    //
+<a href=#863 id=863 data-nosnippet>863</a>                    // FieldElements have max bit size equals to max_num_bits so
+<a href=#864 id=864 data-nosnippet>864</a>                    // we filter out this bit size because there is no underflow
+<a href=#865 id=865 data-nosnippet>865</a>                    // for FieldElements. Furthermore, adding a power of two
+<a href=#866 id=866 data-nosnippet>866</a>                    // would be incorrect for a FieldElement (cf. #8519).
+<a href=#867 id=867 data-nosnippet>867</a>                    </span><span class="kw">if </span>max_bit_size &lt; FieldElement::max_num_bits() {
+<a href=#868 id=868 data-nosnippet>868</a>                        <span class="comment">// When max_bit_size is max_num_bits() - 1, adding
+<a href=#869 id=869 data-nosnippet>869</a>                        // 2**max_bit_size to an element of max_bit_size bits
+<a href=#870 id=870 data-nosnippet>870</a>                        // gives an element of max_num_bits() bits which may overflow
+<a href=#871 id=871 data-nosnippet>871</a>                        </span><span class="macro">assert!</span>(
+<a href=#872 id=872 data-nosnippet>872</a>                            max_bit_size != FieldElement::max_num_bits() - <span class="number">1</span>,
+<a href=#873 id=873 data-nosnippet>873</a>                            <span class="string">"potential underflow in subtraction when max_bit_size is {max_bit_size}"
+<a href=#874 id=874 data-nosnippet>874</a>                        </span>);
+<a href=#875 id=875 data-nosnippet>875</a>                        <span class="kw">let </span>integer_modulus = power_of_two::&lt;FieldElement&gt;(max_bit_size);
+<a href=#876 id=876 data-nosnippet>876</a>                        <span class="kw">let </span>integer_modulus = <span class="self">self</span>.acir_context.add_constant(integer_modulus);
+<a href=#877 id=877 data-nosnippet>877</a>                        var = <span class="self">self</span>.acir_context.add_var(var, integer_modulus)<span class="question-mark">?</span>;
+<a href=#878 id=878 data-nosnippet>878</a>                        max_bit_size += <span class="number">1</span>;
+<a href=#879 id=879 data-nosnippet>879</a>                    }
+<a href=#880 id=880 data-nosnippet>880</a>                }
+<a href=#881 id=881 data-nosnippet>881</a>            }
+<a href=#882 id=882 data-nosnippet>882</a>            Value::Param { .. } =&gt; {
+<a href=#883 id=883 data-nosnippet>883</a>                <span class="comment">// Binary operations on params may have been entirely simplified if the operation
+<a href=#884 id=884 data-nosnippet>884</a>                // results in the identity of the parameter
+<a href=#885 id=885 data-nosnippet>885</a>            </span>}
+<a href=#886 id=886 data-nosnippet>886</a>            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(
+<a href=#887 id=887 data-nosnippet>887</a>                <span class="string">"ICE: Truncates are only ever applied to the result of a binary op or a param"
+<a href=#888 id=888 data-nosnippet>888</a>            </span>),
+<a href=#889 id=889 data-nosnippet>889</a>        }
+<a href=#890 id=890 data-nosnippet>890</a>
+<a href=#891 id=891 data-nosnippet>891</a>        <span class="self">self</span>.acir_context.truncate_var(var, bit_size, max_bit_size)
+<a href=#892 id=892 data-nosnippet>892</a>    }
+<a href=#893 id=893 data-nosnippet>893</a>
+<a href=#894 id=894 data-nosnippet>894</a>    <span class="doccomment">/// Fetch a flat list of [AcirVar].
+<a href=#895 id=895 data-nosnippet>895</a>    ///
+<a href=#896 id=896 data-nosnippet>896</a>    /// Flattens an [AcirValue] into a vector of `AcirVar`.
+<a href=#897 id=897 data-nosnippet>897</a>    ///
+<a href=#898 id=898 data-nosnippet>898</a>    /// This is an extension of [AcirValue::flatten] that also supports [AcirValue::DynamicArray].
+<a href=#899 id=899 data-nosnippet>899</a>    </span><span class="kw">fn </span>flatten(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: <span class="kw-2">&amp;</span>AcirValue) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;AcirVar&gt;, RuntimeError&gt; {
+<a href=#900 id=900 data-nosnippet>900</a>        <span class="prelude-val">Ok</span>(<span class="kw">match </span>value {
+<a href=#901 id=901 data-nosnippet>901</a>            AcirValue::Var(var, <span class="kw">_</span>) =&gt; <span class="macro">vec!</span>[<span class="kw-2">*</span>var],
+<a href=#902 id=902 data-nosnippet>902</a>            AcirValue::Array(array) =&gt; {
+<a href=#903 id=903 data-nosnippet>903</a>                <span class="kw">let </span><span class="kw-2">mut </span>result = Vec::new();
+<a href=#904 id=904 data-nosnippet>904</a>                <span class="kw">for </span>elem <span class="kw">in </span>array {
+<a href=#905 id=905 data-nosnippet>905</a>                    result.extend(<span class="self">self</span>.flatten(elem)<span class="question-mark">?</span>);
+<a href=#906 id=906 data-nosnippet>906</a>                }
+<a href=#907 id=907 data-nosnippet>907</a>                result
+<a href=#908 id=908 data-nosnippet>908</a>            }
+<a href=#909 id=909 data-nosnippet>909</a>            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }) =&gt; {
+<a href=#910 id=910 data-nosnippet>910</a>                <span class="kw">let </span>elements = <span class="self">self</span>.read_dynamic_array(<span class="kw-2">*</span>block_id, <span class="kw-2">*</span>len, value_types);
+<a href=#911 id=911 data-nosnippet>911</a>                <span class="kw">let </span><span class="kw-2">mut </span>result = Vec::new();
+<a href=#912 id=912 data-nosnippet>912</a>
+<a href=#913 id=913 data-nosnippet>913</a>                <span class="kw">for </span>value <span class="kw">in </span>elements {
+<a href=#914 id=914 data-nosnippet>914</a>                    <span class="kw">match </span>value<span class="question-mark">? </span>{
+<a href=#915 id=915 data-nosnippet>915</a>                        AcirValue::Var(var, _typ) =&gt; result.push(var),
+<a href=#916 id=916 data-nosnippet>916</a>                        <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: Dynamic memory should already be flat"</span>),
+<a href=#917 id=917 data-nosnippet>917</a>                    }
+<a href=#918 id=918 data-nosnippet>918</a>                }
+<a href=#919 id=919 data-nosnippet>919</a>                result
+<a href=#920 id=920 data-nosnippet>920</a>            }
+<a href=#921 id=921 data-nosnippet>921</a>        })
+<a href=#922 id=922 data-nosnippet>922</a>    }
+<a href=#923 id=923 data-nosnippet>923</a>}
+<a href=#924 id=924 data-nosnippet>924</a>
+<a href=#925 id=925 data-nosnippet>925</a><span class="doccomment">/// Check post ACIR generation properties
+<a href=#926 id=926 data-nosnippet>926</a>/// * No memory opcodes should be laid down that write to the internal type sizes array.
+<a href=#927 id=927 data-nosnippet>927</a>///   See [arrays] for more information on the type sizes array.
+<a href=#928 id=928 data-nosnippet>928</a></span><span class="attr">#[cfg(debug_assertions)]
+<a href=#929 id=929 data-nosnippet>929</a></span><span class="kw">fn </span>acir_post_check(context: <span class="kw-2">&amp;</span>Context&lt;<span class="lifetime">'_</span>&gt;, acir: <span class="kw-2">&amp;</span>GeneratedAcir&lt;FieldElement&gt;) {
+<a href=#930 id=930 data-nosnippet>930</a>    <span class="kw">use </span>acvm::acir::circuit::Opcode;
+<a href=#931 id=931 data-nosnippet>931</a>    <span class="kw">for </span>opcode <span class="kw">in </span>acir.opcodes() {
+<a href=#932 id=932 data-nosnippet>932</a>        <span class="kw">let </span>Opcode::MemoryOp { block_id, op } = opcode <span class="kw">else </span>{
+<a href=#933 id=933 data-nosnippet>933</a>            <span class="kw">continue</span>;
+<a href=#934 id=934 data-nosnippet>934</a>        };
+<a href=#935 id=935 data-nosnippet>935</a>        <span class="kw">if </span>op.operation.is_one() {
+<a href=#936 id=936 data-nosnippet>936</a>            <span class="comment">// Check that we have no writes to the type size arrays
+<a href=#937 id=937 data-nosnippet>937</a>            </span><span class="kw">let </span>is_type_sizes_array =
+<a href=#938 id=938 data-nosnippet>938</a>                context.element_type_sizes_blocks.values().any(|id| id == block_id);
+<a href=#939 id=939 data-nosnippet>939</a>            <span class="macro">assert!</span>(
+<a href=#940 id=940 data-nosnippet>940</a>                !is_type_sizes_array,
+<a href=#941 id=941 data-nosnippet>941</a>                <span class="string">"ICE: Writes to the internal type sizes array are forbidden"
+<a href=#942 id=942 data-nosnippet>942</a>            </span>);
+<a href=#943 id=943 data-nosnippet>943</a>        }
+<a href=#944 id=944 data-nosnippet>944</a>    }
+<a href=#945 id=945 data-nosnippet>945</a>}</code></pre></div></section></main></body></html>

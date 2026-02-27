@@ -98,7 +98,7 @@
 <a href=#98 id=98 data-nosnippet>98</a>            .iter()
 <a href=#99 id=99 data-nosnippet>99</a>            .map(|cd| {
 <a href=#100 id=100 data-nosnippet>100</a>                <span class="kw">let </span><span class="kw-2">mut </span>call_data_map = HashMap::default();
-<a href=#101 id=101 data-nosnippet>101</a>                <span class="kw">for </span>(k, v) <span class="kw">in </span>cd.index_map.iter() {
+<a href=#101 id=101 data-nosnippet>101</a>                <span class="kw">for </span>(k, v) <span class="kw">in </span><span class="kw-2">&amp;</span>cd.index_map {
 <a href=#102 id=102 data-nosnippet>102</a>                    call_data_map.insert(f(<span class="kw-2">*</span>k), <span class="kw-2">*</span>v);
 <a href=#103 id=103 data-nosnippet>103</a>                }
 <a href=#104 id=104 data-nosnippet>104</a>                CallData {
@@ -119,7 +119,7 @@
 <a href=#119 id=119 data-nosnippet>119</a>
 <a href=#120 id=120 data-nosnippet>120</a>    <span class="doccomment">/// Updates the databus values in place with the provided function
 <a href=#121 id=121 data-nosnippet>121</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>map_values_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw-2">mut </span>f: <span class="kw">impl </span>FnMut(ValueId) -&gt; ValueId) {
-<a href=#122 id=122 data-nosnippet>122</a>        <span class="kw">for </span>cd <span class="kw">in </span><span class="self">self</span>.call_data.iter_mut() {
+<a href=#122 id=122 data-nosnippet>122</a>        <span class="kw">for </span>cd <span class="kw">in </span><span class="kw-2">&amp;mut </span><span class="self">self</span>.call_data {
 <a href=#123 id=123 data-nosnippet>123</a>            cd.array_id = f(cd.array_id);
 <a href=#124 id=124 data-nosnippet>124</a>
 <a href=#125 id=125 data-nosnippet>125</a>            <span class="comment">// Can't mutate a hashmap's keys so we need to collect into a new one.

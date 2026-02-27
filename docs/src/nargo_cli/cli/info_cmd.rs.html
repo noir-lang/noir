@@ -106,7 +106,7 @@
 <a href=#106 id=106 data-nosnippet>106</a>    prover_name: <span class="kw-2">&amp;</span>str,
 <a href=#107 id=107 data-nosnippet>107</a>) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;ProgramInfo&gt;, CliError&gt; {
 <a href=#108 id=108 data-nosnippet>108</a>    <span class="kw">let </span><span class="kw-2">mut </span>program_info = Vec::new();
-<a href=#109 id=109 data-nosnippet>109</a>    <span class="kw">for </span>(package, program_artifact) <span class="kw">in </span>binary_packages.iter() {
+<a href=#109 id=109 data-nosnippet>109</a>    <span class="kw">for </span>(package, program_artifact) <span class="kw">in </span><span class="kw-2">&amp;</span>binary_packages {
 <a href=#110 id=110 data-nosnippet>110</a>        <span class="comment">// Parse the initial witness values from Prover.toml or Prover.json
 <a href=#111 id=111 data-nosnippet>111</a>        </span><span class="kw">let </span>(inputs_map, <span class="kw">_</span>) = read_inputs_from_file(
 <a href=#112 id=112 data-nosnippet>112</a>            <span class="kw-2">&amp;</span>package.root_dir.join(prover_name).with_extension(<span class="string">"toml"</span>),

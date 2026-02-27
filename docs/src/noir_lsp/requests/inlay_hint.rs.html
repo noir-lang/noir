@@ -541,7 +541,7 @@
 <a href=#541 id=541 data-nosnippet>541</a>                Kind::Integer =&gt; push_type_parts(<span class="kw-2">&amp;</span>Type::default_int_type(), parts, files),
 <a href=#542 id=542 data-nosnippet>542</a>                Kind::IntegerOrField =&gt; parts.push(string_part(<span class="string">"Field"</span>)),
 <a href=#543 id=543 data-nosnippet>543</a>            },
-<a href=#544 id=544 data-nosnippet>544</a>            <span class="kw">_ </span>=&gt; {
+<a href=#544 id=544 data-nosnippet>544</a>            TypeBinding::Bound(<span class="kw">_</span>) =&gt; {
 <a href=#545 id=545 data-nosnippet>545</a>                push_type_variable_parts(binding, parts, files);
 <a href=#546 id=546 data-nosnippet>546</a>            }
 <a href=#547 id=547 data-nosnippet>547</a>        },

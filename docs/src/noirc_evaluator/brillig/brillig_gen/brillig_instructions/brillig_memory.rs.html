@@ -437,43 +437,45 @@
 <a href=#437 id=437 data-nosnippet>437</a>
 <a href=#438 id=438 data-nosnippet>438</a>                <span class="self">self</span>.brillig_context.codegen_initialize_vector(vector, <span class="kw-2">*</span>size, <span class="prelude-val">None</span>);
 <a href=#439 id=439 data-nosnippet>439</a>            }
-<a href=#440 id=440 data-nosnippet>440</a>            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: Cannot initialize array value created as {new_variable:?}"</span>),
-<a href=#441 id=441 data-nosnippet>441</a>        }
-<a href=#442 id=442 data-nosnippet>442</a>
-<a href=#443 id=443 data-nosnippet>443</a>        <span class="comment">// Get a pointer to where the items need to be written.
-<a href=#444 id=444 data-nosnippet>444</a>        </span><span class="kw">let </span>items_pointer =
-<a href=#445 id=445 data-nosnippet>445</a>            <span class="self">self</span>.brillig_context.codegen_make_array_or_vector_items_pointer(new_variable);
-<a href=#446 id=446 data-nosnippet>446</a>
-<a href=#447 id=447 data-nosnippet>447</a>        <span class="comment">// Write the items.
-<a href=#448 id=448 data-nosnippet>448</a>        </span><span class="self">self</span>.initialize_constant_array(array, typ, dfg, <span class="kw-2">*</span>items_pointer);
-<a href=#449 id=449 data-nosnippet>449</a>    }
-<a href=#450 id=450 data-nosnippet>450</a>
-<a href=#451 id=451 data-nosnippet>451</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_increment_rc(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) {
-<a href=#452 id=452 data-nosnippet>452</a>        <span class="kw">let </span>array_or_vector = <span class="self">self</span>.convert_ssa_value(value, dfg);
-<a href=#453 id=453 data-nosnippet>453</a>        <span class="kw">let </span>array_register = array_or_vector.extract_register();
-<a href=#454 id=454 data-nosnippet>454</a>
-<a href=#455 id=455 data-nosnippet>455</a>        <span class="kw">let </span>rc_register = <span class="self">self</span>.brillig_context.codegen_read_rc(array_register);
+<a href=#440 id=440 data-nosnippet>440</a>            BrilligVariable::SingleAddr(<span class="kw">_</span>) =&gt; {
+<a href=#441 id=441 data-nosnippet>441</a>                <span class="macro">unreachable!</span>(<span class="string">"ICE: Cannot initialize array value created as {new_variable:?}"</span>)
+<a href=#442 id=442 data-nosnippet>442</a>            }
+<a href=#443 id=443 data-nosnippet>443</a>        }
+<a href=#444 id=444 data-nosnippet>444</a>
+<a href=#445 id=445 data-nosnippet>445</a>        <span class="comment">// Get a pointer to where the items need to be written.
+<a href=#446 id=446 data-nosnippet>446</a>        </span><span class="kw">let </span>items_pointer =
+<a href=#447 id=447 data-nosnippet>447</a>            <span class="self">self</span>.brillig_context.codegen_make_array_or_vector_items_pointer(new_variable);
+<a href=#448 id=448 data-nosnippet>448</a>
+<a href=#449 id=449 data-nosnippet>449</a>        <span class="comment">// Write the items.
+<a href=#450 id=450 data-nosnippet>450</a>        </span><span class="self">self</span>.initialize_constant_array(array, typ, dfg, <span class="kw-2">*</span>items_pointer);
+<a href=#451 id=451 data-nosnippet>451</a>    }
+<a href=#452 id=452 data-nosnippet>452</a>
+<a href=#453 id=453 data-nosnippet>453</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_increment_rc(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) {
+<a href=#454 id=454 data-nosnippet>454</a>        <span class="kw">let </span>array_or_vector = <span class="self">self</span>.convert_ssa_value(value, dfg);
+<a href=#455 id=455 data-nosnippet>455</a>        <span class="kw">let </span>array_register = array_or_vector.extract_register();
 <a href=#456 id=456 data-nosnippet>456</a>
-<a href=#457 id=457 data-nosnippet>457</a>        <span class="comment">// Ensure we're not incrementing from 0 back to 1
-<a href=#458 id=458 data-nosnippet>458</a>        </span><span class="kw">if </span><span class="self">self</span>.brillig_context.enable_debug_assertions() {
-<a href=#459 id=459 data-nosnippet>459</a>            <span class="self">self</span>.codegen_assert_rc_neq_zero(rc_register.address);
-<a href=#460 id=460 data-nosnippet>460</a>        }
-<a href=#461 id=461 data-nosnippet>461</a>
-<a href=#462 id=462 data-nosnippet>462</a>        <span class="self">self</span>.brillig_context.codegen_increment_rc(array_register, rc_register.address);
-<a href=#463 id=463 data-nosnippet>463</a>    }
-<a href=#464 id=464 data-nosnippet>464</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_decrement_rc(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) {
-<a href=#465 id=465 data-nosnippet>465</a>        <span class="kw">let </span>array_or_vector = <span class="self">self</span>.convert_ssa_value(value, dfg);
-<a href=#466 id=466 data-nosnippet>466</a>        <span class="kw">let </span>array_register = array_or_vector.extract_register();
-<a href=#467 id=467 data-nosnippet>467</a>
-<a href=#468 id=468 data-nosnippet>468</a>        <span class="kw">let </span>rc_register = <span class="self">self</span>.brillig_context.codegen_read_rc(array_register);
+<a href=#457 id=457 data-nosnippet>457</a>        <span class="kw">let </span>rc_register = <span class="self">self</span>.brillig_context.codegen_read_rc(array_register);
+<a href=#458 id=458 data-nosnippet>458</a>
+<a href=#459 id=459 data-nosnippet>459</a>        <span class="comment">// Ensure we're not incrementing from 0 back to 1
+<a href=#460 id=460 data-nosnippet>460</a>        </span><span class="kw">if </span><span class="self">self</span>.brillig_context.enable_debug_assertions() {
+<a href=#461 id=461 data-nosnippet>461</a>            <span class="self">self</span>.codegen_assert_rc_neq_zero(rc_register.address);
+<a href=#462 id=462 data-nosnippet>462</a>        }
+<a href=#463 id=463 data-nosnippet>463</a>
+<a href=#464 id=464 data-nosnippet>464</a>        <span class="self">self</span>.brillig_context.codegen_increment_rc(array_register, rc_register.address);
+<a href=#465 id=465 data-nosnippet>465</a>    }
+<a href=#466 id=466 data-nosnippet>466</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_decrement_rc(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) {
+<a href=#467 id=467 data-nosnippet>467</a>        <span class="kw">let </span>array_or_vector = <span class="self">self</span>.convert_ssa_value(value, dfg);
+<a href=#468 id=468 data-nosnippet>468</a>        <span class="kw">let </span>array_register = array_or_vector.extract_register();
 <a href=#469 id=469 data-nosnippet>469</a>
-<a href=#470 id=470 data-nosnippet>470</a>        <span class="comment">// Check that the refcount isn't already 0 before we decrement. If we allow it to underflow
-<a href=#471 id=471 data-nosnippet>471</a>        // and become usize::MAX, and then return to 1, then it will indicate
-<a href=#472 id=472 data-nosnippet>472</a>        // an array as mutable when it probably shouldn't be.
-<a href=#473 id=473 data-nosnippet>473</a>        </span><span class="kw">if </span><span class="self">self</span>.brillig_context.enable_debug_assertions() {
-<a href=#474 id=474 data-nosnippet>474</a>            <span class="self">self</span>.codegen_assert_rc_neq_zero(rc_register.address);
-<a href=#475 id=475 data-nosnippet>475</a>        }
-<a href=#476 id=476 data-nosnippet>476</a>
-<a href=#477 id=477 data-nosnippet>477</a>        <span class="self">self</span>.brillig_context.codegen_decrement_rc(array_register, rc_register.address);
-<a href=#478 id=478 data-nosnippet>478</a>    }
-<a href=#479 id=479 data-nosnippet>479</a>}</code></pre></div></section></main></body></html>
+<a href=#470 id=470 data-nosnippet>470</a>        <span class="kw">let </span>rc_register = <span class="self">self</span>.brillig_context.codegen_read_rc(array_register);
+<a href=#471 id=471 data-nosnippet>471</a>
+<a href=#472 id=472 data-nosnippet>472</a>        <span class="comment">// Check that the refcount isn't already 0 before we decrement. If we allow it to underflow
+<a href=#473 id=473 data-nosnippet>473</a>        // and become usize::MAX, and then return to 1, then it will indicate
+<a href=#474 id=474 data-nosnippet>474</a>        // an array as mutable when it probably shouldn't be.
+<a href=#475 id=475 data-nosnippet>475</a>        </span><span class="kw">if </span><span class="self">self</span>.brillig_context.enable_debug_assertions() {
+<a href=#476 id=476 data-nosnippet>476</a>            <span class="self">self</span>.codegen_assert_rc_neq_zero(rc_register.address);
+<a href=#477 id=477 data-nosnippet>477</a>        }
+<a href=#478 id=478 data-nosnippet>478</a>
+<a href=#479 id=479 data-nosnippet>479</a>        <span class="self">self</span>.brillig_context.codegen_decrement_rc(array_register, rc_register.address);
+<a href=#480 id=480 data-nosnippet>480</a>    }
+<a href=#481 id=481 data-nosnippet>481</a>}</code></pre></div></section></main></body></html>

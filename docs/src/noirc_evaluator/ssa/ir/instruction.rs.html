@@ -656,7 +656,7 @@
 <a href=#656 id=656 data-nosnippet>656</a>                            payload_values.iter().map(|<span class="kw-2">&amp;</span>value| f(value)).collect(),
 <a href=#657 id=657 data-nosnippet>657</a>                        )
 <a href=#658 id=658 data-nosnippet>658</a>                    }
-<a href=#659 id=659 data-nosnippet>659</a>                    <span class="kw">_ </span>=&gt; error.clone(),
+<a href=#659 id=659 data-nosnippet>659</a>                    ConstrainError::StaticString(<span class="kw">_</span>) =&gt; error.clone(),
 <a href=#660 id=660 data-nosnippet>660</a>                });
 <a href=#661 id=661 data-nosnippet>661</a>                Instruction::Constrain(lhs, rhs, assert_message)
 <a href=#662 id=662 data-nosnippet>662</a>            }
@@ -672,7 +672,7 @@
 <a href=#672 id=672 data-nosnippet>672</a>                            payload_values.iter().map(|<span class="kw-2">&amp;</span>value| f(value)).collect(),
 <a href=#673 id=673 data-nosnippet>673</a>                        )
 <a href=#674 id=674 data-nosnippet>674</a>                    }
-<a href=#675 id=675 data-nosnippet>675</a>                    <span class="kw">_ </span>=&gt; error.clone(),
+<a href=#675 id=675 data-nosnippet>675</a>                    ConstrainError::StaticString(<span class="kw">_</span>) =&gt; error.clone(),
 <a href=#676 id=676 data-nosnippet>676</a>                });
 <a href=#677 id=677 data-nosnippet>677</a>                Instruction::ConstrainNotEqual(lhs, rhs, assert_message)
 <a href=#678 id=678 data-nosnippet>678</a>            }

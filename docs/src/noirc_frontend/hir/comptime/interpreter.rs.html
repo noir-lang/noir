@@ -1410,7 +1410,7 @@
 <a href=#1410 id=1410 data-nosnippet>1410</a>        <span class="kw">let </span>lvalue_ref = lvalue.borrow();
 <a href=#1411 id=1411 data-nosnippet>1411</a>        <span class="kw">match </span>(<span class="kw-2">&amp;*</span>lvalue_ref, rvalue) {
 <a href=#1412 id=1412 data-nosnippet>1412</a>            (Value::Struct(lvalue_fields, <span class="kw">_</span>), Value::Struct(<span class="kw-2">mut </span>rvalue_fields, <span class="kw">_</span>)) =&gt; {
-<a href=#1413 id=1413 data-nosnippet>1413</a>                <span class="kw">for </span>(name, lvalue) <span class="kw">in </span>lvalue_fields.iter() {
+<a href=#1413 id=1413 data-nosnippet>1413</a>                <span class="kw">for </span>(name, lvalue) <span class="kw">in </span>lvalue_fields {
 <a href=#1414 id=1414 data-nosnippet>1414</a>                    <span class="kw">let </span><span class="prelude-val">Some</span>(rvalue) = rvalue_fields.remove(name) <span class="kw">else </span>{
 <a href=#1415 id=1415 data-nosnippet>1415</a>                        <span class="comment">// Defensive check: If we reach here, it indicates a type system bug
 <a href=#1416 id=1416 data-nosnippet>1416</a>                        </span><span class="macro">panic!</span>(

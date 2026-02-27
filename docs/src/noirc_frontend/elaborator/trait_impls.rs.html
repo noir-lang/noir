@@ -440,7 +440,7 @@
 <a href=#440 id=440 data-nosnippet>440</a>        }
 <a href=#441 id=441 data-nosnippet>441</a>
 <a href=#442 id=442 data-nosnippet>442</a>        <span class="kw">let </span><span class="kw-2">mut </span>substituted_method_ids = HashSet::default();
-<a href=#443 id=443 data-nosnippet>443</a>        <span class="kw">for </span>method_constraint <span class="kw">in </span>method.trait_constraints.iter() {
+<a href=#443 id=443 data-nosnippet>443</a>        <span class="kw">for </span>method_constraint <span class="kw">in </span><span class="kw-2">&amp;</span>method.trait_constraints {
 <a href=#444 id=444 data-nosnippet>444</a>            <span class="kw">let </span>substituted_constraint_type = method_constraint.typ.substitute(<span class="kw-2">&amp;</span>bindings);
 <a href=#445 id=445 data-nosnippet>445</a>            <span class="kw">let </span>substituted_trait_generics = method_constraint
 <a href=#446 id=446 data-nosnippet>446</a>                .trait_bound
@@ -965,7 +965,7 @@
 <a href=#965 id=965 data-nosnippet>965</a>        </span><span class="kw">let </span>constraints = <span class="self">self</span>.resolve_trait_constraints_and_add_to_scope(<span class="kw-2">&amp;</span>trait_impl.where_clause);
 <a href=#966 id=966 data-nosnippet>966</a>
 <a href=#967 id=967 data-nosnippet>967</a>        <span class="comment">// Attach any trait constraints on the impl to the function
-<a href=#968 id=968 data-nosnippet>968</a>        </span><span class="kw">for </span>(<span class="kw">_</span>, <span class="kw">_</span>, method) <span class="kw">in </span>trait_impl.methods.functions.iter_mut() {
+<a href=#968 id=968 data-nosnippet>968</a>        </span><span class="kw">for </span>(<span class="kw">_</span>, <span class="kw">_</span>, method) <span class="kw">in </span><span class="kw-2">&amp;mut </span>trait_impl.methods.functions {
 <a href=#969 id=969 data-nosnippet>969</a>            method.def.where_clause.append(<span class="kw-2">&amp;mut </span>trait_impl.where_clause.clone());
 <a href=#970 id=970 data-nosnippet>970</a>        }
 <a href=#971 id=971 data-nosnippet>971</a>

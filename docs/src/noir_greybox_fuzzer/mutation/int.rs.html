@@ -650,35 +650,34 @@
 <a href=#650 id=650 data-nosnippet>650</a>
 <a href=#651 id=651 data-nosnippet>651</a>    <span class="doccomment">/// Mutate an input value depending on the sign and width
 <a href=#652 id=652 data-nosnippet>652</a>    </span><span class="kw">pub fn </span>mutate(<span class="kw-2">&amp;mut </span><span class="self">self</span>, input: <span class="kw-2">&amp;</span>InputValue, sign: <span class="kw-2">&amp;</span>Sign, width: u32) -&gt; InputValue {
-<a href=#653 id=653 data-nosnippet>653</a>        <span class="kw">let </span>initial_field_value = <span class="kw">match </span>input {
-<a href=#654 id=654 data-nosnippet>654</a>            InputValue::Field(inner_field) =&gt; inner_field,
-<a href=#655 id=655 data-nosnippet>655</a>            <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"Shouldn't be used with other input value types"</span>),
-<a href=#656 id=656 data-nosnippet>656</a>        };
-<a href=#657 id=657 data-nosnippet>657</a>        <span class="macro">assert!</span>(
-<a href=#658 id=658 data-nosnippet>658</a>            width == <span class="number">1 </span>|| width == <span class="number">8 </span>|| width == <span class="number">16 </span>|| width == <span class="number">32 </span>|| width == <span class="number">64 </span>|| width == <span class="number">128
-<a href=#659 id=659 data-nosnippet>659</a>        </span>);
-<a href=#660 id=660 data-nosnippet>660</a>
-<a href=#661 id=661 data-nosnippet>661</a>        <span class="comment">// If it's just one bit just get a random value
-<a href=#662 id=662 data-nosnippet>662</a>        </span><span class="kw">if </span>width == <span class="number">1 </span>{
-<a href=#663 id=663 data-nosnippet>663</a>            <span class="macro">assert!</span>(<span class="kw-2">*</span>sign == Sign::Unsigned);
-<a href=#664 id=664 data-nosnippet>664</a>            InputValue::Field(FieldElement::from(<span class="self">self</span>.prng.random_range(<span class="number">0</span>..<span class="number">1u32</span>)))
-<a href=#665 id=665 data-nosnippet>665</a>        } <span class="kw">else </span>{
-<a href=#666 id=666 data-nosnippet>666</a>            <span class="kw">match </span>sign {
-<a href=#667 id=667 data-nosnippet>667</a>                Sign::Signed =&gt; <span class="self">self</span>.mutate_signed(initial_field_value, width),
-<a href=#668 id=668 data-nosnippet>668</a>                Sign::Unsigned =&gt; <span class="self">self</span>.mutate_unsigned(initial_field_value, width),
-<a href=#669 id=669 data-nosnippet>669</a>            }
-<a href=#670 id=670 data-nosnippet>670</a>        }
-<a href=#671 id=671 data-nosnippet>671</a>    }
-<a href=#672 id=672 data-nosnippet>672</a>}
-<a href=#673 id=673 data-nosnippet>673</a>
-<a href=#674 id=674 data-nosnippet>674</a><span class="doccomment">/// Mutate an integer input value
-<a href=#675 id=675 data-nosnippet>675</a></span><span class="kw">pub fn </span>mutate_int_input_value(
-<a href=#676 id=676 data-nosnippet>676</a>    previous_input: <span class="kw-2">&amp;</span>InputValue,
-<a href=#677 id=677 data-nosnippet>677</a>    sign: <span class="kw-2">&amp;</span>Sign,
-<a href=#678 id=678 data-nosnippet>678</a>    width: u32,
-<a href=#679 id=679 data-nosnippet>679</a>    dictionary: <span class="kw-2">&amp;</span>IntDictionary,
-<a href=#680 id=680 data-nosnippet>680</a>    prng: <span class="kw-2">&amp;mut </span>XorShiftRng,
-<a href=#681 id=681 data-nosnippet>681</a>) -&gt; InputValue {
-<a href=#682 id=682 data-nosnippet>682</a>    <span class="kw">let </span><span class="kw-2">mut </span>int_mutator = IntMutator::new(dictionary, prng);
-<a href=#683 id=683 data-nosnippet>683</a>    int_mutator.mutate(previous_input, sign, width)
-<a href=#684 id=684 data-nosnippet>684</a>}</code></pre></div></section></main></body></html>
+<a href=#653 id=653 data-nosnippet>653</a>        <span class="kw">let </span>InputValue::Field(initial_field_value) = input <span class="kw">else </span>{
+<a href=#654 id=654 data-nosnippet>654</a>            <span class="macro">panic!</span>(<span class="string">"Shouldn't be used with other input value types"</span>);
+<a href=#655 id=655 data-nosnippet>655</a>        };
+<a href=#656 id=656 data-nosnippet>656</a>        <span class="macro">assert!</span>(
+<a href=#657 id=657 data-nosnippet>657</a>            width == <span class="number">1 </span>|| width == <span class="number">8 </span>|| width == <span class="number">16 </span>|| width == <span class="number">32 </span>|| width == <span class="number">64 </span>|| width == <span class="number">128
+<a href=#658 id=658 data-nosnippet>658</a>        </span>);
+<a href=#659 id=659 data-nosnippet>659</a>
+<a href=#660 id=660 data-nosnippet>660</a>        <span class="comment">// If it's just one bit just get a random value
+<a href=#661 id=661 data-nosnippet>661</a>        </span><span class="kw">if </span>width == <span class="number">1 </span>{
+<a href=#662 id=662 data-nosnippet>662</a>            <span class="macro">assert!</span>(<span class="kw-2">*</span>sign == Sign::Unsigned);
+<a href=#663 id=663 data-nosnippet>663</a>            InputValue::Field(FieldElement::from(<span class="self">self</span>.prng.random_range(<span class="number">0</span>..<span class="number">1u32</span>)))
+<a href=#664 id=664 data-nosnippet>664</a>        } <span class="kw">else </span>{
+<a href=#665 id=665 data-nosnippet>665</a>            <span class="kw">match </span>sign {
+<a href=#666 id=666 data-nosnippet>666</a>                Sign::Signed =&gt; <span class="self">self</span>.mutate_signed(initial_field_value, width),
+<a href=#667 id=667 data-nosnippet>667</a>                Sign::Unsigned =&gt; <span class="self">self</span>.mutate_unsigned(initial_field_value, width),
+<a href=#668 id=668 data-nosnippet>668</a>            }
+<a href=#669 id=669 data-nosnippet>669</a>        }
+<a href=#670 id=670 data-nosnippet>670</a>    }
+<a href=#671 id=671 data-nosnippet>671</a>}
+<a href=#672 id=672 data-nosnippet>672</a>
+<a href=#673 id=673 data-nosnippet>673</a><span class="doccomment">/// Mutate an integer input value
+<a href=#674 id=674 data-nosnippet>674</a></span><span class="kw">pub fn </span>mutate_int_input_value(
+<a href=#675 id=675 data-nosnippet>675</a>    previous_input: <span class="kw-2">&amp;</span>InputValue,
+<a href=#676 id=676 data-nosnippet>676</a>    sign: <span class="kw-2">&amp;</span>Sign,
+<a href=#677 id=677 data-nosnippet>677</a>    width: u32,
+<a href=#678 id=678 data-nosnippet>678</a>    dictionary: <span class="kw-2">&amp;</span>IntDictionary,
+<a href=#679 id=679 data-nosnippet>679</a>    prng: <span class="kw-2">&amp;mut </span>XorShiftRng,
+<a href=#680 id=680 data-nosnippet>680</a>) -&gt; InputValue {
+<a href=#681 id=681 data-nosnippet>681</a>    <span class="kw">let </span><span class="kw-2">mut </span>int_mutator = IntMutator::new(dictionary, prng);
+<a href=#682 id=682 data-nosnippet>682</a>    int_mutator.mutate(previous_input, sign, width)
+<a href=#683 id=683 data-nosnippet>683</a>}</code></pre></div></section></main></body></html>

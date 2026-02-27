@@ -63,7 +63,7 @@
 <a href=#63 id=63 data-nosnippet>63</a>        <span class="kw">let </span>first_func_witnesses = witness_stack.peek().unwrap();
 <a href=#64 id=64 data-nosnippet>64</a>
 <a href=#65 id=65 data-nosnippet>65</a>        <span class="comment">// Look for witnesses that are neither 0 nor 1
-<a href=#66 id=66 data-nosnippet>66</a>        </span><span class="kw">for </span>(witness_index, value) <span class="kw">in </span>first_func_witnesses.witness.clone().into_iter() {
+<a href=#66 id=66 data-nosnippet>66</a>        </span><span class="kw">for </span>(witness_index, value) <span class="kw">in </span>first_func_witnesses.witness.clone() {
 <a href=#67 id=67 data-nosnippet>67</a>            <span class="kw">if </span>!(value.is_one() || value.is_zero()) {
 <a href=#68 id=68 data-nosnippet>68</a>                witness_set.insert(witness_index);
 <a href=#69 id=69 data-nosnippet>69</a>            }
@@ -83,7 +83,7 @@
 <a href=#83 id=83 data-nosnippet>83</a>        <span class="kw">let </span>first_func_witnesses = witness_stack.peek().unwrap();
 <a href=#84 id=84 data-nosnippet>84</a>
 <a href=#85 id=85 data-nosnippet>85</a>        <span class="comment">// Go through the list of perceived boolean witnesses
-<a href=#86 id=86 data-nosnippet>86</a>        </span><span class="kw">for </span>(witness_index, value) <span class="kw">in </span>first_func_witnesses.witness.clone().into_iter() {
+<a href=#86 id=86 data-nosnippet>86</a>        </span><span class="kw">for </span>(witness_index, value) <span class="kw">in </span>first_func_witnesses.witness.clone() {
 <a href=#87 id=87 data-nosnippet>87</a>            <span class="kw">if </span>!(value.is_one() || value.is_zero()) {
 <a href=#88 id=88 data-nosnippet>88</a>                <span class="self">self</span>.witness.insert(witness_index);
 <a href=#89 id=89 data-nosnippet>89</a>            }
@@ -154,7 +154,7 @@
 <a href=#154 id=154 data-nosnippet>154</a>            <span class="kw">let </span>witness_map = <span class="kw-2">&amp;</span>acir_witnesses.peek().unwrap().witness;
 <a href=#155 id=155 data-nosnippet>155</a>
 <a href=#156 id=156 data-nosnippet>156</a>            <span class="comment">// For each witness, if it is a boolean and not in the non-bool witness list, add it to the acir bool coverage
-<a href=#157 id=157 data-nosnippet>157</a>            </span><span class="kw">for </span>(witness, value) <span class="kw">in </span>witness_map.clone().into_iter() {
+<a href=#157 id=157 data-nosnippet>157</a>            </span><span class="kw">for </span>(witness, value) <span class="kw">in </span>witness_map.clone() {
 <a href=#158 id=158 data-nosnippet>158</a>                <span class="kw">if </span>(value.is_zero() || value.is_one())
 <a href=#159 id=159 data-nosnippet>159</a>                    &amp;&amp; !non_bool_witness_list.witness.contains(<span class="kw-2">&amp;</span>witness)
 <a href=#160 id=160 data-nosnippet>160</a>                {
@@ -228,7 +228,7 @@
 <a href=#228 id=228 data-nosnippet>228</a>        <span class="kw">let </span><span class="kw-2">mut </span>cmp_coverage = Vec::new();
 <a href=#229 id=229 data-nosnippet>229</a>
 <a href=#230 id=230 data-nosnippet>230</a>        <span class="comment">// Process each coverage item
-<a href=#231 id=231 data-nosnippet>231</a>        </span><span class="kw">for </span>coverage_item <span class="kw">in </span>coverage_items.iter() {
+<a href=#231 id=231 data-nosnippet>231</a>        </span><span class="kw">for </span>coverage_item <span class="kw">in </span>coverage_items {
 <a href=#232 id=232 data-nosnippet>232</a>            <span class="kw">match </span>coverage_item {
 <a href=#233 id=233 data-nosnippet>233</a>                <span class="comment">// Handle branch coverage
 <a href=#234 id=234 data-nosnippet>234</a>                </span>BrilligCoverageItemRange::Branch(branch_coverage_range) =&gt; {
@@ -293,11 +293,11 @@
 <a href=#293 id=293 data-nosnippet>293</a>        };
 <a href=#294 id=294 data-nosnippet>294</a>
 <a href=#295 id=295 data-nosnippet>295</a>        <span class="comment">// Go through branch coverage and remove testcase id from the set of unused if we encounter it
-<a href=#296 id=296 data-nosnippet>296</a>        </span><span class="kw">for </span>branch <span class="kw">in </span><span class="self">self</span>.brillig_branch_coverage.iter() {
+<a href=#296 id=296 data-nosnippet>296</a>        </span><span class="kw">for </span>branch <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.brillig_branch_coverage {
 <a href=#297 id=297 data-nosnippet>297</a>            <span class="kw">if </span>branch.encountered_loop_log2s.is_zero() {
 <a href=#298 id=298 data-nosnippet>298</a>                <span class="kw">continue</span>;
 <a href=#299 id=299 data-nosnippet>299</a>            }
-<a href=#300 id=300 data-nosnippet>300</a>            <span class="kw">for </span>element <span class="kw">in </span>branch.testcases_involved.iter() {
+<a href=#300 id=300 data-nosnippet>300</a>            <span class="kw">for </span>element <span class="kw">in </span><span class="kw-2">&amp;</span>branch.testcases_involved {
 <a href=#301 id=301 data-nosnippet>301</a>                <span class="kw">if </span>remove_if_used(element) {
 <a href=#302 id=302 data-nosnippet>302</a>                    <span class="kw">return </span>unused_testcases;
 <a href=#303 id=303 data-nosnippet>303</a>                }
@@ -308,7 +308,7 @@
 <a href=#308 id=308 data-nosnippet>308</a>        }
 <a href=#309 id=309 data-nosnippet>309</a>
 <a href=#310 id=310 data-nosnippet>310</a>        <span class="comment">// Go through comparison coverage and remove testcase id from the set of unused if we encounter it
-<a href=#311 id=311 data-nosnippet>311</a>        </span><span class="kw">for </span>cmp_approach <span class="kw">in </span><span class="self">self</span>.brillig_cmp_approach_coverage.iter() {
+<a href=#311 id=311 data-nosnippet>311</a>        </span><span class="kw">for </span>cmp_approach <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.brillig_cmp_approach_coverage {
 <a href=#312 id=312 data-nosnippet>312</a>            <span class="kw">if </span>!cmp_approach.enabled {
 <a href=#313 id=313 data-nosnippet>313</a>                <span class="kw">continue</span>;
 <a href=#314 id=314 data-nosnippet>314</a>            }
@@ -317,7 +317,7 @@
 <a href=#317 id=317 data-nosnippet>317</a>            {
 <a href=#318 id=318 data-nosnippet>318</a>                <span class="kw">return </span>unused_testcases;
 <a href=#319 id=319 data-nosnippet>319</a>            }
-<a href=#320 id=320 data-nosnippet>320</a>            <span class="kw">for </span>element <span class="kw">in </span>cmp_approach.testcases_involved.iter() {
+<a href=#320 id=320 data-nosnippet>320</a>            <span class="kw">for </span>element <span class="kw">in </span><span class="kw-2">&amp;</span>cmp_approach.testcases_involved {
 <a href=#321 id=321 data-nosnippet>321</a>                <span class="kw">if </span>remove_if_used(element) {
 <a href=#322 id=322 data-nosnippet>322</a>                    <span class="kw">return </span>unused_testcases;
 <a href=#323 id=323 data-nosnippet>323</a>                }
@@ -375,7 +375,7 @@
 <a href=#375 id=375 data-nosnippet>375</a>        add_to_leavers: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>FnMut(<span class="prelude-ty">Option</span>&lt;TestCaseId&gt;),
 <a href=#376 id=376 data-nosnippet>376</a>    ) {
 <a href=#377 id=377 data-nosnippet>377</a>        <span class="comment">// Go through all single branch coverage ranges and merge branch coverage in
-<a href=#378 id=378 data-nosnippet>378</a>        </span><span class="kw">for </span>branch <span class="kw">in </span><span class="self">self</span>.brillig_branch_coverage.iter_mut() {
+<a href=#378 id=378 data-nosnippet>378</a>        </span><span class="kw">for </span>branch <span class="kw">in </span><span class="kw-2">&amp;mut </span><span class="self">self</span>.brillig_branch_coverage {
 <a href=#379 id=379 data-nosnippet>379</a>            <span class="kw">let </span>prev_value = <span class="kw-2">*</span>branch;
 <a href=#380 id=380 data-nosnippet>380</a>            <span class="kw">let </span>testcase_value = new_coverage.brillig_coverage[branch.raw_index];
 <a href=#381 id=381 data-nosnippet>381</a>            <span class="comment">// If the branch was taken at least once
@@ -405,7 +405,7 @@
 <a href=#405 id=405 data-nosnippet>405</a>        add_to_leavers: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>FnMut(<span class="prelude-ty">Option</span>&lt;TestCaseId&gt;),
 <a href=#406 id=406 data-nosnippet>406</a>    ) {
 <a href=#407 id=407 data-nosnippet>407</a>        <span class="comment">// Go through comparison coverage
-<a href=#408 id=408 data-nosnippet>408</a>        </span><span class="kw">for </span>cmp_approach <span class="kw">in </span><span class="self">self</span>.brillig_cmp_approach_coverage.iter_mut() {
+<a href=#408 id=408 data-nosnippet>408</a>        </span><span class="kw">for </span>cmp_approach <span class="kw">in </span><span class="kw-2">&amp;mut </span><span class="self">self</span>.brillig_cmp_approach_coverage {
 <a href=#409 id=409 data-nosnippet>409</a>            <span class="kw">if </span>!cmp_approach.enabled {
 <a href=#410 id=410 data-nosnippet>410</a>                <span class="comment">// No need to detect closeness any more if we've hit the equality case
 <a href=#411 id=411 data-nosnippet>411</a>                </span><span class="kw">continue</span>;
@@ -515,7 +515,7 @@
 <a href=#515 id=515 data-nosnippet>515</a>        add_to_leavers: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>FnMut(<span class="prelude-ty">Option</span>&lt;TestCaseId&gt;),
 <a href=#516 id=516 data-nosnippet>516</a>    ) {
 <a href=#517 id=517 data-nosnippet>517</a>        <span class="comment">// Insert all ACIR states and replace testcase association
-<a href=#518 id=518 data-nosnippet>518</a>        </span><span class="kw">for </span>acir_bool_state <span class="kw">in </span>new_coverage.acir_bool_coverage.iter() {
+<a href=#518 id=518 data-nosnippet>518</a>        </span><span class="kw">for </span>acir_bool_state <span class="kw">in </span><span class="kw-2">&amp;</span>new_coverage.acir_bool_coverage {
 <a href=#519 id=519 data-nosnippet>519</a>            <span class="kw">let </span>witness = Witness::new(acir_bool_state.witness_id);
 <a href=#520 id=520 data-nosnippet>520</a>            <span class="comment">// If the witness is non-boolean according the merged non-bool witness list, skip it
 <a href=#521 id=521 data-nosnippet>521</a>            </span><span class="kw">if </span><span class="self">self</span>.non_bool_witness_list.witness.contains(<span class="kw-2">&amp;</span>witness) {
@@ -537,7 +537,7 @@
 <a href=#537 id=537 data-nosnippet>537</a>        <span class="kw">let </span><span class="kw-2">mut </span>states_to_remove = Vec::new();
 <a href=#538 id=538 data-nosnippet>538</a>
 <a href=#539 id=539 data-nosnippet>539</a>        <span class="comment">// Check that all boolean state witnesses observed in accumulated coverage are not in the non-bool witness list
-<a href=#540 id=540 data-nosnippet>540</a>        </span><span class="kw">for </span>state <span class="kw">in </span><span class="self">self</span>.acir_bool_coverage.iter() {
+<a href=#540 id=540 data-nosnippet>540</a>        </span><span class="kw">for </span>state <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.acir_bool_coverage {
 <a href=#541 id=541 data-nosnippet>541</a>            <span class="kw">if </span><span class="self">self</span>.non_bool_witness_list.witness.contains(<span class="kw-2">&amp;</span>Witness::new(state.witness_id)) {
 <a href=#542 id=542 data-nosnippet>542</a>                states_to_remove.push(<span class="kw-2">*</span>state);
 <a href=#543 id=543 data-nosnippet>543</a>            }
@@ -556,7 +556,7 @@
 <a href=#556 id=556 data-nosnippet>556</a>        // 1. A new branch is taken
 <a href=#557 id=557 data-nosnippet>557</a>        // 2. A branch is taken more times than ever encountered before in a single execution
 <a href=#558 id=558 data-nosnippet>558</a>        // 3. A branch is taken pow2 times that hasn't been previously observed
-<a href=#559 id=559 data-nosnippet>559</a>        </span><span class="kw">for </span>branch <span class="kw">in </span><span class="self">self</span>.brillig_branch_coverage.iter() {
+<a href=#559 id=559 data-nosnippet>559</a>        </span><span class="kw">for </span>branch <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.brillig_branch_coverage {
 <a href=#560 id=560 data-nosnippet>560</a>            <span class="kw">let </span>testcase_value = new_coverage.brillig_coverage[branch.raw_index];
 <a href=#561 id=561 data-nosnippet>561</a>            <span class="kw">if </span>!testcase_value.is_zero() {
 <a href=#562 id=562 data-nosnippet>562</a>                <span class="kw">if </span>(branch.encountered_loop_log2s
@@ -576,7 +576,7 @@
 <a href=#576 id=576 data-nosnippet>576</a>        // 1. If a particular comparison has achieved a difference between arguments whose log2 is smaller than previously observed
 <a href=#577 id=577 data-nosnippet>577</a>        // 2. If the smallest log2 previously observed has been detected more times in the same execution
 <a href=#578 id=578 data-nosnippet>578</a>        // 3. If the number of executions of the log2 is a new log2 that hasn't been observed
-<a href=#579 id=579 data-nosnippet>579</a>        </span><span class="kw">for </span>cmp_approach <span class="kw">in </span><span class="self">self</span>.brillig_cmp_approach_coverage.iter() {
+<a href=#579 id=579 data-nosnippet>579</a>        </span><span class="kw">for </span>cmp_approach <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.brillig_cmp_approach_coverage {
 <a href=#580 id=580 data-nosnippet>580</a>            <span class="kw">if </span>!cmp_approach.enabled {
 <a href=#581 id=581 data-nosnippet>581</a>                <span class="comment">// No need to detect closeness any more if we've hit the equality case
 <a href=#582 id=582 data-nosnippet>582</a>                </span><span class="kw">continue</span>;
@@ -601,7 +601,7 @@
 <a href=#601 id=601 data-nosnippet>601</a>            }
 <a href=#602 id=602 data-nosnippet>602</a>        }
 <a href=#603 id=603 data-nosnippet>603</a>        <span class="comment">// Check if a boolean state has been observed before
-<a href=#604 id=604 data-nosnippet>604</a>        </span><span class="kw">for </span>acir_bool_state <span class="kw">in </span>new_coverage.acir_bool_coverage.iter() {
+<a href=#604 id=604 data-nosnippet>604</a>        </span><span class="kw">for </span>acir_bool_state <span class="kw">in </span><span class="kw-2">&amp;</span>new_coverage.acir_bool_coverage {
 <a href=#605 id=605 data-nosnippet>605</a>            <span class="kw">if </span>!<span class="self">self</span>.acir_bool_coverage.contains(acir_bool_state) {
 <a href=#606 id=606 data-nosnippet>606</a>                <span class="kw">return </span><span class="bool-val">true</span>;
 <a href=#607 id=607 data-nosnippet>607</a>            }
@@ -623,116 +623,115 @@
 <a href=#623 id=623 data-nosnippet>623</a>    <span class="kw">let </span>main_function = <span class="kw-2">&amp;</span>program_bytecode.functions[<span class="number">0</span>];
 <a href=#624 id=624 data-nosnippet>624</a>    <span class="kw">let </span>starting_opcode = <span class="kw-2">&amp;</span>main_function.opcodes[<span class="number">0</span>];
 <a href=#625 id=625 data-nosnippet>625</a>
-<a href=#626 id=626 data-nosnippet>626</a>    <span class="kw">let </span>fuzzed_brillig_function_id = <span class="kw">match </span>starting_opcode {
-<a href=#627 id=627 data-nosnippet>627</a>        Opcode::BrilligCall { id, .. } =&gt; id,
-<a href=#628 id=628 data-nosnippet>628</a>        <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(
-<a href=#629 id=629 data-nosnippet>629</a>            <span class="string">"If a method is compiled to brillig, the first opcode in ACIR has to be brillig call"
-<a href=#630 id=630 data-nosnippet>630</a>        </span>),
-<a href=#631 id=631 data-nosnippet>631</a>    };
-<a href=#632 id=632 data-nosnippet>632</a>    <span class="comment">// Get the brillig code
-<a href=#633 id=633 data-nosnippet>633</a>    </span><span class="kw">let </span>fuzzed_brillig_function =
-<a href=#634 id=634 data-nosnippet>634</a>        <span class="kw-2">&amp;</span>program_bytecode.unconstrained_functions[fuzzed_brillig_function_id.as_usize()];
-<a href=#635 id=635 data-nosnippet>635</a>
-<a href=#636 id=636 data-nosnippet>636</a>    <span class="kw">let </span><span class="kw-2">mut </span>feature_to_index_map = HashMap::new();
-<a href=#637 id=637 data-nosnippet>637</a>    <span class="kw">let </span><span class="kw-2">mut </span>total_features = <span class="number">0usize</span>;
-<a href=#638 id=638 data-nosnippet>638</a>    <span class="kw">let </span><span class="kw-2">mut </span>coverage_items = BrilligCoverageRanges::new();
-<a href=#639 id=639 data-nosnippet>639</a>    <span class="comment">// Go through each opcode, detect branching and comparison opcodes and then store information about them
-<a href=#640 id=640 data-nosnippet>640</a>    </span><span class="kw">for </span>(opcode_index, opcode) <span class="kw">in </span>fuzzed_brillig_function.bytecode.iter().enumerate() {
-<a href=#641 id=641 data-nosnippet>641</a>        <span class="kw">match </span>opcode {
-<a href=#642 id=642 data-nosnippet>642</a>            <span class="comment">// Conditional branching
-<a href=#643 id=643 data-nosnippet>643</a>            </span><span class="kw-2">&amp;</span>BrilligOpcode::JumpIf { location, .. } =&gt; {
-<a href=#644 id=644 data-nosnippet>644</a>                feature_to_index_map.insert((opcode_index, location), total_features);
-<a href=#645 id=645 data-nosnippet>645</a>                feature_to_index_map.insert((opcode_index, opcode_index + <span class="number">1</span>), total_features + <span class="number">1</span>);
-<a href=#646 id=646 data-nosnippet>646</a>                coverage_items.push(BrilligCoverageItemRange::Branch(BranchCoverageRange {
-<a href=#647 id=647 data-nosnippet>647</a>                    index: total_features,
-<a href=#648 id=648 data-nosnippet>648</a>                }));
-<a href=#649 id=649 data-nosnippet>649</a>                total_features += <span class="number">2</span>;
-<a href=#650 id=650 data-nosnippet>650</a>            }
-<a href=#651 id=651 data-nosnippet>651</a>            <span class="comment">// Conditional mov
-<a href=#652 id=652 data-nosnippet>652</a>            </span><span class="kw-2">&amp;</span>BrilligOpcode::ConditionalMov { .. } =&gt; {
-<a href=#653 id=653 data-nosnippet>653</a>                feature_to_index_map.insert((opcode_index, FUZZING_COMPARISON_TRUE_STATE), total_features);
-<a href=#654 id=654 data-nosnippet>654</a>                feature_to_index_map.insert((opcode_index, FUZZING_COMPARISON_FALSE_STATE), total_features + <span class="number">1</span>);
-<a href=#655 id=655 data-nosnippet>655</a>                coverage_items.push(BrilligCoverageItemRange::Branch(BranchCoverageRange {
-<a href=#656 id=656 data-nosnippet>656</a>                    index: total_features,
-<a href=#657 id=657 data-nosnippet>657</a>                }));
-<a href=#658 id=658 data-nosnippet>658</a>                total_features += <span class="number">2</span>;
-<a href=#659 id=659 data-nosnippet>659</a>            }
-<a href=#660 id=660 data-nosnippet>660</a>            <span class="comment">// Binary operations (we need comparisons)
-<a href=#661 id=661 data-nosnippet>661</a>            </span><span class="kw-2">&amp;</span>BrilligOpcode::BinaryFieldOp { destination: <span class="kw">_</span>, op, .. } =&gt; <span class="kw">match </span>op {
-<a href=#662 id=662 data-nosnippet>662</a>                acvm::acir::brillig::BinaryFieldOp::Add
-<a href=#663 id=663 data-nosnippet>663</a>                | acvm::acir::brillig::BinaryFieldOp::Sub
-<a href=#664 id=664 data-nosnippet>664</a>                | acvm::acir::brillig::BinaryFieldOp::Mul
-<a href=#665 id=665 data-nosnippet>665</a>                | acvm::acir::brillig::BinaryFieldOp::Div
-<a href=#666 id=666 data-nosnippet>666</a>                | acvm::acir::brillig::BinaryFieldOp::IntegerDiv =&gt; {}
-<a href=#667 id=667 data-nosnippet>667</a>                <span class="comment">// Equality and LessThan(Equals) are comparisons that interest us
-<a href=#668 id=668 data-nosnippet>668</a>                </span>acvm::acir::brillig::BinaryFieldOp::Equals
-<a href=#669 id=669 data-nosnippet>669</a>                | acvm::acir::brillig::BinaryFieldOp::LessThan
-<a href=#670 id=670 data-nosnippet>670</a>                | acvm::acir::brillig::BinaryFieldOp::LessThanEquals =&gt; {
-<a href=#671 id=671 data-nosnippet>671</a>                    coverage_items.push(BrilligCoverageItemRange::Comparison(CmpCoverageRange {
-<a href=#672 id=672 data-nosnippet>672</a>                        index: total_features,
-<a href=#673 id=673 data-nosnippet>673</a>                    }));
-<a href=#674 id=674 data-nosnippet>674</a>                    <span class="comment">// Insert features for boolean states
-<a href=#675 id=675 data-nosnippet>675</a>                    </span>feature_to_index_map.insert((opcode_index, FUZZING_COMPARISON_TRUE_STATE), total_features);
-<a href=#676 id=676 data-nosnippet>676</a>                    feature_to_index_map.insert((opcode_index, FUZZING_COMPARISON_FALSE_STATE), total_features + <span class="number">1</span>);
-<a href=#677 id=677 data-nosnippet>677</a>                    total_features += <span class="number">2</span>;
-<a href=#678 id=678 data-nosnippet>678</a>
-<a href=#679 id=679 data-nosnippet>679</a>                    <span class="comment">// Insert features for each potential difference log
-<a href=#680 id=680 data-nosnippet>680</a>                    </span><span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..FUZZING_COMPARISON_LOG_RANGE_NUMBER_OF_STATES {
-<a href=#681 id=681 data-nosnippet>681</a>                        feature_to_index_map
-<a href=#682 id=682 data-nosnippet>682</a>                            .insert((opcode_index, FUZZING_COMPARISON_LOG_RANGE_START_STATE + i), total_features + i);
-<a href=#683 id=683 data-nosnippet>683</a>                    }
-<a href=#684 id=684 data-nosnippet>684</a>                    total_features += FUZZING_COMPARISON_LOG_RANGE_NUMBER_OF_STATES;
-<a href=#685 id=685 data-nosnippet>685</a>                }
-<a href=#686 id=686 data-nosnippet>686</a>            },
-<a href=#687 id=687 data-nosnippet>687</a>            <span class="comment">// Binary operations (we need comparisons)
-<a href=#688 id=688 data-nosnippet>688</a>            </span><span class="kw-2">&amp;</span>BrilligOpcode::BinaryIntOp { destination: <span class="kw">_</span>, op,  .. } =&gt; <span class="kw">match </span>op {
-<a href=#689 id=689 data-nosnippet>689</a>                acvm::acir::brillig::BinaryIntOp::Add
-<a href=#690 id=690 data-nosnippet>690</a>                | acvm::acir::brillig::BinaryIntOp::Sub
-<a href=#691 id=691 data-nosnippet>691</a>                | acvm::acir::brillig::BinaryIntOp::Mul
-<a href=#692 id=692 data-nosnippet>692</a>                | acvm::acir::brillig::BinaryIntOp::Div
-<a href=#693 id=693 data-nosnippet>693</a>                | acvm::acir::brillig::BinaryIntOp::And
-<a href=#694 id=694 data-nosnippet>694</a>                | acvm::acir::brillig::BinaryIntOp::Or
-<a href=#695 id=695 data-nosnippet>695</a>                | acvm::acir::brillig::BinaryIntOp::Xor
-<a href=#696 id=696 data-nosnippet>696</a>                | acvm::acir::brillig::BinaryIntOp::Shl
-<a href=#697 id=697 data-nosnippet>697</a>                | acvm::acir::brillig::BinaryIntOp::Shr =&gt; {}
-<a href=#698 id=698 data-nosnippet>698</a>                <span class="comment">// Equality and LessThan(Equals) are comparisons that interest us
-<a href=#699 id=699 data-nosnippet>699</a>                </span>acvm::acir::brillig::BinaryIntOp::Equals
-<a href=#700 id=700 data-nosnippet>700</a>                | acvm::acir::brillig::BinaryIntOp::LessThan
-<a href=#701 id=701 data-nosnippet>701</a>                | acvm::acir::brillig::BinaryIntOp::LessThanEquals =&gt; {
-<a href=#702 id=702 data-nosnippet>702</a>                    coverage_items.push(BrilligCoverageItemRange::Comparison(CmpCoverageRange {
-<a href=#703 id=703 data-nosnippet>703</a>                        index: total_features,
-<a href=#704 id=704 data-nosnippet>704</a>                    }));
-<a href=#705 id=705 data-nosnippet>705</a>                    <span class="comment">// Insert features for boolean states
-<a href=#706 id=706 data-nosnippet>706</a>                    </span>feature_to_index_map.insert((opcode_index, FUZZING_COMPARISON_TRUE_STATE), total_features);
-<a href=#707 id=707 data-nosnippet>707</a>                    feature_to_index_map.insert((opcode_index, FUZZING_COMPARISON_FALSE_STATE), total_features + <span class="number">1</span>);
-<a href=#708 id=708 data-nosnippet>708</a>                    total_features += <span class="number">2</span>;
-<a href=#709 id=709 data-nosnippet>709</a>
-<a href=#710 id=710 data-nosnippet>710</a>                    <span class="comment">// Insert features for each potential difference log
-<a href=#711 id=711 data-nosnippet>711</a>                    </span><span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..FUZZING_COMPARISON_LOG_RANGE_NUMBER_OF_STATES {
-<a href=#712 id=712 data-nosnippet>712</a>                        feature_to_index_map
-<a href=#713 id=713 data-nosnippet>713</a>                            .insert((opcode_index, FUZZING_COMPARISON_LOG_RANGE_START_STATE + i), total_features + i);
-<a href=#714 id=714 data-nosnippet>714</a>                    }
-<a href=#715 id=715 data-nosnippet>715</a>                    total_features += FUZZING_COMPARISON_LOG_RANGE_NUMBER_OF_STATES;
-<a href=#716 id=716 data-nosnippet>716</a>
-<a href=#717 id=717 data-nosnippet>717</a>                }
-<a href=#718 id=718 data-nosnippet>718</a>            },
-<a href=#719 id=719 data-nosnippet>719</a>            BrilligOpcode::Not { .. }
-<a href=#720 id=720 data-nosnippet>720</a>            | BrilligOpcode::Cast { .. }
-<a href=#721 id=721 data-nosnippet>721</a>            | BrilligOpcode::Jump { .. }
-<a href=#722 id=722 data-nosnippet>722</a>            | BrilligOpcode::CalldataCopy { .. }
-<a href=#723 id=723 data-nosnippet>723</a>            | BrilligOpcode::Call { .. }
-<a href=#724 id=724 data-nosnippet>724</a>            <span class="comment">// TODO(Parse constants in brillig and add to the dictionary)
-<a href=#725 id=725 data-nosnippet>725</a>            </span>| BrilligOpcode::Const { .. }
-<a href=#726 id=726 data-nosnippet>726</a>            | BrilligOpcode::IndirectConst { .. }
-<a href=#727 id=727 data-nosnippet>727</a>            | BrilligOpcode::Return |
-<a href=#728 id=728 data-nosnippet>728</a>            BrilligOpcode::ForeignCall { .. }
-<a href=#729 id=729 data-nosnippet>729</a>            | BrilligOpcode::Mov { .. }
-<a href=#730 id=730 data-nosnippet>730</a>            | BrilligOpcode::Load { .. }
-<a href=#731 id=731 data-nosnippet>731</a>            | BrilligOpcode::Store { .. }
-<a href=#732 id=732 data-nosnippet>732</a>            | BrilligOpcode::BlackBox(..)
-<a href=#733 id=733 data-nosnippet>733</a>            | BrilligOpcode::Trap { .. }
-<a href=#734 id=734 data-nosnippet>734</a>            | BrilligOpcode::Stop { .. } =&gt; (),
-<a href=#735 id=735 data-nosnippet>735</a>        }
-<a href=#736 id=736 data-nosnippet>736</a>    }
-<a href=#737 id=737 data-nosnippet>737</a>    (feature_to_index_map, coverage_items)
-<a href=#738 id=738 data-nosnippet>738</a>}</code></pre></div></section></main></body></html>
+<a href=#626 id=626 data-nosnippet>626</a>    <span class="kw">let </span>Opcode::BrilligCall { id: fuzzed_brillig_function_id, .. } = starting_opcode <span class="kw">else </span>{
+<a href=#627 id=627 data-nosnippet>627</a>        <span class="macro">panic!</span>(
+<a href=#628 id=628 data-nosnippet>628</a>            <span class="string">"If a method is compiled to brillig, the first opcode in ACIR has to be brillig call"
+<a href=#629 id=629 data-nosnippet>629</a>        </span>);
+<a href=#630 id=630 data-nosnippet>630</a>    };
+<a href=#631 id=631 data-nosnippet>631</a>    <span class="comment">// Get the brillig code
+<a href=#632 id=632 data-nosnippet>632</a>    </span><span class="kw">let </span>fuzzed_brillig_function =
+<a href=#633 id=633 data-nosnippet>633</a>        <span class="kw-2">&amp;</span>program_bytecode.unconstrained_functions[fuzzed_brillig_function_id.as_usize()];
+<a href=#634 id=634 data-nosnippet>634</a>
+<a href=#635 id=635 data-nosnippet>635</a>    <span class="kw">let </span><span class="kw-2">mut </span>feature_to_index_map = HashMap::new();
+<a href=#636 id=636 data-nosnippet>636</a>    <span class="kw">let </span><span class="kw-2">mut </span>total_features = <span class="number">0usize</span>;
+<a href=#637 id=637 data-nosnippet>637</a>    <span class="kw">let </span><span class="kw-2">mut </span>coverage_items = BrilligCoverageRanges::new();
+<a href=#638 id=638 data-nosnippet>638</a>    <span class="comment">// Go through each opcode, detect branching and comparison opcodes and then store information about them
+<a href=#639 id=639 data-nosnippet>639</a>    </span><span class="kw">for </span>(opcode_index, opcode) <span class="kw">in </span>fuzzed_brillig_function.bytecode.iter().enumerate() {
+<a href=#640 id=640 data-nosnippet>640</a>        <span class="kw">match </span>opcode {
+<a href=#641 id=641 data-nosnippet>641</a>            <span class="comment">// Conditional branching
+<a href=#642 id=642 data-nosnippet>642</a>            </span><span class="kw-2">&amp;</span>BrilligOpcode::JumpIf { location, .. } =&gt; {
+<a href=#643 id=643 data-nosnippet>643</a>                feature_to_index_map.insert((opcode_index, location), total_features);
+<a href=#644 id=644 data-nosnippet>644</a>                feature_to_index_map.insert((opcode_index, opcode_index + <span class="number">1</span>), total_features + <span class="number">1</span>);
+<a href=#645 id=645 data-nosnippet>645</a>                coverage_items.push(BrilligCoverageItemRange::Branch(BranchCoverageRange {
+<a href=#646 id=646 data-nosnippet>646</a>                    index: total_features,
+<a href=#647 id=647 data-nosnippet>647</a>                }));
+<a href=#648 id=648 data-nosnippet>648</a>                total_features += <span class="number">2</span>;
+<a href=#649 id=649 data-nosnippet>649</a>            }
+<a href=#650 id=650 data-nosnippet>650</a>            <span class="comment">// Conditional mov
+<a href=#651 id=651 data-nosnippet>651</a>            </span><span class="kw-2">&amp;</span>BrilligOpcode::ConditionalMov { .. } =&gt; {
+<a href=#652 id=652 data-nosnippet>652</a>                feature_to_index_map.insert((opcode_index, FUZZING_COMPARISON_TRUE_STATE), total_features);
+<a href=#653 id=653 data-nosnippet>653</a>                feature_to_index_map.insert((opcode_index, FUZZING_COMPARISON_FALSE_STATE), total_features + <span class="number">1</span>);
+<a href=#654 id=654 data-nosnippet>654</a>                coverage_items.push(BrilligCoverageItemRange::Branch(BranchCoverageRange {
+<a href=#655 id=655 data-nosnippet>655</a>                    index: total_features,
+<a href=#656 id=656 data-nosnippet>656</a>                }));
+<a href=#657 id=657 data-nosnippet>657</a>                total_features += <span class="number">2</span>;
+<a href=#658 id=658 data-nosnippet>658</a>            }
+<a href=#659 id=659 data-nosnippet>659</a>            <span class="comment">// Binary operations (we need comparisons)
+<a href=#660 id=660 data-nosnippet>660</a>            </span><span class="kw-2">&amp;</span>BrilligOpcode::BinaryFieldOp { destination: <span class="kw">_</span>, op, .. } =&gt; <span class="kw">match </span>op {
+<a href=#661 id=661 data-nosnippet>661</a>                acvm::acir::brillig::BinaryFieldOp::Add
+<a href=#662 id=662 data-nosnippet>662</a>                | acvm::acir::brillig::BinaryFieldOp::Sub
+<a href=#663 id=663 data-nosnippet>663</a>                | acvm::acir::brillig::BinaryFieldOp::Mul
+<a href=#664 id=664 data-nosnippet>664</a>                | acvm::acir::brillig::BinaryFieldOp::Div
+<a href=#665 id=665 data-nosnippet>665</a>                | acvm::acir::brillig::BinaryFieldOp::IntegerDiv =&gt; {}
+<a href=#666 id=666 data-nosnippet>666</a>                <span class="comment">// Equality and LessThan(Equals) are comparisons that interest us
+<a href=#667 id=667 data-nosnippet>667</a>                </span>acvm::acir::brillig::BinaryFieldOp::Equals
+<a href=#668 id=668 data-nosnippet>668</a>                | acvm::acir::brillig::BinaryFieldOp::LessThan
+<a href=#669 id=669 data-nosnippet>669</a>                | acvm::acir::brillig::BinaryFieldOp::LessThanEquals =&gt; {
+<a href=#670 id=670 data-nosnippet>670</a>                    coverage_items.push(BrilligCoverageItemRange::Comparison(CmpCoverageRange {
+<a href=#671 id=671 data-nosnippet>671</a>                        index: total_features,
+<a href=#672 id=672 data-nosnippet>672</a>                    }));
+<a href=#673 id=673 data-nosnippet>673</a>                    <span class="comment">// Insert features for boolean states
+<a href=#674 id=674 data-nosnippet>674</a>                    </span>feature_to_index_map.insert((opcode_index, FUZZING_COMPARISON_TRUE_STATE), total_features);
+<a href=#675 id=675 data-nosnippet>675</a>                    feature_to_index_map.insert((opcode_index, FUZZING_COMPARISON_FALSE_STATE), total_features + <span class="number">1</span>);
+<a href=#676 id=676 data-nosnippet>676</a>                    total_features += <span class="number">2</span>;
+<a href=#677 id=677 data-nosnippet>677</a>
+<a href=#678 id=678 data-nosnippet>678</a>                    <span class="comment">// Insert features for each potential difference log
+<a href=#679 id=679 data-nosnippet>679</a>                    </span><span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..FUZZING_COMPARISON_LOG_RANGE_NUMBER_OF_STATES {
+<a href=#680 id=680 data-nosnippet>680</a>                        feature_to_index_map
+<a href=#681 id=681 data-nosnippet>681</a>                            .insert((opcode_index, FUZZING_COMPARISON_LOG_RANGE_START_STATE + i), total_features + i);
+<a href=#682 id=682 data-nosnippet>682</a>                    }
+<a href=#683 id=683 data-nosnippet>683</a>                    total_features += FUZZING_COMPARISON_LOG_RANGE_NUMBER_OF_STATES;
+<a href=#684 id=684 data-nosnippet>684</a>                }
+<a href=#685 id=685 data-nosnippet>685</a>            },
+<a href=#686 id=686 data-nosnippet>686</a>            <span class="comment">// Binary operations (we need comparisons)
+<a href=#687 id=687 data-nosnippet>687</a>            </span><span class="kw-2">&amp;</span>BrilligOpcode::BinaryIntOp { destination: <span class="kw">_</span>, op,  .. } =&gt; <span class="kw">match </span>op {
+<a href=#688 id=688 data-nosnippet>688</a>                acvm::acir::brillig::BinaryIntOp::Add
+<a href=#689 id=689 data-nosnippet>689</a>                | acvm::acir::brillig::BinaryIntOp::Sub
+<a href=#690 id=690 data-nosnippet>690</a>                | acvm::acir::brillig::BinaryIntOp::Mul
+<a href=#691 id=691 data-nosnippet>691</a>                | acvm::acir::brillig::BinaryIntOp::Div
+<a href=#692 id=692 data-nosnippet>692</a>                | acvm::acir::brillig::BinaryIntOp::And
+<a href=#693 id=693 data-nosnippet>693</a>                | acvm::acir::brillig::BinaryIntOp::Or
+<a href=#694 id=694 data-nosnippet>694</a>                | acvm::acir::brillig::BinaryIntOp::Xor
+<a href=#695 id=695 data-nosnippet>695</a>                | acvm::acir::brillig::BinaryIntOp::Shl
+<a href=#696 id=696 data-nosnippet>696</a>                | acvm::acir::brillig::BinaryIntOp::Shr =&gt; {}
+<a href=#697 id=697 data-nosnippet>697</a>                <span class="comment">// Equality and LessThan(Equals) are comparisons that interest us
+<a href=#698 id=698 data-nosnippet>698</a>                </span>acvm::acir::brillig::BinaryIntOp::Equals
+<a href=#699 id=699 data-nosnippet>699</a>                | acvm::acir::brillig::BinaryIntOp::LessThan
+<a href=#700 id=700 data-nosnippet>700</a>                | acvm::acir::brillig::BinaryIntOp::LessThanEquals =&gt; {
+<a href=#701 id=701 data-nosnippet>701</a>                    coverage_items.push(BrilligCoverageItemRange::Comparison(CmpCoverageRange {
+<a href=#702 id=702 data-nosnippet>702</a>                        index: total_features,
+<a href=#703 id=703 data-nosnippet>703</a>                    }));
+<a href=#704 id=704 data-nosnippet>704</a>                    <span class="comment">// Insert features for boolean states
+<a href=#705 id=705 data-nosnippet>705</a>                    </span>feature_to_index_map.insert((opcode_index, FUZZING_COMPARISON_TRUE_STATE), total_features);
+<a href=#706 id=706 data-nosnippet>706</a>                    feature_to_index_map.insert((opcode_index, FUZZING_COMPARISON_FALSE_STATE), total_features + <span class="number">1</span>);
+<a href=#707 id=707 data-nosnippet>707</a>                    total_features += <span class="number">2</span>;
+<a href=#708 id=708 data-nosnippet>708</a>
+<a href=#709 id=709 data-nosnippet>709</a>                    <span class="comment">// Insert features for each potential difference log
+<a href=#710 id=710 data-nosnippet>710</a>                    </span><span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..FUZZING_COMPARISON_LOG_RANGE_NUMBER_OF_STATES {
+<a href=#711 id=711 data-nosnippet>711</a>                        feature_to_index_map
+<a href=#712 id=712 data-nosnippet>712</a>                            .insert((opcode_index, FUZZING_COMPARISON_LOG_RANGE_START_STATE + i), total_features + i);
+<a href=#713 id=713 data-nosnippet>713</a>                    }
+<a href=#714 id=714 data-nosnippet>714</a>                    total_features += FUZZING_COMPARISON_LOG_RANGE_NUMBER_OF_STATES;
+<a href=#715 id=715 data-nosnippet>715</a>
+<a href=#716 id=716 data-nosnippet>716</a>                }
+<a href=#717 id=717 data-nosnippet>717</a>            },
+<a href=#718 id=718 data-nosnippet>718</a>            BrilligOpcode::Not { .. }
+<a href=#719 id=719 data-nosnippet>719</a>            | BrilligOpcode::Cast { .. }
+<a href=#720 id=720 data-nosnippet>720</a>            | BrilligOpcode::Jump { .. }
+<a href=#721 id=721 data-nosnippet>721</a>            | BrilligOpcode::CalldataCopy { .. }
+<a href=#722 id=722 data-nosnippet>722</a>            | BrilligOpcode::Call { .. }
+<a href=#723 id=723 data-nosnippet>723</a>            <span class="comment">// TODO(Parse constants in brillig and add to the dictionary)
+<a href=#724 id=724 data-nosnippet>724</a>            </span>| BrilligOpcode::Const { .. }
+<a href=#725 id=725 data-nosnippet>725</a>            | BrilligOpcode::IndirectConst { .. }
+<a href=#726 id=726 data-nosnippet>726</a>            | BrilligOpcode::Return |
+<a href=#727 id=727 data-nosnippet>727</a>            BrilligOpcode::ForeignCall { .. }
+<a href=#728 id=728 data-nosnippet>728</a>            | BrilligOpcode::Mov { .. }
+<a href=#729 id=729 data-nosnippet>729</a>            | BrilligOpcode::Load { .. }
+<a href=#730 id=730 data-nosnippet>730</a>            | BrilligOpcode::Store { .. }
+<a href=#731 id=731 data-nosnippet>731</a>            | BrilligOpcode::BlackBox(..)
+<a href=#732 id=732 data-nosnippet>732</a>            | BrilligOpcode::Trap { .. }
+<a href=#733 id=733 data-nosnippet>733</a>            | BrilligOpcode::Stop { .. } =&gt; (),
+<a href=#734 id=734 data-nosnippet>734</a>        }
+<a href=#735 id=735 data-nosnippet>735</a>    }
+<a href=#736 id=736 data-nosnippet>736</a>    (feature_to_index_map, coverage_items)
+<a href=#737 id=737 data-nosnippet>737</a>}</code></pre></div></section></main></body></html>

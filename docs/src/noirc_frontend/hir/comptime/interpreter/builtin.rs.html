@@ -3237,52 +3237,51 @@
 <a href=#3237 id=3237 data-nosnippet>3237</a>    <span class="kw">let </span>domain_separator_string =
 <a href=#3238 id=3238 data-nosnippet>3238</a>        try_vecmap(domain_separator_string, |byte| get_u8((byte, domain_separator_location)))<span class="question-mark">?</span>;
 <a href=#3239 id=3239 data-nosnippet>3239</a>
-<a href=#3240 id=3240 data-nosnippet>3240</a>    <span class="kw">let </span>(size, elements) = <span class="kw">match </span>return_type.clone() {
-<a href=#3241 id=3241 data-nosnippet>3241</a>        Type::Array(size, elements) =&gt; (size, elements),
-<a href=#3242 id=3242 data-nosnippet>3242</a>        <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"ICE: Should only have an array return type"</span>),
-<a href=#3243 id=3243 data-nosnippet>3243</a>    };
-<a href=#3244 id=3244 data-nosnippet>3244</a>
-<a href=#3245 id=3245 data-nosnippet>3245</a>    <span class="kw">let </span>num_generators = size.evaluate_to_u32(location).map_err(|err| {
-<a href=#3246 id=3246 data-nosnippet>3246</a>        <span class="kw">let </span>err = Box::new(err);
-<a href=#3247 id=3247 data-nosnippet>3247</a>        InterpreterError::UnknownArrayLength { length: <span class="kw-2">*</span>size, err, location }
-<a href=#3248 id=3248 data-nosnippet>3248</a>    })<span class="question-mark">?</span>;
-<a href=#3249 id=3249 data-nosnippet>3249</a>
-<a href=#3250 id=3250 data-nosnippet>3250</a>    <span class="kw">let </span>generators = bn254_blackbox_solver::derive_generators(
-<a href=#3251 id=3251 data-nosnippet>3251</a>        <span class="kw-2">&amp;</span>domain_separator_string,
-<a href=#3252 id=3252 data-nosnippet>3252</a>        num_generators,
-<a href=#3253 id=3253 data-nosnippet>3253</a>        starting_index,
-<a href=#3254 id=3254 data-nosnippet>3254</a>    );
-<a href=#3255 id=3255 data-nosnippet>3255</a>
-<a href=#3256 id=3256 data-nosnippet>3256</a>    <span class="kw">let </span>is_infinite = <span class="bool-val">false</span>;
-<a href=#3257 id=3257 data-nosnippet>3257</a>    <span class="kw">let </span>x_field_name: Rc&lt;String&gt; = Rc::new(<span class="string">"x"</span>.to_owned());
-<a href=#3258 id=3258 data-nosnippet>3258</a>    <span class="kw">let </span>y_field_name: Rc&lt;String&gt; = Rc::new(<span class="string">"y"</span>.to_owned());
-<a href=#3259 id=3259 data-nosnippet>3259</a>    <span class="kw">let </span>is_infinite_field_name: Rc&lt;String&gt; = Rc::new(<span class="string">"is_infinite"</span>.to_owned());
-<a href=#3260 id=3260 data-nosnippet>3260</a>    <span class="kw">let </span><span class="kw-2">mut </span>results = Vector::new();
-<a href=#3261 id=3261 data-nosnippet>3261</a>    <span class="kw">for </span>generator <span class="kw">in </span>generators {
-<a href=#3262 id=3262 data-nosnippet>3262</a>        <span class="kw">let </span>x_big: BigUint = generator.x.into();
-<a href=#3263 id=3263 data-nosnippet>3263</a>        <span class="kw">let </span>x = FieldElement::from_be_bytes_reduce(<span class="kw-2">&amp;</span>x_big.to_bytes_be());
-<a href=#3264 id=3264 data-nosnippet>3264</a>        <span class="kw">let </span>y_big: BigUint = generator.y.into();
-<a href=#3265 id=3265 data-nosnippet>3265</a>        <span class="kw">let </span>y = FieldElement::from_be_bytes_reduce(<span class="kw-2">&amp;</span>y_big.to_bytes_be());
-<a href=#3266 id=3266 data-nosnippet>3266</a>        <span class="kw">let </span><span class="kw-2">mut </span>embedded_curve_point_fields = HashMap::default();
-<a href=#3267 id=3267 data-nosnippet>3267</a>        embedded_curve_point_fields
-<a href=#3268 id=3268 data-nosnippet>3268</a>            .insert(x_field_name.clone(), Shared::new(Value::Field(SignedField::positive(x))));
-<a href=#3269 id=3269 data-nosnippet>3269</a>        embedded_curve_point_fields
-<a href=#3270 id=3270 data-nosnippet>3270</a>            .insert(y_field_name.clone(), Shared::new(Value::Field(SignedField::positive(y))));
-<a href=#3271 id=3271 data-nosnippet>3271</a>        embedded_curve_point_fields
-<a href=#3272 id=3272 data-nosnippet>3272</a>            .insert(is_infinite_field_name.clone(), Shared::new(Value::Bool(is_infinite)));
-<a href=#3273 id=3273 data-nosnippet>3273</a>        <span class="kw">let </span>embedded_curve_point_struct =
-<a href=#3274 id=3274 data-nosnippet>3274</a>            Value::Struct(embedded_curve_point_fields, <span class="kw-2">*</span>elements.clone());
-<a href=#3275 id=3275 data-nosnippet>3275</a>        results.push_back(embedded_curve_point_struct);
-<a href=#3276 id=3276 data-nosnippet>3276</a>    }
-<a href=#3277 id=3277 data-nosnippet>3277</a>
-<a href=#3278 id=3278 data-nosnippet>3278</a>    <span class="prelude-val">Ok</span>(Value::Array(results, return_type))
-<a href=#3279 id=3279 data-nosnippet>3279</a>}
-<a href=#3280 id=3280 data-nosnippet>3280</a>
-<a href=#3281 id=3281 data-nosnippet>3281</a><span class="kw">fn </span>field_less_than(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
-<a href=#3282 id=3282 data-nosnippet>3282</a>    <span class="kw">let </span>(lhs, rhs) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
-<a href=#3283 id=3283 data-nosnippet>3283</a>
-<a href=#3284 id=3284 data-nosnippet>3284</a>    <span class="kw">let </span>lhs = get_field(lhs)<span class="question-mark">?</span>;
-<a href=#3285 id=3285 data-nosnippet>3285</a>    <span class="kw">let </span>rhs = get_field(rhs)<span class="question-mark">?</span>;
-<a href=#3286 id=3286 data-nosnippet>3286</a>
-<a href=#3287 id=3287 data-nosnippet>3287</a>    <span class="prelude-val">Ok</span>(Value::Bool(lhs &lt; rhs))
-<a href=#3288 id=3288 data-nosnippet>3288</a>}</code></pre></div></section></main></body></html>
+<a href=#3240 id=3240 data-nosnippet>3240</a>    <span class="kw">let </span>Type::Array(size, elements) = return_type.clone() <span class="kw">else </span>{
+<a href=#3241 id=3241 data-nosnippet>3241</a>        <span class="macro">panic!</span>(<span class="string">"ICE: Should only have an array return type"</span>);
+<a href=#3242 id=3242 data-nosnippet>3242</a>    };
+<a href=#3243 id=3243 data-nosnippet>3243</a>
+<a href=#3244 id=3244 data-nosnippet>3244</a>    <span class="kw">let </span>num_generators = size.evaluate_to_u32(location).map_err(|err| {
+<a href=#3245 id=3245 data-nosnippet>3245</a>        <span class="kw">let </span>err = Box::new(err);
+<a href=#3246 id=3246 data-nosnippet>3246</a>        InterpreterError::UnknownArrayLength { length: <span class="kw-2">*</span>size, err, location }
+<a href=#3247 id=3247 data-nosnippet>3247</a>    })<span class="question-mark">?</span>;
+<a href=#3248 id=3248 data-nosnippet>3248</a>
+<a href=#3249 id=3249 data-nosnippet>3249</a>    <span class="kw">let </span>generators = bn254_blackbox_solver::derive_generators(
+<a href=#3250 id=3250 data-nosnippet>3250</a>        <span class="kw-2">&amp;</span>domain_separator_string,
+<a href=#3251 id=3251 data-nosnippet>3251</a>        num_generators,
+<a href=#3252 id=3252 data-nosnippet>3252</a>        starting_index,
+<a href=#3253 id=3253 data-nosnippet>3253</a>    );
+<a href=#3254 id=3254 data-nosnippet>3254</a>
+<a href=#3255 id=3255 data-nosnippet>3255</a>    <span class="kw">let </span>is_infinite = <span class="bool-val">false</span>;
+<a href=#3256 id=3256 data-nosnippet>3256</a>    <span class="kw">let </span>x_field_name: Rc&lt;String&gt; = Rc::new(<span class="string">"x"</span>.to_owned());
+<a href=#3257 id=3257 data-nosnippet>3257</a>    <span class="kw">let </span>y_field_name: Rc&lt;String&gt; = Rc::new(<span class="string">"y"</span>.to_owned());
+<a href=#3258 id=3258 data-nosnippet>3258</a>    <span class="kw">let </span>is_infinite_field_name: Rc&lt;String&gt; = Rc::new(<span class="string">"is_infinite"</span>.to_owned());
+<a href=#3259 id=3259 data-nosnippet>3259</a>    <span class="kw">let </span><span class="kw-2">mut </span>results = Vector::new();
+<a href=#3260 id=3260 data-nosnippet>3260</a>    <span class="kw">for </span>generator <span class="kw">in </span>generators {
+<a href=#3261 id=3261 data-nosnippet>3261</a>        <span class="kw">let </span>x_big: BigUint = generator.x.into();
+<a href=#3262 id=3262 data-nosnippet>3262</a>        <span class="kw">let </span>x = FieldElement::from_be_bytes_reduce(<span class="kw-2">&amp;</span>x_big.to_bytes_be());
+<a href=#3263 id=3263 data-nosnippet>3263</a>        <span class="kw">let </span>y_big: BigUint = generator.y.into();
+<a href=#3264 id=3264 data-nosnippet>3264</a>        <span class="kw">let </span>y = FieldElement::from_be_bytes_reduce(<span class="kw-2">&amp;</span>y_big.to_bytes_be());
+<a href=#3265 id=3265 data-nosnippet>3265</a>        <span class="kw">let </span><span class="kw-2">mut </span>embedded_curve_point_fields = HashMap::default();
+<a href=#3266 id=3266 data-nosnippet>3266</a>        embedded_curve_point_fields
+<a href=#3267 id=3267 data-nosnippet>3267</a>            .insert(x_field_name.clone(), Shared::new(Value::Field(SignedField::positive(x))));
+<a href=#3268 id=3268 data-nosnippet>3268</a>        embedded_curve_point_fields
+<a href=#3269 id=3269 data-nosnippet>3269</a>            .insert(y_field_name.clone(), Shared::new(Value::Field(SignedField::positive(y))));
+<a href=#3270 id=3270 data-nosnippet>3270</a>        embedded_curve_point_fields
+<a href=#3271 id=3271 data-nosnippet>3271</a>            .insert(is_infinite_field_name.clone(), Shared::new(Value::Bool(is_infinite)));
+<a href=#3272 id=3272 data-nosnippet>3272</a>        <span class="kw">let </span>embedded_curve_point_struct =
+<a href=#3273 id=3273 data-nosnippet>3273</a>            Value::Struct(embedded_curve_point_fields, <span class="kw-2">*</span>elements.clone());
+<a href=#3274 id=3274 data-nosnippet>3274</a>        results.push_back(embedded_curve_point_struct);
+<a href=#3275 id=3275 data-nosnippet>3275</a>    }
+<a href=#3276 id=3276 data-nosnippet>3276</a>
+<a href=#3277 id=3277 data-nosnippet>3277</a>    <span class="prelude-val">Ok</span>(Value::Array(results, return_type))
+<a href=#3278 id=3278 data-nosnippet>3278</a>}
+<a href=#3279 id=3279 data-nosnippet>3279</a>
+<a href=#3280 id=3280 data-nosnippet>3280</a><span class="kw">fn </span>field_less_than(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
+<a href=#3281 id=3281 data-nosnippet>3281</a>    <span class="kw">let </span>(lhs, rhs) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
+<a href=#3282 id=3282 data-nosnippet>3282</a>
+<a href=#3283 id=3283 data-nosnippet>3283</a>    <span class="kw">let </span>lhs = get_field(lhs)<span class="question-mark">?</span>;
+<a href=#3284 id=3284 data-nosnippet>3284</a>    <span class="kw">let </span>rhs = get_field(rhs)<span class="question-mark">?</span>;
+<a href=#3285 id=3285 data-nosnippet>3285</a>
+<a href=#3286 id=3286 data-nosnippet>3286</a>    <span class="prelude-val">Ok</span>(Value::Bool(lhs &lt; rhs))
+<a href=#3287 id=3287 data-nosnippet>3287</a>}</code></pre></div></section></main></body></html>
