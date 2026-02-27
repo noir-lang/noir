@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[regression_brillig_const_fold_self_dedup] Circuit output: false
+[regression_brillig_const_fold_self_dedup] Circuit output: 0

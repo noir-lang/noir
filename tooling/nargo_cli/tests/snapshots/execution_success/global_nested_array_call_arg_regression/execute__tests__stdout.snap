@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[global_nested_array_call_arg_regression] Circuit output: false
+[global_nested_array_call_arg_regression] Circuit output: 0
