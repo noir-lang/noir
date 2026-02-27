@@ -36,7 +36,7 @@ use crate::ssa::{
         dfg::DataFlowGraph,
         function::Function,
         instruction::{Instruction, InstructionId},
-        value::ValueId,
+        value::{Value, ValueId},
     },
     ssa_gen::Ssa,
 };
@@ -109,6 +109,12 @@ impl Function {
                         let new_result = context.insert_instruction(make_array, ctrl_typevars);
                         let new_result = new_result.first();
                         context.replace_value(result, new_result);
+
+                        // Keep track of the predicate of the newly inserted make_array instruction
+                        let Value::Instruction { instruction: new_instruction_id, .. } = context.dfg[new_result] else {
+                            unreachable!("Expected the previous make_array insertion to be an instruction value");
+                        };
+                        make_array_predicates.insert(new_instruction_id, context.enable_side_effects);
                     }
                 }
                 _ => {}
@@ -146,7 +152,7 @@ fn fold_array_set_into_make_array(
     }
 
     let can_fold = side_effects_var_value.is_some_and(|var| var.is_one())
-        || make_array_predicates.get(&instruction_id) == Some(&side_effects_var);
+        || make_array_predicates[&instruction_id] == side_effects_var;
     if !can_fold {
         // The array_set and make_array are under different predicates, and the array_set predicate is not `true`,
         // so we can't fold them together.
@@ -333,6 +339,35 @@ mod tests {
             enable_side_effects u1 0
             v5 = make_array [Field 2, Field 3] : [Field; 2]
             return v5
+        }
+        ");
+    }
+
+    #[test]
+    fn optimizes_multiple_array_set_under_the_same_predicate() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v10: u1):
+            enable_side_effects v10
+            v0 = make_array [Field 2, Field 3] : [Field; 2]
+            v1 = array_set v0, index u32 0, value Field 4
+            v2 = array_set v1, index u32 1, value Field 5
+            v3 = array_get v2, index u32 0 -> Field
+            v4 = array_get v2, index u32 1 -> Field
+            return v2, v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.array_set_optimization();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            v3 = make_array [Field 2, Field 3] : [Field; 2]
+            v5 = make_array [Field 4, Field 3] : [Field; 2]
+            v7 = make_array [Field 4, Field 5] : [Field; 2]
+            return v7, Field 4
         }
         ");
     }
