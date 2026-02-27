@@ -1,5 +1,5 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `compiler/noirc_frontend/src/node_interner/methods.rs`."><title>methods.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-84e720fa.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noirc_frontend" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0 (29483883e 2025-08-04)" data-channel="1.89.0" data-search-js="search-92309212.js" data-settings-js="settings-5514c975.js" ><script src="../../../static.files/storage-4e99c027.js"></script><script defer src="../../../static.files/src-script-813739b1.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-fd3af306.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noirc_frontend/node_interner/</div>methods.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="kw">use crate</span>::{
-<a href=#2 id=2 data-nosnippet>2</a>    Type, TypeBindings,
+<a href=#2 id=2 data-nosnippet>2</a>    Type,
 <a href=#3 id=3 data-nosnippet>3</a>    node_interner::{FuncId, TraitId},
 <a href=#4 id=4 data-nosnippet>4</a>};
 <a href=#5 id=5 data-nosnippet>5</a>
@@ -102,56 +102,52 @@
 <a href=#102 id=102 data-nosnippet>102</a>        direct.chain(trait_impl_methods)
 <a href=#103 id=103 data-nosnippet>103</a>    }
 <a href=#104 id=104 data-nosnippet>104</a>
-<a href=#105 id=105 data-nosnippet>105</a>    <span class="doccomment">/// Check if the types can unify without binding any type variables.
-<a href=#106 id=106 data-nosnippet>106</a>    /// This is important because method lookup should not have side effects on type variables.
-<a href=#107 id=107 data-nosnippet>107</a>    </span><span class="kw">fn </span>types_can_unify(a: <span class="kw-2">&amp;</span>Type, b: <span class="kw-2">&amp;</span>Type) -&gt; bool {
-<a href=#108 id=108 data-nosnippet>108</a>        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
-<a href=#109 id=109 data-nosnippet>109</a>        a.try_unify(b, <span class="kw-2">&amp;mut </span>bindings).is_ok()
-<a href=#110 id=110 data-nosnippet>110</a>    }
-<a href=#111 id=111 data-nosnippet>111</a>
-<a href=#112 id=112 data-nosnippet>112</a>    <span class="kw">fn </span>method_matches(
-<a href=#113 id=113 data-nosnippet>113</a>        typ: <span class="kw-2">&amp;</span>Type,
-<a href=#114 id=114 data-nosnippet>114</a>        check_self_param: bool,
-<a href=#115 id=115 data-nosnippet>115</a>        method: FuncId,
-<a href=#116 id=116 data-nosnippet>116</a>        method_type: <span class="kw-2">&amp;</span>Type,
-<a href=#117 id=117 data-nosnippet>117</a>        interner: <span class="kw-2">&amp;</span>NodeInterner,
-<a href=#118 id=118 data-nosnippet>118</a>    ) -&gt; bool {
-<a href=#119 id=119 data-nosnippet>119</a>        <span class="kw">match </span>interner.function_meta(<span class="kw-2">&amp;</span>method).typ.instantiate(interner).<span class="number">0 </span>{
-<a href=#120 id=120 data-nosnippet>120</a>            Type::Function(args, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
-<a href=#121 id=121 data-nosnippet>121</a>                <span class="kw">if </span>check_self_param {
-<a href=#122 id=122 data-nosnippet>122</a>                    <span class="kw">if let </span><span class="prelude-val">Some</span>(object) = args.first() {
-<a href=#123 id=123 data-nosnippet>123</a>                        <span class="kw">if </span>object.unify(typ).is_ok() {
-<a href=#124 id=124 data-nosnippet>124</a>                            <span class="kw">return </span><span class="bool-val">true</span>;
-<a href=#125 id=125 data-nosnippet>125</a>                        }
-<a href=#126 id=126 data-nosnippet>126</a>
-<a href=#127 id=127 data-nosnippet>127</a>                        <span class="comment">// Handle auto-dereferencing `&amp;T` and `&amp;mut T` into `T`
-<a href=#128 id=128 data-nosnippet>128</a>                        </span><span class="kw">if let </span>Type::Reference(object, _mutable) = object
-<a href=#129 id=129 data-nosnippet>129</a>                            &amp;&amp; object.unify(typ).is_ok()
-<a href=#130 id=130 data-nosnippet>130</a>                        {
-<a href=#131 id=131 data-nosnippet>131</a>                            <span class="kw">return </span><span class="bool-val">true</span>;
-<a href=#132 id=132 data-nosnippet>132</a>                        }
-<a href=#133 id=133 data-nosnippet>133</a>                    }
-<a href=#134 id=134 data-nosnippet>134</a>                } <span class="kw">else </span>{
-<a href=#135 id=135 data-nosnippet>135</a>                    <span class="comment">// When check_self_param is false, we do not bind unification because
-<a href=#136 id=136 data-nosnippet>136</a>                    // `method_type` might contain NamedGenerics from the impl definition,
-<a href=#137 id=137 data-nosnippet>137</a>                    // and we don't want to bind type variables in `typ` to those NamedGenerics.
-<a href=#138 id=138 data-nosnippet>138</a>                    // This prevents side effects on the caller's type variables.
-<a href=#139 id=139 data-nosnippet>139</a>                    </span><span class="kw">if </span><span class="self">Self</span>::types_can_unify(method_type, typ) {
-<a href=#140 id=140 data-nosnippet>140</a>                        <span class="kw">return </span><span class="bool-val">true</span>;
-<a href=#141 id=141 data-nosnippet>141</a>                    }
-<a href=#142 id=142 data-nosnippet>142</a>
-<a href=#143 id=143 data-nosnippet>143</a>                    <span class="comment">// Handle auto-dereferencing `&amp;T` and `&amp;mut T` into `T`
-<a href=#144 id=144 data-nosnippet>144</a>                    </span><span class="kw">if let </span>Type::Reference(method_type, _mutable) = method_type
-<a href=#145 id=145 data-nosnippet>145</a>                        &amp;&amp; <span class="self">Self</span>::types_can_unify(method_type, typ)
-<a href=#146 id=146 data-nosnippet>146</a>                    {
-<a href=#147 id=147 data-nosnippet>147</a>                        <span class="kw">return </span><span class="bool-val">true</span>;
-<a href=#148 id=148 data-nosnippet>148</a>                    }
-<a href=#149 id=149 data-nosnippet>149</a>                }
-<a href=#150 id=150 data-nosnippet>150</a>            }
-<a href=#151 id=151 data-nosnippet>151</a>            Type::Error =&gt; (),
-<a href=#152 id=152 data-nosnippet>152</a>            other =&gt; <span class="macro">unreachable!</span>(<span class="string">"Expected function type, found {other}"</span>),
-<a href=#153 id=153 data-nosnippet>153</a>        }
-<a href=#154 id=154 data-nosnippet>154</a>
-<a href=#155 id=155 data-nosnippet>155</a>        <span class="bool-val">false
-<a href=#156 id=156 data-nosnippet>156</a>    </span>}
-<a href=#157 id=157 data-nosnippet>157</a>}</code></pre></div></section></main></body></html>
+<a href=#105 id=105 data-nosnippet>105</a>    <span class="kw">fn </span>method_matches(
+<a href=#106 id=106 data-nosnippet>106</a>        typ: <span class="kw-2">&amp;</span>Type,
+<a href=#107 id=107 data-nosnippet>107</a>        check_self_param: bool,
+<a href=#108 id=108 data-nosnippet>108</a>        method: FuncId,
+<a href=#109 id=109 data-nosnippet>109</a>        method_type: <span class="kw-2">&amp;</span>Type,
+<a href=#110 id=110 data-nosnippet>110</a>        interner: <span class="kw-2">&amp;</span>NodeInterner,
+<a href=#111 id=111 data-nosnippet>111</a>    ) -&gt; bool {
+<a href=#112 id=112 data-nosnippet>112</a>        <span class="kw">let </span>function_typ = <span class="kw-2">&amp;</span>interner.function_meta(<span class="kw-2">&amp;</span>method).typ;
+<a href=#113 id=113 data-nosnippet>113</a>        <span class="kw">match </span>function_typ.instantiate(interner).<span class="number">0 </span>{
+<a href=#114 id=114 data-nosnippet>114</a>            Type::Function(args, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
+<a href=#115 id=115 data-nosnippet>115</a>                <span class="kw">if </span>check_self_param {
+<a href=#116 id=116 data-nosnippet>116</a>                    <span class="kw">if let </span><span class="prelude-val">Some</span>(object) = args.first() {
+<a href=#117 id=117 data-nosnippet>117</a>                        <span class="kw">if </span>object.unify(typ).is_ok() {
+<a href=#118 id=118 data-nosnippet>118</a>                            <span class="kw">return </span><span class="bool-val">true</span>;
+<a href=#119 id=119 data-nosnippet>119</a>                        }
+<a href=#120 id=120 data-nosnippet>120</a>
+<a href=#121 id=121 data-nosnippet>121</a>                        <span class="comment">// Handle auto-dereferencing `&amp;T` and `&amp;mut T` into `T`
+<a href=#122 id=122 data-nosnippet>122</a>                        </span><span class="kw">if let </span>Type::Reference(object, _mutable) = object
+<a href=#123 id=123 data-nosnippet>123</a>                            &amp;&amp; object.unify(typ).is_ok()
+<a href=#124 id=124 data-nosnippet>124</a>                        {
+<a href=#125 id=125 data-nosnippet>125</a>                            <span class="kw">return </span><span class="bool-val">true</span>;
+<a href=#126 id=126 data-nosnippet>126</a>                        }
+<a href=#127 id=127 data-nosnippet>127</a>                    }
+<a href=#128 id=128 data-nosnippet>128</a>                } <span class="kw">else </span>{
+<a href=#129 id=129 data-nosnippet>129</a>                    <span class="kw">let </span>method_type = <span class="kw">if let </span>Type::Forall(typevars, <span class="kw">_</span>) = function_typ {
+<a href=#130 id=130 data-nosnippet>130</a>                        method_type.instantiate_with_type_vars(typevars, interner).<span class="number">0
+<a href=#131 id=131 data-nosnippet>131</a>                    </span>} <span class="kw">else </span>{
+<a href=#132 id=132 data-nosnippet>132</a>                        method_type.clone()
+<a href=#133 id=133 data-nosnippet>133</a>                    };
+<a href=#134 id=134 data-nosnippet>134</a>
+<a href=#135 id=135 data-nosnippet>135</a>                    <span class="kw">if </span>method_type.unify(typ).is_ok() {
+<a href=#136 id=136 data-nosnippet>136</a>                        <span class="kw">return </span><span class="bool-val">true</span>;
+<a href=#137 id=137 data-nosnippet>137</a>                    }
+<a href=#138 id=138 data-nosnippet>138</a>
+<a href=#139 id=139 data-nosnippet>139</a>                    <span class="comment">// Handle auto-dereferencing `&amp;T` and `&amp;mut T` into `T`
+<a href=#140 id=140 data-nosnippet>140</a>                    </span><span class="kw">if let </span>Type::Reference(method_type, _mutable) = method_type
+<a href=#141 id=141 data-nosnippet>141</a>                        &amp;&amp; method_type.unify(typ).is_ok()
+<a href=#142 id=142 data-nosnippet>142</a>                    {
+<a href=#143 id=143 data-nosnippet>143</a>                        <span class="kw">return </span><span class="bool-val">true</span>;
+<a href=#144 id=144 data-nosnippet>144</a>                    }
+<a href=#145 id=145 data-nosnippet>145</a>                }
+<a href=#146 id=146 data-nosnippet>146</a>            }
+<a href=#147 id=147 data-nosnippet>147</a>            Type::Error =&gt; (),
+<a href=#148 id=148 data-nosnippet>148</a>            other =&gt; <span class="macro">unreachable!</span>(<span class="string">"Expected function type, found {other}"</span>),
+<a href=#149 id=149 data-nosnippet>149</a>        }
+<a href=#150 id=150 data-nosnippet>150</a>
+<a href=#151 id=151 data-nosnippet>151</a>        <span class="bool-val">false
+<a href=#152 id=152 data-nosnippet>152</a>    </span>}
+<a href=#153 id=153 data-nosnippet>153</a>}</code></pre></div></section></main></body></html>
