@@ -125,7 +125,7 @@ use acvm::acir::{circuit::opcodes::BlockType, native_types::Witness};
 use acvm::{FieldElement, acir::AcirField, acir::circuit::opcodes::BlockId};
 use iter_extended::{try_vecmap, vecmap};
 
-use crate::acir::types::flat_numeric_types;
+use crate::acir::types::flat_element_types;
 use crate::brillig::assert_u32;
 use crate::errors::{InternalError, RuntimeError};
 use crate::ssa::ir::types::NumericType;
@@ -888,7 +888,7 @@ impl Context<'_> {
             None
         };
 
-        let value_types = flat_numeric_types(&array_typ);
+        let value_types = flat_element_types(&array_typ);
         assert_eq!(len.to_usize() % value_types.len(), 0);
 
         Ok(AcirValue::DynamicArray(AcirDynamicArray {

@@ -213,6 +213,7 @@ impl AcirVar {
 /// is found along the way.
 ///
 /// For example, for `Vector([(u32, u32, [Field; 3])])`, this returns `[u32, u32, Field]`.
+#[allow(dead_code)]
 pub(crate) fn flat_numeric_types(typ: &SsaType) -> Vec<NumericType> {
     match typ {
         SsaType::Array(..) | SsaType::Vector(..) => {
