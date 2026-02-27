@@ -761,16 +761,13 @@ impl Context<'_> {
         mutate_array: bool,
     ) -> Result<(), RuntimeError> {
         // Pass the instruction between array methods rather than the internal fields themselves
-        let array = match dfg[instruction] {
-            Instruction::ArraySet { array, .. } => array,
-            _ => {
-                return Err(InternalError::Unexpected {
-                    expected: "Instruction should be an ArraySet".to_owned(),
-                    found: format!("Instead got {:?}", dfg[instruction]),
-                    call_stack: self.acir_context.get_call_stack(),
-                }
-                .into());
+        let Instruction::ArraySet { array, .. } = dfg[instruction] else {
+            return Err(InternalError::Unexpected {
+                expected: "Instruction should be an ArraySet".to_owned(),
+                found: format!("Instead got {:?}", dfg[instruction]),
+                call_stack: self.acir_context.get_call_stack(),
             }
+            .into());
         };
 
         let result_id = *dfg
@@ -1051,7 +1048,7 @@ impl Context<'_> {
                 let mut var_index = self.acir_context.add_constant(FieldElement::zero());
                 // Reconstruct each element with its proper structure
                 for _ in 0..num_elements.0 {
-                    for element_typ in element_types.iter() {
+                    for element_typ in element_types {
                         let element =
                             self.array_get_value(element_typ, block_id, &mut var_index)?;
                         result.push_back(element);
@@ -1294,9 +1291,8 @@ pub(super) fn calculate_element_type_sizes_array(
     flattened_length: FlattenedLength,
     shift: ElementTypeSizesArrayShift,
 ) -> Vec<u32> {
-    let element_types = match array_typ {
-        Type::Array(types, _) | Type::Vector(types) => types,
-        _ => panic!("ICE: expected array or vector type"),
+    let (Type::Array(element_types, _) | Type::Vector(element_types)) = array_typ else {
+        panic!("ICE: expected array or vector type");
     };
     if element_types.is_empty() {
         return vec![];
@@ -1355,9 +1351,8 @@ pub(super) fn flattened_value_size(value: &AcirValue) -> FlattenedLength {
 /// If the array's element types are all the same size then `array_has_constant_element_size` will return
 /// `Some(element_size)` where `element_size` is the size of `array`'s elements. Otherwise returns `None`.
 pub(super) fn array_has_constant_element_size(array_typ: &Type) -> Option<u32> {
-    let types = match array_typ {
-        Type::Array(types, _) | Type::Vector(types) => types,
-        _ => panic!("ICE: expected array or vector type"),
+    let (Type::Array(types, _) | Type::Vector(types)) = array_typ else {
+        panic!("ICE: expected array or vector type");
     };
 
     let mut element_sizes = types.iter().map(|typ| typ.flattened_size());

@@ -31,7 +31,7 @@ impl<F: AcirField> AcirContext<F> {
                     AcirValue::DynamicArray(dyn_array) => {
                         Ok::<usize, RuntimeError>(dyn_array.len.to_usize())
                     }
-                    _ => {
+                    AcirValue::Var(..) => {
                         return Err(RuntimeError::InternalError(InternalError::General {
                             message: "aes128_encrypt requires an array of inputs".to_string(),
                             call_stack: self.get_call_stack(),

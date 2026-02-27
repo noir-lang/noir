@@ -112,9 +112,8 @@ impl FuzzingTrace {
             BinaryIntOp::Equals | BinaryIntOp::LessThan | BinaryIntOp::LessThanEquals => {
                 let lhs_val = lhs.to_u128().expect("lhs is not an integer");
                 let rhs_val = rhs.to_u128().expect("rhs is not an integer");
-                let c = match result {
-                    MemoryValue::U1(value) => value,
-                    _ => return,
+                let MemoryValue::U1(c) = result else {
+                    return;
                 };
 
                 let diff_log =

@@ -353,7 +353,7 @@ impl Corpus {
             self.corpus_file_manager.get_full_corpus().into_iter().map(TestCase::from).collect();
         let id_testcase_pair: Vec<_> =
             stored_corpus.iter().map(|x| (x.id(), x.value().clone())).collect();
-        for (id, input_map) in id_testcase_pair.iter() {
+        for (id, input_map) in &id_testcase_pair {
             self.insert_into_cache(*id, input_map.clone());
         }
         id_testcase_pair

@@ -412,7 +412,7 @@ pub(crate) fn build_inner_call_to_entry_points(
         HashMap::default();
 
     // We only need to generate globals for entry points
-    for (entry_point, entry_point_inner_calls) in brillig_entry_points.iter() {
+    for (entry_point, entry_point_inner_calls) in brillig_entry_points {
         for inner_call in entry_point_inner_calls {
             inner_call_to_entry_point.entry(*inner_call).or_default().insert(*entry_point);
         }

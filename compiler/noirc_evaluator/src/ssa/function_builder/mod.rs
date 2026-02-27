@@ -567,7 +567,7 @@ fn validate_numeric_type(typ: &NumericType) {
                 );
             }
         },
-        _ => (),
+        NumericType::NativeField => (),
     }
 }
 

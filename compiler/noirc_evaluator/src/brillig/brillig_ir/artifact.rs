@@ -271,7 +271,7 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
                 .push((position_in_bytecode + offset, label_id.clone()));
         }
 
-        for (position_in_bytecode, call_stack) in obj.locations.iter() {
+        for (position_in_bytecode, call_stack) in &obj.locations {
             self.locations.insert(position_in_bytecode + offset, *call_stack);
         }
     }

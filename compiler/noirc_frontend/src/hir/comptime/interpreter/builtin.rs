@@ -3237,9 +3237,8 @@ fn derive_generators(
     let domain_separator_string =
         try_vecmap(domain_separator_string, |byte| get_u8((byte, domain_separator_location)))?;
 
-    let (size, elements) = match return_type.clone() {
-        Type::Array(size, elements) => (size, elements),
-        _ => panic!("ICE: Should only have an array return type"),
+    let Type::Array(size, elements) = return_type.clone() else {
+        panic!("ICE: Should only have an array return type");
     };
 
     let num_generators = size.evaluate_to_u32(location).map_err(|err| {

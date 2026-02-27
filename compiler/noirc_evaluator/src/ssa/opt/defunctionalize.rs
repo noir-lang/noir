@@ -461,7 +461,7 @@ fn create_apply_functions(
         (*ssa.functions.iter().next().unwrap().1.dfg.function_purities).clone()
     };
 
-    for ((signature, caller_runtime), variants) in variants_map.into_iter() {
+    for ((signature, caller_runtime), variants) in variants_map {
         // Calling an ACIR function from a Brillig runtime is not allowed.
         // We expect all ACIR functions called from Brillig to be specialized
         // as Brillig functions at compile time (e.g., before SSA generation).

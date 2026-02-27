@@ -96,12 +96,9 @@ pub(crate) fn get_redis_manager() -> Arc<Mutex<Option<RedisManager>>> {
 }
 
 pub(crate) fn ensure_redis_connection() -> bool {
-    let redis_url = match std::env::var("REDIS_URL") {
-        Ok(url) => url,
-        Err(_) => {
-            log::debug!("REDIS_URL environment variable not set");
-            return false;
-        }
+    let Ok(redis_url) = std::env::var("REDIS_URL") else {
+        log::debug!("REDIS_URL environment variable not set");
+        return false;
     };
 
     let mut manager_guard = REDIS_MANAGER.lock().unwrap();

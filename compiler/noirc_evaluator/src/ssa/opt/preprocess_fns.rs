@@ -42,10 +42,8 @@ impl Ssa {
 
             // Functions which are inline targets will be processed in later passes.
             // Here we want to treat the functions which will be inlined into them.
-            let is_target = inline_infos
-                .get(&id)
-                .map(|info| info.is_inline_target(&function.dfg))
-                .unwrap_or_default();
+            let is_target =
+                inline_infos.get(&id).is_some_and(|info| info.is_inline_target(&function.dfg));
 
             if is_heavy || is_target {
                 continue;

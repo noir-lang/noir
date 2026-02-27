@@ -247,7 +247,7 @@ fn format_enum_variant(
 
     append_doc_comments(ReferenceId::EnumVariant(id, field_index), &mut string, args);
 
-    for typ in variant.params.iter() {
+    for typ in &variant.params {
         string.push_str(&go_to_type_links(typ, args.interner, args.files));
     }
 
