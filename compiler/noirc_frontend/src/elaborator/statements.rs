@@ -193,6 +193,8 @@ impl Elaborator<'_> {
 
         let warn_if_unused =
             !let_stmt.attributes.iter().any(|attr| attr.kind.is_allow("unused_variables"));
+        let warn_if_not_mutated =
+            !let_stmt.attributes.iter().any(|attr| attr.kind.is_allow("unused_mut"));
 
         let r#type = annotated_type;
         let mut parameter_names_in_list = rustc_hash::FxHashMap::default();
@@ -201,6 +203,7 @@ impl Elaborator<'_> {
             r#type.clone(),
             definition,
             warn_if_unused,
+            warn_if_not_mutated,
             &mut parameter_names_in_list,
         );
 
@@ -224,6 +227,8 @@ impl Elaborator<'_> {
         let lvalue_clone = assign.lvalue.clone();
         let (lvalue, lvalue_type, mutable, mut new_statements) =
             self.elaborate_lvalue(assign.lvalue);
+
+        self.mark_lvalue_variables_as_mutated(&lvalue);
 
         if !mutable {
             self.push_assign_to_immutable_lvalue_error(&lvalue, lvalue_clone);
@@ -321,6 +326,7 @@ impl Elaborator<'_> {
             identifier, false, // mutable
             true,  // allow_shadowing
             true,  // warn_if_unused
+            true,  // warn_if_not_mutated
             kind,
         );
 
@@ -492,8 +498,13 @@ impl Elaborator<'_> {
                         let ident = HirIdent::non_trait_method(id, location);
                         self.elaborate_lvalue_ident(ident, location)
                     }
-                    Ok(IdentFromPath::TypeAlias(_)) => {
-                        // We se this to mutable to prevent further errors from being reported
+                    Ok(IdentFromPath::TypeAlias(type_alias_id)) => {
+                        let type_alias = self.interner.get_type_alias(type_alias_id);
+                        self.push_err(ResolverError::Expected {
+                            location,
+                            expected: "value",
+                            found: format!("type alias `{}`", type_alias.borrow().name),
+                        });
                         let mutable = true;
                         (HirLValue::Error { location }, Type::Error, mutable, Vec::new())
                     }
