@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772475567000,
+  "lastUpdate": 1772475676425,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23141,48 +23141,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "427e343366d1749013d411865541eb6ac0937b45",
-          "message": "chore: add opt-in pre-push hook for fmt and clippy checks (#11594)",
-          "timestamp": "2026-02-23T13:06:49Z",
-          "tree_id": "064958d7eeb000f71b350b417266bdcbbc6af909",
-          "url": "https://github.com/noir-lang/noir/commit/427e343366d1749013d411865541eb6ac0937b45"
-        },
-        "date": 1771854223295,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 239677,
-            "range": "± 636",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 211075,
-            "range": "± 1837",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2203938,
-            "range": "± 6106",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "824f568a96c78b9d297eec0e6a70290c105e1047",
           "message": "fix(brillig): prevent premature register deallocation in coalesced pairs (#11652)",
           "timestamp": "2026-02-23T14:41:06Z",
@@ -25224,6 +25182,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2744408,
             "range": "± 3728",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "d6a4564cbdb8aa7a4591765f09adc6f2121c1d6e",
+          "message": "fix: copy lambda env in comptime evaluation (#11731)",
+          "timestamp": "2026-03-02T17:53:28Z",
+          "tree_id": "30061846e8235de3e08c2b8529e8be4e61aa98b1",
+          "url": "https://github.com/noir-lang/noir/commit/d6a4564cbdb8aa7a4591765f09adc6f2121c1d6e"
+        },
+        "date": 1772475631984,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 253534,
+            "range": "± 1111",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 222685,
+            "range": "± 4733",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2746507,
+            "range": "± 85529",
             "unit": "ns/iter"
           }
         ]
