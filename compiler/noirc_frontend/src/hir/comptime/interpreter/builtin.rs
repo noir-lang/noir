@@ -1,7 +1,10 @@
 //! Large file containing implementations of all the various built-in functions
 //! which can be called in the interpreter. This notably includes the entire comptime-API
 //! defined in `noir_stdlib/src/meta/*`
-use std::rc::Rc;
+use std::{
+    hash::{Hash as _, Hasher as _},
+    rc::Rc,
+};
 
 use acvm::{AcirField, FieldElement};
 use builtin_helpers::{
@@ -182,7 +185,7 @@ impl Interpreter<'_, '_> {
             "quoted_as_trait_constraint" => quoted_as_trait_constraint(self, arguments, location),
             "quoted_as_type" => quoted_as_type(self, arguments, location),
             "quoted_eq" => quoted_eq(self.elaborator.interner, arguments, location),
-            "quoted_hash" => quoted_hash(arguments, location),
+            "quoted_hash" => quoted_hash(self.elaborator.interner, arguments, location),
             "quoted_tokens" => quoted_tokens(arguments, location),
             "vector_insert" => vector_insert(arguments, location, call_stack),
             "vector_pop_back" => vector_pop_back(arguments, location, call_stack),
@@ -3170,8 +3173,22 @@ fn quoted_eq(
 
     Ok(Value::Bool(self_string == other_string))
 }
-fn quoted_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    hash_item(arguments, location, get_quoted)
+
+fn quoted_hash(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let argument = check_one_argument(arguments, location)?;
+    let tokens = get_quoted(argument)?;
+
+    // For consistency with quoted_eq, we compute the hash of the Quoted string representation.
+    let tokens_string = tokens_to_string(&tokens, interner);
+
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    tokens_string.hash(&mut hasher);
+    let hash = hasher.finish();
+    Ok(Value::Field(SignedField::positive(u128::from(hash))))
 }
 
 fn trait_def_as_trait_constraint(
