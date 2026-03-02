@@ -855,7 +855,7 @@ impl Context<'_> {
     /// # Purpose
     /// - Initializes the optional [AcirDynamicArray::element_type_sizes] helper array for when elements are non-homogenous.
     /// - Populates the `value_types` vector. See [AcirDynamicArray::value_types] for more information.
-    fn make_array_set_result_value(
+    pub(super) fn make_array_set_result_value(
         &mut self,
         array: ValueId,
         block_id: BlockId,
