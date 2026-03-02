@@ -341,9 +341,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         call_location: Location,
     ) -> IResult<Value> {
         // Undo the type current type bindings
-        if let Some(bindings) = self.bound_generics.last() {
-            unbind_all(bindings);
-        }
+        self.unbind_generics_from_previous_function();
 
         // Rebind the type bindings that existed when the closure was created
         force_bind_all(&closure.bindings);
@@ -362,9 +360,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         unbind_all(&closure.bindings);
 
         // Redo the current type bindings
-        if let Some(bindings) = self.bound_generics.last() {
-            force_bind_all(bindings);
-        }
+        self.rebind_generics_from_previous_function();
 
         self.current_function = old_function;
         let Some(old_module) = old_module else {
