@@ -1,0 +1,6 @@
+[package]
+name = "allow_edits_from"
+type = "bin"
+authors = [""]
+
+[dependencies]
