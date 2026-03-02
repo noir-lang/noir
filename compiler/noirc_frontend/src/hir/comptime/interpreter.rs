@@ -340,28 +340,21 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         arguments: Vec<(Value, Location)>,
         call_location: Location,
     ) -> IResult<Value> {
-        // Undo the type current type bindings
-        self.unbind_generics_from_previous_function();
-
-        // Rebind the type bindings that existed when the closure was created
-        force_bind_all(&closure.bindings);
-
-        self.remember_closure_bindings(&closure.bindings);
-
         // Set the closure's scope to that of the function it was originally evaluated in
         let old_module = self.elaborator.replace_module(closure.module_scope);
         let old_function = std::mem::replace(&mut self.current_function, closure.function_scope);
 
+        self.unbind_generics_from_previous_function();
+        perform_bindings(&closure.bindings);
+
+        self.remember_closure_bindings(&closure.bindings);
         self.elaborator.push_interpreter_call_stack(call_location)?;
 
         let result = self.call_closure_inner(closure.lambda, closure.env, arguments, call_location);
 
         self.elaborator.pop_interpreter_call_stack();
 
-        // Undo the type bindings that existed when the closure was created
-        unbind_all(&closure.bindings);
-
-        // Redo the current type bindings
+        undo_bindings(&closure.bindings);
         self.rebind_generics_from_previous_function();
 
         self.current_function = old_function;
@@ -463,7 +456,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// an empty set of bindings to become the new top of the stack.
     fn unbind_generics_from_previous_function(&mut self) {
         if let Some(bindings) = self.bound_generics.last() {
-            unbind_all(bindings);
+            undo_bindings(bindings);
         }
         // Push a new bindings list for the current function
         self.bound_generics.push(HashMap::default());
@@ -476,7 +469,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         self.bound_generics.pop();
 
         if let Some(bindings) = self.bound_generics.last() {
-            force_bind_all(bindings);
+            perform_bindings(bindings);
         }
     }
 
@@ -1738,13 +1731,13 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 }
 
-fn unbind_all(bindings: &HashMap<TypeVariable, (Type, Kind)>) {
+fn undo_bindings(bindings: &HashMap<TypeVariable, (Type, Kind)>) {
     for (var, (_, kind)) in bindings {
         var.unbind(var.id(), kind.clone());
     }
 }
 
-fn force_bind_all(bindings: &HashMap<TypeVariable, (Type, Kind)>) {
+fn perform_bindings(bindings: &HashMap<TypeVariable, (Type, Kind)>) {
     for (var, (binding, _kind)) in bindings {
         var.force_bind(binding.clone());
     }
