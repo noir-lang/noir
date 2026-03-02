@@ -245,7 +245,7 @@ fn foreign_call_args_do_not_get_cloned() {
     }
     ";
 
-    let program = get_monomorphized_with_stdlib(src, stdlib_src::PRINT).unwrap();
+    let program = get_monomorphized_with_stdlib(src, &[stdlib_src::PRINT]).unwrap();
 
     let ssa = generate_ssa(program).unwrap();
 
