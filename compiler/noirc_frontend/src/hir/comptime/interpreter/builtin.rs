@@ -3188,7 +3188,7 @@ fn quoted_hash(
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     tokens_string.hash(&mut hasher);
     let hash = hasher.finish();
-    Ok(Value::Field(SignedField::positive(u128::from(hash))))
+    Ok(Value::field(SignedField::positive(u128::from(hash))))
 }
 
 fn trait_def_as_trait_constraint(
