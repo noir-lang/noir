@@ -254,7 +254,7 @@ fn poseidon2_config_state_size(
 ) -> IResult<Value> {
     check_argument_count(0, &arguments, location)?;
     let size = bn254_blackbox_solver::poseidon2_config_state_size();
-    Ok(Value::U32(size))
+    Ok(Value::u32(size))
 }
 
 /// `fn keccakf1600(input: [u64; 25]) -> [u64; 25] {}`
