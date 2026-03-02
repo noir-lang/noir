@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772476853338,
+  "lastUpdate": 1772480126993,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23140,48 +23140,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "824f568a96c78b9d297eec0e6a70290c105e1047",
-          "message": "fix(brillig): prevent premature register deallocation in coalesced pairs (#11652)",
-          "timestamp": "2026-02-23T14:41:06Z",
-          "tree_id": "8b5ad453beefea1e9d9c261e7ef49077c6caff70",
-          "url": "https://github.com/noir-lang/noir/commit/824f568a96c78b9d297eec0e6a70290c105e1047"
-        },
-        "date": 1771859002327,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 251632,
-            "range": "± 463",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 223680,
-            "range": "± 3954",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2731946,
-            "range": "± 2811",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "2f24b9af9f705984b3ecd65b8461d6e97f5990be",
           "message": "fix: detect unconstrained callees via type for indirect calls (#11657)",
@@ -25224,6 +25182,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2746507,
             "range": "± 85529",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "de7e4394b59506481705661f7b7a52933fb4ce63",
+          "message": "fix: Check for overlapping implementations (#11328)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
+          "timestamp": "2026-03-02T19:06:43Z",
+          "tree_id": "e1ee573bb38ceda905c63cf74f47e6a0cf5081a0",
+          "url": "https://github.com/noir-lang/noir/commit/de7e4394b59506481705661f7b7a52933fb4ce63"
+        },
+        "date": 1772480058030,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 239880,
+            "range": "± 358",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 212449,
+            "range": "± 3299",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2208192,
+            "range": "± 1867",
             "unit": "ns/iter"
           }
         ]
