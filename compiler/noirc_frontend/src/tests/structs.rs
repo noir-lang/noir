@@ -622,10 +622,16 @@ fn non_overlapping_trait_impls_with_generic() {
     pub struct Bar<T, let N: u32> {}
 
     impl<T> Foo for Bar<T, 0> { }
+                    ^^^^^^^^^ Impl for type `Bar<T, 0>` overlaps with existing impl
+                    ~~~~~~~~~ Overlapping impl
     impl<T> Foo for Bar<T, 1> { }
     impl<T, let N: u32> Foo for Bar<T, N> { }
+                        ~~~ Previous impl defined here
     impl Foo for Bar<(), 0> { }
+                 ^^^^^^^^^^ Impl for type `Bar<(), 0>` overlaps with existing impl
+                 ~~~~~~~~~~ Overlapping impl
+                 ~~~~~~~~~~ Previous impl defined here
     impl<let N: u32> Foo for Bar<(), N> { }
     "#;
-    assert_no_errors(src);
+    check_errors(src);
 }

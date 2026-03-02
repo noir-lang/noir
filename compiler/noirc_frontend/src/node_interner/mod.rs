@@ -349,7 +349,7 @@ pub enum TraitImplKind {
     ///
     /// A `Prepared` is eventually replaced by a `Normal` implementation, at which
     /// point we can look up the final `TraitImpl` in the node interner.
-    Prepared(TraitImplId),
+    Prepared(TraitImplId, Location),
 }
 
 /// When searching for a trait impl, these are the types of errors we can expect
@@ -1604,7 +1604,9 @@ impl NodeInterner {
                 &parent_bound.trait_generics.ordered,
                 &parent_bound.trait_generics.named,
             ) {
-                Ok((TraitImplKind::Normal(impl_id), _) | (TraitImplKind::Prepared(impl_id), _)) => {
+                Ok(
+                    (TraitImplKind::Normal(impl_id), _) | (TraitImplKind::Prepared(impl_id, _), _),
+                ) => {
                     let ordered_generics = self.get_ordered_generics_for_impl(impl_id);
                     self.trait_to_impl_bindings_helper(
                         trait_id,

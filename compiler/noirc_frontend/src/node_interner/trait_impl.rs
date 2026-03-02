@@ -138,6 +138,7 @@ impl NodeInterner {
         trait_id: TraitId,
         impl_id: TraitImplId,
         impl_generics: GenericTypeVars,
+        location: Location,
     ) {
         if matches!(object_type, Type::Error) {
             // If we stored a prepared impl for Error, it would later unify with anything,
@@ -167,12 +168,13 @@ impl NodeInterner {
             &associated_types,
             TraitLookupMode::Default,
         );
+
         if existing.is_ok() {
             return;
         }
 
         let entries = self.trait_implementation_map.entry(trait_id).or_default();
-        entries.push((object_type, TraitImplKind::Prepared(impl_id)));
+        entries.push((object_type, TraitImplKind::Prepared(impl_id, location)));
     }
 
     /// Adds a trait implementation to the list of known implementations.
@@ -232,9 +234,9 @@ impl NodeInterner {
                 let existing_impl = existing_impl.borrow();
                 return Ok(Err(existing_impl.ident.location()));
             }
-            Ok((TraitImplKind::Prepared(_), ..)) => {
-                // A different Prepared impl matched — this is expected because
-                // prepared impls are placeholders and don't count as real overlap.
+            Ok((TraitImplKind::Prepared(_, location), ..)) => {
+                // A different Prepared impl matched; this would be a full conflict later if we added both normal ones.
+                return Ok(Err(location));
             }
             Err(_) | Ok((TraitImplKind::Assumed { .. }, ..)) => {
                 // Ignoring overlapping `TraitImplKind::Assumed` impls here is perfectly fine.
@@ -320,7 +322,8 @@ impl NodeInterner {
         impl_id: TraitImplId,
     ) {
         let entries = self.trait_implementation_map.entry(trait_id).or_default();
-        entries.retain(|(_, kind)| !matches!(kind, TraitImplKind::Prepared(id) if *id == impl_id));
+        entries
+            .retain(|(_, kind)| !matches!(kind, TraitImplKind::Prepared(id, _) if *id == impl_id));
     }
 
     /// Returns the trait implementation if found along with the instantiation bindings for
@@ -401,7 +404,7 @@ impl NodeInterner {
             }
 
             let impl_trait_generics = match impl_kind {
-                TraitImplKind::Normal(id) | TraitImplKind::Prepared(id) => {
+                TraitImplKind::Normal(id) | TraitImplKind::Prepared(id, _) => {
                     self.get_trait_generics_for_impl(*id).clone()
                 }
                 TraitImplKind::Assumed { trait_generics, .. } => trait_generics.clone(),

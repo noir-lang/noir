@@ -834,6 +834,7 @@ impl Elaborator<'_> {
                 trait_id,
                 impl_id,
                 impl_generics,
+                trait_impl.object_type.location,
             );
         }
 
