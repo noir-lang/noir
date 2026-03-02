@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["poseidon2_permutation"],"struct":["Poseidon2"]};
+window.SIDEBAR_ITEMS = {"fn":["poseidon2_config_state_size","poseidon2_permutation"],"struct":["Poseidon2"]};

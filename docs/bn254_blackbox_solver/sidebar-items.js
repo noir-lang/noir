@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["derive_generators","embedded_curve_add","multi_scalar_mul","poseidon2_permutation"],"mod":["embedded_curve_ops","generator","poseidon2","poseidon2_constants"],"struct":["Bn254BlackBoxSolver"],"type":["FieldElement"]};
+window.SIDEBAR_ITEMS = {"fn":["derive_generators","embedded_curve_add","multi_scalar_mul","poseidon2_config_state_size","poseidon2_permutation"],"mod":["embedded_curve_ops","generator","poseidon2","poseidon2_constants"],"struct":["Bn254BlackBoxSolver"],"type":["FieldElement"]};
