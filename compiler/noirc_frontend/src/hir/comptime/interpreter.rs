@@ -168,7 +168,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let impl_bindings =
             perform_impl_bindings(self.elaborator.interner, trait_method, function, location)?;
 
-        self.remember_bindings(&instantiation_bindings, &impl_bindings);
+        self.remember_function_bindings(&instantiation_bindings, &impl_bindings);
         self.elaborator.push_interpreter_call_stack(location)?;
 
         let result = self.call_function_inner(function, arguments, location);
@@ -346,6 +346,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         // Rebind the type bindings that existed when the closure was created
         force_bind_all(&closure.bindings);
 
+        self.remember_closure_bindings(&closure.bindings);
+
         // Set the closure's scope to that of the function it was originally evaluated in
         let old_module = self.elaborator.replace_module(closure.module_scope);
         let old_function = std::mem::replace(&mut self.current_function, closure.function_scope);
@@ -480,7 +482,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     /// Adds all of the given `main_bindings` and `impl_bindings` to the top of
     /// `self.bound_generics`. Note that this will not actually perform any of the type bindings.
-    fn remember_bindings(&mut self, main_bindings: &TypeBindings, impl_bindings: &TypeBindings) {
+    fn remember_function_bindings(
+        &mut self,
+        main_bindings: &TypeBindings,
+        impl_bindings: &TypeBindings,
+    ) {
         let bound_generics = self
             .bound_generics
             .last_mut()
@@ -492,6 +498,19 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         for (var, kind, binding) in impl_bindings.values() {
             bound_generics.insert(var.clone(), (binding.follow_bindings(), kind.clone()));
+        }
+    }
+
+    /// Adds all of the given `bindings` to the top of `self.bound_generics`.
+    /// Note that this will not actually perform any of the type bindings.
+    fn remember_closure_bindings(&mut self, bindings: &HashMap<TypeVariable, (Type, Kind)>) {
+        let bound_generics = self
+            .bound_generics
+            .last_mut()
+            .expect("remember_bindings called with no bound_generics on the stack");
+
+        for (var, (typ, kind)) in bindings {
+            bound_generics.insert(var.clone(), (typ.follow_bindings(), kind.clone()));
         }
     }
 
