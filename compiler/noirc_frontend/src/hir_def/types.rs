@@ -1491,23 +1491,6 @@ impl Type {
         }
     }
 
-    /// Returns the number of `Forall`-quantified type variables on this type.
-    /// Returns 0 if this is not a Type::Forall
-    pub fn generic_count(&self) -> usize {
-        match self {
-            Type::Forall(generics, _) => generics.len(),
-            Type::CheckedCast { to, .. } => to.generic_count(),
-            Type::TypeVariable(type_variable)
-            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
-                match &*type_variable.borrow() {
-                    TypeBinding::Bound(binding) => binding.generic_count(),
-                    TypeBinding::Unbound(_, _) => 0,
-                }
-            }
-            _ => 0,
-        }
-    }
-
     /// Takes a monomorphic type and generalizes it over each of the type variables in the
     /// given type bindings, ignoring what each type variable is bound to in the TypeBindings
     /// and their Kind's
@@ -2555,20 +2538,28 @@ impl Type {
     /// it is unchanged.
     pub fn instantiate(&self, interner: &NodeInterner) -> (Type, TypeBindings) {
         match self {
-            Type::Forall(typevars, typ) => {
-                let replacements = typevars
-                    .iter()
-                    .map(|var| {
-                        let new = interner.next_type_variable_with_kind(var.kind());
-                        (var.id(), (var.clone(), var.kind(), new))
-                    })
-                    .collect();
-
-                let instantiated = typ.force_substitute(&replacements);
-                (instantiated, replacements)
-            }
+            Type::Forall(typevars, typ) => typ.instantiate_with_type_vars(typevars, interner),
             other => (other.clone(), HashMap::default()),
         }
+    }
+
+    /// Instantiate this type, replacing the given type variables with fresh type variables,
+    /// if those happen inside `self`.
+    pub fn instantiate_with_type_vars(
+        &self,
+        typevars: &[TypeVariable],
+        interner: &NodeInterner,
+    ) -> (Type, TypeBindings) {
+        let replacements = typevars
+            .iter()
+            .map(|var| {
+                let new = interner.next_type_variable_with_kind(var.kind());
+                (var.id(), (var.clone(), var.kind(), new))
+            })
+            .collect();
+
+        let instantiated = self.force_substitute(&replacements);
+        (instantiated, replacements)
     }
 
     /// Instantiates a type with the given types.

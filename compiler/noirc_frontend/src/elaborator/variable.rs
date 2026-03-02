@@ -335,9 +335,14 @@ impl Elaborator<'_> {
         &mut self,
         item: PathResolutionItem,
     ) -> (Vec<Type>, Option<Type>) {
-        match item {
+        let mut errors = Vec::new();
+        let result = match item {
             PathResolutionItem::Method(struct_id, Some(generics), _func_id) => {
-                let generics = self.resolve_struct_id_turbofish_generics(struct_id, Some(generics));
+                let generics = self.resolve_struct_id_turbofish_generics(
+                    struct_id,
+                    Some(generics),
+                    &mut errors,
+                );
                 (generics, None)
             }
             PathResolutionItem::SelfMethod(_) => {
@@ -351,8 +356,11 @@ impl Elaborator<'_> {
             PathResolutionItem::TypeAliasFunction(type_alias_id, generics, _func_id) => {
                 let type_alias = self.interner.get_type_alias(type_alias_id);
                 let type_alias = type_alias.borrow();
-                let generics =
-                    self.resolve_type_alias_id_turbofish_generics(type_alias_id, generics);
+                let generics = self.resolve_type_alias_id_turbofish_generics(
+                    type_alias_id,
+                    generics,
+                    &mut errors,
+                );
 
                 // Now instantiate the underlying struct or alias with those generics, the struct might
                 // have more generics than those in the alias, like in this example:
@@ -373,6 +381,7 @@ impl Elaborator<'_> {
                     trait_generics,
                     Some(generics.generics),
                     generics.location,
+                    &mut errors,
                 );
                 (generics, None)
             }
@@ -380,8 +389,11 @@ impl Elaborator<'_> {
                 (Vec::new(), Some(self_type))
             }
             PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, _func_id) => {
-                let (typ, has_generics) =
-                    self.instantiate_primitive_type_with_turbofish(primitive_type, turbofish);
+                let (typ, has_generics) = self.instantiate_primitive_type_with_turbofish(
+                    primitive_type,
+                    turbofish,
+                    &mut errors,
+                );
                 let generics = if has_generics {
                     match typ {
                         Type::String(length) => vec![*length],
@@ -406,7 +418,9 @@ impl Elaborator<'_> {
             | PathResolutionItem::Global(..)
             | PathResolutionItem::ModuleFunction(..)
             | PathResolutionItem::TraitConstant(..) => (Vec::new(), None),
-        }
+        };
+        self.push_errors(errors);
+        result
     }
 
     /// Elaborates a type path used in an expression, e.g. `Type::method::<Args>`
@@ -449,7 +463,7 @@ impl Elaborator<'_> {
         let generics =
             turbofish.map(|turbofish| self.use_type_args(turbofish, func_id, ident_location).0);
 
-        self.elaborate_type_path_impl_inner(typ_location, ident_location, method, generics)
+        self.elaborate_type_path_impl_inner(&typ, typ_location, ident_location, method, generics)
     }
 
     /// Variant of [Self::elaborate_type_path_impl_inner] that accepts already resolved generics.
@@ -477,12 +491,19 @@ impl Elaborator<'_> {
             return self.elaborate_expression(error);
         };
 
-        self.elaborate_type_path_impl_inner(typ_location, ident_location, method, resolved_generics)
+        self.elaborate_type_path_impl_inner(
+            &typ,
+            typ_location,
+            ident_location,
+            method,
+            resolved_generics,
+        )
     }
 
     /// Common implementation for type path impl variants.
     fn elaborate_type_path_impl_inner(
         &mut self,
+        typ: &Type,
         _typ_location: Location,
         ident_location: Location,
         method: HirMethodReference,
@@ -513,7 +534,37 @@ impl Elaborator<'_> {
         let id =
             self.intern_expr(HirExpression::Ident(ident.clone(), generics.clone()), ident_location);
 
-        let typ = self.type_check_variable(ident, &id, generics);
+        // If the method has a self type (it's an impl or trait impl), bind `typ` to the instantiated self type.
+        let function_meta = self.interner.function_meta(&func_id);
+        let self_type_generics_count =
+            function_meta.all_generics.len() - function_meta.direct_generics.len();
+        let bindings = if self_type_generics_count > 0 {
+            if let Type::Forall(type_vars, _) = &function_meta.typ
+                && let Some(self_type) = &function_meta.self_type
+            {
+                // Only instantiate type vars corresponding to the `self` type, not to function direct generics
+                let type_vars =
+                    type_vars.iter().take(self_type_generics_count).cloned().collect::<Vec<_>>();
+                let (self_type, instantiation_bindings) =
+                    self_type.instantiate_with_type_vars(&type_vars, self.interner);
+                let _ = typ.unify(&self_type);
+                instantiation_bindings
+            } else {
+                TypeBindings::default()
+            }
+        } else {
+            TypeBindings::default()
+        };
+
+        // TODO: set this to `true`. See https://github.com/noir-lang/noir/issues/8687
+        let push_required_type_variables = self.current_trait.is_none();
+        let typ = self.type_check_variable_with_bindings(
+            ident,
+            &id,
+            generics,
+            bindings,
+            push_required_type_variables,
+        );
         let id = self.intern_expr_type(id, typ.clone());
 
         (id, typ)

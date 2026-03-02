@@ -6,6 +6,7 @@ use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::elaborator::scope::ItemAsValue;
+use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::node_interner::DefinitionId;
 use crate::{
     DataType, Kind, Type, TypeAlias,
@@ -329,12 +330,15 @@ impl Elaborator<'_> {
 
         let turbofish_location = last_segment.turbofish_location();
 
+        let mut errors = Vec::new();
         let generics = self.resolve_struct_turbofish_generics(
             &struct_type.borrow(),
             generics,
             last_segment.generics,
             turbofish_location,
+            &mut errors,
         );
+        self.push_errors(errors);
 
         let actual_type = Type::DataType(struct_type.clone(), generics);
 
@@ -579,6 +583,7 @@ impl Elaborator<'_> {
         generics: Vec<Type>,
         resolved_turbofish: Option<Vec<Located<Type>>>,
         location: Location,
+        errors: &mut Vec<CompilationError>,
     ) -> Vec<Type> {
         let kinds = vecmap(&struct_type.generics, |generic| generic.kind());
         self.resolve_item_turbofish_generics(
@@ -588,6 +593,7 @@ impl Elaborator<'_> {
             generics,
             resolved_turbofish,
             location,
+            errors,
         )
     }
 
@@ -601,6 +607,7 @@ impl Elaborator<'_> {
         generics: Vec<Type>,
         resolved_turbofish: Option<Vec<Located<Type>>>,
         location: Location,
+        errors: &mut Vec<CompilationError>,
     ) -> Vec<Type> {
         self.resolve_item_turbofish_generics(
             "trait",
@@ -609,6 +616,7 @@ impl Elaborator<'_> {
             generics,
             resolved_turbofish,
             location,
+            errors,
         )
     }
 
@@ -621,6 +629,7 @@ impl Elaborator<'_> {
         generics: Vec<Type>,
         resolved_turbofish: Option<Vec<Located<Type>>>,
         location: Location,
+        errors: &mut Vec<CompilationError>,
     ) -> Vec<Type> {
         let kinds = vecmap(&type_alias.generics, |generic| generic.kind());
         self.resolve_item_turbofish_generics(
@@ -630,6 +639,7 @@ impl Elaborator<'_> {
             generics,
             resolved_turbofish,
             location,
+            errors,
         )
     }
 
@@ -637,6 +647,7 @@ impl Elaborator<'_> {
     /// check if we have a non-empty turbofish with the expected number of generics,
     /// and if so try unify them with the expected kinds, otherwise return the default
     /// generics of the type.
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn resolve_item_turbofish_generics(
         &mut self,
         item_kind: &'static str,
@@ -645,6 +656,7 @@ impl Elaborator<'_> {
         generics: Vec<Type>,
         resolved_turbofish: Option<Vec<Located<Type>>>,
         location: Location,
+        errors: &mut Vec<CompilationError>,
     ) -> Vec<Type> {
         assert_eq!(
             generics.len(),
@@ -657,12 +669,15 @@ impl Elaborator<'_> {
         };
 
         if turbofish_generics.len() != generics.len() {
-            self.push_err(TypeCheckError::GenericCountMismatch {
-                item: format!("{item_kind} {item_name}"),
-                expected: generics.len(),
-                found: turbofish_generics.len(),
-                location,
-            });
+            errors.push(
+                TypeCheckError::GenericCountMismatch {
+                    item: format!("{item_kind} {item_name}"),
+                    expected: generics.len(),
+                    found: turbofish_generics.len(),
+                    location,
+                }
+                .into(),
+            );
             return generics;
         }
 
@@ -731,6 +746,7 @@ impl Elaborator<'_> {
         &mut self,
         struct_id: TypeId,
         mut turbofish: Option<Turbofish>,
+        errors: &mut Vec<CompilationError>,
     ) -> Vec<Type> {
         let struct_type = self.interner.get_type(struct_id);
         let struct_type = struct_type.borrow();
@@ -741,6 +757,7 @@ impl Elaborator<'_> {
                 struct_generics,
                 Some(turbofish.generics),
                 turbofish.location,
+                errors,
             )
         } else {
             struct_generics
@@ -752,6 +769,7 @@ impl Elaborator<'_> {
         &mut self,
         type_alias_id: TypeAliasId,
         generics: Option<Turbofish>,
+        errors: &mut Vec<CompilationError>,
     ) -> Vec<Type> {
         let type_alias = self.interner.get_type_alias(type_alias_id);
         let type_alias = type_alias.borrow();
@@ -765,6 +783,7 @@ impl Elaborator<'_> {
                 alias_generics,
                 Some(generics.generics),
                 generics.location,
+                errors,
             )
         } else {
             alias_generics

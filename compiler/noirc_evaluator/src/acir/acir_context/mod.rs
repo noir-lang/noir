@@ -973,7 +973,7 @@ impl<F: AcirField> AcirContext<F> {
     ///
     /// `lhs<=rhs` is done by constraining `rhs-lhs` to a bit size of `bits`:
     /// - if `lhs<=rhs`, `0 <= rhs-lhs <= b < 2^bits`
-    /// - if `lhs>rhs`, `rhs-lhs = p+rhs-lhs > p-2^bits >= 2^bits`  (if `log(p) >= bits + 1`)
+    /// - if `lhs>rhs`, `rhs-lhs = p+rhs-lhs > p-2^bits >= 2^bits`  (if `log(p) > bits + 1`)
     ///
     /// n.b: we do NOT check here that `lhs` and `rhs` are indeed `bits` size
     pub(super) fn bound_constraint_with_offset(
@@ -993,9 +993,18 @@ impl<F: AcirField> AcirContext<F> {
             num_bits::<u128>() as u32 - a.leading_zeros()
         }
 
+        // When offset is 1, we have the inequality `2^(bits) - 1 > rhs - (lhs + 1) >= 0 - 2^(bits)` by passing the
+        // extreme values of `lhs` and `rhs`.
+        //
+        // To distinguish the two cases, we need to ensure that `p - 2^(bits) > 2^(bits) - 1`, so that when `lhs > rhs`,
+        // `rhs - (lhs + offset)` will overflow the field and become a large integer which cannot be represented
+        // in `bits` bits, and thus fail the range constraint.
+        //
+        // Rearranging `2^(bits) - 1 < p - 2^(bits)` gives the condition `bits + 1 < log2(p)` for the constraints
+        // to be valid.
         assert!(
-            bits < F::max_num_bits(),
-            "range check with bit size >= the prime field size is not implemented yet"
+            bits + 1 < F::max_num_bits(),
+            "range check with bit size + 1 >= the prime field bit size is not implemented yet"
         );
 
         // If `rhs` is a constant, we can try to optimize the operation by shifting `lhs + offset` such that if
