@@ -1248,11 +1248,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let location = self.elaborator.interner.expr_location(&id);
         let env = try_vecmap(&lambda.captures, |capture| {
             let value = self.lookup_id(capture.ident.id, location)?;
-            match value {
+            let value = match value {
                 // Dereference mutable variables to capture by value
                 Value::Pointer(elem, true, _) => Ok(elem.unwrap_or_clone()),
                 other => Ok(other),
-            }
+            }?;
+            Ok(value.move_struct())
         })?;
 
         let typ = self.elaborator.interner.id_type(id).follow_bindings();

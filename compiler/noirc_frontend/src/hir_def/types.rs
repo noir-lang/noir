@@ -2538,14 +2538,15 @@ impl Type {
     /// it is unchanged.
     pub fn instantiate(&self, interner: &NodeInterner) -> (Type, TypeBindings) {
         match self {
-            Type::Forall(typevars, typ) => typ.instantiate_with_type_vars(typevars, interner),
+            Type::Forall(typevars, typ) => {
+                typ.substitute_type_vars_with_fresh_type_vars(typevars, interner)
+            }
             other => (other.clone(), HashMap::default()),
         }
     }
 
-    /// Instantiate this type, replacing the given type variables with fresh type variables,
-    /// if those happen inside `self`.
-    pub fn instantiate_with_type_vars(
+    /// Replaces the given type variables with fresh type variables, if those happen inside `self`.
+    pub fn substitute_type_vars_with_fresh_type_vars(
         &self,
         typevars: &[TypeVariable],
         interner: &NodeInterner,
