@@ -206,71 +206,42 @@
 <a href=#206 id=206 data-nosnippet>206</a>    }
 <a href=#207 id=207 data-nosnippet>207</a>}
 <a href=#208 id=208 data-nosnippet>208</a>
-<a href=#209 id=209 data-nosnippet>209</a><span class="doccomment">/// Assumes `typ` is an array or vector type with nested numeric types, arrays or vectors
-<a href=#210 id=210 data-nosnippet>210</a>/// (recursively) and returns a flat list of all the contained numeric types.
-<a href=#211 id=211 data-nosnippet>211</a>/// Panics if `self` is not an array or vector type or if a function or reference type
-<a href=#212 id=212 data-nosnippet>212</a>/// is found along the way.
-<a href=#213 id=213 data-nosnippet>213</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>flat_numeric_types(typ: <span class="kw-2">&amp;</span>SsaType) -&gt; Vec&lt;NumericType&gt; {
-<a href=#214 id=214 data-nosnippet>214</a>    <span class="kw">match </span>typ {
-<a href=#215 id=215 data-nosnippet>215</a>        SsaType::Array(..) | SsaType::Vector(..) =&gt; {
-<a href=#216 id=216 data-nosnippet>216</a>            <span class="kw">let </span><span class="kw-2">mut </span>flat_types = Vec::new();
-<a href=#217 id=217 data-nosnippet>217</a>            collect_flat_numeric_types(typ, <span class="kw-2">&amp;mut </span>flat_types);
-<a href=#218 id=218 data-nosnippet>218</a>            flat_types
-<a href=#219 id=219 data-nosnippet>219</a>        }
-<a href=#220 id=220 data-nosnippet>220</a>        <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"Called flat_numeric_types on a non-array/vector type"</span>),
-<a href=#221 id=221 data-nosnippet>221</a>    }
-<a href=#222 id=222 data-nosnippet>222</a>}
-<a href=#223 id=223 data-nosnippet>223</a>
-<a href=#224 id=224 data-nosnippet>224</a><span class="doccomment">/// Returns the fully flattened numeric types for one element of a vector/array,
-<a href=#225 id=225 data-nosnippet>225</a>/// recursively flattening nested arrays.
-<a href=#226 id=226 data-nosnippet>226</a>/// For example, for Vector([(u32, u32, [Field; 3])]), this returns [u32, u32, Field, Field, Field].
-<a href=#227 id=227 data-nosnippet>227</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>flat_element_types(typ: <span class="kw-2">&amp;</span>SsaType) -&gt; Vec&lt;NumericType&gt; {
-<a href=#228 id=228 data-nosnippet>228</a>    <span class="kw">match </span>typ {
-<a href=#229 id=229 data-nosnippet>229</a>        SsaType::Vector(element_types) | SsaType::Array(element_types, <span class="kw">_</span>) =&gt; {
-<a href=#230 id=230 data-nosnippet>230</a>            <span class="kw">let </span><span class="kw-2">mut </span>flat_types = Vec::new();
-<a href=#231 id=231 data-nosnippet>231</a>            <span class="kw">for </span>element_typ <span class="kw">in </span>element_types.iter() {
-<a href=#232 id=232 data-nosnippet>232</a>                collect_fully_flattened_numeric_types(element_typ, <span class="kw-2">&amp;mut </span>flat_types);
-<a href=#233 id=233 data-nosnippet>233</a>            }
-<a href=#234 id=234 data-nosnippet>234</a>            flat_types
-<a href=#235 id=235 data-nosnippet>235</a>        }
-<a href=#236 id=236 data-nosnippet>236</a>        <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"Called flat_element_types on a non-array/vector type"</span>),
-<a href=#237 id=237 data-nosnippet>237</a>    }
-<a href=#238 id=238 data-nosnippet>238</a>}
-<a href=#239 id=239 data-nosnippet>239</a>
-<a href=#240 id=240 data-nosnippet>240</a><span class="doccomment">/// Helper function for `flat_element_types` that fully flattens arrays using the length.
-<a href=#241 id=241 data-nosnippet>241</a>/// This is different from `collect_flat_numeric_types` which returns just the first element.
-<a href=#242 id=242 data-nosnippet>242</a></span><span class="kw">fn </span>collect_fully_flattened_numeric_types(typ: <span class="kw-2">&amp;</span>SsaType, flat_types: <span class="kw-2">&amp;mut </span>Vec&lt;NumericType&gt;) {
-<a href=#243 id=243 data-nosnippet>243</a>    <span class="kw">match </span>typ {
-<a href=#244 id=244 data-nosnippet>244</a>        SsaType::Numeric(numeric_type) =&gt; {
-<a href=#245 id=245 data-nosnippet>245</a>            flat_types.push(<span class="kw-2">*</span>numeric_type);
-<a href=#246 id=246 data-nosnippet>246</a>        }
-<a href=#247 id=247 data-nosnippet>247</a>        SsaType::Array(types, len) =&gt; {
-<a href=#248 id=248 data-nosnippet>248</a>            <span class="comment">// For arrays, multiply by length to get the fully flattened representation
-<a href=#249 id=249 data-nosnippet>249</a>            </span><span class="kw">for _ in </span><span class="number">0</span>..len.<span class="number">0 </span>{
-<a href=#250 id=250 data-nosnippet>250</a>                <span class="kw">for </span>typ <span class="kw">in </span>types.iter() {
-<a href=#251 id=251 data-nosnippet>251</a>                    collect_fully_flattened_numeric_types(typ, flat_types);
-<a href=#252 id=252 data-nosnippet>252</a>                }
-<a href=#253 id=253 data-nosnippet>253</a>            }
-<a href=#254 id=254 data-nosnippet>254</a>        }
-<a href=#255 id=255 data-nosnippet>255</a>        SsaType::Vector(<span class="kw">_</span>) =&gt; {
-<a href=#256 id=256 data-nosnippet>256</a>            <span class="macro">panic!</span>(<span class="string">"Cannot fully flatten a vector type - vectors have dynamic length"</span>)
-<a href=#257 id=257 data-nosnippet>257</a>        }
-<a href=#258 id=258 data-nosnippet>258</a>        <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"Called collect_fully_flattened_numeric_types on unsupported type"</span>),
-<a href=#259 id=259 data-nosnippet>259</a>    }
-<a href=#260 id=260 data-nosnippet>260</a>}
-<a href=#261 id=261 data-nosnippet>261</a>
-<a href=#262 id=262 data-nosnippet>262</a><span class="doccomment">/// Helper function for `flat_numeric_types` that recursively collects all numeric types
-<a href=#263 id=263 data-nosnippet>263</a>/// into `flat_types`.
-<a href=#264 id=264 data-nosnippet>264</a></span><span class="kw">fn </span>collect_flat_numeric_types(typ: <span class="kw-2">&amp;</span>SsaType, flat_types: <span class="kw-2">&amp;mut </span>Vec&lt;NumericType&gt;) {
-<a href=#265 id=265 data-nosnippet>265</a>    <span class="kw">match </span>typ {
-<a href=#266 id=266 data-nosnippet>266</a>        SsaType::Numeric(numeric_type) =&gt; {
-<a href=#267 id=267 data-nosnippet>267</a>            flat_types.push(<span class="kw-2">*</span>numeric_type);
-<a href=#268 id=268 data-nosnippet>268</a>        }
-<a href=#269 id=269 data-nosnippet>269</a>        SsaType::Array(types, <span class="kw">_</span>) | SsaType::Vector(types) =&gt; {
-<a href=#270 id=270 data-nosnippet>270</a>            <span class="kw">for </span>typ <span class="kw">in </span>types.iter() {
-<a href=#271 id=271 data-nosnippet>271</a>                collect_flat_numeric_types(typ, flat_types);
-<a href=#272 id=272 data-nosnippet>272</a>            }
-<a href=#273 id=273 data-nosnippet>273</a>        }
-<a href=#274 id=274 data-nosnippet>274</a>        <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"Called collect_flat_numeric_types on non-array/vector/number type"</span>),
-<a href=#275 id=275 data-nosnippet>275</a>    }
-<a href=#276 id=276 data-nosnippet>276</a>}</code></pre></div></section></main></body></html>
+<a href=#209 id=209 data-nosnippet>209</a><span class="doccomment">/// Returns the fully flattened numeric types for one element of a vector/array,
+<a href=#210 id=210 data-nosnippet>210</a>/// recursively flattening nested arrays.
+<a href=#211 id=211 data-nosnippet>211</a>///
+<a href=#212 id=212 data-nosnippet>212</a>/// For example, for `Vector([(u32, u32, [Field; 3])])`, this returns `[u32, u32, Field, Field, Field]`.
+<a href=#213 id=213 data-nosnippet>213</a>///
+<a href=#214 id=214 data-nosnippet>214</a>/// Panics if called on anything but an array or vector type.
+<a href=#215 id=215 data-nosnippet>215</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>flat_element_types(typ: <span class="kw-2">&amp;</span>SsaType) -&gt; Vec&lt;NumericType&gt; {
+<a href=#216 id=216 data-nosnippet>216</a>    <span class="kw">match </span>typ {
+<a href=#217 id=217 data-nosnippet>217</a>        SsaType::Vector(element_types) | SsaType::Array(element_types, <span class="kw">_</span>) =&gt; {
+<a href=#218 id=218 data-nosnippet>218</a>            <span class="kw">let </span><span class="kw-2">mut </span>flat_types = Vec::new();
+<a href=#219 id=219 data-nosnippet>219</a>            <span class="kw">for </span>element_typ <span class="kw">in </span>element_types.iter() {
+<a href=#220 id=220 data-nosnippet>220</a>                collect_fully_flattened_numeric_types(element_typ, <span class="kw-2">&amp;mut </span>flat_types);
+<a href=#221 id=221 data-nosnippet>221</a>            }
+<a href=#222 id=222 data-nosnippet>222</a>            flat_types
+<a href=#223 id=223 data-nosnippet>223</a>        }
+<a href=#224 id=224 data-nosnippet>224</a>        <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"Called flat_element_types on a non-array/vector type"</span>),
+<a href=#225 id=225 data-nosnippet>225</a>    }
+<a href=#226 id=226 data-nosnippet>226</a>}
+<a href=#227 id=227 data-nosnippet>227</a>
+<a href=#228 id=228 data-nosnippet>228</a><span class="doccomment">/// Helper function for `flat_element_types` that fully flattens arrays using the length.
+<a href=#229 id=229 data-nosnippet>229</a></span><span class="kw">fn </span>collect_fully_flattened_numeric_types(typ: <span class="kw-2">&amp;</span>SsaType, flat_types: <span class="kw-2">&amp;mut </span>Vec&lt;NumericType&gt;) {
+<a href=#230 id=230 data-nosnippet>230</a>    <span class="kw">match </span>typ {
+<a href=#231 id=231 data-nosnippet>231</a>        SsaType::Numeric(numeric_type) =&gt; {
+<a href=#232 id=232 data-nosnippet>232</a>            flat_types.push(<span class="kw-2">*</span>numeric_type);
+<a href=#233 id=233 data-nosnippet>233</a>        }
+<a href=#234 id=234 data-nosnippet>234</a>        SsaType::Array(types, len) =&gt; {
+<a href=#235 id=235 data-nosnippet>235</a>            <span class="comment">// For arrays, multiply by length to get the fully flattened representation
+<a href=#236 id=236 data-nosnippet>236</a>            </span><span class="kw">for _ in </span><span class="number">0</span>..len.<span class="number">0 </span>{
+<a href=#237 id=237 data-nosnippet>237</a>                <span class="kw">for </span>typ <span class="kw">in </span>types.iter() {
+<a href=#238 id=238 data-nosnippet>238</a>                    collect_fully_flattened_numeric_types(typ, flat_types);
+<a href=#239 id=239 data-nosnippet>239</a>                }
+<a href=#240 id=240 data-nosnippet>240</a>            }
+<a href=#241 id=241 data-nosnippet>241</a>        }
+<a href=#242 id=242 data-nosnippet>242</a>        SsaType::Vector(<span class="kw">_</span>) =&gt; {
+<a href=#243 id=243 data-nosnippet>243</a>            <span class="macro">panic!</span>(<span class="string">"Cannot fully flatten a vector type - vectors have dynamic length"</span>)
+<a href=#244 id=244 data-nosnippet>244</a>        }
+<a href=#245 id=245 data-nosnippet>245</a>        <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"Called collect_fully_flattened_numeric_types on unsupported type"</span>),
+<a href=#246 id=246 data-nosnippet>246</a>    }
+<a href=#247 id=247 data-nosnippet>247</a>}</code></pre></div></section></main></body></html>
