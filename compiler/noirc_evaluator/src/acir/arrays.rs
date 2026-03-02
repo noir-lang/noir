@@ -375,11 +375,14 @@ impl Context<'_> {
         }
     }
 
-    /// Get an offset such that the type of the array at the offset is the same as the type at the 'index'
-    /// If we find one, we will use it when computing the index under the enable_side_effect predicate
-    /// If not, array_get(..) will use a fallback costing one multiplication in the worst case.
+    /// Get an offset such that the type of the array at the offset is the same as the type at the 'index'.
+    ///
+    /// If we find one, we will use it when computing the index under the `enable_side_effect` predicate.
+    /// If not, `array_get(..)` will use a fallback costing one multiplication in the worst case.
+    ///
     /// cf. <https://github.com/noir-lang/noir/pull/4971>
-    /// For simplicity we compute the offset only for simple arrays
+    ///
+    /// For simplicity we compute the offset only for simple arrays.
     fn compute_offset(
         &self,
         instruction: InstructionId,
@@ -572,8 +575,9 @@ impl Context<'_> {
         }
     }
 
-    /// Generates a read opcode for the array
-    /// `index_side_effect == false` means that we ensured `var_index` will have a type matching the value in the array
+    /// Generates a read opcode for the array.
+    ///
+    /// `index_side_effect == false` means that we ensured `var_index` will have a type matching the value in the array.
     fn array_get(
         &mut self,
         instruction: InstructionId,
@@ -585,11 +589,8 @@ impl Context<'_> {
         let block_id = self.ensure_array_is_initialized(array, dfg)?;
         let [result] = dfg.instruction_result(instruction);
         let res_typ = dfg.type_of_value(result);
-
         let value = self.load_array_value(array, block_id, var_index, &res_typ, dfg)?;
-
         let value = self.apply_index_side_effects(array, value, index_side_effect, dfg)?;
-
         self.define_result(dfg, instruction, value);
         Ok(())
     }
@@ -657,6 +658,8 @@ impl Context<'_> {
     ) -> Result<AcirValue, RuntimeError> {
         match &value {
             AcirValue::Var(acir_var, typ) => {
+                // If we read under a false predicate, we will read element 0, which has `numeric_type`.
+                // The variable we expect to read is of `typ`. We check whether reading 0 is compatible with `typ`.
                 let array_typ = dfg.type_of_value(array);
                 if let Type::Numeric(numeric_type) = array_typ.first()
                     && numeric_type.bit_size::<FieldElement>() <= typ.bit_size::<FieldElement>()
