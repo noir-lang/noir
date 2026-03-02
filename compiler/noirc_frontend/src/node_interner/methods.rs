@@ -127,7 +127,7 @@ impl Methods {
                     }
                 } else {
                     let method_type = if let Type::Forall(typevars, _) = function_typ {
-                        method_type.instantiate_with_type_vars(typevars, interner).0
+                        method_type.substitute_type_vars_with_fresh_type_vars(typevars, interner).0
                     } else {
                         method_type.clone()
                     };
