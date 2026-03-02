@@ -63,11 +63,12 @@ impl Methods {
         if self.direct.is_empty() {
             return None;
         }
-        let instantiate_typ = Self::instantiate_named_generics(typ, interner);
+        let instantiate_typ = Self::replace_named_generics_with_fresh_type_vars(typ, interner);
         for existing in &self.direct {
             // Check if two types overlap, by instantiating both types (replacing NamedGenerics
             // with fresh TypeVariables) and then checking if they can unify.
-            let instantiate_existing = Self::instantiate_named_generics(&existing.typ, interner);
+            let instantiate_existing =
+                Self::replace_named_generics_with_fresh_type_vars(&existing.typ, interner);
             let mut bindings = TypeBindings::default();
             let types_can_unify =
                 instantiate_existing.try_unify(&instantiate_typ, &mut bindings).is_ok();
@@ -80,7 +81,7 @@ impl Methods {
 
     /// Instantiate a type by finding all NamedGenerics and replacing them with
     /// fresh type variables.
-    fn instantiate_named_generics(typ: &Type, interner: &NodeInterner) -> Type {
+    fn replace_named_generics_with_fresh_type_vars(typ: &Type, interner: &NodeInterner) -> Type {
         let mut named_generics = Vec::new();
         Self::collect_named_generics(typ, &mut named_generics, &mut HashSet::new());
 
