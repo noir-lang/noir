@@ -157,7 +157,7 @@ fn brillig_global_array_not_coalesced_with_block_param() {
         v1 = allocate -> &mut u32
         store u32 1 at v1
         v2 = call f1(v1) -> u1
-        jmpif v2 then: b1, else: b2
+        jmpif v2 then: b1(), else: b2()
       b1():
         constrain u1 0 == u1 1
         unreachable
@@ -170,7 +170,7 @@ fn brillig_global_array_not_coalesced_with_block_param() {
       b0(v0: &mut u32):
         v1 = load v0 -> u32
         v2 = eq v1, u32 0
-        jmpif v2 then: b1, else: b2
+        jmpif v2 then: b1(), else: b2()
       b1():
         jmp b3(u1 0)
       b2():

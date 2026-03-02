@@ -656,7 +656,9 @@ impl<'function> PerFunctionContext<'function> {
             TerminatorInstruction::JmpIf {
                 condition,
                 then_destination,
+                then_arguments,
                 else_destination,
+                else_arguments,
                 call_stack,
             } => {
                 let condition = self.translate_value(*condition);
@@ -669,17 +671,31 @@ impl<'function> PerFunctionContext<'function> {
                         let next_block =
                             if constant.is_zero() { *else_destination } else { *then_destination };
 
+                        let arguments = if constant.is_zero() {
+                            vecmap(else_arguments, |arg| self.translate_value(*arg))
+                        } else {
+                            vecmap(then_arguments, |arg| self.translate_value(*arg))
+                        };
+
                         let next_block = self.translate_block(next_block, block_queue);
                         self.extend_call_stack(*call_stack);
-                        self.context.builder.terminate_with_jmp(next_block, vec![]);
+                        self.context.builder.terminate_with_jmp(next_block, arguments);
                     }
                     None => {
                         let then_block = self.translate_block(*then_destination, block_queue);
                         let else_block = self.translate_block(*else_destination, block_queue);
+                        let then_arguments =
+                            vecmap(then_arguments, |arg| self.translate_value(*arg));
+                        let else_arguments =
+                            vecmap(else_arguments, |arg| self.translate_value(*arg));
                         self.extend_call_stack(*call_stack);
-                        self.context
-                            .builder
-                            .terminate_with_jmpif(condition, then_block, else_block);
+                        self.context.builder.terminate_with_jmpif(
+                            condition,
+                            then_block,
+                            then_arguments,
+                            else_block,
+                            else_arguments,
+                        );
                     }
                 }
                 None
@@ -828,7 +844,7 @@ mod tests {
         acir(inline) fn factorial f1 {
           b0(v1: u32):
             v2 = lt v1, u32 1
-            jmpif v2 then: b1, else: b2
+            jmpif v2 then: b1(), else: b2()
           b1():
             jmp b3(u32 1)
           b2():
@@ -893,7 +909,7 @@ mod tests {
         acir(inline) fn factorial f1 {
           b0(v1: u32):
             v2 = lt v1, u32 1
-            jmpif v2 then: b1, else: b2
+            jmpif v2 then: b1(), else: b2()
           b1():
             jmp b3(u32 1)
           b2():
@@ -914,7 +930,7 @@ mod tests {
             "acir(inline) fn factorial f1 {
   b0(v0: u32):
     v3 = eq v0, u32 0
-    jmpif v3 then: b1, else: b2
+    jmpif v3 then: b1(), else: b2()
   b1():
     jmp b3(u32 1)
   b2():
@@ -937,7 +953,7 @@ mod tests {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: u1):
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             jmp b3(Field 1)
           b2():
@@ -953,7 +969,7 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u1):
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             jmp b3(Field 1)
           b2():
@@ -1026,7 +1042,7 @@ mod tests {
 
         brillig(inline) fn bar f1 {
           b0():
-            jmpif u1 1 then: b1, else: b2
+            jmpif u1 1 then: b1(), else: b2()
           b1():
             jmp b3(Field 1)
           b2():
@@ -1078,7 +1094,7 @@ mod tests {
 
         brillig(inline) fn heavy f1 {
           b0(v0: u32, v1: u1):
-            jmpif v1 then: b1, else: b2
+            jmpif v1 then: b1(), else: b2()
           b1():
             v10 = add v0, u32 1
             v11 = add v10, u32 2
@@ -1106,7 +1122,7 @@ mod tests {
         }
         brillig(inline) fn heavy f1 {
           b0(v0: u32, v1: u1):
-            jmpif v1 then: b1, else: b2
+            jmpif v1 then: b1(), else: b2()
           b1():
             v5 = add v0, u32 1
             v7 = add v5, u32 2
@@ -1135,7 +1151,7 @@ mod tests {
         }
         brillig(inline) fn bar f1 {
           b0():
-            jmpif u1 1 then: b1, else: b2
+            jmpif u1 1 then: b1(), else: b2()
           b1():
             jmp b3(Field 1)
           b2():
@@ -1145,7 +1161,7 @@ mod tests {
         }
         brillig(inline) fn baz f2 {
           b0(v0: u1):
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             jmp b3(Field 1)
           b2():
@@ -1500,7 +1516,7 @@ mod tests {
           b0():
             jmp b1()
           b1():
-            jmpif u1 1 then: b2, else: b3
+            jmpif u1 1 then: b2(), else: b3()
           b2():
             jmp b1()
           b3():
@@ -1538,7 +1554,7 @@ mod tests {
             jmp b1(Field 0, Field 1)
           b1(v0: Field, v1: Field):
             v2 = add v0, v1
-            jmpif u1 1 then: b2, else: b3
+            jmpif u1 1 then: b2(), else: b3()
           b2():
             jmp b1(v2, v0)
           b3():
@@ -1584,6 +1600,40 @@ mod tests {
         ";
         let ssa = Ssa::from_str(src).unwrap();
         assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn inlines_function_with_constant_jmpif_with_args() {
+        let src = "
+        acir(inline) fn foo f0 {
+          b0():
+            v1 = call f1() -> Field
+            return v1
+        }
+
+        acir(inline) fn bar f1 {
+          b0():
+            jmpif u1 0 then: b1(Field 5), else: b2(Field 6)
+          b1(v0: Field):
+            jmp b3(v0)
+          b2(v1: Field):
+            jmp b3(v1)
+          b3(v2: Field):
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn foo f0 {
+          b0():
+            jmp b1(Field 6)
+          b1(v0: Field):
+            jmp b2(v0)
+          b2(v1: Field):
+            return v1
+        }
+        ");
     }
 }
 

@@ -267,7 +267,7 @@ mod tests {
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: u1, v1: Field):
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             v2 = add v1, Field 42
             jmp b3(v2)
@@ -302,7 +302,7 @@ mod tests {
             jmp b1(u32 0)
           b1(v1: u32):
             v2 = lt v1, v0
-            jmpif v2 then: b2, else: b3
+            jmpif v2 then: b2(), else: b3()
           b2():
             v3 = add v1, u32 1
             jmp b1(v3)
@@ -332,7 +332,7 @@ mod tests {
             jmp b1(v2)
           b1(v3: u32):
             v4 = lt v3, v0
-            jmpif v4 then: b2, else: b3
+            jmpif v4 then: b2(), else: b3()
           b2():
             v5 = add v3, v2
             jmp b1(v5)
@@ -364,7 +364,7 @@ mod tests {
             jmp b1(v0)
           b1(v1: u32):
             v2 = lt v1, u32 10
-            jmpif v2 then: b2, else: b3
+            jmpif v2 then: b2(), else: b3()
           b2():
             jmp b1(v1)
           b3():
@@ -451,7 +451,7 @@ mod tests {
         brillig(inline) fn main f0 {
           b0(v0: [u8; 1]):
             v1 = call f1() -> u1
-            jmpif v1 then: b1, else: b2
+            jmpif v1 then: b1(), else: b2()
           b1():
             inc_rc g0
             jmp b3(g0)
@@ -488,7 +488,7 @@ mod tests {
             jmp b1(u32 0)
           b1(v1: u32):
             v2 = lt v1, v0
-            jmpif v2 then: b2, else: b3
+            jmpif v2 then: b2(), else: b3()
           b2():
             v3 = add v1, u32 1
             v4 = mul v3, u32 2
@@ -521,7 +521,7 @@ mod tests {
             jmp b1(u32 0, u32 10)
           b1(v1: u32, v2: u32):
             v3 = lt v1, v0
-            jmpif v3 then: b2, else: b3
+            jmpif v3 then: b2(), else: b3()
           b2():
             v4 = mul v0, u32 2
             jmp b1(v4, v1)
@@ -624,7 +624,7 @@ mod tests {
         brillig(inline) fn main f0 {
           b0(v0: u1, v1: Field):
             v2 = add v1, Field 1
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             jmp b3(v2)
           b2():

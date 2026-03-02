@@ -167,7 +167,7 @@ fn brillig_spill_jmpif_diamond_dead_else_condition() {
       b0(v0: u32, v1: u32, v2: u32, v3: u32):
         v4 = eq v0, u32 0
         v5 = not v4
-        jmpif v4 then: b1, else: b2
+        jmpif v4 then: b1(), else: b2()
       b1():
         v6 = if v4 then v1 else (if v5) v2
         v7 = unchecked_add v6, v3
