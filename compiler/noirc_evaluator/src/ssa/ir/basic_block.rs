@@ -42,6 +42,10 @@ impl BasicBlock {
         &self.parameters
     }
 
+    pub(crate) fn parameters_mut(&mut self) -> &mut Vec<ValueId> {
+        &mut self.parameters
+    }
+
     /// Removes all the parameters of this block
     pub(crate) fn take_parameters(&mut self) -> Vec<ValueId> {
         std::mem::take(&mut self.parameters)
