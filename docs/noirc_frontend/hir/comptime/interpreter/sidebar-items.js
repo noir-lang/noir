@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["MAX_EVALUATION_DEPTH"],"fn":["bounds_check","evaluate_integer","evaluate_prefix_with_value","force_bind_all","to_i128","to_u128","unbind_all"],"mod":["builtin","cast","foreign","infix","unquote"],"struct":["Interpreter"]};
+window.SIDEBAR_ITEMS = {"constant":["MAX_EVALUATION_DEPTH"],"fn":["bounds_check","evaluate_integer","evaluate_prefix_with_value","perform_bindings","to_i128","to_u128","undo_bindings"],"mod":["builtin","cast","foreign","infix","unquote"],"struct":["Interpreter"]};

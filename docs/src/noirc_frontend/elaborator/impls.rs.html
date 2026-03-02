@@ -239,11 +239,9 @@
 <a href=#239 id=239 data-nosnippet>239</a>        <span class="kw">for </span>method_id <span class="kw">in </span>function_ids {
 <a href=#240 id=240 data-nosnippet>240</a>            <span class="kw">let </span>method_name = <span class="self">self</span>.interner.function_name(method_id).to_owned();
 <a href=#241 id=241 data-nosnippet>241</a>
-<a href=#242 id=242 data-nosnippet>242</a>            <span class="kw">if let </span><span class="prelude-val">Err</span>(error) =
-<a href=#243 id=243 data-nosnippet>243</a>                <span class="self">self</span>.interner.add_method(self_type, method_name.clone(), <span class="kw-2">*</span>method_id, <span class="prelude-val">None</span>)
-<a href=#244 id=244 data-nosnippet>244</a>            {
-<a href=#245 id=245 data-nosnippet>245</a>                <span class="self">self</span>.push_err(error);
-<a href=#246 id=246 data-nosnippet>246</a>            }
-<a href=#247 id=247 data-nosnippet>247</a>        }
-<a href=#248 id=248 data-nosnippet>248</a>    }
-<a href=#249 id=249 data-nosnippet>249</a>}</code></pre></div></section></main></body></html>
+<a href=#242 id=242 data-nosnippet>242</a>            <span class="kw">if let </span><span class="prelude-val">Err</span>(error) = <span class="self">self</span>.interner.add_method(self_type, method_name, <span class="kw-2">*</span>method_id, <span class="prelude-val">None</span>) {
+<a href=#243 id=243 data-nosnippet>243</a>                <span class="self">self</span>.push_err(error);
+<a href=#244 id=244 data-nosnippet>244</a>            }
+<a href=#245 id=245 data-nosnippet>245</a>        }
+<a href=#246 id=246 data-nosnippet>246</a>    }
+<a href=#247 id=247 data-nosnippet>247</a>}</code></pre></div></section></main></body></html>

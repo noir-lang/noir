@@ -834,211 +834,212 @@
 <a href=#834 id=834 data-nosnippet>834</a>                trait_id,
 <a href=#835 id=835 data-nosnippet>835</a>                impl_id,
 <a href=#836 id=836 data-nosnippet>836</a>                impl_generics,
-<a href=#837 id=837 data-nosnippet>837</a>            );
-<a href=#838 id=838 data-nosnippet>838</a>        }
-<a href=#839 id=839 data-nosnippet>839</a>
-<a href=#840 id=840 data-nosnippet>840</a>        trait_impl.methods.self_type = <span class="prelude-val">Some</span>(self_type.clone());
-<a href=#841 id=841 data-nosnippet>841</a>        trait_impl.resolved_object_type = <span class="prelude-val">Some</span>(self_type);
-<a href=#842 id=842 data-nosnippet>842</a>
-<a href=#843 id=843 data-nosnippet>843</a>        <span class="comment">// Add trait reference
-<a href=#844 id=844 data-nosnippet>844</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(trait_id) = trait_id {
-<a href=#845 id=845 data-nosnippet>845</a>            <span class="kw">let </span>(location, is_self_type_name) = <span class="kw">match </span><span class="kw-2">&amp;</span>trait_impl.r#trait.typ {
-<a href=#846 id=846 data-nosnippet>846</a>                UnresolvedTypeData::Named(trait_path, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
-<a href=#847 id=847 data-nosnippet>847</a>                    <span class="kw">let </span>trait_name = trait_path.last_ident();
-<a href=#848 id=848 data-nosnippet>848</a>                    (trait_name.location(), trait_name.is_self_type_name())
-<a href=#849 id=849 data-nosnippet>849</a>                }
-<a href=#850 id=850 data-nosnippet>850</a>                <span class="kw">_ </span>=&gt; (trait_impl.r#trait.location, <span class="bool-val">false</span>),
-<a href=#851 id=851 data-nosnippet>851</a>            };
-<a href=#852 id=852 data-nosnippet>852</a>            <span class="self">self</span>.interner.add_trait_reference(trait_id, location, is_self_type_name);
-<a href=#853 id=853 data-nosnippet>853</a>        }
-<a href=#854 id=854 data-nosnippet>854</a>
-<a href=#855 id=855 data-nosnippet>855</a>        <span class="self">self</span>.local_module = previous_local_module;
-<a href=#856 id=856 data-nosnippet>856</a>
-<a href=#857 id=857 data-nosnippet>857</a>        <span class="kw">let </span>generics = std::mem::take(<span class="kw-2">&amp;mut </span><span class="self">self</span>.generics);
-<a href=#858 id=858 data-nosnippet>858</a>
-<a href=#859 id=859 data-nosnippet>859</a>        (new_generics_trait_constraints, generics)
-<a href=#860 id=860 data-nosnippet>860</a>    }
-<a href=#861 id=861 data-nosnippet>861</a>
-<a href=#862 id=862 data-nosnippet>862</a>    <span class="doccomment">/// Resolves the trait path from a trait impl declaration.
-<a href=#863 id=863 data-nosnippet>863</a>    /// Returns (trait_id, trait_generics, path_location).
-<a href=#864 id=864 data-nosnippet>864</a>    </span><span class="kw">fn </span>resolve_trait_impl_trait_path(
-<a href=#865 id=865 data-nosnippet>865</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#866 id=866 data-nosnippet>866</a>        trait_impl: <span class="kw-2">&amp;</span>UnresolvedTraitImpl,
-<a href=#867 id=867 data-nosnippet>867</a>    ) -&gt; (<span class="prelude-ty">Option</span>&lt;TraitId&gt;, GenericTypeArgs, Location) {
-<a href=#868 id=868 data-nosnippet>868</a>        <span class="kw">match </span><span class="kw-2">&amp;</span>trait_impl.r#trait.typ {
-<a href=#869 id=869 data-nosnippet>869</a>            UnresolvedTypeData::Named(trait_path, trait_generics, <span class="kw">_</span>) =&gt; {
-<a href=#870 id=870 data-nosnippet>870</a>                <span class="kw">let </span><span class="kw-2">mut </span>trait_generics = trait_generics.clone();
-<a href=#871 id=871 data-nosnippet>871</a>                <span class="kw">let </span>location = trait_path.location;
-<a href=#872 id=872 data-nosnippet>872</a>                <span class="kw">let </span>trait_path = <span class="self">self</span>.validate_path(trait_path.clone());
-<a href=#873 id=873 data-nosnippet>873</a>                <span class="kw">let </span>trait_id = <span class="self">self</span>.resolve_trait_by_path(trait_path);
-<a href=#874 id=874 data-nosnippet>874</a>
-<a href=#875 id=875 data-nosnippet>875</a>                <span class="comment">// Check and remove and any generic that is specifying an associated item
-<a href=#876 id=876 data-nosnippet>876</a>                </span><span class="kw">if </span>!trait_generics.named_args.is_empty()
-<a href=#877 id=877 data-nosnippet>877</a>                    &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(trait_id) = trait_id
-<a href=#878 id=878 data-nosnippet>878</a>                {
-<a href=#879 id=879 data-nosnippet>879</a>                    <span class="kw">let </span>associated_types =
-<a href=#880 id=880 data-nosnippet>880</a>                        <span class="self">self</span>.interner.get_trait(trait_id).associated_types.clone();
-<a href=#881 id=881 data-nosnippet>881</a>                    trait_generics.named_args.retain(|(name, typ)| {
-<a href=#882 id=882 data-nosnippet>882</a>                        <span class="kw">let </span>associated_type = associated_types
-<a href=#883 id=883 data-nosnippet>883</a>                            .iter()
-<a href=#884 id=884 data-nosnippet>884</a>                            .find(|associated_type| associated_type.name.as_str() == name.as_str());
-<a href=#885 id=885 data-nosnippet>885</a>                        <span class="kw">if </span>associated_type.is_some() {
-<a href=#886 id=886 data-nosnippet>886</a>                            <span class="kw">let </span>location = name.location().merge(typ.location);
-<a href=#887 id=887 data-nosnippet>887</a>                            <span class="self">self</span>.push_err(
-<a href=#888 id=888 data-nosnippet>888</a>                                ResolverError::AssociatedItemConstraintsNotAllowedInGenerics {
-<a href=#889 id=889 data-nosnippet>889</a>                                    location,
-<a href=#890 id=890 data-nosnippet>890</a>                                },
-<a href=#891 id=891 data-nosnippet>891</a>                            );
-<a href=#892 id=892 data-nosnippet>892</a>                            <span class="bool-val">false
-<a href=#893 id=893 data-nosnippet>893</a>                        </span>} <span class="kw">else </span>{
-<a href=#894 id=894 data-nosnippet>894</a>                            <span class="bool-val">true
-<a href=#895 id=895 data-nosnippet>895</a>                        </span>}
-<a href=#896 id=896 data-nosnippet>896</a>                    });
-<a href=#897 id=897 data-nosnippet>897</a>                }
-<a href=#898 id=898 data-nosnippet>898</a>
-<a href=#899 id=899 data-nosnippet>899</a>                (trait_id, trait_generics.clone(), location)
-<a href=#900 id=900 data-nosnippet>900</a>            }
-<a href=#901 id=901 data-nosnippet>901</a>            UnresolvedTypeData::Resolved(quoted_type_id) =&gt; {
-<a href=#902 id=902 data-nosnippet>902</a>                <span class="kw">let </span>typ = <span class="self">self</span>.interner.get_quoted_type(<span class="kw-2">*</span>quoted_type_id);
-<a href=#903 id=903 data-nosnippet>903</a>                <span class="kw">let </span>location = trait_impl.r#trait.location;
-<a href=#904 id=904 data-nosnippet>904</a>                <span class="kw">let </span>Type::TraitAsType(trait_id, <span class="kw">_</span>, trait_generics) = typ <span class="kw">else </span>{
-<a href=#905 id=905 data-nosnippet>905</a>                    <span class="kw">let </span>found = typ.to_string();
-<a href=#906 id=906 data-nosnippet>906</a>                    <span class="self">self</span>.push_err(ResolverError::ExpectedTrait { location, found });
-<a href=#907 id=907 data-nosnippet>907</a>                    <span class="kw">return </span>(<span class="prelude-val">None</span>, GenericTypeArgs::default(), location);
-<a href=#908 id=908 data-nosnippet>908</a>                };
-<a href=#909 id=909 data-nosnippet>909</a>
-<a href=#910 id=910 data-nosnippet>910</a>                <span class="comment">// In order to take associated types into account we turn these resolved generics
-<a href=#911 id=911 data-nosnippet>911</a>                // into unresolved ones, but ones that point to solved types.
-<a href=#912 id=912 data-nosnippet>912</a>                </span><span class="kw">let </span>trait_id = <span class="kw-2">*</span>trait_id;
-<a href=#913 id=913 data-nosnippet>913</a>                <span class="kw">let </span>trait_generics = trait_generics.clone();
-<a href=#914 id=914 data-nosnippet>914</a>                <span class="kw">let </span>trait_generics = GenericTypeArgs {
-<a href=#915 id=915 data-nosnippet>915</a>                    ordered_args: vecmap(<span class="kw-2">&amp;</span>trait_generics.ordered, |typ| {
-<a href=#916 id=916 data-nosnippet>916</a>                        <span class="kw">let </span>quoted_type_id = <span class="self">self</span>.interner.push_quoted_type(typ.clone());
-<a href=#917 id=917 data-nosnippet>917</a>                        <span class="kw">let </span>typ = UnresolvedTypeData::Resolved(quoted_type_id);
-<a href=#918 id=918 data-nosnippet>918</a>                        UnresolvedType { typ, location }
-<a href=#919 id=919 data-nosnippet>919</a>                    }),
-<a href=#920 id=920 data-nosnippet>920</a>                    named_args: vecmap(<span class="kw-2">&amp;</span>trait_generics.named, |named_type| {
-<a href=#921 id=921 data-nosnippet>921</a>                        <span class="kw">let </span>quoted_type_id = <span class="self">self</span>.interner.push_quoted_type(named_type.typ.clone());
-<a href=#922 id=922 data-nosnippet>922</a>                        <span class="kw">let </span>typ = UnresolvedTypeData::Resolved(quoted_type_id);
-<a href=#923 id=923 data-nosnippet>923</a>                        (named_type.name.clone(), UnresolvedType { typ, location })
-<a href=#924 id=924 data-nosnippet>924</a>                    }),
-<a href=#925 id=925 data-nosnippet>925</a>                    kinds: Vec::new(),
-<a href=#926 id=926 data-nosnippet>926</a>                };
-<a href=#927 id=927 data-nosnippet>927</a>
-<a href=#928 id=928 data-nosnippet>928</a>                (<span class="prelude-val">Some</span>(trait_id), trait_generics, location)
-<a href=#929 id=929 data-nosnippet>929</a>            }
-<a href=#930 id=930 data-nosnippet>930</a>            <span class="kw">_ </span>=&gt; {
-<a href=#931 id=931 data-nosnippet>931</a>                <span class="kw">let </span>location = trait_impl.r#trait.location;
-<a href=#932 id=932 data-nosnippet>932</a>                <span class="kw">let </span>found = trait_impl.r#trait.typ.to_string();
-<a href=#933 id=933 data-nosnippet>933</a>                <span class="self">self</span>.push_err(ResolverError::ExpectedTrait { location, found });
-<a href=#934 id=934 data-nosnippet>934</a>                (<span class="prelude-val">None</span>, GenericTypeArgs::default(), location)
-<a href=#935 id=935 data-nosnippet>935</a>            }
-<a href=#936 id=936 data-nosnippet>936</a>        }
-<a href=#937 id=937 data-nosnippet>937</a>    }
-<a href=#938 id=938 data-nosnippet>938</a>
-<a href=#939 id=939 data-nosnippet>939</a>    <span class="doccomment">/// Sets up generics for a trait impl and processes trait constraints from the where clause.
-<a href=#940 id=940 data-nosnippet>940</a>    /// Returns tuple of (resolved constraints, new generic constraints).
-<a href=#941 id=941 data-nosnippet>941</a>    </span><span class="kw">fn </span>setup_trait_impl_generics(
-<a href=#942 id=942 data-nosnippet>942</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#943 id=943 data-nosnippet>943</a>        trait_impl: <span class="kw-2">&amp;mut </span>UnresolvedTraitImpl,
-<a href=#944 id=944 data-nosnippet>944</a>    ) -&gt; (Vec&lt;TraitConstraint&gt;, Vec&lt;(TraitConstraint, Location)&gt;) {
-<a href=#945 id=945 data-nosnippet>945</a>        <span class="self">self</span>.add_generics(<span class="kw-2">&amp;</span>trait_impl.generics);
-<a href=#946 id=946 data-nosnippet>946</a>        trait_impl.resolved_generics = <span class="self">self</span>.generics.clone();
-<a href=#947 id=947 data-nosnippet>947</a>
-<a href=#948 id=948 data-nosnippet>948</a>        <span class="kw">let </span>new_generics = <span class="self">self</span>.desugar_trait_constraints(<span class="kw-2">&amp;mut </span>trait_impl.where_clause);
-<a href=#949 id=949 data-nosnippet>949</a>        <span class="kw">let </span><span class="kw-2">mut </span>new_generics_trait_constraints = Vec::new();
-<a href=#950 id=950 data-nosnippet>950</a>        <span class="kw">for </span>(new_generic, bounds) <span class="kw">in </span>new_generics {
-<a href=#951 id=951 data-nosnippet>951</a>            <span class="kw">for </span>bound <span class="kw">in </span>bounds {
-<a href=#952 id=952 data-nosnippet>952</a>                <span class="kw">let </span>typ = Type::TypeVariable(new_generic.type_var.clone());
-<a href=#953 id=953 data-nosnippet>953</a>                <span class="kw">let </span>location = new_generic.location;
-<a href=#954 id=954 data-nosnippet>954</a>                <span class="self">self</span>.add_trait_bound_to_scope(location, <span class="kw-2">&amp;</span>typ, <span class="kw-2">&amp;</span>bound, bound.trait_id);
-<a href=#955 id=955 data-nosnippet>955</a>                new_generics_trait_constraints
-<a href=#956 id=956 data-nosnippet>956</a>                    .push((TraitConstraint { typ, trait_bound: bound }, location));
-<a href=#957 id=957 data-nosnippet>957</a>            }
-<a href=#958 id=958 data-nosnippet>958</a>            trait_impl.resolved_generics.push(new_generic.clone());
-<a href=#959 id=959 data-nosnippet>959</a>            <span class="self">self</span>.generics.push(new_generic);
-<a href=#960 id=960 data-nosnippet>960</a>        }
-<a href=#961 id=961 data-nosnippet>961</a>
-<a href=#962 id=962 data-nosnippet>962</a>        <span class="comment">// We need to resolve the where clause before any associated types to be
-<a href=#963 id=963 data-nosnippet>963</a>        // able to resolve trait as type syntax, eg. `&lt;T as Foo&gt;` in case there
-<a href=#964 id=964 data-nosnippet>964</a>        // is a where constraint for `T: Foo`.
-<a href=#965 id=965 data-nosnippet>965</a>        </span><span class="kw">let </span>constraints = <span class="self">self</span>.resolve_trait_constraints_and_add_to_scope(<span class="kw-2">&amp;</span>trait_impl.where_clause);
-<a href=#966 id=966 data-nosnippet>966</a>
-<a href=#967 id=967 data-nosnippet>967</a>        <span class="comment">// Attach any trait constraints on the impl to the function
-<a href=#968 id=968 data-nosnippet>968</a>        </span><span class="kw">for </span>(<span class="kw">_</span>, <span class="kw">_</span>, method) <span class="kw">in </span><span class="kw-2">&amp;mut </span>trait_impl.methods.functions {
-<a href=#969 id=969 data-nosnippet>969</a>            method.def.where_clause.append(<span class="kw-2">&amp;mut </span>trait_impl.where_clause.clone());
-<a href=#970 id=970 data-nosnippet>970</a>        }
-<a href=#971 id=971 data-nosnippet>971</a>
-<a href=#972 id=972 data-nosnippet>972</a>        <span class="comment">// Return the constraints along with the new generics trait constraints
-<a href=#973 id=973 data-nosnippet>973</a>        // so they can be removed from scope later
-<a href=#974 id=974 data-nosnippet>974</a>        </span>(constraints, new_generics_trait_constraints)
-<a href=#975 id=975 data-nosnippet>975</a>    }
-<a href=#976 id=976 data-nosnippet>976</a>
-<a href=#977 id=977 data-nosnippet>977</a>    <span class="doccomment">/// Resolves associated types for a trait impl and checks for missing generics.
-<a href=#978 id=978 data-nosnippet>978</a>    /// Sets resolved_trait_generics and unresolved_associated_types on trait_impl.
-<a href=#979 id=979 data-nosnippet>979</a>    </span><span class="kw">fn </span>resolve_trait_impl_associated_types(
-<a href=#980 id=980 data-nosnippet>980</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#981 id=981 data-nosnippet>981</a>        trait_impl: <span class="kw-2">&amp;mut </span>UnresolvedTraitImpl,
-<a href=#982 id=982 data-nosnippet>982</a>        <span class="kw-2">mut </span>trait_generics: GenericTypeArgs,
-<a href=#983 id=983 data-nosnippet>983</a>        trait_id: <span class="prelude-ty">Option</span>&lt;TraitId&gt;,
-<a href=#984 id=984 data-nosnippet>984</a>        path_location: Location,
-<a href=#985 id=985 data-nosnippet>985</a>    ) {
-<a href=#986 id=986 data-nosnippet>986</a>        <span class="comment">// Add each associated type to the list of named type arguments
-<a href=#987 id=987 data-nosnippet>987</a>        </span><span class="kw">let </span>associated_types = <span class="self">self</span>.take_unresolved_associated_types(trait_impl);
-<a href=#988 id=988 data-nosnippet>988</a>
-<a href=#989 id=989 data-nosnippet>989</a>        <span class="comment">// Put every associated type behind a type variable (inside a NamedGeneric).
-<a href=#990 id=990 data-nosnippet>990</a>        // This way associated types can be referred to even if their actual value (for associated constants)
-<a href=#991 id=991 data-nosnippet>991</a>        // is not known yet. This is to allow associated constants to refer to associated constants
-<a href=#992 id=992 data-nosnippet>992</a>        // in other trait impls.
-<a href=#993 id=993 data-nosnippet>993</a>        </span><span class="kw">let </span>object = trait_impl.object_type.to_string();
-<a href=#994 id=994 data-nosnippet>994</a>        <span class="kw">let </span>trait_name = trait_id.map(|id| <span class="self">self</span>.interner.get_trait(id).name.to_string());
-<a href=#995 id=995 data-nosnippet>995</a>        <span class="kw">let </span>associated_types_behind_type_vars = vecmap(<span class="kw-2">&amp;</span>associated_types, |(name, _typ, kind)| {
-<a href=#996 id=996 data-nosnippet>996</a>            <span class="kw">let </span>new_generic_id = <span class="self">self</span>.interner.next_type_variable_id();
-<a href=#997 id=997 data-nosnippet>997</a>            <span class="kw">let </span>type_var = TypeVariable::unbound(new_generic_id, kind.clone());
-<a href=#998 id=998 data-nosnippet>998</a>            <span class="kw">let </span>typ = type_var.into_named_generic(
-<a href=#999 id=999 data-nosnippet>999</a>                <span class="kw-2">&amp;</span>Rc::new(name.to_string()),
-<a href=#1000 id=1000 data-nosnippet>1000</a>                trait_name.as_ref().map(|tn| (object.as_str(), tn.as_str())),
-<a href=#1001 id=1001 data-nosnippet>1001</a>            );
-<a href=#1002 id=1002 data-nosnippet>1002</a>            <span class="kw">let </span>typ = <span class="self">self</span>.interner.push_quoted_type(typ);
-<a href=#1003 id=1003 data-nosnippet>1003</a>            <span class="kw">let </span>typ = UnresolvedTypeData::Resolved(typ).with_location(name.location());
-<a href=#1004 id=1004 data-nosnippet>1004</a>            (name.clone(), typ)
-<a href=#1005 id=1005 data-nosnippet>1005</a>        });
-<a href=#1006 id=1006 data-nosnippet>1006</a>
-<a href=#1007 id=1007 data-nosnippet>1007</a>        trait_generics.named_args.extend(associated_types_behind_type_vars);
-<a href=#1008 id=1008 data-nosnippet>1008</a>
-<a href=#1009 id=1009 data-nosnippet>1009</a>        <span class="kw">let </span>associated_types = vecmap(associated_types, |(name, typ, _kind)| (name, typ));
-<a href=#1010 id=1010 data-nosnippet>1010</a>
-<a href=#1011 id=1011 data-nosnippet>1011</a>        <span class="kw">let </span>(ordered_generics, named_generics) = trait_id
-<a href=#1012 id=1012 data-nosnippet>1012</a>            .map(|trait_id| {
-<a href=#1013 id=1013 data-nosnippet>1013</a>                <span class="comment">// Check for missing generics &amp; associated types for the trait being implemented
-<a href=#1014 id=1014 data-nosnippet>1014</a>                </span><span class="self">self</span>.resolve_trait_args_from_trait_impl(trait_generics, trait_id, path_location)
-<a href=#1015 id=1015 data-nosnippet>1015</a>            })
-<a href=#1016 id=1016 data-nosnippet>1016</a>            .unwrap_or_default();
-<a href=#1017 id=1017 data-nosnippet>1017</a>
-<a href=#1018 id=1018 data-nosnippet>1018</a>        <span class="kw">let </span>impl_id = trait_impl.impl_id.expect(<span class="string">"impl_id should be set"</span>);
-<a href=#1019 id=1019 data-nosnippet>1019</a>        <span class="self">self</span>.interner.set_trait_generics_for_impl(impl_id, ordered_generics, named_generics);
-<a href=#1020 id=1020 data-nosnippet>1020</a>
-<a href=#1021 id=1021 data-nosnippet>1021</a>        trait_impl.unresolved_associated_types = associated_types;
-<a href=#1022 id=1022 data-nosnippet>1022</a>    }
-<a href=#1023 id=1023 data-nosnippet>1023</a>
-<a href=#1024 id=1024 data-nosnippet>1024</a>    <span class="doccomment">/// Identical to [Self::resolve_type_or_trait_args_inner] but does not allow
-<a href=#1025 id=1025 data-nosnippet>1025</a>    /// associated types to be elided since trait impls must specify them.
-<a href=#1026 id=1026 data-nosnippet>1026</a>    </span><span class="kw">fn </span>resolve_trait_args_from_trait_impl(
-<a href=#1027 id=1027 data-nosnippet>1027</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#1028 id=1028 data-nosnippet>1028</a>        args: GenericTypeArgs,
-<a href=#1029 id=1029 data-nosnippet>1029</a>        item: TraitId,
-<a href=#1030 id=1030 data-nosnippet>1030</a>        location: Location,
-<a href=#1031 id=1031 data-nosnippet>1031</a>    ) -&gt; (Vec&lt;Type&gt;, Vec&lt;NamedType&gt;) {
-<a href=#1032 id=1032 data-nosnippet>1032</a>        <span class="kw">let </span>mode = PathResolutionMode::MarkAsReferenced;
-<a href=#1033 id=1033 data-nosnippet>1033</a>        <span class="kw">let </span>allow_implicit_named_args = <span class="bool-val">false</span>;
-<a href=#1034 id=1034 data-nosnippet>1034</a>        <span class="kw">let </span>wildcard_allowed = WildcardAllowed::Yes;
-<a href=#1035 id=1035 data-nosnippet>1035</a>        <span class="self">self</span>.resolve_type_or_trait_args_inner(
-<a href=#1036 id=1036 data-nosnippet>1036</a>            args,
-<a href=#1037 id=1037 data-nosnippet>1037</a>            item,
-<a href=#1038 id=1038 data-nosnippet>1038</a>            location,
-<a href=#1039 id=1039 data-nosnippet>1039</a>            allow_implicit_named_args,
-<a href=#1040 id=1040 data-nosnippet>1040</a>            mode,
-<a href=#1041 id=1041 data-nosnippet>1041</a>            wildcard_allowed,
-<a href=#1042 id=1042 data-nosnippet>1042</a>        )
-<a href=#1043 id=1043 data-nosnippet>1043</a>    }
-<a href=#1044 id=1044 data-nosnippet>1044</a>}</code></pre></div></section></main></body></html>
+<a href=#837 id=837 data-nosnippet>837</a>                trait_impl.object_type.location,
+<a href=#838 id=838 data-nosnippet>838</a>            );
+<a href=#839 id=839 data-nosnippet>839</a>        }
+<a href=#840 id=840 data-nosnippet>840</a>
+<a href=#841 id=841 data-nosnippet>841</a>        trait_impl.methods.self_type = <span class="prelude-val">Some</span>(self_type.clone());
+<a href=#842 id=842 data-nosnippet>842</a>        trait_impl.resolved_object_type = <span class="prelude-val">Some</span>(self_type);
+<a href=#843 id=843 data-nosnippet>843</a>
+<a href=#844 id=844 data-nosnippet>844</a>        <span class="comment">// Add trait reference
+<a href=#845 id=845 data-nosnippet>845</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(trait_id) = trait_id {
+<a href=#846 id=846 data-nosnippet>846</a>            <span class="kw">let </span>(location, is_self_type_name) = <span class="kw">match </span><span class="kw-2">&amp;</span>trait_impl.r#trait.typ {
+<a href=#847 id=847 data-nosnippet>847</a>                UnresolvedTypeData::Named(trait_path, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
+<a href=#848 id=848 data-nosnippet>848</a>                    <span class="kw">let </span>trait_name = trait_path.last_ident();
+<a href=#849 id=849 data-nosnippet>849</a>                    (trait_name.location(), trait_name.is_self_type_name())
+<a href=#850 id=850 data-nosnippet>850</a>                }
+<a href=#851 id=851 data-nosnippet>851</a>                <span class="kw">_ </span>=&gt; (trait_impl.r#trait.location, <span class="bool-val">false</span>),
+<a href=#852 id=852 data-nosnippet>852</a>            };
+<a href=#853 id=853 data-nosnippet>853</a>            <span class="self">self</span>.interner.add_trait_reference(trait_id, location, is_self_type_name);
+<a href=#854 id=854 data-nosnippet>854</a>        }
+<a href=#855 id=855 data-nosnippet>855</a>
+<a href=#856 id=856 data-nosnippet>856</a>        <span class="self">self</span>.local_module = previous_local_module;
+<a href=#857 id=857 data-nosnippet>857</a>
+<a href=#858 id=858 data-nosnippet>858</a>        <span class="kw">let </span>generics = std::mem::take(<span class="kw-2">&amp;mut </span><span class="self">self</span>.generics);
+<a href=#859 id=859 data-nosnippet>859</a>
+<a href=#860 id=860 data-nosnippet>860</a>        (new_generics_trait_constraints, generics)
+<a href=#861 id=861 data-nosnippet>861</a>    }
+<a href=#862 id=862 data-nosnippet>862</a>
+<a href=#863 id=863 data-nosnippet>863</a>    <span class="doccomment">/// Resolves the trait path from a trait impl declaration.
+<a href=#864 id=864 data-nosnippet>864</a>    /// Returns (trait_id, trait_generics, path_location).
+<a href=#865 id=865 data-nosnippet>865</a>    </span><span class="kw">fn </span>resolve_trait_impl_trait_path(
+<a href=#866 id=866 data-nosnippet>866</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#867 id=867 data-nosnippet>867</a>        trait_impl: <span class="kw-2">&amp;</span>UnresolvedTraitImpl,
+<a href=#868 id=868 data-nosnippet>868</a>    ) -&gt; (<span class="prelude-ty">Option</span>&lt;TraitId&gt;, GenericTypeArgs, Location) {
+<a href=#869 id=869 data-nosnippet>869</a>        <span class="kw">match </span><span class="kw-2">&amp;</span>trait_impl.r#trait.typ {
+<a href=#870 id=870 data-nosnippet>870</a>            UnresolvedTypeData::Named(trait_path, trait_generics, <span class="kw">_</span>) =&gt; {
+<a href=#871 id=871 data-nosnippet>871</a>                <span class="kw">let </span><span class="kw-2">mut </span>trait_generics = trait_generics.clone();
+<a href=#872 id=872 data-nosnippet>872</a>                <span class="kw">let </span>location = trait_path.location;
+<a href=#873 id=873 data-nosnippet>873</a>                <span class="kw">let </span>trait_path = <span class="self">self</span>.validate_path(trait_path.clone());
+<a href=#874 id=874 data-nosnippet>874</a>                <span class="kw">let </span>trait_id = <span class="self">self</span>.resolve_trait_by_path(trait_path);
+<a href=#875 id=875 data-nosnippet>875</a>
+<a href=#876 id=876 data-nosnippet>876</a>                <span class="comment">// Check and remove and any generic that is specifying an associated item
+<a href=#877 id=877 data-nosnippet>877</a>                </span><span class="kw">if </span>!trait_generics.named_args.is_empty()
+<a href=#878 id=878 data-nosnippet>878</a>                    &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(trait_id) = trait_id
+<a href=#879 id=879 data-nosnippet>879</a>                {
+<a href=#880 id=880 data-nosnippet>880</a>                    <span class="kw">let </span>associated_types =
+<a href=#881 id=881 data-nosnippet>881</a>                        <span class="self">self</span>.interner.get_trait(trait_id).associated_types.clone();
+<a href=#882 id=882 data-nosnippet>882</a>                    trait_generics.named_args.retain(|(name, typ)| {
+<a href=#883 id=883 data-nosnippet>883</a>                        <span class="kw">let </span>associated_type = associated_types
+<a href=#884 id=884 data-nosnippet>884</a>                            .iter()
+<a href=#885 id=885 data-nosnippet>885</a>                            .find(|associated_type| associated_type.name.as_str() == name.as_str());
+<a href=#886 id=886 data-nosnippet>886</a>                        <span class="kw">if </span>associated_type.is_some() {
+<a href=#887 id=887 data-nosnippet>887</a>                            <span class="kw">let </span>location = name.location().merge(typ.location);
+<a href=#888 id=888 data-nosnippet>888</a>                            <span class="self">self</span>.push_err(
+<a href=#889 id=889 data-nosnippet>889</a>                                ResolverError::AssociatedItemConstraintsNotAllowedInGenerics {
+<a href=#890 id=890 data-nosnippet>890</a>                                    location,
+<a href=#891 id=891 data-nosnippet>891</a>                                },
+<a href=#892 id=892 data-nosnippet>892</a>                            );
+<a href=#893 id=893 data-nosnippet>893</a>                            <span class="bool-val">false
+<a href=#894 id=894 data-nosnippet>894</a>                        </span>} <span class="kw">else </span>{
+<a href=#895 id=895 data-nosnippet>895</a>                            <span class="bool-val">true
+<a href=#896 id=896 data-nosnippet>896</a>                        </span>}
+<a href=#897 id=897 data-nosnippet>897</a>                    });
+<a href=#898 id=898 data-nosnippet>898</a>                }
+<a href=#899 id=899 data-nosnippet>899</a>
+<a href=#900 id=900 data-nosnippet>900</a>                (trait_id, trait_generics.clone(), location)
+<a href=#901 id=901 data-nosnippet>901</a>            }
+<a href=#902 id=902 data-nosnippet>902</a>            UnresolvedTypeData::Resolved(quoted_type_id) =&gt; {
+<a href=#903 id=903 data-nosnippet>903</a>                <span class="kw">let </span>typ = <span class="self">self</span>.interner.get_quoted_type(<span class="kw-2">*</span>quoted_type_id);
+<a href=#904 id=904 data-nosnippet>904</a>                <span class="kw">let </span>location = trait_impl.r#trait.location;
+<a href=#905 id=905 data-nosnippet>905</a>                <span class="kw">let </span>Type::TraitAsType(trait_id, <span class="kw">_</span>, trait_generics) = typ <span class="kw">else </span>{
+<a href=#906 id=906 data-nosnippet>906</a>                    <span class="kw">let </span>found = typ.to_string();
+<a href=#907 id=907 data-nosnippet>907</a>                    <span class="self">self</span>.push_err(ResolverError::ExpectedTrait { location, found });
+<a href=#908 id=908 data-nosnippet>908</a>                    <span class="kw">return </span>(<span class="prelude-val">None</span>, GenericTypeArgs::default(), location);
+<a href=#909 id=909 data-nosnippet>909</a>                };
+<a href=#910 id=910 data-nosnippet>910</a>
+<a href=#911 id=911 data-nosnippet>911</a>                <span class="comment">// In order to take associated types into account we turn these resolved generics
+<a href=#912 id=912 data-nosnippet>912</a>                // into unresolved ones, but ones that point to solved types.
+<a href=#913 id=913 data-nosnippet>913</a>                </span><span class="kw">let </span>trait_id = <span class="kw-2">*</span>trait_id;
+<a href=#914 id=914 data-nosnippet>914</a>                <span class="kw">let </span>trait_generics = trait_generics.clone();
+<a href=#915 id=915 data-nosnippet>915</a>                <span class="kw">let </span>trait_generics = GenericTypeArgs {
+<a href=#916 id=916 data-nosnippet>916</a>                    ordered_args: vecmap(<span class="kw-2">&amp;</span>trait_generics.ordered, |typ| {
+<a href=#917 id=917 data-nosnippet>917</a>                        <span class="kw">let </span>quoted_type_id = <span class="self">self</span>.interner.push_quoted_type(typ.clone());
+<a href=#918 id=918 data-nosnippet>918</a>                        <span class="kw">let </span>typ = UnresolvedTypeData::Resolved(quoted_type_id);
+<a href=#919 id=919 data-nosnippet>919</a>                        UnresolvedType { typ, location }
+<a href=#920 id=920 data-nosnippet>920</a>                    }),
+<a href=#921 id=921 data-nosnippet>921</a>                    named_args: vecmap(<span class="kw-2">&amp;</span>trait_generics.named, |named_type| {
+<a href=#922 id=922 data-nosnippet>922</a>                        <span class="kw">let </span>quoted_type_id = <span class="self">self</span>.interner.push_quoted_type(named_type.typ.clone());
+<a href=#923 id=923 data-nosnippet>923</a>                        <span class="kw">let </span>typ = UnresolvedTypeData::Resolved(quoted_type_id);
+<a href=#924 id=924 data-nosnippet>924</a>                        (named_type.name.clone(), UnresolvedType { typ, location })
+<a href=#925 id=925 data-nosnippet>925</a>                    }),
+<a href=#926 id=926 data-nosnippet>926</a>                    kinds: Vec::new(),
+<a href=#927 id=927 data-nosnippet>927</a>                };
+<a href=#928 id=928 data-nosnippet>928</a>
+<a href=#929 id=929 data-nosnippet>929</a>                (<span class="prelude-val">Some</span>(trait_id), trait_generics, location)
+<a href=#930 id=930 data-nosnippet>930</a>            }
+<a href=#931 id=931 data-nosnippet>931</a>            <span class="kw">_ </span>=&gt; {
+<a href=#932 id=932 data-nosnippet>932</a>                <span class="kw">let </span>location = trait_impl.r#trait.location;
+<a href=#933 id=933 data-nosnippet>933</a>                <span class="kw">let </span>found = trait_impl.r#trait.typ.to_string();
+<a href=#934 id=934 data-nosnippet>934</a>                <span class="self">self</span>.push_err(ResolverError::ExpectedTrait { location, found });
+<a href=#935 id=935 data-nosnippet>935</a>                (<span class="prelude-val">None</span>, GenericTypeArgs::default(), location)
+<a href=#936 id=936 data-nosnippet>936</a>            }
+<a href=#937 id=937 data-nosnippet>937</a>        }
+<a href=#938 id=938 data-nosnippet>938</a>    }
+<a href=#939 id=939 data-nosnippet>939</a>
+<a href=#940 id=940 data-nosnippet>940</a>    <span class="doccomment">/// Sets up generics for a trait impl and processes trait constraints from the where clause.
+<a href=#941 id=941 data-nosnippet>941</a>    /// Returns tuple of (resolved constraints, new generic constraints).
+<a href=#942 id=942 data-nosnippet>942</a>    </span><span class="kw">fn </span>setup_trait_impl_generics(
+<a href=#943 id=943 data-nosnippet>943</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#944 id=944 data-nosnippet>944</a>        trait_impl: <span class="kw-2">&amp;mut </span>UnresolvedTraitImpl,
+<a href=#945 id=945 data-nosnippet>945</a>    ) -&gt; (Vec&lt;TraitConstraint&gt;, Vec&lt;(TraitConstraint, Location)&gt;) {
+<a href=#946 id=946 data-nosnippet>946</a>        <span class="self">self</span>.add_generics(<span class="kw-2">&amp;</span>trait_impl.generics);
+<a href=#947 id=947 data-nosnippet>947</a>        trait_impl.resolved_generics = <span class="self">self</span>.generics.clone();
+<a href=#948 id=948 data-nosnippet>948</a>
+<a href=#949 id=949 data-nosnippet>949</a>        <span class="kw">let </span>new_generics = <span class="self">self</span>.desugar_trait_constraints(<span class="kw-2">&amp;mut </span>trait_impl.where_clause);
+<a href=#950 id=950 data-nosnippet>950</a>        <span class="kw">let </span><span class="kw-2">mut </span>new_generics_trait_constraints = Vec::new();
+<a href=#951 id=951 data-nosnippet>951</a>        <span class="kw">for </span>(new_generic, bounds) <span class="kw">in </span>new_generics {
+<a href=#952 id=952 data-nosnippet>952</a>            <span class="kw">for </span>bound <span class="kw">in </span>bounds {
+<a href=#953 id=953 data-nosnippet>953</a>                <span class="kw">let </span>typ = Type::TypeVariable(new_generic.type_var.clone());
+<a href=#954 id=954 data-nosnippet>954</a>                <span class="kw">let </span>location = new_generic.location;
+<a href=#955 id=955 data-nosnippet>955</a>                <span class="self">self</span>.add_trait_bound_to_scope(location, <span class="kw-2">&amp;</span>typ, <span class="kw-2">&amp;</span>bound, bound.trait_id);
+<a href=#956 id=956 data-nosnippet>956</a>                new_generics_trait_constraints
+<a href=#957 id=957 data-nosnippet>957</a>                    .push((TraitConstraint { typ, trait_bound: bound }, location));
+<a href=#958 id=958 data-nosnippet>958</a>            }
+<a href=#959 id=959 data-nosnippet>959</a>            trait_impl.resolved_generics.push(new_generic.clone());
+<a href=#960 id=960 data-nosnippet>960</a>            <span class="self">self</span>.generics.push(new_generic);
+<a href=#961 id=961 data-nosnippet>961</a>        }
+<a href=#962 id=962 data-nosnippet>962</a>
+<a href=#963 id=963 data-nosnippet>963</a>        <span class="comment">// We need to resolve the where clause before any associated types to be
+<a href=#964 id=964 data-nosnippet>964</a>        // able to resolve trait as type syntax, eg. `&lt;T as Foo&gt;` in case there
+<a href=#965 id=965 data-nosnippet>965</a>        // is a where constraint for `T: Foo`.
+<a href=#966 id=966 data-nosnippet>966</a>        </span><span class="kw">let </span>constraints = <span class="self">self</span>.resolve_trait_constraints_and_add_to_scope(<span class="kw-2">&amp;</span>trait_impl.where_clause);
+<a href=#967 id=967 data-nosnippet>967</a>
+<a href=#968 id=968 data-nosnippet>968</a>        <span class="comment">// Attach any trait constraints on the impl to the function
+<a href=#969 id=969 data-nosnippet>969</a>        </span><span class="kw">for </span>(<span class="kw">_</span>, <span class="kw">_</span>, method) <span class="kw">in </span><span class="kw-2">&amp;mut </span>trait_impl.methods.functions {
+<a href=#970 id=970 data-nosnippet>970</a>            method.def.where_clause.append(<span class="kw-2">&amp;mut </span>trait_impl.where_clause.clone());
+<a href=#971 id=971 data-nosnippet>971</a>        }
+<a href=#972 id=972 data-nosnippet>972</a>
+<a href=#973 id=973 data-nosnippet>973</a>        <span class="comment">// Return the constraints along with the new generics trait constraints
+<a href=#974 id=974 data-nosnippet>974</a>        // so they can be removed from scope later
+<a href=#975 id=975 data-nosnippet>975</a>        </span>(constraints, new_generics_trait_constraints)
+<a href=#976 id=976 data-nosnippet>976</a>    }
+<a href=#977 id=977 data-nosnippet>977</a>
+<a href=#978 id=978 data-nosnippet>978</a>    <span class="doccomment">/// Resolves associated types for a trait impl and checks for missing generics.
+<a href=#979 id=979 data-nosnippet>979</a>    /// Sets resolved_trait_generics and unresolved_associated_types on trait_impl.
+<a href=#980 id=980 data-nosnippet>980</a>    </span><span class="kw">fn </span>resolve_trait_impl_associated_types(
+<a href=#981 id=981 data-nosnippet>981</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#982 id=982 data-nosnippet>982</a>        trait_impl: <span class="kw-2">&amp;mut </span>UnresolvedTraitImpl,
+<a href=#983 id=983 data-nosnippet>983</a>        <span class="kw-2">mut </span>trait_generics: GenericTypeArgs,
+<a href=#984 id=984 data-nosnippet>984</a>        trait_id: <span class="prelude-ty">Option</span>&lt;TraitId&gt;,
+<a href=#985 id=985 data-nosnippet>985</a>        path_location: Location,
+<a href=#986 id=986 data-nosnippet>986</a>    ) {
+<a href=#987 id=987 data-nosnippet>987</a>        <span class="comment">// Add each associated type to the list of named type arguments
+<a href=#988 id=988 data-nosnippet>988</a>        </span><span class="kw">let </span>associated_types = <span class="self">self</span>.take_unresolved_associated_types(trait_impl);
+<a href=#989 id=989 data-nosnippet>989</a>
+<a href=#990 id=990 data-nosnippet>990</a>        <span class="comment">// Put every associated type behind a type variable (inside a NamedGeneric).
+<a href=#991 id=991 data-nosnippet>991</a>        // This way associated types can be referred to even if their actual value (for associated constants)
+<a href=#992 id=992 data-nosnippet>992</a>        // is not known yet. This is to allow associated constants to refer to associated constants
+<a href=#993 id=993 data-nosnippet>993</a>        // in other trait impls.
+<a href=#994 id=994 data-nosnippet>994</a>        </span><span class="kw">let </span>object = trait_impl.object_type.to_string();
+<a href=#995 id=995 data-nosnippet>995</a>        <span class="kw">let </span>trait_name = trait_id.map(|id| <span class="self">self</span>.interner.get_trait(id).name.to_string());
+<a href=#996 id=996 data-nosnippet>996</a>        <span class="kw">let </span>associated_types_behind_type_vars = vecmap(<span class="kw-2">&amp;</span>associated_types, |(name, _typ, kind)| {
+<a href=#997 id=997 data-nosnippet>997</a>            <span class="kw">let </span>new_generic_id = <span class="self">self</span>.interner.next_type_variable_id();
+<a href=#998 id=998 data-nosnippet>998</a>            <span class="kw">let </span>type_var = TypeVariable::unbound(new_generic_id, kind.clone());
+<a href=#999 id=999 data-nosnippet>999</a>            <span class="kw">let </span>typ = type_var.into_named_generic(
+<a href=#1000 id=1000 data-nosnippet>1000</a>                <span class="kw-2">&amp;</span>Rc::new(name.to_string()),
+<a href=#1001 id=1001 data-nosnippet>1001</a>                trait_name.as_ref().map(|tn| (object.as_str(), tn.as_str())),
+<a href=#1002 id=1002 data-nosnippet>1002</a>            );
+<a href=#1003 id=1003 data-nosnippet>1003</a>            <span class="kw">let </span>typ = <span class="self">self</span>.interner.push_quoted_type(typ);
+<a href=#1004 id=1004 data-nosnippet>1004</a>            <span class="kw">let </span>typ = UnresolvedTypeData::Resolved(typ).with_location(name.location());
+<a href=#1005 id=1005 data-nosnippet>1005</a>            (name.clone(), typ)
+<a href=#1006 id=1006 data-nosnippet>1006</a>        });
+<a href=#1007 id=1007 data-nosnippet>1007</a>
+<a href=#1008 id=1008 data-nosnippet>1008</a>        trait_generics.named_args.extend(associated_types_behind_type_vars);
+<a href=#1009 id=1009 data-nosnippet>1009</a>
+<a href=#1010 id=1010 data-nosnippet>1010</a>        <span class="kw">let </span>associated_types = vecmap(associated_types, |(name, typ, _kind)| (name, typ));
+<a href=#1011 id=1011 data-nosnippet>1011</a>
+<a href=#1012 id=1012 data-nosnippet>1012</a>        <span class="kw">let </span>(ordered_generics, named_generics) = trait_id
+<a href=#1013 id=1013 data-nosnippet>1013</a>            .map(|trait_id| {
+<a href=#1014 id=1014 data-nosnippet>1014</a>                <span class="comment">// Check for missing generics &amp; associated types for the trait being implemented
+<a href=#1015 id=1015 data-nosnippet>1015</a>                </span><span class="self">self</span>.resolve_trait_args_from_trait_impl(trait_generics, trait_id, path_location)
+<a href=#1016 id=1016 data-nosnippet>1016</a>            })
+<a href=#1017 id=1017 data-nosnippet>1017</a>            .unwrap_or_default();
+<a href=#1018 id=1018 data-nosnippet>1018</a>
+<a href=#1019 id=1019 data-nosnippet>1019</a>        <span class="kw">let </span>impl_id = trait_impl.impl_id.expect(<span class="string">"impl_id should be set"</span>);
+<a href=#1020 id=1020 data-nosnippet>1020</a>        <span class="self">self</span>.interner.set_trait_generics_for_impl(impl_id, ordered_generics, named_generics);
+<a href=#1021 id=1021 data-nosnippet>1021</a>
+<a href=#1022 id=1022 data-nosnippet>1022</a>        trait_impl.unresolved_associated_types = associated_types;
+<a href=#1023 id=1023 data-nosnippet>1023</a>    }
+<a href=#1024 id=1024 data-nosnippet>1024</a>
+<a href=#1025 id=1025 data-nosnippet>1025</a>    <span class="doccomment">/// Identical to [Self::resolve_type_or_trait_args_inner] but does not allow
+<a href=#1026 id=1026 data-nosnippet>1026</a>    /// associated types to be elided since trait impls must specify them.
+<a href=#1027 id=1027 data-nosnippet>1027</a>    </span><span class="kw">fn </span>resolve_trait_args_from_trait_impl(
+<a href=#1028 id=1028 data-nosnippet>1028</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#1029 id=1029 data-nosnippet>1029</a>        args: GenericTypeArgs,
+<a href=#1030 id=1030 data-nosnippet>1030</a>        item: TraitId,
+<a href=#1031 id=1031 data-nosnippet>1031</a>        location: Location,
+<a href=#1032 id=1032 data-nosnippet>1032</a>    ) -&gt; (Vec&lt;Type&gt;, Vec&lt;NamedType&gt;) {
+<a href=#1033 id=1033 data-nosnippet>1033</a>        <span class="kw">let </span>mode = PathResolutionMode::MarkAsReferenced;
+<a href=#1034 id=1034 data-nosnippet>1034</a>        <span class="kw">let </span>allow_implicit_named_args = <span class="bool-val">false</span>;
+<a href=#1035 id=1035 data-nosnippet>1035</a>        <span class="kw">let </span>wildcard_allowed = WildcardAllowed::Yes;
+<a href=#1036 id=1036 data-nosnippet>1036</a>        <span class="self">self</span>.resolve_type_or_trait_args_inner(
+<a href=#1037 id=1037 data-nosnippet>1037</a>            args,
+<a href=#1038 id=1038 data-nosnippet>1038</a>            item,
+<a href=#1039 id=1039 data-nosnippet>1039</a>            location,
+<a href=#1040 id=1040 data-nosnippet>1040</a>            allow_implicit_named_args,
+<a href=#1041 id=1041 data-nosnippet>1041</a>            mode,
+<a href=#1042 id=1042 data-nosnippet>1042</a>            wildcard_allowed,
+<a href=#1043 id=1043 data-nosnippet>1043</a>        )
+<a href=#1044 id=1044 data-nosnippet>1044</a>    }
+<a href=#1045 id=1045 data-nosnippet>1045</a>}</code></pre></div></section></main></body></html>
