@@ -551,24 +551,134 @@ fn fully_qualified_function_path(f: FuncId, elaborator: &Elaborator) -> String {
 /// edits recursively.
 pub(super) fn check_item_can_be_modified(
     interpreter: &Interpreter,
-    func_id: FuncId,
+    item: &Value,
     location: Location,
 ) -> IResult<()> {
-    if let Some(current_function) = interpreter.current_function {
-        let editor = fully_qualified_function_path(current_function, interpreter.elaborator);
+    // If the attribute is placed directly on the item being modified, always allow it.
+    if interpreter.current_attribute_on.as_ref() == Some(item) {
+        return Ok(());
+    }
 
-        let attrs = interpreter.elaborator.interner.function_attributes(&func_id);
-        if attrs.allows_edits_from(&editor) {
+    // Use the original attribute (not the innermost helper function) for permission checks.
+    let editor_func = interpreter.current_attribute.or(interpreter.current_function);
+
+    if let Some(editor_func) = editor_func {
+        let editor = fully_qualified_function_path(editor_func, interpreter.elaborator);
+
+        if item_allows_edits_from(interpreter, item, &editor) {
             return Ok(());
         }
 
-        // TODO: [fully_qualified_function_name] is a similar fn which already exists
-        let edited = fully_qualified_function_path(func_id, interpreter.elaborator);
+        let edited = item_display_name(interpreter, item);
         Err(InterpreterError::ExternalEdit { editor, edited, location })
     } else {
-        let edited = fully_qualified_function_path(func_id, interpreter.elaborator);
+        let edited = item_display_name(interpreter, item);
         Err(InterpreterError::ExternalEditNotInFunction { edited, location })
     }
+}
+
+fn item_allows_edits_from(interpreter: &Interpreter, item: &Value, editor: &str) -> bool {
+    // Direct check: does the item itself have an allow-edits attribute?
+    let directly_allowed = match item {
+        Value::FunctionDefinition(func_id) => {
+            interpreter.elaborator.interner.function_attributes(func_id).allows_edits_from(editor)
+        }
+        Value::TypeDefinition(type_id) => {
+            interpreter.elaborator.interner.type_attributes(type_id).iter().any(|attr| {
+                matches!(&attr.kind, SecondaryAttributeKind::AllowEditsFrom(name) if name == editor)
+            })
+        }
+        Value::ModuleDefinition(module_id) => {
+            interpreter.elaborator.get_module(*module_id).attributes.iter().any(|attr| {
+                match &attr.kind {
+                    SecondaryAttributeKind::AllowEditsFrom(name) => name == editor,
+                    SecondaryAttributeKind::AllowEditsFromRec(name) => name == editor,
+                    _ => false,
+                }
+            })
+        }
+        _ => false,
+    };
+
+    if directly_allowed {
+        return true;
+    }
+
+    // Recursive check: walk up the module ancestry looking for AllowEditsFromRec.
+    // An ancestor module with AllowEditsFromRec("editor") grants permission for all items
+    // defined directly or indirectly within it, including functions, types, and child modules.
+    let item_module = match item {
+        Value::FunctionDefinition(func_id) => {
+            Some(interpreter.elaborator.interner.function_module(*func_id))
+        }
+        Value::TypeDefinition(type_id) => Some(type_id.module_id()),
+        Value::ModuleDefinition(module_id) => Some(*module_id),
+        _ => None,
+    };
+
+    item_module
+        .is_some_and(|module_id| module_chain_allows_edits_from_rec(interpreter, module_id, editor))
+}
+
+/// Walk the chain of parent modules starting from `module_id`, checking whether any module
+/// in the chain carries `#[allow_edits_from_rec("editor")]`.
+///
+/// This implements the "recursive" semantics: a single `allow_edits_from_rec` on a module
+/// grants the named editor permission to modify any item defined directly or transitively
+/// within that module.
+fn module_chain_allows_edits_from_rec(
+    interpreter: &Interpreter,
+    module_id: ModuleId,
+    editor: &str,
+) -> bool {
+    let module_data = interpreter.elaborator.get_module(module_id);
+    let has_rec_attr = module_data.attributes.iter().any(|attr| {
+        matches!(&attr.kind, SecondaryAttributeKind::AllowEditsFromRec(name) if name == editor)
+    });
+    // Copy `parent` (it's `Copy`) so the borrow of `module_data` can end before the
+    // recursive call re-borrows `interpreter`.
+    let parent = module_data.parent;
+
+    if has_rec_attr {
+        return true;
+    }
+
+    // Walk up to the parent module, if any.
+    if let Some(parent_local_id) = parent {
+        let parent_id = ModuleId { krate: module_id.krate, local_id: parent_local_id };
+        module_chain_allows_edits_from_rec(interpreter, parent_id, editor)
+    } else {
+        false
+    }
+}
+
+fn item_display_name(interpreter: &Interpreter, item: &Value) -> String {
+    match item {
+        Value::FunctionDefinition(func_id) => {
+            fully_qualified_function_path(*func_id, interpreter.elaborator)
+        }
+        Value::TypeDefinition(type_id) => {
+            fully_qualified_type_path(*type_id, interpreter.elaborator)
+        }
+        Value::ModuleDefinition(module_id) => fully_qualified_module_path(
+            interpreter.elaborator.def_maps,
+            interpreter.elaborator.crate_graph,
+            &interpreter.elaborator.crate_id,
+            *module_id,
+        ),
+        _ => item.display(interpreter.elaborator.interner).to_string(),
+    }
+}
+
+fn fully_qualified_type_path(type_id: TypeId, elaborator: &Elaborator) -> String {
+    // TypeId wraps a ModuleId representing the type's anonymous module,
+    // whose name in the def_map is the type's own name, giving the correct qualified path.
+    fully_qualified_module_path(
+        elaborator.def_maps,
+        elaborator.crate_graph,
+        &elaborator.crate_id,
+        type_id.module_id(),
+    )
 }
 
 pub(super) fn lex(input: &str, location: Location) -> Vec<LocatedToken> {

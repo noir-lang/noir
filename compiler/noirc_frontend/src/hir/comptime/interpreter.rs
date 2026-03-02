@@ -116,6 +116,16 @@ pub struct Interpreter<'local, 'interner> {
     /// the rhs of a global.
     current_function: Option<FuncId>,
 
+    /// The original attribute function currently being executed, if any.
+    /// Unlike `current_function`, this does not change when helper functions are called —
+    /// it always refers to the top-level attribute that was invoked.
+    current_attribute: Option<FuncId>,
+
+    /// The item the current attribute is directly placed on, if any (e.g.
+    /// Value::FunctionDefinition, Value::TypeDefinition, Value::ModuleDefinition, etc.).
+    /// Used to allow an attribute to freely modify the item it's attached to.
+    current_attribute_on: Option<Value>,
+
     /// Maps each generic to the binding it has in the current callstack.
     /// Since the interpreter monomorphizes as it interprets, we can bind over the same generic
     /// multiple times. Without the outer Vec, when one of these inner functions exits we would
@@ -134,10 +144,20 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         Self {
             elaborator,
             current_function,
+            current_attribute: None,
+            current_attribute_on: None,
             bound_generics: Vec::new(),
             in_loop: false,
             evaluation_depth: 0,
         }
+    }
+
+    /// Records the top-level attribute function being executed and the item it is placed on.
+    /// This is set once when the attribute is invoked and does not change as helper functions
+    /// are called, unlike `current_function`.
+    pub(crate) fn set_current_attribute(&mut self, attr: FuncId, on: Value) {
+        self.current_attribute = Some(attr);
+        self.current_attribute_on = Some(on);
     }
 
     /// Call the given function with the given arguments and return the result.

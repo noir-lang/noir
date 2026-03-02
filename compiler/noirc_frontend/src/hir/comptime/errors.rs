@@ -902,7 +902,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 CustomDiagnostic::simple_error(primary, secondary, *location)
             },
             InterpreterError::ExternalEdit { editor, edited, location } => {
-                let primary = format!("`{editor}` is trying to edit `{edited}`");
+                let primary = format!("External comptime fn `{editor}` is trying to edit `{edited}`");
                 let secondary = format!("If this is expected, consider adding `#[allow_edits_from(\"{editor}\")]` to `{edited}`");
                 CustomDiagnostic::simple_error(primary, secondary, *location)
             },

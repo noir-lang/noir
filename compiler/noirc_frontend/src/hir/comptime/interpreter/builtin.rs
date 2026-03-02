@@ -437,6 +437,7 @@ fn type_def_add_attribute(
     let self_arg = self_argument.0.clone();
     let type_id = get_type_id(self_argument)?;
     check_item_crate_matches_current_crate(interpreter, &self_arg, type_id.module_id(), location)?;
+    check_item_can_be_modified(interpreter, &Value::TypeDefinition(type_id), location)?;
 
     interpreter.elaborator.interner.update_type_attributes(type_id, |attributes| {
         attributes.push(attribute);
@@ -475,6 +476,7 @@ fn type_def_add_generic(
     let struct_module = struct_id.module_id();
 
     check_item_crate_matches_current_crate(interpreter, &self_arg, struct_module, location)?;
+    check_item_can_be_modified(interpreter, &Value::TypeDefinition(struct_id), location)?;
 
     let the_struct = interpreter.elaborator.interner.get_type(struct_id);
     let mut the_struct = the_struct.borrow_mut();
@@ -740,6 +742,7 @@ fn type_def_set_fields(
     let struct_module = struct_id.module_id();
 
     check_item_crate_matches_current_crate(interpreter, &self_arg, struct_module, location)?;
+    check_item_can_be_modified(interpreter, &Value::TypeDefinition(struct_id), location)?;
 
     let struct_def = interpreter.elaborator.interner.get_type(struct_id);
     let mut struct_def = struct_def.borrow_mut();
@@ -2552,6 +2555,7 @@ fn function_def_add_attribute(
 
     let func_id = get_function_def(self_argument)?;
     check_function_not_yet_resolved(interpreter, func_id, location)?;
+    check_item_can_be_modified(interpreter, &Value::FunctionDefinition(func_id), location)?;
 
     let function_modifiers = interpreter.elaborator.interner.function_modifiers_mut(&func_id);
 
@@ -2752,7 +2756,7 @@ fn function_def_set_body(
 
     let func_id = get_function_def(self_argument)?;
     check_function_not_yet_resolved(interpreter, func_id, location)?;
-    check_item_can_be_modified(interpreter, func_id, location)?;
+    check_item_can_be_modified(interpreter, &Value::FunctionDefinition(func_id), location)?;
 
     let body_argument = get_expr(interpreter.elaborator.interner, body_argument)?;
     let statement_kind = match body_argument {
@@ -2794,6 +2798,7 @@ fn function_def_set_parameters(
 
     let func_id = get_function_def(self_argument)?;
     check_function_not_yet_resolved(interpreter, func_id, location)?;
+    check_item_can_be_modified(interpreter, &Value::FunctionDefinition(func_id), location)?;
 
     let (input_parameters, _type) = get_vector(parameters_argument)?;
 
@@ -2852,6 +2857,7 @@ fn function_def_set_return_type(
 
     let func_id = get_function_def(self_argument)?;
     check_function_not_yet_resolved(interpreter, func_id, location)?;
+    check_item_can_be_modified(interpreter, &Value::FunctionDefinition(func_id), location)?;
 
     let quoted_type_id = interpreter.elaborator.interner.push_quoted_type(return_type.clone());
 
@@ -2876,6 +2882,7 @@ fn function_def_set_return_public(
 
     let func_id = get_function_def(self_argument)?;
     check_function_not_yet_resolved(interpreter, func_id, location)?;
+    check_item_can_be_modified(interpreter, &Value::FunctionDefinition(func_id), location)?;
 
     let public = get_bool(public)?;
 
@@ -2896,6 +2903,7 @@ fn function_def_set_return_data(
 
     let func_id = get_function_def(self_argument)?;
     check_function_not_yet_resolved(interpreter, func_id, location)?;
+    check_item_can_be_modified(interpreter, &Value::FunctionDefinition(func_id), location)?;
 
     let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
     func_meta.return_visibility = Visibility::ReturnData;
@@ -2914,6 +2922,7 @@ fn function_def_set_unconstrained(
 
     let func_id = get_function_def(self_argument)?;
     check_function_not_yet_resolved(interpreter, func_id, location)?;
+    check_item_can_be_modified(interpreter, &Value::FunctionDefinition(func_id), location)?;
 
     let unconstrained = get_bool(unconstrained)?;
 
@@ -2947,6 +2956,7 @@ fn module_add_item(
     let module_id = get_module(self_argument)?;
 
     check_item_crate_matches_current_crate(interpreter, &module_value, module_id, location)?;
+    check_item_can_be_modified(interpreter, &Value::ModuleDefinition(module_id), location)?;
 
     let parser = Parser::parse_top_level_items;
     let top_level_statements = parse(interpreter.elaborator, item, parser, "a top-level item")?;
