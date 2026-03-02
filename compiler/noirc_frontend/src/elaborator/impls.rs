@@ -239,9 +239,7 @@ impl Elaborator<'_> {
         for method_id in function_ids {
             let method_name = self.interner.function_name(method_id).to_owned();
 
-            if let Err(error) =
-                self.interner.add_method(self_type, method_name.clone(), *method_id, None)
-            {
+            if let Err(error) = self.interner.add_method(self_type, method_name, *method_id, None) {
                 self.push_err(error);
             }
         }
