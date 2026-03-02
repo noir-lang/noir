@@ -228,10 +228,10 @@ impl Display for Integer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Integer::Field(value) if value.is_negative() => {
-                write!(f, "-{}", value.absolute_value())
+                write!(f, "-{}", value.absolute_value().to_short_hex())
             }
             Integer::Field(value) => {
-                write!(f, "{}", value.absolute_value())
+                write!(f, "{}", value.absolute_value().to_short_hex())
             }
             Integer::I8(value) => write!(f, "{value}"),
             Integer::I16(value) => write!(f, "{value}"),

@@ -4,7 +4,7 @@ expression: expanded_code
 ---
 mod foo {
     pub(crate) mod bar {
-        global N: Field = 2;
+        global N: Field = 0x02;
 
         pub(crate) struct barStruct {
             pub(crate) val: Field,

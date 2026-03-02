@@ -5,9 +5,9 @@ expression: expanded_code
 global G_A: str<1> = "B";
 
 global G_B: ((Field, Field, bool), [str<3>; 1], str<3>, Field, (Field, Field, bool)) = (
-    (218246652875437164009655208784095375107, -313608744114162797896018893666882091480, true),
-    ["ERD"], "IAT", -120526842023866287823029064655616936845,
-    (-158893399940351649111039879038827064887, 114242794008481451001418400118000869414, false),
+    (0xa430c6c261601cb15adc85a63bbc6f03, -0xebeed8dc4622e54691dc8219c722f9d8, true), ["ERD"], "IAT",
+    -0x5aaca01b3cefb6b9bd8b52602b6d0b8d,
+    (-0x7789c174f82d49c2c6cdd79c9e416e37, 0x55f25c9e58190bec192e287ce3b06026, false),
 );
 
 fn main() -> return_data (Field, Field, bool) {

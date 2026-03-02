@@ -4,15 +4,15 @@ expression: expanded_code
 ---
 use std::static_assert;
 
-global GLOBAL_ONE: Field = 1;
+global GLOBAL_ONE: Field = 0x01;
 
-global GLOBAL_TWO: Field = 2;
+global GLOBAL_TWO: Field = 0x02;
 
-global GLOBAL_THREE: Field = 3;
+global GLOBAL_THREE: Field = 0x03;
 
-global GLOBAL_ARRAY_PAIR: [Field; 2] = [1, 2];
+global GLOBAL_ARRAY_PAIR: [Field; 2] = [0x01, 0x02];
 
-global GLOBAL_VECTOR_PAIR: [Field] = @[1, 2];
+global GLOBAL_VECTOR_PAIR: [Field] = @[0x01, 0x02];
 
 pub struct Foo {
     field: Field,

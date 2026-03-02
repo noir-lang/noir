@@ -3,9 +3,9 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 global G_A: [Field] = @[
-    -89475623400669066614290885116958338078,
-    48908553793922955213460396216351077763,
-    -334812293488173760196216156611283261679,
+    -0x435060d4564974a8a6d18bb7ded7ec1e,
+    0x24cb71e04d83e5508bf4e287ea9e3583,
+    -0xfbe2808eb927a66057c73ea74ff418ef,
 ];
 
 fn main(b: pub Field) -> pub Field {
