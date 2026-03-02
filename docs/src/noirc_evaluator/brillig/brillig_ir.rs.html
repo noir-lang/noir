@@ -988,7 +988,7 @@
 <a href=#988 id=988 data-nosnippet>988</a>                jmp b1(u32 0, u32 0, u32 0)
 <a href=#989 id=989 data-nosnippet>989</a>              b1(v3: u32, v35: u32, v36: u32):
 <a href=#990 id=990 data-nosnippet>990</a>                v5 = lt v3, u32 17
-<a href=#991 id=991 data-nosnippet>991</a>                jmpif v5 then: b2, else: b3
+<a href=#991 id=991 data-nosnippet>991</a>                jmpif v5 then: b2(), else: b3()
 <a href=#992 id=992 data-nosnippet>992</a>              b2():
 <a href=#993 id=993 data-nosnippet>993</a>                v8 = unchecked_add v3, u32 1
 <a href=#994 id=994 data-nosnippet>994</a>                jmp b1(v8, v3, u32 10)
@@ -1028,7 +1028,7 @@
 <a href=#1028 id=1028 data-nosnippet>1028</a>                jmp b1(u32 0, u32 1, u32 0)
 <a href=#1029 id=1029 data-nosnippet>1029</a>              b1(v0: u32, v1: u32, v2: u32):
 <a href=#1030 id=1030 data-nosnippet>1030</a>                v3 = lt v2, u32 1
-<a href=#1031 id=1031 data-nosnippet>1031</a>                jmpif v3 then: b2, else: b3
+<a href=#1031 id=1031 data-nosnippet>1031</a>                jmpif v3 then: b2(), else: b3()
 <a href=#1032 id=1032 data-nosnippet>1032</a>              b2():
 <a href=#1033 id=1033 data-nosnippet>1033</a>                v4 = unchecked_add v2, u32 1
 <a href=#1034 id=1034 data-nosnippet>1034</a>                jmp b1(v1, v0, v4)

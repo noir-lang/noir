@@ -417,7 +417,7 @@
 <a href=#417 id=417 data-nosnippet>417</a>        <span class="kw">let </span>block2_id = builder.insert_block();
 <a href=#418 id=418 data-nosnippet>418</a>        <span class="kw">let </span>block3_id = builder.insert_block();
 <a href=#419 id=419 data-nosnippet>419</a>
-<a href=#420 id=420 data-nosnippet>420</a>        builder.terminate_with_jmpif(cond, block2_id, block3_id);
+<a href=#420 id=420 data-nosnippet>420</a>        builder.terminate_with_jmpif_no_args(cond, block2_id, block3_id);
 <a href=#421 id=421 data-nosnippet>421</a>        builder.switch_to_block(block1_id);
 <a href=#422 id=422 data-nosnippet>422</a>        builder.terminate_with_jmp(block2_id, <span class="macro">vec!</span>[]);
 <a href=#423 id=423 data-nosnippet>423</a>        builder.switch_to_block(block2_id);
@@ -669,9 +669,9 @@
 <a href=#669 id=669 data-nosnippet>669</a>            jmp b1(u32 0)
 <a href=#670 id=670 data-nosnippet>670</a>          b1(v3: u32):
 <a href=#671 id=671 data-nosnippet>671</a>            v8 = lt v3, u32 4
-<a href=#672 id=672 data-nosnippet>672</a>            jmpif v8 then: b2, else: b3
+<a href=#672 id=672 data-nosnippet>672</a>            jmpif v8 then: b2(), else: b3()
 <a href=#673 id=673 data-nosnippet>673</a>          b2():
-<a href=#674 id=674 data-nosnippet>674</a>            jmpif v5 then: b4, else: b5
+<a href=#674 id=674 data-nosnippet>674</a>            jmpif v5 then: b4(), else: b5()
 <a href=#675 id=675 data-nosnippet>675</a>          b3():
 <a href=#676 id=676 data-nosnippet>676</a>            return
 <a href=#677 id=677 data-nosnippet>677</a>          b4():
@@ -804,7 +804,7 @@
 <a href=#804 id=804 data-nosnippet>804</a>          b0(v0: u1):
 <a href=#805 id=805 data-nosnippet>805</a>            jmp b1()
 <a href=#806 id=806 data-nosnippet>806</a>          b1():
-<a href=#807 id=807 data-nosnippet>807</a>            jmpif v0 then: b1, else: b2
+<a href=#807 id=807 data-nosnippet>807</a>            jmpif v0 then: b1(), else: b2()
 <a href=#808 id=808 data-nosnippet>808</a>          b2():
 <a href=#809 id=809 data-nosnippet>809</a>            return
 <a href=#810 id=810 data-nosnippet>810</a>        }

@@ -424,7 +424,7 @@
 <a href=#424 id=424 data-nosnippet>424</a>          brillig(inline) fn is_even f1 {
 <a href=#425 id=425 data-nosnippet>425</a>            b0(v0: u32):
 <a href=#426 id=426 data-nosnippet>426</a>              v3 = eq v0, u32 0
-<a href=#427 id=427 data-nosnippet>427</a>              jmpif v3 then: b2, else: b1
+<a href=#427 id=427 data-nosnippet>427</a>              jmpif v3 then: b2(), else: b1()
 <a href=#428 id=428 data-nosnippet>428</a>            b1():
 <a href=#429 id=429 data-nosnippet>429</a>              v5 = call f3(v0) -&gt; u32
 <a href=#430 id=430 data-nosnippet>430</a>              v7 = call f2(v5) -&gt; u1
@@ -437,7 +437,7 @@
 <a href=#437 id=437 data-nosnippet>437</a>          brillig(inline) fn is_odd f2 {
 <a href=#438 id=438 data-nosnippet>438</a>            b0(v0: u32):
 <a href=#439 id=439 data-nosnippet>439</a>              v3 = eq v0, u32 0
-<a href=#440 id=440 data-nosnippet>440</a>              jmpif v3 then: b2, else: b1
+<a href=#440 id=440 data-nosnippet>440</a>              jmpif v3 then: b2(), else: b1()
 <a href=#441 id=441 data-nosnippet>441</a>            b1():
 <a href=#442 id=442 data-nosnippet>442</a>              v5 = call f3(v0) -&gt; u32
 <a href=#443 id=443 data-nosnippet>443</a>              v7 = call f1(v5) -&gt; u1

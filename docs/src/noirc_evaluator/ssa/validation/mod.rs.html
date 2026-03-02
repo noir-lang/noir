@@ -1599,7 +1599,7 @@
 <a href=#1599 id=1599 data-nosnippet>1599</a>
 <a href=#1600 id=1600 data-nosnippet>1600</a>        acir(inline) fn f1 f1 {
 <a href=#1601 id=1601 data-nosnippet>1601</a>          b0(v0: u1):
-<a href=#1602 id=1602 data-nosnippet>1602</a>            jmpif v0 then: b1, else: b2
+<a href=#1602 id=1602 data-nosnippet>1602</a>            jmpif v0 then: b1(), else: b2()
 <a href=#1603 id=1603 data-nosnippet>1603</a>          b1():
 <a href=#1604 id=1604 data-nosnippet>1604</a>            return Field 1
 <a href=#1605 id=1605 data-nosnippet>1605</a>          b2():
@@ -1836,7 +1836,7 @@
 <a href=#1836 id=1836 data-nosnippet>1836</a>        <span class="kw">let </span>src = <span class="string">"
 <a href=#1837 id=1837 data-nosnippet>1837</a>        acir(inline) fn main f0 {
 <a href=#1838 id=1838 data-nosnippet>1838</a>          b0(v0: u32):
-<a href=#1839 id=1839 data-nosnippet>1839</a>            jmpif v0 then: b1, else: b2
+<a href=#1839 id=1839 data-nosnippet>1839</a>            jmpif v0 then: b1(), else: b2()
 <a href=#1840 id=1840 data-nosnippet>1840</a>          b1():
 <a href=#1841 id=1841 data-nosnippet>1841</a>            jmp b2()
 <a href=#1842 id=1842 data-nosnippet>1842</a>          b2():
@@ -1999,7 +1999,7 @@
 <a href=#1999 id=1999 data-nosnippet>1999</a>
 <a href=#2000 id=2000 data-nosnippet>2000</a>        builder.switch_to_block(b1);
 <a href=#2001 id=2001 data-nosnippet>2001</a>
-<a href=#2002 id=2002 data-nosnippet>2002</a>        builder.terminate_with_jmpif(v0, b2, b3);
+<a href=#2002 id=2002 data-nosnippet>2002</a>        builder.terminate_with_jmpif_no_args(v0, b2, b3);
 <a href=#2003 id=2003 data-nosnippet>2003</a>
 <a href=#2004 id=2004 data-nosnippet>2004</a>        builder.switch_to_block(b2);
 <a href=#2005 id=2005 data-nosnippet>2005</a>

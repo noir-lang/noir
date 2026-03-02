@@ -161,7 +161,7 @@
 <a href=#161 id=161 data-nosnippet>161</a>        <span class="comment">// A → B   •
 <a href=#162 id=162 data-nosnippet>162</a>        // ↓
 <a href=#163 id=163 data-nosnippet>163</a>        // D   •   •
-<a href=#164 id=164 data-nosnippet>164</a>        </span>builder.terminate_with_jmpif(cond_a, block_b_id, block_d_id);
+<a href=#164 id=164 data-nosnippet>164</a>        </span>builder.terminate_with_jmpif_no_args(cond_a, block_b_id, block_d_id);
 <a href=#165 id=165 data-nosnippet>165</a>        <span class="comment">//  •   B   •
 <a href=#166 id=166 data-nosnippet>166</a>        //  •   ↓   •
 <a href=#167 id=167 data-nosnippet>167</a>        //  •   E   •
@@ -171,7 +171,7 @@
 <a href=#171 id=171 data-nosnippet>171</a>        //
 <a href=#172 id=172 data-nosnippet>172</a>        // D ← E → F
 <a href=#173 id=173 data-nosnippet>173</a>        </span>builder.switch_to_block(block_e_id);
-<a href=#174 id=174 data-nosnippet>174</a>        builder.terminate_with_jmpif(cond_e, block_d_id, block_f_id);
+<a href=#174 id=174 data-nosnippet>174</a>        builder.terminate_with_jmpif_no_args(cond_e, block_d_id, block_f_id);
 <a href=#175 id=175 data-nosnippet>175</a>        <span class="comment">// •   B   •
 <a href=#176 id=176 data-nosnippet>176</a>        //   ↗
 <a href=#177 id=177 data-nosnippet>177</a>        // D   •   •
@@ -217,7 +217,7 @@
 <a href=#217 id=217 data-nosnippet>217</a>
 <a href=#218 id=218 data-nosnippet>218</a>        builder.switch_to_block(b1);
 <a href=#219 id=219 data-nosnippet>219</a>        <span class="kw">let </span>zero = builder.numeric_constant(<span class="number">0u32</span>, NumericType::bool());
-<a href=#220 id=220 data-nosnippet>220</a>        builder.terminate_with_jmpif(zero, b2, b3);
+<a href=#220 id=220 data-nosnippet>220</a>        builder.terminate_with_jmpif_no_args(zero, b2, b3);
 <a href=#221 id=221 data-nosnippet>221</a>
 <a href=#222 id=222 data-nosnippet>222</a>        builder.switch_to_block(b2);
 <a href=#223 id=223 data-nosnippet>223</a>        builder.terminate_with_jmp(b1, Vec::new());
@@ -239,7 +239,7 @@
 <a href=#239 id=239 data-nosnippet>239</a>        acir(inline) fn factorial f1 {
 <a href=#240 id=240 data-nosnippet>240</a>          b0(v1: u32):
 <a href=#241 id=241 data-nosnippet>241</a>            v2 = lt v1, u32 1
-<a href=#242 id=242 data-nosnippet>242</a>            jmpif v2 then: b1, else: b2
+<a href=#242 id=242 data-nosnippet>242</a>            jmpif v2 then: b1(), else: b2()
 <a href=#243 id=243 data-nosnippet>243</a>          b1():
 <a href=#244 id=244 data-nosnippet>244</a>            jmp b3(u32 1)
 <a href=#245 id=245 data-nosnippet>245</a>          b2():
@@ -281,15 +281,15 @@
 <a href=#281 id=281 data-nosnippet>281</a>              b0(v0: u1):
 <a href=#282 id=282 data-nosnippet>282</a>                jmp b1(v0)
 <a href=#283 id=283 data-nosnippet>283</a>              b1(v1: u1):
-<a href=#284 id=284 data-nosnippet>284</a>                jmpif v1 then: b2, else: b3
+<a href=#284 id=284 data-nosnippet>284</a>                jmpif v1 then: b2(), else: b3()
 <a href=#285 id=285 data-nosnippet>285</a>              b2():
 <a href=#286 id=286 data-nosnippet>286</a>                jmp b4(v1)
 <a href=#287 id=287 data-nosnippet>287</a>              b3():
 <a href=#288 id=288 data-nosnippet>288</a>                return
 <a href=#289 id=289 data-nosnippet>289</a>              b4(v2: u1):
-<a href=#290 id=290 data-nosnippet>290</a>                jmpif v2 then: b5, else: b6
+<a href=#290 id=290 data-nosnippet>290</a>                jmpif v2 then: b5(), else: b6()
 <a href=#291 id=291 data-nosnippet>291</a>              b5():
-<a href=#292 id=292 data-nosnippet>292</a>                jmpif v2 then: b7, else: b8
+<a href=#292 id=292 data-nosnippet>292</a>                jmpif v2 then: b7(), else: b8()
 <a href=#293 id=293 data-nosnippet>293</a>              b6():
 <a href=#294 id=294 data-nosnippet>294</a>                jmp b1(v1)
 <a href=#295 id=295 data-nosnippet>295</a>              b7():

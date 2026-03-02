@@ -267,7 +267,7 @@
 <a href=#267 id=267 data-nosnippet>267</a>        </span><span class="kw">let </span>src = <span class="string">"
 <a href=#268 id=268 data-nosnippet>268</a>        brillig(inline) fn main f0 {
 <a href=#269 id=269 data-nosnippet>269</a>          b0(v0: u1, v1: Field):
-<a href=#270 id=270 data-nosnippet>270</a>            jmpif v0 then: b1, else: b2
+<a href=#270 id=270 data-nosnippet>270</a>            jmpif v0 then: b1(), else: b2()
 <a href=#271 id=271 data-nosnippet>271</a>          b1():
 <a href=#272 id=272 data-nosnippet>272</a>            v2 = add v1, Field 42
 <a href=#273 id=273 data-nosnippet>273</a>            jmp b3(v2)
@@ -302,7 +302,7 @@
 <a href=#302 id=302 data-nosnippet>302</a>            jmp b1(u32 0)
 <a href=#303 id=303 data-nosnippet>303</a>          b1(v1: u32):
 <a href=#304 id=304 data-nosnippet>304</a>            v2 = lt v1, v0
-<a href=#305 id=305 data-nosnippet>305</a>            jmpif v2 then: b2, else: b3
+<a href=#305 id=305 data-nosnippet>305</a>            jmpif v2 then: b2(), else: b3()
 <a href=#306 id=306 data-nosnippet>306</a>          b2():
 <a href=#307 id=307 data-nosnippet>307</a>            v3 = add v1, u32 1
 <a href=#308 id=308 data-nosnippet>308</a>            jmp b1(v3)
@@ -332,7 +332,7 @@
 <a href=#332 id=332 data-nosnippet>332</a>            jmp b1(v2)
 <a href=#333 id=333 data-nosnippet>333</a>          b1(v3: u32):
 <a href=#334 id=334 data-nosnippet>334</a>            v4 = lt v3, v0
-<a href=#335 id=335 data-nosnippet>335</a>            jmpif v4 then: b2, else: b3
+<a href=#335 id=335 data-nosnippet>335</a>            jmpif v4 then: b2(), else: b3()
 <a href=#336 id=336 data-nosnippet>336</a>          b2():
 <a href=#337 id=337 data-nosnippet>337</a>            v5 = add v3, v2
 <a href=#338 id=338 data-nosnippet>338</a>            jmp b1(v5)
@@ -364,7 +364,7 @@
 <a href=#364 id=364 data-nosnippet>364</a>            jmp b1(v0)
 <a href=#365 id=365 data-nosnippet>365</a>          b1(v1: u32):
 <a href=#366 id=366 data-nosnippet>366</a>            v2 = lt v1, u32 10
-<a href=#367 id=367 data-nosnippet>367</a>            jmpif v2 then: b2, else: b3
+<a href=#367 id=367 data-nosnippet>367</a>            jmpif v2 then: b2(), else: b3()
 <a href=#368 id=368 data-nosnippet>368</a>          b2():
 <a href=#369 id=369 data-nosnippet>369</a>            jmp b1(v1)
 <a href=#370 id=370 data-nosnippet>370</a>          b3():
@@ -451,7 +451,7 @@
 <a href=#451 id=451 data-nosnippet>451</a>        brillig(inline) fn main f0 {
 <a href=#452 id=452 data-nosnippet>452</a>          b0(v0: [u8; 1]):
 <a href=#453 id=453 data-nosnippet>453</a>            v1 = call f1() -&gt; u1
-<a href=#454 id=454 data-nosnippet>454</a>            jmpif v1 then: b1, else: b2
+<a href=#454 id=454 data-nosnippet>454</a>            jmpif v1 then: b1(), else: b2()
 <a href=#455 id=455 data-nosnippet>455</a>          b1():
 <a href=#456 id=456 data-nosnippet>456</a>            inc_rc g0
 <a href=#457 id=457 data-nosnippet>457</a>            jmp b3(g0)
@@ -488,7 +488,7 @@
 <a href=#488 id=488 data-nosnippet>488</a>            jmp b1(u32 0)
 <a href=#489 id=489 data-nosnippet>489</a>          b1(v1: u32):
 <a href=#490 id=490 data-nosnippet>490</a>            v2 = lt v1, v0
-<a href=#491 id=491 data-nosnippet>491</a>            jmpif v2 then: b2, else: b3
+<a href=#491 id=491 data-nosnippet>491</a>            jmpif v2 then: b2(), else: b3()
 <a href=#492 id=492 data-nosnippet>492</a>          b2():
 <a href=#493 id=493 data-nosnippet>493</a>            v3 = add v1, u32 1
 <a href=#494 id=494 data-nosnippet>494</a>            v4 = mul v3, u32 2
@@ -521,7 +521,7 @@
 <a href=#521 id=521 data-nosnippet>521</a>            jmp b1(u32 0, u32 10)
 <a href=#522 id=522 data-nosnippet>522</a>          b1(v1: u32, v2: u32):
 <a href=#523 id=523 data-nosnippet>523</a>            v3 = lt v1, v0
-<a href=#524 id=524 data-nosnippet>524</a>            jmpif v3 then: b2, else: b3
+<a href=#524 id=524 data-nosnippet>524</a>            jmpif v3 then: b2(), else: b3()
 <a href=#525 id=525 data-nosnippet>525</a>          b2():
 <a href=#526 id=526 data-nosnippet>526</a>            v4 = mul v0, u32 2
 <a href=#527 id=527 data-nosnippet>527</a>            jmp b1(v4, v1)
@@ -624,7 +624,7 @@
 <a href=#624 id=624 data-nosnippet>624</a>        brillig(inline) fn main f0 {
 <a href=#625 id=625 data-nosnippet>625</a>          b0(v0: u1, v1: Field):
 <a href=#626 id=626 data-nosnippet>626</a>            v2 = add v1, Field 1
-<a href=#627 id=627 data-nosnippet>627</a>            jmpif v0 then: b1, else: b2
+<a href=#627 id=627 data-nosnippet>627</a>            jmpif v0 then: b1(), else: b2()
 <a href=#628 id=628 data-nosnippet>628</a>          b1():
 <a href=#629 id=629 data-nosnippet>629</a>            jmp b3(v2)
 <a href=#630 id=630 data-nosnippet>630</a>          b2():

@@ -1230,7 +1230,7 @@
 <a href=#1230 id=1230 data-nosnippet>1230</a>            jmp b1(Field 0)
 <a href=#1231 id=1231 data-nosnippet>1231</a>          b1(v3: Field):
 <a href=#1232 id=1232 data-nosnippet>1232</a>            v4 = eq v3, Field 0
-<a href=#1233 id=1233 data-nosnippet>1233</a>            jmpif v4 then: b2, else: b3
+<a href=#1233 id=1233 data-nosnippet>1233</a>            jmpif v4 then: b2(), else: b3()
 <a href=#1234 id=1234 data-nosnippet>1234</a>          b2():
 <a href=#1235 id=1235 data-nosnippet>1235</a>            v5 = load v2 -&gt; &amp;mut Field
 <a href=#1236 id=1236 data-nosnippet>1236</a>            store Field 2 at v5
@@ -1297,7 +1297,7 @@
 <a href=#1297 id=1297 data-nosnippet>1297</a>            jmp b1(Field 0)
 <a href=#1298 id=1298 data-nosnippet>1298</a>          b1(v3: Field):
 <a href=#1299 id=1299 data-nosnippet>1299</a>            v4 = eq v3, Field 0
-<a href=#1300 id=1300 data-nosnippet>1300</a>            jmpif v4 then: b2, else: b3
+<a href=#1300 id=1300 data-nosnippet>1300</a>            jmpif v4 then: b2(), else: b3()
 <a href=#1301 id=1301 data-nosnippet>1301</a>          b2():
 <a href=#1302 id=1302 data-nosnippet>1302</a>            v5 = load v2 -&gt; &amp;mut Field
 <a href=#1303 id=1303 data-nosnippet>1303</a>            store Field 2 at v5
@@ -1334,7 +1334,7 @@
 <a href=#1334 id=1334 data-nosnippet>1334</a>            jmp b1(Field 0)
 <a href=#1335 id=1335 data-nosnippet>1335</a>          b1(v0: Field):
 <a href=#1336 id=1336 data-nosnippet>1336</a>            v4 = eq v0, Field 0
-<a href=#1337 id=1337 data-nosnippet>1337</a>            jmpif v4 then: b2, else: b3
+<a href=#1337 id=1337 data-nosnippet>1337</a>            jmpif v4 then: b2(), else: b3()
 <a href=#1338 id=1338 data-nosnippet>1338</a>          b2():
 <a href=#1339 id=1339 data-nosnippet>1339</a>            v11 = load v3 -&gt; &amp;mut Field
 <a href=#1340 id=1340 data-nosnippet>1340</a>            store Field 2 at v11
@@ -1367,7 +1367,7 @@
 <a href=#1367 id=1367 data-nosnippet>1367</a>            jmp b1(Field 0)
 <a href=#1368 id=1368 data-nosnippet>1368</a>          b1(v0: Field):
 <a href=#1369 id=1369 data-nosnippet>1369</a>            v4 = eq v0, Field 0
-<a href=#1370 id=1370 data-nosnippet>1370</a>            jmpif v4 then: b3, else: b2
+<a href=#1370 id=1370 data-nosnippet>1370</a>            jmpif v4 then: b3(), else: b2()
 <a href=#1371 id=1371 data-nosnippet>1371</a>          b2():
 <a href=#1372 id=1372 data-nosnippet>1372</a>            v9 = load v1 -&gt; Field
 <a href=#1373 id=1373 data-nosnippet>1373</a>            v10 = eq v9, Field 2
@@ -1400,7 +1400,7 @@
 <a href=#1400 id=1400 data-nosnippet>1400</a>        </span><span class="kw">let </span>src = <span class="string">"
 <a href=#1401 id=1401 data-nosnippet>1401</a>        acir(inline) fn main f0 {
 <a href=#1402 id=1402 data-nosnippet>1402</a>          b0(v0: u1):
-<a href=#1403 id=1403 data-nosnippet>1403</a>            jmpif v0 then: b2, else: b1
+<a href=#1403 id=1403 data-nosnippet>1403</a>            jmpif v0 then: b2(), else: b1()
 <a href=#1404 id=1404 data-nosnippet>1404</a>          b1():
 <a href=#1405 id=1405 data-nosnippet>1405</a>            v6 = allocate -&gt; &amp;mut Field
 <a href=#1406 id=1406 data-nosnippet>1406</a>            store Field 1 at v6
@@ -1434,7 +1434,7 @@
 <a href=#1434 id=1434 data-nosnippet>1434</a>        </span><span class="kw">let </span>src = <span class="string">"
 <a href=#1435 id=1435 data-nosnippet>1435</a>        acir(inline) fn main f0 {
 <a href=#1436 id=1436 data-nosnippet>1436</a>          b0(v0: u1):
-<a href=#1437 id=1437 data-nosnippet>1437</a>            jmpif v0 then: b2, else: b1
+<a href=#1437 id=1437 data-nosnippet>1437</a>            jmpif v0 then: b2(), else: b1()
 <a href=#1438 id=1438 data-nosnippet>1438</a>          b1():
 <a href=#1439 id=1439 data-nosnippet>1439</a>            v8 = allocate -&gt; &amp;mut Field
 <a href=#1440 id=1440 data-nosnippet>1440</a>            store Field 1 at v8
@@ -1514,7 +1514,7 @@
 <a href=#1514 id=1514 data-nosnippet>1514</a>            jmp b1(u32 0)
 <a href=#1515 id=1515 data-nosnippet>1515</a>          b1(v0: u32):
 <a href=#1516 id=1516 data-nosnippet>1516</a>            v7 = eq v0, u32 0
-<a href=#1517 id=1517 data-nosnippet>1517</a>            jmpif v7 then: b2, else: b3
+<a href=#1517 id=1517 data-nosnippet>1517</a>            jmpif v7 then: b2(), else: b3()
 <a href=#1518 id=1518 data-nosnippet>1518</a>          b2():
 <a href=#1519 id=1519 data-nosnippet>1519</a>            v14 = unchecked_add v0, u32 1
 <a href=#1520 id=1520 data-nosnippet>1520</a>            jmp b1(v14)
@@ -1522,7 +1522,7 @@
 <a href=#1522 id=1522 data-nosnippet>1522</a>            v8 = load v5 -&gt; [&amp;mut u1; 1]
 <a href=#1523 id=1523 data-nosnippet>1523</a>            v9 = array_get v8, index u32 0 -&gt; &amp;mut u1
 <a href=#1524 id=1524 data-nosnippet>1524</a>            v10 = load v9 -&gt; u1
-<a href=#1525 id=1525 data-nosnippet>1525</a>            jmpif v10 then: b4, else: b5
+<a href=#1525 id=1525 data-nosnippet>1525</a>            jmpif v10 then: b4(), else: b5()
 <a href=#1526 id=1526 data-nosnippet>1526</a>          b4():
 <a href=#1527 id=1527 data-nosnippet>1527</a>            jmp b6(Field 0)
 <a href=#1528 id=1528 data-nosnippet>1528</a>          b5():
@@ -1563,7 +1563,7 @@
 <a href=#1563 id=1563 data-nosnippet>1563</a>            v1 = allocate -&gt; &amp;mut u1
 <a href=#1564 id=1564 data-nosnippet>1564</a>            store u1 0 at v1
 <a href=#1565 id=1565 data-nosnippet>1565</a>            v3 = make_array [v1] : [&amp;mut u1]
-<a href=#1566 id=1566 data-nosnippet>1566</a>            jmpif u1 1 then: b1, else: b2
+<a href=#1566 id=1566 data-nosnippet>1566</a>            jmpif u1 1 then: b1(), else: b2()
 <a href=#1567 id=1567 data-nosnippet>1567</a>          b1():
 <a href=#1568 id=1568 data-nosnippet>1568</a>            jmp b3(u32 0)
 <a href=#1569 id=1569 data-nosnippet>1569</a>          b2():
@@ -1585,7 +1585,7 @@
 <a href=#1585 id=1585 data-nosnippet>1585</a>          b0():
 <a href=#1586 id=1586 data-nosnippet>1586</a>            v1 = allocate -&gt; &amp;mut u1
 <a href=#1587 id=1587 data-nosnippet>1587</a>            store u1 0 at v1
-<a href=#1588 id=1588 data-nosnippet>1588</a>            jmpif u1 1 then: b1, else: b2
+<a href=#1588 id=1588 data-nosnippet>1588</a>            jmpif u1 1 then: b1(), else: b2()
 <a href=#1589 id=1589 data-nosnippet>1589</a>          b1():
 <a href=#1590 id=1590 data-nosnippet>1590</a>            v3 = make_array [v1] : [&amp;mut u1]
 <a href=#1591 id=1591 data-nosnippet>1591</a>            jmp b3(u32 0)
@@ -1651,7 +1651,7 @@
 <a href=#1651 id=1651 data-nosnippet>1651</a>          b1():
 <a href=#1652 id=1652 data-nosnippet>1652</a>            v4 = load v2 -&gt; u32
 <a href=#1653 id=1653 data-nosnippet>1653</a>            v6 = eq v4, u32 1
-<a href=#1654 id=1654 data-nosnippet>1654</a>            jmpif v6 then: b2, else: b3
+<a href=#1654 id=1654 data-nosnippet>1654</a>            jmpif v6 then: b2(), else: b3()
 <a href=#1655 id=1655 data-nosnippet>1655</a>          b2():
 <a href=#1656 id=1656 data-nosnippet>1656</a>            jmp b4()
 <a href=#1657 id=1657 data-nosnippet>1657</a>          b3():
@@ -1687,7 +1687,7 @@
 <a href=#1687 id=1687 data-nosnippet>1687</a>          b1():
 <a href=#1688 id=1688 data-nosnippet>1688</a>            v4 = load v2 -&gt; u32
 <a href=#1689 id=1689 data-nosnippet>1689</a>            v6 = eq v4, u32 1
-<a href=#1690 id=1690 data-nosnippet>1690</a>            jmpif v6 then: b2, else: b3
+<a href=#1690 id=1690 data-nosnippet>1690</a>            jmpif v6 then: b2(), else: b3()
 <a href=#1691 id=1691 data-nosnippet>1691</a>          b2():
 <a href=#1692 id=1692 data-nosnippet>1692</a>            jmp b4()
 <a href=#1693 id=1693 data-nosnippet>1693</a>          b3():
@@ -1735,7 +1735,7 @@
 <a href=#1735 id=1735 data-nosnippet>1735</a>            store u1 1 at v5
 <a href=#1736 id=1736 data-nosnippet>1736</a>            v6 = make_array [v5] : [&amp;mut u1; 1]
 <a href=#1737 id=1737 data-nosnippet>1737</a>            v7 = make_array [v4, v6] : [[&amp;mut u1; 1]; 2]
-<a href=#1738 id=1738 data-nosnippet>1738</a>            jmpif u1 1 then: b1, else: b2
+<a href=#1738 id=1738 data-nosnippet>1738</a>            jmpif u1 1 then: b1(), else: b2()
 <a href=#1739 id=1739 data-nosnippet>1739</a>          b1():
 <a href=#1740 id=1740 data-nosnippet>1740</a>            jmp b3(u32 0)
 <a href=#1741 id=1741 data-nosnippet>1741</a>          b2():
@@ -1746,7 +1746,7 @@
 <a href=#1746 id=1746 data-nosnippet>1746</a>            v12 = array_get v7, index v0 -&gt; [&amp;mut u1; 1]
 <a href=#1747 id=1747 data-nosnippet>1747</a>            v13 = array_get v12, index u32 0 -&gt; &amp;mut u1
 <a href=#1748 id=1748 data-nosnippet>1748</a>            v14 = load v13 -&gt; u1
-<a href=#1749 id=1749 data-nosnippet>1749</a>            jmpif v14 then: b4, else: b5
+<a href=#1749 id=1749 data-nosnippet>1749</a>            jmpif v14 then: b4(), else: b5()
 <a href=#1750 id=1750 data-nosnippet>1750</a>          b4():
 <a href=#1751 id=1751 data-nosnippet>1751</a>            jmp b6(u1 1)
 <a href=#1752 id=1752 data-nosnippet>1752</a>          b5():
@@ -1773,7 +1773,7 @@
 <a href=#1773 id=1773 data-nosnippet>1773</a>                jmp b1(u32 10)
 <a href=#1774 id=1774 data-nosnippet>1774</a>              b1(v0: u32):
 <a href=#1775 id=1775 data-nosnippet>1775</a>                v6 = lt v0, u32 11
-<a href=#1776 id=1776 data-nosnippet>1776</a>                jmpif v6 then: b2, else: b3
+<a href=#1776 id=1776 data-nosnippet>1776</a>                jmpif v6 then: b2(), else: b3()
 <a href=#1777 id=1777 data-nosnippet>1777</a>              b2():
 <a href=#1778 id=1778 data-nosnippet>1778</a>                v8 = cast v0 as Field
 <a href=#1779 id=1779 data-nosnippet>1779</a>                store v8 at v1
@@ -1803,7 +1803,7 @@
 <a href=#1803 id=1803 data-nosnippet>1803</a>            store v0 at v2
 <a href=#1804 id=1804 data-nosnippet>1804</a>            jmp b1(Field 0)
 <a href=#1805 id=1805 data-nosnippet>1805</a>          b1(v1: Field):
-<a href=#1806 id=1806 data-nosnippet>1806</a>            jmpif u1 0 then: b2, else: b3
+<a href=#1806 id=1806 data-nosnippet>1806</a>            jmpif u1 0 then: b2(), else: b3()
 <a href=#1807 id=1807 data-nosnippet>1807</a>          b2():
 <a href=#1808 id=1808 data-nosnippet>1808</a>            store Field 10 at v0
 <a href=#1809 id=1809 data-nosnippet>1809</a>            v6 = load v2 -&gt; &amp;mut Field
@@ -1995,7 +1995,7 @@
 <a href=#1995 id=1995 data-nosnippet>1995</a>        brillig(inline) fn main f0 {
 <a href=#1996 id=1996 data-nosnippet>1996</a>          b0(v0: &amp;mut Field, v1: u1):
 <a href=#1997 id=1997 data-nosnippet>1997</a>            v2 = load v0 -&gt; Field
-<a href=#1998 id=1998 data-nosnippet>1998</a>            jmpif v1 then: b1, else: b2
+<a href=#1998 id=1998 data-nosnippet>1998</a>            jmpif v1 then: b1(), else: b2()
 <a href=#1999 id=1999 data-nosnippet>1999</a>          b1():
 <a href=#2000 id=2000 data-nosnippet>2000</a>            jmp b3()
 <a href=#2001 id=2001 data-nosnippet>2001</a>          b2():
@@ -2013,7 +2013,7 @@
 <a href=#2013 id=2013 data-nosnippet>2013</a>        brillig(inline) fn main f0 {
 <a href=#2014 id=2014 data-nosnippet>2014</a>          b0(v0: &amp;mut Field, v1: u1):
 <a href=#2015 id=2015 data-nosnippet>2015</a>            v2 = load v0 -&gt; Field
-<a href=#2016 id=2016 data-nosnippet>2016</a>            jmpif v1 then: b1, else: b2
+<a href=#2016 id=2016 data-nosnippet>2016</a>            jmpif v1 then: b1(), else: b2()
 <a href=#2017 id=2017 data-nosnippet>2017</a>          b1():
 <a href=#2018 id=2018 data-nosnippet>2018</a>            jmp b3()
 <a href=#2019 id=2019 data-nosnippet>2019</a>          b2():
@@ -2032,7 +2032,7 @@
 <a href=#2032 id=2032 data-nosnippet>2032</a>            v1 = allocate -&gt; &amp;mut u1
 <a href=#2033 id=2033 data-nosnippet>2033</a>            store u1 0 at v1
 <a href=#2034 id=2034 data-nosnippet>2034</a>            v3 = make_array [v1] : [&amp;mut u1]
-<a href=#2035 id=2035 data-nosnippet>2035</a>            jmpif u1 1 then: b1, else: b2
+<a href=#2035 id=2035 data-nosnippet>2035</a>            jmpif u1 1 then: b1(), else: b2()
 <a href=#2036 id=2036 data-nosnippet>2036</a>          b1():
 <a href=#2037 id=2037 data-nosnippet>2037</a>            jmp b3(u32 0, u32 1)
 <a href=#2038 id=2038 data-nosnippet>2038</a>          b2():
@@ -2055,7 +2055,7 @@
 <a href=#2055 id=2055 data-nosnippet>2055</a>            v2 = allocate -&gt; &amp;mut u1
 <a href=#2056 id=2056 data-nosnippet>2056</a>            store u1 0 at v2
 <a href=#2057 id=2057 data-nosnippet>2057</a>            v4 = make_array [v2] : [&amp;mut u1]
-<a href=#2058 id=2058 data-nosnippet>2058</a>            jmpif u1 1 then: b1, else: b2
+<a href=#2058 id=2058 data-nosnippet>2058</a>            jmpif u1 1 then: b1(), else: b2()
 <a href=#2059 id=2059 data-nosnippet>2059</a>          b1():
 <a href=#2060 id=2060 data-nosnippet>2060</a>            jmp b3(u32 0, u32 1)
 <a href=#2061 id=2061 data-nosnippet>2061</a>          b2():
@@ -2117,7 +2117,7 @@
 <a href=#2117 id=2117 data-nosnippet>2117</a>        acir(inline) fn create_note f0 {
 <a href=#2118 id=2118 data-nosnippet>2118</a>          b0(v0: &amp;mut Field):
 <a href=#2119 id=2119 data-nosnippet>2119</a>            store Field 0 at v0
-<a href=#2120 id=2120 data-nosnippet>2120</a>            jmpif u1 0 then: b1, else: b2
+<a href=#2120 id=2120 data-nosnippet>2120</a>            jmpif u1 0 then: b1(), else: b2()
 <a href=#2121 id=2121 data-nosnippet>2121</a>          b1():
 <a href=#2122 id=2122 data-nosnippet>2122</a>            v5 = load v0 -&gt; Field
 <a href=#2123 id=2123 data-nosnippet>2123</a>            return v5
@@ -2139,7 +2139,7 @@
 <a href=#2139 id=2139 data-nosnippet>2139</a>          b0(v0: u1):
 <a href=#2140 id=2140 data-nosnippet>2140</a>            v2 = allocate -&gt; &amp;mut Field
 <a href=#2141 id=2141 data-nosnippet>2141</a>            store Field 0 at v2
-<a href=#2142 id=2142 data-nosnippet>2142</a>            jmpif v0 then: b1, else: b2
+<a href=#2142 id=2142 data-nosnippet>2142</a>            jmpif v0 then: b1(), else: b2()
 <a href=#2143 id=2143 data-nosnippet>2143</a>          b1():
 <a href=#2144 id=2144 data-nosnippet>2144</a>            v5 = make_array [v2] : [&amp;mut Field; 1]
 <a href=#2145 id=2145 data-nosnippet>2145</a>            jmp b3(v5)
@@ -2460,14 +2460,14 @@
 <a href=#2460 id=2460 data-nosnippet>2460</a>            jmp b1(u32 0)
 <a href=#2461 id=2461 data-nosnippet>2461</a>          b1(v6: u32):
 <a href=#2462 id=2462 data-nosnippet>2462</a>            v8 = lt v6, u32 3
-<a href=#2463 id=2463 data-nosnippet>2463</a>            jmpif v8 then: b2, else: b3
+<a href=#2463 id=2463 data-nosnippet>2463</a>            jmpif v8 then: b2(), else: b3()
 <a href=#2464 id=2464 data-nosnippet>2464</a>          b2():
 <a href=#2465 id=2465 data-nosnippet>2465</a>            v20 = load v2 -&gt; [Field; 3]
 <a href=#2466 id=2466 data-nosnippet>2466</a>            v21 = load v3 -&gt; [Field; 4]
 <a href=#2467 id=2467 data-nosnippet>2467</a>            v22 = load v4 -&gt; u32
 <a href=#2468 id=2468 data-nosnippet>2468</a>            v23 = load v5 -&gt; u1
 <a href=#2469 id=2469 data-nosnippet>2469</a>            v24 = lt v6, v22
-<a href=#2470 id=2470 data-nosnippet>2470</a>            jmpif v24 then: b4, else: b5
+<a href=#2470 id=2470 data-nosnippet>2470</a>            jmpif v24 then: b4(), else: b5()
 <a href=#2471 id=2471 data-nosnippet>2471</a>          b3():
 <a href=#2472 id=2472 data-nosnippet>2472</a>            v9 = load v2 -&gt; [Field; 3]
 <a href=#2473 id=2473 data-nosnippet>2473</a>            v10 = load v3 -&gt; [Field; 4]
@@ -2527,14 +2527,14 @@
 <a href=#2527 id=2527 data-nosnippet>2527</a>            jmp b1(u32 0)
 <a href=#2528 id=2528 data-nosnippet>2528</a>          b1(v4: u32):
 <a href=#2529 id=2529 data-nosnippet>2529</a>            v7 = lt v4, u32 3
-<a href=#2530 id=2530 data-nosnippet>2530</a>            jmpif v7 then: b2, else: b3
+<a href=#2530 id=2530 data-nosnippet>2530</a>            jmpif v7 then: b2(), else: b3()
 <a href=#2531 id=2531 data-nosnippet>2531</a>          b2():
 <a href=#2532 id=2532 data-nosnippet>2532</a>            v14 = load v0 -&gt; [Field; 3]
 <a href=#2533 id=2533 data-nosnippet>2533</a>            v15 = load v1 -&gt; [Field; 4]
 <a href=#2534 id=2534 data-nosnippet>2534</a>            v16 = load v2 -&gt; u32
 <a href=#2535 id=2535 data-nosnippet>2535</a>            v17 = load v3 -&gt; u1
 <a href=#2536 id=2536 data-nosnippet>2536</a>            v18 = lt v4, v16
-<a href=#2537 id=2537 data-nosnippet>2537</a>            jmpif v18 then: b4, else: b5
+<a href=#2537 id=2537 data-nosnippet>2537</a>            jmpif v18 then: b4(), else: b5()
 <a href=#2538 id=2538 data-nosnippet>2538</a>          b3():
 <a href=#2539 id=2539 data-nosnippet>2539</a>            v8 = load v0 -&gt; [Field; 3]
 <a href=#2540 id=2540 data-nosnippet>2540</a>            v9 = load v1 -&gt; [Field; 4]
@@ -2586,7 +2586,7 @@
 <a href=#2586 id=2586 data-nosnippet>2586</a>            v11, v12 = call vector_push_back(u32 2, v7, v8) -&gt; (u32, [&amp;mut u1])
 <a href=#2587 id=2587 data-nosnippet>2587</a>            v16 = array_get v12, index u32 1 -&gt; &amp;mut u1
 <a href=#2588 id=2588 data-nosnippet>2588</a>            v17 = load v16 -&gt; u1
-<a href=#2589 id=2589 data-nosnippet>2589</a>            jmpif v17 then: b1, else: b2
+<a href=#2589 id=2589 data-nosnippet>2589</a>            jmpif v17 then: b1(), else: b2()
 <a href=#2590 id=2590 data-nosnippet>2590</a>          b1():
 <a href=#2591 id=2591 data-nosnippet>2591</a>            jmp b3(v12)
 <a href=#2592 id=2592 data-nosnippet>2592</a>          b2():
@@ -2612,7 +2612,7 @@
 <a href=#2612 id=2612 data-nosnippet>2612</a>            v5 = make_array [v1, v4] : [&amp;mut u1]
 <a href=#2613 id=2613 data-nosnippet>2613</a>            v7 = array_set v5, index u32 2, value v4
 <a href=#2614 id=2614 data-nosnippet>2614</a>            v8 = make_array [v1, v4] : [&amp;mut u1]
-<a href=#2615 id=2615 data-nosnippet>2615</a>            jmpif u1 0 then: b1, else: b2
+<a href=#2615 id=2615 data-nosnippet>2615</a>            jmpif u1 0 then: b1(), else: b2()
 <a href=#2616 id=2616 data-nosnippet>2616</a>          b1():
 <a href=#2617 id=2617 data-nosnippet>2617</a>            jmp b3(v8)
 <a href=#2618 id=2618 data-nosnippet>2618</a>          b2():
@@ -2794,7 +2794,7 @@
 <a href=#2794 id=2794 data-nosnippet>2794</a>          b0(v0: [&amp;mut Field; 1], v1: u1):
 <a href=#2795 id=2795 data-nosnippet>2795</a>            v3 = allocate -&gt; &amp;mut Field
 <a href=#2796 id=2796 data-nosnippet>2796</a>            v4 = allocate -&gt; &amp;mut Field
-<a href=#2797 id=2797 data-nosnippet>2797</a>            jmpif v1 then: b1, else: b2
+<a href=#2797 id=2797 data-nosnippet>2797</a>            jmpif v1 then: b1(), else: b2()
 <a href=#2798 id=2798 data-nosnippet>2798</a>          b1():
 <a href=#2799 id=2799 data-nosnippet>2799</a>            v7 = array_set v0, index u32 0, value v3
 <a href=#2800 id=2800 data-nosnippet>2800</a>            jmp b3(v7)
@@ -2829,7 +2829,7 @@
 <a href=#2829 id=2829 data-nosnippet>2829</a>            jmp b1(u32 0)
 <a href=#2830 id=2830 data-nosnippet>2830</a>          b1(v0: u32):
 <a href=#2831 id=2831 data-nosnippet>2831</a>            v7 = eq v0, u32 0
-<a href=#2832 id=2832 data-nosnippet>2832</a>            jmpif v7 then: b2, else: b3
+<a href=#2832 id=2832 data-nosnippet>2832</a>            jmpif v7 then: b2(), else: b3()
 <a href=#2833 id=2833 data-nosnippet>2833</a>          b2():
 <a href=#2834 id=2834 data-nosnippet>2834</a>            v9 = array_get v4, index v0 -&gt; &amp;mut Field
 <a href=#2835 id=2835 data-nosnippet>2835</a>            store Field 1 at v9
@@ -2869,7 +2869,7 @@
 <a href=#2869 id=2869 data-nosnippet>2869</a>            jmp b1(u32 0)
 <a href=#2870 id=2870 data-nosnippet>2870</a>          b1(v0: u32):
 <a href=#2871 id=2871 data-nosnippet>2871</a>            v9 = lt v0, u32 3
-<a href=#2872 id=2872 data-nosnippet>2872</a>            jmpif v9 then: b2, else: b3
+<a href=#2872 id=2872 data-nosnippet>2872</a>            jmpif v9 then: b2(), else: b3()
 <a href=#2873 id=2873 data-nosnippet>2873</a>          b2():
 <a href=#2874 id=2874 data-nosnippet>2874</a>            v10 = load v4 -&gt; [&amp;mut u1; 1]
 <a href=#2875 id=2875 data-nosnippet>2875</a>            v11 = array_get v10, index u32 0 -&gt; &amp;mut u1
@@ -2915,7 +2915,7 @@
 <a href=#2915 id=2915 data-nosnippet>2915</a>        b1():
 <a href=#2916 id=2916 data-nosnippet>2916</a>          v6 = load v4 -&gt; Field
 <a href=#2917 id=2917 data-nosnippet>2917</a>          v8 = eq v6, Field 2
-<a href=#2918 id=2918 data-nosnippet>2918</a>          jmpif v8 then: b2, else: b3
+<a href=#2918 id=2918 data-nosnippet>2918</a>          jmpif v8 then: b2(), else: b3()
 <a href=#2919 id=2919 data-nosnippet>2919</a>        b2():
 <a href=#2920 id=2920 data-nosnippet>2920</a>          jmp b4()
 <a href=#2921 id=2921 data-nosnippet>2921</a>        b3():
@@ -2974,7 +2974,7 @@
 <a href=#2974 id=2974 data-nosnippet>2974</a>        b1():
 <a href=#2975 id=2975 data-nosnippet>2975</a>          v6 = load v4 -&gt; Field
 <a href=#2976 id=2976 data-nosnippet>2976</a>          v8 = eq v6, Field 2
-<a href=#2977 id=2977 data-nosnippet>2977</a>          jmpif v8 then: b2, else: b3
+<a href=#2977 id=2977 data-nosnippet>2977</a>          jmpif v8 then: b2(), else: b3()
 <a href=#2978 id=2978 data-nosnippet>2978</a>        b2():
 <a href=#2979 id=2979 data-nosnippet>2979</a>          jmp b4()
 <a href=#2980 id=2980 data-nosnippet>2980</a>        b3():
@@ -3005,7 +3005,7 @@
 <a href=#3005 id=3005 data-nosnippet>3005</a>          v4 = load v1 -&gt; [&amp;mut u1; 1]
 <a href=#3006 id=3006 data-nosnippet>3006</a>          v6 = array_get v4, index u32 0 -&gt; &amp;mut u1
 <a href=#3007 id=3007 data-nosnippet>3007</a>          v7 = load v6 -&gt; u1
-<a href=#3008 id=3008 data-nosnippet>3008</a>          jmpif v7 then: b1, else: b2
+<a href=#3008 id=3008 data-nosnippet>3008</a>          jmpif v7 then: b1(), else: b2()
 <a href=#3009 id=3009 data-nosnippet>3009</a>        b1():
 <a href=#3010 id=3010 data-nosnippet>3010</a>          v8 = load v1 -&gt; [&amp;mut u1; 1]
 <a href=#3011 id=3011 data-nosnippet>3011</a>          v9 = array_set v8, index u32 0, value v2
@@ -3030,7 +3030,7 @@
 <a href=#3030 id=3030 data-nosnippet>3030</a>          store u1 1 at v2
 <a href=#3031 id=3031 data-nosnippet>3031</a>          v5 = array_get v0, index u32 0 -&gt; &amp;mut u1
 <a href=#3032 id=3032 data-nosnippet>3032</a>          v6 = load v5 -&gt; u1
-<a href=#3033 id=3033 data-nosnippet>3033</a>          jmpif v6 then: b1, else: b2
+<a href=#3033 id=3033 data-nosnippet>3033</a>          jmpif v6 then: b1(), else: b2()
 <a href=#3034 id=3034 data-nosnippet>3034</a>        b1():
 <a href=#3035 id=3035 data-nosnippet>3035</a>          v7 = array_set v0, index u32 0, value v2
 <a href=#3036 id=3036 data-nosnippet>3036</a>          store v7 at v1
@@ -3187,7 +3187,7 @@
 <a href=#3187 id=3187 data-nosnippet>3187</a>                store u1 0 at v9
 <a href=#3188 id=3188 data-nosnippet>3188</a>                v11 = array_get v2, index u32 2 -&gt; &amp;mut u1
 <a href=#3189 id=3189 data-nosnippet>3189</a>                v12 = load v11 -&gt; u1
-<a href=#3190 id=3190 data-nosnippet>3190</a>                jmpif v12 then: b1, else: b2
+<a href=#3190 id=3190 data-nosnippet>3190</a>                jmpif v12 then: b1(), else: b2()
 <a href=#3191 id=3191 data-nosnippet>3191</a>              b1():
 <a href=#3192 id=3192 data-nosnippet>3192</a>                v16 = array_get v2, index u32 1 -&gt; &amp;mut u1
 <a href=#3193 id=3193 data-nosnippet>3193</a>                jmp b3(v16)
@@ -3227,7 +3227,7 @@
 <a href=#3227 id=3227 data-nosnippet>3227</a>                store u1 0 at v9
 <a href=#3228 id=3228 data-nosnippet>3228</a>                v11 = array_get v2, index u32 2 -&gt; &amp;mut u1
 <a href=#3229 id=3229 data-nosnippet>3229</a>                v12 = load v11 -&gt; u1
-<a href=#3230 id=3230 data-nosnippet>3230</a>                jmpif v12 then: b1, else: b2
+<a href=#3230 id=3230 data-nosnippet>3230</a>                jmpif v12 then: b1(), else: b2()
 <a href=#3231 id=3231 data-nosnippet>3231</a>              b1():
 <a href=#3232 id=3232 data-nosnippet>3232</a>                v16 = array_get v2, index u32 1 -&gt; &amp;mut u1
 <a href=#3233 id=3233 data-nosnippet>3233</a>                jmp b3(v16)
@@ -3267,7 +3267,7 @@
 <a href=#3267 id=3267 data-nosnippet>3267</a>                store u1 0 at v9
 <a href=#3268 id=3268 data-nosnippet>3268</a>                v11 = array_get v2, index u32 2 -&gt; &amp;mut u1
 <a href=#3269 id=3269 data-nosnippet>3269</a>                v12 = load v11 -&gt; u1
-<a href=#3270 id=3270 data-nosnippet>3270</a>                jmpif v12 then: b1, else: b2
+<a href=#3270 id=3270 data-nosnippet>3270</a>                jmpif v12 then: b1(), else: b2()
 <a href=#3271 id=3271 data-nosnippet>3271</a>              b1():
 <a href=#3272 id=3272 data-nosnippet>3272</a>                v16 = array_get v2, index u32 1 -&gt; &amp;mut u1
 <a href=#3273 id=3273 data-nosnippet>3273</a>                jmp b3(v16)
@@ -3295,7 +3295,7 @@
 <a href=#3295 id=3295 data-nosnippet>3295</a>                store u1 0 at v4
 <a href=#3296 id=3296 data-nosnippet>3296</a>                v6 = array_get v0, index u32 2 -&gt; &amp;mut u1
 <a href=#3297 id=3297 data-nosnippet>3297</a>                v7 = load v6 -&gt; u1
-<a href=#3298 id=3298 data-nosnippet>3298</a>                jmpif v7 then: b1, else: b2
+<a href=#3298 id=3298 data-nosnippet>3298</a>                jmpif v7 then: b1(), else: b2()
 <a href=#3299 id=3299 data-nosnippet>3299</a>              b1():
 <a href=#3300 id=3300 data-nosnippet>3300</a>                v11 = array_get v0, index u32 1 -&gt; &amp;mut u1
 <a href=#3301 id=3301 data-nosnippet>3301</a>                jmp b3(v11)
@@ -3334,7 +3334,7 @@
 <a href=#3334 id=3334 data-nosnippet>3334</a>                v11 = array_get v2, index u32 2 -&gt; &amp;mut [u1; 2]
 <a href=#3335 id=3335 data-nosnippet>3335</a>                v12 = load v11 -&gt; [u1; 2]
 <a href=#3336 id=3336 data-nosnippet>3336</a>                v13 = array_get v12, index u32 0 -&gt; u1
-<a href=#3337 id=3337 data-nosnippet>3337</a>                jmpif v13 then: b1, else: b2
+<a href=#3337 id=3337 data-nosnippet>3337</a>                jmpif v13 then: b1(), else: b2()
 <a href=#3338 id=3338 data-nosnippet>3338</a>              b1():
 <a href=#3339 id=3339 data-nosnippet>3339</a>                v16 = array_get v2, index u32 1 -&gt; &amp;mut [u1; 2]
 <a href=#3340 id=3340 data-nosnippet>3340</a>                jmp b3(v16)
@@ -3366,7 +3366,7 @@
 <a href=#3366 id=3366 data-nosnippet>3366</a>                v9 = array_get v0, index u32 2 -&gt; &amp;mut [u1; 2]
 <a href=#3367 id=3367 data-nosnippet>3367</a>                v10 = load v9 -&gt; [u1; 2]
 <a href=#3368 id=3368 data-nosnippet>3368</a>                v12 = array_get v10, index u32 0 -&gt; u1
-<a href=#3369 id=3369 data-nosnippet>3369</a>                jmpif v12 then: b1, else: b2
+<a href=#3369 id=3369 data-nosnippet>3369</a>                jmpif v12 then: b1(), else: b2()
 <a href=#3370 id=3370 data-nosnippet>3370</a>              b1():
 <a href=#3371 id=3371 data-nosnippet>3371</a>                v15 = array_get v0, index u32 1 -&gt; &amp;mut [u1; 2]
 <a href=#3372 id=3372 data-nosnippet>3372</a>                jmp b3(v15)
@@ -3396,7 +3396,7 @@
 <a href=#3396 id=3396 data-nosnippet>3396</a>                jmp b1(v2, Field 0)
 <a href=#3397 id=3397 data-nosnippet>3397</a>              b1(v0: &amp;mut Field, v1: Field):
 <a href=#3398 id=3398 data-nosnippet>3398</a>                v8 = eq v1, Field 2
-<a href=#3399 id=3399 data-nosnippet>3399</a>                jmpif v8 then: b2, else: b3
+<a href=#3399 id=3399 data-nosnippet>3399</a>                jmpif v8 then: b2(), else: b3()
 <a href=#3400 id=3400 data-nosnippet>3400</a>              b2():
 <a href=#3401 id=3401 data-nosnippet>3401</a>                v12 = load v4 -&gt; Field
 <a href=#3402 id=3402 data-nosnippet>3402</a>                return v12
@@ -3428,7 +3428,7 @@
 <a href=#3428 id=3428 data-nosnippet>3428</a>                jmp b1(Field 0)
 <a href=#3429 id=3429 data-nosnippet>3429</a>              b1(v1: Field):
 <a href=#3430 id=3430 data-nosnippet>3430</a>                v8 = eq v1, Field 2
-<a href=#3431 id=3431 data-nosnippet>3431</a>                jmpif v8 then: b2, else: b3
+<a href=#3431 id=3431 data-nosnippet>3431</a>                jmpif v8 then: b2(), else: b3()
 <a href=#3432 id=3432 data-nosnippet>3432</a>              b2():
 <a href=#3433 id=3433 data-nosnippet>3433</a>                v12 = load v4 -&gt; Field
 <a href=#3434 id=3434 data-nosnippet>3434</a>                return v12
@@ -3460,7 +3460,7 @@
 <a href=#3460 id=3460 data-nosnippet>3460</a>            <span class="kw">let </span>src = <span class="string">r#"
 <a href=#3461 id=3461 data-nosnippet>3461</a>            brillig(inline) impure fn main f0 {
 <a href=#3462 id=3462 data-nosnippet>3462</a>              b0():
-<a href=#3463 id=3463 data-nosnippet>3463</a>                jmpif u1 0 then: b1, else: b2
+<a href=#3463 id=3463 data-nosnippet>3463</a>                jmpif u1 0 then: b1(), else: b2()
 <a href=#3464 id=3464 data-nosnippet>3464</a>              b1():
 <a href=#3465 id=3465 data-nosnippet>3465</a>                v1 = allocate -&gt; &amp;mut u1
 <a href=#3466 id=3466 data-nosnippet>3466</a>                store u1 0 at v1
@@ -3484,7 +3484,7 @@
 <a href=#3484 id=3484 data-nosnippet>3484</a>                v12 = array_get v11, index u32 0 -&gt; [&amp;mut u1; 1]
 <a href=#3485 id=3485 data-nosnippet>3485</a>                v13 = array_get v12, index u32 0 -&gt; &amp;mut u1
 <a href=#3486 id=3486 data-nosnippet>3486</a>                v14 = load v13 -&gt; u1
-<a href=#3487 id=3487 data-nosnippet>3487</a>                jmpif v10 then: b5, else: b6
+<a href=#3487 id=3487 data-nosnippet>3487</a>                jmpif v10 then: b5(), else: b6()
 <a href=#3488 id=3488 data-nosnippet>3488</a>              b5():
 <a href=#3489 id=3489 data-nosnippet>3489</a>                return v14
 <a href=#3490 id=3490 data-nosnippet>3490</a>              b6():
@@ -3622,7 +3622,7 @@
 <a href=#3622 id=3622 data-nosnippet>3622</a>                jmp b1(Field 0)
 <a href=#3623 id=3623 data-nosnippet>3623</a>              b1(v1: Field):
 <a href=#3624 id=3624 data-nosnippet>3624</a>                v8 = eq v1, Field 2
-<a href=#3625 id=3625 data-nosnippet>3625</a>                jmpif v8 then: b2, else: b3
+<a href=#3625 id=3625 data-nosnippet>3625</a>                jmpif v8 then: b2(), else: b3()
 <a href=#3626 id=3626 data-nosnippet>3626</a>              b2():
 <a href=#3627 id=3627 data-nosnippet>3627</a>                v12 = load v4 -&gt; Field
 <a href=#3628 id=3628 data-nosnippet>3628</a>                return v12
@@ -3729,7 +3729,7 @@
 <a href=#3729 id=3729 data-nosnippet>3729</a>            v1 = allocate -&gt; &amp;mut u1
 <a href=#3730 id=3730 data-nosnippet>3730</a>            store u1 0 at v1
 <a href=#3731 id=3731 data-nosnippet>3731</a>            v2 = make_array [v1, v1] : [&amp;mut u1; 2]
-<a href=#3732 id=3732 data-nosnippet>3732</a>            jmpif v0 then: b1, else: b2
+<a href=#3732 id=3732 data-nosnippet>3732</a>            jmpif v0 then: b1(), else: b2()
 <a href=#3733 id=3733 data-nosnippet>3733</a>          b1():
 <a href=#3734 id=3734 data-nosnippet>3734</a>            jmp b3()
 <a href=#3735 id=3735 data-nosnippet>3735</a>          b2():

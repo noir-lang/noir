@@ -318,7 +318,7 @@
 <a href=#318 id=318 data-nosnippet>318</a>        then_destination: BasicBlockId,
 <a href=#319 id=319 data-nosnippet>319</a>        else_destination: BasicBlockId,
 <a href=#320 id=320 data-nosnippet>320</a>    ) {
-<a href=#321 id=321 data-nosnippet>321</a>        <span class="self">self</span>.builder.terminate_with_jmpif(condition, then_destination, else_destination);
+<a href=#321 id=321 data-nosnippet>321</a>        <span class="self">self</span>.builder.terminate_with_jmpif_no_args(condition, then_destination, else_destination);
 <a href=#322 id=322 data-nosnippet>322</a>    }
 <a href=#323 id=323 data-nosnippet>323</a>
 <a href=#324 id=324 data-nosnippet>324</a>    <span class="kw">pub fn </span>insert_add_to_memory(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lhs: TypedValue) -&gt; TypedValue {

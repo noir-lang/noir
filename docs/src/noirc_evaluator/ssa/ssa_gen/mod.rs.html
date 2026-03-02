@@ -769,7 +769,7 @@
 <a href=#769 id=769 data-nosnippet>769</a>        // cannot be determined at compile-time.
 <a href=#770 id=770 data-nosnippet>770</a>        </span><span class="self">self</span>.builder.set_location(for_expr.end_range_location);
 <a href=#771 id=771 data-nosnippet>771</a>        <span class="kw">let </span>jump_condition = <span class="self">self</span>.builder.insert_binary(loop_index, BinaryOp::Lt, end_index);
-<a href=#772 id=772 data-nosnippet>772</a>        <span class="self">self</span>.builder.terminate_with_jmpif(jump_condition, loop_body, loop_end);
+<a href=#772 id=772 data-nosnippet>772</a>        <span class="self">self</span>.builder.terminate_with_jmpif_no_args(jump_condition, loop_body, loop_end);
 <a href=#773 id=773 data-nosnippet>773</a>
 <a href=#774 id=774 data-nosnippet>774</a>        <span class="comment">// Compile the loop body
 <a href=#775 id=775 data-nosnippet>775</a>        </span><span class="self">self</span>.builder.switch_to_block(loop_body);
@@ -801,7 +801,7 @@
 <a href=#801 id=801 data-nosnippet>801</a>                BinaryOp::And,
 <a href=#802 id=802 data-nosnippet>802</a>                start_is_less_than_or_equal_to_end,
 <a href=#803 id=803 data-nosnippet>803</a>            );
-<a href=#804 id=804 data-nosnippet>804</a>            <span class="self">self</span>.builder.terminate_with_jmpif(
+<a href=#804 id=804 data-nosnippet>804</a>            <span class="self">self</span>.builder.terminate_with_jmpif_no_args(
 <a href=#805 id=805 data-nosnippet>805</a>                should_execute_loop_body,
 <a href=#806 id=806 data-nosnippet>806</a>                final_iteration,
 <a href=#807 id=807 data-nosnippet>807</a>                final_iteration_end,
@@ -909,7 +909,7 @@
 <a href=#909 id=909 data-nosnippet>909</a>        <span class="comment">// Codegen the entry (where the condition is)
 <a href=#910 id=910 data-nosnippet>910</a>        </span><span class="self">self</span>.builder.switch_to_block(while_entry);
 <a href=#911 id=911 data-nosnippet>911</a>        <span class="kw">let </span>condition = <span class="self">self</span>.codegen_non_tuple_expression(<span class="kw-2">&amp;</span>while_.condition)<span class="question-mark">?</span>;
-<a href=#912 id=912 data-nosnippet>912</a>        <span class="self">self</span>.builder.terminate_with_jmpif(condition, while_body, while_end);
+<a href=#912 id=912 data-nosnippet>912</a>        <span class="self">self</span>.builder.terminate_with_jmpif_no_args(condition, while_body, while_end);
 <a href=#913 id=913 data-nosnippet>913</a>
 <a href=#914 id=914 data-nosnippet>914</a>        <span class="self">self</span>.enter_loop(Loop {
 <a href=#915 id=915 data-nosnippet>915</a>            loop_entry: while_entry,
@@ -968,7 +968,7 @@
 <a href=#968 id=968 data-nosnippet>968</a>        <span class="kw">let </span>then_block = <span class="self">self</span>.builder.insert_block();
 <a href=#969 id=969 data-nosnippet>969</a>        <span class="kw">let </span>else_block = <span class="self">self</span>.builder.insert_block();
 <a href=#970 id=970 data-nosnippet>970</a>
-<a href=#971 id=971 data-nosnippet>971</a>        <span class="self">self</span>.builder.terminate_with_jmpif(condition, then_block, else_block);
+<a href=#971 id=971 data-nosnippet>971</a>        <span class="self">self</span>.builder.terminate_with_jmpif_no_args(condition, then_block, else_block);
 <a href=#972 id=972 data-nosnippet>972</a>
 <a href=#973 id=973 data-nosnippet>973</a>        <span class="self">self</span>.builder.switch_to_block(then_block);
 <a href=#974 id=974 data-nosnippet>974</a>        <span class="kw">let </span>then_result = <span class="self">self</span>.codegen_expression(<span class="kw-2">&amp;</span>if_expr.consequence);
@@ -1067,7 +1067,7 @@
 <a href=#1067 id=1067 data-nosnippet>1067</a>
 <a href=#1068 id=1068 data-nosnippet>1068</a>            <span class="kw">let </span>case_block = <span class="self">self</span>.builder.insert_block();
 <a href=#1069 id=1069 data-nosnippet>1069</a>            <span class="kw">let </span>else_block = <span class="self">self</span>.builder.insert_block();
-<a href=#1070 id=1070 data-nosnippet>1070</a>            <span class="self">self</span>.builder.terminate_with_jmpif(eq, case_block, else_block);
+<a href=#1070 id=1070 data-nosnippet>1070</a>            <span class="self">self</span>.builder.terminate_with_jmpif_no_args(eq, case_block, else_block);
 <a href=#1071 id=1071 data-nosnippet>1071</a>
 <a href=#1072 id=1072 data-nosnippet>1072</a>            <span class="self">self</span>.builder.switch_to_block(case_block);
 <a href=#1073 id=1073 data-nosnippet>1073</a>            <span class="self">self</span>.bind_case_arguments(variable.clone(), case);

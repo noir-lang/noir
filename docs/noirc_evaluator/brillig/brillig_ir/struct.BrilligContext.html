@@ -622,10 +622,10 @@ in Brillig.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.memory_op_inc_by_usize_one" class="method"><a class="src rightside" href="../../../src/noirc_evaluator/brillig/brillig_ir/instructions.rs.html#79-86">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.memory_op_inc_by_usize_one" class="fn">memory_op_inc_by_usize_one</a>(&amp;mut self, address: <a class="enum" href="../../../brillig/opcodes/enum.MemoryAddress.html" title="enum brillig::opcodes::MemoryAddress">MemoryAddress</a>)</h4></section></summary><div class="docblock"><p>Increase the value at a pointer in place by 1.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.conditional_move_instruction" class="method"><a class="src rightside" href="../../../src/noirc_evaluator/brillig/brillig_ir/instructions.rs.html#89-108">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.conditional_move_instruction" class="fn">conditional_move_instruction</a>(
     &amp;mut self,
-    condition: <a class="struct" href="brillig_variable/struct.SingleAddrVariable.html" title="struct noirc_evaluator::brillig::brillig_ir::brillig_variable::SingleAddrVariable">SingleAddrVariable</a>,
-    then_address: <a class="struct" href="brillig_variable/struct.SingleAddrVariable.html" title="struct noirc_evaluator::brillig::brillig_ir::brillig_variable::SingleAddrVariable">SingleAddrVariable</a>,
-    else_address: <a class="struct" href="brillig_variable/struct.SingleAddrVariable.html" title="struct noirc_evaluator::brillig::brillig_ir::brillig_variable::SingleAddrVariable">SingleAddrVariable</a>,
-    destination: <a class="struct" href="brillig_variable/struct.SingleAddrVariable.html" title="struct noirc_evaluator::brillig::brillig_ir::brillig_variable::SingleAddrVariable">SingleAddrVariable</a>,
+    condition: <a class="enum" href="../../../brillig/opcodes/enum.MemoryAddress.html" title="enum brillig::opcodes::MemoryAddress">MemoryAddress</a>,
+    then_address: <a class="enum" href="../../../brillig/opcodes/enum.MemoryAddress.html" title="enum brillig::opcodes::MemoryAddress">MemoryAddress</a>,
+    else_address: <a class="enum" href="../../../brillig/opcodes/enum.MemoryAddress.html" title="enum brillig::opcodes::MemoryAddress">MemoryAddress</a>,
+    destination: <a class="enum" href="../../../brillig/opcodes/enum.MemoryAddress.html" title="enum brillig::opcodes::MemoryAddress">MemoryAddress</a>,
 )</h4></section></summary><div class="docblock"><p>Insert a conditional move instruction</p>
 </div></details><section id="method.binary" class="method"><a class="src rightside" href="../../../src/noirc_evaluator/brillig/brillig_ir/instructions.rs.html#110-145">Source</a><h4 class="code-header">fn <a href="#method.binary" class="fn">binary</a>(
     &amp;mut self,

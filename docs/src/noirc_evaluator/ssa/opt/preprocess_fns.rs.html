@@ -102,7 +102,7 @@
 <a href=#102 id=102 data-nosnippet>102</a>        acir(inline) fn foo f0 {
 <a href=#103 id=103 data-nosnippet>103</a>          b0(v0: u32, v1: Field):
 <a href=#104 id=104 data-nosnippet>104</a>            v2 = eq v0, u32 1
-<a href=#105 id=105 data-nosnippet>105</a>            jmpif v2 then: b1, else: b2
+<a href=#105 id=105 data-nosnippet>105</a>            jmpif v2 then: b1(), else: b2()
 <a href=#106 id=106 data-nosnippet>106</a>          b1():
 <a href=#107 id=107 data-nosnippet>107</a>            v6 = add v0, u32 1
 <a href=#108 id=108 data-nosnippet>108</a>            jmp b3(v6, v1)
@@ -126,7 +126,7 @@
 <a href=#126 id=126 data-nosnippet>126</a>        acir(inline) fn foo f1 {
 <a href=#127 id=127 data-nosnippet>127</a>          b0(v0: u32):
 <a href=#128 id=128 data-nosnippet>128</a>            v2 = eq v0, u32 1
-<a href=#129 id=129 data-nosnippet>129</a>            jmpif v2 then: b1, else: b2
+<a href=#129 id=129 data-nosnippet>129</a>            jmpif v2 then: b1(), else: b2()
 <a href=#130 id=130 data-nosnippet>130</a>          b1():
 <a href=#131 id=131 data-nosnippet>131</a>            v4 = add v0, u32 1
 <a href=#132 id=132 data-nosnippet>132</a>            jmp b3()

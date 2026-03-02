@@ -326,7 +326,7 @@
 <a href=#326 id=326 data-nosnippet>326</a>            jmp b1(u32 0)
 <a href=#327 id=327 data-nosnippet>327</a>          b1(v1: u32):
 <a href=#328 id=328 data-nosnippet>328</a>            v11 = lt v1, u32 5
-<a href=#329 id=329 data-nosnippet>329</a>            jmpif v11 then: b2, else: b3
+<a href=#329 id=329 data-nosnippet>329</a>            jmpif v11 then: b2(), else: b3()
 <a href=#330 id=330 data-nosnippet>330</a>          b2():
 <a href=#331 id=331 data-nosnippet>331</a>            v15 = load v8 -&gt; [u32; 5]
 <a href=#332 id=332 data-nosnippet>332</a>            constrain v9 == u1 1, "Index out of bounds"
@@ -496,7 +496,7 @@
 <a href=#496 id=496 data-nosnippet>496</a>        brillig(inline) fn main f0 {
 <a href=#497 id=497 data-nosnippet>497</a>          b0(v0: u32):
 <a href=#498 id=498 data-nosnippet>498</a>            v1 = lt v0, u32 10
-<a href=#499 id=499 data-nosnippet>499</a>            jmpif v1 then: b1, else: b2
+<a href=#499 id=499 data-nosnippet>499</a>            jmpif v1 then: b1(), else: b2()
 <a href=#500 id=500 data-nosnippet>500</a>          b1():
 <a href=#501 id=501 data-nosnippet>501</a>            v2 = unchecked_add v0, u32 1
 <a href=#502 id=502 data-nosnippet>502</a>            v3 = unchecked_add v0, u32 2
@@ -706,7 +706,7 @@
 <a href=#706 id=706 data-nosnippet>706</a>            jmp b1(v4, u32 0)
 <a href=#707 id=707 data-nosnippet>707</a>          b1(v5: u32, v6: u32):
 <a href=#708 id=708 data-nosnippet>708</a>            v7 = lt v6, u32 3
-<a href=#709 id=709 data-nosnippet>709</a>            jmpif v7 then: b2, else: b3
+<a href=#709 id=709 data-nosnippet>709</a>            jmpif v7 then: b2(), else: b3()
 <a href=#710 id=710 data-nosnippet>710</a>          b2():
 <a href=#711 id=711 data-nosnippet>711</a>            v8 = unchecked_add v5, v0
 <a href=#712 id=712 data-nosnippet>712</a>            v9 = unchecked_add v6, u32 1
@@ -757,7 +757,7 @@
 <a href=#757 id=757 data-nosnippet>757</a>        brillig(inline) fn main f0 {
 <a href=#758 id=758 data-nosnippet>758</a>          b0(v0: u32):
 <a href=#759 id=759 data-nosnippet>759</a>            v1 = lt v0, u32 10
-<a href=#760 id=760 data-nosnippet>760</a>            jmpif v1 then: b1, else: b2
+<a href=#760 id=760 data-nosnippet>760</a>            jmpif v1 then: b1(), else: b2()
 <a href=#761 id=761 data-nosnippet>761</a>          b1():
 <a href=#762 id=762 data-nosnippet>762</a>            v2 = unchecked_add u32 10, u32 20
 <a href=#763 id=763 data-nosnippet>763</a>            v3 = unchecked_add u32 30, u32 40

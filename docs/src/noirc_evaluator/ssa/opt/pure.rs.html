@@ -364,7 +364,7 @@
 <a href=#364 id=364 data-nosnippet>364</a>            acir(inline) fn pure_recursive f7 {
 <a href=#365 id=365 data-nosnippet>365</a>              b0(v0: u32):
 <a href=#366 id=366 data-nosnippet>366</a>                v1 = lt v0, u32 1
-<a href=#367 id=367 data-nosnippet>367</a>                jmpif v1 then: b1, else: b2
+<a href=#367 id=367 data-nosnippet>367</a>                jmpif v1 then: b1(), else: b2()
 <a href=#368 id=368 data-nosnippet>368</a>              b1():
 <a href=#369 id=369 data-nosnippet>369</a>                jmp b3(u32 0)
 <a href=#370 id=370 data-nosnippet>370</a>              b2():
@@ -438,7 +438,7 @@
 <a href=#438 id=438 data-nosnippet>438</a>        acir(inline) predicate_pure fn pure_recursive f7 {
 <a href=#439 id=439 data-nosnippet>439</a>          b0(v0: u32):
 <a href=#440 id=440 data-nosnippet>440</a>            v3 = lt v0, u32 1
-<a href=#441 id=441 data-nosnippet>441</a>            jmpif v3 then: b1, else: b2
+<a href=#441 id=441 data-nosnippet>441</a>            jmpif v3 then: b1(), else: b2()
 <a href=#442 id=442 data-nosnippet>442</a>          b1():
 <a href=#443 id=443 data-nosnippet>443</a>            jmp b3(u32 0)
 <a href=#444 id=444 data-nosnippet>444</a>          b2():
@@ -627,7 +627,7 @@
 <a href=#627 id=627 data-nosnippet>627</a>        acir(inline) fn is_even f1 {
 <a href=#628 id=628 data-nosnippet>628</a>          b0(v0: u32):
 <a href=#629 id=629 data-nosnippet>629</a>            v1 = eq v0, u32 0
-<a href=#630 id=630 data-nosnippet>630</a>            jmpif v1 then: b1, else: b2
+<a href=#630 id=630 data-nosnippet>630</a>            jmpif v1 then: b1(), else: b2()
 <a href=#631 id=631 data-nosnippet>631</a>          b1():
 <a href=#632 id=632 data-nosnippet>632</a>            jmp b3(u1 1)
 <a href=#633 id=633 data-nosnippet>633</a>          b2():
@@ -640,7 +640,7 @@
 <a href=#640 id=640 data-nosnippet>640</a>        acir(inline) fn is_odd f2 {
 <a href=#641 id=641 data-nosnippet>641</a>          b0(v0: u32):
 <a href=#642 id=642 data-nosnippet>642</a>            v1 = eq v0, u32 0
-<a href=#643 id=643 data-nosnippet>643</a>            jmpif v1 then: b1, else: b2
+<a href=#643 id=643 data-nosnippet>643</a>            jmpif v1 then: b1(), else: b2()
 <a href=#644 id=644 data-nosnippet>644</a>          b1():
 <a href=#645 id=645 data-nosnippet>645</a>            jmp b3(u1 0)
 <a href=#646 id=646 data-nosnippet>646</a>          b2():
@@ -673,7 +673,7 @@
 <a href=#673 id=673 data-nosnippet>673</a>        brillig(inline) fn is_even f1 {
 <a href=#674 id=674 data-nosnippet>674</a>          b0(v0: u32):
 <a href=#675 id=675 data-nosnippet>675</a>            v1 = eq v0, u32 0
-<a href=#676 id=676 data-nosnippet>676</a>            jmpif v1 then: b1, else: b2
+<a href=#676 id=676 data-nosnippet>676</a>            jmpif v1 then: b1(), else: b2()
 <a href=#677 id=677 data-nosnippet>677</a>          b1():
 <a href=#678 id=678 data-nosnippet>678</a>            jmp b3(u1 1)
 <a href=#679 id=679 data-nosnippet>679</a>          b2():
@@ -686,7 +686,7 @@
 <a href=#686 id=686 data-nosnippet>686</a>        brillig(inline) fn is_odd f2 {
 <a href=#687 id=687 data-nosnippet>687</a>          b0(v0: u32):
 <a href=#688 id=688 data-nosnippet>688</a>            v1 = eq v0, u32 0
-<a href=#689 id=689 data-nosnippet>689</a>            jmpif v1 then: b1, else: b2
+<a href=#689 id=689 data-nosnippet>689</a>            jmpif v1 then: b1(), else: b2()
 <a href=#690 id=690 data-nosnippet>690</a>          b1():
 <a href=#691 id=691 data-nosnippet>691</a>            jmp b3(u1 0)
 <a href=#692 id=692 data-nosnippet>692</a>          b2():

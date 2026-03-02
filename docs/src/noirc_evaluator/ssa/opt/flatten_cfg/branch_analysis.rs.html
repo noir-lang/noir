@@ -333,13 +333,13 @@
 <a href=#333 id=333 data-nosnippet>333</a>
 <a href=#334 id=334 data-nosnippet>334</a>        builder.terminate_with_jmp(b1, <span class="macro">vec!</span>[]);
 <a href=#335 id=335 data-nosnippet>335</a>        builder.switch_to_block(b1);
-<a href=#336 id=336 data-nosnippet>336</a>        builder.terminate_with_jmpif(c1, b2, b3);
+<a href=#336 id=336 data-nosnippet>336</a>        builder.terminate_with_jmpif_no_args(c1, b2, b3);
 <a href=#337 id=337 data-nosnippet>337</a>        builder.switch_to_block(b2);
 <a href=#338 id=338 data-nosnippet>338</a>        builder.terminate_with_jmp(b4, <span class="macro">vec!</span>[]);
 <a href=#339 id=339 data-nosnippet>339</a>        builder.switch_to_block(b3);
 <a href=#340 id=340 data-nosnippet>340</a>        builder.terminate_with_jmp(b8, <span class="macro">vec!</span>[]);
 <a href=#341 id=341 data-nosnippet>341</a>        builder.switch_to_block(b4);
-<a href=#342 id=342 data-nosnippet>342</a>        builder.terminate_with_jmpif(c4, b5, b6);
+<a href=#342 id=342 data-nosnippet>342</a>        builder.terminate_with_jmpif_no_args(c4, b5, b6);
 <a href=#343 id=343 data-nosnippet>343</a>        builder.switch_to_block(b5);
 <a href=#344 id=344 data-nosnippet>344</a>        builder.terminate_with_jmp(b7, <span class="macro">vec!</span>[]);
 <a href=#345 id=345 data-nosnippet>345</a>        builder.switch_to_block(b6);
@@ -403,31 +403,31 @@
 <a href=#403 id=403 data-nosnippet>403</a>        <span class="kw">let </span>c10 = builder.add_parameter(Type::bool());
 <a href=#404 id=404 data-nosnippet>404</a>        <span class="kw">let </span>c12 = builder.add_parameter(Type::bool());
 <a href=#405 id=405 data-nosnippet>405</a>
-<a href=#406 id=406 data-nosnippet>406</a>        builder.terminate_with_jmpif(c0, b1, b10);
+<a href=#406 id=406 data-nosnippet>406</a>        builder.terminate_with_jmpif_no_args(c0, b1, b10);
 <a href=#407 id=407 data-nosnippet>407</a>        builder.switch_to_block(b1);
-<a href=#408 id=408 data-nosnippet>408</a>        builder.terminate_with_jmpif(c1, b2, b3);
+<a href=#408 id=408 data-nosnippet>408</a>        builder.terminate_with_jmpif_no_args(c1, b2, b3);
 <a href=#409 id=409 data-nosnippet>409</a>        builder.switch_to_block(b2);
 <a href=#410 id=410 data-nosnippet>410</a>        builder.terminate_with_jmp(b3, <span class="macro">vec!</span>[]);
 <a href=#411 id=411 data-nosnippet>411</a>        builder.switch_to_block(b3);
-<a href=#412 id=412 data-nosnippet>412</a>        builder.terminate_with_jmpif(c3, b4, b5);
+<a href=#412 id=412 data-nosnippet>412</a>        builder.terminate_with_jmpif_no_args(c3, b4, b5);
 <a href=#413 id=413 data-nosnippet>413</a>        builder.switch_to_block(b4);
 <a href=#414 id=414 data-nosnippet>414</a>        builder.terminate_with_jmp(b5, <span class="macro">vec!</span>[]);
 <a href=#415 id=415 data-nosnippet>415</a>        builder.switch_to_block(b5);
-<a href=#416 id=416 data-nosnippet>416</a>        builder.terminate_with_jmpif(c5, b6, b7);
+<a href=#416 id=416 data-nosnippet>416</a>        builder.terminate_with_jmpif_no_args(c5, b6, b7);
 <a href=#417 id=417 data-nosnippet>417</a>        builder.switch_to_block(b6);
 <a href=#418 id=418 data-nosnippet>418</a>        builder.terminate_with_jmp(b7, <span class="macro">vec!</span>[]);
 <a href=#419 id=419 data-nosnippet>419</a>        builder.switch_to_block(b7);
-<a href=#420 id=420 data-nosnippet>420</a>        builder.terminate_with_jmpif(c7, b8, b9);
+<a href=#420 id=420 data-nosnippet>420</a>        builder.terminate_with_jmpif_no_args(c7, b8, b9);
 <a href=#421 id=421 data-nosnippet>421</a>        builder.switch_to_block(b8);
 <a href=#422 id=422 data-nosnippet>422</a>        builder.terminate_with_jmp(b9, <span class="macro">vec!</span>[]);
 <a href=#423 id=423 data-nosnippet>423</a>        builder.switch_to_block(b9);
 <a href=#424 id=424 data-nosnippet>424</a>        builder.terminate_with_jmp(b15, <span class="macro">vec!</span>[]);
 <a href=#425 id=425 data-nosnippet>425</a>        builder.switch_to_block(b10);
-<a href=#426 id=426 data-nosnippet>426</a>        builder.terminate_with_jmpif(c10, b11, b12);
+<a href=#426 id=426 data-nosnippet>426</a>        builder.terminate_with_jmpif_no_args(c10, b11, b12);
 <a href=#427 id=427 data-nosnippet>427</a>        builder.switch_to_block(b11);
 <a href=#428 id=428 data-nosnippet>428</a>        builder.terminate_with_jmp(b12, <span class="macro">vec!</span>[]);
 <a href=#429 id=429 data-nosnippet>429</a>        builder.switch_to_block(b12);
-<a href=#430 id=430 data-nosnippet>430</a>        builder.terminate_with_jmpif(c12, b14, b13);
+<a href=#430 id=430 data-nosnippet>430</a>        builder.terminate_with_jmpif_no_args(c12, b14, b13);
 <a href=#431 id=431 data-nosnippet>431</a>        builder.switch_to_block(b13);
 <a href=#432 id=432 data-nosnippet>432</a>        builder.terminate_with_jmp(b14, <span class="macro">vec!</span>[]);
 <a href=#433 id=433 data-nosnippet>433</a>        builder.switch_to_block(b14);
@@ -455,9 +455,9 @@
 <a href=#455 id=455 data-nosnippet>455</a>        </span><span class="kw">let </span>src = <span class="string">"
 <a href=#456 id=456 data-nosnippet>456</a>        acir(inline) fn main f0 {
 <a href=#457 id=457 data-nosnippet>457</a>          b0():
-<a href=#458 id=458 data-nosnippet>458</a>            jmpif u1 0 then: b1, else: b2
+<a href=#458 id=458 data-nosnippet>458</a>            jmpif u1 0 then: b1(), else: b2()
 <a href=#459 id=459 data-nosnippet>459</a>          b1():
-<a href=#460 id=460 data-nosnippet>460</a>            jmpif u1 0 then: b5, else: b6
+<a href=#460 id=460 data-nosnippet>460</a>            jmpif u1 0 then: b5(), else: b6()
 <a href=#461 id=461 data-nosnippet>461</a>          b2():
 <a href=#462 id=462 data-nosnippet>462</a>            jmp b3()
 <a href=#463 id=463 data-nosnippet>463</a>          b3():
@@ -471,9 +471,9 @@
 <a href=#471 id=471 data-nosnippet>471</a>          b7():
 <a href=#472 id=472 data-nosnippet>472</a>            jmp b8()
 <a href=#473 id=473 data-nosnippet>473</a>          b8():
-<a href=#474 id=474 data-nosnippet>474</a>            jmpif u1 0 then: b9, else: b10
+<a href=#474 id=474 data-nosnippet>474</a>            jmpif u1 0 then: b9(), else: b10()
 <a href=#475 id=475 data-nosnippet>475</a>          b9():
-<a href=#476 id=476 data-nosnippet>476</a>            jmpif u1 0 then: b11, else: b12
+<a href=#476 id=476 data-nosnippet>476</a>            jmpif u1 0 then: b11(), else: b12()
 <a href=#477 id=477 data-nosnippet>477</a>          b10():
 <a href=#478 id=478 data-nosnippet>478</a>            jmp b14()
 <a href=#479 id=479 data-nosnippet>479</a>          b11():
@@ -508,12 +508,12 @@
 <a href=#508 id=508 data-nosnippet>508</a>        acir(inline_always) fn apply f5 {
 <a href=#509 id=509 data-nosnippet>509</a>          b0(v0: Field, v1: u32):
 <a href=#510 id=510 data-nosnippet>510</a>            v4 = eq v0, Field 2
-<a href=#511 id=511 data-nosnippet>511</a>            jmpif v4 then: b3, else: b2
+<a href=#511 id=511 data-nosnippet>511</a>            jmpif v4 then: b3(), else: b2()
 <a href=#512 id=512 data-nosnippet>512</a>          b1(v2: u32):
 <a href=#513 id=513 data-nosnippet>513</a>            return v2
 <a href=#514 id=514 data-nosnippet>514</a>          b2():
 <a href=#515 id=515 data-nosnippet>515</a>            v9 = eq v0, Field 3
-<a href=#516 id=516 data-nosnippet>516</a>            jmpif v9 then: b6, else: b5
+<a href=#516 id=516 data-nosnippet>516</a>            jmpif v9 then: b6(), else: b5()
 <a href=#517 id=517 data-nosnippet>517</a>          b3():
 <a href=#518 id=518 data-nosnippet>518</a>            v6 = call f2(v1) -&gt; u32
 <a href=#519 id=519 data-nosnippet>519</a>            jmp b4(v6)
@@ -562,7 +562,7 @@
 <a href=#562 id=562 data-nosnippet>562</a>        <span class="kw">let </span>src = <span class="string">r#"
 <a href=#563 id=563 data-nosnippet>563</a>        acir(inline) fn main f0 {
 <a href=#564 id=564 data-nosnippet>564</a>          b0(v0: u1, v1: u64, v2: i32, v3: u1, v4: Field, v5: u1, v6: u1):
-<a href=#565 id=565 data-nosnippet>565</a>            jmpif v6 then: b1, else: b2
+<a href=#565 id=565 data-nosnippet>565</a>            jmpif v6 then: b1(), else: b2()
 <a href=#566 id=566 data-nosnippet>566</a>          b1():
 <a href=#567 id=567 data-nosnippet>567</a>            jmp b14()
 <a href=#568 id=568 data-nosnippet>568</a>          b2():
@@ -573,17 +573,17 @@
 <a href=#573 id=573 data-nosnippet>573</a>            jmp b14()
 <a href=#574 id=574 data-nosnippet>574</a>          b5(v7: u32):
 <a href=#575 id=575 data-nosnippet>575</a>            v11 = lt v7, u32 232
-<a href=#576 id=576 data-nosnippet>576</a>            jmpif v11 then: b3, else: b4
+<a href=#576 id=576 data-nosnippet>576</a>            jmpif v11 then: b3(), else: b4()
 <a href=#577 id=577 data-nosnippet>577</a>          b6():
 <a href=#578 id=578 data-nosnippet>578</a>            v18 = add v7, u32 1
 <a href=#579 id=579 data-nosnippet>579</a>            v19 = truncate v18 to 32 bits, max_bit_size: 33
 <a href=#580 id=580 data-nosnippet>580</a>            v21 = call f1(v4, v4, v4, v4, v4, v0, v0) -&gt; Field
 <a href=#581 id=581 data-nosnippet>581</a>            jmp b5(v19)
 <a href=#582 id=582 data-nosnippet>582</a>          b7():
-<a href=#583 id=583 data-nosnippet>583</a>            jmpif v6 then: b10, else: b11
+<a href=#583 id=583 data-nosnippet>583</a>            jmpif v6 then: b10(), else: b11()
 <a href=#584 id=584 data-nosnippet>584</a>          b8(v8: u32):
 <a href=#585 id=585 data-nosnippet>585</a>            v14 = lt v8, u32 90
-<a href=#586 id=586 data-nosnippet>586</a>            jmpif v14 then: b7, else: b6
+<a href=#586 id=586 data-nosnippet>586</a>            jmpif v14 then: b7(), else: b6()
 <a href=#587 id=587 data-nosnippet>587</a>          b9():
 <a href=#588 id=588 data-nosnippet>588</a>            v16 = add v8, u32 1
 <a href=#589 id=589 data-nosnippet>589</a>            v17 = truncate v16 to 32 bits, max_bit_size: 33
@@ -603,12 +603,12 @@
 <a href=#603 id=603 data-nosnippet>603</a>          b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: u1, v6: u1):
 <a href=#604 id=604 data-nosnippet>604</a>            jmp b3(u32 54)
 <a href=#605 id=605 data-nosnippet>605</a>          b1():
-<a href=#606 id=606 data-nosnippet>606</a>            jmpif v6 then: b5, else: b6
+<a href=#606 id=606 data-nosnippet>606</a>            jmpif v6 then: b5(), else: b6()
 <a href=#607 id=607 data-nosnippet>607</a>          b2():
 <a href=#608 id=608 data-nosnippet>608</a>            jmp b8()
 <a href=#609 id=609 data-nosnippet>609</a>          b3(v7: u32):
 <a href=#610 id=610 data-nosnippet>610</a>            v10 = lt v7, u32 207
-<a href=#611 id=611 data-nosnippet>611</a>            jmpif v10 then: b1, else: b2
+<a href=#611 id=611 data-nosnippet>611</a>            jmpif v10 then: b1(), else: b2()
 <a href=#612 id=612 data-nosnippet>612</a>          b4():
 <a href=#613 id=613 data-nosnippet>613</a>            v12 = add v7, u32 1
 <a href=#614 id=614 data-nosnippet>614</a>            v13 = truncate v12 to 32 bits, max_bit_size: 33

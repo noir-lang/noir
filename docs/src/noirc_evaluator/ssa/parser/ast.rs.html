@@ -191,20 +191,29 @@
 <a href=#191 id=191 data-nosnippet>191</a>
 <a href=#192 id=192 data-nosnippet>192</a><span class="attr">#[derive(Debug)]
 <a href=#193 id=193 data-nosnippet>193</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>ParsedTerminator {
-<a href=#194 id=194 data-nosnippet>194</a>    Jmp { destination: Identifier, arguments: Vec&lt;ParsedValue&gt; },
-<a href=#195 id=195 data-nosnippet>195</a>    Jmpif { condition: ParsedValue, then_block: Identifier, else_block: Identifier },
-<a href=#196 id=196 data-nosnippet>196</a>    Return(Vec&lt;ParsedValue&gt;),
-<a href=#197 id=197 data-nosnippet>197</a>    Unreachable,
-<a href=#198 id=198 data-nosnippet>198</a>}
-<a href=#199 id=199 data-nosnippet>199</a>
-<a href=#200 id=200 data-nosnippet>200</a><span class="attr">#[derive(Debug, Clone)]
-<a href=#201 id=201 data-nosnippet>201</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>ParsedValue {
-<a href=#202 id=202 data-nosnippet>202</a>    NumericConstant(ParsedNumericConstant),
-<a href=#203 id=203 data-nosnippet>203</a>    Variable(Identifier),
-<a href=#204 id=204 data-nosnippet>204</a>}
-<a href=#205 id=205 data-nosnippet>205</a>
-<a href=#206 id=206 data-nosnippet>206</a><span class="attr">#[derive(Debug, Clone)]
-<a href=#207 id=207 data-nosnippet>207</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>ParsedNumericConstant {
-<a href=#208 id=208 data-nosnippet>208</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) value: FieldElement,
-<a href=#209 id=209 data-nosnippet>209</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) typ: Type,
-<a href=#210 id=210 data-nosnippet>210</a>}</code></pre></div></section></main></body></html>
+<a href=#194 id=194 data-nosnippet>194</a>    Jmp {
+<a href=#195 id=195 data-nosnippet>195</a>        destination: Identifier,
+<a href=#196 id=196 data-nosnippet>196</a>        arguments: Vec&lt;ParsedValue&gt;,
+<a href=#197 id=197 data-nosnippet>197</a>    },
+<a href=#198 id=198 data-nosnippet>198</a>    Jmpif {
+<a href=#199 id=199 data-nosnippet>199</a>        condition: ParsedValue,
+<a href=#200 id=200 data-nosnippet>200</a>        then_block: Identifier,
+<a href=#201 id=201 data-nosnippet>201</a>        then_arguments: Vec&lt;ParsedValue&gt;,
+<a href=#202 id=202 data-nosnippet>202</a>        else_block: Identifier,
+<a href=#203 id=203 data-nosnippet>203</a>        else_arguments: Vec&lt;ParsedValue&gt;,
+<a href=#204 id=204 data-nosnippet>204</a>    },
+<a href=#205 id=205 data-nosnippet>205</a>    Return(Vec&lt;ParsedValue&gt;),
+<a href=#206 id=206 data-nosnippet>206</a>    Unreachable,
+<a href=#207 id=207 data-nosnippet>207</a>}
+<a href=#208 id=208 data-nosnippet>208</a>
+<a href=#209 id=209 data-nosnippet>209</a><span class="attr">#[derive(Debug, Clone)]
+<a href=#210 id=210 data-nosnippet>210</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>ParsedValue {
+<a href=#211 id=211 data-nosnippet>211</a>    NumericConstant(ParsedNumericConstant),
+<a href=#212 id=212 data-nosnippet>212</a>    Variable(Identifier),
+<a href=#213 id=213 data-nosnippet>213</a>}
+<a href=#214 id=214 data-nosnippet>214</a>
+<a href=#215 id=215 data-nosnippet>215</a><span class="attr">#[derive(Debug, Clone)]
+<a href=#216 id=216 data-nosnippet>216</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>ParsedNumericConstant {
+<a href=#217 id=217 data-nosnippet>217</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) value: FieldElement,
+<a href=#218 id=218 data-nosnippet>218</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) typ: Type,
+<a href=#219 id=219 data-nosnippet>219</a>}</code></pre></div></section></main></body></html>

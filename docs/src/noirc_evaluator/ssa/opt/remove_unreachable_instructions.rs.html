@@ -973,7 +973,7 @@
 <a href=#973 id=973 data-nosnippet>973</a>            jmp b1()
 <a href=#974 id=974 data-nosnippet>974</a>          b1():
 <a href=#975 id=975 data-nosnippet>975</a>            v1 = add Field 1, Field 2
-<a href=#976 id=976 data-nosnippet>976</a>            jmpif u1 0 then: b2, else: b3
+<a href=#976 id=976 data-nosnippet>976</a>            jmpif u1 0 then: b2(), else: b3()
 <a href=#977 id=977 data-nosnippet>977</a>          b2():
 <a href=#978 id=978 data-nosnippet>978</a>            v2 = add Field 1, Field 2
 <a href=#979 id=979 data-nosnippet>979</a>            jmp b1()
@@ -1033,10 +1033,10 @@
 <a href=#1033 id=1033 data-nosnippet>1033</a>            v2 = add Field 1, Field 2
 <a href=#1034 id=1034 data-nosnippet>1034</a>            jmp b2(v2)
 <a href=#1035 id=1035 data-nosnippet>1035</a>          b2(v3: Field):
-<a href=#1036 id=1036 data-nosnippet>1036</a>            jmpif u1 0 then: b3, else: b4
+<a href=#1036 id=1036 data-nosnippet>1036</a>            jmpif u1 0 then: b3(), else: b4()
 <a href=#1037 id=1037 data-nosnippet>1037</a>          b3():
 <a href=#1038 id=1038 data-nosnippet>1038</a>            constrain u1 0 == u1 1, "Index out of bounds"
-<a href=#1039 id=1039 data-nosnippet>1039</a>            jmpif u1 0 then: b4, else: b1
+<a href=#1039 id=1039 data-nosnippet>1039</a>            jmpif u1 0 then: b4(), else: b1()
 <a href=#1040 id=1040 data-nosnippet>1040</a>          b4():
 <a href=#1041 id=1041 data-nosnippet>1041</a>            v1 = add Field 1, Field 2
 <a href=#1042 id=1042 data-nosnippet>1042</a>            return v1
@@ -1053,7 +1053,7 @@
 <a href=#1053 id=1053 data-nosnippet>1053</a>            v3 = add Field 1, Field 2
 <a href=#1054 id=1054 data-nosnippet>1054</a>            jmp b2(v3)
 <a href=#1055 id=1055 data-nosnippet>1055</a>          b2(v0: Field):
-<a href=#1056 id=1056 data-nosnippet>1056</a>            jmpif u1 0 then: b3, else: b4
+<a href=#1056 id=1056 data-nosnippet>1056</a>            jmpif u1 0 then: b3(), else: b4()
 <a href=#1057 id=1057 data-nosnippet>1057</a>          b3():
 <a href=#1058 id=1058 data-nosnippet>1058</a>            constrain u1 0 == u1 1, "Index out of bounds"
 <a href=#1059 id=1059 data-nosnippet>1059</a>            unreachable
@@ -1072,7 +1072,7 @@
 <a href=#1072 id=1072 data-nosnippet>1072</a>          b0():
 <a href=#1073 id=1073 data-nosnippet>1073</a>            jmp b1()
 <a href=#1074 id=1074 data-nosnippet>1074</a>          b1():
-<a href=#1075 id=1075 data-nosnippet>1075</a>            jmpif u1 0 then: b2, else: b3
+<a href=#1075 id=1075 data-nosnippet>1075</a>            jmpif u1 0 then: b2(), else: b3()
 <a href=#1076 id=1076 data-nosnippet>1076</a>          b2():
 <a href=#1077 id=1077 data-nosnippet>1077</a>            constrain u1 0 == u1 1, "Index out of bounds"
 <a href=#1078 id=1078 data-nosnippet>1078</a>            jmp b3()
@@ -1089,7 +1089,7 @@
 <a href=#1089 id=1089 data-nosnippet>1089</a>          b0():
 <a href=#1090 id=1090 data-nosnippet>1090</a>            jmp b1()
 <a href=#1091 id=1091 data-nosnippet>1091</a>          b1():
-<a href=#1092 id=1092 data-nosnippet>1092</a>            jmpif u1 0 then: b2, else: b3
+<a href=#1092 id=1092 data-nosnippet>1092</a>            jmpif u1 0 then: b2(), else: b3()
 <a href=#1093 id=1093 data-nosnippet>1093</a>          b2():
 <a href=#1094 id=1094 data-nosnippet>1094</a>            constrain u1 0 == u1 1, "Index out of bounds"
 <a href=#1095 id=1095 data-nosnippet>1095</a>            unreachable
@@ -1108,7 +1108,7 @@
 <a href=#1108 id=1108 data-nosnippet>1108</a>          b0():
 <a href=#1109 id=1109 data-nosnippet>1109</a>            jmp b1()
 <a href=#1110 id=1110 data-nosnippet>1110</a>          b1():
-<a href=#1111 id=1111 data-nosnippet>1111</a>            jmpif u1 0 then: b2, else: b3
+<a href=#1111 id=1111 data-nosnippet>1111</a>            jmpif u1 0 then: b2(), else: b3()
 <a href=#1112 id=1112 data-nosnippet>1112</a>          b2():
 <a href=#1113 id=1113 data-nosnippet>1113</a>            constrain u1 0 == u1 1, "Index out of bounds"
 <a href=#1114 id=1114 data-nosnippet>1114</a>            jmp b4()
@@ -1127,7 +1127,7 @@
 <a href=#1127 id=1127 data-nosnippet>1127</a>          b0():
 <a href=#1128 id=1128 data-nosnippet>1128</a>            jmp b1()
 <a href=#1129 id=1129 data-nosnippet>1129</a>          b1():
-<a href=#1130 id=1130 data-nosnippet>1130</a>            jmpif u1 0 then: b2, else: b3
+<a href=#1130 id=1130 data-nosnippet>1130</a>            jmpif u1 0 then: b2(), else: b3()
 <a href=#1131 id=1131 data-nosnippet>1131</a>          b2():
 <a href=#1132 id=1132 data-nosnippet>1132</a>            constrain u1 0 == u1 1, "Index out of bounds"
 <a href=#1133 id=1133 data-nosnippet>1133</a>            unreachable
@@ -1149,7 +1149,7 @@
 <a href=#1149 id=1149 data-nosnippet>1149</a>          b0():
 <a href=#1150 id=1150 data-nosnippet>1150</a>            jmp b1()
 <a href=#1151 id=1151 data-nosnippet>1151</a>          b1():
-<a href=#1152 id=1152 data-nosnippet>1152</a>            jmpif u1 0 then: b2, else: b3
+<a href=#1152 id=1152 data-nosnippet>1152</a>            jmpif u1 0 then: b2(), else: b3()
 <a href=#1153 id=1153 data-nosnippet>1153</a>          b2():
 <a href=#1154 id=1154 data-nosnippet>1154</a>            constrain u1 0 == u1 1, "Index out of bounds"
 <a href=#1155 id=1155 data-nosnippet>1155</a>            jmp b4()
@@ -1170,7 +1170,7 @@
 <a href=#1170 id=1170 data-nosnippet>1170</a>          b0():
 <a href=#1171 id=1171 data-nosnippet>1171</a>            jmp b1()
 <a href=#1172 id=1172 data-nosnippet>1172</a>          b1():
-<a href=#1173 id=1173 data-nosnippet>1173</a>            jmpif u1 0 then: b2, else: b3
+<a href=#1173 id=1173 data-nosnippet>1173</a>            jmpif u1 0 then: b2(), else: b3()
 <a href=#1174 id=1174 data-nosnippet>1174</a>          b2():
 <a href=#1175 id=1175 data-nosnippet>1175</a>            constrain u1 0 == u1 1, "Index out of bounds"
 <a href=#1176 id=1176 data-nosnippet>1176</a>            unreachable
@@ -1193,7 +1193,7 @@
 <a href=#1193 id=1193 data-nosnippet>1193</a>        </span><span class="kw">let </span>src = <span class="string">r#"
 <a href=#1194 id=1194 data-nosnippet>1194</a>        acir(inline) predicate_pure fn main f0 {
 <a href=#1195 id=1195 data-nosnippet>1195</a>          b0():
-<a href=#1196 id=1196 data-nosnippet>1196</a>            jmpif u1 0 then: b1, else: b2
+<a href=#1196 id=1196 data-nosnippet>1196</a>            jmpif u1 0 then: b1(), else: b2()
 <a href=#1197 id=1197 data-nosnippet>1197</a>          b1():
 <a href=#1198 id=1198 data-nosnippet>1198</a>            jmp b3()
 <a href=#1199 id=1199 data-nosnippet>1199</a>          b2():
@@ -1212,7 +1212,7 @@
 <a href=#1212 id=1212 data-nosnippet>1212</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r#"
 <a href=#1213 id=1213 data-nosnippet>1213</a>        acir(inline) predicate_pure fn main f0 {
 <a href=#1214 id=1214 data-nosnippet>1214</a>          b0():
-<a href=#1215 id=1215 data-nosnippet>1215</a>            jmpif u1 0 then: b1, else: b2
+<a href=#1215 id=1215 data-nosnippet>1215</a>            jmpif u1 0 then: b1(), else: b2()
 <a href=#1216 id=1216 data-nosnippet>1216</a>          b1():
 <a href=#1217 id=1217 data-nosnippet>1217</a>            jmp b3()
 <a href=#1218 id=1218 data-nosnippet>1218</a>          b2():

@@ -1016,14 +1016,14 @@
 <a href=#1016 id=1016 data-nosnippet>1016</a>          b0():
 <a href=#1017 id=1017 data-nosnippet>1017</a>            v4 = shr u8 1, u8 98
 <a href=#1018 id=1018 data-nosnippet>1018</a>            v6 = eq v4, u8 0
-<a href=#1019 id=1019 data-nosnippet>1019</a>            jmpif v6 then: b7, else: b8
+<a href=#1019 id=1019 data-nosnippet>1019</a>            jmpif v6 then: b7(), else: b8()
 <a href=#1020 id=1020 data-nosnippet>1020</a>          b1():
 <a href=#1021 id=1021 data-nosnippet>1021</a>            jmp b3()
 <a href=#1022 id=1022 data-nosnippet>1022</a>          b2():
 <a href=#1023 id=1023 data-nosnippet>1023</a>            jmp b3()
 <a href=#1024 id=1024 data-nosnippet>1024</a>          b3():
 <a href=#1025 id=1025 data-nosnippet>1025</a>            v11 = eq v9, u8 1
-<a href=#1026 id=1026 data-nosnippet>1026</a>            jmpif v11 then: b4, else: b5
+<a href=#1026 id=1026 data-nosnippet>1026</a>            jmpif v11 then: b4(), else: b5()
 <a href=#1027 id=1027 data-nosnippet>1027</a>          b4():
 <a href=#1028 id=1028 data-nosnippet>1028</a>            jmp b6()
 <a href=#1029 id=1029 data-nosnippet>1029</a>          b5():
@@ -1036,7 +1036,7 @@
 <a href=#1036 id=1036 data-nosnippet>1036</a>            jmp b9()
 <a href=#1037 id=1037 data-nosnippet>1037</a>          b9():
 <a href=#1038 id=1038 data-nosnippet>1038</a>            v7 = eq v4, u8 1
-<a href=#1039 id=1039 data-nosnippet>1039</a>            jmpif v7 then: b10, else: b11
+<a href=#1039 id=1039 data-nosnippet>1039</a>            jmpif v7 then: b10(), else: b11()
 <a href=#1040 id=1040 data-nosnippet>1040</a>          b10():
 <a href=#1041 id=1041 data-nosnippet>1041</a>            jmp b12()
 <a href=#1042 id=1042 data-nosnippet>1042</a>          b11():
@@ -1044,7 +1044,7 @@
 <a href=#1044 id=1044 data-nosnippet>1044</a>          b12():
 <a href=#1045 id=1045 data-nosnippet>1045</a>            v9 = shr u8 1, u8 99
 <a href=#1046 id=1046 data-nosnippet>1046</a>            v10 = eq v9, u8 0
-<a href=#1047 id=1047 data-nosnippet>1047</a>            jmpif v10 then: b1, else: b2
+<a href=#1047 id=1047 data-nosnippet>1047</a>            jmpif v10 then: b1(), else: b2()
 <a href=#1048 id=1048 data-nosnippet>1048</a>        }
 <a href=#1049 id=1049 data-nosnippet>1049</a>        "#</span>;
 <a href=#1050 id=1050 data-nosnippet>1050</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
@@ -1058,14 +1058,14 @@
 <a href=#1058 id=1058 data-nosnippet>1058</a>            constrain u1 0 == u1 1, "attempt to bit-shift with overflow"
 <a href=#1059 id=1059 data-nosnippet>1059</a>            v4 = div u8 1, u8 0
 <a href=#1060 id=1060 data-nosnippet>1060</a>            v5 = eq v4, u8 0
-<a href=#1061 id=1061 data-nosnippet>1061</a>            jmpif v5 then: b7, else: b8
+<a href=#1061 id=1061 data-nosnippet>1061</a>            jmpif v5 then: b7(), else: b8()
 <a href=#1062 id=1062 data-nosnippet>1062</a>          b1():
 <a href=#1063 id=1063 data-nosnippet>1063</a>            jmp b3()
 <a href=#1064 id=1064 data-nosnippet>1064</a>          b2():
 <a href=#1065 id=1065 data-nosnippet>1065</a>            jmp b3()
 <a href=#1066 id=1066 data-nosnippet>1066</a>          b3():
 <a href=#1067 id=1067 data-nosnippet>1067</a>            v9 = eq v7, u8 1
-<a href=#1068 id=1068 data-nosnippet>1068</a>            jmpif v9 then: b4, else: b5
+<a href=#1068 id=1068 data-nosnippet>1068</a>            jmpif v9 then: b4(), else: b5()
 <a href=#1069 id=1069 data-nosnippet>1069</a>          b4():
 <a href=#1070 id=1070 data-nosnippet>1070</a>            jmp b6()
 <a href=#1071 id=1071 data-nosnippet>1071</a>          b5():
@@ -1078,7 +1078,7 @@
 <a href=#1078 id=1078 data-nosnippet>1078</a>            jmp b9()
 <a href=#1079 id=1079 data-nosnippet>1079</a>          b9():
 <a href=#1080 id=1080 data-nosnippet>1080</a>            v6 = eq v4, u8 1
-<a href=#1081 id=1081 data-nosnippet>1081</a>            jmpif v6 then: b10, else: b11
+<a href=#1081 id=1081 data-nosnippet>1081</a>            jmpif v6 then: b10(), else: b11()
 <a href=#1082 id=1082 data-nosnippet>1082</a>          b10():
 <a href=#1083 id=1083 data-nosnippet>1083</a>            jmp b12()
 <a href=#1084 id=1084 data-nosnippet>1084</a>          b11():
@@ -1087,7 +1087,7 @@
 <a href=#1087 id=1087 data-nosnippet>1087</a>            constrain u1 0 == u1 1, "attempt to bit-shift with overflow"
 <a href=#1088 id=1088 data-nosnippet>1088</a>            v7 = div u8 1, u8 0
 <a href=#1089 id=1089 data-nosnippet>1089</a>            v8 = eq v7, u8 0
-<a href=#1090 id=1090 data-nosnippet>1090</a>            jmpif v8 then: b1, else: b2
+<a href=#1090 id=1090 data-nosnippet>1090</a>            jmpif v8 then: b1(), else: b2()
 <a href=#1091 id=1091 data-nosnippet>1091</a>        }
 <a href=#1092 id=1092 data-nosnippet>1092</a>        "#</span>);
 <a href=#1093 id=1093 data-nosnippet>1093</a>    }
