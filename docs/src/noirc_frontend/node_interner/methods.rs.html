@@ -127,7 +127,7 @@
 <a href=#127 id=127 data-nosnippet>127</a>                    }
 <a href=#128 id=128 data-nosnippet>128</a>                } <span class="kw">else </span>{
 <a href=#129 id=129 data-nosnippet>129</a>                    <span class="kw">let </span>method_type = <span class="kw">if let </span>Type::Forall(typevars, <span class="kw">_</span>) = function_typ {
-<a href=#130 id=130 data-nosnippet>130</a>                        method_type.instantiate_with_type_vars(typevars, interner).<span class="number">0
+<a href=#130 id=130 data-nosnippet>130</a>                        method_type.substitute_type_vars_with_fresh_type_vars(typevars, interner).<span class="number">0
 <a href=#131 id=131 data-nosnippet>131</a>                    </span>} <span class="kw">else </span>{
 <a href=#132 id=132 data-nosnippet>132</a>                        method_type.clone()
 <a href=#133 id=133 data-nosnippet>133</a>                    };
