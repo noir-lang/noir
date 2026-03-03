@@ -329,6 +329,7 @@ pub(crate) struct GlobalSpace {
 impl GlobalSpace {
     pub(crate) fn new(layout: LayoutConfig) -> Self {
         let start = Self::start_with_layout(&layout);
+        assert!(start > 0, "global space does not start at 0");
         Self {
             storage: DeallocationListAllocator::new(start),
             max_memory_address: start - 1,
