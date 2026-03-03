@@ -1029,4 +1029,53 @@ mod tests {
         }
         ");
     }
+
+    #[test]
+    fn simplifies_vector_push_back_with_unknown_length() {
+        let src = r#"
+        acir(inline) fn main func {
+          b0(v0: u32):
+            v1 = make_array [Field 3, Field 4] : [Field]
+            v2, v3 = call vector_push_back(v0, v1, Field 5) -> (u32, [Field])
+            return v2, v3
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        // We can see how we start with a `make_array` that pushed `Field 5` to the end of the
+        // original `make_array`, sets the element at `v0` to `Field 5` (which can result in
+        // one of `[5, 4, 5]`, `[3, 5, 5]` or `[3, 4, 5]` depending on the value of `v0`),
+        // and then merge that new array with `[3, 4, 5]`.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v3 = make_array [Field 3, Field 4] : [Field]
+            v5 = eq v0, u32 2
+            v6 = not v5
+            v8 = add v0, u32 1
+            v10 = make_array [Field 3, Field 4, Field 5] : [Field]
+            v11 = array_set v10, index v0, value Field 5
+            v13 = array_get v11, index u32 0 -> Field
+            v14 = cast v6 as Field
+            v15 = cast v5 as Field
+            v16 = mul v14, v13
+            v17 = mul v15, Field 3
+            v18 = add v16, v17
+            v19 = array_get v11, index u32 1 -> Field
+            v20 = cast v6 as Field
+            v21 = cast v5 as Field
+            v22 = mul v20, v19
+            v23 = mul v21, Field 4
+            v24 = add v22, v23
+            v25 = array_get v11, index u32 2 -> Field
+            v26 = cast v6 as Field
+            v27 = cast v5 as Field
+            v28 = mul v26, v25
+            v29 = mul v27, Field 5
+            v30 = add v28, v29
+            v31 = make_array [v18, v24, v30] : [Field]
+            return v8, v31
+        }
+        ");
+    }
 }
