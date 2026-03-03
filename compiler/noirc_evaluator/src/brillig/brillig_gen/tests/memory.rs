@@ -202,14 +202,14 @@ fn brillig_global_array_not_coalesced_with_block_param() {
      8: call 0 // -> f1
      9: @0 = sp[0]
     10: sp[4] = sp[8]
-    11: jump if sp[4] to 0 // -> f0 / b1
-    12: jump to 0 // -> f0 / b2
-    13: sp[2] = @68 // f0 / b2
-    14: jump to 0 // -> f0 / b3
-    15: return // f0 / b3
-    16: sp[2] = const bool 1 // f0 / b1
+    11: jump if sp[4] to 0 // -> 16: f0/b1
+    12: jump to 0 // -> 13: f0/b2
+    13: sp[2] = @68 // f0/b2
+    14: jump to 0 // -> 15: f0/b3
+    15: return // f0/b3
+    16: sp[2] = const bool 1 // f0/b1
     17: sp[3] = bool eq @69, sp[2]
-    18: jump if sp[3] to 0 // -> f0 / b1 / 1
+    18: jump if sp[3] to 0 // -> 21: f0/b1/1
     19: sp[4] = const u32 0
     20: trap @[@1; sp[4]]
     ");

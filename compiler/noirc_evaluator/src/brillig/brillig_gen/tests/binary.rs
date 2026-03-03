@@ -21,9 +21,9 @@ fn brillig_add() {
     0: call 0 // -> CheckMaxStackDepth
     1: sp[4] = u32 add sp[2], sp[3]
     2: sp[5] = u32 lt_eq sp[2], sp[4]
-    3: jump if sp[5] to 0 // -> f0 / b0 / 1
+    3: jump if sp[5] to 0 // -> 5: f0/b0/1
     4: call 0 // -> ErrorWithString
-    5: sp[2] = sp[4] // f0 / b0 / 1
+    5: sp[2] = sp[4] // f0/b0/1
     6: return
     ");
 }
@@ -46,9 +46,9 @@ fn brillig_sub() {
     0: call 0 // -> CheckMaxStackDepth
     1: sp[4] = u32 sub sp[2], sp[3]
     2: sp[5] = u32 lt_eq sp[3], sp[2]
-    3: jump if sp[5] to 0 // -> f0 / b0 / 1
+    3: jump if sp[5] to 0 // -> 5: f0/b0/1
     4: call 0 // -> ErrorWithString
-    5: sp[2] = sp[4] // f0 / b0 / 1
+    5: sp[2] = sp[4] // f0/b0/1
     6: return
     ");
 }
@@ -73,12 +73,12 @@ fn brillig_mul() {
      1: sp[4] = u32 mul sp[2], sp[3]
      2: sp[6] = const u32 0
      3: sp[5] = u32 eq sp[6], sp[3]
-     4: jump if sp[5] to 0 // -> f0 / b0 / 1
+     4: jump if sp[5] to 0 // -> 9: f0/b0/1
      5: sp[8] = u32 div sp[4], sp[3]
      6: sp[7] = u32 eq sp[8], sp[2]
-     7: jump if sp[7] to 0 // -> f0 / b0 / 2
+     7: jump if sp[7] to 0 // -> 9: f0/b0/2
      8: call 0 // -> ErrorWithString
-     9: sp[2] = sp[4] // f0 / b0 / 1
+     9: sp[2] = sp[4] // f0/b0/2
     10: return
     ");
 }
@@ -256,9 +256,9 @@ fn brillig_shl() {
     0: call 0 // -> CheckMaxStackDepth
     1: sp[6] = const u32 32
     2: sp[5] = u32 lt sp[3], sp[6]
-    3: jump if sp[5] to 0 // -> f0 / b0 / 1
+    3: jump if sp[5] to 0 // -> 5: f0/b0/1
     4: call 0 // -> ErrorWithString
-    5: sp[4] = u32 shl sp[2], sp[3] // f0 / b0 / 1
+    5: sp[4] = u32 shl sp[2], sp[3] // f0/b0/1
     6: sp[2] = sp[4]
     7: return
     ");
@@ -282,9 +282,9 @@ fn brillig_shr() {
     0: call 0 // -> CheckMaxStackDepth
     1: sp[6] = const u32 32
     2: sp[5] = u32 lt sp[3], sp[6]
-    3: jump if sp[5] to 0 // -> f0 / b0 / 1
+    3: jump if sp[5] to 0 // -> 5: f0/b0/1
     4: call 0 // -> ErrorWithString
-    5: sp[4] = u32 shr sp[2], sp[3] // f0 / b0 / 1
+    5: sp[4] = u32 shr sp[2], sp[3] // f0/b0/1
     6: sp[2] = sp[4]
     7: return
     ");

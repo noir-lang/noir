@@ -115,6 +115,7 @@ impl<F: std::fmt::Display> std::fmt::Display for BrilligArtifact<F> {
             .labels
             .iter()
             .filter_map(|(label, loc)| {
+                // We could show labels for every block, but for now just for jump destinations.
                 unresolved_jump_destinations.contains(&label).then_some((*loc, label))
             })
             .collect::<HashMap<_, _>>();
@@ -123,20 +124,26 @@ impl<F: std::fmt::Display> std::fmt::Display for BrilligArtifact<F> {
         fn short_label(label: &&Label) -> String {
             let typ = match &label.label_type {
                 LabelType::Entrypoint => "entry".to_string(),
-                LabelType::Function(id, Some(block_id)) => format!("{id} / {block_id}"),
+                LabelType::Function(id, Some(block_id)) => format!("{id}/{block_id}"),
                 LabelType::Function(id, None) => format!("{id}"),
                 LabelType::Procedure(procedure_id) => format!("{procedure_id}"),
                 LabelType::GlobalInit(id) => format!("global init {id}"),
             };
-            label.section.map(|s| format!("{typ} / {s}")).unwrap_or(typ)
+            label.section.map(|s| format!("{typ}/{s}")).unwrap_or(typ)
         }
 
         let get_comment = |index| {
             if unresolved_jumps.is_empty() {
                 return String::new();
             }
-            let destination =
-                unresolved_jumps.get(&index).map(short_label).map(|label| format!("-> {label}"));
+            let destination = unresolved_jumps.get(&index).map(|label| {
+                let short = short_label(label);
+                if let Some(loc) = self.labels.get(label) {
+                    format!("-> {loc}: {short}")
+                } else {
+                    format!("-> {short}")
+                }
+            });
             let label = label_locations.get(&index).map(short_label);
             destination.or(label).map(|s| format!(" // {s}")).unwrap_or_default()
         };

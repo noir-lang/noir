@@ -127,8 +127,8 @@ fn brillig_spill_successor_params() {
     10: @4 = const u32 2
     11: @3 = u32 add sp[1], @4
     12: store sp[2] at @3
-    13: jump to 0 // -> f0 / b1
-    14: @4 = const u32 0 // f0 / b1
+    13: jump to 0 // -> 14: f0/b1
+    14: @4 = const u32 0 // f0/b1
     15: @3 = u32 add sp[1], @4
     16: sp[3] = load @3
     17: @4 = const u32 1
