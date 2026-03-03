@@ -261,14 +261,17 @@ mod tests {
         // The array_set here can be folded into the make_array because they are both under the same predicate.
         let src = "
         acir(inline) predicate_pure fn main f0 {
-          b0(v4: u1, v5: u1):
-            enable_side_effects v4
-            v0 = make_array [Field 2, Field 3] : [Field; 2]
-            v1 = array_set v0, index u32 0, value Field 4
-            enable_side_effects v5
-            v2 = array_get v1, index u32 0 -> Field
-            v3 = array_get v1, index u32 1 -> Field
-            return v2, v3
+          b0(v0: u1, v1: u1):
+            enable_side_effects v0
+            v2 = make_array [Field 2, Field 3] : [Field; 2]
+            enable_side_effects v1
+            v3 = array_get v2, index u32 0 -> Field
+            enable_side_effects v0
+            v4 = array_set v2, index u32 0, value Field 4
+            enable_side_effects v1
+            v5 = array_get v4, index u32 0 -> Field
+            v6 = array_get v4, index u32 1 -> Field
+            return v5, v6
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
@@ -279,7 +282,10 @@ mod tests {
           b0(v0: u1, v1: u1):
             enable_side_effects v0
             v4 = make_array [Field 2, Field 3] : [Field; 2]
-            v6 = make_array [Field 4, Field 3] : [Field; 2]
+            enable_side_effects v1
+            v6 = array_get v4, index u32 0 -> Field
+            enable_side_effects v0
+            v8 = make_array [Field 4, Field 3] : [Field; 2]
             enable_side_effects v1
             return Field 4, Field 3
         }
