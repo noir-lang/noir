@@ -121,6 +121,8 @@ impl<F: std::fmt::Display> std::fmt::Display for BrilligArtifact<F> {
             let labels = labels_by_loc.entry(*loc).or_default();
             labels.push(label);
         }
+        // self.labels has a non-deterministic iteration order, which could affect the concat of labels.
+        labels_by_loc.values_mut().for_each(|v| v.sort());
 
         // The default label format is a bit verbose.
         fn short_label(label: &&Label) -> String {
@@ -165,7 +167,7 @@ impl<F: std::fmt::Display> std::fmt::Display for BrilligArtifact<F> {
 /// A pointer to a location in the opcode.
 pub(crate) type OpcodeLocation = usize;
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
 pub(crate) enum LabelType {
     /// Labels for the entry point bytecode
     Entrypoint,
@@ -201,7 +203,7 @@ impl std::fmt::Display for LabelType {
 ///
 /// It is assumed that an entity will keep a map
 /// of labels to Opcode locations.
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
 pub(crate) struct Label {
     pub(crate) label_type: LabelType,
     pub(crate) section: Option<usize>,
