@@ -78,7 +78,7 @@ fn brillig_mul() {
      6: sp[7] = u32 eq sp[8], sp[2]
      7: jump if sp[7] to 0 // -> 9: f0/b0/2
      8: call 0 // -> ErrorWithString
-     9: sp[2] = sp[4] // f0/b0/2
+     9: sp[2] = sp[4] // f0/b0/2, f0/b0/1
     10: return
     ");
 }
