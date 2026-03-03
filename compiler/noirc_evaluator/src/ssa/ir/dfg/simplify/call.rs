@@ -140,23 +140,23 @@ pub(super) fn simplify_call(
                     let semi_flattened_vector_len =
                         SemanticLength(vector_len as u32) * elements_size;
 
-                    // This simplification, which push back directly on the vector, only works if the real vector_len is the
-                    // the length of the vector (taking the elements size into account).
-                    if semi_flattened_vector_len == SemiFlattenedLength(vector.len() as u32) {
-                        // Old code before implementing multiple vector mergers
-                        for elem in &arguments[2..] {
-                            vector.push_back(*elem);
-                        }
+                    // If the vector length is constant, and we are pushing to the result of a `make_array` instruction,
+                    // it must be that the vector elements length is equal to the semi-flattened vector length.
+                    assert_eq!(semi_flattened_vector_len, SemiFlattenedLength(vector.len() as u32));
 
-                        let new_vector_length =
-                            increment_vector_length(arguments[0], dfg, block, call_stack);
-
-                        let new_vector = make_array(dfg, vector, element_type, block, call_stack);
-                        return SimplifyResult::SimplifiedToMultiple(vec![
-                            new_vector_length,
-                            new_vector,
-                        ]);
+                    // Old code before implementing multiple vector mergers
+                    for elem in &arguments[2..] {
+                        vector.push_back(*elem);
                     }
+
+                    let new_vector_length =
+                        increment_vector_length(arguments[0], dfg, block, call_stack);
+
+                    let new_vector = make_array(dfg, vector, element_type, block, call_stack);
+                    return SimplifyResult::SimplifiedToMultiple(vec![
+                        new_vector_length,
+                        new_vector,
+                    ]);
                 }
 
                 simplify_vector_push_back(vector, element_type, arguments, dfg, block, call_stack)
