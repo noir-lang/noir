@@ -139,20 +139,17 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         condition: MemoryAddress,
         mut f: impl FnMut(&mut BrilligContext<F, Registers>, bool),
     ) {
-        // Reserve 3 sections
         let (then_section, then_label) = self.reserve_next_section_label();
-        let (otherwise_section, otherwise_label) = self.reserve_next_section_label();
         let (end_section, end_label) = self.reserve_next_section_label();
 
+        // If condition is true, jump to the then section; otherwise fall through to else
         self.jump_if_instruction(condition, then_label);
-        self.jump_instruction(otherwise_label);
+
+        f(self, false);
+        self.jump_instruction(end_label);
 
         self.enter_section(then_section);
         f(self, true);
-        self.jump_instruction(end_label);
-
-        self.enter_section(otherwise_section);
-        f(self, false);
         // Fall through into `end_section`
 
         self.enter_section(end_section);
