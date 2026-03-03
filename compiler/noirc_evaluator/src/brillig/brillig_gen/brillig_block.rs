@@ -657,7 +657,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             Instruction::ArraySet { array, index, value, mutable } => {
                 assert!(
                     !mutable,
-                    "Brillig does not support mutable array set, use Brillig's ref-counting instead"
+                    "Brillig does not support mutable array_set, use Brillig's ref-counting instead"
                 );
                 self.codegen_array_set(instruction_id, *array, *index, *value, dfg);
             }
