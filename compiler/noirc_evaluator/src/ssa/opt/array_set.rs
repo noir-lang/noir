@@ -294,7 +294,6 @@ mod tests {
 
     #[test]
     fn folds_conditional_array_set_into_make_array_when_array_set_predicate_is_true() {
-        // The array_set here can be folded into the make_array because they are both under the same predicate.
         let src = "
         acir(inline) predicate_pure fn main f0 {
           b0(v4: u1):
