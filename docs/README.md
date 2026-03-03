@@ -32,9 +32,9 @@ If you are in the main noir directory, navigate into this docs directory:
 cd docs
 ```
 
-### Installation
+### Dependency Installation
 
-Install dependencies:
+Install Node.js dependencies:
 
 ```sh
 yarn install
