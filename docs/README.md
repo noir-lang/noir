@@ -24,12 +24,19 @@ Check out the contributing guide [here](../CONTRIBUTING.md).
 - GNU ld (tested working with v2)
 - jq (tested working with v1)
 
-### Installation
+### Navigation
 
-Navigate to the docs directory and install dependencies:
+If you are in the main noir directory, navigate into this docs directory:
 
 ```sh
 cd docs
+```
+
+### Installation
+
+Install dependencies:
+
+```sh
 yarn install
 ```
 
