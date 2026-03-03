@@ -883,7 +883,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             Value::U128(value) => self.push_str(&value.to_string()),
             Value::String(bytes) => {
                 let string = String::from_utf8_lossy(bytes);
-                self.push_str(&format!("{string:?}"))
+                self.push_str(&format!("{string:?}"));
             }
             Value::FormatString(fragments, _typ, _) => {
                 let has_values = fragments
