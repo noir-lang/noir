@@ -2,7 +2,7 @@ use acvm::acir::brillig::Opcode as BrilligOpcode;
 use acvm::acir::brillig::lengths::SemanticLength;
 use acvm::acir::circuit::ErrorSelector;
 use noirc_errors::call_stack::CallStackId;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use super::procedures::ProcedureId;
 use crate::ErrorType;
@@ -100,10 +100,52 @@ pub struct BrilligArtifact<F> {
 
 impl<F: std::fmt::Display> std::fmt::Display for BrilligArtifact<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // If we have unresolved jumps, show a comment with the destination, instead of just 0.
+        let unresolved_jumps = self
+            .unresolved_jumps
+            .iter()
+            .chain(self.unresolved_external_call_labels.iter())
+            .map(|(loc, label)| (*loc, label))
+            .collect::<HashMap<_, _>>();
+
+        let unresolved_jump_destinations = unresolved_jumps.values().collect::<HashSet<_>>();
+
+        // Show where the labels actually are.
+        let label_locations = self
+            .labels
+            .iter()
+            .filter_map(|(label, loc)| {
+                unresolved_jump_destinations.contains(&label).then_some((*loc, label))
+            })
+            .collect::<HashMap<_, _>>();
+
+        // The default label format is a bit verbose.
+        fn short_label(label: &&Label) -> String {
+            let typ = match &label.label_type {
+                LabelType::Entrypoint => "entry".to_string(),
+                LabelType::Function(id, Some(block_id)) => format!("{id} / {block_id}"),
+                LabelType::Function(id, None) => format!("{id}"),
+                LabelType::Procedure(procedure_id) => format!("{procedure_id}"),
+                LabelType::GlobalInit(id) => format!("global init {id}"),
+            };
+            label.section.map(|s| format!("{typ} / {s}")).unwrap_or(typ)
+        }
+
+        let get_comment = |index| {
+            if unresolved_jumps.is_empty() {
+                return String::new();
+            }
+            let destination =
+                unresolved_jumps.get(&index).map(short_label).map(|label| format!("-> {label}"));
+            let label = label_locations.get(&index).map(short_label);
+            destination.or(label).map(|s| format!(" // {s}")).unwrap_or_default()
+        };
+
         writeln!(f, "fn {}", self.name)?;
         let width = self.byte_code.len().to_string().len();
         for (index, opcode) in self.byte_code.iter().enumerate() {
-            writeln!(f, "{index:>width$}: {opcode}")?;
+            let comment = get_comment(index);
+            writeln!(f, "{index:>width$}: {opcode}{comment}")?;
         }
         Ok(())
     }
@@ -130,15 +172,15 @@ impl std::fmt::Display for LabelType {
         match self {
             LabelType::Function(function_id, block_id) => {
                 if let Some(block_id) = block_id {
-                    write!(f, "Function({function_id:?}, {block_id:?})")
+                    write!(f, "Function({function_id}, {block_id})")
                 } else {
-                    write!(f, "Function({function_id:?})")
+                    write!(f, "Function({function_id})")
                 }
             }
             LabelType::Entrypoint => write!(f, "Entrypoint"),
-            LabelType::Procedure(procedure_id) => write!(f, "Procedure({procedure_id:?})"),
+            LabelType::Procedure(procedure_id) => write!(f, "Procedure({procedure_id})"),
             LabelType::GlobalInit(function_id) => {
-                write!(f, "Globals Initialization({function_id:?})")
+                write!(f, "Globals Initialization({function_id})")
             }
         }
     }
@@ -183,9 +225,9 @@ impl Label {
 impl std::fmt::Display for Label {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if let Some(section) = self.section {
-            write!(f, "{:?} - {}", self.label_type, section)
+            write!(f, "{} / {}", self.label_type, section)
         } else {
-            write!(f, "{:?}", self.label_type)
+            write!(f, "{}", self.label_type)
         }
     }
 }

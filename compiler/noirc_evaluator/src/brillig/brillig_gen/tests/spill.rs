@@ -49,7 +49,7 @@ fn brillig_spill_and_reload() {
     //   18:    Return
     assert_artifact_snapshot!(main, @r"
     fn main
-     0: call 0
+     0: call 0 // -> CheckMaxStackDepth
      1: sp[1] = @1
      2: @3 = const u32 1
      3: @1 = u32 add @1, @3
@@ -114,7 +114,7 @@ fn brillig_spill_successor_params() {
     //   26:    Return
     assert_artifact_snapshot!(main, @r"
     fn main
-     0: call 0
+     0: call 0 // -> CheckMaxStackDepth
      1: sp[1] = @1
      2: @3 = const u32 3
      3: @1 = u32 add @1, @3
@@ -127,8 +127,8 @@ fn brillig_spill_successor_params() {
     10: @4 = const u32 2
     11: @3 = u32 add sp[1], @4
     12: store sp[2] at @3
-    13: jump to 0
-    14: @4 = const u32 0
+    13: jump to 0 // -> f0 / b1
+    14: @4 = const u32 0 // f0 / b1
     15: @3 = u32 add sp[1], @4
     16: sp[3] = load @3
     17: @4 = const u32 1

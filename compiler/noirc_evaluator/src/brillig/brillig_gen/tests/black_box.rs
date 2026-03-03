@@ -18,7 +18,7 @@ fn brillig_blake2s() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-     0: call 0
+     0: call 0 // -> CheckMaxStackDepth
      1: sp[3] = @1
      2: sp[4] = const u32 33
      3: @1 = u32 add @1, sp[4]
@@ -45,7 +45,7 @@ fn brillig_blake3() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-     0: call 0
+     0: call 0 // -> CheckMaxStackDepth
      1: sp[3] = @1
      2: sp[4] = const u32 33
      3: @1 = u32 add @1, sp[4]
@@ -73,7 +73,7 @@ fn brillig_keccakf1600() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-     0: call 0
+     0: call 0 // -> CheckMaxStackDepth
      1: sp[3] = @1
      2: sp[4] = const u32 26
      3: @1 = u32 add @1, sp[4]
@@ -101,7 +101,7 @@ fn brillig_ecdsa_secp256k1() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-    0: call 0
+    0: call 0 // -> CheckMaxStackDepth
     1: sp[6] = const bool 1
     2: sp[8] = u32 add sp[5], @2
     3: sp[9] = u32 add sp[2], @2
@@ -128,7 +128,7 @@ fn brillig_ecdsa_secp256r1() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-    0: call 0
+    0: call 0 // -> CheckMaxStackDepth
     1: sp[6] = const bool 1
     2: sp[8] = u32 add sp[5], @2
     3: sp[9] = u32 add sp[2], @2
@@ -155,7 +155,7 @@ fn brillig_multi_scalar_mul() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-     0: call 0
+     0: call 0 // -> CheckMaxStackDepth
      1: sp[4] = const bool 1
      2: sp[5] = @1
      3: sp[6] = const u32 4
@@ -185,7 +185,7 @@ fn brillig_embedded_curve_add() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-     0: call 0
+     0: call 0 // -> CheckMaxStackDepth
      1: sp[8] = const bool 1
      2: sp[9] = @1
      3: sp[10] = const u32 4
@@ -213,7 +213,7 @@ fn brillig_poseidon2_permutation() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-     0: call 0
+     0: call 0 // -> CheckMaxStackDepth
      1: sp[3] = @1
      2: sp[4] = const u32 5
      3: @1 = u32 add @1, sp[4]
@@ -240,7 +240,7 @@ fn brillig_sha256_compression() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-     0: call 0
+     0: call 0 // -> CheckMaxStackDepth
      1: sp[4] = @1
      2: sp[5] = const u32 9
      3: @1 = u32 add @1, sp[5]
@@ -269,7 +269,7 @@ fn brillig_aes128_encrypt() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-     0: call 0
+     0: call 0 // -> CheckMaxStackDepth
      1: sp[5] = @1
      2: sp[6] = const u32 17
      3: @1 = u32 add @1, sp[6]
