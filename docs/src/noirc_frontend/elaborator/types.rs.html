@@ -755,7 +755,7 @@
 <a href=#755 id=755 data-nosnippet>755</a>                    <span class="kw">return </span><span class="prelude-val">None</span>;
 <a href=#756 id=756 data-nosnippet>756</a>                };
 <a href=#757 id=757 data-nosnippet>757</a>
-<a href=#758 id=758 data-nosnippet>758</a>                <span class="kw">let </span><span class="prelude-val">Some</span>(global_value) = global_value.to_non_negative_signed_field() <span class="kw">else </span>{
+<a href=#758 id=758 data-nosnippet>758</a>                <span class="kw">let </span><span class="prelude-val">Some</span>(global_value) = global_value.as_non_negative_signed_field() <span class="kw">else </span>{
 <a href=#759 id=759 data-nosnippet>759</a>                    <span class="kw">let </span>global_value = global_value.clone();
 <a href=#760 id=760 data-nosnippet>760</a>                    <span class="kw">if </span>global_value.is_integral() {
 <a href=#761 id=761 data-nosnippet>761</a>                        <span class="self">self</span>.push_err(ResolverError::NegativeGlobalType { location, global_value });

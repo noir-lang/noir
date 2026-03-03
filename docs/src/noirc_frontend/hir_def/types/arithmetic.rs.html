@@ -744,7 +744,7 @@
 <a href=#744 id=744 data-nosnippet>744</a>    </span><span class="kw">fn </span>numeric_value_to_type(value: Value) -&gt; Type {
 <a href=#745 id=745 data-nosnippet>745</a>        <span class="kw">let </span>kind_type = value.get_type();
 <a href=#746 id=746 data-nosnippet>746</a>        <span class="kw">let </span>kind = Kind::numeric(kind_type.into_owned());
-<a href=#747 id=747 data-nosnippet>747</a>        <span class="kw">let </span>value = value.to_signed_field().expect(<span class="string">"ICE: numeric_value_to_type: expected a "</span>);
+<a href=#747 id=747 data-nosnippet>747</a>        <span class="kw">let </span>value = value.as_signed_field().expect(<span class="string">"ICE: numeric_value_to_type: expected a field"</span>);
 <a href=#748 id=748 data-nosnippet>748</a>        Type::Constant(value, kind)
 <a href=#749 id=749 data-nosnippet>749</a>    }
 <a href=#750 id=750 data-nosnippet>750</a>

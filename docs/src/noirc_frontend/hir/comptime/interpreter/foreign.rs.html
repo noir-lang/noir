@@ -244,7 +244,7 @@
 <a href=#244 id=244 data-nosnippet>244</a>        .poseidon2_permutation(<span class="kw-2">&amp;</span>input)
 <a href=#245 id=245 data-nosnippet>245</a>        .map_err(|error| InterpreterError::BlackBoxError(error, location))<span class="question-mark">?</span>;
 <a href=#246 id=246 data-nosnippet>246</a>
-<a href=#247 id=247 data-nosnippet>247</a>    <span class="kw">let </span>array = fields.into_iter().map(|f| Value::Field(SignedField::positive(f))).collect();
+<a href=#247 id=247 data-nosnippet>247</a>    <span class="kw">let </span>array = fields.into_iter().map(|f| Value::field(SignedField::positive(f))).collect();
 <a href=#248 id=248 data-nosnippet>248</a>    <span class="prelude-val">Ok</span>(Value::Array(array, typ))
 <a href=#249 id=249 data-nosnippet>249</a>}
 <a href=#250 id=250 data-nosnippet>250</a>
@@ -254,7 +254,7 @@
 <a href=#254 id=254 data-nosnippet>254</a>) -&gt; IResult&lt;Value&gt; {
 <a href=#255 id=255 data-nosnippet>255</a>    check_argument_count(<span class="number">0</span>, <span class="kw-2">&amp;</span>arguments, location)<span class="question-mark">?</span>;
 <a href=#256 id=256 data-nosnippet>256</a>    <span class="kw">let </span>size = bn254_blackbox_solver::poseidon2_config_state_size();
-<a href=#257 id=257 data-nosnippet>257</a>    <span class="prelude-val">Ok</span>(Value::U32(size))
+<a href=#257 id=257 data-nosnippet>257</a>    <span class="prelude-val">Ok</span>(Value::u32(size))
 <a href=#258 id=258 data-nosnippet>258</a>}
 <a href=#259 id=259 data-nosnippet>259</a>
 <a href=#260 id=260 data-nosnippet>260</a><span class="doccomment">/// `fn keccakf1600(input: [u64; 25]) -&gt; [u64; 25] {}`
@@ -266,7 +266,7 @@
 <a href=#266 id=266 data-nosnippet>266</a>    <span class="kw">let </span>result_lanes = acvm::blackbox_solver::keccakf1600(state)
 <a href=#267 id=267 data-nosnippet>267</a>        .map_err(|error| InterpreterError::BlackBoxError(error, location))<span class="question-mark">?</span>;
 <a href=#268 id=268 data-nosnippet>268</a>
-<a href=#269 id=269 data-nosnippet>269</a>    <span class="kw">let </span>array: Vector&lt;Value&gt; = result_lanes.into_iter().map(Value::U64).collect();
+<a href=#269 id=269 data-nosnippet>269</a>    <span class="kw">let </span>array: Vector&lt;Value&gt; = result_lanes.into_iter().map(Value::u64).collect();
 <a href=#270 id=270 data-nosnippet>270</a>    <span class="prelude-val">Ok</span>(Value::Array(array, typ))
 <a href=#271 id=271 data-nosnippet>271</a>}
 <a href=#272 id=272 data-nosnippet>272</a>
@@ -279,7 +279,7 @@
 <a href=#279 id=279 data-nosnippet>279</a>
 <a href=#280 id=280 data-nosnippet>280</a>    acvm::blackbox_solver::sha256_compression(<span class="kw-2">&amp;mut </span>state, <span class="kw-2">&amp;</span>input);
 <a href=#281 id=281 data-nosnippet>281</a>
-<a href=#282 id=282 data-nosnippet>282</a>    <span class="kw">let </span>state = state.into_iter().map(Value::U32).collect();
+<a href=#282 id=282 data-nosnippet>282</a>    <span class="kw">let </span>state = state.into_iter().map(Value::u32).collect();
 <a href=#283 id=283 data-nosnippet>283</a>    <span class="prelude-val">Ok</span>(Value::Array(state, typ))
 <a href=#284 id=284 data-nosnippet>284</a>}
 <a href=#285 id=285 data-nosnippet>285</a>
@@ -316,8 +316,8 @@
 <a href=#316 id=316 data-nosnippet>316</a>) -&gt; Value {
 <a href=#317 id=317 data-nosnippet>317</a>    to_struct(
 <a href=#318 id=318 data-nosnippet>318</a>        [
-<a href=#319 id=319 data-nosnippet>319</a>            (<span class="string">"x"</span>, Value::Field(SignedField::positive(x))),
-<a href=#320 id=320 data-nosnippet>320</a>            (<span class="string">"y"</span>, Value::Field(SignedField::positive(y))),
+<a href=#319 id=319 data-nosnippet>319</a>            (<span class="string">"x"</span>, Value::field(SignedField::positive(x))),
+<a href=#320 id=320 data-nosnippet>320</a>            (<span class="string">"y"</span>, Value::field(SignedField::positive(y))),
 <a href=#321 id=321 data-nosnippet>321</a>            (<span class="string">"is_infinite"</span>, Value::Bool(is_infinite)),
 <a href=#322 id=322 data-nosnippet>322</a>        ],
 <a href=#323 id=323 data-nosnippet>323</a>        typ,

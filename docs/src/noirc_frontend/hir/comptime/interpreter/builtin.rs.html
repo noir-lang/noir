@@ -79,7 +79,7 @@
 <a href=#79 id=79 data-nosnippet>79</a>            <span class="string">"apply_range_constraint" </span>=&gt; apply_range_constraint(arguments, location, call_stack),
 <a href=#80 id=80 data-nosnippet>80</a>            <span class="string">"array_as_str_unchecked" </span>=&gt; array_as_str_unchecked(arguments, location),
 <a href=#81 id=81 data-nosnippet>81</a>            <span class="string">"array_len" </span>=&gt; array_len(arguments, location),
-<a href=#82 id=82 data-nosnippet>82</a>            <span class="string">"array_refcount" </span>=&gt; <span class="prelude-val">Ok</span>(Value::U32(<span class="number">0</span>)),
+<a href=#82 id=82 data-nosnippet>82</a>            <span class="string">"array_refcount" </span>=&gt; <span class="prelude-val">Ok</span>(Value::u32(<span class="number">0</span>)),
 <a href=#83 id=83 data-nosnippet>83</a>            <span class="string">"assert_constant" </span>=&gt; <span class="prelude-val">Ok</span>(Value::Unit),
 <a href=#84 id=84 data-nosnippet>84</a>            <span class="string">"as_vector" </span>=&gt; as_vector(arguments, location),
 <a href=#85 id=85 data-nosnippet>85</a>            <span class="string">"as_witness" </span>=&gt; as_witness(arguments, location),
@@ -192,7 +192,7 @@
 <a href=#192 id=192 data-nosnippet>192</a>            <span class="string">"vector_pop_front" </span>=&gt; vector_pop_front(arguments, location, call_stack),
 <a href=#193 id=193 data-nosnippet>193</a>            <span class="string">"vector_push_back" </span>=&gt; vector_push_back(arguments, location),
 <a href=#194 id=194 data-nosnippet>194</a>            <span class="string">"vector_push_front" </span>=&gt; vector_push_front(arguments, location),
-<a href=#195 id=195 data-nosnippet>195</a>            <span class="string">"vector_refcount" </span>=&gt; <span class="prelude-val">Ok</span>(Value::U32(<span class="number">0</span>)),
+<a href=#195 id=195 data-nosnippet>195</a>            <span class="string">"vector_refcount" </span>=&gt; <span class="prelude-val">Ok</span>(Value::u32(<span class="number">0</span>)),
 <a href=#196 id=196 data-nosnippet>196</a>            <span class="string">"vector_remove" </span>=&gt; vector_remove(arguments, location, call_stack),
 <a href=#197 id=197 data-nosnippet>197</a>            <span class="string">"static_assert" </span>=&gt; static_assert(interner, arguments, location, call_stack),
 <a href=#198 id=198 data-nosnippet>198</a>            <span class="string">"str_as_bytes" </span>=&gt; str_as_bytes(arguments, location),
@@ -291,7 +291,7 @@
 <a href=#291 id=291 data-nosnippet>291</a>    <span class="kw">let </span>(argument, argument_location) = check_one_argument(arguments, location)<span class="question-mark">?</span>;
 <a href=#292 id=292 data-nosnippet>292</a>
 <a href=#293 id=293 data-nosnippet>293</a>    <span class="kw">match </span>argument {
-<a href=#294 id=294 data-nosnippet>294</a>        Value::Array(values, <span class="kw">_</span>) | Value::Vector(values, <span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(Value::U32(values.len() <span class="kw">as </span>u32)),
+<a href=#294 id=294 data-nosnippet>294</a>        Value::Array(values, <span class="kw">_</span>) | Value::Vector(values, <span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(Value::u32(values.len() <span class="kw">as </span>u32)),
 <a href=#295 id=295 data-nosnippet>295</a>        value =&gt; {
 <a href=#296 id=296 data-nosnippet>296</a>            <span class="kw">let </span>expected = <span class="string">"array"</span>.to_string();
 <a href=#297 id=297 data-nosnippet>297</a>            <span class="kw">let </span>actual = value.get_type().into_owned();
@@ -403,7 +403,7 @@
 <a href=#403 id=403 data-nosnippet>403</a><span class="kw">fn </span>str_as_bytes(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
 <a href=#404 id=404 data-nosnippet>404</a>    <span class="kw">let </span>string = check_one_argument(arguments, location)<span class="question-mark">?</span>;
 <a href=#405 id=405 data-nosnippet>405</a>    <span class="kw">let </span>string_bytes = get_str(string)<span class="question-mark">?</span>;
-<a href=#406 id=406 data-nosnippet>406</a>    <span class="kw">let </span>bytes: Vector&lt;Value&gt; = string_bytes.iter().copied().map(Value::U8).collect();
+<a href=#406 id=406 data-nosnippet>406</a>    <span class="kw">let </span>bytes: Vector&lt;Value&gt; = string_bytes.iter().copied().map(Value::u8).collect();
 <a href=#407 id=407 data-nosnippet>407</a>    <span class="kw">let </span>byte_array_type = byte_array_type(bytes.len());
 <a href=#408 id=408 data-nosnippet>408</a>    <span class="prelude-val">Ok</span>(Value::Array(bytes, byte_array_type))
 <a href=#409 id=409 data-nosnippet>409</a>}
@@ -1014,7 +1014,7 @@
 <a href=#1014 id=1014 data-nosnippet>1014</a>    call_stack: <span class="kw-2">&amp;</span>Vector&lt;Location&gt;,
 <a href=#1015 id=1015 data-nosnippet>1015</a>) -&gt; IResult&lt;Value&gt; {
 <a href=#1016 id=1016 data-nosnippet>1016</a>    <span class="kw">let </span>value = check_one_argument(arguments, location)<span class="question-mark">?</span>;
-<a href=#1017 id=1017 data-nosnippet>1017</a>    <span class="kw">let </span>radix = (Value::U32(<span class="number">2</span>), value.<span class="number">1</span>);
+<a href=#1017 id=1017 data-nosnippet>1017</a>    <span class="kw">let </span>radix = (Value::u32(<span class="number">2</span>), value.<span class="number">1</span>);
 <a href=#1018 id=1018 data-nosnippet>1018</a>    to_be_radix(<span class="macro">vec!</span>[value, radix], return_type, location, call_stack)
 <a href=#1019 id=1019 data-nosnippet>1019</a>}
 <a href=#1020 id=1020 data-nosnippet>1020</a>
@@ -1025,7 +1025,7 @@
 <a href=#1025 id=1025 data-nosnippet>1025</a>    call_stack: <span class="kw-2">&amp;</span>Vector&lt;Location&gt;,
 <a href=#1026 id=1026 data-nosnippet>1026</a>) -&gt; IResult&lt;Value&gt; {
 <a href=#1027 id=1027 data-nosnippet>1027</a>    <span class="kw">let </span>value = check_one_argument(arguments, location)<span class="question-mark">?</span>;
-<a href=#1028 id=1028 data-nosnippet>1028</a>    <span class="kw">let </span>radix = (Value::U32(<span class="number">2</span>), value.<span class="number">1</span>);
+<a href=#1028 id=1028 data-nosnippet>1028</a>    <span class="kw">let </span>radix = (Value::u32(<span class="number">2</span>), value.<span class="number">1</span>);
 <a href=#1029 id=1029 data-nosnippet>1029</a>    to_le_radix(<span class="macro">vec!</span>[value, radix], return_type, location, call_stack)
 <a href=#1030 id=1030 data-nosnippet>1030</a>}
 <a href=#1031 id=1031 data-nosnippet>1031</a>
@@ -1089,7 +1089,7 @@
 <a href=#1089 id=1089 data-nosnippet>1089</a>            <span class="prelude-val">None </span>=&gt; <span class="number">0</span>,
 <a href=#1090 id=1090 data-nosnippet>1090</a>        };
 <a href=#1091 id=1091 data-nosnippet>1091</a>        <span class="comment">// The only built-ins that use these either return `[u1; N]` or `[u8; N]`
-<a href=#1092 id=1092 data-nosnippet>1092</a>        </span><span class="kw">if </span>return_type_is_bits { Value::U1(digit != <span class="number">0</span>) } <span class="kw">else </span>{ Value::U8(digit) }
+<a href=#1092 id=1092 data-nosnippet>1092</a>        </span><span class="kw">if </span>return_type_is_bits { Value::u1(digit != <span class="number">0</span>) } <span class="kw">else </span>{ Value::u8(digit) }
 <a href=#1093 id=1093 data-nosnippet>1093</a>    });
 <a href=#1094 id=1094 data-nosnippet>1094</a>
 <a href=#1095 id=1095 data-nosnippet>1095</a>    <span class="kw">let </span>len: u32 = decomposed_integer
@@ -1140,7 +1140,7 @@
 <a href=#1140 id=1140 data-nosnippet>1140</a>        // since arithmetic generics may be `Type::InfixExpr`s which evaluate to
 <a href=#1141 id=1141 data-nosnippet>1141</a>        // constants but are not actually the `Type::Constant` variant.
 <a href=#1142 id=1142 data-nosnippet>1142</a>        </span><span class="kw">match </span>typ.evaluate_to_u32(location) {
-<a href=#1143 id=1143 data-nosnippet>1143</a>            <span class="prelude-val">Ok</span>(constant) =&gt; <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Value::U32(constant))),
+<a href=#1143 id=1143 data-nosnippet>1143</a>            <span class="prelude-val">Ok</span>(constant) =&gt; <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Value::u32(constant))),
 <a href=#1144 id=1144 data-nosnippet>1144</a>            <span class="prelude-val">Err</span>(err) =&gt; {
 <a href=#1145 id=1145 data-nosnippet>1145</a>                <span class="comment">// Evaluating to a non-constant returns 'None' in user code
 <a href=#1146 id=1146 data-nosnippet>1146</a>                </span><span class="kw">if </span>err.is_non_constant_evaluated() {
@@ -1163,7 +1163,7 @@
 <a href=#1163 id=1163 data-nosnippet>1163</a>    type_as(arguments, return_type, location, |typ| {
 <a href=#1164 id=1164 data-nosnippet>1164</a>        <span class="kw">if let </span>Type::Integer(sign, bits) = typ {
 <a href=#1165 id=1165 data-nosnippet>1165</a>            <span class="kw">let </span>sign = Shared::new(Value::Bool(sign.is_signed()));
-<a href=#1166 id=1166 data-nosnippet>1166</a>            <span class="kw">let </span>bit_size = Shared::new(Value::U8(bits.bit_size()));
+<a href=#1166 id=1166 data-nosnippet>1166</a>            <span class="kw">let </span>bit_size = Shared::new(Value::u8(bits.bit_size()));
 <a href=#1167 id=1167 data-nosnippet>1167</a>            <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[sign, bit_size]))
 <a href=#1168 id=1168 data-nosnippet>1168</a>        } <span class="kw">else </span>{
 <a href=#1169 id=1169 data-nosnippet>1169</a>            <span class="prelude-val">None
@@ -1565,7 +1565,7 @@
 <a href=#1565 id=1565 data-nosnippet>1565</a><span class="comment">// fn zeroed&lt;T&gt;() -&gt; T
 <a href=#1566 id=1566 data-nosnippet>1566</a></span><span class="kw">fn </span>zeroed(return_type: Type, location: Location) -&gt; Value {
 <a href=#1567 id=1567 data-nosnippet>1567</a>    <span class="kw">match </span>return_type {
-<a href=#1568 id=1568 data-nosnippet>1568</a>        Type::FieldElement =&gt; Value::Field(SignedField::zero()),
+<a href=#1568 id=1568 data-nosnippet>1568</a>        Type::FieldElement =&gt; Value::field(SignedField::zero()),
 <a href=#1569 id=1569 data-nosnippet>1569</a>        Type::Array(length_type, elem) =&gt; {
 <a href=#1570 id=1570 data-nosnippet>1570</a>            <span class="kw">if let </span><span class="prelude-val">Ok</span>(length) = length_type.evaluate_to_u32(location) {
 <a href=#1571 id=1571 data-nosnippet>1571</a>                <span class="kw">let </span>element = zeroed(elem.as_ref().clone(), location);
@@ -1578,17 +1578,17 @@
 <a href=#1578 id=1578 data-nosnippet>1578</a>        }
 <a href=#1579 id=1579 data-nosnippet>1579</a>        Type::Vector(<span class="kw">_</span>) =&gt; Value::Vector(Vector::new(), return_type),
 <a href=#1580 id=1580 data-nosnippet>1580</a>        Type::Integer(sign, bits) =&gt; <span class="kw">match </span>(sign, bits) {
-<a href=#1581 id=1581 data-nosnippet>1581</a>            (Signedness::Unsigned, IntegerBitSize::One) =&gt; Value::U1(<span class="bool-val">false</span>),
-<a href=#1582 id=1582 data-nosnippet>1582</a>            (Signedness::Unsigned, IntegerBitSize::Eight) =&gt; Value::U8(<span class="number">0</span>),
-<a href=#1583 id=1583 data-nosnippet>1583</a>            (Signedness::Unsigned, IntegerBitSize::Sixteen) =&gt; Value::U16(<span class="number">0</span>),
-<a href=#1584 id=1584 data-nosnippet>1584</a>            (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) =&gt; Value::U32(<span class="number">0</span>),
-<a href=#1585 id=1585 data-nosnippet>1585</a>            (Signedness::Unsigned, IntegerBitSize::SixtyFour) =&gt; Value::U64(<span class="number">0</span>),
-<a href=#1586 id=1586 data-nosnippet>1586</a>            (Signedness::Unsigned, IntegerBitSize::HundredTwentyEight) =&gt; Value::U128(<span class="number">0</span>),
+<a href=#1581 id=1581 data-nosnippet>1581</a>            (Signedness::Unsigned, IntegerBitSize::One) =&gt; Value::u1(<span class="bool-val">false</span>),
+<a href=#1582 id=1582 data-nosnippet>1582</a>            (Signedness::Unsigned, IntegerBitSize::Eight) =&gt; Value::u8(<span class="number">0</span>),
+<a href=#1583 id=1583 data-nosnippet>1583</a>            (Signedness::Unsigned, IntegerBitSize::Sixteen) =&gt; Value::u16(<span class="number">0</span>),
+<a href=#1584 id=1584 data-nosnippet>1584</a>            (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) =&gt; Value::u32(<span class="number">0</span>),
+<a href=#1585 id=1585 data-nosnippet>1585</a>            (Signedness::Unsigned, IntegerBitSize::SixtyFour) =&gt; Value::u64(<span class="number">0</span>),
+<a href=#1586 id=1586 data-nosnippet>1586</a>            (Signedness::Unsigned, IntegerBitSize::HundredTwentyEight) =&gt; Value::u128(<span class="number">0</span>),
 <a href=#1587 id=1587 data-nosnippet>1587</a>            (Signedness::Signed, IntegerBitSize::One) =&gt; <span class="macro">unreachable!</span>(<span class="string">"invalid type: i1"</span>),
-<a href=#1588 id=1588 data-nosnippet>1588</a>            (Signedness::Signed, IntegerBitSize::Eight) =&gt; Value::I8(<span class="number">0</span>),
-<a href=#1589 id=1589 data-nosnippet>1589</a>            (Signedness::Signed, IntegerBitSize::Sixteen) =&gt; Value::I16(<span class="number">0</span>),
-<a href=#1590 id=1590 data-nosnippet>1590</a>            (Signedness::Signed, IntegerBitSize::ThirtyTwo) =&gt; Value::I32(<span class="number">0</span>),
-<a href=#1591 id=1591 data-nosnippet>1591</a>            (Signedness::Signed, IntegerBitSize::SixtyFour) =&gt; Value::I64(<span class="number">0</span>),
+<a href=#1588 id=1588 data-nosnippet>1588</a>            (Signedness::Signed, IntegerBitSize::Eight) =&gt; Value::i8(<span class="number">0</span>),
+<a href=#1589 id=1589 data-nosnippet>1589</a>            (Signedness::Signed, IntegerBitSize::Sixteen) =&gt; Value::i16(<span class="number">0</span>),
+<a href=#1590 id=1590 data-nosnippet>1590</a>            (Signedness::Signed, IntegerBitSize::ThirtyTwo) =&gt; Value::i32(<span class="number">0</span>),
+<a href=#1591 id=1591 data-nosnippet>1591</a>            (Signedness::Signed, IntegerBitSize::SixtyFour) =&gt; Value::i64(<span class="number">0</span>),
 <a href=#1592 id=1592 data-nosnippet>1592</a>            (Signedness::Signed, IntegerBitSize::HundredTwentyEight) =&gt; {
 <a href=#1593 id=1593 data-nosnippet>1593</a>                <span class="macro">unreachable!</span>(<span class="string">"invalid type: i128"</span>)
 <a href=#1594 id=1594 data-nosnippet>1594</a>            }
@@ -2077,14 +2077,14 @@
 <a href=#2077 id=2077 data-nosnippet>2077</a>    expr_as(interner, arguments, return_type, location, |expr| <span class="kw">match </span>expr {
 <a href=#2078 id=2078 data-nosnippet>2078</a>        ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field, _suffix))) =&gt; {
 <a href=#2079 id=2079 data-nosnippet>2079</a>            <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[
-<a href=#2080 id=2080 data-nosnippet>2080</a>                Shared::new(Value::Field(SignedField::positive(field.absolute_value()))),
+<a href=#2080 id=2080 data-nosnippet>2080</a>                Shared::new(Value::field(SignedField::positive(field.absolute_value()))),
 <a href=#2081 id=2081 data-nosnippet>2081</a>                Shared::new(Value::Bool(field.is_negative())),
 <a href=#2082 id=2082 data-nosnippet>2082</a>            ]))
 <a href=#2083 id=2083 data-nosnippet>2083</a>        }
 <a href=#2084 id=2084 data-nosnippet>2084</a>        ExprValue::Expression(ExpressionKind::Resolved(id)) =&gt; {
 <a href=#2085 id=2085 data-nosnippet>2085</a>            <span class="kw">if let </span>HirExpression::Literal(HirLiteral::Integer(field)) = interner.expression(<span class="kw-2">&amp;</span>id) {
 <a href=#2086 id=2086 data-nosnippet>2086</a>                <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[
-<a href=#2087 id=2087 data-nosnippet>2087</a>                    Shared::new(Value::Field(SignedField::positive(field.absolute_value()))),
+<a href=#2087 id=2087 data-nosnippet>2087</a>                    Shared::new(Value::field(SignedField::positive(field.absolute_value()))),
 <a href=#2088 id=2088 data-nosnippet>2088</a>                    Shared::new(Value::Bool(field.is_negative())),
 <a href=#2089 id=2089 data-nosnippet>2089</a>                ]))
 <a href=#2090 id=2090 data-nosnippet>2090</a>            } <span class="kw">else </span>{
@@ -3119,7 +3119,7 @@
 <a href=#3119 id=3119 data-nosnippet>3119</a>    check_argument_count(<span class="number">0</span>, <span class="kw-2">&amp;</span>arguments, location)<span class="question-mark">?</span>;
 <a href=#3120 id=3120 data-nosnippet>3120</a>
 <a href=#3121 id=3121 data-nosnippet>3121</a>    <span class="kw">let </span>bits = FieldElement::modulus().to_radix_be(<span class="number">2</span>);
-<a href=#3122 id=3122 data-nosnippet>3122</a>    <span class="kw">let </span>bits_vector = bits.into_iter().map(|bit| Value::U1(bit != <span class="number">0</span>)).collect();
+<a href=#3122 id=3122 data-nosnippet>3122</a>    <span class="kw">let </span>bits_vector = bits.into_iter().map(|bit| Value::u1(bit != <span class="number">0</span>)).collect();
 <a href=#3123 id=3123 data-nosnippet>3123</a>
 <a href=#3124 id=3124 data-nosnippet>3124</a>    <span class="kw">let </span>int_type = Type::Integer(Signedness::Unsigned, IntegerBitSize::One);
 <a href=#3125 id=3125 data-nosnippet>3125</a>    <span class="kw">let </span>typ = Type::Vector(Box::new(int_type));
@@ -3130,7 +3130,7 @@
 <a href=#3130 id=3130 data-nosnippet>3130</a>    check_argument_count(<span class="number">0</span>, <span class="kw-2">&amp;</span>arguments, location)<span class="question-mark">?</span>;
 <a href=#3131 id=3131 data-nosnippet>3131</a>
 <a href=#3132 id=3132 data-nosnippet>3132</a>    <span class="kw">let </span>bytes = FieldElement::modulus().to_bytes_be();
-<a href=#3133 id=3133 data-nosnippet>3133</a>    <span class="kw">let </span>bytes_vector = bytes.into_iter().map(Value::U8).collect();
+<a href=#3133 id=3133 data-nosnippet>3133</a>    <span class="kw">let </span>bytes_vector = bytes.into_iter().map(Value::u8).collect();
 <a href=#3134 id=3134 data-nosnippet>3134</a>
 <a href=#3135 id=3135 data-nosnippet>3135</a>    <span class="kw">let </span>int_type = Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight);
 <a href=#3136 id=3136 data-nosnippet>3136</a>    <span class="kw">let </span>typ = Type::Vector(Box::new(int_type));
@@ -3156,7 +3156,7 @@
 <a href=#3156 id=3156 data-nosnippet>3156</a><span class="kw">fn </span>modulus_num_bits(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
 <a href=#3157 id=3157 data-nosnippet>3157</a>    check_argument_count(<span class="number">0</span>, <span class="kw-2">&amp;</span>arguments, location)<span class="question-mark">?</span>;
 <a href=#3158 id=3158 data-nosnippet>3158</a>    <span class="kw">let </span>bits = FieldElement::max_num_bits().into();
-<a href=#3159 id=3159 data-nosnippet>3159</a>    <span class="prelude-val">Ok</span>(Value::U64(bits))
+<a href=#3159 id=3159 data-nosnippet>3159</a>    <span class="prelude-val">Ok</span>(Value::u64(bits))
 <a href=#3160 id=3160 data-nosnippet>3160</a>}
 <a href=#3161 id=3161 data-nosnippet>3161</a>
 <a href=#3162 id=3162 data-nosnippet>3162</a><span class="comment">// fn quoted_eq(_first: Quoted, _second: Quoted) -&gt; bool
@@ -3193,7 +3193,7 @@
 <a href=#3193 id=3193 data-nosnippet>3193</a>    <span class="kw">let </span><span class="kw-2">mut </span>hasher = std::collections::hash_map::DefaultHasher::new();
 <a href=#3194 id=3194 data-nosnippet>3194</a>    tokens_string.hash(<span class="kw-2">&amp;mut </span>hasher);
 <a href=#3195 id=3195 data-nosnippet>3195</a>    <span class="kw">let </span>hash = hasher.finish();
-<a href=#3196 id=3196 data-nosnippet>3196</a>    <span class="prelude-val">Ok</span>(Value::Field(SignedField::positive(u128::from(hash))))
+<a href=#3196 id=3196 data-nosnippet>3196</a>    <span class="prelude-val">Ok</span>(Value::field(SignedField::positive(u128::from(hash))))
 <a href=#3197 id=3197 data-nosnippet>3197</a>}
 <a href=#3198 id=3198 data-nosnippet>3198</a>
 <a href=#3199 id=3199 data-nosnippet>3199</a><span class="kw">fn </span>trait_def_as_trait_constraint(
@@ -3286,9 +3286,9 @@
 <a href=#3286 id=3286 data-nosnippet>3286</a>        <span class="kw">let </span>y = FieldElement::from_be_bytes_reduce(<span class="kw-2">&amp;</span>y_big.to_bytes_be());
 <a href=#3287 id=3287 data-nosnippet>3287</a>        <span class="kw">let </span><span class="kw-2">mut </span>embedded_curve_point_fields = HashMap::default();
 <a href=#3288 id=3288 data-nosnippet>3288</a>        embedded_curve_point_fields
-<a href=#3289 id=3289 data-nosnippet>3289</a>            .insert(x_field_name.clone(), Shared::new(Value::Field(SignedField::positive(x))));
+<a href=#3289 id=3289 data-nosnippet>3289</a>            .insert(x_field_name.clone(), Shared::new(Value::field(SignedField::positive(x))));
 <a href=#3290 id=3290 data-nosnippet>3290</a>        embedded_curve_point_fields
-<a href=#3291 id=3291 data-nosnippet>3291</a>            .insert(y_field_name.clone(), Shared::new(Value::Field(SignedField::positive(y))));
+<a href=#3291 id=3291 data-nosnippet>3291</a>            .insert(y_field_name.clone(), Shared::new(Value::field(SignedField::positive(y))));
 <a href=#3292 id=3292 data-nosnippet>3292</a>        embedded_curve_point_fields
 <a href=#3293 id=3293 data-nosnippet>3293</a>            .insert(is_infinite_field_name.clone(), Shared::new(Value::Bool(is_infinite)));
 <a href=#3294 id=3294 data-nosnippet>3294</a>        <span class="kw">let </span>embedded_curve_point_struct =
