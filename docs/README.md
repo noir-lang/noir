@@ -84,6 +84,32 @@ contents hosting service.
 yarn serve
 ```
 
+### Version Cutting
+
+The cutting of new versioned docs is automatically managed by the [release GitHub Action](../.github/workflows/release.yml).
+
+To manually cut new versions for testing or patching purposes:
+
+1. Checkout the desired content to cut with:
+
+```sh
+git checkout <version_tag>
+```
+
+2. Cut a new version based on the checked out content:
+
+```sh
+yarn cut_version <version_name>
+```
+
+3. Start a development server serving docs preview:
+
+```sh
+yarn dev
+```
+
+> **Note**: Only the latest stable versions are expected to show by default. To test cutting a custom version, manually edit the `versions.json` file after running step (2).
+
 ## Production Testing
 
 The site will be deployed at `noir-lang.org/docs/`. Test production configuration locally:
