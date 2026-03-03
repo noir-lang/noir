@@ -518,7 +518,6 @@ fn simplify_vector_push_back(
     if element_type.element_size() != ElementTypesLength(1) {
         return SimplifyResult::None;
     }
-    assert_eq!(arguments.len(), 3, "should only push a single item");
 
     // The capacity must be an integer so that we can compare it against the vector length
     let capacity = dfg.make_constant((vector.len() as u128).into(), NumericType::length_type());
@@ -534,8 +533,9 @@ fn simplify_vector_push_back(
 
     let new_vector_length = increment_vector_length(arguments[0], dfg, block, call_stack);
 
-    vector.push_back(arguments[2]);
-
+    for elem in &arguments[2..] {
+        vector.push_back(*elem);
+    }
     let vector_size = SemiFlattenedLength(assert_u32(vector.len()));
     let element_size = element_type.element_size();
     let new_vector = make_array(dfg, vector, element_type, block, call_stack);
