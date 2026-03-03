@@ -177,7 +177,7 @@ mod tests {
     fn compile_procedure_to_string(procedure_id: ProcedureId) -> String {
         let options = BrilligOptions::default();
         let artifact = compile_procedure::<FieldElement>(procedure_id, &options, 0);
-        artifact.to_string()
+        artifact.finish().to_string()
     }
 
     #[test]
@@ -187,21 +187,21 @@ mod tests {
         fn 
          0: @6 = load @3
          1: @7 = u32 eq @6, @2
-         2: jump if @7 to 0
+         2: jump if @7 to 17
          3: @5 = @1
          4: @1 = u32 add @1, @4
          5: @9 = u32 add @3, @4
          6: @10 = @3
          7: @11 = @5
          8: @12 = u32 eq @10, @9
-         9: jump if @12 to 0
+         9: jump if @12 to 15
         10: @8 = load @10
         11: store @8 at @11
         12: @10 = u32 add @10, @2
         13: @11 = u32 add @11, @2
-        14: jump to 0
+        14: jump to 8
         15: @5 = indirect const u32 1
-        16: jump to 0
+        16: jump to 18
         17: @5 = @3
         18: return
         ");
