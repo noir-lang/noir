@@ -1,6 +1,7 @@
 use acvm::acir::brillig::Opcode as BrilligOpcode;
 use acvm::acir::brillig::lengths::SemanticLength;
 use acvm::acir::circuit::ErrorSelector;
+use iter_extended::vecmap;
 use noirc_errors::call_stack::CallStackId;
 use std::collections::{BTreeMap, HashMap, HashSet};
 
@@ -110,15 +111,16 @@ impl<F: std::fmt::Display> std::fmt::Display for BrilligArtifact<F> {
 
         let unresolved_jump_destinations = unresolved_jumps.values().collect::<HashSet<_>>();
 
-        // Show where the labels actually are.
-        let label_locations = self
-            .labels
-            .iter()
-            .filter_map(|(label, loc)| {
-                // We could show labels for every block, but for now just for jump destinations.
-                unresolved_jump_destinations.contains(&label).then_some((*loc, label))
-            })
-            .collect::<HashMap<_, _>>();
+        // Show where the labels actually are. There can be multiple at the same position.
+        let mut labels_by_loc: HashMap<usize, Vec<&Label>> = HashMap::new();
+        for (label, loc) in &self.labels {
+            // We could show labels for every block, but for now just for jump destinations.
+            if !unresolved_jump_destinations.contains(&label) {
+                continue;
+            }
+            let labels = labels_by_loc.entry(*loc).or_default();
+            labels.push(label);
+        }
 
         // The default label format is a bit verbose.
         fn short_label(label: &&Label) -> String {
@@ -133,6 +135,7 @@ impl<F: std::fmt::Display> std::fmt::Display for BrilligArtifact<F> {
         }
 
         let get_comment = |index| {
+            // Only annotate if there are jumps. We could show labels anyway if we wanted.
             if unresolved_jumps.is_empty() {
                 return String::new();
             }
@@ -144,8 +147,9 @@ impl<F: std::fmt::Display> std::fmt::Display for BrilligArtifact<F> {
                     format!("-> {short}")
                 }
             });
-            let label = label_locations.get(&index).map(short_label);
-            destination.or(label).map(|s| format!(" // {s}")).unwrap_or_default()
+            let labels =
+                labels_by_loc.get(&index).map(|labels| vecmap(labels, short_label).join(", "));
+            destination.or(labels).map(|s| format!(" // {s}")).unwrap_or_default()
         };
 
         writeln!(f, "fn {}", self.name)?;
@@ -388,7 +392,7 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
     /// linkage with other bytecode has happened.
     fn resolve_jumps(&mut self) {
         for (location_of_jump, unresolved_location) in &self.unresolved_jumps {
-            let resolved_location = self.labels[&unresolved_location];
+            let resolved_location = self.labels[unresolved_location];
 
             let jump_instruction = self.byte_code[*location_of_jump].clone();
             match jump_instruction {
