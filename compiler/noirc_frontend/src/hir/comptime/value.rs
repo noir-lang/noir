@@ -223,7 +223,7 @@ impl Value {
             Value::Integer(value) => value.into_expression_kind(),
             Value::String(bytes) => {
                 let string = String::from_utf8_lossy(&bytes);
-                ExpressionKind::Literal(Literal::Str(string.to_string()))
+                ExpressionKind::Literal(Str(string.to_string()))
             }
             Value::CtString(bytes) => {
                 // Lower to `std::meta::AsCtString::as_ctstring(contents)`
