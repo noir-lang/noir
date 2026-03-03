@@ -168,7 +168,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let impl_bindings =
             perform_impl_bindings(self.elaborator.interner, trait_method, function, location)?;
 
-        self.remember_bindings(&instantiation_bindings, &impl_bindings);
+        self.remember_function_bindings(&instantiation_bindings, &impl_bindings);
         self.elaborator.push_interpreter_call_stack(location)?;
 
         let result = self.call_function_inner(function, arguments, location);
@@ -340,31 +340,22 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         arguments: Vec<(Value, Location)>,
         call_location: Location,
     ) -> IResult<Value> {
-        // Undo the type current type bindings
-        if let Some(bindings) = self.bound_generics.last() {
-            unbind_all(bindings);
-        }
-
-        // Rebind the type bindings that existed when the closure was created
-        force_bind_all(&closure.bindings);
-
         // Set the closure's scope to that of the function it was originally evaluated in
         let old_module = self.elaborator.replace_module(closure.module_scope);
         let old_function = std::mem::replace(&mut self.current_function, closure.function_scope);
 
+        self.unbind_generics_from_previous_function();
+        perform_bindings(&closure.bindings);
+
+        self.remember_closure_bindings(&closure.bindings);
         self.elaborator.push_interpreter_call_stack(call_location)?;
 
         let result = self.call_closure_inner(closure.lambda, closure.env, arguments, call_location);
 
         self.elaborator.pop_interpreter_call_stack();
 
-        // Undo the type bindings that existed when the closure was created
-        unbind_all(&closure.bindings);
-
-        // Redo the current type bindings
-        if let Some(bindings) = self.bound_generics.last() {
-            force_bind_all(bindings);
-        }
+        undo_bindings(&closure.bindings);
+        self.rebind_generics_from_previous_function();
 
         self.current_function = old_function;
         let Some(old_module) = old_module else {
@@ -465,7 +456,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// an empty set of bindings to become the new top of the stack.
     fn unbind_generics_from_previous_function(&mut self) {
         if let Some(bindings) = self.bound_generics.last() {
-            unbind_all(bindings);
+            undo_bindings(bindings);
         }
         // Push a new bindings list for the current function
         self.bound_generics.push(HashMap::default());
@@ -478,13 +469,17 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         self.bound_generics.pop();
 
         if let Some(bindings) = self.bound_generics.last() {
-            force_bind_all(bindings);
+            perform_bindings(bindings);
         }
     }
 
     /// Adds all of the given `main_bindings` and `impl_bindings` to the top of
     /// `self.bound_generics`. Note that this will not actually perform any of the type bindings.
-    fn remember_bindings(&mut self, main_bindings: &TypeBindings, impl_bindings: &TypeBindings) {
+    fn remember_function_bindings(
+        &mut self,
+        main_bindings: &TypeBindings,
+        impl_bindings: &TypeBindings,
+    ) {
         let bound_generics = self
             .bound_generics
             .last_mut()
@@ -496,6 +491,19 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         for (var, kind, binding) in impl_bindings.values() {
             bound_generics.insert(var.clone(), (binding.follow_bindings(), kind.clone()));
+        }
+    }
+
+    /// Adds all of the given `bindings` to the top of `self.bound_generics`.
+    /// Note that this will not actually perform any of the type bindings.
+    fn remember_closure_bindings(&mut self, bindings: &HashMap<TypeVariable, (Type, Kind)>) {
+        let bound_generics = self
+            .bound_generics
+            .last_mut()
+            .expect("remember_bindings called with no bound_generics on the stack");
+
+        for (var, (typ, kind)) in bindings {
+            bound_generics.insert(var.clone(), (typ.follow_bindings(), kind.clone()));
         }
     }
 
@@ -784,7 +792,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirLiteral::Unit => Ok(Value::Unit),
             HirLiteral::Bool(value) => Ok(Value::Bool(value)),
             HirLiteral::Integer(value) => self.evaluate_integer(value, id),
-            HirLiteral::Str(string) => Ok(Value::String(Rc::new(string))),
+            HirLiteral::Str(string) => Ok(Value::String(Rc::new(string.bytes().collect()))),
             HirLiteral::FmtStr(fragments, captures, length) => {
                 self.evaluate_format_string(fragments, captures, length, id)
             }
@@ -1247,11 +1255,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let location = self.elaborator.interner.expr_location(&id);
         let env = try_vecmap(&lambda.captures, |capture| {
             let value = self.lookup_id(capture.ident.id, location)?;
-            match value {
+            let value = match value {
                 // Dereference mutable variables to capture by value
                 Value::Pointer(elem, true, _) => Ok(elem.unwrap_or_clone()),
                 other => Ok(other),
-            }
+            }?;
+            Ok(value.move_struct())
         })?;
 
         let typ = self.elaborator.interner.id_type(id).follow_bindings();
@@ -1410,7 +1419,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let lvalue_ref = lvalue.borrow();
         match (&*lvalue_ref, rvalue) {
             (Value::Struct(lvalue_fields, _), Value::Struct(mut rvalue_fields, _)) => {
-                for (name, lvalue) in lvalue_fields.iter() {
+                for (name, lvalue) in lvalue_fields {
                     let Some(rvalue) = rvalue_fields.remove(name) else {
                         // Defensive check: If we reach here, it indicates a type system bug
                         panic!(
@@ -1723,13 +1732,13 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 }
 
-fn unbind_all(bindings: &HashMap<TypeVariable, (Type, Kind)>) {
+fn undo_bindings(bindings: &HashMap<TypeVariable, (Type, Kind)>) {
     for (var, (_, kind)) in bindings {
         var.unbind(var.id(), kind.clone());
     }
 }
 
-fn force_bind_all(bindings: &HashMap<TypeVariable, (Type, Kind)>) {
+fn perform_bindings(bindings: &HashMap<TypeVariable, (Type, Kind)>) {
     for (var, (binding, _kind)) in bindings {
         var.force_bind(binding.clone());
     }

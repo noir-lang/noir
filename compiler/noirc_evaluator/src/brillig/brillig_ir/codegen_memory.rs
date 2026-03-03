@@ -510,7 +510,9 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             BrilligVariable::BrilligVector(vector) => {
                 self.codegen_make_vector_items_pointer(vector)
             }
-            _ => unreachable!("ICE: Expected array or vector, got {variable:?}"),
+            BrilligVariable::SingleAddr(_) => {
+                unreachable!("ICE: Expected array or vector, got {variable:?}")
+            }
         }
     }
 

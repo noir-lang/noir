@@ -440,7 +440,7 @@ impl Elaborator<'_> {
         }
 
         let mut substituted_method_ids = HashSet::default();
-        for method_constraint in method.trait_constraints.iter() {
+        for method_constraint in &method.trait_constraints {
             let substituted_constraint_type = method_constraint.typ.substitute(&bindings);
             let substituted_trait_generics = method_constraint
                 .trait_bound
@@ -834,6 +834,7 @@ impl Elaborator<'_> {
                 trait_id,
                 impl_id,
                 impl_generics,
+                trait_impl.object_type.location,
             );
         }
 
@@ -965,7 +966,7 @@ impl Elaborator<'_> {
         let constraints = self.resolve_trait_constraints_and_add_to_scope(&trait_impl.where_clause);
 
         // Attach any trait constraints on the impl to the function
-        for (_, _, method) in trait_impl.methods.functions.iter_mut() {
+        for (_, _, method) in &mut trait_impl.methods.functions {
             method.def.where_clause.append(&mut trait_impl.where_clause.clone());
         }
 

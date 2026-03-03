@@ -32,9 +32,8 @@ impl NodeInterner {
         let def =
             self.nodes.get_mut(func_id.0).expect("ice: all function ids should have definitions");
 
-        let func = match def {
-            Node::Function(func) => func,
-            _ => panic!("ice: all function ids should correspond to a function in the interner"),
+        let Node::Function(func) = def else {
+            panic!("ice: all function ids should correspond to a function in the interner");
         };
         *func = hir_func;
     }

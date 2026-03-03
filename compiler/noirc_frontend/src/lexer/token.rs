@@ -375,7 +375,7 @@ impl Display for Token {
             },
             Token::Quote(ref stream) => {
                 write!(f, "quote {{")?;
-                for token in stream.0.iter() {
+                for token in &stream.0 {
                     write!(f, " {token}")?;
                 }
                 write!(f, "}}")
@@ -604,9 +604,8 @@ impl IntType {
 
         // Word start with 'u' or 'i'. Check if the latter is an integer
 
-        let str_as_u32 = match word[1..].parse::<u32>() {
-            Ok(str_as_u32) => str_as_u32,
-            Err(_) => return None,
+        let Ok(str_as_u32) = word[1..].parse::<u32>() else {
+            return None;
         };
 
         if is_signed {

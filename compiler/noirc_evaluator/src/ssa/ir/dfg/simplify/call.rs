@@ -59,9 +59,7 @@ pub(super) fn simplify_call(
             // TODO: simplify to a range constraint if `limb_count == 1`
             if let (Some(constant_args), Some(return_type)) = (constant_args, return_type.clone()) {
                 let field = constant_args[0];
-                let limb_count = if let Type::Array(_, array_len) = return_type {
-                    array_len
-                } else {
+                let Type::Array(_, limb_count) = return_type else {
                     unreachable!("ICE: Intrinsic::ToRadix return type must be array")
                 };
                 simplify_constant_to_radix(endian, field, 2, limb_count.0, |values| {
@@ -82,9 +80,7 @@ pub(super) fn simplify_call(
             if let (Some(constant_args), Some(return_type)) = (constant_args, return_type.clone()) {
                 let field = constant_args[0];
                 let radix = constant_args[1].to_u128() as u32;
-                let limb_count = if let Type::Array(_, array_len) = return_type {
-                    array_len
-                } else {
+                let Type::Array(_, limb_count) = return_type else {
                     unreachable!("ICE: Intrinsic::ToRadix return type must be array")
                 };
                 simplify_constant_to_radix(endian, field, radix, limb_count.0, |values| {

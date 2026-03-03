@@ -176,7 +176,7 @@ impl OpcodeLocation {
             OpcodeLocation::Brillig { brillig_index, .. } => {
                 Some(BrilligOpcodeLocation(brillig_index))
             }
-            _ => None,
+            OpcodeLocation::Acir(_) => None,
         }
     }
 }
