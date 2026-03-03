@@ -42,7 +42,7 @@ use crate::ssa::{
 };
 
 impl Ssa {
-    /// Replaces `array_get` instructions with `make_array` instructions when possible.
+    /// Replaces `array_set` instructions with `make_array` instructions when possible.
     /// See the [`array_set`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn array_set_optimization(mut self) -> Self {
