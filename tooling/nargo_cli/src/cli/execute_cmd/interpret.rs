@@ -232,7 +232,8 @@ fn input_value_to_comptime_value(input: &InputValue, typ: &Type, location: Locat
             let length =
                 length.evaluate_to_u32(location).expect("Could not evaluate string length to u32");
             assert_eq!(string.len(), length as usize, "String length does not match input length");
-            Value::String(Rc::new(string.clone()))
+            let bytes = string.bytes().collect();
+            Value::String(Rc::new(bytes))
         }
         Type::Tuple(types) => {
             let InputValue::Vec(inputs) = input else {
