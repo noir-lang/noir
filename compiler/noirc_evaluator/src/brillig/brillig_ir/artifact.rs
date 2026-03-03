@@ -380,10 +380,10 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
     /// Note: This should only be called once all blocks are processed and
     /// linkage with other bytecode has happened.
     fn resolve_jumps(&mut self) {
-        for (location_of_jump, unresolved_location) in std::mem::take(&mut self.unresolved_jumps) {
+        for (location_of_jump, unresolved_location) in &self.unresolved_jumps {
             let resolved_location = self.labels[&unresolved_location];
 
-            let jump_instruction = self.byte_code[location_of_jump].clone();
+            let jump_instruction = self.byte_code[*location_of_jump].clone();
             match jump_instruction {
                 BrilligOpcode::Jump { location } => {
                     assert_eq!(
@@ -391,7 +391,7 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
                         "location is not zero, which means that the jump label does not need resolving"
                     );
 
-                    self.byte_code[location_of_jump] =
+                    self.byte_code[*location_of_jump] =
                         BrilligOpcode::Jump { location: resolved_location };
                 }
                 BrilligOpcode::JumpIf { condition, location } => {
@@ -400,7 +400,7 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
                         "location is not zero, which means that the jump label does not need resolving"
                     );
 
-                    self.byte_code[location_of_jump] =
+                    self.byte_code[*location_of_jump] =
                         BrilligOpcode::JumpIf { condition, location: resolved_location };
                 }
                 BrilligOpcode::Call { location } => {
@@ -409,7 +409,7 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
                         "location is not zero, which means that the call label does not need resolving"
                     );
 
-                    self.byte_code[location_of_jump] =
+                    self.byte_code[*location_of_jump] =
                         BrilligOpcode::Call { location: resolved_location };
                 }
                 _ => unreachable!(
