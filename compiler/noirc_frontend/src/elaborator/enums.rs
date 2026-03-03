@@ -21,7 +21,7 @@ use crate::{
     },
     hir::{
         comptime::Value,
-        def_collector::dc_crate::{CompilationError, UnresolvedEnum},
+        def_collector::dc_crate::UnresolvedEnum,
         resolution::{errors::ResolverError, import::PathResolutionError},
         type_check::TypeCheckError,
     },
@@ -335,19 +335,6 @@ impl Elaborator<'_> {
 
         self.interner.push_fn_meta(meta, method_id);
         if let Err(error) = self.interner.add_method(self_type, name_string, method_id, None) {
-            let error = if matches!(
-                error,
-                CompilationError::ResolverError(ResolverError::DuplicateDefinition { .. })
-            ) {
-                // Expecting a DefCollectorErrorKind::Duplicate error in this case
-                TypeCheckError::ExpectingOtherError {
-                    message: "define_enum_variant_function: duplicate definition".to_string(),
-                    location,
-                }
-                .into()
-            } else {
-                error
-            };
             self.push_err(error);
         }
 
@@ -488,7 +475,7 @@ impl Elaborator<'_> {
 
                 let expr = HirExpression::Literal(HirLiteral::Integer(value));
                 let location = expr_location;
-                let expr_id = self.interner.push_expr_full(expr, location, actual.clone());
+                let expr_id = self.interner.push_expr_full(expr, location, actual);
                 self.push_integer_literal_expr_id(expr_id);
 
                 Pattern::Int(value)
@@ -564,7 +551,7 @@ impl Elaborator<'_> {
                     self.expression_to_pattern(field, expected, variables_defined)
                 });
 
-                Pattern::Constructor(Constructor::Tuple(field_types.clone()), fields)
+                Pattern::Constructor(Constructor::Tuple(field_types), fields)
             }
 
             ExpressionKind::Parenthesized(expr) => {
@@ -627,7 +614,7 @@ impl Elaborator<'_> {
             variables_defined.push(name.clone());
         }
 
-        let id = self.add_variable_decl(name, false, true, true, kind).id;
+        let id = self.add_variable_decl(name, false, true, true, true, kind).id;
         self.interner.push_definition_type(id, expected_type.clone());
         Pattern::Binding(id)
     }

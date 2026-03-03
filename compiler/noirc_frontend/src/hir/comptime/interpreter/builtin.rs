@@ -1,7 +1,10 @@
 //! Large file containing implementations of all the various built-in functions
 //! which can be called in the interpreter. This notably includes the entire comptime-API
 //! defined in `noir_stdlib/src/meta/*`
-use std::rc::Rc;
+use std::{
+    hash::{Hash as _, Hasher as _},
+    rc::Rc,
+};
 
 use acvm::{AcirField, FieldElement};
 use builtin_helpers::{
@@ -182,7 +185,7 @@ impl Interpreter<'_, '_> {
             "quoted_as_trait_constraint" => quoted_as_trait_constraint(self, arguments, location),
             "quoted_as_type" => quoted_as_type(self, arguments, location),
             "quoted_eq" => quoted_eq(self.elaborator.interner, arguments, location),
-            "quoted_hash" => quoted_hash(arguments, location),
+            "quoted_hash" => quoted_hash(self.elaborator.interner, arguments, location),
             "quoted_tokens" => quoted_tokens(arguments, location),
             "vector_insert" => vector_insert(arguments, location, call_stack),
             "vector_pop_back" => vector_pop_back(arguments, location, call_stack),
@@ -329,8 +332,7 @@ fn array_as_str_unchecked(arguments: Vec<(Value, Location)>, location: Location)
 
     let array = get_array(argument)?.0;
     let string_bytes = try_vecmap(array, |byte| get_u8((byte, location)))?;
-    let string = String::from_utf8_lossy(&string_bytes).into_owned();
-    Ok(Value::String(Rc::new(string)))
+    Ok(Value::String(Rc::new(string_bytes)))
 }
 
 fn as_vector(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
@@ -394,15 +396,14 @@ fn static_assert(
     if predicate {
         Ok(Value::Unit)
     } else {
-        failing_constraint(format!("static_assert failed: {message}").clone(), location, call_stack)
+        failing_constraint(format!("static_assert failed: {message}"), location, call_stack)
     }
 }
 
 fn str_as_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     let string = check_one_argument(arguments, location)?;
-    let string = get_str(string)?;
-
-    let bytes: Vector<Value> = string.bytes().map(Value::U8).collect();
+    let string_bytes = get_str(string)?;
+    let bytes: Vector<Value> = string_bytes.iter().copied().map(Value::U8).collect();
     let byte_array_type = byte_array_type(bytes.len());
     Ok(Value::Array(bytes, byte_array_type))
 }
@@ -410,8 +411,8 @@ fn str_as_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IResul
 // fn str_as_ctstring(self) -> CtString
 fn str_as_ctstring(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
-    let string = get_str(self_argument)?;
-    Ok(Value::CtString(string))
+    let string_bytes = get_str(self_argument)?;
+    Ok(Value::CtString(string_bytes))
 }
 
 // fn add_attribute<let N: u32>(self, attribute: str<N>)
@@ -423,11 +424,12 @@ fn type_def_add_attribute(
     let (self_argument, attribute) = check_two_arguments(arguments, location)?;
     let attribute_location = attribute.1;
     let attribute = get_str(attribute)?;
+    let attribute = String::from_utf8_lossy(&attribute);
     let attribute = format!("#[{attribute}]");
     let mut parser = Parser::for_str(&attribute, attribute_location.file);
     let Some((Attribute::Secondary(attribute), _span)) = parser.parse_attribute() else {
         return Err(InterpreterError::InvalidAttribute {
-            attribute: attribute.to_string(),
+            attribute: attribute.clone(),
             location: attribute_location,
         });
     };
@@ -452,18 +454,19 @@ fn type_def_add_generic(
     let (self_argument, generic) = check_two_arguments(arguments, location)?;
     let generic_location = generic.1;
     let generic = get_str(generic)?;
+    let generic = String::from_utf8_lossy(&generic);
 
     let mut tokens = lex(&generic, location);
     if tokens.len() != 1 {
         return Err(InterpreterError::GenericNameShouldBeAnIdent {
-            name: generic,
+            name: generic.to_string(),
             location: generic_location,
         });
     }
 
     let Token::Ident(generic_name) = tokens.remove(0).into_token() else {
         return Err(InterpreterError::GenericNameShouldBeAnIdent {
-            name: generic,
+            name: generic.to_string(),
             location: generic_location,
         });
     };
@@ -607,6 +610,7 @@ fn type_def_has_named_attribute(
     let type_id = get_type_id(self_argument)?;
 
     let name = get_str(name)?;
+    let name = String::from_utf8_lossy(&name);
 
     Ok(Value::Bool(has_named_attribute(&name, interner.type_attributes(&type_id), interner)))
 }
@@ -1419,7 +1423,7 @@ fn typed_expr_as_function_definition(
     let self_argument = check_one_argument(arguments, location)?;
     let typed_expr = get_typed_expr(self_argument)?;
     let option_value = if let TypedExpr::ExprId(expr_id) = typed_expr {
-        let func_id = interner.lookup_function_from_expr(&expr_id);
+        let func_id = interner.lookup_function_from_expr(&expr_id, location)?;
         func_id.map(Value::FunctionDefinition)
     } else {
         None
@@ -1592,7 +1596,7 @@ fn zeroed(return_type: Type, location: Location) -> Value {
         Type::Bool => Value::Bool(false),
         Type::String(length_type) => {
             if let Ok(length) = length_type.evaluate_to_u32(location) {
-                Value::String(Rc::new("\0".repeat(length as usize)))
+                Value::String(Rc::new(vec![0; length as usize]))
             } else {
                 // Assume we can resolve the length later
                 Value::Zeroed(Type::String(length_type))
@@ -2070,7 +2074,7 @@ fn expr_as_integer(
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    expr_as(interner, arguments, return_type.clone(), location, |expr| match expr {
+    expr_as(interner, arguments, return_type, location, |expr| match expr {
         ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field, _suffix))) => {
             Some(Value::Tuple(vec![
                 Shared::new(Value::Field(SignedField::positive(field.absolute_value()))),
@@ -2509,7 +2513,8 @@ fn fmtstr_as_ctstring(
     let self_argument = check_one_argument(arguments, location)?;
     let (fragments, _, _) = get_format_string(self_argument)?;
     let string = fragments_to_string(&fragments, interner);
-    Ok(Value::CtString(Rc::new(string)))
+    let bytes = string.bytes().collect();
+    Ok(Value::CtString(Rc::new(bytes)))
 }
 
 // fn quoted_contents(self) -> Quoted
@@ -2539,11 +2544,12 @@ fn function_def_add_attribute(
     let (self_argument, attribute) = check_two_arguments(arguments, location)?;
     let attribute_location = attribute.1;
     let attribute = get_str(attribute)?;
+    let attribute = String::from_utf8_lossy(&attribute);
     let attribute = format!("#[{attribute}]");
     let mut parser = Parser::for_str(&attribute, attribute_location.file);
     let Some((attribute, _span)) = parser.parse_attribute() else {
         return Err(InterpreterError::InvalidAttribute {
-            attribute: attribute.to_string(),
+            attribute: attribute.clone(),
             location: attribute_location,
         });
     };
@@ -2638,6 +2644,7 @@ fn function_def_has_named_attribute(
     let func_id = get_function_def(self_argument)?;
 
     let name = &*get_str(name)?;
+    let name = String::from_utf8_lossy(name);
 
     let modifiers = interner.function_modifiers(&func_id);
     if let Some(attribute) = modifiers.attributes.function()
@@ -2646,7 +2653,7 @@ fn function_def_has_named_attribute(
         return Ok(Value::Bool(true));
     }
 
-    Ok(Value::Bool(has_named_attribute(name, &modifiers.attributes.secondary, interner)))
+    Ok(Value::Bool(has_named_attribute(&name, &modifiers.attributes.secondary, interner)))
 }
 
 fn function_def_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
@@ -2821,6 +2828,7 @@ fn function_def_set_parameters(
                 DefinitionKind::Local(None),
                 &mut parameter_idents,
                 true, // warn_if_unused
+                true, // warn_if_not_mutated
                 &mut parameter_names_in_list,
             )
         });
@@ -3072,6 +3080,7 @@ fn module_has_named_attribute(
     let module_data = interpreter.elaborator.get_module(module_id);
 
     let name = get_str(name)?;
+    let name = String::from_utf8_lossy(&name);
 
     Ok(Value::Bool(has_named_attribute(
         &name,
@@ -3169,8 +3178,22 @@ fn quoted_eq(
 
     Ok(Value::Bool(self_string == other_string))
 }
-fn quoted_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    hash_item(arguments, location, get_quoted)
+
+fn quoted_hash(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let argument = check_one_argument(arguments, location)?;
+    let tokens = get_quoted(argument)?;
+
+    // For consistency with quoted_eq, we compute the hash of the Quoted string representation.
+    let tokens_string = tokens_to_string(&tokens, interner);
+
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    tokens_string.hash(&mut hasher);
+    let hash = hasher.finish();
+    Ok(Value::Field(SignedField::positive(u128::from(hash))))
 }
 
 fn trait_def_as_trait_constraint(
@@ -3236,9 +3259,8 @@ fn derive_generators(
     let domain_separator_string =
         try_vecmap(domain_separator_string, |byte| get_u8((byte, domain_separator_location)))?;
 
-    let (size, elements) = match return_type.clone() {
-        Type::Array(size, elements) => (size, elements),
-        _ => panic!("ICE: Should only have an array return type"),
+    let Type::Array(size, elements) = return_type.clone() else {
+        panic!("ICE: Should only have an array return type");
     };
 
     let num_generators = size.evaluate_to_u32(location).map_err(|err| {

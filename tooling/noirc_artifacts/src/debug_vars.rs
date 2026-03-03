@@ -87,7 +87,7 @@ impl<F: AcirField> DebugVars<F> {
             .types
             .get(cursor_type_id)
             .unwrap_or_else(|| panic!("type unavailable for type id {cursor_type_id:?}"));
-        for index in indexes.iter() {
+        for index in &indexes {
             (cursor, cursor_type) = match (cursor, cursor_type) {
                 (
                     PrintableValue::Vec { array_elements, is_vector },

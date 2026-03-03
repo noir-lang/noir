@@ -116,7 +116,7 @@ pub fn get_public_witness(
     let witness_map = WitnessMap::from(solved_witness);
 
     let public_witness =
-        extract_indices(&witness_map, circuit.public_inputs().0.clone().into_iter().collect())?;
+        extract_indices(&witness_map, circuit.public_inputs().0.into_iter().collect())?;
 
     Ok(JsWitnessMap::from(public_witness))
 }

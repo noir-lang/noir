@@ -115,7 +115,7 @@ impl ConstantAllocation {
     /// Based on the [Self::constant_usage] collected, find the common dominator of all the block where a constant is used
     /// and mark it as the allocation point for the constant.
     fn decide_allocation_points(&mut self, func: &Function) {
-        for (constant_id, usage_in_blocks) in self.constant_usage.iter() {
+        for (constant_id, usage_in_blocks) in &self.constant_usage {
             let block_ids: Vec<_> = usage_in_blocks.keys().copied().collect();
 
             let allocation_point = self.decide_allocation_point(*constant_id, &block_ids, func);

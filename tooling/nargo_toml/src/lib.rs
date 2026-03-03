@@ -165,7 +165,7 @@ impl PackageConfig {
         })?;
 
         let mut dependencies: BTreeMap<CrateName, Dependency> = BTreeMap::new();
-        for (name, dep_config) in self.dependencies.iter() {
+        for (name, dep_config) in &self.dependencies {
             let name = name.parse().map_err(|_| ManifestError::InvalidDependencyName {
                 toml: root_dir.join("Nargo.toml"),
                 name: name.into(),
@@ -233,7 +233,7 @@ impl PackageConfig {
         // Ignore the ones that we don't recognize: maybe they are no longer unstable, but a dependency hasn't been updated.
         let compiler_required_unstable_features =
             self.package.compiler_unstable_features.as_ref().map_or(Vec::new(), |feats| {
-                feats.iter().flat_map(|feat| UnstableFeature::from_str(feat).ok()).collect()
+                feats.iter().filter_map(|feat| UnstableFeature::from_str(feat).ok()).collect()
             });
 
         Ok(Package {
@@ -461,7 +461,7 @@ fn toml_to_workspace(
 pub fn read_toml(toml_path: &Path) -> Result<NargoToml, ManifestError> {
     let toml_path = toml_path.normalize();
     let toml_as_string = std::fs::read_to_string(&toml_path)
-        .map_err(|_| ManifestError::ReadFailed(toml_path.to_path_buf()))?;
+        .map_err(|_| ManifestError::ReadFailed(toml_path.clone()))?;
     let root_dir = toml_path.parent().ok_or(ManifestError::MissingParent)?;
     let nargo_toml =
         NargoToml { root_dir: root_dir.to_path_buf(), config: toml_as_string.try_into()? };

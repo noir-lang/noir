@@ -881,7 +881,10 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             Value::U32(value) => self.push_str(&value.to_string()),
             Value::U64(value) => self.push_str(&value.to_string()),
             Value::U128(value) => self.push_str(&value.to_string()),
-            Value::String(string) => self.push_str(&format!("{string:?}")),
+            Value::String(bytes) => {
+                let string = String::from_utf8_lossy(bytes);
+                self.push_str(&format!("{string:?}"));
+            }
             Value::FormatString(fragments, _typ, _) => {
                 let has_values = fragments
                     .iter()
@@ -896,7 +899,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                         if let FormatStringFragment::Value { name, value } = fragment {
                             // A name might be interpolated multiple times. In that case it will always
                             // have the same value: we just need one `let` for it.
-                            if !seen_names.insert(name.to_string()) {
+                            if !seen_names.insert(name.clone()) {
                                 continue;
                             }
 
@@ -928,7 +931,8 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                     self.push_str(" }");
                 }
             }
-            Value::CtString(string) => {
+            Value::CtString(bytes) => {
+                let string = String::from_utf8_lossy(bytes);
                 let std = if self.crate_id.is_stdlib() { "std" } else { "crate" };
                 self.push_str(&format!(
                     "{std}::meta::ctstring::AsCtString::as_ctstring({string:?})"
