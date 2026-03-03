@@ -346,6 +346,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
         options: &BrilligOptions,
     ) -> BrilligContext<F, ScratchSpace> {
         let mut obj = BrilligArtifact::default();
+        obj.name = format!("{procedure_id}");
         obj.procedure = Some(procedure_id);
         BrilligContext {
             obj,

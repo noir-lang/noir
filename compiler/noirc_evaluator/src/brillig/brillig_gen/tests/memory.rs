@@ -19,7 +19,7 @@ fn brillig_array_get() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-     0: call 0
+     0: call 0 // -> CheckMaxStackDepth
      1: sp[3] = const u32 10
      2: sp[4] = const u32 20
      3: sp[5] = const u32 30
@@ -59,7 +59,7 @@ fn brillig_array_set() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-     0: call 0
+     0: call 0 // -> CheckMaxStackDepth
      1: sp[3] = const u32 10
      2: sp[4] = const u32 20
      3: sp[5] = const u32 30
@@ -77,7 +77,7 @@ fn brillig_array_set() {
     15: sp[3] = const u32 99
     16: @3 = sp[6]
     17: @4 = const u32 4
-    18: call 0
+    18: call 0 // -> ArrayCopy
     19: sp[4] = @5
     20: sp[5] = u32 add sp[4], @2
     21: sp[7] = u32 add sp[5], sp[2]
@@ -108,7 +108,7 @@ fn brillig_array_with_rc_ops() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-     0: call 0
+     0: call 0 // -> CheckMaxStackDepth
      1: sp[2] = const u32 10
      2: sp[3] = const u32 20
      3: sp[4] = const u32 30
@@ -130,7 +130,7 @@ fn brillig_array_with_rc_ops() {
     19: sp[3] = const u32 99
     20: @3 = sp[5]
     21: @4 = const u32 4
-    22: call 0
+    22: call 0 // -> ArrayCopy
     23: sp[4] = @5
     24: sp[6] = u32 add sp[4], sp[2]
     25: store sp[3] at sp[6]
@@ -191,7 +191,7 @@ fn brillig_global_array_not_coalesced_with_block_param() {
     //   15: return        — returns sp[1]; global and param use separate allocations (not coalesced)
     assert_artifact_snapshot!(main, @r"
     fn main
-     0: call 0
+     0: call 0 // -> CheckMaxStackDepth
      1: sp[3] = @1
      2: @1 = u32 add @1, @2
      3: store @70 at sp[3]
@@ -199,17 +199,17 @@ fn brillig_global_array_not_coalesced_with_block_param() {
      5: sp[6] = @0
      6: sp[8] = sp[3]
      7: @0 = u32 add @0, sp[5]
-     8: call 0
+     8: call 0 // -> f1
      9: @0 = sp[0]
     10: sp[4] = sp[8]
-    11: jump if sp[4] to 0
-    12: jump to 0
-    13: sp[2] = @68
-    14: jump to 0
-    15: return
-    16: sp[2] = const bool 1
+    11: jump if sp[4] to 0 // -> 16: f0/b1
+    12: jump to 0 // -> 13: f0/b2
+    13: sp[2] = @68 // f0/b2
+    14: jump to 0 // -> 15: f0/b3
+    15: return // f0/b3
+    16: sp[2] = const bool 1 // f0/b1
     17: sp[3] = bool eq @69, sp[2]
-    18: jump if sp[3] to 0
+    18: jump if sp[3] to 0 // -> 21: f0/b1/1
     19: sp[4] = const u32 0
     20: trap @[@1; sp[4]]
     ");
