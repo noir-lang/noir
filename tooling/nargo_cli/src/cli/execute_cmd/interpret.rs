@@ -310,7 +310,8 @@ fn output_value_to_string(value: &Value, context: &Context) -> String {
         Value::U32(value) => value.to_string(),
         Value::U64(value) => value.to_string(),
         Value::U128(value) => value.to_string(),
-        Value::String(string) => {
+        Value::String(bytes) => {
+            let string = String::from_utf8_lossy(bytes);
             format!("{string:?}")
         }
         Value::Tuple(values) => {
