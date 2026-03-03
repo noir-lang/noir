@@ -1,8 +1,5 @@
-use std::collections::HashSet;
-
 use crate::{
-    Kind, Type, TypeBindings, TypeVariableId,
-    hir_def::types::NamedGeneric,
+    Type, TypeBindings,
     node_interner::{FuncId, TraitId},
 };
 
@@ -57,18 +54,28 @@ impl Methods {
     /// - `Foo<i32>` and `Foo<u64>` don't overlap
     pub(super) fn find_overlapping_method(
         &self,
+        method_id: &FuncId,
         typ: &Type,
         interner: &NodeInterner,
     ) -> Option<(FuncId, Type)> {
         if self.direct.is_empty() {
             return None;
         }
-        let instantiate_typ = Self::replace_named_generics_with_fresh_type_vars(typ, interner);
+        let method_type = &interner.function_meta(method_id).typ;
+        let instantiate_typ = if let Type::Forall(type_vars, _) = method_type {
+            typ.substitute_type_vars_with_fresh_type_vars(type_vars, interner).0
+        } else {
+            typ.clone()
+        };
         for existing in &self.direct {
             // Check if two types overlap, by instantiating both types (replacing NamedGenerics
             // with fresh TypeVariables) and then checking if they can unify.
-            let instantiate_existing =
-                Self::replace_named_generics_with_fresh_type_vars(&existing.typ, interner);
+            let existing_type = &interner.function_meta(&existing.method).typ;
+            let instantiate_existing = if let Type::Forall(type_vars, _) = existing_type {
+                existing.typ.substitute_type_vars_with_fresh_type_vars(type_vars, interner).0
+            } else {
+                existing.typ.clone()
+            };
             let mut bindings = TypeBindings::default();
             let types_can_unify =
                 instantiate_existing.try_unify(&instantiate_typ, &mut bindings).is_ok();
@@ -77,45 +84,6 @@ impl Methods {
             }
         }
         None
-    }
-
-    /// Instantiate a type by finding all NamedGenerics and replacing them with
-    /// fresh type variables.
-    fn replace_named_generics_with_fresh_type_vars(typ: &Type, interner: &NodeInterner) -> Type {
-        let mut named_generics = Vec::new();
-        Self::collect_named_generics(typ, &mut named_generics, &mut HashSet::new());
-
-        if named_generics.is_empty() {
-            return typ.clone();
-        }
-
-        // Create substitutions from each NamedGeneric to a fresh type variable
-        let substitutions: TypeBindings = named_generics
-            .into_iter()
-            .map(|(id, type_var, kind)| {
-                let fresh = interner.next_type_variable_with_kind(kind.clone());
-                (id, (type_var, kind, fresh))
-            })
-            .collect();
-
-        typ.substitute(&substitutions)
-    }
-
-    /// Recursively collect all NamedGenerics from a type.
-    fn collect_named_generics(
-        typ: &Type,
-        result: &mut Vec<(TypeVariableId, crate::TypeVariable, Kind)>,
-        seen: &mut HashSet<TypeVariableId>,
-    ) {
-        typ.visit(&mut |typ| {
-            if let Type::NamedGeneric(NamedGeneric { type_var, .. }) = typ {
-                let id = type_var.id();
-                if seen.insert(id) {
-                    result.push((id, type_var.clone(), type_var.kind()));
-                }
-            }
-            true
-        });
     }
 
     pub(super) fn find_direct_method(
