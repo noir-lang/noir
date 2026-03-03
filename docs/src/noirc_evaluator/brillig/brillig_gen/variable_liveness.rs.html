@@ -852,7 +852,7 @@
 <a href=#852 id=852 data-nosnippet>852</a>
 <a href=#853 id=853 data-nosnippet>853</a>        <span class="macro">assert_artifact_snapshot!</span>(main, @<span class="string">r"
 <a href=#854 id=854 data-nosnippet>854</a>        fn main
-<a href=#855 id=855 data-nosnippet>855</a>        0: call 0
+<a href=#855 id=855 data-nosnippet>855</a>        0: call 0 // -&gt; CheckMaxStackDepth
 <a href=#856 id=856 data-nosnippet>856</a>        1: sp[3] = const field 10
 <a href=#857 id=857 data-nosnippet>857</a>        2: sp[4] = field add sp[2], sp[3]
 <a href=#858 id=858 data-nosnippet>858</a>        3: sp[2] = sp[4]
@@ -886,7 +886,7 @@
 <a href=#886 id=886 data-nosnippet>886</a>
 <a href=#887 id=887 data-nosnippet>887</a>        <span class="macro">assert_artifact_snapshot!</span>(main, @<span class="string">r"
 <a href=#888 id=888 data-nosnippet>888</a>        fn main
-<a href=#889 id=889 data-nosnippet>889</a>        0: call 0
+<a href=#889 id=889 data-nosnippet>889</a>        0: call 0 // -&gt; CheckMaxStackDepth
 <a href=#890 id=890 data-nosnippet>890</a>        1: sp[3] = const field 1
 <a href=#891 id=891 data-nosnippet>891</a>        2: sp[4] = field add sp[2], sp[3]
 <a href=#892 id=892 data-nosnippet>892</a>        3: sp[2] = const field 2
@@ -930,22 +930,22 @@
 <a href=#930 id=930 data-nosnippet>930</a>        <span class="kw">let </span>main = <span class="kw-2">&amp;</span>brillig.ssa_function_to_brillig[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)];
 <a href=#931 id=931 data-nosnippet>931</a>        <span class="macro">assert_artifact_snapshot!</span>(main, @<span class="string">r"
 <a href=#932 id=932 data-nosnippet>932</a>        fn main
-<a href=#933 id=933 data-nosnippet>933</a>         0: call 0
+<a href=#933 id=933 data-nosnippet>933</a>         0: call 0 // -&gt; CheckMaxStackDepth
 <a href=#934 id=934 data-nosnippet>934</a>         1: sp[4] = const u32 0
 <a href=#935 id=935 data-nosnippet>935</a>         2: sp[5] = const u32 1
 <a href=#936 id=936 data-nosnippet>936</a>         3: sp[3] = sp[4]
-<a href=#937 id=937 data-nosnippet>937</a>         4: jump to 0
-<a href=#938 id=938 data-nosnippet>938</a>         5: sp[4] = u32 lt sp[3], sp[2]
-<a href=#939 id=939 data-nosnippet>939</a>         6: jump if sp[4] to 0
-<a href=#940 id=940 data-nosnippet>940</a>         7: jump to 0
-<a href=#941 id=941 data-nosnippet>941</a>         8: sp[2] = sp[3]
+<a href=#937 id=937 data-nosnippet>937</a>         4: jump to 0 // -&gt; 5: f0/b1
+<a href=#938 id=938 data-nosnippet>938</a>         5: sp[4] = u32 lt sp[3], sp[2] // f0/b1
+<a href=#939 id=939 data-nosnippet>939</a>         6: jump if sp[4] to 0 // -&gt; 10: f0/b2
+<a href=#940 id=940 data-nosnippet>940</a>         7: jump to 0 // -&gt; 8: f0/b3
+<a href=#941 id=941 data-nosnippet>941</a>         8: sp[2] = sp[3] // f0/b3
 <a href=#942 id=942 data-nosnippet>942</a>         9: return
-<a href=#943 id=943 data-nosnippet>943</a>        10: sp[4] = u32 add sp[3], sp[5]
+<a href=#943 id=943 data-nosnippet>943</a>        10: sp[4] = u32 add sp[3], sp[5] // f0/b2
 <a href=#944 id=944 data-nosnippet>944</a>        11: sp[6] = u32 lt_eq sp[3], sp[4]
-<a href=#945 id=945 data-nosnippet>945</a>        12: jump if sp[6] to 0
-<a href=#946 id=946 data-nosnippet>946</a>        13: call 0
-<a href=#947 id=947 data-nosnippet>947</a>        14: sp[3] = sp[4]
-<a href=#948 id=948 data-nosnippet>948</a>        15: jump to 0
+<a href=#945 id=945 data-nosnippet>945</a>        12: jump if sp[6] to 0 // -&gt; 14: f0/b2/1
+<a href=#946 id=946 data-nosnippet>946</a>        13: call 0 // -&gt; ErrorWithString
+<a href=#947 id=947 data-nosnippet>947</a>        14: sp[3] = sp[4] // f0/b2/1
+<a href=#948 id=948 data-nosnippet>948</a>        15: jump to 0 // -&gt; 5: f0/b1
 <a href=#949 id=949 data-nosnippet>949</a>        "</span>);
 <a href=#950 id=950 data-nosnippet>950</a>    }
 <a href=#951 id=951 data-nosnippet>951</a>
@@ -980,16 +980,16 @@
 <a href=#980 id=980 data-nosnippet>980</a>        <span class="kw">let </span>main = <span class="kw-2">&amp;</span>brillig.ssa_function_to_brillig[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)];
 <a href=#981 id=981 data-nosnippet>981</a>        <span class="macro">assert_artifact_snapshot!</span>(main, @<span class="string">r"
 <a href=#982 id=982 data-nosnippet>982</a>        fn main
-<a href=#983 id=983 data-nosnippet>983</a>         0: call 0
+<a href=#983 id=983 data-nosnippet>983</a>         0: call 0 // -&gt; CheckMaxStackDepth
 <a href=#984 id=984 data-nosnippet>984</a>         1: sp[4] = const field 42
-<a href=#985 id=985 data-nosnippet>985</a>         2: jump if sp[2] to 0
-<a href=#986 id=986 data-nosnippet>986</a>         3: jump to 0
-<a href=#987 id=987 data-nosnippet>987</a>         4: sp[3] = sp[4]
-<a href=#988 id=988 data-nosnippet>988</a>         5: jump to 0
-<a href=#989 id=989 data-nosnippet>989</a>         6: sp[2] = const field 27
+<a href=#985 id=985 data-nosnippet>985</a>         2: jump if sp[2] to 0 // -&gt; 6: f0/b1
+<a href=#986 id=986 data-nosnippet>986</a>         3: jump to 0 // -&gt; 4: f0/b2
+<a href=#987 id=987 data-nosnippet>987</a>         4: sp[3] = sp[4] // f0/b2
+<a href=#988 id=988 data-nosnippet>988</a>         5: jump to 0 // -&gt; 9: f0/b3
+<a href=#989 id=989 data-nosnippet>989</a>         6: sp[2] = const field 27 // f0/b1
 <a href=#990 id=990 data-nosnippet>990</a>         7: sp[3] = field add sp[2], sp[4]
-<a href=#991 id=991 data-nosnippet>991</a>         8: jump to 0
-<a href=#992 id=992 data-nosnippet>992</a>         9: sp[2] = sp[3]
+<a href=#991 id=991 data-nosnippet>991</a>         8: jump to 0 // -&gt; 9: f0/b3
+<a href=#992 id=992 data-nosnippet>992</a>         9: sp[2] = sp[3] // f0/b3
 <a href=#993 id=993 data-nosnippet>993</a>        10: return
 <a href=#994 id=994 data-nosnippet>994</a>        "</span>);
 <a href=#995 id=995 data-nosnippet>995</a>    }
@@ -1020,7 +1020,7 @@
 <a href=#1020 id=1020 data-nosnippet>1020</a>        <span class="kw">let </span>main = <span class="kw-2">&amp;</span>brillig.ssa_function_to_brillig[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)];
 <a href=#1021 id=1021 data-nosnippet>1021</a>        <span class="macro">assert_artifact_snapshot!</span>(main, @<span class="string">r"
 <a href=#1022 id=1022 data-nosnippet>1022</a>        fn main
-<a href=#1023 id=1023 data-nosnippet>1023</a>        0: call 0
+<a href=#1023 id=1023 data-nosnippet>1023</a>        0: call 0 // -&gt; CheckMaxStackDepth
 <a href=#1024 id=1024 data-nosnippet>1024</a>        1: sp[3] = const field 100
 <a href=#1025 id=1025 data-nosnippet>1025</a>        2: sp[4] = field add sp[2], sp[3]
 <a href=#1026 id=1026 data-nosnippet>1026</a>        3: sp[3] = const field 200
@@ -1058,15 +1058,15 @@
 <a href=#1058 id=1058 data-nosnippet>1058</a>        <span class="kw">let </span>main = <span class="kw-2">&amp;</span>brillig.ssa_function_to_brillig[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)];
 <a href=#1059 id=1059 data-nosnippet>1059</a>        <span class="macro">assert_artifact_snapshot!</span>(main, @<span class="string">r"
 <a href=#1060 id=1060 data-nosnippet>1060</a>        fn main
-<a href=#1061 id=1061 data-nosnippet>1061</a>         0: call 0
+<a href=#1061 id=1061 data-nosnippet>1061</a>         0: call 0 // -&gt; CheckMaxStackDepth
 <a href=#1062 id=1062 data-nosnippet>1062</a>         1: sp[4] = const field 1
 <a href=#1063 id=1063 data-nosnippet>1063</a>         2: sp[5] = field add sp[2], sp[4]
 <a href=#1064 id=1064 data-nosnippet>1064</a>         3: sp[2] = const field 2
 <a href=#1065 id=1065 data-nosnippet>1065</a>         4: sp[4] = field add sp[5], sp[2]
 <a href=#1066 id=1066 data-nosnippet>1066</a>         5: sp[2] = const field 3
 <a href=#1067 id=1067 data-nosnippet>1067</a>         6: sp[3] = field mul sp[4], sp[2]
-<a href=#1068 id=1068 data-nosnippet>1068</a>         7: jump to 0
-<a href=#1069 id=1069 data-nosnippet>1069</a>         8: sp[2] = sp[3]
+<a href=#1068 id=1068 data-nosnippet>1068</a>         7: jump to 0 // -&gt; 8: f0/b1
+<a href=#1069 id=1069 data-nosnippet>1069</a>         8: sp[2] = sp[3] // f0/b1
 <a href=#1070 id=1070 data-nosnippet>1070</a>         9: return
 <a href=#1071 id=1071 data-nosnippet>1071</a>        "</span>);
 <a href=#1072 id=1072 data-nosnippet>1072</a>    }
