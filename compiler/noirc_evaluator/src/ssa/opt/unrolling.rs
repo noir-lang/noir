@@ -609,7 +609,12 @@ impl Loop {
                 // A cast of a constant would already be simplified
                 None
             }
-            other => panic!("Unexpected instruction in header: {other:?}"),
+            _ => {
+                // Unrecognized instruction pattern — cannot determine the upper bound.
+                // This can happen when mem2reg promotes variables, giving the loop header
+                // block parameters that are not related to the induction variable.
+                None
+            }
         }
     }
 
@@ -755,21 +760,19 @@ impl Loop {
                 else_arguments,
                 call_stack,
             } => {
-                assert!(
-                    then_arguments.is_empty(),
-                    "unrolling has not been updated to handle jmpif arguments"
-                );
-                assert!(
-                    else_arguments.is_empty(),
-                    "unrolling has not been updated to handle jmpif arguments"
-                );
-
                 let condition = *condition;
+                let then_destination = *then_destination;
+                let then_arguments = then_arguments.clone();
+                let else_destination = *else_destination;
+                let else_arguments = else_arguments.clone();
+                let call_stack = *call_stack;
                 let next_blocks = context.handle_jmpif(
                     condition,
-                    *then_destination,
-                    *else_destination,
-                    *call_stack,
+                    then_destination,
+                    then_arguments,
+                    else_destination,
+                    else_arguments,
+                    call_stack,
                 );
 
                 // If there is only 1 next block the jmpif evaluated to a single known block.
@@ -1242,15 +1245,18 @@ impl<'f> LoopIteration<'f> {
                 else_arguments,
                 call_stack,
             } => {
-                assert!(
-                    then_arguments.is_empty(),
-                    "unrolling has not been updated to handle jmpif arguments"
-                );
-                assert!(
-                    else_arguments.is_empty(),
-                    "unrolling has not been updated to handle jmpif arguments"
-                );
-                self.handle_jmpif(*condition, *then_destination, *else_destination, *call_stack)
+                let (condition, then_destination, else_destination, call_stack) =
+                    (*condition, *then_destination, *else_destination, *call_stack);
+                let then_arguments = then_arguments.clone();
+                let else_arguments = else_arguments.clone();
+                self.handle_jmpif(
+                    condition,
+                    then_destination,
+                    then_arguments,
+                    else_destination,
+                    else_arguments,
+                    call_stack,
+                )
             }
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
                 if self.get_original_block(*destination) == self.loop_.header {
@@ -1293,19 +1299,23 @@ impl<'f> LoopIteration<'f> {
         &mut self,
         condition: ValueId,
         then_destination: BasicBlockId,
+        then_arguments: Vec<ValueId>,
         else_destination: BasicBlockId,
+        else_arguments: Vec<ValueId>,
         call_stack: CallStackId,
     ) -> Vec<BasicBlockId> {
         let condition = self.inserter.resolve(condition);
 
         match self.dfg().get_numeric_constant(condition) {
             Some(constant) => {
-                let destination =
-                    if constant.is_zero() { else_destination } else { then_destination };
+                let (destination, arguments) = if constant.is_zero() {
+                    (else_destination, else_arguments)
+                } else {
+                    (then_destination, then_arguments)
+                };
 
                 self.source_block = self.get_original_block(destination);
 
-                let arguments = Vec::new();
                 let jmp = TerminatorInstruction::Jmp { destination, arguments, call_stack };
                 self.inserter.function.dfg.set_block_terminator(self.insert_block, jmp);
                 vec![destination]
