@@ -132,11 +132,11 @@ pub(super) fn simplify_call(
         }
         Intrinsic::VectorPushBack => {
             let vector = dfg.get_array_constant(arguments[1]);
-            if let Some((mut vector, element_type)) = vector {
+            if let Some((mut vector, vector_type)) = vector {
                 if let Some(IntegerConstant::Unsigned { value: vector_len, .. }) =
                     dfg.get_integer_constant(arguments[0])
                 {
-                    let elements_size = element_type.element_size();
+                    let elements_size = vector_type.element_size();
                     let semi_flattened_vector_len =
                         SemanticLength(vector_len as u32) * elements_size;
 
@@ -152,21 +152,21 @@ pub(super) fn simplify_call(
                     let new_vector_length =
                         increment_vector_length(arguments[0], dfg, block, call_stack);
 
-                    let new_vector = make_array(dfg, vector, element_type, block, call_stack);
+                    let new_vector = make_array(dfg, vector, vector_type, block, call_stack);
                     return SimplifyResult::SimplifiedToMultiple(vec![
                         new_vector_length,
                         new_vector,
                     ]);
                 }
 
-                simplify_vector_push_back(vector, element_type, arguments, dfg, block, call_stack)
+                simplify_vector_push_back(vector, vector_type, arguments, dfg, block, call_stack)
             } else {
                 SimplifyResult::None
             }
         }
         Intrinsic::VectorPushFront => {
             let vector = dfg.get_array_constant(arguments[1]);
-            if let Some((mut vector, element_type)) = vector {
+            if let Some((mut vector, vector_type)) = vector {
                 for elem in arguments[2..].iter().rev() {
                     vector.push_front(*elem);
                 }
@@ -174,7 +174,7 @@ pub(super) fn simplify_call(
                 let new_vector_length =
                     increment_vector_length(arguments[0], dfg, block, call_stack);
 
-                let new_vector = make_array(dfg, vector, element_type, block, call_stack);
+                let new_vector = make_array(dfg, vector, vector_type, block, call_stack);
                 SimplifyResult::SimplifiedToMultiple(vec![new_vector_length, new_vector])
             } else {
                 SimplifyResult::None
