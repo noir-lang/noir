@@ -6,7 +6,7 @@ use acvm::{
     AcirField as _, FieldElement,
     acir::{
         BlackBoxFunc,
-        brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength},
+        brillig::lengths::{SemanticLength, SemiFlattenedLength},
     },
 };
 use bn254_blackbox_solver::derive_generators;
@@ -513,12 +513,6 @@ fn simplify_vector_push_back(
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> SimplifyResult {
-    // TODO(#2752): We need to handle the element_type size to appropriately handle vectors of complex types.
-    // This is reliant on dynamic indices of non-homogenous vectors also being implemented.
-    if element_type.element_size() != ElementTypesLength(1) {
-        return SimplifyResult::None;
-    }
-
     // The capacity must be an integer so that we can compare it against the vector length
     let capacity = dfg.make_constant((vector.len() as u128).into(), NumericType::length_type());
     let len_equals_capacity_instr =
@@ -546,10 +540,33 @@ fn simplify_vector_push_back(
         value: arguments[2],
         mutable: false,
     };
-
-    let set_last_vector_value = dfg
+    let mut set_last_vector_value = dfg
         .insert_instruction_and_results(set_last_vector_value_instr, block, None, call_stack)
         .first();
+    for (offset, value) in arguments[3..].iter().copied().enumerate() {
+        let offset = offset + 1;
+        let offset = dfg.make_constant((offset as u128).into(), NumericType::length_type());
+        let index = dfg
+            .insert_instruction_and_results(
+                Instruction::Binary(Binary {
+                    lhs: arguments[0],
+                    operator: BinaryOp::Add { unchecked: true },
+                    rhs: offset,
+                }),
+                block,
+                None,
+                call_stack,
+            )
+            .first();
+        set_last_vector_value = dfg
+            .insert_instruction_and_results(
+                Instruction::ArraySet { array: set_last_vector_value, index, value, mutable: true },
+                block,
+                None,
+                call_stack,
+            )
+            .first();
+    }
 
     let mut vector_sizes = HashMap::default();
     vector_sizes.insert(set_last_vector_value, vector_size / element_size);
@@ -1031,7 +1048,7 @@ mod tests {
     }
 
     #[test]
-    fn simplifies_vector_push_back_with_unknown_length() {
+    fn simplifies_simple_vector_push_back_with_unknown_length() {
         let src = r#"
         acir(inline) fn main func {
           b0(v0: u32):
@@ -1075,6 +1092,73 @@ mod tests {
             v30 = add v28, v29
             v31 = make_array [v18, v24, v30] : [Field]
             return v8, v31
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_complex_vector_push_back_with_unknown_length() {
+        let src = r#"
+        acir(inline) fn main func {
+          b0(v0: u32):
+            v1 = make_array [Field 3, Field 4, Field 5, Field 6] : [(Field, Field)]
+            v2, v3 = call vector_push_back(v0, v1, Field 7, Field 8) -> (u32, [(Field, Field)])
+            return v2, v3
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        // Similar to the above test, but we can see that before the array is of a compound type,
+        // there are two `array_set` to set `Field 7` and `Field 8` at indexes `v0` and `v0 + 1` respectively.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v5 = make_array [Field 3, Field 4, Field 5, Field 6] : [(Field, Field)]
+            v7 = eq v0, u32 4
+            v8 = not v7
+            v10 = add v0, u32 1
+            v13 = make_array [Field 3, Field 4, Field 5, Field 6, Field 7, Field 8] : [(Field, Field)]
+            v14 = array_set v13, index v0, value Field 7
+            v15 = unchecked_add v0, u32 1
+            v16 = array_set mut v14, index v15, value Field 8
+            v18 = array_get v16, index u32 0 -> Field
+            v19 = cast v8 as Field
+            v20 = cast v7 as Field
+            v21 = mul v19, v18
+            v22 = mul v20, Field 3
+            v23 = add v21, v22
+            v24 = array_get v16, index u32 1 -> Field
+            v25 = cast v8 as Field
+            v26 = cast v7 as Field
+            v27 = mul v25, v24
+            v28 = mul v26, Field 4
+            v29 = add v27, v28
+            v31 = array_get v16, index u32 2 -> Field
+            v32 = cast v8 as Field
+            v33 = cast v7 as Field
+            v34 = mul v32, v31
+            v35 = mul v33, Field 5
+            v36 = add v34, v35
+            v38 = array_get v16, index u32 3 -> Field
+            v39 = cast v8 as Field
+            v40 = cast v7 as Field
+            v41 = mul v39, v38
+            v42 = mul v40, Field 6
+            v43 = add v41, v42
+            v44 = array_get v16, index u32 4 -> Field
+            v45 = cast v8 as Field
+            v46 = cast v7 as Field
+            v47 = mul v45, v44
+            v48 = mul v46, Field 7
+            v49 = add v47, v48
+            v51 = array_get v16, index u32 5 -> Field
+            v52 = cast v8 as Field
+            v53 = cast v7 as Field
+            v54 = mul v52, v51
+            v55 = mul v53, Field 8
+            v56 = add v54, v55
+            v57 = make_array [v23, v29, v36, v43, v49, v56] : [(Field, Field)]
+            return v10, v57
         }
         ");
     }
