@@ -793,7 +793,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirLiteral::Unit => Ok(Value::Unit),
             HirLiteral::Bool(value) => Ok(Value::Bool(value)),
             HirLiteral::Integer(value) => self.evaluate_integer(value, id),
-            HirLiteral::Str(string) => Ok(Value::String(Rc::new(string))),
+            HirLiteral::Str(string) => Ok(Value::String(Rc::new(string.bytes().collect()))),
             HirLiteral::FmtStr(fragments, captures, length) => {
                 self.evaluate_format_string(fragments, captures, length, id)
             }

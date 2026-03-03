@@ -386,8 +386,10 @@ impl Display for ValuePrinter<'_, '_> {
                 write!(f, "{msg}")
             }
             Value::Integer(int) => write!(f, "{int}"),
-            Value::String(value) => write!(f, "{value}"),
-            Value::CtString(value) => write!(f, "{value}"),
+            Value::String(bytes) | Value::CtString(bytes) => {
+                let string = String::from_utf8_lossy(bytes);
+                write!(f, "{string}")
+            }
             Value::FormatString(fragments, _, _) => {
                 let string = fragments_to_string(fragments, self.interner);
                 write!(f, "{string}")

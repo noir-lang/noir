@@ -1007,7 +1007,9 @@ fn append_value_to_string(value: &Value, string: &mut String) -> Option<()> {
         Value::Unit => string.push_str("()"),
         Value::Bool(value) => string.push_str(&value.to_string()),
         Value::Integer(value) => string.push_str(&value.to_string()),
-        Value::String(value) | Value::CtString(value) => string.push_str(&value.to_string()),
+        Value::String(bytes) | Value::CtString(bytes) => {
+            string.push_str(&String::from_utf8_lossy(bytes));
+        }
         Value::Tuple(values) => {
             let len = values.iter().len();
             string.push('(');

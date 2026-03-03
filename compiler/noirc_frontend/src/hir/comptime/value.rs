@@ -44,9 +44,9 @@ pub enum Value {
     Unit,
     Bool(bool),
     Integer(Integer),
-    String(Rc<String>),
+    String(Rc<Vec<u8>>),
     FormatString(Rc<Vec<FormatStringFragment>>, Type, u32 /* length */),
-    CtString(Rc<String>),
+    CtString(Rc<Vec<u8>>),
     Function(FuncId, Type, Rc<TypeBindings>),
 
     /// Closures also store their original scope (function & module)
@@ -221,8 +221,11 @@ impl Value {
             Value::Unit => ExpressionKind::Literal(Unit),
             Value::Bool(value) => ExpressionKind::Literal(Bool(value)),
             Value::Integer(value) => value.into_expression_kind(),
-            Value::String(value) => ExpressionKind::Literal(Str(unwrap_rc(value))),
-            Value::CtString(value) => {
+            Value::String(bytes) => {
+                let string = String::from_utf8_lossy(&bytes);
+                ExpressionKind::Literal(Literal::Str(string.to_string()))
+            }
+            Value::CtString(bytes) => {
                 // Lower to `std::meta::AsCtString::as_ctstring(contents)`
                 let ident = |name: &str| Ident::new(name.to_string(), location);
                 let segment = |name: &str| PathSegment::from(ident(name));
@@ -249,7 +252,8 @@ impl Value {
                     segment("AsCtString"),
                     segment("as_ctstring"),
                 ]);
-                let kind = ExpressionKind::Literal(Str(unwrap_rc(value)));
+                let string = String::from_utf8_lossy(&bytes);
+                let kind = ExpressionKind::Literal(Str(string.into_owned()));
                 let contents = Expression { kind, location };
                 call(as_ctstring, vec![contents])
             }
@@ -451,7 +455,10 @@ impl Value {
             Value::Unit => HirExpression::Literal(HirLiteral::Unit),
             Value::Bool(value) => HirExpression::Literal(HirLiteral::Bool(value)),
             Value::Integer(int) => int.into_hir_expression(),
-            Value::String(value) => HirExpression::Literal(HirLiteral::Str(unwrap_rc(value))),
+            Value::String(bytes) => {
+                let string = String::from_utf8_lossy(&bytes);
+                HirExpression::Literal(HirLiteral::Str(string.to_string()))
+            }
             Value::FormatString(fragments, _typ, length) => {
                 let mut captures = Vec::new();
                 let mut new_fragments = Vec::with_capacity(fragments.len());
@@ -603,8 +610,9 @@ impl Value {
                 vec![Token::QuotedType(interner.push_quoted_type(typ))]
             }
             Value::TypedExpr(TypedExpr::ExprId(expr_id)) => vec![Token::UnquoteMarker(expr_id)],
-            Value::String(value) | Value::CtString(value) => {
-                vec![Token::Str(unwrap_rc(value))]
+            Value::String(bytes) | Value::CtString(bytes) => {
+                let string = String::from_utf8_lossy(&bytes);
+                vec![Token::Str(string.to_string())]
             }
             Value::FormatString(fragments, _, _) => {
                 // When a fmtstr is unquoted, we turn it into a normal string by evaluating the interpolations
