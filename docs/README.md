@@ -18,13 +18,13 @@ Check out the contributing guide [here](../CONTRIBUTING.md).
 
 ### Prerequisites
 
-- Node.js (tested and working with v21.6.1)
-- Yarn (tested and working with v4.5.2)
+- Node.js (tested working with v25)
+- Yarn (tested working with v4)
+- Rust (tested working with v1)
+- GNU ld (tested working with v2)
+- jq (tested working with v1)
 
 ### Installation
-
-This project requires recent versions of Rust and Cargo to be installed.
-Any build errors should indicate dependencies that need installing, and at what version.
 
 Navigate to the docs directory and install dependencies:
 
