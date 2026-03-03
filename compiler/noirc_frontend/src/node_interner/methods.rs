@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use crate::{
     Type, TypeBindings,
     node_interner::{FuncId, TraitId},
@@ -63,18 +65,20 @@ impl Methods {
         }
         let method_type = &interner.function_meta(method_id).typ;
         let instantiate_typ = if let Type::Forall(type_vars, _) = method_type {
-            typ.substitute_type_vars_with_fresh_type_vars(type_vars, interner).0
+            Cow::Owned(typ.substitute_type_vars_with_fresh_type_vars(type_vars, interner).0)
         } else {
-            typ.clone()
+            Cow::Borrowed(typ)
         };
         for existing in &self.direct {
             // Check if two types overlap, by instantiating both types (replacing NamedGenerics
             // with fresh TypeVariables) and then checking if they can unify.
             let existing_type = &interner.function_meta(&existing.method).typ;
             let instantiate_existing = if let Type::Forall(type_vars, _) = existing_type {
-                existing.typ.substitute_type_vars_with_fresh_type_vars(type_vars, interner).0
+                Cow::Owned(
+                    existing.typ.substitute_type_vars_with_fresh_type_vars(type_vars, interner).0,
+                )
             } else {
-                existing.typ.clone()
+                Cow::Borrowed(&existing.typ)
             };
             let mut bindings = TypeBindings::default();
             let types_can_unify =
@@ -170,9 +174,13 @@ impl Methods {
                     }
                 } else {
                     let method_type = if let Type::Forall(typevars, _) = function_typ {
-                        method_type.substitute_type_vars_with_fresh_type_vars(typevars, interner).0
+                        Cow::Owned(
+                            method_type
+                                .substitute_type_vars_with_fresh_type_vars(typevars, interner)
+                                .0,
+                        )
                     } else {
-                        method_type.clone()
+                        Cow::Borrowed(method_type)
                     };
 
                     if method_type.unify(typ).is_ok() {
@@ -180,7 +188,7 @@ impl Methods {
                     }
 
                     // Handle auto-dereferencing `&T` and `&mut T` into `T`
-                    if let Type::Reference(method_type, _mutable) = method_type
+                    if let Type::Reference(method_type, _mutable) = method_type.as_ref()
                         && method_type.unify(typ).is_ok()
                     {
                         return true;
