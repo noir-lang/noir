@@ -191,9 +191,9 @@
 <a href=#191 id=191 data-nosnippet>191</a>    })
 <a href=#192 id=192 data-nosnippet>192</a>}
 <a href=#193 id=193 data-nosnippet>193</a>
-<a href=#194 id=194 data-nosnippet>194</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_str((value, location): (Value, Location)) -&gt; IResult&lt;Rc&lt;String&gt;&gt; {
+<a href=#194 id=194 data-nosnippet>194</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_str((value, location): (Value, Location)) -&gt; IResult&lt;Rc&lt;Vec&lt;u8&gt;&gt;&gt; {
 <a href=#195 id=195 data-nosnippet>195</a>    <span class="kw">match </span>value {
-<a href=#196 id=196 data-nosnippet>196</a>        Value::String(string) =&gt; <span class="prelude-val">Ok</span>(string),
+<a href=#196 id=196 data-nosnippet>196</a>        Value::String(bytes) =&gt; <span class="prelude-val">Ok</span>(bytes),
 <a href=#197 id=197 data-nosnippet>197</a>        value =&gt; {
 <a href=#198 id=198 data-nosnippet>198</a>            <span class="kw">let </span>expected = <span class="string">"str"</span>;
 <a href=#199 id=199 data-nosnippet>199</a>            type_mismatch(value, expected, location)
@@ -201,9 +201,9 @@
 <a href=#201 id=201 data-nosnippet>201</a>    }
 <a href=#202 id=202 data-nosnippet>202</a>}
 <a href=#203 id=203 data-nosnippet>203</a>
-<a href=#204 id=204 data-nosnippet>204</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_ctstring((value, location): (Value, Location)) -&gt; IResult&lt;Rc&lt;String&gt;&gt; {
+<a href=#204 id=204 data-nosnippet>204</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_ctstring((value, location): (Value, Location)) -&gt; IResult&lt;Rc&lt;Vec&lt;u8&gt;&gt;&gt; {
 <a href=#205 id=205 data-nosnippet>205</a>    <span class="kw">match </span>value {
-<a href=#206 id=206 data-nosnippet>206</a>        Value::CtString(string) =&gt; <span class="prelude-val">Ok</span>(string),
+<a href=#206 id=206 data-nosnippet>206</a>        Value::CtString(bytes) =&gt; <span class="prelude-val">Ok</span>(bytes),
 <a href=#207 id=207 data-nosnippet>207</a>        value =&gt; type_mismatch(value, Type::Quoted(QuotedType::CtString), location),
 <a href=#208 id=208 data-nosnippet>208</a>    }
 <a href=#209 id=209 data-nosnippet>209</a>}

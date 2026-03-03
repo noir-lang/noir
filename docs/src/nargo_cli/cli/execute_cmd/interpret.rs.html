@@ -232,157 +232,159 @@
 <a href=#232 id=232 data-nosnippet>232</a>            <span class="kw">let </span>length =
 <a href=#233 id=233 data-nosnippet>233</a>                length.evaluate_to_u32(location).expect(<span class="string">"Could not evaluate string length to u32"</span>);
 <a href=#234 id=234 data-nosnippet>234</a>            <span class="macro">assert_eq!</span>(string.len(), length <span class="kw">as </span>usize, <span class="string">"String length does not match input length"</span>);
-<a href=#235 id=235 data-nosnippet>235</a>            Value::String(Rc::new(string.clone()))
-<a href=#236 id=236 data-nosnippet>236</a>        }
-<a href=#237 id=237 data-nosnippet>237</a>        Type::Tuple(types) =&gt; {
-<a href=#238 id=238 data-nosnippet>238</a>            <span class="kw">let </span>InputValue::Vec(inputs) = input <span class="kw">else </span>{
-<a href=#239 id=239 data-nosnippet>239</a>                <span class="macro">panic!</span>(<span class="string">"expected vec input for tuple type"</span>);
-<a href=#240 id=240 data-nosnippet>240</a>            };
-<a href=#241 id=241 data-nosnippet>241</a>            <span class="macro">assert_eq!</span>(inputs.len(), types.len(), <span class="string">"Tuple length does not match input length"</span>);
-<a href=#242 id=242 data-nosnippet>242</a>            <span class="kw">let </span>tuple = vecmap(inputs.iter().zip(types.iter()), |(input, typ)| {
-<a href=#243 id=243 data-nosnippet>243</a>                <span class="kw">let </span>value = input_value_to_comptime_value(input, typ, location);
-<a href=#244 id=244 data-nosnippet>244</a>                Shared::new(value)
-<a href=#245 id=245 data-nosnippet>245</a>            });
-<a href=#246 id=246 data-nosnippet>246</a>            Value::Tuple(tuple)
-<a href=#247 id=247 data-nosnippet>247</a>        }
-<a href=#248 id=248 data-nosnippet>248</a>        Type::DataType(data_type, generics) =&gt; {
-<a href=#249 id=249 data-nosnippet>249</a>            <span class="kw">let </span>fields = data_type
-<a href=#250 id=250 data-nosnippet>250</a>                .borrow()
-<a href=#251 id=251 data-nosnippet>251</a>                .get_fields(generics)
-<a href=#252 id=252 data-nosnippet>252</a>                .expect(<span class="string">"Enums as inputs are not yet supported"</span>);
-<a href=#253 id=253 data-nosnippet>253</a>            <span class="kw">let </span>InputValue::Struct(inputs) = input <span class="kw">else </span>{
-<a href=#254 id=254 data-nosnippet>254</a>                <span class="macro">panic!</span>(<span class="string">"expected struct input for data type"</span>);
-<a href=#255 id=255 data-nosnippet>255</a>            };
-<a href=#256 id=256 data-nosnippet>256</a>            <span class="kw">let </span>fields = fields
-<a href=#257 id=257 data-nosnippet>257</a>                .into_iter()
-<a href=#258 id=258 data-nosnippet>258</a>                .map(|(name, typ, <span class="kw">_</span>)| {
-<a href=#259 id=259 data-nosnippet>259</a>                    <span class="kw">let </span>input = inputs
-<a href=#260 id=260 data-nosnippet>260</a>                        .get(<span class="kw-2">&amp;</span>name)
-<a href=#261 id=261 data-nosnippet>261</a>                        .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"Expected to find field {name} in input"</span>));
-<a href=#262 id=262 data-nosnippet>262</a>                    <span class="kw">let </span>value = input_value_to_comptime_value(input, <span class="kw-2">&amp;</span>typ, location);
-<a href=#263 id=263 data-nosnippet>263</a>                    (Rc::new(name), Shared::new(value))
-<a href=#264 id=264 data-nosnippet>264</a>                })
-<a href=#265 id=265 data-nosnippet>265</a>                .collect();
-<a href=#266 id=266 data-nosnippet>266</a>            Value::Struct(fields, typ.clone())
-<a href=#267 id=267 data-nosnippet>267</a>        }
-<a href=#268 id=268 data-nosnippet>268</a>        Type::Alias(alias, generics) =&gt; {
-<a href=#269 id=269 data-nosnippet>269</a>            <span class="kw">let </span>typ = alias.borrow().get_type(generics);
-<a href=#270 id=270 data-nosnippet>270</a>            input_value_to_comptime_value(input, <span class="kw-2">&amp;</span>typ, location)
-<a href=#271 id=271 data-nosnippet>271</a>        }
-<a href=#272 id=272 data-nosnippet>272</a>        Type::Vector(<span class="kw">_</span>)
-<a href=#273 id=273 data-nosnippet>273</a>        | Type::FmtString(<span class="kw">_</span>, <span class="kw">_</span>)
-<a href=#274 id=274 data-nosnippet>274</a>        | Type::TypeVariable(..)
-<a href=#275 id=275 data-nosnippet>275</a>        | Type::TraitAsType(..)
-<a href=#276 id=276 data-nosnippet>276</a>        | Type::NamedGeneric(..)
-<a href=#277 id=277 data-nosnippet>277</a>        | Type::CheckedCast { .. }
-<a href=#278 id=278 data-nosnippet>278</a>        | Type::Function(..)
-<a href=#279 id=279 data-nosnippet>279</a>        | Type::Reference(<span class="kw">_</span>, <span class="kw">_</span>)
-<a href=#280 id=280 data-nosnippet>280</a>        | Type::Forall(..)
-<a href=#281 id=281 data-nosnippet>281</a>        | Type::Constant(..)
-<a href=#282 id=282 data-nosnippet>282</a>        | Type::Quoted(..)
-<a href=#283 id=283 data-nosnippet>283</a>        | Type::InfixExpr(..)
-<a href=#284 id=284 data-nosnippet>284</a>        | Type::Error =&gt; <span class="macro">panic!</span>(<span class="string">"Unexpected type in comptime input value conversion"</span>),
-<a href=#285 id=285 data-nosnippet>285</a>    }
-<a href=#286 id=286 data-nosnippet>286</a>}
-<a href=#287 id=287 data-nosnippet>287</a>
-<a href=#288 id=288 data-nosnippet>288</a><span class="doccomment">/// Converts a [Value] into a `String`.
-<a href=#289 id=289 data-nosnippet>289</a>///
-<a href=#290 id=290 data-nosnippet>290</a>/// This is similar to `Value::display(..).to_string()` except that:
-<a href=#291 id=291 data-nosnippet>291</a>/// - only values that can be a circuit output are supported
-<a href=#292 id=292 data-nosnippet>292</a>/// - strings are quoted
-<a href=#293 id=293 data-nosnippet>293</a>/// - struct paths are fully-qualified
-<a href=#294 id=294 data-nosnippet>294</a>///
-<a href=#295 id=295 data-nosnippet>295</a>/// This is so the output matches the format produced by `nargo execute`.
-<a href=#296 id=296 data-nosnippet>296</a></span><span class="kw">fn </span>output_value_to_string(value: <span class="kw-2">&amp;</span>Value, context: <span class="kw-2">&amp;</span>Context) -&gt; String {
-<a href=#297 id=297 data-nosnippet>297</a>    <span class="kw">match </span>value {
-<a href=#298 id=298 data-nosnippet>298</a>        Value::Unit =&gt; <span class="string">"()"</span>.to_string(),
-<a href=#299 id=299 data-nosnippet>299</a>        Value::Bool(value) =&gt; value.to_string(),
-<a href=#300 id=300 data-nosnippet>300</a>        Value::Field(signed_field) =&gt; signed_field.to_field_element().to_short_hex(),
-<a href=#301 id=301 data-nosnippet>301</a>        Value::I8(value) =&gt; value.to_string(),
-<a href=#302 id=302 data-nosnippet>302</a>        Value::I16(value) =&gt; value.to_string(),
-<a href=#303 id=303 data-nosnippet>303</a>        Value::I32(value) =&gt; value.to_string(),
-<a href=#304 id=304 data-nosnippet>304</a>        Value::I64(value) =&gt; value.to_string(),
-<a href=#305 id=305 data-nosnippet>305</a>        Value::U1(<span class="bool-val">false</span>) =&gt; <span class="string">"0"</span>.to_string(),
-<a href=#306 id=306 data-nosnippet>306</a>        Value::U1(<span class="bool-val">true</span>) =&gt; <span class="string">"1"</span>.to_string(),
-<a href=#307 id=307 data-nosnippet>307</a>        Value::U8(value) =&gt; value.to_string(),
-<a href=#308 id=308 data-nosnippet>308</a>        Value::U16(value) =&gt; value.to_string(),
-<a href=#309 id=309 data-nosnippet>309</a>        Value::U32(value) =&gt; value.to_string(),
-<a href=#310 id=310 data-nosnippet>310</a>        Value::U64(value) =&gt; value.to_string(),
-<a href=#311 id=311 data-nosnippet>311</a>        Value::U128(value) =&gt; value.to_string(),
-<a href=#312 id=312 data-nosnippet>312</a>        Value::String(string) =&gt; {
-<a href=#313 id=313 data-nosnippet>313</a>            <span class="macro">format!</span>(<span class="string">"{string:?}"</span>)
-<a href=#314 id=314 data-nosnippet>314</a>        }
-<a href=#315 id=315 data-nosnippet>315</a>        Value::Tuple(values) =&gt; {
-<a href=#316 id=316 data-nosnippet>316</a>            <span class="kw">let </span>values = vecmap(values, |value| output_value_to_string(<span class="kw-2">&amp;</span>value.borrow(), context));
-<a href=#317 id=317 data-nosnippet>317</a>            <span class="kw">if </span>values.len() == <span class="number">1 </span>{
-<a href=#318 id=318 data-nosnippet>318</a>                <span class="macro">format!</span>(<span class="string">"({},)"</span>, values[<span class="number">0</span>])
-<a href=#319 id=319 data-nosnippet>319</a>            } <span class="kw">else </span>{
-<a href=#320 id=320 data-nosnippet>320</a>                <span class="macro">format!</span>(<span class="string">"({})"</span>, values.join(<span class="string">", "</span>))
-<a href=#321 id=321 data-nosnippet>321</a>            }
-<a href=#322 id=322 data-nosnippet>322</a>        }
-<a href=#323 id=323 data-nosnippet>323</a>        Value::Array(values, <span class="kw">_</span>) =&gt; {
-<a href=#324 id=324 data-nosnippet>324</a>            <span class="kw">let </span>values = vecmap(values, |value| output_value_to_string(value, context));
-<a href=#325 id=325 data-nosnippet>325</a>            <span class="macro">format!</span>(<span class="string">"[{}]"</span>, values.join(<span class="string">", "</span>))
-<a href=#326 id=326 data-nosnippet>326</a>        }
-<a href=#327 id=327 data-nosnippet>327</a>        Value::Struct(fields, typ) =&gt; {
-<a href=#328 id=328 data-nosnippet>328</a>            <span class="kw">let </span>data_type = <span class="kw">match </span>typ.follow_bindings() {
-<a href=#329 id=329 data-nosnippet>329</a>                Type::DataType(def, <span class="kw">_</span>) =&gt; def,
-<a href=#330 id=330 data-nosnippet>330</a>                other =&gt; <span class="macro">unreachable!</span>(<span class="string">"Expected data type, found {other}"</span>),
-<a href=#331 id=331 data-nosnippet>331</a>            };
-<a href=#332 id=332 data-nosnippet>332</a>            <span class="kw">let </span>data_type = data_type.borrow();
-<a href=#333 id=333 data-nosnippet>333</a>            <span class="kw">let </span>typename =
-<a href=#334 id=334 data-nosnippet>334</a>                context.fully_qualified_struct_path(context.root_crate_id(), data_type.id);
-<a href=#335 id=335 data-nosnippet>335</a>
-<a href=#336 id=336 data-nosnippet>336</a>            <span class="comment">// Display fields in the order they are defined in the struct.
-<a href=#337 id=337 data-nosnippet>337</a>            // Some fields might not be there if they were missing in the constructor.
-<a href=#338 id=338 data-nosnippet>338</a>            </span><span class="kw">let </span>fields = data_type
-<a href=#339 id=339 data-nosnippet>339</a>                .fields_raw()
-<a href=#340 id=340 data-nosnippet>340</a>                .unwrap()
-<a href=#341 id=341 data-nosnippet>341</a>                .iter()
-<a href=#342 id=342 data-nosnippet>342</a>                .filter_map(|field| {
-<a href=#343 id=343 data-nosnippet>343</a>                    <span class="kw">let </span>name = field.name.as_string();
-<a href=#344 id=344 data-nosnippet>344</a>                    fields.get(name).map(|value| {
-<a href=#345 id=345 data-nosnippet>345</a>                        <span class="macro">format!</span>(<span class="string">"{}: {}"</span>, name, output_value_to_string(<span class="kw-2">&amp;</span>value.borrow(), context))
-<a href=#346 id=346 data-nosnippet>346</a>                    })
-<a href=#347 id=347 data-nosnippet>347</a>                })
-<a href=#348 id=348 data-nosnippet>348</a>                .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-<a href=#349 id=349 data-nosnippet>349</a>            <span class="macro">format!</span>(<span class="string">"{typename} {{ {} }}"</span>, fields.join(<span class="string">", "</span>))
-<a href=#350 id=350 data-nosnippet>350</a>        }
-<a href=#351 id=351 data-nosnippet>351</a>        Value::Enum(tag, args, typ) =&gt; {
-<a href=#352 id=352 data-nosnippet>352</a>            <span class="kw">let </span>args = vecmap(args, |arg| output_value_to_string(arg, context)).join(<span class="string">", "</span>);
-<a href=#353 id=353 data-nosnippet>353</a>
-<a href=#354 id=354 data-nosnippet>354</a>            <span class="kw">match </span>typ.follow_bindings_shallow().as_ref() {
-<a href=#355 id=355 data-nosnippet>355</a>                Type::DataType(def, <span class="kw">_</span>) =&gt; {
-<a href=#356 id=356 data-nosnippet>356</a>                    <span class="kw">let </span>def = def.borrow();
-<a href=#357 id=357 data-nosnippet>357</a>                    <span class="kw">let </span>variant = def.variant_at(<span class="kw-2">*</span>tag);
-<a href=#358 id=358 data-nosnippet>358</a>                    <span class="kw">if </span>variant.is_function {
-<a href=#359 id=359 data-nosnippet>359</a>                        <span class="macro">format!</span>(<span class="string">"{}::{}({args})"</span>, def.name, variant.name)
-<a href=#360 id=360 data-nosnippet>360</a>                    } <span class="kw">else </span>{
-<a href=#361 id=361 data-nosnippet>361</a>                        <span class="macro">format!</span>(<span class="string">"{}::{}"</span>, def.name, variant.name)
-<a href=#362 id=362 data-nosnippet>362</a>                    }
-<a href=#363 id=363 data-nosnippet>363</a>                }
-<a href=#364 id=364 data-nosnippet>364</a>                other =&gt; <span class="macro">panic!</span>(<span class="string">"Expected a data type, got {other}"</span>),
-<a href=#365 id=365 data-nosnippet>365</a>            }
-<a href=#366 id=366 data-nosnippet>366</a>        }
-<a href=#367 id=367 data-nosnippet>367</a>        Value::Function(..)
-<a href=#368 id=368 data-nosnippet>368</a>        | Value::Closure(..)
-<a href=#369 id=369 data-nosnippet>369</a>        | Value::Pointer(..)
-<a href=#370 id=370 data-nosnippet>370</a>        | Value::Vector(..)
-<a href=#371 id=371 data-nosnippet>371</a>        | Value::Quoted(..)
-<a href=#372 id=372 data-nosnippet>372</a>        | Value::TypeDefinition(..)
-<a href=#373 id=373 data-nosnippet>373</a>        | Value::TraitConstraint(..)
-<a href=#374 id=374 data-nosnippet>374</a>        | Value::TraitDefinition(..)
-<a href=#375 id=375 data-nosnippet>375</a>        | Value::TraitImpl(..)
-<a href=#376 id=376 data-nosnippet>376</a>        | Value::FunctionDefinition(..)
-<a href=#377 id=377 data-nosnippet>377</a>        | Value::ModuleDefinition(..)
-<a href=#378 id=378 data-nosnippet>378</a>        | Value::Type(<span class="kw">_</span>)
-<a href=#379 id=379 data-nosnippet>379</a>        | Value::Zeroed(<span class="kw">_</span>)
-<a href=#380 id=380 data-nosnippet>380</a>        | Value::Expr(..)
-<a href=#381 id=381 data-nosnippet>381</a>        | Value::TypedExpr(..)
-<a href=#382 id=382 data-nosnippet>382</a>        | Value::UnresolvedType(..)
-<a href=#383 id=383 data-nosnippet>383</a>        | Value::FormatString(..)
-<a href=#384 id=384 data-nosnippet>384</a>        | Value::CtString(..) =&gt; {
-<a href=#385 id=385 data-nosnippet>385</a>            <span class="macro">panic!</span>(<span class="string">"Unexpected output value: {}"</span>, value.display(<span class="kw-2">&amp;</span>context.def_interner))
-<a href=#386 id=386 data-nosnippet>386</a>        }
-<a href=#387 id=387 data-nosnippet>387</a>    }
-<a href=#388 id=388 data-nosnippet>388</a>}</code></pre></div></section></main></body></html>
+<a href=#235 id=235 data-nosnippet>235</a>            <span class="kw">let </span>bytes = string.bytes().collect();
+<a href=#236 id=236 data-nosnippet>236</a>            Value::String(Rc::new(bytes))
+<a href=#237 id=237 data-nosnippet>237</a>        }
+<a href=#238 id=238 data-nosnippet>238</a>        Type::Tuple(types) =&gt; {
+<a href=#239 id=239 data-nosnippet>239</a>            <span class="kw">let </span>InputValue::Vec(inputs) = input <span class="kw">else </span>{
+<a href=#240 id=240 data-nosnippet>240</a>                <span class="macro">panic!</span>(<span class="string">"expected vec input for tuple type"</span>);
+<a href=#241 id=241 data-nosnippet>241</a>            };
+<a href=#242 id=242 data-nosnippet>242</a>            <span class="macro">assert_eq!</span>(inputs.len(), types.len(), <span class="string">"Tuple length does not match input length"</span>);
+<a href=#243 id=243 data-nosnippet>243</a>            <span class="kw">let </span>tuple = vecmap(inputs.iter().zip(types.iter()), |(input, typ)| {
+<a href=#244 id=244 data-nosnippet>244</a>                <span class="kw">let </span>value = input_value_to_comptime_value(input, typ, location);
+<a href=#245 id=245 data-nosnippet>245</a>                Shared::new(value)
+<a href=#246 id=246 data-nosnippet>246</a>            });
+<a href=#247 id=247 data-nosnippet>247</a>            Value::Tuple(tuple)
+<a href=#248 id=248 data-nosnippet>248</a>        }
+<a href=#249 id=249 data-nosnippet>249</a>        Type::DataType(data_type, generics) =&gt; {
+<a href=#250 id=250 data-nosnippet>250</a>            <span class="kw">let </span>fields = data_type
+<a href=#251 id=251 data-nosnippet>251</a>                .borrow()
+<a href=#252 id=252 data-nosnippet>252</a>                .get_fields(generics)
+<a href=#253 id=253 data-nosnippet>253</a>                .expect(<span class="string">"Enums as inputs are not yet supported"</span>);
+<a href=#254 id=254 data-nosnippet>254</a>            <span class="kw">let </span>InputValue::Struct(inputs) = input <span class="kw">else </span>{
+<a href=#255 id=255 data-nosnippet>255</a>                <span class="macro">panic!</span>(<span class="string">"expected struct input for data type"</span>);
+<a href=#256 id=256 data-nosnippet>256</a>            };
+<a href=#257 id=257 data-nosnippet>257</a>            <span class="kw">let </span>fields = fields
+<a href=#258 id=258 data-nosnippet>258</a>                .into_iter()
+<a href=#259 id=259 data-nosnippet>259</a>                .map(|(name, typ, <span class="kw">_</span>)| {
+<a href=#260 id=260 data-nosnippet>260</a>                    <span class="kw">let </span>input = inputs
+<a href=#261 id=261 data-nosnippet>261</a>                        .get(<span class="kw-2">&amp;</span>name)
+<a href=#262 id=262 data-nosnippet>262</a>                        .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"Expected to find field {name} in input"</span>));
+<a href=#263 id=263 data-nosnippet>263</a>                    <span class="kw">let </span>value = input_value_to_comptime_value(input, <span class="kw-2">&amp;</span>typ, location);
+<a href=#264 id=264 data-nosnippet>264</a>                    (Rc::new(name), Shared::new(value))
+<a href=#265 id=265 data-nosnippet>265</a>                })
+<a href=#266 id=266 data-nosnippet>266</a>                .collect();
+<a href=#267 id=267 data-nosnippet>267</a>            Value::Struct(fields, typ.clone())
+<a href=#268 id=268 data-nosnippet>268</a>        }
+<a href=#269 id=269 data-nosnippet>269</a>        Type::Alias(alias, generics) =&gt; {
+<a href=#270 id=270 data-nosnippet>270</a>            <span class="kw">let </span>typ = alias.borrow().get_type(generics);
+<a href=#271 id=271 data-nosnippet>271</a>            input_value_to_comptime_value(input, <span class="kw-2">&amp;</span>typ, location)
+<a href=#272 id=272 data-nosnippet>272</a>        }
+<a href=#273 id=273 data-nosnippet>273</a>        Type::Vector(<span class="kw">_</span>)
+<a href=#274 id=274 data-nosnippet>274</a>        | Type::FmtString(<span class="kw">_</span>, <span class="kw">_</span>)
+<a href=#275 id=275 data-nosnippet>275</a>        | Type::TypeVariable(..)
+<a href=#276 id=276 data-nosnippet>276</a>        | Type::TraitAsType(..)
+<a href=#277 id=277 data-nosnippet>277</a>        | Type::NamedGeneric(..)
+<a href=#278 id=278 data-nosnippet>278</a>        | Type::CheckedCast { .. }
+<a href=#279 id=279 data-nosnippet>279</a>        | Type::Function(..)
+<a href=#280 id=280 data-nosnippet>280</a>        | Type::Reference(<span class="kw">_</span>, <span class="kw">_</span>)
+<a href=#281 id=281 data-nosnippet>281</a>        | Type::Forall(..)
+<a href=#282 id=282 data-nosnippet>282</a>        | Type::Constant(..)
+<a href=#283 id=283 data-nosnippet>283</a>        | Type::Quoted(..)
+<a href=#284 id=284 data-nosnippet>284</a>        | Type::InfixExpr(..)
+<a href=#285 id=285 data-nosnippet>285</a>        | Type::Error =&gt; <span class="macro">panic!</span>(<span class="string">"Unexpected type in comptime input value conversion"</span>),
+<a href=#286 id=286 data-nosnippet>286</a>    }
+<a href=#287 id=287 data-nosnippet>287</a>}
+<a href=#288 id=288 data-nosnippet>288</a>
+<a href=#289 id=289 data-nosnippet>289</a><span class="doccomment">/// Converts a [Value] into a `String`.
+<a href=#290 id=290 data-nosnippet>290</a>///
+<a href=#291 id=291 data-nosnippet>291</a>/// This is similar to `Value::display(..).to_string()` except that:
+<a href=#292 id=292 data-nosnippet>292</a>/// - only values that can be a circuit output are supported
+<a href=#293 id=293 data-nosnippet>293</a>/// - strings are quoted
+<a href=#294 id=294 data-nosnippet>294</a>/// - struct paths are fully-qualified
+<a href=#295 id=295 data-nosnippet>295</a>///
+<a href=#296 id=296 data-nosnippet>296</a>/// This is so the output matches the format produced by `nargo execute`.
+<a href=#297 id=297 data-nosnippet>297</a></span><span class="kw">fn </span>output_value_to_string(value: <span class="kw-2">&amp;</span>Value, context: <span class="kw-2">&amp;</span>Context) -&gt; String {
+<a href=#298 id=298 data-nosnippet>298</a>    <span class="kw">match </span>value {
+<a href=#299 id=299 data-nosnippet>299</a>        Value::Unit =&gt; <span class="string">"()"</span>.to_string(),
+<a href=#300 id=300 data-nosnippet>300</a>        Value::Bool(value) =&gt; value.to_string(),
+<a href=#301 id=301 data-nosnippet>301</a>        Value::Field(signed_field) =&gt; signed_field.to_field_element().to_short_hex(),
+<a href=#302 id=302 data-nosnippet>302</a>        Value::I8(value) =&gt; value.to_string(),
+<a href=#303 id=303 data-nosnippet>303</a>        Value::I16(value) =&gt; value.to_string(),
+<a href=#304 id=304 data-nosnippet>304</a>        Value::I32(value) =&gt; value.to_string(),
+<a href=#305 id=305 data-nosnippet>305</a>        Value::I64(value) =&gt; value.to_string(),
+<a href=#306 id=306 data-nosnippet>306</a>        Value::U1(<span class="bool-val">false</span>) =&gt; <span class="string">"0"</span>.to_string(),
+<a href=#307 id=307 data-nosnippet>307</a>        Value::U1(<span class="bool-val">true</span>) =&gt; <span class="string">"1"</span>.to_string(),
+<a href=#308 id=308 data-nosnippet>308</a>        Value::U8(value) =&gt; value.to_string(),
+<a href=#309 id=309 data-nosnippet>309</a>        Value::U16(value) =&gt; value.to_string(),
+<a href=#310 id=310 data-nosnippet>310</a>        Value::U32(value) =&gt; value.to_string(),
+<a href=#311 id=311 data-nosnippet>311</a>        Value::U64(value) =&gt; value.to_string(),
+<a href=#312 id=312 data-nosnippet>312</a>        Value::U128(value) =&gt; value.to_string(),
+<a href=#313 id=313 data-nosnippet>313</a>        Value::String(bytes) =&gt; {
+<a href=#314 id=314 data-nosnippet>314</a>            <span class="kw">let </span>string = String::from_utf8_lossy(bytes);
+<a href=#315 id=315 data-nosnippet>315</a>            <span class="macro">format!</span>(<span class="string">"{string:?}"</span>)
+<a href=#316 id=316 data-nosnippet>316</a>        }
+<a href=#317 id=317 data-nosnippet>317</a>        Value::Tuple(values) =&gt; {
+<a href=#318 id=318 data-nosnippet>318</a>            <span class="kw">let </span>values = vecmap(values, |value| output_value_to_string(<span class="kw-2">&amp;</span>value.borrow(), context));
+<a href=#319 id=319 data-nosnippet>319</a>            <span class="kw">if </span>values.len() == <span class="number">1 </span>{
+<a href=#320 id=320 data-nosnippet>320</a>                <span class="macro">format!</span>(<span class="string">"({},)"</span>, values[<span class="number">0</span>])
+<a href=#321 id=321 data-nosnippet>321</a>            } <span class="kw">else </span>{
+<a href=#322 id=322 data-nosnippet>322</a>                <span class="macro">format!</span>(<span class="string">"({})"</span>, values.join(<span class="string">", "</span>))
+<a href=#323 id=323 data-nosnippet>323</a>            }
+<a href=#324 id=324 data-nosnippet>324</a>        }
+<a href=#325 id=325 data-nosnippet>325</a>        Value::Array(values, <span class="kw">_</span>) =&gt; {
+<a href=#326 id=326 data-nosnippet>326</a>            <span class="kw">let </span>values = vecmap(values, |value| output_value_to_string(value, context));
+<a href=#327 id=327 data-nosnippet>327</a>            <span class="macro">format!</span>(<span class="string">"[{}]"</span>, values.join(<span class="string">", "</span>))
+<a href=#328 id=328 data-nosnippet>328</a>        }
+<a href=#329 id=329 data-nosnippet>329</a>        Value::Struct(fields, typ) =&gt; {
+<a href=#330 id=330 data-nosnippet>330</a>            <span class="kw">let </span>data_type = <span class="kw">match </span>typ.follow_bindings() {
+<a href=#331 id=331 data-nosnippet>331</a>                Type::DataType(def, <span class="kw">_</span>) =&gt; def,
+<a href=#332 id=332 data-nosnippet>332</a>                other =&gt; <span class="macro">unreachable!</span>(<span class="string">"Expected data type, found {other}"</span>),
+<a href=#333 id=333 data-nosnippet>333</a>            };
+<a href=#334 id=334 data-nosnippet>334</a>            <span class="kw">let </span>data_type = data_type.borrow();
+<a href=#335 id=335 data-nosnippet>335</a>            <span class="kw">let </span>typename =
+<a href=#336 id=336 data-nosnippet>336</a>                context.fully_qualified_struct_path(context.root_crate_id(), data_type.id);
+<a href=#337 id=337 data-nosnippet>337</a>
+<a href=#338 id=338 data-nosnippet>338</a>            <span class="comment">// Display fields in the order they are defined in the struct.
+<a href=#339 id=339 data-nosnippet>339</a>            // Some fields might not be there if they were missing in the constructor.
+<a href=#340 id=340 data-nosnippet>340</a>            </span><span class="kw">let </span>fields = data_type
+<a href=#341 id=341 data-nosnippet>341</a>                .fields_raw()
+<a href=#342 id=342 data-nosnippet>342</a>                .unwrap()
+<a href=#343 id=343 data-nosnippet>343</a>                .iter()
+<a href=#344 id=344 data-nosnippet>344</a>                .filter_map(|field| {
+<a href=#345 id=345 data-nosnippet>345</a>                    <span class="kw">let </span>name = field.name.as_string();
+<a href=#346 id=346 data-nosnippet>346</a>                    fields.get(name).map(|value| {
+<a href=#347 id=347 data-nosnippet>347</a>                        <span class="macro">format!</span>(<span class="string">"{}: {}"</span>, name, output_value_to_string(<span class="kw-2">&amp;</span>value.borrow(), context))
+<a href=#348 id=348 data-nosnippet>348</a>                    })
+<a href=#349 id=349 data-nosnippet>349</a>                })
+<a href=#350 id=350 data-nosnippet>350</a>                .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#351 id=351 data-nosnippet>351</a>            <span class="macro">format!</span>(<span class="string">"{typename} {{ {} }}"</span>, fields.join(<span class="string">", "</span>))
+<a href=#352 id=352 data-nosnippet>352</a>        }
+<a href=#353 id=353 data-nosnippet>353</a>        Value::Enum(tag, args, typ) =&gt; {
+<a href=#354 id=354 data-nosnippet>354</a>            <span class="kw">let </span>args = vecmap(args, |arg| output_value_to_string(arg, context)).join(<span class="string">", "</span>);
+<a href=#355 id=355 data-nosnippet>355</a>
+<a href=#356 id=356 data-nosnippet>356</a>            <span class="kw">match </span>typ.follow_bindings_shallow().as_ref() {
+<a href=#357 id=357 data-nosnippet>357</a>                Type::DataType(def, <span class="kw">_</span>) =&gt; {
+<a href=#358 id=358 data-nosnippet>358</a>                    <span class="kw">let </span>def = def.borrow();
+<a href=#359 id=359 data-nosnippet>359</a>                    <span class="kw">let </span>variant = def.variant_at(<span class="kw-2">*</span>tag);
+<a href=#360 id=360 data-nosnippet>360</a>                    <span class="kw">if </span>variant.is_function {
+<a href=#361 id=361 data-nosnippet>361</a>                        <span class="macro">format!</span>(<span class="string">"{}::{}({args})"</span>, def.name, variant.name)
+<a href=#362 id=362 data-nosnippet>362</a>                    } <span class="kw">else </span>{
+<a href=#363 id=363 data-nosnippet>363</a>                        <span class="macro">format!</span>(<span class="string">"{}::{}"</span>, def.name, variant.name)
+<a href=#364 id=364 data-nosnippet>364</a>                    }
+<a href=#365 id=365 data-nosnippet>365</a>                }
+<a href=#366 id=366 data-nosnippet>366</a>                other =&gt; <span class="macro">panic!</span>(<span class="string">"Expected a data type, got {other}"</span>),
+<a href=#367 id=367 data-nosnippet>367</a>            }
+<a href=#368 id=368 data-nosnippet>368</a>        }
+<a href=#369 id=369 data-nosnippet>369</a>        Value::Function(..)
+<a href=#370 id=370 data-nosnippet>370</a>        | Value::Closure(..)
+<a href=#371 id=371 data-nosnippet>371</a>        | Value::Pointer(..)
+<a href=#372 id=372 data-nosnippet>372</a>        | Value::Vector(..)
+<a href=#373 id=373 data-nosnippet>373</a>        | Value::Quoted(..)
+<a href=#374 id=374 data-nosnippet>374</a>        | Value::TypeDefinition(..)
+<a href=#375 id=375 data-nosnippet>375</a>        | Value::TraitConstraint(..)
+<a href=#376 id=376 data-nosnippet>376</a>        | Value::TraitDefinition(..)
+<a href=#377 id=377 data-nosnippet>377</a>        | Value::TraitImpl(..)
+<a href=#378 id=378 data-nosnippet>378</a>        | Value::FunctionDefinition(..)
+<a href=#379 id=379 data-nosnippet>379</a>        | Value::ModuleDefinition(..)
+<a href=#380 id=380 data-nosnippet>380</a>        | Value::Type(<span class="kw">_</span>)
+<a href=#381 id=381 data-nosnippet>381</a>        | Value::Zeroed(<span class="kw">_</span>)
+<a href=#382 id=382 data-nosnippet>382</a>        | Value::Expr(..)
+<a href=#383 id=383 data-nosnippet>383</a>        | Value::TypedExpr(..)
+<a href=#384 id=384 data-nosnippet>384</a>        | Value::UnresolvedType(..)
+<a href=#385 id=385 data-nosnippet>385</a>        | Value::FormatString(..)
+<a href=#386 id=386 data-nosnippet>386</a>        | Value::CtString(..) =&gt; {
+<a href=#387 id=387 data-nosnippet>387</a>            <span class="macro">panic!</span>(<span class="string">"Unexpected output value: {}"</span>, value.display(<span class="kw-2">&amp;</span>context.def_interner))
+<a href=#388 id=388 data-nosnippet>388</a>        }
+<a href=#389 id=389 data-nosnippet>389</a>    }
+<a href=#390 id=390 data-nosnippet>390</a>}</code></pre></div></section></main></body></html>
