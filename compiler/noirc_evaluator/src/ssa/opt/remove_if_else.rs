@@ -1221,4 +1221,96 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let _ = ssa.remove_if_else();
     }
+
+    #[test]
+    fn could_optimize_array_set_inside_conditional_branch_to_make_array_but_it_does_not() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 4], v1: u32, v2: u1, v3: u1, v4: u1, v5: u1):
+            v7 = make_array [Field 0, Field 0, Field 0, Field 0] : [Field; 4]
+            v9 = call poseidon2_permutation(v0) -> [Field; 4]
+            v10 = if v3 then v9 else (if v2) v7
+            enable_side_effects v4
+            v13 = array_set v10, index u32 0, value Field 6
+            v14 = call poseidon2_permutation(v13) -> [Field; 4]
+            v15 = if v4 then v14 else (if v5) v10
+            enable_side_effects u1 1
+            return v15
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_if_else().unwrap();
+
+        // In the SSA below there's:
+        //
+        // enable_side_effects v4
+        // v32 = array_set v30, index u32 0, value Field 6
+        // v33 = call poseidon2_permutation(v32) -> [Field; 4]
+        //
+        // v33 corresponds to v14 in the original SSA, that is, the "then" branch of the "if".
+        // We can see that v32 is only used in that "then" branch, and because v32 leads to v33,
+        // which later gets conditionally merged, it would be safe to replace v32 with:
+        //
+        // v32 = make_array [Field 6, v19, v24, v29] : [Field; 4]
+        //
+        // However, that's not the case right now.
+        // Note that a series of chained `array_set` that is only used inside the "then" branch
+        // could also be optimized this way. And this could also be applied to the "else" branch.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 4], v1: u32, v2: u1, v3: u1, v4: u1, v5: u1):
+            v7 = make_array [Field 0, Field 0, Field 0, Field 0] : [Field; 4]
+            v9 = call poseidon2_permutation(v0) -> [Field; 4]
+            v11 = array_get v9, index u32 0 -> Field
+            v12 = cast v3 as Field
+            v13 = cast v2 as Field
+            v14 = mul v12, v11
+            v16 = array_get v9, index u32 1 -> Field
+            v17 = cast v3 as Field
+            v18 = cast v2 as Field
+            v19 = mul v17, v16
+            v21 = array_get v9, index u32 2 -> Field
+            v22 = cast v3 as Field
+            v23 = cast v2 as Field
+            v24 = mul v22, v21
+            v26 = array_get v9, index u32 3 -> Field
+            v27 = cast v3 as Field
+            v28 = cast v2 as Field
+            v29 = mul v27, v26
+            v30 = make_array [v14, v19, v24, v29] : [Field; 4]
+            enable_side_effects v4
+            v32 = array_set v30, index u32 0, value Field 6
+            v33 = call poseidon2_permutation(v32) -> [Field; 4]
+            enable_side_effects u1 1
+            v35 = array_get v33, index u32 0 -> Field
+            v36 = cast v4 as Field
+            v37 = cast v5 as Field
+            v38 = mul v36, v35
+            v39 = mul v37, v14
+            v40 = add v38, v39
+            v41 = array_get v33, index u32 1 -> Field
+            v42 = cast v4 as Field
+            v43 = cast v5 as Field
+            v44 = mul v42, v41
+            v45 = mul v43, v19
+            v46 = add v44, v45
+            v47 = array_get v33, index u32 2 -> Field
+            v48 = cast v4 as Field
+            v49 = cast v5 as Field
+            v50 = mul v48, v47
+            v51 = mul v49, v24
+            v52 = add v50, v51
+            v53 = array_get v33, index u32 3 -> Field
+            v54 = cast v4 as Field
+            v55 = cast v5 as Field
+            v56 = mul v54, v53
+            v57 = mul v55, v29
+            v58 = add v56, v57
+            v59 = make_array [v40, v46, v52, v58] : [Field; 4]
+            enable_side_effects v4
+            enable_side_effects u1 1
+            return v59
+        }
+        ");
+    }
 }
