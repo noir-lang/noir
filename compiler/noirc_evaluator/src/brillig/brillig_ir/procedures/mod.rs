@@ -184,7 +184,7 @@ mod tests {
     fn array_copy_procedure() {
         let artifact_string = compile_procedure_to_string(ProcedureId::ArrayCopy);
         insta::assert_snapshot!(artifact_string, @r"
-        fn 
+        fn ArrayCopy
          0: @6 = load @3
          1: @7 = u32 eq @6, @2
          2: jump if @7 to 17
