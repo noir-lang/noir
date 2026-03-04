@@ -3709,11 +3709,11 @@ mod control_dependence {
 
     #[test]
     fn does_not_hoist_failing_constraint() {
-        // The loop body (b3, the else-branch) is never reached at runtime since the loop
-        // starts with v0=0 and exits immediately via the then-branch (b2).
-        // LICM must NOT hoist the failing constraint out of b3.
-        // The add is converted to unchecked_add because the bounds prove no overflow,
-        // but the constraint stays in place.
+        // LICM must not hoist the failing constraint out of b3.
+        // This case is notable since the loop body is in the else branch instead of the then
+        // branch. This can occur in real code e.g. `loop { if i == 0 { break } else { body } }`
+        // The add is converted to unchecked_add which is a bit odd but since the branch is
+        // expected to never run it is fine.
         let src = r#"
             brillig(inline) predicate_pure fn main f0 {
               b0():
@@ -3728,23 +3728,21 @@ mod control_dependence {
                 constrain u1 0 == u1 1, "Index out of bounds"
                 jmp b1(v4)
             }"#;
-        let expected = r#"
-            brillig(inline) predicate_pure fn main f0 {
-              b0():
-                jmp b1(u32 0)
-              b1(v0: u32):
-                v2 = eq v0, u32 0
-                jmpif v2 then: b2(), else: b3()
-              b2():
-                return
-              b3():
-                v4 = unchecked_add v0, u32 1
-                constrain u1 0 == u1 1, "Index out of bounds"
-                jmp b1(v4)
-            }"#;
-        assert_normalized_ssa_equals(
-            Ssa::from_str(src).unwrap().loop_invariant_code_motion(),
-            expected,
-        );
+        let ssa = Ssa::from_str(src).unwrap().loop_invariant_code_motion();
+        assert_ssa_snapshot!(ssa, @r#"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v2 = eq v0, u32 0
+            jmpif v2 then: b2(), else: b3()
+          b2():
+            return
+          b3():
+            v4 = add v0, u32 1
+            constrain u1 0 == u1 1, "Index out of bounds"
+            jmp b1(v4)
+        }
+        "#);
     }
 }

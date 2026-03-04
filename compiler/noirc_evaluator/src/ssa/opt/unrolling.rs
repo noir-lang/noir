@@ -2135,10 +2135,8 @@ mod tests {
 
     #[test]
     fn unroll_loop_upper_bound_saturated() {
-        // The loop condition is `eq v0, u128::MAX` with then=exit, else=body (inverted).
-        // The loop starts at u128::MAX and exits immediately (body never runs).
-        // get_const_upper_bound returns rhs directly (u128::MAX) — no .inc() overflow.
-        // The bounds are (MAX, MAX), indicating an empty loop.
+        // We need to avoid overflow when the loop bounds is `u128::MAX`. In this case,
+        // the loop body is in the `else` case so we fail to unroll entirely.
         let ssa = format!(
             r#"
         acir(inline) fn main f0 {{
@@ -2165,10 +2163,12 @@ mod tests {
         let loop_ = &loops.yet_to_unroll[0];
         let pre_header =
             loop_.get_pre_header(function, &loops.cfg).expect("Should have a pre_header");
-        let (lower, upper) =
-            loop_.get_const_bounds(&function.dfg, pre_header).expect("bounds are numeric const");
-        // lower == upper == u128::MAX: the loop body is never executed.
-        assert_eq!(lower, upper);
+
+        let bounds = loop_.get_const_bounds(&function.dfg, pre_header);
+        assert_eq!(
+            bounds, None,
+            "`get_const_bounds` fails for loops where their body is the else branch"
+        );
     }
 
     /// Prior passes can place non-comparison instructions (like MakeArray) into a loop header block
@@ -2242,7 +2242,7 @@ mod tests {
             "#;
         let (ssa, errors) = try_unroll_loops(Ssa::from_str(src).unwrap());
         assert_eq!(errors.len(), 0, "Unroll should have no errors");
-        assert_ssa_snapshot!(ssa, @r"
+        assert_ssa_snapshot!(ssa, @r#"
         brillig(inline) predicate_pure fn main f0 {
           b0():
             v0 = make_array [] : [i32]
@@ -2251,12 +2251,23 @@ mod tests {
         }
         brillig(inline) predicate_pure fn iter_0_times f1 {
           b0(v0: u32, v1: [i32]):
-            jmp b1()
-          b1():
-            jmp b2()
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v4 = eq v2, u32 0
+            jmpif v4 then: b2(), else: b3()
           b2():
+            jmp b4()
+          b3():
+            v6 = add v2, u32 1
+            v8 = lt u32 10000, v0
+            constrain v8 == u1 1, "Index out of bounds"
+            v10 = array_get v1, index u32 10000 -> i32
+            jmp b5()
+          b4():
             return
+          b5():
+            jmp b1(v6)
         }
-        ");
+        "#);
     }
 }
