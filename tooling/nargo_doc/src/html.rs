@@ -1440,7 +1440,7 @@ impl HTMLCreator {
                     }
                 })
                 .unwrap_or_default();
-            let mut line = lines[link.line].to_string();
+            let mut line = lines[link.line].clone();
             if let Some(id) = id
                 && let Some(ItemInfo { path: _, uri, class: _, visibility: ItemVisibility::Public }) =
                     self.id_to_info.get(id)
@@ -1492,8 +1492,7 @@ impl HTMLCreator {
     fn get_all_trait_impls(&self, trait_: &Trait) -> Vec<TraitImpl> {
         self.all_trait_impls
             .get(&trait_.id)
-            .map(|impls| impls.iter().cloned().collect())
-            .unwrap_or_else(|| trait_.trait_impls.clone())
+            .map_or_else(|| trait_.trait_impls.clone(), |impls| impls.iter().cloned().collect())
     }
 
     fn html_start(&mut self, title: &str, short_title: &str) {

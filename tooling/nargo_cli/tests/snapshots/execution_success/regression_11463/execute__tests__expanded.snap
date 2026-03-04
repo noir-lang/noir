@@ -1,0 +1,24 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    let mut n: u32 = 2_u32;
+    // Safety: comment added by `nargo expand`
+    unsafe {
+        entry(n)
+    }
+}
+
+unconstrained fn recursive(mut c: [Field], n: &mut u32, expected: [Field]) {
+    if *n != 0_u32 {
+        *n = *n - 1_u32;
+        recursive(c.push_front(0_Field), n, expected.push_front(0_Field));
+        assert(c == expected, "slice was corrupted after recursive call");
+    }
+}
+
+unconstrained fn entry(mut n: u32) {
+    let initial: [Field] = @[1_Field, 2_Field];
+    recursive(initial, &mut n, initial);
+}

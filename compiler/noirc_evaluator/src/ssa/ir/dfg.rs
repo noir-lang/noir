@@ -395,11 +395,6 @@ impl DataFlowGraph {
         }
     }
 
-    /// Replace an existing instruction with a new one.
-    pub(crate) fn set_instruction(&mut self, id: InstructionId, instruction: Instruction) {
-        self.instructions[id] = instruction;
-    }
-
     /// Replaces values in the given block according to the given mapping.
     pub(crate) fn replace_values_in_block(&mut self, block: BasicBlockId, mapping: &ValueMapping) {
         self.replace_values_in_block_instructions(block, mapping);
@@ -750,7 +745,7 @@ impl DataFlowGraph {
     }
 
     pub(crate) fn get_instruction_call_stack_id(&self, instruction: InstructionId) -> CallStackId {
-        self.locations.get(&instruction).cloned().unwrap_or_default()
+        self.locations.get(&instruction).copied().unwrap_or_default()
     }
 
     pub(crate) fn get_call_stack(&self, call_stack: CallStackId) -> CallStack {
@@ -812,17 +807,26 @@ impl DataFlowGraph {
     /// Uses value information to determine whether an instruction is from
     /// this function's DFG or the global space's DFG.
     pub(crate) fn get_local_or_global_instruction(&self, value: ValueId) -> Option<&Instruction> {
+        self.get_local_or_global_instruction_with_id(value).map(|(instruction, _id)| instruction)
+    }
+
+    /// Uses value information to determine whether an instruction is from
+    /// this function's DFG or the global space's DFG, including the instruction ID.
+    pub(crate) fn get_local_or_global_instruction_with_id(
+        &self,
+        value: ValueId,
+    ) -> Option<(&Instruction, InstructionId)> {
         match &self[value] {
-            Value::Instruction { instruction, .. } => {
+            Value::Instruction { instruction: instruction_id, .. } => {
                 let instruction = if self.is_global(value) {
-                    let instruction = &self.globals[*instruction];
+                    let instruction = &self.globals[*instruction_id];
                     // We expect to only have MakeArray instructions in the global space
                     assert!(matches!(instruction, Instruction::MakeArray { .. }));
                     instruction
                 } else {
-                    &self[*instruction]
+                    &self[*instruction_id]
                 };
-                Some(instruction)
+                Some((instruction, *instruction_id))
             }
             _ => None,
         }

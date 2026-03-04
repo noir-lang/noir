@@ -203,7 +203,7 @@ impl Parser<'_> {
         if deprecated_dep_found {
             // In the error message, try to include the actual dependency being imported
             let dependency_name = if let Token::Ident(name) = self.token.token() {
-                name.to_string()
+                name.clone()
             } else {
                 "dependency".to_string()
             };

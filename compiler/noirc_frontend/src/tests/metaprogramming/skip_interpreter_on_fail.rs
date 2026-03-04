@@ -191,7 +191,7 @@ fn function_with_error_called_from_comptime_global() {
         comptime global X: Field = bad();
 
         fn main() {
-            let _ = X;
+            let _ = comptime { X };
         }
         ";
     check_errors(src);
@@ -372,7 +372,7 @@ fn function_with_error_in_local_comptime_variable() {
 
         fn main() {
             comptime let _x = bad();
-            assert_eq(FLAG, false); 
+            assert_eq(comptime { FLAG }, false); 
         }
         ";
     check_errors(src);
@@ -803,7 +803,7 @@ fn regression_10832() {
     }
     fn main() {
         comptime {
-            let mut f = Foo { x: 1, y: 2 };
+            let f = Foo { x: 1, y: 2 };
             let Foo { x, y, undefined } = f;
                             ^^^^^^^^^ no such field undefined defined in struct Foo
             let _ = x;
@@ -825,7 +825,7 @@ fn regression_10855() {
     }
     fn main() {
         comptime {
-            let mut f: Foo = Foo { x: 1, y: 2 };
+            let f: Foo = Foo { x: 1, y: 2 };
             assert_eq(f.undefined, 999);
                         ^^^^^^^^^ Type Foo has no member named undefined
         }
@@ -993,7 +993,7 @@ fn access_non_existent_struct_field() {
     }
     fn main() {
         comptime {
-            let mut f: Foo = Foo { x: 1, y: 2 };
+            let f: Foo = Foo { x: 1, y: 2 };
             assert_eq(f.undefined, 999);
                         ^^^^^^^^^ Type Foo has no member named undefined
         }

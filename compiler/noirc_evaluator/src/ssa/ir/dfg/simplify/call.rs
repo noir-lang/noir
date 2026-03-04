@@ -59,9 +59,7 @@ pub(super) fn simplify_call(
             // TODO: simplify to a range constraint if `limb_count == 1`
             if let (Some(constant_args), Some(return_type)) = (constant_args, return_type.clone()) {
                 let field = constant_args[0];
-                let limb_count = if let Type::Array(_, array_len) = return_type {
-                    array_len
-                } else {
+                let Type::Array(_, limb_count) = return_type else {
                     unreachable!("ICE: Intrinsic::ToRadix return type must be array")
                 };
                 simplify_constant_to_radix(endian, field, 2, limb_count.0, |values| {
@@ -82,9 +80,7 @@ pub(super) fn simplify_call(
             if let (Some(constant_args), Some(return_type)) = (constant_args, return_type.clone()) {
                 let field = constant_args[0];
                 let radix = constant_args[1].to_u128() as u32;
-                let limb_count = if let Type::Array(_, array_len) = return_type {
-                    array_len
-                } else {
+                let Type::Array(_, limb_count) = return_type else {
                     unreachable!("ICE: Intrinsic::ToRadix return type must be array")
                 };
                 simplify_constant_to_radix(endian, field, radix, limb_count.0, |values| {
@@ -551,7 +547,14 @@ fn simplify_vector_push_back(
     vector_sizes.insert(set_last_vector_value, vector_size / element_size);
     vector_sizes.insert(new_vector, vector_size / element_size);
 
-    let mut value_merger = ValueMerger::new(dfg, block, &vector_sizes, call_stack);
+    let array_get_optimization_side_effects = None;
+    let mut value_merger = ValueMerger::new(
+        dfg,
+        block,
+        &vector_sizes,
+        call_stack,
+        array_get_optimization_side_effects,
+    );
 
     let Ok(new_vector) = value_merger.merge_values(
         len_not_equals_capacity,

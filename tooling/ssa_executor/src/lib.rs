@@ -93,7 +93,7 @@ mod tests {
         let ssa_without_runtime = "
             (inline) fn main f0 {
               b0(v0: i32, v1: u1, v2: u1, v3: u1, v4: u1, v5: u1, v6: u1):
-                jmpif v6 then: b1, else: b2
+                jmpif v6 then: b1(), else: b2()
               b1():
                 v7 = cast v0 as u128
                 jmp b3()
@@ -129,10 +129,8 @@ mod tests {
             witness_map.insert(Witness(i), FieldElement::from(1_u32));
         }
         witness_map.insert(Witness(6), FieldElement::from(0_u32));
-        let acir_result =
-            execute_ssa(acir_ssa.to_string(), witness_map.clone(), CompileOptions::default());
-        let brillig_result =
-            execute_ssa(brillig_ssa.to_string(), witness_map, CompileOptions::default());
+        let acir_result = execute_ssa(acir_ssa, witness_map.clone(), CompileOptions::default());
+        let brillig_result = execute_ssa(brillig_ssa, witness_map, CompileOptions::default());
         match (acir_result, brillig_result) {
             (Err(acir), Ok(_brillig)) => panic!("Acir failed with: {acir}, brillig succeeded"),
             (Ok(_acir), Err(brillig)) => panic!("Acir succeeded, brillig failed: {brillig}"),

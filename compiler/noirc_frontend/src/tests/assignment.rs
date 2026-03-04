@@ -33,7 +33,7 @@ fn mutate_in_lvalue_block_expr() {
     insta::assert_snapshot!(expanded, @r"
     fn main() {
         mutate_in_lvalue();
-        ()
+        ();
     }
     
     fn mutate_in_lvalue() {
@@ -625,7 +625,7 @@ fn reference_chain_in_tuple_member_access() {
         fn main() {
             let inner = &mut (10, 20);
             let outer = &mut (5, inner);
-            let mut x = (outer, 99);
+            let x = (outer, 99);
 
             x.0.1.0 = 42;
 

@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Function expects 1 parameter but 2 were given
+  ┌─ src/main.nr:6:9
+  │
+6 │         poseidon2_permutation(input1, 16)[0]
+  │         ---------------------------------
+  │
+
+error: Function expects 1 parameter but 2 were given
+  ┌─ src/main.nr:8:9
+  │
+8 │         poseidon2_permutation(input2, 4)[0]
+  │         --------------------------------
+  │
+
+Aborting due to 2 previous errors

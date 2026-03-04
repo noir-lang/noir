@@ -16,7 +16,10 @@ use crate::{
 };
 use rustc_hash::FxHashMap as HashMap;
 
-use super::{constant_allocation::ConstantAllocation, variable_liveness::VariableLiveness};
+use super::{
+    coalescing::CoalescingMap, constant_allocation::ConstantAllocation,
+    spill_manager::SpillManager, variable_liveness::VariableLiveness,
+};
 
 /// Information required to compile an SSA [Function] into Brillig bytecode.
 ///
@@ -49,16 +52,53 @@ pub(crate) struct FunctionContext {
     pub(crate) constant_allocation: ConstantAllocation,
     /// True if this function is a brillig entry point
     pub(crate) is_entry_point: bool,
+    /// Manages spilling of register values to the heap spill region when register pressure
+    /// exceeds the stack frame limit. Persists across blocks so spill state is not lost.
+    /// Present only when the function may need spilling (based on liveness analysis).
+    pub(crate) spill_manager: Option<SpillManager>,
+    /// Coalescing map for jmp argument → block parameter register sharing.
+    pub(crate) coalescing: CoalescingMap,
 }
 
 impl FunctionContext {
     /// Creates a new function context. It will allocate parameters for all blocks and compute the liveness of every variable.
-    pub(crate) fn new(function: &Function, is_entry_point: bool) -> Self {
+    /// Safety margin added to `max_live_count` when deciding whether a function needs
+    /// spill infrastructure.
+    ///
+    /// `max_live_count` is an SSA-level lower bound on actual Brillig register pressure.
+    /// Codegen inflates pressure beyond the SSA estimate in several ways:
+    /// - Temporary/scratch registers for address computation and intermediates
+    /// - Constant materialization into registers at use sites
+    /// - Call setup shuffling arguments/returns into contiguous register windows
+    /// - Instruction-specific expansions (e.g. MakeArray element loads)
+    ///
+    /// This margin is a conservative buffer so that functions close to the frame limit
+    /// still get spill support. It can be tuned if it proves too aggressive or too
+    /// conservative in practice.
+    const SPILL_MARGIN: usize = 32;
+
+    pub(crate) fn new(
+        function: &Function,
+        is_entry_point: bool,
+        max_stack_frame_size: usize,
+    ) -> Self {
         let id = function.id();
 
         let reverse_post_order = PostOrder::with_function(function).into_vec_reverse();
         let constants = ConstantAllocation::from_function(function);
         let liveness = VariableLiveness::from_function(function, &constants);
+        let needs_spill_support =
+            liveness.max_live_count + Self::SPILL_MARGIN >= max_stack_frame_size;
+
+        let spill_manager = if needs_spill_support { Some(SpillManager::new()) } else { None };
+
+        // Disable coalescing when spilling is enabled.
+        // Shared registers currently conflicts with the spill eviction mechanism.
+        let coalescing = if spill_manager.is_some() {
+            CoalescingMap::default()
+        } else {
+            CoalescingMap::from_function(function, &liveness)
+        };
 
         Self {
             function_id: Some(id),
@@ -67,7 +107,24 @@ impl FunctionContext {
             liveness,
             is_entry_point,
             constant_allocation: constants,
+            spill_manager,
+            coalescing,
         }
+    }
+
+    /// Whether this function has spill infrastructure enabled.
+    pub(crate) fn spill_enabled(&self) -> bool {
+        self.spill_manager.is_some()
+    }
+
+    /// Whether any block in this function actually spilled a value.
+    pub(crate) fn did_spill(&self) -> bool {
+        self.max_spill_offset() > 0
+    }
+
+    /// The number of spill slots needed (0 if no spilling occurred).
+    pub(crate) fn max_spill_offset(&self) -> usize {
+        self.spill_manager.as_ref().map_or(0, |sm| sm.max_spill_offset())
     }
 
     /// Get the ID of the function this context was created for.

@@ -1,12 +1,15 @@
-use crate::ssa::ir::{
-    basic_block::BasicBlockId,
-    dfg::simplify::value_merger::ValueMerger,
-    instruction::{
-        Binary, BinaryOp, ConstrainError, Instruction,
-        binary::{truncate, truncate_field},
+use crate::ssa::{
+    ir::{
+        basic_block::BasicBlockId,
+        dfg::simplify::value_merger::ValueMerger,
+        instruction::{
+            Binary, BinaryOp, ConstrainError, Instruction,
+            binary::{truncate, truncate_field},
+        },
+        types::{NumericType, Type},
+        value::{Value, ValueId},
     },
-    types::{NumericType, Type},
-    value::{Value, ValueId},
+    opt::ArrayGetOptimizationResult,
 };
 use acvm::{
     AcirField as _, FieldElement,
@@ -115,7 +118,7 @@ pub(crate) fn simplify(
         Instruction::ConstrainNotEqual(..) => None,
         Instruction::ArrayGet { array, index } => {
             if let Some(index) = dfg.get_numeric_constant(*index) {
-                return try_optimize_array_get_from_previous_set(dfg, *array, index);
+                return try_optimize_array_get_from_previous_instructions(dfg, *array, index);
             }
 
             let array_or_vector_type = dfg.type_of_value(*array);
@@ -357,7 +360,8 @@ fn optimize_length_one_array_read(
     );
     dfg.insert_instruction_and_results(index_constraint, block, None, call_stack);
 
-    let result = try_optimize_array_get_from_previous_set(dfg, array, FieldElement::zero());
+    let result =
+        try_optimize_array_get_from_previous_instructions(dfg, array, FieldElement::zero());
     if let SimplifyResult::None = result {
         SimplifyResult::SimplifiedToInstruction(Instruction::ArrayGet { array, index: zero })
     } else {
@@ -365,73 +369,35 @@ fn optimize_length_one_array_read(
     }
 }
 
-/// Given a chain of operations like:
-/// v1 = array_set [10, 11, 12], index 1, value: 5
-/// v2 = array_set v1, index 2, value: 6
-/// v3 = array_set v2, index 2, value: 7
-/// v4 = array_get v3, index 1
-///
-/// We want to optimize `v4` to `11`. To do this we need to follow the array value
-/// through several array sets. For each array set:
-/// - If the index is non-constant we fail the optimization since any index may be changed
-/// - If the index is constant and is our target index, we conservatively fail the optimization
-///   in case the array_set is disabled from a previous `enable_side_effects_if` and the array get
-///   was not.
-/// - Otherwise, we check the array value of the array set.
-///   - If the array value is constant, we use that array.
-///   - If the array value is from a previous array-set, we recur.
-///   - If the array value is from an array parameter, we use that array.
-///
-/// That is, we have multiple `array_set` instructions setting various constant indexes
-/// of the same array, returning a modified version. We want to go backwards until we
-/// find the last `array_set` for the index we are interested in, and return the value set.
-fn try_optimize_array_get_from_previous_set(
+/// See [`crate::ssa::opt::try_optimize_array_get_from_previous_instructions`] for more information.
+fn try_optimize_array_get_from_previous_instructions(
     dfg: &mut DataFlowGraph,
-    mut array_id: ValueId,
+    array_id: ValueId,
     target_index: FieldElement,
 ) -> SimplifyResult {
-    // The target index must be less than the maximum array length
-    let Some(target_index_u32) = target_index.try_to_u32() else {
-        return SimplifyResult::None;
-    };
+    let side_effects = None;
+    let result = crate::ssa::opt::try_optimize_array_get_from_previous_instructions(
+        array_id,
+        target_index,
+        dfg,
+        side_effects,
+    );
+    match result {
+        Some(ArrayGetOptimizationResult::Value(value)) => SimplifyResult::SimplifiedTo(value),
+        Some(ArrayGetOptimizationResult::ArrayGet(new_array_id)) => {
+            assert_ne!(
+                new_array_id, array_id,
+                "ArrayGetOptimizationResult::ArrayGet returned the same array_id"
+            );
 
-    // Arbitrary number of maximum tries just to prevent this optimization from taking too long.
-    let max_tries = 5;
-    for _ in 0..max_tries {
-        if let Some(instruction) = dfg.get_local_or_global_instruction(array_id) {
-            match instruction {
-                Instruction::ArraySet { array, index, value, .. } => {
-                    if let Some(constant) = dfg.get_numeric_constant(*index) {
-                        if constant == target_index {
-                            return SimplifyResult::SimplifiedTo(*value);
-                        }
-
-                        array_id = *array; // recur
-                        continue;
-                    }
-                }
-                Instruction::MakeArray { elements: array, typ: _ } => {
-                    let index = target_index_u32 as usize;
-                    if index < array.len() {
-                        return SimplifyResult::SimplifiedTo(array[index]);
-                    }
-                }
-                _ => (),
-            }
-        } else if let Value::Param { typ: Type::Array(_, length), .. } = &dfg[array_id]
-            && target_index_u32 < length.0
-        {
             let index = dfg.make_constant(target_index, NumericType::length_type());
-            return SimplifyResult::SimplifiedToInstruction(Instruction::ArrayGet {
-                array: array_id,
+            SimplifyResult::SimplifiedToInstruction(Instruction::ArrayGet {
+                array: new_array_id,
                 index,
-            });
+            })
         }
-
-        break;
+        None => SimplifyResult::None,
     }
-
-    SimplifyResult::None
 }
 
 /// If we have an array set whose value is from an array get on the same array at the same index,
@@ -753,12 +719,17 @@ mod tests {
         ";
         let ssa = Ssa::from_str_simplifying(src).unwrap();
 
+        // Only v3 was optimized because v2 reads from the same index
+        // as v1 and this basic optimization can't know if that array_set
+        // is under the same predicate as the array_get (there's a dedicated
+        // `array_get` optimization for that)
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) predicate_pure fn main f0 {
           b0(v0: [Field; 2]):
             v3 = array_set mut v0, index u32 0, value Field 4
-            v5 = array_get v0, index u32 1 -> Field
-            return Field 4, v5
+            v4 = array_get v3, index u32 0 -> Field
+            v6 = array_get v0, index u32 1 -> Field
+            return v4, v6
         }
         ");
     }

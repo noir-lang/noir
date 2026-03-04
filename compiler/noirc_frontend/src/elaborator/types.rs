@@ -37,7 +37,6 @@ use crate::{
         DependencyId, ExprId, FuncId, GlobalValue, TraitId, TraitImplKind, TraitItemId,
     },
     shared::Signedness,
-    token::SecondaryAttributeKind,
 };
 
 use super::{
@@ -421,19 +420,6 @@ impl Elaborator<'_> {
                     return Type::Error;
                 }
 
-                if !self.in_contract()
-                    && self
-                        .interner
-                        .type_attributes(&data_type.borrow().id)
-                        .iter()
-                        .any(|attr| matches!(attr.kind, SecondaryAttributeKind::Abi(_)))
-                {
-                    self.push_err(ResolverError::AbiAttributeOutsideContract {
-                        location: data_type.borrow().name.location(),
-                        usage_location: Some(path.location),
-                    });
-                }
-
                 let (args, _) = self.resolve_type_args_inner(
                     args,
                     data_type.borrow(),
@@ -746,10 +732,9 @@ impl Elaborator<'_> {
                 let reference_location = path.location;
                 self.interner.add_global_reference(id, reference_location);
                 let opt_global_let_statement = self.interner.get_global_let_statement(id);
-                let kind = opt_global_let_statement
-                    .as_ref()
-                    .map(|let_statement| Kind::numeric(let_statement.r#type.clone()))
-                    .unwrap_or(Kind::u32());
+                let kind = opt_global_let_statement.as_ref().map_or(Kind::u32(), |let_statement| {
+                    Kind::numeric(let_statement.r#type.clone())
+                });
 
                 let Some(stmt) = opt_global_let_statement else {
                     if self.elaborate_global_if_unresolved(&id) {
@@ -770,7 +755,7 @@ impl Elaborator<'_> {
                     return None;
                 };
 
-                let Some(global_value) = global_value.to_non_negative_signed_field() else {
+                let Some(global_value) = global_value.as_non_negative_signed_field() else {
                     let global_value = global_value.clone();
                     if global_value.is_integral() {
                         self.push_err(ResolverError::NegativeGlobalType { location, global_value });
@@ -832,10 +817,10 @@ impl Elaborator<'_> {
                 };
 
                 if !suffix_kind.unifies(expected_kind) {
-                    self.push_err(TypeCheckError::ExpectingOtherError {
-                        message: format!("convert_expression_type: {suffix_kind} does not unify with expected {expected_kind}"),
+                    self.push_err(TypeCheckError::expecting_other_error(
+                        format!("convert_expression_type: {suffix_kind} does not unify with expected {expected_kind}"),
                         location,
-                    });
+                    ));
                 }
 
                 Type::Constant(int, suffix_kind)
@@ -1027,7 +1012,7 @@ impl Elaborator<'_> {
     ) -> Type {
         let associated_types = match impl_kind {
             TraitImplKind::Assumed { trait_generics, .. } => Cow::Owned(trait_generics.named),
-            TraitImplKind::Normal(impl_id) | TraitImplKind::Prepared(impl_id) => {
+            TraitImplKind::Normal(impl_id) | TraitImplKind::Prepared(impl_id, _) => {
                 Cow::Borrowed(self.interner.get_associated_types_for_impl(impl_id))
             }
         };
@@ -1208,22 +1193,34 @@ impl Elaborator<'_> {
         let turbofish = before_last_segment.turbofish();
 
         let path_resolution = self.use_path_as_type(path).ok()?;
+
+        let mut errors = Vec::new();
         let typ = match path_resolution.item {
             PathResolutionItem::Type(type_id) => {
-                let generics = self.resolve_struct_id_turbofish_generics(type_id, turbofish);
+                let generics = self.resolve_struct_id_turbofish_generics(
+                    type_id,
+                    turbofish.clone(),
+                    &mut errors,
+                );
                 let datatype = self.get_type(type_id);
                 Type::DataType(datatype, generics)
             }
             PathResolutionItem::TypeAlias(type_alias_id) => {
-                let generics =
-                    self.resolve_type_alias_id_turbofish_generics(type_alias_id, turbofish);
+                let generics = self.resolve_type_alias_id_turbofish_generics(
+                    type_alias_id,
+                    turbofish.clone(),
+                    &mut errors,
+                );
                 let type_alias = self.interner.get_type_alias(type_alias_id);
                 let type_alias = type_alias.borrow();
                 type_alias.get_type(&generics)
             }
             PathResolutionItem::PrimitiveType(primitive_type) => {
-                let (typ, _) =
-                    self.instantiate_primitive_type_with_turbofish(primitive_type, turbofish);
+                let (typ, _) = self.instantiate_primitive_type_with_turbofish(
+                    primitive_type,
+                    turbofish.clone(),
+                    &mut errors,
+                );
                 typ
             }
             PathResolutionItem::Module(..)
@@ -1260,6 +1257,7 @@ impl Elaborator<'_> {
         let (hir_method_reference, error) =
             self.get_trait_method_in_scope(&trait_methods, method_name, last_segment.location);
         let hir_method_reference = hir_method_reference?;
+
         match hir_method_reference {
             HirMethodReference::FuncId(func_id) => {
                 // It could happen that we find a single function (one in a trait impl)
@@ -1269,14 +1267,30 @@ impl Elaborator<'_> {
                 }
 
                 let method = TraitPathResolutionMethod::NotATraitMethod(func_id);
-                Some(TraitPathResolution { method, item: None, errors })
+                let item = match path_resolution.item {
+                    PathResolutionItem::Type(type_id) => {
+                        PathResolutionItem::Method(type_id, turbofish, func_id)
+                    }
+                    PathResolutionItem::TypeAlias(type_alias_id) => {
+                        PathResolutionItem::TypeAliasFunction(type_alias_id, turbofish, func_id)
+                    }
+                    PathResolutionItem::PrimitiveType(primitive_type) => {
+                        PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, func_id)
+                    }
+                    _ => unreachable!("An early return should have triggered before in this case"),
+                };
+                Some(TraitPathResolution { method, item: Some(item), errors })
             }
             HirMethodReference::TraitItemId(HirTraitMethodReference {
                 definition,
                 trait_id,
                 ..
             }) => {
+                // In this case turbofish won't be resolved again, so we can commit the errors
+                self.push_errors(errors);
+
                 let trait_ = self.interner.get_trait(trait_id);
+
                 let mut constraint = trait_.as_constraint(location);
                 constraint.typ = typ.clone();
 
@@ -2002,11 +2016,10 @@ impl Elaborator<'_> {
                 });
             }
             Type::Error => {
-                self.push_err(TypeCheckError::ExpectingOtherError {
-                    message: "type_check_operator_method: encountered method_type of type 'error'"
-                        .to_string(),
+                self.push_err(TypeCheckError::expecting_other_error(
+                    "type_check_operator_method: encountered method_type of type 'error'",
                     location,
-                });
+                ));
             }
             other => {
                 unreachable!(
@@ -2372,17 +2385,14 @@ impl Elaborator<'_> {
         location: Location,
         object_location: Location,
     ) -> Option<HirMethodReference> {
-        let func_id = match self.current_item {
-            Some(DependencyId::Function(id)) => id,
-            _ => {
-                // Unexpected method outside a function.
-                self.push_err(TypeCheckError::UnresolvedMethodCall {
-                    method_name: method_name.to_string(),
-                    object_type: object_type.clone(),
-                    location,
-                });
-                return None;
-            }
+        let Some(DependencyId::Function(func_id)) = self.current_item else {
+            // Unexpected method outside a function.
+            self.push_err(TypeCheckError::UnresolvedMethodCall {
+                method_name: method_name.to_string(),
+                object_type: object_type.clone(),
+                location,
+            });
+            return None;
         };
 
         // The function we are elaborating, ie. where we make the method call from.
@@ -2569,8 +2579,7 @@ impl Elaborator<'_> {
         if !is_current_func_constrained {
             // Check if we're calling verify_proof_with_type in an unconstrained context
             self.run_lint(|elaborator| {
-                lints::error_if_verify_proof_with_type(elaborator.interner, call.func)
-                    .map(Into::into)
+                lints::error_if_verify_proof_with_type(elaborator.interner, call.func, location)
             });
         }
 
@@ -2581,8 +2590,14 @@ impl Elaborator<'_> {
                 false
             };
 
-        let is_unconstrained_call =
-            func_type_is_unconstrained || self.is_unconstrained_call(call.func);
+        let func_is_unconstrained_call = match self.is_unconstrained_call(call.func, location) {
+            Ok(result) => result,
+            Err(error) => {
+                self.push_err(error);
+                false
+            }
+        };
+        let is_unconstrained_call = func_type_is_unconstrained || func_is_unconstrained_call;
         let crossing_runtime_boundary = is_current_func_constrained && is_unconstrained_call;
 
         if crossing_runtime_boundary {
@@ -2613,11 +2628,16 @@ impl Elaborator<'_> {
     }
 
     /// Check if the callee is an unconstrained function, or a variable referring to one.
-    fn is_unconstrained_call(&self, expr: ExprId) -> bool {
-        if let Some(func_id) = self.interner.lookup_function_from_expr(&expr) {
-            self.interner.function_meta(&func_id).is_unconstrained()
+    fn is_unconstrained_call(
+        &self,
+        expr: ExprId,
+        location: Location,
+    ) -> Result<bool, CompilationError> {
+        if let Some(func_id) = self.interner.lookup_function_from_expr(&expr, location)? {
+            let meta = self.interner.function_meta(&func_id);
+            Ok(meta.is_unconstrained())
         } else {
-            false
+            Ok(false)
         }
     }
 

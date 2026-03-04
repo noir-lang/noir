@@ -84,7 +84,7 @@ fn cast_numeric_to_bool() {
         let x: u64 = 1;
         let _ = x as bool;
                 ^^^^^^^^^ Cannot cast `u64` as `bool`
-                ~~~~~~~~~ compare with zero instead: ` != 0`
+                ~~~~~~~~~ Compare with zero instead: ` != 0`
     }
     ";
     check_errors(src);
@@ -98,7 +98,7 @@ fn cast_numeric_to_bool_comptime() {
             let x: u64 = 1;
             let _ = x as bool;
                     ^^^^^^^^^ Cannot cast `u64` as `bool`
-                    ~~~~~~~~~ compare with zero instead: ` != 0`
+                    ~~~~~~~~~ Compare with zero instead: ` != 0`
         }
     }
     ";

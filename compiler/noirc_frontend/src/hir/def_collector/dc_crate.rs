@@ -5,16 +5,16 @@ use crate::graph::CrateId;
 use crate::hir::comptime::{ComptimeError, InterpreterError};
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
-use crate::hir::type_check::TypeCheckError;
+use crate::hir::type_check::{ExpectingOtherError, TypeCheckError};
 use crate::locations::ReferencesTracker;
 use crate::token::SecondaryAttribute;
 use crate::usage_tracker::UnusedItem;
 use crate::{ResolvedGenerics, Type};
 
 use crate::hir::Context;
-use crate::hir::resolution::import::{ImportDirective, resolve_import};
+use crate::hir::resolution::import::{ImportDirective, ResolvedImport, resolve_import};
 
-use crate::ast::{Expression, NoirEnumeration, TypeAlias};
+use crate::ast::{Expression, NoirEnumeration, PathKind, TypeAlias};
 use crate::node_interner::{
     FuncId, GlobalId, ModuleAttributes, NodeInterner, ReferenceId, TraitId, TraitImplId,
     TypeAliasId, TypeId,
@@ -32,7 +32,7 @@ use noirc_errors::{CustomDiagnostic, Location, Span};
 use fm::FileId;
 use iter_extended::vecmap;
 use rustc_hash::FxHashMap as HashMap;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::fmt::Write;
 use std::ops::IndexMut;
 use std::path::PathBuf;
@@ -139,9 +139,18 @@ pub struct ModuleAttribute {
 /// Given a Crate root, collect all definitions in that crate
 pub struct DefCollector {
     pub(crate) def_map: CrateDefMap,
-    pub(crate) imports: Vec<ImportDirective>,
+    pub(crate) imports: Vec<ImportDirectiveBatch>,
     pub(crate) items: CollectedItems,
 }
+
+/// A batch of imports that resulted from desugaring a single import statement.
+/// This can happen as a result of expanding `use foo::{bar, baz}` into `use foo:bar; use foo:baz;`.
+/// Keeping the desugared imports as a batch is important because all imports in a batch
+/// will first be resolved, and just then those items will be brought in scope.
+/// This lets `use foo::{foo, bar}` work by first resolving `foo::foo`, then resolving `foo::bar`,
+/// then finally adding those items to scope. Compare this with `use foo::foo; use foo::bar;` where
+/// the second import will likely error as `foo` will mean `foo::foo` and not `foo`.
+pub type ImportDirectiveBatch = Vec<ImportDirective>;
 
 #[derive(Default)]
 pub struct CollectedItems {
@@ -213,8 +222,18 @@ impl CompilationError {
         CustomDiagnostic::from(self).is_error()
     }
 
-    pub(crate) fn is_expecting_other_error_error(&self) -> bool {
-        matches!(self, CompilationError::TypeError(TypeCheckError::ExpectingOtherError { .. }))
+    pub(crate) fn is_expecting_other_error(&self) -> bool {
+        self.as_expecting_other_error().is_some()
+    }
+
+    pub(crate) fn as_expecting_other_error(&self) -> Option<&ExpectingOtherError> {
+        match self {
+            CompilationError::TypeError(TypeCheckError::ExpectingOtherError(e))
+            | CompilationError::InterpreterError(InterpreterError::ExpectingOtherError(e)) => {
+                Some(e)
+            }
+            _ => None,
+        }
     }
 
     pub(crate) fn should_be_filtered(&self) -> bool {
@@ -375,10 +394,7 @@ impl DefCollector {
 
         Self::check_unused_items(context, crate_id, &mut errors);
 
-        if errors.iter().any(|error| !error.is_expecting_other_error_error()) {
-            errors.retain(|error| !error.is_expecting_other_error_error());
-        }
-        errors
+        filter_expecting_other_errors(errors)
     }
 
     /// This method does several things:
@@ -468,11 +484,13 @@ impl DefCollector {
     }
 
     fn process_imports(
-        mut collected_imports: Vec<ImportDirective>,
+        mut collected_imports: Vec<ImportDirectiveBatch>,
         crate_id: CrateId,
         context: &mut Context,
-        errors: &mut Vec<CompilationError>,
+        outer_errors: &mut Vec<CompilationError>,
     ) {
+        let mut inner_errors = Vec::new();
+
         // Resolve unresolved imports collected from the crate, one by one.
         // Imports that cannot be resolved don't error right away. Instead, they are put in
         // `import_with_errors`. After trying to resolve all imports, we'll try to resolve, once
@@ -503,124 +521,174 @@ impl DefCollector {
             // continue trying to resolve imports indefinitely.
             let mut resolved_at_least_one_import = false;
 
-            // Resolve unresolved imports collected from the crate, one by one.
-            for collected_import in &collected_imports {
-                let local_module_id = collected_import.module_id;
-                let module_id = ModuleId { krate: crate_id, local_id: local_module_id };
+            // Resolve unresolved imports collected from the crate, by batch
+            for batch in collected_imports {
+                // First resolve all imports in the batch.
+                // See the doc comments on ImportDirectiveBatch for an explanation of why this is done.
+                let resolved_batch = vecmap(batch, |collected_import| {
+                    let local_module_id = collected_import.module_id;
+                    let module_id = ModuleId { krate: crate_id, local_id: local_module_id };
 
-                let resolved_import = resolve_import(
-                    collected_import.path.clone(),
-                    module_id,
-                    &context.def_maps,
-                    &mut context.usage_tracker,
-                    Some(ReferencesTracker::new(&mut context.def_interner)),
-                );
+                    let resolved_import = resolve_import(
+                        collected_import.path.clone(),
+                        module_id,
+                        &context.def_maps,
+                        &mut context.usage_tracker,
+                        Some(ReferencesTracker::new(&mut context.def_interner)),
+                    );
+                    (resolved_import, collected_import)
+                });
 
-                match resolved_import {
-                    Ok(resolved_import) => {
-                        resolved_at_least_one_import = true;
+                let batch_has_errors = resolved_batch.iter().any(|(result, _)| result.is_err());
+                if batch_has_errors {
+                    // If there are errors with this batch, remember it and proceed with the next batch
+                    imports_with_errors.push(resolved_batch);
+                } else {
+                    // Successful batches are processed right away
+                    resolved_at_least_one_import = true;
 
-                        let current_def_map = context.def_maps.get_mut(&crate_id).unwrap();
-                        let file_id = current_def_map.file_id(local_module_id);
-
-                        let has_path_resolution_error = !resolved_import.errors.is_empty();
-                        for error in resolved_import.errors {
-                            errors.push(DefCollectorErrorKind::PathResolutionError(error).into());
-                        }
-
-                        // Populate module namespaces according to the imports used
-                        let name = collected_import.name();
-                        let visibility = collected_import.visibility;
-                        let is_prelude = collected_import.is_prelude;
-                        for (module_def_id, item_visibility, _) in
-                            resolved_import.namespace.iter_items()
-                        {
-                            if item_visibility < visibility {
-                                errors.push(
-                                    DefCollectorErrorKind::CannotReexportItemWithLessVisibility {
-                                        item_name: name.clone(),
-                                        desired_visibility: visibility,
-                                    }
-                                    .into(),
-                                );
-                            }
-                            let visibility = visibility.min(item_visibility);
-
-                            let result = current_def_map.index_mut(local_module_id).import(
-                                name.clone(),
-                                visibility,
-                                module_def_id,
-                                is_prelude,
-                            );
-
-                            // If we error on path resolution don't also say it's unused (in case it ends up being unused)
-                            if !has_path_resolution_error {
-                                let defining_module =
-                                    ModuleId { krate: crate_id, local_id: local_module_id };
-
-                                context.usage_tracker.add_unused_item(
-                                    defining_module,
-                                    name.clone(),
-                                    UnusedItem::Import,
-                                    visibility,
-                                );
-
-                                if visibility != ItemVisibility::Private {
-                                    context.def_interner.register_name_for_auto_import(
-                                        name.to_string(),
-                                        module_def_id,
-                                        file_id,
-                                        visibility,
-                                        Some(defining_module),
-                                    );
-
-                                    context.def_interner.add_reexport(
-                                        module_def_id,
-                                        defining_module,
-                                        name.clone(),
-                                        visibility,
-                                    );
-                                }
-                            }
-
-                            if let Some(ref alias) = collected_import.alias {
-                                add_import_reference(
-                                    module_def_id,
-                                    alias,
-                                    &mut context.def_interner,
-                                    file_id,
-                                );
-                            }
-
-                            if let Err((first_def, second_def)) = result {
-                                let err = DefCollectorErrorKind::Duplicate {
-                                    typ: DuplicateType::Import,
-                                    first_def,
-                                    second_def,
-                                };
-                                errors.push(err.into());
-                            }
-                        }
-                    }
-                    Err(error) => {
-                        imports_with_errors.push((collected_import.clone(), error));
+                    for (result, collected_import) in resolved_batch {
+                        let resolved_import =
+                            result.expect("We already checked that all results are Ok");
+                        Self::process_resolved_import(
+                            resolved_import,
+                            &collected_import,
+                            crate_id,
+                            context,
+                            &mut inner_errors,
+                        );
                     }
                 }
             }
 
+            // If we could process all batches without errors, we are done.
             if imports_with_errors.is_empty() {
                 break;
             }
 
+            // If we made some progress, try again with batches that errored.
+            // They might succeed next time.
             if resolved_at_least_one_import {
-                collected_imports = vecmap(imports_with_errors, |(import, _)| import);
+                collected_imports = vecmap(imports_with_errors, |batch| {
+                    vecmap(batch, |(_, collected_import)| collected_import)
+                });
                 continue;
-            } else {
-                for (_, error) in imports_with_errors {
-                    let error = DefCollectorErrorKind::PathResolutionError(error);
-                    errors.push(error.into());
+            }
+
+            // If we didn't make any progress, give up and:
+            // 1. process successful imports
+            // 2. record errors of unsuccessful ones
+            for batch in imports_with_errors {
+                for (result, collected_import) in batch {
+                    match result {
+                        Ok(resolved_import) => {
+                            Self::process_resolved_import(
+                                resolved_import,
+                                &collected_import,
+                                crate_id,
+                                context,
+                                &mut inner_errors,
+                            );
+                        }
+                        Err(error) => {
+                            let error = DefCollectorErrorKind::PathResolutionError(error);
+                            inner_errors.push(error.into());
+                        }
+                    }
                 }
-                break;
+            }
+            break;
+        }
+
+        // Because a use tree like `use foo::{bar, baz}` is desugared into `use foo::bar; use foo::baz;`,
+        // if `foo` is not found then the error will happen twice. Given that only one error kind can happen
+        // per path segment (either the segment was not found, or it's private, or it doesn't resolve to a module),
+        // it's safe to only keep one error per location.
+        let inner_errors = inner_errors.into_iter().map(|error| (error.location(), error));
+        let inner_errors = inner_errors.collect::<HashMap<_, _>>().into_values();
+        outer_errors.extend(inner_errors);
+    }
+
+    /// Processes a resolved import by bringing into scope the imported item.
+    fn process_resolved_import(
+        resolved_import: ResolvedImport,
+        collected_import: &ImportDirective,
+        crate_id: CrateId,
+        context: &mut Context,
+        errors: &mut Vec<CompilationError>,
+    ) {
+        let local_module_id = collected_import.module_id;
+        let current_def_map = context.def_maps.get_mut(&crate_id).unwrap();
+        let file_id = current_def_map.file_id(local_module_id);
+
+        let has_path_resolution_error = !resolved_import.errors.is_empty();
+        for error in resolved_import.errors {
+            errors.push(DefCollectorErrorKind::PathResolutionError(error).into());
+        }
+
+        // Populate module namespaces according to the imports used
+        let name = collected_import.name();
+        let visibility = collected_import.visibility;
+        let is_prelude = collected_import.is_prelude;
+        for (module_def_id, item_visibility, _) in resolved_import.namespace.iter_items() {
+            if item_visibility < visibility {
+                errors.push(
+                    DefCollectorErrorKind::CannotReexportItemWithLessVisibility {
+                        item_name: name.clone(),
+                        desired_visibility: visibility,
+                    }
+                    .into(),
+                );
+            }
+            let visibility = visibility.min(item_visibility);
+
+            let result = current_def_map.index_mut(local_module_id).import(
+                name.clone(),
+                visibility,
+                module_def_id,
+                is_prelude,
+            );
+
+            // If we error on path resolution don't also say it's unused (in case it ends up being unused)
+            if !has_path_resolution_error {
+                let defining_module = ModuleId { krate: crate_id, local_id: local_module_id };
+
+                context.usage_tracker.add_unused_item(
+                    defining_module,
+                    name.clone(),
+                    UnusedItem::Import,
+                    visibility,
+                );
+
+                if visibility != ItemVisibility::Private {
+                    context.def_interner.register_name_for_auto_import(
+                        name.to_string(),
+                        module_def_id,
+                        file_id,
+                        visibility,
+                        Some(defining_module),
+                    );
+
+                    context.def_interner.add_reexport(
+                        module_def_id,
+                        defining_module,
+                        name.clone(),
+                        visibility,
+                    );
+                }
+            }
+
+            if let Some(ref alias) = collected_import.alias {
+                add_import_reference(module_def_id, alias, &mut context.def_interner, file_id);
+            }
+
+            if let Err((first_def, second_def)) = result {
+                let err = DefCollectorErrorKind::Duplicate {
+                    typ: DuplicateType::Import,
+                    first_def,
+                    second_def,
+                };
+                errors.push(err.into());
             }
         }
     }
@@ -670,45 +738,87 @@ fn inject_prelude(
     crate_id: CrateId,
     context: &mut Context,
     crate_root: LocalModuleId,
-    collected_imports: &mut Vec<ImportDirective>,
+    collected_imports: &mut Vec<ImportDirectiveBatch>,
 ) {
-    if !crate_id.is_stdlib() {
-        let segments: Vec<_> = "std::prelude"
-            .split("::")
-            .map(|segment| PathSegment::from(Ident::new(segment.into(), Location::dummy())))
-            .collect();
-
-        let path = Path::plain(segments.clone(), Location::dummy());
-
-        if let Ok(resolved_import) = resolve_import(
-            path,
-            ModuleId { krate: crate_id, local_id: crate_root },
-            &context.def_maps,
-            &mut context.usage_tracker,
-            None, // references tracker
-        ) {
-            assert!(resolved_import.errors.is_empty(), "Tried to add private item to prelude");
-
-            let (module_def_id, _, _) =
-                resolved_import.namespace.types.expect("couldn't resolve std::prelude");
-            let module_id = module_def_id.as_module().expect("std::prelude should be a module");
-            let prelude = context.module(module_id).scope().names();
-
-            for path in prelude {
-                let mut segments = segments.clone();
-                segments.push(PathSegment::from(Ident::new(path.to_string(), Location::dummy())));
-
-                collected_imports.insert(
-                    0,
-                    ImportDirective {
-                        visibility: ItemVisibility::Private,
-                        module_id: crate_root,
-                        path: Path::plain(segments, Location::dummy()),
-                        alias: None,
-                        is_prelude: true,
-                    },
-                );
-            }
-        }
+    if crate_id.is_stdlib() {
+        return;
     }
+
+    let location = Location::dummy();
+
+    let segments: Vec<_> = "std::prelude"
+        .split("::")
+        .map(|segment| PathSegment::from(Ident::new(segment.into(), location)))
+        .collect();
+
+    let path = Path {
+        segments: segments.clone(),
+        kind: PathKind::Absolute,
+        location,
+        kind_location: location,
+    };
+
+    let Ok(resolved_import) = resolve_import(
+        path,
+        ModuleId { krate: crate_id, local_id: crate_root },
+        &context.def_maps,
+        &mut context.usage_tracker,
+        None, // references tracker
+    ) else {
+        return;
+    };
+
+    assert!(resolved_import.errors.is_empty(), "Tried to add private item to prelude");
+
+    let (module_def_id, _, _) =
+        resolved_import.namespace.types.expect("couldn't resolve std::prelude");
+    let module_id = module_def_id.as_module().expect("std::prelude should be a module");
+    let directives = vecmap(context.module(module_id).scope().names(), |path| {
+        let mut segments = segments.clone();
+        segments.push(PathSegment::from(Ident::new(path.to_string(), location)));
+
+        let path = Path { segments, kind: PathKind::Absolute, location, kind_location: location };
+
+        ImportDirective {
+            visibility: ItemVisibility::Private,
+            module_id: crate_root,
+            path,
+            alias: None,
+            is_prelude: true,
+        }
+    });
+
+    collected_imports.insert(0, directives);
+}
+
+/// Filter the errors so that:
+/// * if we have any errors which are _not_ [ExpectingOtherError], then we remove all [ExpectingOtherError] instances
+/// * if there are no other kind of errors, then we leave and deduplicate the [ExpectingOtherError]s
+fn filter_expecting_other_errors(mut errors: Vec<CompilationError>) -> Vec<CompilationError> {
+    let has_expected_errors =
+        errors.iter().any(|error| !error.is_expecting_other_error() && error.is_error());
+
+    if has_expected_errors {
+        errors.retain(|error| !error.is_expecting_other_error());
+        errors
+    } else {
+        dedup_expecting_other_errors(errors)
+    }
+}
+
+/// The same `ExpectingOtherError` can be emitted multiple times.
+/// This function removes duplicates so we don't see the same error
+/// in the output repeatedly.
+fn dedup_expecting_other_errors(mut errors: Vec<CompilationError>) -> Vec<CompilationError> {
+    // Using a HashSet of the inner error, because CompilationError does not implement Ord or Hash.
+    let mut seen: HashSet<ExpectingOtherError> = HashSet::new();
+    errors.retain(|error| match error.as_expecting_other_error() {
+        Some(e) if seen.contains(e) => false,
+        Some(e) => {
+            seen.insert(e.clone());
+            true
+        }
+        None => true,
+    });
+    errors
 }

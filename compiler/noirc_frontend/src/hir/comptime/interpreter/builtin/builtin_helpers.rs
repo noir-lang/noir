@@ -11,10 +11,12 @@ use noirc_errors::Location;
 use crate::Shared;
 use crate::ast::{BinaryOp, ItemVisibility, UnaryOp};
 use crate::elaborator::Elaborator;
+use crate::hir::comptime::Integer;
 use crate::hir::comptime::display::tokens_to_string;
 use crate::hir::comptime::value::unwrap_rc;
 use crate::hir::comptime::value::{FormatStringFragment, StructFields};
 use crate::hir::def_collector::dc_crate::CompilationError;
+use crate::hir::def_map::fully_qualified_module_path;
 use crate::lexer::Lexer;
 use crate::parser::{Parser, ParserError};
 use crate::signed_field::SignedField;
@@ -190,9 +192,9 @@ pub(crate) fn get_fixed_array_map<T, const N: usize>(
     })
 }
 
-pub(crate) fn get_str((value, location): (Value, Location)) -> IResult<Rc<String>> {
+pub(crate) fn get_str((value, location): (Value, Location)) -> IResult<Rc<Vec<u8>>> {
     match value {
-        Value::String(string) => Ok(string),
+        Value::String(bytes) => Ok(bytes),
         value => {
             let expected = "str";
             type_mismatch(value, expected, location)
@@ -200,9 +202,9 @@ pub(crate) fn get_str((value, location): (Value, Location)) -> IResult<Rc<String
     }
 }
 
-pub(crate) fn get_ctstring((value, location): (Value, Location)) -> IResult<Rc<String>> {
+pub(crate) fn get_ctstring((value, location): (Value, Location)) -> IResult<Rc<Vec<u8>>> {
     match value {
-        Value::CtString(string) => Ok(string),
+        Value::CtString(bytes) => Ok(bytes),
         value => type_mismatch(value, Type::Quoted(QuotedType::CtString), location),
     }
 }
@@ -219,14 +221,14 @@ pub(crate) fn get_tuple((value, location): (Value, Location)) -> IResult<Vec<Sha
 
 pub(crate) fn get_field((value, location): (Value, Location)) -> IResult<SignedField> {
     match value {
-        Value::Field(value) => Ok(value),
+        Value::Integer(Integer::Field(value)) => Ok(value),
         value => type_mismatch(value, Type::FieldElement, location),
     }
 }
 
 pub(crate) fn get_u8((value, location): (Value, Location)) -> IResult<u8> {
     match value {
-        Value::U8(value) => Ok(value),
+        Value::Integer(Integer::U8(value)) => Ok(value),
         value => {
             let expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight);
             type_mismatch(value, expected, location)
@@ -236,7 +238,7 @@ pub(crate) fn get_u8((value, location): (Value, Location)) -> IResult<u8> {
 
 pub(crate) fn get_u32((value, location): (Value, Location)) -> IResult<u32> {
     match value {
-        Value::U32(value) => Ok(value),
+        Value::Integer(Integer::U32(value)) => Ok(value),
         value => {
             let expected = Type::u32();
             type_mismatch(value, expected, location)
@@ -246,7 +248,7 @@ pub(crate) fn get_u32((value, location): (Value, Location)) -> IResult<u32> {
 
 pub(crate) fn get_u64((value, location): (Value, Location)) -> IResult<u64> {
     match value {
-        Value::U64(value) => Ok(value),
+        Value::Integer(Integer::U64(value)) => Ok(value),
         value => {
             let expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour);
             type_mismatch(value, expected, location)
@@ -267,7 +269,7 @@ pub(crate) fn get_expr(
                 Ok(ExprValue::Statement(interner.get_statement_kind(id).clone()))
             }
             ExprValue::LValue(LValue::Interned(id, _)) => {
-                Ok(ExprValue::LValue(interner.get_lvalue(id, location).clone()))
+                Ok(ExprValue::LValue(interner.get_lvalue(id, location)))
             }
             ExprValue::Pattern(Pattern::Interned(id, _)) => {
                 Ok(ExprValue::Pattern(interner.get_pattern(id).clone()))
@@ -488,11 +490,34 @@ fn gather_hir_pattern_tokens(
     }
 }
 
+/// If the given `item_module`'s crate does not match the crate the interpreter is in, issue an
+/// error to prevent modifying an item from an external crate.
+pub(super) fn check_item_crate_matches_current_crate(
+    interpreter: &Interpreter,
+    item: &Value,
+    item_module: ModuleId,
+    location: Location,
+) -> IResult<()> {
+    let current_crate = interpreter.elaborator.module_id().krate;
+    if current_crate != item_module.krate {
+        let module = fully_qualified_module_path(
+            interpreter.elaborator.def_maps,
+            interpreter.elaborator.crate_graph,
+            &current_crate,
+            item_module,
+        );
+        let item = item.display(interpreter.elaborator.interner).to_string();
+        Err(InterpreterError::CannotModifyExternalItem { item, module, location })
+    } else {
+        Ok(())
+    }
+}
+
 pub(super) fn check_function_not_yet_resolved(
     interpreter: &Interpreter,
     func_id: FuncId,
     location: Location,
-) -> Result<(), InterpreterError> {
+) -> IResult<()> {
     let func_meta = interpreter.elaborator.interner.function_meta(&func_id);
     match func_meta.function_body {
         FunctionBody::Unresolved(_, _, _) => Ok(()),
@@ -657,7 +682,7 @@ pub(super) fn hash_item<T: Hash>(
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     item.hash(&mut hasher);
     let hash = hasher.finish();
-    Ok(Value::Field(SignedField::positive(u128::from(hash))))
+    Ok(Value::field(SignedField::positive(u128::from(hash))))
 }
 
 pub(super) fn eq_item<T: Eq>(
@@ -682,7 +707,7 @@ pub(crate) fn byte_array_type(len: usize) -> Type {
 
 /// Create a `Value::Array` from bytes.
 pub(crate) fn to_byte_array(values: &[u8]) -> Value {
-    Value::Array(values.iter().copied().map(Value::U8).collect(), byte_array_type(values.len()))
+    Value::Array(values.iter().copied().map(Value::u8).collect(), byte_array_type(values.len()))
 }
 
 /// Create a `Value::Struct` from fields and the expected return type.
@@ -711,7 +736,7 @@ pub(crate) fn new_unary_op(operator: UnaryOp, typ: Type) -> Option<Value> {
     let mut fields = HashMap::default();
     fields.insert(
         Rc::new("op".to_string()),
-        Shared::new(Value::Field(SignedField::positive(unary_op_value))),
+        Shared::new(Value::field(SignedField::positive(unary_op_value))),
     );
 
     Some(Value::Struct(fields, typ))
@@ -724,7 +749,7 @@ pub(crate) fn new_binary_op(operator: BinaryOp, typ: Type) -> Value {
     let mut fields = HashMap::default();
     fields.insert(
         Rc::new("op".to_string()),
-        Shared::new(Value::Field(SignedField::positive(binary_op_value))),
+        Shared::new(Value::field(SignedField::positive(binary_op_value))),
     );
 
     Value::Struct(fields, typ)

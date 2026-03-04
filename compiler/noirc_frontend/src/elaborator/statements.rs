@@ -193,6 +193,8 @@ impl Elaborator<'_> {
 
         let warn_if_unused =
             !let_stmt.attributes.iter().any(|attr| attr.kind.is_allow("unused_variables"));
+        let warn_if_not_mutated =
+            !let_stmt.attributes.iter().any(|attr| attr.kind.is_allow("unused_mut"));
 
         let r#type = annotated_type;
         let mut parameter_names_in_list = rustc_hash::FxHashMap::default();
@@ -201,6 +203,7 @@ impl Elaborator<'_> {
             r#type.clone(),
             definition,
             warn_if_unused,
+            warn_if_not_mutated,
             &mut parameter_names_in_list,
         );
 
@@ -224,6 +227,8 @@ impl Elaborator<'_> {
 
         let (lvalue, lvalue_type, mutable, mut new_statements) =
             self.elaborate_lvalue(assign.lvalue);
+
+        self.mark_lvalue_variables_as_mutated(&lvalue);
 
         if !mutable {
             let (_, name, location) = self.get_lvalue_error_info(&lvalue);
@@ -286,6 +291,7 @@ impl Elaborator<'_> {
             identifier, false, // mutable
             true,  // allow_shadowing
             true,  // warn_if_unused
+            true,  // warn_if_not_mutated
             kind,
         );
 
@@ -457,8 +463,15 @@ impl Elaborator<'_> {
                         let ident = HirIdent::non_trait_method(id, location);
                         self.elaborate_lvalue_ident(ident, location)
                     }
-                    Ok(IdentFromPath::TypeAlias(_)) => {
-                        (HirLValue::Error { location }, Type::Error, false, Vec::new())
+                    Ok(IdentFromPath::TypeAlias(type_alias_id)) => {
+                        let type_alias = self.interner.get_type_alias(type_alias_id);
+                        self.push_err(ResolverError::Expected {
+                            location,
+                            expected: "value",
+                            found: format!("type alias `{}`", type_alias.borrow().name),
+                        });
+                        let mutable = true;
+                        (HirLValue::Error { location }, Type::Error, mutable, Vec::new())
                     }
                     Err(error) => {
                         // We couldn't find a variable or global. Let's see if the identifier refers to something
@@ -486,7 +499,6 @@ impl Elaborator<'_> {
             LValue::MemberAccess { object, field_name, location } => {
                 let (object, lhs_type, mut mutable, statements) = self.elaborate_lvalue(*object);
                 let mut object = Box::new(object);
-                let field_name = field_name.clone();
 
                 let object_ref = &mut object;
                 let mutable_ref = &mut mutable;
@@ -619,7 +631,7 @@ impl Elaborator<'_> {
                 (lvalue, typ, true, statements)
             }
             LValue::Interned(id, location) => {
-                let lvalue = self.interner.get_lvalue(id, location).clone();
+                let lvalue = self.interner.get_lvalue(id, location);
                 self.elaborate_lvalue(lvalue)
             }
         }
@@ -645,7 +657,7 @@ impl Elaborator<'_> {
 
         self.interner.add_local_reference(ident.id, location);
 
-        (HirLValue::Ident(ident.clone(), typ.clone()), typ, mutable, Vec::new())
+        (HirLValue::Ident(ident, typ.clone()), typ, mutable, Vec::new())
     }
 
     fn fresh_definition_for_lvalue_index(

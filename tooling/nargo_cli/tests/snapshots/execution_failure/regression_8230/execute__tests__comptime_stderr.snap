@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Attempt to add with overflow
+  ┌─ src/main.nr:7:21
+  │
+7 │                 a = a + G_A;
+  │                     -------
+  │
+
+Error interpreting main function

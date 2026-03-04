@@ -196,7 +196,7 @@ mod tests {
     use crate::brillig::brillig_gen::brillig_fn::FunctionContext;
     use crate::brillig::brillig_ir::artifact::{BrilligParameter, Label};
     use crate::brillig::brillig_ir::brillig_variable::BrilligVariable;
-    use crate::brillig::brillig_ir::registers::Stack;
+    use crate::brillig::brillig_ir::registers::{MAX_STACK_FRAME_SIZE, Stack};
     use crate::brillig::brillig_ir::tests::{
         create_and_run_vm, create_context, create_entry_point_bytecode,
     };
@@ -215,7 +215,7 @@ mod tests {
         let mut brillig_context = create_context(ssa.main_id);
         brillig_context.enter_context(Label::block(ssa.main_id, Id::test_new(0)));
 
-        let function_context = FunctionContext::new(ssa.main(), true);
+        let function_context = FunctionContext::new(ssa.main(), true, MAX_STACK_FRAME_SIZE);
         (ssa, function_context, brillig_context)
     }
 

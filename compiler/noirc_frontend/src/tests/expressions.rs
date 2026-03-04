@@ -274,3 +274,252 @@ fn use_struct_as_value() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn comptime_block_quote_semicolon() {
+    let src = r#"
+        fn main() {
+            comptime { quote[foo] };
+                             ^^^ cannot find `foo` in this scope
+                             ~~~ not found in this scope
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn let_comptime_block_quote_semicolon() {
+    let src = r#"
+        fn main() {
+            let _ = comptime { quote[foo] };
+                                     ^^^ cannot find `foo` in this scope
+                                     ~~~ not found in this scope
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn comptime_block_inner_semicolon() {
+    let src = r#"
+        fn main() {
+            comptime { foo; }
+                       ^^^ cannot find `foo` in this scope
+                       ~~~ not found in this scope
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn let_comptime_block_inner_semicolon() {
+    let src = r#"
+        fn main() {
+            let _ = comptime { foo; };
+                               ^^^ cannot find `foo` in this scope
+                               ~~~ not found in this scope
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn comptime_block_quote_semicolon_unused_warning() {
+    let src = r#"
+        fn main() {
+            comptime { quote[foo]; };
+                       ^^^^^^^^^^ Unused expression result of type Quoted
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn let_comptime_block_quote_semicolon_unused_warning() {
+    let src = r#"
+        fn main() {
+            let _ = comptime { quote[foo]; };
+                               ^^^^^^^^^^ Unused expression result of type Quoted
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn comptime_block_semicolon_unused_warning() {
+    let src = r#"
+        fn main() {
+            comptime { 1 + 2 };
+                              ^ Unused expression result of type Field
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn comptime_block_inner_semicolon_unused_warning() {
+    let src = r#"
+        fn main() {
+            comptime { 1 + 2; }
+                       ^^^^^ Unused expression result of type Field
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn let_comptime_block_inner_semicolon_unused_warning() {
+    let src = r#"
+        fn main() {
+            let _ = comptime { 1 + 2; };
+                               ^^^^^ Unused expression result of type Field
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn let_comptime_block_semicolon_no_warning() {
+    let src = r#"
+        fn main() {
+            let _ = comptime { 1 + 2 };
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn unnecessary_mut_on_variable() {
+    let src = r#"
+    fn main() {
+        let mut x = 1;
+                ^ variable does not need to be mutable
+        foo(x);
+    }
+
+    fn foo(_: Field) {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn unnecessary_mut_on_mut_ref_variable() {
+    let src = r#"
+    struct S {
+        x: Field,
+    }
+
+    fn main() {
+        let mut s = &mut S { x: 1 };
+                ^ variable does not need to be mutable
+        s.x = 2;
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn does_not_trigger_unnecessary_mut_on_variable_if_annotated_with_allow_unused_mut() {
+    let src = r#"
+    fn main() {
+        #[allow(unused_mut)]
+        let mut x = 1;
+        let _ = x;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_trigger_unnecessary_mut_if_variable_name_starts_with_underscore() {
+    let src = r#"
+    fn main() {
+        let mut _x = 1;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_trigger_unnecessary_mut_if_variable_is_directly_mutated() {
+    let src = r#"
+    fn main() {
+        let mut x = 1;
+        x = 1;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_trigger_unnecessary_mut_if_variable_is_mutated_via_member_access() {
+    let src = r#"
+    struct S {
+        x: Field,
+    }
+
+    fn main() {
+        let mut s = S { x: 1 };
+        s.x = 1;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_trigger_unnecessary_mut_if_variable_is_mutated_via_index() {
+    let src = r#"
+    fn main() {
+        let mut x = [1];
+        x[0] = 1;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_trigger_unnecessary_mut_if_variable_is_used_in_mut_ref() {
+    let src = r#"
+    fn main() {
+        let mut x = 1;
+        let _ = &mut x;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_trigger_unnecessary_mut_if_variable_is_used_in_member_access_mut_ref() {
+    let src = r#"
+    struct S {
+        x: Field,
+    }
+
+    fn main() {
+        let mut s = S { x: 1 };
+        let _ = &mut s.x;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_trigger_unnecessary_mut_if_mut_self_method_is_called() {
+    let src = r#"
+    struct S {
+        x: Field,
+    }
+
+    impl S {
+        fn mutate_self(&mut self) {
+            self.x = 1;
+        }
+    }
+
+    fn main() {
+        let mut s = S { x: 1 };
+        s.mutate_self();
+    }
+    "#;
+    assert_no_errors(src);
+}

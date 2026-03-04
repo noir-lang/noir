@@ -16,7 +16,7 @@
 use crate::ssa::ir::{
     dfg::DataFlowGraph,
     function::Function,
-    instruction::{Binary, BinaryOp, Instruction},
+    instruction::{Binary, BinaryOp, Instruction, TerminatorInstruction},
     types::Type,
 };
 
@@ -54,6 +54,26 @@ pub(super) fn for_each_instruction(
 pub(super) fn assert_cfg_is_flattened(function: &Function) {
     let blocks = function.reachable_blocks();
     assert_eq!(blocks.len(), 1, "CFG contains more than 1 block");
+}
+
+/// Asserts that no reachable block has a `JmpIf` with a constant condition.
+///
+/// A constant-condition `JmpIf` should have been folded into an unconditional
+/// `Jmp` by `simplify_cfg`. If one remains it indicates a missing simplification
+/// pass in the pipeline.
+pub(super) fn assert_no_constant_jmpif(function: &Function) {
+    for block in function.reachable_blocks() {
+        if let Some(TerminatorInstruction::JmpIf { condition, .. }) =
+            function.dfg[block].terminator()
+        {
+            assert!(
+                function.dfg.get_numeric_constant(*condition).is_none(),
+                "Block {block} in function {} has a JmpIf with a constant condition. \
+                 Run simplify_cfg to fold constant-condition branches.",
+                function.name(),
+            );
+        }
+    }
 }
 
 /// Asserts that the function contains no loops.
