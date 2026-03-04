@@ -3706,4 +3706,45 @@ mod control_dependence {
         // rather than creating a new one
         assert!(!ssa_string.contains("inc_rc"), "ArrayGet should not add inc_rc");
     }
+
+    #[test]
+    fn does_not_hoist_failing_constraint() {
+        // The loop body (b3, the else-branch) is never reached at runtime since the loop
+        // starts with v0=0 and exits immediately via the then-branch (b2).
+        // LICM must NOT hoist the failing constraint out of b3.
+        // The add is converted to unchecked_add because the bounds prove no overflow,
+        // but the constraint stays in place.
+        let src = r#"
+            brillig(inline) predicate_pure fn main f0 {
+              b0():
+                jmp b1(u32 0)
+              b1(v0: u32):
+                v2 = eq v0, u32 0
+                jmpif v2 then: b2(), else: b3()
+              b2():
+                return
+              b3():
+                v4 = add v0, u32 1
+                constrain u1 0 == u1 1, "Index out of bounds"
+                jmp b1(v4)
+            }"#;
+        let expected = r#"
+            brillig(inline) predicate_pure fn main f0 {
+              b0():
+                jmp b1(u32 0)
+              b1(v0: u32):
+                v2 = eq v0, u32 0
+                jmpif v2 then: b2(), else: b3()
+              b2():
+                return
+              b3():
+                v4 = unchecked_add v0, u32 1
+                constrain u1 0 == u1 1, "Index out of bounds"
+                jmp b1(v4)
+            }"#;
+        assert_normalized_ssa_equals(
+            Ssa::from_str(src).unwrap().loop_invariant_code_motion(),
+            expected,
+        );
+    }
 }
