@@ -583,27 +583,29 @@ impl Loop {
             return None;
         };
 
-        if !self.blocks.contains(then_destination) {
-            return None;
-        }
+        let then_branch_is_body = self.blocks.contains(then_destination);
 
         match &dfg[instructions[0]] {
             // Most loops will expect the `then` block to be the body. In unconstrained code it is
             // possible to write `loop`s that use the else branch as a body. We return `None`
             // conservatively in this case.
             Instruction::Binary(Binary { lhs: _, operator: BinaryOp::Lt, rhs }) => {
-                dfg.get_integer_constant(*rhs)
+                if then_branch_is_body {
+                    dfg.get_integer_constant(*rhs)
+                } else {
+                    None
+                }
             }
             Instruction::Binary(Binary { lhs: _, operator: BinaryOp::Eq, rhs }) => {
                 // `for i in 0..1` is turned into:
                 // b1(v0: u32):
                 //   v12 = eq v0, u32 0
                 //   jmpif v12 then: b2, else: b3
-                // Loop exits when v == rhs; upper = rhs + 1.
                 //
-                // Inverted (else=body): loop exits when v == rhs; upper = rhs.
+                // If `b2` is the loop body: Loop exits when v == rhs; upper = rhs + 1.
+                // If `b3` is the loop body: Loop exits when v == rhs; upper = rhs.
                 let const_rhs = dfg.get_integer_constant(*rhs)?;
-                Some(const_rhs.inc())
+                if then_branch_is_body { Some(const_rhs.inc()) } else { Some(const_rhs) }
             }
             Instruction::Not(_) => {
                 // We simplify equality operations with booleans like `(boolean == false)` into `!boolean`.
@@ -619,16 +621,15 @@ impl Loop {
                 //  b1(v0: u1):
                 //    v2 = not v0
                 //    jmpif v2 then: b2, else: b3
-                //
-                // Inverted (else=body): complex semantics — return None conservatively.
-                Some(IntegerConstant::Unsigned { value: 1, bit_size: 1 })
+                if then_branch_is_body {
+                    Some(IntegerConstant::Unsigned { value: 1, bit_size: 1 })
+                } else {
+                    None
+                }
             }
             // A cast of a constant would already be simplified
             Instruction::Cast(_, _) => None,
-            // Unrecognized instruction pattern — cannot determine the upper bound.
-            // This can happen when mem2reg promotes variables, giving the loop header
-            // block parameters that are not related to the induction variable.
-            _ => None,
+            other => panic!("Unexpected instruction in header: {other:?}"),
         }
     }
 
@@ -2163,12 +2164,9 @@ mod tests {
         let loop_ = &loops.yet_to_unroll[0];
         let pre_header =
             loop_.get_pre_header(function, &loops.cfg).expect("Should have a pre_header");
-
-        let bounds = loop_.get_const_bounds(&function.dfg, pre_header);
-        assert_eq!(
-            bounds, None,
-            "`get_const_bounds` fails for loops where their body is the else branch"
-        );
+        let (lower, upper) =
+            loop_.get_const_bounds(&function.dfg, pre_header).expect("bounds are numeric const");
+        assert_eq!(lower, upper);
     }
 
     /// Prior passes can place non-comparison instructions (like MakeArray) into a loop header block
@@ -2242,7 +2240,7 @@ mod tests {
             "#;
         let (ssa, errors) = try_unroll_loops(Ssa::from_str(src).unwrap());
         assert_eq!(errors.len(), 0, "Unroll should have no errors");
-        assert_ssa_snapshot!(ssa, @r#"
+        assert_ssa_snapshot!(ssa, @r"
         brillig(inline) predicate_pure fn main f0 {
           b0():
             v0 = make_array [] : [i32]
@@ -2251,23 +2249,12 @@ mod tests {
         }
         brillig(inline) predicate_pure fn iter_0_times f1 {
           b0(v0: u32, v1: [i32]):
-            jmp b1(u32 0)
-          b1(v2: u32):
-            v4 = eq v2, u32 0
-            jmpif v4 then: b2(), else: b3()
+            jmp b1()
+          b1():
+            jmp b2()
           b2():
-            jmp b4()
-          b3():
-            v6 = add v2, u32 1
-            v8 = lt u32 10000, v0
-            constrain v8 == u1 1, "Index out of bounds"
-            v10 = array_get v1, index u32 10000 -> i32
-            jmp b5()
-          b4():
             return
-          b5():
-            jmp b1(v6)
         }
-        "#);
+        ");
     }
 }

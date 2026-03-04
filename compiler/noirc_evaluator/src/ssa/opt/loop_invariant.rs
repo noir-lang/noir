@@ -3739,7 +3739,7 @@ mod control_dependence {
           b2():
             return
           b3():
-            v4 = add v0, u32 1
+            v4 = unchecked_add v0, u32 1
             constrain u1 0 == u1 1, "Index out of bounds"
             jmp b1(v4)
         }
