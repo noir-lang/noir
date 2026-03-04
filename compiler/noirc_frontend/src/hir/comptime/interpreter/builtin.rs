@@ -3322,11 +3322,11 @@ mod tests {
     }
 
     fn pos(v: u128) -> Value {
-        Value::Field(SignedField::positive(v))
+        Value::field(SignedField::positive(v))
     }
 
     fn neg(v: u128) -> Value {
-        Value::Field(SignedField::negative(v))
+        Value::field(SignedField::negative(v))
     }
 
     #[test]
