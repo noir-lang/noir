@@ -385,9 +385,9 @@
 <a href=#385 id=385 data-nosnippet>385</a>    }
 <a href=#386 id=386 data-nosnippet>386</a>
 <a href=#387 id=387 data-nosnippet>387</a>    <span class="doccomment">/// Total size of the global memory space.
-<a href=#388 id=388 data-nosnippet>388</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>global_space_size(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
-<a href=#389 id=389 data-nosnippet>389</a>        <span class="comment">// `GlobalSpace::start` is inclusive so we must add one to get the accurate total global memory size
-<a href=#390 id=390 data-nosnippet>390</a>        </span>(<span class="self">self</span>.registers().max_memory_address() + <span class="number">1</span>) - <span class="self">self</span>.registers().start()
+<a href=#388 id=388 data-nosnippet>388</a>    /// Returns 0 when nothing has been allocated (max_memory_address &lt; start).
+<a href=#389 id=389 data-nosnippet>389</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>global_space_size(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
+<a href=#390 id=390 data-nosnippet>390</a>        (<span class="self">self</span>.registers().max_memory_address() + <span class="number">1</span>).saturating_sub(<span class="self">self</span>.registers().start())
 <a href=#391 id=391 data-nosnippet>391</a>    }
 <a href=#392 id=392 data-nosnippet>392</a>}
 <a href=#393 id=393 data-nosnippet>393</a>

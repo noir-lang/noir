@@ -1,1 +1,1 @@
-searchState.loadedDescShard("noirc_evaluator", 1, "Calls <code>U::from(self)</code>.")
+searchState.loadedDescShard("noirc_evaluator", 1, "Returns the argument unchanged.\nCalls <code>U::from(self)</code>.")

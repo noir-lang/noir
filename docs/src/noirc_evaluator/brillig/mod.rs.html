@@ -250,8 +250,8 @@
 <a href=#250 id=250 data-nosnippet>250</a>        <span class="macro">assert_eq!</span>(bytecode1.len(), bytecode2.len());
 <a href=#251 id=251 data-nosnippet>251</a>
 <a href=#252 id=252 data-nosnippet>252</a>        <span class="comment">// Offset where stack starts
-<a href=#253 id=253 data-nosnippet>253</a>        // This assumes the same SSA where we have a single global register and a single call data argument.
-<a href=#254 id=254 data-nosnippet>254</a>        </span><span class="kw">let </span>stack_start = ReservedRegisters::len() + MAX_SCRATCH_SPACE + <span class="number">1 </span>+ <span class="number">1</span>;
+<a href=#253 id=253 data-nosnippet>253</a>        // This assumes the same SSA where we have no globals and a single call data argument.
+<a href=#254 id=254 data-nosnippet>254</a>        </span><span class="kw">let </span>stack_start = ReservedRegisters::len() + MAX_SCRATCH_SPACE + <span class="number">1</span>;
 <a href=#255 id=255 data-nosnippet>255</a>
 <a href=#256 id=256 data-nosnippet>256</a>        <span class="kw">for </span>(op1, op2) <span class="kw">in </span>bytecode1.iter().zip(bytecode2) {
 <a href=#257 id=257 data-nosnippet>257</a>            <span class="kw">if </span>op1 != op2 {
