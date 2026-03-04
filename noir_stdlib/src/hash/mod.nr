@@ -139,8 +139,16 @@ fn from_field_unsafe(scalar: Field) -> EmbeddedCurveScalar {
     EmbeddedCurveScalar { lo: xlo, hi: xhi }
 }
 
+pub fn poseidon2_permutation<let N: u32>(input: [Field; N]) -> [Field; N] {
+    static_assert(
+        N == POSEIDON2_CONFIG_STATE_SIZE,
+        f"the input length must equal the state size in the Poseidon2 config; expected {POSEIDON2_CONFIG_STATE_SIZE}, got {N}",
+    );
+    poseidon2_permutation_internal(input)
+}
+
 #[foreign(poseidon2_permutation)]
-pub fn poseidon2_permutation<let N: u32>(input: [Field; N]) -> [Field; N] {}
+fn poseidon2_permutation_internal<let N: u32>(input: [Field; N]) -> [Field; N] {}
 
 #[foreign(poseidon2_config_state_size)]
 comptime fn poseidon2_config_state_size() -> u32 {}
