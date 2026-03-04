@@ -143,25 +143,26 @@ pub(super) fn simplify_binary(
                 if lhs == rhs {
                     return SimplifyResult::SimplifiedTo(lhs);
                 }
-                // b*(b*x) = b*x if b is boolean
-                if let super::Value::Instruction { instruction, .. } = &dfg[rhs]
-                    && let Instruction::Binary(Binary { lhs: b_lhs, rhs: b_rhs, operator }) =
-                        dfg[*instruction]
-                    && matches!(operator, BinaryOp::Mul { .. })
-                    && (lhs == b_lhs || lhs == b_rhs)
-                {
-                    return SimplifyResult::SimplifiedTo(rhs);
-                }
             }
-            // (b*x)*b = b*x if b is boolean
-            if dfg.get_value_max_num_bits(rhs) == 1
-                && let super::Value::Instruction { instruction, .. } = &dfg[lhs]
-                && let Instruction::Binary(Binary { lhs: b_lhs, rhs: b_rhs, operator }) =
-                    dfg[*instruction]
-                && matches!(operator, BinaryOp::Mul { .. })
-                && (rhs == b_lhs || rhs == b_rhs)
-            {
-                return SimplifyResult::SimplifiedTo(lhs);
+            // b*f(b, x) = b*x if b is boolean and f is Mul or Eq
+            // For Mul: b*(b*x) = b*x since b*b = b for booleans.
+            // For Eq: b*eq(b, x) = b*x since if b=0 then 0*eq(0,x)=0=0*x,
+            //         and if b=1 then 1*eq(1,x)=x=1*x.
+            for (bool_val, other_val) in [(lhs, rhs), (rhs, lhs)] {
+                if dfg.get_value_max_num_bits(bool_val) == 1
+                    && let super::Value::Instruction { instruction, .. } = &dfg[other_val]
+                    && let Instruction::Binary(Binary {
+                        lhs: b_lhs,
+                        rhs: b_rhs,
+                        operator: BinaryOp::Mul { .. } | BinaryOp::Eq,
+                    }) = dfg[*instruction]
+                    && (bool_val == b_lhs || bool_val == b_rhs)
+                {
+                    let other = if bool_val == b_lhs { b_rhs } else { b_lhs };
+                    return SimplifyResult::SimplifiedToInstruction(Instruction::binary(
+                        operator, bool_val, other,
+                    ));
+                }
             }
         }
         BinaryOp::Div => {
@@ -401,6 +402,27 @@ mod tests {
           b0(v0: u8):
             v2 = eq v0, u8 0
             v3 = not v2
+            return v3
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_bool_times_eq_bool_x() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1, v1: u1):
+            v2 = eq v0, v1
+            v3 = mul v0, v2
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1, v1: u1):
+            v2 = eq v0, v1
+            v3 = unchecked_mul v0, v1
             return v3
         }
         ");
