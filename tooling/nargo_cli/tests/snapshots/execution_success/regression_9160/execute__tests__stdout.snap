@@ -3,4 +3,4 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
 [[true]]
-[regression_9160] Circuit output: [[1]]
+[regression_9160] Circuit output: [[true]]

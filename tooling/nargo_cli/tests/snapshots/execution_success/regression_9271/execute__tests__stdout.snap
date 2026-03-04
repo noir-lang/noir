@@ -4,4 +4,4 @@ expression: stdout
 ---
 @[(0, true, [1, 2]), (3, false, [4, 5])]
 (@[true, false], true, @[100])
-[regression_9271] Circuit output: 1
+[regression_9271] Circuit output: true
