@@ -93,11 +93,9 @@ impl SpillManager {
 
     /// Remove a value from the spill tracking.
     ///
-    /// Permanent spill slots are never freed — they must remain valid across all blocks.
-    /// For permanent records, this just clears `is_currently_spilled`.
+    /// For permanent records, this just clears `is_currently_spilled` (the slot
+    /// stays allocated until `free_permanent_spill` is called at global death).
     /// For transient records, the record is removed entirely and the slot is freed.
-    ///
-    /// TODO(<https://github.com/noir-lang/noir/issues/11695>) - Free globally dead permanent spill slots
     pub(crate) fn remove_spill(&mut self, value_id: &ValueId) {
         if let std::collections::hash_map::Entry::Occupied(mut entry) =
             self.records.entry(*value_id)
@@ -109,6 +107,18 @@ impl SpillManager {
                 self.free_spill_slots.push(record.offset);
             }
         }
+    }
+
+    /// Free a permanent spill slot for a globally dead value.
+    ///
+    /// Removes the record entirely and returns the slot to the free list,
+    /// allowing it to be reused by future spills.
+    pub(crate) fn free_permanent_spill(&mut self, value_id: &ValueId) {
+        if let Some(record) = self.records.remove(value_id) {
+            debug_assert!(record.is_permanent);
+            self.free_spill_slots.push(record.offset);
+        }
+        self.remove_from_lru(value_id);
     }
 
     /// Allocate a spill slot offset, reusing a freed slot if available.
@@ -430,6 +440,35 @@ mod tests {
         assert!(sm.has_permanent_slot(&v0));
         // Slot is NOT freed (no slot in free list)
         assert!(sm.free_spill_slots.is_empty());
+    }
+
+    #[test]
+    fn free_permanent_spill_reclaims_slot() {
+        let mut sm = SpillManager::new();
+        let v0 = Id::test_new(0);
+        let v1 = Id::test_new(1);
+
+        // Allocate a permanent spill for v0
+        let off0 = sm.allocate_spill_offset();
+        sm.record_permanent_spill(v0, off0, test_var(0));
+        assert_eq!(off0, 0);
+
+        // Allocate another slot for v1
+        let off1 = sm.allocate_spill_offset();
+        sm.record_spill(v1, off1, test_var(1));
+        assert_eq!(off1, 1);
+
+        // Free the permanent spill — record removed, slot returned to free list
+        sm.free_permanent_spill(&v0);
+        assert!(!sm.is_spilled(&v0));
+        assert!(!sm.has_permanent_slot(&v0));
+        assert_eq!(sm.get_permanent_spill_offset(&v0), None);
+
+        // The freed slot should be reusable
+        sm.remove_spill(&v1);
+        let off_reused = sm.allocate_spill_offset();
+        // Should reuse one of the freed slots (1 from v1, 0 from v0)
+        assert!(off_reused == 0 || off_reused == 1);
     }
 
     #[test]

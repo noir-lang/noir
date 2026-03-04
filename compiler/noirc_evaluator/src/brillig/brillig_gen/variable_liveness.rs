@@ -113,6 +113,10 @@ pub(crate) struct VariableLiveness {
     /// The maximum number of variables simultaneously live at any point in the function.
     /// Computed after `last_uses` by walking each block instruction-by-instruction.
     pub(crate) max_live_count: usize,
+    /// Values grouped by the block where they are last live.
+    ///
+    /// Used by codegen to free permanent spill slots in O(values_last_live_in_block) time.
+    last_live_values_by_block: HashMap<BasicBlockId, Vec<ValueId>>,
 }
 
 impl VariableLiveness {
@@ -136,9 +140,11 @@ impl VariableLiveness {
             last_uses: HashMap::default(),
             param_definitions: HashMap::default(),
             max_live_count: 0,
+            last_live_values_by_block: HashMap::default(),
         }
         .compute_block_param_definitions(func, &loops.dom)
         .compute_live_in_of_blocks(func, constants, back_edges)
+        .compute_last_live_blocks()
         .compute_last_uses(func)
         .compute_max_live_count(func)
     }
@@ -163,6 +169,11 @@ impl VariableLiveness {
     /// that die after the instruction has executed.
     pub(crate) fn get_last_uses(&self, block_id: &BasicBlockId) -> &LastUses {
         self.last_uses.get(block_id).expect("last_uses should have been calculated")
+    }
+
+    /// Values whose final `live_in` occurrence is at `block_id`.
+    pub(crate) fn values_last_live_in_block(&self, block_id: &BasicBlockId) -> &[ValueId] {
+        self.last_live_values_by_block.get(block_id).map(Vec::as_slice).unwrap_or(&[])
     }
 
     /// Retrieves the list of block parameters the given block is defining.
@@ -212,6 +223,32 @@ impl VariableLiveness {
         // Second pass, propagate header live_ins to the loop bodies.
         for (back_edge, loop_body) in back_edges {
             self.update_live_ins_within_loop(back_edge, loop_body);
+        }
+
+        self
+    }
+
+    /// Compute [VariableLiveness::last_live_values_by_block].
+    ///
+    /// For each value, record the last block in RPO order where it appears in `live_in`.
+    /// This tells us after which block a value becomes globally dead.
+    fn compute_last_live_blocks(mut self) -> Self {
+        let mut last_live_block: HashMap<ValueId, BasicBlockId> = HashMap::default();
+        let rpo = PostOrder::with_cfg(&self.cfg).into_vec_reverse();
+        for block_id in rpo {
+            if let Some(live_in) = self.live_in.get(&block_id) {
+                for value_id in live_in {
+                    last_live_block.insert(*value_id, block_id);
+                }
+            }
+        }
+
+        for (value_id, block_id) in last_live_block {
+            self.last_live_values_by_block.entry(block_id).or_default().push(value_id);
+        }
+        // Keep deterministic order so spill-slot reuse decisions are stable.
+        for values in self.last_live_values_by_block.values_mut() {
+            values.sort();
         }
 
         self
@@ -568,6 +605,74 @@ mod tests {
             liveness.get_last_uses(&b3).get(&block_3.instructions()[0]),
             Some(&FxHashSet::from_iter([v3].into_iter()))
         );
+    }
+
+    #[test]
+    fn last_live_block_diamond() {
+        // Reuse the diamond CFG from simple_back_propagation:
+        //   b0 → jmpif → b1, b2 → b3 → return
+        //
+        // RPO: b0, b2, b1, b3
+        // v3 is live_in at b1, b2, b3 → last_live_block = b3 (last in RPO)
+        // v0 is live_in at b2 only → last_live_block = b2
+        // v1 is live_in at b1 only → last_live_block = b1
+
+        let main_id = Id::test_new(1);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
+
+        let b1 = builder.insert_block();
+        let b2 = builder.insert_block();
+        let b3 = builder.insert_block();
+
+        let v0 = builder.add_parameter(Type::field());
+        let v1 = builder.add_parameter(Type::field());
+
+        let v3 = builder.insert_allocate(Type::field());
+
+        let zero = builder.field_constant(0u128);
+        builder.insert_store(v3, zero);
+
+        let v4 = builder.insert_binary(v0, BinaryOp::Eq, zero);
+
+        builder.terminate_with_jmpif_no_args(v4, b1, b2);
+
+        builder.switch_to_block(b2);
+
+        let twenty_seven = builder.field_constant(27u128);
+        let v7 = builder.insert_binary(v0, BinaryOp::Add { unchecked: false }, twenty_seven);
+        builder.insert_store(v3, v7);
+
+        builder.terminate_with_jmp(b3, vec![]);
+
+        builder.switch_to_block(b1);
+
+        let v6 = builder.insert_binary(v1, BinaryOp::Add { unchecked: false }, twenty_seven);
+        builder.insert_store(v3, v6);
+
+        builder.terminate_with_jmp(b3, vec![]);
+
+        builder.switch_to_block(b3);
+
+        let v8 = builder.insert_load(v3, Type::field());
+
+        builder.terminate_with_return(vec![v8]);
+
+        let ssa = builder.finish();
+        let func = ssa.main();
+        let constants = ConstantAllocation::from_function(func);
+        let liveness = VariableLiveness::from_function(func, &constants);
+
+        // v3 is live_in at b1, b2, b3 → last in RPO is b3
+        assert!(liveness.values_last_live_in_block(&b3).contains(&v3));
+        // v0 is live_in at b2 (but not b1 or b3) → last_live_block = b2
+        assert!(liveness.values_last_live_in_block(&b2).contains(&v0));
+        // v1 is live_in at b1 (but not b2 or b3) → last_live_block = b1
+        assert!(liveness.values_last_live_in_block(&b1).contains(&v1));
+        // twenty_seven is live_in at b1 and b2 → last in RPO
+        let twenty_seven_in_b1 = liveness.values_last_live_in_block(&b1).contains(&twenty_seven);
+        let twenty_seven_in_b2 = liveness.values_last_live_in_block(&b2).contains(&twenty_seven);
+        assert!(twenty_seven_in_b1 || twenty_seven_in_b2);
     }
 
     #[test]

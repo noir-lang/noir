@@ -1,3 +1,5 @@
+use acvm::{FieldElement, acir::brillig::Opcode as BrilligOpcode};
+
 use crate::{
     assert_artifact_snapshot,
     brillig::{
@@ -187,4 +189,51 @@ fn brillig_spill_jmpif_diamond_dead_else_condition() {
     let brillig = ssa_to_brillig_artifacts_with_options(src, &options);
     let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert!(!main.to_string().is_empty());
+}
+
+/// End-to-end regression for #11695. Permanent spill slots that are globally
+/// dead should be reclaimed so later permanent spills can reuse the same slot.
+///
+/// Uses `max_stack_frame_size = 6` with `start_offset = 2` (spill enabled),
+/// leaving 4 usable register slots.
+///
+/// The CFG creates two non-overlapping permanent block-param spills:
+/// - `v1` (param of `b1`) is eagerly spilled while compiling `b0`
+/// - `v4` (param of `b3`) is eagerly spilled while compiling `b2`
+///
+/// With reclamation, `v4` reuses `v1`'s slot, so the resolved spill region
+/// size remains 1 (instead of growing to 2).
+#[test]
+fn brillig_reuses_permanent_slot_after_global_death() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u32):
+        jmp b1(v0)
+      b1(v1: u32):
+        v2 = unchecked_add v1, v1
+        jmp b2()
+      b2():
+        v3 = unchecked_add u32 7, u32 8
+        jmp b3(v3)
+      b3(v4: u32):
+        return v4
+    }
+    ";
+
+    let layout = LayoutConfig::new(6, 16, MAX_SCRATCH_SPACE);
+    let options = BrilligOptions { layout, ..Default::default() };
+    let brillig = ssa_to_brillig_artifacts_with_options(src, &options);
+    let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
+
+    // Prologue layout:
+    //   0: call CheckMaxStackDepth
+    //   1: save spill base pointer
+    //   2: resolved spill-size const
+    //   3: bump free memory pointer
+    match &main.byte_code[2] {
+        BrilligOpcode::Const { value, .. } => {
+            assert_eq!(*value, FieldElement::from(1_u128));
+        }
+        opcode => panic!("expected spill-size const in prologue, got {opcode:?}"),
+    }
 }

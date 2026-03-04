@@ -143,6 +143,15 @@ impl Brillig {
                 globals,
                 hoisted_global_constants,
             );
+
+            // Free permanent spill slots for values that are globally dead after this block.
+            if let Some(sm) = function_context.spill_manager.as_mut() {
+                for value_id in function_context.liveness.values_last_live_in_block(&block) {
+                    if sm.get_permanent_spill_offset(value_id).is_some() {
+                        sm.free_permanent_spill(value_id);
+                    }
+                }
+            }
         }
 
         // Resolve: overwrite placeholder NOPs with real allocation if spilling occurred
