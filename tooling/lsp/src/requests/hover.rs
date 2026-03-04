@@ -154,7 +154,7 @@ mod hover_tests {
             Position { line: 15, character: 25 },
             // cSpell:disable
             r#"    one::subone
-    global invalid_global: Field = 2"#,
+    global invalid_global: Field = 0x02"#,
             // cSpell:enable
         )
         .await;
@@ -168,7 +168,7 @@ mod hover_tests {
             Position { line: 122, character: 25 },
             // cSpell:disable
             r#"    one::subone
-    global valid_global: Field = 2"#,
+    global valid_global: Field = 0x02"#,
             // cSpell:enable
         )
         .await;
@@ -181,7 +181,7 @@ mod hover_tests {
             "two/src/lib.nr",
             Position { line: 116, character: 9 },
             r#"    two
-    global array: [Field; 3] = [1, 5, 4]"#,
+    global array: [Field; 3] = [0x01, 0x05, 0x04]"#,
         )
         .await;
     }

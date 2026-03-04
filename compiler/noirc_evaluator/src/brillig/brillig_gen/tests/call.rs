@@ -19,7 +19,7 @@ fn brillig_as_vector() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-     0: call 0
+     0: call 0 // -> CheckMaxStackDepth
      1: sp[2] = const u32 10
      2: sp[3] = const u32 20
      3: sp[4] = const u32 30
@@ -51,7 +51,7 @@ fn brillig_as_vector() {
     29: @3 = sp[7]
     30: @4 = sp[6]
     31: @5 = sp[4]
-    32: call 0
+    32: call 0 // -> MemCopy
     33: return
     ");
 }
@@ -71,7 +71,7 @@ fn brillig_to_bits() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-     0: call 0
+     0: call 0 // -> CheckMaxStackDepth
      1: sp[4] = const u32 2
      2: sp[5] = const bool 1
      3: sp[3] = @1
@@ -83,7 +83,7 @@ fn brillig_to_bits() {
      9: to_radix(input: sp[2], radix: sp[4], num_limbs: sp[7], output_pointer: sp[6], output_bits: sp[5])
     10: @3 = sp[6]
     11: @4 = sp[7]
-    12: call 0
+    12: call 0 // -> ArrayReverse
     13: sp[2] = sp[3]
     14: return
     ");
@@ -104,7 +104,7 @@ fn brillig_to_radix() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-     0: call 0
+     0: call 0 // -> CheckMaxStackDepth
      1: sp[5] = const bool 0
      2: sp[4] = @1
      3: sp[6] = const u32 9
@@ -115,7 +115,7 @@ fn brillig_to_radix() {
      8: to_radix(input: sp[2], radix: sp[3], num_limbs: sp[7], output_pointer: sp[6], output_bits: sp[5])
      9: @3 = sp[6]
     10: @4 = sp[7]
-    11: call 0
+    11: call 0 // -> ArrayReverse
     12: sp[2] = sp[4]
     13: return
     ");
@@ -136,7 +136,7 @@ fn brillig_field_less_than() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-    0: call 0
+    0: call 0 // -> CheckMaxStackDepth
     1: sp[4] = field lt sp[2], sp[3]
     2: sp[2] = sp[4]
     3: return
@@ -159,7 +159,7 @@ fn brillig_array_ref_count() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-     0: call 0
+     0: call 0 // -> CheckMaxStackDepth
      1: sp[2] = const u32 10
      2: sp[3] = const u32 20
      3: sp[4] = const u32 30
@@ -196,7 +196,7 @@ fn brillig_vector_ref_count() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-     0: call 0
+     0: call 0 // -> CheckMaxStackDepth
      1: sp[2] = const u32 10
      2: sp[3] = const u32 20
      3: sp[4] = const u32 30
@@ -228,7 +228,7 @@ fn brillig_vector_ref_count() {
     29: @3 = sp[7]
     30: @4 = sp[6]
     31: @5 = sp[4]
-    32: call 0
+    32: call 0 // -> MemCopy
     33: sp[4] = load sp[3]
     34: sp[2] = sp[4]
     35: return

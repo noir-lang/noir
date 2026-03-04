@@ -2,11 +2,11 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-global A: Field = 4294967297;
+global A: Field = 0x0100000001;
 
-global B: Field = 4294967297;
+global B: Field = 0x0100000001;
 
-global C: Field = 8589934594;
+global C: Field = 0x0200000002;
 
 fn main() {
     assert(C == 8589934594_Field);

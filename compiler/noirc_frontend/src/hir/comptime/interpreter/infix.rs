@@ -1,10 +1,10 @@
 use acvm::AcirField as _;
 
+use super::{IResult, InterpreterError, Value};
 use crate::ast::BinaryOpKind;
 use crate::hir::Location;
+use crate::hir::comptime::Integer;
 use crate::hir_def::expr::HirBinaryOp;
-
-use super::{IResult, InterpreterError, Value};
 
 pub(super) fn evaluate_infix(
     lhs_value: Value,
@@ -38,15 +38,21 @@ pub(super) fn evaluate_infix(
             $(
                 ($lhs_var:ident, $rhs_var:ident) to $res_var:ident => $expr:expr
             ),*
+                , $(Bool case to $res_var2:ident => $expr2:expr)?
             $(,)?
          }
         ) => {
             match ($lhs_value, $rhs_value) {
                 $(
-                (Value::$lhs_var($lhs), Value::$rhs_var($rhs)) => {
+                (Value::Integer(Integer::$lhs_var($lhs)), Value::Integer(Integer::$rhs_var($rhs))) => {
                     Ok(Value::$res_var(($expr).ok_or(math_error($op))?))
                 },
                 )*
+                $(
+                (Value::Bool($lhs), Value::Bool($rhs)) => {
+                    Ok(Value::$res_var2(($expr2).ok_or(math_error($op))?))
+                },
+                )?
                 (_, _) => {
                     Err(error($op))
                 },
@@ -59,16 +65,16 @@ pub(super) fn evaluate_infix(
         (($lhs_value:ident as $lhs:ident $op:literal $rhs_value:ident as $rhs:ident) { field: $field_expr:expr, int: $int_expr:expr, }) => {
             match_values! {
                 ($lhs_value as $lhs $op $rhs_value as $rhs) {
-                    (Field, Field) to Field => Some($field_expr),
-                    (I8,  I8)      to I8    => $int_expr,
-                    (I16, I16)     to I16   => $int_expr,
-                    (I32, I32)     to I32   => $int_expr,
-                    (I64, I64)     to I64   => $int_expr,
-                    (U8,  U8)      to U8    => $int_expr,
-                    (U16, U16)     to U16   => $int_expr,
-                    (U32, U32)     to U32   => $int_expr,
-                    (U64, U64)     to U64   => $int_expr,
-                    (U128, U128)   to U128  => $int_expr,
+                    (Field, Field) to field => Some($field_expr),
+                    (I8,  I8)      to i8    => $int_expr,
+                    (I16, I16)     to i16   => $int_expr,
+                    (I32, I32)     to i32   => $int_expr,
+                    (I64, I64)     to i64   => $int_expr,
+                    (U8,  U8)      to u8    => $int_expr,
+                    (U16, U16)     to u16   => $int_expr,
+                    (U32, U32)     to u32   => $int_expr,
+                    (U64, U64)     to u64   => $int_expr,
+                    (U128, U128)   to u128  => $int_expr,
                 }
             }
         };
@@ -80,7 +86,6 @@ pub(super) fn evaluate_infix(
             match_values! {
                 ($lhs_value as $lhs $op $rhs_value as $rhs) {
                     (Field, Field) to Bool => Some($expr),
-                    (Bool, Bool)   to Bool => Some($expr),
                     (I8,  I8)      to Bool => Some($expr),
                     (I16, I16)     to Bool => Some($expr),
                     (I32, I32)     to Bool => Some($expr),
@@ -90,6 +95,7 @@ pub(super) fn evaluate_infix(
                     (U32, U32)     to Bool => Some($expr),
                     (U64, U64)     to Bool => Some($expr),
                     (U128, U128)   to Bool => Some($expr),
+                    Bool case to Bool => Some($expr),
                 }
             }
         };
@@ -100,16 +106,16 @@ pub(super) fn evaluate_infix(
         (($lhs_value:ident as $lhs:ident $op:literal $rhs_value:ident as $rhs:ident) => $expr:expr) => {
             match_values! {
                 ($lhs_value as $lhs $op $rhs_value as $rhs) {
-                    (Bool, Bool)   to Bool => Some($expr),
-                    (I8,  I8)      to I8   => Some($expr),
-                    (I16, I16)     to I16  => Some($expr),
-                    (I32, I32)     to I32  => Some($expr),
-                    (I64, I64)     to I64  => Some($expr),
-                    (U8,  U8)      to U8   => Some($expr),
-                    (U16, U16)     to U16  => Some($expr),
-                    (U32, U32)     to U32  => Some($expr),
-                    (U64, U64)     to U64  => Some($expr),
-                    (U128, U128)   to U128  => Some($expr),
+                    (I8,  I8)      to i8   => Some($expr),
+                    (I16, I16)     to i16  => Some($expr),
+                    (I32, I32)     to i32  => Some($expr),
+                    (I64, I64)     to i64  => Some($expr),
+                    (U8,  U8)      to u8   => Some($expr),
+                    (U16, U16)     to u16  => Some($expr),
+                    (U32, U32)     to u32  => Some($expr),
+                    (U64, U64)     to u64  => Some($expr),
+                    (U128, U128)   to u128  => Some($expr),
+                    Bool case      to Bool => Some($expr),
                 }
             }
         };
@@ -120,15 +126,15 @@ pub(super) fn evaluate_infix(
         (($lhs_value:ident as $lhs:ident $op:literal $rhs_value:ident as $rhs:ident) { int: $int_expr:expr, }) => {
             match_values! {
                 ($lhs_value as $lhs $op $rhs_value as $rhs) {
-                    (I8,  I8)      to I8   => $int_expr,
-                    (I16, I16)     to I16  => $int_expr,
-                    (I32, I32)     to I32  => $int_expr,
-                    (I64, I64)     to I64  => $int_expr,
-                    (U8,  U8)      to U8   => $int_expr,
-                    (U16, U16)     to U16  => $int_expr,
-                    (U32, U32)     to U32  => $int_expr,
-                    (U64, U64)     to U64  => $int_expr,
-                    (U128, U128)   to U128 => $int_expr,
+                    (I8,  I8)      to i8   => $int_expr,
+                    (I16, I16)     to i16  => $int_expr,
+                    (I32, I32)     to i32  => $int_expr,
+                    (I64, I64)     to i64  => $int_expr,
+                    (U8,  U8)      to u8   => $int_expr,
+                    (U16, U16)     to u16  => $int_expr,
+                    (U32, U32)     to u32  => $int_expr,
+                    (U64, U64)     to u64  => $int_expr,
+                    (U128, U128)   to u128 => $int_expr,
                 }
             }
         };
@@ -241,19 +247,19 @@ mod tests {
     #[test]
     /// See: https://github.com/noir-lang/noir/issues/8391
     fn regression_8391() {
-        let lhs = Value::U128(340282366920938463463374607431768211455);
-        let rhs = Value::U128(2);
+        let lhs = Value::u128(340282366920938463463374607431768211455);
+        let rhs = Value::u128(2);
         let operator = HirBinaryOp { kind: BinaryOpKind::Divide, location: Location::dummy() };
         let location = Location::dummy();
         let result = evaluate_infix(lhs, rhs, operator, location).unwrap();
 
-        assert_eq!(result, Value::U128(170141183460469231731687303715884105727));
+        assert_eq!(result, Value::u128(170141183460469231731687303715884105727));
     }
 
     #[test]
     fn regression_9336() {
-        let lhs = Value::I8(-128);
-        let rhs = Value::I8(-1);
+        let lhs = Value::i8(-128);
+        let rhs = Value::i8(-1);
         let operator = HirBinaryOp { kind: BinaryOpKind::Modulo, location: Location::dummy() };
         let location = Location::dummy();
         let err = evaluate_infix(lhs, rhs, operator, location).unwrap_err();
@@ -268,7 +274,7 @@ mod tests {
             }
         "#;
         let result = interpret(src);
-        assert_eq!(result, Value::U64(48));
+        assert_eq!(result, Value::u64(48));
     }
 
     #[test]
@@ -279,7 +285,7 @@ mod tests {
             }
         "#;
         let result = interpret(src);
-        assert_eq!(result, Value::I64(16));
+        assert_eq!(result, Value::i64(16));
     }
 
     #[test]
@@ -320,7 +326,7 @@ mod tests {
             }
         "#;
         let result = interpret(src);
-        assert_eq!(result, Value::U64(32));
+        assert_eq!(result, Value::u64(32));
     }
 
     #[test]
@@ -331,7 +337,7 @@ mod tests {
             }
         "#;
         let result = interpret(src);
-        assert_eq!(result, Value::U64(0));
+        assert_eq!(result, Value::u64(0));
 
         let src = r#"
             comptime fn main() -> pub u64 {
@@ -358,7 +364,7 @@ mod tests {
         }
         ";
         let result = interpret(src);
-        assert_eq!(result, Value::I64(-1));
+        assert_eq!(result, Value::i64(-1));
 
         let src = "
         comptime fn main() -> pub i64 {
@@ -385,7 +391,7 @@ mod tests {
         }
         ";
         let result = interpret(src);
-        assert_eq!(result, Value::I64(0));
+        assert_eq!(result, Value::i64(0));
 
         let src = "
         comptime fn main() -> pub i64 {
@@ -412,7 +418,7 @@ mod tests {
             }
         "#;
         let result = interpret(src);
-        assert_eq!(result, Value::I64(-32));
+        assert_eq!(result, Value::i64(-32));
     }
 
     #[test]

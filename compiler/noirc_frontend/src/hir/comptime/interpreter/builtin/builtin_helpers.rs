@@ -11,6 +11,7 @@ use noirc_errors::Location;
 use crate::Shared;
 use crate::ast::{BinaryOp, ItemVisibility, UnaryOp};
 use crate::elaborator::Elaborator;
+use crate::hir::comptime::Integer;
 use crate::hir::comptime::display::tokens_to_string;
 use crate::hir::comptime::value::unwrap_rc;
 use crate::hir::comptime::value::{FormatStringFragment, StructFields};
@@ -191,9 +192,9 @@ pub(crate) fn get_fixed_array_map<T, const N: usize>(
     })
 }
 
-pub(crate) fn get_str((value, location): (Value, Location)) -> IResult<Rc<String>> {
+pub(crate) fn get_str((value, location): (Value, Location)) -> IResult<Rc<Vec<u8>>> {
     match value {
-        Value::String(string) => Ok(string),
+        Value::String(bytes) => Ok(bytes),
         value => {
             let expected = "str";
             type_mismatch(value, expected, location)
@@ -201,9 +202,9 @@ pub(crate) fn get_str((value, location): (Value, Location)) -> IResult<Rc<String
     }
 }
 
-pub(crate) fn get_ctstring((value, location): (Value, Location)) -> IResult<Rc<String>> {
+pub(crate) fn get_ctstring((value, location): (Value, Location)) -> IResult<Rc<Vec<u8>>> {
     match value {
-        Value::CtString(string) => Ok(string),
+        Value::CtString(bytes) => Ok(bytes),
         value => type_mismatch(value, Type::Quoted(QuotedType::CtString), location),
     }
 }
@@ -220,14 +221,14 @@ pub(crate) fn get_tuple((value, location): (Value, Location)) -> IResult<Vec<Sha
 
 pub(crate) fn get_field((value, location): (Value, Location)) -> IResult<SignedField> {
     match value {
-        Value::Field(value) => Ok(value),
+        Value::Integer(Integer::Field(value)) => Ok(value),
         value => type_mismatch(value, Type::FieldElement, location),
     }
 }
 
 pub(crate) fn get_u8((value, location): (Value, Location)) -> IResult<u8> {
     match value {
-        Value::U8(value) => Ok(value),
+        Value::Integer(Integer::U8(value)) => Ok(value),
         value => {
             let expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight);
             type_mismatch(value, expected, location)
@@ -237,7 +238,7 @@ pub(crate) fn get_u8((value, location): (Value, Location)) -> IResult<u8> {
 
 pub(crate) fn get_u32((value, location): (Value, Location)) -> IResult<u32> {
     match value {
-        Value::U32(value) => Ok(value),
+        Value::Integer(Integer::U32(value)) => Ok(value),
         value => {
             let expected = Type::u32();
             type_mismatch(value, expected, location)
@@ -247,7 +248,7 @@ pub(crate) fn get_u32((value, location): (Value, Location)) -> IResult<u32> {
 
 pub(crate) fn get_u64((value, location): (Value, Location)) -> IResult<u64> {
     match value {
-        Value::U64(value) => Ok(value),
+        Value::Integer(Integer::U64(value)) => Ok(value),
         value => {
             let expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour);
             type_mismatch(value, expected, location)
@@ -681,7 +682,7 @@ pub(super) fn hash_item<T: Hash>(
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     item.hash(&mut hasher);
     let hash = hasher.finish();
-    Ok(Value::Field(SignedField::positive(u128::from(hash))))
+    Ok(Value::field(SignedField::positive(u128::from(hash))))
 }
 
 pub(super) fn eq_item<T: Eq>(
@@ -706,7 +707,7 @@ pub(crate) fn byte_array_type(len: usize) -> Type {
 
 /// Create a `Value::Array` from bytes.
 pub(crate) fn to_byte_array(values: &[u8]) -> Value {
-    Value::Array(values.iter().copied().map(Value::U8).collect(), byte_array_type(values.len()))
+    Value::Array(values.iter().copied().map(Value::u8).collect(), byte_array_type(values.len()))
 }
 
 /// Create a `Value::Struct` from fields and the expected return type.
@@ -735,7 +736,7 @@ pub(crate) fn new_unary_op(operator: UnaryOp, typ: Type) -> Option<Value> {
     let mut fields = HashMap::default();
     fields.insert(
         Rc::new("op".to_string()),
-        Shared::new(Value::Field(SignedField::positive(unary_op_value))),
+        Shared::new(Value::field(SignedField::positive(unary_op_value))),
     );
 
     Some(Value::Struct(fields, typ))
@@ -748,7 +749,7 @@ pub(crate) fn new_binary_op(operator: BinaryOp, typ: Type) -> Value {
     let mut fields = HashMap::default();
     fields.insert(
         Rc::new("op".to_string()),
-        Shared::new(Value::Field(SignedField::positive(binary_op_value))),
+        Shared::new(Value::field(SignedField::positive(binary_op_value))),
     );
 
     Value::Struct(fields, typ)

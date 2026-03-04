@@ -169,39 +169,39 @@ fn input_value_to_comptime_value(input: &InputValue, typ: &Type, location: Locat
                 NumericValue::Field(_) => panic!("Field should not happen here"),
                 NumericValue::U1(value) => Value::Bool(value),
                 NumericValue::U8(fitted) => match fitted {
-                    Fitted::Fit(value) => Value::U8(value),
+                    Fitted::Fit(value) => Value::u8(value),
                     Fitted::Unfit(..) => panic!("input value does not fit in u8"),
                 },
                 NumericValue::U16(fitted) => match fitted {
-                    Fitted::Fit(value) => Value::U16(value),
+                    Fitted::Fit(value) => Value::u16(value),
                     Fitted::Unfit(..) => panic!("input value does not fit in u16"),
                 },
                 NumericValue::U32(fitted) => match fitted {
-                    Fitted::Fit(value) => Value::U32(value),
+                    Fitted::Fit(value) => Value::u32(value),
                     Fitted::Unfit(..) => panic!("input value does not fit in u32"),
                 },
                 NumericValue::U64(fitted) => match fitted {
-                    Fitted::Fit(value) => Value::U64(value),
+                    Fitted::Fit(value) => Value::u64(value),
                     Fitted::Unfit(..) => panic!("input value does not fit in u64"),
                 },
                 NumericValue::U128(fitted) => match fitted {
-                    Fitted::Fit(value) => Value::U128(value),
+                    Fitted::Fit(value) => Value::u128(value),
                     Fitted::Unfit(..) => panic!("input value does not fit in u128"),
                 },
                 NumericValue::I8(fitted) => match fitted {
-                    Fitted::Fit(value) => Value::I8(value),
+                    Fitted::Fit(value) => Value::i8(value),
                     Fitted::Unfit(..) => panic!("input value does not fit in i8"),
                 },
                 NumericValue::I16(fitted) => match fitted {
-                    Fitted::Fit(value) => Value::I16(value),
+                    Fitted::Fit(value) => Value::i16(value),
                     Fitted::Unfit(..) => panic!("input value does not fit in i16"),
                 },
                 NumericValue::I32(fitted) => match fitted {
-                    Fitted::Fit(value) => Value::I32(value),
+                    Fitted::Fit(value) => Value::i32(value),
                     Fitted::Unfit(..) => panic!("input value does not fit in i32"),
                 },
                 NumericValue::I64(fitted) => match fitted {
-                    Fitted::Fit(value) => Value::I64(value),
+                    Fitted::Fit(value) => Value::i64(value),
                     Fitted::Unfit(..) => panic!("input value does not fit in i64"),
                 },
             }
@@ -210,7 +210,7 @@ fn input_value_to_comptime_value(input: &InputValue, typ: &Type, location: Locat
             let InputValue::Field(value) = input else {
                 panic!("expected field input for field element type");
             };
-            Value::Field(SignedField::positive(*value))
+            Value::field(SignedField::positive(*value))
         }
         Type::Array(length, element_typ) => {
             let length =
@@ -232,7 +232,8 @@ fn input_value_to_comptime_value(input: &InputValue, typ: &Type, location: Locat
             let length =
                 length.evaluate_to_u32(location).expect("Could not evaluate string length to u32");
             assert_eq!(string.len(), length as usize, "String length does not match input length");
-            Value::String(Rc::new(string.clone()))
+            let bytes = string.bytes().collect();
+            Value::String(Rc::new(bytes))
         }
         Type::Tuple(types) => {
             let InputValue::Vec(inputs) = input else {
@@ -296,18 +297,10 @@ fn input_value_to_comptime_value(input: &InputValue, typ: &Type, location: Locat
 fn output_value_to_string(value: &Value, context: &Context) -> String {
     match value {
         Value::Unit => "()".to_string(),
-        Value::Bool(value) => if *value { "1" } else { "0" }.to_string(),
-        Value::Field(signed_field) => signed_field.to_field_element().to_short_hex(),
-        Value::I8(value) => value.to_string(),
-        Value::I16(value) => value.to_string(),
-        Value::I32(value) => value.to_string(),
-        Value::I64(value) => value.to_string(),
-        Value::U8(value) => value.to_string(),
-        Value::U16(value) => value.to_string(),
-        Value::U32(value) => value.to_string(),
-        Value::U64(value) => value.to_string(),
-        Value::U128(value) => value.to_string(),
-        Value::String(string) => {
+        Value::Bool(value) => value.to_string(),
+        Value::Integer(value) => value.to_string(),
+        Value::String(bytes) => {
+            let string = String::from_utf8_lossy(bytes);
             format!("{string:?}")
         }
         Value::Tuple(values) => {

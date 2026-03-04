@@ -11,6 +11,10 @@ pub fn poseidon2_permutation(
     poseidon.permutation(inputs)
 }
 
+pub fn poseidon2_config_state_size() -> u32 {
+    POSEIDON2_CONFIG.t
+}
+
 struct Poseidon2<'a> {
     config: &'a Poseidon2Config,
 }

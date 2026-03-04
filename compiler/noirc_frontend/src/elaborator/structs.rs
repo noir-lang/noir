@@ -119,7 +119,7 @@ impl Elaborator<'_> {
             // after monomorphization when performing SSA codegen
             if struct_type.borrow().generics.is_empty() {
                 let fields = struct_type.borrow().get_fields(&[]).unwrap();
-                for (_, field_type, _) in fields.iter() {
+                for (_, field_type, _) in &fields {
                     if field_type.is_nested_vector() {
                         let location = struct_type.borrow().location;
                         self.push_err(ResolverError::NestedVectors { location });
