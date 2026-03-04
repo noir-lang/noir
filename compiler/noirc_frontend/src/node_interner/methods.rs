@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-
 use crate::{
     Type, TypeBindings,
     node_interner::{FuncId, TraitId},
@@ -63,23 +61,13 @@ impl Methods {
         if self.direct.is_empty() {
             return None;
         }
-        let method_type = &interner.function_meta(method_id).typ;
-        let instantiate_typ = if let Type::Forall(type_vars, _) = method_type {
-            Cow::Owned(typ.substitute_type_vars_with_fresh_type_vars(type_vars, interner).0)
-        } else {
-            Cow::Borrowed(typ)
-        };
+        let instantiate_typ = interner.function_meta(method_id).instantiate(typ, interner);
         for existing in &self.direct {
             // Check if two types overlap, by instantiating both types (replacing NamedGenerics
             // with fresh TypeVariables) and then checking if they can unify.
-            let existing_type = &interner.function_meta(&existing.method).typ;
-            let instantiate_existing = if let Type::Forall(type_vars, _) = existing_type {
-                Cow::Owned(
-                    existing.typ.substitute_type_vars_with_fresh_type_vars(type_vars, interner).0,
-                )
-            } else {
-                Cow::Borrowed(&existing.typ)
-            };
+            let existing_func_meta = interner.function_meta(&existing.method);
+            let existing_type = &existing_func_meta.typ;
+            let instantiate_existing = existing_func_meta.instantiate(existing_type, interner);
             let mut bindings = TypeBindings::default();
             let types_can_unify =
                 instantiate_existing.try_unify(&instantiate_typ, &mut bindings).is_ok();
@@ -156,7 +144,8 @@ impl Methods {
         method_type: &Type,
         interner: &NodeInterner,
     ) -> bool {
-        let function_typ = &interner.function_meta(&method).typ;
+        let func_meta = interner.function_meta(&method);
+        let function_typ = &func_meta.typ;
         match function_typ.instantiate(interner).0 {
             Type::Function(args, _, _, _) => {
                 if check_self_param {
@@ -173,15 +162,7 @@ impl Methods {
                         }
                     }
                 } else {
-                    let method_type = if let Type::Forall(typevars, _) = function_typ {
-                        Cow::Owned(
-                            method_type
-                                .substitute_type_vars_with_fresh_type_vars(typevars, interner)
-                                .0,
-                        )
-                    } else {
-                        Cow::Borrowed(method_type)
-                    };
+                    let method_type = func_meta.instantiate(method_type, interner);
 
                     if method_type.unify(typ).is_ok() {
                         return true;
