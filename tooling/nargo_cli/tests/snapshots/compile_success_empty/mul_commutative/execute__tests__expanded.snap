@@ -1,0 +1,9 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+pub fn main(a: Field) {
+    let mut x: Field = 0_Field;
+    if a == 0_Field { x = 1_Field; };
+    assert((a * x) == (x * a));
+}

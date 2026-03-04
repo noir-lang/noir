@@ -13,6 +13,35 @@ use noirc_errors::call_stack::CallStackId;
 
 use super::SimplifyResult;
 
+/// Canonicalize commutative binary operations by:
+/// 1. Moving any constant operand to the RHS (e.g. `add Field 5, v0` → `add v0, Field 5`).
+/// 2. When both operands are non-constant, sorting so the smaller ValueId is on the left
+///    (e.g. `mul v1, v0` → `mul v0, v1`), enabling deduplication via CSE.
+fn canonicalize_binary(mut binary: Binary, dfg: &DataFlowGraph) -> Binary {
+    if !binary.operator.is_commutative() {
+        return binary;
+    }
+
+    let lhs_is_const = dfg.get_numeric_constant(binary.lhs).is_some();
+    let rhs_is_const = dfg.get_numeric_constant(binary.rhs).is_some();
+
+    let should_swap = if lhs_is_const && !rhs_is_const {
+        // Always move constants to the RHS
+        true
+    } else if !lhs_is_const && !rhs_is_const {
+        // Both non-constant: sort by ValueId
+        binary.lhs > binary.rhs
+    } else {
+        false
+    };
+
+    if should_swap {
+        std::mem::swap(&mut binary.lhs, &mut binary.rhs);
+    }
+
+    binary
+}
+
 /// Try to simplify this binary instruction, returning the new value if possible.
 pub(super) fn simplify_binary(
     binary: &Binary,
@@ -311,7 +340,10 @@ pub(super) fn simplify_binary(
             return SimplifyResult::SimplifiedToInstruction(simplified);
         }
     }
-    SimplifyResult::SimplifiedToInstruction(simplified)
+    SimplifyResult::SimplifiedToInstruction(Instruction::Binary(canonicalize_binary(
+        Binary { lhs, rhs, operator },
+        dfg,
+    )))
 }
 
 #[cfg(test)]
@@ -363,9 +395,7 @@ mod tests {
             return v1
         }
         ";
-
         let ssa = Ssa::from_str_simplifying(src).unwrap();
-
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u8):
@@ -374,5 +404,175 @@ mod tests {
             return v3
         }
         ");
+    }
+
+    mod canonicalize {
+        use crate::ssa::{ir::instruction::Instruction, ssa_gen::Ssa};
+
+        use super::super::canonicalize_binary;
+
+        fn assert_operands_swapped(src: &str) {
+            let ssa = Ssa::from_str(src).unwrap();
+            let function = ssa.main();
+            let block = function.entry_block();
+            for instruction_id in function.dfg[block].instructions() {
+                if let Instruction::Binary(binary) = &function.dfg[*instruction_id] {
+                    let original_lhs = binary.lhs;
+                    let original_rhs = binary.rhs;
+                    let result = canonicalize_binary(binary.clone(), &function.dfg);
+                    assert_eq!(result.lhs, original_rhs, "expected lhs and rhs to be swapped");
+                    assert_eq!(result.rhs, original_lhs, "expected lhs and rhs to be swapped");
+                    return;
+                }
+            }
+            panic!("No binary instruction found in SSA");
+        }
+
+        fn assert_operands_unchanged(src: &str) {
+            let ssa = Ssa::from_str(src).unwrap();
+            let function = ssa.main();
+            let block = function.entry_block();
+            for instruction_id in function.dfg[block].instructions() {
+                if let Instruction::Binary(binary) = &function.dfg[*instruction_id] {
+                    let result = canonicalize_binary(binary.clone(), &function.dfg);
+                    assert_eq!(result.lhs, binary.lhs, "expected operands to remain unchanged");
+                    assert_eq!(result.rhs, binary.rhs, "expected operands to remain unchanged");
+                    return;
+                }
+            }
+            panic!("No binary instruction found in SSA");
+        }
+
+        #[test]
+        fn swaps_mul_operands() {
+            assert_operands_swapped(
+                "acir(inline) predicate_pure fn main f0 {
+                  b0(v0: Field, v1: Field):
+                    v2 = mul v1, v0
+                    return v2
+                }",
+            );
+        }
+
+        #[test]
+        fn swaps_add_operands() {
+            assert_operands_swapped(
+                "acir(inline) predicate_pure fn main f0 {
+                  b0(v0: Field, v1: Field):
+                    v2 = add v1, v0
+                    return v2
+                }",
+            );
+        }
+
+        #[test]
+        fn swaps_and_operands() {
+            assert_operands_swapped(
+                "acir(inline) predicate_pure fn main f0 {
+                  b0(v0: u8, v1: u8):
+                    v2 = and v1, v0
+                    return v2
+                }",
+            );
+        }
+
+        #[test]
+        fn swaps_or_operands() {
+            assert_operands_swapped(
+                "acir(inline) predicate_pure fn main f0 {
+                  b0(v0: u8, v1: u8):
+                    v2 = or v1, v0
+                    return v2
+                }",
+            );
+        }
+
+        #[test]
+        fn swaps_xor_operands() {
+            assert_operands_swapped(
+                "acir(inline) predicate_pure fn main f0 {
+                  b0(v0: u8, v1: u8):
+                    v2 = xor v1, v0
+                    return v2
+                }",
+            );
+        }
+
+        #[test]
+        fn swaps_eq_operands() {
+            assert_operands_swapped(
+                "acir(inline) predicate_pure fn main f0 {
+                  b0(v0: Field, v1: Field):
+                    v2 = eq v1, v0
+                    return v2
+                }",
+            );
+        }
+
+        #[test]
+        fn does_not_swap_when_constant_on_rhs() {
+            assert_operands_unchanged(
+                "acir(inline) predicate_pure fn main f0 {
+                  b0(v0: Field):
+                    v2 = mul v0, Field 5
+                    return v2
+                }",
+            );
+        }
+
+        #[test]
+        fn does_not_swap_sub() {
+            assert_operands_unchanged(
+                "acir(inline) predicate_pure fn main f0 {
+                  b0(v0: Field, v1: Field):
+                    v2 = sub v1, v0
+                    return v2
+                }",
+            );
+        }
+
+        #[test]
+        fn does_not_swap_already_ordered() {
+            assert_operands_unchanged(
+                "acir(inline) predicate_pure fn main f0 {
+                  b0(v0: Field, v1: Field):
+                    v2 = mul v0, v1
+                    return v2
+                }",
+            );
+        }
+
+        #[test]
+        fn moves_constant_lhs_to_rhs() {
+            assert_operands_swapped(
+                "acir(inline) predicate_pure fn main f0 {
+                  b0(v0: u32):
+                    v2 = add u32 1, v0
+                    return v2
+                }",
+            );
+        }
+
+        #[test]
+        fn keeps_constant_on_rhs() {
+            assert_operands_unchanged(
+                "acir(inline) predicate_pure fn main f0 {
+                  b0(v0: u32):
+                    v2 = add v0, u32 1
+                    return v2
+                }",
+            );
+        }
+
+        #[test]
+        fn does_not_move_constant_for_sub() {
+            assert_operands_unchanged(
+                "acir(inline) predicate_pure fn main f0 {
+                  b0(v0: Field):
+                    v2 = sub Field 5, v0
+                    return v2
+                }",
+            );
+        }
     }
 }

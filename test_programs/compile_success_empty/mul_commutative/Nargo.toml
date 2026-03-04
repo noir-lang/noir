@@ -1,0 +1,6 @@
+[package]
+name = "mul_commutative"
+type = "bin"
+authors = [""]
+
+[dependencies]
