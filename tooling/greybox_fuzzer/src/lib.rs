@@ -642,7 +642,7 @@ impl<
             } else {
                 // If this is the initial processing round, then push testcases from the starting corpus into the set
                 testcase_set.reserve(starting_corpus_ids.len());
-                for id in starting_corpus_ids.iter() {
+                for id in &starting_corpus_ids {
                     testcase_set.push(FuzzTask::without_mutation(*id));
                 }
             }
@@ -786,7 +786,7 @@ impl<
 
             let mut acir_cases_to_execute = Vec::new();
             // Go through each interesting testcase (new coverage or some issue)
-            for index in analysis_queue.into_iter() {
+            for index in analysis_queue {
                 let fuzzing_outcome = all_fuzzing_results[index].outcome().clone();
                 let (case_id, case, witness, brillig_coverage) = match fuzzing_outcome {
                     HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
@@ -830,7 +830,7 @@ impl<
                 // If there is new coverage
                 if new_coverage_discovered {
                     // Remove testcases from the corpus if they have no unique features
-                    for &testcase_for_removal in testcases_to_remove.iter() {
+                    for &testcase_for_removal in &testcases_to_remove {
                         self.metrics.increment_removed_testcase_count();
                         corpus.remove(testcase_for_removal);
                     }
@@ -896,7 +896,7 @@ impl<
             });
 
             // Parse results and if there is an unsuccessful case break out of the loop
-            for acir_fuzzing_result in all_fuzzing_results.into_iter() {
+            for acir_fuzzing_result in all_fuzzing_results {
                 let (case_id, case, witness, brillig_coverage, acir_duration_micros) =
                     match acir_fuzzing_result {
                         HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
@@ -934,7 +934,7 @@ impl<
                 let (new_coverage_discovered, testcases_to_remove) =
                     accumulated_coverage.merge(&new_coverage);
                 if new_coverage_discovered {
-                    for &testcase_for_removal in testcases_to_remove.iter() {
+                    for &testcase_for_removal in &testcases_to_remove {
                         self.metrics.increment_removed_testcase_count();
                         corpus.remove(testcase_for_removal);
                     }

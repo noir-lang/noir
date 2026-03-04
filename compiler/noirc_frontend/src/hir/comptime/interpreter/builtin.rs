@@ -1,7 +1,10 @@
 //! Large file containing implementations of all the various built-in functions
 //! which can be called in the interpreter. This notably includes the entire comptime-API
 //! defined in `noir_stdlib/src/meta/*`
-use std::rc::Rc;
+use std::{
+    hash::{Hash as _, Hasher as _},
+    rc::Rc,
+};
 
 use acvm::{AcirField, FieldElement};
 use builtin_helpers::{
@@ -76,7 +79,7 @@ impl Interpreter<'_, '_> {
             "apply_range_constraint" => apply_range_constraint(arguments, location, call_stack),
             "array_as_str_unchecked" => array_as_str_unchecked(arguments, location),
             "array_len" => array_len(arguments, location),
-            "array_refcount" => Ok(Value::U32(0)),
+            "array_refcount" => Ok(Value::u32(0)),
             "assert_constant" => Ok(Value::Unit),
             "as_vector" => as_vector(arguments, location),
             "as_witness" => as_witness(arguments, location),
@@ -182,14 +185,14 @@ impl Interpreter<'_, '_> {
             "quoted_as_trait_constraint" => quoted_as_trait_constraint(self, arguments, location),
             "quoted_as_type" => quoted_as_type(self, arguments, location),
             "quoted_eq" => quoted_eq(self.elaborator.interner, arguments, location),
-            "quoted_hash" => quoted_hash(arguments, location),
+            "quoted_hash" => quoted_hash(self.elaborator.interner, arguments, location),
             "quoted_tokens" => quoted_tokens(arguments, location),
             "vector_insert" => vector_insert(arguments, location, call_stack),
             "vector_pop_back" => vector_pop_back(arguments, location, call_stack),
             "vector_pop_front" => vector_pop_front(arguments, location, call_stack),
             "vector_push_back" => vector_push_back(arguments, location),
             "vector_push_front" => vector_push_front(arguments, location),
-            "vector_refcount" => Ok(Value::U32(0)),
+            "vector_refcount" => Ok(Value::u32(0)),
             "vector_remove" => vector_remove(arguments, location, call_stack),
             "static_assert" => static_assert(interner, arguments, location, call_stack),
             "str_as_bytes" => str_as_bytes(arguments, location),
@@ -288,7 +291,7 @@ fn array_len(arguments: Vec<(Value, Location)>, location: Location) -> IResult<V
     let (argument, argument_location) = check_one_argument(arguments, location)?;
 
     match argument {
-        Value::Array(values, _) | Value::Vector(values, _) => Ok(Value::U32(values.len() as u32)),
+        Value::Array(values, _) | Value::Vector(values, _) => Ok(Value::u32(values.len() as u32)),
         value => {
             let expected = "array".to_string();
             let actual = value.get_type().into_owned();
@@ -329,8 +332,7 @@ fn array_as_str_unchecked(arguments: Vec<(Value, Location)>, location: Location)
 
     let array = get_array(argument)?.0;
     let string_bytes = try_vecmap(array, |byte| get_u8((byte, location)))?;
-    let string = String::from_utf8_lossy(&string_bytes).into_owned();
-    Ok(Value::String(Rc::new(string)))
+    Ok(Value::String(Rc::new(string_bytes)))
 }
 
 fn as_vector(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
@@ -400,9 +402,8 @@ fn static_assert(
 
 fn str_as_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     let string = check_one_argument(arguments, location)?;
-    let string = get_str(string)?;
-
-    let bytes: Vector<Value> = string.bytes().map(Value::U8).collect();
+    let string_bytes = get_str(string)?;
+    let bytes: Vector<Value> = string_bytes.iter().copied().map(Value::u8).collect();
     let byte_array_type = byte_array_type(bytes.len());
     Ok(Value::Array(bytes, byte_array_type))
 }
@@ -410,8 +411,8 @@ fn str_as_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IResul
 // fn str_as_ctstring(self) -> CtString
 fn str_as_ctstring(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
-    let string = get_str(self_argument)?;
-    Ok(Value::CtString(string))
+    let string_bytes = get_str(self_argument)?;
+    Ok(Value::CtString(string_bytes))
 }
 
 // fn add_attribute<let N: u32>(self, attribute: str<N>)
@@ -423,6 +424,7 @@ fn type_def_add_attribute(
     let (self_argument, attribute) = check_two_arguments(arguments, location)?;
     let attribute_location = attribute.1;
     let attribute = get_str(attribute)?;
+    let attribute = String::from_utf8_lossy(&attribute);
     let attribute = format!("#[{attribute}]");
     let mut parser = Parser::for_str(&attribute, attribute_location.file);
     let Some((Attribute::Secondary(attribute), _span)) = parser.parse_attribute() else {
@@ -452,18 +454,19 @@ fn type_def_add_generic(
     let (self_argument, generic) = check_two_arguments(arguments, location)?;
     let generic_location = generic.1;
     let generic = get_str(generic)?;
+    let generic = String::from_utf8_lossy(&generic);
 
     let mut tokens = lex(&generic, location);
     if tokens.len() != 1 {
         return Err(InterpreterError::GenericNameShouldBeAnIdent {
-            name: generic,
+            name: generic.to_string(),
             location: generic_location,
         });
     }
 
     let Token::Ident(generic_name) = tokens.remove(0).into_token() else {
         return Err(InterpreterError::GenericNameShouldBeAnIdent {
-            name: generic,
+            name: generic.to_string(),
             location: generic_location,
         });
     };
@@ -607,6 +610,7 @@ fn type_def_has_named_attribute(
     let type_id = get_type_id(self_argument)?;
 
     let name = get_str(name)?;
+    let name = String::from_utf8_lossy(&name);
 
     Ok(Value::Bool(has_named_attribute(&name, interner.type_attributes(&type_id), interner)))
 }
@@ -1010,7 +1014,7 @@ fn to_be_bits(
     call_stack: &Vector<Location>,
 ) -> IResult<Value> {
     let value = check_one_argument(arguments, location)?;
-    let radix = (Value::U32(2), value.1);
+    let radix = (Value::u32(2), value.1);
     to_be_radix(vec![value, radix], return_type, location, call_stack)
 }
 
@@ -1021,7 +1025,7 @@ fn to_le_bits(
     call_stack: &Vector<Location>,
 ) -> IResult<Value> {
     let value = check_one_argument(arguments, location)?;
-    let radix = (Value::U32(2), value.1);
+    let radix = (Value::u32(2), value.1);
     to_le_radix(vec![value, radix], return_type, location, call_stack)
 }
 
@@ -1085,7 +1089,7 @@ fn to_le_radix(
             None => 0,
         };
         // The only built-ins that use these either return `[u1; N]` or `[u8; N]`
-        if return_type_is_bits { Value::U1(digit != 0) } else { Value::U8(digit) }
+        if return_type_is_bits { Value::u1(digit != 0) } else { Value::u8(digit) }
     });
 
     let len: u32 = decomposed_integer
@@ -1136,7 +1140,7 @@ fn type_as_constant(
         // since arithmetic generics may be `Type::InfixExpr`s which evaluate to
         // constants but are not actually the `Type::Constant` variant.
         match typ.evaluate_to_u32(location) {
-            Ok(constant) => Ok(Some(Value::U32(constant))),
+            Ok(constant) => Ok(Some(Value::u32(constant))),
             Err(err) => {
                 // Evaluating to a non-constant returns 'None' in user code
                 if err.is_non_constant_evaluated() {
@@ -1159,7 +1163,7 @@ fn type_as_integer(
     type_as(arguments, return_type, location, |typ| {
         if let Type::Integer(sign, bits) = typ {
             let sign = Shared::new(Value::Bool(sign.is_signed()));
-            let bit_size = Shared::new(Value::U8(bits.bit_size()));
+            let bit_size = Shared::new(Value::u8(bits.bit_size()));
             Some(Value::Tuple(vec![sign, bit_size]))
         } else {
             None
@@ -1561,7 +1565,7 @@ where
 // fn zeroed<T>() -> T
 fn zeroed(return_type: Type, location: Location) -> Value {
     match return_type {
-        Type::FieldElement => Value::Field(SignedField::zero()),
+        Type::FieldElement => Value::field(SignedField::zero()),
         Type::Array(length_type, elem) => {
             if let Ok(length) = length_type.evaluate_to_u32(location) {
                 let element = zeroed(elem.as_ref().clone(), location);
@@ -1574,17 +1578,17 @@ fn zeroed(return_type: Type, location: Location) -> Value {
         }
         Type::Vector(_) => Value::Vector(Vector::new(), return_type),
         Type::Integer(sign, bits) => match (sign, bits) {
-            (Signedness::Unsigned, IntegerBitSize::One) => Value::U1(false),
-            (Signedness::Unsigned, IntegerBitSize::Eight) => Value::U8(0),
-            (Signedness::Unsigned, IntegerBitSize::Sixteen) => Value::U16(0),
-            (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => Value::U32(0),
-            (Signedness::Unsigned, IntegerBitSize::SixtyFour) => Value::U64(0),
-            (Signedness::Unsigned, IntegerBitSize::HundredTwentyEight) => Value::U128(0),
+            (Signedness::Unsigned, IntegerBitSize::One) => Value::u1(false),
+            (Signedness::Unsigned, IntegerBitSize::Eight) => Value::u8(0),
+            (Signedness::Unsigned, IntegerBitSize::Sixteen) => Value::u16(0),
+            (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => Value::u32(0),
+            (Signedness::Unsigned, IntegerBitSize::SixtyFour) => Value::u64(0),
+            (Signedness::Unsigned, IntegerBitSize::HundredTwentyEight) => Value::u128(0),
             (Signedness::Signed, IntegerBitSize::One) => unreachable!("invalid type: i1"),
-            (Signedness::Signed, IntegerBitSize::Eight) => Value::I8(0),
-            (Signedness::Signed, IntegerBitSize::Sixteen) => Value::I16(0),
-            (Signedness::Signed, IntegerBitSize::ThirtyTwo) => Value::I32(0),
-            (Signedness::Signed, IntegerBitSize::SixtyFour) => Value::I64(0),
+            (Signedness::Signed, IntegerBitSize::Eight) => Value::i8(0),
+            (Signedness::Signed, IntegerBitSize::Sixteen) => Value::i16(0),
+            (Signedness::Signed, IntegerBitSize::ThirtyTwo) => Value::i32(0),
+            (Signedness::Signed, IntegerBitSize::SixtyFour) => Value::i64(0),
             (Signedness::Signed, IntegerBitSize::HundredTwentyEight) => {
                 unreachable!("invalid type: i128")
             }
@@ -1592,7 +1596,7 @@ fn zeroed(return_type: Type, location: Location) -> Value {
         Type::Bool => Value::Bool(false),
         Type::String(length_type) => {
             if let Ok(length) = length_type.evaluate_to_u32(location) {
-                Value::String(Rc::new("\0".repeat(length as usize)))
+                Value::String(Rc::new(vec![0; length as usize]))
             } else {
                 // Assume we can resolve the length later
                 Value::Zeroed(Type::String(length_type))
@@ -2073,14 +2077,14 @@ fn expr_as_integer(
     expr_as(interner, arguments, return_type, location, |expr| match expr {
         ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field, _suffix))) => {
             Some(Value::Tuple(vec![
-                Shared::new(Value::Field(SignedField::positive(field.absolute_value()))),
+                Shared::new(Value::field(SignedField::positive(field.absolute_value()))),
                 Shared::new(Value::Bool(field.is_negative())),
             ]))
         }
         ExprValue::Expression(ExpressionKind::Resolved(id)) => {
             if let HirExpression::Literal(HirLiteral::Integer(field)) = interner.expression(&id) {
                 Some(Value::Tuple(vec![
-                    Shared::new(Value::Field(SignedField::positive(field.absolute_value()))),
+                    Shared::new(Value::field(SignedField::positive(field.absolute_value()))),
                     Shared::new(Value::Bool(field.is_negative())),
                 ]))
             } else {
@@ -2509,7 +2513,8 @@ fn fmtstr_as_ctstring(
     let self_argument = check_one_argument(arguments, location)?;
     let (fragments, _, _) = get_format_string(self_argument)?;
     let string = fragments_to_string(&fragments, interner);
-    Ok(Value::CtString(Rc::new(string)))
+    let bytes = string.bytes().collect();
+    Ok(Value::CtString(Rc::new(bytes)))
 }
 
 // fn quoted_contents(self) -> Quoted
@@ -2539,6 +2544,7 @@ fn function_def_add_attribute(
     let (self_argument, attribute) = check_two_arguments(arguments, location)?;
     let attribute_location = attribute.1;
     let attribute = get_str(attribute)?;
+    let attribute = String::from_utf8_lossy(&attribute);
     let attribute = format!("#[{attribute}]");
     let mut parser = Parser::for_str(&attribute, attribute_location.file);
     let Some((attribute, _span)) = parser.parse_attribute() else {
@@ -2638,6 +2644,7 @@ fn function_def_has_named_attribute(
     let func_id = get_function_def(self_argument)?;
 
     let name = &*get_str(name)?;
+    let name = String::from_utf8_lossy(name);
 
     let modifiers = interner.function_modifiers(&func_id);
     if let Some(attribute) = modifiers.attributes.function()
@@ -2646,7 +2653,7 @@ fn function_def_has_named_attribute(
         return Ok(Value::Bool(true));
     }
 
-    Ok(Value::Bool(has_named_attribute(name, &modifiers.attributes.secondary, interner)))
+    Ok(Value::Bool(has_named_attribute(&name, &modifiers.attributes.secondary, interner)))
 }
 
 fn function_def_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
@@ -3073,6 +3080,7 @@ fn module_has_named_attribute(
     let module_data = interpreter.elaborator.get_module(module_id);
 
     let name = get_str(name)?;
+    let name = String::from_utf8_lossy(&name);
 
     Ok(Value::Bool(has_named_attribute(
         &name,
@@ -3111,7 +3119,7 @@ fn modulus_be_bits(arguments: Vec<(Value, Location)>, location: Location) -> IRe
     check_argument_count(0, &arguments, location)?;
 
     let bits = FieldElement::modulus().to_radix_be(2);
-    let bits_vector = bits.into_iter().map(|bit| Value::U1(bit != 0)).collect();
+    let bits_vector = bits.into_iter().map(|bit| Value::u1(bit != 0)).collect();
 
     let int_type = Type::Integer(Signedness::Unsigned, IntegerBitSize::One);
     let typ = Type::Vector(Box::new(int_type));
@@ -3122,7 +3130,7 @@ fn modulus_be_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IR
     check_argument_count(0, &arguments, location)?;
 
     let bytes = FieldElement::modulus().to_bytes_be();
-    let bytes_vector = bytes.into_iter().map(Value::U8).collect();
+    let bytes_vector = bytes.into_iter().map(Value::u8).collect();
 
     let int_type = Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight);
     let typ = Type::Vector(Box::new(int_type));
@@ -3148,7 +3156,7 @@ fn modulus_le_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IR
 fn modulus_num_bits(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     check_argument_count(0, &arguments, location)?;
     let bits = FieldElement::max_num_bits().into();
-    Ok(Value::U64(bits))
+    Ok(Value::u64(bits))
 }
 
 // fn quoted_eq(_first: Quoted, _second: Quoted) -> bool
@@ -3170,8 +3178,22 @@ fn quoted_eq(
 
     Ok(Value::Bool(self_string == other_string))
 }
-fn quoted_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    hash_item(arguments, location, get_quoted)
+
+fn quoted_hash(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let argument = check_one_argument(arguments, location)?;
+    let tokens = get_quoted(argument)?;
+
+    // For consistency with quoted_eq, we compute the hash of the Quoted string representation.
+    let tokens_string = tokens_to_string(&tokens, interner);
+
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    tokens_string.hash(&mut hasher);
+    let hash = hasher.finish();
+    Ok(Value::field(SignedField::positive(u128::from(hash))))
 }
 
 fn trait_def_as_trait_constraint(
@@ -3237,9 +3259,8 @@ fn derive_generators(
     let domain_separator_string =
         try_vecmap(domain_separator_string, |byte| get_u8((byte, domain_separator_location)))?;
 
-    let (size, elements) = match return_type.clone() {
-        Type::Array(size, elements) => (size, elements),
-        _ => panic!("ICE: Should only have an array return type"),
+    let Type::Array(size, elements) = return_type.clone() else {
+        panic!("ICE: Should only have an array return type");
     };
 
     let num_generators = size.evaluate_to_u32(location).map_err(|err| {
@@ -3265,9 +3286,9 @@ fn derive_generators(
         let y = FieldElement::from_be_bytes_reduce(&y_big.to_bytes_be());
         let mut embedded_curve_point_fields = HashMap::default();
         embedded_curve_point_fields
-            .insert(x_field_name.clone(), Shared::new(Value::Field(SignedField::positive(x))));
+            .insert(x_field_name.clone(), Shared::new(Value::field(SignedField::positive(x))));
         embedded_curve_point_fields
-            .insert(y_field_name.clone(), Shared::new(Value::Field(SignedField::positive(y))));
+            .insert(y_field_name.clone(), Shared::new(Value::field(SignedField::positive(y))));
         embedded_curve_point_fields
             .insert(is_infinite_field_name.clone(), Shared::new(Value::Bool(is_infinite)));
         let embedded_curve_point_struct =
@@ -3281,8 +3302,51 @@ fn derive_generators(
 fn field_less_than(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     let (lhs, rhs) = check_two_arguments(arguments, location)?;
 
-    let lhs = get_field(lhs)?;
-    let rhs = get_field(rhs)?;
+    let lhs = get_field(lhs)?.to_field_element();
+    let rhs = get_field(rhs)?.to_field_element();
 
     Ok(Value::Bool(lhs < rhs))
+}
+
+#[cfg(test)]
+mod tests {
+    use noirc_errors::Location;
+
+    use crate::hir::comptime::value::Value;
+    use crate::signed_field::SignedField;
+
+    use super::field_less_than;
+
+    fn args(a: Value, b: Value) -> Vec<(Value, Location)> {
+        vec![(a, Location::dummy()), (b, Location::dummy())]
+    }
+
+    fn pos(v: u128) -> Value {
+        Value::field(SignedField::positive(v))
+    }
+
+    fn neg(v: u128) -> Value {
+        Value::field(SignedField::negative(v))
+    }
+
+    #[test]
+    fn test_field_less_than() {
+        let loc = Location::dummy();
+
+        // positive comparisons
+        assert_eq!(field_less_than(args(pos(0), pos(1)), loc).unwrap(), Value::Bool(true));
+        assert_eq!(field_less_than(args(pos(1), pos(0)), loc).unwrap(), Value::Bool(false));
+        assert_eq!(field_less_than(args(pos(42), pos(42)), loc).unwrap(), Value::Bool(false));
+        assert_eq!(field_less_than(args(pos(0x100), pos(0x200)), loc).unwrap(), Value::Bool(true));
+        assert_eq!(field_less_than(args(pos(0x200), pos(0x100)), loc).unwrap(), Value::Bool(false));
+
+        // negative values wrap around
+        assert_eq!(field_less_than(args(pos(1), neg(1)), loc).unwrap(), Value::Bool(true));
+        assert_eq!(field_less_than(args(neg(1), pos(1)), loc).unwrap(), Value::Bool(false));
+        // -2 < -1
+        assert_eq!(field_less_than(args(neg(2), neg(1)), loc).unwrap(), Value::Bool(true));
+        assert_eq!(field_less_than(args(neg(1), neg(2)), loc).unwrap(), Value::Bool(false));
+        // -1 < -1 is false
+        assert_eq!(field_less_than(args(neg(1), neg(1)), loc).unwrap(), Value::Bool(false));
+    }
 }

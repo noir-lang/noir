@@ -1030,14 +1030,14 @@ mod tests {
           b0():
             v4 = shr u8 1, u8 98
             v6 = eq v4, u8 0
-            jmpif v6 then: b7, else: b8
+            jmpif v6 then: b7(), else: b8()
           b1():
             jmp b3()
           b2():
             jmp b3()
           b3():
             v11 = eq v9, u8 1
-            jmpif v11 then: b4, else: b5
+            jmpif v11 then: b4(), else: b5()
           b4():
             jmp b6()
           b5():
@@ -1050,7 +1050,7 @@ mod tests {
             jmp b9()
           b9():
             v7 = eq v4, u8 1
-            jmpif v7 then: b10, else: b11
+            jmpif v7 then: b10(), else: b11()
           b10():
             jmp b12()
           b11():
@@ -1058,7 +1058,7 @@ mod tests {
           b12():
             v9 = shr u8 1, u8 99
             v10 = eq v9, u8 0
-            jmpif v10 then: b1, else: b2
+            jmpif v10 then: b1(), else: b2()
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
@@ -1072,14 +1072,14 @@ mod tests {
             constrain u1 0 == u1 1, "attempt to bit-shift with overflow"
             v4 = div u8 1, u8 0
             v5 = eq v4, u8 0
-            jmpif v5 then: b7, else: b8
+            jmpif v5 then: b7(), else: b8()
           b1():
             jmp b3()
           b2():
             jmp b3()
           b3():
             v9 = eq v7, u8 1
-            jmpif v9 then: b4, else: b5
+            jmpif v9 then: b4(), else: b5()
           b4():
             jmp b6()
           b5():
@@ -1092,7 +1092,7 @@ mod tests {
             jmp b9()
           b9():
             v6 = eq v4, u8 1
-            jmpif v6 then: b10, else: b11
+            jmpif v6 then: b10(), else: b11()
           b10():
             jmp b12()
           b11():
@@ -1101,7 +1101,7 @@ mod tests {
             constrain u1 0 == u1 1, "attempt to bit-shift with overflow"
             v7 = div u8 1, u8 0
             v8 = eq v7, u8 0
-            jmpif v8 then: b1, else: b2
+            jmpif v8 then: b1(), else: b2()
         }
         "#);
     }

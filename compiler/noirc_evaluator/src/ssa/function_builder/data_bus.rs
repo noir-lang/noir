@@ -98,7 +98,7 @@ impl DataBus {
             .iter()
             .map(|cd| {
                 let mut call_data_map = HashMap::default();
-                for (k, v) in cd.index_map.iter() {
+                for (k, v) in &cd.index_map {
                     call_data_map.insert(f(*k), *v);
                 }
                 CallData {
@@ -119,7 +119,7 @@ impl DataBus {
 
     /// Updates the databus values in place with the provided function
     pub(crate) fn map_values_mut(&mut self, mut f: impl FnMut(ValueId) -> ValueId) {
-        for cd in self.call_data.iter_mut() {
+        for cd in &mut self.call_data {
             cd.array_id = f(cd.array_id);
 
             // Can't mutate a hashmap's keys so we need to collect into a new one.

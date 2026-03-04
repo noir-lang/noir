@@ -184,7 +184,7 @@ impl<'a> NodeFinder<'a> {
             let mut items = std::mem::take(&mut self.completion_items);
 
             // Show items that start with underscore last in the list
-            for item in items.iter_mut() {
+            for item in &mut items {
                 if item.label.starts_with('_') {
                     item.sort_text = Some(underscore_sort_text());
                 }
@@ -1951,7 +1951,7 @@ fn get_field_type(typ: &Type, name: &str) -> Option<Type> {
         Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) => {
             match &*var.borrow() {
                 TypeBinding::Bound(typ) => get_field_type(typ, name),
-                _ => None,
+                TypeBinding::Unbound(..) => None,
             }
         }
         _ => None,
@@ -1968,7 +1968,7 @@ fn get_array_element_type(typ: Type) -> Option<Type> {
         Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) => {
             match &*var.borrow() {
                 TypeBinding::Bound(typ) => get_array_element_type(typ.clone()),
-                _ => None,
+                TypeBinding::Unbound(..) => None,
             }
         }
         _ => None,

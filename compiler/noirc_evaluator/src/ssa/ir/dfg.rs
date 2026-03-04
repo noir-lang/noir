@@ -395,11 +395,6 @@ impl DataFlowGraph {
         }
     }
 
-    /// Replace an existing instruction with a new one.
-    pub(crate) fn set_instruction(&mut self, id: InstructionId, instruction: Instruction) {
-        self.instructions[id] = instruction;
-    }
-
     /// Replaces values in the given block according to the given mapping.
     pub(crate) fn replace_values_in_block(&mut self, block: BasicBlockId, mapping: &ValueMapping) {
         self.replace_values_in_block_instructions(block, mapping);

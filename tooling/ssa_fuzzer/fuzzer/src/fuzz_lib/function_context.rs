@@ -184,7 +184,7 @@ impl<'a> FuzzerFunctionContext<'a> {
     ) -> Self {
         let mut ids = HashMap::new();
 
-        for (value, type_) in values_types.into_iter() {
+        for (value, type_) in values_types {
             let field_element = value;
             ids.entry(Type::Numeric(type_))
                 .or_insert(Vec::new())
@@ -439,7 +439,7 @@ impl<'a> FuzzerFunctionContext<'a> {
     ///     jmp b1(u32 0) <--------------------------------- create iter (0) and jump to the "if_block"
     ///   b1(v1: u32): <------------------------------------ "if_block"
     ///     v5 = lt v1, u32 10 <---------------------------- compare iter with end_iter (10)
-    ///     jmpif v5 then: b3, else: b2 <------------------- if iter < end_iter, jump to the "body_block", otherwise jump to the "end_block"
+    ///     jmpif v5 then: b3(), else: b2() <--------------- if iter < end_iter, jump to the "body_block", otherwise jump to the "end_block"
     ///   b2(): <------------------------------------------- "end_block"
     ///     v6 = load v2 -> Field
     ///     return v6
@@ -719,9 +719,8 @@ impl<'a> FuzzerFunctionContext<'a> {
     /// This function is used to find end of the block for merging
     /// If block has no end, it means it has branches in the sub CFG, so we need to merge children blocks first
     fn end_of_block(&self, block_id: BasicBlockId) -> Option<BasicBlockId> {
-        let block = match self.stored_blocks.get(&block_id) {
-            Some(block) => block,
-            None => unreachable!("Block not found in stored blocks."),
+        let Some(block) = self.stored_blocks.get(&block_id) else {
+            unreachable!("Block not found in stored blocks.");
         };
 
         if block.context.children_blocks.is_empty() {
@@ -812,7 +811,7 @@ impl<'a> FuzzerFunctionContext<'a> {
         // save all not-terminated blocks to stored_blocks
         self.finalize_cycles();
         self.not_terminated_blocks.push_back(self.current_block.clone());
-        for block in self.not_terminated_blocks.iter() {
+        for block in &self.not_terminated_blocks {
             self.stored_blocks.insert(block.block_id, block.clone());
         }
 

@@ -24,7 +24,7 @@ fn coalescing_arg_outlives_param() {
         v5 = lt v4, v2
         v6 = cast v0 as u8
         v7 = lt v6, u8 128
-        jmpif v5 then: b2, else: b3
+        jmpif v5 then: b2(), else: b3()
       b2():
         jmp b3()
       b3():
@@ -53,7 +53,7 @@ fn coalescing_param_side_arg_outlives_param() {
         v4 = lt v3, v1
         v5 = unchecked_add v1, u32 1
         v6 = unchecked_add v5, u32 2
-        jmpif v4 then: b2, else: b3
+        jmpif v4 then: b2(), else: b3()
       b2():
         v7 = unchecked_add v0, v1
         jmp b4(v7)
@@ -82,7 +82,7 @@ fn coalescing_multiple_pairs_both_outlive() {
         jmp b1(v1, v2)
       b1(v3: u32, v4: u32):
         v5 = unchecked_add v3, v4
-        jmpif u1 1 then: b2, else: b3
+        jmpif u1 1 then: b2(), else: b3()
       b2():
         v6 = unchecked_add v1, v2
         jmp b4(v6)
