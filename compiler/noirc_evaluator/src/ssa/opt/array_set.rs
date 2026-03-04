@@ -2,6 +2,9 @@
 //! set a known index on a previous `make_array` instruction, as long as both instructions
 //! are under the same side-effects predicate or the side effects var for the `array_set` is `true`.
 //!
+//! If the predicates are different, but the element type is numeric, it will use the `ValueMerger`
+//! to merge the items.
+//!
 //! For example, this:
 //!
 //! ```text
@@ -20,9 +23,36 @@
 //!
 //! ```text
 //! enable_side_effects v0
-//! v0 = make_array [Field 2, Field 3] : [Field; 2]
-//! enable_side_effects v1
-//! v1 = array_set v0, index u32 0, value Field 4
+//! v1 = make_array [Field 2, Field 3] : [Field; 2]
+//! enable_side_effects v2
+//! v3 = array_set v0, index u32 0, value Field 4
+//! ```
+//!
+//! will change into this:
+//!
+//! ```text
+//! enable_side_effects v0
+//! v1 = make_array [Field 2, Field 3] : [Field; 2]
+//! enable_side_effects v2
+//! v3 = not v2
+//! v4 = cast v2 as Field
+//! v5 = cast v3 as Field
+//! v6 = mul v4, Field 4
+//! v7 = mul v5, Field 2
+//! v8 = add v6, v7
+//! v9 = make_array [v8, Field 3] : [Field; 2]
+//! ```
+//!
+//! and this:
+//!
+//! ```text
+//! enable_side_effects v0
+//! v1 = make_array [Field 1, Field 2] : [Field; 2]
+//! v2 = make_array [Field 3, Field 4] : [Field; 2]
+//! v3 = make_array [v1, v2] : [[Field; 2]; 2]
+//! enable_side_effects v4
+//! v5 = make_array [Field 5, Field 6] : [Field; 2]
+//! v6 = array_set v3, index u32 0, value v5
 //! ```
 //!
 //! will remain unchanged.
@@ -136,6 +166,7 @@ impl Function {
 /// If `insert_predicate` is true then we should keep tracking the side effect variable of the new `make_array`.
 /// Otherwise the `elements` are a result of merging the items at the `index` under different predicates,
 /// and the items in the `make_array` can be a mix of various side effects, and tracking must be stopped for it.
+#[allow(clippy::too_many_arguments)]
 fn fold_array_set_into_make_array(
     dfg: &mut DataFlowGraph,
     block_id: BasicBlockId,
@@ -272,16 +303,17 @@ mod tests {
     /// side-effects predicate is different for both instructions, because the array_set may
     /// not actually execute.
     #[test]
-    fn merge_folds_array_set_when_side_effects_predicate_is_unknown() {
+    fn merge_folds_array_set_chain_when_side_effects_predicate_is_unknown() {
         let src = "
             acir(inline) fn main f0 {
               b0(v0: u1):
                 v1 = make_array [Field 10, Field 11] : [Field; 2]
                 enable_side_effects v0
                 v2 = array_set v1, index u32 0, value Field 99
+                v3 = array_set v2, index u32 0, value Field 100
                 enable_side_effects u1 1
-                v3 = array_get v2, index u32 0 -> Field
-                return v3
+                v4 = array_get v3, index u32 0 -> Field
+                return v4
             }
         ";
 
@@ -300,10 +332,36 @@ mod tests {
             v9 = mul v6, Field 10
             v10 = add v8, v9
             v11 = make_array [v10, Field 11] : [Field; 2]
+            v12 = not v0
+            v13 = cast v0 as Field
+            v14 = cast v12 as Field
+            v16 = mul v13, Field 100
+            v17 = mul v14, v10
+            v18 = add v16, v17
+            v19 = make_array [v18, Field 11] : [Field; 2]
             enable_side_effects u1 1
-            return v10
+            return v18
         }
         ");
+    }
+
+    #[test]
+    fn does_not_fold_array_set_on_complex_array() {
+        let src = r#"
+            acir(inline) fn main f0 {
+              b0(v0: u1, v4: u1):
+                enable_side_effects v0
+                v1 = make_array [Field 1, Field 2] : [Field; 2]
+                v2 = make_array [Field 3, Field 4] : [Field; 2]
+                v3 = make_array [v1, v2] : [[Field; 2]; 2]
+                enable_side_effects v4
+                v5 = make_array [Field 5, Field 6] : [Field; 2]
+                v6 = array_set v3, index u32 0, value v5
+                return v6
+            }
+        "#;
+
+        assert_ssa_does_not_change(src, Ssa::array_set_optimization);
     }
 
     /// ArraySet cannot fold into a param, only into a MakeArray
