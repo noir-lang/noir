@@ -699,8 +699,13 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             DefinitionKind::Function(function_id) => {
                 let typ = self.elaborator.interner.id_type(id).follow_bindings();
                 let bindings = self.elaborator.interner.try_get_instantiation_bindings(id);
-                let bindings = Rc::new(bindings.map_or(TypeBindings::default(), Clone::clone));
-                Ok(Value::Function(*function_id, typ, bindings))
+                let mut bindings = bindings.map_or(TypeBindings::default(), Clone::clone);
+                // Resolve the bindings and clone their values
+                for (_type_var, kind, binding) in bindings.values_mut() {
+                    *kind = kind.follow_bindings();
+                    *binding = binding.follow_bindings();
+                }
+                Ok(Value::Function(*function_id, typ, Rc::new(bindings)))
             }
             DefinitionKind::Local(_) => self.lookup(&ident),
             DefinitionKind::Global(global_id) => {
