@@ -736,6 +736,23 @@ fn associated_constant_direct_access_generic_impl() {
 }
 
 #[test]
+fn associated_constant_on_field() {
+    let src = "
+    trait Foo {
+        let BAR: u32;
+
+        fn bar(_: Self) -> u32 {
+            Foo::BAR
+        }
+    }
+    impl Foo for Field {
+        let BAR: u32 = 254;
+    }
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
 fn associated_constant_direct_access_generic_impl_wrong_struct() {
     // Verify that unification correctly rejects non-matching struct types.
     // We have impl MyTrait for Wrapper<T>, but try to access Other<Field>::N.
@@ -1844,4 +1861,19 @@ fn associated_constant_in_return_type_with_generic_impl_forwarding() {
     fn main() {}
     "#;
     assert_no_errors(src);
+}
+
+// Regression test for https://github.com/noir-lang/noir/issues/11655
+#[test]
+fn self_method_call_on_trait_impl_for_unknown_trait() {
+    let src = r#"
+    impl Unknown for Field {
+         ^^^^^^^ Trait Unknown not found
+        fn unknown() {
+            Self::method()
+                  ^^^^^^ No method named 'method' found for type 'Field'
+        }
+    }
+    "#;
+    check_errors(src);
 }

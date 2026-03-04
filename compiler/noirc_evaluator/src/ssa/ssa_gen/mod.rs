@@ -162,10 +162,7 @@ fn validate_ssa_or_err(ssa: Ssa) -> Result<Ssa, RuntimeError> {
         } else {
             format!("{payload:?}")
         };
-        let err = RuntimeError::SsaValidationError {
-            message: message.to_owned(),
-            call_stack: CallStack::default(),
-        };
+        let err = RuntimeError::SsaValidationError { message, call_stack: CallStack::default() };
         Err(err)
     } else {
         Ok(ssa)
@@ -522,6 +519,8 @@ impl FunctionContext<'_> {
         location: Location,
         length: Option<ValueId>,
     ) -> Result<Values, RuntimeError> {
+        self.builder.set_location(location);
+
         // base_index = index * type_size
         let index = self.make_array_index(index);
         let type_size_usize = Self::convert_type(element_type).size_of_type();
@@ -564,11 +563,7 @@ impl FunctionContext<'_> {
         // so it's okay to use unchecked operations. The SSA interpreter has been updated to have similar semantics.
         let unchecked = true;
 
-        let base_index = self.builder.set_location(location).insert_binary(
-            index,
-            BinaryOp::Mul { unchecked },
-            type_size,
-        );
+        let base_index = self.builder.insert_binary(index, BinaryOp::Mul { unchecked }, type_size);
 
         let mut field_index = 0u128;
         Ok(Self::map_type(element_type, |typ| {
@@ -774,14 +769,14 @@ impl FunctionContext<'_> {
         // cannot be determined at compile-time.
         self.builder.set_location(for_expr.end_range_location);
         let jump_condition = self.builder.insert_binary(loop_index, BinaryOp::Lt, end_index);
-        self.builder.terminate_with_jmpif(jump_condition, loop_body, loop_end);
+        self.builder.terminate_with_jmpif_no_args(jump_condition, loop_body, loop_end);
 
         // Compile the loop body
         self.builder.switch_to_block(loop_body);
         self.define(for_expr.index_variable, loop_index.into());
 
         let result = self.codegen_expression(&for_expr.block);
-        self.codegen_unless_break_or_continue(result.clone(), |this, _| {
+        self.codegen_unless_break_or_continue(result, |this, _| {
             let new_loop_index = this.make_offset(loop_index, 1, true);
             this.builder.terminate_with_jmp(loop_entry, vec![new_loop_index]);
         })?;
@@ -806,7 +801,7 @@ impl FunctionContext<'_> {
                 BinaryOp::And,
                 start_is_less_than_or_equal_to_end,
             );
-            self.builder.terminate_with_jmpif(
+            self.builder.terminate_with_jmpif_no_args(
                 should_execute_loop_body,
                 final_iteration,
                 final_iteration_end,
@@ -914,7 +909,7 @@ impl FunctionContext<'_> {
         // Codegen the entry (where the condition is)
         self.builder.switch_to_block(while_entry);
         let condition = self.codegen_non_tuple_expression(&while_.condition)?;
-        self.builder.terminate_with_jmpif(condition, while_body, while_end);
+        self.builder.terminate_with_jmpif_no_args(condition, while_body, while_end);
 
         self.enter_loop(Loop {
             loop_entry: while_entry,
@@ -973,7 +968,7 @@ impl FunctionContext<'_> {
         let then_block = self.builder.insert_block();
         let else_block = self.builder.insert_block();
 
-        self.builder.terminate_with_jmpif(condition, then_block, else_block);
+        self.builder.terminate_with_jmpif_no_args(condition, then_block, else_block);
 
         self.builder.switch_to_block(then_block);
         let then_result = self.codegen_expression(&if_expr.consequence);
@@ -1072,7 +1067,7 @@ impl FunctionContext<'_> {
 
             let case_block = self.builder.insert_block();
             let else_block = self.builder.insert_block();
-            self.builder.terminate_with_jmpif(eq, case_block, else_block);
+            self.builder.terminate_with_jmpif_no_args(eq, case_block, else_block);
 
             self.builder.switch_to_block(case_block);
             self.bind_case_arguments(variable.clone(), case);

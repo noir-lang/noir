@@ -78,7 +78,7 @@ fn run_with_provider<Provider: GatesProvider, Generator: FlamegraphGenerator>(
         let function_name = if num_functions > 1 {
             format!("{}_{}", circuit.function_name.as_str(), func_idx)
         } else {
-            circuit.function_name.to_owned()
+            circuit.function_name.clone()
         };
 
         println!(

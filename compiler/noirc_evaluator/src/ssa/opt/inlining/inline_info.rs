@@ -59,11 +59,24 @@ impl InlineInfo {
     }
 
     pub(crate) fn should_inline(inline_infos: &InlineInfos, called_func_id: FunctionId) -> bool {
-        inline_infos.get(&called_func_id).map(|info| info.should_inline).unwrap_or_default()
+        inline_infos.get(&called_func_id).is_some_and(|info| info.should_inline)
     }
 }
 
 pub(crate) type InlineInfos = BTreeMap<FunctionId, InlineInfo>;
+
+/// Build a map from function ID to body weight for all functions that will be inlined.
+/// This is used by loop unrolling to estimate the true cost of call instructions
+/// to functions that will be inlined (instead of using call overhead as the cost).
+pub(crate) fn inlineable_callee_costs(
+    infos: &InlineInfos,
+) -> rustc_hash::FxHashMap<FunctionId, usize> {
+    infos
+        .iter()
+        .filter(|(_, info)| info.should_inline)
+        .map(|(id, info)| (*id, info.weight.max(0) as usize))
+        .collect()
+}
 
 /// The functions we should inline into (and that should be left in the final program) are:
 ///  - main
@@ -91,7 +104,7 @@ pub(crate) fn compute_inline_infos(
     );
 
     // Handle ACIR functions.
-    for (func_id, function) in ssa.functions.iter() {
+    for (func_id, function) in &ssa.functions {
         if function.runtime().is_brillig() {
             continue;
         }
@@ -115,7 +128,7 @@ pub(crate) fn compute_inline_infos(
     // Find mutual recursion in our call graph
     let recursive_functions = call_graph.get_recursive_functions();
     let small_function_max_instructions = small_function_max_instructions as i64;
-    for recursive_func in recursive_functions.iter() {
+    for recursive_func in &recursive_functions {
         inline_infos.entry(*recursive_func).or_default().is_recursive = true;
         compute_function_should_be_inlined(
             ssa,
@@ -419,7 +432,7 @@ mod tests {
           brillig(inline) fn is_even f1 {
             b0(v0: u32):
               v3 = eq v0, u32 0
-              jmpif v3 then: b2, else: b1
+              jmpif v3 then: b2(), else: b1()
             b1():
               v5 = call f3(v0) -> u32
               v7 = call f2(v5) -> u1
@@ -432,7 +445,7 @@ mod tests {
           brillig(inline) fn is_odd f2 {
             b0(v0: u32):
               v3 = eq v0, u32 0
-              jmpif v3 then: b2, else: b1
+              jmpif v3 then: b2(), else: b1()
             b1():
               v5 = call f3(v0) -> u32
               v7 = call f1(v5) -> u1

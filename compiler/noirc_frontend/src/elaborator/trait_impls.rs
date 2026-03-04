@@ -85,10 +85,10 @@ impl Elaborator<'_> {
             });
         } else if get_type_method_key(&self_type).is_none() {
             let error: CompilationError = if self_type == Type::Error {
-                TypeCheckError::ExpectingOtherError {
-                    message: "collect_trait_impl: missing trait type".to_string(),
-                    location: self_type_location,
-                }
+                TypeCheckError::expecting_other_error(
+                    "collect_trait_impl: missing trait type",
+                    self_type_location,
+                )
                 .into()
             } else {
                 ResolverError::TypeUnsupportedForTraitImpl {
@@ -137,10 +137,10 @@ impl Elaborator<'_> {
                         // This too can happen if the associated type is specified directly in the impl trait generics,
                         // like `impl<H> BuildHasher<H = H>`, where `H` is a named generic but its resolution isn't delayed.
                         // This can't be done in code, but it could happen with unquoted types.
-                        self.push_err(TypeCheckError::ExpectingOtherError {
-                            message: "collect_trait_impl: missing associated type".to_string(),
-                            location: trait_impl.object_type.location,
-                        });
+                        self.push_err(TypeCheckError::expecting_other_error(
+                            "collect_trait_impl: missing associated type",
+                            trait_impl.object_type.location,
+                        ));
                         continue;
                     };
                     let wildcard_allowed =
@@ -202,10 +202,10 @@ impl Elaborator<'_> {
             for func_id in &methods {
                 if self.interner.set_function_trait(*func_id, self_type.clone(), trait_id).is_some()
                 {
-                    self.push_err(TypeCheckError::ExpectingOtherError {
-                        message: "collect_trait_impl: overlapping function trait".to_string(),
+                    self.push_err(TypeCheckError::expecting_other_error(
+                        "collect_trait_impl: overlapping function trait",
                         location,
-                    });
+                    ));
                 }
 
                 // A trait impl method has the same visibility as its trait
@@ -225,10 +225,10 @@ impl Elaborator<'_> {
                     Ident::new(name, trait_impl.r#trait.location)
                 }
                 _ => {
-                    self.push_err(TypeCheckError::ExpectingOtherError {
-                        message: "collect_trait_impl: missing trait type".to_string(),
+                    self.push_err(TypeCheckError::expecting_other_error(
+                        "collect_trait_impl: missing trait type",
                         location,
-                    });
+                    ));
                     Ident::new(trait_impl.r#trait.to_string(), trait_impl.r#trait.location)
                 }
             };
@@ -258,7 +258,7 @@ impl Elaborator<'_> {
                 Err(error) => self.push_err(error),
                 Ok(Err(prev_location)) => {
                     self.push_err(DefCollectorErrorKind::OverlappingImpl {
-                        typ: self_type.clone(),
+                        typ: self_type,
                         location: self_type_location,
                         prev_location,
                     });
@@ -440,7 +440,7 @@ impl Elaborator<'_> {
         }
 
         let mut substituted_method_ids = HashSet::default();
-        for method_constraint in method.trait_constraints.iter() {
+        for method_constraint in &method.trait_constraints {
             let substituted_constraint_type = method_constraint.typ.substitute(&bindings);
             let substituted_trait_generics = method_constraint
                 .trait_bound
@@ -523,7 +523,7 @@ impl Elaborator<'_> {
         for (name, typ, expr) in trait_impl.associated_constants.drain(..) {
             let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::AssociatedType);
             let resolved_type =
-                typ.map(|typ| self.resolve_type(typ, wildcard_allowed)).unwrap_or(Type::Error);
+                typ.map_or(Type::Error, |typ| self.resolve_type(typ, wildcard_allowed));
             let kind = Kind::numeric(resolved_type);
             let location = expr.location;
             let typ = match UnresolvedTypeExpression::from_expr(expr, location) {
@@ -582,31 +582,26 @@ impl Elaborator<'_> {
         trait_impl: &UnresolvedTraitImpl,
     ) {
         let Some(trait_id) = trait_impl.trait_id else {
-            self.push_err(TypeCheckError::ExpectingOtherError {
-                message:
-                    "check_trait_impl_where_clause_matches_trait_where_clause: missing trait ID"
-                        .to_string(),
-                location: trait_impl.object_type.location,
-            });
+            self.push_err(TypeCheckError::expecting_other_error(
+                "check_trait_impl_where_clause_matches_trait_where_clause: missing trait ID",
+                trait_impl.object_type.location,
+            ));
             return;
         };
 
         let Some(impl_id) = trait_impl.impl_id else {
-            self.push_err(TypeCheckError::ExpectingOtherError {
-                message:
-                    "check_trait_impl_where_clause_matches_trait_where_clause: missing impl ID"
-                        .to_string(),
-                location: trait_impl.object_type.location,
-            });
+            self.push_err(TypeCheckError::expecting_other_error(
+                "check_trait_impl_where_clause_matches_trait_where_clause: missing impl ID",
+                trait_impl.object_type.location,
+            ));
             return;
         };
 
         let Some(the_trait) = self.interner.try_get_trait(trait_id) else {
-            self.push_err(TypeCheckError::ExpectingOtherError {
-                message: "check_trait_impl_where_clause_matches_trait_where_clause: missing trait"
-                    .to_string(),
-                location: trait_impl.object_type.location,
-            });
+            self.push_err(TypeCheckError::expecting_other_error(
+                "check_trait_impl_where_clause_matches_trait_where_clause: missing trait",
+                trait_impl.object_type.location,
+            ));
             return;
         };
 
@@ -640,10 +635,10 @@ impl Elaborator<'_> {
             let Some(trait_constraint_trait) =
                 self.interner.try_get_trait(trait_constraint.trait_bound.trait_id)
             else {
-                self.push_err(TypeCheckError::ExpectingOtherError {
-                    message: "check_trait_impl_where_clause_matches_trait_where_clause: missing trait constraint trait".to_string(),
-                    location: *error_location,
-                });
+                self.push_err(TypeCheckError::expecting_other_error(
+                    "check_trait_impl_where_clause_matches_trait_where_clause: missing trait constraint trait",
+                    *error_location,
+                ));
                 continue;
             };
             let trait_constraint_trait_name = trait_constraint_trait.name.to_string();
@@ -721,34 +716,34 @@ impl Elaborator<'_> {
 
     pub(super) fn check_parent_traits_are_implemented(&mut self, trait_impl: &UnresolvedTraitImpl) {
         let Some(trait_id) = trait_impl.trait_id else {
-            self.push_err(TypeCheckError::ExpectingOtherError {
-                message: "check_parent_traits_are_implemented: missing trait ID".to_string(),
-                location: trait_impl.object_type.location,
-            });
+            self.push_err(TypeCheckError::expecting_other_error(
+                "check_parent_traits_are_implemented: missing trait ID",
+                trait_impl.object_type.location,
+            ));
             return;
         };
 
         let Some(object_type) = &trait_impl.resolved_object_type else {
-            self.push_err(TypeCheckError::ExpectingOtherError {
-                message: "check_parent_traits_are_implemented: missing object type".to_string(),
-                location: trait_impl.object_type.location,
-            });
+            self.push_err(TypeCheckError::expecting_other_error(
+                "check_parent_traits_are_implemented: missing object type",
+                trait_impl.object_type.location,
+            ));
             return;
         };
 
         let Some(the_trait) = self.interner.try_get_trait(trait_id) else {
-            self.push_err(TypeCheckError::ExpectingOtherError {
-                message: "check_parent_traits_are_implemented: missing trait".to_string(),
-                location: trait_impl.object_type.location,
-            });
+            self.push_err(TypeCheckError::expecting_other_error(
+                "check_parent_traits_are_implemented: missing trait",
+                trait_impl.object_type.location,
+            ));
             return;
         };
 
         let Some(impl_id) = trait_impl.impl_id else {
-            self.push_err(TypeCheckError::ExpectingOtherError {
-                message: "check_parent_traits_are_implemented: missing impl ID".to_string(),
-                location: trait_impl.object_type.location,
-            });
+            self.push_err(TypeCheckError::expecting_other_error(
+                "check_parent_traits_are_implemented: missing impl ID",
+                trait_impl.object_type.location,
+            ));
             return;
         };
 
@@ -839,6 +834,7 @@ impl Elaborator<'_> {
                 trait_id,
                 impl_id,
                 impl_generics,
+                trait_impl.object_type.location,
             );
         }
 
@@ -970,7 +966,7 @@ impl Elaborator<'_> {
         let constraints = self.resolve_trait_constraints_and_add_to_scope(&trait_impl.where_clause);
 
         // Attach any trait constraints on the impl to the function
-        for (_, _, method) in trait_impl.methods.functions.iter_mut() {
+        for (_, _, method) in &mut trait_impl.methods.functions {
             method.def.where_clause.append(&mut trait_impl.where_clause.clone());
         }
 
@@ -1000,7 +996,7 @@ impl Elaborator<'_> {
         let associated_types_behind_type_vars = vecmap(&associated_types, |(name, _typ, kind)| {
             let new_generic_id = self.interner.next_type_variable_id();
             let type_var = TypeVariable::unbound(new_generic_id, kind.clone());
-            let typ = type_var.clone().into_named_generic(
+            let typ = type_var.into_named_generic(
                 &Rc::new(name.to_string()),
                 trait_name.as_ref().map(|tn| (object.as_str(), tn.as_str())),
             );

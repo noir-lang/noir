@@ -363,7 +363,7 @@ impl ChunkGroup {
         &mut self,
         indentation_to_set: i32,
     ) {
-        for chunk in self.chunks.iter_mut() {
+        for chunk in &mut self.chunks {
             if let Chunk::Group(group) = chunk {
                 if self.kind.is_method_call() && group.kind.is_expression_list() {
                     group.set_lambda_as_last_expression_in_list_indentation(indentation_to_set);

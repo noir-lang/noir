@@ -177,18 +177,19 @@ fn check_for_constant_jmpif(
     if let Some(TerminatorInstruction::JmpIf {
         condition,
         then_destination,
+        then_arguments,
         else_destination,
+        else_arguments,
         call_stack,
     }) = function.dfg[block].terminator()
         && let Some(constant) = function.dfg.get_numeric_constant(*condition)
     {
-        let (destination, unchosen_destination) = if constant.is_zero() {
-            (*else_destination, *then_destination)
+        let (destination, arguments, unchosen_destination) = if constant.is_zero() {
+            (*else_destination, else_arguments.clone(), *then_destination)
         } else {
-            (*then_destination, *else_destination)
+            (*then_destination, then_arguments.clone(), *else_destination)
         };
 
-        let arguments = Vec::new();
         let call_stack = *call_stack;
         let jmp = TerminatorInstruction::Jmp { destination, arguments, call_stack };
         function.dfg[block].set_terminator(jmp);
@@ -239,17 +240,23 @@ fn check_for_double_jmp(function: &mut Function, block: BasicBlockId, cfg: &mut 
             TerminatorInstruction::JmpIf {
                 condition,
                 then_destination,
+                then_arguments,
                 else_destination,
+                else_arguments,
                 call_stack,
             } => {
                 let then_destination =
                     if then_destination == block { final_destination } else { then_destination };
                 let else_destination =
                     if else_destination == block { final_destination } else { else_destination };
+                assert!(then_arguments.is_empty(), "ICE: predecessor jmpif has then-arguments");
+                assert!(else_arguments.is_empty(), "ICE: predecessor jmpif has else-arguments");
                 TerminatorInstruction::JmpIf {
                     condition,
                     then_destination,
+                    then_arguments: Vec::new(),
                     else_destination,
+                    else_arguments: Vec::new(),
                     call_stack,
                 }
             }
@@ -306,7 +313,9 @@ fn check_for_negated_jmpif_condition(
     if let Some(TerminatorInstruction::JmpIf {
         condition,
         then_destination,
+        then_arguments,
         else_destination,
+        else_arguments,
         call_stack,
     }) = function.dfg[block].terminator()
         && let Value::Instruction { instruction, .. } = function.dfg[*condition]
@@ -316,7 +325,9 @@ fn check_for_negated_jmpif_condition(
         let jmpif = TerminatorInstruction::JmpIf {
             condition: negated_condition,
             then_destination: *else_destination,
+            then_arguments: else_arguments.clone(),
             else_destination: *then_destination,
+            else_arguments: then_arguments.clone(),
             call_stack,
         };
         function.dfg[block].set_terminator(jmpif);
@@ -546,7 +557,7 @@ mod tests {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: u1):
-            jmpif u1 1 then: b1, else: b2
+            jmpif u1 1 then: b1(), else: b2()
           b1():
             return Field 1
           b2():
@@ -572,7 +583,7 @@ mod tests {
             v1 = allocate -> &mut Field
             store Field 0 at v1
             v3 = not v0
-            jmpif v3 then: b1, else: b2
+            jmpif v3 then: b1(), else: b2()
           b1():
             store Field 2 at v1
             jmp b2()
@@ -590,7 +601,7 @@ mod tests {
             v1 = allocate -> &mut Field
             store Field 0 at v1
             v3 = not v0
-            jmpif v0 then: b2, else: b1
+            jmpif v0 then: b2(), else: b1()
           b1():
             store Field 2 at v1
             jmp b2()
@@ -609,7 +620,7 @@ mod tests {
         acir(inline) fn main f0 {
           b0(v0: u1):
             v1 = not v0
-            jmpif v1 then: b1, else: b2
+            jmpif v1 then: b1(), else: b2()
           b1():
             constrain v0 == u1 0
             jmp b2()
@@ -625,14 +636,14 @@ mod tests {
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: i16):
             v2 = lt i16 3, v0
-            jmpif v2 then: b1, else: b2
+            jmpif v2 then: b1(), else: b2()
           b1():
             jmp b3()
           b2():
             jmp b3()
           b3():
             v4 = lt i16 5, v0
-            jmpif v4 then: b4, else: b5
+            jmpif v4 then: b4(), else: b5()
           b4():
             jmp b6()
           b5():
@@ -664,7 +675,7 @@ mod tests {
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: i16):
             v1 = lt i16 1, v0
-            jmpif v1 then: b1, else: b2
+            jmpif v1 then: b1(), else: b2()
           b1():
             jmp b3()
           b2():
@@ -679,7 +690,7 @@ mod tests {
             jmp b7()
           b7():
             v2 = lt i16 2, v0
-            jmpif v2 then: b8, else: b9
+            jmpif v2 then: b8(), else: b9()
           b8():
             jmp b10()
           b9():
@@ -708,7 +719,7 @@ mod tests {
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: i16):
             v1 = lt i16 1, v0
-            jmpif v1 then: b1, else: b2
+            jmpif v1 then: b1(), else: b2()
           b1():
             jmp b3()
           b2():
@@ -737,7 +748,7 @@ mod tests {
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: i16):
             v2 = lt i16 1, v0
-            jmpif v2 then: b1, else: b2
+            jmpif v2 then: b1(), else: b2()
           b1():
             jmp b1()
           b2():
@@ -752,23 +763,23 @@ mod tests {
         acir(inline) predicate_pure fn main f0 {
           b0(v13: [(u1, u1, [u8; 1], [u8; 1]); 3]):
             v23 = array_get v13, index u32 8 -> u1
-            jmpif v23 then: b1, else: b2
+            jmpif v23 then: b1(), else: b2()
           b1():
             v45 = array_get v13, index u32 4 -> u1
-            jmpif v45 then: b3, else: b4
+            jmpif v45 then: b3(), else: b4()
           b2():
             v25 = array_get v13, index u32 4 -> u1
             jmp b5(v25)
           b3():
             v46 = array_get v13, index u32 5 -> u1
-            jmpif v46 then: b6, else: b7
+            jmpif v46 then: b6(), else: b7()
           b4():
             jmp b8()
           b5(v14: u1):
             return v14
           b6():
             v47 = array_get v13, index u32 8 -> u1
-            jmpif v47 then: b11, else: b12
+            jmpif v47 then: b11(), else: b12()
           b7():
             jmp b9()
           b8():
@@ -782,7 +793,7 @@ mod tests {
           b12():
             jmp b13()
           b13():
-            jmpif v47 then: b14, else: b15
+            jmpif v47 then: b14(), else: b15()
           b14():
             jmp b16()
           b15():
@@ -801,16 +812,16 @@ mod tests {
         acir(inline) predicate_pure fn main f0 {
           b0(v0: [(u1, u1, [u8; 1], [u8; 1]); 3]):
             v3 = array_get v0, index u32 8 -> u1
-            jmpif v3 then: b1, else: b2
+            jmpif v3 then: b1(), else: b2()
           b1():
             v6 = array_get v0, index u32 4 -> u1
-            jmpif v6 then: b3, else: b4
+            jmpif v6 then: b3(), else: b4()
           b2():
             v5 = array_get v0, index u32 4 -> u1
             jmp b5(v5)
           b3():
             v8 = array_get v0, index u32 5 -> u1
-            jmpif v8 then: b6, else: b7
+            jmpif v8 then: b6(), else: b7()
           b4():
             jmp b8()
           b5(v1: u1):
@@ -838,7 +849,7 @@ mod tests {
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: i16):
             v2 = lt i16 3, v0
-            jmpif v2 then: b1, else: b2
+            jmpif v2 then: b1(), else: b2()
           b1():
             v4 = unchecked_add i16 1, v0
             jmp b3()
@@ -859,7 +870,7 @@ mod tests {
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: i16):
             v1 = lt i16 1, v0
-            jmpif v1 then: b1, else: b2
+            jmpif v1 then: b1(), else: b2()
           b1():
             jmp b2()
           b2():
@@ -874,7 +885,7 @@ mod tests {
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: i16):
             v2 = lt i16 1, v0
-            jmpif v2 then: b1, else: b1
+            jmpif v2 then: b1(), else: b1()
           b1():
             jmp b1()
         }
@@ -886,7 +897,7 @@ mod tests {
         let src = r#"
         brillig(inline) fn main f0 {
           b0():
-            jmpif u1 1 then: b1, else: b2
+            jmpif u1 1 then: b1(), else: b2()
           b1():
             jmp b3()
           b2():
@@ -919,13 +930,13 @@ mod tests {
             "
         {runtime}(inline) impure fn main f0 {{
           b0():
-            jmpif u1 1 then: b1, else: b2
+            jmpif u1 1 then: b1(), else: b2()
           b1():
             jmp b3(u1 1)
           b2():
             jmp b3(u1 0)
           b3(v0: u1):
-            jmpif v0 then: b4, else: b5
+            jmpif v0 then: b4(), else: b5()
           b4():
             jmp b6()
           b5():
@@ -957,7 +968,7 @@ mod tests {
             jmp b1(u1 1)
           b1(v0: u1):
             v1 = not v0
-            jmpif v1 then: b2, else: b3
+            jmpif v1 then: b2(), else: b3()
           b2():
             jmp b4(u1 0)
           b3():
@@ -1063,11 +1074,11 @@ mod tests {
             jmp b1(u1 0)
           b1(v0: u1):
             v1 = not v0
-            jmpif v1 then: b2, else: b3
+            jmpif v1 then: b2(), else: b3()
           b2():
             jmp b4()
           b3():
-            jmpif v0 then: b4, else: b4
+            jmpif v0 then: b4(), else: b4()
           b4():
             return
         }
@@ -1096,23 +1107,23 @@ mod tests {
         acir(inline) impure fn main f0 {
           b0(v1: u1, v2: u1, v3: u1, v4: u32):
             v5 = eq v4, u32 1
-            jmpif v5 then: b1, else: b2
+            jmpif v5 then: b1(), else: b2()
           b1():
             jmp b3()
           b2():
             v6 = eq v4, u32 2
-            jmpif v6 then: b4, else: b5
+            jmpif v6 then: b4(), else: b5()
           b3():
             jmp b6()
           b4():
-            jmpif v1 then: b7, else: b8
+            jmpif v1 then: b7(), else: b8()
           b5():
             jmp b9()
           b6():
             jmp b10()
           b7():
             v7 = not v2
-            jmpif v2 then: b11, else: b12
+            jmpif v2 then: b11(), else: b12()
           b8():
             jmp b13()
           b9():
@@ -1181,11 +1192,11 @@ mod tests {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: u1):
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             jmp b6()
           b2():
-            jmpif v0 then: b3, else: b4
+            jmpif v0 then: b3(), else: b4()
           b3():
             jmp b5()
           b4():
@@ -1193,11 +1204,11 @@ mod tests {
           b5():
             jmp b6()
           b6():
-            jmpif v0 then: b7, else: b8
+            jmpif v0 then: b7(), else: b8()
           b7():
             jmp b12()
           b8():
-            jmpif v0 then: b9, else: b10
+            jmpif v0 then: b9(), else: b10()
           b9():
             jmp b11()
           b10():
@@ -1205,7 +1216,7 @@ mod tests {
           b11():
             jmp b12()
           b12():
-            jmpif u1 1 then: b13, else: b13
+            jmpif u1 1 then: b13(), else: b13()
           b13():
             return
         }
@@ -1219,6 +1230,31 @@ mod tests {
           b0(v0: u1):
             return
         }
+        ");
+    }
+
+    #[test]
+    fn constant_jmpif_with_args() {
+        let src = r#"
+            brillig(inline) fn func f0 {
+              b0():
+                jmpif u1 1 then: b1(Field 2), else: b2(Field 3)
+              b1(v1: Field):
+                jmp b3(v1)
+              b2(v2: Field):
+                jmp b3(v2)
+              b3(v3: Field):
+                return v3
+            }"#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.simplify_cfg();
+
+        assert_ssa_snapshot!(ssa, @r"
+            brillig(inline) fn func f0 {
+              b0():
+                return Field 2
+            }
         ");
     }
 
@@ -1238,17 +1274,17 @@ mod tests {
           b1():
             return
           b2():
-            jmpif v0 then: b4, else: b3
+            jmpif v0 then: b4(), else: b3()
           b3():
-            jmpif v0 then: b4, else: b4
+            jmpif v0 then: b4(), else: b4()
           b4():
-            jmpif v0 then: b7, else: b5
+            jmpif v0 then: b7(), else: b5()
           b5():
             jmp b6()
           b6():
             jmp b7()
           b7():
-            jmpif u1 1 then: b1, else: b1
+            jmpif u1 1 then: b1(), else: b1()
         }
         ";
 

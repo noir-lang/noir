@@ -656,7 +656,7 @@ impl Instruction {
                             payload_values.iter().map(|&value| f(value)).collect(),
                         )
                     }
-                    _ => error.clone(),
+                    ConstrainError::StaticString(_) => error.clone(),
                 });
                 Instruction::Constrain(lhs, rhs, assert_message)
             }
@@ -672,7 +672,7 @@ impl Instruction {
                             payload_values.iter().map(|&value| f(value)).collect(),
                         )
                     }
-                    _ => error.clone(),
+                    ConstrainError::StaticString(_) => error.clone(),
                 });
                 Instruction::ConstrainNotEqual(lhs, rhs, assert_message)
             }
@@ -770,9 +770,7 @@ impl Instruction {
                 *value = f(*value);
             }
             Instruction::IncrementRc { value } => *value = f(*value),
-            Instruction::DecrementRc { value } => {
-                *value = f(*value);
-            }
+            Instruction::DecrementRc { value } => *value = f(*value),
             Instruction::RangeCheck { value, max_bit_size: _, assert_message: _ } => {
                 *value = f(*value);
             }
@@ -1013,7 +1011,9 @@ pub(crate) enum TerminatorInstruction {
     JmpIf {
         condition: ValueId,
         then_destination: BasicBlockId,
+        then_arguments: Vec<ValueId>,
         else_destination: BasicBlockId,
+        else_arguments: Vec<ValueId>,
         call_stack: CallStackId,
     },
 
@@ -1043,8 +1043,14 @@ impl TerminatorInstruction {
     pub(crate) fn map_values_mut(&mut self, mut f: impl FnMut(ValueId) -> ValueId) {
         use TerminatorInstruction::*;
         match self {
-            JmpIf { condition, .. } => {
+            JmpIf { condition, then_arguments, else_arguments, .. } => {
                 *condition = f(*condition);
+                for argument in then_arguments {
+                    *argument = f(*argument);
+                }
+                for argument in else_arguments {
+                    *argument = f(*argument);
+                }
             }
             Jmp { arguments, .. } => {
                 for argument in arguments {
@@ -1064,8 +1070,14 @@ impl TerminatorInstruction {
     pub(crate) fn for_each_value<T>(&self, mut f: impl FnMut(ValueId) -> T) {
         use TerminatorInstruction::*;
         match self {
-            JmpIf { condition, .. } => {
+            JmpIf { condition, then_arguments, else_arguments, .. } => {
                 f(*condition);
+                for argument in then_arguments {
+                    f(*argument);
+                }
+                for argument in else_arguments {
+                    f(*argument);
+                }
             }
             Jmp { arguments, .. } => {
                 for argument in arguments {
@@ -1086,27 +1098,6 @@ impl TerminatorInstruction {
         let mut found = false;
         self.for_each_value(|v| found |= f(v));
         found
-    }
-
-    /// Apply a function to each value along with its index
-    pub(crate) fn for_eachi_value<T>(&self, mut f: impl FnMut(usize, ValueId) -> T) {
-        use TerminatorInstruction::*;
-        match self {
-            JmpIf { condition, .. } => {
-                f(0, *condition);
-            }
-            Jmp { arguments, .. } => {
-                for (index, argument) in arguments.iter().enumerate() {
-                    f(index, *argument);
-                }
-            }
-            Return { return_values, .. } => {
-                for (index, return_value) in return_values.iter().enumerate() {
-                    f(index, *return_value);
-                }
-            }
-            Unreachable { .. } => (),
-        }
     }
 
     /// Mutate each BlockId to a new BlockId specified by the given mapping function.
