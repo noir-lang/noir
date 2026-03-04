@@ -3302,8 +3302,51 @@
 <a href=#3302 id=3302 data-nosnippet>3302</a><span class="kw">fn </span>field_less_than(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
 <a href=#3303 id=3303 data-nosnippet>3303</a>    <span class="kw">let </span>(lhs, rhs) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#3304 id=3304 data-nosnippet>3304</a>
-<a href=#3305 id=3305 data-nosnippet>3305</a>    <span class="kw">let </span>lhs = get_field(lhs)<span class="question-mark">?</span>;
-<a href=#3306 id=3306 data-nosnippet>3306</a>    <span class="kw">let </span>rhs = get_field(rhs)<span class="question-mark">?</span>;
+<a href=#3305 id=3305 data-nosnippet>3305</a>    <span class="kw">let </span>lhs = get_field(lhs)<span class="question-mark">?</span>.to_field_element();
+<a href=#3306 id=3306 data-nosnippet>3306</a>    <span class="kw">let </span>rhs = get_field(rhs)<span class="question-mark">?</span>.to_field_element();
 <a href=#3307 id=3307 data-nosnippet>3307</a>
 <a href=#3308 id=3308 data-nosnippet>3308</a>    <span class="prelude-val">Ok</span>(Value::Bool(lhs &lt; rhs))
-<a href=#3309 id=3309 data-nosnippet>3309</a>}</code></pre></div></section></main></body></html>
+<a href=#3309 id=3309 data-nosnippet>3309</a>}
+<a href=#3310 id=3310 data-nosnippet>3310</a>
+<a href=#3311 id=3311 data-nosnippet>3311</a><span class="attr">#[cfg(test)]
+<a href=#3312 id=3312 data-nosnippet>3312</a></span><span class="kw">mod </span>tests {
+<a href=#3313 id=3313 data-nosnippet>3313</a>    <span class="kw">use </span>noirc_errors::Location;
+<a href=#3314 id=3314 data-nosnippet>3314</a>
+<a href=#3315 id=3315 data-nosnippet>3315</a>    <span class="kw">use </span><span class="kw">crate</span>::hir::comptime::value::Value;
+<a href=#3316 id=3316 data-nosnippet>3316</a>    <span class="kw">use </span><span class="kw">crate</span>::signed_field::SignedField;
+<a href=#3317 id=3317 data-nosnippet>3317</a>
+<a href=#3318 id=3318 data-nosnippet>3318</a>    <span class="kw">use </span><span class="kw">super</span>::field_less_than;
+<a href=#3319 id=3319 data-nosnippet>3319</a>
+<a href=#3320 id=3320 data-nosnippet>3320</a>    <span class="kw">fn </span>args(a: Value, b: Value) -&gt; Vec&lt;(Value, Location)&gt; {
+<a href=#3321 id=3321 data-nosnippet>3321</a>        <span class="macro">vec!</span>[(a, Location::dummy()), (b, Location::dummy())]
+<a href=#3322 id=3322 data-nosnippet>3322</a>    }
+<a href=#3323 id=3323 data-nosnippet>3323</a>
+<a href=#3324 id=3324 data-nosnippet>3324</a>    <span class="kw">fn </span>pos(v: u128) -&gt; Value {
+<a href=#3325 id=3325 data-nosnippet>3325</a>        Value::field(SignedField::positive(v))
+<a href=#3326 id=3326 data-nosnippet>3326</a>    }
+<a href=#3327 id=3327 data-nosnippet>3327</a>
+<a href=#3328 id=3328 data-nosnippet>3328</a>    <span class="kw">fn </span>neg(v: u128) -&gt; Value {
+<a href=#3329 id=3329 data-nosnippet>3329</a>        Value::field(SignedField::negative(v))
+<a href=#3330 id=3330 data-nosnippet>3330</a>    }
+<a href=#3331 id=3331 data-nosnippet>3331</a>
+<a href=#3332 id=3332 data-nosnippet>3332</a>    <span class="attr">#[test]
+<a href=#3333 id=3333 data-nosnippet>3333</a>    </span><span class="kw">fn </span>test_field_less_than() {
+<a href=#3334 id=3334 data-nosnippet>3334</a>        <span class="kw">let </span>loc = Location::dummy();
+<a href=#3335 id=3335 data-nosnippet>3335</a>
+<a href=#3336 id=3336 data-nosnippet>3336</a>        <span class="comment">// positive comparisons
+<a href=#3337 id=3337 data-nosnippet>3337</a>        </span><span class="macro">assert_eq!</span>(field_less_than(args(pos(<span class="number">0</span>), pos(<span class="number">1</span>)), loc).unwrap(), Value::Bool(<span class="bool-val">true</span>));
+<a href=#3338 id=3338 data-nosnippet>3338</a>        <span class="macro">assert_eq!</span>(field_less_than(args(pos(<span class="number">1</span>), pos(<span class="number">0</span>)), loc).unwrap(), Value::Bool(<span class="bool-val">false</span>));
+<a href=#3339 id=3339 data-nosnippet>3339</a>        <span class="macro">assert_eq!</span>(field_less_than(args(pos(<span class="number">42</span>), pos(<span class="number">42</span>)), loc).unwrap(), Value::Bool(<span class="bool-val">false</span>));
+<a href=#3340 id=3340 data-nosnippet>3340</a>        <span class="macro">assert_eq!</span>(field_less_than(args(pos(<span class="number">0x100</span>), pos(<span class="number">0x200</span>)), loc).unwrap(), Value::Bool(<span class="bool-val">true</span>));
+<a href=#3341 id=3341 data-nosnippet>3341</a>        <span class="macro">assert_eq!</span>(field_less_than(args(pos(<span class="number">0x200</span>), pos(<span class="number">0x100</span>)), loc).unwrap(), Value::Bool(<span class="bool-val">false</span>));
+<a href=#3342 id=3342 data-nosnippet>3342</a>
+<a href=#3343 id=3343 data-nosnippet>3343</a>        <span class="comment">// negative values wrap around
+<a href=#3344 id=3344 data-nosnippet>3344</a>        </span><span class="macro">assert_eq!</span>(field_less_than(args(pos(<span class="number">1</span>), neg(<span class="number">1</span>)), loc).unwrap(), Value::Bool(<span class="bool-val">true</span>));
+<a href=#3345 id=3345 data-nosnippet>3345</a>        <span class="macro">assert_eq!</span>(field_less_than(args(neg(<span class="number">1</span>), pos(<span class="number">1</span>)), loc).unwrap(), Value::Bool(<span class="bool-val">false</span>));
+<a href=#3346 id=3346 data-nosnippet>3346</a>        <span class="comment">// -2 &lt; -1
+<a href=#3347 id=3347 data-nosnippet>3347</a>        </span><span class="macro">assert_eq!</span>(field_less_than(args(neg(<span class="number">2</span>), neg(<span class="number">1</span>)), loc).unwrap(), Value::Bool(<span class="bool-val">true</span>));
+<a href=#3348 id=3348 data-nosnippet>3348</a>        <span class="macro">assert_eq!</span>(field_less_than(args(neg(<span class="number">1</span>), neg(<span class="number">2</span>)), loc).unwrap(), Value::Bool(<span class="bool-val">false</span>));
+<a href=#3349 id=3349 data-nosnippet>3349</a>        <span class="comment">// -1 &lt; -1 is false
+<a href=#3350 id=3350 data-nosnippet>3350</a>        </span><span class="macro">assert_eq!</span>(field_less_than(args(neg(<span class="number">1</span>), neg(<span class="number">1</span>)), loc).unwrap(), Value::Bool(<span class="bool-val">false</span>));
+<a href=#3351 id=3351 data-nosnippet>3351</a>    }
+<a href=#3352 id=3352 data-nosnippet>3352</a>}</code></pre></div></section></main></body></html>
