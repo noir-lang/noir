@@ -28,8 +28,9 @@ fn main() {
     assert(
         C.to_be_bits()
             == [
-                true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
-                false, false, false, false, true, false,
+                true, false, false, false, false, false, false, false, false, false, false, false,
+                false, false, false, false, false, false, false, false, false, false, false, false,
+                false, false, false, false, false, false, false, false, true, false,
             ],
     );
 
@@ -37,15 +38,17 @@ fn main() {
     assert(
         C.to_be_bits()
             == [
-                false, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
-                false, false, false, false, false, true, false,
+                false, true, false, false, false, false, false, false, false, false, false, false,
+                false, false, false, false, false, false, false, false, false, false, false, false,
+                false, false, false, false, false, false, false, false, false, true, false,
             ],
     );
     assert(
         C.to_be_bits()
             == [
-                false, false, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
-                false, false, false, false, false, false, true, false,
+                false, false, true, false, false, false, false, false, false, false, false, false,
+                false, false, false, false, false, false, false, false, false, false, false, false,
+                false, false, false, false, false, false, false, false, false, false, true, false,
             ],
     );
 }
