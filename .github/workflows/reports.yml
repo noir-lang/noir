@@ -40,7 +40,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Store ACVM benchmarks result
-        uses: benchmark-action/github-action-benchmark@4bdcce38c94cec68da58d012ac24b7b1155efe8b
+        uses: benchmark-action/github-action-benchmark@a7bc2366eda11037936ea57d811a43b3418d3073
         with:
           name: "ACVM Benchmarks"
           tool: "cargo"
@@ -604,7 +604,7 @@ jobs:
           jq --slurp 'map(.compilation_time | select(.))' ./reports/* | tee time_bench.json
 
       - name: Store benchmark result
-        uses: benchmark-action/github-action-benchmark@4bdcce38c94cec68da58d012ac24b7b1155efe8b
+        uses: benchmark-action/github-action-benchmark@a7bc2366eda11037936ea57d811a43b3418d3073
         with:
           name: "Compilation Time"
           tool: "customSmallerIsBetter"
@@ -650,7 +650,7 @@ jobs:
           jq --slurp 'map(.elaboration_time | select(.))' ./reports/* | tee time_bench.json
 
       - name: Store benchmark result
-        uses: benchmark-action/github-action-benchmark@4bdcce38c94cec68da58d012ac24b7b1155efe8b
+        uses: benchmark-action/github-action-benchmark@a7bc2366eda11037936ea57d811a43b3418d3073
         with:
           name: "Elaboration Time"
           tool: "customSmallerIsBetter"
@@ -696,7 +696,7 @@ jobs:
           jq --slurp 'map(.execution_time | select(.))' ./reports/* | tee time_bench.json
 
       - name: Store benchmark result
-        uses: benchmark-action/github-action-benchmark@4bdcce38c94cec68da58d012ac24b7b1155efe8b
+        uses: benchmark-action/github-action-benchmark@a7bc2366eda11037936ea57d811a43b3418d3073
         with:
           name: "Execution Time"
           tool: "customSmallerIsBetter"
@@ -742,7 +742,7 @@ jobs:
           jq --slurp 'map(.artifact_size | select(.))' ./reports/* | tee artifact_size.json
 
       - name: Store benchmark result
-        uses: benchmark-action/github-action-benchmark@4bdcce38c94cec68da58d012ac24b7b1155efe8b
+        uses: benchmark-action/github-action-benchmark@a7bc2366eda11037936ea57d811a43b3418d3073
         with:
           name: "Artifact Size"
           tool: "customSmallerIsBetter"
@@ -788,7 +788,7 @@ jobs:
           jq --slurp 'map(.num_opcodes | select(.))' ./reports/* | tee num_opcodes.json
 
       - name: Store benchmark result
-        uses: benchmark-action/github-action-benchmark@4bdcce38c94cec68da58d012ac24b7b1155efe8b
+        uses: benchmark-action/github-action-benchmark@a7bc2366eda11037936ea57d811a43b3418d3073
         with:
           name: "Opcode count"
           tool: "customSmallerIsBetter"
@@ -834,7 +834,7 @@ jobs:
           jq --slurp 'map(.brillig_compilation_time | select(.))' ./reports/* | tee time_bench.json
 
       - name: Store benchmark result
-        uses: benchmark-action/github-action-benchmark@4bdcce38c94cec68da58d012ac24b7b1155efe8b
+        uses: benchmark-action/github-action-benchmark@a7bc2366eda11037936ea57d811a43b3418d3073
         with:
           name: "Brillig Compilation Time"
           tool: "customSmallerIsBetter"
@@ -880,7 +880,7 @@ jobs:
           jq --slurp 'map(.brillig_execution_time | select(.))' ./reports/* | tee time_bench.json
 
       - name: Store benchmark result
-        uses: benchmark-action/github-action-benchmark@4bdcce38c94cec68da58d012ac24b7b1155efe8b
+        uses: benchmark-action/github-action-benchmark@a7bc2366eda11037936ea57d811a43b3418d3073
         with:
           name: "Brillig Execution Time"
           tool: "customSmallerIsBetter"
@@ -926,7 +926,7 @@ jobs:
           jq --slurp 'map(.brillig_artifact_size | select(.))' ./reports/* | tee artifact_size.json
 
       - name: Store benchmark result
-        uses: benchmark-action/github-action-benchmark@4bdcce38c94cec68da58d012ac24b7b1155efe8b
+        uses: benchmark-action/github-action-benchmark@a7bc2366eda11037936ea57d811a43b3418d3073
         with:
           name: "Brillig Artifact Size"
           tool: "customSmallerIsBetter"
@@ -977,7 +977,7 @@ jobs:
           jq --slurp '. | flatten' ./reports/* | tee memory_bench.json
 
       - name: Store benchmark result
-        uses: benchmark-action/github-action-benchmark@4bdcce38c94cec68da58d012ac24b7b1155efe8b
+        uses: benchmark-action/github-action-benchmark@a7bc2366eda11037936ea57d811a43b3418d3073
         with:
           name: "Compilation Memory"
           tool: "customSmallerIsBetter"
@@ -1028,7 +1028,7 @@ jobs:
           jq --slurp '. | flatten' ./reports/* | tee memory_bench.json
 
       - name: Store benchmark result
-        uses: benchmark-action/github-action-benchmark@4bdcce38c94cec68da58d012ac24b7b1155efe8b
+        uses: benchmark-action/github-action-benchmark@a7bc2366eda11037936ea57d811a43b3418d3073
         with:
           name: "Execution Memory"
           tool: "customSmallerIsBetter"

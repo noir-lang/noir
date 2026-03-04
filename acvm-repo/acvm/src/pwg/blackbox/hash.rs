@@ -32,7 +32,7 @@ pub(crate) fn get_hash_input<F: AcirField>(
 ) -> Result<Vec<u8>, OpcodeResolutionError<F>> {
     // Read witness assignments.
     let mut message_input = Vec::new();
-    for input in inputs.iter() {
+    for input in inputs {
         let witness_assignment = input_to_value(initial_witness, *input)?;
         let bytes = witness_assignment.fetch_nearest_bytes(num_bits);
         message_input.extend(bytes);

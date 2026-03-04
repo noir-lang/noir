@@ -541,7 +541,7 @@ fn push_type_parts(typ: &Type, parts: &mut Vec<InlayHintLabelPart>, files: &File
                 Kind::Integer => push_type_parts(&Type::default_int_type(), parts, files),
                 Kind::IntegerOrField => parts.push(string_part("Field")),
             },
-            _ => {
+            TypeBinding::Bound(_) => {
                 push_type_variable_parts(binding, parts, files);
             }
         },

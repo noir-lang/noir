@@ -81,15 +81,12 @@ pub(crate) fn gen_brillig_for(
     // Link the entry point with all dependencies
     while let Some(unresolved_fn_label) = entry_point.first_unresolved_function_call() {
         let artifact = &brillig.find_by_label(unresolved_fn_label.clone(), &options, stack_start);
-        let artifact = match artifact {
-            Some(artifact) => artifact,
-            None => {
-                return Err(InternalError::General {
-                    message: format!("Cannot find linked fn {unresolved_fn_label}"),
-                    call_stack: CallStack::new(),
-                }
-                .into());
+        let Some(artifact) = artifact else {
+            return Err(InternalError::General {
+                message: format!("Cannot find linked fn {unresolved_fn_label}"),
+                call_stack: CallStack::new(),
             }
+            .into());
         };
         entry_point.link_with(artifact);
         // Insert the range of opcode locations occupied by a procedure

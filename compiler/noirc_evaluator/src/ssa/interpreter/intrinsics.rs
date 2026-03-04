@@ -448,7 +448,7 @@ impl<W: Write> Interpreter<'_, W> {
 
                 let generators = derive_generators(&inputs, n.0, index);
                 let mut result = Vec::with_capacity(inputs.len());
-                for generator in generators.iter() {
+                for generator in &generators {
                     let x_big: BigUint = generator.x.into();
                     let x = FieldElement::from_le_bytes_reduce(&x_big.to_bytes_le());
                     let y_big: BigUint = generator.y.into();
