@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772658174253,
+  "lastUpdate": 1772658177736,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14862,95 +14862,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "e747f7d0a823d84f641ad0d396af5c00c6f0ac72",
-          "message": "chore: bump wasm-bindgen and related deps (#11689)",
-          "timestamp": "2026-02-25T16:53:32Z",
-          "tree_id": "cb9b599b701082892fd3de5c7420ffc8461807c8",
-          "url": "https://github.com/noir-lang/noir/commit/e747f7d0a823d84f641ad0d396af5c00c6f0ac72"
-        },
-        "date": 1772039674571,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 276.14,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 312.99,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 264.64,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 346.1,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 344.6,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1570,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1570,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 345.47,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 528.38,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 464.03,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 344.29,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 75.38,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 72.81,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -19240,6 +19151,95 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/75670a527af2c74d5ab801bd91c5e8c87481bc2d"
         },
         "date": 1772643300107,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 276.34,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 313.19,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 264.83,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 346.34,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 344.81,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1570,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1570,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 345.68,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 528.62,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 464.27,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 344.52,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 75.39,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 72.83,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b79712ed9190eac99a8134abfabdbc3979837d07",
+          "message": "fix: Fix LICM hoisting failing constraints out of loops (#11771)",
+          "timestamp": "2026-03-04T20:16:53Z",
+          "tree_id": "1b590a4222cbac86db827025a6566ddbd1187813",
+          "url": "https://github.com/noir-lang/noir/commit/b79712ed9190eac99a8134abfabdbc3979837d07"
+        },
+        "date": 1772658131177,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
