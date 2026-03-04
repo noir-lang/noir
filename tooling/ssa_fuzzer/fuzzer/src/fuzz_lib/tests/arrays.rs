@@ -133,7 +133,7 @@ fn test_reference_in_array() {
     };
     let typed_memory_2 = Argument { index: 2, value_type: Type::Numeric(NumericType::Field) };
     let load_from_memory_block = InstructionBlock {
-        instructions: vec![Instruction::LoadFromMemory { memory_addr: typed_memory_2.clone() }],
+        instructions: vec![Instruction::LoadFromMemory { memory_addr: typed_memory_2 }],
     };
     let instructions_blocks = vec![
         add_to_memory_block,

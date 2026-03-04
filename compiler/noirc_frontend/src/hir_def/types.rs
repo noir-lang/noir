@@ -1061,7 +1061,7 @@ impl TypeVariable {
             TypeBinding::Bound(binding) => {
                 matches!(binding.follow_bindings(), Type::Integer(Signedness::Signed, _))
             }
-            _ => false,
+            TypeBinding::Unbound(..) => false,
         }
     }
 
@@ -1071,7 +1071,7 @@ impl TypeVariable {
             TypeBinding::Bound(binding) => {
                 matches!(binding.follow_bindings(), Type::Integer(Signedness::Unsigned, _))
             }
-            _ => false,
+            TypeBinding::Unbound(..) => false,
         }
     }
 
@@ -1491,23 +1491,6 @@ impl Type {
         }
     }
 
-    /// Returns the number of `Forall`-quantified type variables on this type.
-    /// Returns 0 if this is not a Type::Forall
-    pub fn generic_count(&self) -> usize {
-        match self {
-            Type::Forall(generics, _) => generics.len(),
-            Type::CheckedCast { to, .. } => to.generic_count(),
-            Type::TypeVariable(type_variable)
-            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
-                match &*type_variable.borrow() {
-                    TypeBinding::Bound(binding) => binding.generic_count(),
-                    TypeBinding::Unbound(_, _) => 0,
-                }
-            }
-            _ => 0,
-        }
-    }
-
     /// Takes a monomorphic type and generalizes it over each of the type variables in the
     /// given type bindings, ignoring what each type variable is bound to in the TypeBindings
     /// and their Kind's
@@ -1842,7 +1825,7 @@ impl Type {
                 false
             }
             Type::Tuple(types) => {
-                for typ in types.iter() {
+                for typ in types {
                     if typ.contains_vector_helper(type_recursion_context.clone().recur()) {
                         return true;
                     }
@@ -2365,7 +2348,7 @@ impl Type {
                 TypeBinding::Bound(typ) => return typ.try_bind_to(var, bindings, kind),
                 // Don't recursively bind the same id to itself
                 TypeBinding::Unbound(id, _) if *id == target_id => return Ok(()),
-                _ => (),
+                TypeBinding::Unbound(..) => (),
             }
         }
 
@@ -2374,7 +2357,7 @@ impl Type {
         if this.occurs(target_id) {
             Err(UnificationError)
         } else {
-            bindings.insert(target_id, (var.clone(), this.kind(), this.clone()));
+            bindings.insert(target_id, (var.clone(), this.kind(), this));
             Ok(())
         }
     }
@@ -2487,8 +2470,8 @@ impl Type {
                     if to_value == from_value {
                         Ok(to_value)
                     } else {
-                        let to = *to.clone();
-                        let from = *from.clone();
+                        let to = *to;
+                        let from = *from;
                         Err(TypeCheckError::TypeCanonicalizationMismatch {
                             to,
                             from,
@@ -2556,19 +2539,28 @@ impl Type {
     pub fn instantiate(&self, interner: &NodeInterner) -> (Type, TypeBindings) {
         match self {
             Type::Forall(typevars, typ) => {
-                let replacements = typevars
-                    .iter()
-                    .map(|var| {
-                        let new = interner.next_type_variable_with_kind(var.kind());
-                        (var.id(), (var.clone(), var.kind(), new))
-                    })
-                    .collect();
-
-                let instantiated = typ.force_substitute(&replacements);
-                (instantiated, replacements)
+                typ.substitute_type_vars_with_fresh_type_vars(typevars, interner)
             }
             other => (other.clone(), HashMap::default()),
         }
+    }
+
+    /// Replaces the given type variables with fresh type variables, if those happen inside `self`.
+    pub fn substitute_type_vars_with_fresh_type_vars(
+        &self,
+        typevars: &[TypeVariable],
+        interner: &NodeInterner,
+    ) -> (Type, TypeBindings) {
+        let replacements = typevars
+            .iter()
+            .map(|var| {
+                let new = interner.next_type_variable_with_kind(var.kind());
+                (var.id(), (var.clone(), var.kind(), new))
+            })
+            .collect();
+
+        let instantiated = self.force_substitute(&replacements);
+        (instantiated, replacements)
     }
 
     /// Instantiates a type with the given types.

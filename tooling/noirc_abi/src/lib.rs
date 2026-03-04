@@ -211,7 +211,7 @@ impl Abi {
 
     pub fn to_btree_map(&self) -> BTreeMap<String, AbiType> {
         let mut map = BTreeMap::new();
-        for param in self.parameters.iter() {
+        for param in &self.parameters {
             map.insert(param.name.clone(), param.typ.clone());
         }
         map

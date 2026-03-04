@@ -73,8 +73,12 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             BinaryOp::And => BrilligBinaryOp::And,
             BinaryOp::Or => BrilligBinaryOp::Or,
             BinaryOp::Xor => BrilligBinaryOp::Xor,
-            BinaryOp::Shl => BrilligBinaryOp::Shl,
+            BinaryOp::Shl => {
+                self.bit_shift_overflow(left, right);
+                BrilligBinaryOp::Shl
+            }
             BinaryOp::Shr => {
+                self.bit_shift_overflow(left, right);
                 if is_signed {
                     self.convert_signed_shr(left, right, result_variable);
                     return;
@@ -111,6 +115,23 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
 
         // result_register = left - j
         self.brillig_context.binary_instruction(left, *scratch_var_j, result, BrilligBinaryOp::Sub);
+    }
+
+    fn bit_shift_overflow(&mut self, left: SingleAddrVariable, right: SingleAddrVariable) {
+        // Check that right is less than the bit size of left
+        // The constraint will fail also if rhs is negative, which is expected.
+        let right_overflow = self.brillig_context.allocate_single_addr_bool();
+        let left_bit_size =
+            self.brillig_context.make_constant_instruction(left.bit_size.into(), left.bit_size);
+
+        self.brillig_context.binary_instruction(
+            right,
+            *left_bit_size,
+            *right_overflow,
+            BrilligBinaryOp::LessThan,
+        );
+        let msg = "attempt to bit-shift with overflow".to_string();
+        self.brillig_context.codegen_constrain(*right_overflow, Some(msg));
     }
 
     fn convert_signed_shr(
@@ -263,12 +284,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         dfg: &DataFlowGraph,
     ) {
         let [result_value] = dfg.instruction_result(instruction_id);
-        let result_var = self.variables.define_single_addr_variable(
-            self.function_context,
-            self.brillig_context,
-            result_value,
-            dfg,
-        );
+        let result_var = self.define_single_addr_variable(result_value, dfg);
         self.convert_ssa_binary(binary, dfg, result_var);
     }
 

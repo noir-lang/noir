@@ -417,7 +417,7 @@ mod tests {
         let block2_id = builder.insert_block();
         let block3_id = builder.insert_block();
 
-        builder.terminate_with_jmpif(cond, block2_id, block3_id);
+        builder.terminate_with_jmpif_no_args(cond, block2_id, block3_id);
         builder.switch_to_block(block1_id);
         builder.terminate_with_jmp(block2_id, vec![]);
         builder.switch_to_block(block2_id);
@@ -669,9 +669,9 @@ mod tests {
             jmp b1(u32 0)
           b1(v3: u32):
             v8 = lt v3, u32 4
-            jmpif v8 then: b2, else: b3
+            jmpif v8 then: b2(), else: b3()
           b2():
-            jmpif v5 then: b4, else: b5
+            jmpif v5 then: b4(), else: b5()
           b3():
             return
           b4():
@@ -804,7 +804,7 @@ mod tests {
           b0(v0: u1):
             jmp b1()
           b1():
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b2():
             return
         }

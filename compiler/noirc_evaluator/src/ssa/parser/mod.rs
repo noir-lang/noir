@@ -843,12 +843,20 @@ impl<'a> Parser<'a> {
         self.eat_or_error(Token::Keyword(Keyword::Then))?;
         self.eat_or_error(Token::Colon)?;
         let then_block = self.eat_identifier_or_error()?;
+        let then_arguments = self.parse_arguments()?;
         self.eat_or_error(Token::Comma)?;
         self.eat_or_error(Token::Keyword(Keyword::Else))?;
         self.eat_or_error(Token::Colon)?;
         let else_block = self.eat_identifier_or_error()?;
+        let else_arguments = self.parse_arguments()?;
 
-        Ok(Some(ParsedTerminator::Jmpif { condition, then_block, else_block }))
+        Ok(Some(ParsedTerminator::Jmpif {
+            condition,
+            then_block,
+            then_arguments,
+            else_block,
+            else_arguments,
+        }))
     }
 
     fn parse_unreachable(&mut self) -> ParseResult<Option<ParsedTerminator>> {
