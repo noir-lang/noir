@@ -18,11 +18,11 @@ Check out the contributing guide [here](../CONTRIBUTING.md).
 
 ### Prerequisites
 
-- Node.js (tested working with v25)
-- Yarn (tested working with v4)
-- Rust (tested working with v1)
-- GNU ld (tested working with v2)
-- jq (tested working with v1)
+- Node.js (tested working with v25.8.0)
+- Yarn (tested working with v4.10.3)
+- Rust (tested working with v1.89.0)
+- GNU ld (tested working with v2.45.1-4.fc43)
+- jq (tested working with v1.8.1)
 
 ### Navigation
 
