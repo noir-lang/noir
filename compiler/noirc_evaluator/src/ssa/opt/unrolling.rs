@@ -578,24 +578,21 @@ impl Loop {
             return None;
         }
 
-        let Some(TerminatorInstruction::JmpIf { then_destination, else_destination, .. }) =
-            header.terminator()
+        let Some(TerminatorInstruction::JmpIf { then_destination, .. }) = header.terminator()
         else {
             return None;
         };
-        let then_is_body = self.blocks.contains(then_destination);
-        let else_is_body = self.blocks.contains(else_destination);
+
+        if !self.blocks.contains(then_destination) {
+            return None;
+        }
 
         match &dfg[instructions[0]] {
             // Most loops will expect the `then` block to be the body. In unconstrained code it is
             // possible to write `loop`s that use the else branch as a body. We return `None`
             // conservatively in this case.
             Instruction::Binary(Binary { lhs: _, operator: BinaryOp::Lt, rhs }) => {
-                if then_is_body {
-                    dfg.get_integer_constant(*rhs)
-                } else {
-                    None
-                }
+                dfg.get_integer_constant(*rhs)
             }
             Instruction::Binary(Binary { lhs: _, operator: BinaryOp::Eq, rhs }) => {
                 // `for i in 0..1` is turned into:
@@ -606,15 +603,9 @@ impl Loop {
                 //
                 // Inverted (else=body): loop exits when v == rhs; upper = rhs.
                 let const_rhs = dfg.get_integer_constant(*rhs)?;
-                if then_is_body {
-                    Some(const_rhs.inc())
-                } else if else_is_body {
-                    Some(const_rhs)
-                } else {
-                    None
-                }
+                Some(const_rhs.inc())
             }
-            Instruction::Not(_) if then_is_body => {
+            Instruction::Not(_) => {
                 // We simplify equality operations with booleans like `(boolean == false)` into `!boolean`.
                 // Thus, using a u1 in a loop bound can possibly lead to a Not instruction
                 // as a loop header's jump condition.
