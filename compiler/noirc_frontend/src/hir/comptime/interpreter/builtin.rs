@@ -53,7 +53,7 @@ use crate::{
         function::FunctionBody,
         traits::{ResolvedTraitBound, TraitConstraint},
     },
-    node_interner::{DefinitionKind, NodeInterner, TraitImplKind},
+    node_interner::{DefinitionKind, FuncId, NodeInterner, TraitImplKind},
     parser::{Parser, StatementOrExpressionOrLValue},
     shared::{Signedness, Visibility},
     signed_field::SignedField,
@@ -2554,8 +2554,12 @@ fn function_def_add_attribute(
         });
     };
 
+    let self_arg = self_argument.0.clone();
     let func_id = get_function_def(self_argument)?;
     check_function_not_yet_resolved(interpreter, func_id, location)?;
+
+    let func_module = func_module(interpreter, &func_id);
+    check_item_crate_matches_current_crate(interpreter, &self_arg, func_module, location)?;
 
     let function_modifiers = interpreter.elaborator.interner.function_modifiers_mut(&func_id);
 
@@ -2753,10 +2757,14 @@ fn function_def_set_body(
     location: Location,
 ) -> IResult<Value> {
     let (self_argument, body_argument) = check_two_arguments(arguments, location)?;
+    let self_arg = self_argument.0.clone();
     let body_location = body_argument.1;
 
     let func_id = get_function_def(self_argument)?;
     check_function_not_yet_resolved(interpreter, func_id, location)?;
+
+    let func_module = func_module(interpreter, &func_id);
+    check_item_crate_matches_current_crate(interpreter, &self_arg, func_module, location)?;
 
     let body_argument = get_expr(interpreter.elaborator.interner, body_argument)?;
     let statement_kind = match body_argument {
@@ -2794,10 +2802,14 @@ fn function_def_set_parameters(
     location: Location,
 ) -> IResult<Value> {
     let (self_argument, parameters_argument) = check_two_arguments(arguments, location)?;
+    let self_arg = self_argument.0.clone();
     let parameters_argument_location = parameters_argument.1;
 
     let func_id = get_function_def(self_argument)?;
     check_function_not_yet_resolved(interpreter, func_id, location)?;
+
+    let func_module = func_module(interpreter, &func_id);
+    check_item_crate_matches_current_crate(interpreter, &self_arg, func_module, location)?;
 
     let (input_parameters, _type) = get_vector(parameters_argument)?;
 
@@ -2853,10 +2865,14 @@ fn function_def_set_return_type(
     location: Location,
 ) -> IResult<Value> {
     let (self_argument, return_type_argument) = check_two_arguments(arguments, location)?;
+    let self_arg = self_argument.0.clone();
     let return_type = get_type(return_type_argument)?;
 
     let func_id = get_function_def(self_argument)?;
     check_function_not_yet_resolved(interpreter, func_id, location)?;
+
+    let func_module = func_module(interpreter, &func_id);
+    check_item_crate_matches_current_crate(interpreter, &self_arg, func_module, location)?;
 
     let quoted_type_id = interpreter.elaborator.interner.push_quoted_type(return_type.clone());
 
@@ -2878,9 +2894,13 @@ fn function_def_set_return_public(
     location: Location,
 ) -> IResult<Value> {
     let (self_argument, public) = check_two_arguments(arguments, location)?;
+    let self_arg = self_argument.0.clone();
 
     let func_id = get_function_def(self_argument)?;
     check_function_not_yet_resolved(interpreter, func_id, location)?;
+
+    let func_module = func_module(interpreter, &func_id);
+    check_item_crate_matches_current_crate(interpreter, &self_arg, func_module, location)?;
 
     let public = get_bool(public)?;
 
@@ -2898,9 +2918,15 @@ fn function_def_set_return_data(
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
+    let self_arg = self_argument.0.clone();
 
     let func_id = get_function_def(self_argument)?;
     check_function_not_yet_resolved(interpreter, func_id, location)?;
+
+    let func_meta_read = interpreter.elaborator.interner.function_meta(&func_id);
+    let func_module =
+        ModuleId { krate: func_meta_read.source_crate, local_id: func_meta_read.source_module };
+    check_item_crate_matches_current_crate(interpreter, &self_arg, func_module, location)?;
 
     let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
     func_meta.return_visibility = Visibility::ReturnData;
@@ -2916,9 +2942,13 @@ fn function_def_set_unconstrained(
     location: Location,
 ) -> IResult<Value> {
     let (self_argument, unconstrained) = check_two_arguments(arguments, location)?;
+    let self_arg = self_argument.0.clone();
 
     let func_id = get_function_def(self_argument)?;
     check_function_not_yet_resolved(interpreter, func_id, location)?;
+
+    let func_module = func_module(interpreter, &func_id);
+    check_item_crate_matches_current_crate(interpreter, &self_arg, func_module, location)?;
 
     let unconstrained = get_bool(unconstrained)?;
 
@@ -2997,6 +3027,11 @@ fn module_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult
 
 fn module_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     eq_item(arguments, location, get_module)
+}
+
+fn func_module(interpreter: &Interpreter, func_id: &FuncId) -> ModuleId {
+    let func_meta_read = interpreter.elaborator.interner.function_meta(func_id);
+    ModuleId { krate: func_meta_read.source_crate, local_id: func_meta_read.source_module }
 }
 
 // fn functions(self) -> [FunctionDefinition]

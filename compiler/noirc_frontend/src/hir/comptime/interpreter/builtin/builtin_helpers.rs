@@ -497,12 +497,19 @@ pub(super) fn check_item_crate_matches_current_crate(
     item_module: ModuleId,
     location: Location,
 ) -> IResult<()> {
-    let current_crate = interpreter.elaborator.module_id().krate;
+    let elaborator_crate = interpreter.elaborator.module_id().krate;
+    // current_crate is the crate where current_function() is defined, or the one
+    // of the elaborator's current module if there is no current function
+    let current_crate = if let Some(func_id) = interpreter.current_function() {
+        interpreter.elaborator.interner.function_meta(&func_id).source_crate
+    } else {
+        elaborator_crate
+    };
     if current_crate != item_module.krate {
         let module = fully_qualified_module_path(
             interpreter.elaborator.def_maps,
             interpreter.elaborator.crate_graph,
-            &current_crate,
+            &elaborator_crate,
             item_module,
         );
         let item = item.display(interpreter.elaborator.interner).to_string();
