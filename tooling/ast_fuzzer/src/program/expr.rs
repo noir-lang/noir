@@ -186,7 +186,9 @@ pub fn gen_range(
                     let e = (Field::from(e.unsigned_abs()), e < 0);
                     (s, e)
                 }
-                _ => unreachable!("invalid bit size for range: {integer_bit_size} (signed)"),
+                HundredTwentyEight => {
+                    unreachable!("invalid bit size for range: {integer_bit_size} (signed)")
+                }
             }
         } else {
             let (s, e) = match integer_bit_size {
