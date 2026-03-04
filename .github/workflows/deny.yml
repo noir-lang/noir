@@ -9,6 +9,8 @@ on:
     paths: [Cargo.lock, .github/workflows/deny.yml]
   merge_group:
 
+permissions: {}
+
 env:
   RUSTFLAGS: -D warnings
   CARGO_TERM_COLOR: always

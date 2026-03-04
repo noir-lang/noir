@@ -4,6 +4,8 @@ on:
   pull_request:
   merge_group:
 
+permissions: {}
+
 jobs:
   add_label:
     runs-on: ubuntu-22.04
@@ -54,6 +56,8 @@ jobs:
 
   build_preview:
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
