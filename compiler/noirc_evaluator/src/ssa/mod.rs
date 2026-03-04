@@ -219,6 +219,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         ),
         SsaPass::new(Ssa::array_set_optimization, "ArraySet optimization"),
         SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
+        SsaPass::new(Ssa::array_set_to_make_array, "ArraySet to MakeArray"),
         SsaPass::new_try(Ssa::remove_if_else, "Remove IfElse"),
         SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
         SsaPass::new(

@@ -6,6 +6,7 @@
 
 mod array_get;
 mod array_set;
+mod array_set_to_make_array;
 mod as_vector_length;
 mod basic_conditional;
 mod black_box_bypass;
