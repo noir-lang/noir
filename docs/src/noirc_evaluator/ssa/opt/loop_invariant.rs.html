@@ -3706,4 +3706,43 @@
 <a href=#3706 id=3706 data-nosnippet>3706</a>        // rather than creating a new one
 <a href=#3707 id=3707 data-nosnippet>3707</a>        </span><span class="macro">assert!</span>(!ssa_string.contains(<span class="string">"inc_rc"</span>), <span class="string">"ArrayGet should not add inc_rc"</span>);
 <a href=#3708 id=3708 data-nosnippet>3708</a>    }
-<a href=#3709 id=3709 data-nosnippet>3709</a>}</code></pre></div></section></main></body></html>
+<a href=#3709 id=3709 data-nosnippet>3709</a>
+<a href=#3710 id=3710 data-nosnippet>3710</a>    <span class="attr">#[test]
+<a href=#3711 id=3711 data-nosnippet>3711</a>    </span><span class="kw">fn </span>does_not_hoist_failing_constraint() {
+<a href=#3712 id=3712 data-nosnippet>3712</a>        <span class="comment">// LICM must not hoist the failing constraint out of b3.
+<a href=#3713 id=3713 data-nosnippet>3713</a>        // This case is notable since the loop body is in the else branch instead of the then
+<a href=#3714 id=3714 data-nosnippet>3714</a>        // branch. This can occur in real code e.g. `loop { if i == 0 { break } else { body } }`
+<a href=#3715 id=3715 data-nosnippet>3715</a>        // The add is converted to unchecked_add which is a bit odd but since the branch is
+<a href=#3716 id=3716 data-nosnippet>3716</a>        // expected to never run it is fine.
+<a href=#3717 id=3717 data-nosnippet>3717</a>        </span><span class="kw">let </span>src = <span class="string">r#"
+<a href=#3718 id=3718 data-nosnippet>3718</a>            brillig(inline) predicate_pure fn main f0 {
+<a href=#3719 id=3719 data-nosnippet>3719</a>              b0():
+<a href=#3720 id=3720 data-nosnippet>3720</a>                jmp b1(u32 0)
+<a href=#3721 id=3721 data-nosnippet>3721</a>              b1(v0: u32):
+<a href=#3722 id=3722 data-nosnippet>3722</a>                v2 = eq v0, u32 0
+<a href=#3723 id=3723 data-nosnippet>3723</a>                jmpif v2 then: b2(), else: b3()
+<a href=#3724 id=3724 data-nosnippet>3724</a>              b2():
+<a href=#3725 id=3725 data-nosnippet>3725</a>                return
+<a href=#3726 id=3726 data-nosnippet>3726</a>              b3():
+<a href=#3727 id=3727 data-nosnippet>3727</a>                v4 = add v0, u32 1
+<a href=#3728 id=3728 data-nosnippet>3728</a>                constrain u1 0 == u1 1, "Index out of bounds"
+<a href=#3729 id=3729 data-nosnippet>3729</a>                jmp b1(v4)
+<a href=#3730 id=3730 data-nosnippet>3730</a>            }"#</span>;
+<a href=#3731 id=3731 data-nosnippet>3731</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap().loop_invariant_code_motion();
+<a href=#3732 id=3732 data-nosnippet>3732</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r#"
+<a href=#3733 id=3733 data-nosnippet>3733</a>        brillig(inline) predicate_pure fn main f0 {
+<a href=#3734 id=3734 data-nosnippet>3734</a>          b0():
+<a href=#3735 id=3735 data-nosnippet>3735</a>            jmp b1(u32 0)
+<a href=#3736 id=3736 data-nosnippet>3736</a>          b1(v0: u32):
+<a href=#3737 id=3737 data-nosnippet>3737</a>            v2 = eq v0, u32 0
+<a href=#3738 id=3738 data-nosnippet>3738</a>            jmpif v2 then: b2(), else: b3()
+<a href=#3739 id=3739 data-nosnippet>3739</a>          b2():
+<a href=#3740 id=3740 data-nosnippet>3740</a>            return
+<a href=#3741 id=3741 data-nosnippet>3741</a>          b3():
+<a href=#3742 id=3742 data-nosnippet>3742</a>            v4 = unchecked_add v0, u32 1
+<a href=#3743 id=3743 data-nosnippet>3743</a>            constrain u1 0 == u1 1, "Index out of bounds"
+<a href=#3744 id=3744 data-nosnippet>3744</a>            jmp b1(v4)
+<a href=#3745 id=3745 data-nosnippet>3745</a>        }
+<a href=#3746 id=3746 data-nosnippet>3746</a>        "#</span>);
+<a href=#3747 id=3747 data-nosnippet>3747</a>    }
+<a href=#3748 id=3748 data-nosnippet>3748</a>}</code></pre></div></section></main></body></html>
