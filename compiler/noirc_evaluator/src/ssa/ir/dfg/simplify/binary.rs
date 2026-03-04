@@ -408,6 +408,7 @@ mod tests {
 
     mod canonicalize {
         use crate::ssa::{ir::instruction::Instruction, ssa_gen::Ssa};
+        use test_case::test_case;
 
         use super::super::canonicalize_binary;
 
@@ -443,136 +444,86 @@ mod tests {
             panic!("No binary instruction found in SSA");
         }
 
-        #[test]
-        fn swaps_mul_operands() {
-            assert_operands_swapped(
-                "acir(inline) predicate_pure fn main f0 {
-                  b0(v0: Field, v1: Field):
-                    v2 = mul v1, v0
+        #[test_case("mul"; "mul")]
+        #[test_case("add"; "add")]
+        #[test_case("and"; "and")]
+        #[test_case("or"; "or")]
+        #[test_case("xor"; "xor")]
+        #[test_case("eq"; "eq")]
+        fn swaps_commutative_operands(op: &str) {
+            let src = format!(
+                "acir(inline) predicate_pure fn main f0 {{
+                  b0(v0: u32, v1: u32):
+                    v2 = {op} v1, v0
                     return v2
-                }",
+                }}"
             );
+            assert_operands_swapped(&src);
         }
 
-        #[test]
-        fn swaps_add_operands() {
-            assert_operands_swapped(
-                "acir(inline) predicate_pure fn main f0 {
-                  b0(v0: Field, v1: Field):
-                    v2 = add v1, v0
+        #[test_case("mul"; "mul")]
+        #[test_case("add"; "add")]
+        #[test_case("and"; "and")]
+        #[test_case("or"; "or")]
+        #[test_case("xor"; "xor")]
+        #[test_case("eq"; "eq")]
+        fn preserves_already_ordered_commutative(op: &str) {
+            let src = format!(
+                "acir(inline) predicate_pure fn main f0 {{
+                  b0(v0: u32, v1: u32):
+                    v2 = {op} v0, v1
                     return v2
-                }",
+                }}"
             );
+            assert_operands_unchanged(&src);
         }
 
-        #[test]
-        fn swaps_and_operands() {
-            assert_operands_swapped(
-                "acir(inline) predicate_pure fn main f0 {
-                  b0(v0: u8, v1: u8):
-                    v2 = and v1, v0
-                    return v2
-                }",
-            );
-        }
-
-        #[test]
-        fn swaps_or_operands() {
-            assert_operands_swapped(
-                "acir(inline) predicate_pure fn main f0 {
-                  b0(v0: u8, v1: u8):
-                    v2 = or v1, v0
-                    return v2
-                }",
-            );
-        }
-
-        #[test]
-        fn swaps_xor_operands() {
-            assert_operands_swapped(
-                "acir(inline) predicate_pure fn main f0 {
-                  b0(v0: u8, v1: u8):
-                    v2 = xor v1, v0
-                    return v2
-                }",
-            );
-        }
-
-        #[test]
-        fn swaps_eq_operands() {
-            assert_operands_swapped(
-                "acir(inline) predicate_pure fn main f0 {
-                  b0(v0: Field, v1: Field):
-                    v2 = eq v1, v0
-                    return v2
-                }",
-            );
-        }
-
-        #[test]
-        fn does_not_swap_when_constant_on_rhs() {
-            assert_operands_unchanged(
-                "acir(inline) predicate_pure fn main f0 {
-                  b0(v0: Field):
-                    v2 = mul v0, Field 5
-                    return v2
-                }",
-            );
-        }
-
-        #[test]
-        fn does_not_swap_sub() {
-            assert_operands_unchanged(
-                "acir(inline) predicate_pure fn main f0 {
-                  b0(v0: Field, v1: Field):
-                    v2 = sub v1, v0
-                    return v2
-                }",
-            );
-        }
-
-        #[test]
-        fn does_not_swap_already_ordered() {
-            assert_operands_unchanged(
-                "acir(inline) predicate_pure fn main f0 {
-                  b0(v0: Field, v1: Field):
-                    v2 = mul v0, v1
-                    return v2
-                }",
-            );
-        }
-
-        #[test]
-        fn moves_constant_lhs_to_rhs() {
-            assert_operands_swapped(
-                "acir(inline) predicate_pure fn main f0 {
+        #[test_case("mul"; "mul")]
+        #[test_case("add"; "add")]
+        #[test_case("and"; "and")]
+        #[test_case("or"; "or")]
+        #[test_case("xor"; "xor")]
+        #[test_case("eq"; "eq")]
+        fn moves_constant_lhs_to_rhs(op: &str) {
+            let src = format!(
+                "acir(inline) predicate_pure fn main f0 {{
                   b0(v0: u32):
-                    v2 = add u32 1, v0
+                    v2 = {op} u32 1, v0
                     return v2
-                }",
+                }}"
             );
+            assert_operands_swapped(&src);
         }
 
-        #[test]
-        fn keeps_constant_on_rhs() {
-            assert_operands_unchanged(
-                "acir(inline) predicate_pure fn main f0 {
+        #[test_case("mul"; "mul")]
+        #[test_case("add"; "add")]
+        #[test_case("and"; "and")]
+        #[test_case("or"; "or")]
+        #[test_case("xor"; "xor")]
+        #[test_case("eq"; "eq")]
+        fn keeps_constant_on_rhs(op: &str) {
+            let src = format!(
+                "acir(inline) predicate_pure fn main f0 {{
                   b0(v0: u32):
-                    v2 = add v0, u32 1
+                    v2 = {op} v0, u32 1
                     return v2
-                }",
+                }}"
             );
+            assert_operands_unchanged(&src);
         }
 
-        #[test]
-        fn does_not_move_constant_for_sub() {
-            assert_operands_unchanged(
-                "acir(inline) predicate_pure fn main f0 {
-                  b0(v0: Field):
-                    v2 = sub Field 5, v0
+        #[test_case("sub"; "sub")]
+        #[test_case("div"; "div")]
+        #[test_case("mod"; "r#mod")]
+        fn does_not_swap_non_commutative(op: &str) {
+            let src = format!(
+                "acir(inline) predicate_pure fn main f0 {{
+                  b0(v0: u32, v1: u32):
+                    v2 = {op} v1, v0
                     return v2
-                }",
+                }}"
             );
+            assert_operands_unchanged(&src);
         }
     }
 }
