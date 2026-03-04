@@ -203,25 +203,6 @@ impl Context<'_, '_, '_> {
         let result_unsigned =
             self.two_complement(absolute_result, result_is_negative, unsigned_typ, bit_size);
 
-        // If we divide, for example 4 i8 by -5, the absolute division will give 0.
-        // Because the signs are different, if we do the two complement of 0 we'll get 256, which
-        // is out of range. Here we take this case into account: if absolute_div is zero the result
-        // should be zero, otherwise it should be that result.
-        // Then, we need to multiply result_unsigned by `absolute_div != 0`.
-        //
-        // The same is true for modulo: -4 i8 mod 4 is 0, but taking its two-complement would give 256.
-        let zero = self.numeric_constant(0_u128, unsigned_typ);
-        let absolute_result_is_zero = self.insert_binary(absolute_result, BinaryOp::Eq, zero);
-        let absolute_result_is_not_zero = self.insert_not(absolute_result_is_zero);
-        let absolute_result_is_not_zero =
-            self.insert_cast(absolute_result_is_not_zero, unsigned_typ);
-
-        let result_unsigned = self.insert_binary(
-            result_unsigned,
-            BinaryOp::Mul { unchecked: true },
-            absolute_result_is_not_zero,
-        );
-
         // Make sure we return the signed type
         self.insert_cast(result_unsigned, NumericType::signed(bit_size))
     }
@@ -265,8 +246,20 @@ impl Context<'_, '_, '_> {
             self.insert_binary(intermediate, BinaryOp::Mul { unchecked: true }, value_is_negative);
         let two = self.numeric_constant(2_u128, NumericType::NativeField);
         let intermediate = self.insert_binary(intermediate, BinaryOp::Mul { unchecked: true }, two);
+
         let result =
             self.insert_binary(value_as_field, BinaryOp::Add { unchecked: true }, intermediate);
+
+        // result can overflow only when value is 0:
+        // result = 2*((2^(bit_size - 1))*value_is_negative = 2^(bit_size)*value_is_negative
+        // In that case we multiply it with 'value_is_not_zero', which wraps the result.
+        let zero = self.numeric_constant(0_u128, NumericType::NativeField);
+        let value_is_zero = self.insert_binary(value_as_field, BinaryOp::Eq, zero);
+        let value_is_not_zero = self.insert_not(value_is_zero);
+        let value_is_not_zero = self.insert_cast(value_is_not_zero, NumericType::NativeField);
+
+        let result =
+            self.insert_binary(result, BinaryOp::Mul { unchecked: true }, value_is_not_zero);
         self.insert_cast(result, unsigned_type)
     }
 
