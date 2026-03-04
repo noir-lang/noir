@@ -596,13 +596,13 @@ mod tests {
             v12 = cast v0 as u32
             v13 = cast v9 as u32
             v14 = unchecked_mul v12, u32 2
-            v15 = unchecked_mul v13, v11
+            v15 = unchecked_mul v11, v13
             v16 = unchecked_add v14, v15
             v17 = array_get v1, index u32 1 -> u32
             v18 = cast v0 as u32
             v19 = cast v9 as u32
             v20 = unchecked_mul v18, u32 3
-            v21 = unchecked_mul v19, v17
+            v21 = unchecked_mul v17, v19
             v22 = unchecked_add v20, v21
             v23 = make_array [v16, v22] : [u32; 2]
             enable_side_effects v0
@@ -665,14 +665,14 @@ mod tests {
             v9 = cast v0 as u32
             v10 = cast v6 as u32
             v11 = unchecked_mul v9, u32 2
-            v12 = unchecked_mul v10, v8
+            v12 = unchecked_mul v8, v10
             v13 = unchecked_add v11, v12
             v15 = array_get v1, index u32 1 -> u32
             v16 = array_get v1, index u32 1 -> u32
             v17 = cast v0 as u32
             v18 = cast v6 as u32
-            v19 = unchecked_mul v17, v15
-            v20 = unchecked_mul v18, v16
+            v19 = unchecked_mul v15, v17
+            v20 = unchecked_mul v16, v18
             v21 = unchecked_add v19, v20
             v22 = make_array [v13, v21] : [u32; 2]
             enable_side_effects v0
@@ -735,14 +735,14 @@ mod tests {
             v22 = array_get v21, index u32 0 -> Field
             v23 = cast v18 as Field
             v24 = cast v17 as Field
-            v25 = mul v23, v22
-            v26 = mul v24, v14
+            v25 = mul v22, v23
+            v26 = mul v14, v24
             v27 = add v25, v26
             v28 = array_get v21, index u32 1 -> Field
             v29 = cast v18 as Field
             v30 = cast v17 as Field
-            v31 = mul v29, v28
-            v32 = mul v30, v2
+            v31 = mul v28, v29
+            v32 = mul v2, v30
             v33 = add v31, v32
             v34 = make_array [v27, v33] : [Field]
             constrain v27 == Field 1
@@ -947,7 +947,7 @@ mod tests {
             v17 = array_get v11, index u32 0 -> Field
             v18 = cast v0 as Field
             v19 = cast v13 as Field
-            v20 = mul v18, v17
+            v20 = mul v17, v18
             v21 = mul v19, Field 2
             v22 = add v20, v21
             v23 = make_array [v22, Field 3] : [Field]
@@ -1003,7 +1003,7 @@ mod tests {
             v17 = array_get v12, index u32 0 -> Field
             v18 = cast v0 as Field
             v19 = cast v13 as Field
-            v20 = mul v18, v17
+            v20 = mul v17, v18
             v21 = mul v19, Field 2
             v22 = add v20, v21
             v23 = make_array [v22, Field 3] : [Field]
@@ -1059,7 +1059,7 @@ mod tests {
             v17 = array_get v12, index u32 0 -> Field
             v18 = cast v0 as Field
             v19 = cast v14 as Field
-            v20 = mul v18, v17
+            v20 = mul v17, v18
             v21 = mul v19, Field 2
             v22 = add v20, v21
             v23 = make_array [v22, Field 3] : [Field]

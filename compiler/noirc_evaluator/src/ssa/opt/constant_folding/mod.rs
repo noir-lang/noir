@@ -3232,14 +3232,14 @@ mod test {
           b0(v0: [Field; 2]):
             inc_rc v0
             v6 = array_get v0, index u32 1 -> Field
-            v8 = add Field 3, v6
+            v8 = add v6, Field 3
             v9 = array_set v0, index u32 1, value v8
             jmp b1(v9, u1 1)
           b1(v1: [Field; 2], v2: u1):
             jmpif v2 then: b2(), else: b3()
           b2():
             v17 = array_get v1, index u32 0 -> Field
-            v18 = add Field 3, v17
+            v18 = add v17, Field 3
             v19 = array_set v1, index u32 0, value v18
             jmp b1(v19, u1 0)
           b3():
@@ -3249,7 +3249,7 @@ mod test {
             v13 = array_get v3, index u32 0 -> Field
             jmpif v4 then: b5(), else: b6()
           b5():
-            v14 = add Field 3, v13
+            v14 = add v13, Field 3
             v15 = array_set v3, index u32 0, value v14
             jmp b4(v15, u1 0)
           b6():

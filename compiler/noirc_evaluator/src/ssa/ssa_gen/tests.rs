@@ -288,7 +288,7 @@ fn for_loop_exclusive() {
         jmpif v4 then: b2(), else: b3()
       b2():
         v6 = load v1 -> u32
-        v7 = add v6, v0
+        v7 = add v0, v6
         store v7 at v1
         v9 = unchecked_add v0, u32 1
         jmp b1(v9)
@@ -331,7 +331,7 @@ fn for_loop_inclusive_max_value_without_break() {
         jmpif v6 then: b2(), else: b3()
       b2():
         v11 = load v1 -> u8
-        v12 = add v11, v0
+        v12 = add v0, v11
         store v12 at v1
         v14 = unchecked_add v0, u8 1
         jmp b1(v14)
@@ -375,7 +375,7 @@ fn for_loop_inclusive_end_is_known_and_not_a_maximum() {
         jmpif v4 then: b2(), else: b3()
       b2():
         v6 = load v1 -> u8
-        v7 = add v6, v0
+        v7 = add v0, v6
         store v7 at v1
         v9 = unchecked_add v0, u8 1
         jmp b1(v9)
@@ -433,7 +433,7 @@ fn for_loop_inclusive_max_value_with_break() {
         jmp b3()
       b5():
         v8 = load v2 -> u8
-        v9 = add v8, v1
+        v9 = add v1, v8
         store v9 at v2
         v11 = unchecked_add v1, u8 1
         jmp b1(v11)
@@ -497,7 +497,7 @@ fn for_loop_inclusive_unknown_range_with_break() {
         jmp b3()
       b5():
         v10 = load v3 -> u8
-        v11 = add v10, v2
+        v11 = add v2, v10
         store v11 at v3
         v13 = unchecked_add v2, u8 1
         jmp b1(v13)
@@ -511,7 +511,7 @@ fn for_loop_inclusive_unknown_range_with_break() {
         jmp b7()
       b9():
         v20 = load v3 -> u8
-        v21 = add v20, v1
+        v21 = add v1, v20
         store v21 at v3
         jmp b7()
     }
@@ -581,7 +581,7 @@ fn for_loop_inclusive_max_value_to_max_value() {
         jmpif v6 then: b2(), else: b3()
       b2():
         v11 = load v1 -> u8
-        v12 = add v11, v0
+        v12 = add v0, v11
         store v12 at v1
         v14 = unchecked_add v0, u8 1
         jmp b1(v14)

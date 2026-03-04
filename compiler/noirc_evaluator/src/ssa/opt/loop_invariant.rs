@@ -1225,7 +1225,7 @@ mod tests {
         brillig(inline) fn main f0 {
           b0(v0: i32, v1: i32):
             v3 = unchecked_mul v0, v1
-            v4 = unchecked_mul v3, v0
+            v4 = unchecked_mul v0, v3
             v6 = eq v4, i32 12
             constrain v4 == i32 12
             jmp b1(i32 0)
@@ -1356,7 +1356,7 @@ mod tests {
             return
           b3():
             v10 = array_get v6, index v2 -> u32
-            v11 = eq v10, v0
+            v11 = eq v0, v10
             constrain v10 == v0
             jmp b4(u32 0)
           b4(v3: u32):
@@ -1367,7 +1367,7 @@ mod tests {
             jmp b1(v19)
           b6():
             v13 = array_get v6, index v3 -> u32
-            v14 = eq v13, v0
+            v14 = eq v0, v13
             constrain v13 == v0
             jmp b7(u32 0)
           b7(v4: u32):
@@ -2822,7 +2822,7 @@ mod control_dependence {
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: u32, v1: u32):
             v3 = unchecked_mul v0, v1
-            v4 = unchecked_mul v3, v0
+            v4 = unchecked_mul v0, v3
             jmp b1(u32 0)
           b1(v2: u32):
             v6 = lt v2, v1
@@ -2877,7 +2877,7 @@ mod control_dependence {
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: u32, v1: u32):
             v3 = mul v0, v1
-            v4 = mul v3, v0
+            v4 = mul v0, v3
             call f1(v4)
             jmp b1(u32 0)
           b1(v2: u32):
@@ -3456,16 +3456,16 @@ mod control_dependence {
             v6 = not v5
             v7 = cast v1 as Field
             v8 = cast v5 as Field
-            v9 = mul v8, v7
+            v9 = mul v7, v8
             v11 = sub Field 256, v7
             v12 = cast v6 as Field
-            v13 = mul v12, v11
+            v13 = mul v11, v12
             v14 = add v9, v13
             v16 = mul v14, Field 127
             v17 = truncate v16 to 8 bits, max_bit_size: 254
             v18 = not v5
             v19 = cast v18 as u8
-            v20 = unchecked_add u8 128, v19
+            v20 = unchecked_add v19, u8 128
             jmp b1(u32 0)
           b1(v2: u32):
             v22 = eq v2, u32 0
