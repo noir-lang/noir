@@ -578,23 +578,41 @@ impl Loop {
             return None;
         }
 
+        let Some(TerminatorInstruction::JmpIf { then_destination, .. }) = header.terminator()
+        else {
+            return None;
+        };
+
+        let then_branch_is_body = self.blocks.contains(then_destination);
+
         match &dfg[instructions[0]] {
+            // Most loops will expect the `then` block to be the body. In unconstrained code it is
+            // possible to write `loop`s that use the else branch as a body. We return `None`
+            // conservatively in this case.
             Instruction::Binary(Binary { lhs: _, operator: BinaryOp::Lt, rhs }) => {
-                dfg.get_integer_constant(*rhs)
+                if then_branch_is_body {
+                    dfg.get_integer_constant(*rhs)
+                } else {
+                    None
+                }
             }
             Instruction::Binary(Binary { lhs: _, operator: BinaryOp::Eq, rhs }) => {
                 // `for i in 0..1` is turned into:
                 // b1(v0: u32):
                 //   v12 = eq v0, u32 0
                 //   jmpif v12 then: b2, else: b3
-                dfg.get_integer_constant(*rhs).map(|c| c.inc())
+                //
+                // If `b2` is the loop body: Loop exits when v == rhs; upper = rhs + 1.
+                // If `b3` is the loop body: Loop exits when v == rhs; upper = rhs.
+                let const_rhs = dfg.get_integer_constant(*rhs)?;
+                if then_branch_is_body { Some(const_rhs.inc()) } else { Some(const_rhs) }
             }
             Instruction::Not(_) => {
                 // We simplify equality operations with booleans like `(boolean == false)` into `!boolean`.
                 // Thus, using a u1 in a loop bound can possibly lead to a Not instruction
                 // as a loop header's jump condition.
                 //
-                // `for i in 0..1` is turned into:
+                // Standard (then=body): `for i in 0..1` is turned into:
                 //  b1(v0: u1):
                 //    v2 = eq v0, u32 0
                 //    jmpif v2 then: b2, else: b3
@@ -603,18 +621,21 @@ impl Loop {
                 //  b1(v0: u1):
                 //    v2 = not v0
                 //    jmpif v2 then: b2, else: b3
-                Some(IntegerConstant::Unsigned { value: 1, bit_size: 1 })
+                if then_branch_is_body {
+                    Some(IntegerConstant::Unsigned { value: 1, bit_size: 1 })
+                } else {
+                    None
+                }
             }
-            Instruction::Cast(_, _) => {
-                // A cast of a constant would already be simplified
-                None
-            }
-            _ => {
-                // Unrecognized instruction pattern — cannot determine the upper bound.
-                // This can happen when mem2reg promotes variables, giving the loop header
-                // block parameters that are not related to the induction variable.
-                None
-            }
+            // A cast of a constant would already be simplified
+            Instruction::Cast(_, _) => None,
+            // _ => {
+            //     // Unrecognized instruction pattern — cannot determine the upper bound.
+            //     // This can happen when mem2reg promotes variables, giving the loop header
+            //     // block parameters that are not related to the induction variable.
+            //     None
+            // }
+            other => panic!("Unexpected instruction in header: {other:?}"),
         }
     }
 
@@ -2125,8 +2146,9 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "ICE: overflow while incrementing constant")]
     fn unroll_loop_upper_bound_saturated() {
+        // We need to avoid overflow when the loop bounds is `u128::MAX`. In this case,
+        // the loop body is in the `else` case so we fail to unroll entirely.
         let ssa = format!(
             r#"
         acir(inline) fn main f0 {{
@@ -2155,7 +2177,7 @@ mod tests {
             loop_.get_pre_header(function, &loops.cfg).expect("Should have a pre_header");
         let (lower, upper) =
             loop_.get_const_bounds(&function.dfg, pre_header).expect("bounds are numeric const");
-        assert_ne!(lower, upper);
+        assert_eq!(lower, upper);
     }
 
     /// Prior passes can place non-comparison instructions (like MakeArray) into a loop header block
@@ -2196,5 +2218,54 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         // This should panic because b1 has a constant-condition `jmpif u1 0`.
         let _ = ssa.unroll_loops_iteratively(None, FORCE_UNROLL_THRESHOLD);
+    }
+
+    #[test]
+    fn handles_jmpif_args() {
+        let src = r#"
+            brillig(inline) predicate_pure fn main f0 {
+              b0():
+                v0 = make_array [] : [i32]
+                call f1(u32 0, v0)
+                return
+            }
+            brillig(inline) predicate_pure fn iter_0_times f1 {
+              b0(v0: u32, v1: [i32]):
+                jmp b1(u32 0)
+              b1(v2: u32):
+                v4 = eq v2, u32 0
+                jmpif v4 then: b2(), else: b3()
+              b2():
+                jmp b4()
+              b3():
+                v6 = add v2, u32 1
+                v8 = lt u32 10000, v0
+                constrain v8 == u1 1, "Index out of bounds"
+                v10 = array_get v1, index u32 10000 -> i32
+                jmp b5()
+              b4():
+                return
+              b5():
+                jmp b1(v6)
+            }
+            "#;
+        let (ssa, errors) = try_unroll_loops(Ssa::from_str(src).unwrap());
+        assert_eq!(errors.len(), 0, "Unroll should have no errors");
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = make_array [] : [i32]
+            call f1(u32 0, v0)
+            return
+        }
+        brillig(inline) predicate_pure fn iter_0_times f1 {
+          b0(v0: u32, v1: [i32]):
+            jmp b1()
+          b1():
+            jmp b2()
+          b2():
+            return
+        }
+        ");
     }
 }
