@@ -512,12 +512,20 @@ fn remove_and_replace_with_defaults(
         let typ = &context.dfg.type_of_value(*result_id);
         if matches!(typ, Type::Vector(_)) {
             let Some(len) = context.dfg.try_get_vector_capacity(*result_id) else {
+                // If we can't figure out the capacity of the vector, then we cannot safely replace it with defaults.
                 return;
             };
-            replacements[i - 1].1 = context.dfg.make_constant(
-                FieldElement::from(len.to_usize()),
-                NumericType::Unsigned { bit_size: 32 },
-            );
+            // Check if this result is preceded the semantic length.
+            let follows_semantic_length = i > 0
+                && context.dfg.type_of_value(result_ids[i - 1]) == Type::unsigned(32)
+                && matches!(context.instruction(), Instruction::Call { .. });
+
+            if follows_semantic_length {
+                replacements[i - 1].1 = context.dfg.make_constant(
+                    FieldElement::from(len.to_usize()),
+                    NumericType::Unsigned { bit_size: 32 },
+                );
+            }
             replacements.push((
                 *result_id,
                 zeroed_vector_of_size(context.dfg, func_id, block_id, typ, len.to_usize()),
@@ -526,7 +534,10 @@ fn remove_and_replace_with_defaults(
             replacements.push((*result_id, zeroed_value(context.dfg, func_id, block_id, typ)));
         }
     }
+
+    // Only remove the current instruction if we haven't exited early.
     context.remove_current_instruction();
+
     for (result_id, default_id) in replacements {
         context.replace_value(result_id, default_id);
     }
