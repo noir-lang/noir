@@ -370,6 +370,15 @@ pub enum QuotedType {
 /// the binding to later be undone if needed.
 pub type TypeBindings = HashMap<TypeVariableId, (TypeVariable, Kind, Type)>;
 
+/// Resolve all indirections in a set of type bindings by calling
+/// `follow_bindings` on every kind and type in the map.
+pub fn resolve_type_bindings(bindings: &mut TypeBindings) {
+    for (_type_var, kind, binding) in bindings.values_mut() {
+        *kind = kind.follow_bindings();
+        *binding = binding.follow_bindings();
+    }
+}
+
 /// Pretty print type bindings for debugging
 #[allow(unused)]
 pub fn type_bindings_to_string(bindings: &TypeBindings) -> String {
