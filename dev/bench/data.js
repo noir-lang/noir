@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772727949856,
+  "lastUpdate": 1772734242599,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23186,48 +23186,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "48245f615a57978946b3685cd22b331bbfc9980c",
-          "message": "fix: resolve imports in batches (#11583)",
-          "timestamp": "2026-02-26T16:07:17Z",
-          "tree_id": "0c7e39983be285d0bb831bed35d99d19e3b05d74",
-          "url": "https://github.com/noir-lang/noir/commit/48245f615a57978946b3685cd22b331bbfc9980c"
-        },
-        "date": 1772123703155,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 242722,
-            "range": "± 5586",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 214516,
-            "range": "± 1791",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2208471,
-            "range": "± 2554",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "a1793afd174cb0a2baa296698a10da0b232d8d27",
           "message": "chore: remove unnecessary `mut` in the stdlib (#11699)",
           "timestamp": "2026-02-26T16:24:39Z",
@@ -25269,6 +25227,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2745496,
             "range": "± 2504",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "117745686a817e64169305a563a51165e899323b",
+          "message": "fix: keep vector length for zero types (#11601)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
+          "timestamp": "2026-03-05T16:15:18Z",
+          "tree_id": "99df179b41c37408fddb2ebfa3842b5cec957323",
+          "url": "https://github.com/noir-lang/noir/commit/117745686a817e64169305a563a51165e899323b"
+        },
+        "date": 1772734197137,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 253283,
+            "range": "± 679",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 222370,
+            "range": "± 3447",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2744830,
+            "range": "± 3184",
             "unit": "ns/iter"
           }
         ]
