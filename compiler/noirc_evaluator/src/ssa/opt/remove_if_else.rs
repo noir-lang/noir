@@ -488,6 +488,7 @@ impl Context {
     }
 }
 
+#[derive(Debug)]
 enum SizeChange {
     None,
     /// Make the size of the new vector equal to the old array.
