@@ -3706,4 +3706,43 @@ mod control_dependence {
         // rather than creating a new one
         assert!(!ssa_string.contains("inc_rc"), "ArrayGet should not add inc_rc");
     }
+
+    #[test]
+    fn does_not_hoist_failing_constraint() {
+        // LICM must not hoist the failing constraint out of b3.
+        // This case is notable since the loop body is in the else branch instead of the then
+        // branch. This can occur in real code e.g. `loop { if i == 0 { break } else { body } }`
+        // The add is converted to unchecked_add which is a bit odd but since the branch is
+        // expected to never run it is fine.
+        let src = r#"
+            brillig(inline) predicate_pure fn main f0 {
+              b0():
+                jmp b1(u32 0)
+              b1(v0: u32):
+                v2 = eq v0, u32 0
+                jmpif v2 then: b2(), else: b3()
+              b2():
+                return
+              b3():
+                v4 = add v0, u32 1
+                constrain u1 0 == u1 1, "Index out of bounds"
+                jmp b1(v4)
+            }"#;
+        let ssa = Ssa::from_str(src).unwrap().loop_invariant_code_motion();
+        assert_ssa_snapshot!(ssa, @r#"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v2 = eq v0, u32 0
+            jmpif v2 then: b2(), else: b3()
+          b2():
+            return
+          b3():
+            v4 = unchecked_add v0, u32 1
+            constrain u1 0 == u1 1, "Index out of bounds"
+            jmp b1(v4)
+        }
+        "#);
+    }
 }
