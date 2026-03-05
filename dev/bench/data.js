@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772737416902,
+  "lastUpdate": 1772737756718,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23176,48 +23176,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "c7f68162779a8fbdb960cda210a94d4c04bbd23d",
-          "message": "chore: remove redundant clones and enforce in clippy (#11705)",
-          "timestamp": "2026-02-26T18:01:32Z",
-          "tree_id": "d490da307f75147312160b2c0af52c72d60a73bf",
-          "url": "https://github.com/noir-lang/noir/commit/c7f68162779a8fbdb960cda210a94d4c04bbd23d"
-        },
-        "date": 1772130518817,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 256443,
-            "range": "± 753",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 225975,
-            "range": "± 6164",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2730284,
-            "range": "± 1580",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -25269,6 +25227,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2206840,
             "range": "± 62404",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "0c0f3f9b660bdc58bfecf52aeca714652268c790",
+          "message": "chore: add tests showing how vector_insert is simplified (#11787)",
+          "timestamp": "2026-03-05T18:31:52Z",
+          "tree_id": "ba736e1427030f5f8ba365d0e108ac747045b66a",
+          "url": "https://github.com/noir-lang/noir/commit/0c0f3f9b660bdc58bfecf52aeca714652268c790"
+        },
+        "date": 1772737694729,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 252916,
+            "range": "± 627",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 221382,
+            "range": "± 3140",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2743837,
+            "range": "± 1577",
             "unit": "ns/iter"
           }
         ]
