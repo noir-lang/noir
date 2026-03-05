@@ -19,6 +19,7 @@ use crate::ast::{
 use crate::graph::CrateId;
 use crate::hir::comptime;
 use crate::hir::def_collector::dc_crate::{CompilationError, UnresolvedTrait, UnresolvedTypeAlias};
+use crate::hir::def_collector::errors::DefCollectorErrorKind;
 use crate::hir::def_map::{LocalModuleId, ModuleDefId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir::type_check::generics::TraitGenerics;
@@ -348,7 +349,7 @@ pub enum TraitImplKind {
     ///
     /// A `Prepared` is eventually replaced by a `Normal` implementation, at which
     /// point we can look up the final `TraitImpl` in the node interner.
-    Prepared(TraitImplId),
+    Prepared(TraitImplId, Location),
 }
 
 /// When searching for a trait impl, these are the types of errors we can expect
@@ -1021,10 +1022,11 @@ impl NodeInterner {
         }
     }
 
-    /// Adds a non-trait method to a type.
+    /// Adds a method to a type.
     ///
-    /// Returns `Some(duplicate)` if a matching method was already defined.
-    /// Returns `None` otherwise.
+    /// For inherent (non-trait) methods, this checks for overlapping implementations.
+    /// Returns `Ok(())` if the method was added successfully.
+    /// Returns `Err(error)` if there was an error (e.g., overlapping impl or unsupported type).
     pub fn add_method(
         &mut self,
         self_type: &Type,
@@ -1047,25 +1049,26 @@ impl NodeInterner {
                     return Err(error.into());
                 };
 
-                if trait_id.is_none() && matches!(self_type, Type::DataType(..)) {
-                    let check_self_param = false;
-                    if let Some(existing) =
-                        self.lookup_direct_method(self_type, &method_name, check_self_param)
-                    {
-                        let first_location = self.function_ident(&existing).location();
-                        let second_location = self.function_ident(&method_id).location();
-                        let error = ResolverError::DuplicateDefinition {
-                            name: method_name,
-                            first_location,
-                            second_location,
-                        };
-                        return Err(error.into());
-                    }
+                let typ = self_type.clone();
+
+                // For inherent (non-trait) methods, check for overlapping implementations.
+                if trait_id.is_none()
+                    && let Some(existing_methods) =
+                        self.methods.get(&key).and_then(|m| m.get(&method_name))
+                    && let Some((existing_method, existing_type)) =
+                        existing_methods.find_overlapping_method(&typ, self)
+                {
+                    let prev_location = self.function_ident(&existing_method).location();
+                    let location = self.function_ident(&method_id).location();
+                    let error = DefCollectorErrorKind::OverlappingImpl {
+                        typ: existing_type,
+                        location,
+                        prev_location,
+                    };
+                    return Err(error.into());
                 }
 
-                // Only remember the actual type if it's FieldOrInt,
-                // so later we can disambiguate on calls like `u32::call`.
-                let typ = self_type.clone();
+                // Add the method to the collection
                 self.methods
                     .entry(key)
                     .or_default()
@@ -1605,7 +1608,9 @@ impl NodeInterner {
                 &parent_bound.trait_generics.ordered,
                 &parent_bound.trait_generics.named,
             ) {
-                Ok((TraitImplKind::Normal(impl_id), _) | (TraitImplKind::Prepared(impl_id), _)) => {
+                Ok(
+                    (TraitImplKind::Normal(impl_id), _) | (TraitImplKind::Prepared(impl_id, _), _),
+                ) => {
                     let ordered_generics = self.get_ordered_generics_for_impl(impl_id);
                     self.trait_to_impl_bindings_helper(
                         trait_id,
@@ -1664,7 +1669,7 @@ impl NodeInterner {
     /// changes, to clear the definitions of the previous version of the file.
     pub fn clear_in_file(&mut self, file: FileId) {
         // Clear in methods
-        for (_key, methods) in self.methods.iter_mut() {
+        for methods in self.methods.values_mut() {
             for (_name, methods) in methods.iter_mut() {
                 methods.direct.retain(|method| {
                     let func_id = method.method;
@@ -1679,12 +1684,12 @@ impl NodeInterner {
         }
 
         // Clear in auto import names
-        for (_name, entries) in self.auto_import_names.iter_mut() {
+        for entries in self.auto_import_names.values_mut() {
             entries.retain(|entry| entry.file != file);
         }
 
         // Clear in reexports
-        for (_module_def_if, reexports) in self.reexports.iter_mut() {
+        for reexports in self.reexports.values_mut() {
             reexports.retain(|reexport| reexport.name.location().file != file);
         }
 

@@ -5,6 +5,7 @@ use std::vec;
 
 use acvm::{AcirField, FieldElement};
 use fm::{FILE_EXTENSION, FileId, FileManager};
+use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 use num_bigint::BigUint;
 use num_traits::Num;
@@ -90,14 +91,15 @@ pub fn collect_defs(
     ));
 
     // Then add the imports to defCollector to resolve once all modules in the hierarchy have been resolved
-    for import in ast.imports {
-        collector.def_collector.imports.push(ImportDirective {
+    for imports in ast.imports {
+        let directives = vecmap(imports, |import| ImportDirective {
             visibility: import.visibility,
             module_id: collector.module_id,
             path: import.path,
             alias: import.alias,
             is_prelude: false,
         });
+        collector.def_collector.imports.push(directives);
     }
 
     errors.extend(collector.collect_globals(context, ast.globals, crate_id));

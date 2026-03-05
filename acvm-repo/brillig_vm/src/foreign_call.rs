@@ -287,7 +287,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                         ForeignCallParam::Single(value) => {
                             self.write_value_to_memory(*value_addr, value, *bit_size)?;
                         }
-                        _ => {
+                        ForeignCallParam::Array(_) => {
                             return Err(format!(
                                 "Function result size does not match brillig bytecode. Expected 1 result but got {output:?}"
                             ));

@@ -616,7 +616,7 @@ impl DocItemBuilder<'_> {
         let func_meta = self.interner.function_meta(&func_id);
         let unconstrained = func_meta.is_unconstrained();
         let comptime = modifiers.is_comptime;
-        let name = modifiers.name.to_string();
+        let name = modifiers.name.clone();
         let comments = self.doc_comments(ReferenceId::Function(func_id));
         let generics = vecmap(&func_meta.direct_generics, |generic| self.convert_generic(generic));
         let params = vecmap(func_meta.parameters.iter(), |(pattern, typ, _visibility)| {
@@ -832,7 +832,7 @@ impl DocItemBuilder<'_> {
         match pattern {
             HirPattern::Identifier(ident) => {
                 let definition = self.interner.definition(ident.id);
-                definition.name.to_string()
+                definition.name.clone()
             }
             HirPattern::Mutable(inner_pattern, _) => self.pattern_to_string(inner_pattern),
             HirPattern::Tuple(..) | HirPattern::Struct(..) => "_".to_string(),

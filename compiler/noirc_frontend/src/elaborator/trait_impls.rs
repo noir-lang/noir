@@ -258,7 +258,7 @@ impl Elaborator<'_> {
                 Err(error) => self.push_err(error),
                 Ok(Err(prev_location)) => {
                     self.push_err(DefCollectorErrorKind::OverlappingImpl {
-                        typ: self_type.clone(),
+                        typ: self_type,
                         location: self_type_location,
                         prev_location,
                     });
@@ -440,7 +440,7 @@ impl Elaborator<'_> {
         }
 
         let mut substituted_method_ids = HashSet::default();
-        for method_constraint in method.trait_constraints.iter() {
+        for method_constraint in &method.trait_constraints {
             let substituted_constraint_type = method_constraint.typ.substitute(&bindings);
             let substituted_trait_generics = method_constraint
                 .trait_bound
@@ -523,7 +523,7 @@ impl Elaborator<'_> {
         for (name, typ, expr) in trait_impl.associated_constants.drain(..) {
             let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::AssociatedType);
             let resolved_type =
-                typ.map(|typ| self.resolve_type(typ, wildcard_allowed)).unwrap_or(Type::Error);
+                typ.map_or(Type::Error, |typ| self.resolve_type(typ, wildcard_allowed));
             let kind = Kind::numeric(resolved_type);
             let location = expr.location;
             let typ = match UnresolvedTypeExpression::from_expr(expr, location) {
@@ -834,6 +834,7 @@ impl Elaborator<'_> {
                 trait_id,
                 impl_id,
                 impl_generics,
+                trait_impl.object_type.location,
             );
         }
 
@@ -965,7 +966,7 @@ impl Elaborator<'_> {
         let constraints = self.resolve_trait_constraints_and_add_to_scope(&trait_impl.where_clause);
 
         // Attach any trait constraints on the impl to the function
-        for (_, _, method) in trait_impl.methods.functions.iter_mut() {
+        for (_, _, method) in &mut trait_impl.methods.functions {
             method.def.where_clause.append(&mut trait_impl.where_clause.clone());
         }
 
@@ -995,7 +996,7 @@ impl Elaborator<'_> {
         let associated_types_behind_type_vars = vecmap(&associated_types, |(name, _typ, kind)| {
             let new_generic_id = self.interner.next_type_variable_id();
             let type_var = TypeVariable::unbound(new_generic_id, kind.clone());
-            let typ = type_var.clone().into_named_generic(
+            let typ = type_var.into_named_generic(
                 &Rc::new(name.to_string()),
                 trait_name.as_ref().map(|tn| (object.as_str(), tn.as_str())),
             );

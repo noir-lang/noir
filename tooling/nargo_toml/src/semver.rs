@@ -115,11 +115,10 @@ mod tests {
         }
 
         package.compiler_required_version = Some("0.2.0".to_string());
-        let got_err = match semver_check_package(&package, &compiler_version) {
-            Ok(_) => panic!(
+        let Err(got_err) = semver_check_package(&package, &compiler_version) else {
+            panic!(
                 "semver check should have failed. compiler version is 0.1.0 and required version from the package is 0.2.0"
-            ),
-            Err(err) => err,
+            )
         };
 
         let expected_version_error = SemverError::IncompatibleVersion {
@@ -158,7 +157,7 @@ mod tests {
 
         package.dependencies.insert(
             CrateName::from_str("test_dep_valid").unwrap(),
-            Dependency::Local { package: valid_dependency.clone() },
+            Dependency::Local { package: valid_dependency },
         );
 
         if let Err(err) = semver_check_package(&package, &compiler_version) {
@@ -169,13 +168,12 @@ mod tests {
 
         package.dependencies.insert(
             CrateName::from_str("test_dep_invalid").unwrap(),
-            Dependency::Local { package: invalid_dependency.clone() },
+            Dependency::Local { package: invalid_dependency },
         );
-        let got_err = match semver_check_package(&package, &compiler_version) {
-            Ok(_) => panic!(
+        let Err(got_err) = semver_check_package(&package, &compiler_version) else {
+            panic!(
                 "semver check should have failed. compiler version is 0.1.0 and required version from the package is 0.2.0"
-            ),
-            Err(err) => err,
+            )
         };
 
         let expected_version_error = SemverError::IncompatibleVersion {

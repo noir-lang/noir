@@ -42,10 +42,8 @@ impl Ssa {
 
             // Functions which are inline targets will be processed in later passes.
             // Here we want to treat the functions which will be inlined into them.
-            let is_target = inline_infos
-                .get(&id)
-                .map(|info| info.is_inline_target(&function.dfg))
-                .unwrap_or_default();
+            let is_target =
+                inline_infos.get(&id).is_some_and(|info| info.is_inline_target(&function.dfg));
 
             if is_heavy || is_target {
                 continue;
@@ -104,7 +102,7 @@ mod tests {
         acir(inline) fn foo f0 {
           b0(v0: u32, v1: Field):
             v2 = eq v0, u32 1
-            jmpif v2 then: b1, else: b2
+            jmpif v2 then: b1(), else: b2()
           b1():
             v6 = add v0, u32 1
             jmp b3(v6, v1)
@@ -128,7 +126,7 @@ mod tests {
         acir(inline) fn foo f1 {
           b0(v0: u32):
             v2 = eq v0, u32 1
-            jmpif v2 then: b1, else: b2
+            jmpif v2 then: b1(), else: b2()
           b1():
             v4 = add v0, u32 1
             jmp b3()

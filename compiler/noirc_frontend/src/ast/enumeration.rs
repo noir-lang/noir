@@ -46,7 +46,7 @@ impl Display for NoirEnumeration {
 
         writeln!(f, "enum {}{} {{", self.name, generics)?;
 
-        for variant in self.variants.iter() {
+        for variant in &self.variants {
             if let Some(parameters) = &variant.item.parameters {
                 let parameters = vecmap(parameters, ToString::to_string).join(", ");
                 writeln!(f, "    {}({}),", variant.item.name, parameters)?;

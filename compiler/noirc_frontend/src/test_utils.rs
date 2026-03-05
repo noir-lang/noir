@@ -55,9 +55,14 @@ pub fn get_monomorphized(src: &str) -> Result<Program, MonomorphizationError> {
 /// Helper to monomorphize code which needs some parts of the stdlib repeated for the test.
 pub fn get_monomorphized_with_stdlib(
     user_src: &str,
-    stdlib_src: &str,
+    stdlib_src: &[&str],
 ) -> Result<Program, MonomorphizationError> {
-    let src = format!("{stdlib_src}\n\n{user_src}");
+    let mut src = String::new();
+    for s in stdlib_src {
+        src.push_str(s);
+        src.push_str("\n\n");
+    }
+    src.push_str(user_src);
     get_monomorphized_with_options(
         &src,
         GetProgramOptions { root_and_stdlib: true, ..Default::default() },
@@ -156,7 +161,7 @@ pub(crate) fn get_program_with_options(
             None,
             location,
             Vec::new(),
-            inner_attributes.clone(),
+            inner_attributes,
             false, // is contract
             false, // is struct
         );
@@ -265,6 +270,12 @@ pub mod stdlib_src {
 
         #[builtin(modulus_le_bytes)]
         pub fn modulus_le_bytes() -> [u8] {}
+    ";
+
+    // This is also a `comptime` function in stdlib.
+    pub const POSEIDON2: &str = "
+        #[foreign(poseidon2_config_state_size)]
+        pub fn poseidon2_config_state_size() -> u32 {}
     ";
 
     pub const PRINT: &str = "

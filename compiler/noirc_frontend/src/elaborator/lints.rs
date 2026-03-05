@@ -463,7 +463,7 @@ pub(crate) fn check_integer_literal_fits_its_type(
                 if value.absolute_value() > max.into() || value.is_negative() {
                     return Some(TypeCheckError::IntegerLiteralDoesNotFitItsType {
                         expr: value,
-                        ty: typ.clone(),
+                        ty: typ,
                         range: format!("0..={max}"),
                         location,
                     });
@@ -480,7 +480,7 @@ pub(crate) fn check_integer_literal_fits_its_type(
                 if (is_negative && abs > min.into()) || (!is_negative && abs > max.into()) {
                     return Some(TypeCheckError::IntegerLiteralDoesNotFitItsType {
                         expr: value,
-                        ty: typ.clone(),
+                        ty: typ,
                         range: format!("-{min}..={max}"),
                         location,
                     });
@@ -547,14 +547,14 @@ fn can_return_without_recursing(interner: &NodeInterner, func_id: FuncId, expr_i
         HirExpression::Infix(e) => check(e.lhs) && check(e.rhs),
         HirExpression::Index(e) => check(e.collection) && check(e.index),
         HirExpression::MemberAccess(e) => check(e.lhs),
-        HirExpression::Call(e) => check(e.func) && e.arguments.iter().cloned().all(check),
-        HirExpression::Constrain(e) => check(e.0) && e.2.map(check).unwrap_or(true),
+        HirExpression::Call(e) => check(e.func) && e.arguments.iter().copied().all(check),
+        HirExpression::Constrain(e) => check(e.0) && e.2.is_none_or(check),
         HirExpression::Cast(e) => check(e.lhs),
         HirExpression::If(e) => {
-            check(e.condition) && (check(e.consequence) || e.alternative.map(check).unwrap_or(true))
+            check(e.condition) && (check(e.consequence) || e.alternative.is_none_or(check))
         }
         HirExpression::Match(e) => can_return_without_recursing_match(interner, func_id, &e),
-        HirExpression::Tuple(e) => e.iter().cloned().all(check),
+        HirExpression::Tuple(e) => e.iter().copied().all(check),
         HirExpression::Unsafe(b) => check_block(b),
         // Rust doesn't check the lambda body (it might not be called).
         HirExpression::Lambda(_)

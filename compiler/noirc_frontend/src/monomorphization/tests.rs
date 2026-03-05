@@ -691,7 +691,7 @@ fn infix_trait_method() {
     }
     "#;
 
-    let program = get_monomorphized_with_stdlib(src, stdlib_src::EQ).unwrap();
+    let program = get_monomorphized_with_stdlib(src, &[stdlib_src::EQ]).unwrap();
 
     insta::assert_snapshot!(program, @r"
     fn main$f0() -> pub bool {
@@ -730,7 +730,7 @@ fn prefix_trait_method() {
     }
     "#;
 
-    let program = get_monomorphized_with_stdlib(src, stdlib_src::NEG).unwrap();
+    let program = get_monomorphized_with_stdlib(src, &[stdlib_src::NEG]).unwrap();
 
     insta::assert_snapshot!(program, @r"
     fn main$f0() -> () {
@@ -1146,7 +1146,7 @@ fn evaluates_builtin_zeroed() {
     }
     "#;
 
-    let program = get_monomorphized_with_stdlib(src, stdlib_src::ZEROED).unwrap();
+    let program = get_monomorphized_with_stdlib(src, &[stdlib_src::ZEROED]).unwrap();
 
     // Note that the zeroed value of a `str<3>` is `"\0\0\0"`, which prints as "".
     insta::assert_snapshot!(program, @"\nfn main$f0() -> () {\n    let _a$l0 = [(0, \"\0\0\0\"), (0, \"\0\0\0\")]\n}");
@@ -1160,7 +1160,7 @@ fn evaluates_builtin_zeroed_function() {
     }
     "#;
 
-    let program = get_monomorphized_with_stdlib(src, stdlib_src::ZEROED).unwrap();
+    let program = get_monomorphized_with_stdlib(src, &[stdlib_src::ZEROED]).unwrap();
 
     insta::assert_snapshot!(program, @r"
     fn main$f0() -> () {
@@ -1187,7 +1187,7 @@ fn evaluates_builtin_checked_transmute() {
     }
     "#;
 
-    let program = get_monomorphized_with_stdlib(src, stdlib_src::CHECKED_TRANSMUTE).unwrap();
+    let program = get_monomorphized_with_stdlib(src, &[stdlib_src::CHECKED_TRANSMUTE]).unwrap();
 
     insta::assert_snapshot!(program, @r"
     fn main$f0() -> () {
@@ -1204,11 +1204,13 @@ fn wraps_aliased_builtin_functions() {
     let src = r#"
     fn main() {
         let f = modulus_num_bits;
+        let g = poseidon2_config_state_size;
         let _ = f();
     }
     "#;
 
-    let program = get_monomorphized_with_stdlib(src, stdlib_src::MODULUS).unwrap();
+    let program =
+        get_monomorphized_with_stdlib(src, &[stdlib_src::MODULUS, stdlib_src::POSEIDON2]).unwrap();
 
     // We are using `modulus_num_bits` as a function value.
     // The monomorphizer creates a function that returns a comptime value,
@@ -1216,7 +1218,8 @@ fn wraps_aliased_builtin_functions() {
     insta::assert_snapshot!(program, @r"
     fn main$f0() -> () {
         let f$l0 = (modulus_num_bits$f1, modulus_num_bits$f2);
-        let _$l1 = f$l0.0()
+        let g$l1 = (poseidon2_config_state_size$f3, poseidon2_config_state_size$f4);
+        let _$l2 = f$l0.0()
     }
     #[inline_always]
     fn modulus_num_bits$f1() -> u64 {
@@ -1225,6 +1228,14 @@ fn wraps_aliased_builtin_functions() {
     #[inline_always]
     unconstrained fn modulus_num_bits$f2() -> u64 {
         254
+    }
+    #[inline_always]
+    fn poseidon2_config_state_size$f3() -> u32 {
+        4
+    }
+    #[inline_always]
+    unconstrained fn poseidon2_config_state_size$f4() -> u32 {
+        4
     }
     ");
 }
@@ -1241,7 +1252,7 @@ fn evaluates_builtin_modulus_functions() {
     }
     "#;
 
-    let program = get_monomorphized_with_stdlib(src, stdlib_src::MODULUS).unwrap();
+    let program = get_monomorphized_with_stdlib(src, &[stdlib_src::MODULUS]).unwrap();
 
     insta::assert_snapshot!(program, @r"
     fn main$f0() -> () {
@@ -1255,6 +1266,23 @@ fn evaluates_builtin_modulus_functions() {
 }
 
 #[test]
+fn evaluates_foreign_poseidon2_config_function() {
+    let src = r#"
+    fn main() {
+        let _ = poseidon2_config_state_size();
+    }
+    "#;
+
+    let program = get_monomorphized_with_stdlib(src, &[stdlib_src::POSEIDON2]).unwrap();
+
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> () {
+        let _$l0 = 4
+    }
+    ");
+}
+
+#[test]
 fn does_not_evaluate_array_len() {
     let src = r#"
     fn main() -> pub u32 {
@@ -1263,7 +1291,7 @@ fn does_not_evaluate_array_len() {
     }
     "#;
 
-    let program = get_monomorphized_with_stdlib(src, stdlib_src::ARRAY_LEN).unwrap();
+    let program = get_monomorphized_with_stdlib(src, &[stdlib_src::ARRAY_LEN]).unwrap();
 
     // The evaluation of array_len has been moved to the SSA in #1736
     insta::assert_snapshot!(program, @r"
@@ -1310,7 +1338,7 @@ fn out_of_order_globals() {
 fn very_large_array() {
     let src = r#"
     fn main() {
-        // 1.3 billion elements 
+        // 1.3 billion elements
         let _arr: [Field; 1294967295] = [0; 1294967295];
     }
     "#;

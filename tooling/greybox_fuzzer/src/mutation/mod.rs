@@ -250,9 +250,8 @@ impl InputMutator {
             }
 
             AbiType::Struct { fields, .. } => {
-                let input_struct = match previous_input {
-                    InputValue::Struct(previous_input_struct) => previous_input_struct,
-                    _ => panic!("Mismatch of AbiType and InputValue should not happen"),
+                let InputValue::Struct(input_struct) = previous_input else {
+                    panic!("Mismatch of AbiType and InputValue should not happen");
                 };
                 let mut structural_mutation_directive = None;
                 let fields: Vec<(String, InputValue)> = fields
@@ -286,9 +285,8 @@ impl InputMutator {
             }
 
             AbiType::Tuple { fields } => {
-                let input_vector = match previous_input {
-                    InputValue::Vec(previous_input_vector) => previous_input_vector,
-                    _ => panic!("Mismatch of AbiType and InputValue should not happen"),
+                let InputValue::Vec(input_vector) = previous_input else {
+                    panic!("Mismatch of AbiType and InputValue should not happen");
                 };
                 let mut structural_mutation_directive = None;
                 let fields: Vec<_> = zip(fields, input_vector)
@@ -377,13 +375,11 @@ impl InputMutator {
             },
             AbiType::Array { length, typ } => {
                 let length = *length as usize;
-                let first_input_vector = match first_input {
-                    InputValue::Vec(previous_input_vector) => previous_input_vector,
-                    _ => panic!("Mismatch of AbiType and InputValue should not happen"),
+                let InputValue::Vec(first_input_vector) = first_input else {
+                    panic!("Mismatch of AbiType and InputValue should not happen");
                 };
-                let second_input_vector = match second_input {
-                    InputValue::Vec(previous_input_vector) => previous_input_vector,
-                    _ => panic!("Mismatch of AbiType and InputValue should not happen"),
+                let InputValue::Vec(second_input_vector) = second_input else {
+                    panic!("Mismatch of AbiType and InputValue should not happen");
                 };
                 assert!(!length.is_zero());
                 // If array is a single element, recurse
@@ -419,13 +415,11 @@ impl InputMutator {
 
             // Go over each structure member and pick according to unbalanced schedule
             AbiType::Struct { fields, .. } => {
-                let first_input_struct = match first_input {
-                    InputValue::Struct(previous_input_struct) => previous_input_struct,
-                    _ => panic!("Mismatch of AbiType and InputValue should not happen"),
+                let InputValue::Struct(first_input_struct) = first_input else {
+                    panic!("Mismatch of AbiType and InputValue should not happen");
                 };
-                let second_input_struct = match second_input {
-                    InputValue::Struct(previous_input_struct) => previous_input_struct,
-                    _ => panic!("Mismatch of AbiType and InputValue should not happen"),
+                let InputValue::Struct(second_input_struct) = second_input else {
+                    panic!("Mismatch of AbiType and InputValue should not happen");
                 };
                 let fields: Vec<(String, InputValue)> = fields
                     .iter()
@@ -448,13 +442,11 @@ impl InputMutator {
 
             // In case of tuple just go over each element and pick according to unbalanced schedule
             AbiType::Tuple { fields } => {
-                let first_input_vector = match first_input {
-                    InputValue::Vec(previous_input_vector) => previous_input_vector,
-                    _ => panic!("Mismatch of AbiType and InputValue should not happen"),
+                let InputValue::Vec(first_input_vector) = first_input else {
+                    panic!("Mismatch of AbiType and InputValue should not happen");
                 };
-                let second_input_vector = match second_input {
-                    InputValue::Vec(previous_input_vector) => previous_input_vector,
-                    _ => panic!("Mismatch of AbiType and InputValue should not happen"),
+                let InputValue::Vec(second_input_vector) = second_input else {
+                    panic!("Mismatch of AbiType and InputValue should not happen");
                 };
                 let fields: Vec<_> = zip(fields, first_input_vector)
                     .zip(second_input_vector)
@@ -484,13 +476,11 @@ impl InputMutator {
             // For array, struct and tuple we copy all the elements from the first vector apart from the element with weight selected by mutation
             AbiType::Array { length, typ } => {
                 let length = *length as usize;
-                let first_input_vector = match first_input {
-                    InputValue::Vec(previous_input_vector) => previous_input_vector,
-                    _ => panic!("Mismatch of AbiType and InputValue should not happen"),
+                let InputValue::Vec(first_input_vector) = first_input else {
+                    panic!("Mismatch of AbiType and InputValue should not happen");
                 };
-                let second_input_vector = match second_input {
-                    InputValue::Vec(previous_input_vector) => previous_input_vector,
-                    _ => panic!("Mismatch of AbiType and InputValue should not happen"),
+                let InputValue::Vec(second_input_vector) = second_input else {
+                    panic!("Mismatch of AbiType and InputValue should not happen");
                 };
                 assert!(!length.is_zero());
                 InputValue::Vec(
@@ -516,13 +506,11 @@ impl InputMutator {
             }
 
             AbiType::Struct { fields, .. } => {
-                let first_input_struct = match first_input {
-                    InputValue::Struct(previous_input_struct) => previous_input_struct,
-                    _ => panic!("Mismatch of AbiType and InputValue should not happen"),
+                let InputValue::Struct(first_input_struct) = first_input else {
+                    panic!("Mismatch of AbiType and InputValue should not happen");
                 };
-                let second_input_struct = match second_input {
-                    InputValue::Struct(previous_input_struct) => previous_input_struct,
-                    _ => panic!("Mismatch of AbiType and InputValue should not happen"),
+                let InputValue::Struct(second_input_struct) = second_input else {
+                    panic!("Mismatch of AbiType and InputValue should not happen");
                 };
                 let fields: Vec<(String, InputValue)> = fields
                     .iter()
@@ -552,13 +540,11 @@ impl InputMutator {
             }
 
             AbiType::Tuple { fields } => {
-                let first_input_vector = match first_input {
-                    InputValue::Vec(previous_input_vector) => previous_input_vector,
-                    _ => panic!("Mismatch of AbiType and InputValue should not happen"),
+                let InputValue::Vec(first_input_vector) = first_input else {
+                    panic!("Mismatch of AbiType and InputValue should not happen");
                 };
-                let second_input_vector = match second_input {
-                    InputValue::Vec(previous_input_vector) => previous_input_vector,
-                    _ => panic!("Mismatch of AbiType and InputValue should not happen"),
+                let InputValue::Vec(second_input_vector) = second_input else {
+                    panic!("Mismatch of AbiType and InputValue should not happen");
                 };
                 let fields: Vec<_> = zip(fields, first_input_vector)
                     .zip(second_input_vector)
