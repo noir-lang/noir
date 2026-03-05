@@ -923,3 +923,12 @@ fn cannot_assign_to_numeric_type_alias() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn errors_if_using_comptime_type_in_non_comptime_type_alias() {
+    let src = r#"
+    pub type Alias = Quoted;
+                     ^^^^^^ Comptime-only type `Quoted` cannot be used in non-comptime type alias
+    "#;
+    check_errors(src);
+}
