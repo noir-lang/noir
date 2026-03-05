@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772727796913,
+  "lastUpdate": 1772727798720,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -45060,95 +45060,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "4c95debef585ea029937e3c5d4514e58528fd6e5",
-          "message": "feat(cli): Add `--overwrite-return` option (#11697)",
-          "timestamp": "2026-02-26T14:58:46Z",
-          "tree_id": "b6e7b00faf39b4850140dccac510a7ec133041c3",
-          "url": "https://github.com/noir-lang/noir/commit/4c95debef585ea029937e3c5d4514e58528fd6e5"
-        },
-        "date": 1772120243763,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.037,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.059,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.005,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 0.003,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 0.002,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 0.003,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 0.001,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.002,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 0.029,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 0.034,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 0.002,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.025,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.016,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "79e5f954ab55edddb1242198b73f6270ceaeef44",
           "message": "fix(acir): Unify empty vector handling in pop (#11688)",
@@ -49479,6 +49390,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-tx-base-public",
             "value": 0.03,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 0.001,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.023,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.015,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "85aae2838b6b7d718675c485cd63b2929f184b3e",
+          "message": "fix(doc): double-reexport can lead to empty module (#11665)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-03-05T15:46:07Z",
+          "tree_id": "d75c77dd16e2ce097e0e7c8cd6b89a2dcfb15d4e",
+          "url": "https://github.com/noir-lang/noir/commit/85aae2838b6b7d718675c485cd63b2929f184b3e"
+        },
+        "date": 1772727748658,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.032,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.042,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.005,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 0.002,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 0.002,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 0.001,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.002,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 0.028,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 0.034,
             "unit": "s"
           },
           {
