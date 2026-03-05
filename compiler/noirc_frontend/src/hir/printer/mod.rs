@@ -870,17 +870,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         match value {
             Value::Unit => self.push_str("()"),
             Value::Bool(bool) => self.push_str(&bool.to_string()),
-            Value::Field(value) => self.push_str(&value.to_string()),
-            Value::I8(value) => self.push_str(&value.to_string()),
-            Value::I16(value) => self.push_str(&value.to_string()),
-            Value::I32(value) => self.push_str(&value.to_string()),
-            Value::I64(value) => self.push_str(&value.to_string()),
-            Value::U1(value) => self.push_str(&value.to_string()),
-            Value::U8(value) => self.push_str(&value.to_string()),
-            Value::U16(value) => self.push_str(&value.to_string()),
-            Value::U32(value) => self.push_str(&value.to_string()),
-            Value::U64(value) => self.push_str(&value.to_string()),
-            Value::U128(value) => self.push_str(&value.to_string()),
+            Value::Integer(int) => self.push_str(&int.to_string()),
             Value::String(bytes) => {
                 let string = String::from_utf8_lossy(bytes);
                 self.push_str(&format!("{string:?}"));
