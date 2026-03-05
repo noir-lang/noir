@@ -62,6 +62,7 @@ use crate::{
         expr::*,
         function::Parameters,
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
+        types::resolve_type_bindings,
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind},
 };
@@ -2984,10 +2985,7 @@ pub fn perform_impl_bindings(
             }
         })?;
 
-        for (_, kind, binding) in bindings.values_mut() {
-            *kind = kind.follow_bindings();
-            *binding = binding.follow_bindings();
-        }
+        resolve_type_bindings(&mut bindings);
 
         perform_instantiation_bindings(&bindings);
     }
