@@ -486,6 +486,10 @@ impl Elaborator<'_> {
 
     /// Reports an error if `typ` is a comptime-only type and we are not in a comptime item
     fn check_comptime_type_in_non_comptime_item(&mut self, typ: &Type, location: Location) {
+        if self.in_comptime_context() {
+            return;
+        }
+
         match typ {
             Type::Quoted(_) => (),
             Type::DataType(data_type, _) => {
@@ -501,10 +505,6 @@ impl Elaborator<'_> {
             _ => {
                 return;
             }
-        }
-
-        if self.in_comptime_context() {
-            return;
         }
 
         let item = match self.current_item {
