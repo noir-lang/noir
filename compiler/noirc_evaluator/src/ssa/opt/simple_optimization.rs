@@ -64,7 +64,7 @@ impl Function {
         F: FnMut(&mut SimpleOptimizationContext<'_, '_>) -> RtResult<()>,
     {
         let mut values_to_replace = ValueMapping::default();
-        let mut changed_values = HashSet::<ValueId>::new();
+        let mut dirty_values = HashSet::<ValueId>::new();
         let one = self.dfg.make_constant(FieldElement::from(1_u128), NumericType::bool());
         let reverse_post_order = PostOrder::with_function(self).into_vec_reverse();
         for block_id in reverse_post_order {
@@ -92,7 +92,7 @@ impl Function {
                     insert_current_instruction_at_callback_end: true,
                     enable_side_effects,
                     orig_instruction_hash,
-                    changed_values: &mut changed_values,
+                    dirty_values: &mut dirty_values,
                 };
                 f(&mut context)?;
 
@@ -119,7 +119,7 @@ pub(crate) struct SimpleOptimizationContext<'dfg, 'mapping> {
     values_to_replace: &'mapping mut ValueMapping,
     insert_current_instruction_at_callback_end: bool,
     orig_instruction_hash: u64,
-    changed_values: &'mapping mut HashSet<ValueId>,
+    dirty_values: &'mapping mut HashSet<ValueId>,
 }
 
 impl SimpleOptimizationContext<'_, '_> {
@@ -154,9 +154,8 @@ impl SimpleOptimizationContext<'_, '_> {
         // If the instruction changed, or if any of its values have changed, then there is a chance
         // that we can (or have to) simplify it before we insert it back into the block.
         let instruction_changed = self.has_instruction_changed();
-        let any_value_changed = !instruction_changed
-            && self.instruction().any_value(|value| self.changed_values.contains(&value));
-        let simplify = instruction_changed || any_value_changed;
+        let simplify = instruction_changed
+            || self.instruction().any_value(|value| self.dirty_values.contains(&value));
 
         if simplify {
             // Based on FunctionInserter::push_instruction_value.
@@ -183,7 +182,7 @@ impl SimpleOptimizationContext<'_, '_> {
                     // into `v2 = make_array [Field 0]`: `v2` didn't get a new result (it's not `v3`),
                     // but an instruction that uses `v2` could get simplified now when it wasn't before
                     // (an example is a call to `posiedon2_permutation(v2)`)
-                    self.changed_values.insert(results[i]);
+                    self.dirty_values.insert(results[i]);
                 }
 
                 self.values_to_replace.insert(results[i], new_results[i]);
