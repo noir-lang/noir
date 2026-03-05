@@ -34,7 +34,8 @@ use crate::{
         stmt::{HirLetStatement, HirPattern, HirStatement},
     },
     node_interner::{
-        DefinitionId, DefinitionKind, ExprId, FunctionModifiers, GlobalValue, ReferenceId, TypeId,
+        DefinitionId, DefinitionKind, DependencyId, ExprId, FunctionModifiers, GlobalValue,
+        ReferenceId, TypeId,
     },
     shared::Visibility,
     signed_field::SignedField,
@@ -121,6 +122,11 @@ impl Elaborator<'_> {
     pub(super) fn collect_enum_definitions(&mut self, enums: &BTreeMap<TypeId, UnresolvedEnum>) {
         for (type_id, typ) in enums {
             self.local_module = Some(typ.module_id);
+            self.current_item = Some(DependencyId::DataType(*type_id));
+
+            let previous_in_comptime_context =
+                std::mem::replace(&mut self.in_comptime_context, typ.enum_def.comptime);
+
             self.generics.clear();
 
             let datatype = self.interner.get_type(*type_id);
@@ -169,6 +175,9 @@ impl Elaborator<'_> {
             }
 
             self.resolving_ids.remove(type_id);
+
+            self.in_comptime_context = previous_in_comptime_context;
+            self.current_item = None;
         }
         self.generics.clear();
     }

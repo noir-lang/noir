@@ -710,6 +710,11 @@ impl<'a> Parser<'a> {
         self.unconstrained_not_applicable(modifiers);
     }
 
+    fn mutable_and_unconstrained_not_applicable(&mut self, modifiers: Modifiers) {
+        self.mutable_not_applicable(modifiers);
+        self.unconstrained_not_applicable(modifiers);
+    }
+
     fn mutable_not_applicable(&mut self, modifiers: Modifiers) {
         if let Some(location) = modifiers.mutable {
             self.push_error(ParserErrorReason::MutableNotApplicable, location);
