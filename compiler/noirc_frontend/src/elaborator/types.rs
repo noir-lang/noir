@@ -486,6 +486,10 @@ impl Elaborator<'_> {
 
     /// Reports an error if `typ` is a comptime-only type and we are not in a comptime item
     fn check_comptime_type_in_non_comptime_item(&mut self, typ: &Type, location: Location) {
+        if self.in_comptime_context() {
+            return;
+        }
+
         match typ {
             Type::Quoted(_) => (),
             Type::DataType(data_type, _) => {
@@ -503,15 +507,11 @@ impl Elaborator<'_> {
             }
         }
 
-        if self.in_comptime_context() {
-            return;
-        }
-
         let item = match self.current_item {
             Some(DependencyId::Function(_)) => "function",
             Some(DependencyId::Global(_)) => "global",
             Some(DependencyId::Alias(_)) => "type alias",
-            Some(DependencyId::Type(type_id)) => {
+            Some(DependencyId::DataType(type_id)) => {
                 if self.interner.get_type(type_id).borrow().is_struct() { "struct" } else { "enum" }
             }
             _ => {
