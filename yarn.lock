@@ -1998,9 +1998,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@nomicfoundation/hardhat-ethers@npm:^4.0.5":
-  version: 4.0.5
-  resolution: "@nomicfoundation/hardhat-ethers@npm:4.0.5"
+"@nomicfoundation/hardhat-ethers@npm:^4.0.6":
+  version: 4.0.6
+  resolution: "@nomicfoundation/hardhat-ethers@npm:4.0.6"
   dependencies:
     "@nomicfoundation/hardhat-errors": "npm:^3.0.7"
     "@nomicfoundation/hardhat-utils": "npm:^4.0.0"
@@ -2008,8 +2008,8 @@ __metadata:
     ethereum-cryptography: "npm:^2.2.1"
     ethers: "npm:^6.14.0"
   peerDependencies:
-    hardhat: ^3.0.7
-  checksum: 10/0fb7d0d7695f2a1f7f08c9e73b753223a008904f323de563b430273d1007758e3f931afdc91c3e34da7802632a019f1fb93169e8e3043b2692fabbee000bd6ef
+    hardhat: ^3.1.11
+  checksum: 10/a62bf9ee7c029ee56ab7730f7b5cf355032e917f8b9373a50460dba93b4dd264f618e528052d43bc42d6a22a6714ba0ec8147a0252f39d6a038b351a7cd4eaed
   languageName: node
   linkType: hard
 
@@ -7650,7 +7650,7 @@ __metadata:
     "@aztec/bb.js": "npm:4.0.0-nightly.20260120"
     "@noir-lang/noir_js": "workspace:*"
     "@noir-lang/noir_wasm": "workspace:*"
-    "@nomicfoundation/hardhat-ethers": "npm:^4.0.5"
+    "@nomicfoundation/hardhat-ethers": "npm:^4.0.6"
     "@nomicfoundation/hardhat-ethers-chai-matchers": "npm:^3.0.3"
     "@nomicfoundation/hardhat-ignition": "npm:^3.0.8"
     "@nomicfoundation/hardhat-ignition-ethers": "npm:^3.0.8"
