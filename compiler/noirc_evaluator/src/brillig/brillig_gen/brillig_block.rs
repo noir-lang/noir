@@ -699,7 +699,11 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 self.codegen_array_get(instruction_id, *array, *index, dfg);
             }
             Instruction::ArraySet { array, index, value, mutable } => {
-                self.codegen_array_set(instruction_id, *array, *index, *value, *mutable, dfg);
+                assert!(
+                    !mutable,
+                    "Brillig does not support mutable array_set, use Brillig's ref-counting instead"
+                );
+                self.codegen_array_set(instruction_id, *array, *index, *value, dfg);
             }
             Instruction::RangeCheck { value, max_bit_size, assert_message } => {
                 self.codegen_range_check(*value, *max_bit_size, assert_message.as_ref(), dfg);
