@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use acvm::{AcirField, FieldElement};
+use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_frontend::Shared;
 
