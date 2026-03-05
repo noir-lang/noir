@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772724176204,
+  "lastUpdate": 1772724195481,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23150,48 +23150,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "4c95debef585ea029937e3c5d4514e58528fd6e5",
-          "message": "feat(cli): Add `--overwrite-return` option (#11697)",
-          "timestamp": "2026-02-26T14:58:46Z",
-          "tree_id": "b6e7b00faf39b4850140dccac510a7ec133041c3",
-          "url": "https://github.com/noir-lang/noir/commit/4c95debef585ea029937e3c5d4514e58528fd6e5"
-        },
-        "date": 1772119651664,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 229762,
-            "range": "± 879",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 218669,
-            "range": "± 4988",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3148191,
-            "range": "± 2139",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "79e5f954ab55edddb1242198b73f6270ceaeef44",
           "message": "fix(acir): Unify empty vector handling in pop (#11688)",
@@ -25234,6 +25192,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2745716,
             "range": "± 3628",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8ed92939bd6f786f8f6468554b28915f5d441d17",
+          "message": "chore(deps): bump immutable from 4.3.7 to 4.3.8 (#11781)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-03-05T14:54:31Z",
+          "tree_id": "b20e0988feb63516a1b1e6904569f72375ae799f",
+          "url": "https://github.com/noir-lang/noir/commit/8ed92939bd6f786f8f6468554b28915f5d441d17"
+        },
+        "date": 1772724148375,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 252666,
+            "range": "± 1756",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 221371,
+            "range": "± 4514",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2745245,
+            "range": "± 8296",
             "unit": "ns/iter"
           }
         ]
