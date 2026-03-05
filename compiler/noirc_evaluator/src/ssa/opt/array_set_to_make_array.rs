@@ -11,7 +11,7 @@
 //!
 //! When the result *is* exclusive to the window the replacement is safe, and it is
 //! beneficial: it exposes the constant set-value directly as a `make_array` element so
-//! that [`super::remove_if_else`]`'s `ValueMerger` can short-circuit the conditional multiply for
+//! that [`super::remove_if_else`]'s `ValueMerger` can short-circuit the conditional multiply for
 //! that element rather than emitting a conditional `array_get`.
 //!
 //! Example – this SSA:
