@@ -135,12 +135,15 @@
 <a href=#135 id=135 data-nosnippet>135</a><span class="doccomment">/// List of the SSA passes in the primary pipeline, enriched with their "step"
 <a href=#136 id=136 data-nosnippet>136</a>/// count so we can use unambiguous naming in filtering.
 <a href=#137 id=137 data-nosnippet>137</a></span><span class="kw">fn </span>ssa_passes(options: <span class="kw-2">&amp;</span>SsaEvaluatorOptions) -&gt; Vec&lt;(String, SsaPass&lt;<span class="lifetime">'_</span>&gt;)&gt; {
-<a href=#138 id=138 data-nosnippet>138</a>    primary_passes(options)
-<a href=#139 id=139 data-nosnippet>139</a>        .into_iter()
-<a href=#140 id=140 data-nosnippet>140</a>        .enumerate()
-<a href=#141 id=141 data-nosnippet>141</a>        .map(|(i, pass)| {
-<a href=#142 id=142 data-nosnippet>142</a>            <span class="kw">let </span>msg = <span class="macro">format!</span>(<span class="string">"{} (step {})"</span>, pass.msg(), i + <span class="number">1</span>);
-<a href=#143 id=143 data-nosnippet>143</a>            (msg, pass)
-<a href=#144 id=144 data-nosnippet>144</a>        })
-<a href=#145 id=145 data-nosnippet>145</a>        .collect()
-<a href=#146 id=146 data-nosnippet>146</a>}</code></pre></div></section></main></body></html>
+<a href=#138 id=138 data-nosnippet>138</a>    <span class="kw">let </span>passes = primary_passes(options).into_iter();
+<a href=#139 id=139 data-nosnippet>139</a>    <span class="kw">let </span>length = passes.len();
+<a href=#140 id=140 data-nosnippet>140</a>    passes
+<a href=#141 id=141 data-nosnippet>141</a>        .enumerate()
+<a href=#142 id=142 data-nosnippet>142</a>        .map(|(i, pass)| {
+<a href=#143 id=143 data-nosnippet>143</a>            <span class="kw">let </span>last_step = i == length - <span class="number">1</span>;
+<a href=#144 id=144 data-nosnippet>144</a>            <span class="kw">let </span>last_step_msg = <span class="kw">if </span>last_step { <span class="string">" (last step)" </span>} <span class="kw">else </span>{ <span class="string">"" </span>};
+<a href=#145 id=145 data-nosnippet>145</a>            <span class="kw">let </span>msg = <span class="macro">format!</span>(<span class="string">"{} (step {}){last_step_msg}"</span>, pass.msg(), i + <span class="number">1</span>);
+<a href=#146 id=146 data-nosnippet>146</a>            (msg, pass)
+<a href=#147 id=147 data-nosnippet>147</a>        })
+<a href=#148 id=148 data-nosnippet>148</a>        .collect()
+<a href=#149 id=149 data-nosnippet>149</a>}</code></pre></div></section></main></body></html>
