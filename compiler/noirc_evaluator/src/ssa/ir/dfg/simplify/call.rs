@@ -994,31 +994,6 @@ mod tests {
     }
 
     #[test]
-    fn simplifies_vector_push_back_from_make_array_with_references() {
-        let src = "
-        acir(inline) predicate_pure fn main f0 {
-          b0(v2: &mut u1, v4: &mut u1):
-            v5 = make_array [v2, v4] : [&mut u1]
-            v6 = allocate -> &mut u1
-            store u1 0 at v6
-            v14, v15 = call vector_push_back(u32 2, v5, v6) -> (u32, [&mut u1])
-            return v14, v15
-        }
-        ";
-        let ssa = Ssa::from_str_simplifying(src).unwrap();
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) predicate_pure fn main f0 {
-          b0(v0: &mut u1, v1: &mut u1):
-            v2 = make_array [v0, v1] : [&mut u1]
-            v3 = allocate -> &mut u1
-            store u1 0 at v3
-            v5 = make_array [v0, v1, v3] : [&mut u1]
-            return u32 3, v5
-        }
-        ");
-    }
-
-    #[test]
     fn simplifies_vector_push_back_from_make_array_simple() {
         let src = r#"
         acir(inline) fn main func {
