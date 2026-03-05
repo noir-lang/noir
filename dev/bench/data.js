@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772725343042,
+  "lastUpdate": 1772727191739,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23141,48 +23141,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "79e5f954ab55edddb1242198b73f6270ceaeef44",
-          "message": "fix(acir): Unify empty vector handling in pop (#11688)",
-          "timestamp": "2026-02-26T15:12:59Z",
-          "tree_id": "b5facd03e4d07a04f50952d961bb7b0292a61832",
-          "url": "https://github.com/noir-lang/noir/commit/79e5f954ab55edddb1242198b73f6270ceaeef44"
-        },
-        "date": 1772120402779,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 250700,
-            "range": "± 665",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 219812,
-            "range": "± 3899",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2729275,
-            "range": "± 1173",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25234,6 +25192,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2745245,
             "range": "± 8296",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "85aae2838b6b7d718675c485cd63b2929f184b3e",
+          "message": "fix(doc): double-reexport can lead to empty module (#11665)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-03-05T15:46:07Z",
+          "tree_id": "d75c77dd16e2ce097e0e7c8cd6b89a2dcfb15d4e",
+          "url": "https://github.com/noir-lang/noir/commit/85aae2838b6b7d718675c485cd63b2929f184b3e"
+        },
+        "date": 1772727146581,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 252825,
+            "range": "± 4465",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 221218,
+            "range": "± 4332",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2745496,
+            "range": "± 2504",
             "unit": "ns/iter"
           }
         ]
