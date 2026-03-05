@@ -153,8 +153,10 @@ impl SimpleOptimizationContext<'_, '_> {
     pub(crate) fn insert_current_instruction(&mut self) {
         // If the instruction changed, or if any of its values have changed, then there is a chance
         // that we can (or have to) simplify it before we insert it back into the block.
-        let simplify = self.has_instruction_changed()
-            || self.instruction().any_value(|value| self.changed_values.contains(&value));
+        let instruction_changed = self.has_instruction_changed();
+        let any_value_changed = !instruction_changed
+            && self.instruction().any_value(|value| self.changed_values.contains(&value));
+        let simplify = instruction_changed || any_value_changed;
 
         if simplify {
             // Based on FunctionInserter::push_instruction_value.
@@ -174,7 +176,7 @@ impl SimpleOptimizationContext<'_, '_> {
             );
             assert_eq!(results.len(), new_results.len());
             for i in 0..results.len() {
-                if results[i] == new_results[i] {
+                if results[i] == new_results[i] && instruction_changed {
                     // If the result didn't change, but the instruction itself did, we'd still like
                     // to simplify instructions that depend on the unchanged result.
                     // This for example can happen with a `v2 = make_array [v1]` that got turned
