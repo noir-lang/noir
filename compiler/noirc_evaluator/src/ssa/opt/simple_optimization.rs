@@ -232,12 +232,9 @@ mod tests {
     #[test]
     #[cfg(feature = "bn254")]
     fn optimizes_instruction_dependent_on_changed_make_array() {
-        // This test is a general check for `simple_optimization` that could be tested with any
-        // optimization, but `array_get` makes it easy to check.
         // Here `v2` will be optimized to Field 4, to `v3` will be an `make_array` with all
         // constant values so `poseidon2_permutation` could be simplified to a constant array
         // as well. However, that was not what was happening before it got fixed.
-
         use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
         let src = "
         acir(inline) predicate_pure fn main f0 {
