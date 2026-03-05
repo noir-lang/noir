@@ -186,16 +186,43 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
                     instruction,
                     Instruction::Store { value: stored, .. } if *stored == value
                 );
-                if used_outside_window || escapes_via_store {
-                    let is_safe = !escapes_via_store
-                        && matches!(
-                            instruction,
-                            Instruction::IfElse { then_condition, then_value, .. }
-                            if *then_condition == window_predicate && *then_value == value
-                        );
-                    if !is_safe {
-                        disqualified.extend(deps.iter().copied());
+                // Determine whether this use of the tracked value is safe. An `IfElse`
+                // instruction always needs an explicit safety check (we don't propagate
+                // deps through IfElse results, so the `_` arm won't do it). For all other
+                // instructions the use is safe as long as we are still inside the same
+                // window (the `_` arm will track any derived results).
+                //
+                // The two safe IfElse patterns (symmetric for then and else):
+                //   `if P then v_tracked else orig`  — then_condition == window_predicate
+                //   `if ¬P then orig else v_tracked` — else_condition == window_predicate
+                // In both cases the branch using v_tracked is only taken when P is true,
+                // which is exactly when the original array_set result is correct.
+                let is_safe = if escapes_via_store {
+                    false
+                } else {
+                    match instruction {
+                        Instruction::IfElse { then_condition, then_value, .. }
+                            if *then_value == value =>
+                        {
+                            *then_condition == window_predicate
+                        }
+                        Instruction::IfElse { else_condition, else_value, .. }
+                            if *else_value == value =>
+                        {
+                            *else_condition == window_predicate
+                        }
+                        Instruction::IfElse { .. } => {
+                            // value used as a condition itself — treat as unsafe
+                            false
+                        }
+                        _ => {
+                            // Non-IfElse: safe as long as we are inside the tracked window.
+                            !used_outside_window
+                        }
                     }
+                };
+                if !is_safe {
+                    disqualified.extend(deps.iter().copied());
                 }
             }
         });
@@ -554,6 +581,60 @@ mod tests {
           b0(v0: [Field; 4], v1: &mut [Field; 4]):
             store v0 at v1
             return
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::array_set_to_make_array);
+    }
+
+    /// The array_set result appears as the `else_value` of an IfElse whose
+    /// `else_condition` matches the window predicate — the symmetric safe pattern.
+    /// `if (not v1) then v0 else v2` with else_condition=v1 is equivalent to
+    /// `if v1 then v2 else v0`, so the optimization should apply.
+    #[test]
+    fn replaces_array_set_used_as_safe_else_value() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3], v1: u1):
+            v2 = not v1
+            enable_side_effects v1
+            v3 = array_set v0, index u32 1, value Field 99
+            enable_side_effects u1 1
+            v4 = if v2 then v0 else (if v1) v3
+            return v4
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.array_set_to_make_array();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3], v1: u1):
+            v2 = not v1
+            enable_side_effects v1
+            v4 = array_get v0, index u32 0 -> Field
+            v6 = array_get v0, index u32 2 -> Field
+            v8 = make_array [v4, Field 99, v6] : [Field; 3]
+            enable_side_effects u1 1
+            v10 = if v2 then v0 else (if v1) v8
+            return v10
+        }
+        ");
+    }
+
+    /// The array_set result appears as the `else_value` of an IfElse whose
+    /// `else_condition` does NOT match the window predicate. This is unsafe:
+    /// when the predicate is false the else branch could be taken, yielding an
+    /// unconditionally-modified make_array instead of the original array.
+    #[test]
+    fn does_not_replace_array_set_when_else_value_has_wrong_condition() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3], v1: u1, v5: u1):
+            v2 = not v5
+            enable_side_effects v1
+            v3 = array_set v0, index u32 1, value Field 99
+            enable_side_effects u1 1
+            v4 = if v2 then v0 else (if v5) v3
+            return v4
         }
         "#;
         assert_ssa_does_not_change(src, Ssa::array_set_to_make_array);
