@@ -2061,7 +2061,7 @@
 <a href=#2061 id=2061 data-nosnippet>2061</a>    ) -&gt; Type {
 <a href=#2062 id=2062 data-nosnippet>2062</a>        <span class="kw">let </span>access_lhs = <span class="kw-2">&amp;mut </span>access.lhs;
 <a href=#2063 id=2063 data-nosnippet>2063</a>
-<a href=#2064 id=2064 data-nosnippet>2064</a>        <span class="kw">let </span>dereference_lhs = |this: <span class="kw-2">&amp;mut </span><span class="self">Self</span>, lhs_type, element| {
+<a href=#2064 id=2064 data-nosnippet>2064</a>        <span class="kw">let </span>dereference_lhs = |this: <span class="kw-2">&amp;mut </span><span class="self">Self</span>, lhs_type, element, _is_mutable| {
 <a href=#2065 id=2065 data-nosnippet>2065</a>            <span class="kw">let </span>old_lhs = <span class="kw-2">*</span>access_lhs;
 <a href=#2066 id=2066 data-nosnippet>2066</a>            <span class="kw">let </span>old_location = this.interner.id_location(old_lhs);
 <a href=#2067 id=2067 data-nosnippet>2067</a>            <span class="kw">let </span>location = Location::new(location.span, old_location.file);
@@ -2098,7 +2098,7 @@
 <a href=#2098 id=2098 data-nosnippet>2098</a>        lhs_type: <span class="kw-2">&amp;</span>Type,
 <a href=#2099 id=2099 data-nosnippet>2099</a>        field_name: <span class="kw-2">&amp;</span>str,
 <a href=#2100 id=2100 data-nosnippet>2100</a>        location: Location,
-<a href=#2101 id=2101 data-nosnippet>2101</a>        dereference_lhs: <span class="prelude-ty">Option</span>&lt;<span class="kw">impl </span>FnMut(<span class="kw-2">&amp;mut </span><span class="self">Self</span>, Type, Type)&gt;,
+<a href=#2101 id=2101 data-nosnippet>2101</a>        dereference_lhs: <span class="prelude-ty">Option</span>&lt;<span class="kw">impl </span>FnMut(<span class="kw-2">&amp;mut </span><span class="self">Self</span>, Type, Type, bool <span class="comment">/* mutable */</span>)&gt;,
 <a href=#2102 id=2102 data-nosnippet>2102</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;(Type, usize)&gt; {
 <a href=#2103 id=2103 data-nosnippet>2103</a>        <span class="kw">let </span>lhs_type = lhs_type.follow_bindings();
 <a href=#2104 id=2104 data-nosnippet>2104</a>
@@ -2132,7 +2132,7 @@
 <a href=#2132 id=2132 data-nosnippet>2132</a>            <span class="comment">// If the lhs is a reference we automatically transform `lhs.field` into `(*lhs).field`
 <a href=#2133 id=2133 data-nosnippet>2133</a>            </span>Type::Reference(element, mutable) =&gt; {
 <a href=#2134 id=2134 data-nosnippet>2134</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">mut </span>dereference_lhs) = dereference_lhs {
-<a href=#2135 id=2135 data-nosnippet>2135</a>                    dereference_lhs(<span class="self">self</span>, lhs_type.clone(), element.as_ref().clone());
+<a href=#2135 id=2135 data-nosnippet>2135</a>                    dereference_lhs(<span class="self">self</span>, lhs_type.clone(), element.as_ref().clone(), <span class="kw-2">*</span>mutable);
 <a href=#2136 id=2136 data-nosnippet>2136</a>                    <span class="kw">return </span><span class="self">self</span>.check_field_access(
 <a href=#2137 id=2137 data-nosnippet>2137</a>                        element,
 <a href=#2138 id=2138 data-nosnippet>2138</a>                        field_name,
