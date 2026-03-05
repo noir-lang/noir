@@ -35,13 +35,13 @@ fn main(mut x: [Foo; 4], y: pub u32) {
     assert(x[3_u32].a == 50_Field);
     if y == 2_u32 {
         {
-            let i_4442: u32 = y - 1_u32;
-            x[i_4442].b = [50_Field, 51_Field, 52_Field];
+            let i_4441: u32 = y - 1_u32;
+            x[i_4441].b = [50_Field, 51_Field, 52_Field];
         }
     } else {
         {
-            let i_4443: u32 = y - 1_u32;
-            x[i_4443].b = [100_Field, 101_Field, 102_Field];
+            let i_4442: u32 = y - 1_u32;
+            x[i_4442].b = [100_Field, 101_Field, 102_Field];
         }
     };
     assert(x[2_u32].b == [100_Field, 101_Field, 102_Field]);
@@ -60,39 +60,39 @@ fn main(mut x: [Foo; 4], y: pub u32) {
     assert(foo_parents[1_u32].foos[1_u32].b == [5_Field, 6_Field, 21_Field]);
     if y == 2_u32 {
         {
+            let i_4446: u32 = y - 2_u32;
             let i_4447: u32 = y - 2_u32;
-            let i_4448: u32 = y - 2_u32;
-            foo_parents[i_4447].foos[i_4448].b = [10_Field, 9_Field, 8_Field];
+            foo_parents[i_4446].foos[i_4447].b = [10_Field, 9_Field, 8_Field];
         }
     } else {
         {
+            let i_4448: u32 = y - 2_u32;
             let i_4449: u32 = y - 2_u32;
-            let i_4450: u32 = y - 2_u32;
-            foo_parents[i_4449].foos[i_4450].b = [20_Field, 19_Field, 18_Field];
+            foo_parents[i_4448].foos[i_4449].b = [20_Field, 19_Field, 18_Field];
         }
     };
     assert(foo_parents[1_u32].foos[1_u32].b == [20_Field, 19_Field, 18_Field]);
     assert(foo_parents[1_u32].foos[1_u32].b[2_u32] == 18_Field);
     if y == 3_u32 {
         {
+            let i_4450: u32 = y - 2_u32;
             let i_4451: u32 = y - 2_u32;
-            let i_4452: u32 = y - 2_u32;
-            let i_4453: u32 = y - 1_u32;
-            foo_parents[i_4451].foos[i_4452].b[i_4453] = 5000_Field;
+            let i_4452: u32 = y - 1_u32;
+            foo_parents[i_4450].foos[i_4451].b[i_4452] = 5000_Field;
         }
     } else {
         {
+            let i_4453: u32 = y - 2_u32;
             let i_4454: u32 = y - 2_u32;
-            let i_4455: u32 = y - 2_u32;
-            let i_4456: u32 = y - 1_u32;
-            foo_parents[i_4454].foos[i_4455].b[i_4456] = 1000_Field;
+            let i_4455: u32 = y - 1_u32;
+            foo_parents[i_4453].foos[i_4454].b[i_4455] = 1000_Field;
         }
     };
     assert(foo_parents[1_u32].foos[1_u32].b[2_u32] == 5000_Field);
     {
-        let i_4457: u32 = y - 2_u32;
-        let i_4458: u32 = y - 3_u32;
-        foo_parents[i_4457].foos[i_4458].b = foo_parents[y - 2_u32].foos[y - 2_u32].b;
+        let i_4456: u32 = y - 2_u32;
+        let i_4457: u32 = y - 3_u32;
+        foo_parents[i_4456].foos[i_4457].b = foo_parents[y - 2_u32].foos[y - 2_u32].b;
     };
     assert(foo_parents[1_u32].foos[0_u32].b == [20_Field, 19_Field, 5000_Field]);
 }
