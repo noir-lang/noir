@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772735970794,
+  "lastUpdate": 1772736311738,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23176,48 +23176,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "0e02b0c498a6155eabb3c1f0251c45e9ad85c664",
-          "message": "fix(acir): Handle inserting into an empty vector at index 0 in ACIR (#11703)",
-          "timestamp": "2026-02-26T17:09:00Z",
-          "tree_id": "38d5ffb01d66d20a6092cfb14dfc515cacf81343",
-          "url": "https://github.com/noir-lang/noir/commit/0e02b0c498a6155eabb3c1f0251c45e9ad85c664"
-        },
-        "date": 1772127344112,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 245937,
-            "range": "± 551",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 217955,
-            "range": "± 5203",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2210105,
-            "range": "± 1984",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -25269,6 +25227,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3142860,
             "range": "± 5532",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "c868cfcb5c7e00667147bba92d92cee4b9978c0e",
+          "message": "chore: let `simple_optimization` optimize values whose dependent values changed (#11784)",
+          "timestamp": "2026-03-05T18:06:39Z",
+          "tree_id": "43bdbb9000996acb3f51941e0c03a0cf26d0fdd1",
+          "url": "https://github.com/noir-lang/noir/commit/c868cfcb5c7e00667147bba92d92cee4b9978c0e"
+        },
+        "date": 1772736259408,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 241704,
+            "range": "± 931",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 212687,
+            "range": "± 3335",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2206840,
+            "range": "± 62404",
             "unit": "ns/iter"
           }
         ]
