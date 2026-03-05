@@ -48,6 +48,7 @@ use crate::hir::comptime::value::FormatStringFragment;
 use crate::hir::def_map::ModuleId;
 use crate::hir::type_check::TypeCheckError;
 use crate::hir_def::expr::TraitItem;
+use crate::hir_def::types::resolve_type_bindings;
 use crate::monomorphization::{
     perform_impl_bindings, perform_instantiation_bindings, resolve_trait_item,
     undo_instantiation_bindings,
@@ -154,13 +155,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     ) -> IResult<Value> {
         let trait_method = self.elaborator.interner.get_trait_item_id(function);
 
-        // To match the monomorphizer, we need to call follow_bindings on each of
-        // the instantiation bindings before we unbind the generics from the previous function.
-        // This is because the instantiation bindings refer to variables from the call site.
-        for (_type_var, kind, binding) in instantiation_bindings.values_mut() {
-            *kind = kind.follow_bindings();
-            *binding = binding.follow_bindings();
-        }
+        resolve_type_bindings(&mut instantiation_bindings);
 
         self.unbind_generics_from_previous_function();
         perform_instantiation_bindings(&instantiation_bindings);
@@ -700,11 +695,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let typ = self.elaborator.interner.id_type(id).follow_bindings();
                 let bindings = self.elaborator.interner.try_get_instantiation_bindings(id);
                 let mut bindings = bindings.map_or(TypeBindings::default(), Clone::clone);
-                // Resolve the bindings and clone their values
-                for (_type_var, kind, binding) in bindings.values_mut() {
-                    *kind = kind.follow_bindings();
-                    *binding = binding.follow_bindings();
-                }
+                resolve_type_bindings(&mut bindings);
                 Ok(Value::Function(*function_id, typ, Rc::new(bindings)))
             }
             DefinitionKind::Local(_) => self.lookup(&ident),
