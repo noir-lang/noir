@@ -26,7 +26,6 @@
     "publish:all": "yarn install && yarn workspaces foreach -A run publish"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3.3.4",
     "@eslint/js": "^10.0.1",
     "@typescript-eslint/eslint-plugin": "^8.56.1",
     "@typescript-eslint/parser": "^8.56.1",
