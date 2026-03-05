@@ -45,8 +45,7 @@ fn comptime_code_rejects_dynamic_variable() {
 fn comptime_type_in_runtime_code() {
     let source = "
     pub fn foo(_f: FunctionDefinition) {}
-                   ^^^^^^^^^^^^^^^^^^ Comptime-only type `FunctionDefinition` cannot be used in runtime code
-                   ~~~~~~~~~~~~~~~~~~ Comptime-only type used here
+                   ^^^^^^^^^^^^^^^^^^ Comptime-only type `FunctionDefinition` cannot be used in non-comptime function
     ";
     check_errors(source);
 }
@@ -1181,10 +1180,8 @@ fn error_on_self_on_trait_impl_for_comptime_type_on_non_comptime_function_with_e
 
     impl Trait for Quoted {
         fn foo(self: Self) -> Self {
-                              ^^^^ Comptime-only type `Quoted` cannot be used in runtime code
-                              ~~~~ Comptime-only type used here
-                     ^^^^ Comptime-only type `Quoted` cannot be used in runtime code
-                     ~~~~ Comptime-only type used here
+                              ^^^^ Comptime-only type `Quoted` cannot be used in non-comptime function
+                     ^^^^ Comptime-only type `Quoted` cannot be used in non-comptime function
             self
         }
     }
@@ -1201,8 +1198,7 @@ fn error_on_self_on_trait_impl_for_comptime_type_on_non_comptime_function_with_i
 
     impl Trait for Quoted {
         fn foo(self) {
-               ^^^^ Comptime-only type `Quoted` cannot be used in runtime code
-               ~~~~ Comptime-only type used here
+               ^^^^ Comptime-only type `Quoted` cannot be used in non-comptime function
         }
     }
     "#;

@@ -16,6 +16,7 @@ impl Parser<'_> {
         &mut self,
         attributes: Vec<(Attribute, Location)>,
         visibility: ItemVisibility,
+        comptime: bool,
         start_location: Location,
     ) -> NoirStruct {
         let attributes = self.validate_secondary_attributes(attributes);
@@ -26,6 +27,7 @@ impl Parser<'_> {
                 self.empty_ident_at_previous_token_end(),
                 attributes,
                 visibility,
+                comptime,
                 Vec::new(),
                 start_location,
             );
@@ -34,12 +36,26 @@ impl Parser<'_> {
         let generics = self.parse_generics_disallowing_trait_bounds();
 
         if self.eat_semicolons() {
-            return self.empty_struct(name, attributes, visibility, generics, start_location);
+            return self.empty_struct(
+                name,
+                attributes,
+                visibility,
+                comptime,
+                generics,
+                start_location,
+            );
         }
 
         if !self.eat_left_brace() {
             self.expected_token(Token::LeftBrace);
-            return self.empty_struct(name, attributes, visibility, generics, start_location);
+            return self.empty_struct(
+                name,
+                attributes,
+                visibility,
+                comptime,
+                generics,
+                start_location,
+            );
         }
 
         let fields = self.parse_many(
@@ -52,6 +68,7 @@ impl Parser<'_> {
             name,
             attributes,
             visibility,
+            comptime,
             generics,
             fields,
             location: self.location_since(start_location),
@@ -112,6 +129,7 @@ impl Parser<'_> {
         name: Ident,
         attributes: Vec<SecondaryAttribute>,
         visibility: ItemVisibility,
+        comptime: bool,
         generics: UnresolvedGenerics,
         start_location: Location,
     ) -> NoirStruct {
@@ -119,6 +137,7 @@ impl Parser<'_> {
             name,
             attributes,
             visibility,
+            comptime,
             generics,
             fields: Vec::new(),
             location: self.location_since(start_location),
@@ -160,6 +179,14 @@ mod tests {
         assert_eq!("Foo", noir_struct.name.to_string());
         assert!(noir_struct.fields.is_empty());
         assert!(noir_struct.generics.is_empty());
+        assert!(!noir_struct.comptime);
+    }
+
+    #[test]
+    fn parse_empty_comptime_struct() {
+        let src = "comptime struct Foo {}";
+        let noir_struct = parse_struct_no_errors(src);
+        assert!(noir_struct.comptime);
     }
 
     #[test]

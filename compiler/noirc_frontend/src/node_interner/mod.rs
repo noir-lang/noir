@@ -614,14 +614,17 @@ impl NodeInterner {
         attributes: Vec<SecondaryAttribute>,
         generics: ResolvedGenerics,
         visibility: ItemVisibility,
+        comptime: bool,
         krate: CrateId,
         local_id: LocalModuleId,
         file_id: FileId,
+        is_struct: bool,
     ) -> TypeId {
         let type_id = TypeId(ModuleId { krate, local_id });
 
         let location = Location::new(span, file_id);
-        let new_type = DataType::new(type_id, name, location, generics, visibility);
+        let new_type =
+            DataType::new(type_id, name, location, generics, visibility, comptime, is_struct);
         self.data_types.insert(type_id, Shared::new(new_type));
         self.type_attributes.insert(type_id, attributes);
         type_id
@@ -641,6 +644,7 @@ impl NodeInterner {
             Type::Error,
             generics,
             typ.type_alias_def.visibility,
+            typ.type_alias_def.comptime,
             ModuleId { krate: typ.crate_id, local_id: typ.module_id },
         )));
 
