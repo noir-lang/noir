@@ -25,7 +25,7 @@
 <a href=#25 id=25 data-nosnippet>25</a>/// ```
 <a href=#26 id=26 data-nosnippet>26</a></span><span class="attr">#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 <a href=#27 id=27 data-nosnippet>27</a></span><span class="kw">pub enum </span>DependencyId {
-<a href=#28 id=28 data-nosnippet>28</a>    Struct(TypeId),
+<a href=#28 id=28 data-nosnippet>28</a>    DataType(TypeId),
 <a href=#29 id=29 data-nosnippet>29</a>    Global(GlobalId),
 <a href=#30 id=30 data-nosnippet>30</a>    Function(FuncId),
 <a href=#31 id=31 data-nosnippet>31</a>    Alias(TypeAliasId),
@@ -42,7 +42,7 @@
 <a href=#42 id=42 data-nosnippet>42</a>    <span class="doccomment">/// Register that `dependent` depends on `dependency`.
 <a href=#43 id=43 data-nosnippet>43</a>    /// This is usually because `dependent` refers to `dependency` in one of its struct fields.
 <a href=#44 id=44 data-nosnippet>44</a>    </span><span class="kw">pub fn </span>add_type_dependency(<span class="kw-2">&amp;mut </span><span class="self">self</span>, dependent: DependencyId, dependency: TypeId) {
-<a href=#45 id=45 data-nosnippet>45</a>        <span class="self">self</span>.add_dependency(dependent, DependencyId::Struct(dependency));
+<a href=#45 id=45 data-nosnippet>45</a>        <span class="self">self</span>.add_dependency(dependent, DependencyId::DataType(dependency));
 <a href=#46 id=46 data-nosnippet>46</a>    }
 <a href=#47 id=47 data-nosnippet>47</a>
 <a href=#48 id=48 data-nosnippet>48</a>    <span class="doccomment">/// Mark a [DependencyId] as being dependant on a [GlobalId].
@@ -92,7 +92,7 @@
 <a href=#92 id=92 data-nosnippet>92</a>
 <a href=#93 id=93 data-nosnippet>93</a>        <span class="kw">let </span><span class="kw-2">mut </span>push_error_from_index = |scc: <span class="kw-2">&amp;</span>[<span class="kw">_</span>], scc_index, node_index: PetGraphIndex| -&gt; bool {
 <a href=#94 id=94 data-nosnippet>94</a>            <span class="kw">match </span><span class="self">self</span>.dependency_graph[node_index] {
-<a href=#95 id=95 data-nosnippet>95</a>                DependencyId::Struct(struct_id) =&gt; {
+<a href=#95 id=95 data-nosnippet>95</a>                DependencyId::DataType(struct_id) =&gt; {
 <a href=#96 id=96 data-nosnippet>96</a>                    <span class="kw">let </span>struct_type = <span class="self">self</span>.get_type(struct_id);
 <a href=#97 id=97 data-nosnippet>97</a>                    <span class="kw">let </span>struct_type = struct_type.borrow();
 <a href=#98 id=98 data-nosnippet>98</a>                    <span class="kw">let </span>name = <span class="kw-2">&amp;</span>struct_type.name;
@@ -167,7 +167,7 @@
 <a href=#167 id=167 data-nosnippet>167</a>    /// element at the given start index.
 <a href=#168 id=168 data-nosnippet>168</a>    </span><span class="kw">fn </span>get_cycle_error_string(<span class="kw-2">&amp;</span><span class="self">self</span>, scc: <span class="kw-2">&amp;</span>[PetGraphIndex], start_index: usize) -&gt; String {
 <a href=#169 id=169 data-nosnippet>169</a>        <span class="kw">let </span>index_to_string = |index: PetGraphIndex| <span class="kw">match </span><span class="self">self</span>.dependency_graph[index] {
-<a href=#170 id=170 data-nosnippet>170</a>            DependencyId::Struct(id) =&gt; Cow::Owned(<span class="self">self</span>.get_type(id).borrow().name.to_string()),
+<a href=#170 id=170 data-nosnippet>170</a>            DependencyId::DataType(id) =&gt; Cow::Owned(<span class="self">self</span>.get_type(id).borrow().name.to_string()),
 <a href=#171 id=171 data-nosnippet>171</a>            DependencyId::Function(id) =&gt; Cow::Borrowed(<span class="self">self</span>.function_name(<span class="kw-2">&amp;</span>id)),
 <a href=#172 id=172 data-nosnippet>172</a>            DependencyId::Alias(id) =&gt; {
 <a href=#173 id=173 data-nosnippet>173</a>                Cow::Owned(<span class="self">self</span>.get_type_alias(id).borrow().name.to_string())
