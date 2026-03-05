@@ -184,8 +184,6 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
     let mut candidates: HashMap<ValueId, InstructionId> = HashMap::new();
     // Maps every "tracked" value (a candidate or a value derived from candidates within the same window).
     let mut tracked: HashMap<ValueId, TrackedValue> = HashMap::new();
-    // Candidates that eventually escape the window where they were defined
-    let mut disqualified: HashSet<ValueId> = HashSet::new();
 
     let mut current_window: Option<ConditionalWindow> = None;
     let mut window_counter: ConditionalWindowId = ConditionalWindowId(0);
@@ -237,7 +235,12 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
                     }
                 };
                 if !stays_within_window {
-                    disqualified.extend(tracked_value.dependencies.iter().copied());
+                    let tracked_value_dependencies =
+                        tracked_value.dependencies.iter().copied().collect::<Vec<_>>();
+                    for dependency in tracked_value_dependencies {
+                        candidates.remove(&dependency);
+                        tracked.remove(&dependency);
+                    }
                 }
             }
         });
@@ -301,7 +304,12 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
                     instruction.for_each_value(|value| {
                         if let Some(tracked_value) = tracked.get(&value) {
                             if is_call_with_ref_args {
-                                disqualified.extend(tracked_value.dependencies.iter().copied());
+                                let tracked_value_dependencies =
+                                    tracked_value.dependencies.iter().copied().collect::<Vec<_>>();
+                                for value in tracked_value_dependencies {
+                                    candidates.remove(&value);
+                                    tracked.remove(&value);
+                                }
                             } else {
                                 dependencies.extend(tracked_value.dependencies.iter().copied());
                             }
@@ -327,16 +335,17 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
     if let Some(terminator) = dfg[block_id].terminator() {
         terminator.for_each_value(|value| {
             if let Some(tracked_value) = tracked.get(&value) {
-                disqualified.extend(tracked_value.dependencies.iter().copied());
+                let tracked_value_dependencies =
+                    tracked_value.dependencies.iter().copied().collect::<Vec<_>>();
+                for value in tracked_value_dependencies {
+                    candidates.remove(&value);
+                    tracked.remove(&value);
+                }
             }
         });
     }
 
-    candidates
-        .into_iter()
-        .filter(|(result, _)| !disqualified.contains(result))
-        .map(|(_, instruction_id)| instruction_id)
-        .collect()
+    candidates.into_values().collect()
 }
 
 #[cfg(test)]
