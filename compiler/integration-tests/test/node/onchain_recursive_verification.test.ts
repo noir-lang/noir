@@ -1,6 +1,7 @@
 import { expect } from 'chai';
 import { network } from 'hardhat';
-import { CompiledCircuit, Noir } from '@noir-lang/noir_js';
+import { Noir } from '@noir-lang/noir_js';
+import type { CompiledCircuit } from '@noir-lang/types';
 import { Barretenberg, UltraHonkBackend, deflattenFields } from '@aztec/bb.js';
 
 import assertLtCircuit from '../../circuits/assert_lt/target/assert_lt.json';
