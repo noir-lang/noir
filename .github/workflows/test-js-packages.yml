@@ -746,7 +746,7 @@ jobs:
       - name: Store benchmark result
         # We don't run this step on external PRs
         if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
-        uses: benchmark-action/github-action-benchmark@4bdcce38c94cec68da58d012ac24b7b1155efe8b
+        uses: benchmark-action/github-action-benchmark@a7bc2366eda11037936ea57d811a43b3418d3073
         with:
           name: "Test Suite Duration"
           tool: "customSmallerIsBetter"
