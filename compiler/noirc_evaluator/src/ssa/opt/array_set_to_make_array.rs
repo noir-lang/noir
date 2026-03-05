@@ -11,7 +11,7 @@
 //!
 //! When the result *is* exclusive to the window the replacement is safe, and it is
 //! beneficial: it exposes the constant set-value directly as a `make_array` element so
-//! that `remove_if_else`'s `ValueMerger` can short-circuit the conditional multiply for
+//! that [`super::remove_if_else`]`'s `ValueMerger` can short-circuit the conditional multiply for
 //! that element rather than emitting a conditional `array_get`.
 //!
 //! Example – this SSA:
@@ -36,7 +36,7 @@
 //!
 //! Because `v_set` is only used within the "conditional window", and then just as the result
 //! of an `if-then-else` instruction, the `array_set` can be executed unconditionally because
-//! the remove_if_else` pass that comes after this pass will merge `v_set` with `v_arr` make sure
+//! the [`super::remove_if_else`] pass that comes after this pass will merge `v_set` with `v_arr` make sure
 //! to only use the values from `v_set` when `v_cond` is true.
 
 use std::collections::{HashMap, HashSet};
