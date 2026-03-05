@@ -666,6 +666,8 @@ impl DataFlowGraph {
             _ => None,
         }
     }
+
+    /// Try to find out the capacity of a vector by tracing it back to a `MakeArray`.
     pub(crate) fn try_get_vector_capacity(&self, value: ValueId) -> Option<SemanticLength> {
         // For arrays we know the size statically
         if let Some(length) = self.try_get_array_length(value) {
@@ -725,6 +727,12 @@ impl DataFlowGraph {
                 } else {
                     None
                 }
+            }
+            Instruction::IfElse { then_value, else_value, .. } => {
+                // The capacity is the longer of the two after merging.
+                let then_capacity = self.try_get_vector_capacity(*then_value)?;
+                let else_capacity = self.try_get_vector_capacity(*else_value)?;
+                Some(SemanticLength(std::cmp::max(then_capacity.0, else_capacity.0)))
             }
             _ => None,
         }
