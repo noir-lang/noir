@@ -259,21 +259,18 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
                     tracked.insert(result, (window_id, predicate, deps));
                 }
             }
+            Instruction::IfElse { .. } => {
+                // We already disqualified candidates used in `IfElse` that escape the current
+                // window, so there's no need to keep track of `IfElse` dependencies.
+            }
             _ => {
                 // For any other instruction inside a window: if it consumes tracked values,
                 // its results are "derived" and must be tracked with the union of their deps.
                 //
-                // Exception 1: `IfElse` is a conditional merge — when the predicate is false
-                // the else branch is taken, so the result never carries a "wrong-when-false"
-                // dependency from the then_value. Don't propagate deps through IfElse; the
-                // for_each_value escape check above already handles the then_value directly.
-                //
-                // Exception 2: a `call` with reference-typed arguments may store any of its
+                // Exception: a `call` with reference-typed arguments may store any of its
                 // arguments through those references, causing them to escape the window
                 // through memory. Treat all tracked arguments as escaping in that case.
-                if let Some((window_id, predicate)) = current_window
-                    && !matches!(instruction, Instruction::IfElse { .. })
-                {
+                if let Some((window_id, predicate)) = current_window {
                     let is_call_with_ref_args =
                         if let Instruction::Call { arguments, .. } = instruction {
                             arguments.iter().any(|&arg| dfg.type_of_value(arg).contains_reference())
