@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `compiler/noirc_evaluator/src/ssa/opt/simple_optimization.rs`."><title>simple_optimization.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-84e720fa.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="noirc_evaluator" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0 (29483883e 2025-08-04)" data-channel="1.89.0" data-search-js="search-92309212.js" data-settings-js="settings-5514c975.js" ><script src="../../../../static.files/storage-4e99c027.js"></script><script defer src="../../../../static.files/src-script-813739b1.js"></script><script defer src="../../../../src-files.js"></script><script defer src="../../../../static.files/main-fd3af306.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noirc_evaluator/ssa/opt/</div>simple_optimization.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! Contains helper functions for performing SSA optimizations.
 <a href=#2 id=2 data-nosnippet>2</a>
-<a href=#3 id=3 data-nosnippet>3</a></span><span class="kw">use </span>std::hash::BuildHasher;
+<a href=#3 id=3 data-nosnippet>3</a></span><span class="kw">use </span>std::{collections::HashSet, hash::BuildHasher};
 <a href=#4 id=4 data-nosnippet>4</a>
 <a href=#5 id=5 data-nosnippet>5</a><span class="kw">use </span>iter_extended::vecmap;
 <a href=#6 id=6 data-nosnippet>6</a><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
@@ -64,149 +64,216 @@
 <a href=#64 id=64 data-nosnippet>64</a>        </span>F: FnMut(<span class="kw-2">&amp;mut </span>SimpleOptimizationContext&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>&gt;) -&gt; RtResult&lt;()&gt;,
 <a href=#65 id=65 data-nosnippet>65</a>    {
 <a href=#66 id=66 data-nosnippet>66</a>        <span class="kw">let </span><span class="kw-2">mut </span>values_to_replace = ValueMapping::default();
-<a href=#67 id=67 data-nosnippet>67</a>        <span class="kw">let </span>one = <span class="self">self</span>.dfg.make_constant(FieldElement::from(<span class="number">1_u128</span>), NumericType::bool());
-<a href=#68 id=68 data-nosnippet>68</a>        <span class="kw">let </span>reverse_post_order = PostOrder::with_function(<span class="self">self</span>).into_vec_reverse();
-<a href=#69 id=69 data-nosnippet>69</a>        <span class="kw">for </span>block_id <span class="kw">in </span>reverse_post_order {
-<a href=#70 id=70 data-nosnippet>70</a>            <span class="kw">let </span><span class="kw-2">mut </span>enable_side_effects = one;
-<a href=#71 id=71 data-nosnippet>71</a>
-<a href=#72 id=72 data-nosnippet>72</a>            <span class="kw">let </span>instruction_ids = <span class="self">self</span>.dfg[block_id].take_instructions();
-<a href=#73 id=73 data-nosnippet>73</a>            <span class="self">self</span>.dfg[block_id].instructions_mut().reserve(instruction_ids.len());
-<a href=#74 id=74 data-nosnippet>74</a>            <span class="kw">for </span>instruction_id <span class="kw">in </span><span class="kw-2">&amp;</span>instruction_ids {
-<a href=#75 id=75 data-nosnippet>75</a>                <span class="kw">let </span>instruction_id = <span class="kw-2">*</span>instruction_id;
-<a href=#76 id=76 data-nosnippet>76</a>                <span class="kw">let </span>instruction = <span class="kw-2">&amp;mut </span><span class="self">self</span>.dfg[instruction_id];
-<a href=#77 id=77 data-nosnippet>77</a>                <span class="kw">let </span>orig_instruction_hash = rustc_hash::FxBuildHasher.hash_one(<span class="kw-2">&amp;</span>instruction);
-<a href=#78 id=78 data-nosnippet>78</a>                <span class="kw">if </span>!values_to_replace.is_empty() {
-<a href=#79 id=79 data-nosnippet>79</a>                    instruction.replace_values(<span class="kw-2">&amp;</span>values_to_replace);
-<a href=#80 id=80 data-nosnippet>80</a>                }
-<a href=#81 id=81 data-nosnippet>81</a>                <span class="kw">if let </span>Instruction::EnableSideEffectsIf { condition } = instruction {
-<a href=#82 id=82 data-nosnippet>82</a>                    enable_side_effects = <span class="kw-2">*</span>condition;
-<a href=#83 id=83 data-nosnippet>83</a>                }
-<a href=#84 id=84 data-nosnippet>84</a>                <span class="kw">let </span>call_stack_id = <span class="self">self</span>.dfg.get_instruction_call_stack_id(instruction_id);
-<a href=#85 id=85 data-nosnippet>85</a>                <span class="kw">let </span><span class="kw-2">mut </span>context = SimpleOptimizationContext {
-<a href=#86 id=86 data-nosnippet>86</a>                    block_id,
-<a href=#87 id=87 data-nosnippet>87</a>                    instruction_id,
-<a href=#88 id=88 data-nosnippet>88</a>                    call_stack_id,
-<a href=#89 id=89 data-nosnippet>89</a>                    dfg: <span class="kw-2">&amp;mut </span><span class="self">self</span>.dfg,
-<a href=#90 id=90 data-nosnippet>90</a>                    values_to_replace: <span class="kw-2">&amp;mut </span>values_to_replace,
-<a href=#91 id=91 data-nosnippet>91</a>                    insert_current_instruction_at_callback_end: <span class="bool-val">true</span>,
-<a href=#92 id=92 data-nosnippet>92</a>                    enable_side_effects,
-<a href=#93 id=93 data-nosnippet>93</a>                    orig_instruction_hash,
-<a href=#94 id=94 data-nosnippet>94</a>                };
-<a href=#95 id=95 data-nosnippet>95</a>                f(<span class="kw-2">&amp;mut </span>context)<span class="question-mark">?</span>;
-<a href=#96 id=96 data-nosnippet>96</a>
-<a href=#97 id=97 data-nosnippet>97</a>                <span class="kw">if </span>context.insert_current_instruction_at_callback_end {
-<a href=#98 id=98 data-nosnippet>98</a>                    context.insert_current_instruction();
-<a href=#99 id=99 data-nosnippet>99</a>                }
-<a href=#100 id=100 data-nosnippet>100</a>            }
-<a href=#101 id=101 data-nosnippet>101</a>
-<a href=#102 id=102 data-nosnippet>102</a>            <span class="self">self</span>.dfg.replace_values_in_block_terminator(block_id, <span class="kw-2">&amp;</span>values_to_replace);
-<a href=#103 id=103 data-nosnippet>103</a>        }
-<a href=#104 id=104 data-nosnippet>104</a>
-<a href=#105 id=105 data-nosnippet>105</a>        <span class="self">self</span>.dfg.data_bus.replace_values(<span class="kw-2">&amp;</span>values_to_replace);
-<a href=#106 id=106 data-nosnippet>106</a>        <span class="prelude-val">Ok</span>(())
-<a href=#107 id=107 data-nosnippet>107</a>    }
-<a href=#108 id=108 data-nosnippet>108</a>}
-<a href=#109 id=109 data-nosnippet>109</a>
-<a href=#110 id=110 data-nosnippet>110</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>SimpleOptimizationContext&lt;<span class="lifetime">'dfg</span>, <span class="lifetime">'mapping</span>&gt; {
-<a href=#111 id=111 data-nosnippet>111</a>    <span class="attr">#[allow(unused)]
-<a href=#112 id=112 data-nosnippet>112</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) block_id: BasicBlockId,
-<a href=#113 id=113 data-nosnippet>113</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) instruction_id: InstructionId,
-<a href=#114 id=114 data-nosnippet>114</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) call_stack_id: CallStackId,
-<a href=#115 id=115 data-nosnippet>115</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) dfg: <span class="kw-2">&amp;</span><span class="lifetime">'dfg </span><span class="kw-2">mut </span>DataFlowGraph,
-<a href=#116 id=116 data-nosnippet>116</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) enable_side_effects: ValueId,
-<a href=#117 id=117 data-nosnippet>117</a>    values_to_replace: <span class="kw-2">&amp;</span><span class="lifetime">'mapping </span><span class="kw-2">mut </span>ValueMapping,
-<a href=#118 id=118 data-nosnippet>118</a>    insert_current_instruction_at_callback_end: bool,
-<a href=#119 id=119 data-nosnippet>119</a>    orig_instruction_hash: u64,
-<a href=#120 id=120 data-nosnippet>120</a>}
-<a href=#121 id=121 data-nosnippet>121</a>
-<a href=#122 id=122 data-nosnippet>122</a><span class="kw">impl </span>SimpleOptimizationContext&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>&gt; {
-<a href=#123 id=123 data-nosnippet>123</a>    <span class="doccomment">/// Returns the current instruction being visited.
-<a href=#124 id=124 data-nosnippet>124</a>    ///
-<a href=#125 id=125 data-nosnippet>125</a>    /// The instruction has already had its values updated with any replacements to be done.
-<a href=#126 id=126 data-nosnippet>126</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>instruction(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>Instruction {
-<a href=#127 id=127 data-nosnippet>127</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.dfg[<span class="self">self</span>.instruction_id]
-<a href=#128 id=128 data-nosnippet>128</a>    }
-<a href=#129 id=129 data-nosnippet>129</a>
-<a href=#130 id=130 data-nosnippet>130</a>    <span class="doccomment">/// Instructs this context to replace a value with another value. The value will be replaced
-<a href=#131 id=131 data-nosnippet>131</a>    /// in all subsequent instructions.
-<a href=#132 id=132 data-nosnippet>132</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>replace_value(<span class="kw-2">&amp;mut </span><span class="self">self</span>, from: ValueId, to: ValueId) {
-<a href=#133 id=133 data-nosnippet>133</a>        <span class="self">self</span>.values_to_replace.insert(from, to);
-<a href=#134 id=134 data-nosnippet>134</a>    }
-<a href=#135 id=135 data-nosnippet>135</a>
-<a href=#136 id=136 data-nosnippet>136</a>    <span class="doccomment">/// Check if the instruction has changed relative to its original contents,
-<a href=#137 id=137 data-nosnippet>137</a>    /// e.g. because any of its values have been replaced.
-<a href=#138 id=138 data-nosnippet>138</a>    </span><span class="kw">fn </span>has_instruction_changed(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-<a href=#139 id=139 data-nosnippet>139</a>        <span class="comment">// If the instruction changed, then there is a chance that we can (or have to)
-<a href=#140 id=140 data-nosnippet>140</a>        // simplify it before we insert it back into the block.
-<a href=#141 id=141 data-nosnippet>141</a>        </span><span class="kw">let </span>instruction_hash = rustc_hash::FxBuildHasher.hash_one(<span class="self">self</span>.instruction());
-<a href=#142 id=142 data-nosnippet>142</a>        <span class="self">self</span>.orig_instruction_hash != instruction_hash
-<a href=#143 id=143 data-nosnippet>143</a>    }
-<a href=#144 id=144 data-nosnippet>144</a>
-<a href=#145 id=145 data-nosnippet>145</a>    <span class="doccomment">/// Instructs this context to insert the current instruction right away, as opposed
-<a href=#146 id=146 data-nosnippet>146</a>    /// to doing this at the end of `mutate`'s block (unless `remove_current_instruction is called`).
-<a href=#147 id=147 data-nosnippet>147</a>    ///
-<a href=#148 id=148 data-nosnippet>148</a>    /// If the instruction or its values has changed relative to their original content,
-<a href=#149 id=149 data-nosnippet>149</a>    /// we attempt to simplify the instruction before re-inserting it into the block.
-<a href=#150 id=150 data-nosnippet>150</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_current_instruction(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-<a href=#151 id=151 data-nosnippet>151</a>        <span class="comment">// If the instruction changed, then there is a chance that we can (or have to)
-<a href=#152 id=152 data-nosnippet>152</a>        // simplify it before we insert it back into the block.
-<a href=#153 id=153 data-nosnippet>153</a>        </span><span class="kw">let </span>simplify = <span class="self">self</span>.has_instruction_changed();
-<a href=#154 id=154 data-nosnippet>154</a>
-<a href=#155 id=155 data-nosnippet>155</a>        <span class="kw">if </span>simplify {
-<a href=#156 id=156 data-nosnippet>156</a>            <span class="comment">// Based on FunctionInserter::push_instruction_value.
-<a href=#157 id=157 data-nosnippet>157</a>            </span><span class="kw">let </span>instruction = <span class="self">self</span>.instruction().clone();
-<a href=#158 id=158 data-nosnippet>158</a>            <span class="kw">let </span>results = <span class="self">self</span>.dfg.instruction_results(<span class="self">self</span>.instruction_id).to_vec();
-<a href=#159 id=159 data-nosnippet>159</a>            <span class="kw">let </span>ctrl_typevars = instruction
-<a href=#160 id=160 data-nosnippet>160</a>                .requires_ctrl_typevars()
-<a href=#161 id=161 data-nosnippet>161</a>                .then(|| vecmap(<span class="kw-2">&amp;</span>results, |result| <span class="self">self</span>.dfg.type_of_value(<span class="kw-2">*</span>result)));
-<a href=#162 id=162 data-nosnippet>162</a>
-<a href=#163 id=163 data-nosnippet>163</a>            <span class="kw">let </span>new_results = <span class="self">self</span>.dfg.insert_instruction_and_results_if_simplified(
-<a href=#164 id=164 data-nosnippet>164</a>                instruction,
-<a href=#165 id=165 data-nosnippet>165</a>                <span class="self">self</span>.block_id,
-<a href=#166 id=166 data-nosnippet>166</a>                ctrl_typevars,
-<a href=#167 id=167 data-nosnippet>167</a>                <span class="self">self</span>.call_stack_id,
-<a href=#168 id=168 data-nosnippet>168</a>                <span class="prelude-val">Some</span>(<span class="self">self</span>.instruction_id),
-<a href=#169 id=169 data-nosnippet>169</a>            );
-<a href=#170 id=170 data-nosnippet>170</a>            <span class="macro">assert_eq!</span>(results.len(), new_results.len());
-<a href=#171 id=171 data-nosnippet>171</a>            <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..results.len() {
-<a href=#172 id=172 data-nosnippet>172</a>                <span class="self">self</span>.values_to_replace.insert(results[i], new_results[i]);
-<a href=#173 id=173 data-nosnippet>173</a>            }
-<a href=#174 id=174 data-nosnippet>174</a>        } <span class="kw">else </span>{
-<a href=#175 id=175 data-nosnippet>175</a>            <span class="self">self</span>.dfg[<span class="self">self</span>.block_id].insert_instruction(<span class="self">self</span>.instruction_id);
-<a href=#176 id=176 data-nosnippet>176</a>        }
-<a href=#177 id=177 data-nosnippet>177</a>
-<a href=#178 id=178 data-nosnippet>178</a>        <span class="self">self</span>.insert_current_instruction_at_callback_end = <span class="bool-val">false</span>;
-<a href=#179 id=179 data-nosnippet>179</a>    }
-<a href=#180 id=180 data-nosnippet>180</a>
-<a href=#181 id=181 data-nosnippet>181</a>    <span class="doccomment">/// Instructs this context to remove the current instruction from its block.
-<a href=#182 id=182 data-nosnippet>182</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>remove_current_instruction(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-<a href=#183 id=183 data-nosnippet>183</a>        <span class="self">self</span>.insert_current_instruction_at_callback_end = <span class="bool-val">false</span>;
-<a href=#184 id=184 data-nosnippet>184</a>    }
-<a href=#185 id=185 data-nosnippet>185</a>
-<a href=#186 id=186 data-nosnippet>186</a>    <span class="doccomment">/// Inserts an instruction in the current block right away.
-<a href=#187 id=187 data-nosnippet>187</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_instruction(
-<a href=#188 id=188 data-nosnippet>188</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#189 id=189 data-nosnippet>189</a>        instruction: Instruction,
-<a href=#190 id=190 data-nosnippet>190</a>        ctrl_typevars: <span class="prelude-ty">Option</span>&lt;Vec&lt;Type&gt;&gt;,
-<a href=#191 id=191 data-nosnippet>191</a>    ) -&gt; InsertInstructionResult {
-<a href=#192 id=192 data-nosnippet>192</a>        <span class="self">self</span>.dfg.insert_instruction_and_results(
-<a href=#193 id=193 data-nosnippet>193</a>            instruction,
-<a href=#194 id=194 data-nosnippet>194</a>            <span class="self">self</span>.block_id,
-<a href=#195 id=195 data-nosnippet>195</a>            ctrl_typevars,
-<a href=#196 id=196 data-nosnippet>196</a>            <span class="self">self</span>.call_stack_id,
-<a href=#197 id=197 data-nosnippet>197</a>        )
-<a href=#198 id=198 data-nosnippet>198</a>    }
-<a href=#199 id=199 data-nosnippet>199</a>
-<a href=#200 id=200 data-nosnippet>200</a>    <span class="doccomment">/// Inserts an instruction by id in the current block right away.
-<a href=#201 id=201 data-nosnippet>201</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_instruction_by_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>, instruction_id: InstructionId) {
-<a href=#202 id=202 data-nosnippet>202</a>        <span class="self">self</span>.dfg[<span class="self">self</span>.block_id].insert_instruction(instruction_id);
-<a href=#203 id=203 data-nosnippet>203</a>    }
-<a href=#204 id=204 data-nosnippet>204</a>
-<a href=#205 id=205 data-nosnippet>205</a>    <span class="doccomment">/// Replaces the current instruction with another one.
-<a href=#206 id=206 data-nosnippet>206</a>    ///
-<a href=#207 id=207 data-nosnippet>207</a>    /// This assumes no change in the number and type of results,
-<a href=#208 id=208 data-nosnippet>208</a>    /// it simply reassigns the existing ID with a modified instruction.
-<a href=#209 id=209 data-nosnippet>209</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>replace_current_instruction_with(<span class="kw-2">&amp;mut </span><span class="self">self</span>, instruction: Instruction) {
-<a href=#210 id=210 data-nosnippet>210</a>        <span class="self">self</span>.dfg[<span class="self">self</span>.instruction_id] = instruction;
-<a href=#211 id=211 data-nosnippet>211</a>    }
-<a href=#212 id=212 data-nosnippet>212</a>}</code></pre></div></section></main></body></html>
+<a href=#67 id=67 data-nosnippet>67</a>        <span class="kw">let </span><span class="kw-2">mut </span>dirty_values = HashSet::&lt;ValueId&gt;::new();
+<a href=#68 id=68 data-nosnippet>68</a>        <span class="kw">let </span>one = <span class="self">self</span>.dfg.make_constant(FieldElement::from(<span class="number">1_u128</span>), NumericType::bool());
+<a href=#69 id=69 data-nosnippet>69</a>        <span class="kw">let </span>reverse_post_order = PostOrder::with_function(<span class="self">self</span>).into_vec_reverse();
+<a href=#70 id=70 data-nosnippet>70</a>        <span class="kw">for </span>block_id <span class="kw">in </span>reverse_post_order {
+<a href=#71 id=71 data-nosnippet>71</a>            <span class="kw">let </span><span class="kw-2">mut </span>enable_side_effects = one;
+<a href=#72 id=72 data-nosnippet>72</a>
+<a href=#73 id=73 data-nosnippet>73</a>            <span class="kw">let </span>instruction_ids = <span class="self">self</span>.dfg[block_id].take_instructions();
+<a href=#74 id=74 data-nosnippet>74</a>            <span class="self">self</span>.dfg[block_id].instructions_mut().reserve(instruction_ids.len());
+<a href=#75 id=75 data-nosnippet>75</a>            <span class="kw">for </span>instruction_id <span class="kw">in </span><span class="kw-2">&amp;</span>instruction_ids {
+<a href=#76 id=76 data-nosnippet>76</a>                <span class="kw">let </span>instruction_id = <span class="kw-2">*</span>instruction_id;
+<a href=#77 id=77 data-nosnippet>77</a>                <span class="kw">let </span>instruction = <span class="kw-2">&amp;mut </span><span class="self">self</span>.dfg[instruction_id];
+<a href=#78 id=78 data-nosnippet>78</a>                <span class="kw">let </span>orig_instruction_hash = rustc_hash::FxBuildHasher.hash_one(<span class="kw-2">&amp;</span>instruction);
+<a href=#79 id=79 data-nosnippet>79</a>                <span class="kw">if </span>!values_to_replace.is_empty() {
+<a href=#80 id=80 data-nosnippet>80</a>                    instruction.replace_values(<span class="kw-2">&amp;</span>values_to_replace);
+<a href=#81 id=81 data-nosnippet>81</a>                }
+<a href=#82 id=82 data-nosnippet>82</a>                <span class="kw">if let </span>Instruction::EnableSideEffectsIf { condition } = instruction {
+<a href=#83 id=83 data-nosnippet>83</a>                    enable_side_effects = <span class="kw-2">*</span>condition;
+<a href=#84 id=84 data-nosnippet>84</a>                }
+<a href=#85 id=85 data-nosnippet>85</a>                <span class="kw">let </span>call_stack_id = <span class="self">self</span>.dfg.get_instruction_call_stack_id(instruction_id);
+<a href=#86 id=86 data-nosnippet>86</a>                <span class="kw">let </span><span class="kw-2">mut </span>context = SimpleOptimizationContext {
+<a href=#87 id=87 data-nosnippet>87</a>                    block_id,
+<a href=#88 id=88 data-nosnippet>88</a>                    instruction_id,
+<a href=#89 id=89 data-nosnippet>89</a>                    call_stack_id,
+<a href=#90 id=90 data-nosnippet>90</a>                    dfg: <span class="kw-2">&amp;mut </span><span class="self">self</span>.dfg,
+<a href=#91 id=91 data-nosnippet>91</a>                    values_to_replace: <span class="kw-2">&amp;mut </span>values_to_replace,
+<a href=#92 id=92 data-nosnippet>92</a>                    insert_current_instruction_at_callback_end: <span class="bool-val">true</span>,
+<a href=#93 id=93 data-nosnippet>93</a>                    enable_side_effects,
+<a href=#94 id=94 data-nosnippet>94</a>                    orig_instruction_hash,
+<a href=#95 id=95 data-nosnippet>95</a>                    dirty_values: <span class="kw-2">&amp;mut </span>dirty_values,
+<a href=#96 id=96 data-nosnippet>96</a>                };
+<a href=#97 id=97 data-nosnippet>97</a>                f(<span class="kw-2">&amp;mut </span>context)<span class="question-mark">?</span>;
+<a href=#98 id=98 data-nosnippet>98</a>
+<a href=#99 id=99 data-nosnippet>99</a>                <span class="kw">if </span>context.insert_current_instruction_at_callback_end {
+<a href=#100 id=100 data-nosnippet>100</a>                    context.insert_current_instruction();
+<a href=#101 id=101 data-nosnippet>101</a>                }
+<a href=#102 id=102 data-nosnippet>102</a>            }
+<a href=#103 id=103 data-nosnippet>103</a>
+<a href=#104 id=104 data-nosnippet>104</a>            <span class="self">self</span>.dfg.replace_values_in_block_terminator(block_id, <span class="kw-2">&amp;</span>values_to_replace);
+<a href=#105 id=105 data-nosnippet>105</a>        }
+<a href=#106 id=106 data-nosnippet>106</a>
+<a href=#107 id=107 data-nosnippet>107</a>        <span class="self">self</span>.dfg.data_bus.replace_values(<span class="kw-2">&amp;</span>values_to_replace);
+<a href=#108 id=108 data-nosnippet>108</a>        <span class="prelude-val">Ok</span>(())
+<a href=#109 id=109 data-nosnippet>109</a>    }
+<a href=#110 id=110 data-nosnippet>110</a>}
+<a href=#111 id=111 data-nosnippet>111</a>
+<a href=#112 id=112 data-nosnippet>112</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>SimpleOptimizationContext&lt;<span class="lifetime">'dfg</span>, <span class="lifetime">'mapping</span>&gt; {
+<a href=#113 id=113 data-nosnippet>113</a>    <span class="attr">#[allow(unused)]
+<a href=#114 id=114 data-nosnippet>114</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) block_id: BasicBlockId,
+<a href=#115 id=115 data-nosnippet>115</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) instruction_id: InstructionId,
+<a href=#116 id=116 data-nosnippet>116</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) call_stack_id: CallStackId,
+<a href=#117 id=117 data-nosnippet>117</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) dfg: <span class="kw-2">&amp;</span><span class="lifetime">'dfg </span><span class="kw-2">mut </span>DataFlowGraph,
+<a href=#118 id=118 data-nosnippet>118</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) enable_side_effects: ValueId,
+<a href=#119 id=119 data-nosnippet>119</a>    values_to_replace: <span class="kw-2">&amp;</span><span class="lifetime">'mapping </span><span class="kw-2">mut </span>ValueMapping,
+<a href=#120 id=120 data-nosnippet>120</a>    insert_current_instruction_at_callback_end: bool,
+<a href=#121 id=121 data-nosnippet>121</a>    orig_instruction_hash: u64,
+<a href=#122 id=122 data-nosnippet>122</a>    dirty_values: <span class="kw-2">&amp;</span><span class="lifetime">'mapping </span><span class="kw-2">mut </span>HashSet&lt;ValueId&gt;,
+<a href=#123 id=123 data-nosnippet>123</a>}
+<a href=#124 id=124 data-nosnippet>124</a>
+<a href=#125 id=125 data-nosnippet>125</a><span class="kw">impl </span>SimpleOptimizationContext&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>&gt; {
+<a href=#126 id=126 data-nosnippet>126</a>    <span class="doccomment">/// Returns the current instruction being visited.
+<a href=#127 id=127 data-nosnippet>127</a>    ///
+<a href=#128 id=128 data-nosnippet>128</a>    /// The instruction has already had its values updated with any replacements to be done.
+<a href=#129 id=129 data-nosnippet>129</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>instruction(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>Instruction {
+<a href=#130 id=130 data-nosnippet>130</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.dfg[<span class="self">self</span>.instruction_id]
+<a href=#131 id=131 data-nosnippet>131</a>    }
+<a href=#132 id=132 data-nosnippet>132</a>
+<a href=#133 id=133 data-nosnippet>133</a>    <span class="doccomment">/// Instructs this context to replace a value with another value. The value will be replaced
+<a href=#134 id=134 data-nosnippet>134</a>    /// in all subsequent instructions.
+<a href=#135 id=135 data-nosnippet>135</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>replace_value(<span class="kw-2">&amp;mut </span><span class="self">self</span>, from: ValueId, to: ValueId) {
+<a href=#136 id=136 data-nosnippet>136</a>        <span class="self">self</span>.values_to_replace.insert(from, to);
+<a href=#137 id=137 data-nosnippet>137</a>    }
+<a href=#138 id=138 data-nosnippet>138</a>
+<a href=#139 id=139 data-nosnippet>139</a>    <span class="doccomment">/// Check if the instruction has changed relative to its original contents,
+<a href=#140 id=140 data-nosnippet>140</a>    /// e.g. because any of its values have been replaced.
+<a href=#141 id=141 data-nosnippet>141</a>    </span><span class="kw">fn </span>has_instruction_changed(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+<a href=#142 id=142 data-nosnippet>142</a>        <span class="comment">// If the instruction changed, then there is a chance that we can (or have to)
+<a href=#143 id=143 data-nosnippet>143</a>        // simplify it before we insert it back into the block.
+<a href=#144 id=144 data-nosnippet>144</a>        </span><span class="kw">let </span>instruction_hash = rustc_hash::FxBuildHasher.hash_one(<span class="self">self</span>.instruction());
+<a href=#145 id=145 data-nosnippet>145</a>        <span class="self">self</span>.orig_instruction_hash != instruction_hash
+<a href=#146 id=146 data-nosnippet>146</a>    }
+<a href=#147 id=147 data-nosnippet>147</a>
+<a href=#148 id=148 data-nosnippet>148</a>    <span class="doccomment">/// Instructs this context to insert the current instruction right away, as opposed
+<a href=#149 id=149 data-nosnippet>149</a>    /// to doing this at the end of `mutate`'s block (unless `remove_current_instruction is called`).
+<a href=#150 id=150 data-nosnippet>150</a>    ///
+<a href=#151 id=151 data-nosnippet>151</a>    /// If the instruction or its values has changed relative to their original content,
+<a href=#152 id=152 data-nosnippet>152</a>    /// we attempt to simplify the instruction before re-inserting it into the block.
+<a href=#153 id=153 data-nosnippet>153</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_current_instruction(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+<a href=#154 id=154 data-nosnippet>154</a>        <span class="comment">// If the instruction changed, or if any of its values have changed, then there is a chance
+<a href=#155 id=155 data-nosnippet>155</a>        // that we can (or have to) simplify it before we insert it back into the block.
+<a href=#156 id=156 data-nosnippet>156</a>        </span><span class="kw">let </span>instruction_changed = <span class="self">self</span>.has_instruction_changed();
+<a href=#157 id=157 data-nosnippet>157</a>        <span class="kw">let </span>simplify = instruction_changed
+<a href=#158 id=158 data-nosnippet>158</a>            || <span class="self">self</span>.instruction().any_value(|value| <span class="self">self</span>.dirty_values.contains(<span class="kw-2">&amp;</span>value));
+<a href=#159 id=159 data-nosnippet>159</a>
+<a href=#160 id=160 data-nosnippet>160</a>        <span class="kw">if </span>simplify {
+<a href=#161 id=161 data-nosnippet>161</a>            <span class="comment">// Based on FunctionInserter::push_instruction_value.
+<a href=#162 id=162 data-nosnippet>162</a>            </span><span class="kw">let </span>instruction = <span class="self">self</span>.instruction().clone();
+<a href=#163 id=163 data-nosnippet>163</a>            <span class="kw">let </span>results = <span class="self">self</span>.dfg.instruction_results(<span class="self">self</span>.instruction_id).to_vec();
+<a href=#164 id=164 data-nosnippet>164</a>
+<a href=#165 id=165 data-nosnippet>165</a>            <span class="kw">let </span>ctrl_typevars = instruction
+<a href=#166 id=166 data-nosnippet>166</a>                .requires_ctrl_typevars()
+<a href=#167 id=167 data-nosnippet>167</a>                .then(|| vecmap(<span class="kw-2">&amp;</span>results, |result| <span class="self">self</span>.dfg.type_of_value(<span class="kw-2">*</span>result)));
+<a href=#168 id=168 data-nosnippet>168</a>
+<a href=#169 id=169 data-nosnippet>169</a>            <span class="kw">let </span>new_results = <span class="self">self</span>.dfg.insert_instruction_and_results_if_simplified(
+<a href=#170 id=170 data-nosnippet>170</a>                instruction,
+<a href=#171 id=171 data-nosnippet>171</a>                <span class="self">self</span>.block_id,
+<a href=#172 id=172 data-nosnippet>172</a>                ctrl_typevars,
+<a href=#173 id=173 data-nosnippet>173</a>                <span class="self">self</span>.call_stack_id,
+<a href=#174 id=174 data-nosnippet>174</a>                <span class="prelude-val">Some</span>(<span class="self">self</span>.instruction_id),
+<a href=#175 id=175 data-nosnippet>175</a>            );
+<a href=#176 id=176 data-nosnippet>176</a>            <span class="macro">assert_eq!</span>(results.len(), new_results.len());
+<a href=#177 id=177 data-nosnippet>177</a>            <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..results.len() {
+<a href=#178 id=178 data-nosnippet>178</a>                <span class="kw">if </span>results[i] == new_results[i] &amp;&amp; instruction_changed {
+<a href=#179 id=179 data-nosnippet>179</a>                    <span class="comment">// If the result didn't change, but the instruction itself did, we'd still like
+<a href=#180 id=180 data-nosnippet>180</a>                    // to simplify instructions that depend on the unchanged result.
+<a href=#181 id=181 data-nosnippet>181</a>                    // This for example can happen with a `v2 = make_array [v1]` that got turned
+<a href=#182 id=182 data-nosnippet>182</a>                    // into `v2 = make_array [Field 0]`: `v2` didn't get a new result (it's not `v3`),
+<a href=#183 id=183 data-nosnippet>183</a>                    // but an instruction that uses `v2` could get simplified now when it wasn't before
+<a href=#184 id=184 data-nosnippet>184</a>                    // (an example is a call to `posiedon2_permutation(v2)`)
+<a href=#185 id=185 data-nosnippet>185</a>                    </span><span class="self">self</span>.dirty_values.insert(results[i]);
+<a href=#186 id=186 data-nosnippet>186</a>                }
+<a href=#187 id=187 data-nosnippet>187</a>
+<a href=#188 id=188 data-nosnippet>188</a>                <span class="self">self</span>.values_to_replace.insert(results[i], new_results[i]);
+<a href=#189 id=189 data-nosnippet>189</a>            }
+<a href=#190 id=190 data-nosnippet>190</a>        } <span class="kw">else </span>{
+<a href=#191 id=191 data-nosnippet>191</a>            <span class="self">self</span>.dfg[<span class="self">self</span>.block_id].insert_instruction(<span class="self">self</span>.instruction_id);
+<a href=#192 id=192 data-nosnippet>192</a>        }
+<a href=#193 id=193 data-nosnippet>193</a>
+<a href=#194 id=194 data-nosnippet>194</a>        <span class="self">self</span>.insert_current_instruction_at_callback_end = <span class="bool-val">false</span>;
+<a href=#195 id=195 data-nosnippet>195</a>    }
+<a href=#196 id=196 data-nosnippet>196</a>
+<a href=#197 id=197 data-nosnippet>197</a>    <span class="doccomment">/// Instructs this context to remove the current instruction from its block.
+<a href=#198 id=198 data-nosnippet>198</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>remove_current_instruction(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+<a href=#199 id=199 data-nosnippet>199</a>        <span class="self">self</span>.insert_current_instruction_at_callback_end = <span class="bool-val">false</span>;
+<a href=#200 id=200 data-nosnippet>200</a>    }
+<a href=#201 id=201 data-nosnippet>201</a>
+<a href=#202 id=202 data-nosnippet>202</a>    <span class="doccomment">/// Inserts an instruction in the current block right away.
+<a href=#203 id=203 data-nosnippet>203</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_instruction(
+<a href=#204 id=204 data-nosnippet>204</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#205 id=205 data-nosnippet>205</a>        instruction: Instruction,
+<a href=#206 id=206 data-nosnippet>206</a>        ctrl_typevars: <span class="prelude-ty">Option</span>&lt;Vec&lt;Type&gt;&gt;,
+<a href=#207 id=207 data-nosnippet>207</a>    ) -&gt; InsertInstructionResult {
+<a href=#208 id=208 data-nosnippet>208</a>        <span class="self">self</span>.dfg.insert_instruction_and_results(
+<a href=#209 id=209 data-nosnippet>209</a>            instruction,
+<a href=#210 id=210 data-nosnippet>210</a>            <span class="self">self</span>.block_id,
+<a href=#211 id=211 data-nosnippet>211</a>            ctrl_typevars,
+<a href=#212 id=212 data-nosnippet>212</a>            <span class="self">self</span>.call_stack_id,
+<a href=#213 id=213 data-nosnippet>213</a>        )
+<a href=#214 id=214 data-nosnippet>214</a>    }
+<a href=#215 id=215 data-nosnippet>215</a>
+<a href=#216 id=216 data-nosnippet>216</a>    <span class="doccomment">/// Inserts an instruction by id in the current block right away.
+<a href=#217 id=217 data-nosnippet>217</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_instruction_by_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>, instruction_id: InstructionId) {
+<a href=#218 id=218 data-nosnippet>218</a>        <span class="self">self</span>.dfg[<span class="self">self</span>.block_id].insert_instruction(instruction_id);
+<a href=#219 id=219 data-nosnippet>219</a>    }
+<a href=#220 id=220 data-nosnippet>220</a>
+<a href=#221 id=221 data-nosnippet>221</a>    <span class="doccomment">/// Replaces the current instruction with another one.
+<a href=#222 id=222 data-nosnippet>222</a>    ///
+<a href=#223 id=223 data-nosnippet>223</a>    /// This assumes no change in the number and type of results,
+<a href=#224 id=224 data-nosnippet>224</a>    /// it simply reassigns the existing ID with a modified instruction.
+<a href=#225 id=225 data-nosnippet>225</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>replace_current_instruction_with(<span class="kw-2">&amp;mut </span><span class="self">self</span>, instruction: Instruction) {
+<a href=#226 id=226 data-nosnippet>226</a>        <span class="self">self</span>.dfg[<span class="self">self</span>.instruction_id] = instruction;
+<a href=#227 id=227 data-nosnippet>227</a>    }
+<a href=#228 id=228 data-nosnippet>228</a>}
+<a href=#229 id=229 data-nosnippet>229</a>
+<a href=#230 id=230 data-nosnippet>230</a><span class="attr">#[cfg(test)]
+<a href=#231 id=231 data-nosnippet>231</a></span><span class="kw">mod </span>tests {
+<a href=#232 id=232 data-nosnippet>232</a>
+<a href=#233 id=233 data-nosnippet>233</a>    <span class="attr">#[test]
+<a href=#234 id=234 data-nosnippet>234</a>    #[cfg(feature = <span class="string">"bn254"</span>)]
+<a href=#235 id=235 data-nosnippet>235</a>    </span><span class="kw">fn </span>optimizes_instruction_dependent_on_changed_make_array() {
+<a href=#236 id=236 data-nosnippet>236</a>        <span class="comment">// Here `v2` will be optimized to Field 4, to `v3` will be an `make_array` with all
+<a href=#237 id=237 data-nosnippet>237</a>        // constant values so `poseidon2_permutation` could be simplified to a constant array
+<a href=#238 id=238 data-nosnippet>238</a>        // as well. However, that was not what was happening before it got fixed.
+<a href=#239 id=239 data-nosnippet>239</a>        </span><span class="kw">use crate</span>::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
+<a href=#240 id=240 data-nosnippet>240</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#241 id=241 data-nosnippet>241</a>        acir(inline) predicate_pure fn main f0 {
+<a href=#242 id=242 data-nosnippet>242</a>          b0(v0: u1):
+<a href=#243 id=243 data-nosnippet>243</a>            enable_side_effects v0
+<a href=#244 id=244 data-nosnippet>244</a>            v3 = make_array [Field 1, Field 3] : [Field; 2]
+<a href=#245 id=245 data-nosnippet>245</a>            v5 = array_get v3, index u32 0 -&gt; Field
+<a href=#246 id=246 data-nosnippet>246</a>            v9 = make_array [v5, Field 10, Field 11, Field 12] : [Field; 4]
+<a href=#247 id=247 data-nosnippet>247</a>            v11 = call poseidon2_permutation(v9) -&gt; [Field; 4]
+<a href=#248 id=248 data-nosnippet>248</a>            return v11
+<a href=#249 id=249 data-nosnippet>249</a>        }
+<a href=#250 id=250 data-nosnippet>250</a>        "</span>;
+<a href=#251 id=251 data-nosnippet>251</a>
+<a href=#252 id=252 data-nosnippet>252</a>        <span class="comment">// Replace the single array_get above with `Field 1`
+<a href=#253 id=253 data-nosnippet>253</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#254 id=254 data-nosnippet>254</a>        <span class="kw">let </span>function = ssa.functions.get_mut(<span class="kw-2">&amp;</span>ssa.main_id).unwrap();
+<a href=#255 id=255 data-nosnippet>255</a>        function.simple_optimization(|context| {
+<a href=#256 id=256 data-nosnippet>256</a>            <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::instruction::Instruction;
+<a href=#257 id=257 data-nosnippet>257</a>            <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::types::NumericType;
+<a href=#258 id=258 data-nosnippet>258</a>            <span class="kw">use </span>acvm::{AcirField, FieldElement};
+<a href=#259 id=259 data-nosnippet>259</a>
+<a href=#260 id=260 data-nosnippet>260</a>            <span class="kw">if </span><span class="macro">matches!</span>(context.instruction(), Instruction::ArrayGet { .. }) {
+<a href=#261 id=261 data-nosnippet>261</a>                <span class="kw">let </span>[result] = context.dfg.instruction_result(context.instruction_id);
+<a href=#262 id=262 data-nosnippet>262</a>                <span class="kw">let </span>one = context.dfg.make_constant(FieldElement::one(), NumericType::NativeField);
+<a href=#263 id=263 data-nosnippet>263</a>                context.replace_value(result, one);
+<a href=#264 id=264 data-nosnippet>264</a>            }
+<a href=#265 id=265 data-nosnippet>265</a>        });
+<a href=#266 id=266 data-nosnippet>266</a>
+<a href=#267 id=267 data-nosnippet>267</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+<a href=#268 id=268 data-nosnippet>268</a>        acir(inline) predicate_pure fn main f0 {
+<a href=#269 id=269 data-nosnippet>269</a>          b0(v0: u1):
+<a href=#270 id=270 data-nosnippet>270</a>            enable_side_effects v0
+<a href=#271 id=271 data-nosnippet>271</a>            v3 = make_array [Field 1, Field 3] : [Field; 2]
+<a href=#272 id=272 data-nosnippet>272</a>            v5 = array_get v3, index u32 0 -&gt; Field
+<a href=#273 id=273 data-nosnippet>273</a>            v9 = make_array [Field 1, Field 10, Field 11, Field 12] : [Field; 4]
+<a href=#274 id=274 data-nosnippet>274</a>            v14 = make_array [Field 7240468757324361249024251542156303120112842951074264840229993254937937472979, Field 3930511960251438292111676743312909260363817810999911872670084465997185352894, Field -8290242092339083421336159442854929054877503377436860423462737517325762575981, Field -6733696266227305542524114733265413578952163219224437350266287764676147469720] : [Field; 4]
+<a href=#275 id=275 data-nosnippet>275</a>            return v14
+<a href=#276 id=276 data-nosnippet>276</a>        }
+<a href=#277 id=277 data-nosnippet>277</a>        "</span>);
+<a href=#278 id=278 data-nosnippet>278</a>    }
+<a href=#279 id=279 data-nosnippet>279</a>}</code></pre></div></section></main></body></html>
