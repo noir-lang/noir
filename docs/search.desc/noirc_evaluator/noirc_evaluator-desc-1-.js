@@ -1,1 +1,1 @@
-searchState.loadedDescShard("noirc_evaluator", 1, "A priority queue that serves the next item with the lowest …\nReturns the argument unchanged.\nCalls <code>U::from(self)</code>.")
+searchState.loadedDescShard("noirc_evaluator", 1, "Returns the argument unchanged.\nCalls <code>U::from(self)</code>.\nA priority queue that serves the next item with the lowest …\nReturns the argument unchanged.\nCalls <code>U::from(self)</code>.")
