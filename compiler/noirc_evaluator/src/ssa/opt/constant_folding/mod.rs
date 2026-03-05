@@ -1051,6 +1051,38 @@ mod test {
         assert_normalized_ssa_equals(ssa, expected);
     }
 
+    /// The constant folding cache does not currently canonicalize commutative operand
+    /// order, so `mul v0, v1` and `mul v1, v0` are treated as distinct instructions.
+    /// This test documents that limitation. When the cache is updated to account for
+    /// commutativity, the `#[should_panic]` can be removed.
+    #[test]
+    #[should_panic]
+    fn commutative_mul_deduplication() {
+        // This situation arises when operand canonicalization puts `mul v0, v1`
+        // into the cache, but a later `values_to_replace` remapping produces
+        // `mul v1, v0` without going through canonicalization. The cache lookup
+        // must account for commutativity to deduplicate these.
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: Field, v1: Field):
+                v2 = mul v0, v1
+                v3 = mul v1, v0
+                constrain v2 == v3
+                return
+            }
+            ";
+        let expected = "
+            acir(inline) fn main f0 {
+              b0(v0: Field, v1: Field):
+                v2 = mul v0, v1
+                return
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants(MIN_ITER);
+        assert_normalized_ssa_equals(ssa, expected);
+    }
+
     // TODO: https://github.com/noir-lang/noir/issues/9767
     #[test]
     fn constant_fold_duplicated_field_divisions() {
