@@ -441,12 +441,12 @@ mod tests {
             v36 = mul v34, v35
             v37 = mul v36, Field 2
             v38 = add v33, v37
-            v39 = cast v38 as u8
-            v41 = eq v28, u8 0
-            v42 = not v41
-            v43 = cast v42 as u8
-            v44 = unchecked_mul v39, v43
-            v45 = cast v44 as i8
+            v40 = eq v33, Field 0
+            v41 = not v40
+            v42 = cast v41 as Field
+            v43 = mul v38, v42
+            v44 = cast v43 as u8
+            v45 = cast v43 as i8
             return v45
         }
         "#);
