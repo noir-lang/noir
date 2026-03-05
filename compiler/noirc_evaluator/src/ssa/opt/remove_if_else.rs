@@ -488,6 +488,7 @@ impl Context {
     }
 }
 
+#[derive(Debug)]
 enum SizeChange {
     None,
     /// Make the size of the new vector equal to the old array.
@@ -727,25 +728,11 @@ mod tests {
             v15 = make_array [v14] : [Field]
             enable_side_effects v0
             enable_side_effects u1 1
-            v17 = eq v11, u32 1
-            v18 = not v17
-            v19 = add v11, u32 1
-            v20 = make_array [v14, v2] : [Field]
-            v21 = array_set v20, index v11, value v2
-            v22 = array_get v21, index u32 0 -> Field
-            v23 = cast v18 as Field
-            v24 = cast v17 as Field
-            v25 = mul v23, v22
-            v26 = mul v24, v14
-            v27 = add v25, v26
-            v28 = array_get v21, index u32 1 -> Field
-            v29 = cast v18 as Field
-            v30 = cast v17 as Field
-            v31 = mul v29, v28
-            v32 = mul v30, v2
-            v33 = add v31, v32
-            v34 = make_array [v27, v33] : [Field]
-            constrain v27 == Field 1
+            v17 = add v11, u32 1
+            v18 = make_array [v14, v2] : [Field]
+            v19 = array_set v18, index v11, value v2
+            v20 = array_get v19, index u32 0 -> Field
+            constrain v20 == Field 1
             return
         }
         ");
