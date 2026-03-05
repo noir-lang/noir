@@ -146,7 +146,7 @@ pub enum ResolverError {
     },
     #[error("`quote` cannot be used in runtime code")]
     QuoteInRuntimeCode { location: Location },
-    #[error("Comptime-only type `{typ}` cannot be used in non-comptime item")]
+    #[error("Comptime-only type `{typ}` cannot be used in non-comptime {item}")]
     ComptimeTypeInNonComptimeItem { typ: String, location: Location, item: &'static str },
     #[error("Comptime variable `{name}` cannot be mutated in a non-comptime context")]
     MutatingComptimeInNonComptimeContext { name: String, location: Location },
