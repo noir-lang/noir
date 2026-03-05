@@ -11,6 +11,10 @@ impl Formatter<'_> {
         self.format_secondary_attributes(noir_struct.attributes);
         self.write_indentation();
         self.format_item_visibility(noir_struct.visibility);
+        if noir_struct.comptime {
+            self.write_keyword(Keyword::Comptime);
+            self.write_space();
+        }
         self.write_keyword(Keyword::Struct);
         self.write_space();
         self.write_identifier(noir_struct.name);
@@ -194,5 +198,11 @@ struct Bar {}
 }
 ";
         assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_empty_comptime_struct() {
+        let src = "comptime struct Foo {}\n";
+        assert_format(src, src);
     }
 }
