@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772711106754,
+  "lastUpdate": 1772711392799,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23126,48 +23126,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "c6655dc5a20ea9a407d133c3a27ccdd1f98681f4",
-          "message": "chore(ssa): Use Brillig target costs in unrolling cost analysis (#11644)",
-          "timestamp": "2026-02-25T17:53:35Z",
-          "tree_id": "091d203d44487380667b3f95b4eea4c37263ad89",
-          "url": "https://github.com/noir-lang/noir/commit/c6655dc5a20ea9a407d133c3a27ccdd1f98681f4"
-        },
-        "date": 1772043549404,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 248610,
-            "range": "± 498",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 217882,
-            "range": "± 3369",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2726974,
-            "range": "± 16461",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25219,6 +25177,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2747019,
             "range": "± 6643",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b851e08c4bc80fc5a678b254d47aafa7e39b3913",
+          "message": "chore(deps): bump @75lb/deep-merge from 1.1.1 to 1.1.2 (#11778)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-03-05T11:02:29Z",
+          "tree_id": "37b96212378e00c44131675f45884ad754c60ade",
+          "url": "https://github.com/noir-lang/noir/commit/b851e08c4bc80fc5a678b254d47aafa7e39b3913"
+        },
+        "date": 1772711347863,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 252800,
+            "range": "± 1681",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 221289,
+            "range": "± 8585",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2744675,
+            "range": "± 9875",
             "unit": "ns/iter"
           }
         ]
