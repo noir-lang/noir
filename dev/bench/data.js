@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772735334373,
+  "lastUpdate": 1772735713069,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23176,48 +23176,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "a1793afd174cb0a2baa296698a10da0b232d8d27",
-          "message": "chore: remove unnecessary `mut` in the stdlib (#11699)",
-          "timestamp": "2026-02-26T16:24:39Z",
-          "tree_id": "39d6f86fad98e4f7127cce69a5622b2ae28c7d58",
-          "url": "https://github.com/noir-lang/noir/commit/a1793afd174cb0a2baa296698a10da0b232d8d27"
-        },
-        "date": 1772124735324,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 249347,
-            "range": "± 995",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 217628,
-            "range": "± 3601",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2726375,
-            "range": "± 1642",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25269,6 +25227,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2744830,
             "range": "± 3184",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "f179cc05ee5fc76b0260b70b3f4d09fa4d9b0d4b",
+          "message": "fix: disallow mutating non-mutable references (owernship feature) (#11674)",
+          "timestamp": "2026-03-05T17:07:42Z",
+          "tree_id": "b151b0b228f15a237bc87f26c0730cf084fce8c4",
+          "url": "https://github.com/noir-lang/noir/commit/f179cc05ee5fc76b0260b70b3f4d09fa4d9b0d4b"
+        },
+        "date": 1772735667975,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 254830,
+            "range": "± 1740",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 223997,
+            "range": "± 1297",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2746826,
+            "range": "± 11980",
             "unit": "ns/iter"
           }
         ]
