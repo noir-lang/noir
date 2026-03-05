@@ -8,6 +8,7 @@ use std::collections::BTreeSet;
 use crate::BlackBoxFunc;
 use crate::native_types::Witness;
 
+use acir_field::AcirField;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use thiserror::Error;
 
@@ -163,13 +164,15 @@ pub enum BlackBoxFuncCall<F> {
     ///     - scalars (witness, N) a vector of low and high limbs of input
     ///     - scalars `[s1_low, s1_high, s2_low, s2_high, ...]`. (witness, N)
     ///       For Barretenberg, they must both be less than 128 bits.
+    ///       Barretenberg implementation of the blackbox also ensures that the scalars do not overflow the Grumpkin scalar field modulus.
+    ///    - predicate (witness) a boolean that disable the constraint when false
     /// - output:
     ///     - a tuple of `x` and `y` coordinates of output
     ///       points computed as `s_low*P+s_high*2^{128}*P`
     ///
     /// Because the Grumpkin scalar field is bigger than the ACIR field, we
     /// provide 2 ACIR fields representing the low and high parts of the Grumpkin
-    /// scalar $a$: `a=low+high*2^{128}`, with `low, high < 2^{128}`
+    /// scalar $a$: `a=low+high*2^{128}`, with `low< 2^{128}` and `high< 2^{126}`
     MultiScalarMul {
         points: Vec<FunctionInput<F>>,
         scalars: Vec<FunctionInput<F>>,
@@ -241,6 +244,12 @@ pub enum BlackBoxFuncCall<F> {
     },
     /// Applies the Poseidon2 permutation function to the given state,
     /// outputting the permuted state.
+    ///
+    /// This operation will fail if the length of the inputs do not match
+    /// the backend configuration, but a match with the statically configured
+    /// black box solver is enforced by static assertions, to avoid having a
+    /// different outcome between runtimes based on whether the SSA has
+    /// been flattened or not.
     Poseidon2Permutation {
         /// Input state for the permutation of Poseidon2
         inputs: Vec<FunctionInput<F>>,
@@ -307,7 +316,7 @@ impl<F> BlackBoxFuncCall<F> {
             BlackBoxFuncCall::Sha256Compression { outputs, .. } => outputs.to_vec(),
 
             BlackBoxFuncCall::AES128Encrypt { outputs, .. }
-            | BlackBoxFuncCall::Poseidon2Permutation { outputs, .. } => outputs.to_vec(),
+            | BlackBoxFuncCall::Poseidon2Permutation { outputs, .. } => outputs.clone(),
 
             BlackBoxFuncCall::AND { output, .. }
             | BlackBoxFuncCall::XOR { output, .. }
@@ -324,38 +333,30 @@ impl<F> BlackBoxFuncCall<F> {
     }
 }
 
-impl<F: Copy> BlackBoxFuncCall<F> {
+impl<F: Copy + AcirField> BlackBoxFuncCall<F> {
     pub fn get_inputs_vec(&self) -> Vec<FunctionInput<F>> {
         match self {
-            BlackBoxFuncCall::Blake2s { inputs, .. }
-            | BlackBoxFuncCall::Blake3 { inputs, .. }
-            | BlackBoxFuncCall::Poseidon2Permutation { inputs, .. } => inputs.to_vec(),
+            BlackBoxFuncCall::Blake2s { inputs, outputs: _ }
+            | BlackBoxFuncCall::Blake3 { inputs, outputs: _ }
+            | BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs: _ } => inputs.clone(),
 
-            BlackBoxFuncCall::Keccakf1600 { inputs, .. } => inputs.to_vec(),
-            BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, .. } => {
-                let mut all_inputs: Vec<FunctionInput<F>> =
-                    Vec::with_capacity(inputs.len() + iv.len() + key.len());
-                all_inputs.extend(**iv);
-                all_inputs.extend(**key);
-                all_inputs
+            BlackBoxFuncCall::Keccakf1600 { inputs, outputs: _ } => inputs.to_vec(),
+            BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, outputs: _ } => {
+                [inputs, iv.as_slice(), key.as_slice()].concat()
             }
-            BlackBoxFuncCall::Sha256Compression { inputs, hash_values, .. } => {
-                inputs.iter().chain(hash_values.as_ref()).copied().collect()
+            BlackBoxFuncCall::Sha256Compression { inputs, hash_values, outputs: _ } => {
+                [inputs.as_slice(), hash_values.as_slice()].concat()
             }
-            BlackBoxFuncCall::AND { lhs, rhs, .. } | BlackBoxFuncCall::XOR { lhs, rhs, .. } => {
+            BlackBoxFuncCall::AND { lhs, rhs, output: _, num_bits: _ }
+            | BlackBoxFuncCall::XOR { lhs, rhs, output: _, num_bits: _ } => {
                 vec![*lhs, *rhs]
             }
-            BlackBoxFuncCall::RANGE { input, .. } => vec![*input],
+            BlackBoxFuncCall::RANGE { input, num_bits: _ } => vec![*input],
 
-            BlackBoxFuncCall::MultiScalarMul { points, scalars, predicate, .. } => {
-                let mut inputs: Vec<FunctionInput<F>> =
-                    Vec::with_capacity(points.len() + scalars.len());
-                inputs.extend(points.iter().copied());
-                inputs.extend(scalars.iter().copied());
-                inputs.push(*predicate);
-                inputs
+            BlackBoxFuncCall::MultiScalarMul { points, scalars, predicate, outputs: _ } => {
+                [points.as_slice(), scalars.as_slice(), &[*predicate]].concat()
             }
-            BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, predicate, .. } => {
+            BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, predicate, outputs: _ } => {
                 vec![input1[0], input1[1], input1[2], input2[0], input2[1], input2[2], *predicate]
             }
             BlackBoxFuncCall::EcdsaSecp256k1 {
@@ -365,20 +366,14 @@ impl<F: Copy> BlackBoxFuncCall<F> {
                 hashed_message,
                 predicate,
                 output: _,
-            } => {
-                let mut inputs = Vec::with_capacity(
-                    public_key_x.len()
-                        + public_key_y.len()
-                        + signature.len()
-                        + hashed_message.len(),
-                );
-                inputs.extend(public_key_x.iter().copied());
-                inputs.extend(public_key_y.iter().copied());
-                inputs.extend(signature.iter().copied());
-                inputs.extend(hashed_message.iter().copied());
-                inputs.push(*predicate);
-                inputs
-            }
+            } => [
+                public_key_x.as_slice(),
+                public_key_y.as_slice(),
+                signature.as_slice(),
+                hashed_message.as_slice(),
+                &[*predicate],
+            ]
+            .concat(),
             BlackBoxFuncCall::EcdsaSecp256r1 {
                 public_key_x,
                 public_key_y,
@@ -386,20 +381,14 @@ impl<F: Copy> BlackBoxFuncCall<F> {
                 hashed_message,
                 predicate,
                 output: _,
-            } => {
-                let mut inputs = Vec::with_capacity(
-                    public_key_x.len()
-                        + public_key_y.len()
-                        + signature.len()
-                        + hashed_message.len(),
-                );
-                inputs.extend(public_key_x.iter().copied());
-                inputs.extend(public_key_y.iter().copied());
-                inputs.extend(signature.iter().copied());
-                inputs.extend(hashed_message.iter().copied());
-                inputs.push(*predicate);
-                inputs
-            }
+            } => [
+                public_key_x.as_slice(),
+                public_key_y.as_slice(),
+                signature.as_slice(),
+                hashed_message.as_slice(),
+                &[*predicate],
+            ]
+            .concat(),
             BlackBoxFuncCall::RecursiveAggregation {
                 verification_key: key,
                 proof,
@@ -407,15 +396,7 @@ impl<F: Copy> BlackBoxFuncCall<F> {
                 key_hash,
                 proof_type: _,
                 predicate,
-            } => {
-                let mut inputs = Vec::new();
-                inputs.extend(key.iter().copied());
-                inputs.extend(proof.iter().copied());
-                inputs.extend(public_inputs.iter().copied());
-                inputs.push(*key_hash);
-                inputs.push(*predicate);
-                inputs
-            }
+            } => [key.as_slice(), proof, public_inputs, &[*key_hash], &[*predicate]].concat(),
         }
     }
 
@@ -427,6 +408,26 @@ impl<F: Copy> BlackBoxFuncCall<F> {
             }
         }
         result
+    }
+
+    pub fn get_predicate(&self) -> Option<Witness> {
+        let predicate = match self {
+            BlackBoxFuncCall::AES128Encrypt { .. }
+            | BlackBoxFuncCall::AND { .. }
+            | BlackBoxFuncCall::XOR { .. }
+            | BlackBoxFuncCall::RANGE { .. }
+            | BlackBoxFuncCall::Blake2s { .. }
+            | BlackBoxFuncCall::Blake3 { .. }
+            | BlackBoxFuncCall::Keccakf1600 { .. }
+            | BlackBoxFuncCall::Poseidon2Permutation { .. }
+            | BlackBoxFuncCall::Sha256Compression { .. } => FunctionInput::Constant(F::one()),
+            BlackBoxFuncCall::EcdsaSecp256k1 { predicate, .. }
+            | BlackBoxFuncCall::EcdsaSecp256r1 { predicate, .. }
+            | BlackBoxFuncCall::MultiScalarMul { predicate, .. }
+            | BlackBoxFuncCall::EmbeddedCurveAdd { predicate, .. }
+            | BlackBoxFuncCall::RecursiveAggregation { predicate, .. } => *predicate,
+        };
+        if predicate.is_constant() { None } else { Some(predicate.to_witness()) }
     }
 }
 
@@ -590,11 +591,11 @@ mod tests {
 
     #[test]
     fn keccakf1600_serialization_roundtrip() {
-        use crate::serialization::{bincode_deserialize, bincode_serialize};
+        use crate::serialization::{msgpack_deserialize, msgpack_serialize};
 
         let opcode = keccakf1600_opcode::<FieldElement>();
-        let buf = bincode_serialize(&opcode).unwrap();
-        let recovered_opcode = bincode_deserialize(&buf).unwrap();
+        let buf = msgpack_serialize(&opcode, true).unwrap();
+        let recovered_opcode = msgpack_deserialize(&buf).unwrap();
         assert_eq!(opcode, recovered_opcode);
     }
 }
@@ -631,15 +632,17 @@ mod arb {
             let witness_arr_25 = any::<Box<[Witness; 25]>>();
             let witness_arr_32 = any::<Box<[Witness; 32]>>();
 
-            let case_aes128_encrypt = (
-                input_vec.clone(),
-                input_arr_16.clone(),
-                input_arr_16.clone(),
-                witness_vec.clone(),
-            )
-                .prop_map(|(inputs, iv, key, outputs)| {
-                    BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, outputs }
-                });
+            // Input must be a multiple of 16 bytes, and output length must equal input length
+            // Use fixed 16-byte input/output for simplicity
+            let witness_arr_16 = any::<Box<[Witness; 16]>>();
+            let case_aes128_encrypt =
+                (input_arr_16.clone(), input_arr_16.clone(), input_arr_16.clone(), witness_arr_16)
+                    .prop_map(|(inputs, iv, key, outputs)| BlackBoxFuncCall::AES128Encrypt {
+                        inputs: inputs.to_vec(),
+                        iv,
+                        key,
+                        outputs: outputs.to_vec(),
+                    });
 
             let case_and = (input_arr_3.clone(), input_arr_8.clone(), witness.clone()).prop_map(
                 |(lhs, rhs, output)| BlackBoxFuncCall::AND {
@@ -670,7 +673,7 @@ mod arb {
                 });
 
             let case_blake3 =
-                (input_arr_8.clone(), witness_arr_32.clone()).prop_map(|(inputs, outputs)| {
+                (input_arr_8.clone(), witness_arr_32).prop_map(|(inputs, outputs)| {
                     BlackBoxFuncCall::Blake3 { inputs: inputs.to_vec(), outputs }
                 });
 
@@ -698,8 +701,8 @@ mod arb {
             let case_ecdsa_secp256r1 = (
                 input_arr_32.clone(),
                 input_arr_32.clone(),
-                input_arr_64.clone(),
-                input_arr_32.clone(),
+                input_arr_64,
+                input_arr_32,
                 witness.clone(),
                 input.clone(),
             )
@@ -735,11 +738,11 @@ mod arb {
 
             let case_embedded_curve_add = (
                 input_arr_3.clone(),
-                input_arr_3.clone(),
+                input_arr_3,
                 input.clone(),
                 witness.clone(),
                 witness.clone(),
-                witness.clone(),
+                witness,
             )
                 .prop_map(|(input1, input2, predicate, w1, w2, w3)| {
                     BlackBoxFuncCall::EmbeddedCurveAdd {
@@ -750,7 +753,7 @@ mod arb {
                     }
                 });
 
-            let case_keccakf1600 = (input_arr_25.clone(), witness_arr_25.clone())
+            let case_keccakf1600 = (input_arr_25, witness_arr_25)
                 .prop_map(|(inputs, outputs)| BlackBoxFuncCall::Keccakf1600 { inputs, outputs });
 
             let case_recursive_aggregation = (
@@ -759,7 +762,7 @@ mod arb {
                 input_vec.clone(),
                 input.clone(),
                 any::<u32>(),
-                input.clone(),
+                input,
             )
                 .prop_map(
                     |(verification_key, proof, public_inputs, key_hash, proof_type, predicate)| {
@@ -775,7 +778,7 @@ mod arb {
                 );
 
             let case_poseidon2_permutation =
-                (input_vec.clone(), witness_vec.clone()).prop_map(|(inputs, outputs)| {
+                (input_vec, witness_vec).prop_map(|(inputs, outputs)| {
                     BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs }
                 });
 

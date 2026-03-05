@@ -1,7 +1,7 @@
 use std::io::{IsTerminal, Read};
 use std::path::PathBuf;
 
-use clap::{Args, Parser, Subcommand, command};
+use clap::{Args, Parser, Subcommand};
 use color_eyre::eyre::{self, Context, bail};
 use const_format::formatcp;
 use noir_artifact_cli::commands::parse_and_normalize_path;
@@ -58,7 +58,10 @@ enum SsaCommand {
 pub(crate) fn start_cli() -> eyre::Result<()> {
     let SsaCli { command, args } = SsaCli::parse();
 
-    let ssa = || read_source(args.source_path).and_then(|src| parse_ssa(&src, !args.no_validate));
+    let ssa = || {
+        let src = read_source(args.source_path)?;
+        parse_ssa(&src, !args.no_validate)
+    };
 
     match command {
         SsaCommand::List => {

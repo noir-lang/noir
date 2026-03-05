@@ -109,6 +109,10 @@ pub enum TypeCheckError {
     TupleIndexOutOfBounds { index: usize, lhs_type: Type, length: usize, location: Location },
     #[error("Variable `{name}` must be mutable to be assigned to")]
     VariableMustBeMutable { name: String, location: Location },
+    #[error("`{name}` is a `&` reference, so it cannot be written to")]
+    CannotAssignToReference { name: String, location: Location },
+    #[error("Cannot assign to `{lvalue}`, which is behind a `&` reference")]
+    CannotAssignToLValueBehindReference { lvalue: String, location: Location },
     #[error("Cannot mutate immutable variable `{name}`")]
     CannotMutateImmutableVariable { name: String, location: Location },
     #[error("Variable {name} captured in lambda must be a mutable reference")]
@@ -200,10 +204,12 @@ pub enum TypeCheckError {
         "Cannot pass a mutable reference from a unconstrained runtime to an constrained runtime"
     )]
     UnconstrainedReferenceToConstrained { location: Location },
-    #[error("Slices cannot be returned from an unconstrained runtime to a constrained runtime")]
-    UnconstrainedSliceReturnToConstrained { location: Location },
+    #[error("Vectors cannot be returned from an unconstrained runtime to a constrained runtime")]
+    UnconstrainedVectorReturnToConstrained { location: Location },
+    #[error("Functions cannot be returned from an unconstrained runtime to a constrained runtime")]
+    UnconstrainedFunctionReturnToConstrained { location: Location },
     #[error(
-        "Call to unconstrained function is unsafe and must be in an unconstrained function or unsafe block"
+        "Call to unconstrained function from constrained function is unsafe and must be in an unconstrained function or unsafe block"
     )]
     Unsafe { location: Location },
     #[error("Converting an unconstrained fn to a non-unconstrained fn is unsafe")]
@@ -234,7 +240,7 @@ pub enum TypeCheckError {
     UnspecifiedType { location: Location },
     #[error("Binding `{typ}` here to the `_` inside would create a cyclic type")]
     CyclicType { typ: Type, location: Location },
-    #[error("Type annotations required before indexing this array or slice")]
+    #[error("Type annotations required before indexing this array or vector")]
     TypeAnnotationsNeededForIndex { location: Location },
     #[error("Unnecessary `unsafe` block")]
     UnnecessaryUnsafeBlock { location: Location },
@@ -259,6 +265,24 @@ pub enum TypeCheckError {
     },
     #[error("Type annotation needed on array literal")]
     TypeAnnotationNeededOnArrayLiteral { is_array: bool, location: Location },
+    #[error("Expecting another error: {}", (.0).message)]
+    ExpectingOtherError(ExpectingOtherError),
+    #[error("Cannot call `std::verify_proof_with_type` in unconstrained context")]
+    VerifyProofWithTypeInBrillig { location: Location },
+}
+
+/// An error which is only shown to the user if there are no other errors emitted.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ExpectingOtherError {
+    pub message: String,
+    pub location: Location,
+}
+
+impl<'a> From<&'a ExpectingOtherError> for Diagnostic {
+    fn from(error: &'a ExpectingOtherError) -> Self {
+        let secondary = "".to_string();
+        Diagnostic::simple_error(error.message.clone(), secondary, error.location)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -303,6 +327,8 @@ impl TypeCheckError {
             | TypeCheckError::UnsupportedFieldCast { location }
             | TypeCheckError::TupleIndexOutOfBounds { location, .. }
             | TypeCheckError::VariableMustBeMutable { location, .. }
+            | TypeCheckError::CannotAssignToReference { location, .. }
+            | TypeCheckError::CannotAssignToLValueBehindReference { location, .. }
             | TypeCheckError::CannotMutateImmutableVariable { location, .. }
             | TypeCheckError::MutableCaptureWithoutRef { location, .. }
             | TypeCheckError::MutableReferenceToArrayElement { location }
@@ -332,7 +358,8 @@ impl TypeCheckError {
             | TypeCheckError::IncorrectTurbofishGenericCount { location, .. }
             | TypeCheckError::ConstrainedReferenceToUnconstrained { location }
             | TypeCheckError::UnconstrainedReferenceToConstrained { location }
-            | TypeCheckError::UnconstrainedSliceReturnToConstrained { location }
+            | TypeCheckError::UnconstrainedVectorReturnToConstrained { location }
+            | TypeCheckError::UnconstrainedFunctionReturnToConstrained { location }
             | TypeCheckError::Unsafe { location }
             | TypeCheckError::UnsafeFn { location }
             | TypeCheckError::NonConstantEvaluated { location, .. }
@@ -351,8 +378,9 @@ impl TypeCheckError {
             | TypeCheckError::NestedUnsafeBlock { location }
             | TypeCheckError::TupleMismatch { location, .. }
             | TypeCheckError::TypeAnnotationNeededOnItem { location, .. }
-            | TypeCheckError::TypeAnnotationNeededOnArrayLiteral { location, .. } => *location,
-
+            | TypeCheckError::TypeAnnotationNeededOnArrayLiteral { location, .. }
+            | TypeCheckError::VerifyProofWithTypeInBrillig { location } => *location,
+            TypeCheckError::ExpectingOtherError(error) => error.location,
             TypeCheckError::DuplicateNamedTypeArg { name: ident, .. }
             | TypeCheckError::NoSuchNamedTypeArg { name: ident, .. } => ident.location(),
 
@@ -362,6 +390,17 @@ impl TypeCheckError {
             TypeCheckError::Context { err, .. } => err.location(),
             TypeCheckError::ResolverError(resolver_error) => resolver_error.location(),
         }
+    }
+
+    /// An error which is only shown to the user if there are no other errors emitted.
+    pub(crate) fn expecting_other_error<S: Into<String>>(
+        message: S,
+        location: Location,
+    ) -> TypeCheckError {
+        TypeCheckError::ExpectingOtherError(ExpectingOtherError {
+            message: message.into(),
+            location,
+        })
     }
 }
 
@@ -499,7 +538,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 Diagnostic::simple_warning(error.to_string(), reason.clone(), *location)
             }
             TypeCheckError::CannotCastNumericToBool { typ: _, location } => {
-                let secondary = "compare with zero instead: ` != 0`".to_string();
+                let secondary = "Compare with zero instead: ` != 0`".to_string();
                 Diagnostic::simple_error(error.to_string(), secondary, *location)
             }
 
@@ -509,6 +548,8 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::UnsupportedFieldCast { location }
             | TypeCheckError::TupleIndexOutOfBounds { location, .. }
             | TypeCheckError::VariableMustBeMutable { location, .. }
+            | TypeCheckError::CannotAssignToReference { location, .. }
+            | TypeCheckError::CannotAssignToLValueBehindReference { location, .. }
             | TypeCheckError::CannotMutateImmutableVariable { location, .. }
             | TypeCheckError::UnresolvedMethodCall { location, .. }
             | TypeCheckError::IntegerSignedness { location, .. }
@@ -524,10 +565,12 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::FieldNot { location }
             | TypeCheckError::ConstrainedReferenceToUnconstrained { location }
             | TypeCheckError::UnconstrainedReferenceToConstrained { location }
-            | TypeCheckError::UnconstrainedSliceReturnToConstrained { location }
+            | TypeCheckError::UnconstrainedVectorReturnToConstrained { location }
+            | TypeCheckError::UnconstrainedFunctionReturnToConstrained { location }
             | TypeCheckError::NonConstantEvaluated { location, .. }
             | TypeCheckError::StringIndexAssign { location }
-            | TypeCheckError::InvalidShiftSize { location } => {
+            | TypeCheckError::InvalidShiftSize { location }
+            | TypeCheckError::VerifyProofWithTypeInBrillig { location } => {
                 Diagnostic::simple_error(error.to_string(), String::new(), *location)
             }
             TypeCheckError::InvalidBoolInfixOp { op, location } => {
@@ -609,7 +652,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
 
                         return diagnostic
                     },
-                    Source::ArrayIndex => format!("Indexing arrays and slices must be done with `{expected}`, not `{actual}`"),
+                    Source::ArrayIndex => format!("Indexing arrays and vectors must be done with `{expected}`, not `{actual}`"),
                 };
 
                 Diagnostic::simple_error(message, String::new(), *location)
@@ -648,8 +691,8 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                     diagnostic.add_secondary("This type has an invalid entry point type inside it".to_string(), *location);
                 }
 
-                diagnostic.add_note("Note: slices, references, empty arrays, empty strings, or any type containing them may not be used in main, contract functions, test functions, fuzz functions or foldable functions.".to_string());
-                add_invalid_type_to_diagnostic(invalid_type, *location, &mut diagnostic);
+                diagnostic.add_note("Note: vectors, references, empty arrays, empty strings, or any type containing them may not be used in main, contract functions, test functions, fuzz functions or foldable functions.".to_string());
+                invalid_type.add_to_diagnostic(*location, &mut diagnostic);
                 diagnostic
             },
             TypeCheckError::MismatchTraitImplNumParameters {
@@ -681,17 +724,17 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             },
             TypeCheckError::DuplicateNamedTypeArg { name, prev_location } => {
                 let msg = format!("`{name}` has already been specified");
-                let mut error = Diagnostic::simple_error(msg.to_string(), "".to_string(), name.location());
+                let mut error = Diagnostic::simple_error(msg, "".to_string(), name.location());
                 error.add_secondary(format!("`{name}` previously specified here"), *prev_location);
                 error
             },
             TypeCheckError::NoSuchNamedTypeArg { name, item } => {
                 let msg = format!("`{item}` has no associated type named `{name}`");
-                Diagnostic::simple_error(msg.to_string(), "".to_string(), name.location())
+                Diagnostic::simple_error(msg, "".to_string(), name.location())
             },
             TypeCheckError::MissingNamedTypeArg { name, item, location } => {
                 let msg = format!("`{item}` is missing the associated type `{name}`");
-                Diagnostic::simple_error(msg.to_string(), "".to_string(), *location)
+                Diagnostic::simple_error(msg, "".to_string(), *location)
             },
             TypeCheckError::Unsafe { location } => {
                 Diagnostic::simple_error(error.to_string(), String::new(), *location)
@@ -707,35 +750,35 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             }
             TypeCheckError::CannotInvokeStructFieldFunctionType { method_name, object_type, location } => {
                 Diagnostic::simple_error(
-                    format!("Cannot invoke function field '{method_name}' on type '{object_type}' as a method"), 
+                    format!("Cannot invoke function field '{method_name}' on type '{object_type}' as a method"),
                     format!("to call the function stored in '{method_name}', surround the field access with parentheses: '(', ')'"),
                     *location,
                 )
             },
             TypeCheckError::TypeAnnotationsNeededForIndex { location } => {
                 Diagnostic::simple_error(
-                    "Type annotations required before indexing this array or slice".into(), 
-                    "Type annotations needed before this point, can't decide if this is an array or slice".into(),
+                    "Type annotations required before indexing this array or vector".into(),
+                    "Type annotations needed before this point, can't decide if this is an array or vector".into(),
                     *location,
                 )
             },
             TypeCheckError::UnnecessaryUnsafeBlock { location } => {
                 Diagnostic::simple_warning(
-                    "Unnecessary `unsafe` block".into(), 
+                    "Unnecessary `unsafe` block".into(),
                     "".into(),
                     *location,
                 )
             },
             TypeCheckError::NestedUnsafeBlock { location } => {
                 Diagnostic::simple_warning(
-                    "Unnecessary `unsafe` block".into(), 
+                    "Unnecessary `unsafe` block".into(),
                     "Because it's nested inside another `unsafe` block".into(),
                     *location,
                 )
             },
             TypeCheckError::UnreachableCase { location } => {
                 Diagnostic::simple_warning(
-                    "Unreachable match case".into(), 
+                    "Unreachable match case".into(),
                     "This pattern is redundant with one or more prior patterns".into(),
                     *location,
                 )
@@ -788,10 +831,11 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             }
             TypeCheckError::TypeAnnotationNeededOnArrayLiteral { is_array, location } => {
                 let message = "Type annotation needed".into();
-                let array_or_slice = if *is_array { "array" } else { "slice" };
-                let secondary = format!("Could not determine the type of the {array_or_slice}");
+                let array_or_vector = if *is_array { "array" } else { "vector" };
+                let secondary = format!("Could not determine the type of the {array_or_vector}");
                 Diagnostic::simple_error(message, secondary, *location)
             }
+            TypeCheckError::ExpectingOtherError(error) => error.into()
         }
     }
 }
@@ -836,72 +880,5 @@ impl NoMatchingImplFoundError {
             .collect::<Option<Vec<_>>>()?;
 
         Some(Self { constraints, location })
-    }
-}
-
-fn add_invalid_type_to_diagnostic(
-    invalid_type: &InvalidType,
-    location: Location,
-    diagnostic: &mut Diagnostic,
-) {
-    match invalid_type {
-        InvalidType::Primitive(typ) => match typ {
-            // Use a slightly better message for common types that might be used as entry point types
-            Type::Unit => {
-                diagnostic
-                    .add_secondary("Unit is not a valid entry point type".to_string(), location);
-            }
-            Type::Reference(..) => {
-                diagnostic.add_secondary(
-                    format!("Reference is not a valid entry point type. Found: {typ}"),
-                    location,
-                );
-            }
-            Type::Slice(..) => {
-                diagnostic.add_secondary(
-                    format!("Slice is not a valid entry point type. Found: {typ}"),
-                    location,
-                );
-            }
-            _ => {
-                diagnostic.add_secondary(format!("Invalid entry point type: {typ}"), location);
-            }
-        },
-        InvalidType::Enum(typ) => {
-            diagnostic.add_secondary(
-                format!("Enum is not yet allowed as an entry point type. Found: {typ}"),
-                location,
-            );
-        }
-        InvalidType::EmptyArray(typ) => {
-            diagnostic.add_secondary(
-                format!("Empty array is not a valid entry point type. Found: {typ}"),
-                location,
-            );
-        }
-        InvalidType::EmptyString(typ) => {
-            diagnostic.add_secondary(
-                format!("Empty string is not a valid entry point type. Found: {typ}"),
-                location,
-            );
-        }
-        InvalidType::StructField { struct_name, field_name, invalid_type } => {
-            diagnostic.add_secondary(
-                format!("Struct {struct_name} has an invalid entry point type"),
-                struct_name.location(),
-            );
-            diagnostic.add_secondary(
-                format!("Field {field_name} has an invalid entry point type"),
-                field_name.location(),
-            );
-            add_invalid_type_to_diagnostic(invalid_type, field_name.location(), diagnostic);
-        }
-        InvalidType::Alias { alias_name, invalid_type } => {
-            diagnostic.add_secondary(
-                format!("Alias {alias_name} has an invalid entry point type"),
-                alias_name.location(),
-            );
-            add_invalid_type_to_diagnostic(invalid_type, alias_name.location(), diagnostic);
-        }
     }
 }

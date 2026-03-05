@@ -29,8 +29,8 @@
 //! Now the index to retrieve is 4 and there's no need to offset it in Brillig,
 //! avoiding one addition.
 //!
-//! In the case of slices, they are represented as Brillig vectors as [RC, Size, Capacity, ...items],
-//! thus the items pointer instead starts at three rather than one. So for a slice
+//! In the case of vectors, they are represented as Brillig vectors as [RC, Size, Capacity, ...items],
+//! thus the items pointer instead starts at three rather than one. So for a vector
 //! this pass will transform this:
 //!
 //! ```ssa
@@ -115,14 +115,14 @@ impl Function {
     }
 }
 
-/// Given an array or slice value and a constant index, returns an offset (shifted) index.
+/// Given an array or vector value and a constant index, returns an offset (shifted) index.
 fn compute_offset_index(
     context: &mut SimpleOptimizationContext,
-    array_or_slice: ValueId,
+    array_or_vector: ValueId,
     index: ValueId,
 ) -> Option<ValueId> {
     let constant_index = context.dfg.get_numeric_constant(index)?;
-    let offset = context.dfg.array_offset(array_or_slice, index);
+    let offset = context.dfg.array_offset(array_or_vector, index);
     let index = context.dfg.make_constant(
         constant_index + offset.to_u32().into(),
         NumericType::unsigned(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
@@ -159,7 +159,7 @@ mod tests {
     }
 
     #[test]
-    fn offset_slice_array_get_constant_index() {
+    fn offset_vector_array_get_constant_index() {
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: [Field]):
@@ -227,7 +227,7 @@ mod tests {
     }
 
     #[test]
-    fn offset_slice_array_set_constant_index() {
+    fn offset_vector_array_set_constant_index() {
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: [Field]):

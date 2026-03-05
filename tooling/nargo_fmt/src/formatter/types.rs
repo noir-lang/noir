@@ -7,6 +7,16 @@ use super::Formatter;
 
 impl Formatter<'_> {
     pub(super) fn format_type(&mut self, typ: UnresolvedType) {
+        let in_expression = false;
+        self.format_type_impl(typ, in_expression);
+    }
+
+    pub(super) fn format_type_in_expression(&mut self, typ: UnresolvedType) {
+        let in_expression = true;
+        self.format_type_impl(typ, in_expression);
+    }
+
+    fn format_type_impl(&mut self, typ: UnresolvedType, in_expression: bool) {
         self.skip_comments_and_whitespace();
 
         match typ.typ {
@@ -22,7 +32,7 @@ impl Formatter<'_> {
                 self.format_type_expression(type_expr);
                 self.write_right_bracket();
             }
-            UnresolvedTypeData::Slice(typ) => {
+            UnresolvedTypeData::Vector(typ) => {
                 self.write_left_bracket();
                 self.format_type(*typ);
                 self.write_right_bracket();
@@ -40,11 +50,15 @@ impl Formatter<'_> {
                 if !generic_type_args.is_empty() {
                     self.skip_comments_and_whitespace();
 
-                    // Apparently some Named types with generics have `::` before the generics
-                    // while others don't, so we have to account for both cases.
                     if self.is_at(Token::DoubleColon) {
-                        self.write_token(Token::DoubleColon);
+                        // Inside expressions, specifying a type's generics requires a double colon.
+                        if in_expression {
+                            self.write_token(Token::DoubleColon);
+                        } else {
+                            self.bump();
+                        }
                     }
+
                     self.format_generic_type_args(generic_type_args);
                 }
             }
@@ -55,17 +69,17 @@ impl Formatter<'_> {
                 self.format_generic_type_args(generic_type_args);
             }
             UnresolvedTypeData::Reference(typ, mutable) => {
-                // `&` can be represented with Ampersand or SliceStart in the lexer depending
+                // `&` can be represented with Ampersand or VectorStart in the lexer depending
                 // on whether it's right next to a `[` or not.
                 match &self.token {
                     Token::Ampersand => {
                         self.write_token(Token::Ampersand);
                     }
-                    Token::SliceStart => {
-                        self.write_token(Token::SliceStart);
+                    Token::DeprecatedVectorStart => {
+                        self.write_token(Token::DeprecatedVectorStart);
                     }
                     _ => {
-                        panic!("Expected Ampersand or SliceStart, found {:?}", self.token);
+                        panic!("Expected Ampersand or VectorStart, found {:?}", self.token);
                     }
                 }
                 if mutable {
@@ -142,7 +156,6 @@ impl Formatter<'_> {
             UnresolvedTypeData::Resolved(..)
             | UnresolvedTypeData::Interned(..)
             | UnresolvedTypeData::Error => unreachable!("Should not be present in the AST"),
-            UnresolvedTypeData::Unspecified => panic!("Unspecified type should have been handled"),
         }
     }
 
@@ -216,8 +229,15 @@ mod tests {
     }
 
     #[test]
-    fn format_named_type_with_generics() {
+    fn format_named_type_with_generics_without_double_colon() {
         let src = " foo :: bar < A,  B  =  Field , C = i32 , D , >";
+        let expected = "foo::bar<A, B = Field, C = i32, D>";
+        assert_format_type(src, expected);
+    }
+
+    #[test]
+    fn format_named_type_with_generics_with_double_colon() {
+        let src = " foo :: bar :: < A,  B  =  Field , C = i32 , D , >";
         let expected = "foo::bar<A, B = Field, C = i32, D>";
         assert_format_type(src, expected);
     }
@@ -251,7 +271,7 @@ mod tests {
     }
 
     #[test]
-    fn format_slice_type() {
+    fn format_vector_type() {
         let src = " [ Field  ] ";
         let expected = "[Field]";
         assert_format_type(src, expected);

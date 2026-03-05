@@ -2,7 +2,7 @@
 name = "acvm_blackbox_solver"
 description = "A solver for the blackbox functions found in ACIR and Brillig"
 # x-release-please-start-version
-version = "1.0.0-beta.14"
+version = "1.0.0-beta.19"
 # x-release-please-end
 authors.workspace = true
 edition.workspace = true
@@ -20,18 +20,18 @@ acir.workspace = true
 thiserror.workspace = true
 log.workspace = true
 
-blake2 = "0.10.6"
-blake3 = "1.5.0"
+blake2 = "0.11.0-rc.5"
+blake3 = "1.8.2"
 sha2.workspace = true
-keccak = "0.1.4"
-k256 = { version = "0.13.4", features = [
+keccak = "0.2.0-rc.1"
+k256 = { workspace = true, features = [
     "ecdsa",
     "ecdsa-core",
     "sha256",
     "digest",
     "arithmetic",
 ] }
-p256 = { version = "0.13.2", features = [
+p256 = { workspace = true, features = [
     "ecdsa",
     "ecdsa-core",
     "sha256",
@@ -39,11 +39,12 @@ p256 = { version = "0.13.2", features = [
     "arithmetic",
 ] }
 
-libaes = "0.7.0"
+aes = "0.8"
+cbc = "0.1"
 
 [dev-dependencies]
 proptest.workspace = true
-num-prime = { version = "0.4.4", default-features = false, features = ["big-int"] }
+num-prime = { version = "0.5", default-features = false, features = ["big-int"] }
 criterion.workspace = true
 pprof.workspace = true
 

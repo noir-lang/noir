@@ -19,7 +19,7 @@ impl TypeDefinition {
     // docs:end:as_type
 
     /// Return this type applied to the given generic arguments.
-    /// For example, given `type Foo<A, B> { ... })` could be applied to `&[quote[i32].as_type(), quote[Field].as_type()]`
+    /// For example, given `type Foo<A, B> { ... })` could be applied to `[quote[i32].as_type(), quote[Field].as_type()].as_vector()`
     /// to return `Foo<i32, Field>`.
     ///
     /// If an incorrect number of generic arguments are given, this function will return None.
@@ -51,7 +51,7 @@ impl TypeDefinition {
 
     /// Returns (name, type, visibility) tuples of each field in this type. Each type is as-is
     /// with any generic arguments unchanged. Unless the field types are not needed,
-    /// users should generally prefer to use `TypeDefinition::fields` over this
+    /// users should generally prefer to use [`TypeDefinition::fields`][Self::fields] over this
     /// function if possible.
     #[builtin(type_def_fields_as_written)]
     // docs:start:fields_as_written
@@ -68,9 +68,9 @@ impl TypeDefinition {
     pub comptime fn name(self) -> Quoted {}
     // docs:end:name
 
-    /// Sets the fields of this type to the given fields list.
+    /// Sets the fields of this type to the given fields vector.
     /// All existing fields of the type will be overridden with the given fields.
-    /// Each element of the fields list corresponds to the name and type of a field.
+    /// Each element of the fields vector corresponds to the name and type of a field.
     /// Each name is expected to be a single identifier.
     #[builtin(type_def_set_fields)]
     // docs:start:set_fields

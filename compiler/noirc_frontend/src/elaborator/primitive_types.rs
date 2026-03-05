@@ -6,7 +6,7 @@ use noirc_errors::Location;
 use crate::{
     QuotedType, Type,
     ast::{GenericTypeArgs, IntegerBitSize},
-    elaborator::{Elaborator, PathResolutionMode, Turbofish},
+    elaborator::{Elaborator, PathResolutionMode, Turbofish, types::WildcardAllowed},
     hir::{
         def_collector::dc_crate::CompilationError,
         type_check::{
@@ -188,7 +188,7 @@ impl Elaborator<'_> {
         primitive_type: PrimitiveType,
         args: GenericTypeArgs,
         location: Location,
-        wildcard_allowed: bool,
+        wildcard_allowed: WildcardAllowed,
     ) -> Type {
         match primitive_type {
             PrimitiveType::Bool
@@ -260,11 +260,18 @@ impl Elaborator<'_> {
         primitive_type.to_type()
     }
 
+    /// Instantiates a primitive type with turbofish generics.
+    ///
+    /// # Returns
+    /// A tuple of:
+    /// - The instantiated [Type]
+    /// - A boolean indicating whether this primitive type has generics
     pub(crate) fn instantiate_primitive_type_with_turbofish(
         &mut self,
         primitive_type: PrimitiveType,
         turbofish: Option<Turbofish>,
-    ) -> Type {
+        errors: &mut Vec<CompilationError>,
+    ) -> (Type, bool) {
         match primitive_type {
             PrimitiveType::Bool
             | PrimitiveType::CtString
@@ -292,7 +299,7 @@ impl Elaborator<'_> {
             | PrimitiveType::Type
             | PrimitiveType::UnresolvedType => {
                 if let Some(turbofish) = turbofish {
-                    self.push_err(CompilationError::TypeError(
+                    errors.push(CompilationError::TypeError(
                         TypeCheckError::GenericCountMismatch {
                             item: primitive_type.name().to_string(),
                             expected: 0,
@@ -301,7 +308,7 @@ impl Elaborator<'_> {
                         },
                     ));
                 }
-                primitive_type.to_type()
+                (primitive_type.to_type(), false)
             }
             PrimitiveType::Str => {
                 let item = StrPrimitiveType;
@@ -317,13 +324,14 @@ impl Elaborator<'_> {
                         generics,
                         Some(turbofish.generics),
                         turbofish.location,
+                        errors,
                     )
                 } else {
                     generics
                 };
                 assert_eq!(args.len(), 1, "str generics should be: [length]");
                 let length = args.pop().unwrap();
-                Type::String(Box::new(length))
+                (Type::String(Box::new(length)), true)
             }
             PrimitiveType::Fmtstr => {
                 let item = FmtstrPrimitiveType;
@@ -339,6 +347,7 @@ impl Elaborator<'_> {
                         generics,
                         Some(turbofish.generics),
                         turbofish.location,
+                        errors,
                     )
                 } else {
                     generics
@@ -346,7 +355,7 @@ impl Elaborator<'_> {
                 assert_eq!(args.len(), 2, "fmtstr generics should be: [length, element]");
                 let element = args.pop().unwrap();
                 let length = args.pop().unwrap();
-                Type::FmtString(Box::new(length), Box::new(element))
+                (Type::FmtString(Box::new(length), Box::new(element)), true)
             }
         }
     }

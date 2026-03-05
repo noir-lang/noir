@@ -10,15 +10,13 @@ where
     for i in 0..N {
         let mut found = false;
         for j in 0..N {
-            if ((shuffle_mask[j] == false) & (!found)) {
+            if (shuffle_mask[j] == false) {
                 if (lhs[i] == rhs[j]) {
                     found = true;
                     shuffle_indices[i] = j;
                     shuffle_mask[j] = true;
+                    break;
                 }
-            }
-            if (found) {
-                continue;
             }
         }
         assert(found == true, "check_shuffle, lhs and rhs arrays do not contain equivalent values");

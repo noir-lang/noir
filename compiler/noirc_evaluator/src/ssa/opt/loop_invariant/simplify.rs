@@ -242,7 +242,7 @@ impl LoopInvariantContext<'_> {
     ///
     /// `header` indicates if we are in the loop header where loop bounds do not apply yet
     fn simplify_induction_variable_in_binary(
-        &mut self,
+        &self,
         loop_context: &LoopContext,
         binary: &Binary,
         is_header: bool,

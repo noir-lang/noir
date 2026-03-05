@@ -7,30 +7,49 @@ use noirc_errors::Location;
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
-    Generics, Kind, NamedGeneric, ResolvedGeneric, Type, TypeVariable,
+    Kind, NamedGeneric, ResolvedGeneric, ResolvedGenerics, Type, TypeVariable,
     ast::{
         Ident, IdentOrQuotedType, Path, UnresolvedGeneric, UnresolvedGenerics,
         UnresolvedTraitConstraint, UnresolvedType, UnsupportedNumericGenericType, Visitor,
     },
+    elaborator::types::{WildcardAllowed, WildcardDisallowedContext},
     hir::resolution::errors::ResolverError,
     node_interner::{DefinitionKind, NodeInterner, QuotedTypeId},
 };
 
 use super::Elaborator;
 
+/// Saved generics state for restoration after a scope exits.
+pub(super) struct GenericsState {
+    generics_count: usize,
+}
+
 impl Elaborator<'_> {
+    /// Saves the current generics state to be restored later with [Self::exit_generics_scope].
+    /// Note that all of `self.generics` will still be in scope after this call. This will only save the
+    /// position of the current generics so that any generics added afterward can later be discarded
+    /// via a call to [Self::exit_generics_scope].
+    pub(super) fn enter_generics_scope(&self) -> GenericsState {
+        GenericsState { generics_count: self.generics.len() }
+    }
+
+    /// Restores the generics state saved by `enter_generics_scope`.
+    pub(super) fn exit_generics_scope(&mut self, state: GenericsState) {
+        self.generics.truncate(state.generics_count);
+    }
+
     /// Runs `f` and if it modifies `self.generics`, `self.generics` is truncated
     /// back to the previous length.
     pub(super) fn recover_generics<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
-        let generics_count = self.generics.len();
+        let state = self.enter_generics_scope();
         let ret = f(self);
-        self.generics.truncate(generics_count);
+        self.exit_generics_scope(state);
         ret
     }
 
     /// Add the given generics to scope.
     /// Each generic will have a fresh `Shared<TypeBinding>` associated with it.
-    pub fn add_generics(&mut self, generics: &UnresolvedGenerics) -> Generics {
+    pub(super) fn add_generics(&mut self, generics: &UnresolvedGenerics) -> ResolvedGenerics {
         vecmap(generics, |generic| {
             let mut is_error = false;
             let (type_var, name) = match self.resolve_generic(generic) {
@@ -68,6 +87,44 @@ impl Elaborator<'_> {
         })
     }
 
+    pub(super) fn add_existing_generics(
+        &mut self,
+        unresolved_generics: &UnresolvedGenerics,
+        generics: &ResolvedGenerics,
+    ) {
+        assert_eq!(unresolved_generics.len(), generics.len());
+
+        for (unresolved_generic, generic) in unresolved_generics.iter().zip(generics) {
+            self.add_existing_generic(unresolved_generic, unresolved_generic.location(), generic);
+        }
+    }
+
+    pub(super) fn add_existing_generic(
+        &mut self,
+        unresolved_generic: &UnresolvedGeneric,
+        location: Location,
+        resolved_generic: &ResolvedGeneric,
+    ) {
+        if let Some(name) = unresolved_generic.ident().ident() {
+            let name = name.as_str();
+
+            if let Some(generic) = self.find_generic(name) {
+                self.push_err(ResolverError::DuplicateDefinition {
+                    name: name.to_string(),
+                    first_location: generic.location,
+                    second_location: location,
+                });
+            } else {
+                self.generics.push(resolved_generic.clone());
+            }
+        }
+    }
+
+    /// Find a generic variable among the generics of the current struct or function.
+    pub(super) fn find_generic(&self, target_name: &str) -> Option<&ResolvedGeneric> {
+        self.generics.iter().find(|generic| generic.name.as_ref() == target_name)
+    }
+
     pub(super) fn resolve_generic(
         &mut self,
         generic: &UnresolvedGeneric,
@@ -83,12 +140,10 @@ impl Elaborator<'_> {
             }
             IdentOrQuotedType::Quoted(id, location) => {
                 match self.interner.get_quoted_type(*id).follow_bindings() {
-                    Type::NamedGeneric(NamedGeneric { type_var, name, .. }) => {
-                        Ok((type_var.clone(), name))
-                    }
+                    Type::NamedGeneric(NamedGeneric { type_var, name, .. }) => Ok((type_var, name)),
                     other => Err(ResolverError::MacroResultInGenericsListNotAGeneric {
                         location: *location,
-                        typ: other.clone(),
+                        typ: other,
                     }),
                 }
             }
@@ -101,7 +156,7 @@ impl Elaborator<'_> {
     pub(super) fn resolve_generic_kind(&mut self, generic: &UnresolvedGeneric) -> Kind {
         if let UnresolvedGeneric::Numeric { ident, typ } = generic {
             let unresolved_typ = typ.clone();
-            let wildcard_allowed = false;
+            let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::NumericGeneric);
             let typ = if unresolved_typ.is_type_expression() {
                 self.resolve_type_with_kind(
                     unresolved_typ.clone(),
@@ -190,6 +245,7 @@ impl Elaborator<'_> {
                     ident, false, // mutable
                     false, // allow_shadowing
                     false, // warn_if_unused
+                    false, // warn_if_not_mutated
                     definition,
                 );
                 self.interner.push_definition_type(hir_ident.id, *typ.clone());
@@ -212,7 +268,7 @@ impl RemoveGenericsAppearingInTypeVisitor<'_, '_> {
                 self.visit_type(length);
                 self.visit_type(element);
             }
-            Type::Slice(element) => {
+            Type::Vector(element) => {
                 self.visit_type(element);
             }
             Type::FmtString(length, element) => {

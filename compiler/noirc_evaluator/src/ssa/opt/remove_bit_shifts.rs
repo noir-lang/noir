@@ -6,7 +6,7 @@
 //!
 //! ## Unsigned shift-right
 //!
-//! Shifting an unsigned integer to the right by N is the same as diving by 2^N:
+//! Shifting an unsigned integer to the right by N is the same as dividing by 2^N:
 //!
 //! ```ssa
 //! // this:
@@ -62,7 +62,10 @@
 //! This case is similar to unsigned shift-left.
 use std::{borrow::Cow, sync::Arc};
 
-use acvm::{FieldElement, acir::AcirField};
+use acvm::{
+    FieldElement,
+    acir::{AcirField, brillig::lengths::SemanticLength},
+};
 
 use crate::ssa::{
     ir::{
@@ -267,8 +270,7 @@ impl Context<'_, '_, '_> {
                 let add = BinaryOp::Add { unchecked: true };
                 let div_complement = self.insert_binary(lhs_sign_as_field, add, lhs_as_field);
                 let div_complement = self.insert_truncate(div_complement, bit_size, bit_size + 1);
-                let div_complement =
-                    self.insert_cast(div_complement, NumericType::signed(bit_size));
+                let div_complement = self.insert_cast(div_complement, lhs_typ);
                 // Performs the division on the adjusted complement (or the operand if positive)
                 let shifted_complement = self.insert_binary(div_complement, BinaryOp::Div, pow);
                 // For negative numbers, convert back to 2-complement by subtracting 1.
@@ -328,9 +330,15 @@ impl Context<'_, '_, '_> {
         let max_exponent_bits = if self.context.dfg.get_value_max_num_bits(exponent) == 1 {
             1
         } else {
-            self.context.dfg.type_of_value(exponent).bit_size().ilog2()
+            let exponent_bit_size = self.context.dfg.type_of_value(exponent).bit_size();
+            assert!(
+                exponent_bit_size.is_power_of_two(),
+                "ICE: exponent type bit size is expected to be a power of two"
+            );
+            exponent_bit_size.ilog2()
         };
-        let result_types = vec![Type::Array(Arc::new(vec![Type::bool()]), max_exponent_bits)];
+        let result_types =
+            vec![Type::Array(Arc::new(vec![Type::bool()]), SemanticLength(max_exponent_bits))];
 
         // A call to ToBits can only be done with a field argument (exponent is always u8 here)
         let exponent_as_field = self.insert_cast(exponent, NumericType::NativeField);
@@ -454,29 +462,15 @@ impl Context<'_, '_, '_> {
 
 /// Post-check condition for [Function::remove_bit_shifts].
 ///
-/// Succeeds if:
-///   - `func` is not an ACIR function, OR
-///   - `func` does not contain any bitshift instructions.
-///
-/// Otherwise panics.
+/// Panics if:
+///   - Any ACIR function contains bitshift instructions.
 #[cfg(debug_assertions)]
 fn remove_bit_shifts_post_check(func: &Function) {
-    // Non-ACIR functions should be unaffected.
-    if !func.runtime().is_acir() {
-        return;
-    }
-
-    // Otherwise there should be no shift-left or shift-right instructions in any reachable block.
-    for block_id in func.reachable_blocks() {
-        let instruction_ids = func.dfg[block_id].instructions();
-        for instruction_id in instruction_ids {
-            if matches!(
-                func.dfg[*instruction_id],
-                Instruction::Binary(Binary { operator: BinaryOp::Shl | BinaryOp::Shr, .. })
-            ) {
-                panic!("Bitshift instruction still remains in ACIR function");
-            }
-        }
+    if func.runtime().is_acir() {
+        // All bit shifts should be removed in ACIR functions
+        super::checks::for_each_instruction(func, |instruction, _dfg| {
+            super::checks::assert_not_bit_shift(instruction);
+        });
     }
 }
 
@@ -1022,14 +1016,14 @@ mod tests {
           b0():
             v4 = shr u8 1, u8 98
             v6 = eq v4, u8 0
-            jmpif v6 then: b7, else: b8
+            jmpif v6 then: b7(), else: b8()
           b1():
             jmp b3()
           b2():
             jmp b3()
           b3():
             v11 = eq v9, u8 1
-            jmpif v11 then: b4, else: b5
+            jmpif v11 then: b4(), else: b5()
           b4():
             jmp b6()
           b5():
@@ -1042,7 +1036,7 @@ mod tests {
             jmp b9()
           b9():
             v7 = eq v4, u8 1
-            jmpif v7 then: b10, else: b11
+            jmpif v7 then: b10(), else: b11()
           b10():
             jmp b12()
           b11():
@@ -1050,7 +1044,7 @@ mod tests {
           b12():
             v9 = shr u8 1, u8 99
             v10 = eq v9, u8 0
-            jmpif v10 then: b1, else: b2
+            jmpif v10 then: b1(), else: b2()
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
@@ -1064,14 +1058,14 @@ mod tests {
             constrain u1 0 == u1 1, "attempt to bit-shift with overflow"
             v4 = div u8 1, u8 0
             v5 = eq v4, u8 0
-            jmpif v5 then: b7, else: b8
+            jmpif v5 then: b7(), else: b8()
           b1():
             jmp b3()
           b2():
             jmp b3()
           b3():
             v9 = eq v7, u8 1
-            jmpif v9 then: b4, else: b5
+            jmpif v9 then: b4(), else: b5()
           b4():
             jmp b6()
           b5():
@@ -1084,7 +1078,7 @@ mod tests {
             jmp b9()
           b9():
             v6 = eq v4, u8 1
-            jmpif v6 then: b10, else: b11
+            jmpif v6 then: b10(), else: b11()
           b10():
             jmp b12()
           b11():
@@ -1093,7 +1087,7 @@ mod tests {
             constrain u1 0 == u1 1, "attempt to bit-shift with overflow"
             v7 = div u8 1, u8 0
             v8 = eq v7, u8 0
-            jmpif v8 then: b1, else: b2
+            jmpif v8 then: b1(), else: b2()
         }
         "#);
     }

@@ -1,13 +1,13 @@
-use noirc_errors::debug_info::ProcedureDebugId;
+use noirc_artifacts::debug::ProcedureDebugId;
 use serde::{Deserialize, Serialize};
 
 mod array_copy;
 mod array_reverse;
 mod check_max_stack_depth;
+mod error_with_string;
 mod mem_copy;
 mod prepare_vector_insert;
 mod prepare_vector_push;
-mod revert_with_string;
 mod vector_copy;
 mod vector_pop_back;
 mod vector_pop_front;
@@ -16,10 +16,10 @@ mod vector_remove;
 use array_copy::compile_array_copy_procedure;
 use array_reverse::compile_array_reverse_procedure;
 use check_max_stack_depth::compile_check_max_stack_depth_procedure;
+use error_with_string::compile_error_with_string_procedure;
 use mem_copy::compile_mem_copy_procedure;
 use prepare_vector_insert::compile_prepare_vector_insert_procedure;
 use prepare_vector_push::compile_prepare_vector_push_procedure;
-use revert_with_string::compile_revert_with_string_procedure;
 use vector_copy::compile_vector_copy_procedure;
 use vector_pop_back::compile_vector_pop_back_procedure;
 use vector_pop_front::compile_vector_pop_front_procedure;
@@ -38,16 +38,36 @@ use super::{
 /// Procedures receive their arguments on scratch space to avoid stack dumping&restoring.
 #[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord, Deserialize, Serialize)]
 pub enum ProcedureId {
+    /// Conditionally copies a source array to a destination array.
+    /// If the reference count of the source array is 1, then we can directly copy the pointer of the source array to the destination array.
     ArrayCopy,
+    /// Reverses an array in-place.
+    /// It is the responsibility of the caller to ensure the reference count of the array is 1.
     ArrayReverse,
+    /// Conditionally copies a source vector to a destination vector.
+    /// If the reference count of the source vector is 1, then we can directly copy the pointer of the source vector to the destination vector.
     VectorCopy,
+    /// Copy a number of items between two heap addresses.
     MemCopy,
+    /// Prepares a vector for pushing a new item. It tries to reuse the source vector,
+    /// allocating a new vector with a higher capacity and the copy of the source vector items if necessary.
+    ///
+    /// If the parameter is `true` it pushes to the back, otherwise to the front.
     PrepareVectorPush(bool),
+    /// Pops items from the front of a vector, returning the new vector.
+    /// Reuses the source vector if the reference count is 1.
     VectorPopFront,
+    /// Pops items from the back of a vector, returning the new vector and the pointer to the popped items.
+    /// Reuses the source vector if the reference count is 1.
     VectorPopBack,
+    /// Prepare a vector for a insert operation, leaving a hole at the index position, returning a pointer where the item can be written.
     PrepareVectorInsert,
+    /// Remove items at a given index from a vector, returning the new vector.
+    /// Reuses the source vector if the reference count is 1.
     VectorRemove,
+    /// Check that the stack memory has not exceeded the maximum size allowed by the layout.
     CheckMaxStackDepth,
+    /// Revert with the given error message.
     RevertWithString(String),
 }
 
@@ -83,7 +103,6 @@ impl ProcedureId {
             8 => ProcedureId::PrepareVectorInsert,
             9 => ProcedureId::VectorRemove,
             10 => ProcedureId::CheckMaxStackDepth,
-            // TODO: what to do here?
             11 => ProcedureId::RevertWithString("".to_string()),
             _ => panic!("Unsupported procedure debug ID of {inner} was supplied"),
         }
@@ -103,11 +122,13 @@ impl std::fmt::Display for ProcedureId {
             ProcedureId::PrepareVectorInsert => write!(f, "PrepareVectorInsert"),
             ProcedureId::VectorRemove => write!(f, "VectorRemove"),
             ProcedureId::CheckMaxStackDepth => write!(f, "CheckMaxStackDepth"),
-            ProcedureId::RevertWithString(_) => write!(f, "RevertWithString"),
+            ProcedureId::RevertWithString(_) => write!(f, "ErrorWithString"),
         }
     }
 }
 
+/// Compile a procedure as a stand-alone Brillig artifact, generating byte code for a specific operation,
+/// reading and returning arguments through the [ScratchSpace][crate::brillig::brillig_ir::registers::ScratchSpace].
 pub(crate) fn compile_procedure<F: AcirField + DebugToString>(
     procedure_id: ProcedureId,
     options: &BrilligOptions,
@@ -137,11 +158,52 @@ pub(crate) fn compile_procedure<F: AcirField + DebugToString>(
         ProcedureId::CheckMaxStackDepth => {
             compile_check_max_stack_depth_procedure(&mut brillig_context, stack_start);
         }
-        ProcedureId::RevertWithString(revert_string) => {
-            compile_revert_with_string_procedure(&mut brillig_context, revert_string);
+        ProcedureId::RevertWithString(error_string) => {
+            compile_error_with_string_procedure(&mut brillig_context, error_string);
         }
-    };
+    }
 
     brillig_context.return_instruction();
-    brillig_context.artifact()
+    brillig_context.into_artifact()
+}
+
+#[cfg(test)]
+mod tests {
+    use acvm::FieldElement;
+
+    use super::{ProcedureId, compile_procedure};
+    use crate::brillig::BrilligOptions;
+
+    fn compile_procedure_to_string(procedure_id: ProcedureId) -> String {
+        let options = BrilligOptions::default();
+        let artifact = compile_procedure::<FieldElement>(procedure_id, &options, 0);
+        artifact.finish().to_string()
+    }
+
+    #[test]
+    fn array_copy_procedure() {
+        let artifact_string = compile_procedure_to_string(ProcedureId::ArrayCopy);
+        insta::assert_snapshot!(artifact_string, @r"
+        fn ArrayCopy
+         0: @6 = load @3
+         1: @7 = u32 eq @6, @2
+         2: jump if @7 to 17
+         3: @5 = @1
+         4: @1 = u32 add @1, @4
+         5: @9 = u32 add @3, @4
+         6: @10 = @3
+         7: @11 = @5
+         8: @12 = u32 eq @10, @9
+         9: jump if @12 to 15
+        10: @8 = load @10
+        11: store @8 at @11
+        12: @10 = u32 add @10, @2
+        13: @11 = u32 add @11, @2
+        14: jump to 8
+        15: @5 = indirect const u32 1
+        16: jump to 18
+        17: @5 = @3
+        18: return
+        ");
+    }
 }

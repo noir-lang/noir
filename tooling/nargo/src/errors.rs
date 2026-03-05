@@ -9,9 +9,8 @@ use acvm::{
     pwg::{ErrorLocation, OpcodeResolutionError, RawAssertionPayload, ResolvedAssertionPayload},
 };
 use noirc_abi::{Abi, AbiErrorType, display_abi_error};
-use noirc_errors::{
-    CustomDiagnostic, call_stack::CallStackId, debug_info::DebugInfo, reporter::ReportedErrors,
-};
+use noirc_artifacts::debug::DebugInfo;
+use noirc_errors::{CustomDiagnostic, call_stack::CallStackId, reporter::ReportedErrors};
 
 pub use noirc_errors::Location;
 
@@ -68,7 +67,7 @@ impl<F: AcirField> NargoError<F> {
         match self {
             NargoError::ExecutionError(error) => match error {
                 ExecutionError::AssertionFailed(payload, _, _) => match payload {
-                    ResolvedAssertionPayload::String(message) => Some(message.to_string()),
+                    ResolvedAssertionPayload::String(message) => Some(message.clone()),
                     ResolvedAssertionPayload::Raw(raw) => {
                         let abi_type = error_types.get(&raw.selector)?;
                         let decoded = display_abi_error(&raw.data, abi_type.clone());
@@ -77,13 +76,13 @@ impl<F: AcirField> NargoError<F> {
                 },
                 ExecutionError::SolvingError(error, _) => match error {
                     OpcodeResolutionError::BlackBoxFunctionFailed(_, reason) => {
-                        Some(reason.to_string())
+                        Some(reason.clone())
                     }
                     _ => None,
                 },
             },
             NargoError::ForeignCallError(error) => Some(error.to_string()),
-            _ => None,
+            NargoError::CompilationError => None,
         }
     }
 }
@@ -139,7 +138,7 @@ fn extract_locations_from_error<F: AcirField>(
             }
             ErrorLocation::Resolved(_) => acir_call_stack.clone(),
         },
-        _ => None,
+        ExecutionError::SolvingError(..) => None,
     }?;
 
     // Insert the top-level Acir location where the Brillig function failed
@@ -168,7 +167,7 @@ fn extract_locations_from_error<F: AcirField>(
             _,
         ) => Some(*function_id),
         ExecutionError::AssertionFailed(_, _, function_id) => *function_id,
-        _ => None,
+        ExecutionError::SolvingError(..) => None,
     };
 
     Some(

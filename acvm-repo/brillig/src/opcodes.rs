@@ -1,7 +1,11 @@
-use crate::black_box::BlackBoxOp;
+use crate::{
+    black_box::BlackBoxOp,
+    lengths::{ElementsFlattenedLength, FlattenedLength, SemanticLength, SemiFlattenedLength},
+};
 use acir_field::AcirField;
 use serde::{Deserialize, Serialize};
 
+/// Represents a program location (instruction index) used as a jump target.
 pub type Label = usize;
 
 /// Represents an address in the VM's memory.
@@ -10,30 +14,31 @@ pub type Label = usize;
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum MemoryAddress {
     /// Specifies an exact index in the VM's memory.
-    Direct(usize),
+    Direct(u32),
     /// Specifies an index relative to the stack pointer.
     ///
     /// It is resolved as the current stack pointer plus the offset stored here.
     ///
-    /// The current stack pointer is wherever slot 0 of the `Memory` points at.
-    Relative(usize),
+    /// The stack pointer is stored in memory slot 0, so this address is resolved
+    /// by reading that slot and adding the offset to get the final memory address.
+    Relative(u32),
 }
 
 impl MemoryAddress {
     /// Create a `Direct` address.
-    pub fn direct(address: usize) -> Self {
+    pub fn direct(address: u32) -> Self {
         MemoryAddress::Direct(address)
     }
 
     /// Create a `Relative` address.
-    pub fn relative(offset: usize) -> Self {
+    pub fn relative(offset: u32) -> Self {
         MemoryAddress::Relative(offset)
     }
 
     /// Return the index in a `Direct` address.
     ///
     /// Panics if it's `Relative`.
-    pub fn unwrap_direct(self) -> usize {
+    pub fn unwrap_direct(self) -> u32 {
         match self {
             MemoryAddress::Direct(address) => address,
             MemoryAddress::Relative(_) => panic!("Expected direct memory address"),
@@ -43,7 +48,7 @@ impl MemoryAddress {
     /// Return the index in a `Relative` address.
     ///
     /// Panics if it's `Direct`.
-    pub fn unwrap_relative(self) -> usize {
+    pub fn unwrap_relative(self) -> u32 {
         match self {
             MemoryAddress::Direct(_) => panic!("Expected relative memory address"),
             MemoryAddress::Relative(offset) => offset,
@@ -51,7 +56,7 @@ impl MemoryAddress {
     }
 
     /// Return the index in the address.
-    pub fn to_usize(self) -> usize {
+    pub fn to_u32(self) -> u32 {
         match self {
             MemoryAddress::Direct(address) => address,
             MemoryAddress::Relative(offset) => offset,
@@ -69,12 +74,13 @@ impl MemoryAddress {
         !self.is_relative()
     }
 
-    /// Offset the address by `amount`, while preserving its type.
-    pub fn offset(&self, amount: usize) -> Self {
-        match self {
-            MemoryAddress::Direct(address) => MemoryAddress::Direct(address + amount),
-            MemoryAddress::Relative(offset) => MemoryAddress::Relative(offset + amount),
-        }
+    /// Offset a `Direct` address by `amount`.
+    ///
+    /// Panics if called on a `Relative` address.
+    pub fn offset(&self, amount: u32) -> Self {
+        // We disallow offsetting relatively addresses as this is not expected to be meaningful.
+        let address = self.unwrap_direct();
+        MemoryAddress::direct(address + amount)
     }
 }
 
@@ -94,11 +100,11 @@ pub enum HeapValueType {
     Simple(BitSize),
     /// The value read should be interpreted as a pointer to a [HeapArray], which
     /// consists of a pointer to a slice of memory of size elements, and a
-    /// reference count.
-    Array { value_types: Vec<HeapValueType>, size: usize },
+    /// reference count, to avoid cloning arrays that are not shared.
+    Array { value_types: Vec<HeapValueType>, size: SemanticLength },
     /// The value read should be interpreted as a pointer to a [HeapVector], which
     /// consists of a pointer to a slice of memory, a number of elements in that
-    /// slice, and a reference count.
+    /// vector, and a reference count.
     Vector { value_types: Vec<HeapValueType> },
 }
 
@@ -116,15 +122,17 @@ impl HeapValueType {
     /// Returns the total number of field elements required to represent this type in memory.
     ///
     /// Returns `None` for `Vector`, as their size is not statically known.
-    pub fn flattened_size(&self) -> Option<usize> {
+    pub fn flattened_size(&self) -> Option<FlattenedLength> {
         match self {
-            HeapValueType::Simple(_) => Some(1),
+            HeapValueType::Simple(_) => Some(FlattenedLength(1)),
             HeapValueType::Array { value_types, size } => {
-                let element_size =
-                    value_types.iter().map(|t| t.flattened_size()).sum::<Option<usize>>();
-
-                // Multiply element size by number of elements.
-                element_size.map(|element_size| element_size * size)
+                // This is the flattened length of a single entry in the array (all of `value_types`)
+                let elements_flattened_size =
+                    value_types.iter().map(|t| t.flattened_size()).sum::<Option<FlattenedLength>>();
+                // Next we multiply it by the size of the array
+                elements_flattened_size.map(|elements_flattened_size| {
+                    ElementsFlattenedLength::from(elements_flattened_size) * *size
+                })
             }
             HeapValueType::Vector { .. } => {
                 // Vectors are dynamic, so we cannot determine their size statically.
@@ -164,7 +172,7 @@ impl std::fmt::Display for HeapValueType {
                 write!(f, "]")
             }
             HeapValueType::Vector { value_types } => {
-                write!(f, "&[")?;
+                write!(f, "@[")?;
                 write_types(f, value_types)?;
                 write!(f, "]")
             }
@@ -181,12 +189,12 @@ pub struct HeapArray {
     /// That is to say, the address retrieved from the pointer doesn't need any more offsetting.
     pub pointer: MemoryAddress,
     /// Statically known size of the array.
-    pub size: usize,
+    pub size: SemiFlattenedLength,
 }
 
 impl Default for HeapArray {
     fn default() -> Self {
-        Self { pointer: MemoryAddress::direct(0), size: 0 }
+        Self { pointer: MemoryAddress::direct(0), size: SemiFlattenedLength(0) }
     }
 }
 
@@ -210,10 +218,13 @@ pub struct HeapVector {
 
 impl std::fmt::Display for HeapVector {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "&[{}; {}]", self.pointer, self.size)
+        write!(f, "@[{}; {}]", self.pointer, self.size)
     }
 }
 
+/// Represents the bit size of unsigned integer types in Brillig.
+///
+/// These correspond to the standard unsigned integer types, with U1 representing a boolean.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum IntegerBitSize {
@@ -267,6 +278,10 @@ impl std::fmt::Display for IntegerBitSize {
     }
 }
 
+/// Represents the bit size of values in Brillig.
+///
+/// Values can either be field elements (whose size depends on the field being used)
+/// or fixed-size unsigned integers.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum BitSize {
@@ -275,6 +290,10 @@ pub enum BitSize {
 }
 
 impl BitSize {
+    /// Convert the bit size to a u32 value.
+    ///
+    /// For field elements, returns the maximum number of bits in the field.
+    /// For integers, returns the bit size of the integer type.
     pub fn to_u32<F: AcirField>(self) -> u32 {
         match self {
             BitSize::Field => F::max_num_bits(),
@@ -282,6 +301,10 @@ impl BitSize {
         }
     }
 
+    /// Try to create a BitSize from a u32 value.
+    ///
+    /// If the value matches the field's maximum bit count, returns `BitSize::Field`.
+    /// Otherwise, attempts to interpret it as an integer bit size.
     pub fn try_from_u32<F: AcirField>(value: u32) -> Result<Self, &'static str> {
         if value == F::max_num_bits() {
             Ok(BitSize::Field)
@@ -404,6 +427,10 @@ pub enum BrilligOpcode<F> {
         /// who the caller is.
         function: String,
         /// Destination addresses (may be single values or memory pointers).
+        ///
+        /// Output vectors are passed as a [ValueOrArray::MemoryAddress]. Since their size is not known up front,
+        /// we cannot allocate space for them on the heap. Instead, the VM is expected to write their data after
+        /// the current free memory pointer, and store the heap address into the destination.
         destinations: Vec<ValueOrArray>,
         /// Destination value types.
         destination_value_types: Vec<HeapValueType>,
@@ -541,16 +568,20 @@ impl<F: std::fmt::Display> std::fmt::Display for BrilligOpcode<F> {
     }
 }
 
-/// Binary fixed-length field expressions
+/// Binary operations on field elements.
+///
+/// Most operations work with field arithmetic, but some operations like
+/// `IntegerDiv` interpret the field elements as unsigned integers for the purpose
+/// of the operation (useful when field elements are used to represent integer values).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Hash)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum BinaryFieldOp {
     Add,
     Sub,
     Mul,
-    /// Field division
+    /// Field division (inverse multiplication in the field)
     Div,
-    /// Unsigned integer division
+    /// Unsigned integer division (treating field elements as unsigned integers)
     IntegerDiv,
     /// (==) Equal
     Equals,
@@ -620,10 +651,137 @@ impl std::fmt::Display for BinaryIntOp {
     }
 }
 
-#[cfg(feature = "arb")]
+#[cfg(test)]
 mod tests {
+    use super::{BitSize, IntegerBitSize};
+    use acir_field::FieldElement;
+
+    /// Test that IntegerBitSize round trips correctly through From/TryFrom u32
+    #[test]
+    fn test_integer_bitsize_roundtrip() {
+        let integer_sizes = [
+            IntegerBitSize::U1,
+            IntegerBitSize::U8,
+            IntegerBitSize::U16,
+            IntegerBitSize::U32,
+            IntegerBitSize::U64,
+            IntegerBitSize::U128,
+        ];
+
+        for int_size in integer_sizes {
+            // Convert to u32 using From trait
+            let as_u32: u32 = int_size.into();
+            // Convert back using TryFrom trait
+            let roundtrip = IntegerBitSize::try_from(as_u32)
+                .expect("Should successfully convert back from u32");
+            assert_eq!(
+                int_size, roundtrip,
+                "IntegerBitSize::{int_size} should roundtrip through From<IntegerBitSize> for u32 and TryFrom<u32>"
+            );
+        }
+    }
+
+    #[test]
+    fn test_integer_bitsize_values() {
+        // Verify the actual u32 values returned by From trait
+        assert_eq!(u32::from(IntegerBitSize::U1), 1);
+        assert_eq!(u32::from(IntegerBitSize::U8), 8);
+        assert_eq!(u32::from(IntegerBitSize::U16), 16);
+        assert_eq!(u32::from(IntegerBitSize::U32), 32);
+        assert_eq!(u32::from(IntegerBitSize::U64), 64);
+        assert_eq!(u32::from(IntegerBitSize::U128), 128);
+    }
+
+    #[test]
+    fn test_integer_bitsize_try_from_invalid() {
+        // Test that invalid bit sizes return an error
+        assert!(IntegerBitSize::try_from(0).is_err());
+        assert!(IntegerBitSize::try_from(2).is_err());
+        assert!(IntegerBitSize::try_from(7).is_err());
+        assert!(IntegerBitSize::try_from(15).is_err());
+        assert!(IntegerBitSize::try_from(31).is_err());
+        assert!(IntegerBitSize::try_from(63).is_err());
+        assert!(IntegerBitSize::try_from(127).is_err());
+        assert!(IntegerBitSize::try_from(129).is_err());
+        assert!(IntegerBitSize::try_from(256).is_err());
+    }
+
+    /// Test that BitSize round-trips correctly through to_u32/try_from_u32
+    #[test]
+    fn test_bitsize_roundtrip() {
+        // Test all integer bit sizes
+        let integer_sizes = [
+            IntegerBitSize::U1,
+            IntegerBitSize::U8,
+            IntegerBitSize::U16,
+            IntegerBitSize::U32,
+            IntegerBitSize::U64,
+            IntegerBitSize::U128,
+        ];
+
+        for int_size in integer_sizes {
+            let bit_size = BitSize::Integer(int_size);
+            let as_u32 = bit_size.to_u32::<FieldElement>();
+            let roundtrip = BitSize::try_from_u32::<FieldElement>(as_u32)
+                .expect("Should successfully convert back from u32");
+            assert_eq!(
+                bit_size, roundtrip,
+                "BitSize::Integer({int_size}) should roundtrip through to_u32/try_from_u32"
+            );
+        }
+
+        // Test Field type
+        let field_bit_size = BitSize::Field;
+        let as_u32 = field_bit_size.to_u32::<FieldElement>();
+        let roundtrip = BitSize::try_from_u32::<FieldElement>(as_u32)
+            .expect("Should successfully convert Field back from u32");
+        assert_eq!(
+            field_bit_size, roundtrip,
+            "BitSize::Field should roundtrip through to_u32/try_from_u32"
+        );
+    }
+
+    #[test]
+    fn test_bitsize_to_u32_values_integers() {
+        // Verify the actual u32 values returned for integer types
+        assert_eq!(BitSize::Integer(IntegerBitSize::U1).to_u32::<FieldElement>(), 1);
+        assert_eq!(BitSize::Integer(IntegerBitSize::U8).to_u32::<FieldElement>(), 8);
+        assert_eq!(BitSize::Integer(IntegerBitSize::U16).to_u32::<FieldElement>(), 16);
+        assert_eq!(BitSize::Integer(IntegerBitSize::U32).to_u32::<FieldElement>(), 32);
+        assert_eq!(BitSize::Integer(IntegerBitSize::U64).to_u32::<FieldElement>(), 64);
+        assert_eq!(BitSize::Integer(IntegerBitSize::U128).to_u32::<FieldElement>(), 128);
+    }
+
+    #[test]
+    #[cfg(feature = "bn254")]
+    fn test_bitsize_to_u32_field_bn254() {
+        // Field type returns 254 bits for bn254
+        assert_eq!(BitSize::Field.to_u32::<FieldElement>(), 254);
+    }
+
+    #[test]
+    #[cfg(feature = "bls12_381")]
+    fn test_bitsize_to_u32_field_bls12_381() {
+        // Field type returns 255 bits for bls12_381
+        assert_eq!(BitSize::Field.to_u32::<FieldElement>(), 255);
+    }
+
+    #[test]
+    fn test_bitsize_try_from_u32_invalid() {
+        // Test that invalid bit sizes return an error
+        assert!(BitSize::try_from_u32::<FieldElement>(2).is_err());
+        assert!(BitSize::try_from_u32::<FieldElement>(7).is_err());
+        assert!(BitSize::try_from_u32::<FieldElement>(0).is_err());
+        assert!(BitSize::try_from_u32::<FieldElement>(256).is_err());
+    }
+}
+
+#[cfg(feature = "arb")]
+mod prop_tests {
     use proptest::arbitrary::Arbitrary;
     use proptest::prelude::*;
+
+    use crate::lengths::SemanticLength;
 
     use super::{BitSize, HeapValueType};
 
@@ -636,10 +794,12 @@ mod tests {
             let leaf = any::<BitSize>().prop_map(HeapValueType::Simple);
             leaf.prop_recursive(2, 3, 2, |inner| {
                 prop_oneof![
-                    (prop::collection::vec(inner.clone(), 1..3), any::<usize>()).prop_map(
-                        |(value_types, size)| { HeapValueType::Array { value_types, size } }
+                    (prop::collection::vec(inner.clone(), 1..3), any::<u32>()).prop_map(
+                        |(value_types, size)| {
+                            HeapValueType::Array { value_types, size: SemanticLength(size) }
+                        }
                     ),
-                    (prop::collection::vec(inner.clone(), 1..3))
+                    (prop::collection::vec(inner, 1..3))
                         .prop_map(|value_types| { HeapValueType::Vector { value_types } }),
                 ]
             })

@@ -5,7 +5,7 @@ expression: expanded_code
 trait Foo {
     type E: Bar;
 
-    fn bar(self) -> E;
+    fn bar(self) -> Self::E;
 }
 
 impl Foo for i32 {

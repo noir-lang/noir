@@ -89,8 +89,6 @@ impl From<Vec<Param>> for Parameters {
     }
 }
 
-pub type FunctionSignature = (Vec<Param>, Option<Type>);
-
 /// A FuncMeta contains the signature of the function and any associated meta data like
 /// the function's Location, FunctionKind, and attributes. If the function's body is
 /// needed, it can be retrieved separately via `NodeInterner::function(&self, &FuncId)`.
@@ -106,9 +104,14 @@ pub struct FuncMeta {
     /// Note that this includes separate entries for each identifier in e.g. tuple patterns.
     pub parameter_idents: Vec<HirIdent>,
 
+    /// The return type as (and if) it appears in the AST.
+    ///
+    /// This is distinct from the `FuncMeta::return_type()` method,
+    /// which gets the return type from the [FuncMeta::typ] field.
     pub return_type: FunctionReturnType,
 
     pub return_visibility: Visibility,
+    pub return_visibility_location: Location,
 
     /// The type of this function. Either a Type::Function
     /// or a Type::Forall for generic functions.
@@ -193,12 +196,36 @@ impl FuncMeta {
         self.kind.can_ignore_return_type()
     }
 
-    pub fn function_signature(&self) -> FunctionSignature {
-        let return_type = match self.return_type() {
-            Type::Unit => None,
-            typ => Some(typ.clone()),
-        };
-        (self.parameters.0.clone(), return_type)
+    pub fn is_unconstrained(&self) -> bool {
+        match &self.typ {
+            Type::Function(_, _, _, unconstrained) => {
+                return *unconstrained;
+            }
+            Type::Forall(_, typ) => {
+                if let Type::Function(_, _, _, unconstrained) = typ.as_ref() {
+                    return *unconstrained;
+                }
+            }
+            _ => (),
+        }
+        unreachable!("A function type can only be Function or Forall(Function)")
+    }
+
+    pub fn set_unconstrained(&mut self, unconstrained: bool) {
+        match &mut self.typ {
+            Type::Function(_, _, _, unconstrained_field) => {
+                *unconstrained_field = unconstrained;
+                return;
+            }
+            Type::Forall(_, typ) => {
+                if let Type::Function(_, _, _, unconstrained_field) = typ.as_mut() {
+                    *unconstrained_field = unconstrained;
+                    return;
+                }
+            }
+            _ => (),
+        }
+        unreachable!("A function type can only be Function or Forall(Function)")
     }
 
     /// Gives the (uninstantiated) return type of this function.

@@ -6,6 +6,10 @@ use crate::embedded_curve_ops::{
     EmbeddedCurvePoint, EmbeddedCurveScalar, multi_scalar_mul, multi_scalar_mul_array_return,
 };
 use crate::meta::derive_via;
+use crate::static_assert;
+
+/// The size of the state accepted by the backend in `poseidon2_permutation`.
+global POSEIDON2_CONFIG_STATE_SIZE: u32 = poseidon2_config_state_size();
 
 #[foreign(sha256_compression)]
 // docs:start:sha256_compression
@@ -80,6 +84,7 @@ pub fn pedersen_hash_with_separator<let N: u32>(input: [Field; N], separator: u3
     let mut scalars: [EmbeddedCurveScalar; N + 1] = [EmbeddedCurveScalar { lo: 0, hi: 0 }; N + 1];
     let mut generators: [EmbeddedCurvePoint; N + 1] =
         [EmbeddedCurvePoint::point_at_infinity(); N + 1];
+    crate::assert_constant(separator);
     let domain_generators: [EmbeddedCurvePoint; N] =
         derive_generators("DEFAULT_DOMAIN_SEPARATOR".as_bytes(), separator);
 
@@ -102,7 +107,7 @@ pub fn derive_generators<let N: u32, let M: u32>(
     starting_index: u32,
 ) -> [EmbeddedCurvePoint; N] {
     crate::assert_constant(domain_separator_bytes);
-    // TODO(https://github.com/noir-lang/noir/issues/5672): Add back assert_constant on starting_index
+    crate::assert_constant(starting_index);
     __derive_generators(domain_separator_bytes, starting_index)
 }
 
@@ -114,24 +119,41 @@ fn __derive_generators<let N: u32, let M: u32>(
 ) -> [EmbeddedCurvePoint; N] {}
 
 #[field(bn254)]
-// Same as from_field but:
-// does not assert the limbs are 128 bits
-// does not assert the decomposition does not overflow the EmbeddedCurveScalar
+// Decompose the input 'bn254 scalar' into two 128 bits limbs.
+// It is called 'unsafe' because it does not assert the limbs are 128 bits
+// Assuming the limbs are 128 bits:
+// Assert the decomposition does not overflow the field size.
 fn from_field_unsafe(scalar: Field) -> EmbeddedCurveScalar {
     // Safety: xlo and xhi decomposition is checked below
     let (xlo, xhi) = unsafe { crate::field::bn254::decompose_hint(scalar) };
     // Check that the decomposition is correct
     assert_eq(scalar, xlo + crate::field::bn254::TWO_POW_128 * xhi);
+    // Check that the decomposition does not overflow the field size
+    let (a, b) = if xhi == crate::field::bn254::PHI {
+        (xlo, crate::field::bn254::PLO)
+    } else {
+        (xhi, crate::field::bn254::PHI)
+    };
+    crate::field::bn254::assert_lt(a, b);
+
     EmbeddedCurveScalar { lo: xlo, hi: xhi }
 }
 
 pub fn poseidon2_permutation<let N: u32>(input: [Field; N], state_len: u32) -> [Field; N] {
     assert_eq(input.len(), state_len);
+
+    static_assert(
+        N == POSEIDON2_CONFIG_STATE_SIZE,
+        f"the input length must equal the state size in the Poseidon2 config; expected {POSEIDON2_CONFIG_STATE_SIZE}, got {N}",
+    );
     poseidon2_permutation_internal(input)
 }
 
 #[foreign(poseidon2_permutation)]
 fn poseidon2_permutation_internal<let N: u32>(input: [Field; N]) -> [Field; N] {}
+
+#[foreign(poseidon2_config_state_size)]
+comptime fn poseidon2_config_state_size() -> u32 {}
 
 // Generic hashing support.
 // Partially ported and impacted by rust.

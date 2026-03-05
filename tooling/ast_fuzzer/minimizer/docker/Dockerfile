@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # Builder
-FROM rust:1.85.0-slim-bookworm AS builder
+FROM rust:1.89.0-slim-bookworm AS builder
 
 RUN apt-get update && \
   apt-get install -y git && \

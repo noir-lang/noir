@@ -5,14 +5,13 @@
 //! ```
 use std::time::Duration;
 
-use acir::circuit::ExpressionWidth;
 use arbtest::arbtest;
 use noir_ast_fuzzer::{Config, DisplayAstAsNoir, arb_program};
 use noirc_evaluator::{
     brillig::BrilligOptions,
     ssa::{
         self,
-        opt::{CONSTANT_FOLDING_MAX_ITER, INLINING_MAX_INSTRUCTIONS},
+        opt::{CONSTANT_FOLDING_MAX_ITER, FORCE_UNROLL_THRESHOLD, INLINING_MAX_INSTRUCTIONS},
         primary_passes,
         ssa_gen::{self, Ssa},
     },
@@ -25,6 +24,11 @@ fn seed_from_env() -> Option<u64> {
     Some(seed)
 }
 
+/// This test is about checking that the SSA parser can deal with arbitrary SSA:
+/// 1. Generate a random Program
+/// 2. Codegen the initial SSA and apply a random prefix of the the standard SSA passes on it
+/// 3. Print the transformed SSA and parse it back
+/// 4. Check that the same values are present in the transformed and the parsed SSA, nothing got lost or changed
 #[test]
 fn arb_ssa_roundtrip() {
     let maybe_seed = seed_from_env();
@@ -37,7 +41,6 @@ fn arb_ssa_roundtrip() {
             ssa_logging: ssa::SsaLogging::None,
             brillig_options: BrilligOptions::default(),
             print_codegen_timings: false,
-            expression_width: ExpressionWidth::default(),
             emit_ssa: None,
             skip_underconstrained_check: true,
             skip_brillig_constraints_check: true,
@@ -46,7 +49,9 @@ fn arb_ssa_roundtrip() {
             constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
             small_function_max_instruction: INLINING_MAX_INSTRUCTIONS,
             max_bytecode_increase_percent: None,
+            force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
             skip_passes: Default::default(),
+            ssa_logging_hide_unchanged: false,
         };
         let pipeline = primary_passes(&options);
         let last_pass = u.choose_index(pipeline.len())?;
@@ -80,7 +85,7 @@ fn arb_ssa_roundtrip() {
         // Print to str and parse back.
         let mut ssa2 = Ssa::from_str_no_validation(&ssa1.print_without_locations().to_string())
             .unwrap_or_else(|e| {
-                let msg = passes.last().map(|p| p.msg()).unwrap_or("Initial SSA");
+                let msg = passes.last().map_or("Initial SSA", |p| p.msg());
                 print_ast_and_panic(&format!(
                     "Could not parse SSA after step {last_pass} ({msg}): \n{e:?}"
                 ))

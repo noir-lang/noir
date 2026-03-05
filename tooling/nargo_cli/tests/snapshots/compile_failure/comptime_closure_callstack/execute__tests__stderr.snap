@@ -1,0 +1,16 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Assertion failed
+  ┌─ src/main.nr:3:27
+  │
+3 │         let z = || assert(false);
+  │                           -----
+  │
+  = Call stack:
+    1. src/main.nr:6:9
+    2. src/main.nr:5:20
+    3. src/main.nr:4:20
+
+Aborting due to 1 previous error

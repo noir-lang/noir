@@ -18,17 +18,16 @@ fn brillig_blake2s() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-     0: call 0
-     1: sp[2] = @1
-     2: sp[3] = const u32 33
-     3: @1 = u32 add @1, sp[3]
-     4: sp[2] = indirect const u32 1
-     5: sp[3] = u32 add sp[1], @2
-     6: sp[4] = const u32 10
-     7: sp[5] = u32 add sp[2], @2
-     8: blake2s(message: &[sp[3]; sp[4]], output: [sp[5]; 32])
-     9: sp[1] = sp[2]
-    10: return
+     0: call 0 // -> CheckMaxStackDepth
+     1: sp[3] = @1
+     2: sp[4] = const u32 33
+     3: @1 = u32 add @1, sp[4]
+     4: sp[3] = indirect const u32 1
+     5: sp[4] = u32 add sp[2], @2
+     6: sp[5] = u32 add sp[3], @2
+     7: blake2s(message: [sp[4]; 10], output: [sp[5]; 32])
+     8: sp[2] = sp[3]
+     9: return
     ");
 }
 
@@ -46,17 +45,16 @@ fn brillig_blake3() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-     0: call 0
-     1: sp[2] = @1
-     2: sp[3] = const u32 33
-     3: @1 = u32 add @1, sp[3]
-     4: sp[2] = indirect const u32 1
-     5: sp[3] = u32 add sp[1], @2
-     6: sp[4] = const u32 10
-     7: sp[5] = u32 add sp[2], @2
-     8: blake3(message: &[sp[3]; sp[4]], output: [sp[5]; 32])
-     9: sp[1] = sp[2]
-    10: return
+     0: call 0 // -> CheckMaxStackDepth
+     1: sp[3] = @1
+     2: sp[4] = const u32 33
+     3: @1 = u32 add @1, sp[4]
+     4: sp[3] = indirect const u32 1
+     5: sp[4] = u32 add sp[2], @2
+     6: sp[5] = u32 add sp[3], @2
+     7: blake3(message: [sp[4]; 10], output: [sp[5]; 32])
+     8: sp[2] = sp[3]
+     9: return
     ");
 }
 
@@ -75,15 +73,15 @@ fn brillig_keccakf1600() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-     0: call 0
-     1: sp[2] = @1
-     2: sp[3] = const u32 26
-     3: @1 = u32 add @1, sp[3]
-     4: sp[2] = indirect const u32 1
-     5: sp[3] = u32 add sp[1], @2
-     6: sp[4] = u32 add sp[2], @2
-     7: keccakf1600(input: [sp[3]; 25], output: [sp[4]; 25])
-     8: sp[1] = sp[2]
+     0: call 0 // -> CheckMaxStackDepth
+     1: sp[3] = @1
+     2: sp[4] = const u32 26
+     3: @1 = u32 add @1, sp[4]
+     4: sp[3] = indirect const u32 1
+     5: sp[4] = u32 add sp[2], @2
+     6: sp[5] = u32 add sp[3], @2
+     7: keccakf1600(input: [sp[4]; 25], output: [sp[5]; 25])
+     8: sp[2] = sp[3]
      9: return
     ");
 }
@@ -103,16 +101,15 @@ fn brillig_ecdsa_secp256k1() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-     0: call 0
-     1: sp[5] = const bool 1
-     2: sp[7] = u32 add sp[4], @2
-     3: sp[8] = const u32 32
-     4: sp[9] = u32 add sp[1], @2
-     5: sp[10] = u32 add sp[2], @2
-     6: sp[11] = u32 add sp[3], @2
-     7: ecdsa_secp256k1(hashed_msg: &[sp[7]; sp[8]], public_key_x: [sp[9]; 32], public_key_y: [sp[10]; 32], signature: [sp[11]; 64], result: sp[6])
-     8: sp[1] = sp[6]
-     9: return
+    0: call 0 // -> CheckMaxStackDepth
+    1: sp[6] = const bool 1
+    2: sp[8] = u32 add sp[5], @2
+    3: sp[9] = u32 add sp[2], @2
+    4: sp[10] = u32 add sp[3], @2
+    5: sp[11] = u32 add sp[4], @2
+    6: ecdsa_secp256k1(hashed_msg: [sp[8]; 32], public_key_x: [sp[9]; 32], public_key_y: [sp[10]; 32], signature: [sp[11]; 64], result: sp[7])
+    7: sp[2] = sp[7]
+    8: return
     ");
 }
 
@@ -131,16 +128,15 @@ fn brillig_ecdsa_secp256r1() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-     0: call 0
-     1: sp[5] = const bool 1
-     2: sp[7] = u32 add sp[4], @2
-     3: sp[8] = const u32 32
-     4: sp[9] = u32 add sp[1], @2
-     5: sp[10] = u32 add sp[2], @2
-     6: sp[11] = u32 add sp[3], @2
-     7: ecdsa_secp256r1(hashed_msg: &[sp[7]; sp[8]], public_key_x: [sp[9]; 32], public_key_y: [sp[10]; 32], signature: [sp[11]; 64], result: sp[6])
-     8: sp[1] = sp[6]
-     9: return
+    0: call 0 // -> CheckMaxStackDepth
+    1: sp[6] = const bool 1
+    2: sp[8] = u32 add sp[5], @2
+    3: sp[9] = u32 add sp[2], @2
+    4: sp[10] = u32 add sp[3], @2
+    5: sp[11] = u32 add sp[4], @2
+    6: ecdsa_secp256r1(hashed_msg: [sp[8]; 32], public_key_x: [sp[9]; 32], public_key_y: [sp[10]; 32], signature: [sp[11]; 64], result: sp[7])
+    7: sp[2] = sp[7]
+    8: return
     ");
 }
 
@@ -159,20 +155,18 @@ fn brillig_multi_scalar_mul() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-     0: call 0
-     1: sp[3] = const bool 1
-     2: sp[4] = @1
-     3: sp[5] = const u32 4
-     4: @1 = u32 add @1, sp[5]
-     5: sp[4] = indirect const u32 1
-     6: sp[5] = u32 add sp[1], @2
-     7: sp[6] = const u32 6
-     8: sp[7] = u32 add sp[2], @2
-     9: sp[8] = const u32 4
-    10: sp[9] = u32 add sp[4], @2
-    11: multi_scalar_mul(points: &[sp[5]; sp[6]], scalars: &[sp[7]; sp[8]], outputs: [sp[9]; 3])
-    12: sp[1] = sp[4]
-    13: return
+     0: call 0 // -> CheckMaxStackDepth
+     1: sp[4] = const bool 1
+     2: sp[5] = @1
+     3: sp[6] = const u32 4
+     4: @1 = u32 add @1, sp[6]
+     5: sp[5] = indirect const u32 1
+     6: sp[6] = u32 add sp[2], @2
+     7: sp[7] = u32 add sp[3], @2
+     8: sp[8] = u32 add sp[5], @2
+     9: multi_scalar_mul(points: [sp[6]; 6], scalars: [sp[7]; 4], outputs: [sp[8]; 3])
+    10: sp[2] = sp[5]
+    11: return
     ");
 }
 
@@ -191,15 +185,15 @@ fn brillig_embedded_curve_add() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-     0: call 0
-     1: sp[7] = const bool 1
-     2: sp[8] = @1
-     3: sp[9] = const u32 4
-     4: @1 = u32 add @1, sp[9]
-     5: sp[8] = indirect const u32 1
-     6: sp[9] = u32 add sp[8], @2
-     7: embedded_curve_add(input1_x: sp[1], input1_y: sp[2], input1_infinite: sp[3], input2_x: sp[4], input2_y: sp[5], input2_infinite: sp[6], result: [sp[9]; 3])
-     8: sp[1] = sp[8]
+     0: call 0 // -> CheckMaxStackDepth
+     1: sp[8] = const bool 1
+     2: sp[9] = @1
+     3: sp[10] = const u32 4
+     4: @1 = u32 add @1, sp[10]
+     5: sp[9] = indirect const u32 1
+     6: sp[10] = u32 add sp[9], @2
+     7: embedded_curve_add(input1_x: sp[2], input1_y: sp[3], input1_infinite: sp[4], input2_x: sp[5], input2_y: sp[6], input2_infinite: sp[7], result: [sp[10]; 3])
+     8: sp[2] = sp[9]
      9: return
     ");
 }
@@ -219,17 +213,16 @@ fn brillig_poseidon2_permutation() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-     0: call 0
-     1: sp[2] = @1
-     2: sp[3] = const u32 5
-     3: @1 = u32 add @1, sp[3]
-     4: sp[2] = indirect const u32 1
-     5: sp[3] = u32 add sp[1], @2
-     6: sp[4] = const u32 4
-     7: sp[5] = u32 add sp[2], @2
-     8: poseidon2_permutation(message: &[sp[3]; sp[4]], output: [sp[5]; 4])
-     9: sp[1] = sp[2]
-    10: return
+     0: call 0 // -> CheckMaxStackDepth
+     1: sp[3] = @1
+     2: sp[4] = const u32 5
+     3: @1 = u32 add @1, sp[4]
+     4: sp[3] = indirect const u32 1
+     5: sp[4] = u32 add sp[2], @2
+     6: sp[5] = u32 add sp[3], @2
+     7: poseidon2_permutation(message: [sp[4]; 4], output: [sp[5]; 4])
+     8: sp[2] = sp[3]
+     9: return
     ");
 }
 
@@ -247,16 +240,16 @@ fn brillig_sha256_compression() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-     0: call 0
-     1: sp[3] = @1
-     2: sp[4] = const u32 9
-     3: @1 = u32 add @1, sp[4]
-     4: sp[3] = indirect const u32 1
-     5: sp[4] = u32 add sp[1], @2
-     6: sp[5] = u32 add sp[2], @2
-     7: sp[6] = u32 add sp[3], @2
-     8: sha256_compression(input: [sp[4]; 16], hash_values: [sp[5]; 8], output: [sp[6]; 8])
-     9: sp[1] = sp[3]
+     0: call 0 // -> CheckMaxStackDepth
+     1: sp[4] = @1
+     2: sp[5] = const u32 9
+     3: @1 = u32 add @1, sp[5]
+     4: sp[4] = indirect const u32 1
+     5: sp[5] = u32 add sp[2], @2
+     6: sp[6] = u32 add sp[3], @2
+     7: sp[7] = u32 add sp[4], @2
+     8: sha256_compression(input: [sp[5]; 16], hash_values: [sp[6]; 8], output: [sp[7]; 8])
+     9: sp[2] = sp[4]
     10: return
     ");
 }
@@ -267,7 +260,7 @@ fn brillig_aes128_encrypt() {
     let src = "
     brillig(inline) fn foo f0 {
       b0(v0: [u8; 16], v1: [u8; 16], v2: [u8; 16]):
-        v3 = call aes128_encrypt(v0, v1, v2) -> [u8; 32]
+        v3 = call aes128_encrypt(v0, v1, v2) -> [u8; 16]
         return v3
     }
     ";
@@ -276,19 +269,17 @@ fn brillig_aes128_encrypt() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-     0: call 0
-     1: sp[4] = @1
-     2: sp[5] = const u32 33
-     3: @1 = u32 add @1, sp[5]
-     4: sp[4] = indirect const u32 1
-     5: sp[5] = u32 add sp[1], @2
-     6: sp[6] = const u32 16
-     7: sp[7] = u32 add sp[2], @2
-     8: sp[8] = u32 add sp[3], @2
-     9: sp[9] = u32 add sp[4], @2
-    10: sp[10] = const u32 32
-    11: aes_128_encrypt(inputs: &[sp[5]; sp[6]], iv: [sp[7]; 16], key: [sp[8]; 16], outputs: &[sp[9]; sp[10]])
-    12: sp[1] = sp[4]
-    13: return
+     0: call 0 // -> CheckMaxStackDepth
+     1: sp[5] = @1
+     2: sp[6] = const u32 17
+     3: @1 = u32 add @1, sp[6]
+     4: sp[5] = indirect const u32 1
+     5: sp[6] = u32 add sp[2], @2
+     6: sp[7] = u32 add sp[3], @2
+     7: sp[8] = u32 add sp[4], @2
+     8: sp[9] = u32 add sp[5], @2
+     9: aes_128_encrypt(inputs: [sp[6]; 16], iv: [sp[7]; 16], key: [sp[8]; 16], outputs: [sp[9]; 16])
+    10: sp[2] = sp[5]
+    11: return
     ");
 }

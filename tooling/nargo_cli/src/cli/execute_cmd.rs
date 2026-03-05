@@ -9,7 +9,10 @@ use noirc_driver::CompileOptions;
 
 use super::compile_cmd::compile_workspace_full;
 use super::{LockType, PackageOptions, WorkspaceCommand};
+use crate::cli::execute_cmd::interpret::run_comptime;
 use crate::errors::CliError;
+
+mod interpret;
 
 /// Executes a circuit to calculate its return value
 #[derive(Debug, Clone, Args)]
@@ -24,6 +27,10 @@ pub(crate) struct ExecuteCommand {
     #[clap(long, short, default_value = PROVER_INPUT_FILE)]
     prover_name: String,
 
+    /// Optionally overwrite the `return` entry in the prover file.
+    #[clap(long, default_value_t = false)]
+    pub overwrite_return: bool,
+
     #[clap(flatten)]
     pub(super) package_options: PackageOptions,
 
@@ -37,6 +44,10 @@ pub(crate) struct ExecuteCommand {
     /// Path to the oracle transcript.
     #[clap(long, conflicts_with = "oracle_resolver")]
     oracle_file: Option<PathBuf>,
+
+    /// Force comptime execution
+    #[arg(long, hide = true)]
+    force_comptime: bool,
 }
 
 impl WorkspaceCommand for ExecuteCommand {
@@ -51,6 +62,10 @@ impl WorkspaceCommand for ExecuteCommand {
 }
 
 pub(crate) fn run(args: ExecuteCommand, workspace: Workspace) -> Result<(), CliError> {
+    if args.force_comptime {
+        return run_comptime(args, workspace);
+    }
+
     // Compile the full workspace in order to generate any build artifacts.
     let debug_compile_stdin = None;
     compile_workspace_full(&workspace, &args.compile_options, debug_compile_stdin)?;
@@ -63,6 +78,7 @@ pub(crate) fn run(args: ExecuteCommand, workspace: Workspace) -> Result<(), CliE
         let cmd = noir_artifact_cli::commands::execute_cmd::ExecuteCommand {
             artifact_path: program_artifact_path,
             prover_file,
+            overwrite_return: args.overwrite_return,
             output_dir: Some(workspace.target_directory_path()),
             witness_name: Some(
                 args.witness_name.clone().unwrap_or_else(|| package.name.to_string()),
@@ -72,7 +88,6 @@ pub(crate) fn run(args: ExecuteCommand, workspace: Workspace) -> Result<(), CliE
             oracle_resolver: args.oracle_resolver.clone(),
             oracle_root_dir: Some(workspace.root_dir.clone()),
             oracle_package_name: Some(package.name.to_string()),
-            pedantic_solving: args.compile_options.pedantic_solving,
         };
 
         noir_artifact_cli::commands::execute_cmd::run(cmd)?;

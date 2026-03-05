@@ -1,7 +1,8 @@
 use acvm::acir::circuit::Program;
 use base64::Engine;
 use noirc_abi::Abi;
-use noirc_driver::{CompileError, CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING};
+use noirc_artifacts::program::CompiledProgram;
+use noirc_driver::{CompileError, CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_errors::call_stack::CallStack;
 use noirc_evaluator::{
     errors::{InternalError, RuntimeError},
@@ -42,9 +43,11 @@ pub fn optimize_ssa_into_acir(
     }));
     let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
         validate_ssa(&ssa);
+
         let builder = SsaBuilder::from_ssa(
             ssa,
             options.ssa_logging.clone(),
+            options.ssa_logging_hide_unchanged,
             options.print_codegen_timings,
             None,
         );
@@ -89,7 +92,6 @@ pub fn compile_from_artifacts(artifacts: ArtifactsAndWarnings) -> CompiledProgra
         file_map,
         noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
         warnings,
-        expression_width: noirc_driver::DEFAULT_EXPRESSION_WIDTH,
     }
 }
 

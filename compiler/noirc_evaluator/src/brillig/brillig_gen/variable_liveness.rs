@@ -14,7 +14,7 @@ use crate::ssa::{
         post_order::PostOrder,
         value::{Value, ValueId},
     },
-    opt::Loops,
+    opt::{LoopOrder, Loops},
 };
 
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -110,12 +110,15 @@ pub(crate) struct VariableLiveness {
     /// list of some other block which this one immediately dominates, with values to be
     /// assigned in the terminators of the predecessors of that block.
     param_definitions: HashMap<BasicBlockId, Vec<ValueId>>,
+    /// The maximum number of variables simultaneously live at any point in the function.
+    /// Computed after `last_uses` by walking each block instruction-by-instruction.
+    pub(crate) max_live_count: usize,
 }
 
 impl VariableLiveness {
     /// Computes the liveness of variables throughout a function.
     pub(crate) fn from_function(func: &Function, constants: &ConstantAllocation) -> Self {
-        let loops = Loops::find_all(func);
+        let loops = Loops::find_all(func, LoopOrder::OutsideIn);
 
         let back_edges: LoopMap = loops
             .yet_to_unroll
@@ -132,10 +135,12 @@ impl VariableLiveness {
             live_in: HashMap::default(),
             last_uses: HashMap::default(),
             param_definitions: HashMap::default(),
+            max_live_count: 0,
         }
         .compute_block_param_definitions(func, &loops.dom)
         .compute_live_in_of_blocks(func, constants, back_edges)
         .compute_last_uses(func)
+        .compute_max_live_count(func)
     }
 
     /// The set of values that are alive before the block starts executing.
@@ -202,7 +207,7 @@ impl VariableLiveness {
         back_edges: LoopMap,
     ) -> Self {
         // First pass, propagate up the live_ins skipping back edges.
-        self.compute_live_in_recursive(func, func.entry_block(), constants, &back_edges);
+        self.compute_live_in(func, func.entry_block(), constants, &back_edges);
 
         // Second pass, propagate header live_ins to the loop bodies.
         for (back_edge, loop_body) in back_edges {
@@ -218,54 +223,94 @@ impl VariableLiveness {
     /// The variables live at the *beginning* of a block are the variables used by the block,
     /// plus the variables used by the successors of the block, minus the variables defined
     /// in the block (by definition not alive at the beginning).
-    fn compute_live_in_recursive(
+    ///
+    /// This is an iterative implementation to avoid stack overflows on complex programs.
+    fn compute_live_in(
         &mut self,
         func: &Function,
-        block_id: BasicBlockId,
+        entry_block: BasicBlockId,
         constants: &ConstantAllocation,
         back_edges: &LoopMap,
     ) {
-        let block = &func.dfg[block_id];
-        let mut live_out = HashSet::default();
+        // Each entry is (block_id, processing_state)
+        // processing_state: false = need to process successors, true = ready to compute live_in
+        let mut stack = vec![(entry_block, false)];
+        let mut visited = HashSet::default();
 
-        // Collect the `live_in` of successors; their union is the `live_in` of the parent.
-        for successor_id in block.successors() {
-            // Skip back edges: do not revisit the header of the loop, to avoid infinite recursion.
-            // Because of this, we will have to revisit this block, to complete its definition of live_out,
-            // once we know what the live_in of the header is.
-            if back_edges.contains_key(&BackEdge { start: block_id, header: successor_id }) {
-                continue;
+        while let Some((block_id, processed)) = stack.pop() {
+            if processed {
+                // All successors have been processed, now compute live_in for this block
+                let block = &func.dfg[block_id];
+                let mut live_out = HashSet::default();
+
+                // Collect the `live_in` of successors; their union is the `live_out` of the parent.
+                for successor_id in block.successors() {
+                    // Skip back edges: do not revisit the header of the loop
+                    if back_edges.contains_key(&BackEdge { start: block_id, header: successor_id })
+                    {
+                        continue;
+                    }
+                    // Add the live_in of the successor to the union that forms the live_out of the parent.
+                    live_out.extend(
+                        self.live_in
+                            .get(&successor_id)
+                            .expect("live_in for successor should have been calculated")
+                            .iter()
+                            .copied(),
+                    );
+                }
+
+                // Based on the paper mentioned in the module docs, the definition would be:
+                // live_in[BlockId] = before_def[BlockId] union (live_out[BlockId] - killed[BlockId])
+
+                // Variables used in this block, defined in this block or before.
+                let used = variables_used_in_block(block, &func.dfg);
+
+                // Variables defined in this block are not alive at the beginning.
+                let defined = self.variables_defined_in_block(block_id, &func.dfg, constants);
+
+                // Live at the beginning are the variables used, but not defined in this block, plus the ones
+                // it passes through to its successors, which are used by them, but not defined here.
+                // (Variables used by successors and defined in this block are part of `live_out`, but not `live_in`).
+                let live_in =
+                    used.union(&live_out).filter(|v| !defined.contains(v)).copied().collect();
+
+                self.live_in.insert(block_id, live_in);
+            } else {
+                // First visit: check if we've already processed this block
+                if !visited.insert(block_id) {
+                    continue;
+                }
+
+                let block = &func.dfg[block_id];
+
+                // Check if all successors (except back edges) have been processed
+                let mut all_successors_processed = true;
+                let mut unprocessed_successors = Vec::new();
+
+                for successor_id in block.successors() {
+                    // Skip back edges
+                    if back_edges.contains_key(&BackEdge { start: block_id, header: successor_id })
+                    {
+                        continue;
+                    }
+                    // If successor hasn't been processed yet, we need to process it first
+                    if !self.live_in.contains_key(&successor_id) {
+                        all_successors_processed = false;
+                        unprocessed_successors.push(successor_id);
+                    }
+                }
+
+                // Push this block back with processed = true (for after successors)
+                stack.push((block_id, true));
+                if !all_successors_processed {
+                    // Push unprocessed successors with processed = false
+                    for successor_id in unprocessed_successors {
+                        stack.push((successor_id, false));
+                    }
+                }
             }
-            // If we haven't visited this successor yet, dive in.
-            if !self.live_in.contains_key(&successor_id) {
-                self.compute_live_in_recursive(func, successor_id, constants, back_edges);
-            }
-            // Add the live_in of the successor to the union that forms the live_out of the parent.
-            // Note that because we skipped the back-edge, we couldn't call `get_live_out` here.
-            live_out.extend(
-                self.live_in
-                    .get(&successor_id)
-                    .expect("live_in for successor should have been calculated")
-                    .iter()
-                    .copied(),
-            );
         }
-
-        // Based on the paper mentioned in the module docs, the definition would be:
-        // live_in[BlockId] = before_def[BlockId] union (live_out[BlockId] - killed[BlockId])
-
-        // Variables used in this block, defined in this block or before.
-        let used = variables_used_in_block(block, &func.dfg);
-
-        // Variables defined in this block are not alive at the beginning.
-        let defined = self.variables_defined_in_block(block_id, &func.dfg, constants);
-
-        // Live at the beginning are the variables used, but not defined in this block, plus the ones
-        // it passes through to its successors, which are used by them, but not defined here.
-        // (Variables used by successors and defined in this block are part of `live_out`, but not `live_in`).
-        let live_in = used.union(&live_out).filter(|v| !defined.contains(v)).copied().collect();
-
-        self.live_in.insert(block_id, live_in);
     }
 
     /// Collects all the variables defined in a block, which includes:
@@ -356,10 +401,64 @@ impl VariableLiveness {
 
         self
     }
+
+    /// Compute [VariableLiveness::max_live_count].
+    ///
+    /// Walk each block instruction-by-instruction, tracking how many variables are
+    /// simultaneously alive: start with `live_in`, add variables defined by each
+    /// instruction (including block param definitions), and subtract dead variables
+    /// from `last_uses`. Record the highest count across all blocks.
+    ///
+    /// For `MakeArray` instructions, also account for the element count: during Brillig
+    /// codegen, each unique element value is materialized as a separate register, which
+    /// can far exceed the SSA-level variable count.
+    fn compute_max_live_count(mut self, func: &Function) -> Self {
+        let mut max_count: usize = 0;
+
+        for block_id in func.reachable_blocks() {
+            let block = &func.dfg[block_id];
+            let live_in = self.get_live_in(&block_id);
+            let last_uses = self.get_last_uses(&block_id);
+
+            // Start with the live-in set plus variables defined at block entry
+            // (block param definitions are allocated before the first instruction).
+            let param_defs = self.defined_block_params(&block_id);
+            let mut current_count = live_in.len() + param_defs.len();
+            max_count = max_count.max(current_count);
+
+            for instruction_id in block.instructions() {
+                let instruction = &func.dfg[*instruction_id];
+
+                // MakeArray materializes each element as a register during Brillig codegen.
+                // Count the number of unique element values to estimate register pressure.
+                if let Instruction::MakeArray { elements, .. } = instruction {
+                    let unique_elements: HashSet<_> = elements.iter().copied().collect();
+                    max_count = max_count.max(current_count + unique_elements.len());
+                }
+
+                // Add results defined by this instruction.
+                let results = func.dfg.instruction_results(*instruction_id);
+                current_count += results.len();
+                max_count = max_count.max(current_count);
+
+                // Subtract variables that die after this instruction.
+                if let Some(dead) = last_uses.get(instruction_id) {
+                    current_count = current_count.saturating_sub(dead.len());
+                }
+            }
+        }
+
+        self.max_live_count = max_count;
+        self
+    }
+
+    pub(super) fn cfg(&self) -> &ControlFlowGraph {
+        &self.cfg
+    }
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use noirc_frontend::monomorphization::ast::InlineType;
     use rustc_hash::FxHashSet;
 
@@ -415,7 +514,7 @@ mod test {
 
         let v4 = builder.insert_binary(v0, BinaryOp::Eq, zero);
 
-        builder.terminate_with_jmpif(v4, b1, b2);
+        builder.terminate_with_jmpif_no_args(v4, b1, b2);
 
         builder.switch_to_block(b2);
 
@@ -535,7 +634,7 @@ mod test {
 
         let v5 = builder.insert_binary(v4, BinaryOp::Lt, v0);
 
-        builder.terminate_with_jmpif(v5, b2, b3);
+        builder.terminate_with_jmpif_no_args(v5, b2, b3);
 
         builder.switch_to_block(b2);
 
@@ -549,7 +648,7 @@ mod test {
 
         let v8 = builder.insert_binary(v7, BinaryOp::Lt, v1);
 
-        builder.terminate_with_jmpif(v8, b5, b6);
+        builder.terminate_with_jmpif_no_args(v8, b5, b6);
 
         builder.switch_to_block(b5);
 
@@ -558,7 +657,7 @@ mod test {
 
         let v11 = builder.insert_not(v10);
 
-        builder.terminate_with_jmpif(v11, b7, b8);
+        builder.terminate_with_jmpif_no_args(v11, b7, b8);
 
         builder.switch_to_block(b7);
 
@@ -656,7 +755,7 @@ mod test {
         let b2 = builder.insert_block();
         let b3 = builder.insert_block();
 
-        builder.terminate_with_jmpif(v0, b1, b2);
+        builder.terminate_with_jmpif_no_args(v0, b1, b2);
 
         builder.switch_to_block(b1);
         let twenty_seven = builder.field_constant(27_u128);
@@ -695,7 +794,7 @@ mod test {
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: u1):
-            jmpif v1 then: b1, else: b2
+            jmpif v1 then: b1(), else: b2()
           b1():
             v7 = add v0, u32 10
             jmp b3(v0, v7)
@@ -753,10 +852,10 @@ mod test {
 
         assert_artifact_snapshot!(main, @r"
         fn main
-        0: call 0
-        1: sp[2] = const field 10
-        2: sp[3] = field add sp[1], sp[2]
-        3: sp[1] = sp[3]
+        0: call 0 // -> CheckMaxStackDepth
+        1: sp[3] = const field 10
+        2: sp[4] = field add sp[2], sp[3]
+        3: sp[2] = sp[4]
         4: return
         ");
     }
@@ -787,14 +886,14 @@ mod test {
 
         assert_artifact_snapshot!(main, @r"
         fn main
-        0: call 0
-        1: sp[2] = const field 1
-        2: sp[3] = field add sp[1], sp[2]
-        3: sp[1] = const field 2
-        4: sp[2] = field add sp[3], sp[1]
-        5: sp[1] = const field 3
-        6: sp[3] = field add sp[2], sp[1]
-        7: sp[1] = sp[3]
+        0: call 0 // -> CheckMaxStackDepth
+        1: sp[3] = const field 1
+        2: sp[4] = field add sp[2], sp[3]
+        3: sp[2] = const field 2
+        4: sp[3] = field add sp[4], sp[2]
+        5: sp[2] = const field 3
+        6: sp[4] = field add sp[3], sp[2]
+        7: sp[2] = sp[4]
         8: return
         ");
     }
@@ -819,7 +918,7 @@ mod test {
             jmp b1(u32 0)
         b1(v1: u32):
             v2 = lt v1, v0
-            jmpif v2 then: b2, else: b3
+            jmpif v2 then: b2(), else: b3()
         b2():
             v3 = add v1, u32 1
             jmp b1(v3)
@@ -831,22 +930,22 @@ mod test {
         let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
         assert_artifact_snapshot!(main, @r"
         fn main
-         0: call 0
-         1: sp[3] = const u32 0
-         2: sp[4] = const u32 1
-         3: sp[2] = sp[3]
-         4: jump to 0
-         5: sp[3] = u32 lt sp[2], sp[1]
-         6: jump if sp[3] to 0
-         7: jump to 0
-         8: sp[1] = sp[2]
+         0: call 0 // -> CheckMaxStackDepth
+         1: sp[4] = const u32 0
+         2: sp[5] = const u32 1
+         3: sp[3] = sp[4]
+         4: jump to 0 // -> 5: f0/b1
+         5: sp[4] = u32 lt sp[3], sp[2] // f0/b1
+         6: jump if sp[4] to 0 // -> 10: f0/b2
+         7: jump to 0 // -> 8: f0/b3
+         8: sp[2] = sp[3] // f0/b3
          9: return
-        10: sp[3] = u32 add sp[2], sp[4]
-        11: sp[5] = u32 lt_eq sp[2], sp[3]
-        12: jump if sp[5] to 0
-        13: call 0
-        14: sp[2] = sp[3]
-        15: jump to 0
+        10: sp[4] = u32 add sp[3], sp[5] // f0/b2
+        11: sp[6] = u32 lt_eq sp[3], sp[4]
+        12: jump if sp[6] to 0 // -> 14: f0/b2/1
+        13: call 0 // -> ErrorWithString
+        14: sp[3] = sp[4] // f0/b2/1
+        15: jump to 0 // -> 5: f0/b1
         ");
     }
 
@@ -858,16 +957,16 @@ mod test {
         //
         // SSA v0 (condition) → Brillig sp[1]
         // SSA v1 (b3's parameter) → Brillig sp[2] (allocated in b0, dominator of b3)
-        // SSA v2 (27 + 42) → Brillig sp[4] (line 7: result of add)
+        // SSA v2 (27 + 42) → coalesced with v1 → writes directly to sp[2] (line 7)
         // Field 42 constant → sp[3] (line 1)
         // Line 2: jmpif sp[1] branches to b1 or b2
         // Line 4 (b2 path): sp[2] = sp[3] moves constant 42 into v1's register
-        // Line 8 (b1 path): sp[2] = sp[4] moves v2 into v1's register
-        // Line 10 (b3): sp[1] = sp[2] prepares return
+        // Line 7 (b1 path): sp[2] = add sp[1], sp[3] writes directly to v1's register (coalesced)
+        // Line 9 (b3): sp[1] = sp[2] prepares return
         let src = "
         brillig(inline) fn main f0 {
         b0(v0: u1):
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
         b1():
             v2 = add Field 27, Field 42
             jmp b3(v2)
@@ -881,18 +980,17 @@ mod test {
         let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
         assert_artifact_snapshot!(main, @r"
         fn main
-         0: call 0
-         1: sp[3] = const field 42
-         2: jump if sp[1] to 0
-         3: jump to 0
-         4: sp[2] = sp[3]
-         5: jump to 0
-         6: sp[1] = const field 27
-         7: sp[4] = field add sp[1], sp[3]
-         8: sp[2] = sp[4]
-         9: jump to 0
-        10: sp[1] = sp[2]
-        11: return
+         0: call 0 // -> CheckMaxStackDepth
+         1: sp[4] = const field 42
+         2: jump if sp[2] to 0 // -> 6: f0/b1
+         3: jump to 0 // -> 4: f0/b2
+         4: sp[3] = sp[4] // f0/b2
+         5: jump to 0 // -> 9: f0/b3
+         6: sp[2] = const field 27 // f0/b1
+         7: sp[3] = field add sp[2], sp[4]
+         8: jump to 0 // -> 9: f0/b3
+         9: sp[2] = sp[3] // f0/b3
+        10: return
         ");
     }
 
@@ -922,12 +1020,12 @@ mod test {
         let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
         assert_artifact_snapshot!(main, @r"
         fn main
-        0: call 0
-        1: sp[2] = const field 100
-        2: sp[3] = field add sp[1], sp[2]
-        3: sp[2] = const field 200
-        4: sp[4] = field mul sp[1], sp[2]
-        5: sp[1] = field add sp[3], sp[4]
+        0: call 0 // -> CheckMaxStackDepth
+        1: sp[3] = const field 100
+        2: sp[4] = field add sp[2], sp[3]
+        3: sp[3] = const field 200
+        4: sp[5] = field mul sp[2], sp[3]
+        5: sp[2] = field add sp[4], sp[5]
         6: return
         ");
     }
@@ -940,12 +1038,11 @@ mod test {
         // SSA v0 (entry parameter) → Brillig sp[1]
         // SSA v1 (v0 + 1) → Brillig sp[4] (line 2: result)
         // SSA v2 (v1 + 2) → Brillig sp[3] (line 4: result)
-        // SSA v3 (v2 * 3) → Brillig sp[4] (line 6: result, last instruction before terminator)
+        // SSA v3 (v2 * 3) → coalesced with v4 → writes directly to sp[2] (line 6)
         // SSA v4 (b1's parameter) → Brillig sp[2] (allocated in b0)
-        // Line 7: sp[2] = sp[4] copies v3 into v4's register (terminator argument)
-        // Line 8: jump to b1
-        // v3 cannot be marked as dead at line 6 because it's used in terminator at line 7
-        // This ensures v3's register (sp[4]) stays valid throughout the copy instruction
+        // Line 6: sp[2] = mul sp[3], sp[1] writes directly to v4's register (coalesced)
+        // Line 7: jump to b1 (no mov needed — v3 already in sp[2])
+        // Line 8 (b1): sp[1] = sp[2] prepares return
         let src = "
         brillig(inline) fn main f0 {
         b0(v0: Field):
@@ -961,17 +1058,16 @@ mod test {
         let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
         assert_artifact_snapshot!(main, @r"
         fn main
-         0: call 0
-         1: sp[3] = const field 1
-         2: sp[4] = field add sp[1], sp[3]
-         3: sp[1] = const field 2
-         4: sp[3] = field add sp[4], sp[1]
-         5: sp[1] = const field 3
-         6: sp[4] = field mul sp[3], sp[1]
-         7: sp[2] = sp[4]
-         8: jump to 0
-         9: sp[1] = sp[2]
-        10: return
+         0: call 0 // -> CheckMaxStackDepth
+         1: sp[4] = const field 1
+         2: sp[5] = field add sp[2], sp[4]
+         3: sp[2] = const field 2
+         4: sp[4] = field add sp[5], sp[2]
+         5: sp[2] = const field 3
+         6: sp[3] = field mul sp[4], sp[2]
+         7: jump to 0 // -> 8: f0/b1
+         8: sp[2] = sp[3] // f0/b1
+         9: return
         ");
     }
 }

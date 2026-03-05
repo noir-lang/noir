@@ -1,0 +1,6 @@
+[package]
+name = "shr_overflow_u64"
+type = "bin"
+authors = [""]
+
+[dependencies]

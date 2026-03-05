@@ -47,11 +47,11 @@ impl NargoErrorWithTypes {
     fn user_defined_failure_message(&self) -> Option<String> {
         let unwrap_payload = |payload: &ResolvedAssertionPayload<FieldElement>| {
             match payload {
-                ResolvedAssertionPayload::String(message) => Some(message.to_string()),
+                ResolvedAssertionPayload::String(message) => Some(message.clone()),
                 ResolvedAssertionPayload::Raw(raw) => {
                     let ssa_type = self.1.get(&raw.selector)?;
                     match ssa_type {
-                        ErrorType::String(message) => Some(message.to_string()),
+                        ErrorType::String(message) => Some(message.clone()),
                         ErrorType::Dynamic(_hir_type) => {
                             // This would be the case if we have a format string that needs to be filled with the raw payload
                             // decoded as ABI type. The code generator shouldn't produce this kind. It shouldn't be too difficult
@@ -68,7 +68,7 @@ impl NargoErrorWithTypes {
                 ExecutionError::AssertionFailed(payload, _, _) => unwrap_payload(payload),
                 ExecutionError::SolvingError(error, _) => match error {
                     OpcodeResolutionError::BlackBoxFunctionFailed(_, reason) => {
-                        Some(reason.to_string())
+                        Some(reason.clone())
                     }
                     OpcodeResolutionError::BrilligFunctionFailed {
                         payload: Some(payload), ..
@@ -77,7 +77,7 @@ impl NargoErrorWithTypes {
                 },
             },
             NargoError::ForeignCallError(error) => Some(error.to_string()),
-            _ => None,
+            NargoError::CompilationError => None,
         }
     }
 }
@@ -256,7 +256,7 @@ pub struct CompareCompiled<P> {
 impl<P> CompareCompiled<P> {
     /// Execute the two SSAs and compare the results.
     pub fn exec(&self) -> eyre::Result<CompareCompiledResult> {
-        let blackbox_solver = Bn254BlackBoxSolver(false);
+        let blackbox_solver = Bn254BlackBoxSolver;
         let initial_witness = self.abi.encode(&self.input_map, None).wrap_err("abi::encode")?;
 
         let do_exec = |program| {
@@ -376,7 +376,7 @@ impl HasPrograms for CompareMorph {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use std::collections::BTreeMap;
 
     use acir::circuit::{ErrorSelector, brillig::BrilligFunctionId};

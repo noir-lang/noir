@@ -2,20 +2,21 @@ use acvm::{
     AcirField, FieldElement,
     acir::{
         brillig::{BitSize, HeapVector, IntegerBitSize, MemoryAddress, Opcode as BrilligOpcode},
-        circuit::{ExpressionWidth, Program},
+        circuit::Program,
         native_types::{Witness, WitnessMap},
     },
     assert_circuit_snapshot,
     blackbox_solver::StubbedBlackBoxSolver,
     pwg::{ACVM, ACVMStatus},
 };
-use noirc_errors::debug_info::DebugInfo;
+use noirc_artifacts::debug::DebugInfo;
 use noirc_frontend::shared::Visibility;
 use std::collections::BTreeMap;
 
 use crate::{
     acir::{acir_context::BrilligStdLib, ssa::codegen_acir},
     brillig::{Brillig, BrilligOptions, brillig_ir::artifact::GeneratedBrillig},
+    errors::RuntimeError,
     ssa::{
         ArtifactsAndWarnings, combine_artifacts, interpreter::value::Value, ir::types::NumericType,
         ssa_gen::Ssa,
@@ -36,6 +37,13 @@ fn ssa_to_acir_program(src: &str) -> Program<FieldElement> {
 }
 
 fn ssa_to_acir_program_with_debug_info(src: &str) -> (Program<FieldElement>, Vec<DebugInfo>) {
+    try_ssa_to_acir(src).expect("Should compile manually written SSA into ACIR")
+}
+
+/// Attempts to convert SSA to ACIR, returning the error if compilation fails.
+pub(crate) fn try_ssa_to_acir(
+    src: &str,
+) -> Result<(Program<FieldElement>, Vec<DebugInfo>), RuntimeError> {
     let ssa = Ssa::from_str(src).unwrap();
     let arg_size_and_visibilities = ssa
         .functions
@@ -49,7 +57,7 @@ fn ssa_to_acir_program_with_debug_info(src: &str) -> (Program<FieldElement>, Vec
             let param_size: u32 = function
                 .parameters()
                 .iter()
-                .map(|param| function.dfg.type_of_value(*param).flattened_size())
+                .map(|param| function.dfg.type_of_value(*param).flattened_size().0)
                 .sum();
             vec![(param_size, Visibility::Private)]
         })
@@ -57,10 +65,8 @@ fn ssa_to_acir_program_with_debug_info(src: &str) -> (Program<FieldElement>, Vec
 
     let brillig = ssa.to_brillig(&BrilligOptions::default());
 
-    let (acir_functions, brillig_functions, _) = ssa
-        .generate_entry_point_index()
-        .into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
-        .expect("Should compile manually written SSA into ACIR");
+    let (acir_functions, brillig_functions, _) =
+        ssa.generate_entry_point_index().into_acir(&brillig, &BrilligOptions::default())?;
 
     let artifacts =
         ArtifactsAndWarnings((acir_functions, brillig_functions, BTreeMap::default()), vec![]);
@@ -73,7 +79,7 @@ fn ssa_to_acir_program_with_debug_info(src: &str) -> (Program<FieldElement>, Vec
     );
     let program = program_artifact.program;
     let debug = program_artifact.debug;
-    (program, debug)
+    Ok((program, debug))
 }
 
 #[test]
@@ -102,7 +108,7 @@ fn unchecked_mul_should_not_have_range_check() {
 #[test]
 fn no_zero_bits_range_check() {
     let src = "
-    acir(inline) fn main f0 {   
+    acir(inline) fn main f0 {
         b0(v0: Field):
             v1 = truncate v0 to 8 bits, max_bit_size: 254
             v2 = cast v1 as u8
@@ -117,17 +123,16 @@ fn no_zero_bits_range_check() {
     private parameters: [w0]
     public parameters: []
     return values: [w1]
-    BRILLIG CALL func: 0, inputs: [w0, 256], outputs: [w2, w3]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [w0, 256], outputs: [w2, w3]
     BLACKBOX::RANGE input: w2, bits: 246
     BLACKBOX::RANGE input: w3, bits: 8
     ASSERT w3 = w0 - 256*w2
     ASSERT w4 = -w2 + 85500948718122168836900022442411230814642048439125134155071110103811751936
     BLACKBOX::RANGE input: w4, bits: 246
-    BRILLIG CALL func: 1, inputs: [-w2 + 85500948718122168836900022442411230814642048439125134155071110103811751936], outputs: [w5]
+    BRILLIG CALL func: 1, predicate: 1, inputs: [-w2 + 85500948718122168836900022442411230814642048439125134155071110103811751936], outputs: [w5]
     ASSERT w6 = w2*w5 - 85500948718122168836900022442411230814642048439125134155071110103811751936*w5 + 1
     ASSERT 0 = -w2*w6 + 85500948718122168836900022442411230814642048439125134155071110103811751936*w6
-    ASSERT w7 = w3*w6
-    ASSERT w7 = 0
+    ASSERT 0 = w3*w6
     ASSERT w1 = w3
 
     unconstrained func 0: directive_integer_quotient
@@ -138,7 +143,7 @@ fn no_zero_bits_range_check() {
     4: @1 = field mul @2, @1
     5: @1 = field sub @0, @1
     6: @0 = @2
-    7: stop &[@11; @10]
+    7: stop @[@11; @10]
     unconstrained func 1: directive_invert
     0: @21 = const u32 1
     1: @20 = const u32 0
@@ -148,7 +153,7 @@ fn no_zero_bits_range_check() {
     5: jump if @3 to 8
     6: @1 = const field 1
     7: @0 = field field_div @1, @0
-    8: stop &[@20; @21]
+    8: stop @[@20; @21]
     ");
 }
 
@@ -232,7 +237,6 @@ fn properly_constrains_quotient_when_truncating_fields() {
         &Brillig::default(),
         malicious_brillig_stdlib,
         &BrilligOptions::default(),
-        ExpressionWidth::default(),
     )
     .expect("Should compile manually written SSA into ACIR");
 
@@ -243,8 +247,7 @@ fn properly_constrains_quotient_when_truncating_fields() {
     let main = &acir_functions[0];
 
     let initial_witness = WitnessMap::from(BTreeMap::from([(Witness(0), input)]));
-    let pedantic_solving = true;
-    let blackbox_solver = StubbedBlackBoxSolver(pedantic_solving);
+    let blackbox_solver = StubbedBlackBoxSolver;
     let mut acvm =
         ACVM::new(&blackbox_solver, main.opcodes(), initial_witness, &brillig_functions, &[]);
 
@@ -268,11 +271,85 @@ fn do_not_overflow_with_constant_constrain_neq() {
     let brillig = ssa.to_brillig(&BrilligOptions::default());
 
     let (acir_functions, _brillig_functions, _) = ssa
-        .into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
+        .into_acir(&brillig, &BrilligOptions::default())
         .expect("Should compile manually written SSA into ACIR");
 
     assert_eq!(acir_functions.len(), 1);
     assert!(acir_functions[0].opcodes().is_empty());
+}
+
+#[test]
+fn properly_constrains_quotient_when_truncating_fields_to_u128() {
+    let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = truncate v0 to 128 bits, max_bit_size: 254
+            return v1
+        }";
+    let ssa = Ssa::from_str(src).unwrap();
+
+    let input = FieldElement::zero();
+    let malicious_q = FieldElement::try_from_str("64323764613183177041862057485226039389").unwrap();
+    let malicious_r = FieldElement::try_from_str("53438638232309528389504892708671455233").unwrap();
+
+    // This brillig function replaces the standard implementation of `directive_quotient` with
+    // an implementation which returns `(malicious_q, malicious_r)`.
+    let malicious_quotient = GeneratedBrillig {
+        byte_code: vec![
+            BrilligOpcode::Const {
+                destination: MemoryAddress::direct(10),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(2_usize),
+            },
+            BrilligOpcode::Const {
+                destination: MemoryAddress::direct(11),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: FieldElement::from(0_usize),
+            },
+            BrilligOpcode::Const {
+                destination: MemoryAddress::direct(0),
+                bit_size: BitSize::Field,
+                value: malicious_q,
+            },
+            BrilligOpcode::Const {
+                destination: MemoryAddress::direct(1),
+                bit_size: BitSize::Field,
+                value: malicious_r,
+            },
+            BrilligOpcode::Stop {
+                return_data: HeapVector {
+                    pointer: MemoryAddress::direct(11),
+                    size: MemoryAddress::direct(10),
+                },
+            },
+        ],
+        name: "malicious_directive_quotient".to_string(),
+        ..Default::default()
+    };
+
+    let malicious_brillig_stdlib =
+        BrilligStdLib { quotient: malicious_quotient, ..BrilligStdLib::default() };
+
+    let (acir_functions, brillig_functions, _) = codegen_acir(
+        ssa,
+        &Brillig::default(),
+        malicious_brillig_stdlib,
+        &BrilligOptions::default(),
+    )
+    .expect("Should compile manually written SSA into ACIR");
+
+    assert_eq!(acir_functions.len(), 1);
+    // [`malicious_directive_quotient`, `directive_invert`]
+    assert_eq!(brillig_functions.len(), 2);
+
+    let main = &acir_functions[0];
+
+    let initial_witness = WitnessMap::from(BTreeMap::from([(Witness(0), input)]));
+    let blackbox_solver = StubbedBlackBoxSolver;
+    let mut acvm =
+        ACVM::new(&blackbox_solver, main.opcodes(), initial_witness, &brillig_functions, &[]);
+
+    assert!(matches!(acvm.solve(), ACVMStatus::Failure::<FieldElement>(_)));
 }
 
 #[test]
@@ -289,7 +366,7 @@ fn derive_pedersen_generators_requires_constant_input() {
 
     let ssa = Ssa::from_str(src).unwrap();
     let brillig = ssa.to_brillig(&BrilligOptions::default());
-    ssa.into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
+    ssa.into_acir(&brillig, &BrilligOptions::default())
         .expect_err("Should fail with assert constant");
 }
 
@@ -321,6 +398,51 @@ fn databus() {
     ");
 }
 
+#[test]
+fn databus_deduplicate_call_and_return_data() {
+    // call_data and return_data are the same
+    let src = "
+    acir(inline) pure fn main f0 {
+    call_data(0): array: v1, indices: []
+    return_data: v1
+    b0(v0: Field):
+        v1 = make_array [v0] : [Field; 1]
+        return v1
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    // Check that RETURNDATA and CALLDATA are distinct blocks
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: []
+    ASSERT w1 = w0
+    INIT RETURNDATA b0 = [w1]
+    INIT CALLDATA 0 b1 = [w0]
+    ");
+}
+
+#[test]
+fn blake3_slice_regression() {
+    // Sanity check for blake3 black box call brillig codegen.
+    let src = "
+    brillig(inline) predicate_pure fn main f0 {
+      b0(v0: [u8; 1]):
+        v3 = call blake3(v0) -> [u8; 32]
+        return
+    }
+    ";
+
+    let ssa = Ssa::from_str(src).unwrap();
+    execute_ssa(
+        ssa,
+        WitnessMap::from(BTreeMap::from([(Witness(0), FieldElement::from(104u128))])),
+        None,
+    );
+}
+
 /// Convert the SSA input into ACIR and use ACVM to execute it
 /// Returns the ACVM execution status and the value of the 'output' witness value,
 /// unless the provided output is None or the ACVM fails during execution.
@@ -331,12 +453,11 @@ fn execute_ssa(
 ) -> (ACVMStatus<FieldElement>, Option<FieldElement>) {
     let brillig = ssa.to_brillig(&BrilligOptions::default());
     let (acir_functions, brillig_functions, _) = ssa
-        .into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
+        .into_acir(&brillig, &BrilligOptions::default())
         .expect("Should compile manually written SSA into ACIR");
     assert_eq!(acir_functions.len(), 1);
     let main = &acir_functions[0];
-    let pedantic_solving = true;
-    let blackbox_solver = StubbedBlackBoxSolver(pedantic_solving);
+    let blackbox_solver = StubbedBlackBoxSolver;
     let mut acvm =
         ACVM::new(&blackbox_solver, main.opcodes(), initial_witness, &brillig_functions, &[]);
     let status = acvm.solve();
@@ -422,7 +543,7 @@ fn test_operators(
         'u' => NumericType::Unsigned { bit_size: typ[1..].parse().unwrap() },
         _ => unreachable!("invalid numeric type"),
     };
-    let inputs_int = Value::array_from_iter(inputs.iter().cloned(), num_type).unwrap();
+    let inputs_int = Value::array_from_iter(inputs.iter().copied(), num_type).unwrap();
     let inputs =
         inputs.iter().enumerate().map(|(i, f)| (Witness(i as u32), *f)).collect::<BTreeMap<_, _>>();
     let len = inputs.len() as u32;
@@ -431,7 +552,7 @@ fn test_operators(
     for op in operators {
         let (src, with_output) = generate_test_instruction_from_operator(op);
         let output = if with_output { Some(Witness(len)) } else { None };
-        let ssa = Ssa::from_str(&(main.to_owned() + &src)).unwrap();
+        let ssa = Ssa::from_str(&(main.clone() + &src)).unwrap();
         // ssa execution
         let ssa_interpreter_result = ssa.interpret(vec![inputs_int.clone()]);
         // acir execution
@@ -587,4 +708,36 @@ proptest! {
         test_operators(&operators, "u8", &[lhs,rhs]);
         test_operators(&operators, "i8", &[lhs,rhs]);
     }
+}
+
+#[test]
+fn empty_parameters_should_generate_no_witnesses() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0():
+        return
+    }
+    ";
+    assert_no_witnesses(src);
+}
+
+#[test]
+fn zero_sized_parameters_should_generate_no_witnesses() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: [u8; 0]):
+        return
+    }
+    ";
+    assert_no_witnesses(src);
+}
+
+fn assert_no_witnesses(src: &str) {
+    let ssa = Ssa::from_str(src).unwrap();
+    let (acir, _, _) = ssa.into_acir(&Brillig::default(), &BrilligOptions::default()).unwrap();
+    let acir = &acir[0];
+
+    assert!(acir.current_witness_index().is_none());
+    assert!(acir.input_witnesses.is_empty());
+    assert!(acir.return_witnesses.is_empty());
 }

@@ -39,6 +39,7 @@ iter-extended.workspace = true
 # and that is a different target, and for that the feature
 # aren't unified with this one.
 nargo = { workspace = true, features = ["rpc"] }
+nargo_doc.workspace = true
 nargo_expand.workspace = true
 nargo_fmt.workspace = true
 nargo_toml.workspace = true
@@ -56,9 +57,7 @@ noir_ast_fuzzer.workspace = true
 acvm = { workspace = true, features = ["bn254"] }
 bn254_blackbox_solver.workspace = true
 toml.workspace = true
-serde.workspace = true
 serde_json.workspace = true
-prettytable-rs = "0.10"
 rayon.workspace = true
 thiserror.workspace = true
 tower.workspace = true
@@ -78,7 +77,7 @@ clap-markdown = { git = "https://github.com/noir-lang/clap-markdown", rev = "450
 
 notify = "6.1.1"
 notify-debouncer-full = "0.3.1"
-termion = "3.0.0"
+termion = "4"
 
 # Logs
 tracing.workspace = true
@@ -96,19 +95,18 @@ tempfile.workspace = true
 dirs.workspace = true
 assert_cmd = "2.0.8"
 assert_fs = "1.0.10"
-predicates = "2.1.5"
+predicates = "3"
 fm.workspace = true
 criterion.workspace = true
 pprof.workspace = true
 paste = "1.0.14"
 proptest.workspace = true
 regex.workspace = true
+serde.workspace = true
 similar.workspace = true
 sha2.workspace = true
-sha3.workspace = true
 iai = "0.1.1"
 test-case.workspace = true
-lazy_static.workspace = true
 light-poseidon = "0.3.0"
 insta = { workspace = true, features = ["json", "redactions"] }
 base64.workspace = true

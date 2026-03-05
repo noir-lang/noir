@@ -2,6 +2,7 @@ use noirc_errors::Location;
 
 use crate::{
     ast::{ItemVisibility, TypeAlias, UnresolvedType, UnresolvedTypeData},
+    parser::ParserErrorReason,
     token::Token,
 };
 
@@ -12,14 +13,16 @@ impl Parser<'_> {
     pub(crate) fn parse_type_alias(
         &mut self,
         visibility: ItemVisibility,
+        comptime: bool,
         start_location: Location,
     ) -> TypeAlias {
         let location = self.location_at_previous_token_end();
-        let Some(name) = self.eat_ident() else {
+        let Some(name) = self.eat_non_underscore_ident() else {
             self.expected_identifier();
             return TypeAlias {
                 visibility,
-                name: self.unknown_ident_at_previous_token_end(),
+                comptime,
+                name: self.empty_ident_at_previous_token_end(),
                 generics: Vec::new(),
                 typ: UnresolvedType { typ: UnresolvedTypeData::Error, location },
                 location: start_location,
@@ -47,7 +50,23 @@ impl Parser<'_> {
             }
         } else {
             expr_location = self.current_token_location;
-            let typ = self.parse_type_or_type_expression().unwrap();
+            let typ = self.parse_type_or_type_expression();
+            if num_typ.is_none()
+                && matches!(
+                    typ,
+                    Some(UnresolvedType { typ: UnresolvedTypeData::Expression(..), .. })
+                )
+            {
+                self.push_error(
+                    ParserErrorReason::UnexpectedTypeExpressionInTypeAlias,
+                    typ.as_ref().unwrap().location,
+                );
+            }
+
+            let typ = typ.unwrap_or(UnresolvedType {
+                typ: UnresolvedTypeData::Error,
+                location: expr_location,
+            });
             location = self.location_since(start_location);
             self.eat_semicolon_or_error();
             typ
@@ -56,6 +75,7 @@ impl Parser<'_> {
 
         TypeAlias {
             visibility,
+            comptime,
             name,
             generics,
             typ,
@@ -69,9 +89,14 @@ impl Parser<'_> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::TypeAlias,
+        ast::{TypeAlias, UnresolvedType, UnresolvedTypeData},
         parse_program_with_dummy_file,
-        parser::{ItemKind, parser::tests::expect_no_errors},
+        parser::{
+            ItemKind, ParserErrorReason,
+            parser::tests::{
+                expect_no_errors, get_single_error_reason, get_source_with_error_span,
+            },
+        },
     };
 
     fn parse_type_alias_no_errors(src: &str) -> TypeAlias {
@@ -92,6 +117,7 @@ mod tests {
         assert_eq!("Foo", alias.name.to_string());
         assert!(alias.generics.is_empty());
         assert_eq!(alias.typ.typ.to_string(), "Field");
+        assert!(!alias.comptime);
     }
 
     #[test]
@@ -108,5 +134,48 @@ mod tests {
         let alias = parse_type_alias_no_errors(src);
         assert_eq!("Double", alias.name.to_string());
         assert_eq!(alias.generics.len(), 1);
+    }
+
+    #[test]
+    fn parse_comptime_type_alias() {
+        let src = "comptime type Foo = Field;";
+        let alias = parse_type_alias_no_errors(src);
+        assert_eq!("Foo", alias.name.to_string());
+        assert!(alias.generics.is_empty());
+        assert_eq!(alias.typ.typ.to_string(), "Field");
+        assert!(alias.comptime);
+    }
+
+    #[test]
+    fn parse_incomplete_type_alias() {
+        let src = "type Foo = ";
+        let (mut module, errors) = parse_program_with_dummy_file(src);
+        assert!(!errors.is_empty());
+        assert_eq!(module.items.len(), 1);
+        let item = module.items.remove(0);
+        let ItemKind::TypeAlias(alias) = item.kind else {
+            panic!("Expected type alias");
+        };
+        assert_eq!(alias.name.to_string(), "Foo");
+        assert!(matches!(alias.typ, UnresolvedType { typ: UnresolvedTypeData::Error, .. }));
+    }
+
+    #[test]
+    fn parse_numeric_type_alias_without_type() {
+        let src = "
+        type Foo = 1 + 2;
+                   ^^^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let (mut module, errors) = parse_program_with_dummy_file(&src);
+        assert!(!errors.is_empty());
+        assert_eq!(module.items.len(), 1);
+        let item = module.items.remove(0);
+        let ItemKind::TypeAlias(alias) = item.kind else {
+            panic!("Expected type alias");
+        };
+        assert_eq!(alias.name.to_string(), "Foo");
+        let reason = get_single_error_reason(&errors, span);
+        assert!(matches!(reason, ParserErrorReason::UnexpectedTypeExpressionInTypeAlias));
     }
 }

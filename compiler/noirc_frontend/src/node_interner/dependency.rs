@@ -7,7 +7,6 @@ use petgraph::{
 };
 
 use crate::{
-    Type,
     hir::{def_collector::dc_crate::CompilationError, resolution::errors::ResolverError},
     node_interner::{FuncId, GlobalId, TraitId, TypeAliasId, TypeId},
 };
@@ -26,7 +25,7 @@ use super::NodeInterner;
 /// ```
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum DependencyId {
-    Struct(TypeId),
+    DataType(TypeId),
     Global(GlobalId),
     Function(FuncId),
     Alias(TypeAliasId),
@@ -43,21 +42,25 @@ impl NodeInterner {
     /// Register that `dependent` depends on `dependency`.
     /// This is usually because `dependent` refers to `dependency` in one of its struct fields.
     pub fn add_type_dependency(&mut self, dependent: DependencyId, dependency: TypeId) {
-        self.add_dependency(dependent, DependencyId::Struct(dependency));
+        self.add_dependency(dependent, DependencyId::DataType(dependency));
     }
 
+    /// Mark a [DependencyId] as being dependant on a [GlobalId].
     pub fn add_global_dependency(&mut self, dependent: DependencyId, dependency: GlobalId) {
         self.add_dependency(dependent, DependencyId::Global(dependency));
     }
 
+    /// Mark a [DependencyId] as being dependant on a [FuncId].
     pub fn add_function_dependency(&mut self, dependent: DependencyId, dependency: FuncId) {
         self.add_dependency(dependent, DependencyId::Function(dependency));
     }
 
+    /// Mark a [DependencyId] as being dependant on a [TypeAliasId].
     pub fn add_type_alias_dependency(&mut self, dependent: DependencyId, dependency: TypeAliasId) {
         self.add_dependency(dependent, DependencyId::Alias(dependency));
     }
 
+    /// Mark a [DependencyId] as being dependant on a [TraitId].
     pub fn add_trait_dependency(&mut self, dependent: DependencyId, dependency: TraitId) {
         self.add_dependency(dependent, DependencyId::Trait(dependency));
     }
@@ -79,7 +82,6 @@ impl NodeInterner {
     }
 
     pub(crate) fn check_for_dependency_cycles(&self) -> Vec<CompilationError> {
-        let strongly_connected_components = tarjan_scc(&self.dependency_graph);
         let mut errors = Vec::new();
 
         let mut push_error = |item: String, scc: &[_], i, location: Location| {
@@ -88,46 +90,70 @@ impl NodeInterner {
             errors.push(error.into());
         };
 
+        let mut push_error_from_index = |scc: &[_], scc_index, node_index: PetGraphIndex| -> bool {
+            match self.dependency_graph[node_index] {
+                DependencyId::DataType(struct_id) => {
+                    let struct_type = self.get_type(struct_id);
+                    let struct_type = struct_type.borrow();
+                    let name = &struct_type.name;
+                    push_error(name.to_string(), scc, scc_index, name.location());
+                    true
+                }
+                DependencyId::Global(global_id) => {
+                    let global = self.get_global(global_id);
+                    let name = global.ident.to_string();
+                    push_error(name, scc, scc_index, global.location);
+                    true
+                }
+                DependencyId::Alias(alias_id) => {
+                    let alias = self.get_type_alias(alias_id);
+                    let alias = alias.borrow();
+                    push_error(alias.name.to_string(), scc, scc_index, alias.name.location());
+                    true
+                }
+                DependencyId::Trait(trait_id) => {
+                    let the_trait = self.get_trait(trait_id);
+                    let name = &the_trait.name;
+                    push_error(name.to_string(), scc, scc_index, name.location());
+                    true
+                }
+                // Mutually recursive functions are allowed
+                DependencyId::Function(_) => false,
+                // Local variables should never be in a dependency cycle, scoping rules
+                // prevents referring to them before they're defined
+                DependencyId::Variable(loc) => {
+                    unreachable!("Variable used at location {loc:?} caught in a dependency cycle")
+                }
+            }
+        };
+
+        // Checking for single-node cycles.
+        //
+        // Enabling this highlights errors such as `type Alias = Alias;`,
+        // however it also emits errors for things like `type Foo = u32; impl Foo {}`,
+        // ie. if there is an impl for something that shouldn't have one, _unless_
+        // there is an `fn main() {}` as well, in which case the error does not appear.
+        // Since all corresponding unit tests seem to carry at least another error,
+        // and this behavior is strange, and the SCC below only looks for more than 1,
+        // for now it's left commented out.
+        //
+        // for edge_reference in self.dependency_graph.edge_references() {
+        //     let source = edge_reference.source();
+        //     let target = edge_reference.target();
+        //     if source == target {
+        //         let scc_index = 0;
+        //         let node_index = source;
+        //         push_error_from_index(&[source], scc_index, node_index);
+        //     }
+        // }
+
+        let strongly_connected_components = tarjan_scc(&self.dependency_graph);
         for scc in strongly_connected_components {
             if scc.len() > 1 {
                 // If a SCC contains a type, type alias, or global, it must be the only element in the SCC
-                for (i, index) in scc.iter().enumerate() {
-                    match self.dependency_graph[*index] {
-                        DependencyId::Struct(struct_id) => {
-                            let struct_type = self.get_type(struct_id);
-                            let struct_type = struct_type.borrow();
-                            push_error(struct_type.name.to_string(), &scc, i, struct_type.location);
-                            break;
-                        }
-                        DependencyId::Global(global_id) => {
-                            let global = self.get_global(global_id);
-                            let name = global.ident.to_string();
-                            push_error(name, &scc, i, global.location);
-                            break;
-                        }
-                        DependencyId::Alias(alias_id) => {
-                            let alias = self.get_type_alias(alias_id);
-                            // If type aliases form a cycle, we have to manually break the cycle
-                            // here to prevent infinite recursion in the type checker.
-                            alias.borrow_mut().typ = Type::Error;
-
-                            // push_error will borrow the alias so we have to drop the mutable borrow
-                            let alias = alias.borrow();
-                            push_error(alias.name.to_string(), &scc, i, alias.location);
-                            break;
-                        }
-                        DependencyId::Trait(trait_id) => {
-                            let the_trait = self.get_trait(trait_id);
-                            push_error(the_trait.name.to_string(), &scc, i, the_trait.location);
-                            break;
-                        }
-                        // Mutually recursive functions are allowed
-                        DependencyId::Function(_) => (),
-                        // Local variables should never be in a dependency cycle, scoping rules
-                        // prevents referring to them before they're defined
-                        DependencyId::Variable(loc) => unreachable!(
-                            "Variable used at location {loc:?} caught in a dependency cycle"
-                        ),
+                for (scc_index, node_index) in scc.iter().enumerate() {
+                    if push_error_from_index(&scc, scc_index, *node_index) {
+                        break;
                     }
                 }
             }
@@ -141,7 +167,7 @@ impl NodeInterner {
     /// element at the given start index.
     fn get_cycle_error_string(&self, scc: &[PetGraphIndex], start_index: usize) -> String {
         let index_to_string = |index: PetGraphIndex| match self.dependency_graph[index] {
-            DependencyId::Struct(id) => Cow::Owned(self.get_type(id).borrow().name.to_string()),
+            DependencyId::DataType(id) => Cow::Owned(self.get_type(id).borrow().name.to_string()),
             DependencyId::Function(id) => Cow::Borrowed(self.function_name(&id)),
             DependencyId::Alias(id) => {
                 Cow::Owned(self.get_type_alias(id).borrow().name.to_string())

@@ -175,7 +175,7 @@ impl InstructionArgumentsMutation {
                             |index, rng| {
                                 mutate_usize(index, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
                             },
-                            |rng| rng.gen_range(usize::MIN..usize::MAX),
+                            |rng| rng.random_range(usize::MIN..usize::MAX),
                             BASIC_VEC_MUTATION_CONFIGURATION,
                         );
                     }
@@ -225,7 +225,7 @@ impl InstructionArgumentsMutation {
                         mutate_usize(field_idx, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
                     }
                     BlakeHashMutationOptions::LimbsCount => {
-                        *limbs_count = rng.gen_range(u8::MIN..u8::MAX);
+                        *limbs_count = rng.random_range(u8::MIN..u8::MAX);
                     }
                 }
             }
@@ -235,12 +235,12 @@ impl InstructionArgumentsMutation {
                         mutate_usize(field_idx, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
                     }
                     BlakeHashMutationOptions::LimbsCount => {
-                        *limbs_count = rng.gen_range(u8::MIN..u8::MAX);
+                        *limbs_count = rng.random_range(u8::MIN..u8::MAX);
                     }
                 }
             }
             Instruction::Keccakf1600Hash { u64_indices, load_elements_of_array } => {
-                let idx = rng.gen_range(0..u64_indices.len());
+                let idx = rng.random_range(0..u64_indices.len());
                 mutate_usize(&mut u64_indices[idx], rng, BASIC_USIZE_MUTATION_CONFIGURATION);
                 mutate_bool(load_elements_of_array, rng, BASIC_BOOL_MUTATION_CONFIGURATION);
             }
@@ -250,11 +250,11 @@ impl InstructionArgumentsMutation {
                 load_elements_of_array,
             } => match BASIC_SHA256_COMPRESSION_MUTATION_CONFIGURATION.select(rng) {
                 Sha256CompressionMutationOptions::InputIndices => {
-                    let idx = rng.gen_range(0..input_indices.len());
+                    let idx = rng.random_range(0..input_indices.len());
                     mutate_usize(&mut input_indices[idx], rng, BASIC_USIZE_MUTATION_CONFIGURATION);
                 }
                 Sha256CompressionMutationOptions::StateIndices => {
-                    let idx = rng.gen_range(0..state_indices.len());
+                    let idx = rng.random_range(0..state_indices.len());
                     mutate_usize(&mut state_indices[idx], rng, BASIC_USIZE_MUTATION_CONFIGURATION);
                 }
                 Sha256CompressionMutationOptions::LoadElementsOfArray => {
@@ -267,7 +267,7 @@ impl InstructionArgumentsMutation {
                         mutate_usize(input_idx, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
                     }
                     Aes128EncryptMutationOptions::InputLimbsCount => {
-                        *input_limbs_count = rng.gen_range(u8::MIN..u8::MAX);
+                        *input_limbs_count = rng.random_range(u8::MIN..u8::MAX);
                     }
                     Aes128EncryptMutationOptions::KeyIdx => {
                         mutate_usize(key_idx, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
@@ -320,9 +320,9 @@ impl InstructionArgumentsMutation {
                     msg,
                     rng,
                     |byte, rng| {
-                        *byte = rng.gen_range(0..=255);
+                        *byte = rng.random_range(0..=255);
                     },
-                    |rng| rng.gen_range(0..=255),
+                    |rng| rng.random_range(0..=255),
                     BASIC_VEC_MUTATION_CONFIGURATION,
                 );
                 mutate_bool(corrupt_hash, rng, BOOL_MUTATION_CONFIGURATION_MOSTLY_FALSE);

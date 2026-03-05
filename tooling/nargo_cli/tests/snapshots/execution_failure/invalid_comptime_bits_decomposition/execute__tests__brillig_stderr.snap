@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Assertion failed: 'Field failed to decompose into specified 1 limbs'
+   ┌─ std/field/mod.nr:64:20
+   │
+64 │         let bits = __to_be_bits(self);
+   │                    ------------------
+   │
+   = Call stack:
+     1. src/main.nr:4:5
+     2. std/field/mod.nr:64:20
+
+Failed assertion

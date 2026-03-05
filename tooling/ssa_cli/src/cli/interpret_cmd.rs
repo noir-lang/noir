@@ -43,13 +43,18 @@ pub(super) struct InterpretCommand {
     /// Turn on tracing in the SSA interpreter.
     #[clap(long, default_value_t = false)]
     pub trace: bool,
+
+    /// Optional limit for the interpreter.
+    #[clap(long)]
+    pub step_limit: Option<usize>,
 }
 
 pub(super) fn run(args: InterpretCommand, ssa: Ssa) -> eyre::Result<()> {
     // Construct an ABI, which we can then use to parse input values.
     let abi = abi_from_ssa(&ssa);
 
-    let options = InterpreterOptions { trace: args.trace, ..Default::default() };
+    let options =
+        InterpreterOptions { trace: args.trace, step_limit: args.step_limit, ..Default::default() };
 
     let (input_map, return_value) = read_inputs_and_return(&abi, &args)?;
     let ssa_args = noir_ast_fuzzer::input_values_to_ssa(&abi, &input_map);
@@ -147,11 +152,11 @@ fn abi_type_from_ssa(typ: &Type) -> AbiType {
             }
         },
         Type::Array(items, length) => {
-            AbiType::Array { length: *length, typ: Box::new(abi_type_from_multi_ssa(items)) }
+            AbiType::Array { length: length.0, typ: Box::new(abi_type_from_multi_ssa(items)) }
         }
         Type::Reference(_) => unreachable!("refs do not appear in SSA ABI"),
         Type::Function => unreachable!("functions do not appear in SSA ABI"),
-        Type::Slice(_) => unreachable!("slices do not appear in SSA ABI"),
+        Type::Vector(_) => unreachable!("vectors do not appear in SSA ABI"),
     }
 }
 

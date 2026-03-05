@@ -1,0 +1,26 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Cannot mutate something from an external crate
+   ┌─ src/main.nr:13:5
+   │
+13 │     foo.set_fields([(quote[bad], int, quote[])]);
+   │     -------------------------------------------- `Foo` was declared in `dependency::Foo`
+   │
+
+error: Cannot mutate something from an external crate
+   ┌─ src/main.nr:20:5
+   │
+20 │     foo.add_attribute("bad_type_attr");
+   │     ---------------------------------- `Foo` was declared in `dependency::Foo`
+   │
+
+error: Cannot mutate something from an external crate
+   ┌─ src/main.nr:27:13
+   │
+27 │     let _ = foo.add_generic("T");
+   │             -------------------- `Foo` was declared in `dependency::Foo`
+   │
+
+Aborting due to 3 previous errors

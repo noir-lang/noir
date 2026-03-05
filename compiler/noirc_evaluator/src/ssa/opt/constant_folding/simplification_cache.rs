@@ -23,7 +23,7 @@ impl SimplificationCache {
     /// Try to find a simplification in a visible block.
     pub(super) fn get(&self, block: BasicBlockId, dom: &DominatorTree) -> Option<ValueId> {
         // Deterministically walk up the dominator chain until we encounter a block that contains a simplification.
-        dom.find_map_dominator(block, |b| self.simplifications.get(&b).cloned())
+        dom.find_map_dominator(block, |b| self.simplifications.get(&b).copied())
     }
 
     /// Add a newly encountered simplification to the cache.
@@ -35,7 +35,7 @@ impl SimplificationCache {
                 // so we check whether `simple` is a better simplification than the current one.
                 if let Some((_, simpler)) = simplify(dfg, *existing, simple) {
                     *existing = simpler;
-                };
+                }
             })
             .or_insert(simple);
     }
@@ -63,14 +63,15 @@ impl ConstraintSimplificationCache {
         rhs: ValueId,
     ) {
         if let Some((complex, simple)) = simplify(dfg, lhs, rhs) {
-            self.get(predicate).entry(complex).or_default().add(dfg, simple, block);
+            let predicate_cache = self.0.entry(predicate).or_default();
+            predicate_cache.entry(complex).or_default().add(dfg, simple, block);
         }
     }
 
     /// Get the simplification mapping from complex to simpler instructions,
     /// which all depend on the same side effect condition variable.
-    pub(super) fn get(&mut self, predicate: ValueId) -> &mut HashMap<ValueId, SimplificationCache> {
-        self.0.entry(predicate).or_default()
+    pub(super) fn get(&self, predicate: ValueId) -> Option<&HashMap<ValueId, SimplificationCache>> {
+        self.0.get(&predicate)
     }
 }
 

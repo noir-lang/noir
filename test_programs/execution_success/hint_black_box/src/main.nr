@@ -15,16 +15,16 @@ fn main(a: u32, b: u32) {
     assert_eq(array_sum(arr), b);
     assert_eq(array_sum(black_box(arr)), b);
 
-    assert_eq(slice_sum(arr.as_slice()), b);
-    assert_eq(slice_sum(black_box(arr).as_slice()), b);
+    assert_eq(vector_sum(arr.as_vector()), b);
+    assert_eq(vector_sum(black_box(arr).as_vector()), b);
 
-    // This doesn't work because by calling `black_box` on a slice the compiler
+    // This doesn't work because by calling `black_box` on a vector the compiler
     // loses track of the length, and then cannot unroll the loop for ACIR.
-    //assert_eq(slice_sum(black_box(arr.as_slice())), b);
+    //assert_eq(vector_sum(black_box(arr.as_vector())), b);
 
-    // But we can pass a blackboxed slice to Brillig.
+    // But we can pass a blackboxed vector to Brillig.
     // Safety: testing context
-    let s = unsafe { brillig_slice_sum(black_box(arr.as_slice())) };
+    let s = unsafe { brillig_vector_sum(black_box(arr.as_vector())) };
     assert_eq(s, b);
 
     let mut d = b;
@@ -70,7 +70,7 @@ fn array_sum<let N: u32>(xs: [u32; N]) -> u32 {
     sum
 }
 
-fn slice_sum(xs: [u32]) -> u32 {
+fn vector_sum(xs: [u32]) -> u32 {
     let mut sum = 0;
     for x in xs {
         sum = sum + x;
@@ -78,7 +78,7 @@ fn slice_sum(xs: [u32]) -> u32 {
     sum
 }
 
-unconstrained fn brillig_slice_sum(xs: [u32]) -> u32 {
+unconstrained fn brillig_vector_sum(xs: [u32]) -> u32 {
     let mut sum = 0;
     for x in xs {
         sum = sum + x;

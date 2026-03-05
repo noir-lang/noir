@@ -23,7 +23,7 @@ use super::{
 use acvm::FieldElement;
 use acvm::acir::native_types::{WitnessMap, WitnessStack};
 use noir_ssa_fuzzer::{runner::execute, typed_value::Type};
-use noirc_driver::CompiledProgram;
+use noirc_artifacts::program::CompiledProgram;
 use noirc_evaluator::ssa::ir::function::RuntimeType;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -127,8 +127,8 @@ impl FuzzerOutput {
                     (false, false) => {
                         if left_return_witnesses != right_return_witnesses {
                             return CompareResults::Disagree(
-                                left_return_witnesses.clone(),
-                                right_return_witnesses.clone(),
+                                left_return_witnesses,
+                                right_return_witnesses,
                             );
                         }
                         CompareResults::Agree(left_return_witnesses)

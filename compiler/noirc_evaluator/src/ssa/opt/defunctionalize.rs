@@ -59,7 +59,7 @@ use rustc_hash::FxHashMap as HashMap;
 /// fn apply(function_id: Field, arg1: Field, arg2: Field) -> Field {
 ///     match function_id {
 ///         0 -> function0(arg1, arg2),
-///         1 -> function0(arg1, arg2),
+///         1 -> function1(arg1, arg2),
 ///         ...
 ///         N -> functionN(arg1, arg2),
 ///     }
@@ -75,7 +75,7 @@ struct ApplyFunction {
 }
 
 /// All functions used as a value that share the same signature and runtime type
-/// Maps ([Signature], [RuntimeType]) -> Vec<[FunctionId]>
+/// Maps ([Signature], Caller [RuntimeType]) -> Vec<([FunctionId], Callee [RuntimeType])>
 type Variants = BTreeMap<(Signature, RuntimeType), Vec<(FunctionId, RuntimeType)>>;
 /// All generated apply functions for each grouping of function variants.
 /// Each apply function is handles a specific ([Signature], [RuntimeType]) group.
@@ -94,6 +94,10 @@ impl Ssa {
     /// See [`defunctionalize`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn defunctionalize(mut self) -> Ssa {
+        // Check that we have removed all cases we don't handle in this pass.
+        #[cfg(debug_assertions)]
+        self.functions.values().for_each(defunctionalize_pre_check);
+
         // Find all functions used as value that share the same signature and runtime type
         let variants = find_variants(&self);
 
@@ -121,7 +125,7 @@ impl Ssa {
 
 impl DefunctionalizationContext {
     /// Defunctionalize all functions in the SSA
-    fn defunctionalize_all(mut self, ssa: &mut Ssa) {
+    fn defunctionalize_all(self, ssa: &mut Ssa) {
         for function in ssa.functions.values_mut() {
             // We mutate value types in `defunctionalize`, so to prevent that from affecting which
             // apply functions are chosen we replace all first-class function calls with calls to
@@ -137,7 +141,7 @@ impl DefunctionalizationContext {
     /// Replaces any function calls using first-class function values with calls to the
     /// appropriate `apply` function. Note that this must be done before types are mutated
     /// in `defunctionalize` since this uses the pre-mutated types to query apply functions.
-    fn replace_first_class_calls_with_apply_function(&mut self, func: &mut Function) {
+    fn replace_first_class_calls_with_apply_function(&self, func: &mut Function) {
         for block_id in func.reachable_blocks() {
             let block = &mut func.dfg[block_id];
 
@@ -187,7 +191,7 @@ impl DefunctionalizationContext {
     }
 
     /// Defunctionalize a single function
-    fn defunctionalize(&mut self, func: &mut Function) {
+    fn defunctionalize(&self, func: &mut Function) {
         for block_id in func.reachable_blocks() {
             let block = &mut func.dfg[block_id];
 
@@ -302,10 +306,10 @@ fn map_function_to_field(func: &mut Function, value: ValueId) -> Option<ValueId>
     None
 }
 
-/// Collects all functions used as values that can be called by their signatures
+/// Collects all functions used as values that can be called by their signatures.
 ///
-/// Groups all [FunctionId]s used as values by their [Signature] and [RuntimeType],
-/// producing a mapping from these tuples to the list of variant functions to be dynamically dispatched.
+/// Groups all [FunctionId]s used as values by their [Signature] and caller [RuntimeType],
+/// producing a mapping from these tuples to the list of target functions that may be dynamically dispatched.
 ///
 /// # Arguments
 /// - `ssa`: The full [Ssa] structure
@@ -360,10 +364,19 @@ fn find_variants(ssa: &Ssa) -> Variants {
 fn find_functions_as_values(func: &Function) -> BTreeSet<FunctionId> {
     let mut functions_as_values: BTreeSet<FunctionId> = BTreeSet::new();
 
-    let mut process_value = |value_id: ValueId| {
-        if let Value::Function(id) = func.dfg[value_id] {
-            functions_as_values.insert(id);
+    visit_values_other_than_call_target(func, |value| {
+        if let Value::Function(id) = value {
+            functions_as_values.insert(*id);
         }
+    });
+
+    functions_as_values
+}
+
+/// Visit all values which are *not* targets of a `Call`.
+fn visit_values_other_than_call_target(func: &Function, mut f: impl FnMut(&Value)) {
+    let mut process_value = |value_id: ValueId| {
+        f(&func.dfg[value_id]);
     };
 
     for block_id in func.reachable_blocks() {
@@ -382,8 +395,6 @@ fn find_functions_as_values(func: &Function) -> BTreeSet<FunctionId> {
 
         block.unwrap_terminator().for_each_value(&mut process_value);
     }
-
-    functions_as_values
 }
 
 /// Finds all dynamic dispatch signatures in the given function.
@@ -410,7 +421,7 @@ fn find_dynamic_dispatches(func: &Function) -> BTreeSet<Signature> {
                     }
                 }
                 _ => continue,
-            };
+            }
         }
     }
     dispatches
@@ -419,7 +430,8 @@ fn find_dynamic_dispatches(func: &Function) -> BTreeSet<Signature> {
 /// Creates all apply functions needed for dispatch of function values.
 ///
 /// This function maintains the grouping set in [Variants], meaning an apply
-/// function is grouped by functions that share a signature and runtime.
+/// function is grouped by functions that share a target signature and caller runtime.
+///
 /// An apply function is only created if there are multiple function variants
 /// for a specific ([Signature], [RuntimeType]) group.
 /// Otherwise, if there is a single variant that function is simply reused.
@@ -449,10 +461,12 @@ fn create_apply_functions(
         (*ssa.functions.iter().next().unwrap().1.dfg.function_purities).clone()
     };
 
-    for ((signature, caller_runtime), variants) in variants_map.into_iter() {
+    for ((signature, caller_runtime), variants) in variants_map {
         // Calling an ACIR function from a Brillig runtime is not allowed.
         // We expect all ACIR functions called from Brillig to be specialized
         // as Brillig functions at compile time (e.g., before SSA generation).
+        // Calling a Brillig function from ACIR is allowed, but we avoid creating dispatch functions to variants
+        // which would pass invalid types across runtime boundaries.
         // Closures are expected to be duplicated by their runtime.
         // It is expected that the frontend has appropriately extracted the correct closure
         // based on the current runtime of the caller function.
@@ -462,10 +476,18 @@ fn create_apply_functions(
         // Thus, to avoid a broken SSA we simply do not include calls to variants which differ from their callers.
         // It is expected that if the new ID associated with the bad variant is used, that we will still fail as the last
         // function to dispatch constrains that we have an expected ID.
+
         let pre_runtime_filter_len = variants.len();
         let variants: Vec<(FunctionId, RuntimeType)> = variants
             .into_iter()
-            .filter(|(_, runtime)| !(runtime.is_acir() && caller_runtime.is_brillig()))
+            .filter(|(_, callee_runtime)| {
+                // Note that the Inline property is ignored.
+                caller_runtime.is_brillig() && callee_runtime.is_brillig()
+                    || caller_runtime.is_acir() && callee_runtime.is_acir()
+                    || caller_runtime.is_acir()
+                        && callee_runtime.is_brillig()
+                        && is_valid_across_boundaries(&signature)
+            })
             .collect();
 
         let dispatches_to_multiple_functions = variants.len() > 1;
@@ -515,6 +537,14 @@ fn create_apply_functions(
 /// Transforms a [FunctionId] into a [FieldElement]
 fn function_id_to_field(function_id: FunctionId) -> FieldElement {
     u128::from(function_id.to_u32()).into()
+}
+
+/// Check if a [Signature] is valid when the caller is ACIR and the callee is Brillig.
+fn is_valid_across_boundaries(signature: &Signature) -> bool {
+    !signature.params.iter().any(|typ| typ.contains_reference())
+        && !signature.returns.iter().any(|typ| {
+            typ.contains_reference() || typ.contains_vector_element() || typ.contains_function()
+        })
 }
 
 /// Creates a single apply function to enable dispatch across multiple function variants
@@ -602,7 +632,7 @@ fn create_apply_function(
 
                 let condition =
                     function_builder.insert_binary(target_id, BinaryOp::Eq, function_id_constant);
-                function_builder.terminate_with_jmpif(
+                function_builder.terminate_with_jmpif_no_args(
                     condition,
                     executor_block,
                     next_function_block.unwrap(),
@@ -731,18 +761,18 @@ fn make_dummy_return_data(function_builder: &mut FunctionBuilder, typ: &Type) ->
         Type::Numeric(numeric_type) => function_builder.numeric_constant(0_u128, *numeric_type),
         Type::Array(element_types, len) => {
             let mut array = im::Vector::new();
-            for _ in 0..*len {
+            for _ in 0..len.0 {
                 for typ in element_types.iter() {
                     array.push_back(make_dummy_return_data(function_builder, typ));
                 }
             }
             function_builder.insert_make_array(array, typ.clone())
         }
-        Type::Slice(_) => {
+        Type::Vector(_) => {
             let array = im::Vector::new();
-            // The contents of a slice do not matter for a dummy function, we simply
+            // The contents of a vector do not matter for a dummy function, we simply
             // desire to have a well formed SSA by returning the correct value for a type.
-            // Thus, we return an empty slice here.
+            // Thus, we return an empty vector here.
             function_builder.insert_make_array(array, typ.clone())
         }
         Type::Reference(element_type) => function_builder.insert_allocate((**element_type).clone()),
@@ -752,6 +782,19 @@ fn make_dummy_return_data(function_builder: &mut FunctionBuilder, typ: &Type) ->
             )
         }
     }
+}
+
+/// Check pre-execution properties.
+///
+/// Panics if:
+///   * Any intrinsic or foreign function is passed as a value.
+#[cfg(debug_assertions)]
+fn defunctionalize_pre_check(function: &Function) {
+    visit_values_other_than_call_target(function, |value| match value {
+        Value::ForeignFunction(name) => panic!("foreign function as value: {name}"),
+        Value::Intrinsic(intrinsic) => panic!("intrinsic function as value: {intrinsic}"),
+        _ => (),
+    });
 }
 
 /// Check post-execution properties:
@@ -777,7 +820,7 @@ fn defunctionalize_post_check(func: &Function) {
 /// Return what type a function value type should be replaced with:
 /// * Global functions are replaced with a `Field`.
 /// * Function references are replaced with a reference to the replacement type of the underlying type, recursively.
-/// * Array and slices that contain function types are handled recursively.
+/// * Array and vectors that contain function types are handled recursively.
 ///
 /// If the type doesn't need replacement, `None` is returned.
 fn replacement_type(typ: &Type) -> Option<Type> {
@@ -790,8 +833,8 @@ fn replacement_type(typ: &Type) -> Option<Type> {
         Type::Array(items, size) => {
             replacement_types(items.as_ref()).map(|types| Type::Array(Arc::new(types), *size))
         }
-        Type::Slice(items) => {
-            replacement_types(items.as_ref()).map(|types| Type::Slice(Arc::new(types)))
+        Type::Vector(items) => {
+            replacement_types(items.as_ref()).map(|types| Type::Vector(Arc::new(types)))
         }
     }
 }
@@ -920,10 +963,10 @@ mod tests {
         brillig(inline_always) fn apply f5 {
           b0(v0: Field, v1: u32):
             v5 = eq v0, Field 2
-            jmpif v5 then: b2, else: b1
+            jmpif v5 then: b2(), else: b1()
           b1():
             v9 = eq v0, Field 3
-            jmpif v9 then: b4, else: b3
+            jmpif v9 then: b4(), else: b3()
           b2():
             v7 = call f2(v1) -> u32
             jmp b6(v7)
@@ -1006,7 +1049,7 @@ mod tests {
           b0(v0: u1):
             v1 = allocate -> &mut function
             store f1 at v1
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             store f2 at v1
             jmp b2()
@@ -1042,7 +1085,7 @@ mod tests {
           b0(v0: u1):
             v1 = allocate -> &mut Field
             store Field 1 at v1
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             store Field 2 at v1
             jmp b2()
@@ -1069,7 +1112,7 @@ mod tests {
         acir(inline_always) fn apply f4 {
           b0(v0: Field):
             v3 = eq v0, Field 1
-            jmpif v3 then: b2, else: b1
+            jmpif v3 then: b2(), else: b1()
           b1():
             constrain v0 == Field 2
             v8 = call f2() -> u32
@@ -1096,7 +1139,7 @@ mod tests {
           acir(inline) fn main f0 {
             b0():
               call f1()
-              return f1 
+              return f1
           }
           acir(inline) fn bar f1 {
             b0():
@@ -1253,12 +1296,12 @@ mod tests {
         acir(inline) fn lambdas_with_input_and_return_values f1 {
           b0(v0: u32):
             v4 = eq v0, u32 0
-            jmpif v4 then: b1, else: b2
+            jmpif v4 then: b1(), else: b2()
           b1():
             jmp b3(f2)
           b2():
             v6 = eq v0, u32 1
-            jmpif v6 then: b4, else: b5
+            jmpif v6 then: b4(), else: b5()
           b3(v1: function):
             v10 = call v1(v0) -> u32
             return v10
@@ -1298,12 +1341,12 @@ mod tests {
         acir(inline) fn lambdas_with_input_and_return_values f1 {
           b0(v0: u32):
             v4 = eq v0, u32 0
-            jmpif v4 then: b1, else: b2
+            jmpif v4 then: b1(), else: b2()
           b1():
             jmp b3(Field 2)
           b2():
             v6 = eq v0, u32 1
-            jmpif v6 then: b4, else: b5
+            jmpif v6 then: b4(), else: b5()
           b3(v1: Field):
             v11 = call f5(v1, v0) -> u32
             return v11
@@ -1331,10 +1374,10 @@ mod tests {
         acir(inline_always) fn apply f5 {
           b0(v0: Field, v1: u32):
             v5 = eq v0, Field 2
-            jmpif v5 then: b2, else: b1
+            jmpif v5 then: b2(), else: b1()
           b1():
             v9 = eq v0, Field 3
-            jmpif v9 then: b4, else: b3
+            jmpif v9 then: b4(), else: b3()
           b2():
             v7 = call f2(v1) -> u32
             jmp b6(v7)
@@ -1415,16 +1458,16 @@ mod tests {
         acir(inline_always) fn apply f5 {
           b0(v0: Field):
             v2 = eq v0, Field 1
-            jmpif v2 then: b2, else: b1
+            jmpif v2 then: b2(), else: b1()
           b1():
             v5 = eq v0, Field 2
-            jmpif v5 then: b4, else: b3
+            jmpif v5 then: b4(), else: b3()
           b2():
             call f1()
             jmp b9()
           b3():
             v8 = eq v0, Field 3
-            jmpif v8 then: b6, else: b5
+            jmpif v8 then: b6(), else: b5()
           b4():
             call f2()
             jmp b8()
@@ -1652,7 +1695,7 @@ mod tests {
                 v3 = call f1(f2) -> Field
                 v5 = call f1(f3) -> Field
                 v7 = eq v0, Field 0
-                jmpif v7 then: b1, else: b2
+                jmpif v7 then: b1(), else: b2()
             b1():
                 jmp b3(f4)
             b2():
@@ -1702,7 +1745,7 @@ mod tests {
             v4 = call f1(Field 2) -> Field
             v6 = call f1(Field 3) -> Field
             v8 = eq v0, Field 0
-            jmpif v8 then: b1, else: b2
+            jmpif v8 then: b1(), else: b2()
           b1():
             jmp b3(Field 4)
           b2():
@@ -1744,7 +1787,7 @@ mod tests {
         acir(inline_always) fn apply f7 {
           b0(v0: Field, v1: Field):
             v4 = eq v0, Field 4
-            jmpif v4 then: b2, else: b1
+            jmpif v4 then: b2(), else: b1()
           b1():
             constrain v0 == Field 5
             v9 = call f5(v1) -> Field
@@ -1758,7 +1801,7 @@ mod tests {
         acir(inline_always) fn apply f8 {
           b0(v0: Field, v1: Field):
             v4 = eq v0, Field 2
-            jmpif v4 then: b2, else: b1
+            jmpif v4 then: b2(), else: b1()
           b1():
             constrain v0 == Field 3
             v9 = call f3(v1) -> Field
@@ -1785,7 +1828,7 @@ mod tests {
             acir(inline) fn simple_recur f1 {
             b0(v0: function, v1: Field):
                 v3 = eq v1, Field 0
-                jmpif v3 then: b1, else: b2
+                jmpif v3 then: b1(), else: b2()
             b1():
                 jmp b3(f1)
             b2():
@@ -1842,7 +1885,7 @@ mod tests {
             store v0 at v4
             v5 = load v4 -> Field
             v7 = eq v5, Field 1
-            jmpif v7 then: b1, else: b2
+            jmpif v7 then: b1(), else: b2()
           b1():
             jmp b3(f1)
           b2():
@@ -1889,7 +1932,7 @@ mod tests {
             store v0 at v4
             v5 = load v4 -> Field
             v7 = eq v5, Field 1
-            jmpif v7 then: b1, else: b2
+            jmpif v7 then: b1(), else: b2()
           b1():
             jmp b3(Field 1)
           b2():
@@ -1936,17 +1979,17 @@ mod tests {
         brillig(inline) fn main f0 {
           b0(v0: Field, v1: Field):
             v4 = eq v0, Field 1
-            jmpif v4 then: b1, else: b2
+            jmpif v4 then: b1(), else: b2()
           b1():
             jmp b7(f1)
           b2():
             v6 = eq v0, Field 2
-            jmpif v6 then: b3, else: b4
+            jmpif v6 then: b3(), else: b4()
           b3():
             jmp b7(f2)
           b4():
             v8 = eq v0, Field 3
-            jmpif v8 then: b5, else: b6
+            jmpif v8 then: b5(), else: b6()
           b5():
             jmp b7(f3)
           b6():
@@ -1994,17 +2037,17 @@ mod tests {
         brillig(inline) fn main f0 {
           b0(v0: Field, v1: Field):
             v4 = eq v0, Field 1
-            jmpif v4 then: b1, else: b2
+            jmpif v4 then: b1(), else: b2()
           b1():
             jmp b7(Field 1)
           b2():
             v6 = eq v0, Field 2
-            jmpif v6 then: b3, else: b4
+            jmpif v6 then: b3(), else: b4()
           b3():
             jmp b7(Field 2)
           b4():
             v8 = eq v0, Field 3
-            jmpif v8 then: b5, else: b6
+            jmpif v8 then: b5(), else: b6()
           b5():
             jmp b7(Field 3)
           b6():
@@ -2037,7 +2080,7 @@ mod tests {
         brillig(inline_always) fn apply f5 {
           b0(v0: Field, v1: Field):
             v4 = eq v0, Field 1
-            jmpif v4 then: b2, else: b1
+            jmpif v4 then: b2(), else: b1()
           b1():
             constrain v0 == Field 2
             v9 = call f2(v1) -> Field
@@ -2057,7 +2100,7 @@ mod tests {
         brillig(inline) fn main f0 {
           b0(v0: u32):
             v4 = eq v0, u32 0
-            jmpif v4 then: b1, else: b2
+            jmpif v4 then: b1(), else: b2()
           b1():
             jmp b3(f1, f2)
           b2():
@@ -2097,7 +2140,7 @@ mod tests {
         brillig(inline) fn main f0 {
           b0(v0: u32):
             v4 = eq v0, u32 0
-            jmpif v4 then: b1, else: b2
+            jmpif v4 then: b1(), else: b2()
           b1():
             jmp b3(Field 1, Field 2)
           b2():
@@ -2130,10 +2173,10 @@ mod tests {
         brillig(inline_always) fn apply f6 {
           b0(v0: Field):
             v2 = eq v0, Field 1
-            jmpif v2 then: b2, else: b1
+            jmpif v2 then: b2(), else: b1()
           b1():
             v5 = eq v0, Field 2
-            jmpif v5 then: b4, else: b3
+            jmpif v5 then: b4(), else: b3()
           b2():
             call f1()
             jmp b5()
@@ -2156,7 +2199,7 @@ mod tests {
         acir(inline) fn main f0 {
           b0(v0: u32):
             v4 = eq v0, u32 0
-            jmpif v4 then: b1, else: b2
+            jmpif v4 then: b1(), else: b2()
           b1():
             jmp b3(f1, f2)
           b2():
@@ -2191,13 +2234,13 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.defunctionalize();
 
-        // A call to f4 will be created in the `apply` function in this case.
+        // A call to f5 will be created in the `apply` function in this case.
         // It is valid to call Brillig from ACIR as this will be treated as a new Brillig entry point.
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u32):
             v4 = eq v0, u32 0
-            jmpif v4 then: b1, else: b2
+            jmpif v4 then: b1(), else: b2()
           b1():
             jmp b3(Field 1, Field 2)
           b2():
@@ -2230,16 +2273,16 @@ mod tests {
         acir(inline_always) fn apply f6 {
           b0(v0: Field):
             v2 = eq v0, Field 1
-            jmpif v2 then: b2, else: b1
+            jmpif v2 then: b2(), else: b1()
           b1():
             v5 = eq v0, Field 2
-            jmpif v5 then: b4, else: b3
+            jmpif v5 then: b4(), else: b3()
           b2():
             call f1()
             jmp b9()
           b3():
             v8 = eq v0, Field 4
-            jmpif v8 then: b6, else: b5
+            jmpif v8 then: b6(), else: b5()
           b4():
             call f2()
             jmp b8()
@@ -2256,6 +2299,199 @@ mod tests {
             jmp b9()
           b9():
             return
+        }
+        ");
+    }
+
+    #[test]
+    fn only_brillig_variants_in_acir() {
+        // SSA of a program with explicitly unconstrained lambdas:
+        // fn main(c: bool) {
+        //     let mut f: unconstrained fn() -> Field = foo;
+        //     if c {
+        //         f = bar;
+        //     }
+        //     unsafe {
+        //         assert_eq(f(), 1);
+        //     }
+        // }
+        // unconstrained fn foo() -> Field {
+        //     1
+        // }
+        // unconstrained fn bar() -> Field {
+        //     2
+        // }
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut function
+            store f1 at v1
+            v3 = allocate -> &mut function
+            store f1 at v3
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            store f2 at v1
+            store f2 at v3
+            jmp b2()
+          b2():
+            v5 = load v1 -> function
+            v6 = load v3 -> function
+            v7 = call v5() -> Field
+            v9 = eq v7, Field 1
+            constrain v7 == Field 1
+            return
+        }
+        brillig(inline) fn foo f1 {
+          b0():
+            return Field 1
+        }
+        brillig(inline) fn bar f2 {
+          b0():
+            return Field 2
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut Field
+            store Field 1 at v1
+            v3 = allocate -> &mut Field
+            store Field 1 at v3
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            store Field 2 at v1
+            store Field 2 at v3
+            jmp b2()
+          b2():
+            v5 = load v1 -> Field
+            v6 = load v3 -> Field
+            v8 = call f3(v5) -> Field
+            v9 = eq v8, Field 1
+            constrain v8 == Field 1
+            return
+        }
+        brillig(inline) fn foo f1 {
+          b0():
+            return Field 1
+        }
+        brillig(inline) fn bar f2 {
+          b0():
+            return Field 2
+        }
+        acir(inline_always) fn apply f3 {
+          b0(v0: Field):
+            v3 = eq v0, Field 1
+            jmpif v3 then: b2(), else: b1()
+          b1():
+            constrain v0 == Field 2
+            v8 = call f2() -> Field
+            jmp b3(v8)
+          b2():
+            v5 = call f1() -> Field
+            jmp b3(v5)
+          b3(v1: Field):
+            return v1
+        }
+        ");
+    }
+
+    #[test]
+    fn variants_with_invalid_cross_boundary_returns() {
+        // SSA of the following program:
+        // fn main(c: bool) -> pub Field {
+        //     let f = || @[1, 2];
+        //     let g = || @[3, 4];
+        //     let h = if c { f } else { g };
+        //     let _ = h();
+        // }
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3(f1, f2)
+          b2():
+            jmp b3(f3, f4)
+          b3(v1: function, v2: function):
+            v7, v8 = call v1() -> (u32, [Field])
+            return
+        }
+        acir(inline) fn lambda f1 {
+          b0():
+            v2 = make_array [Field 1, Field 2] : [Field]
+            return u32 2, v2
+        }
+        brillig(inline) fn lambda f2 {
+          b0():
+            v2 = make_array [Field 1, Field 2] : [Field]
+            return u32 2, v2
+        }
+        acir(inline) fn lambda f3 {
+          b0():
+            v2 = make_array [Field 3, Field 4] : [Field]
+            return u32 2, v2
+        }
+        brillig(inline) fn lambda f4 {
+          b0():
+            v2 = make_array [Field 3, Field 4] : [Field]
+            return u32 2, v2
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        // The ACIR dispatch only calls the acir lambdas,
+        // because returning a vector from Brillig would be invalid.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3(Field 1, Field 2)
+          b2():
+            jmp b3(Field 3, Field 4)
+          b3(v1: Field, v2: Field):
+            v8, v9 = call f5(v1) -> (u32, [Field])
+            return
+        }
+        acir(inline) fn lambda f1 {
+          b0():
+            v2 = make_array [Field 1, Field 2] : [Field]
+            return u32 2, v2
+        }
+        brillig(inline) fn lambda f2 {
+          b0():
+            v2 = make_array [Field 1, Field 2] : [Field]
+            return u32 2, v2
+        }
+        acir(inline) fn lambda f3 {
+          b0():
+            v2 = make_array [Field 3, Field 4] : [Field]
+            return u32 2, v2
+        }
+        brillig(inline) fn lambda f4 {
+          b0():
+            v2 = make_array [Field 3, Field 4] : [Field]
+            return u32 2, v2
+        }
+        acir(inline_always) fn apply f5 {
+          b0(v0: Field):
+            v4 = eq v0, Field 1
+            jmpif v4 then: b2(), else: b1()
+          b1():
+            constrain v0 == Field 3
+            v10, v11 = call f3() -> (u32, [Field])
+            jmp b3(v10, v11)
+          b2():
+            v6, v7 = call f1() -> (u32, [Field])
+            jmp b3(v6, v7)
+          b3(v1: u32, v2: [Field]):
+            return v1, v2
         }
         ");
     }

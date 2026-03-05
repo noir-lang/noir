@@ -2,7 +2,7 @@ use crate::{
     debug::{DebugInstrumenter, SourceFieldId, SourceVarId},
     hir_def::types::Type,
 };
-use noirc_errors::debug_info::{
+use noirc_artifacts::debug::{
     DebugFnId, DebugFunction, DebugFunctions, DebugTypeId, DebugTypes, DebugVarId, DebugVariable,
     DebugVariables,
 };
@@ -10,7 +10,7 @@ use noirc_printable_type::PrintableType;
 use std::collections::HashMap;
 
 /// We keep a collection of the debug variables and their types in this
-/// structure. The source_var_id refers to the ID given by the debug
+/// structure. The `source_var_id` refers to the ID given by the debug
 /// instrumenter. This variable does not have a type yet and hence it
 /// can be instantiated for multiple types if it's in the context of a generic
 /// variable. The var_id refers to the ID of the instantiated variable which
@@ -24,7 +24,7 @@ pub struct DebugTypeTracker {
     source_field_names: HashMap<SourceFieldId, String>,
 
     // Current instances of tracked variables from the ID given during
-    // instrumentation. The tracked var_id will change for each source_var_id
+    // instrumentation. The tracked var_id will change for each `source_var_id`
     // when compiling generic functions.
     source_to_debug_vars: HashMap<SourceVarId, DebugVarId>,
 
@@ -77,9 +77,8 @@ impl DebugTypeTracker {
         field_id: SourceFieldId,
         cursor_type: &PrintableType,
     ) -> Option<usize> {
-        self.source_field_names
-            .get(&field_id)
-            .and_then(|field_name| get_field(cursor_type, field_name))
+        let field_name = self.source_field_names.get(&field_id)?;
+        get_field(cursor_type, field_name)
     }
 
     fn insert_type(&mut self, the_type: &Type) -> DebugTypeId {
@@ -121,10 +120,11 @@ impl DebugTypeTracker {
     }
 
     pub fn get_type(&self, source_var_id: SourceVarId) -> Option<&PrintableType> {
-        self.source_to_debug_vars
+        let (_, type_id) = self
+            .source_to_debug_vars
             .get(&source_var_id)
-            .and_then(|var_id| self.variables.get(var_id))
-            .and_then(|(_, type_id)| self.types.get(type_id))
+            .and_then(|var_id| self.variables.get(var_id))?;
+        self.types.get(type_id)
     }
 }
 

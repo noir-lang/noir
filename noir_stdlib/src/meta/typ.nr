@@ -13,9 +13,9 @@ use crate::option::Option;
 /// variables will appear as the type they are bound to.
 ///
 /// This can be used in conjunction with functions which internally perform type checks
-/// such as `Type::implements` or `Type::get_trait_impl` to potentially grab some of the types used.
+/// such as [`Type::implements`] or [`Type::get_trait_impl`] to potentially grab some of the types used.
 ///
-/// Note that calling `Type::implements` or `Type::get_trait_impl` on a type variable will always
+/// Note that calling [`Type::implements`] or [`Type::get_trait_impl`] on a type variable will always
 /// fail.
 ///
 /// Example:
@@ -97,11 +97,16 @@ impl Type {
     pub comptime fn as_mutable_reference(self) -> Option<Type> {}
     // docs:end:as_mutable_reference
 
-    /// If this is a slice type, return the element type of the slice.
-    #[builtin(type_as_slice)]
-    // docs:start:as_slice
+    /// If this is a vector type, return the element type of the vector.
+    #[builtin(type_as_vector)]
+    // docs:start:as_vector
+    pub comptime fn as_vector(self) -> Option<Type> {}
+    // docs:end:as_vector
+
+    /// If this is a vector type, return the element type of the vector.
+    #[builtin(type_as_vector)]
+    #[deprecated("This method has been renamed to `as_vector`")]
     pub comptime fn as_slice(self) -> Option<Type> {}
-    // docs:end:as_slice
 
     /// If this is a `str<N>` type, returns the length `N` as a type.
     #[builtin(type_as_str)]

@@ -1,11 +1,9 @@
-use noirc_frontend::monomorphization::ast::{
-    Call, Expression, Function, Ident, LocalId, Program, Type,
-};
-
-use super::{
-    expr, types,
+use noirc_frontend::monomorphization::{
+    ast::{Call, Expression, Function, Ident, LocalId, Program, Type},
     visitor::{visit_expr, visit_expr_mut},
 };
+
+use super::{expr, types};
 
 mod limit;
 mod unreachable;
@@ -42,7 +40,7 @@ pub fn next_local_and_ident_id(func: &Function) -> (u32, u32) {
                 }
             }
             _ => {}
-        };
+        }
         true
     });
     (next_local_id, next_ident_id)
@@ -55,14 +53,14 @@ pub fn next_local_and_ident_id(func: &Function) -> (u32, u32) {
 ///
 /// The function also takes care of changing all function pointers into unconstrained ones.
 pub fn change_all_functions_into_unconstrained(mut program: Program) -> Program {
-    for f in program.functions.iter_mut() {
+    for f in &mut program.functions {
         if f.unconstrained {
             continue;
         }
         // Modify the function.
         f.unconstrained = true;
         // Modify any function pointers it takes.
-        for (_, _, _, typ, _) in f.parameters.iter_mut() {
+        for (_, _, _, typ, _) in &mut f.parameters {
             if let Type::Function(_, _, _, unconstrained) = types::unref_mut(typ) {
                 *unconstrained = true;
             }

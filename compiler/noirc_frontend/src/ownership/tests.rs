@@ -4,7 +4,11 @@
 //! Testing e.g. the last_use pass directly is difficult since it returns
 //! sets of IdentIds which can't be matched to the source code easily.
 
-use crate::test_utils::get_monomorphized_no_emit_test;
+use crate::elaborator::{FrontendOptions, UnstableFeature};
+use crate::test_utils::{
+    GetProgramOptions, get_monomorphized, get_monomorphized_with_options,
+    get_monomorphized_with_stdlib, stdlib_src,
+};
 
 #[test]
 fn last_use_in_if_branches() {
@@ -22,13 +26,13 @@ fn last_use_in_if_branches() {
     fn eq(lhs: [Field; 2], rhs: [Field; 2]) -> bool {
         (lhs[0] == rhs[0]) & (lhs[1] == rhs[1])
     }
-    
+
     fn len(arr: [Field; 2]) -> u32 {
         2
     }
     ";
 
-    let program = get_monomorphized_no_emit_test(src).unwrap();
+    let program = get_monomorphized(src).unwrap();
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0(d$l0: [Field; 2]) -> () {
         if (len$f1(d$l0.clone()) == 2) {
@@ -66,7 +70,7 @@ fn does_not_move_into_loop() {
     fn use_var<T>(_x: T) {}
     ";
 
-    let program = get_monomorphized_no_emit_test(src).unwrap();
+    let program = get_monomorphized(src).unwrap();
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0(param$l0: [Field; 2]) -> () {
         let local1$l1 = [0];
@@ -100,7 +104,7 @@ fn can_move_within_loop() {
     fn use_var<T>(_x: T) {}
     ";
 
-    let program = get_monomorphized_no_emit_test(src).unwrap();
+    let program = get_monomorphized(src).unwrap();
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0() -> () {
         for _$l0 in 0 .. 10 {
@@ -129,7 +133,7 @@ fn borrows_on_nested_index() {
     }
     ";
 
-    let program = get_monomorphized_no_emit_test(src).unwrap();
+    let program = get_monomorphized(src).unwrap();
     // We expect no clones
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0(x$l0: Field, y$l1: pub Field) -> () {
@@ -158,7 +162,7 @@ fn clone_call_array_result() {
     }
     ";
 
-    let program = get_monomorphized_no_emit_test(src).unwrap();
+    let program = get_monomorphized(src).unwrap();
     // We expect no clones
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0(i$l0: u32) -> pub u32 {
@@ -184,7 +188,7 @@ fn considers_lvalue_index_identifier_in_last_use() {
     }
     ";
 
-    let program = get_monomorphized_no_emit_test(src).unwrap();
+    let program = get_monomorphized(src).unwrap();
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0() -> () {
         let mut b$l0 = [true];
@@ -210,7 +214,7 @@ fn analyzes_expression_before_lvalue_in_assignment() {
     }
     ";
 
-    let program = get_monomorphized_no_emit_test(src).unwrap();
+    let program = get_monomorphized(src).unwrap();
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0() -> () {
         let mut b$l0 = [true];
@@ -242,7 +246,7 @@ fn clone_nested_array_used_as_call_arg() {
     }
     ";
 
-    let program = get_monomorphized_no_emit_test(src).unwrap();
+    let program = get_monomorphized(src).unwrap();
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0(i$l0: u32) -> pub bool {
         let G_A$l1 = [[false, false, false], [false, false, false]];
@@ -278,7 +282,7 @@ fn clone_global_nested_array_used_as_call_arg() {
     }
     ";
 
-    let program = get_monomorphized_no_emit_test(src).unwrap();
+    let program = get_monomorphized(src).unwrap();
     insta::assert_snapshot!(program, @r"
     global G_A$g0: [[bool; 3]; 2] = [[false, false, false], [false, false, false]];
     unconstrained fn main$f0(i$l0: u32) -> pub bool {
@@ -317,7 +321,7 @@ fn regression_9907() {
     }
     ";
 
-    let program = get_monomorphized_no_emit_test(src).unwrap();
+    let program = get_monomorphized(src).unwrap();
     // There are clones on both bar input and output
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0() -> pub [[Field; 1]; 1] {
@@ -333,6 +337,600 @@ fn regression_9907() {
     }
     unconstrained fn bar$f2(mut a$l3: [[Field; 1]; 1]) -> [[Field; 1]; 1] {
         a$l3
+    }
+    ");
+}
+
+#[test]
+fn handle_reference_expression_cases() {
+    // Each of these cases should delay a clone
+    let src = "
+        unconstrained fn main(mut a: [Field; 1]) {
+            let _ = { a }[0]; // block
+            let _ = (*&mut a)[0]; // *
+
+            let tuple = (a, a); // Clones here are expected
+            let _ = tuple.0[0];  // but the tuple itself doesn't need to be cloned when getting the
+                                 // first element of the tuple.
+
+            let nested = [a, a]; // Clones here are expected
+            let _ = nested[0][0];  // index expr, no clone
+
+            let _ = (|x| x)(a)[0]; // other (we should clone)
+
+            let _ = (a, tuple, nested); // ensure each variable is used afterward so each prior use is eligible for a clone
+        }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    // There are clones on both bar input and output
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(mut a$l0: [Field; 1]) -> () {
+        let _$l1 = {
+            a$l0
+        }[0];
+        let _$l2 = (*(&mut a$l0))[0];
+        let tuple$l3 = (a$l0.clone(), a$l0.clone());
+        let _$l4 = tuple$l3.0[0];
+        let nested$l5 = [a$l0.clone(), a$l0.clone()];
+        let _$l6 = nested$l5[0][0];
+        let _$l9 = lambda$f2(a$l0.clone())[0];
+        let _$l10 = (a$l0, tuple$l3, nested$l5)
+    }
+    unconstrained fn lambda$f1(x$l7: [Field; 1]) -> [Field; 1] {
+        x$l7
+    }
+    unconstrained fn lambda$f2(x$l8: [Field; 1]) -> [Field; 1] {
+        x$l8
+    }
+    ");
+}
+
+#[test]
+fn clone_nested_array_in_lvalue() {
+    let src = "
+    unconstrained fn main(i: u32, j: u32) -> pub u32 {
+        let mut a = [[1, 2], [3, 4]];
+        a[i][j] = 5;
+        a[0][0]
+    }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    // A clone is inserted in the lvalue position, because the array could be aliased somewhere else,
+    // and even if it was cloned, the RC was only increased for the outer array, not the nested one.
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(i$l0: u32, j$l1: u32) -> pub u32 {
+        let mut a$l2 = [[1, 2], [3, 4]];
+        a$l2[i$l0].clone()[j$l1] = 5;
+        a$l2[0][0]
+    }
+    ");
+}
+
+#[test]
+fn pure_builtin_args_get_cloned() {
+    let src = "
+    unconstrained fn main() -> pub u32 {
+        let a = [1, 2, 3];
+        let x = a.len();
+        let y = a.len();
+        x + y
+    }
+    ";
+
+    let program = get_monomorphized_with_stdlib(src, &[stdlib_src::ARRAY_LEN]).unwrap();
+
+    // The ownership pass doesn't know which builtin functions are pure and which ones
+    // modifies the arguments, so this optimization is deferred to the SSA generation.
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> pub u32 {
+        let a$l0 = [1, 2, 3];
+        let x$l1 = len$array_len(a$l0.clone());
+        let y$l2 = len$array_len(a$l0);
+        (x$l1 + y$l2)
+    }
+    ");
+}
+
+#[test]
+fn while_condition_with_array_last_use() {
+    // The arrays last use should be in the while condition
+    let src = "
+    unconstrained fn main() {
+        let arr = [1, 2, 3];
+        while check(arr) {
+            break;
+        }
+    }
+
+    fn check(a: [Field; 3]) -> bool {
+        false
+    }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    // `arr` should be cloned in the while condition since it's evaluated multiple times
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let arr$l0 = [1, 2, 3];
+        while check$f1(arr$l0.clone()) {
+            break
+        }
+    }
+    unconstrained fn check$f1(a$l1: [Field; 3]) -> bool {
+        false
+    }
+    ");
+}
+
+#[test]
+fn dereference_immutable_reference() {
+    // Dereferencing an immutable reference should work.
+    let src = "
+    fn main() {
+        let x: u32 = 0;
+        let y: &u32 = &x;
+        let _: u32 = *y;
+    }
+    ";
+
+    let options = GetProgramOptions {
+        frontend_options: FrontendOptions {
+            debug_comptime_in_file: None,
+            enabled_unstable_features: &[UnstableFeature::Ownership],
+            disable_required_unstable_features: true,
+        },
+        ..Default::default()
+    };
+
+    let program = get_monomorphized_with_options(src, options).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> () {
+        let x$l0 = 0;
+        let y$l1 = (&x$l0);
+        let _$l2 = (*y$l1)
+    }
+    ");
+}
+
+#[test]
+fn repeated_array_with_nested_array_element() {
+    // For repeated arrays like [a; 3] where `a` is an array,
+    // reference counting is handled in SSA via inc_rc instructions,
+    // so no clones are inserted at the monomorphization level.
+    let src = "
+    unconstrained fn main() {
+        let a = [1, 2];
+        let b = [a; 3];
+        use_var(b);
+    }
+
+    fn use_var<T>(_x: T) {}
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let a$l0 = [1, 2];
+        let b$l1 = [a$l0; 3];
+        use_var$f1(b$l1);
+    }
+    unconstrained fn use_var$f1(_x$l2: [[Field; 2]; 3]) -> () {
+    }
+    ");
+}
+
+#[test]
+fn repeated_array_with_non_array_element() {
+    // For repeated arrays like [x; 3] where `x` is NOT an array,
+    // no special handling is needed.
+    let src = "
+    unconstrained fn main() {
+        let x: Field = 42;
+        let b = [x; 3];
+        use_var(b);
+    }
+
+    fn use_var<T>(_x: T) {}
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let x$l0 = 42;
+        let b$l1 = [x$l0; 3];
+        use_var$f1(b$l1);
+    }
+    unconstrained fn use_var$f1(_x$l2: [Field; 3]) -> () {
+    }
+    ");
+}
+
+#[test]
+fn overwrite_at_top_level() {
+    let src = "
+    unconstrained fn main() {
+        let mut v = @[1, 2, 3];
+        let w = identity(v);
+        v = identity(v);
+        v = identity((v, v)).0;
+        use_var(v);
+    }
+
+    fn use_var<T>(_x: T) {}
+    fn identity<T>(x: T) -> T { x }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let mut v$l0 = @[1, 2, 3];
+        let w$l1 = identity$f1(v$l0.clone());
+        v$l0 = identity$f1(v$l0);
+        v$l0 = identity$f2((v$l0.clone(), v$l0)).0;
+        use_var$f3(v$l0);
+    }
+    unconstrained fn identity$f1(x$l2: [Field]) -> [Field] {
+        x$l2
+    }
+    unconstrained fn identity$f2(x$l3: ([Field], [Field])) -> ([Field], [Field]) {
+        x$l3
+    }
+    unconstrained fn use_var$f3(_x$l4: [Field]) -> () {
+    }
+    ");
+}
+
+#[test]
+fn overwrite_in_loop() {
+    let src = "
+    unconstrained fn main() {
+        let mut v = @[1, 2, 3];
+        for _ in 0 .. 5 {
+            v = identity(v);
+            use_var(v);
+        }
+        use_var(v);
+    }
+
+    fn use_var<T>(_x: T) {}
+    fn identity<T>(x: T) -> T { x }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let mut v$l0 = @[1, 2, 3];
+        for _$l1 in 0 .. 5 {
+            v$l0 = identity$f1(v$l0);
+            use_var$f2(v$l0.clone());
+        };
+        use_var$f2(v$l0);
+    }
+    unconstrained fn identity$f1(x$l2: [Field]) -> [Field] {
+        x$l2
+    }
+    unconstrained fn use_var$f2(_x$l3: [Field]) -> () {
+    }
+    ");
+}
+
+#[test]
+fn overwrite_conditional() {
+    let src = "
+    unconstrained fn main(cond: bool) {
+        let mut v = @[1, 2, 3];
+        if cond {
+            v = identity(v);
+        } else {
+            use_var(v);
+        }
+        use_var(v);
+    }
+
+    fn use_var<T>(_x: T) {}
+    fn identity<T>(x: T) -> T { x }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(cond$l0: bool) -> () {
+        let mut v$l1 = @[1, 2, 3];
+        if cond$l0 {
+            v$l1 = identity$f1(v$l1)
+        } else {
+            use_var$f2(v$l1.clone());
+        };
+        use_var$f2(v$l1);
+    }
+    unconstrained fn identity$f1(x$l2: [Field]) -> [Field] {
+        x$l2
+    }
+    unconstrained fn use_var$f2(_x$l3: [Field]) -> () {
+    }
+    ");
+}
+
+/// Regression: reassigning inside a while loop then using in a for loop.
+/// The while loop must restore the variable's loop_index so the for loop
+/// correctly sees the variable as defined outside and clones it.
+#[test]
+fn while_reassign_then_for_loop() {
+    let src = "
+    unconstrained fn main(cond: bool) {
+        let mut v = @[1, 2, 3];
+        while cond {
+            v = identity(v);
+            break;
+        }
+        for _ in 0..2 {
+            use_var(v);
+        }
+    }
+
+    fn use_var<T>(_x: T) {}
+    fn identity<T>(x: T) -> T { x }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    // v must be cloned inside the for loop since it's used across iterations
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(cond$l0: bool) -> () {
+        let mut v$l1 = @[1, 2, 3];
+        while cond$l0 {
+            v$l1 = identity$f1(v$l1);
+            break
+        };
+        for _$l2 in 0 .. 2 {
+            use_var$f2(v$l1.clone());
+        }
+    }
+    unconstrained fn identity$f1(x$l3: [Field]) -> [Field] {
+        x$l3
+    }
+    unconstrained fn use_var$f2(_x$l4: [Field]) -> () {
+    }
+    ");
+}
+
+/// Regression test for https://github.com/noir-lang/noir/issues/11574
+/// When the reassignment is in the else branch, uses in the then branch
+/// should still get cloned if the variable is used after the if/else.
+#[test]
+fn overwrite_conditional_swapped() {
+    let src = "
+    unconstrained fn main(cond: bool) {
+        let mut v = @[1, 2, 3];
+        if cond {
+            use_var(v);
+        } else {
+            v = identity(v);
+        }
+        use_var(v);
+    }
+
+    fn use_var<T>(_x: T) {}
+    fn identity<T>(x: T) -> T { x }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(cond$l0: bool) -> () {
+        let mut v$l1 = @[1, 2, 3];
+        if cond$l0 {
+            use_var$f1(v$l1.clone());
+        } else {
+            v$l1 = identity$f2(v$l1)
+        };
+        use_var$f1(v$l1);
+    }
+    unconstrained fn use_var$f1(_x$l2: [Field]) -> () {
+    }
+    unconstrained fn identity$f2(x$l3: [Field]) -> [Field] {
+        x$l3
+    }
+    ");
+}
+
+#[test]
+fn match_with_reassignment_in_one_arm() {
+    let src = "
+    unconstrained fn main(x: u32) {
+        let mut v = @[1, 2, 3];
+        let result: () = match x {
+            0 => { v = identity(v); },
+            1 => { use_var(v); },
+            _ => { use_var(v); },
+        };
+        use_var(v);
+    }
+
+    fn use_var<T>(_x: T) {}
+    fn identity<T>(x: T) -> T { x }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(x$l0: u32) -> () {
+        let mut v$l1 = @[1, 2, 3];
+        let result$l4 = {
+            let internal variable$l2 = x$l0;
+            match $2 {
+                0 => {
+                    v$l1 = identity$f1(v$l1)
+                },
+                1 => {
+                    use_var$f2(v$l1.clone());
+                },
+                _ => {
+                    let _$l3 = internal variable$l2;
+                    {
+                        use_var$f2(v$l1.clone());
+                    }
+                },
+            }
+        };
+        use_var$f2(v$l1);
+    }
+    unconstrained fn identity$f1(x$l5: [Field]) -> [Field] {
+        x$l5
+    }
+    unconstrained fn use_var$f2(_x$l6: [Field]) -> () {
+    }
+    ");
+}
+
+#[test]
+fn nested_if_reassignment() {
+    let src = "
+    unconstrained fn main(c1: bool, c2: bool) {
+        let mut v = @[1, 2, 3];
+        if c1 {
+            if c2 {
+                v = identity(v);
+            }
+            use_var(v);
+        } else {
+            use_var(v);
+        }
+        use_var(v);
+    }
+
+    fn use_var<T>(_x: T) {}
+    fn identity<T>(x: T) -> T { x }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(c1$l0: bool, c2$l1: bool) -> () {
+        let mut v$l2 = @[1, 2, 3];
+        if c1$l0 {
+            if c2$l1 {
+                v$l2 = identity$f1(v$l2)
+            };
+            use_var$f2(v$l2.clone());
+        } else {
+            use_var$f2(v$l2.clone());
+        };
+        use_var$f2(v$l2);
+    }
+    unconstrained fn identity$f1(x$l3: [Field]) -> [Field] {
+        x$l3
+    }
+    unconstrained fn use_var$f2(_x$l4: [Field]) -> () {
+    }
+    ");
+}
+
+#[test]
+fn sequential_conditional_reassignments() {
+    let src = "
+    unconstrained fn main(c1: bool, c2: bool) {
+        let mut v = @[1, 2, 3];
+        if c1 {
+            v = identity(v);
+        }
+        if c2 {
+            v = identity(v);
+        }
+        use_var(v);
+    }
+
+    fn use_var<T>(_x: T) {}
+    fn identity<T>(x: T) -> T { x }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(c1$l0: bool, c2$l1: bool) -> () {
+        let mut v$l2 = @[1, 2, 3];
+        if c1$l0 {
+            v$l2 = identity$f1(v$l2)
+        };
+        if c2$l1 {
+            v$l2 = identity$f1(v$l2)
+        };
+        use_var$f2(v$l2);
+    }
+    unconstrained fn identity$f1(x$l3: [Field]) -> [Field] {
+        x$l3
+    }
+    unconstrained fn use_var$f2(_x$l4: [Field]) -> () {
+    }
+    ");
+}
+
+#[test]
+fn both_branches_reassign() {
+    let src = "
+    unconstrained fn main(cond: bool) {
+        let mut v = @[1, 2, 3];
+        if cond {
+            v = identity(v);
+        } else {
+            v = identity(v);
+        }
+        use_var(v);
+    }
+
+    fn use_var<T>(_x: T) {}
+    fn identity<T>(x: T) -> T { x }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(cond$l0: bool) -> () {
+        let mut v$l1 = @[1, 2, 3];
+        if cond$l0 {
+            v$l1 = identity$f1(v$l1)
+        } else {
+            v$l1 = identity$f1(v$l1)
+        };
+        use_var$f2(v$l1);
+    }
+    unconstrained fn identity$f1(x$l2: [Field]) -> [Field] {
+        x$l2
+    }
+    unconstrained fn use_var$f2(_x$l3: [Field]) -> () {
+    }
+    ");
+}
+
+#[test]
+fn loop_with_conditional_reassignment() {
+    let src = "
+    unconstrained fn main(cond: bool) {
+        let mut v = @[1, 2, 3];
+        for _ in 0..3 {
+            if cond {
+                v = identity(v);
+            }
+            use_var(v);
+        }
+        use_var(v);
+    }
+
+    fn use_var<T>(_x: T) {}
+    fn identity<T>(x: T) -> T { x }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(cond$l0: bool) -> () {
+        let mut v$l1 = @[1, 2, 3];
+        for _$l2 in 0 .. 3 {
+            if cond$l0 {
+                v$l1 = identity$f1(v$l1)
+            };
+            use_var$f2(v$l1.clone());
+        };
+        use_var$f2(v$l1);
+    }
+    unconstrained fn identity$f1(x$l3: [Field]) -> [Field] {
+        x$l3
+    }
+    unconstrained fn use_var$f2(_x$l4: [Field]) -> () {
     }
     ");
 }

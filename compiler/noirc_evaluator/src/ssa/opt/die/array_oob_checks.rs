@@ -18,7 +18,7 @@ impl Context {
     /// some of the instructions in a group are used but not all of them, no check
     /// is inserted, so this method might return `false`.
     pub(super) fn replace_array_instructions_with_out_of_bounds_checks(
-        &mut self,
+        &self,
         function: &mut Function,
         block_id: BasicBlockId,
         possible_index_out_of_bounds_indexes: &mut Vec<usize>,
@@ -42,7 +42,7 @@ impl Context {
                 // We still need to keep the EnableSideEffects instruction
                 function.dfg[block_id].instructions_mut().push(instruction_id);
                 continue;
-            };
+            }
 
             // If it's an ArrayGet we'll deal with groups of it in case the array type is a composite type,
             // and adjust `next_out_of_bounds_index` and `possible_index_out_of_bounds_indexes` accordingly
@@ -70,10 +70,10 @@ impl Context {
             }
 
             // This is an instruction that might be out of bounds: let's add a constrain.
-            let (array, index) = match instruction {
-                Instruction::ArrayGet { array, index, .. }
-                | Instruction::ArraySet { array, index, .. } => (array, index),
-                _ => panic!("Expected an ArrayGet or ArraySet instruction here"),
+            let (Instruction::ArrayGet { array, index, .. }
+            | Instruction::ArraySet { array, index, .. }) = instruction
+            else {
+                panic!("Expected an ArrayGet or ArraySet instruction here");
             };
 
             let call_stack = function.dfg.get_instruction_call_stack_id(instruction_id);
@@ -85,17 +85,24 @@ impl Context {
                 (false_const, true_const)
             } else {
                 let array_typ = function.dfg.type_of_value(*array);
-                let element_size = array_typ.element_size() as u32;
-                let len = match array_typ {
-                    Type::Array(_, len) => len,
-                    _ => panic!("Expected an array"),
+                let element_size = array_typ.element_size();
+                let Type::Array(_, len) = array_typ else {
+                    panic!("Expected an array");
                 };
                 // `index` will be relative to the flattened array length, so we need to take that into account
                 let array_length = element_size * len;
-                // let array_length = function.dfg.type_of_value(*array).flattened_size();
 
-                // If we are here it means the index is dynamic, so let's add a check that it's less than length
-                let length_type = NumericType::length_type();
+                // If we are here it means the index is dynamic, so let's add a check that it's less than length.
+
+                // Normally the indexes are expected to be u32, however if the array element is a composite type,
+                // the value could have overflown due to the unchecked multiplication with the element size.
+                // In ACIR, we rely on the array operation itself to fail the circuit if it encounters an overflown value,
+                // however we are just removing the array operation and replacing it with a LessThan, which in ACIR gen
+                // lays down an RangeCheck that would fail if the value doesn't fit 32 bits. As a workaround,
+                // instead of finding the index instruction and changing into a checked multiplication,
+                // we cast to a higher bitsize, which we expect should fit any overflown index type.
+                let length_type = NumericType::unsigned(64);
+
                 let index = function.dfg.insert_instruction_and_results(
                     Instruction::Cast(*index, length_type),
                     block_id,
@@ -103,18 +110,17 @@ impl Context {
                     call_stack,
                 );
                 let index = index.first();
-                let array_length =
-                    function.dfg.make_constant(u128::from(array_length).into(), length_type);
+                let array_length = function.dfg.make_constant(array_length.0.into(), length_type);
 
-                let is_index_out_of_bounds = function.dfg.insert_instruction_and_results(
+                let is_index_in_bounds = function.dfg.insert_instruction_and_results(
                     Instruction::binary(BinaryOp::Lt, index, array_length),
                     block_id,
                     None,
                     call_stack,
                 );
-                let is_index_out_of_bounds = is_index_out_of_bounds.first();
+                let is_index_in_bounds = is_index_in_bounds.first();
                 let true_const = function.dfg.make_constant(true.into(), NumericType::bool());
-                (is_index_out_of_bounds, true_const)
+                (is_index_in_bounds, true_const)
             };
 
             let (lhs, rhs) = apply_side_effects(
@@ -157,7 +163,7 @@ pub(super) fn should_insert_oob_check(function: &Function, instruction: &Instruc
     use Instruction::*;
     match instruction {
         ArrayGet { array, index } | ArraySet { array, index, .. } => {
-            // We only care about arrays here as slices are expected to have explicit checks laid down in the initial SSA.
+            // We only care about arrays here as vectors are expected to have explicit checks laid down in the initial SSA.
             function.dfg.try_get_array_length(*array).is_some()
                 && !function.dfg.is_safe_index(*index, *array)
         }
@@ -189,15 +195,15 @@ fn handle_array_get_group(
     instructions: &[InstructionId],
 ) {
     if function.dfg.try_get_array_length(*array).is_none() {
-        // Nothing to do for slices
+        // Nothing to do for vectors
         return;
-    };
+    }
 
-    let element_size = function.dfg.type_of_value(*array).element_size();
+    let element_size = function.dfg.type_of_value(*array).element_size().to_usize();
     if element_size <= 1 {
         // Not a composite type
         return;
-    };
+    }
 
     // It's a composite type.
     // When doing ArrayGet on a composite type, this **always** results in instructions like these

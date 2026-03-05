@@ -6,7 +6,6 @@
 use std::{
     iter::{Once, once},
     path::PathBuf,
-    slice,
 };
 
 use fm::FileManager;
@@ -61,7 +60,7 @@ impl Workspace {
 
 pub enum IntoIter<'a, T> {
     Only(Once<&'a T>),
-    All(slice::Iter<'a, T>),
+    All(std::slice::Iter<'a, T>),
 }
 
 impl<'a> IntoIterator for &'a Workspace {

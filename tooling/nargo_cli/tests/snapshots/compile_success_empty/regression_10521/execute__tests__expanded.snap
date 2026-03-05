@@ -1,0 +1,7 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    let _: [Field; 3] = [1_Field, 2_Field, 3_Field];
+}

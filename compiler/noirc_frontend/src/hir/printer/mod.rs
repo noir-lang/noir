@@ -1,9 +1,12 @@
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use crate::graph::{CrateGraph, CrateId};
+use crate::hir::comptime::FormatStringFragment;
 use crate::hir::printer::items::ItemBuilder;
+use crate::hir::resolution::visibility::module_def_id_visibility;
+use crate::node_interner::TraitImplId;
 use crate::{
-    DataType, Generics, Kind, NamedGeneric, Type,
+    DataType, Kind, NamedGeneric, ResolvedGenerics, Type,
     ast::{Ident, ItemVisibility},
     graph::Dependency,
     hir::{
@@ -22,7 +25,7 @@ use crate::{
     token::{FunctionAttributeKind, LocatedToken, SecondaryAttribute, SecondaryAttributeKind},
 };
 
-mod items;
+pub mod items;
 
 use items::{Impl, Import, Item, Module, Trait, TraitImpl};
 
@@ -34,19 +37,27 @@ pub fn display_crate(
     def_maps: &DefMaps,
     interner: &NodeInterner,
 ) -> String {
-    let root_module_id = def_maps[&crate_id].root();
-    let module_id = ModuleId { krate: crate_id, local_id: root_module_id };
-
-    let mut builder = ItemBuilder::new(crate_id, interner, def_maps);
-    let item = builder.build_module(module_id);
+    let module = crate_to_module(crate_id, def_maps, interner);
 
     let dependencies = &crate_graph[crate_id].dependencies;
 
     let mut string = String::new();
     let mut printer = ItemPrinter::new(crate_id, interner, def_maps, dependencies, &mut string);
-    printer.show_item(item);
+    printer.show_module(module);
 
     string
+}
+
+pub fn crate_to_module(crate_id: CrateId, def_maps: &DefMaps, interner: &NodeInterner) -> Module {
+    let root_module_id = def_maps[&crate_id].root();
+    let module_id = ModuleId { krate: crate_id, local_id: root_module_id };
+
+    let mut builder = ItemBuilder::new(crate_id, interner, def_maps);
+    let mut module = builder.build_module(module_id);
+    if crate_id.is_stdlib() {
+        builder.add_primitive_types(&mut module.items);
+    }
+    module
 }
 
 struct ItemPrinter<'context, 'string> {
@@ -63,6 +74,9 @@ struct ItemPrinter<'context, 'string> {
     /// Trait constraints in scope.
     /// These are set when a trait, trait impl or function is visited.
     trait_constraints: Vec<TraitConstraint>,
+    /// Keep track of trait impls that have been printed so we don't show a
+    /// same trait impl multiple times.
+    trait_impls_printed: HashSet<TraitImplId>,
 }
 
 impl<'context, 'string> ItemPrinter<'context, 'string> {
@@ -87,6 +101,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             imports,
             self_type: None,
             trait_constraints: Vec::new(),
+            trait_impls_printed: HashSet::new(),
         }
     }
 
@@ -96,6 +111,9 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             Item::DataType(data_type) => self.show_data_type(data_type),
             Item::Trait(trait_) => self.show_trait(trait_),
             Item::TypeAlias(type_alias_id) => self.show_type_alias(type_alias_id),
+            Item::PrimitiveType(_) => {
+                // TODO: we don't show primitive types yet
+            }
             Item::Global(global_id) => self.show_global(global_id),
             Item::Function(func_id) => self.show_function(func_id),
         }
@@ -160,7 +178,8 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             return;
         };
 
-        for comment in doc_comments {
+        for located_comment in doc_comments {
+            let comment = &located_comment.contents;
             if comment.contains('\n') {
                 let ends_with_newline = comment.ends_with('\n');
 
@@ -227,7 +246,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         if visibility != ItemVisibility::Private {
             self.push_str(&visibility.to_string());
             self.push(' ');
-        };
+        }
     }
 
     fn show_visibility(&mut self, visibility: Visibility) {
@@ -251,7 +270,9 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         drop(data_type);
 
         self.show_data_type_impls(item_data_type.impls);
-        self.show_trait_impls(item_data_type.trait_impls);
+
+        let trait_impls = item_data_type.trait_impls.iter().collect::<Vec<_>>();
+        self.show_trait_impls(&trait_impls);
     }
 
     fn show_struct(&mut self, data_type: &DataType) {
@@ -339,7 +360,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         self.self_type = None;
     }
 
-    fn show_trait_impls(&mut self, trait_impls: Vec<TraitImpl>) {
+    fn show_trait_impls(&mut self, trait_impls: &[&TraitImpl]) {
         for trait_impl in trait_impls {
             self.push_str("\n\n");
             self.write_indent();
@@ -397,11 +418,10 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                 self.push_str(&associated_type.name);
                 if let Some(trait_bounds) =
                     trait_.associated_type_bounds.get(associated_type.name.as_str())
+                    && !trait_bounds.is_empty()
                 {
-                    if !trait_bounds.is_empty() {
-                        self.push_str(": ");
-                        self.show_trait_bounds(trait_bounds);
-                    }
+                    self.push_str(": ");
+                    self.show_trait_bounds(trait_bounds);
                 }
             }
 
@@ -429,15 +449,27 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
 
         self.trait_constraints.clear();
 
-        self.show_trait_impls(item_trait.trait_impls);
+        // Only show trait impls for types outside of the current crate:
+        // trait impls for types in this crate are already shown alongside the type definition.
+        let trait_impls = item_trait
+            .trait_impls
+            .iter()
+            .filter(|trait_impl| trait_impl.external_types)
+            .collect::<Vec<_>>();
+        self.show_trait_impls(&trait_impls);
     }
 
-    fn show_trait_impl(&mut self, item_trait_impl: TraitImpl) {
+    fn show_trait_impl(&mut self, item_trait_impl: &TraitImpl) {
+        if !self.trait_impls_printed.insert(item_trait_impl.id) {
+            return;
+        }
+
         let trait_impl_id = item_trait_impl.id;
 
         let trait_impl = self.interner.get_trait_implementation(trait_impl_id);
         let trait_impl = trait_impl.borrow();
         let trait_ = self.interner.get_trait(trait_impl.trait_id);
+        let trait_generics = self.interner.get_trait_generics_for_impl(trait_impl_id);
 
         self.push_str("impl");
         self.show_generic_type_variables(&item_trait_impl.generics);
@@ -451,7 +483,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         );
 
         let use_colons = false;
-        self.show_generic_types(&trait_impl.trait_generics, use_colons);
+        self.show_generic_types(&trait_generics.ordered, use_colons);
 
         self.push_str(" for ");
         self.show_type(&trait_impl.typ);
@@ -465,8 +497,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
 
         let mut printed_item = false;
 
-        let named = self.interner.get_associated_types_for_impl(trait_impl_id);
-        for named_type in named {
+        for named_type in &trait_generics.named {
             if printed_item {
                 self.push_str("\n\n");
             }
@@ -490,13 +521,13 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             printed_item = true;
         }
 
-        for method in item_trait_impl.methods {
+        for method in &item_trait_impl.methods {
             if printed_item {
                 self.push_str("\n\n");
             }
             self.write_indent();
 
-            let item = Item::Function(method);
+            let item = Item::Function(*method);
             let visibility = ItemVisibility::Private;
             self.show_item_with_visibility(item, visibility);
 
@@ -532,7 +563,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         if let GlobalValue::Resolved(value) = &global_info.value {
             self.push_str(" = ");
             self.show_value(value);
-        };
+        }
         self.push_str(";");
     }
 
@@ -540,7 +571,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         let modifiers = self.interner.function_modifiers(&func_id);
         let func_meta = self.interner.function_meta(&func_id);
 
-        if modifiers.is_unconstrained {
+        if func_meta.is_unconstrained() {
             self.push_str("unconstrained ");
         }
         if modifiers.is_comptime {
@@ -631,7 +662,8 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                     | FunctionAttributeKind::FuzzingHarness(..)
                     | FunctionAttributeKind::Fold
                     | FunctionAttributeKind::NoPredicates
-                    | FunctionAttributeKind::InlineAlways => {
+                    | FunctionAttributeKind::InlineAlways
+                    | FunctionAttributeKind::InlineNever => {
                         self.push(';');
                     }
                 },
@@ -656,7 +688,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         self.push('>');
     }
 
-    fn show_generics(&mut self, generics: &Generics) {
+    fn show_generics(&mut self, generics: &ResolvedGenerics) {
         if generics.is_empty() {
             return;
         }
@@ -838,25 +870,59 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         match value {
             Value::Unit => self.push_str("()"),
             Value::Bool(bool) => self.push_str(&bool.to_string()),
-            Value::Field(value) => self.push_str(&value.to_string()),
-            Value::I8(value) => self.push_str(&value.to_string()),
-            Value::I16(value) => self.push_str(&value.to_string()),
-            Value::I32(value) => self.push_str(&value.to_string()),
-            Value::I64(value) => self.push_str(&value.to_string()),
-            Value::U1(value) => self.push_str(&value.to_string()),
-            Value::U8(value) => self.push_str(&value.to_string()),
-            Value::U16(value) => self.push_str(&value.to_string()),
-            Value::U32(value) => self.push_str(&value.to_string()),
-            Value::U64(value) => self.push_str(&value.to_string()),
-            Value::U128(value) => self.push_str(&value.to_string()),
-            Value::String(string) => self.push_str(&format!("{string:?}")),
-            Value::FormatString(string, _typ) => {
-                // Note: at this point the format string was already expanded so we can't recover the original
-                // interpolation and this will result in a compile-error. But... the expanded code is meant
-                // to be browsed, not compiled.
-                self.push_str(&format!("f{string:?}"));
+            Value::Integer(int) => self.push_str(&int.to_string()),
+            Value::String(bytes) => {
+                let string = String::from_utf8_lossy(bytes);
+                self.push_str(&format!("{string:?}"));
             }
-            Value::CtString(string) => {
+            Value::FormatString(fragments, _typ, _) => {
+                let has_values = fragments
+                    .iter()
+                    .any(|fragment| matches!(fragment, FormatStringFragment::Value { .. }));
+
+                if has_values {
+                    self.push_str("{\n");
+
+                    let mut seen_names: HashSet<String> = HashSet::default();
+
+                    for fragment in fragments.iter() {
+                        if let FormatStringFragment::Value { name, value } = fragment {
+                            // A name might be interpolated multiple times. In that case it will always
+                            // have the same value: we just need one `let` for it.
+                            if !seen_names.insert(name.clone()) {
+                                continue;
+                            }
+
+                            self.push_str("let ");
+                            self.push_str(name);
+                            self.push_str(" = ");
+                            self.show_value(value);
+                            self.push_str(";\n");
+                        }
+                    }
+                }
+
+                self.push_str("f\"");
+                for fragment in fragments.iter() {
+                    match fragment {
+                        FormatStringFragment::String(string) => {
+                            self.push_str(&string.replace('"', "\\\""));
+                        }
+                        FormatStringFragment::Value { name, value: _ } => {
+                            self.push('{');
+                            self.push_str(name);
+                            self.push('}');
+                        }
+                    }
+                }
+                self.push_str("\"");
+
+                if has_values {
+                    self.push_str(" }");
+                }
+            }
+            Value::CtString(bytes) => {
+                let string = String::from_utf8_lossy(bytes);
                 let std = if self.crate_id.is_stdlib() { "std" } else { "crate" };
                 self.push_str(&format!(
                     "{std}::meta::ctstring::AsCtString::as_ctstring({string:?})"
@@ -936,8 +1002,8 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                 }
                 self.push(']');
             }
-            Value::Slice(values, _) => {
-                self.push_str("&[");
+            Value::Vector(values, _) => {
+                self.push_str("@[");
                 for (index, value) in values.iter().enumerate() {
                     if index != 0 {
                         self.push_str(", ");
@@ -1045,6 +1111,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                 let trait_impl = self.interner.get_trait_implementation(trait_impl_id);
                 let trait_impl = trait_impl.borrow();
                 let trait_ = self.interner.get_trait(trait_impl.trait_id);
+                let ordered_generics = self.interner.get_ordered_generics_for_impl(trait_impl_id);
                 self.show_reference_to_module_def_id(
                     ModuleDefId::TraitId(trait_impl.trait_id),
                     trait_.visibility,
@@ -1052,7 +1119,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                 );
 
                 let use_colons = true;
-                self.show_generic_types(&trait_impl.trait_generics, use_colons);
+                self.show_generic_types(ordered_generics, use_colons);
 
                 self.push_str("::");
 
@@ -1090,41 +1157,39 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                 return name;
             }
 
-            if let Some(self_type) = &func_meta.self_type {
-                if self_type.is_primitive() {
-                    // Type path, like `Field::method(...)`
-                    self.show_type(self_type);
-                    self.push_str("::");
+            if let Some(self_type) = &func_meta.self_type
+                && self_type.is_primitive()
+            {
+                // Type path, like `Field::method(...)`
+                self.show_type(self_type);
+                self.push_str("::");
 
-                    let name = self.interner.function_name(&func_id).to_string();
-                    self.push_str(&name);
-                    return name;
-                }
-            }
-        }
-
-        if use_import {
-            if let Some(name) = self.imports.get(&module_def_id) {
-                let name = name.to_string();
+                let name = self.interner.function_name(&func_id).to_string();
                 self.push_str(&name);
                 return name;
             }
         }
 
+        if use_import && let Some(name) = self.imports.get(&module_def_id) {
+            let name = name.to_string();
+            self.push_str(&name);
+            return name;
+        }
+
         let current_module_parent_id = self.module_id.parent(self.def_maps);
 
         // Check if module_def_id is the current module's parent
-        if let ModuleDefId::ModuleId(module_id) = module_def_id {
-            if current_module_parent_id == Some(module_id) {
-                // If the parent is actually the crate's root, use "crate"
-                if current_module_parent_id.unwrap().parent(self.def_maps).is_none() {
-                    self.push_str("crate");
-                    return "crate".to_string();
-                }
-
-                self.push_str("super");
-                return "super".to_string();
+        if let ModuleDefId::ModuleId(module_id) = module_def_id
+            && current_module_parent_id == Some(module_id)
+        {
+            // If the parent is actually the crate's root, use "crate"
+            if current_module_parent_id.unwrap().parent(self.def_maps).is_none() {
+                self.push_str("crate");
+                return "crate".to_string();
             }
+
+            self.push_str("super");
+            return "super".to_string();
         }
 
         let is_visible = module_def_id_is_visible(
@@ -1136,34 +1201,32 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             self.def_maps,
             self.dependencies,
         );
-        if !is_visible {
-            if let Some(reexport) = self.interner.get_reexports(module_def_id).first() {
-                self.show_reference_to_module_def_id(
-                    ModuleDefId::ModuleId(reexport.module_id),
-                    reexport.visibility,
-                    true,
-                );
-                self.push_str("::");
-                self.push_str(reexport.name.as_str());
-                return reexport.name.to_string();
-            }
+        if !is_visible && let Some(reexport) = self.interner.get_reexports(module_def_id).first() {
+            self.show_reference_to_module_def_id(
+                ModuleDefId::ModuleId(reexport.module_id),
+                reexport.visibility,
+                true,
+            );
+            self.push_str("::");
+            self.push_str(reexport.name.as_str());
+            return reexport.name.to_string();
         }
 
         // Recurse on the parent module, but only if the parent module isn't the current module
         // (if so, we can already reach the definition just by printing its name)
         let module_def_id_parent_module =
             get_parent_module(module_def_id, self.interner, self.def_maps);
-        if module_def_id_parent_module != Some(self.module_id) {
-            if let Some(module_def_id_parent_module) = module_def_id_parent_module {
-                let visibility = self
-                    .module_def_id_visibility(ModuleDefId::ModuleId(module_def_id_parent_module));
-                self.show_reference_to_module_def_id(
-                    ModuleDefId::ModuleId(module_def_id_parent_module),
-                    visibility,
-                    use_import,
-                );
-                self.push_str("::");
-            }
+        if module_def_id_parent_module != Some(self.module_id)
+            && let Some(module_def_id_parent_module) = module_def_id_parent_module
+        {
+            let visibility =
+                self.module_def_id_visibility(ModuleDefId::ModuleId(module_def_id_parent_module));
+            self.show_reference_to_module_def_id(
+                ModuleDefId::ModuleId(module_def_id_parent_module),
+                visibility,
+                use_import,
+            );
+            self.push_str("::");
         }
 
         let name = self.module_def_id_name(module_def_id);
@@ -1253,32 +1316,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
     }
 
     fn module_def_id_visibility(&self, module_def_id: ModuleDefId) -> ItemVisibility {
-        match module_def_id {
-            ModuleDefId::ModuleId(module_id) => {
-                let attributes = self.interner.try_module_attributes(module_id);
-                attributes.map_or(ItemVisibility::Private, |a| a.visibility)
-            }
-            ModuleDefId::FunctionId(func_id) => {
-                self.interner.function_modifiers(&func_id).visibility
-            }
-            ModuleDefId::TypeId(type_id) => {
-                let data_type = self.interner.get_type(type_id);
-                data_type.borrow().visibility
-            }
-            ModuleDefId::TypeAliasId(type_alias_id) => {
-                let type_alias = self.interner.get_type_alias(type_alias_id);
-                type_alias.borrow().visibility
-            }
-            ModuleDefId::TraitAssociatedTypeId(_) => ItemVisibility::Public,
-            ModuleDefId::TraitId(trait_id) => {
-                let trait_ = self.interner.get_trait(trait_id);
-                trait_.visibility
-            }
-            ModuleDefId::GlobalId(global_id) => {
-                let global_info = self.interner.get_global(global_id);
-                global_info.visibility
-            }
-        }
+        module_def_id_visibility(module_def_id, self.interner)
     }
 
     fn show_separated_by_comma<Item, F>(&mut self, items: &[Item], f: F)

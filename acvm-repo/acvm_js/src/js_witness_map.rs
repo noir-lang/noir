@@ -26,14 +26,14 @@ export type SolvedAndReturnWitness = {
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(extends = Map, js_name = "WitnessMap", typescript_type = "WitnessMap")]
-    #[derive(Clone, Debug, PartialEq, Eq)]
+    #[derive(Clone, Debug, PartialEq)]
     pub type JsWitnessMap;
 
     #[wasm_bindgen(constructor, js_class = "Map")]
     pub fn new() -> JsWitnessMap;
 
     #[wasm_bindgen(extends = Object, js_name = "SolvedAndReturnWitness", typescript_type = "SolvedAndReturnWitness")]
-    #[derive(Clone, Debug, PartialEq, Eq)]
+    #[derive(Clone, Debug, PartialEq)]
     pub type JsSolvedAndReturnWitness;
 
     #[wasm_bindgen(constructor, js_class = "Object")]
@@ -107,7 +107,7 @@ pub(crate) fn field_element_to_js_string(field_element: &FieldElement) -> JsStri
 }
 
 #[cfg(all(test, any(target_arch = "wasm32", target_arch = "wasm64"), target_os = "unknown"))]
-mod test {
+mod tests {
     use wasm_bindgen_test::*;
 
     use std::collections::BTreeMap;

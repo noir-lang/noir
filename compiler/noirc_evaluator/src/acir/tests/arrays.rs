@@ -1,6 +1,16 @@
-use acvm::{acir::circuit::Opcode, assert_circuit_snapshot};
+use acvm::{
+    acir::circuit::{Opcode, opcodes::BlockId},
+    assert_circuit_snapshot,
+};
 
-use crate::acir::tests::ssa_to_acir_program;
+use crate::{
+    acir::{
+        AcirDynamicArray, Context, SharedContext, acir_context::BrilligStdLib,
+        tests::ssa_to_acir_program, types::AcirValue,
+    },
+    brillig::{Brillig, BrilligOptions},
+    ssa::{ir::value::ValueId, ssa_gen::Ssa},
+};
 
 #[test]
 fn array_set_not_mutable() {
@@ -74,7 +84,7 @@ fn does_not_generate_memory_blocks_without_dynamic_accesses() {
     let src = "
         acir(inline) fn main f0 {
           b0(v0: [Field; 2]):
-            v2, v3 = call as_slice(v0) -> (u32, [Field])
+            v2, v3 = call as_vector(v0) -> (u32, [Field])
             call f1(u32 2, v3)
             v7 = array_get v0, index u32 0 -> Field
             constrain v7 == Field 0
@@ -333,4 +343,109 @@ fn zero_length_array_dynamic_predicate() {
     return values: []
     ASSERT w0 = 0
     ");
+}
+
+/// Tests this code:
+/// ```noir
+/// struct Bar {
+///     inner: [Field; 3],
+/// }
+/// struct Foo {
+///     a: Field,
+///     b: [Field; 3],
+///     bar: Bar,
+/// }
+/// fn main(x: [Foo; 4], index: u32) -> pub [Field; 3] {
+///     x[index].bar.inner
+/// }
+/// ```
+#[test]
+fn non_homogenous_array_dynamic_access() {
+    let src = r#"
+    acir(inline) pure fn main f0 {
+      b0(v0: [(Field, [Field; 3], [Field; 3]); 4], v1: u32):
+        v2 = array_get v0, index v1 -> [Field; 3]
+        return v2
+    }
+    "#;
+
+    let program = ssa_to_acir_program(src);
+
+    // b0 is our actual array input while b1 is our element type sizes array.
+    // You can see that in `w44 = b1[w28]` we use the supplied witness index to read the flattened index from b1.
+    // `w44` is then used to read from the b0 array.
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27, w28]
+    public parameters: []
+    return values: [w29, w30, w31]
+    INIT b0 = [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27]
+    ASSERT w32 = 0
+    ASSERT w33 = 1
+    ASSERT w34 = 4
+    ASSERT w35 = 7
+    ASSERT w36 = 8
+    ASSERT w37 = 11
+    ASSERT w38 = 14
+    ASSERT w39 = 15
+    ASSERT w40 = 18
+    ASSERT w41 = 21
+    ASSERT w42 = 22
+    ASSERT w43 = 25
+    INIT b1 = [w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43]
+    READ w44 = b1[w28]
+    READ w45 = b0[w44]
+    ASSERT w46 = w44 + 1
+    READ w47 = b0[w46]
+    ASSERT w48 = w46 + 1
+    READ w49 = b0[w48]
+    ASSERT w29 = w45
+    ASSERT w30 = w47
+    ASSERT w31 = w49
+    ");
+}
+
+#[test]
+fn make_dynamic_array_value_types() {
+    let src = r#"
+    acir(inline) pure fn main f0 {
+      b0(v0: [[([Field; 2], u8); 3]; 4], v1: u32, v2: [([Field; 2], u8); 3]):
+        v3, v4 = call as_vector(v0) -> (u32, [[([Field; 2], u8); 3]])
+        v5 = array_set v4, index v1, value v2
+        return
+    }
+    "#;
+    let ssa = Ssa::from_str(src).unwrap();
+    let (_, main) = ssa.functions.iter().next().unwrap();
+
+    // Create an empty context we can test.
+    let mut shared_context = SharedContext::default();
+    let brillig = Brillig::default();
+    let brillig_options = BrilligOptions::default();
+    let mut context =
+        Context::new(&mut shared_context, &brillig, BrilligStdLib::default(), &brillig_options);
+
+    // Make sure all the values are cached, following a bit of how `convert_acir_main` would do it.
+    let entry_block = &main.dfg[main.entry_block()];
+    context.convert_ssa_block_params(entry_block.parameters(), &main.dfg).unwrap();
+    for instruction_id in entry_block.instructions() {
+        context.convert_ssa_instruction(*instruction_id, &main.dfg, &ssa).unwrap();
+    }
+
+    // Now repeat the step that generates the ACIR for the result of an array set.
+    let array_id = ValueId::new(5);
+    let array = context.make_array_set_result_value(array_id, BlockId(0), &main.dfg).unwrap();
+    let AcirValue::DynamicArray(AcirDynamicArray { len, value_types, .. }) = array else {
+        panic!("expected DynamicArray, got {array:?}");
+    };
+    assert_eq!(
+        len.to_usize(),
+        (2 + 1) * 3 * 4,
+        "a vector should have all the nested arrays flattened into it, up to its capacity"
+    );
+    assert_eq!(
+        value_types.len(),
+        (2 + 1) * 3,
+        "a vector should have all the types of its first element flattened"
+    );
 }

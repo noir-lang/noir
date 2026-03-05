@@ -1,0 +1,13 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+bug: Assertion is always false: Attempt to divide with overflow
+  ┌─ src/main.nr:6:13
+  │
+6 │     (true, (-128_i8 / -1_i8))
+  │             --------------- As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution
+  │
+  = Call stack:
+    1. src/main.nr:2:5
+    2. src/main.nr:6:13

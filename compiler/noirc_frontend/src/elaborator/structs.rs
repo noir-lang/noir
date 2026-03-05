@@ -7,6 +7,7 @@ use iter_extended::vecmap;
 use crate::{
     StructField,
     ast::NoirStruct,
+    elaborator::{WildcardDisallowedContext, types::WildcardAllowed},
     hir::{def_collector::dc_crate::UnresolvedStruct, resolution::errors::ResolverError},
     node_interner::{DependencyId, ReferenceId, TypeId},
 };
@@ -20,7 +21,7 @@ impl Elaborator<'_> {
     /// - Resolves the types of all struct fields
     /// - Validates visibility constraints (public structs cannot expose private types)
     /// - Registers LSP definition locations for IDE support
-    /// - Checks for disallowed nested slice types
+    /// - Checks for disallowed nested vector types
     ///
     /// Structs must already be interned from the earlier definition collection phase.
     /// This method fills in the field information for each struct.
@@ -35,7 +36,11 @@ impl Elaborator<'_> {
         // Resolve each field in each struct.
         // Each struct should already be present in the NodeInterner after def collection.
         for (type_id, typ) in structs {
-            self.local_module = typ.module_id;
+            self.local_module = Some(typ.module_id);
+            self.current_item = Some(DependencyId::DataType(*type_id));
+
+            let previous_in_comptime_context =
+                std::mem::replace(&mut self.in_comptime_context, typ.struct_def.comptime);
 
             let fields = self.resolve_struct_fields(&typ.struct_def, *type_id);
 
@@ -59,12 +64,15 @@ impl Elaborator<'_> {
                 let mut attributes = typ.struct_def.attributes.iter();
                 if let Some(message) = attributes.find_map(|attr| attr.kind.must_use_message()) {
                     struct_def.must_use = crate::MustUse::MustUse(message);
-                };
+                }
                 struct_def.set_fields(fields);
             });
+
+            self.in_comptime_context = previous_in_comptime_context;
+            self.current_item = None;
         }
 
-        self.check_for_nested_slices(&struct_ids);
+        self.check_for_nested_vectors(&struct_ids);
     }
 
     /// Resolves the field types for a single struct definition.
@@ -81,37 +89,36 @@ impl Elaborator<'_> {
         struct_id: TypeId,
     ) -> Vec<StructField> {
         self.recover_generics(|this| {
-            this.current_item = Some(DependencyId::Struct(struct_id));
+            let previous_item = this.current_item.replace(DependencyId::DataType(struct_id));
 
             this.resolving_ids.insert(struct_id);
 
             let struct_def = this.interner.get_type(struct_id);
             this.add_existing_generics(&unresolved.generics, &struct_def.borrow().generics);
 
-            let wildcard_allowed = false;
+            let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::StructField);
             let fields = vecmap(&unresolved.fields, |field| {
-                let ident = &field.item.name;
-                let typ = &field.item.typ;
                 let visibility = field.item.visibility;
-                StructField {
-                    visibility,
-                    name: ident.clone(),
-                    typ: this.resolve_type(typ.clone(), wildcard_allowed),
-                }
+                let name = field.item.name.clone();
+                let typ = this.resolve_type(field.item.typ.clone(), wildcard_allowed);
+                StructField { visibility, name, typ }
             });
 
             this.resolving_ids.remove(&struct_id);
+
+            this.current_item = previous_item;
 
             fields
         })
     }
 
-    /// Checks all resolved structs for nested slice types, which are not allowed.
+    /// Checks all resolved structs for nested vector types, which are not allowed.
     ///
     /// This check must happen after all struct fields are resolved to ensure we have
     /// complete type information. We only check structs without generics here, as
-    /// generic structs are validated after monomorphization during SSA codegen.
-    fn check_for_nested_slices(&mut self, struct_ids: &[TypeId]) {
+    /// generic structs are validated during monomorphization and after monomorphization
+    /// during SSA codegen.
+    fn check_for_nested_vectors(&mut self, struct_ids: &[TypeId]) {
         for id in struct_ids {
             let struct_type = self.interner.get_type(*id);
 
@@ -119,10 +126,10 @@ impl Elaborator<'_> {
             // after monomorphization when performing SSA codegen
             if struct_type.borrow().generics.is_empty() {
                 let fields = struct_type.borrow().get_fields(&[]).unwrap();
-                for (_, field_type, _) in fields.iter() {
-                    if field_type.is_nested_slice() {
+                for (_, field_type, _) in &fields {
+                    if field_type.is_nested_vector() {
                         let location = struct_type.borrow().location;
-                        self.push_err(ResolverError::NestedSlices { location });
+                        self.push_err(ResolverError::NestedVectors { location });
                     }
                 }
             }

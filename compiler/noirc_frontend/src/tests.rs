@@ -3,6 +3,7 @@
 mod aliases;
 mod arithmetic_generics;
 mod arrays;
+mod assignment;
 mod bound_checks;
 mod cast;
 mod control_flow;
@@ -28,11 +29,12 @@ mod visibility;
 // XXX: These tests repeat a lot of code
 // what we should do is have test cases which are passed to a test harness
 // A test harness will allow for more expressive and readable tests
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::elaborator::{FrontendOptions, UnstableFeature};
+use crate::hir::comptime::InterpreterError;
 use crate::hir::printer::display_crate;
-use crate::test_utils::{get_program, get_program_with_options};
+use crate::test_utils::{GetProgramOptions, get_program, get_program_with_options};
 
 use noirc_errors::reporter::report_all;
 use noirc_errors::{CustomDiagnostic, Span};
@@ -46,23 +48,35 @@ pub(crate) fn get_program_using_features(
     src: &str,
     features: &[UnstableFeature],
 ) -> (ParsedModule, Context<'static, 'static>, Vec<CompilationError>) {
-    let allow_parser_errors = false;
-    let mut options = FrontendOptions::test_default();
-    options.enabled_unstable_features = features;
-    get_program_with_options(src, allow_parser_errors, options)
+    get_program_with_options(
+        src,
+        GetProgramOptions {
+            frontend_options: FrontendOptions {
+                enabled_unstable_features: features,
+                ..FrontendOptions::test_default()
+            },
+            ..Default::default()
+        },
+    )
 }
 
 pub(crate) fn get_program_errors(src: &str) -> Vec<CompilationError> {
-    get_program(src).2
+    get_program_with_options(src, Default::default()).2
 }
 
-fn assert_no_errors(src: &str) -> Context<'_, '_> {
+pub(crate) fn assert_no_errors(src: &str) -> Context<'_, '_> {
     let (_, context, errors) = get_program(src);
     if !errors.is_empty() {
         let errors = errors.iter().map(CustomDiagnostic::from).collect::<Vec<_>>();
         report_all(context.file_manager.as_file_map(), &errors, false, false);
         panic!("Expected no errors");
     }
+    context
+}
+
+pub fn assert_no_errors_without_report(src: &str) -> Context<'_, '_> {
+    let (_, context, errors) = get_program(src);
+    assert!(errors.is_empty(), "Expected no errors");
     context
 }
 
@@ -80,7 +94,7 @@ fn assert_no_errors_and_to_string(src: &str) -> String {
 ///
 /// fn main() -> pub i32 {
 ///                  ^^^ expected i32 because of return type
-///     true        
+///     true
 ///     ~~~~ bool returned here
 /// }
 ///
@@ -91,45 +105,70 @@ fn assert_no_errors_and_to_string(src: &str) -> String {
 /// this method will check that compiling the program without those error markers
 /// will produce errors at those locations and with/ those messages.
 fn check_errors(src: &str) {
-    let allow_parser_errors = false;
     let monomorphize = false;
     check_errors_with_options(
         src,
-        allow_parser_errors,
         monomorphize,
-        FrontendOptions::test_default(),
+        GetProgramOptions { allow_elaborator_errors: true, ..Default::default() },
+    );
+}
+
+/// Check for errors, prefixing user code with some snippet from the stdlib.
+fn check_errors_with_stdlib<'a>(src: &str, stdlib_src: impl IntoIterator<Item = &'a str>) {
+    let stdlib_src: String = stdlib_src.into_iter().flat_map(|s| [s, "\n"]).collect();
+    let monomorphize = false;
+    check_errors_with_options(
+        &format!("{stdlib_src}\n\n{src}"),
+        monomorphize,
+        GetProgramOptions {
+            allow_elaborator_errors: true,
+            root_and_stdlib: true,
+            ..Default::default()
+        },
     );
 }
 
 fn check_errors_using_features(src: &str, features: &[UnstableFeature]) {
-    let allow_parser_errors = false;
     let monomorphize = false;
-    let options =
-        FrontendOptions { enabled_unstable_features: features, ..FrontendOptions::test_default() };
-    check_errors_with_options(src, allow_parser_errors, monomorphize, options);
-}
-
-pub(super) fn check_monomorphization_error(src: &str) {
-    check_monomorphization_error_using_features(src, &[]);
-}
-
-pub(super) fn check_monomorphization_error_using_features(src: &str, features: &[UnstableFeature]) {
-    let allow_parser_errors = false;
-    let monomorphize = true;
     check_errors_with_options(
         src,
-        allow_parser_errors,
         monomorphize,
-        FrontendOptions { enabled_unstable_features: features, ..FrontendOptions::test_default() },
+        GetProgramOptions {
+            allow_elaborator_errors: true,
+            frontend_options: FrontendOptions {
+                enabled_unstable_features: features,
+                ..FrontendOptions::test_default()
+            },
+            ..Default::default()
+        },
     );
 }
 
-fn check_errors_with_options(
+pub(super) fn check_monomorphization_error(src: &str) {
+    check_monomorphization_error_using_features(src, &[], false);
+}
+
+pub(super) fn check_monomorphization_error_using_features(
     src: &str,
-    allow_parser_errors: bool,
-    monomorphize: bool,
-    options: FrontendOptions,
+    features: &[UnstableFeature],
+    allow_elaborator_errors: bool,
 ) {
+    let monomorphize = true;
+    check_errors_with_options(
+        src,
+        monomorphize,
+        GetProgramOptions {
+            allow_elaborator_errors,
+            frontend_options: FrontendOptions {
+                enabled_unstable_features: features,
+                ..FrontendOptions::test_default()
+            },
+            ..Default::default()
+        },
+    );
+}
+
+fn check_errors_with_options(src: &str, monomorphize: bool, options: GetProgramOptions) {
     let lines = src.lines().collect::<Vec<_>>();
 
     // Here we'll hold just the lines that are code
@@ -167,22 +206,35 @@ fn check_errors_with_options(
         byte += line.len() + 1; // For '\n'
         last_line_length = line.len();
     }
-    let mut primary_spans_with_errors: HashMap<Span, String> =
-        primary_spans_with_errors.into_iter().collect();
 
-    let mut secondary_spans_with_errors: HashMap<Span, String> =
-        secondary_spans_with_errors.into_iter().collect();
+    // We might see the same primary message multiple time with different secondary.
+    fn to_message_map(messages: Vec<(Span, String)>) -> HashMap<Span, Vec<String>> {
+        let mut map = HashMap::<_, Vec<String>>::new();
+        for (span, msg) in messages {
+            map.entry(span).or_default().push(msg);
+        }
+        map
+    }
+
+    // By the end we want to have seen all errors.
+    let mut all_primaries: HashSet<(Span, String)> =
+        HashSet::from_iter(primary_spans_with_errors.clone());
+    let mut all_secondaries: HashSet<(Span, String)> =
+        HashSet::from_iter(secondary_spans_with_errors.clone());
+
+    let primary_spans_with_errors = to_message_map(primary_spans_with_errors);
+    let secondary_spans_with_errors = to_message_map(secondary_spans_with_errors);
 
     let src = code_lines.join("\n");
-    let (_, mut context, errors) = get_program_with_options(&src, allow_parser_errors, options);
+    let (_, mut context, errors) = get_program_with_options(&src, options);
     let mut errors = errors.iter().map(CustomDiagnostic::from).collect::<Vec<_>>();
 
-    if monomorphize {
-        if !errors.is_empty() {
-            report_all(context.file_manager.as_file_map(), &errors, false, false);
-            panic!("Expected no errors before monomorphization");
-        }
+    if !options.allow_elaborator_errors && !errors.is_empty() {
+        report_all(context.file_manager.as_file_map(), &errors, false, false);
+        panic!("Expected no elaborator errors");
+    }
 
+    if monomorphize {
         let main = context.get_main_function(context.root_crate_id()).unwrap_or_else(|| {
             panic!("get_monomorphized: test program contains no 'main' function")
         });
@@ -210,68 +262,72 @@ fn check_errors_with_options(
             .secondaries
             .first()
             .unwrap_or_else(|| panic!("Expected {error:?} to have a secondary label"));
+
+        let primary_message = &error.message;
         let span = secondary.location.span;
-        let message = &error.message;
-        let Some(expected_message) = primary_spans_with_errors.remove(&span) else {
-            if let Some(message) = secondary_spans_with_errors.get(&span) {
+
+        let Some(expected_primaries) = primary_spans_with_errors.get(&span) else {
+            if let Some(secondaries) = secondary_spans_with_errors.get(&span) {
                 report_all(context.file_manager.as_file_map(), &errors, false, false);
                 panic!(
-                    "Error at {span:?} with message {message:?} is annotated as secondary but should be primary"
+                    "Error at {span:?} with message(s) {secondaries:?} is annotated as secondary but should be primary: {primary_message:?}"
                 );
             } else {
                 report_all(context.file_manager.as_file_map(), &errors, false, false);
                 panic!(
-                    "Couldn't find primary error at {span:?} with message {message:?}.\nAll errors: {errors:?}"
+                    "Couldn't find primary error at {span:?} with message {primary_message:?}.\nAll errors: {errors:?}\nExpected primaries: {primary_spans_with_errors:?}\nExpected secondaries: {secondary_spans_with_errors:?}"
                 );
             }
         };
 
-        if message != &expected_message {
+        if !expected_primaries.contains(primary_message) {
             report_all(context.file_manager.as_file_map(), &errors, false, false);
-            assert_eq!(
-                message, &expected_message,
-                "Primary error at {span:?} has unexpected message"
+            panic!(
+                "Primary error at {span:?} has unexpected message: {primary_message:?};\nShould be one of {expected_primaries:?}"
             );
+        } else {
+            all_primaries.remove(&(span, primary_message.clone()));
         }
 
         for secondary in &error.secondaries {
-            let message = &secondary.message;
-            if message.is_empty() {
+            let secondary_message = &secondary.message;
+            if secondary_message.is_empty() {
                 continue;
             }
 
             let span = secondary.location.span;
-            let Some(expected_message) = secondary_spans_with_errors.remove(&span) else {
+            let Some(expected_secondaries) = secondary_spans_with_errors.get(&span) else {
                 report_all(context.file_manager.as_file_map(), &errors, false, false);
-                if let Some(message) = primary_spans_with_errors.get(&span) {
+                if let Some(primaries) = primary_spans_with_errors.get(&span) {
                     panic!(
-                        "Error at {span:?} with message {message:?} is annotated as primary but should be secondary"
+                        "Error at {span:?} with message(s) {primaries:?} is annotated as primary but should be secondary: {secondary_message:?}"
                     );
                 } else {
                     panic!(
-                        "Couldn't find secondary error at {span:?} with message {message:?}.\nAll errors: {errors:?}"
+                        "Couldn't find secondary error at {span:?} with message {secondary_message:?}.\nAll errors: {errors:?}"
                     );
                 };
             };
 
-            if message != &expected_message {
+            if !expected_secondaries.contains(secondary_message) {
                 report_all(context.file_manager.as_file_map(), &errors, false, false);
-                assert_eq!(
-                    message, &expected_message,
-                    "Secondary error at {span:?} has unexpected message"
+                panic!(
+                    "Secondary error at {span:?} has unexpected message: {secondary_message:?};\nShould be one of {expected_secondaries:?}"
                 );
+            } else {
+                all_secondaries.remove(&(span, secondary_message.clone()));
             }
         }
     }
 
-    if !primary_spans_with_errors.is_empty() {
+    if !all_primaries.is_empty() {
         report_all(context.file_manager.as_file_map(), &errors, false, false);
-        panic!("These primary errors didn't happen: {primary_spans_with_errors:?}");
+        panic!("These primary errors didn't happen: {all_primaries:?}");
     }
 
-    if !secondary_spans_with_errors.is_empty() {
+    if !all_secondaries.is_empty() {
         report_all(context.file_manager.as_file_map(), &errors, false, false);
-        panic!("These secondary errors didn't happen: {secondary_spans_with_errors:?}");
+        panic!("These secondary errors didn't happen: {all_secondaries:?}");
     }
 }
 
@@ -321,4 +377,129 @@ fn does_not_stack_overflow_on_many_comments_in_a_row() {
     let mut src = "//\n".repeat(10_000);
     src.push_str("fn main() { }");
     assert_no_errors(&src);
+}
+
+#[test]
+fn wildcard_with_generic_argument() {
+    let src = r#"
+    struct Foo<T> {}
+
+    pub fn println<T>(_input: T) { }
+
+    fn main() {
+      let x: _<_> = "123";
+      let y: _<_> = Foo::<()> { };
+      println(x);
+      println(y);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn regression_10553() {
+    let src = r#"
+    pub fn println<T>(_input: T) { }
+    fn main() {
+        let x = @[false];
+        let s = f"{x}";
+        let _ = @[s];
+                ^^^^ Nested vectors, i.e. vectors within an array or vector, are not supported
+        println(s);
+    }
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn regression_10554() {
+    let src = r#"
+    pub fn println<T>(_input: T) { }
+    fn main() {
+        let x = @[false];
+        let t = @[x];
+                ^^^^ Nested vectors, i.e. vectors within an array or vector, are not supported
+        let s = f"{t}";
+        println(s);
+    }
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn deeply_nested_expression_overflow() {
+    // Build a deeply expression: (((1 + 2) + 3) + 4) ... + 50
+    // This tests the interpreter's evaluation depth limit.
+    // If we use an expression too deep (like 100), then we will reach the parser recursion limit.
+    // We use fewer nesting levels (50) combined with recursive function calls
+    // to trigger the interpreter's EvaluationDepthOverflow error.
+    fn make_nested_expr(stem: &str) -> String {
+        let mut expr = String::from(stem);
+        for i in 2..=50 {
+            expr = format!("({expr} + {i})");
+        }
+        expr
+    }
+
+    let expr = make_nested_expr("if max_depth == 0 { 1 } else { foo(max_depth - 1) }");
+
+    let src = format!(
+        "
+      fn foo(max_depth: u32) -> u32 {{
+        {expr}
+      }}
+      fn main() {{
+          comptime {{
+              let _ = foo(5);
+          }}
+      }}
+      "
+    );
+
+    let errors = get_program_errors(&src);
+
+    for error in errors {
+        if matches!(
+            error,
+            CompilationError::InterpreterError(InterpreterError::EvaluationDepthOverflow { .. })
+        ) {
+            return;
+        }
+    }
+
+    panic!("should have got a EvaluationDepthOverflow error");
+}
+
+#[test]
+fn deeply_nested_expression_parser_overflow() {
+    use crate::parser::ParserErrorReason;
+
+    // Build expression: (((1 + 2) + 3) + 4) ... + 200
+    // This should hit the parser's maximum recursion depth limit
+    let mut expr = String::from("1");
+    for i in 2..=200 {
+        expr = format!("({expr} + {i})");
+    }
+
+    let src = format!(
+        "
+      fn main() {{
+          comptime {{
+              let _ = {expr};
+          }}
+      }}
+      "
+    );
+
+    let errors = get_program_errors(&src);
+
+    // We should get exactly one MaximumRecursionDepthExceeded error
+    assert_eq!(errors.len(), 1, "Expected exactly one error");
+
+    let has_depth_error = matches!(
+        &errors[0],
+        CompilationError::ParseError(parser_error)
+            if parser_error.reason() == Some(&ParserErrorReason::MaximumRecursionDepthExceeded)
+    );
+    assert!(has_depth_error, "Expected a MaximumRecursionDepthExceeded error");
 }

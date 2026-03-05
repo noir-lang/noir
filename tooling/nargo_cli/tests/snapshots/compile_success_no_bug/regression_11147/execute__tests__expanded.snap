@@ -1,0 +1,41 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+enum Foo<T> {
+    A(T),
+    B,
+}
+
+struct Bar<T> {
+    value: Foo<T>,
+}
+
+enum Either<A, B> {
+    Left(A),
+    Right(B),
+}
+
+fn main() {
+    let _: Foo<bool> = Foo::<bool>::B;
+    let fa: Foo<str<5>> = Foo::A("hello");
+    let fb: Foo<str<5>> = Foo::<str<5>>::B;
+    foo(fa);
+    foo(fb);
+    let mut b: Bar<bool> = Bar::<bool> { value: Foo::<bool>::B };
+    b.value = Foo::<bool>::B;
+    let b: Bar<str<5>> = Bar::<str<5>> { value: Foo::<str<5>>::B };
+    bar(b);
+    let fs: [Foo<str<5>>; 2] = [Foo::<str<5>>::B; 2];
+    for i in 0_u32..2_u32 {
+        foo(fs[i]);
+    }
+    baz(Either::Left([1_u32, 2_u32]));
+    baz(Either::Right(3_u32));
+}
+
+fn foo(_f: Foo<str<5>>) {}
+
+fn bar(_b: Bar<str<5>>) {}
+
+fn baz(_e: Either<[u32; 2], u32>) {}

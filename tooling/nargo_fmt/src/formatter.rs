@@ -71,11 +71,14 @@ pub(crate) struct Formatter<'a> {
     pub(crate) group_tag_counter: usize,
 
     /// We keep a copy of the config's max width because when we format chunk groups
-    /// we somethings change this so that a group has less space to write to.
+    /// we sometimes change this so that a group has less space to write to.
     pub(crate) max_width: usize,
 
     /// This is the buffer where we write the formatted code.
     pub(crate) buffer: Buffer,
+
+    /// Is the formatter inside a chunk?
+    pub(crate) in_chunk: bool,
 }
 
 impl<'a> Formatter<'a> {
@@ -94,6 +97,7 @@ impl<'a> Formatter<'a> {
             group_tag_counter: 0,
             max_width: config.max_width,
             buffer: Buffer::default(),
+            in_chunk: false,
         };
         formatter.bump();
         formatter
@@ -207,13 +211,6 @@ impl<'a> Formatter<'a> {
         self.bump();
     }
 
-    /// Writes the current token trimming its end but doesn't advance to the next one.
-    /// Mainly used when writing comment lines, because we never want trailing spaces
-    /// inside comments.
-    pub(crate) fn write_current_token_trimming_end(&mut self) {
-        self.write(self.token.to_string().trim_end());
-    }
-
     /// Writes the current token but without turning it into a string using `to_string()`.
     /// Instead, we check the token's span and format what's in the original source there
     /// (useful when formatting integer tokens, because a token like 0xFF ends up being an
@@ -300,9 +297,16 @@ impl<'a> Formatter<'a> {
 
     /// Advances to the next token (the current token is not written).
     pub(crate) fn bump(&mut self) -> Token {
-        self.ignore_next = false;
-
         let next_token = self.read_token_internal();
+
+        // Keep the ignore status as long as we keep finding comments or whitespace, otherwise reset it
+        if !matches!(
+            next_token.token(),
+            Token::LineComment(..) | Token::BlockComment(..) | Token::Whitespace(..),
+        ) {
+            self.ignore_next = false;
+        }
+
         self.token_span = next_token.span();
         std::mem::replace(&mut self.token, next_token.into_token())
     }

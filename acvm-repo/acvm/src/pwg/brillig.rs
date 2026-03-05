@@ -118,7 +118,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
                 },
                 BrilligInputs::Array(expr_arr) => {
                     // Attempt to fetch all array input values
-                    for expr in expr_arr.iter() {
+                    for expr in expr_arr {
                         match get_value(expr, initial_witness) {
                             Ok(value) => calldata.push(value),
                             Err(_) => {
@@ -154,7 +154,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         self.vm.get_memory()
     }
 
-    pub fn write_memory_at(&mut self, ptr: usize, value: MemoryValue<F>) {
+    pub fn write_memory_at(&mut self, ptr: u32, value: MemoryValue<F>) {
         self.vm.write_memory_at(ptr, value);
     }
 
@@ -206,8 +206,12 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
                     FailureReason::Trap { revert_data_offset, revert_data_size } => {
                         extract_failure_payload_from_memory(
                             self.vm.get_memory(),
-                            revert_data_offset,
-                            revert_data_size,
+                            revert_data_offset
+                                .try_into()
+                                .expect("Failed conversion from u32 to usize"),
+                            revert_data_size
+                                .try_into()
+                                .expect("Failed conversion from u32 to usize"),
                         )
                     }
                 };
@@ -254,7 +258,12 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         let vm_status = self.vm.get_status();
         match vm_status {
             VMStatus::Finished { return_data_offset, return_data_size } => {
-                self.write_brillig_outputs(witness, return_data_offset, return_data_size, outputs)?;
+                self.write_brillig_outputs(
+                    witness,
+                    return_data_offset.try_into().expect("Failed conversion from u32 to usize"),
+                    return_data_size.try_into().expect("Failed conversion from u32 to usize"),
+                    outputs,
+                )?;
                 Ok(())
             }
             _ => panic!("Brillig VM has not completed execution"),
@@ -271,24 +280,35 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
     ) -> Result<(), OpcodeResolutionError<F>> {
         let memory = self.vm.get_memory();
         let mut current_ret_data_idx = return_data_offset;
-        for output in outputs.iter() {
+        for output in outputs {
             match output {
                 BrilligOutputs::Simple(witness) => {
-                    insert_value(witness, memory[current_ret_data_idx].to_field(), witness_map)?;
-                    current_ret_data_idx += 1;
+                    let value = memory
+                        .get(current_ret_data_idx)
+                        .expect("Return data index exceeds memory bounds");
+                    insert_value(witness, value.to_field(), witness_map)?;
+                    current_ret_data_idx =
+                        current_ret_data_idx.checked_add(1).expect("Return data index overflow");
                 }
                 BrilligOutputs::Array(witness_arr) => {
-                    for witness in witness_arr.iter() {
-                        let value = &memory[current_ret_data_idx];
+                    for witness in witness_arr {
+                        let value = memory
+                            .get(current_ret_data_idx)
+                            .expect("Return data index exceeds memory bounds");
                         insert_value(witness, value.to_field(), witness_map)?;
-                        current_ret_data_idx += 1;
+                        current_ret_data_idx = current_ret_data_idx
+                            .checked_add(1)
+                            .expect("Return data index overflow");
                     }
                 }
             }
         }
 
+        let expected_end = return_data_offset
+            .checked_add(return_data_size)
+            .expect("Return data offset and size overflow");
         assert!(
-            current_ret_data_idx == return_data_offset + return_data_size,
+            current_ret_data_idx == expected_end,
             "Brillig VM did not write the expected number of return values"
         );
         Ok(())
@@ -314,8 +334,13 @@ fn extract_failure_payload_from_memory<F: AcirField>(
     if revert_data_size == 0 {
         None
     } else {
-        let mut revert_values_iter =
-            memory[revert_data_offset..(revert_data_offset + revert_data_size)].iter();
+        let end = revert_data_offset
+            .checked_add(revert_data_size)
+            .expect("Revert data offset and size overflow");
+        let mut revert_values_iter = memory
+            .get(revert_data_offset..end)
+            .expect("Revert data offset and size exceed memory bounds")
+            .iter();
         let error_selector = ErrorSelector::new(
             revert_values_iter
                 .next()
@@ -368,7 +393,7 @@ mod tests {
         let inputs =
             vec![BrilligInputs::Single(w1), BrilligInputs::Single(w2), BrilligInputs::Single(w3)];
 
-        let backend = acvm_blackbox_solver::StubbedBlackBoxSolver(false);
+        let backend = acvm_blackbox_solver::StubbedBlackBoxSolver;
         let bytecode = vec![
             Opcode::Const {
                 destination: MemoryAddress::Direct(21),

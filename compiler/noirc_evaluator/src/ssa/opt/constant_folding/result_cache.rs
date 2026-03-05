@@ -4,6 +4,7 @@ use crate::ssa::{
         dfg::DataFlowGraph,
         dom::DominatorTree,
         instruction::{Instruction, InstructionId},
+        types::Type,
         value::{Value, ValueId},
     },
     opt::pure::Purity,
@@ -47,7 +48,7 @@ impl InstructionResultCache {
             // We explicitly check that the cached result values are of the same type as expected by the instruction
             // being checked against the cache and reject if they differ.
             if let CacheResult::Cached { results, .. } = results {
-                let old_results = dfg.instruction_results(id).to_vec();
+                let old_results = dfg.instruction_results(id);
 
                 results.len() == old_results.len()
                     && old_results
@@ -83,6 +84,16 @@ impl InstructionResultCache {
         self.0.remove(instruction)
     }
 
+    /// Remove all cached MakeArray instructions that produce the given type.
+    /// Used when we encounter a mutation of an array value that we can't trace back
+    /// to a specific instruction (e.g. block parameters), so we must conservatively
+    /// invalidate all cached MakeArrays that could be the source.
+    fn remove_make_arrays_of_type(&mut self, typ: &Type) {
+        self.0.retain(|instruction, _| {
+            !matches!(instruction, Instruction::MakeArray { typ: make_array_typ, .. } if make_array_typ == typ)
+        });
+    }
+
     /// Remove previously cached instructions that created arrays,
     /// if the current instruction is such that it could modify that array.
     pub(super) fn remove_possibly_mutated_cached_make_arrays(
@@ -101,17 +112,25 @@ impl InstructionResultCache {
             // We expect globals to be immutable, so we can cache those results indefinitely.
             if dfg.is_global(*value) {
                 return;
-            };
+            }
 
-            // We only care about arrays and slices. (`Store` can act on non-array values as well)
-            if !dfg.type_of_value(*value).is_array() {
+            let value_type = dfg.type_of_value(*value);
+
+            // We only care about arrays and vectors. (`Store` can act on non-array values as well)
+            if !value_type.is_array() {
                 return;
-            };
+            }
 
             // Look up the original instruction that created the value, which is the cache key.
             let instruction = match &dfg[*value] {
                 Value::Instruction { instruction, .. } => &dfg[*instruction],
-                _ => return,
+                _ => {
+                    // If we can't trace back to a creating instruction (e.g. block parameters),
+                    // conservatively remove all cached MakeArrays of the same type since any
+                    // of them could be the source of this value.
+                    cached_instruction_results.remove_make_arrays_of_type(&value_type);
+                    return;
+                }
             };
 
             // Remove the creator instruction from the cache.
@@ -130,7 +149,7 @@ impl InstructionResultCache {
 
         let mut remove_if_array = |value| go(dfg, self, value);
 
-        // Should we consider calls to slice_push_back and similar to be mutating operations as well?
+        // Should we consider calls to vector_push_back and similar to be mutating operations as well?
         match instruction {
             Store { value, .. } | ArraySet { array: value, .. } => {
                 // If we write to a value, it's not safe for reuse, as its value has changed since its creation.
@@ -186,17 +205,16 @@ impl ResultCache {
         dom: &mut DominatorTree,
         has_side_effects: bool,
     ) -> Option<CacheResult> {
-        self.result.as_ref().and_then(|(origin, results)| {
-            if dom.dominates(*origin, block) {
-                Some(CacheResult::Cached { results })
-            } else if !has_side_effects {
-                // Insert a copy of this instruction in the common dominator
-                let dominator = dom.common_dominator(*origin, block);
-                Some(CacheResult::NeedToHoistToCommonBlock { dominator })
-            } else {
-                None
-            }
-        })
+        let (origin, results) = self.result.as_ref()?;
+        if dom.dominates(*origin, block) {
+            Some(CacheResult::Cached { results })
+        } else if !has_side_effects {
+            // Insert a copy of this instruction in the common dominator
+            let dominator = dom.common_dominator(*origin, block);
+            Some(CacheResult::NeedToHoistToCommonBlock { dominator })
+        } else {
+            None
+        }
     }
 }
 

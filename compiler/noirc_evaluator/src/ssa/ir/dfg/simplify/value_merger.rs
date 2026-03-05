@@ -1,14 +1,25 @@
-use noirc_errors::call_stack::CallStackId;
+use acvm::{
+    FieldElement,
+    acir::brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength},
+};
+use noirc_errors::{Location, call_stack::CallStackId};
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
+    brillig::assert_u32,
     errors::{RtResult, RuntimeError},
-    ssa::ir::{
-        basic_block::BasicBlockId,
-        dfg::DataFlowGraph,
-        instruction::{BinaryOp, Instruction},
-        types::{NumericType, Type},
-        value::ValueId,
+    ssa::{
+        ir::{
+            basic_block::BasicBlockId,
+            dfg::DataFlowGraph,
+            instruction::{BinaryOp, Instruction},
+            types::{NumericType, Type},
+            value::ValueId,
+        },
+        opt::{
+            ArrayGetOptimizationResult, ArrayGetOptimizationSideEffects,
+            try_optimize_array_get_from_previous_instructions,
+        },
     },
 };
 
@@ -16,21 +27,45 @@ pub(crate) struct ValueMerger<'a> {
     dfg: &'a mut DataFlowGraph,
     block: BasicBlockId,
 
-    /// Maps SSA array values with a slice type to their size.
+    /// Maps SSA array values with a vector type to their size.
     /// This must be computed before merging values.
-    slice_sizes: &'a HashMap<ValueId, u32>,
+    vector_sizes: &'a HashMap<ValueId, SemanticLength>,
 
     call_stack: CallStackId,
+
+    /// Optional information about the current side effects variable, and what
+    /// side effects variables are applied to each `array_set` instruction that happen
+    /// before the values being merged.
+    ///
+    /// When arrays or vectors are merged as a result of an `if ... else` instruction,
+    /// a new array will be built that does `array_get` on the arrays on the "then" and
+    /// "else" branches, and combine those values. These newly inserted `array_get` could
+    /// be optimized by reusing previously inserted instructions, such as an `array_set` at
+    /// the same index as the one in the `array_get`. However, this is only safe to do
+    /// if we know the side effects var of those two instructions is the same. Hence, that
+    /// information can optionally be specified here.
+    array_get_optimization_side_effects: Option<ArrayGetOptimizationSideEffects<'a>>,
 }
 
 impl<'a> ValueMerger<'a> {
     pub(crate) fn new(
         dfg: &'a mut DataFlowGraph,
         block: BasicBlockId,
-        slice_sizes: &'a HashMap<ValueId, u32>,
+        vector_sizes: &'a HashMap<ValueId, SemanticLength>,
         call_stack: CallStackId,
+        array_get_optimization_side_effects: Option<ArrayGetOptimizationSideEffects<'a>>,
     ) -> Self {
-        ValueMerger { dfg, block, slice_sizes, call_stack }
+        ValueMerger { dfg, block, vector_sizes, call_stack, array_get_optimization_side_effects }
+    }
+
+    /// Choose a call stack to return with the [RuntimeError].
+    ///
+    /// If the call stack of the value is empty, it returns the call stack of the if-then-else itself.
+    fn get_call_stack(&self, value: ValueId) -> Vec<Location> {
+        // The value points at one of the problematic references, while the instruction would
+        // point at where we got the if-then-else; it's not clear which one is more useful.
+        let call_stack = self.dfg.get_value_call_stack(value);
+        if call_stack.is_empty() { self.dfg.get_call_stack(self.call_stack) } else { call_stack }
     }
 
     /// Merge two values a and b to a single value.
@@ -39,7 +74,7 @@ impl<'a> ValueMerger<'a> {
     /// Otherwise, if the values being merged are arrays, a new array will be made
     /// recursively from combining each element of both input arrays.
     ///
-    /// It is currently an error to call this function on reference or function values
+    /// Returns an error if called with a function value or a reference or function values
     /// as it is less clear how to merge these.
     pub(crate) fn merge_values(
         &mut self,
@@ -64,17 +99,19 @@ impl<'a> ValueMerger<'a> {
             typ @ Type::Array(_, _) => {
                 self.merge_array_values(typ, then_condition, else_condition, then_value, else_value)
             }
-            typ @ Type::Slice(_) => {
-                self.merge_slice_values(typ, then_condition, else_condition, then_value, else_value)
-            }
+            typ @ Type::Vector(_) => self.merge_vector_values(
+                typ,
+                then_condition,
+                else_condition,
+                then_value,
+                else_value,
+            ),
             Type::Reference(_) => {
-                // FIXME: none of then_value, else_value, then_condition, or else_condition have
-                // non-empty call stacks
-                let call_stack = self.dfg.get_value_call_stack(then_value);
+                let call_stack = self.get_call_stack(then_value);
                 Err(RuntimeError::ReturnedReferenceFromDynamicIf { call_stack })
             }
             Type::Function => {
-                let call_stack = self.dfg.get_value_call_stack(then_value);
+                let call_stack = self.get_call_stack(then_value);
                 Err(RuntimeError::ReturnedFunctionFromDynamicIf { call_stack })
             }
         }
@@ -133,7 +170,7 @@ impl<'a> ValueMerger<'a> {
     /// Given an if expression that returns an array: `if c { array1 } else { array2 }`,
     /// this function will recursively merge array1 and array2 into a single resulting array
     /// by creating a new array containing the result of `self.merge_values` for each element.
-    pub(crate) fn merge_array_values(
+    fn merge_array_values(
         &mut self,
         typ: Type,
         then_condition: ValueId,
@@ -150,18 +187,15 @@ impl<'a> ValueMerger<'a> {
 
         let element_count = element_types.len() as u32;
 
-        for i in 0..len {
+        for i in 0..len.0 {
             for (element_index, element_type) in element_types.iter().enumerate() {
-                let index = u128::from(i * element_count + element_index as u32).into();
-                let index = self.dfg.make_constant(index, NumericType::length_type());
+                let index_value = u128::from(i * element_count + element_index as u32).into();
+                let index = self.dfg.make_constant(index_value, NumericType::length_type());
 
                 let typevars = Some(vec![element_type.clone()]);
 
                 let mut get_element = |array, typevars| {
-                    let get = Instruction::ArrayGet { array, index };
-                    self.dfg
-                        .insert_instruction_and_results(get, self.block, typevars, self.call_stack)
-                        .first()
+                    self.maybe_optimized_array_get(array, index, index_value, typevars)
                 };
 
                 let then_element = get_element(then_value, typevars.clone());
@@ -182,7 +216,7 @@ impl<'a> ValueMerger<'a> {
         Ok(result.first())
     }
 
-    fn merge_slice_values(
+    fn merge_vector_values(
         &mut self,
         typ: Type,
         then_condition: ValueId,
@@ -193,62 +227,57 @@ impl<'a> ValueMerger<'a> {
         let mut merged = im::Vector::new();
 
         let element_types = match &typ {
-            Type::Slice(elements) => elements.as_slice(),
-            _ => panic!("Expected slice type"),
+            Type::Vector(elements) => elements.as_slice(),
+            _ => panic!("Expected vector type"),
         };
 
-        let then_len = self.slice_sizes.get(&then_value_id).copied().unwrap_or_else(|| {
-            panic!("ICE: Merging values during flattening encountered slice {then_value_id} without a preset size");
+        let then_len = self.vector_sizes.get(&then_value_id).copied().unwrap_or_else(|| {
+            panic!("ICE: Merging values during flattening encountered vector {then_value_id} without a preset size");
         });
 
-        let else_len = self.slice_sizes.get(&else_value_id).copied().unwrap_or_else(|| {
-            panic!("ICE: Merging values during flattening encountered slice {else_value_id} without a preset size");
+        let else_len = self.vector_sizes.get(&else_value_id).copied().unwrap_or_else(|| {
+            panic!("ICE: Merging values during flattening encountered vector {else_value_id} without a preset size");
         });
 
         let len = then_len.max(else_len);
-        let element_count = element_types.len() as u32;
+        let element_count = ElementTypesLength(assert_u32(element_types.len()));
 
-        let flat_then_length = then_len * element_types.len() as u32;
-        let flat_else_length = else_len * element_types.len() as u32;
+        let semi_flat_then_length = then_len * element_count;
+        let semi_flat_else_length = else_len * element_count;
 
-        for i in 0..len {
+        for i in 0..len.0 {
             for (element_index, element_type) in element_types.iter().enumerate() {
-                let index_u32 = i * element_count + element_index as u32;
+                let index_u32 = i * element_count.0 + element_index as u32;
                 let index_value = u128::from(index_u32).into();
                 let index = self.dfg.make_constant(index_value, NumericType::length_type());
 
                 let typevars = Some(vec![element_type.clone()]);
 
-                let mut get_element = |array, typevars, len| {
-                    assert!(index_u32 < len, "get_element invoked with an out of bounds index");
-                    let get = Instruction::ArrayGet { array, index };
-                    let results = self.dfg.insert_instruction_and_results(
-                        get,
-                        self.block,
-                        typevars,
-                        self.call_stack,
-                    );
-                    results.first()
+                let mut get_element = |array, typevars, len: SemiFlattenedLength| {
+                    assert!(index_u32 < len.0, "get_element invoked with an out of bounds index");
+
+                    self.maybe_optimized_array_get(array, index, index_value, typevars)
                 };
 
-                // If it's out of bounds for the "then" slice, a value in the "else" *must* exist.
+                // If it's out of bounds for the "then" vector, a value in the "else" *must* exist.
                 // We can use that value directly as accessing it is always checked against the actual
-                // slice length.
-                if index_u32 >= flat_then_length {
-                    let else_element = get_element(else_value_id, typevars, flat_else_length);
+                // vector length.
+                if index_u32 >= semi_flat_then_length.0 {
+                    let else_element = get_element(else_value_id, typevars, semi_flat_else_length);
                     merged.push_back(else_element);
                     continue;
                 }
 
-                // Same for if it's out of bounds for the "else" slice.
-                if index_u32 >= flat_else_length {
-                    let then_element = get_element(then_value_id, typevars, flat_then_length);
+                // Same for if it's out of bounds for the "else" vector.
+                if index_u32 >= semi_flat_else_length.0 {
+                    let then_element = get_element(then_value_id, typevars, semi_flat_then_length);
                     merged.push_back(then_element);
                     continue;
                 }
 
-                let then_element = get_element(then_value_id, typevars.clone(), flat_then_length);
-                let else_element = get_element(else_value_id, typevars, flat_else_length);
+                let then_element =
+                    get_element(then_value_id, typevars.clone(), semi_flat_then_length);
+                let else_element = get_element(else_value_id, typevars, semi_flat_else_length);
 
                 merged.push_back(self.merge_values(
                     then_condition,
@@ -264,5 +293,40 @@ impl<'a> ValueMerger<'a> {
         let result =
             self.dfg.insert_instruction_and_results(instruction, self.block, None, call_stack);
         Ok(result.first())
+    }
+
+    fn maybe_optimized_array_get(
+        &mut self,
+        array: ValueId,
+        index: ValueId,
+        index_value: FieldElement,
+        typevars: Option<Vec<Type>>,
+    ) -> ValueId {
+        let side_effects = self.array_get_optimization_side_effects.as_ref();
+        match try_optimize_array_get_from_previous_instructions(
+            array,
+            index_value,
+            self.dfg,
+            side_effects,
+        ) {
+            Some(ArrayGetOptimizationResult::Value(value)) => value,
+            Some(ArrayGetOptimizationResult::ArrayGet(new_array)) => {
+                assert_ne!(
+                    new_array, array,
+                    "ArrayGetOptimizationResult::ArrayGet returned the same array_id"
+                );
+
+                let get = Instruction::ArrayGet { array: new_array, index };
+                self.dfg
+                    .insert_instruction_and_results(get, self.block, typevars, self.call_stack)
+                    .first()
+            }
+            None => {
+                let get = Instruction::ArrayGet { array, index };
+                self.dfg
+                    .insert_instruction_and_results(get, self.block, typevars, self.call_stack)
+                    .first()
+            }
+        }
     }
 }

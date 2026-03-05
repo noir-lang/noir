@@ -101,7 +101,7 @@ fn test_make_composite_array() {
 }
 
 #[test]
-fn test_make_composite_slice() {
+fn test_make_composite_vector() {
     let src = "
         acir(inline) predicate_pure fn main f0 {
           b0():
@@ -138,7 +138,7 @@ fn test_make_byte_array_with_string_literal() {
 }
 
 #[test]
-fn test_make_byte_slice_with_string_literal() {
+fn test_make_byte_vector_with_string_literal() {
     let src = "
         acir(inline) fn main f0 {
           b0():
@@ -191,7 +191,7 @@ fn test_jmpif() {
     let src = "
         acir(inline) fn main f0 {
           b0(v0: u1):
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             jmp b2()
           b2():
@@ -206,11 +206,11 @@ fn test_multiple_jmpif() {
     let src = "
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u1):
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             jmp b4()
           b2():
-            jmpif v1 then: b3, else: b1
+            jmpif v1 then: b3(), else: b1()
           b3():
             jmp b4()
           b4():
@@ -371,7 +371,7 @@ fn test_constrain_not_equal() {
 fn test_enable_side_effects() {
     let src = "
         acir(inline) fn main f0 {
-          b0(v0: Field):
+          b0(v0: u1):
             enable_side_effects v0
             return
         }
@@ -616,6 +616,7 @@ fn test_inc_rc() {
 }
 
 #[test]
+#[ignore = "Bring back once we emit dec_rc instructions again"]
 fn test_dec_rc() {
     let src = "
         brillig(inline) fn main f0 {
@@ -660,11 +661,11 @@ fn test_parses_with_comments() {
 }
 
 #[test]
-fn test_slice() {
+fn test_vector() {
     let src = "
         acir(inline) fn main f0 {
           b0(v0: [Field; 3]):
-            v2, v3 = call as_slice(v0) -> (u32, [Field])
+            v2, v3 = call as_vector(v0) -> (u32, [Field])
             return
         }
         ";
@@ -809,6 +810,18 @@ fn test_parses_print() {
 }
 
 #[test]
+fn test_parses_oracle() {
+    let src = "
+        brillig(inline) impure fn main f0 {
+          b0():
+            call oracle_call()
+            return
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
 fn parses_variable_from_a_syntactically_following_block_but_logically_preceding_block_with_jmp() {
     let src = "
         acir(inline) impure fn main f0 {
@@ -831,7 +844,7 @@ fn parses_variable_from_a_syntactically_following_block_but_logically_preceding_
     let src = "
         acir(inline) impure fn main f0 {
           b0(v0: u1):
-            jmpif v0 then: b2, else: b3
+            jmpif v0 then: b2(), else: b3()
           b1():
             v6 = add v3, v5
             return

@@ -1,3 +1,15 @@
+//! Analyzes the purity of each function and tag each function call with that function's purity.
+//! This is purely an analysis pass on its own but can help future optimizations.
+//!
+//! There is no constraint on when this pass needs to be run, but it is generally more
+//! beneficial to perform this pass before inlining or loop unrolling so that it can:
+//! 1. Run faster by processing fewer instructions.
+//! 2. Be run earlier in the pass list so that more passes afterward can use the results of
+//!    this pass.
+//!
+//! Performing this pass after defunctionalization may also help more function calls be
+//! identified as calling known pure functions.
+
 use std::sync::Arc;
 
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -13,17 +25,8 @@ use crate::ssa::{
 };
 
 impl Ssa {
-    /// Analyze the purity of each function and tag each function call with that function's purity.
+    /// Analyzes the purity of each function and tag each function call with that function's purity.
     /// This is purely an analysis pass on its own but can help future optimizations.
-    ///
-    /// There is no constraint on when this pass needs to be run, but it is generally more
-    /// beneficial to perform this pass before inlining or loop unrolling so that it can:
-    /// 1. Run faster by processing fewer instructions.
-    /// 2. Be run earlier in the pass list so that more passes afterward can use the results of
-    ///    this pass.
-    ///
-    /// Performing this pass after defunctionalization may also help more function calls be
-    /// identified as calling known pure functions.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn purity_analysis(mut self) -> Ssa {
         let call_graph = CallGraph::from_ssa(&self);
@@ -208,15 +211,15 @@ impl Function {
                         return Purity::Impure
                       }
                     }
-                };
+                }
             }
 
             // If the function returns a reference it is impure
             let terminator = self.dfg[block].terminator();
-            if let Some(TerminatorInstruction::Return { return_values, .. }) = terminator {
-                if return_values.iter().any(&contains_reference) {
-                    return Purity::Impure;
-                }
+            if let Some(TerminatorInstruction::Return { return_values, .. }) = terminator
+                && return_values.iter().any(&contains_reference)
+            {
+                return Purity::Impure;
             }
         }
 
@@ -240,7 +243,7 @@ fn analyze_call_graph(
             // Therefore inserting into func_to_scc here is safe, and there will
             // be no overwrites.
             let inserted = func_to_scc.insert(func, i);
-            debug_assert!(inserted.is_none(), "Function appears in multiple SCCs");
+            assert!(inserted.is_none(), "Function appears in multiple SCCs");
         }
     }
 
@@ -295,11 +298,13 @@ fn analyze_call_graph(
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::{
         assert_ssa_snapshot,
         ssa::{ir::function::FunctionId, opt::pure::Purity, ssa_gen::Ssa},
     };
+
+    use test_case::test_case;
 
     #[test]
     fn classify_functions() {
@@ -359,9 +364,9 @@ mod test {
             acir(inline) fn pure_recursive f7 {
               b0(v0: u32):
                 v1 = lt v0, u32 1
-                jmpif v1 then: b1, else: b2
+                jmpif v1 then: b1(), else: b2()
               b1():
-                jmp b3(Field 0)
+                jmp b3(u32 0)
               b2():
                 v3 = call f7(v0) -> u32
                 call f6()
@@ -433,9 +438,9 @@ mod test {
         acir(inline) predicate_pure fn pure_recursive f7 {
           b0(v0: u32):
             v3 = lt v0, u32 1
-            jmpif v3 then: b1, else: b2
+            jmpif v3 then: b1(), else: b2()
           b1():
-            jmp b3(Field 0)
+            jmp b3(u32 0)
           b2():
             v5 = call f7(v0) -> u32
             call f6()
@@ -528,7 +533,7 @@ mod test {
         }
         "#;
 
-        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
         let ssa = ssa.purity_analysis();
 
         let purities = &ssa.main().dfg.function_purities;
@@ -622,7 +627,7 @@ mod test {
         acir(inline) fn is_even f1 {
           b0(v0: u32):
             v1 = eq v0, u32 0
-            jmpif v1 then: b1, else: b2
+            jmpif v1 then: b1(), else: b2()
           b1():
             jmp b3(u1 1)
           b2():
@@ -635,7 +640,7 @@ mod test {
         acir(inline) fn is_odd f2 {
           b0(v0: u32):
             v1 = eq v0, u32 0
-            jmpif v1 then: b1, else: b2
+            jmpif v1 then: b1(), else: b2()
           b1():
             jmp b3(u1 0)
           b2():
@@ -668,7 +673,7 @@ mod test {
         brillig(inline) fn is_even f1 {
           b0(v0: u32):
             v1 = eq v0, u32 0
-            jmpif v1 then: b1, else: b2
+            jmpif v1 then: b1(), else: b2()
           b1():
             jmp b3(u1 1)
           b2():
@@ -681,7 +686,7 @@ mod test {
         brillig(inline) fn is_odd f2 {
           b0(v0: u32):
             v1 = eq v0, u32 0
-            jmpif v1 then: b1, else: b2
+            jmpif v1 then: b1(), else: b2()
           b1():
             jmp b3(u1 0)
           b2():
@@ -874,5 +879,24 @@ mod test {
         assert_eq!(purities[&FunctionId::test_new(0)], Purity::Impure);
         assert_eq!(purities[&FunctionId::test_new(1)], Purity::Pure);
         assert_eq!(purities[&FunctionId::test_new(1)], Purity::Pure);
+    }
+
+    #[test_case("ecdsa_secp256k1")]
+    #[test_case("ecdsa_secp256r1")]
+    fn marks_ecdsa_verification_as_pure_with_predicate(ecdsa_func: &str) {
+        let src = format!(
+            r#"
+        acir(inline) fn main f0 {{
+            b0(v0: [u8; 32], v1: [u8; 32], v2: [u8; 64], v3: [u8; 32]):
+            v4 = call {ecdsa_func}(v0, v1, v2, v3, u1 1) -> u1
+            return
+        }}
+        "#
+        );
+        let ssa = Ssa::from_str(&src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        let purities = &ssa.main().dfg.function_purities;
+        assert_eq!(purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
     }
 }

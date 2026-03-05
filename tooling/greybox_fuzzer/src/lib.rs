@@ -486,7 +486,7 @@ impl<
     pub fn fuzz(&mut self) -> FuzzTestResult {
         self.metrics.set_num_threads(self.num_threads);
         // Generate a seed for the campaign
-        let seed = thread_rng().r#gen::<u64>();
+        let seed = rand::rng().random::<u64>();
 
         // Init a fast PRNG used throughout the campaign
         let mut prng = XorShiftRng::seed_from_u64(seed);
@@ -529,7 +529,7 @@ impl<
         }
         let abi_change_detected = elements_for_dictionary.is_some();
         if let Some(elements_for_dictionary) = elements_for_dictionary {
-            self.mutator.update_dictionary_from_vector(&elements_for_dictionary);
+            self.mutator.update_dictionary_from_slice(&elements_for_dictionary);
         }
 
         let minimized_corpus = if self.minimize_corpus {
@@ -642,7 +642,7 @@ impl<
             } else {
                 // If this is the initial processing round, then push testcases from the starting corpus into the set
                 testcase_set.reserve(starting_corpus_ids.len());
-                for id in starting_corpus_ids.iter() {
+                for id in &starting_corpus_ids {
                     testcase_set.push(FuzzTask::without_mutation(*id));
                 }
             }
@@ -786,7 +786,7 @@ impl<
 
             let mut acir_cases_to_execute = Vec::new();
             // Go through each interesting testcase (new coverage or some issue)
-            for index in analysis_queue.into_iter() {
+            for index in analysis_queue {
                 let fuzzing_outcome = all_fuzzing_results[index].outcome().clone();
                 let (case_id, case, witness, brillig_coverage) = match fuzzing_outcome {
                     HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
@@ -804,11 +804,8 @@ impl<
                     }
                 };
                 // If we ran ACIR and managed to produce an ACIR witness
-                if acir_round {
-                    if let Some(ref witness) = witness {
-                        accumulated_coverage
-                            .update_non_bool_witness_list_with_witness_stack(witness);
-                    }
+                if acir_round && let Some(ref witness) = witness {
+                    accumulated_coverage.update_non_bool_witness_list_with_witness_stack(witness);
                 }
 
                 // Form the coverage object to accumulate
@@ -833,7 +830,7 @@ impl<
                 // If there is new coverage
                 if new_coverage_discovered {
                     // Remove testcases from the corpus if they have no unique features
-                    for &testcase_for_removal in testcases_to_remove.iter() {
+                    for &testcase_for_removal in &testcases_to_remove {
                         self.metrics.increment_removed_testcase_count();
                         corpus.remove(testcase_for_removal);
                     }
@@ -899,7 +896,7 @@ impl<
             });
 
             // Parse results and if there is an unsuccessful case break out of the loop
-            for acir_fuzzing_result in all_fuzzing_results.into_iter() {
+            for acir_fuzzing_result in all_fuzzing_results {
                 let (case_id, case, witness, brillig_coverage, acir_duration_micros) =
                     match acir_fuzzing_result {
                         HarnessExecutionOutcome::Case(SuccessfulCaseOutcome {
@@ -937,7 +934,7 @@ impl<
                 let (new_coverage_discovered, testcases_to_remove) =
                     accumulated_coverage.merge(&new_coverage);
                 if new_coverage_discovered {
-                    for &testcase_for_removal in testcases_to_remove.iter() {
+                    for &testcase_for_removal in &testcases_to_remove {
                         self.metrics.increment_removed_testcase_count();
                         corpus.remove(testcase_for_removal);
                     }
@@ -1012,7 +1009,7 @@ impl<
                 acir_failed,
                 counterexample,
             }) => {
-                let reason = match acir_failed {
+                let failure_reason = match acir_failed {
                     true => {
                         format!("ACIR failed while brillig executed with no issues: {status}")
                     }
@@ -1022,25 +1019,20 @@ impl<
                 };
 
                 FuzzTestResult::ProgramFailure(ProgramFailureResult {
-                    failure_reason: reason,
-                    counterexample: counterexample.clone(),
+                    failure_reason,
+                    counterexample,
                 })
             }
             HarnessExecutionOutcome::CounterExample(CounterExampleOutcome {
                 case_id: _,
-                exit_reason: status,
+                exit_reason: failure_reason,
                 counterexample,
-            }) => {
-                let reason = status.to_string();
-                FuzzTestResult::ProgramFailure(ProgramFailureResult {
-                    failure_reason: reason,
-                    counterexample: counterexample.clone(),
-                })
-            }
+            }) => FuzzTestResult::ProgramFailure(ProgramFailureResult {
+                failure_reason,
+                counterexample,
+            }),
             HarnessExecutionOutcome::ForeignCallFailure(foreign_call_error_in_fuzzing) => {
-                FuzzTestResult::ForeignCallFailure(
-                    foreign_call_error_in_fuzzing.exit_reason.to_string(),
-                )
+                FuzzTestResult::ForeignCallFailure(foreign_call_error_in_fuzzing.exit_reason)
             }
         }
     }

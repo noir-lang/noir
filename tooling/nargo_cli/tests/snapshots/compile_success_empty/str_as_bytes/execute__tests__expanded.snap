@@ -11,11 +11,11 @@ fn main() {
     assert(b[3_u32] == 108_u8);
     assert(b[4_u32] == 111_u8);
     assert(b.len() == 5_u32);
-    let mut c: Vec<u8> = a.as_bytes_vec();
-    assert(c.get(0_u32) == 104_u8);
-    assert(c.get(1_u32) == 101_u8);
-    assert(c.get(2_u32) == 108_u8);
-    assert(c.get(3_u32) == 108_u8);
-    assert(c.get(4_u32) == 111_u8);
+    let c: [u8] = a.as_bytes_vec();
+    assert(c[0_u32] == 104_u8);
+    assert(c[1_u32] == 101_u8);
+    assert(c[2_u32] == 108_u8);
+    assert(c[3_u32] == 108_u8);
+    assert(c[4_u32] == 111_u8);
     assert(c.len() == 5_u32);
 }

@@ -15,7 +15,7 @@
 //! This is the only pass which removes duplicated pure [`Instruction`]s however and so is needed when
 //! different blocks are merged, i.e. after the [`flatten_cfg`][super::flatten_cfg] pass.
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::{BTreeMap, BTreeSet, HashSet},
     io::Empty,
 };
 
@@ -30,10 +30,10 @@ use crate::ssa::{
         dom::DominatorTree,
         function::{Function, FunctionId},
         instruction::{Instruction, InstructionId},
-        types::NumericType,
+        types::{NumericType, Type},
         value::{Value, ValueId, ValueMapping},
     },
-    opt::pure::Purity,
+    opt::{LoopOrder, Loops, pure::Purity},
     ssa_gen::Ssa,
     visit_once_priority_queue::VisitOncePriorityQueue,
 };
@@ -49,8 +49,15 @@ use simplification_cache::{ConstraintSimplificationCache, SimplificationCache};
 
 pub const DEFAULT_MAX_ITER: usize = 5;
 
+/// Maximum number of SSA instructions to execute during inlining a constant Brillig call.
+///
+/// The number is based on some experimentation to limit a tight loop to ~100ms.
+const DEFAULT_INTERPRETER_STEP_LIMIT: usize = 10_000_000;
+
 impl Ssa {
     /// Performs constant folding on each instruction.
+    ///
+    /// It will attempt to replace any calls to brillig functions with constant arguments with their results.
     ///
     /// It will not look at constraints to inform simplifications
     /// based on the stated equivalence of two instructions.
@@ -58,56 +65,70 @@ impl Ssa {
     /// See [`constant_folding`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn fold_constants(mut self, max_iter: usize) -> Ssa {
+        // Collect all brillig functions so that later we can find them when processing a call instruction
+        let brillig_functions = clone_brillig_functions(&self.functions);
+
+        let mut interpreter = Interpreter::new_from_functions(
+            &brillig_functions,
+            InterpreterOptions {
+                no_foreign_calls: true,
+                step_limit: Some(DEFAULT_INTERPRETER_STEP_LIMIT),
+                ..Default::default()
+            },
+            std::io::empty(),
+        );
+        // Interpret globals once so that we do not have to repeat this computation on every Brillig call.
+        interpreter.interpret_globals().expect("ICE: Interpreter failed to interpret globals");
+
         for function in self.functions.values_mut() {
-            function.constant_fold(false, max_iter, &mut None);
+            function.constant_fold(false, max_iter, &mut interpreter);
         }
         self
     }
 
     /// Performs constant folding on each instruction.
     ///
+    /// It will attempt to replace any calls to brillig functions with constant arguments with their results.
+    ///
     /// Also uses constraint information to inform more optimizations.
     ///
     /// See [`constant_folding`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn fold_constants_using_constraints(mut self, max_iter: usize) -> Ssa {
-        for function in self.functions.values_mut() {
-            function.constant_fold(true, max_iter, &mut None);
-        }
-        self
-    }
-
-    /// Performs constant folding on each instruction while also replacing calls to brillig functions
-    /// with all constant arguments by trying to evaluate those calls.
-    #[tracing::instrument(level = "trace", skip(self))]
-    pub fn fold_constants_with_brillig(mut self, max_iter: usize) -> Ssa {
         // Collect all brillig functions so that later we can find them when processing a call instruction
-        let mut brillig_functions: BTreeMap<FunctionId, Function> = BTreeMap::new();
-        for (func_id, func) in &self.functions {
-            if func.runtime().is_brillig() {
-                let cloned_function = Function::clone_with_id(*func_id, func);
-                brillig_functions.insert(*func_id, cloned_function);
-            };
-        }
-        let mut interpreter = if brillig_functions.is_empty() {
-            None
-        } else {
-            let mut interpreter = Interpreter::new_from_functions(
-                &brillig_functions,
-                InterpreterOptions { no_foreign_calls: true, ..Default::default() },
-                std::io::empty(),
-            );
-            // Interpret globals once so that we do not have to repeat this computation on every Brillig call.
-            interpreter.interpret_globals().expect("ICE: Interpreter failed to interpret globals");
-            Some(interpreter)
-        };
+        let brillig_functions = clone_brillig_functions(&self.functions);
+
+        let mut interpreter = Interpreter::new_from_functions(
+            &brillig_functions,
+            InterpreterOptions {
+                no_foreign_calls: true,
+                step_limit: Some(DEFAULT_INTERPRETER_STEP_LIMIT),
+                ..Default::default()
+            },
+            std::io::empty(),
+        );
+        // Interpret globals once so that we do not have to repeat this computation on every Brillig call.
+        interpreter.interpret_globals().expect("ICE: Interpreter failed to interpret globals");
 
         for function in self.functions.values_mut() {
-            function.constant_fold(false, max_iter, &mut interpreter);
+            function.constant_fold(true, max_iter, &mut interpreter);
         }
-
         self
     }
+}
+
+/// Clones all brillig functions stored within `all_functions` returning these in a new map.
+fn clone_brillig_functions(
+    all_functions: &BTreeMap<FunctionId, Function>,
+) -> BTreeMap<FunctionId, Function> {
+    all_functions
+        .iter()
+        .filter(|(_, func)| func.runtime().is_brillig())
+        .map(|(func_id, func)| {
+            let cloned_function = Function::clone_with_id(*func_id, func);
+            (*func_id, cloned_function)
+        })
+        .collect()
 }
 
 impl Function {
@@ -117,16 +138,41 @@ impl Function {
         &mut self,
         use_constraint_info: bool,
         max_iter: usize,
-        interpreter: &mut Option<Interpreter<Empty>>,
+        interpreter: &mut Interpreter<Empty>,
     ) {
-        let mut dom = DominatorTree::with_function(self);
-        let mut context = Context::new(use_constraint_info);
+        let loops = Loops::find_all(self, LoopOrder::OutsideIn);
+
+        // Identify loop headers, so we can try to avoid hoisting into them.
+        let mut loop_headers = loops
+            .yet_to_unroll
+            .into_iter()
+            .map(|loop_| {
+                let values_defined_in_header = self.dfg[loop_.header]
+                    .instructions()
+                    .iter()
+                    .flat_map(|id| self.dfg.instruction_results(*id))
+                    .chain(self.dfg.block_parameters(loop_.header).iter())
+                    .copied()
+                    .collect::<HashSet<_>>();
+                (loop_.header, values_defined_in_header)
+            })
+            .collect::<HashMap<_, _>>();
+
+        let mut dom = loops.dom;
+        let mutated_types = find_mutated_block_param_array_types(self);
+        let mut context = Context::new(use_constraint_info, mutated_types.clone());
 
         context.enqueue(&dom, [self.entry_block()]);
 
         for _ in 0..max_iter {
             while let Some(block) = context.block_queue.pop_front() {
-                context.fold_constants_in_block(&mut self.dfg, &mut dom, block, interpreter);
+                context.fold_constants_in_block(
+                    &mut self.dfg,
+                    &mut dom,
+                    &mut loop_headers,
+                    block,
+                    interpreter,
+                );
                 context.enqueue(&dom, self.dfg[block].successors());
             }
 
@@ -136,11 +182,29 @@ impl Function {
             // Rebuild the cache and deduplicate the blocks we hoisted into with the origins.
             let blocks_to_revisit = context.blocks_to_revisit;
 
+            // Preserve the values_to_replace mapping across iterations.
+            // This is necessary because instructions that were simplified or deduplicated in earlier
+            // iterations may still be referenced by instructions in blocks that are revisited.
+            // Without preserving this mapping, those references could point to orphaned instructions.
+            let values_to_replace = context.values_to_replace;
+
             // Create a fresh context, so values cached towards the end are not visible to blocks during a revisit.
             // For example reusing the cache could be problematic when using constraint info, as it could make the
             // original content simplify out based on its own prior assertion of a value being a constant.
-            context = Context::new(use_constraint_info);
+            context = Context::new(use_constraint_info, mutated_types.clone());
+            context.values_to_replace = values_to_replace;
             context.enqueue(&dom, blocks_to_revisit);
+        }
+
+        // After all iterations, apply the final values_to_replace mapping to all instructions
+        // in all reachable blocks. This is necessary in case an instruction uses a value re-mapped
+        // in another block that is processed after the instruction's block.
+        // By applying the final mapping here, we ensure consistency.
+        if !context.values_to_replace.is_empty() {
+            for block_id in self.reachable_blocks() {
+                self.dfg.replace_values_in_block(block_id, &context.values_to_replace);
+            }
+            self.dfg.data_bus.replace_values(&context.values_to_replace);
         }
     }
 }
@@ -151,6 +215,58 @@ fn constant_folding_post_check(context: &Context, dfg: &DataFlowGraph) {
         context.values_to_replace.value_types_are_consistent(dfg),
         "Constant folding should not map a ValueId to another of a different type"
     );
+}
+
+/// Pre-scan the function to find array types that are mutated through block parameters.
+///
+/// In RPO traversal, loop bodies are processed after loop exit blocks. This means if a
+/// MakeArray is cached before a loop, and the loop body mutates the array through a block
+/// parameter, the mutation won't be seen before a duplicate MakeArray in the exit block
+/// gets incorrectly deduplicated. We find these types upfront so we can skip caching them.
+fn find_mutated_block_param_array_types(function: &Function) -> HashSet<Type> {
+    if !function.runtime().is_brillig() {
+        return HashSet::new();
+    }
+
+    let dfg = &function.dfg;
+    let mut result = HashSet::new();
+
+    for block_id in function.reachable_blocks() {
+        for instruction_id in dfg[block_id].instructions() {
+            let instruction = &dfg[*instruction_id];
+            match instruction {
+                Instruction::ArraySet { array, .. } => {
+                    if !matches!(&dfg[*array], Value::Instruction { .. }) {
+                        let typ = dfg.type_of_value(*array);
+                        if typ.is_array() {
+                            result.insert(typ);
+                        }
+                    }
+                }
+                Instruction::Store { value, .. } => {
+                    if !matches!(&dfg[*value], Value::Instruction { .. }) {
+                        let typ = dfg.type_of_value(*value);
+                        if typ.is_array() {
+                            result.insert(typ);
+                        }
+                    }
+                }
+                Instruction::Call { arguments, .. } => {
+                    for arg in arguments {
+                        if !matches!(&dfg[*arg], Value::Instruction { .. }) {
+                            let typ = dfg.type_of_value(*arg);
+                            if typ.is_array() {
+                                result.insert(typ);
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    result
 }
 
 struct Context {
@@ -167,7 +283,7 @@ struct Context {
 
     /// Whether to use [constraints][Instruction::Constrain] to inform simplifications later on in the program.
     ///
-    /// For example, this allows simplifying the instructions below to determine that `v2 == Field 3` without
+    /// For example, this allows simplifying the instructions below to determine that `v2 == Field 2` without
     /// laying down constraints for the addition:
     ///
     /// ```ssa
@@ -192,10 +308,17 @@ struct Context {
 
     /// Maps pre-folded ValueIds to the new ValueIds obtained by re-inserting the instruction.
     values_to_replace: ValueMapping,
+
+    /// Array types that are mutated through block parameters in brillig.
+    /// In RPO traversal, loop bodies are processed after loop exits, so we may encounter
+    /// a duplicate MakeArray in the exit block before seeing the mutation in the loop body.
+    /// We pre-scan the function to find these types and skip caching MakeArray instructions
+    /// that produce them to avoid incorrect deduplication.
+    mutated_block_param_array_types: HashSet<Type>,
 }
 
 impl Context {
-    fn new(use_constraint_info: bool) -> Self {
+    fn new(use_constraint_info: bool, mutated_block_param_array_types: HashSet<Type>) -> Self {
         Self {
             use_constraint_info,
             block_queue: Default::default(),
@@ -203,6 +326,7 @@ impl Context {
             cached_instruction_results: Default::default(),
             values_to_replace: Default::default(),
             blocks_to_revisit: Default::default(),
+            mutated_block_param_array_types,
         }
     }
 
@@ -217,8 +341,9 @@ impl Context {
         &mut self,
         dfg: &mut DataFlowGraph,
         dom: &mut DominatorTree,
+        loop_headers: &mut HashMap<BasicBlockId, HashSet<ValueId>>,
         block_id: BasicBlockId,
-        interpreter: &mut Option<Interpreter<Empty>>,
+        interpreter: &mut Interpreter<Empty>,
     ) {
         let instructions = dfg[block_id].take_instructions();
 
@@ -234,6 +359,7 @@ impl Context {
             self.fold_constants_into_instruction(
                 dfg,
                 dom,
+                loop_headers,
                 block_id,
                 instruction_id,
                 &mut side_effects_enabled_var,
@@ -255,7 +381,7 @@ impl Context {
         // To take advantage of constraint simplification we need to still resolve its cache.
         let mut terminator = dfg[block_id].take_terminator();
         let constraint_simplification_cache =
-            &*self.constraint_simplification_mappings.get(side_effects_enabled_var);
+            self.constraint_simplification_mappings.get(side_effects_enabled_var);
         let mut resolve_cache =
             |value| resolve_cache(block_id, dom, constraint_simplification_cache, value);
 
@@ -264,14 +390,16 @@ impl Context {
         dfg.data_bus.map_values_mut(resolve_cache);
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn fold_constants_into_instruction(
         &mut self,
         dfg: &mut DataFlowGraph,
         dom: &mut DominatorTree,
+        loop_headers: &mut HashMap<BasicBlockId, HashSet<ValueId>>,
         block: BasicBlockId,
         id: InstructionId,
         side_effects_enabled_var: &mut ValueId,
-        interpreter: &mut Option<Interpreter<Empty>>,
+        interpreter: &mut Interpreter<Empty>,
     ) {
         let constraint_simplification_mapping =
             self.constraint_simplification_mappings.get(*side_effects_enabled_var);
@@ -290,19 +418,60 @@ impl Context {
         {
             match cache_result {
                 CacheResult::Cached { results: cached, .. } => {
-                    // We track whether we may mutate `MakeArray` instructions before we deduplicate
-                    // them but we still need to issue an extra inc_rc in case they're mutated afterward.
-                    //
-                    // This also applies to calls that return arrays.
-                    if runtime_is_brillig {
-                        Self::increase_rc(id, cached, block, dfg);
+                    // Guard against self-deduplication: if the cached results are exactly
+                    // our own results, the instruction was hoisted here in an earlier visit.
+                    // The cache still points to itself, so mapping old→cached is a no-op that
+                    // would cause us to skip re-inserting the instruction, orphaning its result values.
+                    // In that case, fall through and re-insert instead of deduplicating.
+                    // The `!is_empty` guard is needed because Constrain instructions have
+                    // no results and trivially match.
+                    if !old_results.is_empty() && old_results == cached {
+                        // Fall through to re-insert the instruction normally.
+                    } else {
+                        // We track whether we may mutate `MakeArray` instructions before we deduplicate
+                        // them but we still need to issue an extra inc_rc in case they're mutated afterward.
+                        //
+                        // This also applies to calls that return arrays.
+                        if runtime_is_brillig {
+                            Self::increase_rc(id, cached, block, dfg);
+                        }
+
+                        self.values_to_replace.batch_insert(&old_results, cached);
+
+                        return;
+                    }
+                }
+                CacheResult::NeedToHoistToCommonBlock { mut dominator } => {
+                    // If the common dominator of a the block and the cache origin is a loop header,
+                    // then try to go further back in the dominator tree, because the functions in the `unrolling`
+                    // module have certain assumptions about what instructions can appear in a loop header;
+                    // if we hoisted any instruction into them, they might break in subtle ways.
+                    // The header is also something that gets executed in each iteration, unlike its pre-header.
+                    while let Some(values_defined_in_header) = loop_headers.get(&dominator) {
+                        // If the header is that of a `for` loop (either with constant or dynamic bounds), then we can
+                        // expect it to have at most 1 instruction to compare the induction variable to the upper bound.
+                        // Crucially the comparison result is a product of codegen and won't appear anywhere else in the SSA.
+                        // If the loop is a `while` loop, however, then its loaded condition variable can be used in its body,
+                        // so we cannot necessarily hoist an instruction above its header. We may be using the loop variable
+                        // of a `for` loop itself multiple times, but that usually has the first block of the body to hoist into.
+                        let mut uses_value_defined_in_header = false;
+                        // It's enough to consider values defined immediately in the header: if we are hoisting into it already,
+                        // we cannot be using anything from any block between the origin and the header.
+                        instruction.for_each_value(|v| {
+                            uses_value_defined_in_header |= values_defined_in_header.contains(&v);
+                        });
+                        // If we use a value from the header, we cannot hoist into the pre-header.
+                        if uses_value_defined_in_header {
+                            break;
+                        }
+                        // It should be okay to hoist into the pre-header, if there is one.
+                        if let Some(predecessor) = dom.immediate_dominator(dominator) {
+                            dominator = predecessor;
+                        } else {
+                            break;
+                        }
                     }
 
-                    self.values_to_replace.batch_insert(&old_results, cached);
-
-                    return;
-                }
-                CacheResult::NeedToHoistToCommonBlock { dominator } => {
                     // During revisits we can visit a block which dominates something we already cached instructions from,
                     // if we restarted from a hoist point that this block also dominates. Most likely it is pointless to
                     // schedule a revisit of *this* block after again, because something must have prevented this instruction
@@ -320,14 +489,14 @@ impl Context {
                     target_block = dominator;
                 }
             }
-        };
+        }
 
         // First try to inline a call to a brillig function with all constant arguments.
         let new_results = if runtime_is_brillig {
             Self::push_instruction(id, instruction.clone(), &old_results, target_block, dfg)
         } else {
             // We only want to try to inline Brillig calls for Brillig entry points (functions called from an ACIR runtime).
-            try_interpret_call(&instruction, target_block, dfg, interpreter.as_mut())
+            try_interpret_call(&instruction, target_block, dfg, interpreter)
                 // Otherwise, try inserting the instruction again to apply any optimizations using the newly resolved inputs.
                 .unwrap_or_else(|| {
                     Self::push_instruction(id, instruction.clone(), &old_results, target_block, dfg)
@@ -338,8 +507,21 @@ impl Context {
         // so it is deduplicated by the one in the target block.
         // In case it refers to an array that is mutated, we need to increment
         // its reference count.
-        if target_block != block && runtime_is_brillig {
-            Self::increase_rc(id, &new_results, block, dfg);
+        if target_block != block {
+            // If we hoisted into a loop header, update the set of values defined there
+            // so that subsequent hoist decisions don't incorrectly skip past it.
+            // Without this, the loop_headers set becomes stale after hoisting, and later
+            // instructions that use the hoisted result could be hoisted above the loop header
+            // to a block where the result isn't yet defined.
+            if let Some(values_defined_in_header) = loop_headers.get_mut(&target_block) {
+                for result in &new_results {
+                    values_defined_in_header.insert(*result);
+                }
+            }
+
+            if runtime_is_brillig {
+                Self::increase_rc(id, &new_results, block, dfg);
+            }
         }
 
         self.values_to_replace.batch_insert(&old_results, &new_results);
@@ -357,7 +539,7 @@ impl Context {
         // so that we use the correct set of constrained values in future.
         if let Instruction::EnableSideEffectsIf { condition } = instruction {
             *side_effects_enabled_var = condition;
-        };
+        }
     }
 
     fn increase_rc(
@@ -385,7 +567,7 @@ impl Context {
         block: BasicBlockId,
         dfg: &DataFlowGraph,
         dom: &mut DominatorTree,
-        constraint_simplification_mapping: &HashMap<ValueId, SimplificationCache>,
+        constraint_simplification_mapping: Option<&HashMap<ValueId, SimplificationCache>>,
     ) -> Instruction {
         let mut instruction = dfg[instruction_id].clone();
 
@@ -436,38 +618,54 @@ impl Context {
         side_effects_enabled_var: ValueId,
         block: BasicBlockId,
     ) {
-        if self.use_constraint_info {
-            // If the instruction was a constraint, then create a link between the two `ValueId`s
-            // to map from the more complex to the simpler value.
-            if let Instruction::Constrain(lhs, rhs, _) = instruction {
-                // These `ValueId`s should be fully resolved now.
-                self.constraint_simplification_mappings.cache(
-                    dfg,
-                    side_effects_enabled_var,
-                    block,
-                    *lhs,
-                    *rhs,
-                );
-            }
+        if !self.block_queue.visited(&block) {
+            // If we haven't visited the target block yet, we should not update the cache because if we do then
+            // when we _do_ visit the target block later, we'll find the instruction in the cache and skip re-inserting it.
+            return;
         }
 
-        // If we have an array get whose value is from an array set on the same array at the same index,
-        // we can simplify that array get to the value of the previous array set.
-        //
-        // For example:
-        // v3 = array_set v0, index v1, value v2
-        // v4 = array_get v3, index v1 -> Field
-        //
-        // We know that `v4` can be simplified to `v2`.
-        // Thus, even if the index is dynamic (meaning the array get would have side effects),
-        // we can simplify the operation when we take into account the predicate.
-        if let Instruction::ArraySet { index, value, .. } = instruction {
-            let predicate = self.use_constraint_info.then_some(side_effects_enabled_var);
+        if self.use_constraint_info {
+            match instruction {
+                // If the instruction was a constraint, then create a link between the two `ValueId`s
+                // to map from the more complex to the simpler value.
+                Instruction::Constrain(lhs, rhs, _) => {
+                    // These `ValueId`s should be fully resolved now.
+                    self.constraint_simplification_mappings.cache(
+                        dfg,
+                        side_effects_enabled_var,
+                        block,
+                        *lhs,
+                        *rhs,
+                    );
+                }
 
-            let array_get = Instruction::ArrayGet { array: instruction_results[0], index: *index };
+                // If we have an array get whose value is from an array set on the same array at the same index,
+                // we can simplify that array get to the value of the previous array set.
+                //
+                // For example:
+                // v3 = array_set v0, index v1, value v2
+                // v4 = array_get v3, index v1 -> Field
+                //
+                // We know that `v4` can be simplified to `v2`.
+                // Thus, even if the index is dynamic (meaning the array get would have side effects),
+                // we can simplify the operation when we take into account the predicate.
+                //
+                // Note that this does not work in brillig where array sets may actually mutate the arrays.
+                Instruction::ArraySet { index, value, .. } if dfg.runtime().is_acir() => {
+                    let array_get =
+                        Instruction::ArrayGet { array: instruction_results[0], index: *index };
 
-            // If we encounter an array_get for this address, we know what the result will be.
-            self.cached_instruction_results.cache(dom, array_get, predicate, block, vec![*value]);
+                    // If we encounter an array_get for this address, we know what the result will be.
+                    self.cached_instruction_results.cache(
+                        dom,
+                        array_get,
+                        Some(side_effects_enabled_var),
+                        block,
+                        vec![*value],
+                    );
+                }
+                _ => (),
+            }
         }
 
         self.cached_instruction_results
@@ -479,7 +677,12 @@ impl Context {
         let can_be_deduplicated = can_be_deduplicated(instruction, dfg);
 
         let use_constraint_info = self.use_constraint_info;
-        let is_make_array = matches!(instruction, Instruction::MakeArray { .. });
+        let is_safe_make_array = match instruction {
+            Instruction::MakeArray { typ, .. } => {
+                !self.mutated_block_param_array_types.contains(typ)
+            }
+            _ => false,
+        };
 
         let cache_instruction = || {
             let predicate = self.cache_predicate(side_effects_enabled_var, instruction, dfg);
@@ -496,17 +699,19 @@ impl Context {
         match can_be_deduplicated {
             CanBeDeduplicated::Always => cache_instruction(),
             CanBeDeduplicated::UnderSamePredicate if use_constraint_info => cache_instruction(),
-            // We also allow deduplicating MakeArray instructions that we have tracked which haven't been mutated.
-            _ if is_make_array => cache_instruction(),
-
+            // We also allow deduplicating MakeArray instructions whose type isn't mutated
+            // through block parameters (which we can't track due to RPO ordering).
+            _ if is_safe_make_array => cache_instruction(),
             CanBeDeduplicated::UnderSamePredicate | CanBeDeduplicated::Never => {}
         }
     }
 
     /// Returns the predicate value to be used when looking up this [`Instruction`] in the cache.
     ///
-    /// We sometimes remove the predicate in situations where an instruction is infallible as it allows us to
-    /// deduplicate more aggressively.
+    /// Instructions that can be deduplicated only `UnderSamePredicate` include the predicate
+    /// in the cache key so that identical instructions under different `enable_side_effects`
+    /// contexts are not incorrectly merged. Instructions that can `Always` be deduplicated omit
+    /// the predicate for more aggressive deduplication.
     fn cache_predicate(
         &self,
         side_effects_enabled_var: ValueId,
@@ -527,10 +732,10 @@ impl Context {
 fn resolve_cache(
     block: BasicBlockId,
     dom: &mut DominatorTree,
-    cache: &HashMap<ValueId, SimplificationCache>,
+    cache: Option<&HashMap<ValueId, SimplificationCache>>,
     value_id: ValueId,
 ) -> ValueId {
-    match cache.get(&value_id) {
+    match cache.and_then(|cache| cache.get(&value_id)) {
         Some(simplification_cache) => {
             if let Some(simplified) = simplification_cache.get(block, dom) {
                 resolve_cache(block, dom, cache, simplified)
@@ -585,19 +790,25 @@ fn can_be_deduplicated(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeD
         | IncrementRc { .. }
         | DecrementRc { .. } => CanBeDeduplicated::Never,
 
-        Call { func, .. } => {
-            let purity = match dfg[*func] {
-                Value::Intrinsic(intrinsic) => Some(intrinsic.purity()),
-                Value::Function(id) => dfg.purity_of(id),
-                _ => None,
-            };
-            match purity {
-                Some(Purity::Pure) => CanBeDeduplicated::Always,
-                Some(Purity::PureWithPredicate) => CanBeDeduplicated::UnderSamePredicate,
-                Some(Purity::Impure) => CanBeDeduplicated::Never,
-                None => CanBeDeduplicated::Never,
-            }
-        }
+        Call { func, .. } => match dfg[*func] {
+            Value::Intrinsic(intrinsic) => match intrinsic.purity() {
+                Purity::Pure => CanBeDeduplicated::Always,
+                Purity::PureWithPredicate => CanBeDeduplicated::UnderSamePredicate,
+                Purity::Impure => CanBeDeduplicated::Never,
+            },
+            // Calls to user-defined functions may lower to predicated `Opcode::Call` or
+            // `Opcode::BrilligCall` in ACIR. Even when the callee is pure, the predicated
+            // opcode skips the callee's constraints when the predicate is false, leaving
+            // outputs unconstrained. We must therefore include the predicate in the cache
+            // key to prevent deduplication across different `enable_side_effects` contexts.
+            Value::Function(id) => match dfg.purity_of(id) {
+                Some(Purity::Pure | Purity::PureWithPredicate) => {
+                    CanBeDeduplicated::UnderSamePredicate
+                }
+                Some(Purity::Impure) | None => CanBeDeduplicated::Never,
+            },
+            _ => CanBeDeduplicated::Never,
+        },
 
         // We can deduplicate these instructions if we know the predicate is also the same.
         Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => {
@@ -609,8 +820,14 @@ fn can_be_deduplicated(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeD
         Noop => CanBeDeduplicated::Always,
 
         // These instructions can always be deduplicated
-        Cast(_, _) | Not(_) | Truncate { .. } | IfElse { .. } => CanBeDeduplicated::Always,
-
+        Cast(_, _) | Not(_) | Truncate { .. } => CanBeDeduplicated::Always,
+        IfElse { then_value, .. } => {
+            if dfg.type_of_value(*then_value).is_array() && dfg.runtime().is_brillig() {
+                CanBeDeduplicated::Never
+            } else {
+                CanBeDeduplicated::Always
+            }
+        }
         // Arrays can be mutated in unconstrained code so code that handles this case must
         // take care to track whether the array was possibly mutated or not before
         // deduplicating. Since we don't know if the containing pass checks for this, we
@@ -627,11 +844,22 @@ fn can_be_deduplicated(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeD
         // Replacing them with a similar instruction potentially enables replacing an instruction
         // with one that was disabled. See
         // https://github.com/noir-lang/noir/pull/4716#issuecomment-2047846328.
-        Binary(_) | ArrayGet { .. } | ArraySet { .. } => {
+        Binary(_) | ArrayGet { .. } => {
             if instruction.requires_acir_gen_predicate(dfg) {
                 CanBeDeduplicated::UnderSamePredicate
             } else {
                 CanBeDeduplicated::Always
+            }
+        }
+
+        // ArraySet has different behaviors based on both the EnableSideEffectsIf instruction
+        // (ACIR) and the underlying dynamic RC value of the array (Brillig). In the later case,
+        // we can never deduplicate
+        ArraySet { .. } => {
+            if dfg.runtime().is_acir() {
+                CanBeDeduplicated::UnderSamePredicate
+            } else {
+                CanBeDeduplicated::Never
             }
         }
     }
@@ -639,18 +867,24 @@ fn can_be_deduplicated(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeD
 
 #[cfg(test)]
 mod test {
+    use test_case::test_case;
+
     use crate::{
         assert_ssa_snapshot,
         ssa::{
             Ssa,
-            interpreter::value::Value,
-            ir::{types::NumericType, value::ValueMapping},
+            interpreter::{Interpreter, InterpreterOptions, value::Value},
+            ir::{
+                types::{NumericType, Type},
+                value::ValueMapping,
+            },
             opt::{
-                assert_normalized_ssa_equals, assert_ssa_does_not_change,
-                constant_folding::DEFAULT_MAX_ITER,
+                assert_normalized_ssa_equals, assert_pass_does_not_affect_execution,
+                assert_ssa_does_not_change, constant_folding::DEFAULT_MAX_ITER,
             },
         },
     };
+    use std::collections::BTreeMap;
 
     // Do just 1 iteration in tests where we want to minimize the expected changes in the SSA.
     const MIN_ITER: usize = 1;
@@ -953,6 +1187,43 @@ mod test {
     }
 
     #[test]
+    fn deduplicates_pure_calls_under_same_predicate() {
+        // When two identical calls to a pure function occur under the same
+        // predicate, they CAN be deduplicated.
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1, v1: Field):
+                enable_side_effects v0
+                v2 = call f1(v1) -> Field
+                v3 = call f1(v1) -> Field
+                enable_side_effects u1 1
+                return v2, v3
+            }
+            acir(inline) pure fn my_pure_fn f1 {
+              b0(v0: Field):
+                v1 = add v0, Field 1
+                return v1
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants_using_constraints(MIN_ITER);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: Field):
+            enable_side_effects v0
+            v3 = call f1(v1) -> Field
+            enable_side_effects u1 1
+            return v3, v3
+        }
+        acir(inline) pure fn my_pure_fn f1 {
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            return v2
+        }
+        ");
+    }
+
+    #[test]
     fn constant_array_deduplication() {
         // Here we're checking a situation where two identical arrays are being initialized twice and being assigned separate `ValueId`s.
         // This would result in otherwise identical instructions not being deduplicated.
@@ -1021,7 +1292,7 @@ mod test {
             brillig(inline) fn main f0 {
               b0(v0: u32):
                 v2 = lt u32 1000, v0
-                jmpif v2 then: b1, else: b2
+                jmpif v2 then: b1(), else: b2()
               b1():
                 v4 = shl v0, u32 1
                 v5 = lt v0, v4
@@ -1029,7 +1300,7 @@ mod test {
                 jmp b2()
               b2():
                 v7 = lt u32 1000, v0
-                jmpif v7 then: b3, else: b4
+                jmpif v7 then: b3(), else: b4()
               b3():
                 v8 = shl v0, u32 1
                 v9 = lt v0, v8
@@ -1051,14 +1322,14 @@ mod test {
           b0(v0: u32):
             v2 = lt u32 1000, v0
             v4 = shl v0, u32 1
-            jmpif v2 then: b1, else: b2
+            jmpif v2 then: b1(), else: b2()
           b1():
             v5 = shl v0, u32 1
             v6 = lt v0, v5
             constrain v6 == u1 1
             jmp b2()
           b2():
-            jmpif v2 then: b3, else: b4
+            jmpif v2 then: b3(), else: b4()
           b3():
             v8 = lt v0, v4
             constrain v8 == u1 1
@@ -1075,7 +1346,7 @@ mod test {
             brillig(inline) fn main f0 {
               b0(v0: u32):
                 v2 = lt u32 1000, v0
-                jmpif v2 then: b1, else: b2
+                jmpif v2 then: b1(), else: b2()
               b1():
                 v4 = make_array [u1 0] : [u1; 1]
                 v5 = array_get v4, index u32 0 -> u1
@@ -1101,7 +1372,7 @@ mod test {
               b0(v0: u32):
                 v3 = lt u32 1000, v0
                 v5 = make_array [u1 0] : [u1; 1]
-                jmpif v3 then: b1, else: b2
+                jmpif v3 then: b1(), else: b2()
               b1():
                 inc_rc v5
                 jmp b3(u1 0)
@@ -1125,7 +1396,7 @@ mod test {
           b0(v0: u1, v1: i8):
             v2 = allocate -> &mut i8
             store i8 0 at v2
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             v5 = unchecked_mul v1, i8 127
             v6 = cast v5 as u16
@@ -1134,7 +1405,7 @@ mod test {
             store v8 at v2
             jmp b2()
           b2():
-            jmpif v0 then: b3, else: b4
+            jmpif v0 then: b3(), else: b4()
           b3():
             v9 = unchecked_mul v1, i8 127
             v10 = cast v9 as u16
@@ -1143,7 +1414,7 @@ mod test {
             store v12 at v2
             jmp b4()
           b4():
-            jmpif v0 then: b5, else: b6
+            jmpif v0 then: b5(), else: b6()
           b5():
             v13 = unchecked_mul v1, i8 127
             v14 = cast v13 as u16
@@ -1160,7 +1431,13 @@ mod test {
         let mut ssa = Ssa::from_str(src).unwrap();
 
         // First demonstrate what happens if we don't revisit.
-        ssa.main_mut().constant_fold(false, 1, &mut None);
+        let empty_functions_map = BTreeMap::new();
+        let mut empty_interpreter = Interpreter::new_from_functions(
+            &empty_functions_map,
+            InterpreterOptions::default(),
+            std::io::empty(),
+        );
+        ssa.main_mut().constant_fold(false, 1, &mut empty_interpreter);
 
         // 1. v9 is a duplicate of v5 -> hoisted to b0
         // 2. v13 is a duplicate of v9 -> immediately deduplicated because it's now in b0
@@ -1171,7 +1448,7 @@ mod test {
             v2 = allocate -> &mut i8
             store i8 0 at v2
             v5 = unchecked_mul v1, i8 127
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             v6 = unchecked_mul v1, i8 127
             v7 = cast v6 as u16
@@ -1181,7 +1458,7 @@ mod test {
             jmp b2()
           b2():
             v10 = cast v5 as u16
-            jmpif v0 then: b3, else: b4
+            jmpif v0 then: b3(), else: b4()
           b3():
             v11 = cast v5 as u16
             v12 = truncate v11 to 8 bits, max_bit_size: 16
@@ -1189,7 +1466,7 @@ mod test {
             store v13 at v2
             jmp b4()
           b4():
-            jmpif v0 then: b5, else: b6
+            jmpif v0 then: b5(), else: b6()
           b5():
             v14 = truncate v10 to 8 bits, max_bit_size: 16
             v15 = cast v14 as i8
@@ -1215,17 +1492,17 @@ mod test {
             v6 = cast v5 as u16
             v7 = truncate v6 to 8 bits, max_bit_size: 16
             v8 = cast v7 as i8
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             store v8 at v2
             jmp b2()
           b2():
-            jmpif v0 then: b3, else: b4
+            jmpif v0 then: b3(), else: b4()
           b3():
             store v8 at v2
             jmp b4()
           b4():
-            jmpif v0 then: b5, else: b6
+            jmpif v0 then: b5(), else: b6()
           b5():
             store v8 at v2
             jmp b6()
@@ -1261,13 +1538,13 @@ mod test {
               v18 = unchecked_add v17, u32 1
               v19 = array_get v13, index v18 -> Field
               v20 = eq v19, Field 2
-              jmpif v20 then: b1, else: b2
+              jmpif v20 then: b1(), else: b2()
             b1():
               v32 = make_array b"ABC"
               jmp b3(v32)
             b2():
               v21 = eq v19, Field 3
-              jmpif v21 then: b4, else: b5
+              jmpif v21 then: b4(), else: b5()
             b3(v1: [u8; 3]):
               v33 = make_array [Field 2, Field 3, Field 4, Field 5] : [(Field, Field); 2]
               v34 = lt v0, u32 2
@@ -1276,19 +1553,19 @@ mod test {
               v36 = unchecked_add v35, u32 1
               v37 = array_get v33, index v36 -> Field
               v38 = eq v37, Field 2
-              jmpif v38 then: b6, else: b7
+              jmpif v38 then: b6(), else: b7()
             b4():
               v31 = make_array b"ABC"
               jmp b8(v31)
             b5():
               v22 = eq v19, Field 4
-              jmpif v22 then: b9, else: b10
+              jmpif v22 then: b9(), else: b10()
             b6():
               v44 = make_array b"ABC"
               jmp b11(v44)
             b7():
               v39 = eq v37, Field 3
-              jmpif v39 then: b12, else: b13
+              jmpif v39 then: b12(), else: b13()
             b8(v2: [u8; 3]):
               jmp b3(v2)
             b9():
@@ -1311,7 +1588,7 @@ mod test {
               jmp b15(v43)
             b13():
               v40 = eq v37, Field 4
-              jmpif v40 then: b16, else: b17
+              jmpif v40 then: b16(), else: b17()
             b14(v4: [u8; 3]):
               jmp b8(v4)
             b15(v5: [u8; 3]):
@@ -1358,13 +1635,13 @@ mod test {
             v20 = eq v19, Field 2
             v24 = make_array b"ABC"
             v28 = make_array b"DEF"
-            jmpif v20 then: b1, else: b2
+            jmpif v20 then: b1(), else: b2()
           b1():
             inc_rc v24
             jmp b3(v24)
           b2():
             v29 = eq v19, Field 3
-            jmpif v29 then: b4, else: b5
+            jmpif v29 then: b4(), else: b5()
           b3(v1: [u8; 3]):
             inc_rc v13
             v31 = lt v0, u32 2
@@ -1373,20 +1650,20 @@ mod test {
             v33 = unchecked_add v32, u32 1
             v34 = array_get v13, index v33 -> Field
             v35 = eq v34, Field 2
-            jmpif v35 then: b6, else: b7
+            jmpif v35 then: b6(), else: b7()
           b4():
             inc_rc v24
             jmp b8(v24)
           b5():
             v30 = eq v19, Field 4
             inc_rc v28
-            jmpif v30 then: b9, else: b11
+            jmpif v30 then: b9(), else: b11()
           b6():
             inc_rc v24
             jmp b13(v24)
           b7():
             v36 = eq v34, Field 3
-            jmpif v36 then: b14, else: b15
+            jmpif v36 then: b14(), else: b15()
           b8(v2: [u8; 3]):
             jmp b3(v2)
           b9():
@@ -1409,7 +1686,7 @@ mod test {
             jmp b17(v24)
           b15():
             v37 = eq v34, Field 4
-            jmpif v37 then: b18, else: b19
+            jmpif v37 then: b18(), else: b19()
           b16(v4: [u8; 3]):
             jmp b8(v4)
           b17(v5: [u8; 3]):
@@ -1443,9 +1720,9 @@ mod test {
               v4 = make_array [u8 0]: [u8; 1] // cannot be deduplicated with v1, it's not in the cache
               v5 = array_set v4, index u32 0, value u8 1  // removes v3 from the cache
               v6 = lt v3, u32 5
-              jmpif v6 then: b2, else: b6     // iterate the body or exit
+              jmpif v6 then: b2(), else: b6()     // iterate the body or exit
             b2():                             // loop body
-              jmpif v0 then: b3, else: b4     // if-then-else with then and else sharing instructions
+              jmpif v0 then: b3(), else: b4()     // if-then-else with then and else sharing instructions
             b3():
               v7 = make_array [u8 0]: [u8; 1] // v3 not in cache; stays in place
               jmp b5()
@@ -1461,8 +1738,9 @@ mod test {
         "#;
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants(DEFAULT_MAX_ITER);
+        let ssa = ssa.fold_constants(2);
 
+        // ORIGINAL DESCRIPTION:
         // In the 2nd iteration we will restart from b2, which we hoisted into,
         // and revisit b3, b4 and b5, then its successor b1, which will see the
         // make_array now exists in b2.
@@ -1471,6 +1749,10 @@ mod test {
         // could actually deduplicate the one in b2 with that in b1, but currently
         // we decided we won't be rescheduling a visit to b1, so b2 is not visited
         // again to see this opportunity.
+        //
+        // UPDATE: After the tweak to avoid hoisting into headers, we hoist into b0
+        // instead of b1, and if we allow more than 2 iterations than it gets
+        // deduplicated with b2 as well.
 
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) predicate_pure fn main f0 {
@@ -1478,15 +1760,16 @@ mod test {
             v3 = make_array [u8 0] : [u8; 1]
             v4 = allocate -> &mut [u8; 1]
             store v3 at v4
+            v5 = make_array [u8 0] : [u8; 1]
             jmp b1(u32 0)
           b1(v1: u32):
-            v6 = make_array [u8 0] : [u8; 1]
+            inc_rc v5
             v8 = make_array [u8 1] : [u8; 1]
             v10 = lt v1, u32 5
-            jmpif v10 then: b2, else: b6
+            jmpif v10 then: b2(), else: b6()
           b2():
             v11 = make_array [u8 0] : [u8; 1]
-            jmpif v0 then: b3, else: b4
+            jmpif v0 then: b3(), else: b4()
           b3():
             inc_rc v11
             jmp b5()
@@ -1543,7 +1826,7 @@ mod test {
         let src = r#"
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: u1):
-            jmpif v0 then: b1, else: b10
+            jmpif v0 then: b1(), else: b10()
           b1():
             jmp b2()
           b2():
@@ -1555,7 +1838,7 @@ mod test {
           b5():
             jmp b6()
           b6():
-            jmpif v1 then: b7, else: b8
+            jmpif v1 then: b7(), else: b8()
           b7():
             v2 = make_array [u8 0] : [u8; 1]
             v3 = make_array [u8 2] : [u8; 1]
@@ -1566,7 +1849,7 @@ mod test {
           b9():
             jmp b16()
           b10():
-            jmpif v1 then: b11, else: b12
+            jmpif v1 then: b11(), else: b12()
           b11():
             v5 = make_array [u8 0] : [u8; 1]
             v7 = make_array [u8 1] : [u8; 1]
@@ -1589,7 +1872,7 @@ mod test {
             jmp b17()
           b17():
             inc_rc v9
-            jmpif v1 then: b18, else: b19
+            jmpif v1 then: b18(), else: b19()
           b18():
             v11 = make_array [u8 3] : [u8; 1]
             jmp b20()
@@ -1608,7 +1891,7 @@ mod test {
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: u1):
             v3 = make_array [u8 0] : [u8; 1]
-            jmpif v0 then: b1, else: b10
+            jmpif v0 then: b1(), else: b10()
           b1():
             jmp b2()
           b2():
@@ -1621,7 +1904,7 @@ mod test {
             jmp b6()
           b6():
             v8 = make_array [u8 2] : [u8; 1]
-            jmpif v1 then: b7, else: b8
+            jmpif v1 then: b7(), else: b8()
           b7():
             v9 = make_array [u8 0] : [u8; 1]
             inc_rc v8
@@ -1633,7 +1916,7 @@ mod test {
             jmp b16()
           b10():
             v5 = make_array [u8 1] : [u8; 1]
-            jmpif v1 then: b11, else: b12
+            jmpif v1 then: b11(), else: b12()
           b11():
             inc_rc v3
             inc_rc v5
@@ -1657,7 +1940,7 @@ mod test {
           b17():
             inc_rc v3
             v12 = make_array [u8 3] : [u8; 1]
-            jmpif v1 then: b18, else: b19
+            jmpif v1 then: b18(), else: b19()
           b18():
             inc_rc v12
             jmp b20()
@@ -1687,7 +1970,7 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.fold_constants_with_brillig(MIN_ITER);
+        let ssa = ssa.fold_constants(MIN_ITER);
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -1714,7 +1997,7 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.fold_constants_with_brillig(MIN_ITER);
+        let ssa = ssa.fold_constants(MIN_ITER);
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -1742,7 +2025,7 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.fold_constants_with_brillig(MIN_ITER);
+        let ssa = ssa.fold_constants(MIN_ITER);
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -1769,7 +2052,7 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.fold_constants_with_brillig(MIN_ITER);
+        let ssa = ssa.fold_constants(MIN_ITER);
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -1797,7 +2080,7 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.fold_constants_with_brillig(MIN_ITER);
+        let ssa = ssa.fold_constants(MIN_ITER);
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -1824,12 +2107,11 @@ mod test {
                 v2 = array_get v0, index u32 0 -> Field
                 v4 = array_get v0, index u32 1 -> Field
                 v5 = add v2, v4
-                dec_rc v0
                 return v5
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants_with_brillig(MIN_ITER);
+        let ssa = ssa.fold_constants(MIN_ITER);
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -1859,7 +2141,7 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.fold_constants_with_brillig(MIN_ITER);
+        let ssa = ssa.fold_constants(MIN_ITER);
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         g0 = Field 2
@@ -1896,7 +2178,7 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.fold_constants_with_brillig(MIN_ITER);
+        let ssa = ssa.fold_constants(MIN_ITER);
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         g0 = Field 2
@@ -1917,7 +2199,7 @@ mod test {
             brillig(inline) fn main f0 {
               b0(v0: Field, v1: Field):
                 v3 = eq v0, Field 0
-                jmpif v3 then: b1, else: b2
+                jmpif v3 then: b1(), else: b2()
               b1():
                 v5 = eq v1, Field 1
                 constrain v1 == Field 1
@@ -1937,13 +2219,13 @@ mod test {
             brillig(inline) fn main f0 {
               b0(v0: Field, v1: Field):
                 v2 = eq v0, Field 0
-                jmpif v2 then: b1, else: b2
+                jmpif v2 then: b1(), else: b2()
               b1():
                 constrain v1 == Field 1
                 jmp b2()
               b2():
                 v3 = eq v0, Field 1
-                jmpif v3 then: b3, else: b4
+                jmpif v3 then: b3(), else: b4()
               b3():
                 constrain v1 == Field 1 // This was incorrectly hoisted to b0 but this condition is not valid when going b0 -> b2 -> b4
                 jmp b4()
@@ -1960,10 +2242,10 @@ mod test {
             acir(inline) fn main f0 {
               b0(v0: u32):
                 v2 = eq v0, u32 0
-                jmpif v2 then: b4, else: b1
+                jmpif v2 then: b4(), else: b1()
               b1():
                 v3 = eq v0, u32 1
-                jmpif v3 then: b3, else: b2
+                jmpif v3 then: b3(), else: b2()
               b2():
                 jmp b5()
               b3():
@@ -2189,7 +2471,7 @@ mod test {
                 return v2
             }
         ";
-        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants_using_constraints(MIN_ITER));
+        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants(MIN_ITER));
     }
 
     #[test]
@@ -2241,7 +2523,7 @@ mod test {
             v8 = truncate v0 to 32 bits, max_bit_size: 254
             v9 = cast v8 as u32
             v11 = eq v9, u32 0
-            jmpif v11 then: b1, else: b2
+            jmpif v11 then: b1(), else: b2()
           b1():
             v13 = add v0, Field 1
             jmp b3(v0, v13)
@@ -2269,7 +2551,7 @@ mod test {
             constrain v0 == Field 1
             v7 = eq v1, Field 0
             constrain v1 == Field 0
-            jmpif u1 0 then: b1, else: b2
+            jmpif u1 0 then: b1(), else: b2()
           b1():
             jmp b3(Field 1, Field 2)
           b2():
@@ -2336,10 +2618,10 @@ mod test {
             jmp b1(u32 0)
           b1(v8: u32):
             v10 = lt v8, u32 3
-            jmpif v10 then: b2, else: b3
+            jmpif v10 then: b2(), else: b3()
           b2():
             v19 = lt v8, v18
-            jmpif v19 then: b4, else: b5
+            jmpif v19 then: b4(), else: b5()
           b3():
             v11 = load v5 -> [Field; 4]
             inc_rc v11
@@ -2362,10 +2644,11 @@ mod test {
 
         let ssa = Ssa::from_str(src).unwrap();
 
-        let result_before = ssa.interpret(vec![]);
-        let ssa = ssa.fold_constants_using_constraints(MIN_ITER);
-        let result_after = ssa.interpret(vec![]);
-        assert_eq!(result_before, result_after);
+        let (_, execution_result) = assert_pass_does_not_affect_execution(ssa, vec![], |ssa| {
+            ssa.fold_constants_using_constraints(MIN_ITER)
+        });
+
+        assert!(execution_result.is_ok());
     }
 
     // Regression for #9451
@@ -2373,6 +2656,8 @@ mod test {
     fn do_not_deduplicate_call_with_inc_rc() {
         // This test ensures that a function which mutates an array pointer is marked impure.
         // This protects against future deduplication passes incorrectly assuming purity.
+        // The increasing RC numbers reflect the current expectation that the RC of the
+        // original array does not get decremented when a copy is made.
         let src = r#"
         brillig(inline) fn main f0 {
           b0(v0: u32):
@@ -2398,16 +2683,16 @@ mod test {
         "#;
 
         let ssa = Ssa::from_str(src).unwrap();
-        ssa.interpret(vec![Value::from_constant(1_u32.into(), NumericType::unsigned(32)).unwrap()])
-            .unwrap();
+        let inputs = vec![Value::from_constant(1_u32.into(), NumericType::unsigned(32)).unwrap()];
 
-        let ssa = ssa.purity_analysis();
-        ssa.interpret(vec![Value::from_constant(1_u32.into(), NumericType::unsigned(32)).unwrap()])
-            .unwrap();
+        let (ssa, _) =
+            assert_pass_does_not_affect_execution(ssa, inputs.clone(), |ssa| ssa.purity_analysis());
 
-        let ssa = ssa.fold_constants_using_constraints(MIN_ITER);
-        ssa.interpret(vec![Value::from_constant(1_u32.into(), NumericType::unsigned(32)).unwrap()])
-            .unwrap();
+        let (_, execution_result) = assert_pass_does_not_affect_execution(ssa, inputs, |ssa| {
+            ssa.fold_constants_using_constraints(MIN_ITER)
+        });
+
+        assert!(execution_result.is_ok());
     }
 
     #[test]
@@ -2430,15 +2715,608 @@ mod test {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        ssa.interpret(vec![Value::from_constant(0_u32.into(), NumericType::unsigned(32)).unwrap()])
-            .unwrap();
+        let inputs = vec![Value::from_constant(0_u32.into(), NumericType::unsigned(32)).unwrap()];
 
-        let ssa = ssa.purity_analysis();
-        ssa.interpret(vec![Value::from_constant(0_u32.into(), NumericType::unsigned(32)).unwrap()])
-            .unwrap();
+        let (ssa, _) =
+            assert_pass_does_not_affect_execution(ssa, inputs.clone(), |ssa| ssa.purity_analysis());
 
-        let ssa = ssa.fold_constants_using_constraints(MIN_ITER);
-        ssa.interpret(vec![Value::from_constant(0_u32.into(), NumericType::unsigned(32)).unwrap()])
-            .unwrap();
+        let (_, execution_result) = assert_pass_does_not_affect_execution(ssa, inputs, |ssa| {
+            ssa.fold_constants_using_constraints(MIN_ITER)
+        });
+
+        assert!(execution_result.is_ok());
+    }
+
+    #[test]
+    fn bug_array_get_from_array_set_ignores_predicate_without_constraint_info() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3], v1: u32, v2: Field):
+            enable_side_effects u1 0
+            v4 = array_set v0, index v1, value v2
+            enable_side_effects u1 1
+            v6 = array_get v4, index v1 -> Field
+            return v6
+        }
+        ";
+
+        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants(MIN_ITER));
+    }
+
+    #[test]
+    fn keep_brillig_array_set() {
+        // We should avoid deduplicating array sets in brillig - they may mutate the underlying array
+        let src = r#"
+        acir(inline) impure fn main f0 {
+          b0():
+            v2 = make_array [Field -2, Field -1] : [Field; 2]
+            v4 = call f1(v2) -> Field
+            call f2(u1 1, v4)
+            constrain Field 1 == v4
+            return
+        }
+        brillig(inline) impure fn foo f1 {
+          b0(v0: [Field; 2]):
+            inc_rc v0
+            v1 = allocate -> &mut [Field; 2]
+            v3 = array_get v0, index u32 1 -> Field
+            v5 = add Field 3, v3
+            v6 = array_set v0, index u32 1, value v5
+            store v6 at v1
+            v7 = allocate -> &mut u1
+            store u1 1 at v7
+            jmp b1()
+          b1():
+            v9 = load v7 -> u1
+            jmpif v9 then: b2(), else: b3()
+          b2():
+            v22 = load v1 -> [Field; 2]
+            v23 = array_get v22, index u32 0 -> Field
+            v24 = add Field 3, v23
+            v25 = array_set v22, index u32 0, value v24
+            store v25 at v1
+            store u1 0 at v7
+            jmp b1()
+          b3():
+            v10 = allocate -> &mut [Field; 2]
+            v11 = array_set v0, index u32 1, value v5
+            store v11 at v10
+            v12 = allocate -> &mut u1
+            store u1 1 at v12
+            jmp b4()
+          b4():
+            v13 = load v12 -> u1
+            jmpif v13 then: b5(), else: b6()
+          b5():
+            v17 = load v10 -> [Field; 2]
+            v18 = array_get v17, index u32 0 -> Field
+            v19 = add Field 3, v18
+            v20 = array_set v17, index u32 0, value v19
+            store v20 at v10
+            store u1 0 at v12
+            jmp b4()
+          b6():
+            v14 = load v10 -> [Field; 2]
+            v16 = array_get v14, index u32 0 -> Field
+            return v16
+        }
+        brillig(inline) impure fn print_unconstrained f2 {
+          b0(v0: u1, v1: Field):
+            v13 = make_array b"{\"kind\":\"field\"}"
+            call print(v0, v1, v13, u1 0)
+            return
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        // Ensure the assert passes
+        ssa.interpret(Vec::new()).unwrap();
+
+        let folded = ssa.fold_constants_using_constraints(DEFAULT_MAX_ITER);
+        folded.interpret(Vec::new()).unwrap();
+    }
+
+    /// Regression test for MakeArray deduplication in brillig with loops.
+    /// When a MakeArray's result flows into a loop where it's mutated via a block parameter,
+    /// a duplicate MakeArray after the loop must not be deduplicated to the first one,
+    /// because in brillig the first array was mutated in place.
+    #[test]
+    fn do_not_deduplicate_make_array_mutated_through_block_param() {
+        // This SSA represents two sequential loops that each mutate a fresh [Field; 2] array.
+        // The second make_array (v10 in b3) must not be deduplicated to v8 (in b0),
+        // because v8's underlying memory is mutated by the array_set in the first loop (b2).
+        let src = r#"
+        brillig(inline) fn main f0 {
+          b0():
+            v8 = make_array [Field -2, Field 2] : [Field; 2]
+            jmp b1(v8, u1 1)
+          b1(v0: [Field; 2], v1: u1):
+            jmpif v1 then: b2(), else: b3()
+          b2():
+            v32 = array_get v0, index u32 0 -> Field
+            v33 = add Field 3, v32
+            v34 = array_set v0, index u32 0, value v33
+            jmp b1(v34, u1 0)
+          b3():
+            v10 = make_array [Field -2, Field 2] : [Field; 2]
+            jmp b4(v10, u1 1)
+          b4(v4: [Field; 2], v5: u1):
+            jmpif v5 then: b5(), else: b6()
+          b5():
+            v28 = array_get v4, index u32 0 -> Field
+            v30 = add Field 3, v28
+            v31 = array_set v4, index u32 0, value v30
+            jmp b4(v31, u1 0)
+          b6():
+            v12 = array_get v4, index u32 0 -> Field
+            return v12
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        // Before folding, the interpreter should return Field(1):
+        // First loop: array_set [-2, 2] at index 0 with 3 + (-2) = 1 → [1, 2]
+        // Second loop (fresh array): array_set [-2, 2] at index 0 with 3 + (-2) = 1 → [1, 2]
+        // Return index 0 → 1
+        let before = ssa.interpret(Vec::new()).unwrap();
+
+        let folded = ssa.fold_constants_using_constraints(DEFAULT_MAX_ITER);
+        let after = folded.interpret(Vec::new()).unwrap();
+
+        assert_eq!(
+            before, after,
+            "MakeArray should not be deduplicated when mutated through a block parameter in a loop"
+        );
+    }
+
+    /// Regression test: constant folding's instruction hoisting can orphan values when
+    /// a hoisted instruction self-deduplicates during a revisit.
+    ///
+    /// Pass 1: b4/b5 are siblings with `not v2`, hoisted to b3. The `eq v2, u1 0`
+    /// in b6 doesn't match `not` in the cache, but push_instruction simplifies it to
+    /// a new `Not(v2)` instruction placed in b6 (not seen by this pass).
+    ///
+    /// Revisit from b3: the new `Not(v2)` in b6 hits the cache from b3, but b3
+    /// doesn't dominate b6 (path b2→b6 bypasses b3), so it's hoisted to
+    /// common_dom(b3, b6) = b2. Later in the same iteration, b2 is visited via the
+    /// loop back-edge (b6→b1→b2), and the hoisted `Not` self-deduplicates: the cache
+    /// points to its own results, so the pass skips re-insertion, orphaning the result.
+    #[test]
+    fn hoist_into_loop_header_does_not_self_deduplicate() {
+        let src = r#"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: Field):
+            v1 = allocate -> &mut u1
+            store u1 1 at v1
+            jmp b1()
+          b1():
+            v2 = load v1 -> u1
+            jmpif v2 then: b2(), else: b7()
+          b2():
+            jmpif v2 then: b3(), else: b6()
+          b3():
+            jmpif v2 then: b4(), else: b5()
+          b4():
+            v3 = not v2
+            jmp b6()
+          b5():
+            v4 = not v2
+            jmp b6()
+          b6():
+            v5 = eq v2, u1 0
+            store v5 at v1
+            jmp b1()
+          b7():
+            return v2
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let input = Value::from_constant(42_u128.into(), NumericType::NativeField).unwrap();
+        let (_, _) = assert_pass_does_not_affect_execution(ssa, vec![input], |ssa| {
+            ssa.fold_constants_using_constraints(DEFAULT_MAX_ITER)
+        });
+    }
+
+    // Regression test: identical calls to a `Purity::Pure` callee under different
+    // `enable_side_effects` predicates must not be deduplicated.
+    //
+    // `acir(fold)` functions lower to predicated `Opcode::Call` and brillig functions
+    // lower to predicated `Opcode::BrilligCall`. If both calls were collapsed into one
+    // (predicated by v0), then when v0=0 the callee's constraints would be skipped, its
+    // output witness would become unconstrained, and the `constrain` under the complementary
+    // predicate (`not v0`) would reference an unconstrained value — a soundness hole.
+    #[test_case("acir(fold)"; "acir_fold")]
+    #[test_case("brillig(inline)"; "brillig")]
+    fn does_not_deduplicate_pure_calls_under_different_predicates(callee_runtime: &str) {
+        let src = format!(
+            "
+        acir(inline) predicate_pure fn main f0 {{
+          b0(v0: u1, v1: Field):
+            enable_side_effects v0
+            v2 = call f1(v1) -> Field
+            v3 = not v0
+            enable_side_effects v3
+            v4 = call f1(v1) -> Field
+            constrain v4 != Field 123
+            enable_side_effects u1 1
+            return
+        }}
+        {callee_runtime} pure fn foo f1 {{
+          b0(v0: Field):
+            v1 = add v0, Field 1
+            return v1
+        }}
+        "
+        );
+        assert_ssa_does_not_change(&src, |ssa| ssa.fold_constants_using_constraints(MIN_ITER));
+    }
+
+    /// Regression test: constant folding on this SSA requires avoiding inserting cache entries for values in unvisited
+    /// blocks, otherwise a use-before-def error can occur.
+    #[test]
+    fn does_not_insert_cache_entry_for_unvisited_blocks() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v5 = make_array [u8 0] : [u8; 1]
+            v6 = allocate -> &mut [u8; 1]
+            store v5 at v6
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v8 = eq v0, u32 0
+            v9 = make_array [u8 0] : [u8; 1]
+            jmpif v8 then: b2(), else: b3()
+          b2():
+            v19 = make_array [v9] : [[u8; 1]; 1]
+            v20 = allocate -> &mut [[u8; 1]; 1]
+            store v19 at v20
+            v21 = load v6 -> [u8; 1]
+            jmp b8(u32 0)
+          b3():
+            v10 = allocate -> &mut [u8; 1]
+            store v9 at v10
+            jmp b4(u32 0)
+          b4(v1: u32):
+            v11 = make_array [u8 0] : [u8; 1]
+            v12 = load v10 -> [u8; 1]
+            jmp b5(u32 0)
+          b5(v2: u32):
+            v13 = eq v2, u32 0
+            jmpif v13 then: b6(), else: b7()
+          b6():
+            v17 = array_get v12, index u32 0 -> u8
+            v18 = unchecked_add v2, u32 1
+            jmp b5(v18)
+          b7():
+            v14 = array_get v12, index u32 0 -> u8
+            v16 = unchecked_add v1, u32 1
+            jmp b4(v16)
+          b8(v3: u32):
+            v22 = eq v3, u32 0
+            jmpif v22 then: b9(), else: b10()
+          b9():
+            v26 = array_get v21, index u32 0 -> u8
+            v27 = unchecked_add v3, u32 1
+            jmp b8(v27)
+          b10():
+            v23 = make_array [u8 0] : [u8; 1]
+            v24 = array_get v21, index u32 0 -> u8
+            v25 = unchecked_add v0, u32 1
+            jmp b1(v25)
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        // Bug would first appear at max_iter=2: the 1st iteration hoists instructions,
+        // and the 2nd iteration creates references to values in unreachable blocks.
+        let ssa = ssa.fold_constants(2);
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            v5 = make_array [u8 0] : [u8; 1]
+            v6 = allocate -> &mut [u8; 1]
+            store v5 at v6
+            v7 = make_array [u8 0] : [u8; 1]
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v9 = eq v0, u32 0
+            inc_rc v7
+            jmpif v9 then: b2(), else: b3()
+          b2():
+            v18 = make_array [v7] : [[u8; 1]; 1]
+            v19 = allocate -> &mut [[u8; 1]; 1]
+            store v18 at v19
+            v20 = load v6 -> [u8; 1]
+            v21 = array_get v20, index u32 0 -> u8
+            jmp b8(u32 0)
+          b3():
+            v10 = allocate -> &mut [u8; 1]
+            store v7 at v10
+            jmp b4(u32 0)
+          b4(v1: u32):
+            v11 = make_array [u8 0] : [u8; 1]
+            v12 = load v10 -> [u8; 1]
+            v13 = array_get v12, index u32 0 -> u8
+            jmp b5(u32 0)
+          b5(v2: u32):
+            v14 = eq v2, u32 0
+            jmpif v14 then: b6(), else: b7()
+          b6():
+            v17 = unchecked_add v2, u32 1
+            jmp b5(v17)
+          b7():
+            v16 = unchecked_add v1, u32 1
+            jmp b4(v16)
+          b8(v3: u32):
+            v22 = eq v3, u32 0
+            jmpif v22 then: b9(), else: b10()
+          b9():
+            v25 = unchecked_add v3, u32 1
+            jmp b8(v25)
+          b10():
+            v23 = make_array [u8 0] : [u8; 1]
+            v24 = unchecked_add v0, u32 1
+            jmp b1(v24)
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_hoist_into_for_loop_header() {
+        // An example of an `..=` inclusive loop, which has its body repeated as a follow up block,
+        // which is an opportunity to hoist duplicate instructions into a common dominator.
+        let src = r#"
+        brillig(inline) impure fn main f1 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3(u8 1)
+          b2():
+            jmp b3(u8 1)
+          b3(v1: u8):
+            v4 = mod u8 1, v1
+            v5 = allocate -> &mut u1
+            store u1 1 at v5
+            jmp b4(u8 0)
+          b4(v2: u8):
+            v8 = lt v2, v4
+            jmpif v8 then: b5(), else: b6()
+          b5():
+            v31 = make_array b"{\"kind\":\"unsignedinteger\",\"width\":8}"
+            call print(u1 1, v2, v31, u1 0)
+            v32 = unchecked_add v2, u8 1
+            jmp b4(v32)
+          b6():
+            v9 = load v5 -> u1
+            jmpif v9 then: b7(), else: b8()
+          b7():
+            v28 = make_array b"{\"kind\":\"unsignedinteger\",\"width\":8}"
+            call print(u1 1, v4, v28, u1 0)
+            jmp b8()
+          b8():
+            return
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants(DEFAULT_MAX_ITER);
+        // The `make_array` should be hoisted into b3, not b4.
+        assert_ssa_snapshot!(ssa, @r#"
+        brillig(inline) impure fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3(u8 1)
+          b2():
+            jmp b3(u8 1)
+          b3(v1: u8):
+            v4 = mod u8 1, v1
+            v5 = allocate -> &mut u1
+            store u1 1 at v5
+            v25 = make_array b"{\"kind\":\"unsignedinteger\",\"width\":8}"
+            jmp b4(u8 0)
+          b4(v2: u8):
+            v27 = lt v2, v4
+            jmpif v27 then: b5(), else: b6()
+          b5():
+            inc_rc v25
+            call print(u1 1, v2, v25, u1 0)
+            v31 = unchecked_add v2, u8 1
+            jmp b4(v31)
+          b6():
+            v28 = load v5 -> u1
+            jmpif v28 then: b7(), else: b8()
+          b7():
+            inc_rc v25
+            call print(u1 1, v4, v25, u1 0)
+            jmp b8()
+          b8():
+            return
+        }
+        "#);
+    }
+
+    #[test]
+    fn may_hoist_into_while_loop_header() {
+        // Here b1 is a header of a `while` loop, and its condition
+        // v3 is used in both b2 and b3 to define a `not v3` variable.
+        // That can be hoisted as a duplicate, but only into b1 itself,
+        // not its pre-header b0, because v3 is not available there.
+        let src = r#"
+        brillig(inline) impure fn main f0 {
+          b0(v1: u1):
+            v2 = allocate -> &mut u1
+            store v1 at v2
+            jmp b1()
+          b1():
+            v3 = load v2 -> u1
+            jmpif v3 then: b2(), else: b3()
+          b2():
+            v4 = not v3
+            jmp b4(v4)
+          b3():
+            v5 = not v3
+            jmp b4(v5)
+          b4(v6: u1):
+            store v6 at v2
+            jmp b1()
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants(DEFAULT_MAX_ITER);
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) impure fn main f0 {
+          b0(v0: u1):
+            v2 = allocate -> &mut u1
+            store v0 at v2
+            jmp b1()
+          b1():
+            v3 = load v2 -> u1
+            v4 = not v3
+            jmpif v3 then: b2(), else: b3()
+          b2():
+            jmp b4(v4)
+          b3():
+            jmp b4(v4)
+          b4(v1: u1):
+            store v1 at v2
+            jmp b1()
+        }
+        ");
+    }
+
+    #[test]
+    fn hoisting_instruction_using_param_into_dominator_of_param() {
+        let src = "
+      brillig(inline) impure fn main f0 {
+        b0(v0: [Field; 2]):
+          inc_rc v0
+          v6 = array_get v0, index u32 1 -> Field
+          v8 = add Field 3, v6
+          v9 = array_set v0, index u32 1, value v8
+          jmp b1(v9, u1 1)
+        b1(v1: [Field; 2], v2: u1):
+          jmpif v2 then: b2(), else: b3()
+        b2():
+          v18 = array_get v1, index u32 0 -> Field
+          v19 = add Field 3, v18
+          v20 = array_set v1, index u32 0, value v19
+          jmp b1(v20, u1 0)
+        b3():
+          v11 = array_set v0, index u32 1, value v8
+          jmp b4(v11, u1 1)
+        b4(v3: [Field; 2], v4: u1):
+          jmpif v4 then: b5(), else: b6()
+        b5():
+          v14 = array_get v3, index u32 0 -> Field
+          v15 = add Field 3, v14
+          v16 = array_set v3, index u32 0, value v15
+          jmp b4(v16, u1 0)
+        b6():
+          v13 = array_get v3, index u32 0 -> Field
+          return v13
+      }
+      ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants(DEFAULT_MAX_ITER);
+        let elements = vec![Value::field((-2i128).into()), Value::field((-1i128).into())];
+        let inputs = Value::array(elements, vec![Type::field()]);
+        let results = ssa.interpret(vec![inputs]).unwrap();
+        assert_eq!(results[0], Value::field(1u32.into()));
+
+        // We expect `v13 = array_get v3, index u32 0 -> Field` to be in b4.
+        // If we do not account for v3 being defined in the loop header,
+        // we risk hoisting to b3 which dominates b4 (thus panicking on usage of an undefined value).
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) impure fn main f0 {
+          b0(v0: [Field; 2]):
+            inc_rc v0
+            v6 = array_get v0, index u32 1 -> Field
+            v8 = add Field 3, v6
+            v9 = array_set v0, index u32 1, value v8
+            jmp b1(v9, u1 1)
+          b1(v1: [Field; 2], v2: u1):
+            jmpif v2 then: b2(), else: b3()
+          b2():
+            v17 = array_get v1, index u32 0 -> Field
+            v18 = add Field 3, v17
+            v19 = array_set v1, index u32 0, value v18
+            jmp b1(v19, u1 0)
+          b3():
+            v11 = array_set v0, index u32 1, value v8
+            jmp b4(v11, u1 1)
+          b4(v3: [Field; 2], v4: u1):
+            v13 = array_get v3, index u32 0 -> Field
+            jmpif v4 then: b5(), else: b6()
+          b5():
+            v14 = add Field 3, v13
+            v15 = array_set v3, index u32 0, value v14
+            jmp b4(v15, u1 0)
+          b6():
+            return v13
+        }
+        ");
+    }
+
+    #[test]
+    fn hoist_to_loop_header_tracks_new_values() {
+        // Regression test for hoisting through loop headers with stale value tracking.
+        //
+        // When b3 (loop body) and b4 (loop exit) both contain identical instructions
+        // (array_get v2 followed by mul), constant folding:
+        // 1. Processes b3 first and caches results
+        // 2. When processing b4, finds cache hits and hoists array_get to the common
+        //    dominator b1 (a loop header)
+        // 3. Without the appropriate tracking, the loop_headers set becomes stale after step 2 — it doesn't
+        //    include the newly hoisted array_get's result. So when b4's mul tries to
+        //    hoist, the code incorrectly escapes past the loop header to b0, creating invalid
+        //    SSA where the mul uses a value not yet defined.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: [Field; 1]):
+            jmp b1(u8 0, v0)
+          b2():
+            return
+          b1(v1: u8, v2: [Field; 1]):
+            v3 = lt v1, u8 2
+            jmpif v3 then: b3(), else: b4()
+          b3():
+            v4 = array_get v2, index u32 0 -> Field
+            v5 = mul v4, v4
+            v6 = array_set v2, index u32 0, value v5
+            v7 = unchecked_add v1, u8 1
+            jmp b1(v7, v6)
+          b4():
+            v8 = array_get v2, index u32 0 -> Field
+            v9 = mul v8, v8
+            jmp b2()
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants(DEFAULT_MAX_ITER);
+
+        let elements = vec![Value::field((2u32).into())];
+        let inputs = Value::array(elements, vec![Type::field()]);
+        let _ = ssa.interpret(vec![inputs]).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: [Field; 1]):
+            jmp b2(u8 0, v0)
+          b1():
+            return
+          b2(v1: u8, v2: [Field; 1]):
+            v5 = lt v1, u8 2
+            v7 = array_get v2, index u32 0 -> Field
+            v8 = mul v7, v7
+            jmpif v5 then: b3(), else: b4()
+          b3():
+            v9 = array_set v2, index u32 0, value v8
+            v11 = unchecked_add v1, u8 1
+            jmp b2(v11, v9)
+          b4():
+            jmp b1()
+        }
+        ");
     }
 }

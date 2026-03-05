@@ -10,7 +10,7 @@ pub(crate) fn to_u8_array<const N: usize, F: AcirField>(
     for (it, input) in result.iter_mut().zip(inputs) {
         let byte: u8 = input_to_value(initial_witness, *input)?
             .try_into_u128()
-            .expect("expected input to fit into a u8")
+            .expect("expected input to fit into a u128")
             .try_into()
             .expect("expected input to fit into a u8");
         *it = byte;

@@ -8,13 +8,13 @@ use crate::{compare_results_compiled, compile_into_circuit_or_die, default_ssa_o
 use arbitrary::{Arbitrary, Unstructured};
 use color_eyre::eyre;
 use noir_ast_fuzzer::compare::{CompareMorph, CompareOptions};
+use noir_ast_fuzzer::rewrite;
 use noir_ast_fuzzer::scope::ScopeStack;
-use noir_ast_fuzzer::visitor::visit_expr_be_mut;
-use noir_ast_fuzzer::{rewrite, visitor};
 use noirc_frontend::ast::UnaryOp;
 use noirc_frontend::monomorphization::ast::{
     Call, Definition, Expression, Function, Ident, IdentId, LocalId, Program, Unary,
 };
+use noirc_frontend::monomorphization::visitor::{visit_expr, visit_expr_be_mut};
 
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
     let config = default_config(u)?;
@@ -272,7 +272,7 @@ fn estimate_applicable_rules(
     rules: &[rules::Rule],
 ) -> usize {
     let mut count = 0;
-    visitor::visit_expr(expr, &mut |expr| {
+    visit_expr(expr, &mut |expr| {
         for rule in rules {
             if rule.matches(ctx, expr) {
                 count += 1;
@@ -624,10 +624,13 @@ mod helpers {
     use std::{cell::RefCell, collections::HashMap, sync::OnceLock};
 
     use arbitrary::Unstructured;
-    use noir_ast_fuzzer::{Config, expr, types, visitor::visit_expr_be_mut};
+    use noir_ast_fuzzer::{Config, expr, types};
     use noirc_frontend::{
         ast::{IntegerBitSize, UnaryOp},
-        monomorphization::ast::{BinaryOp, Definition, Expression, LocalId, Type},
+        monomorphization::{
+            ast::{BinaryOp, Definition, Expression, LocalId, Type},
+            visitor::visit_expr_be_mut,
+        },
         shared::Signedness,
     };
     use strum::IntoEnumIterator;
@@ -655,15 +658,15 @@ mod helpers {
     ) -> arbitrary::Result<Expression> {
         if max_depth > 0 {
             let idx = u.choose_index(3)?;
-            if idx == 0 {
-                if let Some(expr) = gen_unary(u, typ, max_depth)? {
-                    return Ok(expr);
-                }
+            if idx == 0
+                && let Some(expr) = gen_unary(u, typ, max_depth)?
+            {
+                return Ok(expr);
             }
-            if idx == 1 {
-                if let Some(expr) = gen_binary(u, typ, max_depth)? {
-                    return Ok(expr);
-                }
+            if idx == 1
+                && let Some(expr) = gen_binary(u, typ, max_depth)?
+            {
+                return Ok(expr);
             }
         }
         expr::gen_literal(u, typ, &Config::default())
@@ -815,10 +818,10 @@ mod helpers {
             &mut |_, _| {},
             // Update the IDs in identifiers based on the replacements we remember from above.
             &mut |ident| {
-                if let Definition::Local(id) = &mut ident.definition {
-                    if let Some(replacement) = replacements.borrow().get(id) {
-                        *id = *replacement;
-                    }
+                if let Definition::Local(id) = &mut ident.definition
+                    && let Some(replacement) = replacements.borrow().get(id)
+                {
+                    *id = *replacement;
                 }
             },
         );

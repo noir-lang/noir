@@ -66,7 +66,7 @@ comptime fn add_function(m: Module) {
 fn main() {
     let _ = foo::Struct1 {};
 
-    comptime {
+    let final_counter_value = comptime {
         // Check Module::is_contract
         let foo = quote { foo }.as_module().unwrap();
         assert(!foo.is_contract());
@@ -102,9 +102,10 @@ fn main() {
         assert(foo.has_named_attribute("outer_attribute"));
         assert(!bar.has_named_attribute("some_attribute"));
         assert(another_module.has_named_attribute("some_attribute"));
-    }
+        counter
+    };
 
-    assert_eq(counter, 4);
+    assert_eq(final_counter_value, 4);
 
     yet_another_module::generated_outer_function();
     yet_another_module::generated_inner_function();
@@ -163,7 +164,7 @@ fn child_modules_test() {
         let children = my_module.child_modules().map(Module::name);
 
         // The order children are returned in is left unspecified.
-        assert_eq(children, &[quote [child1], quote [child2], quote [child3]]);
+        assert_eq(children, [quote [child1], quote [child2], quote [child3]].as_vector());
     }
 }
 // docs:end:child_modules_example
@@ -178,7 +179,7 @@ fn child_modules_test2() {
         let top = quote [my_module].as_module().unwrap().parent().unwrap();
         let children = top.child_modules().map(Module::name);
 
-        let expected = &[
+        let expected = [
             quote [separate_module],
             quote [foo],
             quote [bar],
@@ -188,7 +189,8 @@ fn child_modules_test2() {
             quote [baz],
             quote [module1],
             quote [my_module],
-        ];
+        ]
+            .as_vector();
         assert_eq(children, expected);
     }
 }

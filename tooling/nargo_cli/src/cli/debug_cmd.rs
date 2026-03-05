@@ -23,7 +23,8 @@ use noir_artifact_cli::fs::inputs::read_inputs_from_file;
 use noir_artifact_cli::fs::witness::save_witness_to_dir;
 use noir_debugger::{DebugExecutionResult, DebugProject, RunParams};
 use noirc_abi::Abi;
-use noirc_driver::{CompileOptions, CompiledProgram};
+use noirc_artifacts::program::CompiledProgram;
+use noirc_driver::CompileOptions;
 use noirc_frontend::hir::Context;
 
 use super::test_cmd::TestResult;
@@ -102,7 +103,6 @@ pub(crate) fn run(args: DebugCommand, workspace: Workspace) -> Result<(), CliErr
         target_dir: &workspace.target_directory_path(),
     };
     let run_params = RunParams {
-        pedantic_solving: args.compile_options.pedantic_solving,
         raw_source_printing: args.raw_source_printing,
         oracle_resolver_url: args.oracle_resolver,
     };
@@ -117,7 +117,7 @@ pub(crate) fn run(args: DebugCommand, workspace: Workspace) -> Result<(), CliErr
     };
 
     let compile_options =
-        compile_options_for_debugging(acir_mode, skip_instrumentation, None, args.compile_options);
+        compile_options_for_debugging(acir_mode, skip_instrumentation, args.compile_options);
 
     if let Some(test_name) = args.test_name {
         debug_test(test_name, package, workspace, compile_options, run_params, package_params)
@@ -142,7 +142,7 @@ fn debug_test_fn(
     run_params: RunParams,
     package_params: PackageParams,
 ) -> TestResult {
-    let compiled_program = compile_test_fn_for_debugging(test, context, package, compile_options);
+    let compiled_program = compile_test_fn_for_debugging(test, context, compile_options);
 
     let test_status = match compiled_program {
         Ok(compiled_program) => {
@@ -287,10 +287,10 @@ fn decode_and_save_program_witness(
         let mut witness_path = save_witness_to_dir(witness_stack, &witness_name, target_dir)?;
 
         // See if we can make the file path a bit shorter/easier to read if it starts with the current directory
-        if let Ok(current_dir) = std::env::current_dir() {
-            if let Ok(name_without_prefix) = witness_path.strip_prefix(current_dir) {
-                witness_path = name_without_prefix.to_path_buf();
-            }
+        if let Ok(current_dir) = std::env::current_dir()
+            && let Ok(name_without_prefix) = witness_path.strip_prefix(current_dir)
+        {
+            witness_path = name_without_prefix.to_path_buf();
         }
         println!("[{}] Witness saved to {}", package_name, witness_path.display());
     }

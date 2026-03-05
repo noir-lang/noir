@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+pub struct PrivateCall<let N: u32> {
+    pub args: [Field; N],
+}
+
+impl<let N: u32> PrivateCall<N> {
+    pub fn new(args: [Field; N]) -> Self {
+        Self { args: args }
+    }
+}
+
+fn main() {
+    let _: PrivateCall<2> = PrivateCall::<2>::new([0_Field, 0_Field]);
+}

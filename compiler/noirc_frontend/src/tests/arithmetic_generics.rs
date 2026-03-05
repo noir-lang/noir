@@ -3,7 +3,7 @@
 use core::panic;
 
 use crate::hir::type_check::TypeCheckError;
-use crate::hir_def::types::{BinaryTypeOperator, Type};
+use crate::hir_def::types::BinaryTypeOperator;
 use crate::monomorphization::errors::MonomorphizationError;
 use crate::signed_field::SignedField;
 use crate::test_utils::get_monomorphized;
@@ -80,16 +80,9 @@ fn arithmetic_generics_checked_cast_zeros() {
     let monomorphization_error = get_monomorphized(source).unwrap_err();
 
     // Expect a CheckedCast (0 % 0) failure
-    if let MonomorphizationError::UnknownArrayLength { ref length, ref err, location: _ } =
+    if let MonomorphizationError::UnknownArrayLength { ref err, location: _ } =
         monomorphization_error
     {
-        match length {
-            Type::CheckedCast { from, to } => {
-                assert!(matches!(*from.clone(), Type::InfixExpr { .. }));
-                assert!(matches!(*to.clone(), Type::InfixExpr { .. }));
-            }
-            _ => panic!("unexpected length: {length:?}"),
-        }
         let TypeCheckError::FailingBinaryOp { op, lhs, rhs, .. } = err else {
             panic!("Expected FailingBinaryOp, but found: {err:?}");
         };
@@ -124,16 +117,9 @@ fn arithmetic_generics_checked_cast_indirect_zeros() {
     let monomorphization_error = get_monomorphized(source).unwrap_err();
 
     // Expect a CheckedCast (0 % 0) failure
-    if let MonomorphizationError::UnknownArrayLength { ref length, ref err, location: _ } =
+    if let MonomorphizationError::UnknownArrayLength { ref err, location: _ } =
         monomorphization_error
     {
-        match length {
-            Type::CheckedCast { from, to } => {
-                assert!(matches!(*from.clone(), Type::InfixExpr { .. }));
-                assert!(matches!(*to.clone(), Type::InfixExpr { .. }));
-            }
-            _ => panic!("unexpected length: {length:?}"),
-        }
         match err {
             TypeCheckError::ModuloOnFields { lhs, rhs, .. } => {
                 assert_eq!(lhs.clone(), SignedField::zero());
@@ -273,6 +259,31 @@ fn allows_struct_with_generic_infix_type_as_main_input_3() {
         global N: u32 = 9;
 
         fn main(_x: Foo<N * 2>) {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn numeric_generic_arithmetic_in_return_type_concat() {
+    let src = r#"
+    fn concat<let N: u32, let M: u32>(a: [Field; N], b: [Field; M]) -> [Field; N + M] {
+        let mut result: [Field; N + M] = [0; N + M];
+        for i in 0..N {
+            result[i] = a[i];
+        }
+        for i in 0..M {
+            result[N + i] = b[i];
+        }
+        result
+    }
+
+    fn main() {
+        let a = [1, 2, 3];
+        let b = [4, 5];
+        let c = concat(a, b);
+        assert(c[0] == 1);
+        assert(c[4] == 5);
+    }
     "#;
     assert_no_errors(src);
 }

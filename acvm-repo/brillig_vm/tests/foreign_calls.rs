@@ -3,10 +3,14 @@ use acir::{
     brillig::{
         BitSize, ForeignCallParam, ForeignCallResult, HeapArray, HeapValueType, HeapVector,
         IntegerBitSize, MemoryAddress, Opcode, ValueOrArray,
+        lengths::{SemanticLength, SemiFlattenedLength},
     },
 };
 use acvm_blackbox_solver::StubbedBlackBoxSolver;
-use brillig_vm::{FailureReason, MEMORY_ADDRESSING_BIT_SIZE, Memory, MemoryValue, VM, VMStatus};
+use brillig_vm::{
+    FREE_MEMORY_POINTER_ADDRESS, FailureReason, MEMORY_ADDRESSING_BIT_SIZE, Memory, MemoryValue,
+    VM, VMStatus, offsets,
+};
 
 /// Set up for a foreign call test
 ///
@@ -19,7 +23,8 @@ fn run_foreign_call_test<F: AcirField>(
     foreign_call_result: Vec<ForeignCallParam<F>>,
     expected_final_status: VMStatus<F>,
 ) -> (Memory<F>, usize) {
-    let solver = StubbedBlackBoxSolver::default();
+    let solver = StubbedBlackBoxSolver;
+
     let mut vm = VM::new(calldata, opcodes, &solver, false, None);
 
     let status = vm.process_opcodes();
@@ -123,19 +128,19 @@ fn foreign_call_opcode_memory_result() {
             function: "matrix_2x2_transpose".into(),
             destinations: vec![ValueOrArray::HeapArray(HeapArray {
                 pointer: r_output,
-                size: initial_matrix.len(),
+                size: SemiFlattenedLength(initial_matrix.len() as u32),
             })],
             destination_value_types: vec![HeapValueType::Array {
-                size: initial_matrix.len(),
+                size: SemanticLength(initial_matrix.len() as u32),
                 value_types: vec![HeapValueType::field()],
             }],
             inputs: vec![ValueOrArray::HeapArray(HeapArray {
                 pointer: r_input,
-                size: initial_matrix.len(),
+                size: SemiFlattenedLength(initial_matrix.len() as u32),
             })],
             input_value_types: vec![HeapValueType::Array {
                 value_types: vec![HeapValueType::field()],
-                size: initial_matrix.len(),
+                size: SemanticLength(initial_matrix.len() as u32),
             }],
         },
     ];
@@ -163,60 +168,76 @@ fn foreign_call_opcode_memory_result() {
 /// Calling a simple foreign call function that takes any string input, concatenates it with itself, and reverses the concatenation
 #[test]
 fn foreign_call_opcode_vector_input_and_output() {
-    let r_input_pointer = MemoryAddress::direct(0);
-    let r_input_size = MemoryAddress::direct(1);
-    // We need to pass a location of appropriate size
-    let r_output_pointer = MemoryAddress::direct(2);
-    let r_output_size = MemoryAddress::direct(3);
+    // Address 0 and 1 are reserved; using slots 2, 3, ... for variables.
+    // The input is going to be a HeapVector; these register will hold the addresses of items and size on the heap.
+    let r_input_pointer = MemoryAddress::direct(2);
+    let r_input_size = MemoryAddress::direct(3);
+    // The output is going to be a HeapVector as well, with registers pointing at addresses on the heap where the VM needs to write the items and the size.
+    let r_output_pointer = MemoryAddress::direct(4);
+    let r_output_size = MemoryAddress::direct(5);
+
+    // Address where we copy the input data.
+    let r_input_addr = MemoryAddress::direct(6);
 
     // Our first string to use the identity function with
     let input_string: Vec<FieldElement> =
         vec![(1u128).into(), (2u128).into(), (3u128).into(), (4u128).into()];
     // Double the string (concatenate it with itself)
     let mut output_string: Vec<_> =
-        input_string.iter().cloned().chain(input_string.clone()).collect();
+        input_string.iter().copied().chain(input_string.clone()).collect();
     // Reverse the concatenated string
     output_string.reverse();
 
-    // First call:
+    // The free memory starts where the input data ends.
+    let free_memory_start = r_input_addr.to_u32() + input_string.len() as u32;
+    let free_memory_start_addr = MemoryAddress::direct(free_memory_start);
+
     let string_double_program = vec![
+        // @100 = length of the input
         Opcode::Const {
             destination: MemoryAddress::direct(100),
             bit_size: BitSize::Integer(IntegerBitSize::U32),
             value: FieldElement::from(input_string.len() as u32),
         },
+        // @101 = offset of the input (an parameter for calldata copy)
         Opcode::Const {
             destination: MemoryAddress::direct(101),
             bit_size: BitSize::Integer(IntegerBitSize::U32),
             value: FieldElement::from(0u64),
         },
+        // copy the input string from calldata at offset 0 to memory
         Opcode::CalldataCopy {
-            destination_address: MemoryAddress::direct(4),
+            destination_address: r_input_addr,
             size_address: MemoryAddress::direct(100),
             offset_address: MemoryAddress::direct(101),
         },
-        // input_pointer = 4
+        // input_pointer = input_addr
         Opcode::Const {
             destination: r_input_pointer,
-            value: (4u128).into(),
+            value: r_input_addr.to_u32().into(),
             bit_size: BitSize::Integer(MEMORY_ADDRESSING_BIT_SIZE),
         },
-        // input_size = input_string.len() (constant here)
+        // input_size = input_string.len() (constant here, rather than a pointer into a vector structure)
         Opcode::Const {
             destination: r_input_size,
             value: input_string.len().into(),
             bit_size: BitSize::Integer(MEMORY_ADDRESSING_BIT_SIZE),
         },
-        // output_pointer = 4 + input_size
+        // free_memory_pointer = input_addr + input_size
         Opcode::Const {
-            destination: r_output_pointer,
-            value: (4 + input_string.len()).into(),
+            destination: FREE_MEMORY_POINTER_ADDRESS,
+            value: free_memory_start.into(),
             bit_size: BitSize::Integer(MEMORY_ADDRESSING_BIT_SIZE),
         },
-        // output_size = input_size * 2
+        // output_pointer = free_memory_pointer + 3
+        Opcode::Const {
+            destination: r_output_pointer,
+            value: free_memory_start_addr.offset(offsets::VECTOR_ITEMS).to_u32().into(),
+            bit_size: BitSize::Integer(MEMORY_ADDRESSING_BIT_SIZE),
+        },
         Opcode::Const {
             destination: r_output_size,
-            value: (input_string.len() * 2).into(),
+            value: free_memory_start_addr.offset(offsets::VECTOR_SIZE).to_u32().into(),
             bit_size: BitSize::Integer(MEMORY_ADDRESSING_BIT_SIZE),
         },
         // output_pointer[0..output_size] = string_double(input_pointer[0...input_size])
@@ -244,19 +265,41 @@ fn foreign_call_opcode_vector_input_and_output() {
         &string_double_program,
         VMStatus::ForeignCallWait {
             function: "string_double".into(),
-            inputs: vec![input_string.clone().into()],
+            inputs: vec![input_string.into()],
         },
         vec![ForeignCallParam::Array(output_string.clone())],
         VMStatus::Finished { return_data_offset: 0, return_data_size: 0 },
     );
 
-    // Check result in memory
+    // Check result in memory: it should have been written to the free memory.
     let result_values: Vec<_> = memory
-        .read_slice(MemoryAddress::direct(4 + input_string.len()), output_string.len())
+        .read_slice(
+            MemoryAddress::direct(free_memory_start + offsets::VECTOR_ITEMS),
+            output_string.len(),
+        )
         .iter()
         .map(|mem_val| mem_val.clone().to_field())
         .collect();
     assert_eq!(result_values, output_string);
+
+    // Check that the vector address has been updated.
+    let vector_addr = free_memory_start_addr;
+
+    // Check that the vector size is written onto the stack.
+    let vector_size = memory.read(r_output_size);
+    assert_eq!(vector_size.to_u32(), output_string.len() as u32);
+
+    // The test above does not contain the opcodes that would copy the data from the stack to the heap.
+    // Note that the VM did not write the size to the heap, because `codegen_brillig_vector_to_heap_vector`
+    // allocates two variables on the stack that it uses as pointers to the heap, rather than returning the
+    // heap addresses in the `HeapVector`. But, the VM only treats the `pointer` field as a pointer, ie.
+    // it looks up the address stored at it, then writes to that address, but it writes directly to `size`.
+    // Then, `codegen_initialize_externally_returned_vector` copies it to its final destination as part of
+    // `codegen_initialize_vector_metadata`. We *could* give the heap address in `size`, but it would be
+    // an exception to how `HeapVector`s generally look like. We could also use `write_ref` in the VM,
+    // but that's not what the AVM does.
+    let unset_size = memory.read(vector_addr.offset(offsets::VECTOR_SIZE));
+    assert_eq!(unset_size, MemoryValue::Field(FieldElement::zero()));
 
     // Ensure the foreign call counter has been incremented
     assert_eq!(counter, 1);
@@ -308,19 +351,19 @@ fn foreign_call_opcode_memory_alloc_result() {
             function: "matrix_2x2_transpose".into(),
             destinations: vec![ValueOrArray::HeapArray(HeapArray {
                 pointer: r_output,
-                size: initial_matrix.len(),
+                size: SemiFlattenedLength(initial_matrix.len() as u32),
             })],
             destination_value_types: vec![HeapValueType::Array {
-                size: initial_matrix.len(),
+                size: SemanticLength(initial_matrix.len() as u32),
                 value_types: vec![HeapValueType::field()],
             }],
             inputs: vec![ValueOrArray::HeapArray(HeapArray {
                 pointer: r_input,
-                size: initial_matrix.len(),
+                size: SemiFlattenedLength(initial_matrix.len() as u32),
             })],
             input_value_types: vec![HeapValueType::Array {
                 value_types: vec![HeapValueType::field()],
-                size: initial_matrix.len(),
+                size: SemanticLength(initial_matrix.len() as u32),
             }],
         },
     ];
@@ -412,23 +455,29 @@ fn foreign_call_opcode_multiple_array_inputs_result() {
             function: "matrix_2x2_transpose".into(),
             destinations: vec![ValueOrArray::HeapArray(HeapArray {
                 pointer: r_output,
-                size: matrix_a.len(),
+                size: SemiFlattenedLength(matrix_a.len() as u32),
             })],
             destination_value_types: vec![HeapValueType::Array {
-                size: matrix_a.len(),
+                size: SemanticLength(matrix_a.len() as u32),
                 value_types: vec![HeapValueType::field()],
             }],
             inputs: vec![
-                ValueOrArray::HeapArray(HeapArray { pointer: r_input_a, size: matrix_a.len() }),
-                ValueOrArray::HeapArray(HeapArray { pointer: r_input_b, size: matrix_b.len() }),
+                ValueOrArray::HeapArray(HeapArray {
+                    pointer: r_input_a,
+                    size: SemiFlattenedLength(matrix_a.len() as u32),
+                }),
+                ValueOrArray::HeapArray(HeapArray {
+                    pointer: r_input_b,
+                    size: SemiFlattenedLength(matrix_b.len() as u32),
+                }),
             ],
             input_value_types: vec![
                 HeapValueType::Array {
-                    size: matrix_a.len(),
+                    size: SemanticLength(matrix_a.len() as u32),
                     value_types: vec![HeapValueType::field()],
                 },
                 HeapValueType::Array {
-                    size: matrix_b.len(),
+                    size: SemanticLength(matrix_b.len() as u32),
                     value_types: vec![HeapValueType::field()],
                 },
             ],
@@ -462,45 +511,29 @@ fn foreign_call_opcode_multiple_array_inputs_result() {
 }
 
 #[test]
-fn foreign_call_opcode_nested_arrays_and_slices_input() {
+fn foreign_call_opcode_nested_arrays_input() {
     // This is the data we want to pass:
-    // [(Field, [Field], [Field; 1]); 2]
-    // [(1, <2,3>, [4]), (5, <6,7,8>, [9])]
+    // [(Field, [Field; 1]); 2]
+    // [(1, [4]), (5, [9])]
 
-    let v2: Vec<MemoryValue<FieldElement>> = vec![
-        MemoryValue::new_field(FieldElement::from(2u128)),
-        MemoryValue::new_field(FieldElement::from(3u128)),
-    ];
     let a4: Vec<MemoryValue<FieldElement>> =
         vec![MemoryValue::new_field(FieldElement::from(4u128))];
-    let v6: Vec<MemoryValue<FieldElement>> = vec![
-        MemoryValue::new_field(FieldElement::from(6u128)),
-        MemoryValue::new_field(FieldElement::from(7u128)),
-        MemoryValue::new_field(FieldElement::from(8u128)),
-    ];
     let a9: Vec<MemoryValue<FieldElement>> =
         vec![MemoryValue::new_field(FieldElement::from(9u128))];
 
     // construct memory by declaring all inner arrays/vectors first
     // Declare v2: [RC, size, capacity, ...items]
-    let v2_ptr: usize = 0usize;
-    let mut memory = vec![MemoryValue::from(1_u32), v2.len().into(), v2.len().into()];
-    memory.extend(v2.clone());
+    let mut memory = vec![MemoryValue::from(1_u32)];
 
     // Declare a4: [RC, ...items]
-    let a4_ptr = memory.len();
+    let a4_ptr = memory.len() as u32;
     memory.extend(vec![MemoryValue::from(1_u32)]);
-    memory.extend(a4.clone());
-
-    // Declare v6: [RC, size, capacity, ...items]
-    let v6_ptr = memory.len();
-    memory.extend(vec![MemoryValue::from(1_u32), v6.len().into(), v6.len().into()]);
-    memory.extend(v6.clone());
+    memory.extend(a4);
 
     // Declare a9: [RC, ...items]
-    let a9_ptr = memory.len();
+    let a9_ptr = memory.len() as u32;
     memory.extend(vec![MemoryValue::from(1_u32)]);
-    memory.extend(a9.clone());
+    memory.extend(a9);
 
     // finally we add the contents of the outer array
     // RC of the outer array
@@ -509,26 +542,20 @@ fn foreign_call_opcode_nested_arrays_and_slices_input() {
     let outer_start = memory.len();
     let outer_array = vec![
         MemoryValue::new_field(FieldElement::from(1u128)),
-        MemoryValue::from(v2.len() as u32), // semantic length
-        MemoryValue::from(v2_ptr),
         MemoryValue::from(a4_ptr),
         MemoryValue::new_field(FieldElement::from(5u128)),
-        MemoryValue::from(v6.len() as u32), // semantic length
-        MemoryValue::from(v6_ptr),
         MemoryValue::from(a9_ptr),
     ];
     memory.extend(outer_array.clone());
 
     let input_array_value_types: Vec<HeapValueType> = vec![
         HeapValueType::field(),
-        HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U64)), // size of following vector
-        HeapValueType::Vector { value_types: vec![HeapValueType::field()] },
-        HeapValueType::Array { value_types: vec![HeapValueType::field()], size: 1 },
+        HeapValueType::Array { value_types: vec![HeapValueType::field()], size: SemanticLength(1) },
     ];
 
     // memory addresses for input and output
-    let r_input = MemoryAddress::direct(memory.len());
-    let r_output = MemoryAddress::direct(memory.len() + 1);
+    let r_input = MemoryAddress::direct(memory.len() as u32);
+    let r_output = MemoryAddress::direct(memory.len() as u32 + 1);
 
     let program: Vec<_> = vec![
         Opcode::Const {
@@ -549,8 +576,8 @@ fn foreign_call_opcode_nested_arrays_and_slices_input() {
     ]
     .into_iter()
     .chain(memory.iter().enumerate().map(|(index, mem_value)| Opcode::Cast {
-        destination: MemoryAddress::direct(index),
-        source: MemoryAddress::direct(index),
+        destination: MemoryAddress::direct(index as u32),
+        source: MemoryAddress::direct(index as u32),
         bit_size: mem_value.bit_size(),
     }))
     .chain(vec![
@@ -567,11 +594,11 @@ fn foreign_call_opcode_nested_arrays_and_slices_input() {
             destination_value_types: vec![HeapValueType::field()],
             inputs: vec![ValueOrArray::HeapArray(HeapArray {
                 pointer: r_input,
-                size: outer_array.len(),
+                size: SemiFlattenedLength(outer_array.len() as u32),
             })],
             input_value_types: vec![HeapValueType::Array {
                 value_types: input_array_value_types,
-                size: outer_array.len(),
+                size: SemanticLength(2),
             }],
         },
     ])
@@ -585,27 +612,186 @@ fn foreign_call_opcode_nested_arrays_and_slices_input() {
             function: "flat_sum".into(),
             inputs: vec![ForeignCallParam::Array(vec![
                 (1u128).into(),
-                (2u128).into(), // size of following vector
-                (2u128).into(),
-                (3u128).into(),
                 (4u128).into(),
                 (5u128).into(),
-                (3u128).into(), // size of following vector
-                (6u128).into(),
-                (7u128).into(),
-                (8u128).into(),
                 (9u128).into(),
             ])],
         },
-        vec![FieldElement::from(45u128).into()],
+        vec![FieldElement::from(19u128).into()],
         VMStatus::Finished { return_data_offset: 0, return_data_size: 0 },
     );
 
     // Check result
     let result_value = memory.read(r_output);
-    assert_eq!(result_value, MemoryValue::new_field(FieldElement::from(45u128)));
+    assert_eq!(result_value, MemoryValue::new_field(FieldElement::from(19u128)));
 
     // Ensure the foreign call counter has been incremented
+    assert_eq!(counter, 1);
+}
+
+/// Test for vector input with nested composite arrays.
+/// This tests the truncation logic when processing foreign call vector inputs.
+///
+/// This test creates a vector with 2 inner arrays, each containing 3 tuples of (Field, Field):
+/// - Semi-flattened size per inner array: 3 * 2 = 6 fields
+/// - Total flattened size: 2 * 6 = 12 fields
+///
+/// We place "garbage" values (999) after the valid inner array data. If truncation is correct,
+/// the oracle receives only the 12 valid fields. If truncation was wrong, it would include garbage.
+#[test]
+fn foreign_call_opcode_vector_input_nested_composite_array() {
+    // Inner arrays: [(Field, Field); 3]
+    // Array 0: [(1, 2), (3, 4), (5, 6)] -> flattened: [1, 2, 3, 4, 5, 6]
+    let inner_array_0: Vec<MemoryValue<FieldElement>> = vec![
+        MemoryValue::new_field(1u128.into()),
+        MemoryValue::new_field(2u128.into()),
+        MemoryValue::new_field(3u128.into()),
+        MemoryValue::new_field(4u128.into()),
+        MemoryValue::new_field(5u128.into()),
+        MemoryValue::new_field(6u128.into()),
+    ];
+    // Array 1: [(7, 8), (9, 10), (11, 12)] -> flattened: [7, 8, 9, 10, 11, 12]
+    let inner_array_1: Vec<MemoryValue<FieldElement>> = vec![
+        MemoryValue::new_field(7u128.into()),
+        MemoryValue::new_field(8u128.into()),
+        MemoryValue::new_field(9u128.into()),
+        MemoryValue::new_field(10u128.into()),
+        MemoryValue::new_field(11u128.into()),
+        MemoryValue::new_field(12u128.into()),
+    ];
+    // Garbage data to detect over-reading (placed after inner_array_1)
+    let garbage: Vec<MemoryValue<FieldElement>> = vec![MemoryValue::new_field(999u128.into()); 12];
+
+    // Build memory layout:
+    // [0]: RC for inner_array_0
+    // [1-6]: inner_array_0 data (6 fields)
+    // [7]: RC for inner_array_1
+    // [8-13]: inner_array_1 data (6 fields)
+    // [14-25]: garbage data (12 fields)
+    // [26]: RC for outer vector
+    // [27-28]: outer vector data (2 pointers to inner arrays)
+    let mut memory: Vec<MemoryValue<FieldElement>> = Vec::new();
+
+    // Inner array 0: [RC, ...items]
+    let inner_array_0_ptr = memory.len() as u32;
+    memory.push(MemoryValue::from(1_u32)); // RC
+    memory.extend(inner_array_0);
+
+    // Inner array 1: [RC, ...items]
+    let inner_array_1_ptr = memory.len() as u32;
+    memory.push(MemoryValue::from(1_u32)); // RC
+    memory.extend(inner_array_1);
+
+    // Garbage after inner array 1 to detect over-reading
+    memory.extend(garbage);
+
+    // Outer vector: [RC, ...pointers to inner arrays]
+    memory.push(MemoryValue::from(1_u32)); // RC
+    let outer_vector_start = memory.len();
+    memory.push(MemoryValue::from(inner_array_0_ptr)); // Pointer to inner_array_0
+    memory.push(MemoryValue::from(inner_array_1_ptr)); // Pointer to inner_array_1
+
+    // Registers
+    let r_input_pointer = MemoryAddress::direct(memory.len() as u32);
+    let r_input_size = MemoryAddress::direct(memory.len() as u32 + 1);
+    let r_output = MemoryAddress::direct(memory.len() as u32 + 2);
+
+    // The inner array type: [(Field, Field); 3]
+    let inner_array_value_types: Vec<HeapValueType> =
+        vec![HeapValueType::field(), HeapValueType::field()];
+
+    // The vector element type: [(Field, Field); 3]
+    let vector_element_type = HeapValueType::Array {
+        value_types: inner_array_value_types,
+        size: SemanticLength(3), // 3 tuples per inner array
+    };
+
+    // Build program: copy memory from calldata, then call foreign function
+    let program: Vec<_> = vec![
+        Opcode::Const {
+            destination: MemoryAddress::direct(200),
+            bit_size: BitSize::Integer(IntegerBitSize::U32),
+            value: FieldElement::from(memory.len()),
+        },
+        Opcode::Const {
+            destination: MemoryAddress::direct(201),
+            bit_size: BitSize::Integer(IntegerBitSize::U32),
+            value: FieldElement::from(0u64),
+        },
+        Opcode::CalldataCopy {
+            destination_address: MemoryAddress::direct(0),
+            size_address: MemoryAddress::direct(200),
+            offset_address: MemoryAddress::direct(201),
+        },
+    ]
+    .into_iter()
+    // Cast each memory value to its proper bit size
+    .chain(memory.iter().enumerate().map(|(index, mem_value)| Opcode::Cast {
+        destination: MemoryAddress::direct(index as u32),
+        source: MemoryAddress::direct(index as u32),
+        bit_size: mem_value.bit_size(),
+    }))
+    .chain(vec![
+        // input_pointer = outer_vector_start
+        Opcode::Const {
+            destination: r_input_pointer,
+            value: (outer_vector_start as u32).into(),
+            bit_size: BitSize::Integer(MEMORY_ADDRESSING_BIT_SIZE),
+        },
+        // input_size = 2 (vector has 2 inner arrays)
+        Opcode::Const {
+            destination: r_input_size,
+            value: 2_u32.into(),
+            bit_size: BitSize::Integer(MEMORY_ADDRESSING_BIT_SIZE),
+        },
+        // Call foreign function
+        Opcode::ForeignCall {
+            function: "sum_nested".into(),
+            destinations: vec![ValueOrArray::MemoryAddress(r_output)],
+            destination_value_types: vec![HeapValueType::field()],
+            inputs: vec![ValueOrArray::HeapVector(HeapVector {
+                pointer: r_input_pointer,
+                size: r_input_size,
+            })],
+            input_value_types: vec![HeapValueType::Vector {
+                value_types: vec![vector_element_type],
+            }],
+        },
+    ])
+    .collect();
+
+    let calldata: Vec<FieldElement> = memory.iter().map(|v| v.to_field()).collect();
+
+    // The expected inputs to the oracle should be only the 12 valid flattened fields.
+    // If truncation was buggy (kept > 12 values), we'd see garbage (999) values.
+    let expected_oracle_input: Vec<FieldElement> = vec![
+        1u128.into(),
+        2u128.into(),
+        3u128.into(),
+        4u128.into(),
+        5u128.into(),
+        6u128.into(),
+        7u128.into(),
+        8u128.into(),
+        9u128.into(),
+        10u128.into(),
+        11u128.into(),
+        12u128.into(),
+    ];
+
+    let (_memory, counter) = run_foreign_call_test(
+        calldata,
+        &program,
+        VMStatus::ForeignCallWait {
+            function: "sum_nested".into(),
+            inputs: vec![expected_oracle_input.into()],
+        },
+        // Return a dummy sum value
+        vec![FieldElement::from(78u128).into()],
+        VMStatus::Finished { return_data_offset: 0, return_data_size: 0 },
+    );
+
+    // Ensure the foreign call was made
     assert_eq!(counter, 1);
 }
 
@@ -621,11 +807,11 @@ fn handles_foreign_calls_returning_empty_arrays() {
             function: "foo".to_string(),
             destinations: vec![ValueOrArray::HeapArray(HeapArray {
                 pointer: MemoryAddress::Direct(0),
-                size: 0,
+                size: SemiFlattenedLength(0),
             })],
             destination_value_types: vec![HeapValueType::Array {
                 value_types: vec![HeapValueType::Simple(BitSize::Field)],
-                size: 0,
+                size: SemanticLength(0),
             }],
             inputs: Vec::new(),
             input_value_types: Vec::new(),
@@ -653,11 +839,11 @@ fn aborts_when_foreign_call_returns_too_much_data() {
             function: "foo".to_string(),
             destinations: vec![ValueOrArray::HeapArray(HeapArray {
                 pointer: MemoryAddress::Direct(0),
-                size: 3,
+                size: SemiFlattenedLength(3),
             })],
             destination_value_types: vec![HeapValueType::Array {
                 value_types: vec![HeapValueType::Simple(BitSize::Field)],
-                size: 3,
+                size: SemanticLength(3),
             }],
             inputs: Vec::new(),
             input_value_types: Vec::new(),
@@ -697,11 +883,11 @@ fn aborts_when_foreign_call_returns_not_enough_much_data() {
             function: "foo".to_string(),
             destinations: vec![ValueOrArray::HeapArray(HeapArray {
                 pointer: MemoryAddress::Direct(0),
-                size: 3,
+                size: SemiFlattenedLength(3),
             })],
             destination_value_types: vec![HeapValueType::Array {
                 value_types: vec![HeapValueType::Simple(BitSize::Field)],
-                size: 3,
+                size: SemanticLength(3),
             }],
             inputs: Vec::new(),
             input_value_types: Vec::new(),
@@ -731,16 +917,19 @@ fn aborts_when_foreign_call_returns_not_enough_much_data() {
 #[test]
 fn aborts_when_foreign_call_returns_data_which_does_not_match_vector_elements() {
     let opcodes = &[
+        // Set the free memory to start at slot 3
         Opcode::Const {
-            destination: MemoryAddress::direct(0),
+            destination: FREE_MEMORY_POINTER_ADDRESS,
             bit_size: BitSize::Integer(IntegerBitSize::U32),
-            value: FieldElement::from(2u64),
+            value: FieldElement::from(3u64),
         },
         Opcode::ForeignCall {
             function: "foo".to_string(),
+            // Pretend that we will point to the the destination addresses
+            // using pointers in slot @1 and @2
             destinations: vec![ValueOrArray::HeapVector(HeapVector {
-                pointer: MemoryAddress::Direct(0),
-                size: MemoryAddress::Direct(1),
+                pointer: MemoryAddress::Direct(1),
+                size: MemoryAddress::Direct(2),
             })],
             destination_value_types: vec![HeapValueType::Vector {
                 value_types: vec![

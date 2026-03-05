@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Expected a concrete `Type` but a zeroed value was given
+    ┌─ std/meta/typ.nr:213:31
+    │
+213 │         state.write(type_hash(self))
+    │                               ---- A zeroed value of `Type` may be created to satisfy the type system, but it's not expected to be used
+    │
+
+Aborting due to 1 previous error

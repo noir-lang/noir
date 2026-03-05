@@ -18,4 +18,13 @@ error: Duplicate definitions of trait associated item with name MyItem found
   │       ------ Second trait associated item found here
   │
 
-Aborting due to 1 previous error
+error: Duplicate definitions of trait associated item with name MyItem found
+  ┌─ src/main.nr:2:6
+  │
+2 │   fn MyItem();
+  │      ------ First trait associated item found here
+3 │   let MyItem: u32;
+  │       ------ Second trait associated item found here
+  │
+
+Aborting due to 2 previous errors

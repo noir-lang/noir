@@ -1,5 +1,0 @@
-[package]
-name = "slices"
-type = "bin"
-authors = [""]
-[dependencies]

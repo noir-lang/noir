@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-use std::{embedded_curve_ops::embedded_curve_add_unsafe, ops::Add};
+use std::{embedded_curve_ops::embedded_curve_add, ops::Add};
 
 fn main(priv_key: Field, pub_x: pub Field, pub_y: pub Field) {
     let g1: std::embedded_curve_ops::EmbeddedCurvePoint =
@@ -57,7 +57,7 @@ fn main(priv_key: Field, pub_x: pub Field, pub_y: pub Field) {
         };
         let doubling: std::embedded_curve_ops::EmbeddedCurvePoint = a1.double();
         assert(doubling.x == 1_Field);
-        let res: std::embedded_curve_ops::EmbeddedCurvePoint = embedded_curve_add_unsafe(a1, a2);
+        let res: std::embedded_curve_ops::EmbeddedCurvePoint = embedded_curve_add(a1, a2);
         assert(res.x == 1_Field);
         let a1: std::embedded_curve_ops::EmbeddedCurvePoint = std::embedded_curve_ops::EmbeddedCurvePoint {
             x: pub_x + 1_Field,
@@ -71,7 +71,7 @@ fn main(priv_key: Field, pub_x: pub Field, pub_y: pub Field) {
         };
         let doubling: std::embedded_curve_ops::EmbeddedCurvePoint = a1.double();
         assert(doubling.x == 1_Field);
-        let res: std::embedded_curve_ops::EmbeddedCurvePoint = embedded_curve_add_unsafe(a1, a2);
+        let res: std::embedded_curve_ops::EmbeddedCurvePoint = embedded_curve_add(a1, a2);
         assert(res.x == 1_Field);
         let a1: std::embedded_curve_ops::EmbeddedCurvePoint = std::embedded_curve_ops::EmbeddedCurvePoint {
             x: 2_Field,
@@ -83,7 +83,7 @@ fn main(priv_key: Field, pub_x: pub Field, pub_y: pub Field) {
             y: pub_y + (1_Field as Field),
             is_infinite: false,
         };
-        let res: std::embedded_curve_ops::EmbeddedCurvePoint = embedded_curve_add_unsafe(a1, a2);
+        let res: std::embedded_curve_ops::EmbeddedCurvePoint = embedded_curve_add(a1, a2);
         assert(res.x == 1_Field);
         let a1: std::embedded_curve_ops::EmbeddedCurvePoint = std::embedded_curve_ops::EmbeddedCurvePoint {
             x: 2_Field,
@@ -95,7 +95,7 @@ fn main(priv_key: Field, pub_x: pub Field, pub_y: pub Field) {
             y: 4_Field,
             is_infinite: false,
         };
-        let res: std::embedded_curve_ops::EmbeddedCurvePoint = embedded_curve_add_unsafe(a1, a2);
+        let res: std::embedded_curve_ops::EmbeddedCurvePoint = embedded_curve_add(a1, a2);
         assert(res.x == 1_Field);
         let a1: std::embedded_curve_ops::EmbeddedCurvePoint = std::embedded_curve_ops::EmbeddedCurvePoint {
             x: 2_Field,
@@ -107,7 +107,7 @@ fn main(priv_key: Field, pub_x: pub Field, pub_y: pub Field) {
             y: 3_Field,
             is_infinite: false,
         };
-        let res: std::embedded_curve_ops::EmbeddedCurvePoint = embedded_curve_add_unsafe(a1, a2);
+        let res: std::embedded_curve_ops::EmbeddedCurvePoint = embedded_curve_add(a1, a2);
         assert(res.x == 1_Field);
         let a1: std::embedded_curve_ops::EmbeddedCurvePoint = std::embedded_curve_ops::EmbeddedCurvePoint {
             x: 1_Field,
@@ -119,7 +119,7 @@ fn main(priv_key: Field, pub_x: pub Field, pub_y: pub Field) {
             y: 3_Field,
             is_infinite: false,
         };
-        let res: std::embedded_curve_ops::EmbeddedCurvePoint = embedded_curve_add_unsafe(a1, a2);
+        let res: std::embedded_curve_ops::EmbeddedCurvePoint = embedded_curve_add(a1, a2);
         assert(res.x == 1_Field);
         let a1: std::embedded_curve_ops::EmbeddedCurvePoint = std::embedded_curve_ops::EmbeddedCurvePoint {
             x: pub_x,
@@ -131,7 +131,7 @@ fn main(priv_key: Field, pub_x: pub Field, pub_y: pub Field) {
             y: 2_Field,
             is_infinite: false,
         };
-        let res: std::embedded_curve_ops::EmbeddedCurvePoint = embedded_curve_add_unsafe(a1, a2);
+        let res: std::embedded_curve_ops::EmbeddedCurvePoint = embedded_curve_add(a1, a2);
         assert(res.x == 1_Field);
     }
 }

@@ -1,0 +1,6 @@
+[package]
+name = "default_entry_not_found"
+type = "bin"
+authors = [""]
+
+[dependencies]

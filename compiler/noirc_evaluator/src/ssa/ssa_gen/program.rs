@@ -173,7 +173,7 @@ impl std::fmt::Display for Ssa {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::ssa::ir::map::Id;
 
     use crate::ssa::ssa_gen::Ssa;

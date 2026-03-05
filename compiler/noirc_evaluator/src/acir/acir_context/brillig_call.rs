@@ -1,5 +1,6 @@
 use acvm::acir::{
     AcirField,
+    brillig::lengths::SemanticLength,
     circuit::brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
     native_types::{Expression, Witness},
 };
@@ -61,8 +62,6 @@ impl<F: AcirField> AcirContext<F> {
 
             return Ok(outputs_var);
         }
-        // Remove "always true" predicates.
-        let predicate = if predicate == Expression::one() { None } else { Some(predicate) };
 
         let brillig_inputs: Vec<BrilligInputs<F>> =
             try_vecmap(inputs, |i| -> Result<_, InternalError> {
@@ -117,7 +116,14 @@ impl<F: AcirField> AcirContext<F> {
                 AcirValue::Var(var, numeric_type) => {
                     // Predicate is one so that the constrain is always applied, because
                     // values returned from Brillig will be 0 under a false predicate.
-                    context.range_constrain_var(*var, numeric_type, None, one)?;
+                    if !numeric_type.is_field() {
+                        context.range_constrain_var(
+                            *var,
+                            numeric_type.bit_size::<G>(),
+                            None,
+                            one,
+                        )?;
+                    }
                 }
                 AcirValue::Array(values) => {
                     for value in values {
@@ -156,7 +162,7 @@ impl<F: AcirField> AcirContext<F> {
                 }
             }
             AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }) => {
-                for i in 0..len {
+                for i in 0..len.to_usize() {
                     // We generate witnesses corresponding to the array values
                     let index_var = self.add_constant(i);
 
@@ -172,9 +178,13 @@ impl<F: AcirField> AcirContext<F> {
     }
 
     /// Recursively create zeroed-out acir values for returned arrays. This is necessary because a brillig returned array can have nested arrays as elements.
-    fn zeroed_array_output(&mut self, element_types: &[AcirType], size: usize) -> AcirValue {
+    fn zeroed_array_output(
+        &mut self,
+        element_types: &[AcirType],
+        size: SemanticLength,
+    ) -> AcirValue {
         let mut array_values = im::Vector::new();
-        for _ in 0..size {
+        for _ in 0..size.0 {
             for element_type in element_types {
                 match element_type {
                     AcirType::Array(nested_element_types, nested_size) => {
@@ -197,11 +207,11 @@ impl<F: AcirField> AcirContext<F> {
     fn brillig_array_output(
         &mut self,
         element_types: &[AcirType],
-        size: usize,
+        size: SemanticLength,
     ) -> (AcirValue, Vec<Witness>) {
         let mut witnesses = Vec::new();
         let mut array_values = im::Vector::new();
-        for _ in 0..size {
+        for _ in 0..size.0 {
             for element_type in element_types {
                 match element_type {
                     AcirType::Array(nested_element_types, nested_size) => {

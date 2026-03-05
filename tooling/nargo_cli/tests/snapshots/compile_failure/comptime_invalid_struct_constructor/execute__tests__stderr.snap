@@ -1,0 +1,33 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: duplicate field a
+  ┌─ src/main.nr:8:29
+  │
+8 │         let x = Foo { a: 1, a: "hello", c: true };
+  │                             -
+  │
+
+error: no such field c defined in struct Foo
+  ┌─ src/main.nr:8:41
+  │
+8 │         let x = Foo { a: 1, a: "hello", c: true };
+  │                                         -
+  │
+
+error: missing field b in struct Foo
+  ┌─ src/main.nr:8:17
+  │
+8 │         let x = Foo { a: 1, a: "hello", c: true };
+  │                 ---
+  │
+
+error: Type Foo has no member named c
+   ┌─ src/main.nr:11:19
+   │
+11 │         println(x.c);
+   │                   -
+   │
+
+Aborting due to 4 previous errors

@@ -1,19 +1,27 @@
 use noirc_errors::call_stack::CallStackId;
-use rustc_hash::FxHashMap as HashMap;
 use std::{collections::VecDeque, sync::Arc};
 
-use acvm::{AcirField as _, FieldElement, acir::BlackBoxFunc};
+use acvm::{
+    AcirField as _, FieldElement,
+    acir::{
+        BlackBoxFunc,
+        brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength},
+    },
+};
 use bn254_blackbox_solver::derive_generators;
 use iter_extended::vecmap;
 use num_bigint::BigUint;
 
-use crate::ssa::ir::{
-    basic_block::BasicBlockId,
-    dfg::{DataFlowGraph, simplify::value_merger::ValueMerger},
-    instruction::{Binary, BinaryOp, Endian, Hint, Instruction, Intrinsic},
-    integer::IntegerConstant,
-    types::{NumericType, Type},
-    value::{Value, ValueId},
+use crate::{
+    brillig::assert_u32,
+    ssa::ir::{
+        basic_block::BasicBlockId,
+        dfg::DataFlowGraph,
+        instruction::{Binary, BinaryOp, Endian, Hint, Instruction, Intrinsic},
+        integer::IntegerConstant,
+        types::{NumericType, Type},
+        value::{Value, ValueId},
+    },
 };
 
 use super::SimplifyResult;
@@ -24,8 +32,8 @@ mod blackbox;
 /// that value is returned. Otherwise None is returned.
 ///
 /// The `block` parameter indicates the block any new instructions that are part of a call's
-/// simplification will be inserted into. For example, all slice intrinsics require updates
-/// to the slice length, which requires inserting a binary instruction. This update instruction
+/// simplification will be inserted into. For example, all vector intrinsics require updates
+/// to the vector length, which requires inserting a binary instruction. This update instruction
 /// must be inserted into the same block that the call itself is being simplified into.
 pub(super) fn simplify_call(
     func: ValueId,
@@ -50,12 +58,10 @@ pub(super) fn simplify_call(
             // TODO: simplify to a range constraint if `limb_count == 1`
             if let (Some(constant_args), Some(return_type)) = (constant_args, return_type.clone()) {
                 let field = constant_args[0];
-                let limb_count = if let Type::Array(_, array_len) = return_type {
-                    array_len
-                } else {
+                let Type::Array(_, limb_count) = return_type else {
                     unreachable!("ICE: Intrinsic::ToRadix return type must be array")
                 };
-                simplify_constant_to_radix(endian, field, 2, limb_count, |values| {
+                simplify_constant_to_radix(endian, field, 2, limb_count.0, |values| {
                     make_constant_array(
                         dfg,
                         values.into_iter(),
@@ -73,12 +79,10 @@ pub(super) fn simplify_call(
             if let (Some(constant_args), Some(return_type)) = (constant_args, return_type.clone()) {
                 let field = constant_args[0];
                 let radix = constant_args[1].to_u128() as u32;
-                let limb_count = if let Type::Array(_, array_len) = return_type {
-                    array_len
-                } else {
+                let Type::Array(_, limb_count) = return_type else {
                     unreachable!("ICE: Intrinsic::ToRadix return type must be array")
                 };
-                simplify_constant_to_radix(endian, field, radix, limb_count, |values| {
+                simplify_constant_to_radix(endian, field, radix, limb_count.0, |values| {
                     make_constant_array(
                         dfg,
                         values.into_iter(),
@@ -94,196 +98,192 @@ pub(super) fn simplify_call(
         Intrinsic::ArrayLen => {
             let length = match dfg.type_of_value(arguments[0]) {
                 Type::Array(_, length) => {
-                    dfg.make_constant(FieldElement::from(length), NumericType::length_type())
+                    dfg.make_constant(FieldElement::from(length.0), NumericType::length_type())
                 }
                 Type::Numeric(NumericType::Unsigned { bit_size: 32 }) => {
-                    assert!(matches!(dfg.type_of_value(arguments[1]), Type::Slice(_)));
+                    assert!(matches!(dfg.type_of_value(arguments[1]), Type::Vector(_)));
                     arguments[0]
                 }
-                _ => panic!("First argument to ArrayLen must be an array or a slice length"),
+                _ => panic!("First argument to ArrayLen must be an array or a vector length"),
             };
             SimplifyResult::SimplifiedTo(length)
         }
         // Strings are already arrays of bytes in SSA
         Intrinsic::ArrayAsStrUnchecked => SimplifyResult::SimplifiedTo(arguments[0]),
-        Intrinsic::AsSlice => {
+        Intrinsic::AsVector => {
             let array = dfg.get_array_constant(arguments[0]);
             if let Some((array, array_type)) = array {
-                // Compute the resulting slice length by dividing the flattened
-                // array length by the size of each array element
-                let elements_size = array_type.element_size();
+                // Compute the resulting vector length
                 let inner_element_types = array_type.element_types();
-                assert_eq!(
-                    0,
-                    array.len() % elements_size,
-                    "expected array length to be multiple of its elements size"
-                );
-                let slice_length_value = array.len() / elements_size;
-                let slice_length =
-                    dfg.make_constant(slice_length_value.into(), NumericType::length_type());
-                let new_slice =
-                    make_array(dfg, array, Type::Slice(inner_element_types), block, call_stack);
-                SimplifyResult::SimplifiedToMultiple(vec![slice_length, new_slice])
+                let vector_length_value = dfg.try_get_vector_capacity(arguments[0]).unwrap();
+                let vector_length =
+                    dfg.make_constant(vector_length_value.0.into(), NumericType::length_type());
+                let new_vector =
+                    make_array(dfg, array, Type::Vector(inner_element_types), block, call_stack);
+                SimplifyResult::SimplifiedToMultiple(vec![vector_length, new_vector])
             } else {
                 SimplifyResult::None
             }
         }
-        Intrinsic::SlicePushBack => {
-            let slice = dfg.get_array_constant(arguments[1]);
-            if let Some((mut slice, element_type)) = slice {
-                // TODO(#2752): We need to handle the element_type size to appropriately handle slices of complex types.
-                // This is reliant on dynamic indices of non-homogenous slices also being implemented.
-                if element_type.element_size() != 1 {
-                    if let Some(IntegerConstant::Unsigned { value: slice_len, .. }) =
-                        dfg.get_integer_constant(arguments[0])
-                    {
-                        // This simplification, which push back directly on the slice, only works if the real slice_len is the
-                        // the length of the slice.
-                        if slice_len as usize == slice.len() {
-                            // Old code before implementing multiple slice mergers
-                            for elem in &arguments[2..] {
-                                slice.push_back(*elem);
-                            }
+        Intrinsic::VectorPushBack => {
+            let vector = dfg.get_array_constant(arguments[1]);
+            if let Some((mut vector, vector_type)) = vector {
+                if let Some(IntegerConstant::Unsigned { value: vector_len, .. }) =
+                    dfg.get_integer_constant(arguments[0])
+                {
+                    let elements_size = vector_type.element_size();
+                    let semi_flattened_vector_len =
+                        SemanticLength(vector_len as u32) * elements_size;
 
-                            let new_slice_length =
-                                increment_slice_length(arguments[0], dfg, block, call_stack);
-
-                            let new_slice = make_array(dfg, slice, element_type, block, call_stack);
-                            return SimplifyResult::SimplifiedToMultiple(vec![
-                                new_slice_length,
-                                new_slice,
-                            ]);
+                    // This simplification, which push back directly on the vector, only works if the real vector_len is the
+                    // the length of the vector (taking the elements size into account).
+                    if semi_flattened_vector_len == SemiFlattenedLength(vector.len() as u32) {
+                        // Old code before implementing multiple vector mergers
+                        for elem in &arguments[2..] {
+                            vector.push_back(*elem);
                         }
+
+                        let new_vector_length =
+                            increment_vector_length(arguments[0], dfg, block, call_stack);
+
+                        let new_vector = make_array(dfg, vector, vector_type, block, call_stack);
+                        return SimplifyResult::SimplifiedToMultiple(vec![
+                            new_vector_length,
+                            new_vector,
+                        ]);
                     }
-                    return SimplifyResult::None;
                 }
 
-                simplify_slice_push_back(slice, element_type, arguments, dfg, block, call_stack)
+                simplify_vector_push_back(vector, vector_type, arguments, dfg, block, call_stack)
             } else {
                 SimplifyResult::None
             }
         }
-        Intrinsic::SlicePushFront => {
-            let slice = dfg.get_array_constant(arguments[1]);
-            if let Some((mut slice, element_type)) = slice {
+        Intrinsic::VectorPushFront => {
+            let vector = dfg.get_array_constant(arguments[1]);
+            if let Some((mut vector, vector_type)) = vector {
                 for elem in arguments[2..].iter().rev() {
-                    slice.push_front(*elem);
+                    vector.push_front(*elem);
                 }
 
-                let new_slice_length = increment_slice_length(arguments[0], dfg, block, call_stack);
+                let new_vector_length =
+                    increment_vector_length(arguments[0], dfg, block, call_stack);
 
-                let new_slice = make_array(dfg, slice, element_type, block, call_stack);
-                SimplifyResult::SimplifiedToMultiple(vec![new_slice_length, new_slice])
+                let new_vector = make_array(dfg, vector, vector_type, block, call_stack);
+                SimplifyResult::SimplifiedToMultiple(vec![new_vector_length, new_vector])
             } else {
                 SimplifyResult::None
             }
         }
-        Intrinsic::SlicePopBack => {
+        Intrinsic::VectorPopBack => {
             let length = dfg.get_numeric_constant(arguments[0]);
             if length.is_none_or(|length| length.is_zero()) {
-                // If the length is zero then we're trying to pop the last element from an empty slice.
+                // If the length is zero then we're trying to pop the last element from an empty vector.
                 // Defer the error to acir_gen.
                 return SimplifyResult::None;
             }
 
-            let slice = dfg.get_array_constant(arguments[1]);
-            if let Some((_, typ)) = slice {
-                simplify_slice_pop_back(typ, arguments, dfg, block, call_stack)
+            let vector = dfg.get_array_constant(arguments[1]);
+            if let Some((vector, typ)) = vector {
+                simplify_vector_pop_back(vector, typ, arguments, dfg, block, call_stack)
             } else {
                 SimplifyResult::None
             }
         }
-        Intrinsic::SlicePopFront => {
+        Intrinsic::VectorPopFront => {
             let length = dfg.get_numeric_constant(arguments[0]);
             if length.is_none_or(|length| length.is_zero()) {
-                // If the length is zero then we're trying to pop the first element from an empty slice.
+                // If the length is zero then we're trying to pop the first element from an empty vector.
                 // Defer the error to acir_gen.
                 return SimplifyResult::None;
             }
 
-            let slice = dfg.get_array_constant(arguments[1]);
-            if let Some((mut slice, typ)) = slice {
+            let vector = dfg.get_array_constant(arguments[1]);
+            if let Some((mut vector, typ)) = vector {
                 let element_count = typ.element_size();
 
-                // We must pop multiple elements in the case of a slice of tuples
-                let mut results = vecmap(0..element_count, |_| {
-                    slice.pop_front().expect("There are no elements in this slice to be removed")
+                // We must pop multiple elements in the case of a vector of tuples
+                let mut results = vecmap(0..element_count.to_usize(), |_| {
+                    vector.pop_front().expect("There are no elements in this vector to be removed")
                 });
 
-                let new_slice_length = decrement_slice_length(arguments[0], dfg, block, call_stack);
+                let new_vector_length =
+                    decrement_vector_length(arguments[0], dfg, block, call_stack);
 
-                results.push(new_slice_length);
+                results.push(new_vector_length);
 
-                let new_slice = make_array(dfg, slice, typ, block, call_stack);
+                let new_vector = make_array(dfg, vector, typ, block, call_stack);
 
-                // The slice is the last item returned for pop_front
-                results.push(new_slice);
+                // The vector is the last item returned for pop_front
+                results.push(new_vector);
                 SimplifyResult::SimplifiedToMultiple(results)
             } else {
                 SimplifyResult::None
             }
         }
-        Intrinsic::SliceInsert => {
-            let slice = dfg.get_array_constant(arguments[1]);
+        Intrinsic::VectorInsert => {
+            let vector = dfg.get_array_constant(arguments[1]);
             let index = dfg.get_numeric_constant(arguments[2]);
-            if let (Some((mut slice, typ)), Some(index)) = (slice, index) {
+            if let (Some((mut vector, typ)), Some(index)) = (vector, index) {
                 let elements = &arguments[3..];
                 let mut index = index.to_u128() as usize * elements.len();
 
-                // Do not simplify the index is greater than the slice capacity
+                // Do not simplify the index is greater than the vector capacity
                 // or else we will panic inside of the im::Vector insert method
                 // Constraints should be generated during SSA gen to tell the user
                 // they are attempting to insert at too large of an index
-                if index > slice.len() {
+                if index > vector.len() {
                     return SimplifyResult::None;
                 }
 
                 for elem in &arguments[3..] {
-                    slice.insert(index, *elem);
+                    vector.insert(index, *elem);
                     index += 1;
                 }
 
-                let new_slice_length = increment_slice_length(arguments[0], dfg, block, call_stack);
+                let new_vector_length =
+                    increment_vector_length(arguments[0], dfg, block, call_stack);
 
-                let new_slice = make_array(dfg, slice, typ, block, call_stack);
-                SimplifyResult::SimplifiedToMultiple(vec![new_slice_length, new_slice])
+                let new_vector = make_array(dfg, vector, typ, block, call_stack);
+                SimplifyResult::SimplifiedToMultiple(vec![new_vector_length, new_vector])
             } else {
                 SimplifyResult::None
             }
         }
-        Intrinsic::SliceRemove => {
+        Intrinsic::VectorRemove => {
             let length = dfg.get_numeric_constant(arguments[0]);
             if length.is_none_or(|length| length.is_zero()) {
-                // If the length is zero then we're trying to remove an element from an empty slice.
+                // If the length is zero then we're trying to remove an element from an empty vector.
                 // Defer the error to acir_gen.
                 return SimplifyResult::None;
             }
 
-            let slice = dfg.get_array_constant(arguments[1]);
+            let vector = dfg.get_array_constant(arguments[1]);
             let index = dfg.get_numeric_constant(arguments[2]);
-            if let (Some((mut slice, typ)), Some(index)) = (slice, index) {
-                let element_count = typ.element_size();
+            if let (Some((mut vector, typ)), Some(index)) = (vector, index) {
+                let element_count = typ.element_size().to_usize();
                 let mut results = Vec::with_capacity(element_count + 1);
                 let index = index.to_u128() as usize * element_count;
 
-                // Do not simplify if the index is not less than the slice capacity
+                // Do not simplify if the index is not less than the vector capacity
                 // or else we will panic inside of the im::Vector remove method.
                 // Constraints should be generated during SSA gen to tell the user
                 // they are attempting to remove at too large of an index.
-                if index >= slice.len() {
+                if index >= vector.len() {
                     return SimplifyResult::None;
                 }
 
                 for _ in 0..element_count {
-                    results.push(slice.remove(index));
+                    results.push(vector.remove(index));
                 }
 
-                let new_slice = make_array(dfg, slice, typ, block, call_stack);
-                results.insert(0, new_slice);
+                let new_vector = make_array(dfg, vector, typ, block, call_stack);
+                results.insert(0, new_vector);
 
-                let new_slice_length = decrement_slice_length(arguments[0], dfg, block, call_stack);
+                let new_vector_length =
+                    decrement_vector_length(arguments[0], dfg, block, call_stack);
 
-                results.insert(0, new_slice_length);
+                results.insert(0, new_vector_length);
 
                 SimplifyResult::SimplifiedToMultiple(results)
             } else {
@@ -347,7 +347,7 @@ pub(super) fn simplify_call(
         }
         Intrinsic::DerivePedersenGenerators => {
             if let Some(Type::Array(_, len)) = return_type.clone() {
-                simplify_derive_generators(dfg, arguments, len, block, call_stack)
+                simplify_derive_generators(dfg, arguments, len.0, block, call_stack)
             } else {
                 unreachable!("Derive Pedersen Generators must return an array");
             }
@@ -362,7 +362,7 @@ pub(super) fn simplify_call(
                 SimplifyResult::None
             }
         }
-        Intrinsic::ArrayRefCount | Intrinsic::SliceRefCount => {
+        Intrinsic::ArrayRefCount | Intrinsic::VectorRefCount => {
             if dfg.runtime.is_acir() {
                 // In ACIR, ref counts are not tracked so we always simplify them to zero.
                 let zero = dfg.make_constant(FieldElement::zero(), NumericType::unsigned(32));
@@ -386,7 +386,7 @@ pub(super) fn simplify_call(
     simplified_result
 }
 
-/// Returns a slice (represented by a tuple (len, slice)) of constants corresponding to the limbs of the radix decomposition.
+/// Returns a vector (represented by a tuple (len, vector)) of constants corresponding to the limbs of the radix decomposition.
 fn simplify_constant_to_radix(
     endian: Endian,
     field: FieldElement,
@@ -444,7 +444,10 @@ fn make_constant_array(
     let result_constants: im::Vector<_> =
         results.map(|element| dfg.make_constant(element, typ)).collect();
 
-    let typ = Type::Array(Arc::new(vec![Type::Numeric(typ)]), result_constants.len() as u32);
+    let typ = Type::Array(
+        Arc::new(vec![Type::Numeric(typ)]),
+        SemanticLength(assert_u32(result_constants.len())),
+    );
     make_array(dfg, result_constants, typ, block, call_stack)
 }
 
@@ -459,131 +462,119 @@ fn make_array(
     dfg.insert_instruction_and_results(instruction, block, None, call_stack).first()
 }
 
-/// Slices have a tuple structure (slice length, slice contents) to enable logic
-/// that uses dynamic slice lengths (such as with merging slices in the flattening pass).
-/// This method codegens an update to the slice length.
+/// Vectors have a tuple structure (vector length, vector contents) to enable logic
+/// that uses dynamic vector lengths (such as with merging vectors in the flattening pass).
+/// This method codegens an update to the vector length.
 ///
-/// The binary operation performed on the slice length is always an addition or subtraction of `1`.
-/// This is because the slice length holds the user length (length as displayed by a `.len()` call),
+/// The binary operation performed on the vector length is always an addition or subtraction of `1`.
+/// This is because the vector length holds the user length (length as displayed by a `.len()` call),
 /// and not a flattened length used internally to represent arrays of tuples.
-fn update_slice_length(
-    slice_len: ValueId,
+fn update_vector_length(
+    vector_len: ValueId,
     dfg: &mut DataFlowGraph,
     operator: BinaryOp,
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> ValueId {
     let one = dfg.make_constant(FieldElement::one(), NumericType::length_type());
-    let instruction = Instruction::Binary(Binary { lhs: slice_len, operator, rhs: one });
+    let instruction = Instruction::Binary(Binary { lhs: vector_len, operator, rhs: one });
     dfg.insert_instruction_and_results(instruction, block, None, call_stack).first()
 }
 
-fn increment_slice_length(
-    slice_len: ValueId,
+fn increment_vector_length(
+    vector_len: ValueId,
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> ValueId {
-    update_slice_length(slice_len, dfg, BinaryOp::Add { unchecked: false }, block, call_stack)
+    update_vector_length(vector_len, dfg, BinaryOp::Add { unchecked: false }, block, call_stack)
 }
 
-fn decrement_slice_length(
-    slice_len: ValueId,
+fn decrement_vector_length(
+    vector_len: ValueId,
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> ValueId {
     // Simplifications only run if the length is a known non-zero constant, so the subtraction should never overflow.
-    update_slice_length(slice_len, dfg, BinaryOp::Sub { unchecked: true }, block, call_stack)
+    update_vector_length(vector_len, dfg, BinaryOp::Sub { unchecked: true }, block, call_stack)
 }
 
-fn simplify_slice_push_back(
-    mut slice: im::Vector<ValueId>,
+/// Simplify a vector push back when the length is not known to equal capacity, ie. we don't
+/// know whether we to push new items and grow the capacity of the vector, or overwrite the
+/// next padding item.
+///
+/// The strategy is to:
+/// 1. Create a new vector where the new item is pushed to the end, extending its capacity
+/// 2. Set the item at the original semantic length as well
+///
+/// There result is that the vector will physically always be extended by 1, with the pushed
+/// item appearing at the end, and potentially in the middle of the vector if we weren't at capacity.
+fn simplify_vector_push_back(
+    mut vector: im::Vector<ValueId>,
     element_type: Type,
     arguments: &[ValueId],
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> SimplifyResult {
-    // The capacity must be an integer so that we can compare it against the slice length
-    let capacity = dfg.make_constant((slice.len() as u128).into(), NumericType::length_type());
-    let len_equals_capacity_instr =
-        Instruction::Binary(Binary { lhs: arguments[0], operator: BinaryOp::Eq, rhs: capacity });
-    let len_equals_capacity = dfg
-        .insert_instruction_and_results(len_equals_capacity_instr, block, None, call_stack)
-        .first();
-    let len_not_equals_capacity_instr = Instruction::Not(len_equals_capacity);
-    let len_not_equals_capacity = dfg
-        .insert_instruction_and_results(len_not_equals_capacity_instr, block, None, call_stack)
-        .first();
-
-    let new_slice_length = increment_slice_length(arguments[0], dfg, block, call_stack);
-
-    for elem in &arguments[2..] {
-        slice.push_back(*elem);
+    // TODO(#2752): We need to handle the element_type size to appropriately handle vectors of complex types.
+    // This is reliant on dynamic indices of non-homogenous vectors also being implemented.
+    if element_type.element_size() != ElementTypesLength(1) {
+        return SimplifyResult::None;
     }
-    let slice_size = slice.len() as u32;
-    let element_size = element_type.element_size() as u32;
-    let new_slice = make_array(dfg, slice, element_type, block, call_stack);
+    assert_eq!(arguments.len(), 3, "should only push a single item");
 
-    let set_last_slice_value_instr = Instruction::ArraySet {
-        array: new_slice,
+    let new_vector_length = increment_vector_length(arguments[0], dfg, block, call_stack);
+
+    vector.push_back(arguments[2]);
+
+    let extended_vector = make_array(dfg, vector, element_type, block, call_stack);
+
+    // Set the value at the semantic length: if the vector had extra capacity, this will set the first
+    // padding to the item we wanted to push. By doing this on the extended vector, we guarantee that
+    // there will be extra capacity. If we tried to do this on the original, we could get Index OOB if
+    // the capacity and the size were the same.
+    let set_last_vector_instr = Instruction::ArraySet {
+        array: extended_vector,
         index: arguments[0],
         value: arguments[2],
         mutable: false,
     };
 
-    let set_last_slice_value = dfg
-        .insert_instruction_and_results(set_last_slice_value_instr, block, None, call_stack)
-        .first();
+    let set_last_vector =
+        dfg.insert_instruction_and_results(set_last_vector_instr, block, None, call_stack).first();
 
-    let mut slice_sizes = HashMap::default();
-    slice_sizes.insert(set_last_slice_value, slice_size / element_size);
-    slice_sizes.insert(new_slice, slice_size / element_size);
-
-    let mut value_merger = ValueMerger::new(dfg, block, &slice_sizes, call_stack);
-
-    let Ok(new_slice) = value_merger.merge_values(
-        len_not_equals_capacity,
-        len_equals_capacity,
-        set_last_slice_value,
-        new_slice,
-    ) else {
-        // If we were to percolate up the error here, it'd get to insert_instruction and eventually
-        // all of ssa. Instead we just choose not to simplify the slice call since this should
-        // be a rare case.
-        return SimplifyResult::None;
-    };
-
-    SimplifyResult::SimplifiedToMultiple(vec![new_slice_length, new_slice])
+    SimplifyResult::SimplifiedToMultiple(vec![new_vector_length, set_last_vector])
 }
 
-fn simplify_slice_pop_back(
-    slice_type: Type,
+fn simplify_vector_pop_back(
+    mut vector: im::Vector<ValueId>,
+    vector_type: Type,
     arguments: &[ValueId],
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> SimplifyResult {
-    let element_types = slice_type.element_types();
+    let element_types = vector_type.element_types();
     let element_count = element_types.len();
     let mut results = VecDeque::with_capacity(element_count + 1);
 
-    let new_slice_length = decrement_slice_length(arguments[0], dfg, block, call_stack);
+    let new_vector_length = decrement_vector_length(arguments[0], dfg, block, call_stack);
 
     let element_size =
         dfg.make_constant((element_count as u128).into(), NumericType::length_type());
     // Compute the flattened length doing an unchecked mul
-    // (it shouldn't overflow because it would have overflowed before when the slice was created)
+    // (it shouldn't overflow because it would have overflowed before when the vector was created)
     let flattened_len_instr =
         Instruction::binary(BinaryOp::Mul { unchecked: true }, arguments[0], element_size);
     let mut flattened_len =
         dfg.insert_instruction_and_results(flattened_len_instr, block, None, call_stack).first();
 
-    // We must pop multiple elements in the case of a slice of tuples
+    // We must pop multiple elements in the case of a vector of tuples
     // Iterating through element types in reverse here since we're popping from the end
     for element_type in element_types.iter().rev() {
-        flattened_len = decrement_slice_length(flattened_len, dfg, block, call_stack);
+        flattened_len = decrement_vector_length(flattened_len, dfg, block, call_stack);
         let get_last_elem_instr =
             Instruction::ArrayGet { array: arguments[1], index: flattened_len };
 
@@ -592,11 +583,13 @@ fn simplify_slice_pop_back(
             .insert_instruction_and_results(get_last_elem_instr, block, element_type, call_stack)
             .first();
         results.push_front(get_last_elem);
+        vector.pop_back();
     }
 
-    results.push_front(arguments[1]);
+    let new_vector = make_array(dfg, vector, vector_type, block, call_stack);
+    results.push_front(new_vector);
 
-    results.push_front(new_slice_length);
+    results.push_front(new_vector_length);
     SimplifyResult::SimplifiedToMultiple(results.into())
 }
 
@@ -609,12 +602,11 @@ fn simplify_black_box_func(
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> SimplifyResult {
-    let pedantic_solving = true;
     cfg_if::cfg_if! {
         if #[cfg(feature = "bn254")] {
-            let solver = bn254_blackbox_solver::Bn254BlackBoxSolver(pedantic_solving);
+            let solver = bn254_blackbox_solver::Bn254BlackBoxSolver;
         } else {
-            let solver = acvm::blackbox_solver::StubbedBlackBoxSolver(pedantic_solving);
+            let solver = acvm::blackbox_solver::StubbedBlackBoxSolver;
         }
     };
     match bb_func {
@@ -765,8 +757,14 @@ fn simplify_derive_generators(
                 results.push(is_infinite);
             }
             let len = results.len() as u32;
-            let typ =
-                Type::Array(vec![Type::field(), Type::field(), Type::unsigned(1)].into(), len / 3);
+            assert!(
+                len.is_multiple_of(3),
+                "The number of results from derive_generators must be a multiple of 3"
+            );
+            let typ = Type::Array(
+                vec![Type::field(), Type::field(), Type::unsigned(1)].into(),
+                SemanticLength(len / 3),
+            );
             let result = make_array(dfg, results.into(), typ, block, call_stack);
             SimplifyResult::SimplifiedTo(result)
         } else {
@@ -779,7 +777,10 @@ fn simplify_derive_generators(
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_ssa_snapshot, ssa::Ssa};
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{Ssa, opt::assert_normalized_ssa_equals},
+    };
 
     #[test]
     fn simplify_derive_generators_has_correct_type() {
@@ -846,11 +847,11 @@ mod tests {
     }
 
     #[test]
-    fn simplifies_slice_refcount_in_acir_to_zero() {
+    fn simplifies_vector_refcount_in_acir_to_zero() {
         let src = r#"
         acir(inline) fn main func {
           b0(v0: [Field]):
-            v1 = call slice_refcount(u32 3, v0) -> u32
+            v1 = call vector_refcount(u32 3, v0) -> u32
             return v1
         }
         "#;
@@ -865,11 +866,11 @@ mod tests {
     }
 
     #[test]
-    fn does_not_simplify_slice_refcount_in_brillig() {
+    fn does_not_simplify_vector_refcount_in_brillig() {
         let src = r#"
         brillig(inline) fn main func {
           b0(v0: [Field]):
-            v1 = call slice_refcount(u32 3, v0) -> u32
+            v1 = call vector_refcount(u32 3, v0) -> u32
             return v1
         }
         "#;
@@ -878,7 +879,7 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: [Field]):
-            v3 = call slice_refcount(u32 3, v0) -> u32
+            v3 = call vector_refcount(u32 3, v0) -> u32
             return v3
         }
         ");
@@ -904,7 +905,7 @@ mod tests {
     }
 
     #[test]
-    fn simplifies_array_len_for_slice() {
+    fn simplifies_array_len_for_vector() {
         let src = r#"
         acir(inline) fn main func {
           b0(v0: u32, v1: [Field]):
@@ -922,7 +923,7 @@ mod tests {
         ");
     }
 
-    #[should_panic(expected = "First argument to ArrayLen must be an array or a slice length")]
+    #[should_panic(expected = "First argument to ArrayLen must be an array or a vector length")]
     #[test]
     fn panics_on_array_len_with_wrong_type() {
         let src = r#"
@@ -933,5 +934,211 @@ mod tests {
         }
         "#;
         let _ = Ssa::from_str_simplifying(src).unwrap();
+    }
+
+    #[test]
+    fn can_handle_zero_len_vector() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [] : [(); 1]
+            v1 = make_array [] : [()]
+            return
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [] : [(); 1]
+            v1 = make_array [] : [()]
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_vector_push_back_from_make_array_simple() {
+        let src = r#"
+        acir(inline) fn main func {
+          b0():
+            v0 = make_array [Field 1, Field 2] : [Field]
+            v2, v3 = call vector_push_back(u32 2, v0, Field 3) -> (u32, [Field])
+            return v2, v3
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v2 = make_array [Field 1, Field 2] : [Field]
+            v4 = make_array [Field 1, Field 2, Field 3] : [Field]
+            return u32 3, v4
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_vector_push_back_from_make_array_complex() {
+        let src = r#"
+        acir(inline) fn main func {
+          b0():
+            v0 = make_array [Field 1, Field 2, Field 3, Field 4] : [(Field, Field)]
+            v2, v3 = call vector_push_back(u32 2, v0, Field 5, Field 6) -> (u32, [(Field, Field)])
+            return v2, v3
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v4 = make_array [Field 1, Field 2, Field 3, Field 4] : [(Field, Field)]
+            v7 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [(Field, Field)]
+            return u32 3, v7
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_simplify_vector_push_back_from_make_array_if_length_different_from_capacity_and_complex()
+     {
+        // Here the semantic length is different from the vector capacity.
+        // A situation like this is possible when we merge vectors of different length across different branches,
+        // which results in the ValueMerger allocating elements to hold the longer one, and the semantic length
+        // becoming a formula. Then, if constant folding with Brillig optimizes out the condition, the semantic
+        // length can become a known constant.
+        // At the moment the only handling for complex type is the pushing to the last position.
+        let src = r#"
+        acir(inline) fn main func {
+          b0():
+            v0 = make_array [Field 1, Field 2, Field 3, Field 4] : [(Field, Field)]
+            v2, v3 = call vector_push_back(u32 1, v0, Field 5, Field 6) -> (u32, [(Field, Field)])
+            return v2, v3
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v4 = make_array [Field 1, Field 2, Field 3, Field 4] : [(Field, Field)]
+            v9, v10 = call vector_push_back(u32 1, v4, Field 5, Field 6) -> (u32, [(Field, Field)])
+            return v9, v10
+        }
+        ");
+    }
+
+    #[test]
+    fn simplify_vector_push_back_from_make_array_if_length_different_from_capacity_and_simple() {
+        // Here the semantic length is different from the vector capacity, but the elements are simple.
+        // In this case we can do a merge strategy.
+        let src = r#"
+        acir(inline) fn main func {
+          b0():
+            v0 = make_array [Field 1, Field 2, Field 3] : [Field]
+            v2, v3 = call vector_push_back(u32 1, v0, Field 5) -> (u32, [(Field, Field)])
+            return v2, v3
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v3 = make_array [Field 1, Field 2, Field 3] : [Field]
+            v5 = make_array [Field 1, Field 2, Field 3, Field 5] : [Field]
+            v6 = make_array [Field 1, Field 5, Field 3, Field 5] : [Field]
+            return u32 2, v6
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_vector_push_back_with_unknown_length() {
+        let src = r#"
+        acir(inline) fn main func {
+          b0(v0: u32):
+            v1 = make_array [Field 3, Field 4] : [Field]
+            v2, v3 = call vector_push_back(v0, v1, Field 5) -> (u32, [Field])
+            return v2, v3
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        // We can see how we start with a `make_array` that pushed `Field 5` to the end of the
+        // original `make_array`, sets the element at `v0` to `Field 5` (which can result in
+        // one of `[5, 4, 5]`, `[3, 5, 5]` or `[3, 4, 5]` depending on the value of `v0`),
+        // and then merge that new array with `[3, 4, 5]`.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v3 = make_array [Field 3, Field 4] : [Field]
+            v5 = add v0, u32 1
+            v7 = make_array [Field 3, Field 4, Field 5] : [Field]
+            v8 = array_set v7, index v0, value Field 5
+            return v5, v8
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_vector_insert_on_make_array_and_known_middle_index() {
+        let src = r#"
+        acir(inline) fn main func {
+          b0(v0: u32):
+            v1 = make_array [Field 3, Field 4] : [Field]
+            v10, v11 = call vector_insert(u32 2, v1, u32 1, Field 2) -> (u32, [Field])
+            return v10, v11
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v3 = make_array [Field 3, Field 4] : [Field]
+            v5 = make_array [Field 3, Field 2, Field 4] : [Field]
+            return u32 3, v5
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_vector_insert_on_make_array_and_known_index_right_past_end() {
+        let src = r#"
+        acir(inline) fn main func {
+          b0(v0: u32):
+            v1 = make_array [Field 3, Field 4] : [Field]
+            v10, v11 = call vector_insert(u32 2, v1, u32 2, Field 2) -> (u32, [Field])
+            return v10, v11
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v3 = make_array [Field 3, Field 4] : [Field]
+            v5 = make_array [Field 3, Field 4, Field 2] : [Field]
+            return u32 3, v5
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_simplify_vector_insert_on_make_array_and_known_index_past_end() {
+        let src = r#"
+        acir(inline) fn main func {
+          b0(v0: u32):
+            v1 = make_array [Field 3, Field 4] : [Field]
+            v10, v11 = call vector_insert(u32 2, v1, u32 3, Field 2) -> (u32, [Field])
+            return v10, v11
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_normalized_ssa_equals(ssa, src);
     }
 }

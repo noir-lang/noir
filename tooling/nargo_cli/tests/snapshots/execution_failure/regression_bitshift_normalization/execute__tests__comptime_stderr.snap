@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Attempt to bit-shift with overflow
+  ┌─ src/main.nr:4:18
+  │
+4 │             if ((1_u8 >> idx_c) == idx_d) {} else {};
+  │                  -------------
+  │
+
+Error interpreting main function

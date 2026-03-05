@@ -49,7 +49,7 @@ fn semver_check_package(package: &Package, compiler_version: &Version) -> Result
                 required_compiler_version: version.clone(),
                 compiler_version_found: strip_build_meta_data(compiler_version),
             });
-        };
+        }
     }
 
     // Check that all of this package's dependencies' compiler version requirements are satisfied
@@ -107,20 +107,18 @@ mod tests {
             name: CrateName::from_str("test").unwrap(),
             dependencies: BTreeMap::new(),
             version: Some("1.0".to_string()),
-            expression_width: None,
         };
         if let Err(err) = semver_check_package(&package, &compiler_version) {
             panic!(
                 "semver check should have passed. compiler version is 0.1.0 and required version from the package is 0.1.0\n error: {err:?}"
             )
-        };
+        }
 
         package.compiler_required_version = Some("0.2.0".to_string());
-        let got_err = match semver_check_package(&package, &compiler_version) {
-            Ok(_) => panic!(
+        let Err(got_err) = semver_check_package(&package, &compiler_version) else {
+            panic!(
                 "semver check should have failed. compiler version is 0.1.0 and required version from the package is 0.2.0"
-            ),
-            Err(err) => err,
+            )
         };
 
         let expected_version_error = SemverError::IncompatibleVersion {
@@ -144,7 +142,6 @@ mod tests {
             name: CrateName::from_str("test").unwrap(),
             dependencies: BTreeMap::new(),
             version: Some("1.0".to_string()),
-            expression_width: None,
         };
 
         let valid_dependency = Package {
@@ -160,24 +157,23 @@ mod tests {
 
         package.dependencies.insert(
             CrateName::from_str("test_dep_valid").unwrap(),
-            Dependency::Local { package: valid_dependency.clone() },
+            Dependency::Local { package: valid_dependency },
         );
 
         if let Err(err) = semver_check_package(&package, &compiler_version) {
             panic!(
                 "semver check should have passed. compiler version is 0.1.0 and required version from the package is 0.1.0\n error: {err:?}"
             )
-        };
+        }
 
         package.dependencies.insert(
             CrateName::from_str("test_dep_invalid").unwrap(),
-            Dependency::Local { package: invalid_dependency.clone() },
+            Dependency::Local { package: invalid_dependency },
         );
-        let got_err = match semver_check_package(&package, &compiler_version) {
-            Ok(_) => panic!(
+        let Err(got_err) = semver_check_package(&package, &compiler_version) else {
+            panic!(
                 "semver check should have failed. compiler version is 0.1.0 and required version from the package is 0.2.0"
-            ),
-            Err(err) => err,
+            )
         };
 
         let expected_version_error = SemverError::IncompatibleVersion {
@@ -201,14 +197,13 @@ mod tests {
             name: CrateName::from_str("test").unwrap(),
             dependencies: BTreeMap::new(),
             version: Some("1.0".to_string()),
-            expression_width: None,
         };
 
         if let Err(err) = semver_check_package(&package, &compiler_version) {
             panic!(
                 "semver check should have passed. compiler version is 0.2.0 and required version from the package is >=0.1.0\n error: {err:?}"
             )
-        };
+        }
     }
 
     #[test]
@@ -224,12 +219,11 @@ mod tests {
             name: CrateName::from_str("test").unwrap(),
             dependencies: BTreeMap::new(),
             version: Some("1.0".to_string()),
-            expression_width: None,
         };
 
         if let Err(err) = semver_check_package(&package, &compiler_version) {
             panic!("{err}");
-        };
+        }
     }
 
     #[test]
@@ -245,13 +239,12 @@ mod tests {
             name: CrateName::from_str("test").unwrap(),
             dependencies: BTreeMap::new(),
             version: Some("1.0".to_string()),
-            expression_width: None,
         };
 
         if let Err(err) = semver_check_package(&package, &compiler_version) {
             panic!(
                 "semver check should have passed. compiler version is 0.1.0+build_data and required version from the package is 0.1.0\n The build data should be ignored\n error: {err:?}"
             )
-        };
+        }
     }
 }

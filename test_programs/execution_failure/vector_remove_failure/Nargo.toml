@@ -1,0 +1,5 @@
+[package]
+name = "vector_remove_failure"
+type = "bin"
+authors = [""]
+[dependencies]

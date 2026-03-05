@@ -2,8 +2,8 @@ use crate::field::field_less_than;
 use crate::runtime::is_unconstrained;
 
 // The low and high decomposition of the field modulus
-global PLO: Field = 53438638232309528389504892708671455233;
-global PHI: Field = 64323764613183177041862057485226039389;
+pub(crate) global PLO: Field = 53438638232309528389504892708671455233;
+pub(crate) global PHI: Field = 64323764613183177041862057485226039389;
 
 pub(crate) global TWO_POW_128: Field = 0x100000000000000000000000000000000;
 

@@ -1,14 +1,14 @@
-use crate::tests::{assert_no_errors, check_errors};
+use crate::tests::{assert_no_errors, check_errors, check_monomorphization_error};
 
 #[test]
 fn deny_cyclic_globals() {
     let src = r#"
         global A: u32 = B;
-                        ^ Failed to resolve this global
                ^ Dependency cycle found
                ~ 'A' recursively depends on itself: A -> B -> A
         global B: u32 = A;
-                        ^ Failed to resolve this global
+                        ^ Dependency cycle found
+                        ~ 'A' recursively depends on itself: the variable definition type hasn't been resolved yet
     "#;
     check_errors(src);
 }
@@ -32,6 +32,7 @@ fn do_not_infer_globals_to_u32_from_type_use() {
                ^^^^^^^^^ Globals must have a specified type
                            ~ Inferred type is `Field`
         global STR_LEN: _ = 2;
+                        ^ The placeholder `_` is not allowed in global definitions
                ^^^^^^^ Globals must have a specified type
                             ~ Inferred type is `Field`
         global FMT_STR_LEN = 2;
@@ -57,26 +58,34 @@ fn do_not_infer_globals_to_u32_from_type_use() {
 fn do_not_infer_partial_global_types() {
     let src = r#"
         pub global ARRAY: [Field; _] = [0; 3];
+                                  ^ The placeholder `_` is not allowed in global definitions
                    ^^^^^ Globals must have a specified type
                                        ~~~~~~ Inferred type is `[Field; 3]`
         pub global NESTED_ARRAY: [[Field; _]; 3] = [[]; 3];
+                                          ^ The placeholder `_` is not allowed in global definitions
                    ^^^^^^^^^^^^ Globals must have a specified type
                                                    ~~~~~~~ Inferred type is `[[Field; 0]; 3]`
         pub global STR: str<_> = "hi";
+                            ^ The placeholder `_` is not allowed in global definitions
                    ^^^ Globals must have a specified type
                                  ~~~~ Inferred type is `str<2>`
-                 
-        pub global NESTED_STR: [str<_>] = &["hi"];
+        pub global NESTED_STR: [str<_>] = @["hi"];
+                                    ^ The placeholder `_` is not allowed in global definitions
                    ^^^^^^^^^^ Globals must have a specified type
                                           ~~~~~~~ Inferred type is `[str<2>]`
         pub global FORMATTED_VALUE: str<5> = "there";
         pub global FMT_STR: fmtstr<_, _> = f"hi {FORMATTED_VALUE}";
+                                   ^ The placeholder `_` is not allowed in global definitions
+                                      ^ The placeholder `_` is not allowed in global definitions
                    ^^^^^^^ Globals must have a specified type
                                            ~~~~~~~~~~~~~~~~~~~~~~~ Inferred type is `fmtstr<20, (str<5>,)>`
-        pub global TUPLE_WITH_MULTIPLE: ([str<_>], [[Field; _]; 3]) = 
+        pub global TUPLE_WITH_MULTIPLE: ([str<_>], [[Field; _]; 3]) =
+                                              ^ The placeholder `_` is not allowed in global definitions
+                                                            ^ The placeholder `_` is not allowed in global definitions
                    ^^^^^^^^^^^^^^^^^^^ Globals must have a specified type
-            (&["hi"], [[]; 3]);
+            (@["hi"], [[]; 3]);
             ~~~~~~~~~~~~~~~~~~ Inferred type is `([str<2>], [[Field; 0]; 3])`
+        pub global FOO: [i32; 3] = [1, 2, 3];
     "#;
     check_errors(src);
 }
@@ -133,19 +142,6 @@ fn disallows_references_in_globals() {
 }
 
 #[test]
-fn errors_on_cyclic_globals() {
-    let src = r#"
-    pub comptime global A: u32 = B;
-                                 ^ Failed to resolve this global
-                        ^ Dependency cycle found
-                        ~ 'A' recursively depends on itself: A -> B -> A
-    pub comptime global B: u32 = A;
-                                 ^ Failed to resolve this global
-    "#;
-    check_errors(src);
-}
-
-#[test]
 fn int_min_global() {
     let src = r#"
         global MIN: i8 = -128;
@@ -163,20 +159,171 @@ fn lazy_literal_globals() {
     let src = "
     global bar: Foo = Foo::new();
     global foo: u32 = 1;
-    
+
     struct Foo {
        foo: u32
     }
-    
+
     impl Foo {
         fn new() -> Self {
             Self { foo }
         }
     }
-    
+
     fn main() {
         let _ = bar;
     }
     ";
     assert_no_errors(src);
+}
+
+#[test]
+fn global_fn_using_quoted() {
+    let src = "
+    global foo: fn() = || {
+        let _ = quote { 1 };
+                ^^^^^^^^^^^ Comptime-only type `Quoted` used in runtime code
+                ~~~~~~~~~~~ Comptime type used here
+    };
+
+    fn main() {
+        foo();
+    }
+    ";
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn global_using_nested_quoted_type() {
+    let src = "
+    global foo: [Quoted; 1] = [quote { 1 }];
+                 ^^^^^^ Comptime-only type `Quoted` cannot be used in non-comptime global
+
+    fn main() {
+        let _ = foo;
+    }
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn comptime_global_using_nested_quoted_type() {
+    let src = "
+    comptime global foo: [Quoted; 1] = [quote { 1 }];
+
+    fn main() {
+        let _ = comptime { foo };
+    }
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn global_closure_with_undefined_variable_method_call() {
+    // A global contained a closure with a method call on an undefined variable.
+    // It should report an error, and not panic.
+    let src = r#"
+    global foo: fn() -> Field = || {
+        v0.bar()
+        ^^ cannot find `v0` in this scope
+        ~~ not found in this scope
+    };
+    fn main() {
+        let _ = foo;
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_11489_mutually_recursive_function() {
+    let src = r#"
+    global foo: Field = bar();
+           ^^^ Dependency cycle found
+           ~~~ 'foo' recursively depends on itself: foo -> bar -> foo
+                        ^^^^^ Expected a function, but found a(n) Field
+
+    global bar: Field = foo();
+                        ^^^ Dependency cycle found
+                        ~~~ 'foo' recursively depends on itself: the variable definition type hasn't been resolved yet
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_11489_mutually_recursive_typed_function() {
+    let src = r#"
+    global foo: fn() = bar;
+           ^^^ Dependency cycle found
+           ~~~ 'foo' recursively depends on itself: foo -> bar -> foo
+
+    global bar: fn() = foo;
+                       ^^^ Dependency cycle found
+                       ~~~ 'foo' recursively depends on itself: the variable definition type hasn't been resolved yet
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_11489_function() {
+    let src = r#"
+    global foo: Field = foo();
+                        ^^^ Dependency cycle found
+                        ~~~ 'foo' recursively depends on itself: the variable definition type hasn't been resolved yet
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_11489_typed_function() {
+    let src = r#"
+    global foo: fn() = foo();
+                       ^^^ Dependency cycle found
+                       ~~~ 'foo' recursively depends on itself: the variable definition type hasn't been resolved yet
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_11489_value() {
+    let src = r#"
+    global foo: Field = foo;
+                        ^^^ Dependency cycle found
+                        ~~~ 'foo' recursively depends on itself: the variable definition type hasn't been resolved yet
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_11489_mutually_recursive_value() {
+    let src = r#"
+    global foo: Field = bar;
+           ^^^ Dependency cycle found
+           ~~~ 'foo' recursively depends on itself: foo -> bar -> foo
+
+    global bar: Field = foo;
+                        ^^^ Dependency cycle found
+                        ~~~ 'foo' recursively depends on itself: the variable definition type hasn't been resolved yet
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_11489_comptime_function() {
+    let src = r#"
+    comptime global foo: Field = foo();
+                                 ^^^ Dependency cycle found
+                                 ~~~ 'foo' recursively depends on itself: the variable definition type hasn't been resolved yet
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn regression_11489_comptime_value() {
+    let src = r#"
+    comptime global foo: Field = foo;
+                                 ^^^ Dependency cycle found
+                                 ~~~ 'foo' recursively depends on itself: the variable definition type hasn't been resolved yet
+    "#;
+    check_errors(src);
 }

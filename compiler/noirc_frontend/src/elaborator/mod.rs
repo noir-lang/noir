@@ -58,10 +58,11 @@ use std::{
 use crate::{
     Type,
     ast::UnresolvedGenerics,
+    elaborator::types::WildcardDisallowedContext,
     graph::CrateId,
     hir::{
         Context,
-        comptime::ComptimeError,
+        comptime::{ComptimeError, InterpreterError},
         def_collector::{
             dc_crate::{
                 CollectedItems, CompilationError, UnresolvedFunctions, UnresolvedGlobal,
@@ -82,6 +83,7 @@ use crate::{
         DependencyId, GlobalId, NodeInterner, TraitId, TraitImplId, TypeAliasId, TypeId,
     },
     parser::{ParserError, ParserErrorReason},
+    recursion::TypeRecursionContext,
 };
 use crate::{
     graph::CrateGraph, hir::def_collector::dc_crate::UnresolvedTrait, usage_tracker::UsageTracker,
@@ -110,6 +112,7 @@ mod unquote;
 mod variable;
 mod visibility;
 
+use self::traits::check_trait_impl_method_matches_declaration;
 use function_context::FunctionContext;
 use noirc_errors::Location;
 pub(crate) use options::ElaboratorOptions;
@@ -118,17 +121,40 @@ pub use path_resolution::Turbofish;
 use path_resolution::{
     PathResolution, PathResolutionItem, PathResolutionMode, PathResolutionTarget,
 };
-
-use self::traits::check_trait_impl_method_matches_declaration;
 pub(crate) use path_resolution::{TypedPath, TypedPathSegment};
 pub use primitive_types::PrimitiveType;
+
+/// Maximum number of recursive calls allowed at comptime.
+///
+/// Ideally we would like this to be 1000 to match what happens in ACIR,
+/// however due to the overhead of the `Interpreter` itself Rust itself
+/// would exhaust the stack earlier (or later, because `nargo` increases
+/// the stack size for parsing for example).
+///
+/// Potentially we could increase this if the `Interpreter` used an iterative
+/// strategy instead of recursion.
+///
+/// Note that if we increase this, currently we would hit the `MAX_EVALUATION_DEPTH`.
+const MAX_INTERPRETER_CALL_STACK_SIZE: usize = 100;
+
+/// Maximum depth of macro expansion (attribute execution).
+///
+/// This prevents infinite recursion when an attribute generates code that
+/// triggers further attribute expansion, which would otherwise cause a
+/// Rust stack overflow.
+///
+/// This limit is lower than the [interpreter call stack limit][MAX_INTERPRETER_CALL_STACK_SIZE] because macro
+/// expansion involves more stack frames per level (elaboration, comptime evaluation, etc.).
+pub(crate) const MAX_MACRO_EXPANSION_DEPTH: usize = 32;
 
 /// ResolverMetas are tagged onto each definition to track how many times they are used
 #[derive(Debug, PartialEq, Eq)]
 pub struct ResolverMeta {
-    num_times_used: usize,
+    used: bool,
+    mutated: bool,
     ident: HirIdent,
     warn_if_unused: bool,
+    warn_if_not_mutated: bool,
 }
 
 type ScopeForest = GenericScopeForest<String, ResolverMeta>;
@@ -138,6 +164,8 @@ pub struct LambdaContext {
     /// the index in the scope tree
     /// (sometimes being filled by ScopeTree's find method)
     pub scope_index: usize,
+    /// If we know this lambda to be unconstrained.
+    pub unconstrained: bool,
 }
 
 /// Determines whether we are in an unsafe block and, if so, whether
@@ -147,7 +175,7 @@ pub struct LambdaContext {
 enum UnsafeBlockStatus {
     NotInUnsafeBlock,
     InUnsafeBlockWithoutUnconstrainedCalls,
-    InUnsafeBlockWithConstrainedCalls,
+    InUnsafeBlockWithUnconstrainedCalls,
 }
 
 pub struct Loop {
@@ -167,6 +195,11 @@ pub struct Elaborator<'context> {
     pub(crate) interpreter_output: &'context Option<Rc<RefCell<dyn std::io::Write>>>,
 
     required_unstable_features: &'context BTreeMap<CrateId, Vec<UnstableFeature>>,
+
+    /// These are the globals that have yet to be elaborated.
+    /// This map is used to lazily evaluate these globals if they're encountered before
+    /// they are elaborated (e.g. in a function's type or another global's RHS).
+    unresolved_globals: &'context mut BTreeMap<GlobalId, UnresolvedGlobal>,
 
     unsafe_block_status: UnsafeBlockStatus,
     current_loop: Option<Loop>,
@@ -224,21 +257,19 @@ pub struct Elaborator<'context> {
     function_context: Vec<FunctionContext>,
 
     /// The current module this elaborator is in.
-    /// Initially empty, it is set whenever a new top-level item is resolved.
-    local_module: LocalModuleId,
+    /// Initially None, it is set whenever a new top-level item is resolved.
+    local_module: Option<LocalModuleId>,
 
     /// True if we're elaborating a comptime item such as a comptime function,
     /// block, global, or attribute.
     in_comptime_context: bool,
 
+    /// True if we are elaborating arguments of a function call to an unconstrained function.
+    in_unconstrained_args: bool,
+
     crate_id: CrateId,
 
-    /// These are the globals that have yet to be elaborated.
-    /// This map is used to lazily evaluate these globals if they're encountered before
-    /// they are elaborated (e.g. in a function's type or another global's RHS).
-    unresolved_globals: BTreeMap<GlobalId, UnresolvedGlobal>,
-
-    pub(crate) interpreter_call_stack: im::Vector<Location>,
+    interpreter_call_stack: im::Vector<Location>,
 
     /// If greater than 0, field visibility errors won't be reported.
     /// This is used when elaborating a comptime expression that is a struct constructor
@@ -253,6 +284,15 @@ pub struct Elaborator<'context> {
     /// The Elaborator keeps track of these reasons so that when an error is produced it will
     /// be wrapped in another error that will include this reason.
     pub(crate) elaborate_reasons: im::Vector<ElaborateReason>,
+
+    /// Set to true when the interpreter encounters an errored expression/statement,
+    /// causing all subsequent comptime evaluation to be skipped.
+    pub(crate) comptime_evaluation_halted: bool,
+
+    /// Tracks the current macro expansion depth to prevent infinite recursion
+    /// when an attribute generates code that triggers further attribute expansion.
+    /// This is a global counter that catches both single-function and mutual recursion.
+    pub(crate) macro_expansion_depth: usize,
 }
 
 #[derive(Copy, Clone)]
@@ -286,6 +326,7 @@ impl<'context> Elaborator<'context> {
         crate_graph: &'context CrateGraph,
         interpreter_output: &'context Option<Rc<RefCell<dyn std::io::Write>>>,
         required_unstable_features: &'context BTreeMap<CrateId, Vec<UnstableFeature>>,
+        unresolved_globals: &'context mut BTreeMap<GlobalId, UnresolvedGlobal>,
         crate_id: CrateId,
         interpreter_call_stack: im::Vector<Location>,
         options: ElaboratorOptions<'context>,
@@ -300,26 +341,42 @@ impl<'context> Elaborator<'context> {
             crate_graph,
             interpreter_output,
             required_unstable_features,
+            unresolved_globals,
             unsafe_block_status: UnsafeBlockStatus::NotInUnsafeBlock,
             current_loop: None,
             generics: Vec::new(),
             lambda_stack: Vec::new(),
             self_type: None,
             current_item: None,
-            local_module: LocalModuleId::dummy_id(),
+            local_module: None,
             crate_id,
             resolving_ids: BTreeSet::new(),
             trait_bounds: Vec::new(),
             function_context: vec![FunctionContext::default()],
             current_trait_impl: None,
-            unresolved_globals: BTreeMap::new(),
             current_trait: None,
             interpreter_call_stack,
             in_comptime_context: false,
+            in_unconstrained_args: false,
             silence_field_visibility_errors: 0,
             options,
             elaborate_reasons,
+            comptime_evaluation_halted: false,
+            macro_expansion_depth: 0,
         }
+    }
+
+    pub(crate) fn local_module(&self) -> LocalModuleId {
+        self.local_module.expect("local_module is unset")
+    }
+
+    /// Returns `true` if the current local module is the crate root,
+    /// and we are not inside an impl or trait impl.
+    pub(crate) fn is_at_crate_root(&self) -> bool {
+        self.self_type.is_none()
+            && self.current_trait.is_none()
+            && self.current_trait_impl.is_none()
+            && self.local_module.is_some_and(|id| id == self.def_maps[&self.crate_id].root())
     }
 
     pub fn from_context(
@@ -334,6 +391,7 @@ impl<'context> Elaborator<'context> {
             &context.crate_graph,
             &context.interpreter_output,
             &context.required_unstable_features,
+            &mut context.unresolved_globals,
             crate_id,
             im::Vector::new(),
             options,
@@ -422,11 +480,6 @@ impl<'context> Elaborator<'context> {
         self.push_errors(self.interner.check_for_dependency_cycles());
     }
 
-    /// True if we should use pedantic ACVM solving
-    pub fn pedantic_solving(&self) -> bool {
-        self.options.pedantic_solving
-    }
-
     fn elaborate_functions(&mut self, functions: UnresolvedFunctions) {
         for (_, id, _) in functions.functions {
             self.elaborate_function(id);
@@ -438,11 +491,28 @@ impl<'context> Elaborator<'context> {
 
     pub(crate) fn push_err(&mut self, error: impl Into<CompilationError>) {
         let error: CompilationError = error.into();
-        self.errors.push(error);
+        // Filter out internal control flow errors that should not be displayed
+        if !error.should_be_filtered() {
+            self.errors.push(error);
+        }
     }
 
-    pub(crate) fn push_errors(&mut self, errors: impl IntoIterator<Item = CompilationError>) {
-        self.errors.extend(errors);
+    pub(crate) fn push_errors<E: Into<CompilationError>>(
+        &mut self,
+        errors: impl IntoIterator<Item = E>,
+    ) {
+        for error in errors {
+            self.push_err(error);
+        }
+    }
+
+    /// Run a given function while also tracking whether any new errors were generated as a result.
+    pub(crate) fn with_error_guard<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> (T, bool) {
+        // Count actual errors (ignore warnings)
+        let initial_error_count = self.errors.len();
+        let result = f(self);
+        let has_new_errors = self.errors[initial_error_count..].iter().any(|e| e.is_error());
+        (result, has_new_errors)
     }
 
     fn run_lint(&mut self, lint: impl Fn(&Elaborator) -> Option<CompilationError>) {
@@ -453,9 +523,8 @@ impl<'context> Elaborator<'context> {
 
     pub(crate) fn resolve_module_by_path(&mut self, path: TypedPath) -> Option<ModuleId> {
         match self.resolve_path_as_type(path) {
-            Ok(PathResolution { item: PathResolutionItem::Module(module_id), errors })
-                if errors.is_empty() =>
-            {
+            Ok(PathResolution { item: PathResolutionItem::Module(module_id), errors }) => {
+                self.push_errors(errors);
                 Some(module_id)
             }
             _ => None,
@@ -465,9 +534,7 @@ impl<'context> Elaborator<'context> {
     fn resolve_trait_by_path(&mut self, path: TypedPath) -> Option<TraitId> {
         let error = match self.resolve_path_as_type(path.clone()) {
             Ok(PathResolution { item: PathResolutionItem::Trait(trait_id), errors }) => {
-                for error in errors {
-                    self.push_err(error);
-                }
+                self.push_errors(errors);
                 return Some(trait_id);
             }
             Ok(_) => DefCollectorErrorKind::NotATrait { not_a_trait_name: path },
@@ -478,44 +545,70 @@ impl<'context> Elaborator<'context> {
     }
 
     fn mark_type_as_used(&mut self, typ: &Type) {
+        self.mark_type_as_used_helper(typ, TypeRecursionContext::default());
+    }
+
+    fn mark_type_as_used_helper(
+        &mut self,
+        typ: &Type,
+        mut type_recursion_context: TypeRecursionContext,
+    ) {
         match typ {
-            Type::Array(_n, typ) => self.mark_type_as_used(typ),
-            Type::Slice(typ) => self.mark_type_as_used(typ),
+            Type::Array(_n, typ) => {
+                self.mark_type_as_used_helper(typ, type_recursion_context.recur());
+            }
+            Type::Vector(typ) => self.mark_type_as_used_helper(typ, type_recursion_context.recur()),
             Type::Tuple(types) => {
                 for typ in types {
-                    self.mark_type_as_used(typ);
+                    self.mark_type_as_used_helper(typ, type_recursion_context.clone().recur());
                 }
             }
             Type::DataType(datatype, generics) => {
-                self.mark_struct_as_constructed(datatype.clone());
-                for generic in generics {
-                    self.mark_type_as_used(generic);
-                }
-                if let Some(fields) = datatype.borrow().get_fields(generics) {
-                    for (_, typ, _) in fields {
-                        self.mark_type_as_used(&typ);
+                if type_recursion_context.insert_data_type(datatype.borrow().id, generics.clone()) {
+                    self.mark_struct_as_constructed(datatype.clone());
+                    for generic in generics {
+                        self.mark_type_as_used_helper(
+                            generic,
+                            type_recursion_context.clone().recur(),
+                        );
                     }
-                } else if let Some(variants) = datatype.borrow().get_variants(generics) {
-                    for (_, variant_types) in variants {
-                        for typ in variant_types {
-                            self.mark_type_as_used(&typ);
+                    if let Some(fields) = datatype.borrow().get_fields(generics) {
+                        for (_, typ, _) in fields {
+                            self.mark_type_as_used_helper(
+                                &typ,
+                                type_recursion_context.clone().recur(),
+                            );
+                        }
+                    } else if let Some(variants) = datatype.borrow().get_variants(generics) {
+                        for (_, variant_types) in variants {
+                            for typ in variant_types {
+                                self.mark_type_as_used_helper(
+                                    &typ,
+                                    type_recursion_context.clone().recur(),
+                                );
+                            }
                         }
                     }
                 }
             }
             Type::Alias(alias_type, generics) => {
-                self.mark_type_as_used(&alias_type.borrow().get_type(generics));
+                if type_recursion_context.insert_alias(alias_type.borrow().id, generics.clone()) {
+                    self.mark_type_as_used_helper(
+                        &alias_type.borrow().get_type(generics),
+                        type_recursion_context.recur(),
+                    );
+                }
             }
             Type::CheckedCast { from, to } => {
-                self.mark_type_as_used(from);
-                self.mark_type_as_used(to);
+                self.mark_type_as_used_helper(from, type_recursion_context.clone().recur());
+                self.mark_type_as_used_helper(to, type_recursion_context.recur());
             }
             Type::Reference(typ, _) => {
-                self.mark_type_as_used(typ);
+                self.mark_type_as_used_helper(typ, type_recursion_context.recur());
             }
             Type::InfixExpr(left, _op, right, _) => {
-                self.mark_type_as_used(left);
-                self.mark_type_as_used(right);
+                self.mark_type_as_used_helper(left, type_recursion_context.clone().recur());
+                self.mark_type_as_used_helper(right, type_recursion_context.recur());
             }
             Type::FieldElement
             | Type::Integer(..)
@@ -564,7 +657,7 @@ impl<'context> Elaborator<'context> {
     }
 
     fn elaborate_trait_impl(&mut self, trait_impl: UnresolvedTraitImpl) {
-        self.local_module = trait_impl.module_id;
+        self.local_module = Some(trait_impl.module_id);
 
         self.generics = trait_impl.resolved_generics.clone();
         self.current_trait_impl = trait_impl.impl_id;
@@ -575,13 +668,13 @@ impl<'context> Elaborator<'context> {
         self.remove_trait_impl_assumed_trait_implementations(trait_impl.impl_id);
 
         for (module, function, noir_function) in &trait_impl.methods.functions {
-            self.local_module = *module;
+            self.local_module = Some(*module);
             let errors = check_trait_impl_method_matches_declaration(
                 self.interner,
                 *function,
                 noir_function,
             );
-            self.push_errors(errors.into_iter().map(|error| error.into()));
+            self.push_errors(errors);
         }
 
         self.elaborate_functions(trait_impl.methods);
@@ -602,7 +695,10 @@ impl<'context> Elaborator<'context> {
     }
 
     fn define_type_alias(&mut self, alias_id: TypeAliasId, alias: UnresolvedTypeAlias) {
-        self.local_module = alias.module_id;
+        self.local_module = Some(alias.module_id);
+
+        let previous_in_comptime_context =
+            std::mem::replace(&mut self.in_comptime_context, alias.type_alias_def.comptime);
 
         let name = &alias.type_alias_def.name;
         let visibility = alias.type_alias_def.visibility;
@@ -610,7 +706,7 @@ impl<'context> Elaborator<'context> {
 
         let generics = self.add_generics(&alias.type_alias_def.generics);
         self.current_item = Some(DependencyId::Alias(alias_id));
-        let wildcard_allowed = false;
+        let wildcard_allowed = types::WildcardAllowed::No(WildcardDisallowedContext::TypeAlias);
         let (typ, num_expr) = if let Some(num_type) = alias.type_alias_def.numeric_type {
             let num_type = self.resolve_type(num_type, wildcard_allowed);
             let kind = Kind::numeric(num_type);
@@ -653,18 +749,28 @@ impl<'context> Elaborator<'context> {
         }
         self.interner.set_type_alias(alias_id, typ, generics, num_expr);
         self.generics.clear();
+
+        self.in_comptime_context = previous_in_comptime_context;
     }
 
-    /// True if we're currently within a constrained function.
+    /// True if we're currently within a constrained function or lambda.
     /// Defaults to `true` if the current function is unknown.
     fn in_constrained_function(&self) -> bool {
-        !self.in_comptime_context()
-            && self.current_item.is_none_or(|id| match id {
-                DependencyId::Function(id) => {
-                    !self.interner.function_modifiers(&id).is_unconstrained
-                }
-                _ => true,
-            })
+        if self.in_comptime_context() {
+            return false;
+        }
+
+        let in_unconstrained_function = self.current_item.is_some_and(|id| {
+            if let DependencyId::Function(id) = id {
+                self.interner.function_meta(&id).is_unconstrained()
+            } else {
+                false
+            }
+        });
+
+        let in_unconstrained_lambda = self.lambda_stack.last().is_some_and(|ctx| ctx.unconstrained);
+
+        !in_unconstrained_function && !in_unconstrained_lambda
     }
 
     /// Register a use of the given unstable feature. Errors if the feature has not
@@ -701,6 +807,37 @@ impl<'context> Elaborator<'context> {
         let errored = self.errors.iter().skip(previous_errors).any(|error| error.is_error());
         (errored, ret)
     }
+
+    /// Push a new location to the interpreter call stack.
+    ///
+    /// Return [InterpreterError::StackOverflow] if the stack size exceeds `MAX_INTERPRETER_CALL_STACK_SIZE`.
+    pub(crate) fn push_interpreter_call_stack(
+        &mut self,
+        location: Location,
+    ) -> Result<(), InterpreterError> {
+        if self.interpreter_call_stack.len() >= MAX_INTERPRETER_CALL_STACK_SIZE {
+            return Err(InterpreterError::StackOverflow {
+                location,
+                call_stack: self.interpreter_call_stack.clone(),
+            });
+        }
+        self.interpreter_call_stack.push_back(location);
+        Ok(())
+    }
+
+    /// Pops the last item from the interpreter call stack.
+    ///
+    /// Panics if the call stack is empty.
+    pub(crate) fn pop_interpreter_call_stack(&mut self) {
+        self.interpreter_call_stack
+            .pop_back()
+            .expect("call stack pushes and pops should be balanced");
+    }
+
+    /// The current interpreter call stack.
+    pub(crate) fn interpreter_call_stack(&self) -> &im::Vector<Location> {
+        &self.interpreter_call_stack
+    }
 }
 
 #[cfg(feature = "test_utils")]
@@ -725,6 +862,8 @@ pub mod test_utils {
     /// Interpret source code using the elaborator, without
     /// parsing and compiling it with nargo, converting
     /// the result into a monomorphized AST expression.
+    ///
+    /// The source is treated as root and stdlib, so stdlib snippets are allowed.
     pub fn interpret<W: Write + 'static>(
         src: &str,
         output: Rc<RefCell<W>>,
@@ -749,6 +888,7 @@ pub mod test_utils {
         let location = Location::new(Default::default(), file);
         let root_module = ModuleData::new(
             None,
+            None,
             location,
             Vec::new(),
             Vec::new(),
@@ -762,7 +902,7 @@ pub mod test_utils {
         context.def_interner.populate_dummy_operator_traits();
         context.set_comptime_printing(output);
 
-        let krate = context.crate_graph.add_crate_root(FileId::dummy());
+        let krate = context.crate_graph.add_crate_root_and_stdlib(FileId::dummy());
 
         let (module, errors) = parse_program(src, file);
         // Skip parser warnings
@@ -776,8 +916,17 @@ pub mod test_utils {
         let def_map = CrateDefMap::new(krate, root_module);
         let root_module_id = def_map.root();
         let mut collector = DefCollector::new(def_map);
+        let reuse_existing_module_declarations = false;
 
-        collect_defs(&mut collector, ast, FileId::dummy(), root_module_id, krate, &mut context);
+        collect_defs(
+            &mut collector,
+            ast,
+            FileId::dummy(),
+            root_module_id,
+            krate,
+            &mut context,
+            reuse_existing_module_declarations,
+        );
         context.def_maps.insert(krate, collector.def_map);
 
         let main = context.get_main_function(&krate).expect("Expected 'main' function");
@@ -807,10 +956,12 @@ pub mod test_utils {
             Location::dummy(),
         ) {
             Err(e) => return Err(ElaboratorError::Interpret(e)),
-            Ok(value) => match value.into_hir_expression(elaborator.interner, Location::dummy()) {
-                Err(e) => return Err(ElaboratorError::HIRConvert(e)),
-                Ok(expr_id) => expr_id,
-            },
+            Ok(value) => {
+                match value.into_runtime_hir_expression(elaborator.interner, Location::dummy()) {
+                    Err(e) => return Err(ElaboratorError::HIRConvert(e)),
+                    Ok(expr_id) => expr_id,
+                }
+            }
         };
 
         let mut monomorphizer =

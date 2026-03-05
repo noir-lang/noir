@@ -87,12 +87,12 @@ fn generate_random_instruction(rng: &mut StdRng) -> Instruction {
             rhs: generate_random_numeric_argument(rng),
         },
         GenerateInstruction::AddSubConstrain => Instruction::AddSubConstrain {
-            lhs: rng.gen_range(usize::MIN..usize::MAX),
-            rhs: rng.gen_range(usize::MIN..usize::MAX),
+            lhs: rng.random_range(usize::MIN..usize::MAX),
+            rhs: rng.random_range(usize::MIN..usize::MAX),
         },
         GenerateInstruction::MulDivConstrain => Instruction::MulDivConstrain {
-            lhs: rng.gen_range(usize::MIN..usize::MAX),
-            rhs: rng.gen_range(usize::MIN..usize::MAX),
+            lhs: rng.random_range(usize::MIN..usize::MAX),
+            rhs: rng.random_range(usize::MIN..usize::MAX),
         },
         GenerateInstruction::AddToMemory => {
             Instruction::AddToMemory { lhs: generate_random_argument(rng) }
@@ -101,62 +101,62 @@ fn generate_random_instruction(rng: &mut StdRng) -> Instruction {
             Instruction::LoadFromMemory { memory_addr: generate_random_argument(rng) }
         }
         GenerateInstruction::SetToMemory => Instruction::SetToMemory {
-            memory_addr_index: rng.gen_range(usize::MIN..usize::MAX),
+            memory_addr_index: rng.random_range(usize::MIN..usize::MAX),
             value: generate_random_argument(rng),
         },
         GenerateInstruction::CreateArray => Instruction::CreateArray {
-            elements_indices: vec![rng.gen_range(usize::MIN..usize::MAX); 10],
+            elements_indices: vec![rng.random_range(usize::MIN..usize::MAX); 10],
             element_type: generate_random_argument(rng).value_type,
         },
         GenerateInstruction::ArrayGet => Instruction::ArrayGet {
-            array_index: rng.gen_range(usize::MIN..usize::MAX),
+            array_index: rng.random_range(usize::MIN..usize::MAX),
             index: generate_random_numeric_argument(rng),
             safe_index: generate_random_bool(rng, GENERATE_BOOL_CONFIGURATION_MOST_TRUE),
         },
         GenerateInstruction::ArraySet => Instruction::ArraySet {
-            array_index: rng.gen_range(usize::MIN..usize::MAX),
+            array_index: rng.random_range(usize::MIN..usize::MAX),
             index: generate_random_numeric_argument(rng),
-            value_index: rng.gen_range(usize::MIN..usize::MAX),
+            value_index: rng.random_range(usize::MIN..usize::MAX),
             safe_index: generate_random_bool(rng, GENERATE_BOOL_CONFIGURATION_MOST_TRUE),
         },
         GenerateInstruction::ArrayGetWithConstantIndex => Instruction::ArrayGetWithConstantIndex {
-            array_index: rng.gen_range(usize::MIN..usize::MAX),
-            index: rng.gen_range(usize::MIN..usize::MAX),
+            array_index: rng.random_range(usize::MIN..usize::MAX),
+            index: rng.random_range(usize::MIN..usize::MAX),
             safe_index: generate_random_bool(rng, GENERATE_BOOL_CONFIGURATION_MOST_TRUE),
         },
         GenerateInstruction::ArraySetWithConstantIndex => Instruction::ArraySetWithConstantIndex {
-            array_index: rng.gen_range(usize::MIN..usize::MAX),
-            index: rng.gen_range(usize::MIN..usize::MAX),
-            value_index: rng.gen_range(usize::MIN..usize::MAX),
+            array_index: rng.random_range(usize::MIN..usize::MAX),
+            index: rng.random_range(usize::MIN..usize::MAX),
+            value_index: rng.random_range(usize::MIN..usize::MAX),
             safe_index: generate_random_bool(rng, GENERATE_BOOL_CONFIGURATION_MOST_TRUE),
         },
         GenerateInstruction::FieldToBytesToField => {
-            Instruction::FieldToBytesToField { field_idx: rng.gen_range(usize::MIN..usize::MAX) }
+            Instruction::FieldToBytesToField { field_idx: rng.random_range(usize::MIN..usize::MAX) }
         }
         GenerateInstruction::Blake2sHash => Instruction::Blake2sHash {
-            field_idx: rng.gen_range(usize::MIN..usize::MAX),
-            limbs_count: rng.gen_range(u8::MIN..u8::MAX),
+            field_idx: rng.random_range(usize::MIN..usize::MAX),
+            limbs_count: rng.random_range(u8::MIN..u8::MAX),
         },
         GenerateInstruction::Blake3Hash => Instruction::Blake3Hash {
-            field_idx: rng.gen_range(usize::MIN..usize::MAX),
-            limbs_count: rng.gen_range(u8::MIN..u8::MAX),
+            field_idx: rng.random_range(usize::MIN..usize::MAX),
+            limbs_count: rng.random_range(u8::MIN..u8::MAX),
         },
         GenerateInstruction::Keccakf1600Hash => Instruction::Keccakf1600Hash {
-            u64_indices: [rng.gen_range(usize::MIN..usize::MAX); 25],
+            u64_indices: [rng.random_range(usize::MIN..usize::MAX); 25],
             load_elements_of_array: generate_random_bool(
                 rng,
                 GENERATE_BOOL_CONFIGURATION_MOST_FALSE,
             ),
         },
         GenerateInstruction::Aes128Encrypt => Instruction::Aes128Encrypt {
-            input_idx: rng.gen_range(usize::MIN..usize::MAX),
-            input_limbs_count: rng.gen_range(u8::MIN..u8::MAX),
-            key_idx: rng.gen_range(usize::MIN..usize::MAX),
-            iv_idx: rng.gen_range(usize::MIN..usize::MAX),
+            input_idx: rng.random_range(usize::MIN..usize::MAX),
+            input_limbs_count: rng.random_range(u8::MIN..u8::MAX),
+            key_idx: rng.random_range(usize::MIN..usize::MAX),
+            iv_idx: rng.random_range(usize::MIN..usize::MAX),
         },
         GenerateInstruction::Sha256Compression => Instruction::Sha256Compression {
-            input_indices: [rng.gen_range(usize::MIN..usize::MAX); 16],
-            state_indices: [rng.gen_range(usize::MIN..usize::MAX); 8],
+            input_indices: [rng.random_range(usize::MIN..usize::MAX); 16],
+            state_indices: [rng.random_range(usize::MIN..usize::MAX); 8],
             load_elements_of_array: generate_random_bool(
                 rng,
                 GENERATE_BOOL_CONFIGURATION_MOST_FALSE,

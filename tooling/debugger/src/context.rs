@@ -14,11 +14,10 @@ use codespan_reporting::files::{Files, SimpleFile};
 use fm::FileId;
 use nargo::NargoError;
 use nargo::errors::{ExecutionError, Location, ResolvedOpcodeLocation, execution_error_from};
-use noirc_artifacts::debug::{DebugArtifact, StackFrame};
-use noirc_driver::{CompiledProgram, DebugFile};
+use noirc_artifacts::debug::{DebugArtifact, DebugFile, DebugInfo, StackFrame};
 
+use noirc_artifacts::program::CompiledProgram;
 use noirc_errors::call_stack::CallStackId;
-use noirc_errors::debug_info::DebugInfo;
 use noirc_printable_type::{PrintableType, PrintableValue};
 use thiserror::Error;
 
@@ -286,9 +285,6 @@ pub struct DebugProject {
 #[derive(Debug, Clone)]
 
 pub struct RunParams {
-    /// Use pedantic ACVM solving
-    pub pedantic_solving: bool,
-
     /// Option for configuring the source_code_printer
     /// This option only applies for the Repl interface
     pub raw_source_printing: Option<bool>,
@@ -453,11 +449,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
     }
 
     pub(super) fn is_source_location_in_debug_module(&self, location: &Location) -> bool {
-        self.debug_artifact
-            .file_map
-            .get(&location.file)
-            .map(is_debug_file_in_debug_crate)
-            .unwrap_or(false)
+        self.debug_artifact.file_map.get(&location.file).is_some_and(is_debug_file_in_debug_crate)
     }
 
     /// Find an opcode location matching a source code location
@@ -520,8 +512,8 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
 
     /// Returns the `FileId` of the file associated with the innermost function on the call stack.
     fn get_current_file(&self) -> Option<FileId> {
-        self.get_current_source_location()
-            .and_then(|locations| locations.last().map(|location| location.file))
+        let locations = self.get_current_source_location()?;
+        locations.last().map(|location| location.file)
     }
 
     /// Returns the (possible) stack of source locations corresponding to the
@@ -891,7 +883,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
     ) {
         if let Some(solver) = self.brillig_solver.as_mut() {
             solver.write_memory_at(
-                ptr,
+                ptr.try_into().expect("Pointer is too large"),
                 MemoryValue::new_checked(value, bit_size)
                     .expect("Invalid value for the given bit size"),
             );
@@ -1097,7 +1089,7 @@ mod tests {
 
     #[test]
     fn test_resolve_foreign_calls_stepping_into_brillig() {
-        let solver = StubbedBlackBoxSolver::default();
+        let solver = StubbedBlackBoxSolver;
         let fe_1 = FieldElement::one();
         let w_x = Witness(1);
 
@@ -1140,7 +1132,7 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        BRILLIG CALL func: 0, inputs: [{w_x}], outputs: []
+        BRILLIG CALL func: 0, predicate: 1, inputs: [{w_x}], outputs: []
         "
         );
         let circuit = Circuit::from_str(&src).unwrap();
@@ -1246,7 +1238,7 @@ mod tests {
 
     #[test]
     fn test_break_brillig_block_while_stepping_acir_opcodes() {
-        let solver = StubbedBlackBoxSolver::default();
+        let solver = StubbedBlackBoxSolver;
         let fe_1 = FieldElement::one();
         let w_x = Witness(1);
         let w_y = Witness(2);
@@ -1295,7 +1287,7 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        BRILLIG CALL func: 0, inputs: [{w_x}, {w_y}], outputs: [{w_z}]
+        BRILLIG CALL func: 0, predicate: 1, inputs: [{w_x}, {w_y}], outputs: [{w_z}]
         ASSERT {w_z} = {w_x} + {w_y}
         "
         );
@@ -1358,7 +1350,7 @@ mod tests {
 
     #[test]
     fn test_address_debug_location_mapping() {
-        let solver = StubbedBlackBoxSolver::default();
+        let solver = StubbedBlackBoxSolver;
         let brillig_one = BrilligBytecode {
             function_name: "one".to_string(),
             bytecode: vec![BrilligOpcode::Return, BrilligOpcode::Return],
@@ -1373,8 +1365,8 @@ mod tests {
         public parameters: []
         return values: []
         INIT b0 = []
-        BRILLIG CALL func: 0, inputs: [], outputs: []
-        CALL func: 1, inputs: [], outputs: []
+        BRILLIG CALL func: 0, predicate: 1, inputs: [], outputs: []
+        CALL func: 1, predicate: 1, inputs: [], outputs: []
         ASSERT 0 = 0
         ";
         let circuit_one = Circuit::from_str(src_one).unwrap();
@@ -1383,7 +1375,7 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        BRILLIG CALL func: 1, inputs: [], outputs: []
+        BRILLIG CALL func: 1, predicate: 1, inputs: [], outputs: []
         ASSERT 0 = 0
         ";
         let circuit_two = Circuit::from_str(src_two).unwrap();
