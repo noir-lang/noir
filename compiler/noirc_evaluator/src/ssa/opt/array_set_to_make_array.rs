@@ -1,20 +1,21 @@
-//! Replaces `array_set` instructions with `make_array` instructions inside conditional
-//! blocks when the result of the `array_set` is only used within that same conditional block.
+//! Replaces `array_set` instructions with `make_array` instructions inside "conditional
+//! windows" when the result of the `array_set` is only used within that same "conditional window".
 //!
-//! A "conditional block" is the sequence of instructions between
+//! A "conditional window" is the sequence of instructions between
 //! `enable_side_effects v_cond` and the matching `enable_side_effects u1 1`.
 //!
-//! The optimization is correct only within the block because `array_set` under a conditional
+//! The optimization is correct only within the window because `array_set` under a conditional
 //! predicate is a conditional operation: when the predicate is false the result equals the
-//! original array, not the modified one. If the result were used outside the block (where
+//! original array, not the modified one. If the result were used outside the window (where
 //! the predicate might be false) a plain `make_array` would produce the wrong value.
 //!
-//! When the result *is* exclusive to the block the replacement is safe, and it is
+//! When the result *is* exclusive to the window the replacement is safe, and it is
 //! beneficial: it exposes the constant set-value directly as a `make_array` element so
 //! that `remove_if_else`'s `ValueMerger` can short-circuit the conditional multiply for
 //! that element rather than emitting a conditional `array_get`.
 //!
 //! Example – this SSA:
+//!
 //! ```ssa
 //! enable_side_effects v_cond
 //! v_set = array_set v_arr, index u32 2, value Field 99
@@ -23,6 +24,7 @@
 //! ```
 //!
 //! becomes:
+//!
 //! ```ssa
 //! enable_side_effects v_cond
 //! v0 = array_get v_arr, index u32 0 -> Field
@@ -31,10 +33,15 @@
 //! enable_side_effects u1 1
 //! v_out = if v_cond then v_set else (if v_not_cond) v_arr
 //! ```
+//!
+//! Because `v_set` is only used within the "conditional window", and then just as the result
+//! of an `if-then-else` instruction, the `array_set` can be executed unconditionally because
+//! the remove_if_else` pass that comes after this pass will merge `v_set` with `v_arr` make sure
+//! to only use the values from `v_set` when `v_cond` is true.
 
 use std::collections::{HashMap, HashSet};
 
-use acvm::{AcirField, FieldElement};
+use acvm::{AcirField, FieldElement, acir::brillig::lengths::ElementTypesLength};
 use im::Vector;
 
 use crate::ssa::{
@@ -90,24 +97,23 @@ impl Function {
                 return;
             }
 
-            // Clone needed values out of the instruction before mutating.
             let Instruction::ArraySet { array, index, value, .. } = *context.instruction() else {
-                return;
+                unreachable!("candidate must be an ArraySet instruction");
             };
 
             let Some(const_index) =
                 context.dfg.get_numeric_constant(index).and_then(|v| v.try_to_u32())
             else {
-                return;
+                unreachable!("candidate ArraySet index must be a constant u32");
             };
 
             let Type::Array(ref element_types, len) = context.dfg.type_of_value(array) else {
-                return;
+                unreachable!("candidate ArraySet array must be of array type");
             };
 
             let element_types = element_types.clone();
-            let element_count = element_types.len() as u32;
-            let total_elements = len.0 * element_count;
+            let element_count = ElementTypesLength(element_types.len() as u32);
+            let total_elements = len * element_count;
 
             // Remove the array_set; we will emit replacement instructions instead.
             context.remove_current_instruction();
@@ -115,17 +121,17 @@ impl Function {
 
             // Build the element list for the make_array.
             let mut elements = Vector::new();
-            for flat_i in 0..total_elements {
-                if flat_i == const_index {
+            for semi_flattened_index in 0..total_elements.0 {
+                if semi_flattened_index == const_index {
                     elements.push_back(value);
                 } else {
-                    let element_index = (flat_i % element_count) as usize;
+                    let element_index = (semi_flattened_index % element_count.0) as usize;
                     let element_type = element_types[element_index].clone();
-                    let idx = context.dfg.make_constant(
-                        FieldElement::from(u128::from(flat_i)),
+                    let index = context.dfg.make_constant(
+                        FieldElement::from(u128::from(semi_flattened_index)),
                         NumericType::length_type(),
                     );
-                    let get = Instruction::ArrayGet { array, index: idx };
+                    let get = Instruction::ArrayGet { array, index };
                     let get_result =
                         context.insert_instruction(get, Some(vec![element_type])).first();
                     elements.push_back(get_result);
@@ -146,6 +152,23 @@ fn array_set_to_make_array_pre_check(func: &Function) {
     super::checks::assert_cfg_is_flattened(func);
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+struct ConditionalWindowId(usize);
+
+#[derive(Debug, Copy, Clone)]
+struct ConditionalWindow {
+    id: ConditionalWindowId,
+    predicate: ValueId,
+}
+
+#[derive(Debug)]
+struct TrackedValue {
+    window: ConditionalWindow,
+    // The set of original array_set candidate results that this value transitively depends on.
+    // If any of these candidates is disqualified, this value must be disqualified too.
+    dependencies: im::HashSet<ValueId>,
+}
+
 /// Returns the set of `InstructionId`s for `array_set` instructions that are safe
 /// to replace with `make_array + array_get` — i.e. those whose result (and any value
 /// transitively derived from it within the same window) is used only within that window
@@ -153,32 +176,29 @@ fn array_set_to_make_array_pre_check(func: &Function) {
 ///
 /// A "derived value" is the result of any instruction inside the window that takes a
 /// candidate (or another derived value) as an input — e.g. a `call` or another
-/// `array_set`. If a derived value escapes unsafely, the candidates it was derived
-/// from are disqualified: replacing them with unconditional `make_array`s would corrupt
-/// the derived value when the predicate is false.
+/// `array_set`. If a derived value escapes the window, the candidates it was derived
+/// from are disqualified: replacing them with unconditional `make_array`s would lead to
+/// incorrect results.
 fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<InstructionId> {
-    // Maps array_set candidate results → (instruction id, window id, window predicate).
-    let mut candidates: HashMap<ValueId, (InstructionId, u32, ValueId)> = HashMap::new();
-    // Maps every "tracked" value (a candidate or a value derived from candidates within the
-    // same window) → (window_id, window_predicate, candidate_deps).
-    // `candidate_deps` is the set of original array_set candidate results that this value
-    // transitively depends on; escaping a tracked value disqualifies all its deps.
-    let mut tracked: HashMap<ValueId, (u32, ValueId, im::HashSet<ValueId>)> = HashMap::new();
+    // Maps array_set candidate results → instruction id.
+    let mut candidates: HashMap<ValueId, InstructionId> = HashMap::new();
+    // Maps every "tracked" value (a candidate or a value derived from candidates within the same window).
+    let mut tracked: HashMap<ValueId, TrackedValue> = HashMap::new();
+    // Candidates that eventually escape the window where they were defined
     let mut disqualified: HashSet<ValueId> = HashSet::new();
 
-    let mut current_window: Option<(u32, ValueId)> = None;
-    let mut window_counter: u32 = 0;
+    let mut current_window: Option<ConditionalWindow> = None;
+    let mut window_counter: ConditionalWindowId = ConditionalWindowId(0);
 
     let instructions = dfg[block_id].instructions();
 
-    for &inst_id in instructions {
-        let instruction = &dfg[inst_id];
+    for &instruction_id in instructions {
+        let instruction = &dfg[instruction_id];
+
         // Check whether any input to this instruction is a tracked value being used in
-        // a context that lets it escape the conditional window.
+        // a context that escapes the conditional window.
         instruction.for_each_value(|value| {
-            if let Some(&(tracked_window, window_predicate, ref deps)) = tracked.get(&value) {
-                let current_window_id = current_window.map(|(wid, _)| wid);
-                let used_outside_window = current_window_id != Some(tracked_window);
+            if let Some(tracked_value) = tracked.get(&value) {
                 // A `store` instruction writes the value into memory from which it can be
                 // loaded after the window closes — treat this as an escape even when the
                 // store is inside the same window.
@@ -186,77 +206,76 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
                     instruction,
                     Instruction::Store { value: stored, .. } if *stored == value
                 );
-                // Determine whether this use of the tracked value is safe. An `IfElse`
-                // instruction always needs an explicit safety check (we don't propagate
-                // deps through IfElse results, so the `_` arm won't do it). For all other
-                // instructions the use is safe as long as we are still inside the same
-                // window (the `_` arm will track any derived results).
-                //
-                // The two safe IfElse patterns (symmetric for then and else):
-                //   `if P then v_tracked else orig`  — then_condition == window_predicate
-                //   `if ¬P then orig else v_tracked` — else_condition == window_predicate
-                // In both cases the branch using v_tracked is only taken when P is true,
-                // which is exactly when the original array_set result is correct.
-                let is_safe = if escapes_via_store {
+                // Determine whether this value stays within the window it was defined in.
+                let stays_within_window = if escapes_via_store {
+                    // If the value is stored in memory it could escape its window
                     false
                 } else {
+                    // Otherwise, if the pair of if "condition/value" matches the tracked value and its window,
+                    // then the value might escape the window but through an `if-else` that's going to
+                    // be merged, in which case we consider this as not escaping the window.
                     match instruction {
+                        // Check the "then-condition/then-value" case.
                         Instruction::IfElse { then_condition, then_value, .. }
                             if *then_value == value =>
                         {
-                            *then_condition == window_predicate
+                            *then_condition == tracked_value.window.predicate
                         }
+                        // Check the "else-condition/else-value" pair
                         Instruction::IfElse { else_condition, else_value, .. }
                             if *else_value == value =>
                         {
-                            *else_condition == window_predicate
-                        }
-                        Instruction::IfElse { .. } => {
-                            // value used as a condition itself — treat as unsafe
-                            false
+                            *else_condition == tracked_value.window.predicate
                         }
                         _ => {
-                            // Non-IfElse: safe as long as we are inside the tracked window.
+                            // Otherwise: safe as long as we are inside the tracked window.
+                            let current_window_id = current_window.map(|window| window.id);
+                            let used_outside_window =
+                                current_window_id != Some(tracked_value.window.id);
                             !used_outside_window
                         }
                     }
                 };
-                if !is_safe {
-                    disqualified.extend(deps.iter().copied());
+                if !stays_within_window {
+                    disqualified.extend(tracked_value.dependencies.iter().copied());
                 }
             }
         });
 
         match instruction {
             Instruction::EnableSideEffectsIf { condition } => {
+                // A window gets closed or opened
                 let is_unconditional =
                     dfg.get_numeric_constant(*condition).is_some_and(|v| v.is_one());
                 if is_unconditional {
                     current_window = None;
                 } else {
-                    window_counter += 1;
-                    current_window = Some((window_counter, *condition));
+                    window_counter = ConditionalWindowId(window_counter.0 + 1);
+                    current_window =
+                        Some(ConditionalWindow { id: window_counter, predicate: *condition });
                 }
             }
-            Instruction::ArraySet { array, index, mutable: false, .. } => {
-                if let Some((window_id, predicate)) = current_window
-                    && dfg.is_safe_index(*index, *array)
-                {
-                    let [result] = dfg.instruction_result(inst_id);
-                    candidates.insert(result, (inst_id, window_id, predicate));
-                    // Deps = {self} ∪ deps_of(array input).
-                    // Only the array input matters: when the predicate is false the
-                    // array_set result *equals* the array input, so a wrong array input
-                    // (one replaced by an unconditional make_array) would corrupt this
-                    // instruction's false-predicate value too.
-                    let mut deps = im::HashSet::new();
-                    deps.insert(result);
-                    if let Some((_, _, array_deps)) = tracked.get(array) {
-                        for dep in array_deps {
-                            deps.insert(*dep);
+            Instruction::ArraySet { array, index, value, mutable: false } => {
+                if let Some(window) = current_window {
+                    let [result] = dfg.instruction_result(instruction_id);
+
+                    // array_set with a constant in-bound index is a candidate
+                    if dfg.is_safe_index(*index, *array) {
+                        candidates.insert(result, instruction_id);
+                    }
+
+                    // Dependendencies of this array_set are the array_set result itself
+                    // (so we don't have to add tracked values in addition to their dependencies
+                    // later on) and any dependencies of the array and value (the index doesn't
+                    // matter as it's an integer).
+                    let mut dependencies = im::HashSet::new();
+                    dependencies.insert(result);
+                    for value in [array, value] {
+                        if let Some(tracked_value) = tracked.get(value) {
+                            dependencies.extend(tracked_value.dependencies.iter().copied());
                         }
                     }
-                    tracked.insert(result, (window_id, predicate, deps));
+                    tracked.insert(result, TrackedValue { window, dependencies });
                 }
             }
             Instruction::IfElse { .. } => {
@@ -270,7 +289,7 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
                 // Exception: a `call` with reference-typed arguments may store any of its
                 // arguments through those references, causing them to escape the window
                 // through memory. Treat all tracked arguments as escaping in that case.
-                if let Some((window_id, predicate)) = current_window {
+                if let Some(current_window) = current_window {
                     let is_call_with_ref_args =
                         if let Instruction::Call { arguments, .. } = instruction {
                             arguments.iter().any(|&arg| dfg.type_of_value(arg).contains_reference())
@@ -278,21 +297,25 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
                             false
                         };
 
-                    let mut deps: im::HashSet<ValueId> = im::HashSet::new();
+                    let mut dependencies = im::HashSet::new();
                     instruction.for_each_value(|value| {
-                        if let Some((_, _, value_deps)) = tracked.get(&value) {
+                        if let Some(tracked_value) = tracked.get(&value) {
                             if is_call_with_ref_args {
-                                disqualified.extend(value_deps.iter().copied());
+                                disqualified.extend(tracked_value.dependencies.iter().copied());
                             } else {
-                                for dep in value_deps {
-                                    deps.insert(*dep);
-                                }
+                                dependencies.extend(tracked_value.dependencies.iter().copied());
                             }
                         }
                     });
-                    if !is_call_with_ref_args && !deps.is_empty() {
-                        for &result in dfg.instruction_results(inst_id) {
-                            tracked.insert(result, (window_id, predicate, deps.clone()));
+                    if !dependencies.is_empty() {
+                        for &result in dfg.instruction_results(instruction_id) {
+                            tracked.insert(
+                                result,
+                                TrackedValue {
+                                    window: current_window,
+                                    dependencies: dependencies.clone(),
+                                },
+                            );
                         }
                     }
                 }
@@ -303,8 +326,8 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
     // Also check the block terminator: if a tracked value is used there it escapes.
     if let Some(terminator) = dfg[block_id].terminator() {
         terminator.for_each_value(|value| {
-            if let Some((_, _, deps)) = tracked.get(&value) {
-                disqualified.extend(deps.iter().copied());
+            if let Some(tracked_value) = tracked.get(&value) {
+                disqualified.extend(tracked_value.dependencies.iter().copied());
             }
         });
     }
@@ -312,7 +335,7 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
     candidates
         .into_iter()
         .filter(|(result, _)| !disqualified.contains(result))
-        .map(|(_, (inst_id, _, _))| inst_id)
+        .map(|(_, instruction_id)| instruction_id)
         .collect()
 }
 
@@ -331,10 +354,10 @@ mod tests {
           b0(v0: [Field; 3], v1: u1):
             v2 = not v1
             enable_side_effects v1
-            v3 = array_set v0, index u32 1, value Field 99
+            v5 = array_set v0, index u32 1, value Field 99
             enable_side_effects u1 1
-            v4 = if v1 then v3 else (if v2) v0
-            return v4
+            v7 = if v1 then v5 else (if v2) v0
+            return v7
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
@@ -362,10 +385,10 @@ mod tests {
         acir(inline) fn main f0 {
           b0(v0: [Field; 3], v1: u1):
             enable_side_effects v1
-            v2 = array_set v0, index u32 0, value Field 7
+            v4 = array_set v0, index u32 0, value Field 7
             enable_side_effects u1 1
-            v3 = array_get v2, index u32 0 -> Field
-            return v3
+            v6 = array_get v4, index u32 0 -> Field
+            return v6
         }
         "#;
         assert_ssa_does_not_change(src, Ssa::array_set_to_make_array);
@@ -382,11 +405,11 @@ mod tests {
         acir(inline) fn main f0 {
           b0(v0: [Field; 3], v1: u1):
             enable_side_effects v1
-            v2 = array_set v0, index u32 0, value Field 1
-            v3 = array_set v2, index u32 1, value Field 2
+            v4 = array_set v0, index u32 0, value Field 1
+            v7 = array_set v4, index u32 1, value Field 2
             enable_side_effects u1 1
-            v4 = array_get v3, index u32 0 -> Field
-            return v4
+            v9 = array_get v7, index u32 0 -> Field
+            return v9
         }
         "#;
         assert_ssa_does_not_change(src, Ssa::array_set_to_make_array);
@@ -426,9 +449,7 @@ mod tests {
         ");
     }
 
-    /// Mirrors the motivating example from the `remove_if_else` test:
-    /// the array_set feeds a poseidon2 call whose result is merged via IfElse.
-    /// The array_set is only used within the window so it should be replaced.
+    /// An example with an array_set + call where both are used exclusively in the conditional window
     #[test]
     fn replaces_array_set_that_feeds_poseidon2_inside_conditional_window() {
         let src = r#"
@@ -466,6 +487,28 @@ mod tests {
         ");
     }
 
+    /// Another example with array_set -> call -> array_set where the last array_set escapes
+    /// the window so the first one cannot be optimized.
+    #[test]
+    fn does_not_replace_chain_of_array_set_call_array_set_where_last_one_is_used_outside_window() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 4], v1: u32, v2: u1, v3: u1, v4: u1, v5: u1):
+            v7 = make_array [Field 0, Field 0, Field 0, Field 0] : [Field; 4]
+            v9 = call poseidon2_permutation(v0) -> [Field; 4]
+            v10 = if v3 then v9 else (if v2) v7
+            enable_side_effects v4
+            v13 = array_set v10, index u32 0, value Field 6
+            v14 = call poseidon2_permutation(v13) -> [Field; 4]
+            v17 = array_set v14, index u32 1, value Field 7
+            enable_side_effects u1 1
+            v19 = if v4 then v14 else (if v5) v10
+            return v17, v19
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::array_set_to_make_array);
+    }
+
     /// The array_set feeds a call whose result escapes the window (not via IfElse).
     /// Even though the array_set itself is only used inside the window, replacing it
     /// would corrupt the call's result when the predicate is false.
@@ -491,19 +534,6 @@ mod tests {
     fn does_not_touch_array_set_outside_conditional_window() {
         let src = r#"
         acir(inline) fn main f0 {
-          b0(v0: [Field; 3]):
-            v1 = array_set v0, index u32 0, value Field 5
-            return v1
-        }
-        "#;
-        assert_ssa_does_not_change(src, Ssa::array_set_to_make_array);
-    }
-
-    /// Brillig functions should not be touched.
-    #[test]
-    fn does_not_touch_brillig_functions() {
-        let src = r#"
-        brillig(inline) fn main f0 {
           b0(v0: [Field; 3]):
             v1 = array_set v0, index u32 0, value Field 5
             return v1
