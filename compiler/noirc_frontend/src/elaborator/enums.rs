@@ -122,7 +122,7 @@ impl Elaborator<'_> {
     pub(super) fn collect_enum_definitions(&mut self, enums: &BTreeMap<TypeId, UnresolvedEnum>) {
         for (type_id, typ) in enums {
             self.local_module = Some(typ.module_id);
-            self.current_item = Some(DependencyId::Type(*type_id));
+            self.current_item = Some(DependencyId::DataType(*type_id));
 
             let previous_in_comptime_context =
                 std::mem::replace(&mut self.in_comptime_context, typ.enum_def.comptime);

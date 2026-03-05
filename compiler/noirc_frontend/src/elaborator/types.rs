@@ -511,7 +511,7 @@ impl Elaborator<'_> {
             Some(DependencyId::Function(_)) => "function",
             Some(DependencyId::Global(_)) => "global",
             Some(DependencyId::Alias(_)) => "type alias",
-            Some(DependencyId::Type(type_id)) => {
+            Some(DependencyId::DataType(type_id)) => {
                 if self.interner.get_type(type_id).borrow().is_struct() { "struct" } else { "enum" }
             }
             _ => {
