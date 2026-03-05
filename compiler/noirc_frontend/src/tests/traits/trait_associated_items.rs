@@ -1993,3 +1993,28 @@ fn self_method_call_on_trait_impl_for_unknown_trait() {
     "#;
     check_errors(src);
 }
+
+// Regression test for https://github.com/noir-lang/noir/issues/11562
+#[test]
+fn associated_type_on_parent_and_child() {
+    let src = r#"
+    trait KeyType {
+        type Key;
+    }
+
+    trait Lookup: KeyType {
+        type Key;
+    }
+
+    fn find<M: Lookup>(m: M, key: M::Key) {}
+       ^^^^ unused function find
+       ~~~~ unused function
+                       ^ unused variable m
+                       ~ unused variable
+                             ^^^ unused variable key
+                             ~~~ unused variable
+                                  ^^^^^^ Multiple applicable items in scope
+                                  ~~~~~~ Multiple traits which provide `Key` are implemented and in scope: `KeyType`, `Lookup`
+    "#;
+    check_errors(src);
+}
