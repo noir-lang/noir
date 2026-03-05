@@ -176,10 +176,11 @@ impl Context<'_, '_, '_> {
         let rhs_is_negative = self.insert_binary(rhs_unsigned, BinaryOp::Div, min_negative_value);
 
         // Here we compute the absolute values of lhs and rhs using their 2-complement
+        // If lhs_unsigned is 0, then lhs_is_negative is also 0, so 2-complement cannot overflow
         let lhs_absolute =
-            self.two_complement(lhs_unsigned, lhs_is_negative, unsigned_typ, bit_size);
+            self.two_complement(lhs_unsigned, lhs_is_negative, unsigned_typ, bit_size, false);
         let rhs_absolute =
-            self.two_complement(rhs_unsigned, rhs_is_negative, unsigned_typ, bit_size);
+            self.two_complement(rhs_unsigned, rhs_is_negative, unsigned_typ, bit_size, false);
 
         // We then perform the division (or modulo) using the absolute values
         let operator = if is_division { BinaryOp::Div } else { BinaryOp::Mod };
@@ -201,7 +202,7 @@ impl Context<'_, '_, '_> {
         // We return the 2-complement again if lhs and rhs have different signs, with the
         // intention of making the result be negative.
         let result_unsigned =
-            self.two_complement(absolute_result, result_is_negative, unsigned_typ, bit_size);
+            self.two_complement(absolute_result, result_is_negative, unsigned_typ, bit_size, true);
 
         // Make sure we return the signed type
         self.insert_cast(result_unsigned, NumericType::signed(bit_size))
@@ -235,6 +236,7 @@ impl Context<'_, '_, '_> {
         value_is_negative: ValueId,
         unsigned_type: NumericType,
         bit_size: u32,
+        overflow_check: bool,
     ) -> ValueId {
         let max_power_of_two =
             self.numeric_constant(1_u128 << (bit_size - 1), NumericType::NativeField);
@@ -247,19 +249,21 @@ impl Context<'_, '_, '_> {
         let two = self.numeric_constant(2_u128, NumericType::NativeField);
         let intermediate = self.insert_binary(intermediate, BinaryOp::Mul { unchecked: true }, two);
 
-        let result =
+        let mut result =
             self.insert_binary(value_as_field, BinaryOp::Add { unchecked: true }, intermediate);
 
-        // result can overflow only when value is 0:
-        // result = 2*((2^(bit_size - 1))*value_is_negative = 2^(bit_size)*value_is_negative
-        // In that case we multiply it with 'value_is_not_zero', which wraps the result.
-        let zero = self.numeric_constant(0_u128, NumericType::NativeField);
-        let value_is_zero = self.insert_binary(value_as_field, BinaryOp::Eq, zero);
-        let value_is_not_zero = self.insert_not(value_is_zero);
-        let value_is_not_zero = self.insert_cast(value_is_not_zero, NumericType::NativeField);
+        if overflow_check {
+            // result can overflow only when value is 0 and value_is_negative is 1:
+            // result = 2*((2^(bit_size - 1))*value_is_negative = 2^(bit_size)
+            // In that case we multiply it with 'value_is_not_zero', which wraps the result.
+            let zero = self.numeric_constant(0_u128, NumericType::NativeField);
+            let value_is_zero = self.insert_binary(value_as_field, BinaryOp::Eq, zero);
+            let value_is_not_zero = self.insert_not(value_is_zero);
+            let value_is_not_zero = self.insert_cast(value_is_not_zero, NumericType::NativeField);
+            result =
+                self.insert_binary(result, BinaryOp::Mul { unchecked: true }, value_is_not_zero);
+        }
 
-        let result =
-            self.insert_binary(result, BinaryOp::Mul { unchecked: true }, value_is_not_zero);
         self.insert_cast(result, unsigned_type)
     }
 
@@ -513,12 +517,12 @@ mod tests {
             v33 = mul v31, v32
             v34 = mul v33, Field 2
             v35 = add v30, v34
-            v36 = cast v35 as u8
-            v38 = eq v28, u8 0
-            v39 = not v38
-            v40 = cast v39 as u8
-            v41 = unchecked_mul v36, v40
-            v42 = cast v41 as i8
+            v37 = eq v30, Field 0
+            v38 = not v37
+            v39 = cast v38 as Field
+            v40 = mul v35, v39
+            v41 = cast v40 as u8
+            v42 = cast v40 as i8
             return v42
         }
         "#);
