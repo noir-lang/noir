@@ -490,37 +490,43 @@ impl Elaborator<'_> {
             return;
         }
 
-        match typ {
-            Type::Quoted(_) => (),
-            Type::DataType(data_type, _) => {
-                if !data_type.borrow().comptime {
-                    return;
-                }
-            }
-            Type::Alias(type_alias, _) => {
-                if !type_alias.borrow().comptime {
-                    return;
-                }
-            }
-            _ => {
-                return;
-            }
-        }
-
-        let item = match self.current_item {
-            Some(DependencyId::Function(_)) => "function",
-            Some(DependencyId::Global(_)) => "global",
-            Some(DependencyId::Alias(_)) => "type alias",
-            Some(DependencyId::DataType(type_id)) => {
-                if self.interner.get_type(type_id).borrow().is_struct() { "struct" } else { "enum" }
-            }
-            _ => {
-                return;
-            }
+        let Some(item) = self.current_item else {
+            // Early return if we're not actually inside any item.
+            return;
         };
 
-        let typ = typ.to_string();
-        self.push_err(ResolverError::ComptimeTypeInNonComptimeItem { location, typ, item });
+        let typ_is_comptime_only = match typ {
+            Type::Quoted(_) => true,
+            Type::DataType(data_type, _) => data_type.borrow().comptime,
+            Type::Alias(type_alias, _) => type_alias.borrow().comptime,
+            _ => false,
+        };
+
+        // We return early if we are in a comptime context, so if we find a comptime-only type here
+        // it means we are trying to use it in a non-comptime item, which is an error.
+        if typ_is_comptime_only {
+            let item = match item {
+                DependencyId::Function(_) => "function",
+                DependencyId::Global(_) => "global",
+                DependencyId::Alias(_) => "type alias",
+                DependencyId::DataType(type_id) => {
+                    if self.interner.get_type(type_id).borrow().is_struct() {
+                        "struct"
+                    } else {
+                        "enum"
+                    }
+                }
+                DependencyId::Trait(_) | DependencyId::Variable(_) => {
+                    unreachable!(
+                        "Unexpected current item when checking for comptime type usage: {:?}",
+                        self.current_item
+                    )
+                }
+            };
+
+            let typ = typ.to_string();
+            self.push_err(ResolverError::ComptimeTypeInNonComptimeItem { location, typ, item });
+        }
     }
 
     fn lookup_type_variable(
