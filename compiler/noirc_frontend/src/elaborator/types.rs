@@ -2061,7 +2061,7 @@ impl Elaborator<'_> {
     ) -> Type {
         let access_lhs = &mut access.lhs;
 
-        let dereference_lhs = |this: &mut Self, lhs_type, element| {
+        let dereference_lhs = |this: &mut Self, lhs_type, element, _is_mutable| {
             let old_lhs = *access_lhs;
             let old_location = this.interner.id_location(old_lhs);
             let location = Location::new(location.span, old_location.file);
@@ -2098,7 +2098,7 @@ impl Elaborator<'_> {
         lhs_type: &Type,
         field_name: &str,
         location: Location,
-        dereference_lhs: Option<impl FnMut(&mut Self, Type, Type)>,
+        dereference_lhs: Option<impl FnMut(&mut Self, Type, Type, bool /* mutable */)>,
     ) -> Option<(Type, usize)> {
         let lhs_type = lhs_type.follow_bindings();
 
@@ -2132,7 +2132,7 @@ impl Elaborator<'_> {
             // If the lhs is a reference we automatically transform `lhs.field` into `(*lhs).field`
             Type::Reference(element, mutable) => {
                 if let Some(mut dereference_lhs) = dereference_lhs {
-                    dereference_lhs(self, lhs_type.clone(), element.as_ref().clone());
+                    dereference_lhs(self, lhs_type.clone(), element.as_ref().clone(), *mutable);
                     return self.check_field_access(
                         element,
                         field_name,
