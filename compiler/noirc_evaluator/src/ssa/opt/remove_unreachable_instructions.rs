@@ -1502,4 +1502,40 @@ mod tests {
         }
         "#);
     }
+
+    #[test]
+    fn keep_vector_length_of_disabled_array_set() {
+        // This is an excerpt from the `execution_success/vectors` test.
+        // The crux of it is that we have an `array_set` under `enable_side_effects u1 0`,
+        // and then a bunch of `array_get` after  enable_side_effects u1 1;
+        // if we don't preserve the length of the default array, we get Index OOB later.
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32, v1: Field):
+            v2 = make_array [Field 0, Field 0, v1, Field 10] : [Field]
+            enable_side_effects u1 0
+            v3 = array_set v2, index v0, value Field 10
+            enable_side_effects u1 1
+            v4 = array_get v3, index u32 3 -> Field
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_instructions();
+
+        // v3 does not become empty, so we don't get an index OOB.
+        // This assumes that we don't actually use the read result in a side-effecting way.
+        // If we returned v4 above, it would return an incorrect value.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32, v1: Field):
+            v4 = make_array [Field 0, Field 0, v1, Field 10] : [Field]
+            enable_side_effects u1 0
+            v6 = make_array [Field 0, Field 0, Field 0, Field 0] : [Field]
+            enable_side_effects u1 1
+            return
+        }
+        ");
+    }
 }
