@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772749602785,
+  "lastUpdate": 1772752748332,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23171,48 +23171,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "03d78906458276fcdc1557341e7e1acae618584c",
-          "message": "chore(deps): bump the core-actions group with 2 updates (#11713)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-02-27T10:50:22Z",
-          "tree_id": "159e97ac356deeb16ec3a6d8604c6e0e2ecaa26d",
-          "url": "https://github.com/noir-lang/noir/commit/03d78906458276fcdc1557341e7e1acae618584c"
-        },
-        "date": 1772191020340,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 241497,
-            "range": "± 651",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 212802,
-            "range": "± 4578",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2209604,
-            "range": "± 3590",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "72797635+Savio-Sou@users.noreply.github.com",
             "name": "Savio",
             "username": "Savio-Sou"
@@ -25264,6 +25222,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2745299,
             "range": "± 2350",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "efd7f97e84c659a92cc8b7c501c578fbb718df37",
+          "message": "chore: output \"(last step)\" for last SSA step (#11789)",
+          "timestamp": "2026-03-05T22:37:46Z",
+          "tree_id": "6105a3a76dc6ff8346a50c58c4b61108ec7f4171",
+          "url": "https://github.com/noir-lang/noir/commit/efd7f97e84c659a92cc8b7c501c578fbb718df37"
+        },
+        "date": 1772752701946,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 251069,
+            "range": "± 434",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 220538,
+            "range": "± 3922",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2742986,
+            "range": "± 1565",
             "unit": "ns/iter"
           }
         ]
