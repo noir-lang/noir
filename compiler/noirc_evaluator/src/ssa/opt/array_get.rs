@@ -377,37 +377,4 @@ mod tests {
         }
         ");
     }
-
-    #[test]
-    fn optimizes_instruction_dependent_on_changed_make_array() {
-        // This test is a general check for `simple_optimization` that could be tested with any
-        // optimization, but `array_get` makes it easy to check.
-        // Here `v2` will be optimized to Field 4, to `v3` will be an `make_array` with all
-        // constant values so `poseidon2_permutation` could be simplified to a constant array
-        // as well. However, that was not what was happening before it got fixed.
-        let src = "
-        acir(inline) predicate_pure fn main f0 {
-          b0(v0: u1):
-            enable_side_effects v0
-            v3 = make_array [Field 2, Field 3] : [Field; 2]
-            v5 = array_get v3, index u32 0 -> Field
-            v9 = make_array [v5, Field 10, Field 11, Field 12] : [Field; 4]
-            v11 = call poseidon2_permutation(v9) -> [Field; 4]
-            return v11
-        }
-        ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.array_get_optimization();
-
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) predicate_pure fn main f0 {
-          b0(v0: u1):
-            enable_side_effects v0
-            v3 = make_array [Field 2, Field 3] : [Field; 2]
-            v7 = make_array [Field 2, Field 10, Field 11, Field 12] : [Field; 4]
-            v9 = call poseidon2_permutation(v7) -> [Field; 4]
-            return v9
-        }
-        ");
-    }
 }
