@@ -629,13 +629,13 @@ impl Loop {
             }
             // A cast of a constant would already be simplified
             Instruction::Cast(_, _) => None,
-            // _ => {
-            //     // Unrecognized instruction pattern — cannot determine the upper bound.
-            //     // This can happen when mem2reg promotes variables, giving the loop header
-            //     // block parameters that are not related to the induction variable.
-            //     None
-            // }
-            other => panic!("Unexpected instruction in header: {other:?}"),
+            _ => {
+                // Certain patterns can cause other instructions to be hoisted into the loop
+                // header, or at least what looks to be the loop header.
+                // `func_1` in `regression_mem2reg_unknown_array_aliases` is one such example
+                // if `mem2reg_simple` is performed on it before unrolling.
+                None
+            }
         }
     }
 
