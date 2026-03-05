@@ -452,3 +452,87 @@ fn regression_10861() {
         assert_eq!(errors.len(), 1, "Expected exactly one error");
     });
 }
+
+#[test]
+// This test demonstrate the limitation of the current approach
+// x is not inferred to be a u32, it is defaulted to Field.
+fn token_conversion_for_literal() {
+    let program = "
+fn add_one(x: u32) -> u32 {
+    x + 1
+}
+
+fn main() {
+    let result = comptime {
+        let x = 42;
+        let q = quote { add_one($x) };
+        q
+    };
+    assert(result == 43);
+}
+    ";
+    // into_tokens() on Integer::Field produces Some(IntegerTypeSuffix::Field),
+    // so the spliced literal is locked to Field and can't unify with u32.
+    with_interpreter(program, |_interpreter, _main, errors| {
+        let has_type_mismatch = errors.iter().any(|e| {
+            matches!(
+                e,
+                CompilationError::TypeError(TypeCheckError::TypeMismatch {
+                    expected_typ,
+                    expr_typ,
+                    ..
+                }) if expected_typ == "u32" && expr_typ == "Field"
+            )
+        });
+        assert!(has_type_mismatch, "Expected a TypeMismatch error (expected u32, found Field)");
+        assert_eq!(errors.len(), 1, "Expected exactly one error");
+    });
+}
+
+#[test]
+
+fn token_conversion_for_field() {
+    let program = "
+comptime fn divide_field_by_two() -> Quoted {
+    let x: Field = 7;
+    quote { $x / 2 }
+}
+
+fn main() {
+    // if $x is Token::Int(7, None), no suffix.
+    // Combined with `2` that has no suffix either, type inference picks the
+    // type from context and this becomes a problem.
+    // Instead, $x is set to Token::Int(7, Field), triggering
+    // a type mismatch error.
+
+    // Context forces u32:
+    let result_u32: u32 = divide_field_by_two!();
+    // Both 7 and 2 become u32. Integer division: 7 / 2 = 3
+
+    // Context forces Field:
+    let result_field: Field = divide_field_by_two!();
+    // Both 7 and 2 become Field. Field division: 7 / 2 != 3
+
+    // Different results depending on call-site context
+    // The developer intended Field semantics but gets whichever
+    // type the caller's context happens to demand.
+    println(result_u32);
+    println(result_field);
+}
+    ";
+
+    with_interpreter(program, |_interpreter, _main, errors| {
+        let has_type_mismatch = errors.iter().any(|e| {
+            matches!(
+                e,
+                CompilationError::TypeError(TypeCheckError::TypeMismatch {
+                    expected_typ,
+                    expr_typ,
+                    ..
+                }) if expected_typ == "u32" && expr_typ == "Field"
+            )
+        });
+        assert!(has_type_mismatch, "Expected a TypeMismatch error (expected u32, found Field)");
+        assert_eq!(errors.len(), 1, "Expected exactly one error");
+    });
+}
