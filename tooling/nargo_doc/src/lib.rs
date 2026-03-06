@@ -213,12 +213,14 @@ impl DocItemBuilder<'_> {
                 let trait_impls =
                     vecmap(item_data_type.trait_impls, |impl_| self.convert_trait_impl(impl_));
                 let id = get_type_id(type_id, self.interner);
+                let comptime = data_type.comptime;
                 self.current_type = None;
                 Item::Struct(Struct {
                     id,
                     name: data_type.name.to_string(),
                     generics,
                     fields,
+                    comptime,
                     has_private_fields,
                     impls,
                     trait_impls,
@@ -302,8 +304,9 @@ impl DocItemBuilder<'_> {
                 let comments = self.doc_comments(ReferenceId::Alias(type_alias_id));
                 let generics =
                     vecmap(&type_alias.generics, |generic| self.convert_generic(generic));
+                let comptime = type_alias.comptime;
                 let id = get_type_alias_id(type_alias_id, self.interner);
-                Item::TypeAlias(TypeAlias { id, name, comments, r#type, generics })
+                Item::TypeAlias(TypeAlias { id, name, comments, r#type, generics, comptime })
             }
             expand_items::Item::PrimitiveType(primitive_type) => {
                 let kind = match &primitive_type.typ {
@@ -687,12 +690,12 @@ impl DocItemBuilder<'_> {
         }
 
         let imports = self.module_imports.remove(&module.module_id).unwrap();
+        let non_private_imports = imports
+            .into_iter()
+            .filter(|import| import.visibility != ItemVisibility::Private)
+            .collect::<Vec<_>>();
 
-        for import in imports {
-            if import.visibility == ItemVisibility::Private {
-                continue;
-            }
-
+        for import in non_private_imports {
             let item_id = get_module_def_id(import.id, self.interner);
             if let Some(converted_item) = self.item_id_to_converted_item.get(&item_id) {
                 // Check if this is a re-export of a private item. The private item won't show up in
@@ -724,6 +727,11 @@ impl DocItemBuilder<'_> {
                 }),
             ));
         }
+
+        // The module changed (it got new items). Because it can still be looked up in
+        // `item_id_to_converted_item` we need to update its definition there too.
+        self.item_id_to_converted_item.get_mut(&module.id).unwrap().item =
+            Item::Module(module.clone());
     }
 
     fn doc_comments(&mut self, id: ReferenceId) -> Option<(String, Links)> {

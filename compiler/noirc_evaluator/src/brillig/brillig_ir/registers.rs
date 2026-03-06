@@ -329,7 +329,12 @@ pub(crate) struct GlobalSpace {
 impl GlobalSpace {
     pub(crate) fn new(layout: LayoutConfig) -> Self {
         let start = Self::start_with_layout(&layout);
-        Self { storage: DeallocationListAllocator::new(start), max_memory_address: start, layout }
+        assert!(start > 0, "global space does not start at 0");
+        Self {
+            storage: DeallocationListAllocator::new(start),
+            max_memory_address: start - 1,
+            layout,
+        }
     }
 
     /// Expand the global space to fit a new register if necessary.
@@ -349,7 +354,7 @@ impl GlobalSpace {
         if index == self.max_memory_address {
             let empty_start = assert_usize(self.empty_registers_start().unwrap_direct());
             self.max_memory_address =
-                empty_start.saturating_sub(1).max(self.storage.start_register_index);
+                empty_start.saturating_sub(1).max(self.storage.start_register_index - 1);
         }
     }
 
@@ -813,7 +818,7 @@ mod tests {
     fn global_space_max_addr_expands_and_shrinks() {
         let mut global = GlobalSpace::new(LayoutConfig::default());
         let start = global.storage.start_register_index;
-        assert_eq!(global.max_memory_address(), start, "max initialized to start");
+        assert_eq!(global.max_memory_address(), start - 1, "max initialized to start - 1 (empty)");
 
         let reg1 = global.allocate_register();
         let reg2 = global.allocate_register();
@@ -846,8 +851,8 @@ mod tests {
         global.deallocate_register(reg1);
         assert_eq!(
             global.max_memory_address(),
-            start,
-            "max shrinks to start when we have no registers"
+            start - 1,
+            "max shrinks to start - 1 when we have no registers (empty)"
         );
 
         let reg5 = global.allocate_register();

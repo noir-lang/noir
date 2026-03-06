@@ -189,9 +189,12 @@ impl Integer {
             }
             Integer::Field(value) => {
                 if value.is_negative() {
-                    vec![Token::Minus, Token::Int(value.absolute_value(), None)]
+                    vec![
+                        Token::Minus,
+                        Token::Int(value.absolute_value(), Some(IntegerTypeSuffix::Field)),
+                    ]
                 } else {
-                    vec![Token::Int(value.absolute_value(), None)]
+                    vec![Token::Int(value.absolute_value(), Some(IntegerTypeSuffix::Field))]
                 }
             }
         }

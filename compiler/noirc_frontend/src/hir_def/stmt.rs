@@ -161,3 +161,15 @@ pub enum HirLValue {
         location: Location,
     },
 }
+
+impl HirLValue {
+    pub fn location(&self) -> Location {
+        match self {
+            HirLValue::Ident(ident, _) => ident.location,
+            HirLValue::MemberAccess { location, .. }
+            | HirLValue::Index { location, .. }
+            | HirLValue::Dereference { location, .. }
+            | HirLValue::Error { location } => *location,
+        }
+    }
+}

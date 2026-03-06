@@ -3298,8 +3298,51 @@ fn derive_generators(
 fn field_less_than(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     let (lhs, rhs) = check_two_arguments(arguments, location)?;
 
-    let lhs = get_field(lhs)?;
-    let rhs = get_field(rhs)?;
+    let lhs = get_field(lhs)?.to_field_element();
+    let rhs = get_field(rhs)?.to_field_element();
 
     Ok(Value::Bool(lhs < rhs))
+}
+
+#[cfg(test)]
+mod tests {
+    use noirc_errors::Location;
+
+    use crate::hir::comptime::value::Value;
+    use crate::signed_field::SignedField;
+
+    use super::field_less_than;
+
+    fn args(a: Value, b: Value) -> Vec<(Value, Location)> {
+        vec![(a, Location::dummy()), (b, Location::dummy())]
+    }
+
+    fn pos(v: u128) -> Value {
+        Value::field(SignedField::positive(v))
+    }
+
+    fn neg(v: u128) -> Value {
+        Value::field(SignedField::negative(v))
+    }
+
+    #[test]
+    fn test_field_less_than() {
+        let loc = Location::dummy();
+
+        // positive comparisons
+        assert_eq!(field_less_than(args(pos(0), pos(1)), loc).unwrap(), Value::Bool(true));
+        assert_eq!(field_less_than(args(pos(1), pos(0)), loc).unwrap(), Value::Bool(false));
+        assert_eq!(field_less_than(args(pos(42), pos(42)), loc).unwrap(), Value::Bool(false));
+        assert_eq!(field_less_than(args(pos(0x100), pos(0x200)), loc).unwrap(), Value::Bool(true));
+        assert_eq!(field_less_than(args(pos(0x200), pos(0x100)), loc).unwrap(), Value::Bool(false));
+
+        // negative values wrap around
+        assert_eq!(field_less_than(args(pos(1), neg(1)), loc).unwrap(), Value::Bool(true));
+        assert_eq!(field_less_than(args(neg(1), pos(1)), loc).unwrap(), Value::Bool(false));
+        // -2 < -1
+        assert_eq!(field_less_than(args(neg(2), neg(1)), loc).unwrap(), Value::Bool(true));
+        assert_eq!(field_less_than(args(neg(1), neg(2)), loc).unwrap(), Value::Bool(false));
+        // -1 < -1 is false
+        assert_eq!(field_less_than(args(neg(1), neg(1)), loc).unwrap(), Value::Bool(false));
+    }
 }
