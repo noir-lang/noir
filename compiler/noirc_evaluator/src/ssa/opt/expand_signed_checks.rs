@@ -109,13 +109,14 @@ impl Context<'_, '_, '_> {
 
     fn insert_sub(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
         let bit_size = self.context.dfg.type_of_value(lhs).bit_size();
+        assert!(bit_size < 128, "bit_size >= 128 results in overflow");
+        let modulus = self
+            .numeric_constant(FieldElement::from(2u128.pow(bit_size)), NumericType::NativeField);
 
         // Cast to Field, so that we can add 2^bit_size without overflowing the integer type,
         // which in turns allows to do the subtraction without underflow.
         let lhs_field = self.insert_safe_cast(lhs, NumericType::NativeField);
         let rhs_field = self.insert_safe_cast(rhs, NumericType::NativeField);
-        let modulus = self
-            .numeric_constant(FieldElement::from(2u128.pow(bit_size)), NumericType::NativeField);
         let lhs_with_modulus =
             self.insert_binary(lhs_field, BinaryOp::Add { unchecked: true }, modulus);
         let unchecked_result =
