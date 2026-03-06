@@ -1050,8 +1050,8 @@ mod tests {
           b0():
             v3 = make_array [Field 1, Field 2, Field 3] : [Field]
             v5 = make_array [Field 1, Field 2, Field 3, Field 5] : [Field]
-            v6 = make_array [Field 1, Field 5, Field 3, Field 5] : [Field]
-            return u32 2, v6
+            v7 = array_set v5, index u32 1, value Field 5
+            return u32 2, v7
         }
         ");
     }
