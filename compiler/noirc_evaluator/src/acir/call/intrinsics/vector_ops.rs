@@ -71,7 +71,6 @@ impl Context<'_> {
             };
 
             let mut elements_var = Vec::new();
-            let mut element_size = 0;
             let mut new_vector = self.read_array_with_type(vector, &vector_typ)?;
             let zero = self.acir_context.add_constant(FieldElement::zero());
 

@@ -955,9 +955,13 @@ impl Context<'_> {
             supplied_acir_value.unwrap_or_else(|| self.convert_value(array_id, dfg));
         let flattened_len = flattened_value_size(&array_acir_value);
         match array_acir_value {
-            AcirValue::Array(_) => {
-                self.init_type_sizes_helper(array_typ, flattened_len, shift, element_type_sizes)
-            }
+            AcirValue::Array(_) => self.init_type_sizes_helper(
+                array_typ,
+                flattened_len,
+                shift,
+                element_type_sizes,
+                array_id,
+            ),
             AcirValue::DynamicArray(inner) if matches!(shift, ElementTypeSizesArrayShift::None) => {
                 let inner_elem_type_sizes = inner.element_type_sizes;
                 let Some(inner_elem_type_sizes) = &inner_elem_type_sizes else {
@@ -982,7 +986,13 @@ impl Context<'_> {
                 if !matches!(shift, ElementTypeSizesArrayShift::None) =>
             {
                 // Recalculate with additional capacity for growth operations
-                self.init_type_sizes_helper(array_typ, inner.len, shift, element_type_sizes)
+                self.init_type_sizes_helper(
+                    array_typ,
+                    inner.len,
+                    shift,
+                    element_type_sizes,
+                    array_id,
+                )
             }
             _ => Err(InternalError::Unexpected {
                 expected: "AcirValue::DynamicArray or AcirValue::Array".to_owned(),
@@ -1000,6 +1010,7 @@ impl Context<'_> {
         flattened_length: FlattenedLength,
         shift: ElementTypeSizesArrayShift,
         element_type_sizes_block: BlockId,
+        array_id: ValueId,
     ) -> Result<BlockId, RuntimeError> {
         let flat_elem_type_sizes =
             calculate_element_type_sizes_array(array_typ, flattened_length, shift);
@@ -1007,7 +1018,11 @@ impl Context<'_> {
         // If there's already a block with these same sizes, reuse it. It's fine to do so
         // because the element type sizes array is never mutated.
         if let Some(block_id) = self.type_sizes_to_blocks.get(&flat_elem_type_sizes) {
-            return Ok(*block_id);
+            // Remap array_id to the reused block so that subsequent lookups via
+            // type_sizes_block_id(array_id) find the initialized block.
+            let block_id = *block_id;
+            self.element_type_sizes_blocks.insert(array_id, block_id);
+            return Ok(block_id);
         }
 
         // The final array contains the flattened index at each outer array index
