@@ -109,6 +109,10 @@ pub enum TypeCheckError {
     TupleIndexOutOfBounds { index: usize, lhs_type: Type, length: usize, location: Location },
     #[error("Variable `{name}` must be mutable to be assigned to")]
     VariableMustBeMutable { name: String, location: Location },
+    #[error("`{name}` is a `&` reference, so it cannot be written to")]
+    CannotAssignToReference { name: String, location: Location },
+    #[error("Cannot assign to `{lvalue}`, which is behind a `&` reference")]
+    CannotAssignToLValueBehindReference { lvalue: String, location: Location },
     #[error("Cannot mutate immutable variable `{name}`")]
     CannotMutateImmutableVariable { name: String, location: Location },
     #[error("Variable {name} captured in lambda must be a mutable reference")]
@@ -323,6 +327,8 @@ impl TypeCheckError {
             | TypeCheckError::UnsupportedFieldCast { location }
             | TypeCheckError::TupleIndexOutOfBounds { location, .. }
             | TypeCheckError::VariableMustBeMutable { location, .. }
+            | TypeCheckError::CannotAssignToReference { location, .. }
+            | TypeCheckError::CannotAssignToLValueBehindReference { location, .. }
             | TypeCheckError::CannotMutateImmutableVariable { location, .. }
             | TypeCheckError::MutableCaptureWithoutRef { location, .. }
             | TypeCheckError::MutableReferenceToArrayElement { location }
@@ -542,6 +548,8 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::UnsupportedFieldCast { location }
             | TypeCheckError::TupleIndexOutOfBounds { location, .. }
             | TypeCheckError::VariableMustBeMutable { location, .. }
+            | TypeCheckError::CannotAssignToReference { location, .. }
+            | TypeCheckError::CannotAssignToLValueBehindReference { location, .. }
             | TypeCheckError::CannotMutateImmutableVariable { location, .. }
             | TypeCheckError::UnresolvedMethodCall { location, .. }
             | TypeCheckError::IntegerSignedness { location, .. }
