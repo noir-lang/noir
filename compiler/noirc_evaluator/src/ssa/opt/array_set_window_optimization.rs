@@ -194,6 +194,20 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
     for &instruction_id in instructions {
         let instruction = &dfg[instruction_id];
 
+        // A window gets closed or opened. This check must be done before checking for escaped
+        // values because a tracked value used in an `enable_side_effects` instruction should be
+        // considered as escaping the previous window.
+        if let Instruction::EnableSideEffectsIf { condition } = instruction {
+            let is_unconditional = dfg.get_numeric_constant(*condition).is_some_and(|v| v.is_one());
+            if is_unconditional {
+                current_window = None;
+            } else {
+                window_counter = ConditionalWindowId(window_counter.0 + 1);
+                current_window =
+                    Some(ConditionalWindow { id: window_counter, predicate: *condition });
+            }
+        }
+
         // Check whether any input to this instruction is a tracked value being used in
         // a context that escapes the conditional window.
         instruction.for_each_value(|value| {
@@ -247,17 +261,8 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
         });
 
         match instruction {
-            Instruction::EnableSideEffectsIf { condition } => {
-                // A window gets closed or opened
-                let is_unconditional =
-                    dfg.get_numeric_constant(*condition).is_some_and(|v| v.is_one());
-                if is_unconditional {
-                    current_window = None;
-                } else {
-                    window_counter = ConditionalWindowId(window_counter.0 + 1);
-                    current_window =
-                        Some(ConditionalWindow { id: window_counter, predicate: *condition });
-                }
+            Instruction::EnableSideEffectsIf { .. } => {
+                // This was already handled above
             }
             Instruction::ArraySet { array, index, value, mutable: false } => {
                 if let Some(window) = current_window {
@@ -689,6 +694,22 @@ mod tests {
             enable_side_effects u1 1
             v4 = if v2 then v0 else (if v5) v3
             return v4
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::array_set_window_optimization);
+    }
+
+    #[test]
+    fn does_not_replace_array_set_when_dependent_value_is_used_in_enable_side_effects() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0(v0: [u1; 3], v1: u1, v5: u1):
+            v2 = not v5
+            enable_side_effects v1
+            v3 = array_set v0, index u32 1, value u1 0
+            v4 = array_get v3, index u32 1 -> u1
+            enable_side_effects v4
+            return
         }
         "#;
         assert_ssa_does_not_change(src, Ssa::array_set_window_optimization);
