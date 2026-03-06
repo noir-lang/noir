@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772800240933,
+  "lastUpdate": 1772800384567,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23161,48 +23161,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "fded174269bcd2e57faae562c825421ca3f9c456",
-          "message": "chore: enable additional clippy pedantic lints (#11712)",
-          "timestamp": "2026-02-27T15:32:03Z",
-          "tree_id": "9136e795dfcdb4bfd0f6d881c6672571db3f0d44",
-          "url": "https://github.com/noir-lang/noir/commit/fded174269bcd2e57faae562c825421ca3f9c456"
-        },
-        "date": 1772207934693,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 251125,
-            "range": "± 681",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 220759,
-            "range": "± 4176",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2744519,
-            "range": "± 8570",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25254,6 +25212,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2743564,
             "range": "± 2585",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "0adc7fb706b4fb126315cf41846f77d05251bbac",
+          "message": "fix: correct token conversion for Integer::Field in comptime (#11786)",
+          "timestamp": "2026-03-06T12:05:23Z",
+          "tree_id": "86f2519b306d983e26af779107b8453c1f5d3726",
+          "url": "https://github.com/noir-lang/noir/commit/0adc7fb706b4fb126315cf41846f77d05251bbac"
+        },
+        "date": 1772800339235,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 251554,
+            "range": "± 518",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 221141,
+            "range": "± 627",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2745435,
+            "range": "± 5399",
             "unit": "ns/iter"
           }
         ]
