@@ -239,7 +239,7 @@ impl Context<'_, '_, '_> {
         overflow_check: bool,
     ) -> ValueId {
         let max_power_of_two =
-            self.numeric_constant(1_u128 << (bit_size - 1), NumericType::NativeField);
+            self.numeric_constant(1_u128.checked_shl(bit_size - 1).expect("should not overflow"), NumericType::NativeField);
         let value_as_field = self.insert_cast(value, NumericType::NativeField);
         let intermediate =
             self.insert_binary(max_power_of_two, BinaryOp::Sub { unchecked: true }, value_as_field);
