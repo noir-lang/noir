@@ -108,6 +108,8 @@ impl Function {
                 unreachable!("candidate ArraySet array must be of array type");
             };
 
+            let array_constant = context.dfg.get_array_constant(array);
+
             let element_types = element_types.clone();
             let element_count = ElementTypesLength(element_types.len() as u32);
             let total_elements = len * element_count;
@@ -121,6 +123,8 @@ impl Function {
             for semi_flattened_index in 0..total_elements.0 {
                 if semi_flattened_index == const_index {
                     elements.push_back(value);
+                } else if let Some((array_element, _)) = &array_constant {
+                    elements.push_back(array_element[semi_flattened_index as usize]);
                 } else {
                     let element_index = (semi_flattened_index % element_count.0) as usize;
                     let element_type = element_types[element_index].clone();
