@@ -273,14 +273,10 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
                         candidates.insert(result, instruction_id);
                     }
 
-                    // Dependendencies of this array_set are the array_set result itself
-                    // (so we don't have to add tracked values in addition to their dependencies
-                    // later on) and any dependencies of the array and value (the index doesn't
-                    // matter as it's an integer).
                     let mut dependencies = im::HashSet::new();
-                    dependencies.insert(result);
                     for value in [array, value] {
                         if let Some(tracked_value) = tracked.get(value) {
+                            dependencies.insert(*value);
                             dependencies = dependencies.union(tracked_value.dependencies.clone());
                         }
                     }
@@ -313,11 +309,14 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
                         if let Some(tracked_value) = tracked.get(&value) {
                             let tracked_value_dependencies = tracked_value.dependencies.clone();
                             if is_call_with_ref_args {
-                                for value in tracked_value_dependencies {
-                                    candidates.remove(&value);
-                                    tracked.remove(&value);
+                                candidates.remove(&value);
+                                tracked.remove(&value);
+                                for dependency in tracked_value_dependencies {
+                                    candidates.remove(&dependency);
+                                    tracked.remove(&dependency);
                                 }
                             } else if !results.is_empty() {
+                                dependencies.insert(value);
                                 dependencies =
                                     dependencies.clone().union(tracked_value_dependencies);
                             }
@@ -344,9 +343,11 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
         terminator.for_each_value(|value| {
             if let Some(tracked_value) = tracked.get(&value) {
                 let tracked_value_dependencies = tracked_value.dependencies.clone();
-                for value in tracked_value_dependencies {
-                    candidates.remove(&value);
-                    tracked.remove(&value);
+                candidates.remove(&value);
+                tracked.remove(&value);
+                for dependency in tracked_value_dependencies {
+                    candidates.remove(&dependency);
+                    tracked.remove(&dependency);
                 }
             }
         });
