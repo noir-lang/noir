@@ -408,13 +408,29 @@ mod tests {
     /// predicate is false (its false-predicate result is `v2`, which would then be the
     /// wrong always-modified make_array instead of the original array).
     #[test]
-    fn does_not_replace_array_set_chain_when_final_escapes() {
+    fn does_not_replace_array_set_chain_when_final_escapes_and_has_constant_index() {
         let src = r#"
         acir(inline) fn main f0 {
           b0(v0: [Field; 3], v1: u1):
             enable_side_effects v1
             v4 = array_set v0, index u32 0, value Field 1
             v7 = array_set v4, index u32 1, value Field 2
+            enable_side_effects u1 1
+            v9 = array_get v7, index u32 0 -> Field
+            return v9
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::array_set_window_optimization);
+    }
+
+    #[test]
+    fn does_not_replace_array_set_chain_when_final_escapes_and_has_unknown_index() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3], v1: u1, v10: u32):
+            enable_side_effects v1
+            v4 = array_set v0, index u32 0, value Field 1
+            v7 = array_set v4, index v10, value Field 2
             enable_side_effects u1 1
             v9 = array_get v7, index u32 0 -> Field
             return v9
