@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772798198715,
+  "lastUpdate": 1772800240933,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23161,48 +23161,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "873b17be0ed7c84a5cc1df6da6dd42e324306832",
-          "message": "chore: validate input bit size for AND and XOR (#11663)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-02-27T15:19:09Z",
-          "tree_id": "fca3dff66b260f1bd75351f5e43b646b250f3692",
-          "url": "https://github.com/noir-lang/noir/commit/873b17be0ed7c84a5cc1df6da6dd42e324306832"
-        },
-        "date": 1772207834255,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 249407,
-            "range": "± 1101",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 222155,
-            "range": "± 4214",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2741402,
-            "range": "± 1594",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -25254,6 +25212,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2242594,
             "range": "± 15769",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ebb5ff171249cbb3518dd5399e155471e3e174b0",
+          "message": "fix(ssa): do not fold ArraySet to MakeArray in simplifier (#11659)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
+          "timestamp": "2026-03-06T11:46:16Z",
+          "tree_id": "b6ce46270f577e323ab008ab10a1d1cc5ab242b3",
+          "url": "https://github.com/noir-lang/noir/commit/ebb5ff171249cbb3518dd5399e155471e3e174b0"
+        },
+        "date": 1772800195241,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 252550,
+            "range": "± 1400",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 221121,
+            "range": "± 3776",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2743564,
+            "range": "± 2585",
             "unit": "ns/iter"
           }
         ]
