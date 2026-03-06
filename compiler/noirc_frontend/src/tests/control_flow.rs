@@ -122,6 +122,37 @@ fn errors_on_if_without_else_type_mismatch() {
 }
 
 #[test]
+fn if_else_type_mismatch() {
+    let src = r#"
+    fn main() {
+        let _x = if true {
+            let _ = 1;
+        } else {
+            2
+            ^ Expected type (), found type Field
+        };
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_on_struct_literal_used_in_if_condition() {
+    let src = r#"
+    struct MyStruct {
+        field: bool,
+    }
+
+    fn main() {
+        if MyStruct { field: true }.field {}
+           ^^^^^^^^^^^^^^^^^^^^^^^^ Struct literals are not allowed in `if` conditions
+           ~~~~~~~~~~~~~~~~~~~~~~~~ Surround the struct literal with parentheses, for example: `if (MyStruct { field: true }).field { ... }`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn errors_on_empty_loop_no_break() {
     let src = r#"
     fn main() {

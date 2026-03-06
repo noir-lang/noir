@@ -1,0 +1,8 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: SSA validation error: Trying to call foreign function 'foo' from ACIR function 'foo_oracle_proxy f2'
+ = Set the NOIR_SHOW_INVALID_SSA env var to see the SSA.
+
+Aborting due to 1 previous error

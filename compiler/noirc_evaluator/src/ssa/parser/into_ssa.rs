@@ -295,11 +295,25 @@ impl Translator {
                 let arguments = self.translate_values(arguments)?;
                 self.builder.terminate_with_jmp(block_id, arguments);
             }
-            ParsedTerminator::Jmpif { condition, then_block, else_block } => {
+            ParsedTerminator::Jmpif {
+                condition,
+                then_block,
+                then_arguments,
+                else_block,
+                else_arguments,
+            } => {
                 let condition = self.translate_value(condition)?;
                 let then_destination = self.lookup_block(&then_block)?;
+                let then_arguments = self.translate_values(then_arguments)?;
                 let else_destination = self.lookup_block(&else_block)?;
-                self.builder.terminate_with_jmpif(condition, then_destination, else_destination);
+                let else_arguments = self.translate_values(else_arguments)?;
+                self.builder.terminate_with_jmpif(
+                    condition,
+                    then_destination,
+                    then_arguments,
+                    else_destination,
+                    else_arguments,
+                );
             }
             ParsedTerminator::Return(values) => {
                 let return_values = self.translate_values(values)?;
@@ -511,7 +525,7 @@ impl Translator {
                     elements.push_back(element_id);
                 }
 
-                let instruction = Instruction::MakeArray { elements, typ: make_array.typ.clone() };
+                let instruction = Instruction::MakeArray { elements, typ: make_array.typ };
                 let block = self.globals_function.entry_block();
                 let call_stack = CallStackId::root();
                 self.globals_function
@@ -529,10 +543,10 @@ impl Translator {
         identifier: Identifier,
         value_id: ValueId,
     ) -> Result<(), SsaError> {
-        if let Some(vars) = self.variables.get(&self.current_function_id()) {
-            if vars.contains_key(&identifier.name) {
-                return Err(SsaError::VariableAlreadyDefined(identifier));
-            }
+        if let Some(vars) = self.variables.get(&self.current_function_id())
+            && vars.contains_key(&identifier.name)
+        {
+            return Err(SsaError::VariableAlreadyDefined(identifier));
         }
 
         let entry = self.variables.entry(self.current_function_id()).or_default();
@@ -606,8 +620,9 @@ impl Translator {
             return Ok(var_id);
         }
 
-        // We allow calls to the built-in print function
-        if &function.name == "print" {
+        // We allow calls to the built-in print function, or a function that is named as some kind of "oracle",
+        // which is a common pattern in the codebase and allows us to write tests with foreign functions in the SSA.
+        if &function.name == "print" || function.name.contains("oracle") {
             return Ok(self.builder.import_foreign_function(&function.name));
         }
 

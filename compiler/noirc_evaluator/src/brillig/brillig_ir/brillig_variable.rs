@@ -2,7 +2,10 @@ use std::ops::Deref;
 
 use acvm::{
     FieldElement,
-    acir::{AcirField, brillig::BitSize},
+    acir::{
+        AcirField,
+        brillig::{BitSize, lengths::SemiFlattenedLength},
+    },
     brillig_vm::brillig::{HeapValueType, MemoryAddress},
 };
 use serde::{Deserialize, Serialize};
@@ -42,10 +45,10 @@ pub(crate) struct BrilligArray {
     ///
     /// This is the flattened size of the array, where complex types
     /// take up more than one slot.
-    pub(crate) size: usize,
+    pub(crate) size: SemiFlattenedLength,
 }
 
-/// The representation of a noir slice in the Brillig IR
+/// The representation of a noir vector in the Brillig IR
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
 pub(crate) struct BrilligVector {
     pub(crate) pointer: MemoryAddress,
@@ -102,6 +105,21 @@ impl BrilligVariable {
             BrilligVariable::BrilligVector(vector) => vector.pointer,
         }
     }
+
+    /// Return a copy with the register replaced (used after reload into a new register).
+    pub(crate) fn with_register(self, new_reg: MemoryAddress) -> Self {
+        match self {
+            BrilligVariable::SingleAddr(s) => {
+                BrilligVariable::SingleAddr(SingleAddrVariable::new(new_reg, s.bit_size))
+            }
+            BrilligVariable::BrilligArray(a) => {
+                BrilligVariable::BrilligArray(BrilligArray { pointer: new_reg, size: a.size })
+            }
+            BrilligVariable::BrilligVector(_) => {
+                BrilligVariable::BrilligVector(BrilligVector { pointer: new_reg })
+            }
+        }
+    }
 }
 
 impl From<SingleAddrVariable> for BrilligVariable {
@@ -153,9 +171,9 @@ pub(crate) fn type_to_heap_value_type(typ: &Type) -> HeapValueType {
         ),
         Type::Array(elem_type, size) => HeapValueType::Array {
             value_types: elem_type.as_ref().iter().map(type_to_heap_value_type).collect(),
-            size: typ.element_size() * *size as usize,
+            size: *size,
         },
-        Type::Slice(elem_type) => HeapValueType::Vector {
+        Type::Vector(elem_type) => HeapValueType::Vector {
             value_types: elem_type.as_ref().iter().map(type_to_heap_value_type).collect(),
         },
     }
@@ -169,5 +187,54 @@ pub(crate) fn get_bit_size_from_ssa_type(typ: &Type) -> u32 {
         // instrumentation to work properly)
         Type::Function => 32,
         typ => typ.bit_size(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use acvm::acir::brillig::{
+        HeapValueType,
+        lengths::{FlattenedLength, SemanticLength},
+    };
+
+    use crate::{
+        brillig::brillig_ir::brillig_variable::type_to_heap_value_type, ssa::ir::types::Type,
+    };
+
+    #[test]
+    fn type_to_heap_value_type_flattened_size() {
+        // typ = [(u32, bool); 3]
+        let typ = Type::Array(Arc::new(vec![Type::unsigned(32), Type::bool()]), SemanticLength(3));
+        let typ = type_to_heap_value_type(&typ);
+        assert_eq!(typ.flattened_size(), Some(FlattenedLength(6)));
+
+        let HeapValueType::Array { value_types: _, size } = typ else {
+            panic!("Expected array type");
+        };
+        assert_eq!(size, SemanticLength(3));
+
+        // typ = [[u32; 4]; 2]
+        let arr = Type::Array(Arc::new(vec![Type::unsigned(32)]), SemanticLength(4));
+        let typ = Type::Array(Arc::new(vec![arr]), SemanticLength(2));
+        let typ = type_to_heap_value_type(&typ);
+        assert_eq!(typ.flattened_size(), Some(FlattenedLength(8)));
+
+        let HeapValueType::Array { value_types: _, size } = typ else {
+            panic!("Expected array type");
+        };
+        assert_eq!(size, SemanticLength(2));
+
+        // typ = [([u32; 4], bool); 2]
+        let arr = Type::Array(Arc::new(vec![Type::unsigned(32)]), SemanticLength(4));
+        let typ = Type::Array(Arc::new(vec![arr, Type::bool()]), SemanticLength(2));
+        let typ = type_to_heap_value_type(&typ);
+        assert_eq!(typ.flattened_size(), Some(FlattenedLength(10)));
+
+        let HeapValueType::Array { value_types: _, size } = typ else {
+            panic!("Expected array type");
+        };
+        assert_eq!(size, SemanticLength(2));
     }
 }

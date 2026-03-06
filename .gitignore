@@ -66,3 +66,6 @@ mutants.out.old
 
 # Artifacts created by `noir/bootstrap.sh build_packages` in aztec-packages
 **/package.tgz
+
+# Local Netlify folder
+.netlify

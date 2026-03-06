@@ -2,16 +2,96 @@
 
 use std::collections::BTreeMap;
 
+use noirc_errors::Location;
 use noirc_frontend::{ast::ItemVisibility, hir::def_map::ModuleId};
 
-pub trait HasNameAndComments {
+pub trait ItemProperties {
     fn name(&self) -> String;
-    fn comments(&self) -> Option<&str>;
+    fn comments(&self) -> Option<&Comments>;
+    fn is_deprecated(&self) -> bool;
 }
 
-pub type Id = usize;
+/// Uniquely identifies an item.
+/// This is done by using a type's name, location in source code and kind.
+/// With macros, two types might end up being defined in the same location but they will likely
+/// have different names.
+/// This is just a temporary solution until we have a better way to uniquely identify items
+/// across crates.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ItemId {
+    pub location: Location,
+    pub kind: ItemKind,
+    pub name: String,
+}
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum ItemKind {
+    Module,
+    Struct,
+    Trait,
+    TypeAlias,
+    Function,
+    Global,
+}
+
+/// A markdown link that resolves to an item, in one of these forms:
+/// - `[name]` (`path` will be the same as `name`)
+/// - `[name][path]`
+/// - `[name](path)`
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Link {
+    pub name: String,
+    pub path: String,
+    /// The link target. If None it means this is a broken link.
+    pub target: Option<LinkTarget>,
+    /// The line number in the comments where this link occurs (0-based).
+    pub line: usize,
+    /// The start byte in the line where the link occurs.
+    pub start: usize,
+    /// The end byte in the line where the link occurs.
+    pub end: usize,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum LinkTarget {
+    TopLevelItem(ItemId),
+    Method(ItemId, String),
+    StructMember(ItemId, String),
+    PrimitiveType(PrimitiveTypeKind),
+    PrimitiveTypeFunction(PrimitiveTypeKind, String),
+}
+
+impl LinkTarget {
+    pub fn id(&self) -> Option<&ItemId> {
+        match self {
+            Self::TopLevelItem(id) | Self::Method(id, _) | Self::StructMember(id, _) => Some(id),
+            Self::PrimitiveType(_) | Self::PrimitiveTypeFunction(..) => None,
+        }
+    }
+
+    pub fn name(&self) -> Option<&str> {
+        match self {
+            Self::TopLevelItem(_) | Self::PrimitiveType(_) => None,
+            Self::Method(_, name)
+            | Self::StructMember(_, name)
+            | Self::PrimitiveTypeFunction(_, name) => Some(name),
+        }
+    }
+
+    pub fn primitive_type(&self) -> Option<PrimitiveTypeKind> {
+        match self {
+            Self::TopLevelItem(..) | Self::Method(..) | Self::StructMember(..) => None,
+            Self::PrimitiveType(primitive_type_kind)
+            | Self::PrimitiveTypeFunction(primitive_type_kind, _) => Some(*primitive_type_kind),
+        }
+    }
+}
+
+pub type Links = Vec<Link>;
+
+pub type Comments = (String, Links);
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Workspace {
     pub name: String,
     /// Crates directly defined in this workspace.
@@ -26,7 +106,7 @@ impl Workspace {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Crate {
     pub name: String,
     pub version: Option<String>,
@@ -34,17 +114,21 @@ pub struct Crate {
     pub root_file: String,
 }
 
-impl HasNameAndComments for Crate {
+impl ItemProperties for Crate {
     fn name(&self) -> String {
         self.name.clone()
     }
 
-    fn comments(&self) -> Option<&str> {
+    fn comments(&self) -> Option<&Comments> {
         self.root_module.comments()
+    }
+
+    fn is_deprecated(&self) -> bool {
+        self.root_module.is_deprecated()
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Item {
     Module(Module),
     Struct(Struct),
@@ -71,13 +155,13 @@ impl Item {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Module {
-    pub id: Id,
+    pub id: ItemId,
     pub module_id: ModuleId,
     pub name: String,
     pub items: Vec<(ItemVisibility, Item)>,
-    pub comments: Option<String>,
+    pub comments: Option<Comments>,
     pub is_contract: bool,
 }
 
@@ -87,68 +171,81 @@ impl Module {
     }
 }
 
-impl HasNameAndComments for Module {
+impl ItemProperties for Module {
     fn name(&self) -> String {
         self.name.clone()
     }
 
-    fn comments(&self) -> Option<&str> {
-        self.comments.as_deref()
+    fn comments(&self) -> Option<&Comments> {
+        self.comments.as_ref()
+    }
+
+    fn is_deprecated(&self) -> bool {
+        false
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Struct {
-    pub id: Id,
+    pub id: ItemId,
     pub name: String,
     pub generics: Vec<Generic>,
     /// All `pub` fields of the struct.
     pub fields: Vec<StructField>,
     /// `true` if the struct has any private fields, besides the public ones listed in `fields`.
     pub has_private_fields: bool,
+    pub comptime: bool,
     pub impls: Vec<Impl>,
     pub trait_impls: Vec<TraitImpl>,
-    pub comments: Option<String>,
+    pub comments: Option<Comments>,
 }
 
-impl HasNameAndComments for Struct {
+impl ItemProperties for Struct {
     fn name(&self) -> String {
         self.name.clone()
     }
 
-    fn comments(&self) -> Option<&str> {
-        self.comments.as_deref()
+    fn comments(&self) -> Option<&Comments> {
+        self.comments.as_ref()
+    }
+
+    fn is_deprecated(&self) -> bool {
+        false
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct StructField {
     pub name: String,
     pub r#type: Type,
-    pub comments: Option<String>,
+    pub comments: Option<Comments>,
 }
 
-impl HasNameAndComments for StructField {
+impl ItemProperties for StructField {
     fn name(&self) -> String {
         self.name.clone()
     }
 
-    fn comments(&self) -> Option<&str> {
-        self.comments.as_deref()
+    fn comments(&self) -> Option<&Comments> {
+        self.comments.as_ref()
+    }
+
+    fn is_deprecated(&self) -> bool {
+        false
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Impl {
     pub generics: Vec<Generic>,
     pub r#type: Type,
     pub methods: Vec<Function>,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TraitImpl {
     pub generics: Vec<Generic>,
-    pub trait_id: Id,
+    pub trait_id: ItemId,
     pub trait_name: String,
     pub trait_generics: Vec<Type>,
     pub r#type: Type,
@@ -156,29 +253,33 @@ pub struct TraitImpl {
     pub methods: Vec<Function>,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Global {
-    pub id: Id,
+    pub id: ItemId,
     pub name: String,
     pub comptime: bool,
     pub mutable: bool,
     pub r#type: Type,
-    pub comments: Option<String>,
+    pub comments: Option<Comments>,
 }
 
-impl HasNameAndComments for Global {
+impl ItemProperties for Global {
     fn name(&self) -> String {
         self.name.clone()
     }
 
-    fn comments(&self) -> Option<&str> {
-        self.comments.as_deref()
+    fn comments(&self) -> Option<&Comments> {
+        self.comments.as_ref()
+    }
+
+    fn is_deprecated(&self) -> bool {
+        false
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Function {
-    pub id: Id,
+    pub id: ItemId,
     pub unconstrained: bool,
     pub comptime: bool,
     pub name: String,
@@ -186,29 +287,34 @@ pub struct Function {
     pub params: Vec<FunctionParam>,
     pub return_type: Type,
     pub where_clause: Vec<TraitConstraint>,
-    pub comments: Option<String>,
+    pub comments: Option<Comments>,
+    pub deprecated: Option<Option<String>>,
 }
 
-impl HasNameAndComments for Function {
+impl ItemProperties for Function {
     fn name(&self) -> String {
         self.name.clone()
     }
 
-    fn comments(&self) -> Option<&str> {
-        self.comments.as_deref()
+    fn comments(&self) -> Option<&Comments> {
+        self.comments.as_ref()
+    }
+
+    fn is_deprecated(&self) -> bool {
+        self.deprecated.is_some()
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct FunctionParam {
     pub name: String,
     pub r#type: Type,
     pub mut_ref: bool,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Trait {
-    pub id: Id,
+    pub id: ItemId,
     pub name: String,
     pub generics: Vec<Generic>,
     pub bounds: Vec<TraitBound>,
@@ -218,71 +324,80 @@ pub struct Trait {
     pub required_methods: Vec<Function>,
     pub provided_methods: Vec<Function>,
     pub trait_impls: Vec<TraitImpl>,
-    pub comments: Option<String>,
+    pub comments: Option<Comments>,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct AssociatedType {
     pub name: String,
     pub bounds: Vec<TraitBound>,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct AssociatedConstant {
     pub name: String,
     pub r#type: Type,
 }
 
-impl HasNameAndComments for Trait {
+impl ItemProperties for Trait {
     fn name(&self) -> String {
         self.name.clone()
     }
 
-    fn comments(&self) -> Option<&str> {
-        self.comments.as_deref()
+    fn comments(&self) -> Option<&Comments> {
+        self.comments.as_ref()
+    }
+
+    fn is_deprecated(&self) -> bool {
+        false
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TypeAlias {
-    pub id: Id,
+    pub id: ItemId,
     pub name: String,
     pub generics: Vec<Generic>,
     pub r#type: Type,
-    pub comments: Option<String>,
+    pub comptime: bool,
+    pub comments: Option<Comments>,
 }
 
-impl HasNameAndComments for TypeAlias {
+impl ItemProperties for TypeAlias {
     fn name(&self) -> String {
         self.name.clone()
     }
 
-    fn comments(&self) -> Option<&str> {
-        self.comments.as_deref()
+    fn comments(&self) -> Option<&Comments> {
+        self.comments.as_ref()
+    }
+
+    fn is_deprecated(&self) -> bool {
+        false
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Generic {
     pub name: String,
     pub numeric: Option<Type>,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TraitConstraint {
     pub r#type: Type,
     pub bound: TraitBound,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TraitBound {
-    pub trait_id: Id,
+    pub trait_id: ItemId,
     pub trait_name: String,
     pub ordered_generics: Vec<Type>,
     pub named_generics: BTreeMap<String, Type>,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Type {
     Unit,
     Primitive(PrimitiveTypeKind),
@@ -290,7 +405,7 @@ pub enum Type {
         length: Box<Type>,
         element: Box<Type>,
     },
-    Slice {
+    Vector {
         element: Box<Type>,
     },
     String {
@@ -306,12 +421,12 @@ pub enum Type {
         mutable: bool,
     },
     Struct {
-        id: Id,
+        id: ItemId,
         name: String,
         generics: Vec<Type>,
     },
     TypeAlias {
-        id: Id,
+        id: ItemId,
         name: String,
         generics: Vec<Type>,
     },
@@ -329,51 +444,43 @@ pub enum Type {
         rhs: Box<Type>,
     },
     TraitAsType {
-        trait_id: Id,
+        trait_id: ItemId,
         trait_name: String,
         ordered_generics: Vec<Type>,
         named_generics: BTreeMap<String, Type>,
     },
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct PrimitiveType {
     pub kind: PrimitiveTypeKind,
     pub impls: Vec<Impl>,
     pub trait_impls: Vec<TraitImpl>,
-    pub comments: Option<String>,
+    pub comments: Option<Comments>,
 }
 
-impl HasNameAndComments for PrimitiveType {
+impl ItemProperties for PrimitiveType {
     fn name(&self) -> String {
         self.kind.to_string()
     }
 
-    fn comments(&self) -> Option<&str> {
-        self.comments.as_deref()
+    fn comments(&self) -> Option<&Comments> {
+        self.comments.as_ref()
+    }
+
+    fn is_deprecated(&self) -> bool {
+        false
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Reexport {
-    pub id: Id,
+    pub id: ItemId,
     pub item_name: String,
     pub name: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum ItemKind {
-    Module,
-    Struct,
-    Trait,
-    TypeAlias,
-    Function,
-    Global,
-    PrimitiveType,
-    Reexport,
-}
-
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub enum PrimitiveTypeKind {
     Bool,
     U1,
@@ -390,7 +497,7 @@ pub enum PrimitiveTypeKind {
     Str,
     Fmtstr,
     Array,
-    Slice,
+    Vector,
     Expr,
     Quoted,
     Type,
@@ -423,7 +530,7 @@ impl std::fmt::Display for PrimitiveTypeKind {
             PrimitiveTypeKind::Str => "str",
             PrimitiveTypeKind::Fmtstr => "fmtstr",
             PrimitiveTypeKind::Array => "array",
-            PrimitiveTypeKind::Slice => "slice",
+            PrimitiveTypeKind::Vector => "vector",
             PrimitiveTypeKind::Expr => "Expr",
             PrimitiveTypeKind::Quoted => "Quoted",
             PrimitiveTypeKind::Type => "Type",

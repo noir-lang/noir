@@ -1,0 +1,6 @@
+[package]
+name = "inline_diverging_function"
+type = "bin"
+authors = [""]
+
+[dependencies]

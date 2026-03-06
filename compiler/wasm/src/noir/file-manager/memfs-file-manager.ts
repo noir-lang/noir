@@ -1,5 +1,5 @@
 import { IFs, fs } from 'memfs';
-import { IDirent } from 'memfs/lib/node/types/misc';
+import type { IDirent } from '@jsonjoy.com/fs-node-utils/lib/types/misc';
 
 import { FileManager } from './file-manager';
 

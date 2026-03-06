@@ -4,7 +4,6 @@ use std::str::FromStr;
 use std::{collections::HashMap, future::Future};
 
 use crate::notifications::fake_stdlib_workspace;
-use crate::notifications::process_workspace;
 use crate::{PackageCacheData, insert_all_files_for_workspace_into_file_manager, parse_diff};
 use crate::{
     resolve_workspace_for_source_path,
@@ -31,7 +30,9 @@ use noirc_frontend::usage_tracker::UsageTracker;
 use noirc_frontend::{graph::Dependency, node_interner::NodeInterner};
 use serde::{Deserialize, Serialize};
 
-use async_lsp::lsp_types;
+use async_lsp::lsp_types::{
+    self, SemanticTokenType, SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions,
+};
 
 use crate::{
     LspState,
@@ -62,6 +63,7 @@ mod hover;
 mod inlay_hint;
 mod references;
 mod rename;
+mod semantic_tokens;
 mod signature_help;
 mod std_source_code;
 mod test_run;
@@ -76,9 +78,9 @@ pub(crate) use {
     goto_definition::on_goto_type_definition_request, hover::on_hover_request,
     inlay_hint::on_inlay_hint_request, references::on_references_request,
     rename::on_prepare_rename_request, rename::on_rename_request,
-    signature_help::on_signature_help_request, std_source_code::on_std_source_code_request,
-    test_run::on_test_run_request, tests::on_tests_request,
-    workspace_symbol::on_workspace_symbol_request,
+    semantic_tokens::on_semantic_tokens_full_request, signature_help::on_signature_help_request,
+    std_source_code::on_std_source_code_request, test_run::on_test_run_request,
+    tests::on_tests_request, workspace_symbol::on_workspace_symbol_request,
 };
 
 /// LSP client will send initialization request after the server has started.
@@ -101,6 +103,9 @@ pub(crate) struct LspInitializationOptions {
 
     #[serde(rename = "enableCodeActions", default = "default_enable_code_actions")]
     pub(crate) enable_code_actions: bool,
+
+    #[serde(rename = "enableSemanticTokens", default = "default_enable_semantic_tokens")]
+    pub(crate) enable_semantic_tokens: bool,
 
     /// Lightweight mode disables code lens, inlay hints, completions, signature help and code actions
     #[serde(rename = "enableLightweightMode", default = "default_enable_lightweight_mode")]
@@ -175,6 +180,10 @@ fn default_enable_code_actions() -> bool {
     true
 }
 
+fn default_enable_semantic_tokens() -> bool {
+    true
+}
+
 fn default_enable_parsing_cache() -> bool {
     true
 }
@@ -241,6 +250,7 @@ impl Default for LspInitializationOptions {
             enable_completions: default_enable_completions(),
             enable_signature_help: default_enable_signature_help(),
             enable_code_actions: default_enable_code_actions(),
+            enable_semantic_tokens: default_enable_semantic_tokens(),
             enable_lightweight_mode: default_enable_lightweight_mode(),
         }
     }
@@ -268,6 +278,8 @@ pub(crate) fn on_initialize(
         && initialization_options.enable_signature_help;
     let enable_code_actions = !initialization_options.enable_lightweight_mode
         && initialization_options.enable_code_actions;
+    let enable_semantic_tokens = !initialization_options.enable_lightweight_mode
+        && initialization_options.enable_semantic_tokens;
 
     async move {
         Ok(InitializeResult {
@@ -362,10 +374,44 @@ pub(crate) fn on_initialize(
                     },
                 )),
                 folding_range_provider: Some(true),
+                semantic_tokens_provider: enable_semantic_tokens.then_some(lsp_types::OneOf::Left(
+                    SemanticTokensOptions {
+                        work_done_progress_options: WorkDoneProgressOptions {
+                            work_done_progress: None,
+                        },
+                        legend: SemanticTokensLegend {
+                            token_types: semantic_token_types().to_vec(),
+                            token_modifiers: vec![],
+                        },
+                        range: None,
+                        full: Some(SemanticTokensFullOptions::Bool(true)),
+                    },
+                )),
             },
             server_info: None,
         })
     }
+}
+
+pub(crate) fn semantic_token_types() -> [SemanticTokenType; 12] {
+    [
+        SemanticTokenType::NAMESPACE,
+        SemanticTokenType::STRUCT,
+        SemanticTokenType::INTERFACE,
+        SemanticTokenType::ENUM,
+        SemanticTokenType::FUNCTION,
+        SemanticTokenType::METHOD,
+        SemanticTokenType::VARIABLE,
+        SemanticTokenType::PROPERTY,
+        SemanticTokenType::NUMBER,
+        SemanticTokenType::KEYWORD,
+        SemanticTokenType::STRING,
+        SemanticTokenType::OPERATOR,
+    ]
+}
+
+pub(crate) fn semantic_token_types_map() -> HashMap<SemanticTokenType, usize> {
+    semantic_token_types().iter().enumerate().map(|(i, typ)| (typ.clone(), i)).collect()
 }
 
 pub(crate) fn on_formatting(
@@ -451,10 +497,7 @@ fn position_to_location(
     file_path: &PathString,
     position: &Position,
 ) -> Result<noirc_errors::Location, ResponseError> {
-    let file_id = files.get_file_id(file_path).ok_or(ResponseError::new(
-        ErrorCode::REQUEST_FAILED,
-        format!("Could not find file in file manager. File path: {file_path:?}"),
-    ))?;
+    let file_id = file_path_to_file_id(files, file_path)?;
     let byte_index = position_to_byte_index(files, file_id, position).map_err(|err| {
         ResponseError::new(
             ErrorCode::REQUEST_FAILED,
@@ -468,6 +511,16 @@ fn position_to_location(
     };
 
     Ok(location)
+}
+
+pub(crate) fn file_path_to_file_id(
+    files: &FileMap,
+    file_path: &PathString,
+) -> Result<FileId, ResponseError> {
+    files.get_file_id(file_path).ok_or(ResponseError::new(
+        ErrorCode::REQUEST_FAILED,
+        format!("Could not find file in file manager. File path: {file_path:?}"),
+    ))
 }
 
 fn character_to_line_offset(line: &str, character: u32) -> Result<usize, Error> {
@@ -519,17 +572,17 @@ pub(crate) fn on_shutdown(
 }
 
 pub(crate) struct ProcessRequestCallbackArgs<'a> {
-    location: noirc_errors::Location,
-    workspace: &'a Workspace,
-    package: &'a Package,
-    files: &'a FileMap,
-    interner: &'a NodeInterner,
-    package_cache: &'a HashMap<PathBuf, PackageCacheData>,
-    crate_id: CrateId,
-    crate_name: String,
-    crate_graph: &'a CrateGraph,
-    def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
-    usage_tracker: &'a UsageTracker,
+    pub(crate) location: noirc_errors::Location,
+    pub(crate) workspace: &'a Workspace,
+    pub(crate) package: &'a Package,
+    pub(crate) files: &'a FileMap,
+    pub(crate) interner: &'a NodeInterner,
+    pub(crate) package_cache: &'a HashMap<PathBuf, PackageCacheData>,
+    pub(crate) crate_id: CrateId,
+    pub(crate) crate_name: String,
+    pub(crate) crate_graph: &'a CrateGraph,
+    pub(crate) def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
+    pub(crate) usage_tracker: &'a UsageTracker,
 }
 
 impl<'a> ProcessRequestCallbackArgs<'a> {
@@ -546,51 +599,13 @@ pub(crate) fn process_request<F, T>(
 where
     F: FnOnce(ProcessRequestCallbackArgs) -> T,
 {
-    let type_check = true;
-    process_request_impl(state, text_document_position_params, type_check, callback)
-}
-
-pub(crate) fn process_request_no_type_check<F, T>(
-    state: &mut LspState,
-    text_document_position_params: TextDocumentPositionParams,
-    callback: F,
-) -> Result<T, ResponseError>
-where
-    F: FnOnce(ProcessRequestCallbackArgs) -> T,
-{
-    let type_check = false;
-    process_request_impl(state, text_document_position_params, type_check, callback)
-}
-
-fn process_request_impl<F, T>(
-    state: &mut LspState,
-    text_document_position_params: TextDocumentPositionParams,
-    type_check: bool,
-    callback: F,
-) -> Result<T, ResponseError>
-where
-    F: FnOnce(ProcessRequestCallbackArgs) -> T,
-{
     let uri = text_document_position_params.text_document.uri.clone();
-
-    let (file_path, workspace) = if uri.scheme() == "noir-std" {
-        let workspace = fake_stdlib_workspace();
-        let file_path =
-            PathBuf::from_str(&format!("{}{}", uri.host().unwrap(), uri.path())).unwrap();
-        (file_path, workspace)
+    let file_path = uri_to_file_path(&uri)?;
+    let workspace = if uri.scheme() == "noir-std" {
+        fake_stdlib_workspace()
     } else {
-        let file_path = uri.to_file_path().map_err(|_| {
-            ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
-        })?;
-
-        let workspace = resolve_workspace_for_source_path(file_path.as_path()).unwrap();
-        (file_path, workspace)
+        resolve_workspace_for_source_path(file_path.as_path()).unwrap()
     };
-
-    // First type-check the workspace if needed
-    if type_check && state.workspaces_to_process.remove(&workspace.root_dir) {
-        let _ = process_workspace(state, &workspace, false);
-    }
 
     let package = crate::workspace_package_for_file(&workspace, &file_path).ok_or_else(|| {
         ResponseError::new(ErrorCode::REQUEST_FAILED, "Could not find package for file")
@@ -704,6 +719,16 @@ where
         def_maps,
         usage_tracker,
     }))
+}
+
+pub(crate) fn uri_to_file_path(uri: &Url) -> Result<PathBuf, ResponseError> {
+    if uri.scheme() == "noir-std" {
+        Ok(PathBuf::from_str(&format!("{}{}", uri.host().unwrap(), uri.path())).unwrap())
+    } else {
+        uri.to_file_path().map_err(|_| {
+            ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
+        })
+    }
 }
 
 pub(crate) fn find_all_references_in_workspace(
@@ -836,7 +861,7 @@ mod initialization {
     #[test]
     async fn test_on_initialize() {
         let client = ClientSocket::new_closed();
-        let mut state = LspState::new(&client, StubbedBlackBoxSolver::default());
+        let mut state = LspState::new(&client, StubbedBlackBoxSolver);
         let params = InitializeParams::default();
         let response = on_initialize(&mut state, params).await.unwrap();
         assert!(matches!(

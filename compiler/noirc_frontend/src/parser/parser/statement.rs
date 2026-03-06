@@ -234,13 +234,15 @@ impl Parser<'_> {
                 Token::Percent => Some(BinaryOpKind::Modulo),
                 Token::Ampersand => Some(BinaryOpKind::And),
                 Token::Caret => Some(BinaryOpKind::Xor),
-                Token::ShiftLeft => Some(BinaryOpKind::ShiftLeft),
                 Token::Pipe => Some(BinaryOpKind::Or),
                 _ => None,
             }
         } else if self.at(Token::Greater) && self.next_is(Token::GreaterEqual) {
             // >>=
             Some(BinaryOpKind::ShiftRight)
+        } else if self.at(Token::Less) && self.next_is(Token::LessEqual) {
+            // <<=
+            Some(BinaryOpKind::ShiftLeft)
         } else {
             None
         };
@@ -264,7 +266,7 @@ impl Parser<'_> {
 
         let Some(identifier) = self.eat_ident() else {
             self.expected_identifier();
-            let identifier = self.unknown_ident_at_previous_token_end();
+            let identifier = self.empty_ident_at_previous_token_end();
             return Some(self.empty_for_loop(identifier, start_location));
         };
 
@@ -364,7 +366,7 @@ impl Parser<'_> {
         }
     }
 
-    fn empty_for_loop(&mut self, identifier: Ident, start_location: Location) -> ForLoopStatement {
+    fn empty_for_loop(&self, identifier: Ident, start_location: Location) -> ForLoopStatement {
         let location = self.location_at_previous_token_end();
         ForLoopStatement {
             identifier,
@@ -469,10 +471,7 @@ mod tests {
     use insta::assert_snapshot;
 
     use crate::{
-        ast::{
-            ExpressionKind, ForRange, LValue, LoopStatement, Statement, StatementKind,
-            UnresolvedTypeData,
-        },
+        ast::{ExpressionKind, ForRange, LValue, LoopStatement, Statement, StatementKind},
         parser::{
             Parser, ParserErrorReason,
             parser::tests::{
@@ -511,7 +510,7 @@ mod tests {
             panic!("Expected let statement");
         };
         assert_eq!(let_statement.pattern.to_string(), "x");
-        assert!(matches!(let_statement.r#type.typ, UnresolvedTypeData::Unspecified));
+        assert!(let_statement.r#type.is_none());
         assert_eq!(let_statement.expression.to_string(), "1");
         assert!(!let_statement.comptime);
     }
@@ -524,7 +523,7 @@ mod tests {
             panic!("Expected let statement");
         };
         assert_eq!(let_statement.pattern.to_string(), "x");
-        assert_eq!(let_statement.r#type.to_string(), "Field");
+        assert_eq!(let_statement.r#type.unwrap().to_string(), "Field");
         assert_eq!(let_statement.expression.to_string(), "1");
         assert!(!let_statement.comptime);
     }
@@ -566,6 +565,27 @@ mod tests {
             panic!("Expected let statement");
         };
         assert_eq!(let_statement.pattern.to_string(), "x");
+    }
+
+    #[test]
+    fn parses_let_statement_with_two_mut() {
+        let src = "
+        let mut mut x = 1;
+                ^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
+        let statement = parser.parse_statement().unwrap().0;
+        let StatementKind::Let(let_statement) = statement.kind else {
+            panic!("Expected let statement");
+        };
+        assert_eq!(let_statement.pattern.to_string(), "mut x");
+        assert!(let_statement.r#type.is_none());
+        assert_eq!(let_statement.expression.to_string(), "1");
+        assert!(!let_statement.comptime);
+
+        let reason = get_single_error_reason(&parser.errors, span);
+        assert!(matches!(reason, ParserErrorReason::MutOnABindingCannotBeRepeated));
     }
 
     #[test]

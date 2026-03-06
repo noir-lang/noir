@@ -4,7 +4,10 @@ use acvm::{
     brillig_vm::offsets,
 };
 
-use crate::brillig::brillig_ir::{BrilligBinaryOp, registers::Allocated};
+use crate::brillig::{
+    assert_usize,
+    brillig_ir::{BrilligBinaryOp, registers::Allocated},
+};
 
 use super::{
     BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligContext, ReservedRegisters,
@@ -12,6 +15,13 @@ use super::{
     debug_show::DebugToString,
     registers::RegisterAllocator,
 };
+
+pub(crate) struct VectorMetaData<Registers: RegisterAllocator> {
+    pub(crate) rc: Allocated<SingleAddrVariable, Registers>,
+    pub(crate) size: Allocated<SingleAddrVariable, Registers>,
+    pub(crate) capacity: Allocated<SingleAddrVariable, Registers>,
+    pub(crate) items_pointer: Allocated<SingleAddrVariable, Registers>,
+}
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// Loads the current _free memory pointer_ into `pointer_register` and
@@ -85,7 +95,10 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                 num_elements_variable.address,
             );
         } else {
+            // Temporary register for copying source to target, ie. between two heap addresses through the stack.
             let value_register = self.allocate_register();
+
+            // End pointer for finish condition.
             let end_source_pointer = self.allocate_register();
             self.memory_op_instruction(
                 source_pointer,
@@ -109,7 +122,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                     brillig_context.memory_op_inc_by_usize_one(**target_iterator);
                 },
                 |brillig_context, (source_iterator, _)| {
-                    // We have finished when the source/target pointer is less than the source/target start
+                    // We have finished when the source iterator reaches the end pointer.
                     let finish_condition = brillig_context.allocate_single_addr_bool();
                     brillig_context.memory_op_instruction(
                         **source_iterator,
@@ -128,7 +141,21 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         }
     }
 
-    /// Copies num_elements_variable from the source pointer to the target pointer, starting from the end
+    /// Copies `num_elements_variable` number of elements from the `source_start` pointer to the `target_start` pointer,
+    /// starting from the end, moving backwards.
+    ///
+    /// By moving back-to-front, it can shift items backwards, modifying a vector in-place to make room in the front.
+    ///
+    /// # Safety
+    /// When `num_elements = 0`, the subtraction `num_elements - 1` underflows to `2^32 - 1`.
+    /// This is safe because:
+    /// 1. `source_pointer = source_start + (2^32 - 1)` wraps to `source_start - 1`
+    /// 2. The loop exit condition `source_pointer < source_start` becomes `true` immediately
+    /// 3. The loop exits without any iterations, which is correct for 0 elements
+    ///
+    /// This relies on the **value** at `source_start` being > 0. Current callers satisfy this                                                             
+    /// invariant because they pass heap pointers (from vector metadata), and heap allocations                                                             
+    /// always produce pointers > 0 since the heap starts after reserved registers and the stack.   
     pub(crate) fn codegen_mem_copy_from_the_end(
         &mut self,
         source_start: MemoryAddress,
@@ -145,6 +172,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                     BrilligBinaryOp::Sub,
                     1,
                 );
+                // target = &target_items[num_elements - 1]
                 let target_pointer = brillig_context.allocate_register();
                 brillig_context.memory_op_instruction(
                     target_start,
@@ -152,6 +180,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                     *target_pointer,
                     BrilligBinaryOp::Add,
                 );
+                // source = &source_items[num_elements - 1]
                 let source_pointer = brillig_context.allocate_register();
                 brillig_context.memory_op_instruction(
                     source_start,
@@ -162,11 +191,13 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                 (source_pointer, target_pointer)
             },
             |brillig_context, (source_pointer, target_pointer)| {
+                // source -= 1
                 brillig_context.codegen_usize_op_in_place(
                     **source_pointer,
                     BrilligBinaryOp::Sub,
                     1,
                 );
+                // target -= 1
                 brillig_context.codegen_usize_op_in_place(
                     **target_pointer,
                     BrilligBinaryOp::Sub,
@@ -193,7 +224,9 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         );
     }
 
-    /// This instruction will reverse the order of the `size` elements pointed by `pointer`.
+    /// Emit opcodes to reverse the order of the `size` elements pointed by `pointer`.
+    ///
+    /// It is the responsibility of the caller to ensure that the ref-count of the array is 1.
     pub(crate) fn codegen_array_reverse(
         &mut self,
         items_pointer: MemoryAddress,
@@ -204,35 +237,29 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             return;
         }
 
+        // for i in 0..size/2 { swap(items[i], items[size-1-i]); }
         let iteration_count = self.allocate_register();
         self.codegen_usize_op(size, *iteration_count, BrilligBinaryOp::UnsignedDiv, 2);
 
         let start_value_register = self.allocate_register();
         let end_value_register = self.allocate_register();
-        let index_at_end_of_array = self.allocate_register();
+        let index_at_end = self.allocate_register();
 
-        self.mov_instruction(*index_at_end_of_array, size);
+        // The index going from back to front.
+        self.mov_instruction(*index_at_end, size);
 
         self.codegen_loop(*iteration_count, |ctx, iterator_register| {
-            // The index at the end of array is size - 1 - iterator
-            ctx.codegen_usize_op_in_place(*index_at_end_of_array, BrilligBinaryOp::Sub, 1);
-            let index_at_end_of_array_var = SingleAddrVariable::new_usize(*index_at_end_of_array);
+            // The index at the end of the array is size - 1 - iterator
+            ctx.codegen_usize_op_in_place(*index_at_end, BrilligBinaryOp::Sub, 1);
+            let index_at_end_var = SingleAddrVariable::new_usize(*index_at_end);
 
             // Load both values
             ctx.codegen_load_with_offset(items_pointer, iterator_register, *start_value_register);
-            ctx.codegen_load_with_offset(
-                items_pointer,
-                index_at_end_of_array_var,
-                *end_value_register,
-            );
+            ctx.codegen_load_with_offset(items_pointer, index_at_end_var, *end_value_register);
 
             // Write both values
             ctx.codegen_store_with_offset(items_pointer, iterator_register, *end_value_register);
-            ctx.codegen_store_with_offset(
-                items_pointer,
-                index_at_end_of_array_var,
-                *start_value_register,
-            );
+            ctx.codegen_store_with_offset(items_pointer, index_at_end_var, *start_value_register);
         });
     }
 
@@ -246,7 +273,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             array.pointer,
             heap_array.pointer,
             BrilligBinaryOp::Add,
-            offsets::ARRAY_ITEMS,
+            assert_usize(offsets::ARRAY_ITEMS),
         );
         heap_array
     }
@@ -289,6 +316,24 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         }
     }
 
+    /// Returns a variable holding the ref-count of a given array or vector.
+    pub(crate) fn codegen_read_rc(
+        &mut self,
+        pointer: MemoryAddress,
+    ) -> Allocated<SingleAddrVariable, Registers> {
+        let result = self.allocate_single_addr_usize();
+        self.load_instruction(result.address, pointer);
+        result
+    }
+
+    /// Returns a variable holding the ref-count of a given vector.
+    pub(crate) fn codegen_read_vector_rc(
+        &mut self,
+        vector: BrilligVector,
+    ) -> Allocated<SingleAddrVariable, Registers> {
+        self.codegen_read_rc(vector.pointer)
+    }
+
     /// Returns a variable holding the size of a given vector.
     pub(crate) fn codegen_read_vector_size(
         &mut self,
@@ -299,7 +344,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             vector.pointer,
             result.address,
             BrilligBinaryOp::Add,
-            offsets::VECTOR_SIZE,
+            assert_usize(offsets::VECTOR_SIZE),
         );
         self.load_instruction(result.address, result.address);
         result
@@ -316,7 +361,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             vector.pointer,
             *write_pointer,
             BrilligBinaryOp::Add,
-            offsets::VECTOR_SIZE,
+            assert_usize(offsets::VECTOR_SIZE),
         );
         self.store_instruction(*write_pointer, new_size.address);
     }
@@ -331,19 +376,34 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             vector.pointer,
             result.address,
             BrilligBinaryOp::Add,
-            offsets::VECTOR_CAPACITY,
+            assert_usize(offsets::VECTOR_CAPACITY),
         );
         self.load_instruction(result.address, result.address);
         result
     }
 
     /// Writes the pointer to the items of a given vector to the `result`.
+    ///
+    /// # Safety
+    ///
+    /// This should only be called upon a vector that has already been heap allocated.
+    ///
+    /// The addition `vector.pointer + [offsets::VECTOR_ITEMS]` cannot overflow because:
+    /// - [Vector allocation][Self::codegen_initialize_vector] size is at least [offsets::VECTOR_META_COUNT] (3)
+    /// - The VM's allocation check ensures `FMP + allocation_size <= u32::MAX`
+    /// - Since [offsets::VECTOR_ITEMS] == [offsets::VECTOR_META_COUNT] == 3, if allocation succeeded,
+    ///   `vector.pointer + 3` is guaranteed safe
     pub(crate) fn codegen_vector_items_pointer(
         &mut self,
         vector: BrilligVector,
         result: MemoryAddress,
     ) {
-        self.codegen_usize_op(vector.pointer, result, BrilligBinaryOp::Add, offsets::VECTOR_ITEMS);
+        self.codegen_usize_op(
+            vector.pointer,
+            result,
+            BrilligBinaryOp::Add,
+            assert_usize(offsets::VECTOR_ITEMS),
+        );
     }
 
     /// Returns a pointer to the items of a given vector.
@@ -356,57 +416,87 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         result
     }
 
-    /// Reads the metadata of a vector and stores it in the given variables
+    /// Reads the metadata of a vector into individual registers and returns them as [VectorMetaData].
     ///
     /// If the `semantic_length_and_item_size` is given, then instead of reading the size from the
     /// vector data structure, it is calculated as a multiplication of length and item size.
     pub(crate) fn codegen_read_vector_metadata(
         &mut self,
         vector: BrilligVector,
-        rc: SingleAddrVariable,
-        size: SingleAddrVariable,
-        capacity: SingleAddrVariable,
-        items_pointer: SingleAddrVariable,
         semantic_length_and_item_size: Option<(MemoryAddress, MemoryAddress)>,
-    ) {
-        assert!(rc.bit_size == BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
-        assert!(size.bit_size == BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
-        assert!(capacity.bit_size == BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
-        assert!(items_pointer.bit_size == BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
+    ) -> VectorMetaData<Registers> {
+        let rc = self.allocate_single_addr_usize();
+        let size = self.allocate_single_addr_usize();
+        let capacity = self.allocate_single_addr_usize();
+        let items_pointer = self.allocate_single_addr_usize();
+
         // Vector layout: [ref_count, size, capacity, items...]
         self.load_instruction(rc.address, vector.pointer);
         let read_pointer = self.allocate_register();
-        self.codegen_usize_op(vector.pointer, *read_pointer, BrilligBinaryOp::Add, 1);
+        self.codegen_usize_op(
+            vector.pointer,
+            *read_pointer,
+            BrilligBinaryOp::Add,
+            assert_usize(offsets::VECTOR_SIZE),
+        );
         if let Some((length, item_size)) = semantic_length_and_item_size {
             self.codegen_vector_flattened_size(size.address, length, item_size);
         } else {
             self.load_instruction(size.address, *read_pointer);
         }
-        self.codegen_usize_op_in_place(*read_pointer, BrilligBinaryOp::Add, 1);
+        self.codegen_usize_op_in_place(
+            *read_pointer,
+            BrilligBinaryOp::Add,
+            assert_usize(offsets::VECTOR_CAPACITY - offsets::VECTOR_SIZE),
+        );
         self.load_instruction(capacity.address, *read_pointer);
-        self.codegen_usize_op(*read_pointer, items_pointer.address, BrilligBinaryOp::Add, 1);
+        self.codegen_usize_op(
+            *read_pointer,
+            items_pointer.address,
+            BrilligBinaryOp::Add,
+            assert_usize(offsets::VECTOR_ITEMS - offsets::VECTOR_CAPACITY),
+        );
+
+        VectorMetaData { rc, size, capacity, items_pointer }
     }
 
     /// Generate code to calculate the flattened vector size from its semantic length and the item size.
     ///
     /// For example a `[(u32, bool)]` would have a flattened item size of 2, because each item consists of 2 values.
     /// Such a vector with a semantic length of 3 would have a flattened size of 6.
+    ///
+    /// Uses checked multiplication to trap on overflow (length × item_size > u32::MAX).
     pub(crate) fn codegen_vector_flattened_size(
         &mut self,
         destination: MemoryAddress,
         length: MemoryAddress,
         item_size: MemoryAddress,
     ) {
-        self.memory_op_instruction(length, item_size, destination, BrilligBinaryOp::Mul);
+        self.codegen_checked_mul(length, item_size, destination);
     }
 
     /// Returns a pointer to the items of a given array.
+    ///
+    /// # Safety
+    ///
+    /// This should only be called upon an array that has already been heap allocated.
+    ///
+    /// The addition `array.pointer + [offsets::ARRAY_ITEMS]` cannot overflow because:
+    /// - [Array allocation][Self::codegen_initialize_array] size is at least [offsets::ARRAY_META_COUNT] (1)
+    /// - The VM's allocation check ensures `FMP + allocation_size <= u32::MAX`
+    /// - Since [offsets::ARRAY_ITEMS] == [offsets::ARRAY_META_COUNT] == 1, if allocation succeeded,
+    ///   `array.pointer + 1` is guaranteed safe
     pub(crate) fn codegen_make_array_items_pointer(
         &mut self,
         array: BrilligArray,
     ) -> Allocated<MemoryAddress, Registers> {
         let result = self.allocate_register();
-        self.codegen_usize_op(array.pointer, *result, BrilligBinaryOp::Add, offsets::ARRAY_ITEMS);
+        self.codegen_usize_op(
+            array.pointer,
+            *result,
+            BrilligBinaryOp::Add,
+            assert_usize(offsets::ARRAY_ITEMS),
+        );
         result
     }
 
@@ -420,27 +510,81 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             BrilligVariable::BrilligVector(vector) => {
                 self.codegen_make_vector_items_pointer(vector)
             }
-            _ => unreachable!("ICE: Expected array or vector, got {variable:?}"),
+            BrilligVariable::SingleAddr(_) => {
+                unreachable!("ICE: Expected array or vector, got {variable:?}")
+            }
         }
     }
 
     /// Initializes an array, allocating memory on the heap to store its representation and initializing the reference counter to 1.
     pub(crate) fn codegen_initialize_array(&mut self, array: BrilligArray) {
-        // Allocate memory for the 1 ref counter and `size` items.
-        self.codegen_allocate_immediate_mem(array.pointer, array.size + offsets::ARRAY_META_COUNT);
-        self.initialize_rc(array.pointer, 1);
+        // Allocate memory for the ref counter and `size` items.
+        let size = array
+            .size
+            .0
+            .checked_add(offsets::ARRAY_META_COUNT)
+            .expect("Array size overflow: array is too large to be allocated in Brillig");
+        self.codegen_allocate_immediate_mem(array.pointer, assert_usize(size));
+        self.codegen_initialize_rc(array.pointer, 1);
     }
 
     /// Initialize the reference counter for an array or vector.
     /// This should only be used internally in the array and vector initialization methods.
     ///
     /// The RC is in the 0th slot of the memory allocated for the array or vector.
-    fn initialize_rc(&mut self, pointer: MemoryAddress, rc_value: usize) {
-        self.indirect_const_instruction(
-            pointer,
-            BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
-            rc_value.into(),
-        );
+    pub(crate) fn codegen_initialize_rc(&mut self, pointer: MemoryAddress, rc: usize) {
+        self.indirect_const_instruction(pointer, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, rc.into());
+    }
+
+    /// Decrement the ref-count by 1.
+    ///
+    /// The inputs are:
+    /// * the `pointer` to the array/vector
+    /// * the `rc` address of the vector where we have the current RC loaded already
+    pub(crate) fn codegen_decrement_rc(&self, _pointer: MemoryAddress, _rc: MemoryAddress) {
+        // In benchmarks having this on didn't have a noticeable performance benefit,
+        // but it does have a small increase in byte code size and the number of executed opcodes.
+        // When we disabled `dec_rc` in SSA, the performance improved, so for now we disabled this,
+        // in order to not deviate conceptually from SSA. The method is left in place as a reference
+        // to where we could re-enable them.
+
+        // // Modify the RC (it's on the stack, or scratch space).
+        // self.codegen_usize_op_in_place(rc, BrilligBinaryOp::Sub, 1);
+        // // Write it back onto the heap.
+        // self.store_instruction(pointer, rc);
+    }
+
+    /// Increment the ref-count by 1.
+    ///
+    /// The inputs are:
+    /// * the `pointer` to the array/vector
+    /// * the `rc` address of the vector where we have the current RC loaded already
+    ///
+    /// # Safety
+    ///
+    /// ### RC Overflow Limitation
+    ///
+    /// This operation uses wrapping arithmetic and does not check for overflow.
+    /// If the reference count were to reach `u32::MAX` (4,294,967,295) and be
+    /// incremented, it would wrap to 0. A subsequent increment would make it 1,
+    /// which would cause the copy-on-write logic (`rc == 1`) to incorrectly
+    /// treat a shared array/vector as uniquely owned, leading to in-place
+    /// mutation of shared data (memory corruption / unsoundness).
+    ///
+    /// This is an accepted theoretical limitation because:
+    /// - Triggering overflow requires 2^32 (~4.3 billion) RC increments on a
+    ///   single array/vector, which is practically unreachable in any realistic
+    ///   Noir program.
+    /// - Unlike free memory pointer (FMP) updates (which are checked in the VM), RC values are stored
+    ///   at arbitrary heap addresses, and the incremented result is written back to that address.
+    ///   They are not operating on the [FMP][ReservedRegisters::free_memory_pointer()].
+    /// - Adding runtime overflow checks would require ~3 extra opcodes per RC
+    ///   increment, which is unacceptable overhead for a theoretical issue.
+    pub(crate) fn codegen_increment_rc(&mut self, pointer: MemoryAddress, rc: MemoryAddress) {
+        // Modify the RC (it's on the stack, or scratch space).
+        self.codegen_usize_op_in_place(rc, BrilligBinaryOp::Add, 1);
+        // Write it back onto the heap.
+        self.store_instruction(pointer, rc);
     }
 
     /// Initializes a vector, allocating memory on the heap to store its representation and initializing the reference counter, size and capacity.
@@ -463,7 +607,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             capacity.address,
             *allocation_size,
             BrilligBinaryOp::Add,
-            offsets::VECTOR_META_COUNT,
+            assert_usize(offsets::VECTOR_META_COUNT),
         );
         self.codegen_allocate_mem(vector.pointer, *allocation_size);
 
@@ -474,6 +618,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     }
 
     /// Writes vector metadata (reference count, size, and capacity) into the allocated memory.
+    ///
+    /// Sets the reference count to 1.
     pub(super) fn codegen_initialize_vector_metadata(
         &mut self,
         vector: BrilligVector,
@@ -481,7 +627,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         capacity: SingleAddrVariable,
     ) {
         // Write RC
-        self.initialize_rc(vector.pointer, 1);
+        self.codegen_initialize_rc(vector.pointer, 1);
 
         // Write size
         let write_pointer = self.allocate_register();
@@ -489,7 +635,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             vector.pointer,
             *write_pointer,
             BrilligBinaryOp::Add,
-            offsets::VECTOR_SIZE,
+            assert_usize(offsets::VECTOR_SIZE),
         );
         self.store_instruction(*write_pointer, size.address);
 
@@ -497,41 +643,43 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.codegen_usize_op_in_place(
             *write_pointer,
             BrilligBinaryOp::Add,
-            offsets::VECTOR_CAPACITY - offsets::VECTOR_SIZE,
+            assert_usize(offsets::VECTOR_CAPACITY - offsets::VECTOR_SIZE),
         );
         self.store_instruction(*write_pointer, capacity.address);
     }
 
-    /// Initialize the [BrilligVector] from a [HeapVector] returned by a foreign call.
+    /// Initialize the [BrilligVector] after the data returned by a foreign call has been written to the heap.
     ///
     /// We don't know the length of a vector returned externally before the call,
-    /// so we pass the free memory pointer and then use this function to allocate
-    /// after the fact when we know the length.
+    /// so we write the size and the data to the _free memory pointer_.
     ///
-    /// This method assumes nothing else has been allocated into the space tentatively
-    /// reserved for the vector, that is, that the _free memory pointer_ is where it was
-    /// before the foreign call.
+    /// Here we are adjusting the rest of the meta-data required by the vector structure: basically the RC and the capacity.
+    ///
+    /// Returns the size variable, which we can use to set the semantic length.
     pub(crate) fn codegen_initialize_externally_returned_vector(
         &mut self,
         vector: BrilligVector,
-        resulting_heap_vector: HeapVector,
-    ) {
+        output: &HeapVector,
+    ) -> SingleAddrVariable {
+        // The size in the output is an address on the stack; copy it over to the heap.
+        let size_var = SingleAddrVariable::new_usize(output.size);
+
+        // For externally returned vectors, capacity equals size.
+        self.codegen_initialize_vector_metadata(vector, size_var, size_var);
+
         // The size in the heap vector only represents the items.
         // Figure out how much memory we need to allocate to hold it, accounting for the metadata.
         let total_size = self.allocate_register();
         self.codegen_usize_op(
-            resulting_heap_vector.size,
+            size_var.address,
             *total_size,
             BrilligBinaryOp::Add,
-            offsets::VECTOR_META_COUNT,
+            assert_usize(offsets::VECTOR_META_COUNT),
         );
 
         // Increase the free memory pointer to make sure the vector is not going to be allocated to something else.
         self.increase_free_memory_pointer_instruction(*total_size);
 
-        // Initialize metadata (RC, size, capacity) using the shared helper
-        // For externally returned vectors, capacity equals size
-        let size_var = SingleAddrVariable::new_usize(resulting_heap_vector.size);
-        self.codegen_initialize_vector_metadata(vector, size_var, size_var);
+        size_var
     }
 }

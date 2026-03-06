@@ -10,12 +10,12 @@ use self::{aes128::solve_aes128_encryption_opcode, hash::solve_poseidon2_permuta
 use super::{OpcodeNotSolvable, OpcodeResolutionError, insert_value};
 use crate::{BlackBoxFunctionSolver, pwg::input_to_value};
 
-mod aes128;
-mod embedded_curve_ops;
-mod hash;
+pub(crate) mod aes128;
+pub(crate) mod embedded_curve_ops;
+pub(crate) mod hash;
 mod logic;
 mod range;
-mod signature;
+pub(crate) mod signature;
 pub(crate) mod utils;
 
 use embedded_curve_ops::{embedded_curve_add, multi_scalar_mul};
@@ -81,10 +81,10 @@ pub(crate) fn solve<F: AcirField>(
             solve_aes128_encryption_opcode(initial_witness, inputs, iv, key, outputs)
         }
         BlackBoxFuncCall::AND { lhs, rhs, num_bits, output } => {
-            and(initial_witness, lhs, rhs, *num_bits, output, backend.pedantic_solving())
+            and(initial_witness, lhs, rhs, *num_bits, output)
         }
         BlackBoxFuncCall::XOR { lhs, rhs, num_bits, output } => {
-            xor(initial_witness, lhs, rhs, *num_bits, output, backend.pedantic_solving())
+            xor(initial_witness, lhs, rhs, *num_bits, output)
         }
         BlackBoxFuncCall::RANGE { input, num_bits } => {
             solve_range_opcode(initial_witness, input, *num_bits)
@@ -116,13 +116,14 @@ pub(crate) fn solve<F: AcirField>(
             signature,
             hashed_message: message,
             output,
-            ..
+            predicate,
         } => secp256k1_prehashed(
             initial_witness,
             public_key_x,
             public_key_y,
             signature,
             message.as_ref(),
+            predicate,
             *output,
         ),
         BlackBoxFuncCall::EcdsaSecp256r1 {
@@ -131,20 +132,21 @@ pub(crate) fn solve<F: AcirField>(
             signature,
             hashed_message: message,
             output,
-            ..
+            predicate,
         } => secp256r1_prehashed(
             initial_witness,
             public_key_x,
             public_key_y,
             signature,
             message.as_ref(),
+            predicate,
             *output,
         ),
-        BlackBoxFuncCall::MultiScalarMul { points, scalars, outputs, .. } => {
-            multi_scalar_mul(backend, initial_witness, points, scalars, *outputs)
+        BlackBoxFuncCall::MultiScalarMul { points, scalars, outputs, predicate } => {
+            multi_scalar_mul(backend, initial_witness, points, scalars, *predicate, *outputs)
         }
-        BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, outputs, .. } => {
-            embedded_curve_add(backend, initial_witness, **input1, **input2, *outputs)
+        BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, outputs, predicate } => {
+            embedded_curve_add(backend, initial_witness, **input1, **input2, *predicate, *outputs)
         }
         // Recursive aggregation will be entirely handled by the backend and is not solved by the ACVM
         BlackBoxFuncCall::RecursiveAggregation { .. } => Ok(()),

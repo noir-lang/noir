@@ -1,23 +1,34 @@
 //! This module handles allocation, tracking, and lifetime management of variables
 //! within a Brillig compiled SSA basic block.
 //!
-//! [BlockVariables] maintains a set of SSA [ValueId]s that are live and available
-//! during the compilation of a single SSA block into Brillig instructions. It cooperates
-//! with the [FunctionContext] to manage the mapping from SSA values to [BrilligVariable]s
-//! and with the [BrilligContext] for allocating registers.
+//! [BlockVariables] maintains a set of SSA [ValueId]s that currently have a register
+//! allocated and usable ("available") during the compilation of a single SSA block into
+//! Brillig instructions. "Available" means "has a register currently allocated" — not
+//! merely "is SSA-live". A value can be SSA-live but unavailable if it has been spilled
+//! to the heap spill region. Spill tracking is managed separately by
+//! [SpillManager](super::spill_manager::SpillManager).
+//!
+//! [BlockVariables] cooperates with the [FunctionContext] to manage the mapping from
+//! SSA values to [BrilligVariable]s and with the [BrilligContext] for allocating registers.
 //!
 //! Variables are:
 //! - Allocated when first defined in a block (if not already global or hoisted to the global space).
 //! - Cached for reuse to avoid redundant register allocation.
 //! - Deallocated explicitly when no longer needed (as determined by SSA liveness).
-use acvm::FieldElement;
+use acvm::{
+    FieldElement,
+    acir::brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength},
+};
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
-    brillig::brillig_ir::{
-        BrilligContext,
-        brillig_variable::{BrilligVariable, SingleAddrVariable, get_bit_size_from_ssa_type},
-        registers::{Allocated, RegisterAllocator},
+    brillig::{
+        assert_u32,
+        brillig_ir::{
+            BrilligContext,
+            brillig_variable::{BrilligVariable, get_bit_size_from_ssa_type},
+            registers::{Allocated, RegisterAllocator},
+        },
     },
     ssa::ir::{
         dfg::DataFlowGraph,
@@ -28,10 +39,15 @@ use crate::{
 
 use super::brillig_fn::FunctionContext;
 
-/// Tracks SSA variables that are live and usable during Brillig compilation of a block.
+/// Tracks SSA variables that have a register currently allocated and usable during
+/// Brillig compilation of a block.
 ///
-/// This structure is meant to be instantiated per SSA basic block and initialized using the
-/// the set of live variables that must be available at the block's entry.
+/// "Available" specifically means "has a register allocated right now". Values that are
+/// SSA-live but have been spilled to the heap spill region are *not* in this set.
+/// Spill tracking is the responsibility of [SpillManager](super::spill_manager::SpillManager).
+///
+/// This structure is instantiated per SSA basic block and initialized from the set of
+/// live-in variables that are not spilled.
 ///
 /// It implements:
 /// - A set of active [ValueId]s that are allocated and usable.
@@ -80,10 +96,21 @@ impl BlockVariables {
     pub(crate) fn define_variable<Registers: RegisterAllocator>(
         &mut self,
         function_context: &mut FunctionContext,
-        brillig_context: &mut BrilligContext<FieldElement, Registers>,
+        brillig_context: &BrilligContext<FieldElement, Registers>,
         value_id: ValueId,
         dfg: &DataFlowGraph,
     ) -> BrilligVariable {
+        // Check coalescing map — reuse the block parameter's register if coalesced.
+        if let Some(param) = function_context.coalescing.get_coalesced(&value_id) {
+            let variable = *function_context
+                .ssa_value_allocations
+                .get(&param)
+                .expect("ICE: Coalesced parameter not yet allocated");
+            function_context.ssa_value_allocations.insert(value_id, variable);
+            self.available_variables.insert(value_id);
+            return variable;
+        }
+
         let allocated = allocate_value(value_id, brillig_context, dfg);
 
         // Allocators get replaced in each block, with all visible variables becoming pre-allocated
@@ -101,26 +128,14 @@ impl BlockVariables {
         variable
     }
 
-    /// Defines a variable that fits in a single register and returns the allocated register.
-    pub(crate) fn define_single_addr_variable<Registers: RegisterAllocator>(
-        &mut self,
-        function_context: &mut FunctionContext,
-        brillig_context: &mut BrilligContext<FieldElement, Registers>,
-        value: ValueId,
-        dfg: &DataFlowGraph,
-    ) -> SingleAddrVariable {
-        let variable = self.define_variable(function_context, brillig_context, value, dfg);
-        variable.extract_single_addr()
-    }
-
     /// Removes a variable so it's not used anymore within this block.
     pub(crate) fn remove_variable<Registers: RegisterAllocator>(
         &mut self,
         value_id: &ValueId,
-        function_context: &mut FunctionContext,
-        brillig_context: &mut BrilligContext<FieldElement, Registers>,
+        function_context: &FunctionContext,
+        brillig_context: &BrilligContext<FieldElement, Registers>,
     ) {
-        assert!(self.available_variables.remove(value_id), "ICE: Variable is not available");
+        self.mark_unavailable(value_id);
 
         // Do not remove the allocation, just get it so we can mark it as free in memory.
         let variable = function_context
@@ -134,9 +149,28 @@ impl BlockVariables {
         brillig_context.deallocate_register(register);
     }
 
+    /// Removes a coalesced variable without deallocating its register.
+    ///
+    /// This is used for coalesced arguments that share a register with their
+    /// destination block parameter — the parameter still owns the register.
+    pub(crate) fn remove_variable_without_dealloc(&mut self, value_id: &ValueId) {
+        assert!(self.available_variables.remove(value_id), "ICE: Variable is not available");
+    }
+
     /// Checks if a variable is allocated and live.
     pub(crate) fn is_allocated(&self, value_id: &ValueId) -> bool {
         self.available_variables.contains(value_id)
+    }
+
+    /// Remove from available set without deallocating register.
+    /// Used when a spilled variable dies — its register was already freed during spill.
+    pub(crate) fn mark_unavailable(&mut self, value_id: &ValueId) {
+        assert!(self.available_variables.remove(value_id), "ICE: Variable is not available");
+    }
+
+    /// Add a value back to the available set (used after reload).
+    pub(crate) fn add_available(&mut self, value_id: ValueId) {
+        self.available_variables.insert(value_id);
     }
 
     /// For a given SSA value id, return the corresponding cached allocation.
@@ -145,7 +179,7 @@ impl BlockVariables {
     /// * the variable is not in [Self::available_variables], which means it is no longer live
     /// * the variable is not in [FunctionContext::ssa_value_allocations], which means it was never defined
     pub(crate) fn get_allocation(
-        &mut self,
+        &self,
         function_context: &FunctionContext,
         value_id: ValueId,
     ) -> BrilligVariable {
@@ -164,14 +198,17 @@ impl BlockVariables {
 }
 
 /// Computes the length of an array. This will match with the indexes that SSA will issue
-pub(crate) fn compute_array_length(item_typ: &CompositeType, elem_count: usize) -> usize {
-    item_typ.len() * elem_count
+pub(crate) fn compute_array_length(
+    item_typ: &CompositeType,
+    elem_count: SemanticLength,
+) -> SemiFlattenedLength {
+    ElementTypesLength(assert_u32(item_typ.len())) * elem_count
 }
 
 /// For a given [ValueId], allocates the necessary registers to hold it.
 pub(crate) fn allocate_value<F, Registers: RegisterAllocator>(
     value_id: ValueId,
-    brillig_context: &mut BrilligContext<F, Registers>,
+    brillig_context: &BrilligContext<F, Registers>,
     dfg: &DataFlowGraph,
 ) -> Allocated<BrilligVariable, Registers> {
     let typ = dfg.type_of_value(value_id);
@@ -181,7 +218,7 @@ pub(crate) fn allocate_value<F, Registers: RegisterAllocator>(
 
 /// For a given [Type], allocates the necessary registers to hold it.
 pub(crate) fn allocate_value_with_type<F, Registers: RegisterAllocator>(
-    brillig_context: &mut BrilligContext<F, Registers>,
+    brillig_context: &BrilligContext<F, Registers>,
     typ: Type,
 ) -> Allocated<BrilligVariable, Registers> {
     match typ {
@@ -189,9 +226,9 @@ pub(crate) fn allocate_value_with_type<F, Registers: RegisterAllocator>(
             .allocate_single_addr(get_bit_size_from_ssa_type(&typ))
             .map(BrilligVariable::SingleAddr),
         Type::Array(item_typ, elem_count) => brillig_context
-            .allocate_brillig_array(compute_array_length(&item_typ, elem_count as usize))
+            .allocate_brillig_array(compute_array_length(&item_typ, elem_count))
             .map(BrilligVariable::BrilligArray),
-        Type::Slice(_) => {
+        Type::Vector(_) => {
             brillig_context.allocate_brillig_vector().map(BrilligVariable::BrilligVector)
         }
     }

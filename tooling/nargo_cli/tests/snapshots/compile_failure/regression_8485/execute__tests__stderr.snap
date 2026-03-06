@@ -30,24 +30,24 @@ error: Type annotation needed
    │                          ------------------------------------------ Could not determine the value of the generic argument `<T as Deserialize>::N` declared on the struct `PrivateCallInterface`
    │
 
-error: The trait bound `T: Deserialize<N = M>` is not satisfied
+error: The trait bound `Self::T: Deserialize<N = Self::M>` is not satisfied
    ┌─ src/main.nr:15:41
    │
 15 │ trait SuperCallInterface where Self::T: Deserialize<N = Self::M> {
    │                                         ----------- required by this bound in `SuperCallInterface`
    ·
 22 │ impl<T> SuperCallInterface for PrivateCallInterface<T>
-   │                                ----------------------- The trait `Deserialize<N = M>` is not implemented for `T`
+   │                                ----------------------- The trait `Deserialize<N = Self::M>` is not implemented for `Self::T`
    │
 
-error: The trait bound `T: Deserialize<N = M>` is not satisfied
+error: The trait bound `Self::T: Deserialize<N = Self::M>` is not satisfied
    ┌─ src/main.nr:15:41
    │
 15 │ trait SuperCallInterface where Self::T: Deserialize<N = Self::M> {
    │                                         ----------- required by this bound in `SuperCallInterface`
    ·
 37 │ impl SuperCallInterface<()> for PrivateVoidCallInterface {
-   │                                 ------------------------ The trait `Deserialize<N = M>` is not implemented for `T`
+   │                                 ------------------------ The trait `Deserialize<N = Self::M>` is not implemented for `Self::T`
    │
 
 error: Expected type fn(PrivateVoidCallInterface) -> _, found type fn(PrivateVoidCallInterface) -> ()

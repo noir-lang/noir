@@ -148,7 +148,8 @@ where
     T: Eq,
 {
     // Safety: comment added by `nargo expand`
-    let length: u32 = unsafe { find_index_hint(array, |elem: T| -> bool is_empty(elem)) };
+    let length: u32 =
+        unsafe { find_index_hint(array, unconstrained |elem: T| -> bool is_empty(elem)) };
     length
 }
 

@@ -2,10 +2,10 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-global G_B: [(str<2>, Field)] = &[
-    ("SM", 193432430920915057603408161267722629873),
-    ("QK", 28517051330822917784420357897851281178),
-    ("XJ", -303354957477210748157621923488550325890),
+global G_B: [(str<2>, Field)] = @[
+    ("SM", 0x9185bb28e2cfba7cb4079a5c3ada32f1),
+    ("QK", 0x15742f2ed5443bf3c2495d61c7549f1a),
+    ("XJ", 0x30644e72e131a029b85045b68181585c43fbde22bc449717e3070e420da8717f),
 ];
 
 fn main(b: bool) -> pub Field {

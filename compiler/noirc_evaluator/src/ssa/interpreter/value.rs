@@ -1,15 +1,21 @@
 use std::sync::Arc;
 
-use acvm::{AcirField, FieldElement};
+use acvm::{
+    AcirField, FieldElement,
+    acir::brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength},
+};
 use iter_extended::{try_vecmap, vecmap};
 use noirc_frontend::Shared;
 
-use crate::ssa::ir::{
-    function::FunctionId,
-    instruction::Intrinsic,
-    is_printable_byte,
-    types::{CompositeType, NumericType, Type},
-    value::ValueId,
+use crate::{
+    brillig::{assert_u32, assert_usize},
+    ssa::ir::{
+        function::FunctionId,
+        instruction::Intrinsic,
+        is_printable_byte,
+        types::{CompositeType, NumericType, Type},
+        value::ValueId,
+    },
 };
 
 use super::IResult;
@@ -22,7 +28,7 @@ use super::IResult;
 pub enum Value {
     Numeric(NumericValue),
     Reference(ReferenceValue),
-    ArrayOrSlice(ArrayValue),
+    ArrayOrVector(ArrayValue),
     Function(FunctionId),
     Intrinsic(Intrinsic),
     ForeignFunction(String),
@@ -135,7 +141,7 @@ pub struct ArrayValue {
     pub rc: Shared<u32>,
 
     pub element_types: Arc<CompositeType>,
-    pub is_slice: bool,
+    pub is_vector: bool,
 }
 
 impl Value {
@@ -144,12 +150,19 @@ impl Value {
         match self {
             Value::Numeric(numeric_value) => Type::Numeric(numeric_value.get_type()),
             Value::Reference(reference) => Type::Reference(reference.element_type.clone()),
-            Value::ArrayOrSlice(array) if array.is_slice => {
-                Type::Slice(array.element_types.clone())
+            Value::ArrayOrVector(array) if array.is_vector => {
+                Type::Vector(array.element_types.clone())
             }
-            Value::ArrayOrSlice(array) => {
-                let len = array.elements.borrow().len().checked_div(array.element_types.len());
-                let len = len.unwrap_or(0) as u32;
+            Value::ArrayOrVector(array) => {
+                let element_types_length =
+                    ElementTypesLength(assert_u32(array.element_types.len()));
+                let len = if element_types_length.0 == 0 {
+                    SemanticLength(0)
+                } else {
+                    let semi_flattened_length =
+                        SemiFlattenedLength(assert_u32(array.elements.borrow().len()));
+                    semi_flattened_length / element_types_length
+                };
                 Type::Array(array.element_types.clone(), len)
             }
             Value::Function(_) | Value::Intrinsic(_) | Value::ForeignFunction(_) => Type::Function,
@@ -203,9 +216,9 @@ impl Value {
         }
     }
 
-    pub(crate) fn as_array_or_slice(&self) -> Option<ArrayValue> {
+    pub(crate) fn as_array_or_vector(&self) -> Option<ArrayValue> {
         match self {
-            Value::ArrayOrSlice(value) => Some(value.clone()),
+            Value::ArrayOrVector(value) => Some(value.clone()),
             _ => None,
         }
     }
@@ -267,20 +280,20 @@ impl Value {
     }
 
     pub fn array(elements: Vec<Value>, element_types: Vec<Type>) -> Self {
-        Self::ArrayOrSlice(ArrayValue {
+        Self::ArrayOrVector(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(1),
             element_types: Arc::new(element_types),
-            is_slice: false,
+            is_vector: false,
         })
     }
 
-    pub(crate) fn slice(elements: Vec<Value>, element_types: Arc<Vec<Type>>) -> Self {
-        Self::ArrayOrSlice(ArrayValue {
+    pub(crate) fn vector(elements: Vec<Value>, element_types: Arc<Vec<Type>>) -> Self {
+        Self::ArrayOrVector(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(1),
             element_types,
-            is_slice: true,
+            is_vector: true,
         })
     }
 
@@ -304,17 +317,17 @@ impl Value {
             Type::Array(element_types, length) => {
                 let first_elements =
                     vecmap(element_types.iter(), |typ| Self::uninitialized(typ, id));
-                let elements = std::iter::repeat_n(first_elements, *length as usize);
+                let elements = std::iter::repeat_n(first_elements, assert_usize(length.0));
                 let elements = elements.flatten().collect();
                 Self::array(elements, element_types.to_vec())
             }
-            Type::Slice(element_types) => Self::slice(Vec::new(), element_types.clone()),
+            Type::Vector(element_types) => Self::vector(Vec::new(), element_types.clone()),
             Type::Function => Value::ForeignFunction("uninitialized!".to_string()),
         }
     }
 
     pub(crate) fn as_string(&self) -> Option<String> {
-        let array = self.as_array_or_slice()?;
+        let array = self.as_array_or_vector()?;
         let elements = array.elements.borrow();
         let bytes = elements.iter().map(|element| element.as_u8()).collect::<Option<Vec<_>>>()?;
         Some(String::from_utf8_lossy(&bytes).into_owned())
@@ -336,13 +349,13 @@ impl Value {
                     element_type: r.element_type.clone(),
                 })
             }
-            Value::ArrayOrSlice(a) => {
+            Value::ArrayOrVector(a) => {
                 let elements = a.elements.borrow().iter().map(|v| v.snapshot()).collect();
-                Value::ArrayOrSlice(ArrayValue {
+                Value::ArrayOrVector(ArrayValue {
                     elements: Shared::new(elements),
                     rc: Shared::new(*a.rc.borrow()),
                     element_types: a.element_types.clone(),
-                    is_slice: a.is_slice,
+                    is_vector: a.is_vector,
                 })
             }
             Value::Function(id) => Value::Function(*id),
@@ -540,7 +553,7 @@ impl std::fmt::Display for Value {
         match self {
             Value::Numeric(numeric_value) => write!(f, "{numeric_value}"),
             Value::Reference(reference_value) => write!(f, "{reference_value}"),
-            Value::ArrayOrSlice(array_value) => write!(f, "{array_value}"),
+            Value::ArrayOrVector(array_value) => write!(f, "{array_value}"),
             Value::Function(id) => write!(f, "{id}"),
             Value::Intrinsic(intrinsic) => write!(f, "{intrinsic}"),
             Value::ForeignFunction(name) => write!(f, "ForeignFunction(\"{name}\")"),
@@ -590,8 +603,8 @@ impl std::fmt::Display for ArrayValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let rc = self.rc.borrow();
 
-        let is_slice = if self.is_slice { "&" } else { "" };
-        write!(f, "rc{rc} {is_slice}")?;
+        let is_vector = if self.is_vector { "&" } else { "" };
+        write!(f, "rc{rc} {is_vector}")?;
 
         // Check if the array could be shown as a string literal
         if self.element_types.len() == 1
@@ -661,7 +674,7 @@ impl PartialEq for ArrayValue {
         // Don't compare RC
         self.elements == other.elements
             && self.element_types == other.element_types
-            && self.is_slice == other.is_slice
+            && self.is_vector == other.is_vector
     }
 }
 

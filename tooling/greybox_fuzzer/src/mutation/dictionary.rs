@@ -80,12 +80,12 @@ fn add_elements_from_input_value_to_vector(
         // String bytes are easy to brute force, so we don't add them to the dictionary
         InputValue::String(_) => (),
         InputValue::Struct(input_value_map) => {
-            for (_, value) in input_value_map.iter() {
+            for value in input_value_map.values() {
                 add_elements_from_input_value_to_vector(elements_for_dictionary, value);
             }
         }
         InputValue::Vec(input_value_vec) => {
-            for value in input_value_vec.iter() {
+            for value in input_value_vec {
                 add_elements_from_input_value_to_vector(elements_for_dictionary, value);
             }
         }
@@ -99,7 +99,7 @@ pub fn add_elements_from_input_map_to_vector_without_abi(
     input_map: &InputMap,
     elements_for_dictionary: &mut Vec<FieldElement>,
 ) {
-    for (_, value) in input_map.iter() {
+    for value in input_map.values() {
         add_elements_from_input_value_to_vector(elements_for_dictionary, value);
     }
 }
@@ -115,37 +115,33 @@ impl FullDictionary {
             // Boolean only has 2 values, there is no point in getting the value
             AbiType::Boolean => (),
             AbiType::Field | AbiType::Integer { .. } => {
-                let initial_field_value = match input {
-                    InputValue::Field(inner_field) => inner_field,
-                    _ => panic!("Shouldn't be used with other input value types"),
+                let InputValue::Field(initial_field_value) = input else {
+                    panic!("Shouldn't be used with other input value types");
                 };
                 full_dictionary.insert(*initial_field_value);
             }
             AbiType::String { length: _ } => {
-                let initial_string = match input {
-                    InputValue::String(inner_string) => inner_string,
-                    _ => panic!("Shouldn't be used with other input value types"),
+                let InputValue::String(initial_string) = input else {
+                    panic!("Shouldn't be used with other input value types");
                 };
-                for character in initial_string.as_bytes().iter() {
+                for character in initial_string.as_bytes() {
                     full_dictionary.insert(FieldElement::from(i128::from(*character)));
                 }
             }
             AbiType::Array { length: _, typ } => {
-                let input_vector = match input {
-                    InputValue::Vec(previous_input_vector) => previous_input_vector,
-                    _ => panic!("Mismatch of AbiType and InputValue should not happen"),
+                let InputValue::Vec(input_vector) = input else {
+                    panic!("Mismatch of AbiType and InputValue should not happen");
                 };
-                for element in input_vector.iter() {
+                for element in input_vector {
                     Self::collect_dictionary_from_input_value(typ, element, full_dictionary);
                 }
             }
 
             AbiType::Struct { fields, .. } => {
-                let input_struct = match input {
-                    InputValue::Struct(previous_input_struct) => previous_input_struct,
-                    _ => panic!("Mismatch of AbiType and InputValue should not happen"),
+                let InputValue::Struct(input_struct) = input else {
+                    panic!("Mismatch of AbiType and InputValue should not happen");
                 };
-                for (name, typ) in fields.iter() {
+                for (name, typ) in fields {
                     Self::collect_dictionary_from_input_value(
                         typ,
                         &input_struct[name],
@@ -155,9 +151,8 @@ impl FullDictionary {
             }
 
             AbiType::Tuple { fields } => {
-                let input_vector = match input {
-                    InputValue::Vec(previous_input_vector) => previous_input_vector,
-                    _ => panic!("Mismatch of AbiType and InputValue should not happen"),
+                let InputValue::Vec(input_vector) = input else {
+                    panic!("Mismatch of AbiType and InputValue should not happen");
                 };
                 for (typ, previous_tuple_input) in zip(fields, input_vector) {
                     Self::collect_dictionary_from_input_value(
@@ -176,7 +171,7 @@ impl FullDictionary {
         input: &InputMap,
         full_dictionary: &mut HashSet<FieldElement>,
     ) {
-        for param in abi.parameters.iter() {
+        for param in &abi.parameters {
             Self::collect_dictionary_from_input_value(
                 &param.typ,
                 &input[&param.name],
@@ -203,7 +198,7 @@ impl FullDictionary {
     }
 
     /// Update the dictionary with values from a vector of field elements
-    pub fn update_from_vector(&mut self, elements: &[FieldElement]) {
+    pub fn update_from_slice(&mut self, elements: &[FieldElement]) {
         let mut testcase_full_dictionary: HashSet<_> =
             self.field_dictionary.iter().copied().collect();
         testcase_full_dictionary.extend(elements.iter().copied());

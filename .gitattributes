@@ -1,2 +1,4 @@
 tooling/nargo_cli/tests/snapshots/**/* linguist-generated=true
 noir_stdlib/docs/**/* linguist-generated=true
+acvm-repo/acir/codegen/acir.cpp linguist-generated=true
+acvm-repo/acir/codegen/witness.cpp linguist-generated=true

@@ -5,7 +5,7 @@ expression: expanded_code
 trait Serialize {
     let Size: u32;
 
-    fn serialize(self) -> [Field; Size];
+    fn serialize(self) -> [Field; Self::Size];
 }
 
 impl<A, B> Serialize for (A, B)

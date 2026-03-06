@@ -34,14 +34,14 @@ fn generate_formatter_tests(test_file: &mut File, test_data_dir: &Path) {
             panic!(
                 "Invalid test directory: {test_name}. Cannot include `-`, please convert to `_`"
             );
-        };
+        }
 
         let input_source_path = file.path();
         let input_source = std::fs::read_to_string(input_source_path).unwrap();
 
         let config = input_source
             .lines()
-            .flat_map(|line| line.strip_prefix("//@"))
+            .filter_map(|line| line.strip_prefix("//@"))
             .collect::<Vec<_>>()
             .join("\n");
 

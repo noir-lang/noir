@@ -1,6 +1,12 @@
 //! Tests for struct definitions and their method implementations.
 
-use crate::tests::{assert_no_errors, check_errors, check_monomorphization_error};
+use crate::{
+    elaborator::UnstableFeature,
+    tests::{
+        assert_no_errors, check_errors, check_errors_using_features, check_monomorphization_error,
+        get_program_using_features,
+    },
+};
 
 #[test]
 fn duplicate_struct_field() {
@@ -21,7 +27,7 @@ fn object_type_must_be_known_in_method_call() {
     let src = r#"
     pub fn foo<let N: u32>() -> [Field; N] {
         let array = [];
-        let mut bar = array[0];
+        let bar = array[0];
         let _ = bar.len();
                 ^^^ Object type is unknown in method call
                 ~~~ Type must be known by this point to know which method to call
@@ -91,10 +97,10 @@ fn check_impl_duplicate_method_without_self() {
 
     impl Foo {
         fn foo() {}
-           ~~~ first definition found here
+           ~~~ Previous impl defined here
         fn foo() {}
-           ^^^ duplicate definitions of foo found
-           ~~~ second definition found here
+           ^^^ Impl for type `Foo` overlaps with existing impl
+           ~~~ Overlapping impl
     }
     ";
     check_errors(src);
@@ -325,5 +331,318 @@ fn constructor_private_field() {
         }
     "#;
     // NOTE: The second attempt could work with `foo::Foo { x: _, .. }` if Noir supported `..`.
+    check_errors(src);
+}
+
+#[test]
+fn deny_abi_attribute_on_struct_outside_contract() {
+    let src = r#"
+        pub mod moo {
+            #[abi(hello)]
+            ^^^^^^^^^^^^^ #[abi(tag)] attributes can only be used in contracts
+            ~~~~~~~~~~~~~ misplaced #[abi(tag)] attribute
+            pub struct Foo {}
+        }
+
+        pub fn foo(_: moo::Foo) {}
+
+        fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn overlapping_inherent_impls() {
+    let src = r#"
+        struct Foo<T> { _x: T }
+
+        impl<T> Foo<T> {
+            fn method(_self: Self) {}
+               ^^^^^^ Impl for type `Foo<i32>` overlaps with existing impl
+               ~~~~~~ Overlapping impl
+        }
+
+        impl Foo<i32> {
+            fn method(_self: Self) {}
+               ~~~~~~ Previous impl defined here
+        }
+
+        fn main() {
+            let _ = Foo { _x: 1 };
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn non_overlapping_inherent_impls() {
+    // Different concrete types don't overlap
+    let src = r#"
+        struct Foo<T> { _x: T }
+
+        impl Foo<i32> {
+            fn method(_self: Self) {}
+        }
+
+        impl Foo<u64> {
+            fn method(_self: Self) {}
+        }
+
+        fn main() {
+            let _ = Foo { _x: 1_i32 };
+            let _ = Foo { _x: 1_u64 };
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn allow_abi_attribute_on_struct_inside_contract() {
+    let src = r#"
+        pub contract moo {
+            #[abi(hello)]
+            pub struct Foo {}
+        }
+
+        pub fn foo(_: moo::Foo) {}
+
+        fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn deny_cyclic_structs() {
+    let src = r#"
+    pub struct Foo {
+        bar: Bar,
+    }
+
+    pub struct Bar {
+               ^^^ Dependency cycle found
+               ~~~ 'Bar' recursively depends on itself: Bar -> Foo -> Bar
+        foo: Foo,
+    }
+
+    // Here we check if `Foo` contains references, and this check could
+    // cause a stack overflow unless we properly track visited data types.
+    pub unconstrained fn foo() -> [Foo; 0] {
+        []
+    }
+
+    // Here we check the input and output types
+    fn main(_: Foo) -> pub [Foo; 0] {
+        // Here we also check if the call returns a function, another check
+        // that must be done with care.
+        // Safety:
+        let _ = unsafe { foo() };
+        []
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_if_using_comptime_type_in_non_comptime_struct() {
+    let src = r#"
+    pub struct Foo {
+        quoted: Quoted,
+                ^^^^^^ Comptime-only type `Quoted` cannot be used in non-comptime struct
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_as_type_non_overlapping() {
+    // Test that TraitAsType doesn't cause issues with overlap detection
+    // when used in non-overlapping contexts
+    let src = r#"
+        trait MyTrait<T> {}
+
+        struct MyImpl<T> { _x: T }
+        impl<T> MyTrait<T> for MyImpl<T> {}
+
+        struct Foo<T> { _x: T }
+
+        // These impls should not overlap - one uses i32, the other uses u64
+        impl Foo<i32> {
+            fn method(_self: Self) -> impl MyTrait<i32> {
+                // This return type is TraitAsType with NamedGeneric inside
+                MyImpl { _x: 0 }
+            }
+        }
+
+        impl Foo<u64> {
+            fn method(_self: Self) -> impl MyTrait<u64> {
+                MyImpl { _x: 0 }
+            }
+        }
+
+        fn main() {
+            let _ = Foo { _x: 1_i32 };
+            let _ = Foo { _x: 1_u64 };
+        }
+    "#;
+    let features = vec![UnstableFeature::TraitAsType];
+    let errors = get_program_using_features(src, &features).2;
+    assert!(errors.is_empty(), "Expected no errors but got: {errors:?}");
+}
+
+#[test]
+fn trait_as_type_overlapping() {
+    // Test that overlapping impls are correctly detected even when
+    // methods return TraitAsType
+    let src = r#"
+        trait MyTrait<T> {}
+
+        struct MyImpl<T> { _x: T }
+        impl<T> MyTrait<T> for MyImpl<T> {}
+
+        struct Foo<T> { _x: T }
+
+        impl<T> Foo<T> {
+            fn method(_self: Self) -> impl MyTrait<T> {
+               ^^^^^^ Impl for type `Foo<i32>` overlaps with existing impl
+               ~~~~~~ Overlapping impl
+                // This return type is TraitAsType with NamedGeneric inside
+                MyImpl { _x: _self._x }
+            }
+        }
+
+        impl Foo<i32> {
+            fn method(_self: Self) -> impl MyTrait<i32> {
+               ~~~~~~ Previous impl defined here
+                MyImpl { _x: _self._x }
+            }
+        }
+
+        fn main() {
+            let _ = Foo { _x: 1_i32 };
+        }
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::TraitAsType]);
+}
+
+#[test]
+fn returns_trait_as_type() {
+    // Test TraitAsType with more complex generic nesting
+    let src = r#"
+        trait MyTrait<T, U> {}
+
+        struct MyImpl<T, U> { _x: T, _y: U }
+        impl<T, U> MyTrait<T, U> for MyImpl<T, U> {}
+
+        struct Container<T> { _x: T }
+
+        // Non-overlapping impls with TraitAsType in return position
+        impl Container<i32> {
+            fn get(_self: Self) -> impl MyTrait<i32, Field> {
+                MyImpl { _x: _self._x, _y: 0 }
+            }
+        }
+
+        impl Container<u64> {
+            fn get(_self: Self) -> impl MyTrait<u64, bool> {
+                MyImpl { _x: _self._x, _y: false }
+            }
+        }
+
+        fn main() {
+            let _ = Container { _x: 1_i32 };
+            let _ = Container { _x: 1_u64 };
+        }
+    "#;
+    let features = vec![UnstableFeature::TraitAsType];
+    let errors = get_program_using_features(src, &features).2;
+    assert!(errors.is_empty(), "Expected no errors but got: {errors:?}");
+}
+
+#[test]
+fn returns_trait_as_type_overlap() {
+    // This test demonstrates that TraitAsType doesn't need special handling in
+    // instantiate_named_generics() because:
+    // 1. TraitAsType can only appear in method signatures (return/parameter types)
+    // 2. Overlap detection only examines the impl target type (e.g., Foo<T> vs Foo<i32>)
+    // 3. Method signatures don't affect whether two impls overlap
+    //
+    // Here, even though the methods have different TraitAsType signatures,
+    // the impls still overlap because both could apply to Foo<i32>.
+    let src = r#"
+        trait Trait1<T> {}
+        trait Trait2<T> {}
+
+        struct Impl1<T> { _x: T }
+        impl<T> Trait1<T> for Impl1<T> {}
+
+        struct Impl2<T> { _x: T }
+        impl<T> Trait2<T> for Impl2<T> {}
+
+        struct Foo<T> { _x: T }
+
+        impl<T> Foo<T> {
+            // Returns impl Trait1<T>
+            fn method(_self: Self) -> impl Trait1<T> {
+               ^^^^^^ Impl for type `Foo<i32>` overlaps with existing impl
+               ~~~~~~ Overlapping impl
+                Impl1 { _x: _self._x }
+            }
+        }
+
+        impl Foo<i32> {
+            // Returns impl Trait2<i32> - different trait, but still overlaps!
+            fn method(_self: Self) -> impl Trait2<i32> {
+               ~~~~~~ Previous impl defined here
+                Impl2 { _x: _self._x }
+            }
+        }
+
+        fn main() {
+            let _ = Foo { _x: 1_i32 };
+        }
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::TraitAsType]);
+}
+
+#[test]
+fn type_alias_resolves_to_same_type_in_trait_impl() {
+    let src = r#"
+    trait Foo {
+        fn foo(self) {
+            let _ = self;
+        }
+    }
+
+    type Bar<T> = T;
+
+    impl<T> Foo for T { }
+    impl<T> Foo for Bar<T> { }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn non_overlapping_trait_impls_with_generic() {
+    let src = r#"
+    trait Foo {
+        fn foo(self) {
+            let _ = self;
+        }
+    }
+
+    pub struct Bar<T, let N: u32> {}
+
+    impl<T> Foo for Bar<T, 0> { }
+                    ^^^^^^^^^ Impl for type `Bar<T, 0>` overlaps with existing impl
+                    ~~~~~~~~~ Overlapping impl
+    impl<T> Foo for Bar<T, 1> { }
+    impl<T, let N: u32> Foo for Bar<T, N> { }
+                        ~~~ Previous impl defined here
+    impl Foo for Bar<(), 0> { }
+                 ^^^^^^^^^^ Impl for type `Bar<(), 0>` overlaps with existing impl
+                 ~~~~~~~~~~ Overlapping impl
+                 ~~~~~~~~~~ Previous impl defined here
+    impl<let N: u32> Foo for Bar<(), N> { }
+    "#;
     check_errors(src);
 }

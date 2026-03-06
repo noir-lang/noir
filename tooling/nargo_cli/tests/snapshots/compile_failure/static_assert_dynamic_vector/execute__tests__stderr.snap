@@ -1,0 +1,16 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Failed because the predicate is dynamic:
+
+The predicate must be known at compile time to be evaluated.
+   ┌─ src/main.nr:14:5
+   │
+14 │     std::static_assert(dynamic_built_vector_pair.len() == 3, "");
+   │     ------------------------------------------------------------
+   │
+   = Call stack:
+     1. src/main.nr:14:5
+
+Aborting due to 1 previous error

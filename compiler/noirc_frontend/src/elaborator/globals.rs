@@ -23,7 +23,7 @@
 use crate::{
     ast::Pattern,
     hir::{def_collector::dc_crate::UnresolvedGlobal, resolution::errors::ResolverError},
-    hir_def::stmt::HirStatement,
+    hir_def::{expr::HirExpression, stmt::HirStatement},
     node_interner::{DependencyId, GlobalId, GlobalValue},
     token::SecondaryAttributeKind,
 };
@@ -53,7 +53,7 @@ impl Elaborator<'_> {
     fn elaborate_global(&mut self, global: UnresolvedGlobal) {
         // Set up the elaboration context for this global. We need to ensure that name resolution
         // happens in the module where the global was defined, not where it's being referenced.
-        let old_module = std::mem::replace(&mut self.local_module, global.module_id);
+        let old_module = self.local_module.replace(global.module_id);
         let old_item = self.current_item.take();
 
         let global_id = global.global_id;
@@ -87,10 +87,8 @@ impl Elaborator<'_> {
             self.push_err(ResolverError::MutableGlobal { location });
         }
 
-        // Elaborate the let statement in a comptime context. This ensures that the expression
-        // is type-checked and converted to HIR.
-        let (let_statement, _typ) = self
-            .elaborate_in_comptime_context(|this| this.elaborate_let(let_stmt, Some(global_id)));
+        self.reset_lvalue_index_counter();
+        let (let_statement, _typ) = self.elaborate_let(let_stmt, Some(global_id));
 
         // References cannot be stored in globals because they would outlive their referents.
         // All data in globals must be owned.
@@ -133,22 +131,26 @@ impl Elaborator<'_> {
 
         let definition_id = global.definition_id;
         let location = global.location;
-        let mut interpreter = self.setup_interpreter();
 
-        // Evaluate the global's initializer expression at compile time using the interpreter.
-        if let Err(error) = interpreter.evaluate_let(let_statement) {
-            self.push_err(error);
-        } else {
-            // The interpreter has now computed the constant value. Look it up and store it
-            // in the interner for use during compilation.
-            let value = interpreter
-                .lookup_id(definition_id, location)
-                .expect("The global should be defined since evaluate_let did not error");
+        let expr = self.interner.expression(&let_statement.expression);
+        if !matches!(expr, HirExpression::Error) {
+            let mut interpreter = self.setup_interpreter();
 
-            self.debug_comptime(location, |interner| value.display(interner).to_string());
+            // Evaluate the global's initializer expression at compile time using the interpreter.
+            if let Err(error) = interpreter.evaluate_let(let_statement) {
+                self.push_err(error);
+            } else {
+                // The interpreter has now computed the constant value. Look it up and store it
+                // in the interner for use during compilation.
+                let value = interpreter
+                    .lookup_id(definition_id, location)
+                    .expect("The global should be defined since evaluate_let did not error");
 
-            // Store the resolved value so it can be used later
-            self.interner.get_global_mut(global_id).value = GlobalValue::Resolved(value);
+                self.debug_comptime(location, |interner| value.display(interner).to_string());
+
+                // Store the resolved value so it can be used later
+                self.interner.get_global_mut(global_id).value = GlobalValue::Resolved(value);
+            }
         }
     }
 

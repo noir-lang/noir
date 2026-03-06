@@ -98,7 +98,7 @@ impl Ssa {
         let brillig_entry_points =
             get_brillig_entry_points_with_reachability(&self.functions, self.main_id, &call_graph);
         let functions_to_clone_map = build_functions_to_clone(&brillig_entry_points);
-        let (calls_to_update, mut new_functions_map) =
+        let (calls_to_update, new_functions_map) =
             build_calls_to_update(&mut self, functions_to_clone_map, &brillig_entry_points);
 
         // Now we want to actually rewrite the appropriate call sites
@@ -118,9 +118,8 @@ impl Ssa {
                 entry_point
             } else {
                 new_functions_map
-                    .entry(entry_point)
-                    .or_default()
-                    .get(&function_to_update)
+                    .get(&entry_point)
+                    .and_then(|m| m.get(&function_to_update))
                     .copied()
                     .unwrap_or(function_to_update)
             };
@@ -168,17 +167,19 @@ fn resolve_cloned_function_call_sites(
     for block_id in function.reachable_blocks() {
         #[allow(clippy::unnecessary_to_owned)] // clippy is wrong here
         for instruction_id in function.dfg[block_id].instructions().to_vec() {
-            let instruction = function.dfg[instruction_id].clone();
+            let instruction = &function.dfg[instruction_id];
             let Instruction::Call { func: func_value_id, arguments } = instruction else {
                 continue;
             };
-            let func_value = &function.dfg[func_value_id];
+            let func_value = &function.dfg[*func_value_id];
             let Value::Function(func_id) = func_value else { continue };
 
-            let Some(new_func_id) = new_functions_map.get(func_id) else {
+            let Some(new_func_id) = new_functions_map.get(func_id).copied() else {
                 continue;
             };
-            let new_function_value_id = function.dfg.import_function(*new_func_id);
+
+            let arguments = arguments.clone();
+            let new_function_value_id = function.dfg.import_function(new_func_id);
             function.dfg[instruction_id] =
                 Instruction::Call { func: new_function_value_id, arguments };
         }
@@ -297,12 +298,12 @@ fn collect_callsites_to_rewrite(
     for block_id in function.reachable_blocks() {
         #[allow(clippy::unnecessary_to_owned)] // clippy is wrong here
         for instruction_id in function.dfg[block_id].instructions().to_vec() {
-            let instruction = function.dfg[instruction_id].clone();
+            let instruction = &function.dfg[instruction_id];
             let Instruction::Call { func: func_value_id, arguments } = instruction else {
                 continue;
             };
 
-            let func_value = &function.dfg[func_value_id];
+            let func_value = &function.dfg[*func_value_id];
             let Value::Function(func_id) = func_value else { continue };
             let Some(new_id) = calls_to_update.get(&(entry_point, *func_id)) else {
                 continue;
@@ -314,7 +315,7 @@ fn collect_callsites_to_rewrite(
                 function_to_update: function.id(),
                 instruction: instruction_id,
                 new_func_to_call: *new_id,
-                call_args: arguments,
+                call_args: arguments.clone(),
             };
             new_calls_to_update.insert(new_call);
         }
@@ -411,7 +412,7 @@ pub(crate) fn build_inner_call_to_entry_points(
         HashMap::default();
 
     // We only need to generate globals for entry points
-    for (entry_point, entry_point_inner_calls) in brillig_entry_points.iter() {
+    for (entry_point, entry_point_inner_calls) in brillig_entry_points {
         for inner_call in entry_point_inner_calls {
             inner_call_to_entry_point.entry(*inner_call).or_default().insert(*entry_point);
         }
@@ -769,7 +770,7 @@ mod tests {
         brillig(inline) impure fn func_1 f1 {
           b0(v0: u1, v1: u32):
             v4 = eq v1, u32 0
-            jmpif v4 then: b1, else: b2
+            jmpif v4 then: b1(), else: b2()
           b1():
             jmp b3(u1 0)
           b2():
@@ -783,7 +784,7 @@ mod tests {
         brillig(inline) impure fn func_2 f2 {
           b0(v0: u1, v1: u32):
             v4 = eq v1, u32 0
-            jmpif v4 then: b1, else: b2
+            jmpif v4 then: b1(), else: b2()
           b1():
             jmp b3(u1 0)
           b2():
@@ -813,7 +814,7 @@ mod tests {
         brillig(inline) impure fn func_1 f1 {
           b0(v0: u1, v1: u32):
             v4 = eq v1, u32 0
-            jmpif v4 then: b1, else: b2
+            jmpif v4 then: b1(), else: b2()
           b1():
             jmp b3(u1 0)
           b2():
@@ -827,7 +828,7 @@ mod tests {
         brillig(inline) impure fn func_2 f2 {
           b0(v0: u1, v1: u32):
             v4 = eq v1, u32 0
-            jmpif v4 then: b1, else: b2
+            jmpif v4 then: b1(), else: b2()
           b1():
             jmp b3(u1 0)
           b2():
@@ -841,7 +842,7 @@ mod tests {
         brillig(inline) fn func_2 f3 {
           b0(v0: u1, v1: u32):
             v4 = eq v1, u32 0
-            jmpif v4 then: b1, else: b2
+            jmpif v4 then: b1(), else: b2()
           b1():
             jmp b3(u1 0)
           b2():
@@ -855,7 +856,7 @@ mod tests {
         brillig(inline) fn func_1 f4 {
           b0(v0: u1, v1: u32):
             v4 = eq v1, u32 0
-            jmpif v4 then: b1, else: b2
+            jmpif v4 then: b1(), else: b2()
           b1():
             jmp b3(u1 0)
           b2():
@@ -869,7 +870,7 @@ mod tests {
         brillig(inline) fn func_2 f5 {
           b0(v0: u1, v1: u32):
             v4 = eq v1, u32 0
-            jmpif v4 then: b1, else: b2
+            jmpif v4 then: b1(), else: b2()
           b1():
             jmp b3(u1 0)
           b2():
@@ -883,7 +884,7 @@ mod tests {
         brillig(inline) fn func_1 f6 {
           b0(v0: u1, v1: u32):
             v4 = eq v1, u32 0
-            jmpif v4 then: b1, else: b2
+            jmpif v4 then: b1(), else: b2()
           b1():
             jmp b3(u1 0)
           b2():

@@ -120,9 +120,8 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>> DapSession<
         self.send_stopped_event(StoppedEventReason::Entry)?;
 
         while self.running {
-            let req = match self.server.poll_request()? {
-                Some(req) => req,
-                None => break,
+            let Some(req) = self.server.poll_request()? else {
+                break;
             };
             match req.command {
                 Command::Disconnect(_) => {
@@ -585,7 +584,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>> DapSession<
         let variables: Vec<_> = match scope {
             ScopeReferences::Locals => self.build_local_variables(),
             ScopeReferences::WitnessMap => self.build_witness_map(),
-            _ => {
+            ScopeReferences::InvalidScope => {
                 eprintln!(
                     "handle_variables with an unknown variables_reference {}",
                     args.variables_reference
@@ -616,7 +615,7 @@ pub fn run_session<R: Read, W: Write>(
         file_map: project.compiled_program.file_map.clone(),
     };
 
-    let solver = Bn254BlackBoxSolver(run_params.pedantic_solving);
+    let solver = Bn254BlackBoxSolver;
     let mut session =
         DapSession::new(server, &solver, &project, &debug_artifact, run_params.oracle_resolver_url);
 

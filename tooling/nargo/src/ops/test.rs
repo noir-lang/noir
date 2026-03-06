@@ -9,10 +9,9 @@ use acvm::{
     pwg::ForeignCallWaitInfo,
 };
 use noirc_abi::{Abi, input_parser::json::serialize_to_json};
-use noirc_driver::{
-    CompileError, CompileOptions, CompiledProgram, DEFAULT_EXPRESSION_WIDTH, compile_no_check,
-};
-use noirc_errors::{CustomDiagnostic, debug_info::DebugInfo};
+use noirc_artifacts::{debug::DebugInfo, program::CompiledProgram};
+use noirc_driver::{CompileError, CompileOptions, compile_no_check};
+use noirc_errors::CustomDiagnostic;
 use noirc_frontend::{
     hir::{
         Context,
@@ -112,7 +111,6 @@ where
             compiled_program,
             test_function,
             output,
-            config,
             build_foreign_call_executor,
         ),
         Err(err) => test_status_program_compile_fail(err, test_function),
@@ -124,7 +122,6 @@ fn run_test_impl<'a, W, B, F, E>(
     compiled_program: CompiledProgram,
     test_function: &TestFunction,
     output: W,
-    config: &CompileOptions,
     build_foreign_call_executor: F,
 ) -> TestStatus
 where
@@ -134,8 +131,7 @@ where
     E: ForeignCallExecutor<FieldElement>,
 {
     // Do the same optimizations as `compile_cmd`.
-    let target_width = config.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH);
-    let compiled_program = crate::ops::transform_program(compiled_program, target_width);
+    let compiled_program = crate::ops::optimize_program(compiled_program);
 
     let ignore_foreign_call_failures =
         std::env::var("NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS")
@@ -338,19 +334,16 @@ pub fn test_status_program_compile_pass(
     debug: &[DebugInfo],
     circuit_execution: &Result<WitnessStack<FieldElement>, NargoError<FieldElement>>,
 ) -> TestStatus {
-    let circuit_execution_err = match circuit_execution {
+    let Err(circuit_execution_err) = circuit_execution else {
         // Circuit execution was successful; ie no errors or unsatisfied constraints
         // were encountered.
-        Ok(_) => {
-            if test_function.should_fail() {
-                return TestStatus::Fail {
-                    message: "error: Test passed when it should have failed".to_string(),
-                    error_diagnostic: None,
-                };
-            }
-            return TestStatus::Pass;
+        if test_function.should_fail() {
+            return TestStatus::Fail {
+                message: "error: Test passed when it should have failed".to_string(),
+                error_diagnostic: None,
+            };
         }
-        Err(err) => err,
+        return TestStatus::Pass;
     };
 
     // If we reach here, then the circuit execution failed.
@@ -382,9 +375,8 @@ pub fn check_expected_failure_message(
     // #[test(should_fail)] will not produce any message
     // #[test(should_fail_with = "reason")] will produce a message
     //
-    let expected_failure_message = match test_function.failure_reason() {
-        Some(reason) => reason,
-        None => return TestStatus::Pass,
+    let Some(expected_failure_message) = test_function.failure_reason() else {
+        return TestStatus::Pass;
     };
 
     // Match the failure message that the user will see, i.e. the failed_assertion
@@ -393,8 +385,7 @@ pub fn check_expected_failure_message(
     let expected_failure_message_matches = failed_assertion
         .as_ref()
         .or_else(|| error_diagnostic.as_ref().map(|file_diagnostic| &file_diagnostic.message))
-        .map(|message| message.contains(expected_failure_message))
-        .unwrap_or(false);
+        .is_some_and(|message| message.contains(expected_failure_message));
     if expected_failure_message_matches {
         return TestStatus::Pass;
     }

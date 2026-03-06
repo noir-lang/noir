@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::sync::Arc;
 
 use acir::acir_field::GenericFieldElement;
 use acir::brillig::{BitSize, HeapVector, IntegerBitSize};
@@ -17,7 +16,7 @@ use acir::{InvalidInputBitSize, parse_opcodes};
 
 use acvm::pwg::{ACVM, ACVMStatus, ErrorLocation, ForeignCallWaitInfo, OpcodeResolutionError};
 use acvm_blackbox_solver::StubbedBlackBoxSolver;
-use bn254_blackbox_solver::{Bn254BlackBoxSolver, POSEIDON2_CONFIG, field_from_hex};
+use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use brillig_vm::brillig::HeapValueType;
 
 use num_bigint::BigUint;
@@ -27,7 +26,7 @@ use proptest::result::maybe_ok;
 
 #[test]
 fn bls12_381_circuit() {
-    let solver = StubbedBlackBoxSolver::default();
+    let solver = StubbedBlackBoxSolver;
     type Bls12FieldElement = GenericFieldElement<ark_bls12_381::Fr>;
 
     let addition = Opcode::AssertZero(Expression {
@@ -60,7 +59,7 @@ fn bls12_381_circuit() {
 
 #[test]
 fn inversion_brillig_oracle_equivalence() {
-    let solver = StubbedBlackBoxSolver::default();
+    let solver = StubbedBlackBoxSolver;
     // Opcodes below describe the following:
     // fn main(x : Field, y : pub Field) {
     //     let z = x + y;
@@ -78,7 +77,7 @@ fn inversion_brillig_oracle_equivalence() {
 
     let src = format!(
         "
-    BRILLIG CALL func: 0, inputs: [{w_x} + {w_y}, 0], outputs: [{w_x_plus_y}, {w_oracle}, {w_equal_res}]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [{w_x} + {w_y}, 0], outputs: [{w_x_plus_y}, {w_oracle}, {w_equal_res}]
     ASSERT {w_z} = {w_x} + {w_y}
     ASSERT 0 = {w_z}*{w_z_inverse} - 1
     ASSERT {w_z_inverse} = {w_oracle}
@@ -170,7 +169,7 @@ fn inversion_brillig_oracle_equivalence() {
 
 #[test]
 fn double_inversion_brillig_oracle() {
-    let solver = StubbedBlackBoxSolver::default();
+    let solver = StubbedBlackBoxSolver;
     // Opcodes below describe the following:
     // fn main(x : Field, y : pub Field) {
     //     let z = x + y;
@@ -194,7 +193,7 @@ fn double_inversion_brillig_oracle() {
 
     let src = format!(
         "
-    BRILLIG CALL func: 0, inputs: [{w_x} + {w_y}, 0, {w_i} + {w_j}], outputs: [{w_x_plus_y}, {w_oracle}, {w_i_plus_j}, {w_ij_oracle}, {w_equal_res}]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [{w_x} + {w_y}, 0, {w_i} + {w_j}], outputs: [{w_x_plus_y}, {w_oracle}, {w_i_plus_j}, {w_ij_oracle}, {w_equal_res}]
     ASSERT {w_z} = {w_x} + {w_y}
     ASSERT 0 = {w_z}*{w_z_inverse} - 1
     ASSERT {w_z_inverse} = {w_oracle}
@@ -313,7 +312,7 @@ fn double_inversion_brillig_oracle() {
 
 #[test]
 fn oracle_dependent_execution() {
-    let solver = StubbedBlackBoxSolver::default();
+    let solver = StubbedBlackBoxSolver;
     // This test ensures that we properly track the list of opcodes which still need to be resolved
     // across any brillig foreign calls we may have to perform.
     //
@@ -383,7 +382,7 @@ fn oracle_dependent_execution() {
         "
     // This equality check can be executed immediately before resolving any foreign calls.
     ASSERT {w_y} = {w_x}
-    BRILLIG CALL func: 0, inputs: [{w_x}, 0, {w_y}], outputs: [{w_x}, {w_y_inv}, {w_y}, {w_y_inv}]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [{w_x}, 0, {w_y}], outputs: [{w_x}, {w_y_inv}, {w_y}, {w_y_inv}]
     // This equality check relies on the outputs of the Brillig call.
     // It then cannot be solved until the foreign calls are resolved.
     ASSERT {w_y_inv} = {w_x_inv}
@@ -440,7 +439,7 @@ fn oracle_dependent_execution() {
 
 #[test]
 fn brillig_oracle_predicate() {
-    let solver = StubbedBlackBoxSolver::default();
+    let solver = StubbedBlackBoxSolver;
     let w_x = Witness(1);
     let w_y = Witness(2);
     let w_oracle = Witness(3);
@@ -508,7 +507,7 @@ fn brillig_oracle_predicate() {
 
 #[test]
 fn unsatisfied_opcode_resolved() {
-    let solver = StubbedBlackBoxSolver::default();
+    let solver = StubbedBlackBoxSolver;
     let a = Witness(0);
     let b = Witness(1);
     let c = Witness(2);
@@ -538,7 +537,7 @@ fn unsatisfied_opcode_resolved() {
 
 #[test]
 fn unsatisfied_opcode_resolved_brillig() {
-    let solver = StubbedBlackBoxSolver::default();
+    let solver = StubbedBlackBoxSolver;
     let a = Witness(0);
     let b = Witness(1);
     let c = Witness(2);
@@ -639,7 +638,7 @@ fn unsatisfied_opcode_resolved_brillig() {
 
 #[test]
 fn memory_operations() {
-    let solver = StubbedBlackBoxSolver::default();
+    let solver = StubbedBlackBoxSolver;
 
     let initial_witness = WitnessMap::from(BTreeMap::from_iter([
         (Witness(1), FieldElement::from(1u128)),
@@ -717,7 +716,6 @@ fn solve_array_input_blackbox_call<F>(
     inputs: Vec<ConstantOrWitness>,
     num_outputs: usize,
     num_bits: Option<u32>,
-    pedantic_solving: bool,
     f: F,
 ) -> Result<Vec<FieldElement>, OpcodeResolutionError<FieldElement>>
 where
@@ -725,7 +723,7 @@ where
         (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
     ) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>>,
 {
-    let solver = Bn254BlackBoxSolver(pedantic_solving);
+    let solver = Bn254BlackBoxSolver;
     let initial_witness_vec: Vec<_> =
         inputs.iter().enumerate().map(|(i, (x, _))| (Witness(i as u32), *x)).collect();
     let outputs: Vec<_> = (0..num_outputs)
@@ -734,7 +732,7 @@ where
     let initial_witness = WitnessMap::from(BTreeMap::from_iter(initial_witness_vec));
 
     let inputs = constant_or_witness_to_function_inputs(inputs, 0, num_bits)?;
-    let op = Opcode::BlackBoxFuncCall(f((inputs.clone(), outputs.clone()))?);
+    let op = Opcode::BlackBoxFuncCall(f((inputs, outputs.clone()))?);
     let opcodes = vec![op];
     let unconstrained_functions = vec![];
     let mut acvm = ACVM::new(&solver, &opcodes, initial_witness, &unconstrained_functions, &[]);
@@ -763,7 +761,7 @@ fn solve_blackbox_func_call(
     rhs: (FieldElement, bool), // if false, use a Witness
     num_bits: Option<u32>,
 ) -> Result<FieldElement, OpcodeResolutionError<FieldElement>> {
-    let solver = StubbedBlackBoxSolver::default();
+    let solver = StubbedBlackBoxSolver;
     let (lhs, lhs_constant) = lhs;
     let (rhs, rhs_constant) = rhs;
 
@@ -852,13 +850,6 @@ fn sha256_compression_op(
     })
 }
 
-fn into_repr_vec<T>(fields: T) -> Vec<ark_bn254::Fr>
-where
-    T: IntoIterator<Item = FieldElement>,
-{
-    fields.into_iter().map(|field| field.into_repr()).collect()
-}
-
 // fn into_repr_mat<T, U>(fields: T) -> Vec<Vec<ark_bn254::Fr>>
 // where
 //     T: IntoIterator<Item = U>,
@@ -867,77 +858,13 @@ where
 //     fields.into_iter().map(|field| into_repr_vec(field)).collect()
 // }
 
-fn into_old_ark_field<T, U>(field: T) -> U
-where
-    T: AcirField,
-    U: ark_ff_v04::PrimeField,
-{
-    U::from_be_bytes_mod_order(&field.to_be_bytes())
-}
-
-fn into_new_ark_field<T, U>(field: T) -> U
-where
-    T: ark_ff_v04::PrimeField,
-    U: ark_ff::PrimeField,
-{
-    use zkhash::ark_ff::BigInteger;
-
-    U::from_be_bytes_mod_order(&field.into_bigint().to_bytes_be())
-}
-
-fn run_both_poseidon2_permutations(
-    inputs: Vec<ConstantOrWitness>,
-) -> Result<(Vec<ark_bn254::Fr>, Vec<ark_bn254::Fr>), OpcodeResolutionError<FieldElement>> {
-    let pedantic_solving = true;
-    let result = solve_array_input_blackbox_call(
-        inputs.clone(),
-        inputs.len(),
-        None,
-        pedantic_solving,
-        poseidon2_permutation_op,
-    )?;
-
-    let poseidon2_t = POSEIDON2_CONFIG.t as usize;
-    let poseidon2_d = 5;
-    let rounds_f = POSEIDON2_CONFIG.rounds_f as usize;
-    let rounds_p = POSEIDON2_CONFIG.rounds_p as usize;
-    let mat_internal_diag_m_1: Vec<ark_bn254_v04::Fr> =
-        POSEIDON2_CONFIG.internal_matrix_diagonal.into_iter().map(into_old_ark_field).collect();
-    let mat_internal = vec![];
-    let round_constants: Vec<Vec<ark_bn254_v04::Fr>> = POSEIDON2_CONFIG
-        .round_constant
-        .into_iter()
-        .map(|fields| fields.into_iter().map(into_old_ark_field).collect())
-        .collect();
-
-    let external_poseidon2 = zkhash::poseidon2::poseidon2::Poseidon2::new(&Arc::new(
-        zkhash::poseidon2::poseidon2_params::Poseidon2Params::new(
-            poseidon2_t,
-            poseidon2_d,
-            rounds_f,
-            rounds_p,
-            &mat_internal_diag_m_1,
-            &mat_internal,
-            &round_constants,
-        ),
-    ));
-
-    let expected_result = external_poseidon2.permutation(
-        &drop_use_constant(&inputs)
-            .into_iter()
-            .map(into_old_ark_field)
-            .collect::<Vec<ark_bn254_v04::Fr>>(),
-    );
-    Ok((into_repr_vec(result), expected_result.into_iter().map(into_new_ark_field).collect()))
-}
-
 fn function_input_from_option(
     witness: Witness,
     opt_constant: Option<FieldElement>,
 ) -> Result<FunctionInput<FieldElement>, OpcodeResolutionError<FieldElement>> {
-    opt_constant
-        .map(|constant| Ok(FunctionInput::Constant(constant)))
-        .unwrap_or(Ok(FunctionInput::Witness(witness)))
+    opt_constant.map_or(Ok(FunctionInput::Witness(witness)), |constant| {
+        Ok(FunctionInput::Constant(constant))
+    })
 }
 
 fn and_op(
@@ -1032,7 +959,6 @@ fn prop_assert_injective<F>(
     distinct_inputs: Vec<ConstantOrWitness>,
     num_outputs: usize,
     num_bits: Option<u32>,
-    pedantic_solving: bool,
     op: F,
 ) -> (bool, String)
 where
@@ -1044,22 +970,11 @@ where
 {
     let equal_inputs = drop_use_constant_eq(&inputs, &distinct_inputs);
     let message = format!("not injective:\n{:?}\n{:?}", &inputs, &distinct_inputs);
-    let outputs_not_equal = solve_array_input_blackbox_call(
-        inputs,
-        num_outputs,
-        num_bits,
-        pedantic_solving,
-        op.clone(),
-    )
-    .expect("injectivity test operations to have valid input")
-        != solve_array_input_blackbox_call(
-            distinct_inputs,
-            num_outputs,
-            num_bits,
-            pedantic_solving,
-            op,
-        )
-        .expect("injectivity test operations to have valid input");
+    let outputs_not_equal =
+        solve_array_input_blackbox_call(inputs, num_outputs, num_bits, op.clone())
+            .expect("injectivity test operations to have valid input")
+            != solve_array_input_blackbox_call(distinct_inputs, num_outputs, num_bits, op)
+                .expect("injectivity test operations to have valid input");
     (equal_inputs || outputs_not_equal, message)
 }
 
@@ -1121,30 +1036,11 @@ prop_compose! {
 }
 
 #[test]
-fn poseidon2_permutation_zeroes() {
-    let use_constants: [bool; 4] = [false; 4];
-    let inputs: Vec<_> = [FieldElement::zero(); 4].into_iter().zip(use_constants).collect();
-    let (results, expected_results) = run_both_poseidon2_permutations(inputs).unwrap();
-
-    let internal_expected_results = vec![
-        field_from_hex("18DFB8DC9B82229CFF974EFEFC8DF78B1CE96D9D844236B496785C698BC6732E"),
-        field_from_hex("095C230D1D37A246E8D2D5A63B165FE0FADE040D442F61E25F0590E5FB76F839"),
-        field_from_hex("0BB9545846E1AFA4FA3C97414A60A20FC4949F537A68CCECA34C5CE71E28AA59"),
-        field_from_hex("18A4F34C9C6F99335FF7638B82AEED9018026618358873C982BBDDE265B2ED6D"),
-    ];
-
-    assert_eq!(expected_results, into_repr_vec(internal_expected_results));
-    assert_eq!(results, expected_results);
-}
-
-#[test]
 fn sha256_compression_zeros() {
-    let pedantic_solving = true;
     let results = solve_array_input_blackbox_call(
         [(FieldElement::zero(), false); 24].into(),
         8,
         None,
-        pedantic_solving,
         sha256_compression_op,
     );
     let expected_results: Vec<_> = vec![
@@ -1159,8 +1055,7 @@ fn sha256_compression_zeros() {
 
 #[test]
 fn blake2s_zeros() {
-    let pedantic_solving = true;
-    let results = solve_array_input_blackbox_call(vec![], 32, None, pedantic_solving, blake2s_op);
+    let results = solve_array_input_blackbox_call(vec![], 32, None, blake2s_op);
     let expected_results: Vec<_> = vec![
         105, 33, 122, 48, 121, 144, 128, 148, 225, 17, 33, 208, 66, 53, 74, 124, 31, 85, 182, 72,
         44, 161, 165, 30, 27, 37, 13, 253, 30, 208, 238, 249,
@@ -1173,8 +1068,7 @@ fn blake2s_zeros() {
 
 #[test]
 fn blake3_zeros() {
-    let pedantic_solving = true;
-    let results = solve_array_input_blackbox_call(vec![], 32, None, pedantic_solving, blake3_op);
+    let results = solve_array_input_blackbox_call(vec![], 32, None, blake3_op);
     let expected_results: Vec<_> = vec![
         175, 19, 73, 185, 245, 249, 161, 166, 160, 64, 77, 234, 54, 220, 201, 73, 155, 203, 37,
         201, 173, 193, 18, 183, 204, 154, 147, 202, 228, 31, 50, 98,
@@ -1187,12 +1081,10 @@ fn blake3_zeros() {
 
 #[test]
 fn keccakf1600_zeros() {
-    let pedantic_solving = true;
     let results = solve_array_input_blackbox_call(
         [(FieldElement::zero(), false); 25].into(),
         25,
         Some(64),
-        pedantic_solving,
         keccakf1600_op,
     );
     let expected_results: Vec<_> = vec![
@@ -1325,19 +1217,14 @@ proptest! {
         prop_assert_eq!(lhs, rhs);
     }
 
-    #[test]
-    fn poseidon2_permutation_matches_external_impl(inputs in proptest::collection::vec(field_element(), 4)) {
-        let (result, expected_result) = run_both_poseidon2_permutations(inputs).unwrap();
-        prop_assert_eq!(result, expected_result);
-    }
+
 
 
     #[test]
     fn sha256_compression_injective(inputs_distinct_inputs in any_distinct_inputs(None, 24, 24)) {
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
         if inputs.len() == 24 && distinct_inputs.len() == 24 {
-            let pedantic_solving = true;
-            let (result, message) = prop_assert_injective(inputs, distinct_inputs, 8, None, pedantic_solving, sha256_compression_op);
+                        let (result, message) = prop_assert_injective(inputs, distinct_inputs, 8, None, sha256_compression_op);
             prop_assert!(result, "{}", message);
         }
     }
@@ -1345,16 +1232,14 @@ proptest! {
     #[test]
     fn blake2s_injective(inputs_distinct_inputs in any_distinct_inputs(None, 0, 32)) {
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
-        let pedantic_solving = true;
-        let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, None, pedantic_solving, blake2s_op);
+                let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, None, blake2s_op);
         prop_assert!(result, "{}", message);
     }
 
     #[test]
     fn blake3_injective(inputs_distinct_inputs in any_distinct_inputs(None, 0, 32)) {
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
-        let pedantic_solving = true;
-        let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, None, pedantic_solving, blake3_op);
+                let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, None, blake3_op);
         prop_assert!(result, "{}", message);
     }
 
@@ -1363,8 +1248,7 @@ proptest! {
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
         assert_eq!(inputs.len(), 25);
         assert_eq!(distinct_inputs.len(), 25);
-        let pedantic_solving = true;
-        let (result, message) = prop_assert_injective(inputs, distinct_inputs, 25, Some(64), pedantic_solving, keccakf1600_op);
+                let (result, message) = prop_assert_injective(inputs, distinct_inputs, 25, Some(64), keccakf1600_op);
         prop_assert!(result, "{}", message);
     }
 
@@ -1373,8 +1257,7 @@ proptest! {
     #[should_panic(expected = "Failure(BlackBoxFunctionFailed(Poseidon2Permutation, \"the input and output sizes are not consistent. 6 != 1\"))")]
     fn poseidon2_permutation_invalid_size_fails(inputs_distinct_inputs in any_distinct_inputs(None, 6, 6)) {
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
-        let pedantic_solving = true;
-        let (result, message) = prop_assert_injective(inputs, distinct_inputs, 1, None, pedantic_solving, poseidon2_permutation_op);
+                let (result, message) = prop_assert_injective(inputs, distinct_inputs, 1, None, poseidon2_permutation_op);
         prop_assert!(result, "{}", message);
     }
 

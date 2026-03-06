@@ -56,7 +56,7 @@ pub fn ecdsa_secp256k1_verify(
         public_key_y_bytes,
         signature,
     )
-    .unwrap()
+    .unwrap_or_default()
 }
 
 /// Verifies a ECDSA signature over the secp256r1 curve.
@@ -78,5 +78,5 @@ pub fn ecdsa_secp256r1_verify(
         public_key_y_bytes,
         signature,
     )
-    .unwrap()
+    .unwrap_or_default()
 }

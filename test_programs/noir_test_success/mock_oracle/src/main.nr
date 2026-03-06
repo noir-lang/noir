@@ -210,41 +210,40 @@ unconstrained fn call_void_field_twice(mock: OracleMock, initial_times_called: F
 }
 
 #[test]
-fn test_function_pointer() {
+unconstrained fn test_function_pointer() {
     // Create a lambda, which will become its own global function with an ID.
     let add = |x: u32, y: u64| (x as Field) + (y as Field);
     let mul = |x: u32, y: u64| (x as Field) * (y as Field);
 
-    // Safety: testing that and oracle can take and return a function as an ID.
-    unsafe {
-        // Set the expectation that we will pass the `add` lambda, surrounded by other numbers
-        // to make sure deserialization does not affect them.
-        let mock = OracleMock::mock("func_field").with_params((10, add, 20)).returns(30);
+    // Testing that and oracle can take and return a function as an ID.
 
-        // Pass another lambda just so it's used as a value and we should see the dispatch function handle it.
-        let _mock = OracleMock::mock("func_field").with_params((10, mul, 20)).returns(200);
+    // Set the expectation that we will pass the `add` lambda, surrounded by other numbers
+    // to make sure deserialization does not affect them.
+    let mock = OracleMock::mock("func_field").with_params((10, add, 20)).returns(30);
 
-        // Call the oracle with the expected parameters.
-        let ret = func_field(10, add, 20);
-        // It should match the parameters and return the expected result.
-        // This is trivial as the mocker just stores the inputs as-is.
-        assert_eq(ret, 30);
+    // Pass another lambda just so it's used as a value and we should see the dispatch function handle it.
+    let _mock = OracleMock::mock("func_field").with_params((10, mul, 20)).returns(200);
 
-        // Get the last params back and parse whatever we passed for `add` into a
-        // function type with the correct signature. It will only be an ID, but
-        // giving it type should allow us to call it.
-        let (x, f, y): (u32, fn(u32, u64) -> Field, u64) = mock.get_last_params();
+    // Call the oracle with the expected parameters.
+    let ret = func_field(10, add, 20);
+    // It should match the parameters and return the expected result.
+    // This is trivial as the mocker just stores the inputs as-is.
+    assert_eq(ret, 30);
 
-        // Check that receiving a function did not affect the values before/after it.
-        assert_eq(x, 10);
-        assert_eq(y, 20);
+    // Get the last params back and parse whatever we passed for `add` into a
+    // function type with the correct signature. It will only be an ID, but
+    // giving it type should allow us to call it.
+    let (x, f, y): (u32, fn(u32, u64) -> Field, u64) = mock.get_last_params();
 
-        // Now call the function and see that it returns the same result as `add`.
-        // Note that `f` _is_ `add`, as it is nothing but an ID of a function in SSA.
-        let r = f(x, y);
-        assert_eq(r, add(x, y));
-        assert(r != mul(x, y));
-    }
+    // Check that receiving a function did not affect the values before/after it.
+    assert_eq(x, 10);
+    assert_eq(y, 20);
+
+    // Now call the function and see that it returns the same result as `add`.
+    // Note that `f` _is_ `add`, as it is nothing but an ID of a function in SSA.
+    let r = f(x, y);
+    assert_eq(r, add(x, y));
+    assert(r != mul(x, y));
 }
 
 #[test]
@@ -271,19 +270,21 @@ unconstrained fn brillig_add_8_128(x: u8, y: u128) -> Field {
 }
 
 #[test(should_fail)]
-fn test_invalid_function_pointer() {
+unconstrained fn test_invalid_function_pointer() {
     // Create a lambda, so we have a dispatch function to its constrained/unconstrained versions.
     let add = |x: u32, y: u64| (x as Field) + (y as Field);
+    let sub = |x: u32, y: u64| (x as Field) - (y as Field);
 
-    // Safety: test that returning an arbitrary function pointer cannot be invoked.
-    unsafe {
-        // Return the ID of the main entry point itself, rather than the ID of `add`.
-        // Need to return a tuple: the IDs of the constrained and unconstrained version.
-        let _ = OracleMock::mock("field_func").with_params((0,)).returns((0, 0));
-        let _ = OracleMock::mock("field_func").with_params((1,)).returns(add);
-        // Call the oracle with the sneaky parameters that return an invalid ID.
-        let f: fn(u32, u64) -> Field = field_func(0);
-        // Trying to call the function should result in an error, since the ID 0 is not handled by the dispatch.
-        let _ = f(10, 20);
-    }
+    // Test that returning an arbitrary function pointer cannot be invoked.
+
+    // Return the ID of the main entry point itself, rather than the ID of `add`.
+    // Need to return a tuple: the IDs of the constrained and unconstrained version.
+    let _ = OracleMock::mock("field_func").with_params((0,)).returns((0, 0));
+    // Also make it possible to return the valid lambdas, so we get dispatch for them.
+    let _ = OracleMock::mock("field_func").with_params((1,)).returns(add);
+    let _ = OracleMock::mock("field_func").with_params((2,)).returns(sub);
+    // Call the oracle with the sneaky parameters that return an invalid ID.
+    let f: fn(u32, u64) -> Field = field_func(0);
+    // Trying to call the function should result in an error, since the ID 0 is not handled by the dispatch.
+    let _ = f(10, 20);
 }

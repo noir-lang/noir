@@ -6,7 +6,10 @@ use std::collections::HashSet;
 use crate::{
     GenericTypeVars, Shared, Type, TypeBindings,
     graph::CrateId,
-    hir::type_check::generics::TraitGenerics,
+    hir::{
+        def_collector::dc_crate::CompilationError,
+        type_check::{TypeCheckError, generics::TraitGenerics},
+    },
     hir_def::traits::{NamedType, ResolvedTraitBound, TraitConstraint, TraitImpl},
     node_interner::{ImplSearchErrorKind, TraitId, TraitImplId, TraitImplKind},
 };
@@ -16,6 +19,15 @@ use super::NodeInterner;
 /// An arbitrary number to limit the recursion depth when searching for trait impls.
 /// This is needed to stop recursing for cases such as `impl<T> Foo for T where T: Eq`
 const IMPL_SEARCH_RECURSION_LIMIT: u32 = 10;
+
+/// Modes that affect the behavior of [NodeInterner::try_lookup_trait_implementation].
+pub(crate) enum TraitLookupMode {
+    /// Does not look up implementations for bindable object types, but matches any [TraitImplKind].
+    Default,
+    /// Looks up implementation for bindable object types, and matches only [TraitImplKind::Assumed].
+    /// The returned bindings are not expected to be applied.
+    SelfAssumedOnly,
+}
 
 impl NodeInterner {
     /// Returns what the next trait impl id is expected to be.
@@ -53,48 +65,50 @@ impl NodeInterner {
     /// can resolve them. They are then later verified when the function is called, and linked
     /// properly after being monomorphized to the correct variant.
     ///
-    /// Returns true on success, or false if there is already an overlapping impl in scope.
+    /// Returns Ok(true) on success, or Ok(false) if there is already an overlapping impl in scope.
     pub fn add_assumed_trait_implementation(
         &mut self,
         object_type: Type,
         trait_id: TraitId,
         trait_generics: TraitGenerics,
-    ) -> bool {
+    ) -> Result<bool, ImplSearchErrorKind> {
         // Make sure there are no overlapping impls
         let existing = self.try_lookup_trait_implementation(
             &object_type,
             trait_id,
             &trait_generics.ordered,
             &trait_generics.named,
+            TraitLookupMode::Default,
         );
-        if existing.is_ok() {
-            return false;
+        match existing {
+            Err(ImplSearchErrorKind::NoMatching(_))
+            | Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType) => {
+                let entries = self.trait_implementation_map.entry(trait_id).or_default();
+                entries.push((
+                    object_type.clone(),
+                    TraitImplKind::Assumed { object_type, trait_generics },
+                ));
+                Ok(true)
+            }
+            Ok(_) => Ok(false),
+            Err(
+                error @ (ImplSearchErrorKind::NoImplFound(_)
+                | ImplSearchErrorKind::MultipleMatching(_)
+                | ImplSearchErrorKind::RecursionLimitReached),
+            ) => Err(error),
         }
-
-        let entries = self.trait_implementation_map.entry(trait_id).or_default();
-        entries.push((object_type.clone(), TraitImplKind::Assumed { object_type, trait_generics }));
-        true
     }
 
-    /// Adds a trait implementation to the list of known implementations.
-    pub fn add_trait_implementation(
-        &mut self,
-        object_type: Type,
-        trait_id: TraitId,
-        impl_id: TraitImplId,
+    /// Replace each generic with a fresh type variable.
+    ///
+    /// For example if the object type if `Foo<T'3>` then it becomes `Foo<'5>`.
+    /// The difference is that `Foo<T'3>` would not unify with `Foo<T'4>`,
+    /// but as `Foo<'5>` it will, allowing us to match existing implementations.
+    fn replace_generics_with_fresh_type_variable(
+        &self,
+        object_type: &Type,
         impl_generics: GenericTypeVars,
-        trait_impl: Shared<TraitImpl>,
-    ) -> Result<(), Location> {
-        self.trait_implementations.insert(impl_id, trait_impl.clone());
-
-        // Avoid adding error types to impls since they'll conflict with every other type.
-        // We don't need to return an error since we expect an error to already be issued when
-        // the error type is created.
-        if object_type == Type::Error {
-            return Ok(());
-        }
-
-        // Replace each generic with a fresh type variable
+    ) -> (Type, TypeBindings) {
         let substitutions = impl_generics
             .into_iter()
             .map(|typevar| {
@@ -111,37 +125,130 @@ impl NodeInterner {
 
         let instantiated_object_type = object_type.substitute(&substitutions);
 
-        let trait_generics = &trait_impl.borrow().trait_generics;
+        (instantiated_object_type, substitutions)
+    }
+
+    /// Adds a prepared trait implementation.
+    ///
+    /// This is called before the normal implementation is ready, so we can look up the
+    /// associated types while defining the meta-data for other functions and trait methods.
+    pub fn add_prepared_trait_implementation(
+        &mut self,
+        object_type: Type,
+        trait_id: TraitId,
+        impl_id: TraitImplId,
+        impl_generics: GenericTypeVars,
+        location: Location,
+    ) {
+        if matches!(object_type, Type::Error) {
+            // If we stored a prepared impl for Error, it would later unify with anything,
+            // leading to potentially unexpected duplications with the real prepared impl.
+            return;
+        }
+
+        // When looking for an existing type, we first have to make the unifying more relaxed by replacing
+        // named generics with fresh type variables, otherwise we can end up with duplicates.
+        let (instantiated_object_type, _) =
+            self.replace_generics_with_fresh_type_variable(&object_type, impl_generics);
+
+        // Check that we haven't already some overlapping implementation.
+        // Get the generics, which are inserted by `resolve_trait_impl_associated_types`
+        let trait_generics = self.get_trait_generics_for_impl(impl_id);
+
+        // Set named generics to unbound type vars, so they unify with anything.
+        let associated_types = vecmap(&trait_generics.named, |named| {
+            let typ = self.next_type_variable();
+            NamedType { name: named.name.clone(), typ }
+        });
+
+        let existing = self.try_lookup_trait_implementation(
+            &instantiated_object_type,
+            trait_id,
+            &trait_generics.ordered,
+            &associated_types,
+            TraitLookupMode::Default,
+        );
+
+        if existing.is_ok() {
+            return;
+        }
+
+        let entries = self.trait_implementation_map.entry(trait_id).or_default();
+        entries.push((object_type, TraitImplKind::Prepared(impl_id, location)));
+    }
+
+    /// Adds a trait implementation to the list of known implementations.
+    pub fn add_trait_implementation(
+        &mut self,
+        object_type: Type,
+        trait_id: TraitId,
+        impl_id: TraitImplId,
+        impl_generics: GenericTypeVars,
+        trait_impl: Shared<TraitImpl>,
+        location: Location,
+    ) -> Result<Result<(), Location>, CompilationError> {
+        self.trait_implementations.insert(impl_id, trait_impl.clone());
+
+        // Avoid adding error types to impls since they'll conflict with every other type.
+        // We don't need to return an error since we expect an error to already be issued when
+        // the error type is created.
+        if object_type == Type::Error {
+            return Err(TypeCheckError::expecting_other_error(
+                "collect_trait_impl: missing trait type",
+                location,
+            )
+            .into());
+        }
+
+        let (instantiated_object_type, substitutions) =
+            self.replace_generics_with_fresh_type_variable(&object_type, impl_generics);
+
+        let trait_generics = self.get_trait_generics_for_impl(impl_id);
 
         // Replace any associated types with fresh type variables so that we match
         // any existing impl regardless of associated types if one already exists.
         // E.g. if we already have an `impl Foo<Bar = i32> for Baz`, we should
         // reject `impl Foo<Bar = u32> for Baz` if it were to be added.
-        let associated_types = self.get_associated_types_for_impl(impl_id);
+        let associated_types = &trait_generics.named;
+        let ordered_generics = &trait_generics.ordered.clone();
 
         let associated_types = vecmap(associated_types, |named| {
             let typ = self.next_type_variable();
             NamedType { name: named.name.clone(), typ }
         });
 
-        // Ignoring overlapping `TraitImplKind::Assumed` impls here is perfectly fine.
-        // It should never happen since impls are defined at global scope, but even
-        // if they were, we should never prevent defining a new impl because a 'where'
-        // clause already assumes it exists.
-        if let Ok((TraitImplKind::Normal(existing), ..)) = self.try_lookup_trait_implementation(
+        // Remove any prepared implementation for this impl.
+        self.remove_prepared_trait_implementation(trait_id, impl_id);
+
+        let existing = self.try_lookup_trait_implementation(
             &instantiated_object_type,
             trait_id,
-            trait_generics,
+            ordered_generics,
             &associated_types,
-        ) {
-            let existing_impl = self.get_trait_implementation(existing);
-            let existing_impl = existing_impl.borrow();
-            return Err(existing_impl.ident.location());
+            TraitLookupMode::Default,
+        );
+
+        match existing {
+            Ok((TraitImplKind::Normal(existing), ..)) => {
+                let existing_impl = self.get_trait_implementation(existing);
+                let existing_impl = existing_impl.borrow();
+                return Ok(Err(existing_impl.ident.location()));
+            }
+            Ok((TraitImplKind::Prepared(_, location), ..)) => {
+                // A different Prepared impl matched; this would be a full conflict later if we added both normal ones.
+                return Ok(Err(location));
+            }
+            Err(_) | Ok((TraitImplKind::Assumed { .. }, ..)) => {
+                // Ignoring overlapping `TraitImplKind::Assumed` impls here is perfectly fine.
+                // It should never happen since impls are defined at global scope, but even
+                // if they were, we should never prevent defining a new impl because a 'where'
+                // clause already assumes it exists.
+            }
         }
 
         for method in &trait_impl.borrow().methods {
             let method_name = self.function_name(method).to_owned();
-            self.add_method(&object_type, method_name, *method, Some(trait_id));
+            self.add_method(&object_type, method_name, *method, Some(trait_id))?;
         }
 
         // The object type is generalized so that a generic impl will apply
@@ -150,7 +257,8 @@ impl NodeInterner {
 
         let entries = self.trait_implementation_map.entry(trait_id).or_default();
         entries.push((generalized_object_type, TraitImplKind::Normal(impl_id)));
-        Ok(())
+
+        Ok(Ok(()))
     }
 
     /// Given a `ObjectType: TraitId` pair, try to find an existing impl that satisfies the
@@ -174,6 +282,7 @@ impl NodeInterner {
             trait_id,
             trait_generics,
             trait_associated_types,
+            TraitLookupMode::Default,
         )?;
 
         Type::apply_type_bindings(bindings);
@@ -191,6 +300,7 @@ impl NodeInterner {
         trait_id: TraitId,
         trait_generics: &[Type],
         trait_associated_types: &[NamedType],
+        trait_lookup_mode: TraitLookupMode,
     ) -> Result<(TraitImplKind, TypeBindings, TypeBindings), ImplSearchErrorKind> {
         let mut bindings = TypeBindings::default();
         let (impl_kind, instantiation_bindings) = self.lookup_trait_implementation_helper(
@@ -199,9 +309,21 @@ impl NodeInterner {
             trait_generics,
             trait_associated_types,
             &mut bindings,
+            trait_lookup_mode,
             IMPL_SEARCH_RECURSION_LIMIT,
         )?;
         Ok((impl_kind, bindings, instantiation_bindings))
+    }
+
+    /// Remove the [TraitImplKind::Prepared] entry for the given impl, if one exists.
+    pub(crate) fn remove_prepared_trait_implementation(
+        &mut self,
+        trait_id: TraitId,
+        impl_id: TraitImplId,
+    ) {
+        let entries = self.trait_implementation_map.entry(trait_id).or_default();
+        entries
+            .retain(|(_, kind)| !matches!(kind, TraitImplKind::Prepared(id, _) if *id == impl_id));
     }
 
     /// Returns the trait implementation if found along with the instantiation bindings for
@@ -214,6 +336,7 @@ impl NodeInterner {
     /// - 1+ failing trait constraints, including the original.
     ///   Each constraint after the first represents a `where` clause that was followed.
     /// - 0 trait constraints indicating type annotations are needed to choose an impl.
+    #[allow(clippy::too_many_arguments)]
     fn lookup_trait_implementation_helper(
         &self,
         object_type: &Type,
@@ -221,6 +344,7 @@ impl NodeInterner {
         trait_generics: &[Type],
         trait_associated_types: &[NamedType],
         type_bindings: &mut TypeBindings,
+        mode: TraitLookupMode,
         recursion_limit: u32,
     ) -> Result<(TraitImplKind, TypeBindings), ImplSearchErrorKind> {
         let make_constraint = || {
@@ -236,26 +360,40 @@ impl NodeInterner {
             }
         };
 
-        let nested_error = || ImplSearchErrorKind::Nested(vec![make_constraint()]);
-
         // Prevent infinite recursion when looking for impls
         if recursion_limit == 0 {
-            return Err(nested_error());
+            return Err(ImplSearchErrorKind::RecursionLimitReached);
         }
 
-        let object_type = object_type.substitute(type_bindings);
-
         // If the object type isn't known, just return an error saying type annotations are needed.
-        if object_type.is_bindable() {
+        // However if we are looking up a parent trait constraint on self inside a trait definition,
+        // we must allow the assumed implementation we added on the self type variable to be found.
+        let object_type = object_type.substitute(type_bindings);
+        let is_bindable = object_type.is_bindable();
+
+        if is_bindable && !matches!(mode, TraitLookupMode::SelfAssumedOnly) {
             return Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType);
         }
 
-        let impls = self.trait_implementation_map.get(&trait_id).ok_or_else(nested_error)?;
+        let impls = self
+            .trait_implementation_map
+            .get(&trait_id)
+            .ok_or_else(|| ImplSearchErrorKind::NoImplFound(vec![make_constraint()]))?;
 
         let mut matching_impls = Vec::new();
         let mut where_clause_error = None;
 
         for (existing_object_type, impl_kind) in impls {
+            let skip = match mode {
+                TraitLookupMode::Default => false,
+                TraitLookupMode::SelfAssumedOnly => {
+                    !matches!(impl_kind, TraitImplKind::Assumed { .. })
+                }
+            };
+            if skip {
+                continue;
+            }
+
             let (existing_object_type, instantiation_bindings) =
                 existing_object_type.instantiate(self);
 
@@ -266,19 +404,15 @@ impl NodeInterner {
             }
 
             let impl_trait_generics = match impl_kind {
-                TraitImplKind::Normal(id) => {
-                    let shared_impl = self.get_trait_implementation(*id);
-                    let shared_impl = shared_impl.borrow();
-                    let named = self.get_associated_types_for_impl(*id).to_vec();
-                    let ordered = shared_impl.trait_generics.clone();
-                    TraitGenerics { named, ordered }
+                TraitImplKind::Normal(id) | TraitImplKind::Prepared(id, _) => {
+                    self.get_trait_generics_for_impl(*id).clone()
                 }
                 TraitImplKind::Assumed { trait_generics, .. } => trait_generics.clone(),
             };
 
             let generics_unify = trait_generics.iter().zip(&impl_trait_generics.ordered).all(
                 |(trait_generic, impl_generic)| {
-                    let impl_generic = impl_generic.force_substitute(&instantiation_bindings);
+                    let impl_generic = impl_generic.substitute(&instantiation_bindings);
                     trait_generic.try_unify(&impl_generic, &mut fresh_bindings).is_ok()
                 },
             );
@@ -305,13 +439,23 @@ impl NodeInterner {
                 }
             }
 
-            let associated_types_unify = trait_associated_types
-                .iter()
-                .zip(&impl_trait_generics.named)
-                .all(|(trait_generic, impl_generic)| {
-                    let impl_generic2 = impl_generic.typ.force_substitute(&instantiation_bindings);
-                    trait_generic.typ.try_unify(&impl_generic2, &mut fresh_bindings).is_ok()
-                });
+            // Match associated types by name, not position
+            let associated_types_unify = trait_associated_types.iter().all(|trait_generic| {
+                // Find the matching impl generic by name
+                let Some(named_impl_generic) = impl_trait_generics
+                    .named
+                    .iter()
+                    .find(|impl_g| impl_g.name.as_str() == trait_generic.name.as_str())
+                else {
+                    // If the impl doesn't have this associated type, it doesn't match
+                    return false;
+                };
+
+                let impl_generic = named_impl_generic.typ.force_substitute(&instantiation_bindings);
+
+                trait_generic.typ.try_unify(&impl_generic, &mut fresh_bindings).is_ok()
+            });
+
             if !associated_types_unify {
                 continue;
             }
@@ -336,14 +480,16 @@ impl NodeInterner {
             let (impl_, fresh_bindings, instantiation_bindings, _) = matching_impls.pop().unwrap();
             *type_bindings = fresh_bindings;
             Ok((impl_, instantiation_bindings))
+        } else if is_bindable {
+            Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType)
         } else if matching_impls.is_empty() {
             let mut errors = match where_clause_error {
-                Some((_, ImplSearchErrorKind::Nested(errors))) => errors,
+                Some((_, ImplSearchErrorKind::NoImplFound(errors))) => errors,
                 Some((constraint, _other)) => vec![constraint],
                 None => vec![],
             };
             errors.push(make_constraint());
-            Err(ImplSearchErrorKind::Nested(errors))
+            Err(ImplSearchErrorKind::NoMatching(errors))
         } else {
             let impls = vecmap(matching_impls, |(_, _, _, constraint)| {
                 let name = &self.get_trait(constraint.trait_bound.trait_id).name;
@@ -390,6 +536,7 @@ impl NodeInterner {
                 // Use a fresh set of type bindings here since the constraint_type originates from
                 // our impl list, which we don't want to bind to.
                 type_bindings,
+                TraitLookupMode::Default,
                 recursion_limit - 1,
             )
             .map_err(|error| (constraint.clone(), error))?;
@@ -423,30 +570,32 @@ impl NodeInterner {
 
     /// Removes all TraitImplKind::Assumed from the list of known impls for the given trait
     pub fn remove_assumed_trait_implementations_for_trait(&mut self, trait_id: TraitId) {
-        self.remove_assumed_trait_implementations_for_trait_and_parents(trait_id, trait_id);
+        self.remove_assumed_trait_implementations_for_trait_and_parents(
+            trait_id,
+            &mut HashSet::new(),
+        );
     }
 
     fn remove_assumed_trait_implementations_for_trait_and_parents(
         &mut self,
         trait_id: TraitId,
-        starting_trait_id: TraitId,
+        visited_trait_ids: &mut HashSet<TraitId>,
     ) {
+        // Avoid looping forever in case there are cycles
+        if !visited_trait_ids.insert(trait_id) {
+            return;
+        }
         let entries = self.trait_implementation_map.entry(trait_id).or_default();
-        entries.retain(|(_, kind)| matches!(kind, TraitImplKind::Normal(_)));
+        entries.retain(|(_, kind)| !matches!(kind, TraitImplKind::Assumed { .. }));
 
         // Also remove assumed implementations for the parent traits, if any
         if let Some(trait_bounds) =
             self.try_get_trait(trait_id).map(|the_trait| the_trait.trait_bounds.clone())
         {
             for parent_trait_bound in trait_bounds {
-                // Avoid looping forever in case there are cycles
-                if parent_trait_bound.trait_id == starting_trait_id {
-                    continue;
-                }
-
                 self.remove_assumed_trait_implementations_for_trait_and_parents(
                     parent_trait_bound.trait_id,
-                    starting_trait_id,
+                    visited_trait_ids,
                 );
             }
         }

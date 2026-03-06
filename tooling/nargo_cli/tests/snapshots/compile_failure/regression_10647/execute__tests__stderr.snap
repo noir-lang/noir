@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: The name of an `#[oracle]` function clashes with one defined in the Noir standard library
+  ┌─ src/main.nr:1:1
+  │
+1 │ #[oracle(print)]
+  │ ---------------- Naming an `#[oracle]` function the same as one in the Noir standard library could lead to unexpected behavior
+  │
+
+Aborting due to 1 previous error

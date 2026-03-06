@@ -184,7 +184,7 @@ impl<'a> FuzzerFunctionContext<'a> {
     ) -> Self {
         let mut ids = HashMap::new();
 
-        for (value, type_) in values_types.into_iter() {
+        for (value, type_) in values_types {
             let field_element = value;
             ids.entry(Type::Numeric(type_))
                 .or_insert(Vec::new())
@@ -228,12 +228,12 @@ impl<'a> FuzzerFunctionContext<'a> {
         value: impl Into<FieldElement> + Clone,
         type_: NumericType,
     ) -> TypedValue {
-        self.builder.insert_constant(value.clone(), type_)
+        self.builder.insert_constant(value, type_)
     }
 
     /// Inserts a new jmp instruction into builder
     fn insert_jmp_instruction(&mut self, block_id: BasicBlockId, params: Vec<TypedValue>) {
-        self.builder.insert_jmp_instruction(block_id, params.clone());
+        self.builder.insert_jmp_instruction(block_id, params);
     }
 
     /// Switches to the block
@@ -340,7 +340,7 @@ impl<'a> FuzzerFunctionContext<'a> {
             self.not_terminated_blocks.push_back(else_stored_block);
         }
         self.switch_to_block(then_stored_block.block_id);
-        self.current_block = then_stored_block.clone();
+        self.current_block = then_stored_block;
     }
 
     fn process_jmp_block(&mut self, block_idx: usize) {
@@ -439,7 +439,7 @@ impl<'a> FuzzerFunctionContext<'a> {
     ///     jmp b1(u32 0) <--------------------------------- create iter (0) and jump to the "if_block"
     ///   b1(v1: u32): <------------------------------------ "if_block"
     ///     v5 = lt v1, u32 10 <---------------------------- compare iter with end_iter (10)
-    ///     jmpif v5 then: b3, else: b2 <------------------- if iter < end_iter, jump to the "body_block", otherwise jump to the "end_block"
+    ///     jmpif v5 then: b3(), else: b2() <--------------- if iter < end_iter, jump to the "body_block", otherwise jump to the "end_block"
     ///   b2(): <------------------------------------------- "end_block"
     ///     v6 = load v2 -> Field
     ///     return v6
@@ -496,8 +496,7 @@ impl<'a> FuzzerFunctionContext<'a> {
         let real_iter_id =
             self.builder.add_block_parameter(block_if_id, Type::Numeric(NumericType::U32));
         // condition = iter < end
-        let condition =
-            self.builder.insert_lt_instruction(real_iter_id.clone(), end_id.clone()).value_id;
+        let condition = self.builder.insert_lt_instruction(real_iter_id.clone(), end_id).value_id;
         // jmpif condition then: block_body, else: block_end
         self.builder.insert_jmpif_instruction(condition, block_body_id, block_end_id);
 
@@ -505,14 +504,13 @@ impl<'a> FuzzerFunctionContext<'a> {
         let block_iter_id = self.insert_ssa_block();
         self.switch_to_block(block_iter_id);
         // j = iter + 1
-        let iterator_plus_one =
-            self.builder.insert_add_instruction_checked(real_iter_id.clone(), one_id.clone());
+        let iterator_plus_one = self.builder.insert_add_instruction_checked(real_iter_id, one_id);
         // jump to the "if_block" with j = iter + 1
-        self.insert_jmp_instruction(block_if_id, vec![iterator_plus_one.clone()]);
+        self.insert_jmp_instruction(block_if_id, vec![iterator_plus_one]);
 
         // switch to the context block and finalizes it with jmp to the "if_block" with iter = start
         self.switch_to_block(self.current_block.block_id);
-        self.insert_jmp_instruction(block_if_id, vec![start_id.clone()]);
+        self.insert_jmp_instruction(block_if_id, vec![start_id]);
 
         // fill body block with instructions
         let mut block_body_context =
@@ -542,7 +540,7 @@ impl<'a> FuzzerFunctionContext<'a> {
         // we skip other blocks, because loops has other logic of finalization
         self.current_block.context.children_blocks.push(end_block_stored.block_id);
         self.stored_blocks.insert(self.current_block.block_id, self.current_block.clone());
-        self.stored_blocks.insert(end_block_stored.block_id, end_block_stored.clone());
+        self.stored_blocks.insert(end_block_stored.block_id, end_block_stored);
 
         // switch context to the loop body block and store loop info
         self.current_block = StoredBlock { context: block_body_context, block_id: block_body_id };
@@ -653,7 +651,7 @@ impl<'a> FuzzerFunctionContext<'a> {
         let merged_block_context = BlockContext {
             children_blocks: vec![],
             parent_blocks_history,
-            ..closest_parent_block.context.clone()
+            ..closest_parent_block.context
         };
         self.switch_to_block(first_block.block_id);
         first_block.context.finalize_block_with_jmp(self.builder, merged_block_id, vec![]);
@@ -688,7 +686,7 @@ impl<'a> FuzzerFunctionContext<'a> {
     ///
     /// SSA block can use variables from predecessor that is not in branch. e.g. b7 can use variables from b4.
     /// This function is used to determine which block's variables can be inherited by merged block.
-    fn find_closest_parent(&mut self, lhs: &StoredBlock, rhs: &StoredBlock) -> BasicBlockId {
+    fn find_closest_parent(&self, lhs: &StoredBlock, rhs: &StoredBlock) -> BasicBlockId {
         for block in &lhs.context.parent_blocks_history {
             if rhs.context.parent_blocks_history.contains(block) {
                 return *block;
@@ -721,9 +719,8 @@ impl<'a> FuzzerFunctionContext<'a> {
     /// This function is used to find end of the block for merging
     /// If block has no end, it means it has branches in the sub CFG, so we need to merge children blocks first
     fn end_of_block(&self, block_id: BasicBlockId) -> Option<BasicBlockId> {
-        let block = match self.stored_blocks.get(&block_id) {
-            Some(block) => block,
-            None => unreachable!("Block not found in stored blocks."),
+        let Some(block) = self.stored_blocks.get(&block_id) else {
+            unreachable!("Block not found in stored blocks.");
         };
 
         if block.context.children_blocks.is_empty() {
@@ -800,7 +797,7 @@ impl<'a> FuzzerFunctionContext<'a> {
     /// Finalizes loops in the program
     /// Terminates every loop with jmp to the loop iter block
     fn finalize_cycles(&mut self) {
-        let cycle_info: Vec<_> = self.cycle_bodies_to_iters_ids.keys().cloned().collect();
+        let cycle_info: Vec<_> = self.cycle_bodies_to_iters_ids.keys().copied().collect();
         for body_id in cycle_info {
             let iter_id = self.cycle_bodies_to_iters_ids[&body_id].block_iter_id;
             log::debug!("body_id: {body_id:?}, iter_id: {iter_id:?}");
@@ -814,7 +811,7 @@ impl<'a> FuzzerFunctionContext<'a> {
         // save all not-terminated blocks to stored_blocks
         self.finalize_cycles();
         self.not_terminated_blocks.push_back(self.current_block.clone());
-        for block in self.not_terminated_blocks.iter() {
+        for block in &self.not_terminated_blocks {
             self.stored_blocks.insert(block.block_id, block.clone());
         }
 

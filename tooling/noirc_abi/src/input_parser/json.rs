@@ -48,7 +48,7 @@ pub fn serialize_to_json(
 ) -> Result<String, InputParserError> {
     let mut json_map = try_btree_map(abi.to_btree_map(), |(key, param_type)| {
         JsonTypes::try_from_input_value(&input_map[&key], &param_type)
-            .map(|value| (key.to_owned(), value))
+            .map(|value| (key.clone(), value))
     })?;
 
     if let (Some(return_type), Some(return_value)) =
@@ -103,7 +103,7 @@ impl JsonTypes {
                 JsonTypes::Array(array)
             }
 
-            (InputValue::String(s), AbiType::String { .. }) => JsonTypes::String(s.to_string()),
+            (InputValue::String(s), AbiType::String { .. }) => JsonTypes::String(s.clone()),
 
             (InputValue::Struct(map), AbiType::Struct { fields, .. }) => {
                 let map_with_json_types = try_btree_map(fields, |(key, field_type)| {
@@ -139,7 +139,7 @@ impl JsonTypes {
             return "0x00".to_owned();
         }
         let mut trimmed_field = field.to_hex().trim_start_matches('0').to_owned();
-        if trimmed_field.len() % 2 != 0 {
+        if !trimmed_field.len().is_multiple_of(2) {
             trimmed_field = "0".to_owned() + &trimmed_field;
         }
         "0x".to_owned() + &trimmed_field
@@ -200,7 +200,7 @@ impl InputValue {
                         .get(field_name)
                         .ok_or_else(|| InputParserError::MissingArgument(field_id.clone()))?;
                     InputValue::try_from_json(value.clone(), abi_type, &field_id)
-                        .map(|input_value| (field_name.to_string(), input_value))
+                        .map(|input_value| (field_name.clone(), input_value))
                 })?;
 
                 InputValue::Struct(native_table)
@@ -230,7 +230,7 @@ impl InputValue {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use acvm::FieldElement;
     use proptest::prelude::*;
 

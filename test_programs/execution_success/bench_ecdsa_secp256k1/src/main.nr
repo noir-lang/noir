@@ -1,4 +1,4 @@
-use dep::std;
+use std;
 
 fn main(hashed_message: [u8; 32], pub_key_x: [u8; 32], pub_key_y: [u8; 32], signature: [u8; 64]) {
     let valid_signature =

@@ -4,7 +4,7 @@
 //! then removes those subsequent instructions and replaces the block's terminator
 //! with a special `unreachable` value.
 //!
-//! This pass might also add constrain checks after existing instructions,
+//! This pass might also replace existing instructions with constrain checks,
 //! for example binary operations that are guaranteed to overflow.
 //!
 //! ## Handling of `constrain`
@@ -98,16 +98,16 @@
 //! with a `mem2reg` pass before any subsequent DIE pass would remove the `store`,
 //! leaving the `load` with a reference that never gets stored at.
 //!
-//! ## Handling of slice operations
+//! ## Handling of vector operations
 //!
-//! If a slice operation like `slice_push_back` or `slice_pop_front` in ACIR is guaranteed
-//! to fail, which can only happen if the slice is empty, the operation is removed
-//! and replaced with a constrain failure, then the returned slice is replaced with
-//! an empty slice. So this SSA:
+//! If a vector operation like `vector_push_back` or `vector_pop_front` in ACIR is guaranteed
+//! to fail, which can only happen if the vector is empty, the operation is removed
+//! and replaced with a constrain failure, then the returned vector is replaced with
+//! an empty vector. So this SSA:
 //!
 //! ```ssa
 //! v0 = make_array [] -> [u32]
-//! v2, v3, v4 = call slice_pop_front(u32 0, v0) -> (u32, u32, [u32])
+//! v2, v3, v4 = call vector_pop_front(u32 0, v0) -> (u32, u32, [u32])
 //! v5 = add v2, u32 1
 //! return v4, v5
 //! ```
@@ -126,24 +126,27 @@
 //!   not run after this pass as they can't handle the `unreachable` terminator.
 use std::sync::Arc;
 
-use acvm::{AcirField, FieldElement};
+use acvm::{AcirField, FieldElement, acir::brillig::lengths::SemiFlattenedLength};
 use im::HashSet;
 use noirc_errors::call_stack::CallStackId;
 
-use crate::ssa::{
-    ir::{
-        basic_block::BasicBlockId,
-        dfg::DataFlowGraph,
-        function::{Function, FunctionId},
-        instruction::{
-            Binary, BinaryOp, ConstrainError, Instruction, Intrinsic, TerminatorInstruction,
-            binary::{BinaryEvaluationResult, eval_constant_binary_op},
+use crate::{
+    brillig::assert_u32,
+    ssa::{
+        ir::{
+            basic_block::BasicBlockId,
+            dfg::DataFlowGraph,
+            function::{Function, FunctionId},
+            instruction::{
+                Binary, BinaryOp, ConstrainError, Instruction, Intrinsic, TerminatorInstruction,
+                binary::{BinaryEvaluationResult, eval_constant_binary_op},
+            },
+            types::{NumericType, Type},
+            value::{Value, ValueId},
         },
-        types::{NumericType, Type},
-        value::{Value, ValueId},
+        opt::simple_optimization::SimpleOptimizationContext,
+        ssa_gen::Ssa,
     },
-    opt::simple_optimization::SimpleOptimizationContext,
-    ssa_gen::Ssa,
 };
 
 impl Ssa {
@@ -226,7 +229,7 @@ impl Function {
                         }
                     };
                 return;
-            };
+            }
 
             if current_block_reachability == Reachability::UnreachableUnderPredicate {
                 if should_replace_instruction_with_defaults(context) {
@@ -296,26 +299,25 @@ impl Function {
                 {
                     let array_type = context.dfg.type_of_value(*array);
                     // We can only know a guaranteed out-of-bounds access for arrays,
-                    // and slices which have been declared as a literal.
+                    // and vectors which have been declared as a literal.
                     let len = match array_type {
                         Type::Array(_, len) => len,
-                        Type::Slice(_) => {
+                        Type::Vector(_) => {
                             let Some(Instruction::MakeArray { elements, typ }) =
                                 context.dfg.get_local_or_global_instruction(*array)
                             else {
                                 return;
                             };
                             // The index check expects `len` to be the logical length, like for arrays,
-                            // not the flattened size, so we need to divide by the number of items.
-                            (elements.len() / typ.element_size()) as u32
+                            // not the semi flattened size, so we need to divide by the number of items.
+                            SemiFlattenedLength(assert_u32(elements.len())) / typ.element_size()
                         }
                         _ => return,
                     };
 
-                    let array_op_always_fails = len == 0
+                    let array_op_always_fails = len.0 == 0
                         || context.dfg.get_numeric_constant(*index).is_some_and(|index| {
-                            (index.try_to_u32().unwrap())
-                                >= (array_type.element_size() as u32 * len)
+                            (index.try_to_u32().unwrap()) >= (array_type.element_size() * len).0
                         });
                     if !array_op_always_fails {
                         return;
@@ -340,16 +342,16 @@ impl Function {
                     };
                 }
                 Instruction::Call { func, arguments } if context.dfg.runtime().is_acir() => {
-                    // Intrinsic Slice operations in ACIR on empty arrays need to be replaced with a (conditional) constraint.
+                    // Intrinsic Vector operations in ACIR on empty arrays need to be replaced with a (conditional) constraint.
                     // In Brillig they will be protected by an access constraint, which, if known to fail, will make the block unreachable.
-                    let Value::Intrinsic(Intrinsic::SlicePopBack | Intrinsic::SlicePopFront) =
+                    let Value::Intrinsic(Intrinsic::VectorPopBack | Intrinsic::VectorPopFront) =
                         &context.dfg[*func]
                     else {
                         return;
                     };
 
                     let length = arguments.first().unwrap_or_else(|| {
-                        unreachable!("slice operations have 2 arguments: [length, slice]")
+                        unreachable!("vector operations have 2 arguments: [length, vector]")
                     });
                     let is_empty =
                         context.dfg.get_numeric_constant(*length).is_some_and(|v| v.is_zero());
@@ -357,7 +359,7 @@ impl Function {
                         return;
                     }
 
-                    // If the compiler knows the slice is empty, there is no point trying to pop from it, we know it will fail.
+                    // If the compiler knows the vector is empty, there is no point trying to pop from it, we know it will fail.
                     // Barretenberg doesn't handle memory operations with predicates, so we can't rely on those to disable the operation
                     // based on the current side effect variable. Instead we need to replace it with a conditional constraint.
                     let always_fail = is_predicate_constant_one;
@@ -370,15 +372,15 @@ impl Function {
                         context.remove_current_instruction();
                         Reachability::Unreachable
                     } else {
-                        // Here we could use the empty slice as the replacement of the return value,
-                        // except that slice operations also return the removed element and the new length
+                        // Here we could use the empty vector as the replacement of the return value,
+                        // except that vector operations also return the removed element and the new length
                         // so it's easier to just use zeroed values here
                         remove_and_replace_with_defaults(context, func_id, block_id);
                         Reachability::UnreachableUnderPredicate
                     };
                 }
                 _ => (),
-            };
+            }
 
             // Once we find an instruction that will always fail, replace the terminator with `unreachable`.
             // Subsequent instructions in this block will be removed.
@@ -388,9 +390,11 @@ impl Function {
                 context.dfg[block_id]
                     .set_terminator(TerminatorInstruction::Unreachable { call_stack });
             }
-            if current_block_reachability == Reachability::UnreachableUnderPredicate
-                && !is_predicate_constant_one
-            {
+            if current_block_reachability == Reachability::UnreachableUnderPredicate {
+                assert!(
+                    !is_predicate_constant_one,
+                    "predicate cannot be constant one in UnreachableUnderPredicate"
+                );
                 unreachable_predicates.insert(context.enable_side_effects);
             }
         });
@@ -458,7 +462,7 @@ fn zeroed_value(
         Type::Numeric(numeric_type) => dfg.make_constant(FieldElement::zero(), *numeric_type),
         Type::Array(element_types, len) => {
             let mut array = im::Vector::new();
-            for _ in 0..*len {
+            for _ in 0..len.0 {
                 for typ in element_types.iter() {
                     array.push_back(zeroed_value(dfg, func_id, block_id, typ));
                 }
@@ -467,11 +471,8 @@ fn zeroed_value(
             let stack = CallStackId::root();
             dfg.insert_instruction_and_results(instruction, block_id, None, stack).first()
         }
-        Type::Slice(_) => {
-            let array = im::Vector::new();
-            let instruction = Instruction::MakeArray { elements: array, typ: typ.clone() };
-            let stack = CallStackId::root();
-            dfg.insert_instruction_and_results(instruction, block_id, None, stack).first()
+        Type::Vector(_) => {
+            panic!("zeroed_value() does not support vectors, use zeroed_vector_of_size() instead");
         }
         Type::Reference(element_type) => {
             // The result of the instruction is a reference; Allocate creates a reference,
@@ -505,15 +506,64 @@ fn remove_and_replace_with_defaults(
     func_id: FunctionId,
     block_id: BasicBlockId,
 ) {
+    let result_ids = context.dfg.instruction_results(context.instruction_id).to_vec();
+    let mut replacements: Vec<(ValueId, ValueId)> = Vec::new();
+    for (i, result_id) in result_ids.iter().enumerate() {
+        let typ = &context.dfg.type_of_value(*result_id);
+        if matches!(typ, Type::Vector(_)) {
+            let Some(len) = context.dfg.try_get_vector_capacity(*result_id) else {
+                // If we can't figure out the capacity of the vector, then we cannot safely replace it with defaults.
+                return;
+            };
+            // Check if this result is preceded the semantic length.
+            let follows_semantic_length = i > 0
+                && context.dfg.type_of_value(result_ids[i - 1]) == Type::unsigned(32)
+                && matches!(context.instruction(), Instruction::Call { .. });
+
+            if follows_semantic_length {
+                replacements[i - 1].1 = context.dfg.make_constant(
+                    FieldElement::from(len.to_usize()),
+                    NumericType::Unsigned { bit_size: 32 },
+                );
+            }
+            replacements.push((
+                *result_id,
+                zeroed_vector_of_size(context.dfg, func_id, block_id, typ, len.to_usize()),
+            ));
+        } else {
+            replacements.push((*result_id, zeroed_value(context.dfg, func_id, block_id, typ)));
+        }
+    }
+
+    // Only remove the current instruction if we haven't exited early.
     context.remove_current_instruction();
 
-    let result_ids = context.dfg.instruction_results(context.instruction_id).to_vec();
-
-    for result_id in result_ids {
-        let typ = &context.dfg.type_of_value(result_id);
-        let default_value = zeroed_value(context.dfg, func_id, block_id, typ);
-        context.replace_value(result_id, default_value);
+    for (result_id, default_id) in replacements {
+        context.replace_value(result_id, default_id);
     }
+}
+
+fn zeroed_vector_of_size(
+    dfg: &mut DataFlowGraph,
+    func_id: FunctionId,
+    block_id: BasicBlockId,
+    typ: &Type,
+    size: usize,
+) -> ValueId {
+    let Type::Vector(element_type) = typ else {
+        panic!("Expected vector type");
+    };
+
+    let mut array = im::Vector::new();
+    for _ in 0..size {
+        for elem_typ in element_type.iter() {
+            array.push_back(zeroed_value(dfg, func_id, block_id, elem_typ));
+        }
+    }
+
+    let instruction = Instruction::MakeArray { elements: array, typ: typ.clone() };
+    let stack = CallStackId::root();
+    dfg.insert_instruction_and_results(instruction, block_id, None, stack).first()
 }
 
 /// Insert a `constrain 0 == <predicate>, "<msg>"` instruction.
@@ -546,8 +596,8 @@ fn should_replace_instruction_with_defaults(context: &SimpleOptimizationContext)
         // If it's zero, make sure that the type in the results
         if index_zero {
             let typ = match context.dfg.type_of_value(*array) {
-                Type::Array(typ, _) | Type::Slice(typ) => typ,
-                other => unreachable!("Array or Slice type expected; got {other:?}"),
+                Type::Array(typ, _) | Type::Vector(typ) => typ,
+                other => unreachable!("Array or Vector type expected; got {other:?}"),
             };
             let [result] = context.dfg.instruction_result(context.instruction_id);
             let result_type = context.dfg.type_of_value(result);
@@ -571,7 +621,7 @@ fn should_replace_instruction_with_defaults(context: &SimpleOptimizationContext)
             // effect variable. Instructions which use its result would then get
             // incorrect zero, instead of whatever was in the array.
         }
-    };
+    }
 
     // Instructions that don't interact with the predicate should be left alone,
     // because the `remove_enable_side_effects` pass might have moved the boundaries around them.
@@ -579,7 +629,7 @@ fn should_replace_instruction_with_defaults(context: &SimpleOptimizationContext)
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::{
         assert_ssa_snapshot,
         ssa::{opt::assert_ssa_does_not_change, ssa_gen::Ssa},
@@ -871,7 +921,7 @@ mod test {
     }
 
     #[test]
-    fn removes_slice_literal_index_oob() {
+    fn removes_vector_literal_index_oob() {
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u32):
@@ -969,7 +1019,7 @@ mod test {
             jmp b1()
           b1():
             v1 = add Field 1, Field 2
-            jmpif u1 0 then: b2, else: b3
+            jmpif u1 0 then: b2(), else: b3()
           b2():
             v2 = add Field 1, Field 2
             jmp b1()
@@ -1028,11 +1078,11 @@ mod test {
           b1():
             v2 = add Field 1, Field 2
             jmp b2(v2)
-          b2():
-            jmpif u1 0 then: b3, else: b4
+          b2(v3: Field):
+            jmpif u1 0 then: b3(), else: b4()
           b3():
             constrain u1 0 == u1 1, "Index out of bounds"
-            jmpif u1 0 then: b4, else: b1
+            jmpif u1 0 then: b4(), else: b1()
           b4():
             v1 = add Field 1, Field 2
             return v1
@@ -1046,16 +1096,16 @@ mod test {
           b0():
             jmp b1()
           b1():
-            v2 = add Field 1, Field 2
-            jmp b2(v2)
-          b2():
-            jmpif u1 0 then: b3, else: b4
+            v3 = add Field 1, Field 2
+            jmp b2(v3)
+          b2(v0: Field):
+            jmpif u1 0 then: b3(), else: b4()
           b3():
             constrain u1 0 == u1 1, "Index out of bounds"
             unreachable
           b4():
-            v4 = add Field 1, Field 2
-            return v4
+            v5 = add Field 1, Field 2
+            return v5
         }
         "#);
     }
@@ -1068,7 +1118,7 @@ mod test {
           b0():
             jmp b1()
           b1():
-            jmpif u1 0 then: b2, else: b3
+            jmpif u1 0 then: b2(), else: b3()
           b2():
             constrain u1 0 == u1 1, "Index out of bounds"
             jmp b3()
@@ -1085,7 +1135,7 @@ mod test {
           b0():
             jmp b1()
           b1():
-            jmpif u1 0 then: b2, else: b3
+            jmpif u1 0 then: b2(), else: b3()
           b2():
             constrain u1 0 == u1 1, "Index out of bounds"
             unreachable
@@ -1104,7 +1154,7 @@ mod test {
           b0():
             jmp b1()
           b1():
-            jmpif u1 0 then: b2, else: b3
+            jmpif u1 0 then: b2(), else: b3()
           b2():
             constrain u1 0 == u1 1, "Index out of bounds"
             jmp b4()
@@ -1123,7 +1173,7 @@ mod test {
           b0():
             jmp b1()
           b1():
-            jmpif u1 0 then: b2, else: b3
+            jmpif u1 0 then: b2(), else: b3()
           b2():
             constrain u1 0 == u1 1, "Index out of bounds"
             unreachable
@@ -1145,7 +1195,7 @@ mod test {
           b0():
             jmp b1()
           b1():
-            jmpif u1 0 then: b2, else: b3
+            jmpif u1 0 then: b2(), else: b3()
           b2():
             constrain u1 0 == u1 1, "Index out of bounds"
             jmp b4()
@@ -1166,7 +1216,7 @@ mod test {
           b0():
             jmp b1()
           b1():
-            jmpif u1 0 then: b2, else: b3
+            jmpif u1 0 then: b2(), else: b3()
           b2():
             constrain u1 0 == u1 1, "Index out of bounds"
             unreachable
@@ -1189,7 +1239,7 @@ mod test {
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
-            jmpif u1 0 then: b1, else: b2
+            jmpif u1 0 then: b1(), else: b2()
           b1():
             jmp b3()
           b2():
@@ -1208,7 +1258,7 @@ mod test {
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
-            jmpif u1 0 then: b1, else: b2
+            jmpif u1 0 then: b1(), else: b2()
           b1():
             jmp b3()
           b2():
@@ -1305,13 +1355,13 @@ mod test {
     }
 
     #[test]
-    fn transforms_failing_slice_pop_with_constraint_and_default() {
+    fn transforms_failing_vector_pop_with_constraint_and_default() {
         let src = "
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u1):
             v1 = make_array [] : [u32]
             enable_side_effects v0
-            v4, v5, v6 = call slice_pop_front(u32 0, v1) -> (u32, u32, [u32])
+            v4, v5, v6 = call vector_pop_front(u32 0, v1) -> (u32, u32, [u32])
             enable_side_effects u1 1
             return u32 1
         }
@@ -1334,12 +1384,12 @@ mod test {
     }
 
     #[test]
-    fn transforms_failing_slice_pop_if_always_enabled() {
+    fn transforms_failing_vector_pop_if_always_enabled() {
         let src = "
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u1):
             v1 = make_array [] : [u32]
-            v4, v5, v6 = call slice_pop_front(u32 0, v1) -> (u32, u32, [u32])
+            v4, v5, v6 = call vector_pop_front(u32 0, v1) -> (u32, u32, [u32])
             return v4
         }
         ";
@@ -1414,6 +1464,77 @@ mod test {
             constrain u1 0 == u1 1
             v4 = make_array [Field 0] : [Field; 1]
             return v4
+        }
+        ");
+    }
+
+    #[test]
+    fn keep_vector_length() {
+        // When VectorInsert becomes unreachable under a predicate,
+        // try_get_vector_capacity should determine the correct length (4 in this case)
+        // and replace it with a 4-element zero vector, not an empty vector.
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            v1 = make_array [u32 1, u32 2, u32 3] : [u32]
+            enable_side_effects v0
+            v2 = div u32 1, u32 0
+            v4, v5 = call vector_insert(u32 3, v1, u32 1, u32 42) -> (u32, [u32])
+            enable_side_effects u1 1
+            v6 = array_get v5, index u32 0 -> u32
+            return v6
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_instructions();
+
+        // v7 is NOT replaced with an empty array []
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            v4 = make_array [u32 1, u32 2, u32 3] : [u32]
+            enable_side_effects v0
+            constrain u1 0 == v0, "attempt to divide by zero"
+            v7 = make_array [u32 0, u32 0, u32 0, u32 0] : [u32]
+            enable_side_effects u1 1
+            return u32 0
+        }
+        "#);
+    }
+
+    #[test]
+    fn keep_vector_length_of_disabled_array_set() {
+        // This is an excerpt from the `execution_success/vectors` test.
+        // The crux of it is that we have an `array_set` under `enable_side_effects u1 0`,
+        // and then a bunch of `array_get` after  enable_side_effects u1 1;
+        // if we don't preserve the length of the default array, we get Index OOB later.
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32, v1: Field):
+            v2 = make_array [Field 0, Field 0, v1, Field 10] : [Field]
+            enable_side_effects u1 0
+            v3 = array_set v2, index v0, value Field 10
+            enable_side_effects u1 1
+            v4 = array_get v3, index u32 3 -> Field
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_instructions();
+
+        // v3 does not become empty, so we don't get an index OOB.
+        // This assumes that we don't actually use the read result in a side-effecting way.
+        // If we returned v4 above, it would return an incorrect value.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32, v1: Field):
+            v4 = make_array [Field 0, Field 0, v1, Field 10] : [Field]
+            enable_side_effects u1 0
+            v6 = make_array [Field 0, Field 0, Field 0, Field 0] : [Field]
+            enable_side_effects u1 1
+            return
         }
         ");
     }

@@ -1,8 +1,14 @@
 #!/bin/bash
 
-BB_VERSION=$1
+# Strip leading 'v' if present so the script accepts both "v3.0.0" and "3.0.0"
+BB_VERSION=${1#v}
 
 sed -i.bak "s/^VERSION=.*/VERSION=\"$BB_VERSION\"/" ./scripts/install_bb.sh  && rm ./scripts/install_bb.sh.bak
+
+# Update bb_proof_verification tag in Nargo.toml files (these require a leading 'v')
+grep -rl 'bb_proof_verification' --include='Nargo.toml' . | while read -r file; do
+    sed -i.bak '/bb_proof_verification/s/tag *= *"v[^"]*"/tag = "v'"$BB_VERSION"'"/' "$file" && rm "$file.bak"
+done
 
 tmp=$(mktemp)
 INTEGRATION_TESTS_PACKAGE_JSON=./compiler/integration-tests/package.json

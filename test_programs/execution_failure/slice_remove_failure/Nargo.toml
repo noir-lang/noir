@@ -1,5 +1,0 @@
-[package]
-name = "slice_remove_failure"
-type = "bin"
-authors = [""]
-[dependencies]

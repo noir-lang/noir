@@ -11,8 +11,10 @@ pub struct SomeStruct {
 
 fn main() {}
 
-#[abi(something)]
-pub struct Foo {}
+contract moo {
+    #[abi(something)]
+    pub struct Foo {}
+}
 
 comptime fn add_attribute(s: TypeDefinition) {
     assert(!s.has_named_attribute("foo"));

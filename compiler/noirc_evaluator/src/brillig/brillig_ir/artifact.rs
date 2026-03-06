@@ -1,12 +1,14 @@
 use acvm::acir::brillig::Opcode as BrilligOpcode;
+use acvm::acir::brillig::lengths::SemanticLength;
 use acvm::acir::circuit::ErrorSelector;
+use iter_extended::vecmap;
 use noirc_errors::call_stack::CallStackId;
-use std::collections::{BTreeMap, HashMap};
-
-use crate::ErrorType;
-use crate::ssa::ir::{basic_block::BasicBlockId, function::FunctionId};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use super::procedures::ProcedureId;
+use crate::ErrorType;
+use crate::brillig::assert_usize;
+use crate::ssa::ir::{basic_block::BasicBlockId, function::FunctionId};
 
 /// Represents a parameter or a return value of an entry point function.
 #[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
@@ -14,10 +16,25 @@ pub(crate) enum BrilligParameter {
     /// A single address parameter or return value. Holds the bit size of the parameter.
     SingleAddr(u32),
     /// An array parameter or return value. Holds the type of an array item and its size.
-    Array(Vec<BrilligParameter>, usize),
-    /// A slice parameter or return value. Holds the type of a slice item.
-    /// Only known-length slices can be passed to brillig entry points, so the size is available as well.
-    Slice(Vec<BrilligParameter>, usize),
+    Array(Vec<BrilligParameter>, SemanticLength),
+    /// A vector parameter or return value. Holds the type of a vector item.
+    /// Only known-length vectors can be passed to brillig entry points, so the size is available as well.
+    Vector(Vec<BrilligParameter>, SemanticLength),
+}
+
+impl BrilligParameter {
+    /// Computes the size of a parameter if it was flattened
+    pub(crate) fn flattened_size(&self) -> usize {
+        match self {
+            BrilligParameter::SingleAddr(_) => 1,
+            BrilligParameter::Array(item_types, item_count)
+            | BrilligParameter::Vector(item_types, item_count) => {
+                let size_of_item: usize =
+                    item_types.iter().map(|param| param.flattened_size()).sum();
+                assert_usize(item_count.0) * size_of_item
+            }
+        }
+    }
 }
 
 /// The result of compiling and linking brillig artifacts.
@@ -52,7 +69,7 @@ pub struct BrilligArtifact<F> {
     /// resolved.
     unresolved_jumps: Vec<(JumpInstructionPosition, UnresolvedJumpLocation)>,
     /// A map of labels to their position in byte code.
-    labels: HashMap<Label, OpcodeLocation>,
+    pub(crate) labels: HashMap<Label, OpcodeLocation>,
     /// Set of labels which are external to the bytecode.
     ///
     /// This will most commonly contain the labels of functions
@@ -67,6 +84,12 @@ pub struct BrilligArtifact<F> {
     /// Name of the function, only used for debugging purposes.
     pub(crate) name: String,
 
+    /// Positions of the 3 placeholder no-op opcodes emitted in the function prologue for
+    /// the per-frame spill region allocation. If the function actually spills, these are
+    /// overwritten with real allocation instructions after a function's code generation is complete.
+    /// If no spilling occurs, the no-ops remain harmless.
+    unresolved_spill_prologue: Option<[OpcodeLocation; 3]>,
+
     /// This field contains the given procedure id if this artifact originates from as procedure
     pub(crate) procedure: Option<ProcedureId>,
     /// Procedure ID mapped to the range of its opcode locations
@@ -78,10 +101,64 @@ pub struct BrilligArtifact<F> {
 
 impl<F: std::fmt::Display> std::fmt::Display for BrilligArtifact<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // If we have unresolved jumps, show a comment with the destination, instead of just 0.
+        let unresolved_jumps = self
+            .unresolved_jumps
+            .iter()
+            .chain(self.unresolved_external_call_labels.iter())
+            .map(|(loc, label)| (*loc, label))
+            .collect::<HashMap<_, _>>();
+
+        let unresolved_jump_destinations = unresolved_jumps.values().collect::<HashSet<_>>();
+
+        // Show where the labels actually are. There can be multiple at the same position.
+        let mut labels_by_loc: HashMap<usize, Vec<&Label>> = HashMap::new();
+        for (label, loc) in &self.labels {
+            // We could show labels for every block, but for now just for jump destinations.
+            if !unresolved_jump_destinations.contains(&label) {
+                continue;
+            }
+            let labels = labels_by_loc.entry(*loc).or_default();
+            labels.push(label);
+        }
+        // self.labels has a non-deterministic iteration order, which could affect the concat of labels.
+        labels_by_loc.values_mut().for_each(|v| v.sort());
+
+        // The default label format is a bit verbose.
+        fn short_label(label: &&Label) -> String {
+            let typ = match &label.label_type {
+                LabelType::Entrypoint => "entry".to_string(),
+                LabelType::Function(id, Some(block_id)) => format!("{id}/{block_id}"),
+                LabelType::Function(id, None) => format!("{id}"),
+                LabelType::Procedure(procedure_id) => format!("{procedure_id}"),
+                LabelType::GlobalInit(id) => format!("global init {id}"),
+            };
+            label.section.map(|s| format!("{typ}/{s}")).unwrap_or(typ)
+        }
+
+        let get_comment = |index| {
+            // Only annotate if there are jumps. We could show labels anyway if we wanted.
+            if unresolved_jumps.is_empty() {
+                return String::new();
+            }
+            let destination = unresolved_jumps.get(&index).map(|label| {
+                let short = short_label(label);
+                if let Some(loc) = self.labels.get(label) {
+                    format!("-> {loc}: {short}")
+                } else {
+                    format!("-> {short}")
+                }
+            });
+            let labels =
+                labels_by_loc.get(&index).map(|labels| vecmap(labels, short_label).join(", "));
+            destination.or(labels).map(|s| format!(" // {s}")).unwrap_or_default()
+        };
+
         writeln!(f, "fn {}", self.name)?;
         let width = self.byte_code.len().to_string().len();
         for (index, opcode) in self.byte_code.iter().enumerate() {
-            writeln!(f, "{index:>width$}: {opcode}")?;
+            let comment = get_comment(index);
+            writeln!(f, "{index:>width$}: {opcode}{comment}")?;
         }
         Ok(())
     }
@@ -90,7 +167,7 @@ impl<F: std::fmt::Display> std::fmt::Display for BrilligArtifact<F> {
 /// A pointer to a location in the opcode.
 pub(crate) type OpcodeLocation = usize;
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
 pub(crate) enum LabelType {
     /// Labels for the entry point bytecode
     Entrypoint,
@@ -108,15 +185,15 @@ impl std::fmt::Display for LabelType {
         match self {
             LabelType::Function(function_id, block_id) => {
                 if let Some(block_id) = block_id {
-                    write!(f, "Function({function_id:?}, {block_id:?})")
+                    write!(f, "Function({function_id}, {block_id})")
                 } else {
-                    write!(f, "Function({function_id:?})")
+                    write!(f, "Function({function_id})")
                 }
             }
             LabelType::Entrypoint => write!(f, "Entrypoint"),
-            LabelType::Procedure(procedure_id) => write!(f, "Procedure({procedure_id:?})"),
+            LabelType::Procedure(procedure_id) => write!(f, "Procedure({procedure_id})"),
             LabelType::GlobalInit(function_id) => {
-                write!(f, "Globals Initialization({function_id:?})")
+                write!(f, "Globals Initialization({function_id})")
             }
         }
     }
@@ -126,7 +203,7 @@ impl std::fmt::Display for LabelType {
 ///
 /// It is assumed that an entity will keep a map
 /// of labels to Opcode locations.
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
 pub(crate) struct Label {
     pub(crate) label_type: LabelType,
     pub(crate) section: Option<usize>,
@@ -161,9 +238,9 @@ impl Label {
 impl std::fmt::Display for Label {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if let Some(section) = self.section {
-            write!(f, "{:?} - {}", self.label_type, section)
+            write!(f, "{} / {}", self.label_type, section)
         } else {
-            write!(f, "{:?}", self.label_type)
+            write!(f, "{}", self.label_type)
         }
     }
 }
@@ -249,7 +326,7 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
                 .push((position_in_bytecode + offset, label_id.clone()));
         }
 
-        for (position_in_bytecode, call_stack) in obj.locations.iter() {
+        for (position_in_bytecode, call_stack) in &obj.locations {
             self.locations.insert(position_in_bytecode + offset, *call_stack);
         }
     }
@@ -357,6 +434,16 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
 
     pub(crate) fn set_call_stack(&mut self, call_stack: CallStackId) {
         self.call_stack_id = call_stack;
+    }
+
+    /// Record the positions of 3 placeholder no-op opcodes for the spill prologue.
+    pub(crate) fn set_unresolved_spill_prologue(&mut self, positions: [OpcodeLocation; 3]) {
+        self.unresolved_spill_prologue = Some(positions);
+    }
+
+    /// Get the recorded spill prologue positions, consuming them.
+    pub(crate) fn take_unresolved_spill_prologue(&mut self) -> Option<[OpcodeLocation; 3]> {
+        self.unresolved_spill_prologue.take()
     }
 
     #[cfg(test)]

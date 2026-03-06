@@ -2,6 +2,9 @@ name: Algolia Recrawl
 on:
   push:
     branches: [ master ]
+  schedule:
+    # Run on weekdays at 0900
+    - cron: "0 9 * * 1-5"
   workflow_dispatch:
 
 jobs:
@@ -12,7 +15,7 @@ jobs:
       contents: read
     steps:
       - name: Algolia crawler creation and crawl
-        uses: algolia/algoliasearch-crawler-github-actions@v1.1.0
+        uses: algolia/algoliasearch-crawler-github-actions@v1.1.13
         id: algolia_crawler
         with:
           crawler-user-id: ${{ secrets.CRAWLER_USER_ID }}
@@ -22,3 +25,13 @@ jobs:
           site-url: 'https://noir-lang.org/'
           crawler-name: noir-lang
           override-config: false
+
+      - name: Send an alert in slack
+        # Send notifications on scheduled runs if there's a failure.
+        if: ${{ failure() && github.event_name == 'schedule' }}
+        uses: slackapi/slack-github-action@v2.1.1
+        with:
+          webhook: ${{ secrets.ALGOLIA_FAILURE_ALERT_URL }}
+          webhook-type: webhook-trigger
+          payload: |
+            workflow-url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

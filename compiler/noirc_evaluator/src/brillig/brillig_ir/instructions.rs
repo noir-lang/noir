@@ -88,22 +88,22 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// Insert a conditional move instruction
     pub(crate) fn conditional_move_instruction(
         &mut self,
-        condition: SingleAddrVariable,
-        then_address: SingleAddrVariable,
-        else_address: SingleAddrVariable,
-        destination: SingleAddrVariable,
+        condition: MemoryAddress,
+        then_address: MemoryAddress,
+        else_address: MemoryAddress,
+        destination: MemoryAddress,
     ) {
         self.debug_show.conditional_mov_instruction(
-            destination.address,
-            then_address.address,
-            else_address.address,
-            condition.address,
+            destination,
+            then_address,
+            else_address,
+            condition,
         );
         self.push_opcode(BrilligOpcode::ConditionalMov {
-            destination: destination.address,
-            source_a: then_address.address,
-            source_b: else_address.address,
-            condition: condition.address,
+            destination,
+            source_a: then_address,
+            source_b: else_address,
+            condition,
         });
     }
 
@@ -262,7 +262,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     ///
     /// Entering a context resets the current section to 0 and the next section to 1.
     pub(crate) fn enter_context(&mut self, label: Label) {
-        debug_assert!(label.section.is_none(), "new context should have no section");
+        assert!(label.section.is_none(), "new context should have no section");
         self.debug_show.enter_context(label.to_string());
         self.context_label = label.clone();
         // Add a context label to the next opcode

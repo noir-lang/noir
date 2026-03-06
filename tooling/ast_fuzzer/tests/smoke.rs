@@ -8,7 +8,6 @@
 //! ```
 use std::time::Duration;
 
-use acir::circuit::ExpressionWidth;
 use arbtest::arbtest;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use nargo::{NargoError, foreign_calls::DefaultForeignCallBuilder};
@@ -18,7 +17,7 @@ use noirc_evaluator::{
     brillig::BrilligOptions,
     ssa::{
         self,
-        opt::{CONSTANT_FOLDING_MAX_ITER, INLINING_MAX_INSTRUCTIONS},
+        opt::{CONSTANT_FOLDING_MAX_ITER, FORCE_UNROLL_THRESHOLD, INLINING_MAX_INSTRUCTIONS},
     },
 };
 
@@ -42,7 +41,6 @@ fn arb_program_can_be_executed() {
             ssa_logging: ssa::SsaLogging::None,
             brillig_options: BrilligOptions::default(),
             print_codegen_timings: false,
-            expression_width: ExpressionWidth::default(),
             emit_ssa: None,
             skip_underconstrained_check: true,
             skip_brillig_constraints_check: true,
@@ -51,7 +49,9 @@ fn arb_program_can_be_executed() {
             constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
             small_function_max_instruction: INLINING_MAX_INSTRUCTIONS,
             max_bytecode_increase_percent: None,
+            force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
             skip_passes: Default::default(),
+            ssa_logging_hide_unchanged: false,
         };
 
         // Print the AST if something goes wrong, then panic.
@@ -83,7 +83,7 @@ fn arb_program_can_be_executed() {
             );
         }
 
-        let blackbox_solver = Bn254BlackBoxSolver(false);
+        let blackbox_solver = Bn254BlackBoxSolver;
         let initial_witness = abi.encode(&inputs, None).unwrap();
 
         let mut foreign_call_executor =

@@ -7,11 +7,11 @@ use acvm::acir::native_types::WitnessStack;
 use noir_ssa_fuzzer::typed_value::Type;
 use noirc_evaluator::ssa::ir::function::RuntimeType;
 
-fn type_contains_slice_or_reference(type_: &Type) -> bool {
+fn type_contains_vector_or_reference(type_: &Type) -> bool {
     match type_ {
-        Type::Slice(_) => true,
+        Type::Vector(_) => true,
         Type::Reference(_) => true,
-        Type::Array(arr, _) => arr.iter().any(type_contains_slice_or_reference),
+        Type::Array(arr, _) => arr.iter().any(type_contains_vector_or_reference),
         Type::Numeric(_) => false,
     }
 }
@@ -38,7 +38,7 @@ pub(crate) fn fuzz_target(
         return FuzzerOutput { witness_stack: WitnessStack::from(witness_map), program: None };
     }
 
-    if type_contains_slice_or_reference(&data.functions[0].return_type) {
+    if type_contains_vector_or_reference(&data.functions[0].return_type) {
         // main cannot return a reference
         data.functions[0].return_type = Type::default();
     }

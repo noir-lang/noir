@@ -7,14 +7,14 @@ fn main(x: u32) {
     lambdas_in_array_literal(x);
     lambdas_in_array_literal(x + 2_u32);
     lambdas_in_array_literal(x + 1_u32);
-    lambdas_in_slice_literal(x - 1_u32);
-    lambdas_in_slice_literal(x);
-    lambdas_in_slice_literal(x + 1_u32);
-    lambdas_in_slice_literal(x + 2_u32);
+    lambdas_in_vector_literal(x - 1_u32);
+    lambdas_in_vector_literal(x);
+    lambdas_in_vector_literal(x + 1_u32);
+    lambdas_in_vector_literal(x + 2_u32);
     functions_in_array_literal(x - 1_u32);
     functions_in_array_literal(x);
-    functions_in_slice_literal(x - 1_u32);
-    functions_in_slice_literal(x);
+    functions_in_vector_literal(x - 1_u32);
+    functions_in_vector_literal(x);
     let example_lambda: fn(u8) -> u8 = |x: u8| -> u8 { x + 1_u8 };
     let lambdas: [fn(u8) -> u8; 8] = [example_lambda; 8];
     println(lambdas[0_u32](5_u8));
@@ -22,7 +22,7 @@ fn main(x: u32) {
     let lambdas: [fn(()); 1] = [|_: ()| {}];
     lambdas[0_u32](());
     lambdas[x - 1_u32](());
-    let lambdas: [fn(())] = &[|_: ()| {}];
+    let lambdas: [fn(())] = [|_: ()| {}].as_vector();
     lambdas[0_u32](());
     lambdas[x - 1_u32](());
 }
@@ -32,8 +32,9 @@ fn lambdas_in_array_literal(x: u32) {
     xs[x]();
 }
 
-fn lambdas_in_slice_literal(x: u32) {
-    let xs: [fn()] = &[|| println("hi"), || println("bye"), || println("big"), || println("wow")];
+fn lambdas_in_vector_literal(x: u32) {
+    let xs: [fn()] =
+        [|| println("hi"), || println("bye"), || println("big"), || println("wow")].as_vector();
     xs[x]();
 }
 
@@ -42,8 +43,8 @@ fn functions_in_array_literal(x: u32) {
     xs[x]();
 }
 
-fn functions_in_slice_literal(x: u32) {
-    let xs: [fn()] = &[baz, qux];
+fn functions_in_vector_literal(x: u32) {
+    let xs: [fn()] = [baz, qux].as_vector();
     xs[x]();
 }
 

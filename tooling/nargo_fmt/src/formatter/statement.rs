@@ -1,8 +1,7 @@
 use noirc_frontend::{
     ast::{
         AssignStatement, Expression, ExpressionKind, ForLoopStatement, ForRange, LetStatement,
-        LoopStatement, Pattern, Statement, StatementKind, UnresolvedType, UnresolvedTypeData,
-        WhileStatement,
+        LoopStatement, Pattern, Statement, StatementKind, UnresolvedType, WhileStatement,
     },
     token::{Keyword, SecondaryAttribute, Token, TokenKind},
 };
@@ -21,7 +20,6 @@ impl ChunkFormatter<'_, '_> {
             formatter.skip_whitespace();
         }));
 
-        // Now write any leading comment respecting multiple newlines after them
         group.leading_comment(self.chunk(|formatter| {
             // Doc comments for a let statement could come before a potential non-doc comment
             if formatter.token.kind() == TokenKind::OuterDocComment {
@@ -35,6 +33,13 @@ impl ChunkFormatter<'_, '_> {
                 formatter.format_outer_doc_comments_checking_safety();
             }
         }));
+
+        // Or doc comments could come after a potential non-doc comment
+        if self.token.kind() == TokenKind::OuterDocComment {
+            group.leading_comment(self.chunk(|formatter| {
+                formatter.format_outer_doc_comments();
+            }));
+        }
 
         ignore_next |= self.ignore_next;
 
@@ -123,7 +128,7 @@ impl ChunkFormatter<'_, '_> {
         &mut self,
         keyword: Keyword,
         pattern: Pattern,
-        typ: UnresolvedType,
+        typ: Option<UnresolvedType>,
         value: Option<Expression>,
         attributes: Vec<SecondaryAttribute>,
     ) -> ChunkGroup {
@@ -137,7 +142,7 @@ impl ChunkFormatter<'_, '_> {
 
         let mut pattern_and_type_group = self.format_pattern(pattern);
 
-        if typ.typ != UnresolvedTypeData::Unspecified {
+        if let Some(typ) = typ {
             pattern_and_type_group.text(self.chunk(|formatter| {
                 formatter.write_token(Token::Colon);
                 formatter.write_space();

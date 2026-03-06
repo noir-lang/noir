@@ -3,6 +3,7 @@
 
 use std::sync::{Arc, OnceLock};
 
+use acir::brillig::lengths::SemanticLength;
 use arbitrary::Unstructured;
 use color_eyre::eyre;
 use iter_extended::vecmap;
@@ -146,7 +147,7 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                 Internal(InternalError::ConstantDoesNotFitInType { constant, .. }),
             ) => {
                 // The value should be a `NumericValue` display format, which is `<type> <value>`.
-                let value = value.split_once(' ').map(|(_, value)| value).unwrap_or(value);
+                let value = value.split_once(' ').map_or(value.as_str(), |(_, value)| value);
                 value == constant.to_string()
             }
             (Internal(_), _) | (_, Internal(_)) => {
@@ -162,7 +163,7 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                     (start < end).then(|| &s[start..=end])
                 }
                 fn details_or_sanitize(s: &str) -> String {
-                    details(s).map(|s| s.to_string()).unwrap_or_else(|| sanitize_ssa(s))
+                    details(s).map_or_else(|| sanitize_ssa(s), |s| s.to_string())
                 }
                 details_or_sanitize(i1) == details_or_sanitize(i2)
             }
@@ -214,8 +215,8 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                 // Signed math in ACIR is expanded to unsigned math. We may have two different `DivisionByZero` errors due to differing types.
                 true
             }
-            (PoppedFromEmptySlice { .. }, ConstrainEqFailed { msg, .. }) => {
-                // The removal of unreachable instructions can replace popping from an empty slice with an always-fail constraint.
+            (PoppedFromEmptyVector { .. }, ConstrainEqFailed { msg, .. }) => {
+                // The removal of unreachable instructions can replace popping from an empty vector with an always-fail constraint.
                 msg.as_ref().is_some_and(|msg| msg == "Index out of bounds")
             }
             (IndexOutOfBounds { .. }, ConstrainEqFailed { msg, .. }) => {
@@ -235,11 +236,11 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
 impl Comparable for Value {
     fn equivalent(a: &Self, b: &Self) -> bool {
         match (a, b) {
-            (Value::ArrayOrSlice(a), Value::ArrayOrSlice(b)) => {
+            (Value::ArrayOrVector(a), Value::ArrayOrVector(b)) => {
                 // Ignore the RC
                 a.element_types == b.element_types
                     && Comparable::equivalent(&a.elements, &b.elements)
-                    && a.is_slice == b.is_slice
+                    && a.is_vector == b.is_vector
             }
             (Value::Reference(a), Value::Reference(b)) => {
                 // Ignore the original ID
@@ -276,11 +277,11 @@ fn append_input_value_to_ssa(typ: &AbiType, input: &InputValue, values: &mut Vec
     use ssa::interpreter::value::{ArrayValue, NumericValue, Value};
     use ssa::ir::types::Type;
     let array_value = |elements: Vec<Value>, types: Vec<Type>| {
-        Value::ArrayOrSlice(ArrayValue {
+        Value::ArrayOrVector(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(1),
             element_types: Arc::new(types),
-            is_slice: false,
+            is_vector: false,
         })
     };
     match input {
@@ -351,7 +352,7 @@ fn append_input_type_to_ssa(typ: &AbiType, types: &mut Vec<ssa::ir::types::Type>
     match typ {
         AbiType::Field => types.push(Type::field()),
         AbiType::Array { length, typ } => {
-            types.push(Type::Array(Arc::new(input_type_to_ssa(typ)), *length));
+            types.push(Type::Array(Arc::new(input_type_to_ssa(typ)), SemanticLength(*length)));
         }
         AbiType::Integer { sign: Sign::Signed, width } => types.push(Type::signed(*width)),
         AbiType::Integer { sign: Sign::Unsigned, width } => types.push(Type::unsigned(*width)),
@@ -369,7 +370,7 @@ fn append_input_type_to_ssa(typ: &AbiType, types: &mut Vec<ssa::ir::types::Type>
             }
         }
         AbiType::String { length } => {
-            types.push(Type::Array(Arc::new(vec![Type::unsigned(8)]), *length));
+            types.push(Type::Array(Arc::new(vec![Type::unsigned(8)]), SemanticLength(*length)));
         }
     }
 }
@@ -402,7 +403,7 @@ mod tests {
             v30 = cast v23 as i64
             v31 = lt v30, v19
             v32 = not v31
-            jmpif v32 then: b1, else: b2
+            jmpif v32 then: b1(), else: b2()
         "#;
 
         let ssa = sanitize_ssa(src);
@@ -421,7 +422,7 @@ mod tests {
             v_ = cast v_ as i64
             v_ = lt v_, v_
             v_ = not v_
-            jmpif v_ then: b_, else: b_
+            jmpif v_ then: b_(), else: b_()
         "#
         );
     }

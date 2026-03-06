@@ -124,7 +124,7 @@ impl core::fmt::Display for IntegerBitSize {
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum UnresolvedTypeData {
     Array(UnresolvedTypeExpression, Box<UnresolvedType>), // [Field; 4] = Array(4, Field)
-    Slice(Box<UnresolvedType>),
+    Vector(Box<UnresolvedType>),
     Expression(UnresolvedTypeExpression),
     Unit,
 
@@ -161,7 +161,6 @@ pub enum UnresolvedTypeData {
     // The actual UnresolvedTypeData can be retrieved with a NodeInterner.
     Interned(InternedUnresolvedTypeData),
 
-    Unspecified, // This is for when the user declares a variable without specifying it's type
     Error,
 }
 
@@ -204,14 +203,6 @@ pub struct GenericTypeArgs {
 impl GenericTypeArgs {
     pub fn is_empty(&self) -> bool {
         self.ordered_args.is_empty() && self.named_args.is_empty()
-    }
-
-    fn contains_unspecified(&self) -> bool {
-        let ordered_args_contains_unspecified =
-            self.ordered_args.iter().any(|ordered_arg| ordered_arg.contains_unspecified());
-        let named_args_contains_unspecified =
-            self.named_args.iter().any(|(_name, named_arg)| named_arg.contains_unspecified());
-        ordered_args_contains_unspecified || named_args_contains_unspecified
     }
 }
 
@@ -275,7 +266,7 @@ impl std::fmt::Display for UnresolvedTypeData {
         use UnresolvedTypeData::*;
         match self {
             Array(len, typ) => write!(f, "[{typ}; {len}]"),
-            Slice(typ) => write!(f, "[{typ}]"),
+            Vector(typ) => write!(f, "[{typ}]"),
             Named(s, args, _) => write!(f, "{s}{args}"),
             TraitAsType(s, args) => write!(f, "impl {s}{args}"),
             Tuple(elements) => {
@@ -309,7 +300,6 @@ impl std::fmt::Display for UnresolvedTypeData {
             Reference(element, true) => write!(f, "&mut {element}"),
             Unit => write!(f, "()"),
             Error => write!(f, "error"),
-            Unspecified => write!(f, "unspecified"),
             Parenthesized(typ) => write!(f, "({typ})"),
             Resolved(_) => write!(f, "(resolved type)"),
             Interned(_) => write!(f, "?Interned"),
@@ -358,10 +348,6 @@ impl UnresolvedType {
         };
         let typ = UnresolvedTypeData::Named(path, generic_type_args, true);
         UnresolvedType { typ, location }
-    }
-
-    pub(crate) fn contains_unspecified(&self) -> bool {
-        self.typ.contains_unspecified()
     }
 }
 
@@ -450,39 +436,6 @@ impl UnresolvedTypeData {
 
     pub fn with_dummy_location(&self) -> UnresolvedType {
         self.with_location(Location::dummy())
-    }
-
-    fn contains_unspecified(&self) -> bool {
-        match self {
-            UnresolvedTypeData::Array(typ, length) => {
-                typ.contains_unspecified() || length.contains_unspecified()
-            }
-            UnresolvedTypeData::Slice(typ) => typ.contains_unspecified(),
-            UnresolvedTypeData::Expression(expr) => expr.contains_unspecified(),
-            UnresolvedTypeData::Parenthesized(typ) => typ.contains_unspecified(),
-            UnresolvedTypeData::Named(path, args, _is_synthesized) => {
-                // '_' is unspecified
-                let path_is_wildcard = path.is_wildcard();
-                let an_arg_is_unresolved = args.contains_unspecified();
-                path_is_wildcard || an_arg_is_unresolved
-            }
-            UnresolvedTypeData::TraitAsType(_path, args) => args.contains_unspecified(),
-            UnresolvedTypeData::Reference(typ, _) => typ.contains_unspecified(),
-            UnresolvedTypeData::Tuple(args) => args.iter().any(|arg| arg.contains_unspecified()),
-            UnresolvedTypeData::Function(args, ret, env, _unconstrained) => {
-                let args_contains_unspecified = args.iter().any(|arg| arg.contains_unspecified());
-                args_contains_unspecified
-                    || ret.contains_unspecified()
-                    || env.contains_unspecified()
-            }
-            UnresolvedTypeData::Unspecified => true,
-
-            UnresolvedTypeData::Unit
-            | UnresolvedTypeData::AsTraitPath(_)
-            | UnresolvedTypeData::Resolved(_)
-            | UnresolvedTypeData::Interned(_)
-            | UnresolvedTypeData::Error => false,
-        }
     }
 
     pub(crate) fn try_into_expression(&self) -> Option<UnresolvedTypeExpression> {
@@ -608,19 +561,6 @@ impl UnresolvedTypeExpression {
                 | BinaryOpKind::Divide
                 | BinaryOpKind::Modulo
         )
-    }
-
-    fn contains_unspecified(&self) -> bool {
-        match self {
-            // '_' is unspecified
-            UnresolvedTypeExpression::Variable(path) => path.is_wildcard(),
-            UnresolvedTypeExpression::BinaryOperation(lhs, _op, rhs, _span) => {
-                lhs.contains_unspecified() || rhs.contains_unspecified()
-            }
-            UnresolvedTypeExpression::Constant(..) | UnresolvedTypeExpression::AsTraitPath(_) => {
-                false
-            }
-        }
     }
 
     pub(crate) fn is_valid_expression(&self) -> bool {

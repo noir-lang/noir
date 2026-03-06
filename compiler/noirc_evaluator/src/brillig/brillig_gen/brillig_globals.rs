@@ -98,7 +98,7 @@ impl BrilligGlobalsInit {
 
         // Mark any globals used in a Brillig entry point.
         // Using the information collected we can determine which globals an entry point must initialize.
-        for (entry_point, entry_point_inner_calls) in brillig_entry_points.iter() {
+        for (entry_point, entry_point_inner_calls) in &brillig_entry_points {
             // Increment the use-count of local constants in this entry point.
             let entry_func = &ssa.functions[entry_point];
             Self::mark_globals_for_hoisting(
@@ -109,7 +109,7 @@ impl BrilligGlobalsInit {
             );
 
             // Increment the use-count of local constants in all functions called by the entry point.
-            for inner_call in entry_point_inner_calls.iter() {
+            for inner_call in entry_point_inner_calls {
                 let inner_func = &ssa.functions[inner_call];
                 Self::mark_globals_for_hoisting(
                     &mut constant_usage,
@@ -350,7 +350,7 @@ impl Brillig {
         brillig_context.return_instruction();
 
         // The artifact contains the Brillig bytecode to initialize the global variables and constants.
-        let artifact = brillig_context.artifact();
+        let artifact = brillig_context.into_artifact();
 
         // The global registers are going to become pre-allocated registers when we compile functions,
         // so we can stop tracking their allocation life cycles and keep just the memory addresses.
@@ -375,7 +375,7 @@ mod tests {
         acir::brillig::{BitSize, IntegerBitSize, Opcode},
     };
 
-    use crate::brillig::{BrilligOptions, GlobalSpace, LabelType, Ssa};
+    use crate::brillig::{BrilligOptions, GlobalSpace, LabelType, Ssa, assert_u32};
 
     use super::ConstantAllocation;
 
@@ -441,7 +441,7 @@ mod tests {
                 };
                 assert_eq!(
                     destination.unwrap_direct(),
-                    GlobalSpace::start_with_layout(&options.layout)
+                    assert_u32(GlobalSpace::start_with_layout(&options.layout))
                 );
                 assert!(matches!(bit_size, BitSize::Field));
                 assert_eq!(*value, FieldElement::from(2u128));
@@ -487,7 +487,7 @@ mod tests {
               jmp b1(u32 0)
           b1(v7: u32):
               v11 = lt v7, u32 2
-              jmpif v11 then: b3, else: b2
+              jmpif v11 then: b3(), else: b2()
           b2():
               v12 = load v8 -> Field
               v13 = eq v12, Field 0
@@ -554,7 +554,7 @@ mod tests {
                 };
                 assert_eq!(
                     destination.unwrap_direct(),
-                    GlobalSpace::start_with_layout(&options.layout)
+                    assert_u32(GlobalSpace::start_with_layout(&options.layout))
                 );
                 assert!(matches!(bit_size, BitSize::Field));
                 assert_eq!(*value, FieldElement::from(1u128));
@@ -572,7 +572,7 @@ mod tests {
                     .get(&func_id)
                     .copied()
                     .expect("Should have globals memory size");
-                assert_eq!(globals_max_memory, 7);
+                assert_eq!(globals_max_memory, 7 - 2, "maximum minus temporary");
             } else {
                 panic!("Unexpected function id: {func_id}");
             }
@@ -655,7 +655,7 @@ mod tests {
             };
             assert_eq!(
                 destination.unwrap_direct(),
-                GlobalSpace::start_with_layout(&options.layout)
+                assert_u32(GlobalSpace::start_with_layout(&options.layout))
             );
             assert!(matches!(bit_size, BitSize::Integer(IntegerBitSize::U1)));
             assert_eq!(*value, FieldElement::from(0u128));
@@ -665,7 +665,7 @@ mod tests {
             };
             assert_eq!(
                 destination.unwrap_direct(),
-                GlobalSpace::start_with_layout(&options.layout) + 1
+                assert_u32(GlobalSpace::start_with_layout(&options.layout) + 1)
             );
             assert!(matches!(bit_size, BitSize::Field));
             assert_eq!(*value, FieldElement::from(1u128));

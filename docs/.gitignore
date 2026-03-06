@@ -13,6 +13,7 @@ processed-docs-cache
 
 # Misc
 .DS_Store
+.env
 .env.local
 .env.development.local
 .env.test.local
@@ -26,3 +27,4 @@ yarn-error.log*
 package-lock.json
 versions.json
 .supermavenignore
+.claude

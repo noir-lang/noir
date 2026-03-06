@@ -74,7 +74,7 @@ fn resolve_fmt_strings() {
 fn resolve_fmt_string_with_global() {
     let src = r#"
     global VALUE: u32 = 42;
-    
+
     fn main() {
         let _result = f"Value: {VALUE}";
     }
@@ -93,7 +93,7 @@ fn multiple_resolution_errors() {
                        ~ not found in this scope
                ^ unused variable z
                ~ unused variable
-                       
+
         }
     "#;
     check_errors(src);
@@ -138,7 +138,7 @@ fn cannot_assign_to_module() {
 
     fn main() {
         foo = 1;
-        ^^^ expected value got module
+        ^^^ expected value, found module `foo`
     }
     "#;
     check_errors(src);
@@ -153,7 +153,7 @@ fn cannot_assign_to_nested_struct() {
 
     fn main() {
         foo::bar = 1;
-        ^^^^^^^^ expected value got type
+        ^^^^^^^^ expected value, found struct `bar`
     }
     "#;
     check_errors(src);
@@ -179,7 +179,7 @@ fn does_not_error_on_return_values_after_block_expression() {
     fn case1() -> [Field] {
         if true {
         }
-        &[1]
+        @[1]
     }
 
     fn case2() -> [u8] {
@@ -187,7 +187,7 @@ fn does_not_error_on_return_values_after_block_expression() {
         {
             var += 1;
         }
-        &[var]
+        @[var]
     }
 
     fn main() {
@@ -225,4 +225,301 @@ fn must_use() {
         }
     "#;
     check_errors(src);
+}
+
+#[test]
+fn abi_incompatible_assert_message() {
+    let src = r#"
+        fn main() {
+            let xs = @[0_u32];
+            assert(xs[0] > 0, f"bad vector: {xs}");
+                              ^^^^^^^^^^^^^^^^^^^ The type [u32] cannot be used in a message
+
+            assert(false, ());
+                          ^^ The type () cannot be used in a message
+
+            assert(false, xs);
+                          ^^ The type [u32] cannot be used in a message
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn abi_incompatible_generic_assert_message() {
+    // The message cannot appear in the ABI, but we can't tell
+    // what T is going to be before monomorphization, so we can't reject.
+    let src = r#"
+        fn main() {
+            let a = @[1, 2, 3];
+            foo(f"A: {a} is not 1!");
+        }
+
+        fn foo<T>(x: T) {
+            assert(false, x);
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn use_struct_as_value() {
+    let src = r#"
+    struct Foo {}
+
+    fn main() {
+        let _ = Foo;
+                ^^^ expected value, found struct `Foo`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn comptime_block_quote_semicolon() {
+    let src = r#"
+        fn main() {
+            comptime { quote[foo] };
+                             ^^^ cannot find `foo` in this scope
+                             ~~~ not found in this scope
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn let_comptime_block_quote_semicolon() {
+    let src = r#"
+        fn main() {
+            let _ = comptime { quote[foo] };
+                                     ^^^ cannot find `foo` in this scope
+                                     ~~~ not found in this scope
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn comptime_block_inner_semicolon() {
+    let src = r#"
+        fn main() {
+            comptime { foo; }
+                       ^^^ cannot find `foo` in this scope
+                       ~~~ not found in this scope
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn let_comptime_block_inner_semicolon() {
+    let src = r#"
+        fn main() {
+            let _ = comptime { foo; };
+                               ^^^ cannot find `foo` in this scope
+                               ~~~ not found in this scope
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn comptime_block_quote_semicolon_unused_warning() {
+    let src = r#"
+        fn main() {
+            comptime { quote[foo]; };
+                       ^^^^^^^^^^ Unused expression result of type Quoted
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn let_comptime_block_quote_semicolon_unused_warning() {
+    let src = r#"
+        fn main() {
+            let _ = comptime { quote[foo]; };
+                               ^^^^^^^^^^ Unused expression result of type Quoted
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn comptime_block_semicolon_unused_warning() {
+    let src = r#"
+        fn main() {
+            comptime { 1 + 2 };
+                              ^ Unused expression result of type Field
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn comptime_block_inner_semicolon_unused_warning() {
+    let src = r#"
+        fn main() {
+            comptime { 1 + 2; }
+                       ^^^^^ Unused expression result of type Field
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn let_comptime_block_inner_semicolon_unused_warning() {
+    let src = r#"
+        fn main() {
+            let _ = comptime { 1 + 2; };
+                               ^^^^^ Unused expression result of type Field
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn let_comptime_block_semicolon_no_warning() {
+    let src = r#"
+        fn main() {
+            let _ = comptime { 1 + 2 };
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn unnecessary_mut_on_variable() {
+    let src = r#"
+    fn main() {
+        let mut x = 1;
+                ^ variable does not need to be mutable
+        foo(x);
+    }
+
+    fn foo(_: Field) {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn unnecessary_mut_on_mut_ref_variable() {
+    let src = r#"
+    struct S {
+        x: Field,
+    }
+
+    fn main() {
+        let mut s = &mut S { x: 1 };
+                ^ variable does not need to be mutable
+        s.x = 2;
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn does_not_trigger_unnecessary_mut_on_variable_if_annotated_with_allow_unused_mut() {
+    let src = r#"
+    fn main() {
+        #[allow(unused_mut)]
+        let mut x = 1;
+        let _ = x;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_trigger_unnecessary_mut_if_variable_name_starts_with_underscore() {
+    let src = r#"
+    fn main() {
+        let mut _x = 1;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_trigger_unnecessary_mut_if_variable_is_directly_mutated() {
+    let src = r#"
+    fn main() {
+        let mut x = 1;
+        x = 1;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_trigger_unnecessary_mut_if_variable_is_mutated_via_member_access() {
+    let src = r#"
+    struct S {
+        x: Field,
+    }
+
+    fn main() {
+        let mut s = S { x: 1 };
+        s.x = 1;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_trigger_unnecessary_mut_if_variable_is_mutated_via_index() {
+    let src = r#"
+    fn main() {
+        let mut x = [1];
+        x[0] = 1;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_trigger_unnecessary_mut_if_variable_is_used_in_mut_ref() {
+    let src = r#"
+    fn main() {
+        let mut x = 1;
+        let _ = &mut x;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_trigger_unnecessary_mut_if_variable_is_used_in_member_access_mut_ref() {
+    let src = r#"
+    struct S {
+        x: Field,
+    }
+
+    fn main() {
+        let mut s = S { x: 1 };
+        let _ = &mut s.x;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_trigger_unnecessary_mut_if_mut_self_method_is_called() {
+    let src = r#"
+    struct S {
+        x: Field,
+    }
+
+    impl S {
+        fn mutate_self(&mut self) {
+            self.x = 1;
+        }
+    }
+
+    fn main() {
+        let mut s = S { x: 1 };
+        s.mutate_self();
+    }
+    "#;
+    assert_no_errors(src);
 }

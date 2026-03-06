@@ -37,7 +37,7 @@ pub fn prepare_dependencies(
     parent_crate: CrateId,
     dependencies: &BTreeMap<CrateName, Dependency>,
 ) {
-    for (dep_name, dep) in dependencies.iter() {
+    for (dep_name, dep) in dependencies {
         match dep {
             Dependency::Remote { package } | Dependency::Local { package } => {
                 let crate_id = prepare_dependency(context, &package.entry_path);
@@ -75,7 +75,7 @@ pub fn insert_all_files_for_workspace_into_file_manager_with_overrides(
     // doesn't exist in the filesystem.
     let mut filenames = Vec::new();
     let mut seen_filenames = HashSet::new();
-    for package in workspace.clone().into_iter() {
+    for package in &workspace.clone() {
         collect_all_files_in_package(
             package,
             &mut filenames,
@@ -127,8 +127,9 @@ fn insert_all_files_into_file_manager(
         let source = if let Some(src) = overrides.and_then(|overrides| overrides.get(&filename)) {
             src.to_string()
         } else {
-            std::fs::read_to_string(filename.as_path())
-                .unwrap_or_else(|_| panic!("could not read file {filename:?} into string"))
+            std::fs::read_to_string(filename.as_path()).unwrap_or_else(|_| {
+                panic!("could not read file {} into string", filename.display())
+            })
         };
 
         file_manager.add_file_with_source(filename.as_path(), source);
@@ -150,7 +151,7 @@ fn collect_all_files_in_package(
     let entry_path_parent = package
         .entry_path
         .parent()
-        .unwrap_or_else(|| panic!("The entry path is expected to be a single file within a directory and so should have a parent {:?}", package.entry_path));
+        .unwrap_or_else(|| panic!("The entry path is expected to be a single file within a directory and so should have a parent {}", package.entry_path.display()));
 
     collect_all_files_under_path(entry_path_parent, filenames, seen_filenames);
 
@@ -169,7 +170,7 @@ fn collect_all_files_in_packages_dependencies(
     seen_filenames: &mut HashSet<PathBuf>,
     processed_entry_paths: &mut HashSet<PathBuf>,
 ) {
-    for (_, dep) in package.dependencies.iter() {
+    for dep in package.dependencies.values() {
         match dep {
             Dependency::Local { package } | Dependency::Remote { package } => {
                 collect_all_files_in_package(
@@ -199,7 +200,7 @@ fn collect_all_files_under_path(
 
         if entry.path().extension().is_none_or(|ext| ext != FILE_EXTENSION) {
             continue;
-        };
+        }
 
         let path = entry.into_path();
         if seen_filenames.insert(path.clone()) {

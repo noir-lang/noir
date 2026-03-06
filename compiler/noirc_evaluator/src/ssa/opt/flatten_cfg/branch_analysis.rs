@@ -142,7 +142,7 @@ impl<'cfg> Context<'cfg> {
 
         self.branch_ends
             .get(&start)
-            .cloned()
+            .copied()
             .unwrap_or_else(|| panic!("should have found the join point for {start}"))
     }
 
@@ -170,7 +170,7 @@ impl<'cfg> Context<'cfg> {
     fn complete_parents(&mut self, mut branch: BasicBlockId, mut join: BasicBlockId) {
         loop {
             // If we reached the starting point, we can stop.
-            let Some(parent) = self.branch_parents.get(&branch).cloned() else {
+            let Some(parent) = self.branch_parents.get(&branch).copied() else {
                 break;
             };
             // We can skip this join point (we know it completes this level, not the parent), and look for the next one.
@@ -283,9 +283,7 @@ impl<'cfg> Context<'cfg> {
 }
 
 #[cfg(test)]
-mod test {
-
-    use acvm::acir::circuit::ExpressionWidth;
+mod tests {
 
     use crate::{
         brillig::BrilligOptions,
@@ -293,7 +291,10 @@ mod test {
             SsaEvaluatorOptions,
             function_builder::FunctionBuilder,
             ir::{basic_block::BasicBlockId, cfg::ControlFlowGraph, map::Id, types::Type},
-            opt::{constant_folding, flatten_cfg::branch_analysis::find_branch_ends, inlining},
+            opt::{
+                FORCE_UNROLL_THRESHOLD, constant_folding,
+                flatten_cfg::branch_analysis::find_branch_ends, inlining,
+            },
             primary_passes,
             ssa_gen::Ssa,
         },
@@ -332,13 +333,13 @@ mod test {
 
         builder.terminate_with_jmp(b1, vec![]);
         builder.switch_to_block(b1);
-        builder.terminate_with_jmpif(c1, b2, b3);
+        builder.terminate_with_jmpif_no_args(c1, b2, b3);
         builder.switch_to_block(b2);
         builder.terminate_with_jmp(b4, vec![]);
         builder.switch_to_block(b3);
         builder.terminate_with_jmp(b8, vec![]);
         builder.switch_to_block(b4);
-        builder.terminate_with_jmpif(c4, b5, b6);
+        builder.terminate_with_jmpif_no_args(c4, b5, b6);
         builder.switch_to_block(b5);
         builder.terminate_with_jmp(b7, vec![]);
         builder.switch_to_block(b6);
@@ -402,31 +403,31 @@ mod test {
         let c10 = builder.add_parameter(Type::bool());
         let c12 = builder.add_parameter(Type::bool());
 
-        builder.terminate_with_jmpif(c0, b1, b10);
+        builder.terminate_with_jmpif_no_args(c0, b1, b10);
         builder.switch_to_block(b1);
-        builder.terminate_with_jmpif(c1, b2, b3);
+        builder.terminate_with_jmpif_no_args(c1, b2, b3);
         builder.switch_to_block(b2);
         builder.terminate_with_jmp(b3, vec![]);
         builder.switch_to_block(b3);
-        builder.terminate_with_jmpif(c3, b4, b5);
+        builder.terminate_with_jmpif_no_args(c3, b4, b5);
         builder.switch_to_block(b4);
         builder.terminate_with_jmp(b5, vec![]);
         builder.switch_to_block(b5);
-        builder.terminate_with_jmpif(c5, b6, b7);
+        builder.terminate_with_jmpif_no_args(c5, b6, b7);
         builder.switch_to_block(b6);
         builder.terminate_with_jmp(b7, vec![]);
         builder.switch_to_block(b7);
-        builder.terminate_with_jmpif(c7, b8, b9);
+        builder.terminate_with_jmpif_no_args(c7, b8, b9);
         builder.switch_to_block(b8);
         builder.terminate_with_jmp(b9, vec![]);
         builder.switch_to_block(b9);
         builder.terminate_with_jmp(b15, vec![]);
         builder.switch_to_block(b10);
-        builder.terminate_with_jmpif(c10, b11, b12);
+        builder.terminate_with_jmpif_no_args(c10, b11, b12);
         builder.switch_to_block(b11);
         builder.terminate_with_jmp(b12, vec![]);
         builder.switch_to_block(b12);
-        builder.terminate_with_jmpif(c12, b14, b13);
+        builder.terminate_with_jmpif_no_args(c12, b14, b13);
         builder.switch_to_block(b13);
         builder.terminate_with_jmp(b14, vec![]);
         builder.switch_to_block(b14);
@@ -454,9 +455,9 @@ mod test {
         let src = "
         acir(inline) fn main f0 {
           b0():
-            jmpif u1 0 then: b1, else: b2
+            jmpif u1 0 then: b1(), else: b2()
           b1():
-            jmpif u1 0 then: b5, else: b6
+            jmpif u1 0 then: b5(), else: b6()
           b2():
             jmp b3()
           b3():
@@ -470,9 +471,9 @@ mod test {
           b7():
             jmp b8()
           b8():
-            jmpif u1 0 then: b9, else: b10
+            jmpif u1 0 then: b9(), else: b10()
           b9():
-            jmpif u1 0 then: b11, else: b12
+            jmpif u1 0 then: b11(), else: b12()
           b10():
             jmp b14()
           b11():
@@ -507,12 +508,12 @@ mod test {
         acir(inline_always) fn apply f5 {
           b0(v0: Field, v1: u32):
             v4 = eq v0, Field 2
-            jmpif v4 then: b3, else: b2
+            jmpif v4 then: b3(), else: b2()
           b1(v2: u32):
             return v2
           b2():
             v9 = eq v0, Field 3
-            jmpif v9 then: b6, else: b5
+            jmpif v9 then: b6(), else: b5()
           b3():
             v6 = call f2(v1) -> u32
             jmp b4(v6)
@@ -561,7 +562,7 @@ mod test {
         let src = r#"
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u64, v2: i32, v3: u1, v4: Field, v5: u1, v6: u1):
-            jmpif v6 then: b1, else: b2
+            jmpif v6 then: b1(), else: b2()
           b1():
             jmp b14()
           b2():
@@ -572,17 +573,17 @@ mod test {
             jmp b14()
           b5(v7: u32):
             v11 = lt v7, u32 232
-            jmpif v11 then: b3, else: b4
+            jmpif v11 then: b3(), else: b4()
           b6():
             v18 = add v7, u32 1
             v19 = truncate v18 to 32 bits, max_bit_size: 33
             v21 = call f1(v4, v4, v4, v4, v4, v0, v0) -> Field
             jmp b5(v19)
           b7():
-            jmpif v6 then: b10, else: b11
+            jmpif v6 then: b10(), else: b11()
           b8(v8: u32):
             v14 = lt v8, u32 90
-            jmpif v14 then: b7, else: b6
+            jmpif v14 then: b7(), else: b6()
           b9():
             v16 = add v8, u32 1
             v17 = truncate v16 to 32 bits, max_bit_size: 33
@@ -602,12 +603,12 @@ mod test {
           b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: u1, v6: u1):
             jmp b3(u32 54)
           b1():
-            jmpif v6 then: b5, else: b6
+            jmpif v6 then: b5(), else: b6()
           b2():
             jmp b8()
           b3(v7: u32):
             v10 = lt v7, u32 207
-            jmpif v10 then: b1, else: b2
+            jmpif v10 then: b1(), else: b2()
           b4():
             v12 = add v7, u32 1
             v13 = truncate v12 to 32 bits, max_bit_size: 33
@@ -643,16 +644,17 @@ mod test {
             ssa_logging: crate::ssa::SsaLogging::None,
             brillig_options: BrilligOptions::default(),
             print_codegen_timings: false,
-            expression_width: ExpressionWidth::default(),
             emit_ssa: None,
             skip_underconstrained_check: true,
             skip_brillig_constraints_check: true,
             enable_brillig_constraints_check_lookback: false,
             inliner_aggressiveness: 0,
             constant_folding_max_iter: constant_folding::DEFAULT_MAX_ITER,
-            small_function_max_instruction: inlining::MAX_INSTRUCTIONS,
+            small_function_max_instruction: inlining::MAX_SIMPLE_FUNCTION_WEIGHT,
             max_bytecode_increase_percent: None,
+            force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
             skip_passes: Vec::new(),
+            ssa_logging_hide_unchanged: false,
         };
         let pipeline = primary_passes(&options);
         for pass in pipeline {

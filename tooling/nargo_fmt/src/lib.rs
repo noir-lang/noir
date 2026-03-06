@@ -87,3 +87,17 @@ pub(crate) fn assert_format_with_config(src: &str, expected: &str, config: Confi
     }
     similar_asserts::assert_eq!(result, expected, "idempotent check failed");
 }
+
+#[cfg(test)]
+pub(crate) fn assert_formatter_changes_with_config(src: &str, config: Config) {
+    use noirc_frontend::parser;
+
+    let (parsed_module, errors) = parser::parse_program_with_dummy_file(src);
+    let errors: Vec<_> = errors.into_iter().filter(|error| !error.is_warning()).collect();
+    if !errors.is_empty() {
+        panic!("Expected no errors, got: {errors:?}");
+    }
+    let result = format(src, parsed_module, &config);
+
+    assert_ne!(result, src, "idempotent check failed");
+}

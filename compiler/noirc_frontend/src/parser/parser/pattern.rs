@@ -37,6 +37,16 @@ impl Parser<'_> {
     pub(crate) fn parse_pattern(&mut self) -> Option<Pattern> {
         let start_location = self.current_token_location;
         let mutable = self.eat_keyword(Keyword::Mut);
+
+        if mutable {
+            while self.eat_keyword(Keyword::Mut) {
+                self.push_error(
+                    ParserErrorReason::MutOnABindingCannotBeRepeated,
+                    self.previous_token_location,
+                );
+            }
+        }
+
         self.parse_pattern_after_modifiers(mutable, start_location)
     }
 
@@ -206,7 +216,7 @@ impl Parser<'_> {
     }
 
     fn parse_struct_pattern_field(&mut self) -> Option<(Ident, Pattern)> {
-        let Some(ident) = self.eat_ident() else {
+        let Some(ident) = self.eat_non_underscore_ident() else {
             self.expected_identifier();
             return None;
         };

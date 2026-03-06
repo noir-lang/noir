@@ -38,7 +38,7 @@ use crate::{
     token::{MetaAttribute, MetaAttributeName, SecondaryAttribute, SecondaryAttributeKind},
 };
 
-use super::{ElaborateReason, Elaborator, ResolverMeta};
+use super::{ElaborateReason, Elaborator, MAX_MACRO_EXPANSION_DEPTH, ResolverMeta};
 
 /// Context information for the module that an attribute is located and where it should generate items.
 /// These locations differ when attributes are used across module boundaries.
@@ -88,7 +88,7 @@ impl<'context> Elaborator<'context> {
                 let meta = elaborator.interner.function_meta(&function);
                 elaborator.current_item = Some(DependencyId::Function(function));
                 elaborator.crate_id = meta.source_crate;
-                elaborator.local_module = meta.source_module;
+                elaborator.local_module = Some(meta.source_module);
                 elaborator.introduce_generics_into_scope(meta.all_generics.clone());
             }
         })
@@ -106,7 +106,7 @@ impl<'context> Elaborator<'context> {
         self.elaborate_item_from_comptime(reason, f, |elaborator| {
             elaborator.current_item = None;
             elaborator.crate_id = module.krate;
-            elaborator.local_module = module.local_id;
+            elaborator.local_module = Some(module.local_id);
         })
     }
 
@@ -125,6 +125,7 @@ impl<'context> Elaborator<'context> {
             self.crate_graph,
             self.interpreter_output,
             self.required_unstable_features,
+            self.unresolved_globals,
             self.crate_id,
             self.interpreter_call_stack.clone(),
             self.options,
@@ -148,9 +149,10 @@ impl<'context> Elaborator<'context> {
             errors = vecmap(errors, |error| {
                 CompilationError::ComptimeError(reason.to_macro_error(error))
             });
-        };
+        }
 
         self.errors.extend(errors);
+        self.comptime_evaluation_halted = elaborator.comptime_evaluation_halted;
         result
     }
 
@@ -168,7 +170,13 @@ impl<'context> Elaborator<'context> {
 
                 let scope = self.scopes.get_mut_scope();
                 let ident = HirIdent::non_trait_method(*definition_id, location);
-                let meta = ResolverMeta { ident, num_times_used: 0, warn_if_unused: false };
+                let meta = ResolverMeta {
+                    ident,
+                    used: false,
+                    mutated: false,
+                    warn_if_unused: false,
+                    warn_if_not_mutated: false,
+                };
                 scope.add_key_value(name.clone(), meta);
             }
         }
@@ -318,7 +326,7 @@ impl<'context> Elaborator<'context> {
         attribute_context: AttributeContext,
         attributes_to_run: &mut CollectedAttributes,
     ) -> Result<(), CompilationError> {
-        self.local_module = attribute_context.attribute_module;
+        self.local_module = Some(attribute_context.attribute_module);
 
         let kind = match &attribute.name {
             MetaAttributeName::Path(path) => ExpressionKind::Variable(path.clone()),
@@ -337,19 +345,13 @@ impl<'context> Elaborator<'context> {
         let definition_id = match self.interner.expression(&function) {
             HirExpression::Ident(ident, _) => ident.id,
             _ => {
-                let error = ResolverError::AttributeFunctionIsNotAPath {
-                    function: function_string,
-                    location,
-                };
+                let error =
+                    ResolverError::AttributeFunctionNotInScope { name: function_string, location };
                 return Err(error.into());
             }
         };
 
-        let Some(definition) = self.interner.try_definition(definition_id) else {
-            let error =
-                ResolverError::AttributeFunctionNotInScope { name: function_string, location };
-            return Err(error.into());
-        };
+        let definition = self.interner.definition(definition_id);
 
         let DefinitionKind::Function(function) = definition.kind else {
             return Err(ResolverError::NonFunctionInAnnotation { location }.into());
@@ -381,9 +383,11 @@ impl<'context> Elaborator<'context> {
         location: Location,
         generated_items: &mut CollectedItems,
     ) -> Result<(), CompilationError> {
-        self.local_module = attribute_context.module;
+        // Arguments must be resolved relative to the module where the attribute happens
+        self.local_module = Some(attribute_context.attribute_module);
 
         let mut interpreter = self.setup_interpreter();
+
         let mut arguments = Self::handle_attribute_arguments(
             &mut interpreter,
             &item,
@@ -394,16 +398,20 @@ impl<'context> Elaborator<'context> {
 
         arguments.insert(0, (item, location));
 
-        let value = interpreter
-            .call_function(function, arguments, TypeBindings::default(), location)
-            .map_err(CompilationError::from)?;
+        let result =
+            interpreter.call_function(function, arguments, TypeBindings::default(), location);
+
+        let value = result.map_err(CompilationError::from)?;
 
         self.debug_comptime(location, |interner| value.display(interner).to_string());
 
         if value != Value::Unit {
+            // Items must be added in the correct module (for a module attribute, this will be the
+            // module itself; for a function, it will be the module where the function is defined, etc.)
+            self.local_module = Some(attribute_context.module);
+
             let items =
                 value.into_top_level_items(location, self).map_err(CompilationError::from)?;
-
             self.add_items(items, generated_items, location);
         }
 
@@ -415,13 +423,13 @@ impl<'context> Elaborator<'context> {
     /// Attribute functions have a special calling convention:
     /// - First parameter must match the type of the attributed item (e.g., FunctionDefinition)
     /// - Remaining parameters are provided explicitly in the attribute syntax
-    /// - If the function has `#[varargs]`, extra arguments are collected into a slice
+    /// - If the function has `#[varargs]`, extra arguments are collected into a vector
     ///
     /// This function:
     /// 1. Validates the first parameter matches the item type
     /// 2. Elaborates and type-checks each argument expression
     /// 3. Handles special cases like [TraitDefinition][crate::QuotedType::TraitDefinition] arguments
-    /// 4. Collects varargs into a slice if applicable
+    /// 4. Collects varargs into a vector if applicable
     fn handle_attribute_arguments(
         interpreter: &mut Interpreter,
         item: &Value,
@@ -447,7 +455,7 @@ impl<'context> Elaborator<'context> {
 
         if &parameters[0] != expected_type {
             return Err(InterpreterError::TypeMismatch {
-                expected: parameters[0].clone(),
+                expected: parameters[0].to_string(),
                 actual: expected_type.clone(),
                 location,
             }
@@ -458,13 +466,20 @@ impl<'context> Elaborator<'context> {
         // in `arguments` at this point.
         parameters.remove(0);
 
-        // If the function is varargs, push the type of the last slice element N times
+        // If the function is varargs, push the type of the last vector element N times
         // to account for N extra arguments.
         let modifiers = interpreter.elaborator.interner.function_modifiers(&function);
         let is_varargs = modifiers.attributes.has_varargs();
         let varargs_type = if is_varargs { parameters.pop() } else { None };
 
-        let varargs_elem_type = varargs_type.as_ref().and_then(|t| t.slice_element_type());
+        // If the varargs type is not a vector, make it a vector to avoid producing more errors
+        // (an error for this was already produced during name resolution). Here we assume the user
+        // used the vector element type instead of a vector.
+        let varargs_type = varargs_type.map(|typ| {
+            if matches!(typ, Type::Vector(..)) { typ } else { Type::Vector(Box::new(typ)) }
+        });
+
+        let varargs_elem_type = varargs_type.as_ref().and_then(|t| t.vector_element_type());
 
         let mut new_arguments = Vec::with_capacity(arguments.len());
         let mut varargs = im::Vector::new();
@@ -504,7 +519,7 @@ impl<'context> Elaborator<'context> {
                     &mut errors,
                     || {
                         CompilationError::InterpreterError(InterpreterError::TypeMismatch {
-                            expected: param_type.clone(),
+                            expected: param_type.to_string(),
                             actual: expr_type.clone(),
                             location: arg_location,
                         })
@@ -516,12 +531,12 @@ impl<'context> Elaborator<'context> {
                 }
 
                 push_arg(interpreter.evaluate(expr_id)?);
-            };
+            }
         }
 
         if is_varargs {
             let typ = varargs_type.unwrap_or(Type::Error);
-            new_arguments.push((Value::Slice(varargs, typ), location));
+            new_arguments.push((Value::Vector(varargs, typ), location));
         }
 
         Ok(new_arguments)
@@ -551,6 +566,8 @@ impl<'context> Elaborator<'context> {
     /// (e.g., module declarations and submodules) would require additional def-map updates
     /// thus potentially affecting the source order of attributes and would not be safe during elaboration.
     fn add_item(&mut self, item: Item, generated_items: &mut CollectedItems, location: Location) {
+        let local_module = self.local_module();
+
         match item.kind {
             ItemKind::Function(function) => {
                 let module_id = self.module_id();
@@ -564,7 +581,7 @@ impl<'context> Elaborator<'context> {
                     item.doc_comments,
                     &mut self.errors,
                 ) {
-                    let functions = vec![(self.local_module, id, function)];
+                    let functions = vec![(local_module, id, function)];
                     generated_items.functions.push(UnresolvedFunctions {
                         file_id: location.file,
                         functions,
@@ -580,12 +597,13 @@ impl<'context> Elaborator<'context> {
                         &mut trait_impl,
                         self.crate_id,
                         location.file,
-                        self.local_module,
+                        local_module,
+                        &mut self.errors,
                     );
 
                 generated_items.trait_impls.push(UnresolvedTraitImpl {
                     file_id: location.file,
-                    module_id: self.local_module,
+                    module_id: local_module,
                     r#trait: trait_impl.r#trait,
                     object_type: trait_impl.object_type,
                     methods,
@@ -599,7 +617,6 @@ impl<'context> Elaborator<'context> {
                     impl_id: None,
                     resolved_object_type: None,
                     resolved_generics: Vec::new(),
-                    resolved_trait_generics: Vec::new(),
                     unresolved_associated_types: Vec::new(),
                 });
             }
@@ -611,7 +628,7 @@ impl<'context> Elaborator<'context> {
                     Documented::new(global, item.doc_comments),
                     visibility,
                     location.file,
-                    self.local_module,
+                    local_module,
                     self.crate_id,
                 );
 
@@ -626,7 +643,7 @@ impl<'context> Elaborator<'context> {
                     self.def_maps.get_mut(&self.crate_id).unwrap(),
                     self.usage_tracker,
                     Documented::new(struct_def, item.doc_comments),
-                    self.local_module,
+                    local_module,
                     self.crate_id,
                     &mut self.errors,
                 ) {
@@ -640,7 +657,7 @@ impl<'context> Elaborator<'context> {
                     self.usage_tracker,
                     Documented::new(enum_def, item.doc_comments),
                     location.file,
-                    self.local_module,
+                    local_module,
                     self.crate_id,
                     &mut self.errors,
                 ) {
@@ -677,7 +694,7 @@ impl<'context> Elaborator<'context> {
     ///
     /// The interpreter is initialized with the current crate and function context
     /// to ensure proper scoping and error reporting.
-    pub fn setup_interpreter<'local>(&'local mut self) -> Interpreter<'local, 'context> {
+    pub(crate) fn setup_interpreter<'local>(&'local mut self) -> Interpreter<'local, 'context> {
         let current_function = match self.current_item {
             Some(DependencyId::Function(function)) => Some(function),
             _ => None,
@@ -724,6 +741,25 @@ impl<'context> Elaborator<'context> {
 
         // Execute each collected attribute
         for attr in attributes_to_run {
+            // Check macro expansion depth to prevent infinite recursion when an attribute
+            // generates code that triggers further attribute expansion (including mutual recursion).
+            //
+            // Note: This check is intentionally here in `run_attributes` rather than in
+            // `run_attribute` because the recursion path is:
+            //   run_attributes -> run_attribute -> elaborate_items -> run_attributes
+            // If we put the increment/decrement in `run_attribute`, the decrement would
+            // happen before `elaborate_items` is called, so the depth counter would reset
+            // before the recursive call and fail to detect the recursion.
+            if self.macro_expansion_depth >= MAX_MACRO_EXPANSION_DEPTH {
+                self.push_err(InterpreterError::AttributeRecursionLimitExceeded {
+                    location: attr.location,
+                });
+                // Halt further elaboration to prevent cascading errors
+                self.comptime_evaluation_halted = true;
+                return;
+            }
+            self.macro_expansion_depth += 1;
+
             let mut generated_items = CollectedItems::default();
             self.elaborate_in_comptime_context(|this| {
                 if let Err(error) = this.run_attribute(
@@ -744,6 +780,8 @@ impl<'context> Elaborator<'context> {
                     elaborator.elaborate_items(generated_items);
                 });
             }
+
+            self.macro_expansion_depth -= 1;
         }
     }
 

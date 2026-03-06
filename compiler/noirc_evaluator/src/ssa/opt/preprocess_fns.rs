@@ -5,6 +5,7 @@ use crate::ssa::{
     ir::{call_graph::CallGraph, function::Function},
 };
 
+use super::FORCE_UNROLL_THRESHOLD;
 use super::inlining::{self, InlineInfo};
 
 impl Ssa {
@@ -27,6 +28,8 @@ impl Ssa {
             aggressiveness,
         );
 
+        let callee_costs = inlining::inline_info::inlineable_callee_costs(&inline_infos);
+
         let should_inline_call =
             |callee: &Function| -> bool { InlineInfo::should_inline(&inline_infos, callee.id()) };
 
@@ -39,10 +42,8 @@ impl Ssa {
 
             // Functions which are inline targets will be processed in later passes.
             // Here we want to treat the functions which will be inlined into them.
-            let is_target = inline_infos
-                .get(&id)
-                .map(|info| info.is_inline_target(&function.dfg))
-                .unwrap_or_default();
+            let is_target =
+                inline_infos.get(&id).is_some_and(|info| info.is_inline_target(&function.dfg));
 
             if is_heavy || is_target {
                 continue;
@@ -51,11 +52,14 @@ impl Ssa {
             // Start with an inline pass.
             let mut function = function.inlined(&self, &should_inline_call)?;
             // Help unrolling determine bounds.
-            function.as_slice_optimization();
+            function.as_vector_optimization();
             // Prepare for unrolling
             function.loop_invariant_code_motion();
+            // Clear out constant jmpifs to ensure that loops are properly unrolled.
+            function.simplify_function();
             // We might not be able to unroll all loops without fully inlining them, so ignore errors.
-            let _ = function.unroll_loops_iteratively();
+            // Use default threshold for force-unrolling.
+            let _ = function.unroll_loops_iteratively(FORCE_UNROLL_THRESHOLD, &callee_costs);
             // Reduce the number of redundant stores/loads after unrolling
             function.mem2reg();
 
@@ -77,7 +81,7 @@ impl Ssa {
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{opt::inlining::MAX_INSTRUCTIONS, ssa_gen::Ssa},
+        ssa::{opt::inlining::inline_info::MAX_INSTRUCTIONS, ssa_gen::Ssa},
     };
 
     #[test]
@@ -98,7 +102,7 @@ mod tests {
         acir(inline) fn foo f0 {
           b0(v0: u32, v1: Field):
             v2 = eq v0, u32 1
-            jmpif v2 then: b1, else: b2
+            jmpif v2 then: b1(), else: b2()
           b1():
             v6 = add v0, u32 1
             jmp b3(v6, v1)
@@ -122,7 +126,7 @@ mod tests {
         acir(inline) fn foo f1 {
           b0(v0: u32):
             v2 = eq v0, u32 1
-            jmpif v2 then: b1, else: b2
+            jmpif v2 then: b1(), else: b2()
           b1():
             v4 = add v0, u32 1
             jmp b3()

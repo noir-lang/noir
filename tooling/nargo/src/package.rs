@@ -1,6 +1,5 @@
 use std::{collections::BTreeMap, fmt::Display, path::PathBuf};
 
-use acvm::acir::circuit::ExpressionWidth;
 pub use noirc_driver::CrateName;
 use noirc_frontend::elaborator::UnstableFeature;
 
@@ -58,7 +57,6 @@ pub struct Package {
     pub entry_path: PathBuf,
     pub name: CrateName,
     pub dependencies: BTreeMap<CrateName, Dependency>,
-    pub expression_width: Option<ExpressionWidth>,
 }
 
 impl Package {

@@ -1,0 +1,6 @@
+[package]
+name = "brillig_vector_input"
+type = "bin"
+authors = [""]
+
+[dependencies]

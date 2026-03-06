@@ -3,9 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../../styles.css">
+<script defer src="../../nargo_doc.js"></script>
 <title>Trait AsPrimitive documentation</title>
 </head>
 <body>
+<div id="sidebar-toggle">
+<button id="sidebar-toggle-button"></button>
+<div id="sidebar-toggle-title">AsPrimitive</div>
+</div>
+<span id="main-contents">
 <nav class="sidebar">
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
@@ -150,14 +156,12 @@
 <p>A generic interface for casting between primitive types,
 equivalent of using the <code>as</code> keyword between values.</p>
 <h2>Example</h2>
-<pre><code>let x: Field = 1234567890;
-let y: u8 = x as u8;
-let z: u8 = x.as_();
-assert_eq(y, z);
-</code></pre>
-</div>
+<pre><code><span class="kw">let</span> x: Field = <span class="number">1234567890</span>;
+<span class="kw">let</span> y: u8 = x <span class="kw">as</span> u8;
+<span class="kw">let</span> z: u8 = x.as_();
+<span class="kw">assert_eq</span>(y, z);</code></pre></div>
 <h2>Required methods</h2>
-<div class="padded-methods"><code id="as_" class="code-header">pub fn <span class="fn">as_</span>(self) -> T</code>
+<div class="padded-methods"><code id="as_" class="code-header">pub fn <a href="#as_"><span class="fn">as_</span></a>(self) -> T</code>
 
 <div class="padded-description"><div class="comments">
 <p>The equivalent of doing <code>self as T</code>.</p>
@@ -388,5 +392,6 @@ assert_eq(y, z);
 <h3 id="impl-AsPrimitive&lt;u8&gt;-for-u8"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.u8.html" class="primitive">u8</a>&gt; for <a href="../../std/primitive.u8.html" class="primitive">u8</a></code></h3>
 
 </main>
+</span>
 </body>
 </html>

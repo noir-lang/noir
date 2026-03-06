@@ -1,25 +1,30 @@
 //! Trait implementation collection, method matching, and coherence checking.
 
+use std::rc::Rc;
+
 use crate::{
     Kind, NamedGeneric, ResolvedGeneric, Shared, TypeBindings, TypeVariable,
     ast::{GenericTypeArgs, Ident, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
-    elaborator::{PathResolutionMode, types::bind_ordered_generics},
-    graph::CrateId,
+    elaborator::{
+        PathResolutionMode, WildcardDisallowedContext,
+        types::{WildcardAllowed, bind_ordered_generics},
+    },
     hir::{
         def_collector::{
             dc_crate::{CompilationError, UnresolvedTraitImpl},
             errors::DefCollectorErrorKind,
         },
         resolution::errors::ResolverError,
+        type_check::TypeCheckError,
     },
-    hir_def::traits::{NamedType, ResolvedTraitBound, TraitImpl},
-    node_interner::TraitImplId,
+    hir_def::traits::{NamedType, TraitImpl},
+    node_interner::{TraitImplId, TraitLookupMode},
 };
 use crate::{
     Type,
     hir::def_collector::errors::DuplicateType,
     hir_def::traits::{TraitConstraint, TraitFunction},
-    node_interner::{FuncId, TraitId},
+    node_interner::{FuncId, TraitId, get_type_method_key},
 };
 
 use iter_extended::vecmap;
@@ -30,21 +35,69 @@ use rustc_hash::FxHashSet as HashSet;
 use super::Elaborator;
 
 impl Elaborator<'_> {
+    /// Collects and validates a trait implementation.
+    ///
+    /// This is the main entry point for processing a trait impl block like:
+    /// ```noir
+    /// impl<A> MyTrait<A> for MyStruct where A: OtherTrait {
+    ///     fn method(&self) { ... }
+    /// }
+    /// ```
+    ///
+    /// # Prerequisites
+    ///
+    /// Before calling this function, [`Self::prepare_trait_impl_for_function_meta_definition`]
+    /// must have been called to:
+    /// - Resolve the trait path and set `trait_impl.trait_id`
+    /// - Set up generics and assign `trait_impl.impl_id`
+    /// - Register associated types
+    /// - Resolve the self type (`trait_impl.methods.self_type`)
+    ///
+    /// The function validates and verifies self, generics and associated types,
+    /// processes impl methods via [`Self::collect_trait_impl_methods`],
+    /// register the trait impl in the interner.
+    ///
+    /// # Errors
+    ///
+    /// This function may emit the following errors:
+    /// - `ReferenceInTraitImpl`: Self type cannot be a reference
+    /// - `TraitMissingMethod`: Required trait method not implemented
+    /// - `MethodNotInTrait`: Impl contains method not in trait
+    /// - `ImplIsStricterThanTrait`: Method where clause is more restrictive than trait
+    /// - `OverlappingImpl`: Another impl already exists for this type/trait combination
     pub(super) fn collect_trait_impl(&mut self, trait_impl: &mut UnresolvedTraitImpl) {
-        self.local_module = trait_impl.module_id;
-        self.current_trait_impl = trait_impl.impl_id;
+        let previous_local_module = self.local_module.replace(trait_impl.module_id);
+        let previous_current_trait_impl =
+            std::mem::replace(&mut self.current_trait_impl, trait_impl.impl_id);
 
         let self_type = trait_impl.methods.self_type.clone();
         let self_type =
             self_type.expect("Expected struct type to be set before collect_trait_impl");
 
-        self.self_type = Some(self_type.clone());
+        let previous_self_type = self.self_type.replace(self_type.clone());
         let self_type_location = trait_impl.object_type.location;
 
-        if matches!(self_type, Type::Reference(..)) {
+        if matches!(self_type.follow_bindings_shallow().as_ref(), Type::Reference(..)) {
+            let is_alias = matches!(self_type, Type::Alias(..));
             self.push_err(DefCollectorErrorKind::ReferenceInTraitImpl {
+                is_alias,
                 location: self_type_location,
             });
+        } else if get_type_method_key(&self_type).is_none() {
+            let error: CompilationError = if self_type == Type::Error {
+                TypeCheckError::expecting_other_error(
+                    "collect_trait_impl: missing trait type",
+                    self_type_location,
+                )
+                .into()
+            } else {
+                ResolverError::TypeUnsupportedForTraitImpl {
+                    typ: self_type.clone(),
+                    location: self_type_location,
+                }
+                .into()
+            };
+            self.push_err(error);
         }
 
         self.check_generics_appear_in_types(
@@ -54,11 +107,13 @@ impl Elaborator<'_> {
         );
 
         if let Some(trait_id) = trait_impl.trait_id {
-            self.generics = trait_impl.resolved_generics.clone();
+            let previous_generics =
+                std::mem::replace(&mut self.generics, trait_impl.resolved_generics.clone());
 
-            let where_clause = self.resolve_trait_constraints(&trait_impl.where_clause);
+            let where_clause =
+                self.resolve_trait_constraints_and_add_to_scope(&trait_impl.where_clause);
 
-            // Now solve the actual type of associated types
+            // Now solve the actual types of the associated types
             // (before this we only declared them without knowing their type)
             if let Some(trait_impl_id) = trait_impl.impl_id {
                 let unresolved_associated_types =
@@ -68,6 +123,7 @@ impl Elaborator<'_> {
 
                 let associated_types =
                     self.interner.get_associated_types_for_impl(trait_impl_id).to_vec();
+
                 for associated_type in &associated_types {
                     let Type::NamedGeneric(named_generic) = &associated_type.typ else {
                         // This can happen if the associated type is specified directly in the impl trait generics,
@@ -81,15 +137,27 @@ impl Elaborator<'_> {
                         // This too can happen if the associated type is specified directly in the impl trait generics,
                         // like `impl<H> BuildHasher<H = H>`, where `H` is a named generic but its resolution isn't delayed.
                         // This can't be done in code, but it could happen with unquoted types.
+                        self.push_err(TypeCheckError::expecting_other_error(
+                            "collect_trait_impl: missing associated type",
+                            trait_impl.object_type.location,
+                        ));
                         continue;
                     };
-                    let wildcard_allowed = false;
+                    let wildcard_allowed =
+                        WildcardAllowed::No(WildcardDisallowedContext::AssociatedType);
+                    let location = unresolved_type.location;
                     let resolved_type = self.resolve_type_with_kind(
                         unresolved_type,
                         &associated_type.typ.kind(),
                         wildcard_allowed,
                     );
-                    named_generic.type_var.bind(resolved_type);
+                    if let Err(error) = named_generic.type_var.try_bind(
+                        resolved_type,
+                        &named_generic.type_var.kind(),
+                        location,
+                    ) {
+                        self.push_err(error);
+                    }
                 }
             }
 
@@ -97,31 +165,26 @@ impl Elaborator<'_> {
 
             // If there are bounds on the trait's associated types, check them now
             let associated_type_bounds = &trait_.associated_type_bounds;
-            if !associated_type_bounds.is_empty() {
-                let associated_type_bounds = associated_type_bounds.clone();
-                let named_generics = self
-                    .interner
-                    .get_associated_types_for_impl(trait_impl.impl_id.unwrap())
-                    .to_vec();
-                for named_generic in named_generics {
-                    let Some(bounds) = associated_type_bounds.get(named_generic.name.as_str())
-                    else {
-                        continue;
-                    };
-                    let object_type = &named_generic.typ;
-                    for bound in bounds {
-                        if let Err(error) = self.interner.lookup_trait_implementation(
+            let associated_type_bounds = associated_type_bounds.clone();
+            let named_generics =
+                self.interner.get_associated_types_for_impl(trait_impl.impl_id.unwrap()).to_vec();
+            for named_generic in named_generics {
+                let Some(bounds) = associated_type_bounds.get(named_generic.name.as_str()) else {
+                    continue;
+                };
+                let object_type = &named_generic.typ;
+                for bound in bounds {
+                    if let Err(error) = self.interner.lookup_trait_implementation(
+                        object_type,
+                        bound.trait_id,
+                        &bound.trait_generics.ordered,
+                        &bound.trait_generics.named,
+                    ) {
+                        self.push_trait_constraint_error(
                             object_type,
-                            bound.trait_id,
-                            &bound.trait_generics.ordered,
-                            &bound.trait_generics.named,
-                        ) {
-                            self.push_trait_constraint_error(
-                                object_type,
-                                error,
-                                named_generic.name.location(),
-                            );
-                        }
+                            error,
+                            named_generic.name.location(),
+                        );
                     }
                 }
             }
@@ -131,20 +194,25 @@ impl Elaborator<'_> {
             self.collect_trait_impl_methods(trait_id, trait_impl, &where_clause);
 
             let location = trait_impl.object_type.location;
-            self.declare_methods_on_struct(Some(trait_id), &mut trait_impl.methods, location);
+            self.declare_methods_on_data_type(Some(trait_id), &trait_impl.methods, location);
 
             let trait_visibility = self.interner.get_trait(trait_id).visibility;
 
             let methods = trait_impl.methods.function_ids();
             for func_id in &methods {
-                self.interner.set_function_trait(*func_id, self_type.clone(), trait_id);
+                if self.interner.set_function_trait(*func_id, self_type.clone(), trait_id).is_some()
+                {
+                    self.push_err(TypeCheckError::expecting_other_error(
+                        "collect_trait_impl: overlapping function trait",
+                        location,
+                    ));
+                }
 
                 // A trait impl method has the same visibility as its trait
                 let modifiers = self.interner.function_modifiers_mut(func_id);
                 modifiers.visibility = trait_visibility;
             }
 
-            let trait_generics = trait_impl.resolved_trait_generics.clone();
             let ident = match &trait_impl.r#trait.typ {
                 UnresolvedTypeData::Named(trait_path, _, _) => trait_path.last_ident(),
                 UnresolvedTypeData::Resolved(quoted_type_id) => {
@@ -157,8 +225,10 @@ impl Elaborator<'_> {
                     Ident::new(name, trait_impl.r#trait.location)
                 }
                 _ => {
-                    // We don't error in this case because an error will be produced later on when
-                    // solving the trait impl trait type
+                    self.push_err(TypeCheckError::expecting_other_error(
+                        "collect_trait_impl: missing trait type",
+                        location,
+                    ));
                     Ident::new(trait_impl.r#trait.to_string(), trait_impl.r#trait.location)
                 }
             };
@@ -168,34 +238,39 @@ impl Elaborator<'_> {
                 location,
                 typ: self_type.clone(),
                 trait_id,
-                trait_generics,
                 file: trait_impl.file_id,
                 crate_id: self.crate_id,
                 where_clause,
                 methods,
             });
 
-            let generics = vecmap(&self.generics, |generic| generic.type_var.clone());
+            let impl_generics = vecmap(&self.generics, |generic| generic.type_var.clone());
 
-            if let Err(prev_location) = self.interner.add_trait_implementation(
+            match self.interner.add_trait_implementation(
                 self_type.clone(),
                 trait_id,
-                trait_impl.impl_id.expect("impl_id should be set in define_function_metas"),
-                generics,
+                trait_impl.impl_id.expect("ICE: impl_id should be set in define_function_metas"),
+                impl_generics,
                 resolved_trait_impl,
+                location,
             ) {
-                self.push_err(DefCollectorErrorKind::OverlappingImpl {
-                    typ: self_type.clone(),
-                    location: self_type_location,
-                    prev_location,
-                });
+                Ok(Ok(())) => (),
+                Err(error) => self.push_err(error),
+                Ok(Err(prev_location)) => {
+                    self.push_err(DefCollectorErrorKind::OverlappingImpl {
+                        typ: self_type,
+                        location: self_type_location,
+                        prev_location,
+                    });
+                }
             }
+
+            self.generics = previous_generics;
         }
 
-        self.generics.clear();
-
-        self.current_trait_impl = None;
-        self.self_type = None;
+        self.local_module = previous_local_module;
+        self.current_trait_impl = previous_current_trait_impl;
+        self.self_type = previous_self_type;
     }
 
     pub(super) fn collect_trait_impl_methods(
@@ -204,7 +279,7 @@ impl Elaborator<'_> {
         trait_impl: &mut UnresolvedTraitImpl,
         trait_impl_where_clause: &[TraitConstraint],
     ) {
-        self.local_module = trait_impl.module_id;
+        let previous_local_module = self.local_module.replace(trait_impl.module_id);
 
         let impl_id = trait_impl.impl_id.expect("impl_id should be set in define_function_metas");
 
@@ -212,10 +287,10 @@ impl Elaborator<'_> {
         // for a particular method, the default implementation will be added at that slot.
         let mut ordered_methods = Vec::new();
 
-        // check whether the trait implementation is in the same crate as either the trait or the type
+        // Check whether the trait implementation is in the same crate as either the trait or the type
         self.check_trait_impl_crate_coherence(trait_id, trait_impl);
 
-        // set of function ids that have a corresponding method in the trait
+        // Set of function ids that have a corresponding method in the trait
         let mut func_ids_in_trait = HashSet::default();
 
         // Temporarily take ownership of the trait's methods so we can iterate over them
@@ -241,7 +316,14 @@ impl Elaborator<'_> {
                     let location = default_impl.def.location;
                     self.interner.push_function(func_id, &default_impl.def, module, location);
                     self.recover_generics(|this| {
-                        this.define_function_meta(&mut default_impl_clone, func_id, None, &[]);
+                        let no_trait_id = None;
+                        let no_extra_trait_constraints = &[];
+                        this.define_function_meta(
+                            &mut default_impl_clone,
+                            func_id,
+                            no_trait_id,
+                            no_extra_trait_constraints,
+                        );
                     });
                     func_ids_in_trait.insert(func_id);
                     ordered_methods.push((
@@ -257,12 +339,14 @@ impl Elaborator<'_> {
                     });
                 }
             } else {
+                let ordered_generics =
+                    self.interner.get_ordered_generics_for_impl(impl_id).to_vec();
                 for (_, func_id, _) in &overrides {
                     self.check_where_clause_against_trait(
                         func_id,
                         method,
                         trait_impl_where_clause,
-                        &trait_impl.resolved_trait_generics,
+                        &ordered_generics,
                         trait_id,
                         impl_id,
                     );
@@ -302,6 +386,8 @@ impl Elaborator<'_> {
 
         trait_impl.methods.functions = ordered_methods;
         trait_impl.methods.trait_id = Some(trait_id);
+
+        self.local_module = previous_local_module;
     }
 
     /// Issue an error if the impl is stricter than the trait.
@@ -334,27 +420,27 @@ impl Elaborator<'_> {
         let mut bindings =
             self.interner.trait_to_impl_bindings(trait_id, impl_id, trait_impl_generics, self_type);
 
-        let override_meta = self.interner.function_meta(func_id);
+        let override_meta = self.interner.remove_function_meta(func_id);
+
         // Substitute each generic on the trait function with the corresponding generic on the impl function
-        for (
-            ResolvedGeneric { type_var: trait_fn_generic, .. },
-            ResolvedGeneric { name, type_var: impl_fn_generic, .. },
-        ) in method.direct_generics.iter().zip(&override_meta.direct_generics)
+        for (ResolvedGeneric { type_var: trait_fn_generic, .. }, impl_fn_resolved_generic) in
+            method.direct_generics.iter().zip(&override_meta.direct_generics)
         {
             let trait_fn_kind = trait_fn_generic.kind();
-            let arg = Type::NamedGeneric(NamedGeneric {
-                type_var: impl_fn_generic.clone(),
-                name: name.clone(),
-                implicit: false,
-            });
-            bindings.insert(
-                trait_fn_generic.id(),
-                (trait_fn_generic.clone(), trait_fn_kind.clone(), arg),
-            );
+            let arg = impl_fn_resolved_generic.clone().into_named_generic(None);
+
+            if self.check_kind(
+                trait_fn_kind.clone(),
+                &arg.kind(),
+                impl_fn_resolved_generic.location,
+            ) {
+                bindings
+                    .insert(trait_fn_generic.id(), (trait_fn_generic.clone(), trait_fn_kind, arg));
+            }
         }
 
         let mut substituted_method_ids = HashSet::default();
-        for method_constraint in method.trait_constraints.iter() {
+        for method_constraint in &method.trait_constraints {
             let substituted_constraint_type = method_constraint.typ.substitute(&bindings);
             let substituted_trait_generics = method_constraint
                 .trait_bound
@@ -371,8 +457,11 @@ impl Elaborator<'_> {
         for override_trait_constraint in override_meta.trait_constraints.clone() {
             let override_constraint_is_from_impl =
                 trait_impl_where_clause.iter().any(|impl_constraint| {
-                    impl_constraint.trait_bound.trait_id
-                        == override_trait_constraint.trait_bound.trait_id
+                    impl_constraint.typ == override_trait_constraint.typ
+                        && impl_constraint.trait_bound.trait_id
+                            == override_trait_constraint.trait_bound.trait_id
+                        && impl_constraint.trait_bound.trait_generics
+                            == override_trait_constraint.trait_bound.trait_generics
                 });
             if override_constraint_is_from_impl {
                 continue;
@@ -398,6 +487,8 @@ impl Elaborator<'_> {
                 });
             }
         }
+
+        self.interner.push_fn_meta(override_meta, *func_id);
     }
 
     fn check_trait_impl_crate_coherence(
@@ -405,19 +496,23 @@ impl Elaborator<'_> {
         trait_id: TraitId,
         trait_impl: &UnresolvedTraitImpl,
     ) {
-        self.local_module = trait_impl.module_id;
+        let previous_local_module = self.local_module.replace(trait_impl.module_id);
 
         let object_crate = match &trait_impl.resolved_object_type {
-            Some(Type::DataType(struct_type, _)) => struct_type.borrow().id.krate(),
-            _ => CrateId::Dummy,
+            Some(Type::DataType(struct_or_enum_type, _)) => {
+                Some(struct_or_enum_type.borrow().id.krate())
+            }
+            _ => None,
         };
 
         let the_trait = self.interner.get_trait(trait_id);
-        if self.crate_id != the_trait.crate_id && self.crate_id != object_crate {
+        if self.crate_id != the_trait.crate_id && Some(self.crate_id) != object_crate {
             self.push_err(DefCollectorErrorKind::TraitImplOrphaned {
                 location: trait_impl.object_type.location,
             });
         }
+
+        self.local_module = previous_local_module;
     }
 
     pub(super) fn take_unresolved_associated_types(
@@ -426,9 +521,10 @@ impl Elaborator<'_> {
     ) -> Vec<(Ident, UnresolvedType, Kind)> {
         let mut associated_types = Vec::new();
         for (name, typ, expr) in trait_impl.associated_constants.drain(..) {
-            let wildcard_allowed = false;
-            let resolved_type = self.resolve_type(typ, wildcard_allowed);
-            let kind = Kind::Numeric(Box::new(resolved_type));
+            let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::AssociatedType);
+            let resolved_type =
+                typ.map_or(Type::Error, |typ| self.resolve_type(typ, wildcard_allowed));
+            let kind = Kind::numeric(resolved_type);
             let location = expr.location;
             let typ = match UnresolvedTypeExpression::from_expr(expr, location) {
                 Ok(expr) => UnresolvedTypeData::Expression(expr).with_location(location),
@@ -440,7 +536,9 @@ impl Elaborator<'_> {
             associated_types.push((name, typ, kind));
         }
         for (name, typ) in trait_impl.associated_types.drain(..) {
-            associated_types.push((name, typ, Kind::Any));
+            let location = name.location();
+            let typ = typ.unwrap_or_else(|| UnresolvedTypeData::Error.with_location(location));
+            associated_types.push((name, typ, Kind::Normal));
         }
         associated_types
     }
@@ -449,18 +547,17 @@ impl Elaborator<'_> {
         &mut self,
         impl_id: Option<TraitImplId>,
     ) {
-        if let Some(impl_id) = impl_id {
-            if let Some(trait_implementation) = self.interner.try_get_trait_implementation(impl_id)
-            {
-                for trait_constrain in &trait_implementation.borrow().where_clause {
-                    let trait_bound = &trait_constrain.trait_bound;
-                    self.add_trait_bound_to_scope(
-                        trait_bound.location,
-                        &trait_constrain.typ,
-                        trait_bound,
-                        trait_bound.trait_id,
-                    );
-                }
+        if let Some(impl_id) = impl_id
+            && let Some(trait_implementation) = self.interner.try_get_trait_implementation(impl_id)
+        {
+            for trait_constrain in &trait_implementation.borrow().where_clause {
+                let trait_bound = &trait_constrain.trait_bound;
+                self.add_trait_bound_to_scope(
+                    trait_bound.location,
+                    &trait_constrain.typ,
+                    trait_bound,
+                    trait_bound.trait_id,
+                );
             }
         }
     }
@@ -469,14 +566,13 @@ impl Elaborator<'_> {
         &mut self,
         impl_id: Option<TraitImplId>,
     ) {
-        if let Some(impl_id) = impl_id {
-            if let Some(trait_implementation) = self.interner.try_get_trait_implementation(impl_id)
-            {
-                for trait_constrain in &trait_implementation.borrow().where_clause {
-                    self.interner.remove_assumed_trait_implementations_for_trait(
-                        trait_constrain.trait_bound.trait_id,
-                    );
-                }
+        if let Some(impl_id) = impl_id
+            && let Some(trait_implementation) = self.interner.try_get_trait_implementation(impl_id)
+        {
+            for trait_constrain in &trait_implementation.borrow().where_clause {
+                self.interner.remove_assumed_trait_implementations_for_trait(
+                    trait_constrain.trait_bound.trait_id,
+                );
             }
         }
     }
@@ -486,37 +582,69 @@ impl Elaborator<'_> {
         trait_impl: &UnresolvedTraitImpl,
     ) {
         let Some(trait_id) = trait_impl.trait_id else {
+            self.push_err(TypeCheckError::expecting_other_error(
+                "check_trait_impl_where_clause_matches_trait_where_clause: missing trait ID",
+                trait_impl.object_type.location,
+            ));
+            return;
+        };
+
+        let Some(impl_id) = trait_impl.impl_id else {
+            self.push_err(TypeCheckError::expecting_other_error(
+                "check_trait_impl_where_clause_matches_trait_where_clause: missing impl ID",
+                trait_impl.object_type.location,
+            ));
             return;
         };
 
         let Some(the_trait) = self.interner.try_get_trait(trait_id) else {
+            self.push_err(TypeCheckError::expecting_other_error(
+                "check_trait_impl_where_clause_matches_trait_where_clause: missing trait",
+                trait_impl.object_type.location,
+            ));
             return;
         };
 
-        if the_trait.where_clause.is_empty() {
-            return;
-        }
-
         let impl_trait = the_trait.name.to_string();
+        let ordered_generics = self.interner.get_ordered_generics_for_impl(impl_id);
 
         let mut bindings = TypeBindings::default();
-        bind_ordered_generics(
-            &the_trait.generics,
-            &trait_impl.resolved_trait_generics,
+        bind_ordered_generics(&the_trait.generics, ordered_generics, &mut bindings);
+
+        self.check_trait_bounds_are_satisfied(
+            the_trait.where_clause.clone(),
+            &impl_trait,
+            &trait_impl.object_type.location,
             &mut bindings,
         );
+    }
 
-        // Check that each of the trait's where clause constraints is satisfied
-        for trait_constraint in the_trait.where_clause.clone() {
+    /// Checks that each trait constraint in the given list is satisfied.
+    ///
+    /// This is used both for checking:
+    /// 1. The trait's where clause constraints are satisfied by the impl
+    /// 2. The trait's parent trait bounds are satisfied by the impl
+    fn check_trait_bounds_are_satisfied(
+        &mut self,
+        constraints: Vec<TraitConstraint>,
+        impl_trait: &str,
+        error_location: &Location,
+        bindings: &mut TypeBindings,
+    ) {
+        for trait_constraint in constraints {
             let Some(trait_constraint_trait) =
                 self.interner.try_get_trait(trait_constraint.trait_bound.trait_id)
             else {
+                self.push_err(TypeCheckError::expecting_other_error(
+                    "check_trait_impl_where_clause_matches_trait_where_clause: missing trait constraint trait",
+                    *error_location,
+                ));
                 continue;
             };
             let trait_constraint_trait_name = trait_constraint_trait.name.to_string();
 
             let mut trait_constraint = trait_constraint.clone();
-            trait_constraint.apply_bindings(&bindings);
+            trait_constraint.apply_bindings(bindings);
 
             let trait_constraint_type = trait_constraint.typ;
             let trait_bound = trait_constraint.trait_bound;
@@ -525,7 +653,7 @@ impl Elaborator<'_> {
 
             // If the trait bound is over a trait that has associated types, the ones that
             // aren't explicit will be in `named_generics` as implicitly added ones.
-            // If they are unbound, they won't be bound until monomorphization, in which cae
+            // If they are unbound, they won't be bound until monomorphization, in which case
             // the below trait implementation lookup will fail (an unbound named generic will
             // never unify in this case). In this case we replace them with fresh type variables
             // so they'll unify (the bindings aren't applied here so this is fine).
@@ -535,16 +663,14 @@ impl Elaborator<'_> {
             // `bindings` is passed here because these implicitly added named generics might
             // have a constraint on them later on and we want to remember what type they ended
             // up being.
-            self.replace_implicitly_added_unbound_named_generics_with_fresh_type_variables(
-                &mut named_generics,
-                &mut bindings,
-            );
+            self.bind_to_fresh_variable(&mut named_generics, bindings);
 
             match self.interner.try_lookup_trait_implementation(
                 &trait_constraint_type,
                 trait_bound.trait_id,
                 &trait_bound.trait_generics.ordered,
                 &named_generics,
+                TraitLookupMode::Default,
             ) {
                 Ok((_, impl_bindings, impl_instantiation_bindings)) => {
                     bindings.extend(impl_bindings);
@@ -554,10 +680,10 @@ impl Elaborator<'_> {
                     let missing_trait =
                         format!("{}{}", trait_constraint_trait_name, trait_bound.trait_generics);
                     self.push_err(ResolverError::TraitNotImplemented {
-                        impl_trait: impl_trait.clone(),
+                        impl_trait: impl_trait.to_string(),
                         missing_trait,
                         type_missing_trait: trait_constraint_type.to_string(),
-                        location: trait_impl.object_type.location,
+                        location: *error_location,
                         missing_trait_location: trait_bound.location,
                     });
                 }
@@ -565,8 +691,9 @@ impl Elaborator<'_> {
         }
     }
 
-    fn replace_implicitly_added_unbound_named_generics_with_fresh_type_variables(
-        &mut self,
+    // Replace implicitly added unbound named generics with fresh type variables
+    fn bind_to_fresh_variable(
+        &self,
         named_generics: &mut [NamedType],
         bindings: &mut TypeBindings,
     ) {
@@ -583,74 +710,68 @@ impl Elaborator<'_> {
                     bindings.insert(type_var_id, (new_type_var, kind, named_type.typ.clone()));
                 }
                 _ => (),
-            };
+            }
         }
     }
 
     pub(super) fn check_parent_traits_are_implemented(&mut self, trait_impl: &UnresolvedTraitImpl) {
         let Some(trait_id) = trait_impl.trait_id else {
+            self.push_err(TypeCheckError::expecting_other_error(
+                "check_parent_traits_are_implemented: missing trait ID",
+                trait_impl.object_type.location,
+            ));
             return;
         };
 
         let Some(object_type) = &trait_impl.resolved_object_type else {
+            self.push_err(TypeCheckError::expecting_other_error(
+                "check_parent_traits_are_implemented: missing object type",
+                trait_impl.object_type.location,
+            ));
             return;
         };
 
         let Some(the_trait) = self.interner.try_get_trait(trait_id) else {
+            self.push_err(TypeCheckError::expecting_other_error(
+                "check_parent_traits_are_implemented: missing trait",
+                trait_impl.object_type.location,
+            ));
             return;
         };
 
-        if the_trait.trait_bounds.is_empty() {
+        let Some(impl_id) = trait_impl.impl_id else {
+            self.push_err(TypeCheckError::expecting_other_error(
+                "check_parent_traits_are_implemented: missing impl ID",
+                trait_impl.object_type.location,
+            ));
             return;
-        }
+        };
 
         let impl_trait = the_trait.name.to_string();
+        let ordered_generics = self.interner.get_ordered_generics_for_impl(impl_id);
 
         let mut bindings = TypeBindings::default();
-        bind_ordered_generics(
-            &the_trait.generics,
-            &trait_impl.resolved_trait_generics,
-            &mut bindings,
-        );
+        bind_ordered_generics(&the_trait.generics, ordered_generics, &mut bindings);
 
         // Note: we only check if the immediate parents are implemented, we don't check recursively.
         // Why? If a parent isn't implemented, we get an error. If a parent is implemented, we'll
         // do the same check for the parent, so this trait's parents parents will be checked, so the
         // recursion is guaranteed.
-        for parent_trait_bound in the_trait.trait_bounds.clone() {
-            let Some(parent_trait) = self.interner.try_get_trait(parent_trait_bound.trait_id)
-            else {
-                continue;
-            };
+        //
+        // Convert parent trait bounds (ResolvedTraitBound) to TraitConstraints using
+        // {Self, ResolvedTraitBound} where Self is the object type being implemented for.
+        let constraints: Vec<TraitConstraint> = the_trait
+            .trait_bounds
+            .iter()
+            .map(|bound| TraitConstraint { typ: object_type.clone(), trait_bound: bound.clone() })
+            .collect();
 
-            let parent_trait_bound = ResolvedTraitBound {
-                trait_generics: parent_trait_bound
-                    .trait_generics
-                    .map(|typ| typ.substitute(&bindings)),
-                ..parent_trait_bound
-            };
-
-            if self
-                .interner
-                .try_lookup_trait_implementation(
-                    object_type,
-                    parent_trait_bound.trait_id,
-                    &parent_trait_bound.trait_generics.ordered,
-                    &parent_trait_bound.trait_generics.named,
-                )
-                .is_err()
-            {
-                let missing_trait =
-                    format!("{}{}", parent_trait.name, parent_trait_bound.trait_generics);
-                self.push_err(ResolverError::TraitNotImplemented {
-                    impl_trait: impl_trait.clone(),
-                    missing_trait,
-                    type_missing_trait: trait_impl.object_type.to_string(),
-                    location: trait_impl.object_type.location,
-                    missing_trait_location: parent_trait_bound.location,
-                });
-            }
-        }
+        self.check_trait_bounds_are_satisfied(
+            constraints,
+            &impl_trait,
+            &trait_impl.object_type.location,
+            &mut bindings,
+        );
     }
 
     /// Prepares a trait impl for function metadata definition.
@@ -670,8 +791,10 @@ impl Elaborator<'_> {
     pub(super) fn prepare_trait_impl_for_function_meta_definition(
         &mut self,
         trait_impl: &mut UnresolvedTraitImpl,
-    ) -> Vec<(TraitConstraint, Location)> {
-        self.local_module = trait_impl.module_id;
+    ) -> (Vec<(TraitConstraint, Location)>, Vec<ResolvedGeneric>) {
+        let previous_local_module = self.local_module.replace(trait_impl.module_id);
+        // Clear any previous item, so when we resolve the self-type we don't register any dependencies.
+        self.current_item = None;
 
         let (trait_id, trait_generics, path_location) =
             self.resolve_trait_impl_trait_path(trait_impl);
@@ -682,8 +805,8 @@ impl Elaborator<'_> {
             self.setup_trait_impl_generics(trait_impl);
 
         // The impl ID is needed for registering associated types and later validation checks.
-        let impl_id = Some(self.interner.next_trait_impl_id());
-        trait_impl.impl_id = impl_id;
+        let impl_id = self.interner.next_trait_impl_id();
+        trait_impl.impl_id = Some(impl_id);
 
         self.resolve_trait_impl_associated_types(
             trait_impl,
@@ -698,9 +821,23 @@ impl Elaborator<'_> {
                 .chain(new_generics_trait_constraints.iter().map(|(constraint, _)| constraint)),
         );
 
-        let wildcard_allowed = false;
+        let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::TraitImplType);
         let unresolved_type = trait_impl.object_type.clone();
         let self_type = self.resolve_type(unresolved_type, wildcard_allowed);
+
+        if let Some(trait_id) = trait_id {
+            // The ordered generics and associated types are already stored by `resolve_trait_impl_associated_types`.
+            // Now that we have resolved the self-type, register the prepared trait impl for it.
+            let impl_generics = vecmap(&self.generics, |generic| generic.type_var.clone());
+            self.interner.add_prepared_trait_implementation(
+                self_type.clone(),
+                trait_id,
+                impl_id,
+                impl_generics,
+                trait_impl.object_type.location,
+            );
+        }
+
         trait_impl.methods.self_type = Some(self_type.clone());
         trait_impl.resolved_object_type = Some(self_type);
 
@@ -716,7 +853,11 @@ impl Elaborator<'_> {
             self.interner.add_trait_reference(trait_id, location, is_self_type_name);
         }
 
-        new_generics_trait_constraints
+        self.local_module = previous_local_module;
+
+        let generics = std::mem::take(&mut self.generics);
+
+        (new_generics_trait_constraints, generics)
     }
 
     /// Resolves the trait path from a trait impl declaration.
@@ -733,27 +874,27 @@ impl Elaborator<'_> {
                 let trait_id = self.resolve_trait_by_path(trait_path);
 
                 // Check and remove and any generic that is specifying an associated item
-                if !trait_generics.named_args.is_empty() {
-                    if let Some(trait_id) = trait_id {
-                        let associated_types =
-                            self.interner.get_trait(trait_id).associated_types.clone();
-                        trait_generics.named_args.retain(|(name, typ)| {
-                            let associated_type = associated_types.iter().find(|associated_type| {
-                                associated_type.name.as_str() == name.as_str()
-                            });
-                            if associated_type.is_some() {
-                                let location = name.location().merge(typ.location);
-                                self.push_err(
-                                    ResolverError::AssociatedItemConstraintsNotAllowedInGenerics {
-                                        location,
-                                    },
-                                );
-                                false
-                            } else {
-                                true
-                            }
-                        });
-                    }
+                if !trait_generics.named_args.is_empty()
+                    && let Some(trait_id) = trait_id
+                {
+                    let associated_types =
+                        self.interner.get_trait(trait_id).associated_types.clone();
+                    trait_generics.named_args.retain(|(name, typ)| {
+                        let associated_type = associated_types
+                            .iter()
+                            .find(|associated_type| associated_type.name.as_str() == name.as_str());
+                        if associated_type.is_some() {
+                            let location = name.location().merge(typ.location);
+                            self.push_err(
+                                ResolverError::AssociatedItemConstraintsNotAllowedInGenerics {
+                                    location,
+                                },
+                            );
+                            false
+                        } else {
+                            true
+                        }
+                    });
                 }
 
                 (trait_id, trait_generics.clone(), location)
@@ -822,10 +963,10 @@ impl Elaborator<'_> {
         // We need to resolve the where clause before any associated types to be
         // able to resolve trait as type syntax, eg. `<T as Foo>` in case there
         // is a where constraint for `T: Foo`.
-        let constraints = self.resolve_trait_constraints(&trait_impl.where_clause);
+        let constraints = self.resolve_trait_constraints_and_add_to_scope(&trait_impl.where_clause);
 
         // Attach any trait constraints on the impl to the function
-        for (_, _, method) in trait_impl.methods.functions.iter_mut() {
+        for (_, _, method) in &mut trait_impl.methods.functions {
             method.def.where_clause.append(&mut trait_impl.where_clause.clone());
         }
 
@@ -850,14 +991,15 @@ impl Elaborator<'_> {
         // This way associated types can be referred to even if their actual value (for associated constants)
         // is not known yet. This is to allow associated constants to refer to associated constants
         // in other trait impls.
+        let object = trait_impl.object_type.to_string();
+        let trait_name = trait_id.map(|id| self.interner.get_trait(id).name.to_string());
         let associated_types_behind_type_vars = vecmap(&associated_types, |(name, _typ, kind)| {
             let new_generic_id = self.interner.next_type_variable_id();
             let type_var = TypeVariable::unbound(new_generic_id, kind.clone());
-            let typ = Type::NamedGeneric(NamedGeneric {
-                type_var: type_var.clone(),
-                name: std::rc::Rc::new(name.to_string()),
-                implicit: false,
-            });
+            let typ = type_var.into_named_generic(
+                &Rc::new(name.to_string()),
+                trait_name.as_ref().map(|tn| (object.as_str(), tn.as_str())),
+            );
             let typ = self.interner.push_quoted_type(typ);
             let typ = UnresolvedTypeData::Resolved(typ).with_location(name.location());
             (name.clone(), typ)
@@ -874,9 +1016,8 @@ impl Elaborator<'_> {
             })
             .unwrap_or_default();
 
-        trait_impl.resolved_trait_generics = ordered_generics;
         let impl_id = trait_impl.impl_id.expect("impl_id should be set");
-        self.interner.set_associated_types_for_impl(impl_id, named_generics);
+        self.interner.set_trait_generics_for_impl(impl_id, ordered_generics, named_generics);
 
         trait_impl.unresolved_associated_types = associated_types;
     }
@@ -891,7 +1032,7 @@ impl Elaborator<'_> {
     ) -> (Vec<Type>, Vec<NamedType>) {
         let mode = PathResolutionMode::MarkAsReferenced;
         let allow_implicit_named_args = false;
-        let wildcard_allowed = true;
+        let wildcard_allowed = WildcardAllowed::Yes;
         self.resolve_type_or_trait_args_inner(
             args,
             item,

@@ -50,6 +50,7 @@ impl Parser<'_> {
     ///     | 'fold'
     ///     | 'foreign' '(' AttributeValue ')'
     ///     | 'inline_always'
+    ///     | 'inline_never'
     ///     | 'no_predicates'
     ///     | 'oracle' '(' AttributeValue ')'
     ///     | 'recursive'
@@ -143,15 +144,7 @@ impl Parser<'_> {
     }
 
     fn parse_non_tag_attribute(&mut self, start_location: Location) -> Attribute {
-        if matches!(&self.token.token(), Token::Keyword(..))
-            && (self.next_is(Token::LeftParen) || self.next_is(Token::RightBracket))
-        {
-            // This is a Meta attribute with the syntax `keyword(arg1, arg2, .., argN)`
-            let path = Path::from_single(self.token.to_string(), self.current_token_location);
-            let name = MetaAttributeName::Path(path);
-            self.bump();
-            self.parse_meta_attribute(name, start_location)
-        } else if let Some(path) = self.parse_path_no_turbofish() {
+        if let Some(path) = self.parse_path_no_turbofish() {
             if let Some(ident) = path.as_ident() {
                 if ident.as_str() == "test" {
                     // The test attribute is the only secondary attribute that has `a = b` in its syntax
@@ -259,6 +252,12 @@ impl Parser<'_> {
             }
             "inline_always" => {
                 let kind = FunctionAttributeKind::InlineAlways;
+                let attr = FunctionAttribute { kind, location };
+                let attr = Attribute::Function(attr);
+                self.parse_no_args_attribute(ident, arguments, attr)
+            }
+            "inline_never" => {
+                let kind = FunctionAttributeKind::InlineNever;
                 let attr = FunctionAttribute { kind, location };
                 let attr = Attribute::Function(attr);
                 self.parse_no_args_attribute(ident, arguments, attr)
@@ -698,6 +697,13 @@ mod tests {
     }
 
     #[test]
+    fn parses_attribute_inline_never() {
+        let src = "#[inline_never]";
+        let expected = FunctionAttributeKind::InlineNever;
+        parse_function_attribute_no_errors(src, expected);
+    }
+
+    #[test]
     fn parses_attribute_field() {
         let src = "#[field(bn254)]";
         let expected = SecondaryAttributeKind::Field("bn254".to_string());
@@ -761,22 +767,6 @@ mod tests {
             panic!("Expected meta attribute");
         };
         assert_eq!(meta.name.to_string(), "foo");
-        assert!(meta.arguments.is_empty());
-    }
-
-    #[test]
-    fn parses_meta_attribute_single_identifier_as_keyword() {
-        let src = "#[dep]";
-        let mut parser = Parser::for_str_with_dummy_file(src);
-        let (attribute, _span) = parser.parse_attribute().unwrap();
-        expect_no_errors(&parser.errors);
-        let Attribute::Secondary(attribute) = attribute else {
-            panic!("Expected secondary attribute");
-        };
-        let SecondaryAttributeKind::Meta(meta) = attribute.kind else {
-            panic!("Expected meta attribute");
-        };
-        assert_eq!(meta.name.to_string(), "dep");
         assert!(meta.arguments.is_empty());
     }
 

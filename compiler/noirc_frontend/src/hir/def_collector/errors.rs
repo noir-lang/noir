@@ -34,10 +34,10 @@ pub enum DefCollectorErrorKind {
     PathResolutionError(PathResolutionError),
     #[error("Cannot re-export {item_name} because it has less visibility than this use statement")]
     CannotReexportItemWithLessVisibility { item_name: Ident, desired_visibility: ItemVisibility },
-    #[error("Non-struct type used in impl")]
-    NonStructTypeInImpl { location: Location, is_primitive: bool },
+    #[error("Non-enum, non-struct type used in impl")]
+    NonEnumNonStructTypeInImpl { location: Location, is_primitive: bool },
     #[error("Cannot implement trait on a reference type")]
-    ReferenceInTraitImpl { location: Location },
+    ReferenceInTraitImpl { is_alias: bool, location: Location },
     #[error("Impl for type `{typ}` overlaps with existing impl")]
     OverlappingImpl { typ: crate::Type, location: Location, prev_location: Location },
     #[error("Cannot `impl` a type defined outside the current crate")]
@@ -101,8 +101,8 @@ impl DefCollectorErrorKind {
             }
             | DefCollectorErrorKind::TestOnAssociatedFunction { location }
             | DefCollectorErrorKind::ExportOnAssociatedFunction { location }
-            | DefCollectorErrorKind::NonStructTypeInImpl { location, .. }
-            | DefCollectorErrorKind::ReferenceInTraitImpl { location }
+            | DefCollectorErrorKind::NonEnumNonStructTypeInImpl { location, .. }
+            | DefCollectorErrorKind::ReferenceInTraitImpl { location, .. }
             | DefCollectorErrorKind::OverlappingImpl { location, .. }
             | DefCollectorErrorKind::ModuleAlreadyPartOfCrate { location, .. }
             | DefCollectorErrorKind::ModuleOriginallyDefined { location, .. }
@@ -193,7 +193,7 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
                     format!("consider marking {item_name} as {desired_visibility}"),
                     item_name.location())
             }
-            DefCollectorErrorKind::NonStructTypeInImpl { location, is_primitive } =>{
+            DefCollectorErrorKind::NonEnumNonStructTypeInImpl { location, is_primitive } =>{
                 if *is_primitive {
                     Diagnostic::simple_error(
                         "Cannot define inherent `impl` for primitive types".into(),
@@ -202,17 +202,24 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
                     )
                 }else{
                     Diagnostic::simple_error(
-                        "Non-struct type used in impl".into(),
-                        "Only struct types may have implementation methods".into(),
+                        "Non-enum, non-struct type used in impl".into(),
+                        "Only enum and struct types may have implementation methods".into(),
                         *location,
                     )
                 }
             }
-            DefCollectorErrorKind::ReferenceInTraitImpl { location } => Diagnostic::simple_error(
-                "Trait impls are not allowed on reference types".into(),
-                "Try using a struct type here instead".into(),
-                *location,
-            ),
+            DefCollectorErrorKind::ReferenceInTraitImpl { is_alias, location } => {
+                let alias_str = if *is_alias {
+                    "aliases to "
+                } else {
+                    ""
+                };
+                Diagnostic::simple_error(
+                    format!("Trait impls are not allowed on {alias_str}reference types"),
+                    "Try using a struct or enum type here instead".into(),
+                    *location,
+                )
+            }
             DefCollectorErrorKind::OverlappingImpl { location, typ, prev_location } => {
                 let mut diagnostic = Diagnostic::simple_error(
                     format!("Impl for type `{typ}` overlaps with existing impl"),

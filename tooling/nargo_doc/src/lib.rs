@@ -1,98 +1,157 @@
 use std::collections::HashMap;
 
+use fm::FileManager;
 use iter_extended::vecmap;
 use noirc_driver::CrateId;
-use noirc_errors::Location;
-use noirc_frontend::ast::{IntegerBitSize, ItemVisibility};
-use noirc_frontend::hir::def_map::{ModuleDefId, ModuleId};
+use noirc_errors::reporter::CustomLabel;
+use noirc_errors::{CustomDiagnostic, DiagnosticKind, Location, Span};
+use noirc_frontend::ast::{DocComment, IntegerBitSize, ItemVisibility};
+use noirc_frontend::graph::CrateGraph;
+use noirc_frontend::hir::def_map::{LocalModuleId, ModuleDefId, ModuleId};
 use noirc_frontend::hir::printer::items as expand_items;
 use noirc_frontend::hir_def::stmt::{HirLetStatement, HirPattern};
 use noirc_frontend::hir_def::traits::ResolvedTraitBound;
-use noirc_frontend::node_interner::{FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId, TypeId};
+use noirc_frontend::node_interner::{FuncId, ReferenceId};
+use noirc_frontend::parser::block_comment_has_all_leading_stars;
 use noirc_frontend::shared::Signedness;
 use noirc_frontend::{Kind, NamedGeneric, ResolvedGeneric, TypeBinding};
-use noirc_frontend::{graph::CrateGraph, hir::def_map::DefMaps, node_interner::NodeInterner};
+use noirc_frontend::{hir::def_map::DefMaps, node_interner::NodeInterner};
 
-use crate::items::{
-    AssociatedConstant, AssociatedType, Function, FunctionParam, Generic, Global, Id, Impl, Item,
-    ItemKind, Module, PrimitiveType, PrimitiveTypeKind, Reexport, Struct, StructField, Trait,
-    TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias,
+use crate::ids::{
+    get_function_id, get_global_id, get_module_def_id, get_module_id, get_trait_id,
+    get_type_alias_id, get_type_id,
 };
+use crate::items::{
+    AssociatedConstant, AssociatedType, Function, FunctionParam, Generic, Global, Impl, Item,
+    ItemId, Link, LinkTarget, Links, Module, PrimitiveType, PrimitiveTypeKind, Reexport, Struct,
+    StructField, Trait, TraitBound, TraitConstraint, TraitImpl, Type, TypeAlias,
+};
+use crate::links::{CurrentType, LinkFinder};
+pub use html::to_html;
 
 mod html;
+mod ids;
 pub mod items;
-pub use html::to_html;
+pub mod links;
 
 /// Returns the root module in a crate.
 pub fn crate_module(
     crate_id: CrateId,
-    _crate_graph: &CrateGraph,
+    crate_graph: &CrateGraph,
     def_maps: &DefMaps,
     interner: &NodeInterner,
-    ids: &mut ItemIds,
-) -> Module {
+    file_manager: &FileManager,
+    item_id_to_converted_item: &mut HashMap<ItemId, ConvertedItem>,
+) -> (Module, Vec<BrokenLink>) {
     let module = noirc_frontend::hir::printer::crate_to_module(crate_id, def_maps, interner);
-    let mut builder = DocItemBuilder::new(interner, ids);
-    let mut module = builder.convert_module(module);
+    let mut builder = DocItemBuilder::new(
+        interner,
+        crate_id,
+        crate_graph,
+        def_maps,
+        file_manager,
+        item_id_to_converted_item,
+    );
+    // Use convert_item here instead of convert_module so that the root module is tracked
+    // in `item_id_to_converted_item`.
+    let item = builder.convert_item(expand_items::Item::Module(module), ItemVisibility::Public);
+    let Item::Module(mut module) = item else {
+        panic!("Expected root item to be a module");
+    };
     builder.process_module_reexports(&mut module);
-    module
+    (module, builder.broken_links)
 }
 
 struct DocItemBuilder<'a> {
     interner: &'a NodeInterner,
-    ids: &'a mut ItemIds,
+    crate_id: CrateId,
+    crate_graph: &'a CrateGraph,
+    def_maps: &'a DefMaps,
+    file_manager: &'a FileManager,
+    current_module_id: LocalModuleId,
+    current_type: Option<CurrentType>,
     /// The minimum visibility of the current module. For example,
     /// if the visibilities of parents modules are [pub, pub(crate), pub] then
     /// this will be `pub(crate)`.
     visibility: ItemVisibility,
-    /// Maps a ModuleDefId to the item it converted to.
+    /// Maps an ItemId to the item it converted to.
     /// This is needed because if an item is publicly exported, but the item
     /// isn't publicly visible (because its parent module is private) then we'll
     /// include the item directly under the module that publicly exports it.
     /// We do this by looking up the item in this map.
-    module_def_id_to_item: HashMap<ModuleDefId, ConvertedItem>,
+    item_id_to_converted_item: &'a mut HashMap<ItemId, ConvertedItem>,
     module_imports: HashMap<ModuleId, Vec<expand_items::Import>>,
     /// Trait constraints in scope.
     /// These are set when a trait or trait impl is visited.
     trait_constraints: Vec<TraitConstraint>,
+    broken_links: Vec<BrokenLink>,
+    link_finder: LinkFinder,
 }
 
-impl<'a> DocItemBuilder<'a> {
-    fn new(interner: &'a NodeInterner, ids: &'a mut ItemIds) -> Self {
-        Self {
-            interner,
-            ids,
-            visibility: ItemVisibility::Public,
-            module_def_id_to_item: HashMap::new(),
-            module_imports: HashMap::new(),
-            trait_constraints: Vec::new(),
+#[derive(Debug)]
+pub struct BrokenLink {
+    pub text: String,
+    pub location: Location,
+}
+
+impl From<&BrokenLink> for CustomDiagnostic {
+    fn from(link: &BrokenLink) -> Self {
+        CustomDiagnostic {
+            message: format!("Unresolved link to `{}`", link.text),
+            file: link.location.file,
+            secondaries: vec![CustomLabel {
+                message: format!("No item named `{}` in scope", link.text),
+                location: link.location,
+            }],
+            notes: vec![
+                "to escape `[` and `]` characters, add '\\' before them like `\\[` or `\\]`"
+                    .to_string(),
+            ],
+            kind: DiagnosticKind::Warning,
+            deprecated: false,
+            unnecessary: false,
+            call_stack: vec![],
         }
     }
 }
 
-struct ConvertedItem {
+impl<'a> DocItemBuilder<'a> {
+    fn new(
+        interner: &'a NodeInterner,
+        crate_id: CrateId,
+        crate_graph: &'a CrateGraph,
+        def_maps: &'a DefMaps,
+        file_manager: &'a FileManager,
+        item_id_to_converted_item: &'a mut HashMap<ItemId, ConvertedItem>,
+    ) -> Self {
+        let current_module_id = def_maps[&crate_id].root();
+        let link_finder = LinkFinder::default();
+        Self {
+            interner,
+            crate_id,
+            crate_graph,
+            def_maps,
+            file_manager,
+            current_module_id,
+            current_type: None,
+            visibility: ItemVisibility::Public,
+            item_id_to_converted_item,
+            module_imports: HashMap::new(),
+            trait_constraints: Vec::new(),
+            broken_links: Vec::new(),
+            link_finder,
+        }
+    }
+}
+
+pub struct ConvertedItem {
     item: Item,
+    crate_id: CrateId,
     // This is the maximum visibility the item has considering it's nested
     // in modules. For example, in `pub(crate) mod a { pub struct B {} }`,
     // struct B will have `pub(crate)` visibility here as it can't be publicly
     // reached.
     visibility: ItemVisibility,
-}
-
-/// Maps an ItemId to a unique identifier.
-pub type ItemIds = HashMap<ItemId, usize>;
-
-/// Uniquely identifies an item.
-/// This is done by using a type's name, location in source code and kind.
-/// With macros, two types might end up being defined in the same location but they will likely
-/// have different names.
-/// This is just a temporary solution until we have a better way to uniquely identify items
-/// across crates.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ItemId {
-    pub location: Location,
-    pub kind: ItemKind,
-    pub name: String,
 }
 
 impl DocItemBuilder<'_> {
@@ -107,50 +166,61 @@ impl DocItemBuilder<'_> {
                 let old_visibility = self.visibility;
                 self.visibility = old_visibility.min(visibility);
 
+                let old_module_id = self.current_module_id;
+                self.current_module_id = module.id.local_id;
+
                 let module = self.convert_module(module);
 
                 self.visibility = old_visibility;
+                self.current_module_id = old_module_id;
 
                 Item::Module(module)
             }
             expand_items::Item::DataType(item_data_type) => {
                 let type_id = item_data_type.id;
+                self.current_type = Some(CurrentType::Type(type_id));
                 let shared_data_type = self.interner.get_type(type_id);
                 let data_type = shared_data_type.borrow();
-                if data_type.is_enum() {
-                    panic!("Enums are not supported yet");
-                }
                 let comments = self.doc_comments(ReferenceId::Type(type_id));
                 let mut has_private_fields = false;
-                let fields = data_type
-                    .get_fields_as_written()
-                    .unwrap()
-                    .iter()
-                    .enumerate()
-                    .filter(|(_, field)| {
-                        if field.visibility == ItemVisibility::Public {
-                            true
-                        } else {
-                            has_private_fields = true;
-                            false
-                        }
-                    })
-                    .map(|(index, field)| {
-                        let comments = self.doc_comments(ReferenceId::StructMember(type_id, index));
-                        let r#type = self.convert_type(&field.typ);
-                        StructField { name: field.name.to_string(), r#type, comments }
-                    })
-                    .collect();
+                let fields = if data_type.is_enum() {
+                    // Enums are shown as structs for now
+                    Vec::new()
+                } else {
+                    data_type
+                        .get_fields_as_written()
+                        .unwrap()
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, field)| {
+                            if field.visibility == ItemVisibility::Public {
+                                true
+                            } else {
+                                has_private_fields = true;
+                                false
+                            }
+                        })
+                        .map(|(index, field)| {
+                            let comments =
+                                self.doc_comments(ReferenceId::StructMember(type_id, index));
+                            let r#type = self.convert_type(&field.typ);
+                            StructField { name: field.name.to_string(), r#type, comments }
+                        })
+                        .collect()
+                };
                 let generics = vecmap(&data_type.generics, |generic| self.convert_generic(generic));
                 let impls = vecmap(item_data_type.impls, |impl_| self.convert_impl(impl_));
                 let trait_impls =
                     vecmap(item_data_type.trait_impls, |impl_| self.convert_trait_impl(impl_));
-                let id = self.get_type_id(type_id);
+                let id = get_type_id(type_id, self.interner);
+                let comptime = data_type.comptime;
+                self.current_type = None;
                 Item::Struct(Struct {
                     id,
                     name: data_type.name.to_string(),
                     generics,
                     fields,
+                    comptime,
                     has_private_fields,
                     impls,
                     trait_impls,
@@ -159,6 +229,7 @@ impl DocItemBuilder<'_> {
             }
             expand_items::Item::Trait(item_trait) => {
                 let trait_id = item_trait.id;
+                self.current_type = Some(CurrentType::Trait(trait_id));
                 let trait_ = self.interner.get_trait(trait_id);
                 let name = trait_.name.to_string();
                 let comments = self.doc_comments(ReferenceId::Trait(trait_id));
@@ -207,7 +278,10 @@ impl DocItemBuilder<'_> {
                     }
                 }
 
-                let id = self.get_trait_id(trait_id);
+                let id = get_trait_id(trait_id, self.interner);
+
+                self.current_type = None;
+
                 Item::Trait(Trait {
                     id,
                     name,
@@ -230,15 +304,16 @@ impl DocItemBuilder<'_> {
                 let comments = self.doc_comments(ReferenceId::Alias(type_alias_id));
                 let generics =
                     vecmap(&type_alias.generics, |generic| self.convert_generic(generic));
-                let id = self.get_type_alias_id(type_alias_id);
-                Item::TypeAlias(TypeAlias { id, name, comments, r#type, generics })
+                let comptime = type_alias.comptime;
+                let id = get_type_alias_id(type_alias_id, self.interner);
+                Item::TypeAlias(TypeAlias { id, name, comments, r#type, generics, comptime })
             }
             expand_items::Item::PrimitiveType(primitive_type) => {
                 let kind = match &primitive_type.typ {
                     noirc_frontend::Type::String(..) => PrimitiveTypeKind::Str,
                     noirc_frontend::Type::FmtString(..) => PrimitiveTypeKind::Fmtstr,
                     noirc_frontend::Type::Array(..) => PrimitiveTypeKind::Array,
-                    noirc_frontend::Type::Slice(..) => PrimitiveTypeKind::Slice,
+                    noirc_frontend::Type::Vector(..) => PrimitiveTypeKind::Vector,
                     _ => {
                         let Type::Primitive(kind) = self.convert_type(&primitive_type.typ) else {
                             panic!("Expected primitive type");
@@ -246,15 +321,19 @@ impl DocItemBuilder<'_> {
                         kind
                     }
                 };
+                self.current_type = Some(CurrentType::PrimitiveType(kind));
                 let impls = vecmap(primitive_type.impls, |impl_| self.convert_impl(impl_));
                 let trait_impls =
                     vecmap(primitive_type.trait_impls, |impl_| self.convert_trait_impl(impl_));
-                let comments = self
-                    .interner
-                    .primitive_docs
-                    .get(&kind.to_string())
-                    .cloned()
-                    .map(|comments| comments.join("\n").trim().to_string());
+                let comments =
+                    self.interner.primitive_docs.get(&kind.to_string()).cloned().map(|comments| {
+                        vecmap(comments, |comment| comment.contents).join("\n").trim().to_string()
+                    });
+                let comments = comments.map(|comments| {
+                    let links = self.find_links_in_comments(&comments);
+                    (comments, links)
+                });
+                self.current_type = None;
                 Item::PrimitiveType(PrimitiveType { kind, impls, trait_impls, comments })
             }
             expand_items::Item::Global(global_id) => {
@@ -270,15 +349,20 @@ impl DocItemBuilder<'_> {
                 let typ = self.interner.definition_type(definition_id);
                 let r#type = self.convert_type(&typ);
                 let comments = self.doc_comments(ReferenceId::Global(global_id));
-                let id = self.get_global_id(global_id);
+                let id = get_global_id(global_id, self.interner);
                 Item::Global(Global { id, name, comments, comptime, mutable, r#type })
             }
             expand_items::Item::Function(func_id) => Item::Function(self.convert_function(func_id)),
         };
         if let Some(module_def_id) = module_def_id {
-            self.module_def_id_to_item.insert(
-                module_def_id,
-                ConvertedItem { item: converted_item.clone(), visibility: self.visibility },
+            let id = get_module_def_id(module_def_id, self.interner);
+            self.item_id_to_converted_item.insert(
+                id,
+                ConvertedItem {
+                    item: converted_item.clone(),
+                    crate_id: self.crate_id,
+                    visibility: self.visibility,
+                },
             );
         }
         converted_item
@@ -294,7 +378,7 @@ impl DocItemBuilder<'_> {
             .collect();
         self.module_imports.insert(module.id, module.imports);
         let is_contract = module.is_contract;
-        let id = self.get_module_id(module.id);
+        let id = get_module_id(module.id, self.interner);
         Module { id, module_id: module.id, name, comments, items, is_contract }
     }
 
@@ -332,14 +416,26 @@ impl DocItemBuilder<'_> {
 
         let trait_ = self.interner.get_trait(trait_impl.trait_id);
         let trait_name = trait_.name.to_string();
-        let trait_id = self.get_trait_id(trait_.id);
-        let trait_generics = vecmap(&trait_impl.trait_generics, |typ| self.convert_type(typ));
+        let trait_id = get_trait_id(trait_.id, self.interner);
         let r#type = self.convert_type(&trait_impl.typ);
-        TraitImpl { r#type, generics, methods, trait_id, trait_name, trait_generics, where_clause }
+        let ordered_generics =
+            vecmap(self.interner.get_ordered_generics_for_impl(trait_impl_id), |typ| {
+                self.convert_type(typ)
+            });
+
+        TraitImpl {
+            r#type,
+            generics,
+            methods,
+            trait_id,
+            trait_name,
+            trait_generics: ordered_generics,
+            where_clause,
+        }
     }
 
     fn convert_trait_constraint(
-        &mut self,
+        &self,
         constraint: &noirc_frontend::hir_def::traits::TraitConstraint,
     ) -> TraitConstraint {
         let r#type = self.convert_type(&constraint.typ);
@@ -347,16 +443,16 @@ impl DocItemBuilder<'_> {
         TraitConstraint { r#type, bound }
     }
 
-    fn convert_trait_bound(&mut self, trait_bound: &ResolvedTraitBound) -> TraitBound {
+    fn convert_trait_bound(&self, trait_bound: &ResolvedTraitBound) -> TraitBound {
         let trait_ = self.interner.get_trait(trait_bound.trait_id);
         let trait_name = trait_.name.to_string();
-        let trait_id = self.get_trait_id(trait_.id);
+        let trait_id = get_trait_id(trait_.id, self.interner);
         let (ordered_generics, named_generics) =
             self.convert_trait_generics(&trait_bound.trait_generics);
         TraitBound { trait_id, trait_name, ordered_generics, named_generics }
     }
 
-    fn convert_type(&mut self, typ: &noirc_frontend::Type) -> Type {
+    fn convert_type(&self, typ: &noirc_frontend::Type) -> Type {
         match typ {
             noirc_frontend::Type::Unit => Type::Unit,
             noirc_frontend::Type::FieldElement => Type::Primitive(PrimitiveTypeKind::Field),
@@ -415,8 +511,8 @@ impl DocItemBuilder<'_> {
                 length: Box::new(self.convert_type(length)),
                 element: Box::new(self.convert_type(element)),
             },
-            noirc_frontend::Type::Slice(element) => {
-                Type::Slice { element: Box::new(self.convert_type(element)) }
+            noirc_frontend::Type::Vector(element) => {
+                Type::Vector { element: Box::new(self.convert_type(element)) }
             }
             noirc_frontend::Type::String(length) => {
                 Type::String { length: Box::new(self.convert_type(length)) }
@@ -430,17 +526,15 @@ impl DocItemBuilder<'_> {
             }
             noirc_frontend::Type::DataType(data_type, generics) => {
                 let data_type = data_type.borrow();
-                if data_type.is_enum() {
-                    panic!("Enums are not supported yet");
-                }
-                let id = self.get_type_id(data_type.id);
+                // Enums are shown as structs for now
+                let id = get_type_id(data_type.id, self.interner);
                 let name = data_type.name.to_string();
                 let generics = vecmap(generics, |typ| self.convert_type(typ));
                 Type::Struct { id, name, generics }
             }
             noirc_frontend::Type::Alias(type_alias, generics) => {
                 let type_alias = type_alias.borrow();
-                let id = self.get_type_alias_id(type_alias.id);
+                let id = get_type_alias_id(type_alias.id, self.interner);
                 let name = type_alias.name.to_string();
                 let generics = vecmap(generics, |typ| self.convert_type(typ));
                 Type::TypeAlias { id, name, generics }
@@ -454,7 +548,7 @@ impl DocItemBuilder<'_> {
             }
             noirc_frontend::Type::TraitAsType(trait_id, _, trait_generics) => {
                 let trait_ = self.interner.get_trait(*trait_id);
-                let trait_id = self.get_trait_id(trait_.id);
+                let trait_id = get_trait_id(trait_.id, self.interner);
                 let trait_name = trait_.name.to_string();
                 let (ordered_generics, named_generics) =
                     self.convert_trait_generics(trait_generics);
@@ -497,7 +591,7 @@ impl DocItemBuilder<'_> {
     }
 
     fn convert_trait_generics(
-        &mut self,
+        &self,
         trait_generics: &noirc_frontend::hir::type_check::generics::TraitGenerics,
     ) -> (Vec<Type>, std::collections::BTreeMap<String, Type>) {
         let ordered_generics = vecmap(&trait_generics.ordered, |typ| self.convert_type(typ));
@@ -520,9 +614,9 @@ impl DocItemBuilder<'_> {
     fn convert_function(&mut self, func_id: FuncId) -> Function {
         let modifiers = self.interner.function_modifiers(&func_id);
         let func_meta = self.interner.function_meta(&func_id);
-        let unconstrained = modifiers.is_unconstrained;
+        let unconstrained = func_meta.is_unconstrained();
         let comptime = modifiers.is_comptime;
-        let name = modifiers.name.to_string();
+        let name = modifiers.name.clone();
         let comments = self.doc_comments(ReferenceId::Function(func_id));
         let generics = vecmap(&func_meta.direct_generics, |generic| self.convert_generic(generic));
         let params = vecmap(func_meta.parameters.iter(), |(pattern, typ, _visibility)| {
@@ -553,7 +647,10 @@ impl DocItemBuilder<'_> {
             .cloned()
             .collect::<Vec<_>>();
 
-        let id = self.get_function_id(func_id);
+        let attributes = self.interner.function_attributes(&func_id);
+        let deprecated = attributes.get_deprecated_note();
+
+        let id = get_function_id(func_id, self.interner);
 
         Function {
             id,
@@ -565,16 +662,17 @@ impl DocItemBuilder<'_> {
             params,
             return_type,
             where_clause,
+            deprecated,
         }
     }
 
-    fn convert_generic(&mut self, generic: &ResolvedGeneric) -> Generic {
+    fn convert_generic(&self, generic: &ResolvedGeneric) -> Generic {
         let numeric = self.kind_to_numeric(generic.kind());
         let name = generic.name.to_string();
         Generic { name, numeric }
     }
 
-    fn kind_to_numeric(&mut self, kind: Kind) -> Option<Type> {
+    fn kind_to_numeric(&self, kind: Kind) -> Option<Type> {
         match kind {
             Kind::Any | Kind::Normal | Kind::IntegerOrField | Kind::Integer => None,
             Kind::Numeric(typ) => Some(self.convert_type(&typ)),
@@ -594,16 +692,24 @@ impl DocItemBuilder<'_> {
         }
 
         let imports = self.module_imports.remove(&module.module_id).unwrap();
-        for import in imports {
-            if import.visibility == ItemVisibility::Private {
-                continue;
-            }
+        let non_private_imports = imports
+            .into_iter()
+            .filter(|import| import.visibility != ItemVisibility::Private)
+            .collect::<Vec<_>>();
 
-            if let Some(converted_item) = self.module_def_id_to_item.get(&import.id) {
-                if converted_item.visibility < import.visibility {
-                    // This is a re-export of a private item. The private item won't show up in
-                    // its module docs (because it's private) so it's included directly under
-                    // the module that re-exports it (this is how rustdoc works too).
+        for import in non_private_imports {
+            let item_id = get_module_def_id(import.id, self.interner);
+            if let Some(converted_item) = self.item_id_to_converted_item.get(&item_id) {
+                // Check if this is a re-export of a private item. The private item won't show up in
+                // its module docs (because it's private) so it's included directly under
+                // the module that re-exports it (this is how rustdoc works too).
+                //
+                // We also check if this a re-export of an item from another crate. In that
+                // case we'll also include that item directly under this module as the other
+                // crate might not be part of the workspace (just a dependency).
+                if converted_item.visibility < import.visibility
+                    || converted_item.crate_id != self.crate_id
+                {
                     let mut item = converted_item.item.clone();
                     item.set_name(import.name.to_string());
 
@@ -613,7 +719,7 @@ impl DocItemBuilder<'_> {
             }
 
             // This is an internal or external re-export
-            let id = self.get_module_def_id(import.id);
+            let id = get_module_def_id(import.id, self.interner);
             module.items.push((
                 import.visibility,
                 Item::Reexport(Reexport {
@@ -623,17 +729,115 @@ impl DocItemBuilder<'_> {
                 }),
             ));
         }
+
+        // The module changed (it got new items). Because it can still be looked up in
+        // `item_id_to_converted_item` we need to update its definition there too.
+        self.item_id_to_converted_item.get_mut(&module.id).unwrap().item =
+            Item::Module(module.clone());
     }
 
-    fn doc_comments(&self, id: ReferenceId) -> Option<String> {
-        self.interner.doc_comments(id).map(|comments| comments.join("\n").trim().to_string())
+    fn doc_comments(&mut self, id: ReferenceId) -> Option<(String, Links)> {
+        self.link_finder.reset();
+
+        let comments = self.interner.doc_comments(id)?;
+        let mut links = Vec::new();
+        let mut line = 0;
+
+        // Go comment by comment so that broken link locations are more accurate.
+        for comment in comments {
+            let mut comment_links = self.find_links_in_comments(&comment.contents);
+            for link in &mut comment_links {
+                link.line += line;
+
+                if link.target.is_none() {
+                    let location = self.link_location(comment, link.line, link.start, link.end);
+                    let broken_link = BrokenLink { text: link.path.clone(), location };
+                    self.broken_links.push(broken_link);
+                }
+            }
+            links.extend(comment_links);
+            line += comment.contents.lines().count().max(1);
+        }
+
+        let comments =
+            vecmap(comments, |comment| comment.contents.clone()).join("\n").trim().to_string();
+        Some((comments, links))
+    }
+
+    /// The idea of this method is to find occurrences of markdown links and references in comments.
+    /// For each of these we try to resolve them to a ModuleDefId of sort, which
+    /// is actually represented as a Link to a type, method, module, etc.
+    ///
+    /// The doc generator ([html::to_html]) will then replace occurrences of these links
+    /// with resolved HTML links.
+    fn find_links_in_comments(&mut self, comments: &str) -> Links {
+        let current_module_id = ModuleId { krate: self.crate_id, local_id: self.current_module_id };
+        let links = self.link_finder.find_links(
+            comments,
+            current_module_id,
+            self.current_type,
+            self.interner,
+            self.def_maps,
+            self.crate_graph,
+        );
+        vecmap(links, |link| {
+            let target = link.target.map(|target| match target {
+                links::LinkTarget::TopLevelItem(module_def_id) => {
+                    LinkTarget::TopLevelItem(get_module_def_id(module_def_id, self.interner))
+                }
+                links::LinkTarget::Method(module_def_id, func_id) => {
+                    let name = self.interner.function_name(&func_id).to_string();
+                    LinkTarget::Method(get_module_def_id(module_def_id, self.interner), name)
+                }
+                links::LinkTarget::StructMember(type_id, index) => {
+                    let data_type = self.interner.get_type(type_id);
+                    let name = data_type.borrow().field_at(index).name.to_string();
+                    LinkTarget::StructMember(get_type_id(type_id, self.interner), name)
+                }
+                links::LinkTarget::PrimitiveType(primitive_type_kind) => {
+                    LinkTarget::PrimitiveType(primitive_type_kind)
+                }
+                links::LinkTarget::PrimitiveTypeFunction(primitive_type_kind, func_id) => {
+                    let name = self.interner.function_name(&func_id).to_string();
+                    LinkTarget::PrimitiveTypeFunction(primitive_type_kind, name)
+                }
+            });
+            Link {
+                name: link.name,
+                path: link.path,
+                target,
+                line: link.line,
+                start: link.start,
+                end: link.end,
+            }
+        })
+    }
+
+    /// Returns the actual [`Location`] of a link inside `comment`, one that is at the given
+    /// `line`, `start` and `end`.
+    fn link_location(
+        &self,
+        comment: &DocComment,
+        line: usize,
+        start: usize,
+        end: usize,
+    ) -> Location {
+        let location = comment.location();
+        let file = location.file;
+        let source = self.file_manager.fetch_file(file).unwrap();
+        let text: &str = &source[location.span.start() as usize..location.span.end() as usize];
+        let offset = link_offset(text, line) + start;
+        let span_start = location.span.start() + offset as u32;
+        let span_end = span_start + (end - start) as u32;
+        let span = Span::from(span_start..span_end);
+        Location::new(span, file)
     }
 
     fn pattern_to_string(&self, pattern: &HirPattern) -> String {
         match pattern {
             HirPattern::Identifier(ident) => {
                 let definition = self.interner.definition(ident.id);
-                definition.name.to_string()
+                definition.name.clone()
             }
             HirPattern::Mutable(inner_pattern, _) => self.pattern_to_string(inner_pattern),
             HirPattern::Tuple(..) | HirPattern::Struct(..) => "_".to_string(),
@@ -651,7 +855,7 @@ impl DocItemBuilder<'_> {
         }
     }
 
-    fn get_module_def_id_name(&mut self, id: ModuleDefId) -> String {
+    fn get_module_def_id_name(&self, id: ModuleDefId) -> String {
         match id {
             ModuleDefId::ModuleId(module_id) => {
                 let attributes = self.interner.try_module_attributes(module_id);
@@ -682,84 +886,223 @@ impl DocItemBuilder<'_> {
             }
         }
     }
+}
 
-    fn get_module_def_id(&mut self, id: ModuleDefId) -> Id {
-        match id {
-            ModuleDefId::ModuleId(id) => self.get_module_id(id),
-            ModuleDefId::FunctionId(id) => self.get_function_id(id),
-            ModuleDefId::TypeId(id) => self.get_type_id(id),
-            ModuleDefId::TypeAliasId(id) => self.get_type_alias_id(id),
-            ModuleDefId::TraitId(id) => self.get_trait_id(id),
-            ModuleDefId::GlobalId(id) => self.get_global_id(id),
-            ModuleDefId::TraitAssociatedTypeId(_) => {
-                panic!("Trait associated types cannot be re-exported")
+pub(crate) fn convert_primitive_type(
+    primitive_type: noirc_frontend::elaborator::PrimitiveType,
+) -> PrimitiveTypeKind {
+    match primitive_type {
+        noirc_frontend::elaborator::PrimitiveType::Field => PrimitiveTypeKind::Field,
+        noirc_frontend::elaborator::PrimitiveType::Bool => PrimitiveTypeKind::Bool,
+        noirc_frontend::elaborator::PrimitiveType::U1 => PrimitiveTypeKind::U1,
+        noirc_frontend::elaborator::PrimitiveType::U8 => PrimitiveTypeKind::U8,
+        noirc_frontend::elaborator::PrimitiveType::U16 => PrimitiveTypeKind::U16,
+        noirc_frontend::elaborator::PrimitiveType::U32 => PrimitiveTypeKind::U32,
+        noirc_frontend::elaborator::PrimitiveType::U64 => PrimitiveTypeKind::U64,
+        noirc_frontend::elaborator::PrimitiveType::U128 => PrimitiveTypeKind::U128,
+        noirc_frontend::elaborator::PrimitiveType::I8 => PrimitiveTypeKind::I8,
+        noirc_frontend::elaborator::PrimitiveType::I16 => PrimitiveTypeKind::I16,
+        noirc_frontend::elaborator::PrimitiveType::I32 => PrimitiveTypeKind::I32,
+        noirc_frontend::elaborator::PrimitiveType::I64 => PrimitiveTypeKind::I64,
+        noirc_frontend::elaborator::PrimitiveType::Str => PrimitiveTypeKind::Str,
+        noirc_frontend::elaborator::PrimitiveType::Fmtstr => PrimitiveTypeKind::Fmtstr,
+        noirc_frontend::elaborator::PrimitiveType::Expr => PrimitiveTypeKind::Expr,
+        noirc_frontend::elaborator::PrimitiveType::Quoted => PrimitiveTypeKind::Quoted,
+        noirc_frontend::elaborator::PrimitiveType::Type => PrimitiveTypeKind::Type,
+        noirc_frontend::elaborator::PrimitiveType::TypedExpr => PrimitiveTypeKind::TypedExpr,
+        noirc_frontend::elaborator::PrimitiveType::TypeDefinition => {
+            PrimitiveTypeKind::TypeDefinition
+        }
+        noirc_frontend::elaborator::PrimitiveType::TraitConstraint => {
+            PrimitiveTypeKind::TraitConstraint
+        }
+        noirc_frontend::elaborator::PrimitiveType::CtString => PrimitiveTypeKind::CtString,
+        noirc_frontend::elaborator::PrimitiveType::FunctionDefinition => {
+            PrimitiveTypeKind::FunctionDefinition
+        }
+        noirc_frontend::elaborator::PrimitiveType::Module => PrimitiveTypeKind::Module,
+        noirc_frontend::elaborator::PrimitiveType::StructDefinition => {
+            PrimitiveTypeKind::TypeDefinition
+        }
+        noirc_frontend::elaborator::PrimitiveType::TraitDefinition => {
+            PrimitiveTypeKind::TraitDefinition
+        }
+        noirc_frontend::elaborator::PrimitiveType::TraitImpl => PrimitiveTypeKind::TraitImpl,
+        noirc_frontend::elaborator::PrimitiveType::UnresolvedType => {
+            PrimitiveTypeKind::UnresolvedType
+        }
+    }
+}
+
+/// Returns the offset in `text` at which the actual comment text start at the given `line`,
+/// assuming `text` is the entire doc comment text.
+/// The `start` and `end` position of links are relative to the line in which a link appears,
+/// and because broken links need to be reported as [`Location`]s we need to adjust their
+/// span accordingly.
+fn link_offset(text: &str, line: usize) -> usize {
+    // Easy: for line comments we just need to skip the comment prefix
+    if text.starts_with("/// ") || text.starts_with("//! ") {
+        return 4;
+    }
+    if text.starts_with("///") || text.starts_with("//!") {
+        return 3;
+    }
+
+    // If the text contains "\r\n" we assume that's the newline style used.
+    let rn = text.contains("\r\n");
+    let newline_width = if rn { 2 } else { 1 };
+
+    // A bit more tricky: block comments.
+    let mut offset = 0;
+    let lines = text.lines().collect::<Vec<_>>();
+
+    // The line number in the doc comment we are in. This isn't exactly the `index` we get
+    // from `iter().enumerate()` because if the first line is just "/**" or "/*!" (with optional
+    // trailing spaces) then that line is not counted as the first line of the comment (the next
+    // one will).
+    let mut current_line_number: usize = 0;
+
+    for (line_index, line_text) in lines.iter().enumerate() {
+        // Special check for the first line
+        if line_index == 0 {
+            // We first skip past "/**" or "/*!" (one of those must come).
+            let new_line_text =
+                line_text.strip_prefix("/**").or_else(|| line_text.strip_prefix("/*!")).unwrap();
+            offset += 3;
+
+            // Next we skip any spaces after that
+            let line_text_length = new_line_text.len();
+            let new_line_text = new_line_text.trim_start();
+            if new_line_text.is_empty() {
+                // If the line is empty, the entire line is skipped. Note that we proceed
+                // with the next line without incrementing `current_line_number`.
+                offset += new_line_text.len() + newline_width;
+                continue;
+            } else {
+                // Otherwise we just skip the spaces.
+                offset += line_text_length - new_line_text.len();
             }
         }
-    }
 
-    fn get_module_id(&mut self, id: ModuleId) -> Id {
-        let module = self.interner.module_attributes(id);
-        let location = module.location;
-        let name = module.name.clone();
-        let kind = ItemKind::Module;
-        let id = ItemId { location, kind, name };
-        self.get_id(id)
-    }
+        // Did we reach the line we were looking for?
+        if current_line_number == line {
+            let line_text_length = line_text.len();
+            let line_text = line_text.trim_start();
+            // Adjust offset to account for leading spaces
+            offset += line_text_length - line_text.len();
 
-    fn get_type_id(&mut self, id: TypeId) -> Id {
-        let data_type = self.interner.get_type(id);
-        let data_type = data_type.borrow();
-        let location = data_type.location;
-        let name = data_type.name.to_string();
-        let kind = ItemKind::Struct;
-        let id = ItemId { location, kind, name };
-        self.get_id(id)
-    }
+            // Does every line in the comment start with "*" (except for the new first line)
+            let all_stars = block_comment_has_all_leading_stars(text);
 
-    fn get_trait_id(&mut self, id: TraitId) -> Id {
-        let trait_ = self.interner.get_trait(id);
-        let location = trait_.location;
-        let name = trait_.name.to_string();
-        let kind = ItemKind::Trait;
-        let id = ItemId { location, kind, name };
-        self.get_id(id)
-    }
+            // If every line starts with "*" we need to skip past it, and any spaces after it.
+            if all_stars && let Some(line_text) = line_text.strip_prefix('*') {
+                offset += 1;
+                let line_text_length = line_text.len();
+                let line_text = line_text.trim_start();
+                // Adjust offset to account for leading spaces after the "*"
+                offset += line_text_length - line_text.len();
+            }
 
-    fn get_type_alias_id(&mut self, id: TypeAliasId) -> Id {
-        let alias = self.interner.get_type_alias(id);
-        let alias = alias.borrow();
-        let location = alias.location;
-        let name = alias.name.to_string();
-        let kind = ItemKind::TypeAlias;
-        let id = ItemId { location, kind, name };
-        self.get_id(id)
-    }
-
-    fn get_function_id(&mut self, id: FuncId) -> Id {
-        let func_meta = self.interner.function_meta(&id);
-        let name = self.interner.function_name(&id).to_owned();
-        let location = func_meta.location;
-        let kind = ItemKind::Function;
-        let id = ItemId { location, kind, name };
-        self.get_id(id)
-    }
-
-    fn get_global_id(&mut self, id: GlobalId) -> Id {
-        let global_info = self.interner.get_global(id);
-        let location = global_info.location;
-        let name = global_info.ident.to_string();
-        let kind = ItemKind::Global;
-        let id = ItemId { location, kind, name };
-        self.get_id(id)
-    }
-
-    fn get_id(&mut self, key: ItemId) -> Id {
-        if let Some(existing_id) = self.ids.get(&key) {
-            *existing_id
-        } else {
-            let new_id = self.ids.len();
-            self.ids.insert(key, new_id);
-            new_id
+            break;
         }
+
+        offset += line_text.len() + newline_width;
+        current_line_number += 1;
+    }
+    offset
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::link_offset;
+
+    #[test]
+    fn link_offset_line_comment_1() {
+        let text = "/// Does not exist: [Foo] bar";
+        let line = 0;
+        let offset = link_offset(text, line);
+        assert_eq!(&text[offset..], "Does not exist: [Foo] bar");
+    }
+
+    #[test]
+    fn link_offset_line_comment_2() {
+        let text = "///Does not exist: [Foo] bar";
+        let line = 0;
+        let offset = link_offset(text, line);
+        assert_eq!(&text[offset..], "Does not exist: [Foo] bar");
+    }
+
+    #[test]
+    fn link_offset_line_comment_3() {
+        let text = "//! Does not exist: [Foo] bar";
+        let line = 0;
+        let offset = link_offset(text, line);
+        assert_eq!(&text[offset..], "Does not exist: [Foo] bar");
+    }
+
+    #[test]
+    fn link_offset_line_comment_4() {
+        let text = "//!Does not exist: [Foo] bar";
+        let line = 0;
+        let offset = link_offset(text, line);
+        assert_eq!(&text[offset..], "Does not exist: [Foo] bar");
+    }
+
+    #[test]
+    fn link_offset_block_comment_1() {
+        let text = "/** Does not exist: [Foo] bar */";
+        let line = 0;
+        let offset = link_offset(text, line);
+        assert_eq!(&text[offset..], "Does not exist: [Foo] bar */");
+    }
+
+    #[test]
+    fn link_offset_block_comment_2() {
+        let text = "/**\n * Does not exist: [Foo] bar\n*/";
+        let line = 0;
+        let offset = link_offset(text, line);
+        assert_eq!(&text[offset..], "Does not exist: [Foo] bar\n*/");
+    }
+
+    #[test]
+    fn link_offset_block_comment_3() {
+        let text = "/**\n   Does not exist: [Foo] bar\n*/";
+        let line = 0;
+        let offset = link_offset(text, line);
+        assert_eq!(&text[offset..], "Does not exist: [Foo] bar\n*/");
+    }
+
+    #[test]
+    fn link_offset_block_comment_4() {
+        let text = "/*! Does not exist: [Foo] bar */";
+        let line = 0;
+        let offset = link_offset(text, line);
+        assert_eq!(&text[offset..], "Does not exist: [Foo] bar */");
+    }
+
+    #[test]
+    fn link_offset_block_comment_5() {
+        // Here "*" is included in the text because not every line starts with "*"
+        let text = "/**\n  One\n  Two\n * Does not exist: [Foo] bar\n*/";
+        let line = 2;
+        let offset = link_offset(text, line);
+        assert_eq!(&text[offset..], "* Does not exist: [Foo] bar\n*/");
+    }
+
+    #[test]
+    fn link_offset_block_comment_6() {
+        // Here "*" is not included in the text because every line starts with "*"
+        let text = "/**\n  * One\n  * Two\n * Does not exist: [Foo] bar\n*/";
+        let line = 2;
+        let offset = link_offset(text, line);
+        assert_eq!(&text[offset..], "Does not exist: [Foo] bar\n*/");
+    }
+
+    #[test]
+    fn link_offset_block_comment_7() {
+        let text = "/**\r\n  * One\r\n  * Two\r\n * Does not exist: [Foo] bar\r\n*/";
+        let line = 2;
+        let offset = link_offset(text, line);
+        assert_eq!(&text[offset..], "Does not exist: [Foo] bar\r\n*/");
     }
 }

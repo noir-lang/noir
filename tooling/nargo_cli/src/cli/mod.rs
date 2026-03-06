@@ -206,7 +206,7 @@ fn compile_with_maybe_dummy_workspace(
         // This `PackageMetadata::default()` is leading to a clippy error but the suggested solution
         // is invalid because the fields are private
         let mut package = PackageMetadata::default();
-        package.name = Some(package_name.clone());
+        package.name = package_name.clone();
         package.package_type = Some("bin".into());
         let dependencies = BTreeMap::new();
         let package_config = PackageConfig { package, dependencies };
@@ -216,10 +216,12 @@ fn compile_with_maybe_dummy_workspace(
             CrateName::from_str(&package_name).expect("package_name to be a valid CrateName");
         let selection = PackageSelection::Selected(package_name);
 
+        let assume_default_entry = true;
         let workspace = resolve_workspace_from_fixed_toml(
             nargo_toml,
             selection,
             Some(NOIR_ARTIFACT_VERSION_STRING.to_owned()),
+            assume_default_entry,
         )?;
         compile_cmd::run(cmd, workspace)
     } else {
@@ -233,6 +235,13 @@ where
     C: WorkspaceCommand,
     R: FnOnce(C, Workspace) -> Result<(), CliError>,
 {
+    if !config.program_dir.exists() {
+        return Err(CliError::ProgramDirDoesNotExist(config.program_dir));
+    }
+    if !config.program_dir.is_dir() {
+        return Err(CliError::ProgramDirIsNotADirectory(config.program_dir));
+    }
+
     // All commands need to run on the workspace level, because that's where the `target` directory is.
     let workspace_dir = nargo_toml::find_root(&config.program_dir, true)?;
     let package_dir = nargo_toml::find_root(&config.program_dir, false)?;
@@ -250,7 +259,7 @@ where
     let mut workspace = read_workspace(&workspace_dir, selection)?;
     // Optionally override the target directory. It's only done here because most commands like the LSP and DAP
     // don't read or write artifacts, so they don't use the target directory.
-    workspace.target_dir = config.target_dir.clone();
+    workspace.target_dir = config.target_dir;
     // Lock manifests if the command needs it.
     let _locks = match cmd.lock_type() {
         LockType::None => None,
@@ -275,7 +284,7 @@ fn lock_workspace(
     }
 
     let mut locks = Vec::new();
-    for pkg in workspace.into_iter() {
+    for pkg in workspace {
         let toml_path = get_package_manifest(&pkg.root_dir)?;
         let path_display = toml_path.display();
 
@@ -305,18 +314,6 @@ fn lock_workspace(
 mod tests {
     use super::NargoCli;
     use clap::Parser;
-
-    #[test]
-    fn test_parse_invalid_expression_width() {
-        let cmd = "nargo --program-dir . compile --expression-width 1";
-        let res = NargoCli::try_parse_from(cmd.split_ascii_whitespace());
-
-        let err = res.expect_err("should fail because of invalid width");
-        assert!(err.to_string().contains("expression-width"));
-        assert!(
-            err.to_string().contains(acvm::compiler::MIN_EXPRESSION_WIDTH.to_string().as_str())
-        );
-    }
 
     #[test]
     fn test_parse_target_dir() {

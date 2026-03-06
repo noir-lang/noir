@@ -1,8 +1,7 @@
 use fm::FileManager;
-use noirc_driver::{
-    CompilationResult, CompileOptions, CompiledContract, CompiledProgram, CrateId, check_crate,
-    link_to_debug_crate,
-};
+use noirc_artifacts::contract::CompiledContract;
+use noirc_artifacts::program::CompiledProgram;
+use noirc_driver::{CompilationResult, CompileOptions, CrateId, check_crate, link_to_debug_crate};
 use noirc_frontend::debug::DebugInstrumenter;
 use noirc_frontend::hir::{Context, ParsedFiles};
 

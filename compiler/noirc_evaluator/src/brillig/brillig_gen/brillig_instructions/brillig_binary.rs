@@ -6,6 +6,7 @@ use crate::brillig::brillig_ir::brillig_variable::SingleAddrVariable;
 use crate::brillig::brillig_ir::registers::{Allocated, RegisterAllocator};
 use crate::brillig::brillig_ir::{BrilligBinaryOp, BrilligContext};
 use crate::ssa::ir::instruction::{BinaryOp, InstructionId, binary::Binary};
+use crate::ssa::ir::printer::try_to_extract_string_from_error_payload;
 use crate::ssa::ir::types::{NumericType, Type};
 use crate::ssa::ir::{dfg::DataFlowGraph, instruction::ConstrainError, value::ValueId};
 use iter_extended::vecmap;
@@ -72,8 +73,12 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             BinaryOp::And => BrilligBinaryOp::And,
             BinaryOp::Or => BrilligBinaryOp::Or,
             BinaryOp::Xor => BrilligBinaryOp::Xor,
-            BinaryOp::Shl => BrilligBinaryOp::Shl,
+            BinaryOp::Shl => {
+                self.bit_shift_overflow(left, right);
+                BrilligBinaryOp::Shl
+            }
             BinaryOp::Shr => {
+                self.bit_shift_overflow(left, right);
                 if is_signed {
                     self.convert_signed_shr(left, right, result_variable);
                     return;
@@ -110,6 +115,23 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
 
         // result_register = left - j
         self.brillig_context.binary_instruction(left, *scratch_var_j, result, BrilligBinaryOp::Sub);
+    }
+
+    fn bit_shift_overflow(&mut self, left: SingleAddrVariable, right: SingleAddrVariable) {
+        // Check that right is less than the bit size of left
+        // The constraint will fail also if rhs is negative, which is expected.
+        let right_overflow = self.brillig_context.allocate_single_addr_bool();
+        let left_bit_size =
+            self.brillig_context.make_constant_instruction(left.bit_size.into(), left.bit_size);
+
+        self.brillig_context.binary_instruction(
+            right,
+            *left_bit_size,
+            *right_overflow,
+            BrilligBinaryOp::LessThan,
+        );
+        let msg = "attempt to bit-shift with overflow".to_string();
+        self.brillig_context.codegen_constrain(*right_overflow, Some(msg));
     }
 
     fn convert_signed_shr(
@@ -204,16 +226,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
 
         match binary.operator {
             BinaryOp::Add { unchecked: false } => {
-                let condition = self.brillig_context.allocate_single_addr_bool();
-                // Check that lhs <= result
-                self.brillig_context.binary_instruction(
-                    left,
-                    result,
-                    *condition,
-                    BrilligBinaryOp::LessThanEquals,
-                );
-                let msg = "attempt to add with overflow".to_string();
-                self.brillig_context.codegen_constrain(*condition, Some(msg));
+                self.brillig_context.codegen_add_overflow_check(left, result);
             }
             BinaryOp::Sub { unchecked: false } => {
                 let condition = self.brillig_context.allocate_single_addr_bool();
@@ -271,12 +284,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         dfg: &DataFlowGraph,
     ) {
         let [result_value] = dfg.instruction_result(instruction_id);
-        let result_var = self.variables.define_single_addr_variable(
-            self.function_context,
-            self.brillig_context,
-            result_value,
-            dfg,
-        );
+        let result_var = self.define_single_addr_variable(result_value, dfg);
         self.convert_ssa_binary(binary, dfg, result_var);
     }
 
@@ -320,18 +328,26 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         };
 
         match assert_message {
-            Some(ConstrainError::Dynamic(selector, _, values)) => {
-                let payload_values = vecmap(values, |value| self.convert_ssa_value(*value, dfg));
-                let payload_as_params = vecmap(values, |value| {
-                    let value_type = dfg.type_of_value(*value);
-                    FunctionContext::ssa_type_to_parameter(&value_type)
-                });
-                self.brillig_context.codegen_constrain_with_revert_data(
-                    *condition,
-                    payload_values,
-                    payload_as_params,
-                    *selector,
-                );
+            Some(ConstrainError::Dynamic(selector, is_string_type, values)) => {
+                if let Some(constant_string) =
+                    try_to_extract_string_from_error_payload(*is_string_type, values, dfg)
+                {
+                    self.brillig_context.codegen_constrain(*condition, Some(constant_string));
+                } else {
+                    let payload_values =
+                        vecmap(values, |value| self.convert_ssa_value(*value, dfg));
+                    let payload_as_params = vecmap(values, |value| {
+                        let value_type = dfg.type_of_value(*value);
+                        FunctionContext::ssa_type_to_parameter(&value_type)
+                    });
+
+                    self.brillig_context.codegen_constrain_with_error_data(
+                        *condition,
+                        payload_values,
+                        payload_as_params,
+                        Some(*selector),
+                    );
+                }
             }
             Some(ConstrainError::StaticString(message)) => {
                 self.brillig_context.codegen_constrain(*condition, Some(message.clone()));

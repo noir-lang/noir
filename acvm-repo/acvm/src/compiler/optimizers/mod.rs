@@ -5,13 +5,12 @@ use acir::{
     circuit::{Circuit, Opcode, brillig::BrilligFunctionId},
 };
 
+mod common_subexpression;
 mod general;
-mod merge_expressions;
 mod redundant_range;
 mod unused_memory;
 
 pub(crate) use general::GeneralOptimizer;
-pub(crate) use merge_expressions::MergeExpressionsOptimizer;
 pub(crate) use redundant_range::RangeOptimizer;
 use tracing::info;
 
@@ -64,18 +63,23 @@ pub(super) fn optimize_internal<F: AcirField>(
 
     info!("Number of opcodes before: {}", acir.opcodes.len());
 
-    // General optimizer pass
-    let opcodes: Vec<Opcode<F>> = acir
+    // General optimizer pass: simplify expressions and remove trivially-satisfied constraints.
+    let (opcodes, acir_opcode_positions): (Vec<_>, Vec<_>) = acir
         .opcodes
         .into_iter()
-        .map(|opcode| {
+        .zip(acir_opcode_positions)
+        .filter_map(|(opcode, position)| {
             if let Opcode::AssertZero(arith_expr) = opcode {
-                Opcode::AssertZero(GeneralOptimizer::optimize(arith_expr))
+                let optimized = GeneralOptimizer::optimize(arith_expr);
+                if optimized.is_zero() {
+                    return None;
+                }
+                Some((Opcode::AssertZero(optimized), position))
             } else {
-                opcode
+                Some((opcode, position))
             }
         })
-        .collect();
+        .unzip();
     let acir = Circuit { opcodes, ..acir };
 
     // Unused memory optimization pass
@@ -88,7 +92,42 @@ pub(super) fn optimize_internal<F: AcirField>(
     let (acir, acir_opcode_positions) =
         range_optimizer.replace_redundant_ranges(acir_opcode_positions);
 
+    let max_transformer_passes_or_default = None;
+    let (acir, acir_opcode_positions, _opcodes_hash_stabilized) =
+        common_subexpression::transform_internal(
+            acir,
+            acir_opcode_positions,
+            brillig_side_effects,
+            max_transformer_passes_or_default,
+        );
+
     info!("Number of opcodes after: {}", acir.opcodes.len());
 
     (acir, acir_opcode_positions)
+}
+
+#[cfg(test)]
+mod tests {
+    use acir::{FieldElement, circuit::Circuit};
+    use std::collections::BTreeMap;
+
+    use crate::{assert_circuit_snapshot, compiler::optimizers::optimize_internal};
+
+    #[test]
+    fn removes_empty_assert_zero_opcodes() {
+        let src = "
+        private parameters: [w0, w1]
+        public parameters: []
+        return values: []
+        ASSERT w0*w1 - w1*w0 = 0
+        ";
+        let circuit = Circuit::<FieldElement>::from_str(src).unwrap();
+        let acir_opcode_positions = (0..circuit.opcodes.len()).collect();
+        let (optimized, _) = optimize_internal(circuit, acir_opcode_positions, &BTreeMap::new());
+        assert_circuit_snapshot!(optimized, @r"
+        private parameters: [w0, w1]
+        public parameters: []
+        return values: []
+        ");
+    }
 }

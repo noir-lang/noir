@@ -6,7 +6,7 @@ use noirc_errors::Location;
 use crate::{
     QuotedType, Type,
     ast::{GenericTypeArgs, IntegerBitSize},
-    elaborator::{Elaborator, PathResolutionMode, Turbofish},
+    elaborator::{Elaborator, PathResolutionMode, Turbofish, types::WildcardAllowed},
     hir::{
         def_collector::dc_crate::CompilationError,
         type_check::{
@@ -188,7 +188,7 @@ impl Elaborator<'_> {
         primitive_type: PrimitiveType,
         args: GenericTypeArgs,
         location: Location,
-        wildcard_allowed: bool,
+        wildcard_allowed: WildcardAllowed,
     ) -> Type {
         match primitive_type {
             PrimitiveType::Bool
@@ -270,6 +270,7 @@ impl Elaborator<'_> {
         &mut self,
         primitive_type: PrimitiveType,
         turbofish: Option<Turbofish>,
+        errors: &mut Vec<CompilationError>,
     ) -> (Type, bool) {
         match primitive_type {
             PrimitiveType::Bool
@@ -298,7 +299,7 @@ impl Elaborator<'_> {
             | PrimitiveType::Type
             | PrimitiveType::UnresolvedType => {
                 if let Some(turbofish) = turbofish {
-                    self.push_err(CompilationError::TypeError(
+                    errors.push(CompilationError::TypeError(
                         TypeCheckError::GenericCountMismatch {
                             item: primitive_type.name().to_string(),
                             expected: 0,
@@ -323,6 +324,7 @@ impl Elaborator<'_> {
                         generics,
                         Some(turbofish.generics),
                         turbofish.location,
+                        errors,
                     )
                 } else {
                     generics
@@ -345,6 +347,7 @@ impl Elaborator<'_> {
                         generics,
                         Some(turbofish.generics),
                         turbofish.location,
+                        errors,
                     )
                 } else {
                     generics
