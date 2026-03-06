@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use acvm::{AcirField, FieldElement};
+use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_frontend::Shared;
 
@@ -173,7 +173,7 @@ fn sub_underflow_signed() {
 
 #[test]
 fn sub_unchecked_unsigned() {
-    let value = expect_value(
+    let error = expect_error(
         "
         acir(inline) fn main f0 {
           b0():
@@ -182,12 +182,7 @@ fn sub_unchecked_unsigned() {
         }
     ",
     );
-    assert_ne!(value, Value::u8(246), "no wrapping");
-    assert_eq!(
-        value,
-        // Note that this is not the same as `Value::i8(-10).convert_to_field()`, because that casts to u8 first.
-        make_unfit(FieldElement::zero() - FieldElement::from(10u32), NumericType::unsigned(8))
-    );
+    assert!(matches!(error, InterpreterError::Overflow { .. }));
 }
 
 #[test]
