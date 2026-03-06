@@ -372,6 +372,19 @@ impl Elaborator<'_> {
         mode: PathResolutionMode,
         wildcard_allowed: WildcardAllowed,
     ) -> Type {
+        let location = path.location;
+        let typ = self.resolve_named_type_helper(path, args, mode, wildcard_allowed);
+        self.check_comptime_type_in_non_comptime_item(&typ, location);
+        typ
+    }
+
+    fn resolve_named_type_helper(
+        &mut self,
+        path: TypedPath,
+        args: GenericTypeArgs,
+        mode: PathResolutionMode,
+        wildcard_allowed: WildcardAllowed,
+    ) -> Type {
         if args.is_empty()
             && let Some(typ) = self.lookup_generic_or_global_type(&path, mode)
         {
@@ -383,7 +396,7 @@ impl Elaborator<'_> {
         // Check if the path is a type variable first. We currently disallow generics on type
         // variables since we do not support higher-kinded types.
         if let Some(typ) = self.lookup_type_variable(&path, &args, wildcard_allowed) {
-            self.check_comptime_type_in_runtime_code(&typ, location);
+            self.check_comptime_type_in_non_comptime_item(&typ, location);
             return typ;
         }
 
@@ -436,14 +449,7 @@ impl Elaborator<'_> {
                 Type::DataType(data_type, args)
             }
             Ok(PathResolutionItem::PrimitiveType(primitive_type)) => {
-                let typ = self.instantiate_primitive_type(
-                    primitive_type,
-                    args,
-                    location,
-                    wildcard_allowed,
-                );
-                self.check_comptime_type_in_runtime_code(&typ, location);
-                typ
+                self.instantiate_primitive_type(primitive_type, args, location, wildcard_allowed)
             }
             Ok(PathResolutionItem::TraitAssociatedType(associated_type_id)) => {
                 if wildcard_allowed == WildcardAllowed::No(WildcardDisallowedContext::ImplType) {
@@ -478,15 +484,48 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Reports an error if `typ` is a comptime-only type and we are in runtime code.
-    fn check_comptime_type_in_runtime_code(&mut self, typ: &Type, location: Location) {
-        if let Type::Quoted(quoted) = typ {
-            use DependencyId::*;
-            let in_function_or_global = matches!(self.current_item, Some(Function(_) | Global(_)));
-            if in_function_or_global && !self.in_comptime_context() {
-                let typ = quoted.to_string();
-                self.push_err(ResolverError::ComptimeTypeInRuntimeCode { location, typ });
-            }
+    /// Reports an error if `typ` is a comptime-only type and we are not in a comptime item
+    fn check_comptime_type_in_non_comptime_item(&mut self, typ: &Type, location: Location) {
+        if self.in_comptime_context() {
+            return;
+        }
+
+        let Some(item) = self.current_item else {
+            // Early return if we're not actually inside any item.
+            return;
+        };
+
+        let typ_is_comptime_only = match typ {
+            Type::Quoted(_) => true,
+            Type::DataType(data_type, _) => data_type.borrow().comptime,
+            Type::Alias(type_alias, _) => type_alias.borrow().comptime,
+            _ => false,
+        };
+
+        // We return early if we are in a comptime context, so if we find a comptime-only type here
+        // it means we are trying to use it in a non-comptime item, which is an error.
+        if typ_is_comptime_only {
+            let item = match item {
+                DependencyId::Function(_) => "function",
+                DependencyId::Global(_) => "global",
+                DependencyId::Alias(_) => "type alias",
+                DependencyId::DataType(type_id) => {
+                    if self.interner.get_type(type_id).borrow().is_struct() {
+                        "struct"
+                    } else {
+                        "enum"
+                    }
+                }
+                DependencyId::Trait(_) | DependencyId::Variable(_) => {
+                    unreachable!(
+                        "Unexpected current item when checking for comptime type usage: {:?}",
+                        self.current_item
+                    )
+                }
+            };
+
+            let typ = typ.to_string();
+            self.push_err(ResolverError::ComptimeTypeInNonComptimeItem { location, typ, item });
         }
     }
 
@@ -2061,7 +2100,7 @@ impl Elaborator<'_> {
     ) -> Type {
         let access_lhs = &mut access.lhs;
 
-        let dereference_lhs = |this: &mut Self, lhs_type, element| {
+        let dereference_lhs = |this: &mut Self, lhs_type, element, _is_mutable| {
             let old_lhs = *access_lhs;
             let old_location = this.interner.id_location(old_lhs);
             let location = Location::new(location.span, old_location.file);
@@ -2098,7 +2137,7 @@ impl Elaborator<'_> {
         lhs_type: &Type,
         field_name: &str,
         location: Location,
-        dereference_lhs: Option<impl FnMut(&mut Self, Type, Type)>,
+        dereference_lhs: Option<impl FnMut(&mut Self, Type, Type, bool /* mutable */)>,
     ) -> Option<(Type, usize)> {
         let lhs_type = lhs_type.follow_bindings();
 
@@ -2132,7 +2171,7 @@ impl Elaborator<'_> {
             // If the lhs is a reference we automatically transform `lhs.field` into `(*lhs).field`
             Type::Reference(element, mutable) => {
                 if let Some(mut dereference_lhs) = dereference_lhs {
-                    dereference_lhs(self, lhs_type.clone(), element.as_ref().clone());
+                    dereference_lhs(self, lhs_type.clone(), element.as_ref().clone(), *mutable);
                     return self.check_field_access(
                         element,
                         field_name,
