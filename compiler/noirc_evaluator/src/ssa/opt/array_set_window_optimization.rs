@@ -300,16 +300,15 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
                     let mut dependencies = im::HashSet::new();
                     instruction.for_each_value(|value| {
                         if let Some(tracked_value) = tracked.get(&value) {
+                            let tracked_value_dependencies = tracked_value.dependencies.clone();
                             if is_call_with_ref_args {
-                                let tracked_value_dependencies =
-                                    tracked_value.dependencies.iter().copied().collect::<Vec<_>>();
                                 for value in tracked_value_dependencies {
                                     candidates.remove(&value);
                                     tracked.remove(&value);
                                 }
                             } else {
                                 dependencies =
-                                    dependencies.clone().union(tracked_value.dependencies.clone());
+                                    dependencies.clone().union(tracked_value_dependencies);
                             }
                         }
                     });
