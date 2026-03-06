@@ -290,6 +290,8 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
                 // arguments through those references, causing them to escape the window
                 // through memory. Treat all tracked arguments as escaping in that case.
                 if let Some(current_window) = current_window {
+                    let results = dfg.instruction_results(instruction_id);
+
                     let is_call_with_ref_args =
                         if let Instruction::Call { arguments, .. } = instruction {
                             arguments.iter().any(|&arg| dfg.type_of_value(arg).contains_reference())
@@ -306,14 +308,14 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
                                     candidates.remove(&value);
                                     tracked.remove(&value);
                                 }
-                            } else {
+                            } else if !results.is_empty() {
                                 dependencies =
                                     dependencies.clone().union(tracked_value_dependencies);
                             }
                         }
                     });
                     if !dependencies.is_empty() {
-                        for &result in dfg.instruction_results(instruction_id) {
+                        for &result in results {
                             tracked.insert(
                                 result,
                                 TrackedValue {
