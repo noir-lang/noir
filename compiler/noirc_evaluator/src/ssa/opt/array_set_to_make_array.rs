@@ -227,13 +227,16 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
                         }
                         _ => {
                             // Otherwise: safe as long as we are inside the tracked window.
-                            current_window.is_some_and(|window| window.id == tracked_value.window.id)
+                            current_window
+                                .is_some_and(|window| window.id == tracked_value.window.id)
                         }
                     }
                 };
                 if !stays_within_window {
-                    let tracked_value_dependencies =
-                        tracked_value.dependencies.clone();
+                    let tracked_value_dependencies = tracked_value.dependencies.clone();
+
+                    candidates.remove(&value);
+                    tracked.remove(&value);
                     for dependency in tracked_value_dependencies {
                         candidates.remove(&dependency);
                         tracked.remove(&dependency);
@@ -308,7 +311,7 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
                                     tracked.remove(&value);
                                 }
                             } else {
-                                dependencies = dependencies.union(tracked_value.dependencies.clone());
+                                dependencies.extend(tracked_value.dependencies.clone());
                             }
                         }
                     });
