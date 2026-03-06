@@ -62,9 +62,6 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn array_set_window_optimization(mut self) -> Self {
         for func in self.functions.values_mut() {
-            if func.runtime().is_brillig() {
-                continue;
-            }
             func.array_set_window_optimization();
         }
         self
