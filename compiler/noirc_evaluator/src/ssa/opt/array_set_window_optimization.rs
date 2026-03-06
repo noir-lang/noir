@@ -334,8 +334,7 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
     if let Some(terminator) = dfg[block_id].terminator() {
         terminator.for_each_value(|value| {
             if let Some(tracked_value) = tracked.get(&value) {
-                let tracked_value_dependencies =
-                    tracked_value.dependencies.iter().copied().collect::<Vec<_>>();
+                let tracked_value_dependencies = tracked_value.dependencies.clone();
                 for value in tracked_value_dependencies {
                     candidates.remove(&value);
                     tracked.remove(&value);
