@@ -1,107 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772801463060,
+  "lastUpdate": 1772801471874,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "72797635+Savio-Sou@users.noreply.github.com",
-            "name": "Savio",
-            "username": "Savio-Sou"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "7e647e33f3c051cf792f9e158d9565336b595abc",
-          "message": "chore(docs): Add missing `;` in integer wrapping code example (#11711)",
-          "timestamp": "2026-02-27T11:47:27Z",
-          "tree_id": "9a7e79f83985cbdb57c8eae5cb7aa090b728dcf7",
-          "url": "https://github.com/noir-lang/noir/commit/7e647e33f3c051cf792f9e158d9565336b595abc"
-        },
-        "date": 1772195732195,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 293.45,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 507.83,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 265.92,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 346.08,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 344.89,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 347.91,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 345.76,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 10110,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 10110,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 348.33,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 1070,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 2810,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 344.93,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 99.18,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 185.27,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -4949,6 +4850,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512_100_bytes",
             "value": 185.29,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ebb5ff171249cbb3518dd5399e155471e3e174b0",
+          "message": "fix(ssa): do not fold ArraySet to MakeArray in simplifier (#11659)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
+          "timestamp": "2026-03-06T11:46:16Z",
+          "tree_id": "b6ce46270f577e323ab008ab10a1d1cc5ab242b3",
+          "url": "https://github.com/noir-lang/noir/commit/ebb5ff171249cbb3518dd5399e155471e3e174b0"
+        },
+        "date": 1772801425514,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 293.68,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 508.06,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 266.16,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 346.44,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 345.24,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 348.11,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 346.07,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 10320,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 10320,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 348.52,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 1070,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 2810,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 345.25,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 99.18,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 185.46,
             "unit": "MB"
           }
         ]
