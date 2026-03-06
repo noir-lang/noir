@@ -293,6 +293,22 @@ pub struct Elaborator<'context> {
     /// when an attribute generates code that triggers further attribute expansion.
     /// This is a global counter that catches both single-function and mutual recursion.
     pub(crate) macro_expansion_depth: usize,
+
+    /// Counter used to define temporary variables for non-simple indexes in l-values.
+    ///
+    /// For example, this expression:
+    ///
+    /// ```noir
+    /// array[x + y] = 10;
+    /// ```
+    ///
+    /// is transformed into:
+    ///
+    /// ```noir
+    /// let i_0 = x + y;
+    /// array[i_0] = 10;
+    /// ```
+    lvalue_index_counter: usize,
 }
 
 #[derive(Copy, Clone)]
@@ -363,6 +379,7 @@ impl<'context> Elaborator<'context> {
             elaborate_reasons,
             comptime_evaluation_halted: false,
             macro_expansion_depth: 0,
+            lvalue_index_counter: 0,
         }
     }
 
@@ -837,6 +854,16 @@ impl<'context> Elaborator<'context> {
     /// The current interpreter call stack.
     pub(crate) fn interpreter_call_stack(&self) -> &im::Vector<Location> {
         &self.interpreter_call_stack
+    }
+
+    pub(crate) fn reset_lvalue_index_counter(&mut self) {
+        self.lvalue_index_counter = 0;
+    }
+
+    pub(crate) fn next_lvalue_index_counter(&mut self) -> usize {
+        let lvalue_index_counter = self.lvalue_index_counter;
+        self.lvalue_index_counter += 1;
+        lvalue_index_counter
     }
 }
 
