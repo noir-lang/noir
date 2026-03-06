@@ -49,7 +49,7 @@
 <a href=#49 id=49 data-nosnippet>49</a>};
 <a href=#50 id=50 data-nosnippet>50</a><span class="kw">use crate</span>::{acir::shared_context::SharedContext, brillig::BrilligOptions};
 <a href=#51 id=51 data-nosnippet>51</a>
-<a href=#52 id=52 data-nosnippet>52</a><span class="kw">use </span>acir_context::{AcirContext, BrilligStdLib, power_of_two};
+<a href=#52 id=52 data-nosnippet>52</a><span class="kw">use </span>acir_context::{AcirContext, BrilligStdLib};
 <a href=#53 id=53 data-nosnippet>53</a><span class="kw">use </span>types::{AcirType, AcirVar};
 <a href=#54 id=54 data-nosnippet>54</a><span class="kw">pub use </span>{acir_context::GeneratedAcir, ssa::Artifacts};
 <a href=#55 id=55 data-nosnippet>55</a>
@@ -841,7 +841,7 @@
 <a href=#841 id=841 data-nosnippet>841</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#842 id=842 data-nosnippet>842</a>        value_id: ValueId,
 <a href=#843 id=843 data-nosnippet>843</a>        bit_size: u32,
-<a href=#844 id=844 data-nosnippet>844</a>        <span class="kw-2">mut </span>max_bit_size: u32,
+<a href=#844 id=844 data-nosnippet>844</a>        max_bit_size: u32,
 <a href=#845 id=845 data-nosnippet>845</a>        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
 <a href=#846 id=846 data-nosnippet>846</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirVar, RuntimeError&gt; {
 <a href=#847 id=847 data-nosnippet>847</a>        <span class="macro">assert_ne!</span>(bit_size, max_bit_size, <span class="string">"Attempted to generate a noop truncation"</span>);
@@ -850,105 +850,86 @@
 <a href=#850 id=850 data-nosnippet>850</a>            <span class="string">"Attempted to generate a truncation into size larger than max input"
 <a href=#851 id=851 data-nosnippet>851</a>        </span>);
 <a href=#852 id=852 data-nosnippet>852</a>
-<a href=#853 id=853 data-nosnippet>853</a>        <span class="kw">let </span><span class="kw-2">mut </span>var = <span class="self">self</span>.convert_numeric_value(value_id, dfg)<span class="question-mark">?</span>;
+<a href=#853 id=853 data-nosnippet>853</a>        <span class="kw">let </span>var = <span class="self">self</span>.convert_numeric_value(value_id, dfg)<span class="question-mark">?</span>;
 <a href=#854 id=854 data-nosnippet>854</a>        <span class="kw">match </span><span class="kw-2">&amp;</span>dfg[value_id] {
 <a href=#855 id=855 data-nosnippet>855</a>            Value::Instruction { instruction, .. } =&gt; {
 <a href=#856 id=856 data-nosnippet>856</a>                <span class="kw">if </span><span class="macro">matches!</span>(
 <a href=#857 id=857 data-nosnippet>857</a>                    <span class="kw-2">&amp;</span>dfg[<span class="kw-2">*</span>instruction],
-<a href=#858 id=858 data-nosnippet>858</a>                    Instruction::Binary(Binary { operator: BinaryOp::Sub { .. }, .. })
+<a href=#858 id=858 data-nosnippet>858</a>                    Instruction::Binary(Binary { operator: BinaryOp::Sub { unchecked: <span class="bool-val">true </span>}, .. })
 <a href=#859 id=859 data-nosnippet>859</a>                ) {
-<a href=#860 id=860 data-nosnippet>860</a>                    <span class="comment">// Subtractions must first have the integer modulus added before truncation can be
-<a href=#861 id=861 data-nosnippet>861</a>                    // applied. This is done in order to prevent underflow.
-<a href=#862 id=862 data-nosnippet>862</a>                    //
-<a href=#863 id=863 data-nosnippet>863</a>                    // FieldElements have max bit size equals to max_num_bits so
-<a href=#864 id=864 data-nosnippet>864</a>                    // we filter out this bit size because there is no underflow
-<a href=#865 id=865 data-nosnippet>865</a>                    // for FieldElements. Furthermore, adding a power of two
-<a href=#866 id=866 data-nosnippet>866</a>                    // would be incorrect for a FieldElement (cf. #8519).
-<a href=#867 id=867 data-nosnippet>867</a>                    </span><span class="kw">if </span>max_bit_size &lt; FieldElement::max_num_bits() {
-<a href=#868 id=868 data-nosnippet>868</a>                        <span class="comment">// When max_bit_size is max_num_bits() - 1, adding
-<a href=#869 id=869 data-nosnippet>869</a>                        // 2**max_bit_size to an element of max_bit_size bits
-<a href=#870 id=870 data-nosnippet>870</a>                        // gives an element of max_num_bits() bits which may overflow
-<a href=#871 id=871 data-nosnippet>871</a>                        </span><span class="macro">assert!</span>(
-<a href=#872 id=872 data-nosnippet>872</a>                            max_bit_size != FieldElement::max_num_bits() - <span class="number">1</span>,
-<a href=#873 id=873 data-nosnippet>873</a>                            <span class="string">"potential underflow in subtraction when max_bit_size is {max_bit_size}"
-<a href=#874 id=874 data-nosnippet>874</a>                        </span>);
-<a href=#875 id=875 data-nosnippet>875</a>                        <span class="kw">let </span>integer_modulus = power_of_two::&lt;FieldElement&gt;(max_bit_size);
-<a href=#876 id=876 data-nosnippet>876</a>                        <span class="kw">let </span>integer_modulus = <span class="self">self</span>.acir_context.add_constant(integer_modulus);
-<a href=#877 id=877 data-nosnippet>877</a>                        var = <span class="self">self</span>.acir_context.add_var(var, integer_modulus)<span class="question-mark">?</span>;
-<a href=#878 id=878 data-nosnippet>878</a>                        max_bit_size += <span class="number">1</span>;
-<a href=#879 id=879 data-nosnippet>879</a>                    }
-<a href=#880 id=880 data-nosnippet>880</a>                }
-<a href=#881 id=881 data-nosnippet>881</a>            }
-<a href=#882 id=882 data-nosnippet>882</a>            Value::Param { .. } =&gt; {
-<a href=#883 id=883 data-nosnippet>883</a>                <span class="comment">// Binary operations on params may have been entirely simplified if the operation
-<a href=#884 id=884 data-nosnippet>884</a>                // results in the identity of the parameter
-<a href=#885 id=885 data-nosnippet>885</a>            </span>}
-<a href=#886 id=886 data-nosnippet>886</a>            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(
-<a href=#887 id=887 data-nosnippet>887</a>                <span class="string">"ICE: Truncates are only ever applied to the result of a binary op or a param"
-<a href=#888 id=888 data-nosnippet>888</a>            </span>),
-<a href=#889 id=889 data-nosnippet>889</a>        }
-<a href=#890 id=890 data-nosnippet>890</a>
-<a href=#891 id=891 data-nosnippet>891</a>        <span class="self">self</span>.acir_context.truncate_var(var, bit_size, max_bit_size)
-<a href=#892 id=892 data-nosnippet>892</a>    }
+<a href=#860 id=860 data-nosnippet>860</a>                    <span class="macro">unreachable!</span>(<span class="string">"Truncation of unchecked subtraction"</span>);
+<a href=#861 id=861 data-nosnippet>861</a>                }
+<a href=#862 id=862 data-nosnippet>862</a>            }
+<a href=#863 id=863 data-nosnippet>863</a>            Value::Param { .. } =&gt; {
+<a href=#864 id=864 data-nosnippet>864</a>                <span class="comment">// Binary operations on params may have been entirely simplified if the operation
+<a href=#865 id=865 data-nosnippet>865</a>                // results in the identity of the parameter
+<a href=#866 id=866 data-nosnippet>866</a>            </span>}
+<a href=#867 id=867 data-nosnippet>867</a>            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(
+<a href=#868 id=868 data-nosnippet>868</a>                <span class="string">"ICE: Truncates are only ever applied to the result of a binary op or a param"
+<a href=#869 id=869 data-nosnippet>869</a>            </span>),
+<a href=#870 id=870 data-nosnippet>870</a>        }
+<a href=#871 id=871 data-nosnippet>871</a>
+<a href=#872 id=872 data-nosnippet>872</a>        <span class="self">self</span>.acir_context.truncate_var(var, bit_size, max_bit_size)
+<a href=#873 id=873 data-nosnippet>873</a>    }
+<a href=#874 id=874 data-nosnippet>874</a>
+<a href=#875 id=875 data-nosnippet>875</a>    <span class="doccomment">/// Fetch a flat list of [AcirVar].
+<a href=#876 id=876 data-nosnippet>876</a>    ///
+<a href=#877 id=877 data-nosnippet>877</a>    /// Flattens an [AcirValue] into a vector of `AcirVar`.
+<a href=#878 id=878 data-nosnippet>878</a>    ///
+<a href=#879 id=879 data-nosnippet>879</a>    /// This is an extension of [AcirValue::flatten] that also supports [AcirValue::DynamicArray].
+<a href=#880 id=880 data-nosnippet>880</a>    </span><span class="kw">fn </span>flatten(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: <span class="kw-2">&amp;</span>AcirValue) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;AcirVar&gt;, RuntimeError&gt; {
+<a href=#881 id=881 data-nosnippet>881</a>        <span class="prelude-val">Ok</span>(<span class="kw">match </span>value {
+<a href=#882 id=882 data-nosnippet>882</a>            AcirValue::Var(var, <span class="kw">_</span>) =&gt; <span class="macro">vec!</span>[<span class="kw-2">*</span>var],
+<a href=#883 id=883 data-nosnippet>883</a>            AcirValue::Array(array) =&gt; {
+<a href=#884 id=884 data-nosnippet>884</a>                <span class="kw">let </span><span class="kw-2">mut </span>result = Vec::new();
+<a href=#885 id=885 data-nosnippet>885</a>                <span class="kw">for </span>elem <span class="kw">in </span>array {
+<a href=#886 id=886 data-nosnippet>886</a>                    result.extend(<span class="self">self</span>.flatten(elem)<span class="question-mark">?</span>);
+<a href=#887 id=887 data-nosnippet>887</a>                }
+<a href=#888 id=888 data-nosnippet>888</a>                result
+<a href=#889 id=889 data-nosnippet>889</a>            }
+<a href=#890 id=890 data-nosnippet>890</a>            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }) =&gt; {
+<a href=#891 id=891 data-nosnippet>891</a>                <span class="kw">let </span>elements = <span class="self">self</span>.read_dynamic_array(<span class="kw-2">*</span>block_id, <span class="kw-2">*</span>len, value_types);
+<a href=#892 id=892 data-nosnippet>892</a>                <span class="kw">let </span><span class="kw-2">mut </span>result = Vec::new();
 <a href=#893 id=893 data-nosnippet>893</a>
-<a href=#894 id=894 data-nosnippet>894</a>    <span class="doccomment">/// Fetch a flat list of [AcirVar].
-<a href=#895 id=895 data-nosnippet>895</a>    ///
-<a href=#896 id=896 data-nosnippet>896</a>    /// Flattens an [AcirValue] into a vector of `AcirVar`.
-<a href=#897 id=897 data-nosnippet>897</a>    ///
-<a href=#898 id=898 data-nosnippet>898</a>    /// This is an extension of [AcirValue::flatten] that also supports [AcirValue::DynamicArray].
-<a href=#899 id=899 data-nosnippet>899</a>    </span><span class="kw">fn </span>flatten(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: <span class="kw-2">&amp;</span>AcirValue) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;AcirVar&gt;, RuntimeError&gt; {
-<a href=#900 id=900 data-nosnippet>900</a>        <span class="prelude-val">Ok</span>(<span class="kw">match </span>value {
-<a href=#901 id=901 data-nosnippet>901</a>            AcirValue::Var(var, <span class="kw">_</span>) =&gt; <span class="macro">vec!</span>[<span class="kw-2">*</span>var],
-<a href=#902 id=902 data-nosnippet>902</a>            AcirValue::Array(array) =&gt; {
-<a href=#903 id=903 data-nosnippet>903</a>                <span class="kw">let </span><span class="kw-2">mut </span>result = Vec::new();
-<a href=#904 id=904 data-nosnippet>904</a>                <span class="kw">for </span>elem <span class="kw">in </span>array {
-<a href=#905 id=905 data-nosnippet>905</a>                    result.extend(<span class="self">self</span>.flatten(elem)<span class="question-mark">?</span>);
-<a href=#906 id=906 data-nosnippet>906</a>                }
-<a href=#907 id=907 data-nosnippet>907</a>                result
-<a href=#908 id=908 data-nosnippet>908</a>            }
-<a href=#909 id=909 data-nosnippet>909</a>            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }) =&gt; {
-<a href=#910 id=910 data-nosnippet>910</a>                <span class="kw">let </span>elements = <span class="self">self</span>.read_dynamic_array(<span class="kw-2">*</span>block_id, <span class="kw-2">*</span>len, value_types);
-<a href=#911 id=911 data-nosnippet>911</a>                <span class="kw">let </span><span class="kw-2">mut </span>result = Vec::new();
-<a href=#912 id=912 data-nosnippet>912</a>
-<a href=#913 id=913 data-nosnippet>913</a>                <span class="kw">for </span>value <span class="kw">in </span>elements {
-<a href=#914 id=914 data-nosnippet>914</a>                    <span class="kw">match </span>value<span class="question-mark">? </span>{
-<a href=#915 id=915 data-nosnippet>915</a>                        AcirValue::Var(var, _typ) =&gt; result.push(var),
-<a href=#916 id=916 data-nosnippet>916</a>                        <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: Dynamic memory should already be flat"</span>),
-<a href=#917 id=917 data-nosnippet>917</a>                    }
-<a href=#918 id=918 data-nosnippet>918</a>                }
-<a href=#919 id=919 data-nosnippet>919</a>                result
+<a href=#894 id=894 data-nosnippet>894</a>                <span class="kw">for </span>value <span class="kw">in </span>elements {
+<a href=#895 id=895 data-nosnippet>895</a>                    <span class="kw">match </span>value<span class="question-mark">? </span>{
+<a href=#896 id=896 data-nosnippet>896</a>                        AcirValue::Var(var, _typ) =&gt; result.push(var),
+<a href=#897 id=897 data-nosnippet>897</a>                        <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: Dynamic memory should already be flat"</span>),
+<a href=#898 id=898 data-nosnippet>898</a>                    }
+<a href=#899 id=899 data-nosnippet>899</a>                }
+<a href=#900 id=900 data-nosnippet>900</a>                result
+<a href=#901 id=901 data-nosnippet>901</a>            }
+<a href=#902 id=902 data-nosnippet>902</a>        })
+<a href=#903 id=903 data-nosnippet>903</a>    }
+<a href=#904 id=904 data-nosnippet>904</a>}
+<a href=#905 id=905 data-nosnippet>905</a>
+<a href=#906 id=906 data-nosnippet>906</a><span class="doccomment">/// Check post ACIR generation properties:
+<a href=#907 id=907 data-nosnippet>907</a>/// * No empty `AssertZero` opcodes (asserting `0 == 0`) should be emitted.
+<a href=#908 id=908 data-nosnippet>908</a>/// * No memory opcodes should be laid down that write to the internal type sizes array.
+<a href=#909 id=909 data-nosnippet>909</a>///   See [arrays] for more information on the type sizes array.
+<a href=#910 id=910 data-nosnippet>910</a></span><span class="attr">#[cfg(debug_assertions)]
+<a href=#911 id=911 data-nosnippet>911</a></span><span class="kw">fn </span>acir_post_check(context: <span class="kw-2">&amp;</span>Context&lt;<span class="lifetime">'_</span>&gt;, acir: <span class="kw-2">&amp;</span>GeneratedAcir&lt;FieldElement&gt;) {
+<a href=#912 id=912 data-nosnippet>912</a>    <span class="kw">use </span>acvm::acir::circuit::Opcode;
+<a href=#913 id=913 data-nosnippet>913</a>    <span class="kw">for </span>opcode <span class="kw">in </span>acir.opcodes() {
+<a href=#914 id=914 data-nosnippet>914</a>        <span class="kw">match </span>opcode {
+<a href=#915 id=915 data-nosnippet>915</a>            Opcode::AssertZero(expr) =&gt; {
+<a href=#916 id=916 data-nosnippet>916</a>                <span class="macro">assert!</span>(
+<a href=#917 id=917 data-nosnippet>917</a>                    !expr.is_zero(),
+<a href=#918 id=918 data-nosnippet>918</a>                    <span class="string">"ICE: Empty AssertZero opcodes (0 == 0) should not be emitted"
+<a href=#919 id=919 data-nosnippet>919</a>                </span>);
 <a href=#920 id=920 data-nosnippet>920</a>            }
-<a href=#921 id=921 data-nosnippet>921</a>        })
-<a href=#922 id=922 data-nosnippet>922</a>    }
-<a href=#923 id=923 data-nosnippet>923</a>}
-<a href=#924 id=924 data-nosnippet>924</a>
-<a href=#925 id=925 data-nosnippet>925</a><span class="doccomment">/// Check post ACIR generation properties:
-<a href=#926 id=926 data-nosnippet>926</a>/// * No empty `AssertZero` opcodes (asserting `0 == 0`) should be emitted.
-<a href=#927 id=927 data-nosnippet>927</a>/// * No memory opcodes should be laid down that write to the internal type sizes array.
-<a href=#928 id=928 data-nosnippet>928</a>///   See [arrays] for more information on the type sizes array.
-<a href=#929 id=929 data-nosnippet>929</a></span><span class="attr">#[cfg(debug_assertions)]
-<a href=#930 id=930 data-nosnippet>930</a></span><span class="kw">fn </span>acir_post_check(context: <span class="kw-2">&amp;</span>Context&lt;<span class="lifetime">'_</span>&gt;, acir: <span class="kw-2">&amp;</span>GeneratedAcir&lt;FieldElement&gt;) {
-<a href=#931 id=931 data-nosnippet>931</a>    <span class="kw">use </span>acvm::acir::circuit::Opcode;
-<a href=#932 id=932 data-nosnippet>932</a>    <span class="kw">for </span>opcode <span class="kw">in </span>acir.opcodes() {
-<a href=#933 id=933 data-nosnippet>933</a>        <span class="kw">match </span>opcode {
-<a href=#934 id=934 data-nosnippet>934</a>            Opcode::AssertZero(expr) =&gt; {
-<a href=#935 id=935 data-nosnippet>935</a>                <span class="macro">assert!</span>(
-<a href=#936 id=936 data-nosnippet>936</a>                    !expr.is_zero(),
-<a href=#937 id=937 data-nosnippet>937</a>                    <span class="string">"ICE: Empty AssertZero opcodes (0 == 0) should not be emitted"
-<a href=#938 id=938 data-nosnippet>938</a>                </span>);
-<a href=#939 id=939 data-nosnippet>939</a>            }
-<a href=#940 id=940 data-nosnippet>940</a>            Opcode::MemoryOp { block_id, op } =&gt; {
-<a href=#941 id=941 data-nosnippet>941</a>                <span class="kw">if </span>op.operation.is_one() {
-<a href=#942 id=942 data-nosnippet>942</a>                    <span class="comment">// Check that we have no writes to the type size arrays
-<a href=#943 id=943 data-nosnippet>943</a>                    </span><span class="kw">let </span>is_type_sizes_array =
-<a href=#944 id=944 data-nosnippet>944</a>                        context.element_type_sizes_blocks.values().any(|id| id == block_id);
-<a href=#945 id=945 data-nosnippet>945</a>                    <span class="macro">assert!</span>(
-<a href=#946 id=946 data-nosnippet>946</a>                        !is_type_sizes_array,
-<a href=#947 id=947 data-nosnippet>947</a>                        <span class="string">"ICE: Writes to the internal type sizes array are forbidden"
-<a href=#948 id=948 data-nosnippet>948</a>                    </span>);
-<a href=#949 id=949 data-nosnippet>949</a>                }
-<a href=#950 id=950 data-nosnippet>950</a>            }
-<a href=#951 id=951 data-nosnippet>951</a>            <span class="kw">_ </span>=&gt; {}
-<a href=#952 id=952 data-nosnippet>952</a>        }
-<a href=#953 id=953 data-nosnippet>953</a>    }
-<a href=#954 id=954 data-nosnippet>954</a>}</code></pre></div></section></main></body></html>
+<a href=#921 id=921 data-nosnippet>921</a>            Opcode::MemoryOp { block_id, op } =&gt; {
+<a href=#922 id=922 data-nosnippet>922</a>                <span class="kw">if </span>op.operation.is_one() {
+<a href=#923 id=923 data-nosnippet>923</a>                    <span class="comment">// Check that we have no writes to the type size arrays
+<a href=#924 id=924 data-nosnippet>924</a>                    </span><span class="kw">let </span>is_type_sizes_array =
+<a href=#925 id=925 data-nosnippet>925</a>                        context.element_type_sizes_blocks.values().any(|id| id == block_id);
+<a href=#926 id=926 data-nosnippet>926</a>                    <span class="macro">assert!</span>(
+<a href=#927 id=927 data-nosnippet>927</a>                        !is_type_sizes_array,
+<a href=#928 id=928 data-nosnippet>928</a>                        <span class="string">"ICE: Writes to the internal type sizes array are forbidden"
+<a href=#929 id=929 data-nosnippet>929</a>                    </span>);
+<a href=#930 id=930 data-nosnippet>930</a>                }
+<a href=#931 id=931 data-nosnippet>931</a>            }
+<a href=#932 id=932 data-nosnippet>932</a>            <span class="kw">_ </span>=&gt; {}
+<a href=#933 id=933 data-nosnippet>933</a>        }
+<a href=#934 id=934 data-nosnippet>934</a>    }
+<a href=#935 id=935 data-nosnippet>935</a>}</code></pre></div></section></main></body></html>
