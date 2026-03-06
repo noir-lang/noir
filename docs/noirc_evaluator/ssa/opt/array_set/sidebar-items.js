@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["array_set_optimization_pre_check","fold_array_set_into_make_array"]};
