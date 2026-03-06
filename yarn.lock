@@ -1908,67 +1908,67 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@nomicfoundation/edr-darwin-arm64@npm:0.12.0-next.24":
-  version: 0.12.0-next.24
-  resolution: "@nomicfoundation/edr-darwin-arm64@npm:0.12.0-next.24"
-  checksum: 10/d1e468839e20fb6dff64a3fa47f27b13dd61e48738a6694adfc104527d2561f8fa607ed37e265e85d2346c3024b00ea2eaa08e2c8fd84e3520f774eb0ccd7b5f
+"@nomicfoundation/edr-darwin-arm64@npm:0.12.0-next.27":
+  version: 0.12.0-next.27
+  resolution: "@nomicfoundation/edr-darwin-arm64@npm:0.12.0-next.27"
+  checksum: 10/2cce891922debc83f7939e9bed8a6cf065fb17519197114798cfc46f92bc58a6f57ac9094254b09a59912dcb287c4cc23ff851367149154c7ba2b19951c6ff73
   languageName: node
   linkType: hard
 
-"@nomicfoundation/edr-darwin-x64@npm:0.12.0-next.24":
-  version: 0.12.0-next.24
-  resolution: "@nomicfoundation/edr-darwin-x64@npm:0.12.0-next.24"
-  checksum: 10/2529056f2d49cae7a8269e9030c2dc9053656d6eebc050713271b602e2815d604d266cae8e8285681e9efdea0ace871eca8381e8e1cf3dc9ec3640494aed42ab
+"@nomicfoundation/edr-darwin-x64@npm:0.12.0-next.27":
+  version: 0.12.0-next.27
+  resolution: "@nomicfoundation/edr-darwin-x64@npm:0.12.0-next.27"
+  checksum: 10/d80759e7f514b2aa165c8ab0a5cbf03fa9aac8613f9cf17f370d0e6160b06c271ffc75f98be5bb6c4666ba24ba568bd39d3733553bf8d69ce6935b8cfdb8c031
   languageName: node
   linkType: hard
 
-"@nomicfoundation/edr-linux-arm64-gnu@npm:0.12.0-next.24":
-  version: 0.12.0-next.24
-  resolution: "@nomicfoundation/edr-linux-arm64-gnu@npm:0.12.0-next.24"
-  checksum: 10/1ccd8963d305965e3d82ca1b66ad86213d93b6bc1301856389e73b672e732e18a8d484266b6a20c3290d09587d187be1c187cd8e39a9e8189dca511d07fad5c8
+"@nomicfoundation/edr-linux-arm64-gnu@npm:0.12.0-next.27":
+  version: 0.12.0-next.27
+  resolution: "@nomicfoundation/edr-linux-arm64-gnu@npm:0.12.0-next.27"
+  checksum: 10/eb3914d88e618162511e1fd2bdf2443215aac4766ae10738a4f9fc2727bac6cbdcbc62cbc1a1328d638b48b5ae6ca75c538b8a01c4164075b17397845ff58ce8
   languageName: node
   linkType: hard
 
-"@nomicfoundation/edr-linux-arm64-musl@npm:0.12.0-next.24":
-  version: 0.12.0-next.24
-  resolution: "@nomicfoundation/edr-linux-arm64-musl@npm:0.12.0-next.24"
-  checksum: 10/003e5bbfd9072b77cd20e88c623e9ef7304dc6ee6acb37c87d0356e7c47a5f3a6cf93ef8c2901d132145c55acff7beec282198ebc3fbd702834f910e924c8b44
+"@nomicfoundation/edr-linux-arm64-musl@npm:0.12.0-next.27":
+  version: 0.12.0-next.27
+  resolution: "@nomicfoundation/edr-linux-arm64-musl@npm:0.12.0-next.27"
+  checksum: 10/ecd7492fbbf05e44e762dac8087fd6d0271704c9589da61e438dadc5cdf65c0bf8b63f4b47d47456c928270a4ae47cd2d52d860d626e9e7d9a29ffa1763737b5
   languageName: node
   linkType: hard
 
-"@nomicfoundation/edr-linux-x64-gnu@npm:0.12.0-next.24":
-  version: 0.12.0-next.24
-  resolution: "@nomicfoundation/edr-linux-x64-gnu@npm:0.12.0-next.24"
-  checksum: 10/9c060ae75eccf70698c86b6da7c15f97c0ec4edc5181b9e2c2c225fda92caa26341f90c4c7d284cdcb403dc078f5e74e7b0b0c274ed2d329f595cdcb9b5ca9cb
+"@nomicfoundation/edr-linux-x64-gnu@npm:0.12.0-next.27":
+  version: 0.12.0-next.27
+  resolution: "@nomicfoundation/edr-linux-x64-gnu@npm:0.12.0-next.27"
+  checksum: 10/cea9c6514f23f8ab4c74e00d981234b5fc7bcab37ce1d1d22f8462ba02209490c3298f68b9103a5c6cf0bb6476a3bcb0a6b3fc1c0a25512e6fc6c818ffff84de
   languageName: node
   linkType: hard
 
-"@nomicfoundation/edr-linux-x64-musl@npm:0.12.0-next.24":
-  version: 0.12.0-next.24
-  resolution: "@nomicfoundation/edr-linux-x64-musl@npm:0.12.0-next.24"
-  checksum: 10/694c9f99b7e6c3a2d3fb1061f15494b6fbd18a32b17253e3c19b5b466d423d5feacb1df125140f775927a14ca8e188b2476fa72d4cba302ab3c1c600542c35dd
+"@nomicfoundation/edr-linux-x64-musl@npm:0.12.0-next.27":
+  version: 0.12.0-next.27
+  resolution: "@nomicfoundation/edr-linux-x64-musl@npm:0.12.0-next.27"
+  checksum: 10/cc342ae92863a950b1f2549316a41d224fa95394236d4ead8015ce1597f9d23fb927d7d7a9ddf629fbbfa50272868af5f61cdf08110267e50f60a140362fa4ba
   languageName: node
   linkType: hard
 
-"@nomicfoundation/edr-win32-x64-msvc@npm:0.12.0-next.24":
-  version: 0.12.0-next.24
-  resolution: "@nomicfoundation/edr-win32-x64-msvc@npm:0.12.0-next.24"
-  checksum: 10/a735868b1265cb6ff1fffc12e5fceee28ebf143d3c436352f7fcdfc0ec2bf8124730f58d67e53cdcc1690e63d65c18b246b82e9000e2e1a3010964f53272e32f
+"@nomicfoundation/edr-win32-x64-msvc@npm:0.12.0-next.27":
+  version: 0.12.0-next.27
+  resolution: "@nomicfoundation/edr-win32-x64-msvc@npm:0.12.0-next.27"
+  checksum: 10/6ab975c8710587173550075c37f8874b94a9c14674089af92fcf83f96737d7370298c008b3ef5474a7ce5a7199ef84aea9ea430ea53c1eaa8e079c91e737db17
   languageName: node
   linkType: hard
 
-"@nomicfoundation/edr@npm:0.12.0-next.24":
-  version: 0.12.0-next.24
-  resolution: "@nomicfoundation/edr@npm:0.12.0-next.24"
+"@nomicfoundation/edr@npm:0.12.0-next.27":
+  version: 0.12.0-next.27
+  resolution: "@nomicfoundation/edr@npm:0.12.0-next.27"
   dependencies:
-    "@nomicfoundation/edr-darwin-arm64": "npm:0.12.0-next.24"
-    "@nomicfoundation/edr-darwin-x64": "npm:0.12.0-next.24"
-    "@nomicfoundation/edr-linux-arm64-gnu": "npm:0.12.0-next.24"
-    "@nomicfoundation/edr-linux-arm64-musl": "npm:0.12.0-next.24"
-    "@nomicfoundation/edr-linux-x64-gnu": "npm:0.12.0-next.24"
-    "@nomicfoundation/edr-linux-x64-musl": "npm:0.12.0-next.24"
-    "@nomicfoundation/edr-win32-x64-msvc": "npm:0.12.0-next.24"
-  checksum: 10/6831a44ceec9163e306369720905f601fa99ae6d1875d5f77fda1dd4dec56e95b6d3c2b4e8c8fa47066a3d4333432a71981b15636f094e9631b3a1c65051a65a
+    "@nomicfoundation/edr-darwin-arm64": "npm:0.12.0-next.27"
+    "@nomicfoundation/edr-darwin-x64": "npm:0.12.0-next.27"
+    "@nomicfoundation/edr-linux-arm64-gnu": "npm:0.12.0-next.27"
+    "@nomicfoundation/edr-linux-arm64-musl": "npm:0.12.0-next.27"
+    "@nomicfoundation/edr-linux-x64-gnu": "npm:0.12.0-next.27"
+    "@nomicfoundation/edr-linux-x64-musl": "npm:0.12.0-next.27"
+    "@nomicfoundation/edr-win32-x64-msvc": "npm:0.12.0-next.27"
+  checksum: 10/7c7e08fd8a0dd43990f0316e4c28a029ff1b238cf574a3d4fda014ddcb46f1e2041e13036ae230abf3aa3c87ba52a3b18145ed735cdeb87e5c03420725464ac6
   languageName: node
   linkType: hard
 
@@ -2215,6 +2215,18 @@ __metadata:
   peerDependencies:
     zod: ^3.23.8
   checksum: 10/7547e629869543156941bd179a24d01a9ac178c4120f3cdb586eb5b653a948d89a810f3ae15f2d5d6bc21723fc357e930365b0ffb95f21520c03e0df24c0064c
+  languageName: node
+  linkType: hard
+
+"@nomicfoundation/hardhat-zod-utils@npm:^3.0.3":
+  version: 3.0.3
+  resolution: "@nomicfoundation/hardhat-zod-utils@npm:3.0.3"
+  dependencies:
+    "@nomicfoundation/hardhat-errors": "npm:^3.0.7"
+    "@nomicfoundation/hardhat-utils": "npm:^4.0.0"
+  peerDependencies:
+    zod: ^3.23.8
+  checksum: 10/e142736673212f43df9e1a9c3b398b9d617dd493ead6ffa7fb3189dc023d141ab5f2ad9b55bbd9d63d8a04f4f9d53e052276849e24cf00427d374bb7c4f25aa8
   languageName: node
   linkType: hard
 
@@ -7164,15 +7176,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"hardhat@npm:^3.1.10":
-  version: 3.1.10
-  resolution: "hardhat@npm:3.1.10"
+"hardhat@npm:^3.1.11":
+  version: 3.1.11
+  resolution: "hardhat@npm:3.1.11"
   dependencies:
-    "@nomicfoundation/edr": "npm:0.12.0-next.24"
+    "@nomicfoundation/edr": "npm:0.12.0-next.27"
     "@nomicfoundation/hardhat-errors": "npm:^3.0.7"
     "@nomicfoundation/hardhat-utils": "npm:^4.0.0"
     "@nomicfoundation/hardhat-vendored": "npm:^3.0.1"
-    "@nomicfoundation/hardhat-zod-utils": "npm:^3.0.2"
+    "@nomicfoundation/hardhat-zod-utils": "npm:^3.0.3"
     "@nomicfoundation/solidity-analyzer": "npm:^0.1.1"
     "@sentry/core": "npm:^9.4.0"
     adm-zip: "npm:^0.4.16"
@@ -7190,7 +7202,7 @@ __metadata:
     zod: "npm:^3.23.8"
   bin:
     hardhat: dist/src/cli.js
-  checksum: 10/0f5b1d0d4fbcc5772a4fca2bb9a5eb20829cfa744b628047e2cd4869542df7d3b939a9446d1e2559b09bebba64ac4ebf9c5db8da15c5d48b9b82f33c7962e332
+  checksum: 10/9866452cfbe307da773525bd68af0bf7e2ced5d002ed33605fda391faaa13a0efe890ec353f5831e251eed1ce21fe4abafe2b4b98a0bc9b233a20baf752052d0
   languageName: node
   linkType: hard
 
@@ -7669,7 +7681,7 @@ __metadata:
     eslint: "npm:^10.0.2"
     eslint-plugin-prettier: "npm:^5.5.5"
     ethers: "npm:^6.16.0"
-    hardhat: "npm:^3.1.10"
+    hardhat: "npm:^3.1.11"
     prettier: "npm:3.8.1"
     smol-toml: "npm:^1.6.0"
     toml: "npm:^3.0.0"
