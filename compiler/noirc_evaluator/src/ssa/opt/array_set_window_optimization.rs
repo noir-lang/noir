@@ -60,19 +60,19 @@ impl Ssa {
     /// Replaces qualifying `array_set` instructions with `make_array` instructions.
     /// See the [`array_set_to_make_array`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn array_set_to_make_array(mut self) -> Self {
+    pub(crate) fn array_set_window_optimization(mut self) -> Self {
         for func in self.functions.values_mut() {
             if func.runtime().is_brillig() {
                 continue;
             }
-            func.array_set_to_make_array();
+            func.array_set_window_optimization();
         }
         self
     }
 }
 
 impl Function {
-    fn array_set_to_make_array(&mut self) {
+    fn array_set_window_optimization(&mut self) {
         // This optimization only applies to ACIR functions (same precondition as
         // `remove_if_else` which this pass is designed to feed into).
         if self.runtime().is_brillig() {
@@ -371,7 +371,7 @@ mod tests {
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.array_set_to_make_array();
+        let ssa = ssa.array_set_window_optimization();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: [Field; 3], v1: u1):
@@ -401,7 +401,7 @@ mod tests {
             return v6
         }
         "#;
-        assert_ssa_does_not_change(src, Ssa::array_set_to_make_array);
+        assert_ssa_does_not_change(src, Ssa::array_set_window_optimization);
     }
 
     /// A chain of array_sets where each result feeds into the next, and the final
@@ -422,7 +422,7 @@ mod tests {
             return v9
         }
         "#;
-        assert_ssa_does_not_change(src, Ssa::array_set_to_make_array);
+        assert_ssa_does_not_change(src, Ssa::array_set_window_optimization);
     }
 
     /// Both array_sets in the window feed into an IfElse — neither escapes.
@@ -442,7 +442,7 @@ mod tests {
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.array_set_to_make_array();
+        let ssa = ssa.array_set_window_optimization();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: [Field; 3], v1: u1):
@@ -477,7 +477,7 @@ mod tests {
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.array_set_to_make_array();
+        let ssa = ssa.array_set_window_optimization();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: [Field; 4], v1: u32, v2: u1, v3: u1, v4: u1, v5: u1):
@@ -516,7 +516,7 @@ mod tests {
             return v17, v19
         }
         "#;
-        assert_ssa_does_not_change(src, Ssa::array_set_to_make_array);
+        assert_ssa_does_not_change(src, Ssa::array_set_window_optimization);
     }
 
     /// The array_set feeds a call whose result escapes the window (not via IfElse).
@@ -535,7 +535,7 @@ mod tests {
             return v4
         }
         "#;
-        assert_ssa_does_not_change(src, Ssa::array_set_to_make_array);
+        assert_ssa_does_not_change(src, Ssa::array_set_window_optimization);
     }
 
     /// An array_set outside any conditional window (no enable_side_effects wrapping it)
@@ -549,7 +549,7 @@ mod tests {
             return v1
         }
         "#;
-        assert_ssa_does_not_change(src, Ssa::array_set_to_make_array);
+        assert_ssa_does_not_change(src, Ssa::array_set_window_optimization);
     }
 
     /// Because `v2` is stored in `v10` and loaded outside of the conditional window,
@@ -569,7 +569,7 @@ mod tests {
             return v4
         }
         "#;
-        assert_ssa_does_not_change(src, Ssa::array_set_to_make_array);
+        assert_ssa_does_not_change(src, Ssa::array_set_window_optimization);
     }
 
     /// The array_set result is passed to a call whose argument type contains a reference
@@ -594,7 +594,7 @@ mod tests {
             return
         }
         "#;
-        assert_ssa_does_not_change(src, Ssa::array_set_to_make_array);
+        assert_ssa_does_not_change(src, Ssa::array_set_window_optimization);
     }
 
     /// The array_set result is passed to a call that also takes a reference argument.
@@ -620,7 +620,7 @@ mod tests {
             return
         }
         "#;
-        assert_ssa_does_not_change(src, Ssa::array_set_to_make_array);
+        assert_ssa_does_not_change(src, Ssa::array_set_window_optimization);
     }
 
     /// The array_set result appears as the `else_value` of an IfElse whose
@@ -641,7 +641,7 @@ mod tests {
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.array_set_to_make_array();
+        let ssa = ssa.array_set_window_optimization();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: [Field; 3], v1: u1):
@@ -674,7 +674,7 @@ mod tests {
             return v4
         }
         "#;
-        assert_ssa_does_not_change(src, Ssa::array_set_to_make_array);
+        assert_ssa_does_not_change(src, Ssa::array_set_window_optimization);
     }
 
     #[test]
@@ -780,7 +780,7 @@ mod tests {
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.array_set_to_make_array();
+        let ssa = ssa.array_set_window_optimization();
 
         // Here we can see that all the `array_set` are gone
         assert_ssa_snapshot!(ssa, @r"
