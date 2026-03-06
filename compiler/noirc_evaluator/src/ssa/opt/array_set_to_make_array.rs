@@ -34,7 +34,7 @@
 //! v_out = if v_cond then v_set else (if v_not_cond) v_arr
 //! ```
 //!
-//! Because `v_set` is only used within the "conditional window", and then just as the result
+//! Because `v_set` is only used within the "conditional window", and then just as the input
 //! of an `if-then-else` instruction, the `array_set` can be executed unconditionally because
 //! the [`super::remove_if_else`] pass that comes after this pass will merge `v_set` with `v_arr` make sure
 //! to only use the values from `v_set` when `v_cond` is true.
@@ -227,16 +227,13 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
                         }
                         _ => {
                             // Otherwise: safe as long as we are inside the tracked window.
-                            let current_window_id = current_window.map(|window| window.id);
-                            let used_outside_window =
-                                current_window_id != Some(tracked_value.window.id);
-                            !used_outside_window
+                            current_window.is_some_and(|window| window.id == tracked_value.window.id)
                         }
                     }
                 };
                 if !stays_within_window {
                     let tracked_value_dependencies =
-                        tracked_value.dependencies.iter().copied().collect::<Vec<_>>();
+                        tracked_value.dependencies.clone();
                     for dependency in tracked_value_dependencies {
                         candidates.remove(&dependency);
                         tracked.remove(&dependency);
@@ -275,7 +272,7 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
                     dependencies.insert(result);
                     for value in [array, value] {
                         if let Some(tracked_value) = tracked.get(value) {
-                            dependencies.extend(tracked_value.dependencies.iter().copied());
+                            dependencies = dependencies.union(tracked_value.dependencies.clone());
                         }
                     }
                     tracked.insert(result, TrackedValue { window, dependencies });
@@ -311,7 +308,7 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
                                     tracked.remove(&value);
                                 }
                             } else {
-                                dependencies.extend(tracked_value.dependencies.iter().copied());
+                                dependencies = dependencies.union(tracked_value.dependencies.clone());
                             }
                         }
                     });
