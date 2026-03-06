@@ -513,11 +513,11 @@ fn main() {
     let result_field: Field = divide_field_by_two!();
     // Both 7 and 2 become Field. Field division: 7 / 2 != 3
 
-    // Different results depending on call-site context
+    // Different results depending on call-site context.
     // The developer intended Field semantics but gets whichever
     // type the caller's context happens to demand.
-    println(result_u32);
-    println(result_field);
+    let _ = result_u32;
+    let _ = result_field;
 }
     ";
 
