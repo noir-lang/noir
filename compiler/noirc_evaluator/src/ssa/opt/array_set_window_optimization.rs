@@ -219,9 +219,14 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
                     instruction,
                     Instruction::Store { value: stored, .. } if *stored == value
                 );
+                // A call with reference arguments might store the value in one of those references
+                let escapes_via_call_arguments = matches!(
+                    instruction,
+                    Instruction::Call { arguments, .. } if arguments.iter().any(|&arg| dfg.type_of_value(arg).contains_reference()),
+                );
+
                 // Determine whether this value stays within the window it was defined in.
-                let stays_within_window = if escapes_via_store {
-                    // If the value is stored in memory it could escape its window
+                let stays_within_window = if escapes_via_store || escapes_via_call_arguments {
                     false
                 } else {
                     // Otherwise, if the pair of if "condition/value" matches the tracked value and its window,
@@ -290,47 +295,28 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
             _ => {
                 // For any other instruction inside a window: if it consumes tracked values,
                 // its results are "derived" and must be tracked with the union of their deps.
-                //
-                // Exception: a `call` with reference-typed arguments may store any of its
-                // arguments through those references, causing them to escape the window
-                // through memory. Treat all tracked arguments as escaping in that case.
                 if let Some(current_window) = current_window {
                     let results = dfg.instruction_results(instruction_id);
-
-                    let is_call_with_ref_args =
-                        if let Instruction::Call { arguments, .. } = instruction {
-                            arguments.iter().any(|&arg| dfg.type_of_value(arg).contains_reference())
-                        } else {
-                            false
-                        };
-
-                    let mut dependencies = im::HashSet::new();
-                    instruction.for_each_value(|value| {
-                        if let Some(tracked_value) = tracked.get(&value) {
-                            let tracked_value_dependencies = tracked_value.dependencies.clone();
-                            if is_call_with_ref_args {
-                                candidates.remove(&value);
-                                tracked.remove(&value);
-                                for dependency in tracked_value_dependencies {
-                                    candidates.remove(&dependency);
-                                    tracked.remove(&dependency);
-                                }
-                            } else if !results.is_empty() {
+                    if !results.is_empty() {
+                        let mut dependencies = im::HashSet::new();
+                        instruction.for_each_value(|value| {
+                            if let Some(tracked_value) = tracked.get(&value) {
+                                let tracked_value_dependencies = tracked_value.dependencies.clone();
                                 dependencies.insert(value);
                                 dependencies =
                                     dependencies.clone().union(tracked_value_dependencies);
                             }
-                        }
-                    });
-                    if !dependencies.is_empty() {
-                        for &result in results {
-                            tracked.insert(
-                                result,
-                                TrackedValue {
-                                    window: current_window,
-                                    dependencies: dependencies.clone(),
-                                },
-                            );
+                        });
+                        if !dependencies.is_empty() {
+                            for &result in results {
+                                tracked.insert(
+                                    result,
+                                    TrackedValue {
+                                        window: current_window,
+                                        dependencies: dependencies.clone(),
+                                    },
+                                );
+                            }
                         }
                     }
                 }
