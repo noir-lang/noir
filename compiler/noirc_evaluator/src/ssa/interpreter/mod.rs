@@ -1031,13 +1031,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 return Ok(vecmap(results, |result| {
                     let typ = self.dfg().type_of_value(*result);
                     if matches!(typ, Type::Vector(_)) {
-                        let elements = (0..output_len)
-                            .map(|i| {
-                                let element_type = &element_types[i % element_count.max(1)];
-                                Value::uninitialized(element_type, *result)
-                            })
-                            .collect();
-                        Value::vector(elements, element_types.clone())
+                        Value::uninitialized_vector(&element_types, output_len, *result)
                     } else {
                         Value::uninitialized(&typ, *result)
                     }
