@@ -311,7 +311,8 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
                                     tracked.remove(&value);
                                 }
                             } else {
-                                dependencies.extend(tracked_value.dependencies.clone());
+                                dependencies =
+                                    dependencies.clone().union(tracked_value.dependencies.clone());
                             }
                         }
                     });
