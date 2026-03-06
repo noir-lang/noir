@@ -719,8 +719,9 @@ impl Elaborator<'_> {
             return None;
         }
 
+        let lvalue_index_counter = self.next_lvalue_index_counter();
         let id = self.interner.push_definition(
-            format!("i_{}", self.interner.definition_count()),
+            format!("i_{lvalue_index_counter}"),
             false,
             false,
             DefinitionKind::Local(None),

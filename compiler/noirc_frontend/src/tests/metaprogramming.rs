@@ -79,7 +79,7 @@ fn unquoted_integer_as_integer_token() {
     pub fn foobar() {}
 
     comptime fn attr(_f: FunctionDefinition) -> Quoted {
-        let serialized_len = 1;
+        let serialized_len = 1_u32;
         // We are testing that when we unquote $serialized_len, it's unquoted
         // as the token `1` and not as something else that later won't be parsed correctly
         // in the context of a generic argument.
@@ -107,7 +107,7 @@ fn unquoted_integer_as_integer_token() {
     }
 
     comptime fn attr(_f: FunctionDefinition) -> Quoted {
-        let serialized_len: Field = 1_Field;
+        let serialized_len: u32 = 1_u32;
         quote {
             impl Serialize < $serialized_len > for Field {
                 fn serialize() {
