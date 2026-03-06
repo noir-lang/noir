@@ -62,7 +62,7 @@ fn double_alias_in_path() {
     type FooAlias1 = Foo;
     type FooAlias2 = FooAlias1;
 
-    fn main() { 
+    fn main() {
         let _ = FooAlias2::new();
     }
     "#;
@@ -73,16 +73,16 @@ fn double_alias_in_path() {
 fn double_generic_alias_in_path() {
     let src = r#"
     struct Foo<T> {}
-    
+
     impl<T> Foo<T> {
         fn new() -> Self {
             Self {}
         }
     }
-    
+
     type FooAlias1 = Foo<i32>;
     type FooAlias2 = FooAlias1;
-    
+
     fn main() {
         let _ = FooAlias2::new();
     }
@@ -531,7 +531,7 @@ fn regression_10352_trait_as_type() {
 fn regression_10352_string() {
     let src = r#"
     type Alias = str<Alias>;
-    
+
     fn main(_: Alias) {}
                ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
                ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
@@ -907,6 +907,28 @@ fn regression_10764_underscore_impl() {
          ~~~ Only enum and struct types may have implementation methods
         fn foo() { }
     }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn cannot_assign_to_numeric_type_alias() {
+    let src = r#"
+    type N: u32 = 1;
+
+    fn main() {
+        N = 2;
+        ^ expected value, found type alias `N`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_if_using_comptime_type_in_non_comptime_type_alias() {
+    let src = r#"
+    pub type Alias = Quoted;
+                     ^^^^^^ Comptime-only type `Quoted` cannot be used in non-comptime type alias
     "#;
     check_errors(src);
 }

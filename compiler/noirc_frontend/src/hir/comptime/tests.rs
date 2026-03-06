@@ -104,14 +104,14 @@ pub(super) fn interpret_expect_error(src: &str) -> InterpreterError {
 fn interpreter_works() {
     let program = "comptime fn main() -> pub Field { 3 }";
     let result = interpret(program);
-    assert_eq!(result, Value::Field(SignedField::positive(3u128)));
+    assert_eq!(result, Value::field(SignedField::positive(3u128)));
 }
 
 #[test]
 fn interpreter_type_checking_works() {
     let program = "comptime fn main() -> pub u8 { 3 }";
     let result = interpret(program);
-    assert_eq!(result, Value::U8(3u8));
+    assert_eq!(result, Value::u8(3u8));
 }
 
 #[test]
@@ -121,7 +121,7 @@ fn let_statement_works() {
         x
     }";
     let result = interpret(program);
-    assert_eq!(result, Value::I8(4));
+    assert_eq!(result, Value::i8(4));
 }
 
 #[test]
@@ -132,7 +132,7 @@ fn mutation_works() {
         x
     }";
     let result = interpret(program);
-    assert_eq!(result, Value::I8(4));
+    assert_eq!(result, Value::i8(4));
 }
 
 #[test]
@@ -143,18 +143,18 @@ fn mutating_references() {
         *x
     }";
     let result = interpret(program);
-    assert_eq!(result, Value::I32(4));
+    assert_eq!(result, Value::i32(4));
 }
 
 #[test]
 fn mutating_mutable_references() {
     let program = "comptime fn main() -> pub i64 {
-        let mut x = &mut 3;
+        let x = &mut 3;
         *x = 4;
         *x
     }";
     let result = interpret(program);
-    assert_eq!(result, Value::I64(4));
+    assert_eq!(result, Value::i64(4));
 }
 
 #[test]
@@ -166,7 +166,7 @@ fn mutation_leaks() {
         x
     }";
     let result = interpret(program);
-    assert_eq!(result, Value::I8(5));
+    assert_eq!(result, Value::i8(5));
 }
 
 #[test]
@@ -177,7 +177,7 @@ fn mutating_arrays() {
         a1[1]
     }";
     let result = interpret(program);
-    assert_eq!(result, Value::U8(22));
+    assert_eq!(result, Value::u8(22));
 }
 
 #[test]
@@ -191,7 +191,7 @@ fn mutate_in_new_scope() {
         x
     }";
     let result = interpret(program);
-    assert_eq!(result, Value::U8(2));
+    assert_eq!(result, Value::u8(2));
 }
 
 #[test]
@@ -204,7 +204,7 @@ fn for_loop() {
         x
     }";
     let result = interpret(program);
-    assert_eq!(result, Value::U8(15));
+    assert_eq!(result, Value::u8(15));
 }
 
 #[test]
@@ -217,7 +217,7 @@ fn for_loop_inclusive() {
         x
     }";
     let result = interpret(program);
-    assert_eq!(result, Value::U8(21));
+    assert_eq!(result, Value::u8(21));
 }
 
 #[test]
@@ -230,7 +230,7 @@ fn for_loop_u16() {
         x
     }";
     let result = interpret(program);
-    assert_eq!(result, Value::U16(15));
+    assert_eq!(result, Value::u16(15));
 }
 
 #[test]
@@ -246,7 +246,7 @@ fn for_loop_with_break() {
         x
     }";
     let result = interpret(program);
-    assert_eq!(result, Value::U32(6));
+    assert_eq!(result, Value::u32(6));
 }
 
 #[test]
@@ -262,7 +262,7 @@ fn for_loop_with_continue() {
         x
     }";
     let result = interpret(program);
-    assert_eq!(result, Value::U64(11));
+    assert_eq!(result, Value::u64(11));
 }
 
 #[test]
@@ -290,7 +290,7 @@ fn lambda() {
         f(1)
     }";
     let result = interpret(program);
-    assert!(matches!(result, Value::U8(2)));
+    assert_eq!(result, Value::u8(2));
 }
 
 #[test]
@@ -308,7 +308,7 @@ fn non_deterministic_recursion() {
         }
     }";
     let result = interpret(program);
-    assert_eq!(result, Value::U64(55));
+    assert_eq!(result, Value::u64(55));
 }
 
 #[test]
@@ -323,7 +323,7 @@ fn generic_functions() {
     }
     ";
     let result = interpret(program);
-    assert_eq!(result, Value::U8(2));
+    assert_eq!(result, Value::u8(2));
 }
 
 #[test]

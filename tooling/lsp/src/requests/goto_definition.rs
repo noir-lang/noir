@@ -72,7 +72,7 @@ fn on_goto_definition_inner(
                 };
                 GotoDefinitionResponse::Link(vec![location_link])
             }
-            None => GotoDefinitionResponse::from(location).to_owned(),
+            None => GotoDefinitionResponse::from(location),
         };
         Some(response)
     })

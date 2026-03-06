@@ -245,6 +245,8 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         // Simplifying the CFG can have a positive effect on mem2reg: every time we unify with a
         // yet-to-be-visited predecessor we forget known values; less blocks mean less unification.
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
+        SsaPass::new(Ssa::mem2reg_simple, "Mem2Reg Simple"),
+        SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
         // Removing unreachable instructions before mem2reg, which may result in some default Store
         // instructions being added, which it can pair up with Loads. If we ran it after it,
         // then DIE would just remove the Stores, leaving the Loads dangling.
@@ -278,12 +280,13 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             Ssa::verify_no_dynamic_indices_to_references,
             "Verifying no dynamic array indices to reference value elements",
         ),
-        SsaPass::new(Ssa::array_set_optimization, "Array Set Optimizations").and_then(|ssa| {
-            // Deferred sanity checks that don't modify the SSA, just panic if we have something unexpected
-            // that we don't know how to attribute to a concrete error with the Noir code.
-            ssa.dead_instruction_elimination_post_check(true);
-            ssa
-        }),
+        SsaPass::new(Ssa::mutable_array_set_optimization, "Mutable Array Set Optimizations")
+            .and_then(|ssa| {
+                // Deferred sanity checks that don't modify the SSA, just panic if we have something unexpected
+                // that we don't know how to attribute to a concrete error with the Noir code.
+                ssa.dead_instruction_elimination_post_check(true);
+                ssa
+            }),
     ]
 }
 

@@ -150,9 +150,11 @@ pub(crate) const MAX_MACRO_EXPANSION_DEPTH: usize = 32;
 /// ResolverMetas are tagged onto each definition to track how many times they are used
 #[derive(Debug, PartialEq, Eq)]
 pub struct ResolverMeta {
-    num_times_used: usize,
+    used: bool,
+    mutated: bool,
     ident: HirIdent,
     warn_if_unused: bool,
+    warn_if_not_mutated: bool,
 }
 
 type ScopeForest = GenericScopeForest<String, ResolverMeta>;
@@ -695,6 +697,9 @@ impl<'context> Elaborator<'context> {
     fn define_type_alias(&mut self, alias_id: TypeAliasId, alias: UnresolvedTypeAlias) {
         self.local_module = Some(alias.module_id);
 
+        let previous_in_comptime_context =
+            std::mem::replace(&mut self.in_comptime_context, alias.type_alias_def.comptime);
+
         let name = &alias.type_alias_def.name;
         let visibility = alias.type_alias_def.visibility;
         let location = alias.type_alias_def.location;
@@ -744,6 +749,8 @@ impl<'context> Elaborator<'context> {
         }
         self.interner.set_type_alias(alias_id, typ, generics, num_expr);
         self.generics.clear();
+
+        self.in_comptime_context = previous_in_comptime_context;
     }
 
     /// True if we're currently within a constrained function or lambda.

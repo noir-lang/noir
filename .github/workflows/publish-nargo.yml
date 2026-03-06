@@ -61,7 +61,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Noir binaries artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: noir-${{ matrix.target }}
           path: ./dist/*
@@ -80,7 +80,7 @@ jobs:
 
       - name: Generate noir binaries attestation
         if: ${{ inputs.publish || github.event_name == 'schedule' }}
-        uses: actions/attest-build-provenance@v3
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: ./noir-${{ matrix.target }}.tar.gz
 
@@ -169,7 +169,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Noir binaries artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: noir-${{ matrix.target }}
           path: ./dist/*
@@ -189,7 +189,7 @@ jobs:
 
       - name: Generate noir binaries attestation
         if: ${{ inputs.publish || github.event_name == 'schedule' }}
-        uses: actions/attest-build-provenance@v3
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: ./noir-${{ matrix.target }}.tar.gz
 

@@ -346,18 +346,19 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 Some(TerminatorInstruction::JmpIf {
                     condition,
                     then_destination,
+                    then_arguments,
                     else_destination,
+                    else_arguments,
                     call_stack: _,
                 }) => {
-                    block_id = if self.lookup_bool(*condition, "jmpif condition")? {
-                        *then_destination
+                    (block_id, arguments) = if self.lookup_bool(*condition, "jmpif condition")? {
+                        (*then_destination, self.lookup_all(then_arguments)?)
                     } else {
-                        *else_destination
+                        (*else_destination, self.lookup_all(else_arguments)?)
                     };
                     if self.options.trace {
                         println!("jump to {block_id}");
                     }
-                    arguments = Vec::new();
                 }
                 Some(TerminatorInstruction::Return { return_values, call_stack: _ }) => {
                     let return_values = self.lookup_all(return_values)?;
@@ -942,7 +943,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                     if !self.in_unconstrained_context()
                         && self.functions[&id].runtime().is_brillig()
                     {
-                        for argument in arguments.iter_mut() {
+                        for argument in &mut arguments {
                             Self::reset_array_state(argument)?;
                         }
                     }
@@ -1081,7 +1082,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
             Value::ArrayOrVector(array_value) => {
                 let mut elements = array_value.elements.borrow().to_vec();
-                for element in elements.iter_mut() {
+                for element in &mut elements {
                     Self::reset_array_state(element)?;
                 }
                 array_value.elements = Shared::new(elements);
@@ -1238,7 +1239,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
             if should_mutate {
                 array.elements.borrow_mut()[index as usize] = value;
-                Value::ArrayOrVector(array.clone())
+                Value::ArrayOrVector(array)
             } else {
                 if !is_rc_one {
                     Self::decrement_rc(&array);

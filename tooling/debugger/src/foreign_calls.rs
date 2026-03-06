@@ -61,7 +61,7 @@ impl DefaultDebugForeignCallExecutor {
             output,
             enable_mocks: true,
             resolver_url,
-            root_path: root_path.clone(),
+            root_path,
             package_name: Some(package_name),
         }
         .build()

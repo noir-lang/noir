@@ -41,7 +41,9 @@ fn ssa_to_acir_program_with_debug_info(src: &str) -> (Program<FieldElement>, Vec
 }
 
 /// Attempts to convert SSA to ACIR, returning the error if compilation fails.
-fn try_ssa_to_acir(src: &str) -> Result<(Program<FieldElement>, Vec<DebugInfo>), RuntimeError> {
+pub(crate) fn try_ssa_to_acir(
+    src: &str,
+) -> Result<(Program<FieldElement>, Vec<DebugInfo>), RuntimeError> {
     let ssa = Ssa::from_str(src).unwrap();
     let arg_size_and_visibilities = ssa
         .functions
@@ -541,7 +543,7 @@ fn test_operators(
         'u' => NumericType::Unsigned { bit_size: typ[1..].parse().unwrap() },
         _ => unreachable!("invalid numeric type"),
     };
-    let inputs_int = Value::array_from_iter(inputs.iter().cloned(), num_type).unwrap();
+    let inputs_int = Value::array_from_iter(inputs.iter().copied(), num_type).unwrap();
     let inputs =
         inputs.iter().enumerate().map(|(i, f)| (Witness(i as u32), *f)).collect::<BTreeMap<_, _>>();
     let len = inputs.len() as u32;
@@ -550,7 +552,7 @@ fn test_operators(
     for op in operators {
         let (src, with_output) = generate_test_instruction_from_operator(op);
         let output = if with_output { Some(Witness(len)) } else { None };
-        let ssa = Ssa::from_str(&(main.to_owned() + &src)).unwrap();
+        let ssa = Ssa::from_str(&(main.clone() + &src)).unwrap();
         // ssa execution
         let ssa_interpreter_result = ssa.interpret(vec![inputs_int.clone()]);
         // acir execution

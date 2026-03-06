@@ -231,7 +231,7 @@ impl ExpressionSolver {
         // This is the sum of all of the known variables
         let mut result = F::zero();
 
-        for term in linear_combinations.iter() {
+        for term in linear_combinations {
             let value = ExpressionSolver::solve_fan_in_term_helper(term, witness_assignments);
             match value {
                 Some(a) => result += a,
@@ -326,7 +326,7 @@ impl ExpressionSolver {
         let mut hash_map = std::collections::HashMap::new();
 
         // Canonicalize the ordering of the multiplication, lets just order by variable name
-        for (scale, w_l, w_r) in mul_terms.iter().cloned() {
+        for (scale, w_l, w_r) in mul_terms.iter().copied() {
             let mut pair = [w_l, w_r];
             pair.sort();
 
