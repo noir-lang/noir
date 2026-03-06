@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772812881958,
+  "lastUpdate": 1772814742453,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23146,48 +23146,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "d6a4564cbdb8aa7a4591765f09adc6f2121c1d6e",
-          "message": "fix: copy lambda env in comptime evaluation (#11731)",
-          "timestamp": "2026-03-02T17:53:28Z",
-          "tree_id": "30061846e8235de3e08c2b8529e8be4e61aa98b1",
-          "url": "https://github.com/noir-lang/noir/commit/d6a4564cbdb8aa7a4591765f09adc6f2121c1d6e"
-        },
-        "date": 1772475631984,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 253534,
-            "range": "± 1111",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 222685,
-            "range": "± 4733",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2746507,
-            "range": "± 85529",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25239,6 +25197,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2745630,
             "range": "± 9806",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c7bc3dc17c79565e8d3a614a88319306e4d94072",
+          "message": "chore: prevent underflow in unchecked subtraction (#11676)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-03-06T16:02:47Z",
+          "tree_id": "4ac82d647b4a0651c1a086892aa5175530b2551e",
+          "url": "https://github.com/noir-lang/noir/commit/c7bc3dc17c79565e8d3a614a88319306e4d94072"
+        },
+        "date": 1772814696528,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 252229,
+            "range": "± 548",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 221938,
+            "range": "± 1537",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2744715,
+            "range": "± 3563",
             "unit": "ns/iter"
           }
         ]
