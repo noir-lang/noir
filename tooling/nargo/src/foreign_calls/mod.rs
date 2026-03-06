@@ -70,13 +70,12 @@ mod tests {
     use crate::foreign_calls::{DefaultForeignCallBuilder, ForeignCallExecutor};
 
     #[test]
-    /// We special-case oracle calls with the "aztec_" prefix to return a specific error in the 
-    /// case where they are unhandled. This test ensures that this behavior is preserved. 
+    /// We special-case oracle calls with the "aztec_" prefix to return a specific error in the
+    /// case where they are unhandled. This test ensures that this behavior is preserved.
     fn throws_correct_error_for_unhandled_aztec_oracle() {
         use acvm::{FieldElement, acir::brillig::ForeignCallResult, pwg::ForeignCallWaitInfo};
 
-        let mut executor = DefaultForeignCallBuilder::default()
-            .build::<FieldElement>();
+        let mut executor = DefaultForeignCallBuilder::default().build::<FieldElement>();
         let foreign_call =
             ForeignCallWaitInfo { function: "aztec_get_value".to_string(), inputs: vec![] };
 
