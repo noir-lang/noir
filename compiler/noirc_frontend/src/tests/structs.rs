@@ -443,6 +443,17 @@ fn deny_cyclic_structs() {
 }
 
 #[test]
+fn errors_if_using_comptime_type_in_non_comptime_struct() {
+    let src = r#"
+    pub struct Foo {
+        quoted: Quoted,
+                ^^^^^^ Comptime-only type `Quoted` cannot be used in non-comptime struct
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn trait_as_type_non_overlapping() {
     // Test that TraitAsType doesn't cause issues with overlap detection
     // when used in non-overlapping contexts

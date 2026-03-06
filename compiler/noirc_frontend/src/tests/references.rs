@@ -1,7 +1,8 @@
 use crate::{
     elaborator::UnstableFeature,
     tests::{
-        assert_no_errors, check_errors, check_monomorphization_error, get_program_using_features,
+        assert_no_errors, check_errors, check_errors_using_features, check_monomorphization_error,
+        get_program_using_features,
     },
 };
 
@@ -204,4 +205,65 @@ fn mutable_reference_behind_generics_returned_from_oracle() {
     ) -> fn[Env](Field) -> () {}
     "#;
     check_monomorphization_error(src);
+}
+
+#[test]
+fn disallows_mutating_non_mutable_ref_member_access() {
+    let src = r#"
+    fn main() {
+        let s = (0,);
+        let ps = &s;
+        ps.0 = 1;
+        ^^ `ps` is a `&` reference, so it cannot be written to
+    }
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+}
+
+#[test]
+fn disallows_mutating_non_mutable_ref_array_index() {
+    let src = r#"
+    fn main() {
+        let s = [0];
+        let ps = &s;
+        ps[0] = 1;
+        ^^ `ps` is a `&` reference, so it cannot be written to
+    }
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+}
+
+#[test]
+fn disallows_mutating_non_mutable_nested_reference_in_tuple_1() {
+    let src = r#"
+    fn main() {
+        let x = (&(0,),);
+        x.0.0 = 1;
+        ^^^^^ Cannot assign to `x.0.0`, which is behind a `&` reference
+    }
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+}
+
+#[test]
+fn allows_mutating_mutable_reference_inside_non_mutable_reference() {
+    let src = r#"
+    fn main() {
+        let x = &(&mut (0,),);
+        x.0.0 = 1;
+    }
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+}
+
+#[test]
+fn disallows_mutating_non_mutable_reference_inside_mutable_reference() {
+    let src = r#"
+    fn main() {
+        let x = &mut (&(0,),);
+        x.0.0 = 1;
+        ^^^^^ Cannot assign to `x.0.0`, which is behind a `&` reference
+    }
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::Ownership]);
 }
