@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772810526872,
+  "lastUpdate": 1772811661199,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23146,48 +23146,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "2b09b8bf7f44f913f728151929d069e0b4ffd7ca",
-          "message": "feat(opt): Add simpler mem2reg pass (#11500)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2026-03-02T17:29:08Z",
-          "tree_id": "6d731f169d85a62557545f3463fefc989d57d146",
-          "url": "https://github.com/noir-lang/noir/commit/2b09b8bf7f44f913f728151929d069e0b4ffd7ca"
-        },
-        "date": 1772475256373,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 251330,
-            "range": "± 2365",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 221422,
-            "range": "± 3615",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2744408,
-            "range": "± 3728",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25239,6 +25197,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2748341,
             "range": "± 2899",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bf33f2cdb4def426907e55aa8848e47a36c83ce0",
+          "message": "chore(deps): bump lodash from 4.17.21 to 4.17.23 in /docs (#11800)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-03-06T15:37:47Z",
+          "tree_id": "2255edec91b02fcf43721523fcf953572d402aac",
+          "url": "https://github.com/noir-lang/noir/commit/bf33f2cdb4def426907e55aa8848e47a36c83ce0"
+        },
+        "date": 1772811615395,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 254093,
+            "range": "± 1091",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 222904,
+            "range": "± 1632",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2745630,
+            "range": "± 9806",
             "unit": "ns/iter"
           }
         ]
