@@ -578,23 +578,41 @@ impl Loop {
             return None;
         }
 
+        let Some(TerminatorInstruction::JmpIf { then_destination, .. }) = header.terminator()
+        else {
+            return None;
+        };
+
+        let then_branch_is_body = self.blocks.contains(then_destination);
+
         match &dfg[instructions[0]] {
+            // Most loops will expect the `then` block to be the body. In unconstrained code it is
+            // possible to write `loop`s that use the else branch as a body. We return `None`
+            // conservatively in this case.
             Instruction::Binary(Binary { lhs: _, operator: BinaryOp::Lt, rhs }) => {
-                dfg.get_integer_constant(*rhs)
+                if then_branch_is_body {
+                    dfg.get_integer_constant(*rhs)
+                } else {
+                    None
+                }
             }
             Instruction::Binary(Binary { lhs: _, operator: BinaryOp::Eq, rhs }) => {
                 // `for i in 0..1` is turned into:
                 // b1(v0: u32):
                 //   v12 = eq v0, u32 0
                 //   jmpif v12 then: b2, else: b3
-                dfg.get_integer_constant(*rhs).map(|c| c.inc())
+                //
+                // If `b2` is the loop body: Loop exits when v == rhs; upper = rhs + 1.
+                // If `b3` is the loop body: Loop exits when v == rhs; upper = rhs.
+                let const_rhs = dfg.get_integer_constant(*rhs)?;
+                if then_branch_is_body { Some(const_rhs.inc()) } else { Some(const_rhs) }
             }
             Instruction::Not(_) => {
                 // We simplify equality operations with booleans like `(boolean == false)` into `!boolean`.
                 // Thus, using a u1 in a loop bound can possibly lead to a Not instruction
                 // as a loop header's jump condition.
                 //
-                // `for i in 0..1` is turned into:
+                // Standard (then=body): `for i in 0..1` is turned into:
                 //  b1(v0: u1):
                 //    v2 = eq v0, u32 0
                 //    jmpif v2 then: b2, else: b3
@@ -603,12 +621,14 @@ impl Loop {
                 //  b1(v0: u1):
                 //    v2 = not v0
                 //    jmpif v2 then: b2, else: b3
-                Some(IntegerConstant::Unsigned { value: 1, bit_size: 1 })
+                if then_branch_is_body {
+                    Some(IntegerConstant::Unsigned { value: 1, bit_size: 1 })
+                } else {
+                    None
+                }
             }
-            Instruction::Cast(_, _) => {
-                // A cast of a constant would already be simplified
-                None
-            }
+            // A cast of a constant would already be simplified
+            Instruction::Cast(_, _) => None,
             other => panic!("Unexpected instruction in header: {other:?}"),
         }
     }
@@ -750,9 +770,20 @@ impl Loop {
             TerminatorInstruction::JmpIf {
                 condition,
                 then_destination,
+                then_arguments,
                 else_destination,
+                else_arguments,
                 call_stack,
             } => {
+                assert!(
+                    then_arguments.is_empty(),
+                    "unrolling has not been updated to handle jmpif arguments"
+                );
+                assert!(
+                    else_arguments.is_empty(),
+                    "unrolling has not been updated to handle jmpif arguments"
+                );
+
                 let condition = *condition;
                 let next_blocks = context.handle_jmpif(
                     condition,
@@ -1226,9 +1257,21 @@ impl<'f> LoopIteration<'f> {
             TerminatorInstruction::JmpIf {
                 condition,
                 then_destination,
+                then_arguments,
                 else_destination,
+                else_arguments,
                 call_stack,
-            } => self.handle_jmpif(*condition, *then_destination, *else_destination, *call_stack),
+            } => {
+                assert!(
+                    then_arguments.is_empty(),
+                    "unrolling has not been updated to handle jmpif arguments"
+                );
+                assert!(
+                    else_arguments.is_empty(),
+                    "unrolling has not been updated to handle jmpif arguments"
+                );
+                self.handle_jmpif(*condition, *then_destination, *else_destination, *call_stack)
+            }
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
                 if self.get_original_block(*destination) == self.loop_.header {
                     // We found the back-edge of the loop.
@@ -1430,12 +1473,12 @@ mod tests {
                     jmp b1(u32 0)
                 b1(v0: u32):  // header of outer loop
                     v1 = lt v0, u32 3
-                    jmpif v1 then: b2, else: b3
+                    jmpif v1 then: b2(), else: b3()
                 b2():
                     jmp b4(u32 0)
                 b4(v2: u32):  // header of inner loop
                     v3 = lt v2, u32 4
-                    jmpif v3 then: b5, else: b6
+                    jmpif v3 then: b5(), else: b6()
                 b5():
                     v4 = add v0, v2
                     v5 = lt u32 10, v4
@@ -1494,7 +1537,7 @@ mod tests {
             jmp b1(v0)
           b1(v1: u32):
             v2 = lt v1, u32 5
-            jmpif v2 then: b2, else: b3
+            jmpif v2 then: b2(), else: b3()
           b2():
             v3 = add v1, u32 1
             jmp b1(v3)
@@ -1538,7 +1581,7 @@ mod tests {
           b0():
             jmp b1(u32 0)
           b1(v0: u32):
-            jmpif u1 0 then: b2, else: b3
+            jmpif u1 0 then: b2(), else: b3()
           b2():
             v41 = unchecked_add v0, u32 1
             jmp b1(v41)
@@ -1647,7 +1690,7 @@ mod tests {
           b0():
             jmp b1(u32 0)
           b1(v0: u32):
-            jmpif u1 0 then: b2, else: b3
+            jmpif u1 0 then: b2(), else: b3()
           b2():
             v1 = unchecked_add v0, u32 1
             jmp b1(v1)
@@ -1818,13 +1861,13 @@ mod tests {
             jmp b1(u32 0)
           b1(v0: u32):
             v5 = lt v0, u32 10
-            jmpif v5 then: b2, else: b6
+            jmpif v5 then: b2(), else: b6()
           b2():
             v7 = eq v0, u32 2
-            jmpif v7 then: b7, else: b3
+            jmpif v7 then: b7(), else: b3()
           b3():
             v11 = eq v0, u32 5
-            jmpif v11 then: b5, else: b4
+            jmpif v11 then: b5(), else: b4()
           b4():
             v15 = load v1 -> Field
             v17 = add v15, Field 1
@@ -1881,7 +1924,7 @@ mod tests {
             jmp b1({idx_type} {lower})
           b1(v1: {idx_type}):
             v5 = lt v1, {idx_type} {upper}
-            jmpif v5 then: b3, else: b2
+            jmpif v5 then: b3(), else: b2()
           b3():
             v8 = load v2 -> u32
             v9 = add v8, v1
@@ -1934,7 +1977,7 @@ mod tests {
             jmp b1({idx_type} {lower})
           b1(v1: {idx_type}):
             v7 = lt v1, {idx_type} {upper}
-            jmpif v7 then: b3, else: b2
+            jmpif v7 then: b3(), else: b2()
           b3():
             v9 = load v4 -> [u64; 6]
             v11 = array_get v0, index v1 -> u64
@@ -1963,7 +2006,7 @@ mod tests {
             jmp b1({idx_type} {lower})
           b1(v1: {idx_type}):
             v7 = lt v1, {idx_type} {upper}
-            jmpif v7 then: b3, else: b2
+            jmpif v7 then: b3(), else: b2()
           b3():
             v9 = load v4 -> [u64; 6]
             v10 = cast v1 as u32
@@ -2014,9 +2057,9 @@ mod tests {
             jmp b1(u32 0)
           b1(v0: u32):
             v3 = lt v0, u32 5
-            jmpif v3 then: b2, else: b3
+            jmpif v3 then: b2(), else: b3()
           b2():
-            jmpif u1 1 then: b4, else: b5
+            jmpif u1 1 then: b4(), else: b5()
           b3():
             return u1 1
           b4():
@@ -2045,7 +2088,7 @@ mod tests {
             jmp b1(u32 10)
           b1(v0: u32):
             v3 = lt v0, u32 12
-            jmpif v3 then: b2, else: b3
+            jmpif v3 then: b2(), else: b3()
           b2():
             constrain v0 == u32 1
             jmp b1(u32 2)
@@ -2074,7 +2117,7 @@ mod tests {
             jmp b1()
           b1():
             v2 = load v0 -> u1
-            jmpif v2 then: b2, else: b3
+            jmpif v2 then: b2(), else: b3()
           b2():
             jmp b1()
           b3():
@@ -2092,8 +2135,9 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "ICE: overflow while incrementing constant")]
     fn unroll_loop_upper_bound_saturated() {
+        // We need to avoid overflow when the loop bounds is `u128::MAX`. In this case,
+        // the loop body is in the `else` case so we fail to unroll entirely.
         let ssa = format!(
             r#"
         acir(inline) fn main f0 {{
@@ -2101,7 +2145,7 @@ mod tests {
             jmp b1(u128 {0})
           b1(v0: u128):
             v3 = eq v0, u128 {0}
-            jmpif v3 then: b3, else: b2
+            jmpif v3 then: b3(), else: b2()
           b2():
             v6 = unchecked_add v0, u128 1
             jmp b1(v6)
@@ -2122,7 +2166,7 @@ mod tests {
             loop_.get_pre_header(function, &loops.cfg).expect("Should have a pre_header");
         let (lower, upper) =
             loop_.get_const_bounds(&function.dfg, pre_header).expect("bounds are numeric const");
-        assert_ne!(lower, upper);
+        assert_eq!(lower, upper);
     }
 
     /// Prior passes can place non-comparison instructions (like MakeArray) into a loop header block
@@ -2146,14 +2190,14 @@ mod tests {
             jmp b1(u8 0)
           b1(v1: u8):
             v24 = make_array b\"unsignedinteger\"
-            jmpif u1 0 then: b2, else: b3
+            jmpif u1 0 then: b2(), else: b3()
           b2():
             inc_rc v24
             v29 = unchecked_add v1, u8 1
             jmp b1(v29)
           b3():
             v26 = load v3 -> u1
-            jmpif v26 then: b4, else: b5
+            jmpif v26 then: b4(), else: b5()
           b4():
             inc_rc v24
             jmp b5()
@@ -2163,5 +2207,54 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         // This should panic because b1 has a constant-condition `jmpif u1 0`.
         let _ = ssa.unroll_loops_iteratively(None, FORCE_UNROLL_THRESHOLD);
+    }
+
+    #[test]
+    fn handles_jmpif_args() {
+        let src = r#"
+            brillig(inline) predicate_pure fn main f0 {
+              b0():
+                v0 = make_array [] : [i32]
+                call f1(u32 0, v0)
+                return
+            }
+            brillig(inline) predicate_pure fn iter_0_times f1 {
+              b0(v0: u32, v1: [i32]):
+                jmp b1(u32 0)
+              b1(v2: u32):
+                v4 = eq v2, u32 0
+                jmpif v4 then: b2(), else: b3()
+              b2():
+                jmp b4()
+              b3():
+                v6 = add v2, u32 1
+                v8 = lt u32 10000, v0
+                constrain v8 == u1 1, "Index out of bounds"
+                v10 = array_get v1, index u32 10000 -> i32
+                jmp b5()
+              b4():
+                return
+              b5():
+                jmp b1(v6)
+            }
+            "#;
+        let (ssa, errors) = try_unroll_loops(Ssa::from_str(src).unwrap());
+        assert_eq!(errors.len(), 0, "Unroll should have no errors");
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = make_array [] : [i32]
+            call f1(u32 0, v0)
+            return
+        }
+        brillig(inline) predicate_pure fn iter_0_times f1 {
+          b0(v0: u32, v1: [i32]):
+            jmp b1()
+          b1():
+            jmp b2()
+          b2():
+            return
+        }
+        ");
     }
 }

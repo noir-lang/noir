@@ -381,7 +381,7 @@ mod tests {
             acir(inline) fn pure_recursive f7 {
               b0(v0: u32):
                 v1 = lt v0, u32 1
-                jmpif v1 then: b1, else: b2
+                jmpif v1 then: b1(), else: b2()
               b1():
                 jmp b3(u32 0)
               b2():
@@ -455,7 +455,7 @@ mod tests {
         acir(inline) predicate_pure fn pure_recursive f7 {
           b0(v0: u32):
             v3 = lt v0, u32 1
-            jmpif v3 then: b1, else: b2
+            jmpif v3 then: b1(), else: b2()
           b1():
             jmp b3(u32 0)
           b2():
@@ -643,7 +643,7 @@ mod tests {
         acir(inline) fn is_even f1 {
           b0(v0: u32):
             v1 = eq v0, u32 0
-            jmpif v1 then: b1, else: b2
+            jmpif v1 then: b1(), else: b2()
           b1():
             jmp b3(u1 1)
           b2():
@@ -656,7 +656,7 @@ mod tests {
         acir(inline) fn is_odd f2 {
           b0(v0: u32):
             v1 = eq v0, u32 0
-            jmpif v1 then: b1, else: b2
+            jmpif v1 then: b1(), else: b2()
           b1():
             jmp b3(u1 0)
           b2():
@@ -689,7 +689,7 @@ mod tests {
         brillig(inline) fn is_even f1 {
           b0(v0: u32):
             v1 = eq v0, u32 0
-            jmpif v1 then: b1, else: b2
+            jmpif v1 then: b1(), else: b2()
           b1():
             jmp b3(u1 1)
           b2():
@@ -702,7 +702,7 @@ mod tests {
         brillig(inline) fn is_odd f2 {
           b0(v0: u32):
             v1 = eq v0, u32 0
-            jmpif v1 then: b1, else: b2
+            jmpif v1 then: b1(), else: b2()
           b1():
             jmp b3(u1 0)
           b2():

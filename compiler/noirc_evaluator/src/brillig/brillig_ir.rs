@@ -346,6 +346,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
         options: &BrilligOptions,
     ) -> BrilligContext<F, ScratchSpace> {
         let mut obj = BrilligArtifact::default();
+        obj.name = format!("{procedure_id}");
         obj.procedure = Some(procedure_id);
         BrilligContext {
             obj,
@@ -384,9 +385,9 @@ impl<F: AcirField + DebugToString> BrilligContext<F, GlobalSpace> {
     }
 
     /// Total size of the global memory space.
+    /// Returns 0 when nothing has been allocated (max_memory_address < start).
     pub(crate) fn global_space_size(&self) -> usize {
-        // `GlobalSpace::start` is inclusive so we must add one to get the accurate total global memory size
-        (self.registers().max_memory_address() + 1) - self.registers().start()
+        (self.registers().max_memory_address() + 1).saturating_sub(self.registers().start())
     }
 }
 
@@ -988,7 +989,7 @@ pub(crate) mod tests {
                 jmp b1(u32 0, u32 0, u32 0)
               b1(v3: u32, v35: u32, v36: u32):
                 v5 = lt v3, u32 17
-                jmpif v5 then: b2, else: b3
+                jmpif v5 then: b2(), else: b3()
               b2():
                 v8 = unchecked_add v3, u32 1
                 jmp b1(v8, v3, u32 10)
@@ -1028,7 +1029,7 @@ pub(crate) mod tests {
                 jmp b1(u32 0, u32 1, u32 0)
               b1(v0: u32, v1: u32, v2: u32):
                 v3 = lt v2, u32 1
-                jmpif v3 then: b2, else: b3
+                jmpif v3 then: b2(), else: b3()
               b2():
                 v4 = unchecked_add v2, u32 1
                 jmp b1(v1, v0, v4)

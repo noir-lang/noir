@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-comptime mut global COUNTER: Field = 2;
+comptime mut global COUNTER: Field = 0x02;
 
 fn main() {
     ();

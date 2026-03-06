@@ -21,7 +21,7 @@ use crate::{
     },
     hir::{
         comptime::Value,
-        def_collector::dc_crate::{CompilationError, UnresolvedEnum},
+        def_collector::dc_crate::UnresolvedEnum,
         resolution::{errors::ResolverError, import::PathResolutionError},
         type_check::TypeCheckError,
     },
@@ -34,7 +34,8 @@ use crate::{
         stmt::{HirLetStatement, HirPattern, HirStatement},
     },
     node_interner::{
-        DefinitionId, DefinitionKind, ExprId, FunctionModifiers, GlobalValue, ReferenceId, TypeId,
+        DefinitionId, DefinitionKind, DependencyId, ExprId, FunctionModifiers, GlobalValue,
+        ReferenceId, TypeId,
     },
     shared::Visibility,
     signed_field::SignedField,
@@ -121,6 +122,11 @@ impl Elaborator<'_> {
     pub(super) fn collect_enum_definitions(&mut self, enums: &BTreeMap<TypeId, UnresolvedEnum>) {
         for (type_id, typ) in enums {
             self.local_module = Some(typ.module_id);
+            self.current_item = Some(DependencyId::DataType(*type_id));
+
+            let previous_in_comptime_context =
+                std::mem::replace(&mut self.in_comptime_context, typ.enum_def.comptime);
+
             self.generics.clear();
 
             let datatype = self.interner.get_type(*type_id);
@@ -169,6 +175,9 @@ impl Elaborator<'_> {
             }
 
             self.resolving_ids.remove(type_id);
+
+            self.in_comptime_context = previous_in_comptime_context;
+            self.current_item = None;
         }
         self.generics.clear();
     }
@@ -335,19 +344,6 @@ impl Elaborator<'_> {
 
         self.interner.push_fn_meta(meta, method_id);
         if let Err(error) = self.interner.add_method(self_type, name_string, method_id, None) {
-            let error = if matches!(
-                error,
-                CompilationError::ResolverError(ResolverError::DuplicateDefinition { .. })
-            ) {
-                // Expecting a DefCollectorErrorKind::Duplicate error in this case
-                TypeCheckError::expecting_other_error(
-                    "define_enum_variant_function: duplicate definition",
-                    location,
-                )
-                .into()
-            } else {
-                error
-            };
             self.push_err(error);
         }
 
@@ -867,19 +863,9 @@ impl Elaborator<'_> {
         });
 
         let value = match constant {
-            Value::Bool(value) => SignedField::positive(value),
-            Value::Field(value) => value,
-            Value::I8(value) => SignedField::from_signed(value),
-            Value::I16(value) => SignedField::from_signed(value),
-            Value::I32(value) => SignedField::from_signed(value),
-            Value::I64(value) => SignedField::from_signed(value),
-            Value::U1(value) => SignedField::positive(value),
-            Value::U8(value) => SignedField::positive(u128::from(value)),
-            Value::U16(value) => SignedField::positive(u128::from(value)),
-            Value::U32(value) => SignedField::positive(value),
-            Value::U64(value) => SignedField::positive(value),
-            Value::U128(value) => SignedField::positive(value),
-            Value::Zeroed(_) => SignedField::positive(0u32),
+            Value::Bool(value) => value.into(),
+            Value::Integer(int) => int.as_signed_field(),
+            Value::Zeroed(_) => SignedField::zero(),
             _ => {
                 self.push_err(ResolverError::NonIntegerGlobalUsedInPattern { location });
                 return Pattern::Error;

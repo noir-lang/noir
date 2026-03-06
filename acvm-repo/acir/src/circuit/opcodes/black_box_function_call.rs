@@ -244,6 +244,12 @@ pub enum BlackBoxFuncCall<F> {
     },
     /// Applies the Poseidon2 permutation function to the given state,
     /// outputting the permuted state.
+    ///
+    /// This operation will fail if the length of the inputs do not match
+    /// the backend configuration, but a match with the statically configured
+    /// black box solver is enforced by static assertions, to avoid having a
+    /// different outcome between runtimes based on whether the SSA has
+    /// been flattened or not.
     Poseidon2Permutation {
         /// Input state for the permutation of Poseidon2
         inputs: Vec<FunctionInput<F>>,

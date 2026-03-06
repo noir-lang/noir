@@ -1,5 +1,5 @@
 use crate::acir::arrays::ElementTypeSizesArrayShift;
-use crate::acir::types::{flat_element_types, flat_numeric_types};
+use crate::acir::types::flat_element_types;
 use crate::acir::{AcirDynamicArray, AcirValue, AcirVar};
 use crate::brillig::assert_u32;
 use crate::errors::RuntimeError;
@@ -653,7 +653,8 @@ impl Context<'_> {
                 None
             };
 
-        let value_types = flat_numeric_types(&vector_typ);
+        let value_types = flat_element_types(&vector_typ);
+        assert_eq!(vector_size.to_usize() % value_types.len(), 0);
 
         let result = AcirValue::DynamicArray(AcirDynamicArray {
             block_id: result_block_id,
@@ -847,7 +848,8 @@ impl Context<'_> {
                 None
             };
 
-        let value_types = flat_numeric_types(&vector_typ);
+        let value_types = flat_element_types(&vector_typ);
+        assert_eq!(result_size.to_usize() % value_types.len(), 0);
 
         let result = AcirValue::DynamicArray(AcirDynamicArray {
             block_id: result_block_id,
