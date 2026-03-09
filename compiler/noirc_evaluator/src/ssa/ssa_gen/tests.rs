@@ -90,7 +90,7 @@ fn basic_loop() {
         jmpif v5 then: b2(), else: b3()
       b2():
         v6 = load v2 -> u32
-        v7 = add v6, v4
+        v7 = add v4, v6
         store v7 at v2
         v9 = unchecked_add v4, u32 1
         jmp b1(v9)

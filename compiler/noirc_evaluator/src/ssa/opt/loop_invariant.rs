@@ -1762,9 +1762,8 @@ mod tests {
           v6 = cast v0 as u32
           v8 = lt v6, u32 2147483648
           v9 = lt v5, u32 2147483648
-          v10 = eq v9, v8
-          v11 = unchecked_mul v10, v8
-          constrain v11 == v8
+          v10 = unchecked_mul v8, v9
+          constrain v10 == v8
           v12 = lt v0, v4
           constrain v12 == u1 0
           v15 = unchecked_add v0, i32 1
@@ -2512,7 +2511,7 @@ mod control_dependence {
             jmpif v3 then: loop_body(), else: exit()
           loop_body():
             v6 = mul v0, v1
-            v7 = mul v6, v0
+            v7 = mul v0, v6
             constrain v7 == u32 12
             v10 = unchecked_add v2, u32 1
             jmp loop(v10)
@@ -2527,7 +2526,7 @@ mod control_dependence {
         brillig(inline) fn main f0 {
           entry(v0: u32, v1: u32):
             v3 = mul v0, v1
-            v4 = mul v3, v0
+            v4 = mul v0, v3
             constrain v4 == u32 12
             jmp loop(u32 0)
           loop(v2: u32):
@@ -2574,7 +2573,7 @@ mod control_dependence {
           jmpif v10 then: loop_2_body(), else: exit()
         loop_2_body():
           v9 = mul v0, v1
-          v11 = mul v9, v0
+          v11 = mul v0, v9
           constrain v11 == u32 12
           v14 = unchecked_add v3, u32 1
           jmp loop_2(v14)
@@ -2589,13 +2588,13 @@ mod control_dependence {
         // From loop_2_body:
         // ```
         // v9 = mul v0, v1
-        // v11 = mul v9, v0
+        // v11 = mul v0, v9
         // constrain v11 == u32 12
         // ```
         // To loop_1_exit:
         // ```
         // v9 = mul v0, v1
-        // v10 = mul v9, v0
+        // v10 = mul v0, v9
         // constrain v10 == u32 12
         // ```
         let expected = "
@@ -2610,7 +2609,7 @@ mod control_dependence {
           jmpif v5 then: loop_1_body(), else: loop_1_end()
         loop_1_exit():
           v9 = mul v0, v1
-          v10 = mul v9, v0
+          v10 = mul v0, v9
           constrain v10 == u32 12
           jmp loop_2(u32 0)
         loop_1_body():
@@ -2647,7 +2646,7 @@ mod control_dependence {
             jmpif v3 then: loop_body(), else: exit()
           loop_body():
             v6 = unchecked_mul v0, v1
-            v7 = unchecked_mul v6, v0
+            v7 = unchecked_mul v0, v6
             constrain v7 == u32 12
             v10 = unchecked_add v2, u32 1
             jmp loop(v10)
@@ -2668,7 +2667,7 @@ mod control_dependence {
         brillig(inline) fn main f0 {
           entry(v0: u32, v1: u32):
             v3 = unchecked_mul v0, v1
-            v4 = unchecked_mul v3, v0
+            v4 = unchecked_mul v0, v3
             jmp loop(u32 0)
           loop(v2: u32):
             jmpif u1 0 then: loop_body(), else: exit()
@@ -2697,7 +2696,7 @@ mod control_dependence {
             jmpif v3 then: loop_body(), else: exit()
           loop_body():
             v6 = unchecked_mul v0, v1
-            v7 = unchecked_mul v6, v0
+            v7 = unchecked_mul v0, v6
             constrain v7 == u32 12
             v10 = unchecked_add v2, u32 1
             jmp loop(v10)
@@ -2717,7 +2716,7 @@ mod control_dependence {
         brillig(inline) fn main f0 {
           entry(v0: u32, v1: u32):
             v3 = unchecked_mul v0, v1
-            v4 = unchecked_mul v3, v0
+            v4 = unchecked_mul v0, v3
             jmp loop(u32 1)
           loop(v2: u32):
             v7 = eq v2, u32 0
@@ -2747,7 +2746,7 @@ mod control_dependence {
             jmpif v3 then: loop_body(), else: exit()
           loop_body():
             v6 = unchecked_mul v0, v1
-            v7 = unchecked_mul v6, v0
+            v7 = unchecked_mul v0, v6
             constrain v7 == u32 12
             v10 = unchecked_add v2, u32 1
             jmp loop(v10)
@@ -2768,7 +2767,7 @@ mod control_dependence {
         brillig(inline) fn main f0 {
           entry(v0: u32, v1: u32):
             v3 = unchecked_mul v0, v1
-            v4 = unchecked_mul v3, v0
+            v4 = unchecked_mul v0, v3
             jmp loop(u32 0)
           loop(v2: u32):
             v6 = lt v2, v1
@@ -3267,7 +3266,7 @@ mod control_dependence {
             jmpif v6 then: b2(), else: b3()
           b2():
             v7 = cast v2 as Field
-            v8 = add v7, v3
+            v8 = add v3, v7
             range_check v8 to 1 bits
             constrain v0 == u32 12
             v11 = unchecked_add v2, u32 1
@@ -3319,7 +3318,7 @@ mod control_dependence {
           b3():
             return
           b4():
-            v8 = add v2, v0
+            v8 = add v0, v2
             constrain v8 == u32 12
             jmp b5()
           b5():

@@ -2409,7 +2409,7 @@ mod test {
           b0(v0: Field, v1: Field, v2: u1):
             enable_side_effects v2
             v3 = div v1, v0
-            v4 = mul v3, v0
+            v4 = mul v0, v3
             v5 = not v2
             enable_side_effects v5
             v6 = div v1, v0

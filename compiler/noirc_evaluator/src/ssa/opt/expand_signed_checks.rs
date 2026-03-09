@@ -538,8 +538,8 @@ mod tests {
             v14 = not v13
             v15 = eq v12, v14
             v16 = lt v8, u32 2147483648
-            v17 = eq v16, v12
-            v18 = unchecked_mul v17, v15
+            v17 = eq v12, v16
+            v18 = unchecked_mul v15, v17
             constrain v18 == v15, "attempt to subtract with overflow"
             v19 = cast v7 as i32
             return v19
