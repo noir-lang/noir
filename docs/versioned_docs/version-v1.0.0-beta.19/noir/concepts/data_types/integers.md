@@ -125,7 +125,7 @@ fn wrapping_mul(self, y: Self) -> Self;
 Example of how it is used:
 
 ```rust
-use std::ops::WrappingAdd;
+use std::ops::WrappingAdd
 fn main(x: u8, y: u8) -> pub u8 {
     x.wrapping_add(y)
 }
