@@ -17,7 +17,7 @@ impl NodeInterner {
 
         // Note: we can modify this in the future to not do a linear
         // scan by storing a separate map of the spans or by sorting the locations.
-        for (index, interned_location) in self.id_to_location.iter() {
+        for (index, interned_location) in &self.id_to_location {
             if interned_location.contains(&location) {
                 if let Some(current_location) = location_candidate {
                     if interned_location.span.is_smaller(&current_location.1.span) {
@@ -36,7 +36,7 @@ impl NodeInterner {
         // This is similar to `find_location_index` except that we skip indexes for which there is no type
         let mut location_candidate: Option<(&Index, &Location, &Type)> = None;
 
-        for (index, interned_location) in self.id_to_location.iter() {
+        for (index, interned_location) in &self.id_to_location {
             if interned_location.contains(&location)
                 && let Some(typ) = self.try_id_type(*index)
             {
@@ -101,7 +101,7 @@ impl NodeInterner {
             Node::Expression(expression) => {
                 self.resolve_expression_location(expression, return_type_location_instead)
             }
-            _ => None,
+            Node::Statement(_) => None,
         }
     }
 
@@ -159,9 +159,8 @@ impl NodeInterner {
         let expr_lhs = &expr_member_access.lhs;
         let expr_rhs = &expr_member_access.rhs;
 
-        let lhs_self_struct = match self.id_type(expr_lhs) {
-            Type::DataType(struct_type, _) => struct_type,
-            _ => return None,
+        let Type::DataType(lhs_self_struct, _) = self.id_type(expr_lhs) else {
+            return None;
         };
 
         let struct_type = lhs_self_struct.borrow();

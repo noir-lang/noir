@@ -216,7 +216,7 @@ impl Context<'_> {
                                 len / ElementTypesLength(assert_u32(item_types.len()))
                             }
                         }
-                        _ => unreachable!("ICE: Vector value is not an array"),
+                        AcirValue::Var(..) => unreachable!("ICE: Vector value is not an array"),
                     };
 
                     BrilligParameter::Vector(

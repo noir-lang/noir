@@ -44,7 +44,7 @@ mod completion_tests {
                     uri: noir_text_document.clone(),
                     language_id: "noir".to_string(),
                     version: 0,
-                    text: src.to_string(),
+                    text: src.clone(),
                 },
             },
         );
@@ -2498,11 +2498,10 @@ fn main() {
 
         assert_completion_excluding_auto_import(
             src,
-            vec![simple_completion_item(
-                "allow(unused_variables)",
-                CompletionItemKind::METHOD,
-                None,
-            )],
+            vec![
+                simple_completion_item("allow(unused_variables)", CompletionItemKind::METHOD, None),
+                simple_completion_item("allow(unused_mut)", CompletionItemKind::METHOD, None),
+            ],
         )
         .await;
     }

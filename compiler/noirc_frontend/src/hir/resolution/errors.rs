@@ -28,6 +28,8 @@ pub enum ResolverError {
     DuplicateDefinition { name: String, first_location: Location, second_location: Location },
     #[error("Unused variable")]
     UnusedVariable { ident: Ident },
+    #[error("Variable does not need to be mutable")]
+    VariableDoesNotNeedToBeMutable { ident: Ident },
     #[error("Unused {}", item.item_type())]
     UnusedItem { ident: Ident, item: UnusedItem },
     #[error("Unconditional recursion")]
@@ -144,10 +146,8 @@ pub enum ResolverError {
     },
     #[error("`quote` cannot be used in runtime code")]
     QuoteInRuntimeCode { location: Location },
-    #[error("Comptime-only type `{typ}` cannot be used in runtime code")]
-    ComptimeTypeInRuntimeCode { typ: String, location: Location },
-    #[error("Comptime-only type `{typ}` cannot be used in non-comptime global")]
-    ComptimeTypeInNonComptimeGlobal { typ: String, location: Location },
+    #[error("Comptime-only type `{typ}` cannot be used in non-comptime {item}")]
+    ComptimeTypeInNonComptimeItem { typ: String, location: Location, item: &'static str },
     #[error("Comptime variable `{name}` cannot be mutated in a non-comptime context")]
     MutatingComptimeInNonComptimeContext { name: String, location: Location },
     #[error("Failed to parse `{statement}` as an expression")]
@@ -269,8 +269,7 @@ impl ResolverError {
             | ResolverError::AssociatedConstantsMustBeNumeric { location }
             | ResolverError::BinaryOpError { location, .. }
             | ResolverError::QuoteInRuntimeCode { location }
-            | ResolverError::ComptimeTypeInRuntimeCode { location, .. }
-            | ResolverError::ComptimeTypeInNonComptimeGlobal { location, .. }
+            | ResolverError::ComptimeTypeInNonComptimeItem { location, .. }
             | ResolverError::MutatingComptimeInNonComptimeContext { location, .. }
             | ResolverError::InvalidInternedStatementInExpr { location, .. }
             | ResolverError::InvalidSyntaxInPattern { location }
@@ -310,6 +309,7 @@ impl ResolverError {
             | ResolverError::NecessaryPub { location, .. }
             | ResolverError::DataBusOnNonEntryPoint { location, .. } => *location,
             ResolverError::UnusedVariable { ident }
+            | ResolverError::VariableDoesNotNeedToBeMutable { ident }
             | ResolverError::UnusedItem { ident, .. }
             | ResolverError::DuplicateField { field: ident }
             | ResolverError::NoSuchField { field: ident, .. }
@@ -351,6 +351,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 );
                 diagnostic.unnecessary = true;
                 diagnostic
+            }
+            ResolverError::VariableDoesNotNeedToBeMutable { ident } => {
+                Diagnostic::simple_warning(
+                    "variable does not need to be mutable".to_string(),
+                    String::new(),
+                    ident.location(),
+                )
             }
             ResolverError::UnusedItem { ident, item} => {
                 let item_type = item.item_type();
@@ -741,17 +748,10 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             },
-            ResolverError::ComptimeTypeInRuntimeCode { typ, location } => {
+            ResolverError::ComptimeTypeInNonComptimeItem { typ, location, item } => {
                 Diagnostic::simple_error(
-                    format!("Comptime-only type `{typ}` cannot be used in runtime code"),
-                    "Comptime-only type used here".to_string(),
-                    *location,
-                )
-            },
-            ResolverError::ComptimeTypeInNonComptimeGlobal { typ, location } => {
-                Diagnostic::simple_error(
-                    format!("Comptime-only type `{typ}` cannot be used in non-comptime global"),
-                    "Comptime-only type used here".to_string(),
+                    format!("Comptime-only type `{typ}` cannot be used in non-comptime {item}"),
+                    String::new(),
                     *location,
                 )
             },

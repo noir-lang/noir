@@ -3,12 +3,15 @@ use std::path::Path;
 use acir::{AcirField, FieldElement, native_types::WitnessStack};
 use acvm::BlackBoxFunctionSolver;
 use nargo::{NargoError, foreign_calls::ForeignCallExecutor};
-use noirc_abi::{AbiType, Sign, input_parser::InputValue};
+use noirc_abi::{AbiType, MAIN_RETURN_NAME, Sign, input_parser::InputValue};
 use noirc_artifacts::{debug::DebugArtifact, program::CompiledProgram};
 
 use crate::{
     errors::CliError,
-    fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir},
+    fs::{
+        inputs::{read_inputs_from_file, write_inputs_to_file},
+        witness::save_witness_to_dir,
+    },
 };
 
 /// Results of a circuit execution.
@@ -74,11 +77,11 @@ pub fn show_diagnostic(circuit: &CompiledProgram, err: &NargoError<FieldElement>
     }
 }
 
-/// Print some information and save the witness if an output directory is specified,
-/// then checks if the expected return values were the ones we expected.
-pub fn save_and_check_witness(
+/// Print some feedback, save the witness if an output directory is specified,
+/// and show the circuit output.
+pub fn save_and_show_witness(
     circuit: &CompiledProgram,
-    results: ExecutionResults,
+    results: &ExecutionResults,
     circuit_name: &str,
     witness_dir: Option<&Path>,
     witness_name: Option<&str>,
@@ -93,7 +96,7 @@ pub fn save_and_check_witness(
         let output_string = input_value_to_string(return_value, abi_type);
         noirc_errors::println_to_stdout!("[{circuit_name}] Circuit output: {output_string}");
     }
-    check_witness(circuit, results.return_values)
+    Ok(())
 }
 
 /// Save the witness stack to a file.
@@ -122,15 +125,24 @@ pub fn save_witness(
 }
 
 /// Compare return values to expectations, returning errors if something unexpected was returned.
-pub fn check_witness(
+///
+/// If `overwrite_prover_file` is not empty, instead of checking the expected return value,
+/// it overwrites the `return` entry in the prover file with the actual return value,
+/// while preserving the inputs and the format.
+pub fn check_return(
     circuit: &CompiledProgram,
     return_values: ReturnValues,
+    overwrite_prover_file: Option<&Path>,
 ) -> Result<(), CliError> {
     // Check that the circuit returned a non-empty result if the ABI expects a return value.
     if let Some(ref expected) = circuit.abi.return_type
         && return_values.actual_return.is_none()
     {
         return Err(CliError::MissingReturn { expected: expected.clone() });
+    }
+
+    if let Some(prover_file) = overwrite_prover_file {
+        return save_return_to_prover_file(circuit, return_values.actual_return, prover_file);
     }
 
     // Check that if the prover file contained a `return` entry then that's what we got.
@@ -148,6 +160,21 @@ pub fn check_witness(
     }
 
     Ok(())
+}
+
+/// Overwrite the `return` value in the Prover.toml file.
+fn save_return_to_prover_file(
+    circuit: &CompiledProgram,
+    return_value: Option<InputValue>,
+    prover_file: &Path,
+) -> Result<(), CliError> {
+    let (mut input_map, _) = read_inputs_from_file(prover_file, &circuit.abi)?;
+
+    if let Some(return_value) = return_value {
+        input_map.insert(MAIN_RETURN_NAME.to_string(), return_value);
+    }
+
+    write_inputs_to_file(prover_file, &circuit.abi, &input_map)
 }
 
 pub fn input_value_to_string(input_value: &InputValue, abi_type: &AbiType) -> String {

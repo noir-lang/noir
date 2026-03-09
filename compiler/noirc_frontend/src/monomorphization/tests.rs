@@ -68,61 +68,6 @@ fn recursive_type_with_alias_errors() {
 }
 
 #[test]
-fn mutually_recursive_types_error() {
-    // cSpell:disable
-    let src = "
-        fn main() {
-            let _zero = Even::Zero;
-        }
-
-        enum Even {
-            Zero,
-            ^^^^ Type `Odd` is recursive
-            ~~~~ All types in Noir must have a known size at compile-time
-            Succ(Odd),
-        }
-
-        enum Odd {
-            One,
-            Succ(Even),
-        }
-        ";
-    // cSpell:enable
-    let features = vec![UnstableFeature::Enums];
-    check_monomorphization_error_using_features(src, &features, false);
-}
-
-#[test]
-fn mutually_recursive_types_with_structs_error() {
-    // cSpell:disable
-    let src = "
-        fn main() {
-            let _zero = Even::Zero;
-        }
-
-        enum Even {
-            Zero,
-            ^^^^ Type `EvenSucc` is recursive
-            ~~~~ All types in Noir must have a known size at compile-time
-            Succ(EvenSucc),
-        }
-
-        pub struct EvenSucc { inner: Odd }
-
-        enum Odd {
-            One,
-            Succ(OddSucc),
-        }
-
-        pub struct OddSucc { inner: Even }
-        ";
-
-    // cSpell:enable
-    let features = vec![UnstableFeature::Enums];
-    check_monomorphization_error_using_features(src, &features, false);
-}
-
-#[test]
 fn simple_closure_with_no_captured_variables() {
     let src = r#"
     fn main(y: call_data(0) Field) -> pub Field {
@@ -746,7 +691,7 @@ fn infix_trait_method() {
     }
     "#;
 
-    let program = get_monomorphized_with_stdlib(src, stdlib_src::EQ).unwrap();
+    let program = get_monomorphized_with_stdlib(src, &[stdlib_src::EQ]).unwrap();
 
     insta::assert_snapshot!(program, @r"
     fn main$f0() -> pub bool {
@@ -785,7 +730,7 @@ fn prefix_trait_method() {
     }
     "#;
 
-    let program = get_monomorphized_with_stdlib(src, stdlib_src::NEG).unwrap();
+    let program = get_monomorphized_with_stdlib(src, &[stdlib_src::NEG]).unwrap();
 
     insta::assert_snapshot!(program, @r"
     fn main$f0() -> () {
@@ -1112,7 +1057,7 @@ fn match_guard_becomes_if_then_else() {
 }
 
 #[test]
-fn pass_ref_from_constrained_to_unconstrained_via_closure() {
+fn direct_unconstrained_call_rejects_closure_with_mutable_ref() {
     let src = r#"
     fn main()  {
         let mut x = 0;
@@ -1120,6 +1065,7 @@ fn pass_ref_from_constrained_to_unconstrained_via_closure() {
         f(1_u32);
         // safety: test
         unsafe { bar(f, 2_u32) }
+                     ^ Cannot pass mutable reference `fn[(&mut u32,)](u32) -> ()` from a constrained runtime to an unconstrained runtime
     }
 
     fn foo(x: &mut u32) -> fn[(&mut u32,)](u32) -> () {
@@ -1130,14 +1076,32 @@ fn pass_ref_from_constrained_to_unconstrained_via_closure() {
         f(x);
     }
     "#;
+    check_monomorphization_error_using_features(src, &[], true);
+}
 
-    let err = get_monomorphized_with_options(
-        src,
-        GetProgramOptions { allow_elaborator_errors: true, ..Default::default() },
-    )
-    .expect_err("should fail to monomorphize");
+#[test]
+fn indirect_unconstrained_call_rejects_closure_with_mutable_ref() {
+    // When an unconstrained function is called indirectly through a local binding,
+    // the boundary check should still detect the reference crossing.
+    let src = r#"
+    fn main()  {
+        let mut x = 0;
+        let f = foo(&mut x);
+        let b = bar;
+        // safety: test
+        unsafe { b(f, 2_u32) }
+                   ^ Cannot pass mutable reference `fn[(&mut u32,)](u32) -> ()` from a constrained runtime to an unconstrained runtime
+    }
 
-    assert!(matches!(err, MonomorphizationError::ConstrainedReferenceToUnconstrained { .. }));
+    fn foo(x: &mut u32) -> fn[(&mut u32,)](u32) -> () {
+        |y| { *x = y; }
+    }
+
+    unconstrained fn bar<Env>(f: fn[Env](u32) -> (), x: u32) {
+        f(x);
+    }
+    "#;
+    check_monomorphization_error_using_features(src, &[], true);
 }
 
 #[test]
@@ -1146,18 +1110,13 @@ fn pass_ref_from_constrained_to_unconstrained_via_arg() {
     fn main()  {
         // safety: test
         unsafe { foo(&mut 0); }
+                     ^^^^^^ Cannot pass a mutable reference from a constrained runtime to an unconstrained runtime
+                     ^^^^^^ Cannot pass mutable reference `&mut u32` from a constrained runtime to an unconstrained runtime
     }
 
     unconstrained fn foo(_x: &mut u32) {}
     "#;
-
-    let err = get_monomorphized_with_options(
-        src,
-        GetProgramOptions { allow_elaborator_errors: true, ..Default::default() },
-    )
-    .expect_err("should fail to monomorphize");
-
-    assert!(matches!(err, MonomorphizationError::ConstrainedReferenceToUnconstrained { .. }));
+    check_monomorphization_error_using_features(src, &[], true);
 }
 
 #[test]
@@ -1167,6 +1126,8 @@ fn pass_ref_from_unconstrained_to_unconstrained_via_return() {
         // safety: test
         unsafe {
             let _x = foo();
+                     ^^^^^ Cannot pass a mutable reference from a unconstrained runtime to an constrained runtime
+                     ^^^^^ Mutable reference `&mut u32` cannot be returned from an unconstrained runtime to a constrained runtime
         }
     }
 
@@ -1174,14 +1135,7 @@ fn pass_ref_from_unconstrained_to_unconstrained_via_return() {
         &mut 0
     }
     "#;
-
-    let err = get_monomorphized_with_options(
-        src,
-        GetProgramOptions { allow_elaborator_errors: true, ..Default::default() },
-    )
-    .expect_err("should fail to monomorphize");
-
-    assert!(matches!(err, MonomorphizationError::UnconstrainedReferenceReturnToConstrained { .. }));
+    check_monomorphization_error_using_features(src, &[], true);
 }
 
 #[test]
@@ -1192,7 +1146,7 @@ fn evaluates_builtin_zeroed() {
     }
     "#;
 
-    let program = get_monomorphized_with_stdlib(src, stdlib_src::ZEROED).unwrap();
+    let program = get_monomorphized_with_stdlib(src, &[stdlib_src::ZEROED]).unwrap();
 
     // Note that the zeroed value of a `str<3>` is `"\0\0\0"`, which prints as "".
     insta::assert_snapshot!(program, @"\nfn main$f0() -> () {\n    let _a$l0 = [(0, \"\0\0\0\"), (0, \"\0\0\0\")]\n}");
@@ -1206,7 +1160,7 @@ fn evaluates_builtin_zeroed_function() {
     }
     "#;
 
-    let program = get_monomorphized_with_stdlib(src, stdlib_src::ZEROED).unwrap();
+    let program = get_monomorphized_with_stdlib(src, &[stdlib_src::ZEROED]).unwrap();
 
     insta::assert_snapshot!(program, @r"
     fn main$f0() -> () {
@@ -1233,7 +1187,7 @@ fn evaluates_builtin_checked_transmute() {
     }
     "#;
 
-    let program = get_monomorphized_with_stdlib(src, stdlib_src::CHECKED_TRANSMUTE).unwrap();
+    let program = get_monomorphized_with_stdlib(src, &[stdlib_src::CHECKED_TRANSMUTE]).unwrap();
 
     insta::assert_snapshot!(program, @r"
     fn main$f0() -> () {
@@ -1250,11 +1204,13 @@ fn wraps_aliased_builtin_functions() {
     let src = r#"
     fn main() {
         let f = modulus_num_bits;
+        let g = poseidon2_config_state_size;
         let _ = f();
     }
     "#;
 
-    let program = get_monomorphized_with_stdlib(src, stdlib_src::MODULUS).unwrap();
+    let program =
+        get_monomorphized_with_stdlib(src, &[stdlib_src::MODULUS, stdlib_src::POSEIDON2]).unwrap();
 
     // We are using `modulus_num_bits` as a function value.
     // The monomorphizer creates a function that returns a comptime value,
@@ -1262,7 +1218,8 @@ fn wraps_aliased_builtin_functions() {
     insta::assert_snapshot!(program, @r"
     fn main$f0() -> () {
         let f$l0 = (modulus_num_bits$f1, modulus_num_bits$f2);
-        let _$l1 = f$l0.0()
+        let g$l1 = (poseidon2_config_state_size$f3, poseidon2_config_state_size$f4);
+        let _$l2 = f$l0.0()
     }
     #[inline_always]
     fn modulus_num_bits$f1() -> u64 {
@@ -1271,6 +1228,14 @@ fn wraps_aliased_builtin_functions() {
     #[inline_always]
     unconstrained fn modulus_num_bits$f2() -> u64 {
         254
+    }
+    #[inline_always]
+    fn poseidon2_config_state_size$f3() -> u32 {
+        4
+    }
+    #[inline_always]
+    unconstrained fn poseidon2_config_state_size$f4() -> u32 {
+        4
     }
     ");
 }
@@ -1287,7 +1252,7 @@ fn evaluates_builtin_modulus_functions() {
     }
     "#;
 
-    let program = get_monomorphized_with_stdlib(src, stdlib_src::MODULUS).unwrap();
+    let program = get_monomorphized_with_stdlib(src, &[stdlib_src::MODULUS]).unwrap();
 
     insta::assert_snapshot!(program, @r"
     fn main$f0() -> () {
@@ -1301,6 +1266,23 @@ fn evaluates_builtin_modulus_functions() {
 }
 
 #[test]
+fn evaluates_foreign_poseidon2_config_function() {
+    let src = r#"
+    fn main() {
+        let _ = poseidon2_config_state_size();
+    }
+    "#;
+
+    let program = get_monomorphized_with_stdlib(src, &[stdlib_src::POSEIDON2]).unwrap();
+
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> () {
+        let _$l0 = 4
+    }
+    ");
+}
+
+#[test]
 fn does_not_evaluate_array_len() {
     let src = r#"
     fn main() -> pub u32 {
@@ -1309,7 +1291,7 @@ fn does_not_evaluate_array_len() {
     }
     "#;
 
-    let program = get_monomorphized_with_stdlib(src, stdlib_src::ARRAY_LEN).unwrap();
+    let program = get_monomorphized_with_stdlib(src, &[stdlib_src::ARRAY_LEN]).unwrap();
 
     // The evaluation of array_len has been moved to the SSA in #1736
     insta::assert_snapshot!(program, @r"
@@ -1356,7 +1338,7 @@ fn out_of_order_globals() {
 fn very_large_array() {
     let src = r#"
     fn main() {
-        // 1.3 billion elements 
+        // 1.3 billion elements
         let _arr: [Field; 1294967295] = [0; 1294967295];
     }
     "#;

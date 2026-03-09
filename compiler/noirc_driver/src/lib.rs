@@ -653,7 +653,7 @@ fn read_contract(context: &Context, module_id: ModuleId, name: String) -> Contra
                 if let Some(tagged) = outputs.globals.get_mut(tag) {
                     tagged.push(global_info.id);
                 } else {
-                    outputs.globals.insert(tag.to_string(), vec![global_info.id]);
+                    outputs.globals.insert(tag.clone(), vec![global_info.id]);
                 }
             }
         });
@@ -666,7 +666,7 @@ fn read_contract(context: &Context, module_id: ModuleId, name: String) -> Contra
                     if let Some(tagged) = outputs.structs.get_mut(tag) {
                         tagged.push(struct_id);
                     } else {
-                        outputs.structs.insert(tag.to_string(), vec![struct_id]);
+                        outputs.structs.insert(tag.clone(), vec![struct_id]);
                     }
                 }
             });
@@ -776,7 +776,7 @@ fn compile_contract_inner(
                         AbiType::Struct { path, fields }
                     })
                     .collect();
-                (tag.to_string(), structs)
+                (tag, structs)
             })
             .collect();
 
@@ -795,7 +795,7 @@ fn compile_contract_inner(
                         value_from_hir_expression(context, hir_expression)
                     })
                     .collect();
-                (tag.to_string(), globals)
+                (tag.clone(), globals)
             })
             .collect();
 

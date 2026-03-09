@@ -42,7 +42,7 @@ impl Program {
         let mut context = ProxyContext::new(self.functions.len() as u32);
 
         // Replace foreign function identifier definitions with proxy function IDs.
-        for function in self.functions.iter_mut() {
+        for function in &mut self.functions {
             context.in_unconstrained = function.unconstrained;
             context.visit_expr(&mut function.body);
         }
