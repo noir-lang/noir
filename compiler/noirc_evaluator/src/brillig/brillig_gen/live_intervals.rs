@@ -484,7 +484,7 @@ mod tests {
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: u1, v1: Field):
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             v2 = add v1, Field 1
             jmp b3(v2)
@@ -553,7 +553,7 @@ mod tests {
             jmp b1(u32 0)
           b1(v1: u32):
             v2 = lt v1, v0
-            jmpif v2 then: b2, else: b3
+            jmpif v2 then: b2(), else: b3()
           b2():
             v3 = add v1, u32 1
             jmp b1(v3)
@@ -617,12 +617,12 @@ mod tests {
             jmp b1(u32 0)
           b1(v2: u32):
             v3 = lt v2, v0
-            jmpif v3 then: b2, else: b5
+            jmpif v3 then: b2(), else: b5()
           b2():
             jmp b3(u32 0)
           b3(v4: u32):
             v5 = lt v4, v1
-            jmpif v5 then: b4, else: b6
+            jmpif v5 then: b4(), else: b6()
           b4():
             v6 = add v4, u32 1
             jmp b3(v6)
@@ -730,7 +730,7 @@ mod tests {
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: u1):
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             jmp b3(Field 27, Field 29)
           b2():
@@ -768,7 +768,7 @@ mod tests {
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: u1, v1: Field):
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             v2 = add v1, Field 42
             jmp b3(v2)
@@ -822,7 +822,7 @@ mod tests {
             jmp b1(v1)
           b1(v2: u32):
             v3 = lt v2, v0
-            jmpif v3 then: b2, else: b3
+            jmpif v3 then: b2(), else: b3()
           b2():
             v4 = add v2, u32 10
             jmp b1(v4)
@@ -914,7 +914,7 @@ mod register_pressure {
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: u1, v1: Field):
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             v2 = add v1, Field 1
             jmp b3(v2)
