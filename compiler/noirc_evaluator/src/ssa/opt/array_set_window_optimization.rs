@@ -38,23 +38,32 @@
 //! of an `if-then-else` instruction, the `array_set` can be executed unconditionally because
 //! the [`super::remove_if_else`] pass that comes after this pass will merge `v_set` with `v_arr` make sure
 //! to only use the values from `v_set` when `v_cond` is true.
-
+//!
+//! Note that because the optimization expands to multiple `array_get` and a `make_array` instruction,
+//! for large arrays this might result in too many `array_get` instructions that slow down SSA optimization.
+//! For this reason, only small arrays (up to `MAX_ARRAY_SEMI_FLATTENED_LENGTH` elements) are optimized by this pass.
 use std::collections::{HashMap, HashSet};
 
 use acvm::{AcirField, FieldElement, acir::brillig::lengths::ElementTypesLength};
 use im::Vector;
 
-use crate::ssa::{
-    ir::{
-        basic_block::BasicBlockId,
-        dfg::DataFlowGraph,
-        function::Function,
-        instruction::{Instruction, InstructionId},
-        types::{NumericType, Type},
-        value::ValueId,
+use crate::{
+    brillig::assert_u32,
+    ssa::{
+        ir::{
+            basic_block::BasicBlockId,
+            dfg::DataFlowGraph,
+            function::Function,
+            instruction::{Instruction, InstructionId},
+            types::{NumericType, Type},
+            value::ValueId,
+        },
+        ssa_gen::Ssa,
     },
-    ssa_gen::Ssa,
 };
+
+/// The maximum length of arrays that this optimization will apply to.
+const MAX_ARRAY_SEMI_FLATTENNED_LENGTH: u32 = 64;
 
 impl Ssa {
     /// Replaces qualifying `array_set` instructions with `make_array` instructions.
@@ -273,9 +282,17 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
                 if let Some(window) = current_window {
                     let [result] = dfg.instruction_result(instruction_id);
 
-                    // array_set with a constant in-bound index is a candidate
-                    if dfg.is_safe_index(*index, *array) {
-                        candidates.insert(result, instruction_id);
+                    // array_set with a constant in-bound index on a small array
+                    if let (Type::Array(elements, len), Some(index)) =
+                        (dfg.type_of_value(*array), dfg.get_numeric_constant(*index))
+                    {
+                        let elements_length = ElementTypesLength(assert_u32(elements.len()));
+                        let semi_flattened_length = len * elements_length;
+                        if index.to_u128() < u128::from(semi_flattened_length.0)
+                            && semi_flattened_length.0 <= MAX_ARRAY_SEMI_FLATTENNED_LENGTH
+                        {
+                            candidates.insert(result, instruction_id);
+                        }
                     }
 
                     let mut dependencies = im::HashSet::new();
