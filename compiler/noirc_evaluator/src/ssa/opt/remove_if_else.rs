@@ -108,6 +108,7 @@ use crate::errors::RtResult;
 
 use crate::ssa::ir::dfg::simplify::value_merger::ValueMerger;
 use crate::ssa::ir::types::NumericType;
+use crate::ssa::opt::ArrayGetOptimizationSideEffects;
 use crate::ssa::opt::simple_optimization::SimpleOptimizationContext;
 use crate::ssa::{
     Ssa,
@@ -188,6 +189,9 @@ impl Context {
             return Ok(());
         }
 
+        // Keeps track of side effect vars associated to each `array_set` instruction.
+        let mut array_set_predicates = std::collections::HashMap::new();
+
         function.simple_optimization_result(|context| {
             let instruction_id = context.instruction_id;
             let instruction = context.instruction();
@@ -222,8 +226,17 @@ impl Context {
                     }
 
                     let call_stack = context.dfg.get_instruction_call_stack_id(instruction_id);
-                    let mut value_merger =
-                        ValueMerger::new(context.dfg, block, &self.vector_sizes, call_stack);
+                    let array_get_optimization_data = Some(ArrayGetOptimizationSideEffects {
+                        side_effects_var: context.enable_side_effects,
+                        array_set_predicates: &array_set_predicates,
+                    });
+                    let mut value_merger = ValueMerger::new(
+                        context.dfg,
+                        block,
+                        &self.vector_sizes,
+                        call_stack,
+                        array_get_optimization_data,
+                    );
 
                     let value = value_merger.merge_values(
                         then_condition,
@@ -260,6 +273,8 @@ impl Context {
                 }
                 // Track vector sizes through array set instructions
                 Instruction::ArraySet { array, .. } => {
+                    array_set_predicates.insert(instruction_id, context.enable_side_effects);
+
                     let [result] = context.dfg.instruction_result(instruction_id);
                     self.set_capacity(context.dfg, *array, result, |c| c);
                 }
@@ -473,6 +488,7 @@ impl Context {
     }
 }
 
+#[derive(Debug)]
 enum SizeChange {
     None,
     /// Make the size of the new vector equal to the old array.
@@ -712,25 +728,11 @@ mod tests {
             v15 = make_array [v14] : [Field]
             enable_side_effects v0
             enable_side_effects u1 1
-            v17 = eq v11, u32 1
-            v18 = not v17
-            v19 = add v11, u32 1
-            v20 = make_array [v14, v2] : [Field]
-            v21 = array_set v20, index v11, value v2
-            v22 = array_get v21, index u32 0 -> Field
-            v23 = cast v18 as Field
-            v24 = cast v17 as Field
-            v25 = mul v23, v22
-            v26 = mul v24, v14
-            v27 = add v25, v26
-            v28 = array_get v21, index u32 1 -> Field
-            v29 = cast v18 as Field
-            v30 = cast v17 as Field
-            v31 = mul v29, v28
-            v32 = mul v30, v2
-            v33 = add v31, v32
-            v34 = make_array [v27, v33] : [Field]
-            constrain v27 == Field 1
+            v17 = add v11, u32 1
+            v18 = make_array [v14, v2] : [Field]
+            v19 = array_set v18, index v11, value v2
+            v20 = array_get v19, index u32 0 -> Field
+            constrain v20 == Field 1
             return
         }
         ");
@@ -1066,7 +1068,7 @@ mod tests {
                 v3 = make_array [] : [()]
                 v4 = make_array [] : [()]
                 v6 = eq v0, u32 4
-                jmpif v6 then: b1, else: b2
+                jmpif v6 then: b1(), else: b2()
             b1():
                 jmp b3(u32 1, v3)
             b2():

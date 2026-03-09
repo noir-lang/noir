@@ -776,7 +776,8 @@ impl HTMLCreator {
 
     fn render_struct_code(&mut self, struct_: &Struct) {
         self.output.push_str("<pre><code>");
-        self.output.push_str(&format!("pub struct {}", struct_.name));
+        let comptime = if struct_.comptime { "comptime " } else { "" };
+        self.output.push_str(&format!("pub {}struct {}", comptime, struct_.name));
         self.render_generics(&struct_.generics);
         if struct_.fields.is_empty() {
             if struct_.has_private_fields {
@@ -990,7 +991,8 @@ impl HTMLCreator {
 
     fn render_type_alias_code(&mut self, alias: &TypeAlias) {
         self.output.push_str("<pre><code>");
-        self.output.push_str(&format!("pub type {}", alias.name));
+        let comptime = if alias.comptime { "comptime " } else { "" };
+        self.output.push_str(&format!("pub {}type {}", comptime, alias.name));
         self.render_generics(&alias.generics);
         self.output.push_str(" = ");
         self.render_type(&alias.r#type);
@@ -1440,7 +1442,7 @@ impl HTMLCreator {
                     }
                 })
                 .unwrap_or_default();
-            let mut line = lines[link.line].to_string();
+            let mut line = lines[link.line].clone();
             if let Some(id) = id
                 && let Some(ItemInfo { path: _, uri, class: _, visibility: ItemVisibility::Public }) =
                     self.id_to_info.get(id)
@@ -1492,8 +1494,7 @@ impl HTMLCreator {
     fn get_all_trait_impls(&self, trait_: &Trait) -> Vec<TraitImpl> {
         self.all_trait_impls
             .get(&trait_.id)
-            .map(|impls| impls.iter().cloned().collect())
-            .unwrap_or_else(|| trait_.trait_impls.clone())
+            .map_or_else(|| trait_.trait_impls.clone(), |impls| impls.iter().cloned().collect())
     }
 
     fn html_start(&mut self, title: &str, short_title: &str) {

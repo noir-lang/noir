@@ -266,13 +266,17 @@ mod tests {
         func.dfg[block0_id].set_terminator(TerminatorInstruction::JmpIf {
             condition: cond,
             then_destination: block2_id,
+            then_arguments: Vec::new(),
             else_destination: block1_id,
+            else_arguments: Vec::new(),
             call_stack: CallStackId::root(),
         });
         func.dfg[block1_id].set_terminator(TerminatorInstruction::JmpIf {
             condition: cond,
             then_destination: block1_id,
+            then_arguments: Vec::new(),
             else_destination: block2_id,
+            else_arguments: Vec::new(),
             call_stack: CallStackId::root(),
         });
         func.dfg[block2_id].set_terminator(TerminatorInstruction::Return {
@@ -314,7 +318,9 @@ mod tests {
         func.dfg[block0_id].set_terminator(TerminatorInstruction::JmpIf {
             condition: cond,
             then_destination: block1_id,
+            then_arguments: Vec::new(),
             else_destination: ret_block_id,
+            else_arguments: Vec::new(),
             call_stack: CallStackId::root(),
         });
         ret_block_id

@@ -66,7 +66,7 @@ pub(crate) fn add_recursion_limit(
     }
 
     // Rewrite functions.
-    for (func_id, func) in ctx.functions.iter_mut() {
+    for (func_id, func) in &mut ctx.functions {
         let mut limit_ctx = LimitContext::new(*func_id, func, &ctx.config);
 
         limit_ctx.rewrite_functions(u, &mut proxy_functions)?;
@@ -235,7 +235,7 @@ impl<'a, 'b> LimitContext<'a, 'b> {
             limit_id,
             false,
             format!("_{LIMIT_NAME}"),
-            limit_type.clone(),
+            limit_type,
             Visibility::Private,
         ));
     }
@@ -428,11 +428,11 @@ impl<'a, 'b> LimitContext<'a, 'b> {
         &mut self,
         proxy_functions: &mut HashMap<FuncId, Function>,
     ) {
-        for (_, _, _, param_type, _) in self.func.parameters.iter_mut() {
+        for (_, _, _, param_type, _) in &mut self.func.parameters {
             modify_function_pointer_param_type(param_type, self.func.unconstrained);
         }
         if let Some(proxy) = proxy_functions.get_mut(&self.func_id) {
-            for (_, _, _, param_type, _) in proxy.parameters.iter_mut() {
+            for (_, _, _, param_type, _) in &mut proxy.parameters {
                 modify_function_pointer_param_type(param_type, self.func.unconstrained);
             }
         }

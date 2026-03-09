@@ -76,7 +76,6 @@ impl Elaborator<'_> {
                 if matches!(attr.kind, SecondaryAttributeKind::Abi(_)) {
                     self.push_err(ResolverError::AbiAttributeOutsideContract {
                         location: attr.location,
-                        usage_location: None,
                     });
                 }
             }
@@ -88,6 +87,7 @@ impl Elaborator<'_> {
             self.push_err(ResolverError::MutableGlobal { location });
         }
 
+        self.reset_lvalue_index_counter();
         let (let_statement, _typ) = self.elaborate_let(let_stmt, Some(global_id));
 
         // References cannot be stored in globals because they would outlive their referents.

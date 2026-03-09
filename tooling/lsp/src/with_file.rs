@@ -142,6 +142,7 @@ fn type_alias_with_file(type_alias: TypeAlias, file: FileId) -> TypeAlias {
         generics: unresolved_generics_with_file(type_alias.generics, file),
         typ: unresolved_type_with_file(type_alias.typ, file),
         visibility: type_alias.visibility,
+        comptime: type_alias.comptime,
         location: location_with_file(type_alias.location, file),
         numeric_type: type_alias
             .numeric_type
@@ -313,6 +314,7 @@ fn noir_struct_with_file(noir_struct: NoirStruct, file: FileId) -> NoirStruct {
         name: ident_with_file(noir_struct.name, file),
         attributes: secondary_attributes_with_file(noir_struct.attributes, file),
         visibility: noir_struct.visibility,
+        comptime: noir_struct.comptime,
         generics: unresolved_generics_with_file(noir_struct.generics, file),
         fields: documented_struct_fields_with_file(noir_struct.fields, file),
         location: location_with_file(noir_struct.location, file),
@@ -346,6 +348,7 @@ fn noir_enumeration_with_file(noir_enumeration: NoirEnumeration, file: FileId) -
         name: ident_with_file(noir_enumeration.name, file),
         attributes: secondary_attributes_with_file(noir_enumeration.attributes, file),
         visibility: noir_enumeration.visibility,
+        comptime: noir_enumeration.comptime,
         generics: unresolved_generics_with_file(noir_enumeration.generics, file),
         variants: documented_enum_variants_with_file(noir_enumeration.variants, file),
         location: location_with_file(noir_enumeration.location, file),
@@ -389,6 +392,7 @@ fn function_definition_with_file(func: FunctionDefinition, file: FileId) -> Func
         location: location_with_file(func.location, file),
         where_clause: unresolved_trait_constraints_with_file(func.where_clause, file),
         return_type: function_return_type_with_file(func.return_type, file),
+        return_visibility_location: location_with_file(func.return_visibility_location, file),
         return_visibility: func.return_visibility,
     }
 }
@@ -400,6 +404,7 @@ fn params_with_file(params: Vec<Param>, file: FileId) -> Vec<Param> {
 fn param_with_file(param: Param, file: FileId) -> Param {
     Param {
         visibility: param.visibility,
+        visibility_location: location_with_file(param.visibility_location, file),
         pattern: pattern_with_file(param.pattern, file),
         typ: unresolved_type_with_file(param.typ, file),
         location: location_with_file(param.location, file),

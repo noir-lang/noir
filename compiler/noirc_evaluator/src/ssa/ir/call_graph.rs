@@ -163,7 +163,7 @@ impl CallGraph {
         let mut indices_to_ids = HashMap::default();
 
         // Add all non-recursive nodes
-        for (&function, _) in self.ids_to_indices.iter() {
+        for &function in self.ids_to_indices.keys() {
             if recursive_functions.contains(&function) {
                 continue;
             }
@@ -173,7 +173,7 @@ impl CallGraph {
         }
 
         // Create edges from caller -> called between non-recursive nodes
-        for (&func_id, &old_index) in self.ids_to_indices.iter() {
+        for (&func_id, &old_index) in &self.ids_to_indices {
             if recursive_functions.contains(&func_id) {
                 continue;
             }
@@ -197,7 +197,7 @@ impl CallGraph {
     pub(crate) fn callees(&self) -> BTreeMap<FunctionId, BTreeMap<FunctionId, usize>> {
         let mut callees: BTreeMap<FunctionId, BTreeMap<FunctionId, usize>> = BTreeMap::new();
 
-        for (caller_id, caller_index) in self.ids_to_indices.iter() {
+        for (caller_id, caller_index) in &self.ids_to_indices {
             // Ensure all entries exist, even if they have no callers
             let entry = callees.entry(*caller_id).or_default();
 
@@ -215,7 +215,7 @@ impl CallGraph {
     pub(crate) fn callers(&self) -> BTreeMap<FunctionId, BTreeMap<FunctionId, usize>> {
         let mut callers: BTreeMap<FunctionId, BTreeMap<FunctionId, usize>> = BTreeMap::new();
 
-        for (caller_id, caller_index) in self.ids_to_indices.iter() {
+        for (caller_id, caller_index) in &self.ids_to_indices {
             // Ensure all entries exist, even if they have no callers
             callers.entry(*caller_id).or_default();
 

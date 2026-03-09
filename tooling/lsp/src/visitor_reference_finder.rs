@@ -161,7 +161,7 @@ impl<'a> VisitorReferenceFinder<'a> {
                         }
                     };
                     let location = lsp_types::Location {
-                        uri: byte_lsp_location.uri.clone(),
+                        uri: byte_lsp_location.uri,
                         range: lsp_types::Range {
                             start: lsp_types::Position { line, character: start },
                             end: lsp_types::Position { line, character: end },
@@ -220,7 +220,7 @@ impl Visitor for VisitorReferenceFinder<'_> {
             self.find_in_reference_doc_comments(reference);
         }
 
-        for field in noir_struct.fields.iter() {
+        for field in &noir_struct.fields {
             let field_name_location = field.item.name.location();
             if let Some(reference) = self.args.interner.reference_at_location(field_name_location) {
                 self.find_in_reference_doc_comments(reference);
@@ -236,7 +236,7 @@ impl Visitor for VisitorReferenceFinder<'_> {
             self.find_in_reference_doc_comments(reference);
         }
 
-        for variant in noir_enum.variants.iter() {
+        for variant in &noir_enum.variants {
             let variant_name_location = variant.item.name.location();
             if let Some(reference) = self.args.interner.reference_at_location(variant_name_location)
             {
@@ -253,7 +253,7 @@ impl Visitor for VisitorReferenceFinder<'_> {
             self.find_in_reference_doc_comments(reference);
         }
 
-        for item in noir_trait.items.iter() {
+        for item in &noir_trait.items {
             if let TraitItem::Function { name, .. } = &item.item {
                 let func_name_location = name.location();
                 if let Some(reference) =

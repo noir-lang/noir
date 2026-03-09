@@ -211,6 +211,24 @@ impl Intrinsic {
         }
     }
 
+    /// Returns true if this intrinsic can modify its input array in Brillig
+    /// due to copy-on-write optimization when the reference count is 1.
+    ///
+    /// This is used to ensure we don't skip clones for these operations,
+    /// even though they're technically "pure" (no observable side effects).
+    /// Without proper reference counting, the caller's array could be corrupted.
+    pub(crate) fn modifies_input_array_in_brillig(&self) -> bool {
+        matches!(
+            self,
+            Intrinsic::VectorPushBack
+                | Intrinsic::VectorPushFront
+                | Intrinsic::VectorPopBack
+                | Intrinsic::VectorPopFront
+                | Intrinsic::VectorInsert
+                | Intrinsic::VectorRemove
+        )
+    }
+
     pub(crate) fn purity(&self) -> Purity {
         match self {
             // These apply a constraint in the form of ACIR opcodes, but they can be deduplicated
@@ -638,7 +656,7 @@ impl Instruction {
                             payload_values.iter().map(|&value| f(value)).collect(),
                         )
                     }
-                    _ => error.clone(),
+                    ConstrainError::StaticString(_) => error.clone(),
                 });
                 Instruction::Constrain(lhs, rhs, assert_message)
             }
@@ -654,7 +672,7 @@ impl Instruction {
                             payload_values.iter().map(|&value| f(value)).collect(),
                         )
                     }
-                    _ => error.clone(),
+                    ConstrainError::StaticString(_) => error.clone(),
                 });
                 Instruction::ConstrainNotEqual(lhs, rhs, assert_message)
             }
@@ -752,9 +770,7 @@ impl Instruction {
                 *value = f(*value);
             }
             Instruction::IncrementRc { value } => *value = f(*value),
-            Instruction::DecrementRc { value } => {
-                *value = f(*value);
-            }
+            Instruction::DecrementRc { value } => *value = f(*value),
             Instruction::RangeCheck { value, max_bit_size: _, assert_message: _ } => {
                 *value = f(*value);
             }
@@ -836,6 +852,13 @@ impl Instruction {
             }
             Instruction::Noop => (),
         }
+    }
+
+    /// Returns true if any value in this instruction satisfies the predicate.
+    pub(crate) fn any_value(&self, mut f: impl FnMut(ValueId) -> bool) -> bool {
+        let mut found = false;
+        self.for_each_value(|v| found |= f(v));
+        found
     }
 }
 
@@ -988,7 +1011,9 @@ pub(crate) enum TerminatorInstruction {
     JmpIf {
         condition: ValueId,
         then_destination: BasicBlockId,
+        then_arguments: Vec<ValueId>,
         else_destination: BasicBlockId,
+        else_arguments: Vec<ValueId>,
         call_stack: CallStackId,
     },
 
@@ -1018,8 +1043,14 @@ impl TerminatorInstruction {
     pub(crate) fn map_values_mut(&mut self, mut f: impl FnMut(ValueId) -> ValueId) {
         use TerminatorInstruction::*;
         match self {
-            JmpIf { condition, .. } => {
+            JmpIf { condition, then_arguments, else_arguments, .. } => {
                 *condition = f(*condition);
+                for argument in then_arguments {
+                    *argument = f(*argument);
+                }
+                for argument in else_arguments {
+                    *argument = f(*argument);
+                }
             }
             Jmp { arguments, .. } => {
                 for argument in arguments {
@@ -1039,8 +1070,14 @@ impl TerminatorInstruction {
     pub(crate) fn for_each_value<T>(&self, mut f: impl FnMut(ValueId) -> T) {
         use TerminatorInstruction::*;
         match self {
-            JmpIf { condition, .. } => {
+            JmpIf { condition, then_arguments, else_arguments, .. } => {
                 f(*condition);
+                for argument in then_arguments {
+                    f(*argument);
+                }
+                for argument in else_arguments {
+                    f(*argument);
+                }
             }
             Jmp { arguments, .. } => {
                 for argument in arguments {
@@ -1056,25 +1093,11 @@ impl TerminatorInstruction {
         }
     }
 
-    /// Apply a function to each value along with its index
-    pub(crate) fn for_eachi_value<T>(&self, mut f: impl FnMut(usize, ValueId) -> T) {
-        use TerminatorInstruction::*;
-        match self {
-            JmpIf { condition, .. } => {
-                f(0, *condition);
-            }
-            Jmp { arguments, .. } => {
-                for (index, argument) in arguments.iter().enumerate() {
-                    f(index, *argument);
-                }
-            }
-            Return { return_values, .. } => {
-                for (index, return_value) in return_values.iter().enumerate() {
-                    f(index, *return_value);
-                }
-            }
-            Unreachable { .. } => (),
-        }
+    /// Returns true if any value in this terminator satisfies the predicate.
+    pub(crate) fn any_value(&self, mut f: impl FnMut(ValueId) -> bool) -> bool {
+        let mut found = false;
+        self.for_each_value(|v| found |= f(v));
+        found
     }
 
     /// Mutate each BlockId to a new BlockId specified by the given mapping function.

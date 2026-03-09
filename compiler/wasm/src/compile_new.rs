@@ -202,7 +202,7 @@ fn prepare_compiler_context(
     let mut compiler_context = CompilerContext::new(file_source_map);
 
     // Set the root crate
-    let root_id = compiler_context.process_root_crate(entry_point.clone());
+    let root_id = compiler_context.process_root_crate(entry_point);
 
     let add_noir_lib = |context: &mut CompilerContext, lib_name: &CrateName| -> CrateIDWrapper {
         let lib_name_string = lib_name.to_string();

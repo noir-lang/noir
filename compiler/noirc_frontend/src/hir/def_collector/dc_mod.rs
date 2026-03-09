@@ -5,6 +5,7 @@ use std::vec;
 
 use acvm::{AcirField, FieldElement};
 use fm::{FILE_EXTENSION, FileId, FileManager};
+use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 use num_bigint::BigUint;
 use num_traits::Num;
@@ -90,14 +91,15 @@ pub fn collect_defs(
     ));
 
     // Then add the imports to defCollector to resolve once all modules in the hierarchy have been resolved
-    for import in ast.imports {
-        collector.def_collector.imports.push(ImportDirective {
+    for imports in ast.imports {
+        let directives = vecmap(imports, |import| ImportDirective {
             visibility: import.visibility,
             module_id: collector.module_id,
             path: import.path,
             alias: import.alias,
             is_prelude: false,
         });
+        collector.def_collector.imports.push(directives);
     }
 
     errors.extend(collector.collect_globals(context, ast.globals, crate_id));
@@ -1230,15 +1232,19 @@ pub fn collect_struct(
             let attributes = unresolved.struct_def.attributes.clone();
             let local_id = module_id.local_id;
             let visibility = unresolved.struct_def.visibility;
+            let comptime = unresolved.struct_def.comptime;
+            let is_struct = true;
             interner.new_type(
                 name,
                 span,
                 attributes,
                 resolved_generics,
                 visibility,
+                comptime,
                 krate,
                 local_id,
                 file_id,
+                is_struct,
             )
         }
         Err(error) => {
@@ -1261,6 +1267,17 @@ pub fn collect_struct(
     let result = def_map[module_id].declare_type(name.clone(), visibility, id);
 
     let parent_module_id = ModuleId { krate, local_id: module_id };
+
+    // ABI attributes are only meaningful within contracts, so error if used elsewhere.
+    if !def_map[module_id].is_contract {
+        for attr in &unresolved.struct_def.attributes {
+            if matches!(attr.kind, SecondaryAttributeKind::Abi(_)) {
+                definition_errors.push(
+                    ResolverError::AbiAttributeOutsideContract { location: attr.location }.into(),
+                );
+            }
+        }
+    }
 
     let has_allow_dead_code =
         unresolved.struct_def.attributes.iter().any(|attr| attr.kind.is_allow("dead_code"));
@@ -1334,15 +1351,19 @@ pub fn collect_enum(
             let attributes = unresolved.enum_def.attributes.clone();
             let local_id = module_id.local_id;
             let visibility = unresolved.enum_def.visibility;
+            let comptime = unresolved.enum_def.comptime;
+            let is_struct = false;
             interner.new_type(
                 name,
                 span,
                 attributes,
                 resolved_generics,
                 visibility,
+                comptime,
                 krate,
                 local_id,
                 file_id,
+                is_struct,
             )
         }
         Err(error) => {

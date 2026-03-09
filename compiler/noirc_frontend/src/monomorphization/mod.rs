@@ -62,6 +62,7 @@ use crate::{
         expr::*,
         function::Parameters,
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
+        types::resolve_type_bindings,
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind},
 };
@@ -327,7 +328,7 @@ impl<'interner> Monomorphizer<'interner> {
         let (debug_variables, debug_functions, debug_types) =
             self.debug_type_tracker.extract_vars_and_types();
 
-        for f in functions.iter_mut() {
+        for f in &mut functions {
             let is_acir_entry_point = !self.force_unconstrained && f.inline_type.is_entry_point();
             f.is_entry_point = is_acir_entry_point || f.id == Program::main_id();
         }
@@ -405,15 +406,32 @@ impl<'interner> Monomorphizer<'interner> {
                         let opcode = attribute.kind.foreign().expect(
                             "ICE: function marked as foreign, but attribute kind does not match this",
                         );
-                        Definition::LowLevel(opcode.to_string())
+                        let opcode = opcode.clone();
+                        let location = self.interner.expr_location(&expr_id);
+
+                        if evaluate_builtin {
+                            match self.try_evaluate_builtin(
+                                &opcode,
+                                typ,
+                                turbofish_generics,
+                                is_unconstrained,
+                                id,
+                                location,
+                            )? {
+                                Some(id) => Definition::Function(id),
+                                None => Definition::LowLevel(opcode),
+                            }
+                        } else {
+                            Definition::LowLevel(opcode)
+                        }
                     }
                     FunctionKind::Builtin => {
                         let attribute = attributes.function().expect("all builtin functions must contain a function attribute which contains the opcode which it links to");
                         let opcode = attribute.kind.builtin().expect(
                             "ICE: function marked as builtin, but attribute kind does not match this",
                         );
+                        let opcode = opcode.clone();
                         let location = self.interner.expr_location(&expr_id);
-                        let opcode = opcode.to_string();
 
                         if evaluate_builtin {
                             match self.try_evaluate_builtin(
@@ -441,7 +459,7 @@ impl<'interner> Monomorphizer<'interner> {
                         let opcode = attribute.kind.oracle().expect(
                             "ICE: function marked as builtin, but attribute kind does not match this",
                         );
-                        Definition::Oracle(opcode.to_string())
+                        Definition::Oracle(opcode.clone())
                     }
                 }
             }
@@ -1050,8 +1068,7 @@ impl<'interner> Monomorphizer<'interner> {
 
         let field_types = unwrap_struct_type(typ, location)?;
 
-        let field_type_map =
-            btree_map(&field_types, |(name, typ, _)| (name.to_string(), typ.clone()));
+        let field_type_map = btree_map(&field_types, |(name, typ, _)| (name.clone(), typ.clone()));
 
         // Create let bindings for each field value first to preserve evaluation order before
         // they are reordered and packed into the resulting tuple
@@ -1310,7 +1327,6 @@ impl<'interner> Monomorphizer<'interner> {
             DefinitionKind::Function(func_id) => {
                 let mutable = definition.mutable;
                 let name = definition.name.clone();
-                let generics = generics.clone();
                 let func_id = *func_id;
 
                 // Functions are represented as a pair of their constrained and unconstrained versions
@@ -1432,7 +1448,7 @@ impl<'interner> Monomorphizer<'interner> {
             .evaluate_to_signed_field(&expected_kind, location)
             .map_err(|err| MonomorphizationError::UnknownArrayLength { err, location })?;
 
-        let expr_kind = Kind::Numeric(Box::new(expr_type.clone()));
+        let expr_kind = Kind::Numeric(Box::new(expr_type));
         if !expected_kind.unifies(&expr_kind) {
             let message = "ICE: Generic's kind does not match expected type";
             return Err(MonomorphizationError::InternalError { location, message });
@@ -1686,11 +1702,8 @@ impl<'interner> Monomorphizer<'interner> {
                 // Default any remaining unbound type variables.
                 // This should only happen if the variable in question is unused
                 // and within a larger generic type.
-                let default = match type_var_kind.default_type() {
-                    Some(typ) => typ,
-                    None => {
-                        return Err(MonomorphizationError::NoDefaultType { location });
-                    }
+                let Some(default) = type_var_kind.default_type() else {
+                    return Err(MonomorphizationError::NoDefaultType { location });
                 };
 
                 let monomorphized_default =
@@ -1861,11 +1874,8 @@ impl<'interner> Monomorphizer<'interner> {
                 // Default any remaining unbound type variables.
                 // This should only happen if the variable in question is unused
                 // and within a larger generic type.
-                let default = match type_var_kind.default_type() {
-                    Some(typ) => typ,
-                    None => {
-                        return Err(MonomorphizationError::NoDefaultType { location });
-                    }
+                let Some(default) = type_var_kind.default_type() else {
+                    return Err(MonomorphizationError::NoDefaultType { location });
                 };
 
                 Self::check_type(&default, location)
@@ -2009,16 +2019,10 @@ impl<'interner> Monomorphizer<'interner> {
         function_type: HirType,
         trait_item_id: TraitItemId,
     ) -> Result<ast::Expression, MonomorphizationError> {
-        let func_id = match self.lookup_function(
-            func_id,
-            expr_id,
-            &function_type,
-            &[],
-            Some(trait_item_id),
-            true,
-        )? {
-            Definition::Function(func_id) => func_id,
-            _ => unreachable!(),
+        let Definition::Function(func_id) =
+            self.lookup_function(func_id, expr_id, &function_type, &[], Some(trait_item_id), true)?
+        else {
+            unreachable!();
         };
 
         let location = self.interner.expr_location(&expr_id);
@@ -2093,8 +2097,7 @@ impl<'interner> Monomorphizer<'interner> {
             self.check_arguments_crossing_runtime_boundaries(&call)?;
         }
 
-        let func_type = self.interner.id_type(call.func);
-
+        let func_type = self.interner.id_type(call.func).follow_bindings();
         let mut arguments = Vec::with_capacity(call.arguments.len());
         if let Type::Function(params, _, _, callee_unconstrained) = &func_type {
             assert_eq!(params.len(), call.arguments.len(), "ICE: Unexpected number of call args");
@@ -2337,13 +2340,7 @@ impl<'interner> Monomorphizer<'interner> {
         let new_id = self.next_function_id();
         let is_unconstrained = self.is_unconstrained(id);
 
-        self.define_function(
-            id,
-            function_type.clone(),
-            turbofish_generics,
-            is_unconstrained,
-            new_id,
-        );
+        self.define_function(id, function_type, turbofish_generics, is_unconstrained, new_id);
 
         self.queue.push_back((id, new_id, bindings, trait_method, is_unconstrained, expr_location));
         new_id
@@ -2576,7 +2573,7 @@ impl<'interner> Monomorphizer<'interner> {
         let mut lambda_fn = Function {
             id: constrained_id,
             name: lambda_name.to_owned(),
-            parameters: parameters.to_vec(),
+            parameters: parameters.clone(),
             body: constrained_body,
             return_type: ret_type.clone(),
             return_visibility: Visibility::Private,
@@ -2867,17 +2864,19 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
-    /// Check that an identifier refers to an unconstrained user defined function.
-    ///
-    /// Returns `false` for any other kind of expression.
+    /// Check whether a call expression's callee is an unconstrained function.
+    /// Resolves the callee's type (following bindings) and checks for unconstrained status
+    /// both on direct function types and on `(constrained_fn, unconstrained_fn)` tuple pairs
+    /// used when functions are bound to local variables.
     fn function_is_unconstrained(&self, function: ExprId) -> bool {
-        if let HirExpression::Ident(ident, _) = self.interner.expression(&function)
-            && let DefinitionKind::Function(func_id) = self.interner.definition(ident.id).kind
-        {
-            return self.interner.function_meta(&func_id).is_unconstrained();
+        let typ = self.interner.id_type(function).follow_bindings();
+        match &typ {
+            Type::Function(_, _, _, unconstrained) => *unconstrained,
+            Type::Tuple(elements) => {
+                elements.iter().any(|e| matches!(e, Type::Function(_, _, _, true)))
+            }
+            _ => false,
         }
-
-        false
     }
 
     fn function_is_oracle(&self, function: ExprId) -> bool {
@@ -2901,7 +2900,7 @@ impl<'interner> Monomorphizer<'interner> {
 /// Return this tuple type's fields or panic
 fn unwrap_tuple_type(typ: &HirType) -> Vec<HirType> {
     match typ.follow_bindings() {
-        HirType::Tuple(fields) => fields.clone(),
+        HirType::Tuple(fields) => fields,
         other => unreachable!("unwrap_tuple_type: expected tuple, found {:?}", other),
     }
 }
@@ -2986,10 +2985,7 @@ pub fn perform_impl_bindings(
             }
         })?;
 
-        for (_, kind, binding) in bindings.values_mut() {
-            *kind = kind.follow_bindings();
-            *binding = binding.follow_bindings();
-        }
+        resolve_type_bindings(&mut bindings);
 
         perform_instantiation_bindings(&bindings);
     }
