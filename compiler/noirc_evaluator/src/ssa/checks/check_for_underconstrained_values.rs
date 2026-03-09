@@ -988,23 +988,21 @@ fn is_numeric_constant(func: &Function, value: ValueId) -> bool {
 /// For example, if arguments contains v1 where `v1 = make_array [v0]`,
 /// the result will contain both v1 and v0. Works recursively for nested arrays.
 fn expand_args_through_make_array(function: &Function, arguments: &[ValueId]) -> Vec<ValueId> {
-    let mut expanded: HashSet<ValueId> = HashSet::from_iter(arguments.iter().copied());
-    let mut worklist: Vec<ValueId> = arguments.to_vec();
-    while let Some(arg) = worklist.pop() {
+    let mut queue = VisitOnceDeque::default();
+    queue.extend(arguments.iter().copied());
+    let mut expanded = Vec::new();
+    while let Some(arg) = queue.pop_front() {
+        expanded.push(arg);
         let Value::Instruction { instruction, .. } = &function.dfg[arg] else { continue };
         let Instruction::MakeArray { elements, .. } = &function.dfg[*instruction] else {
             continue;
         };
 
         let non_constant_elements =
-            elements.iter().filter(|elem| !is_numeric_constant(function, **elem));
-        for elem in non_constant_elements {
-            if expanded.insert(*elem) {
-                worklist.push(*elem);
-            }
-        }
+            elements.iter().copied().filter(|elem| !is_numeric_constant(function, *elem));
+        queue.extend(non_constant_elements);
     }
-    expanded.into_iter().collect()
+    expanded
 }
 
 #[cfg(test)]
