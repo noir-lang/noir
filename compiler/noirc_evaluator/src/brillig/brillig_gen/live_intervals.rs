@@ -61,6 +61,7 @@ pub(crate) struct LiveInterval {
 
 impl LiveInterval {
     fn new(def: ProgramPoint, last_use: ProgramPoint) -> Self {
+        assert!(def <= last_use);
         Self { def, last_use }
     }
 
@@ -122,7 +123,7 @@ impl LiveIntervals {
         result.build_intervals(func, liveness, post_order);
 
         // Step 2: Post-process for Noir's idom allocation of block params.
-        result.adjust_block_param_defs(liveness);
+        result.adjust_block_param_defs(liveness, post_order);
 
         // Step 3: Handle constants allocated at specific block entries.
         result.adjust_constant_defs(constants, post_order);
@@ -148,10 +149,10 @@ impl LiveIntervals {
             }
 
             // Terminator.
-            if block.terminator().is_some() {
-                self.terminator_points.insert(block_id, ProgramPoint(index));
-                index += 1;
-            }
+            // Every block in valid SSA must have one.
+            block.unwrap_terminator();
+            self.terminator_points.insert(block_id, ProgramPoint(index));
+            index += 1;
         }
 
         self.max_point = ProgramPoint(index.saturating_sub(1));
@@ -177,11 +178,11 @@ impl LiveIntervals {
     ///   for each operation op of b in reverse do    <- block.instructions().iter().rev()
     ///     for each output operand opd of op do      <- func.dfg.instruction_results()
     ///       intervals[opd].setFrom(op.id)
-    ///       live.remove(opd)
+    ///       live.remove(opd)                        <- SKIPPED: `live` is not stored. It is only used to seed intervals
     ///     for each input operand opd of op do       <- instruction.for_each_value()
     ///       intervals[opd].addRange(b.from, op.id)
-    ///       live.add(opd)
-    ///   for each phi function phi of b do           <- block.parameters() loop
+    ///       live.add(opd)                           <- SKIPPED: `live` is not stored. It is only used to seed intervals
+    ///   for each phi function phi of b do           <- SKIPPED: `live` is not stored. It is only used to seed intervals
     ///     live.remove(phi.output)
     ///   if b is loop header then                    <- SKIPPED: VariableLiveness already propagates
     ///     loopEnd = last block of loop at b           loop liveness through back-edges, so live_out
@@ -213,7 +214,7 @@ impl LiveIntervals {
         for &block_id in post_order {
             let block = &func.dfg[block_id];
             let block_entry = self.block_entry_points[&block_id];
-            let block_end = self.terminator_points.get(&block_id).copied().unwrap_or(block_entry);
+            let block_end = self.terminator_points[&block_id];
 
             // Start with live_out: values alive after the block.
             let mut live: HashSet<ValueId> = liveness.get_live_out(&block_id);
@@ -221,13 +222,12 @@ impl LiveIntervals {
             // Add ALL terminator operands to the live set.
             // Jmp arguments (phi inputs), jmpif conditions, return values --
             // these must be alive at the terminator but may not be in live_out.
-            if let Some(terminator) = block.terminator() {
-                terminator.for_each_value(|v| {
-                    if super::variable_liveness::is_variable(v, &func.dfg) {
-                        live.insert(v);
-                    }
-                });
-            }
+            let terminator = block.unwrap_terminator();
+            terminator.for_each_value(|v| {
+                if super::variable_liveness::is_variable(v, &func.dfg) {
+                    live.insert(v);
+                }
+            });
 
             // All live values get a range covering the entire block.
             for &v in &live {
@@ -238,11 +238,10 @@ impl LiveIntervals {
             for &inst_id in block.instructions().iter().rev() {
                 let inst_point = self.instruction_points[&inst_id];
 
-                // For each output: set def to this instruction and remove from live.
+                // For each output: set def to this instruction.
                 let results = func.dfg.instruction_results(inst_id);
                 for &result in results {
                     self.set_from(result, inst_point);
-                    live.remove(&result);
                 }
 
                 // For each input: add range from block entry to this instruction.
@@ -250,15 +249,8 @@ impl LiveIntervals {
                 instruction.for_each_value(|v| {
                     if super::variable_liveness::is_variable(v, &func.dfg) {
                         self.add_range(v, block_entry, inst_point);
-                        live.insert(v);
                     }
                 });
-            }
-
-            // Block parameters are defined at block entry -- remove them from live
-            // so they don't propagate to predecessors.
-            for &param in block.parameters() {
-                live.remove(&param);
             }
         }
     }
@@ -268,8 +260,13 @@ impl LiveIntervals {
     /// In Brillig, block params are allocated at their immediate dominator
     /// (the last point before the branches diverge). This matches the current
     /// codegen behavior where param registers are reserved at the idom.
-    fn adjust_block_param_defs(&mut self, liveness: &VariableLiveness) {
-        for (&block_id, &entry_point) in &self.block_entry_points.clone() {
+    fn adjust_block_param_defs(
+        &mut self,
+        liveness: &VariableLiveness,
+        post_order: &[BasicBlockId],
+    ) {
+        for &block_id in post_order {
+            let entry_point = self.block_entry_points[&block_id];
             for param in liveness.defined_block_params(&block_id) {
                 if let Some(interval) = self.intervals.get_mut(&param) {
                     interval.def = std::cmp::min(interval.def, entry_point);
@@ -287,7 +284,7 @@ impl LiveIntervals {
         constants: &ConstantAllocation,
         post_order: &[BasicBlockId],
     ) {
-        for &block_id in post_order.iter().rev() {
+        for &block_id in post_order {
             let entry_point = self.block_entry_points[&block_id];
             for constant_id in constants.allocated_in_block(block_id) {
                 if let Some(interval) = self.intervals.get_mut(&constant_id) {
@@ -334,7 +331,7 @@ impl LiveIntervals {
 
     /// Get the program point at a block's entry.
     #[cfg(test)]
-    pub(crate) fn block_entry(&self, block: BasicBlockId) -> Option<ProgramPoint> {
+    pub(crate) fn block_entry_point(&self, block: BasicBlockId) -> Option<ProgramPoint> {
         self.block_entry_points.get(&block).copied()
     }
 
@@ -453,7 +450,7 @@ mod tests {
         let inst1 = inst_id(func, b0, 1);
         let inst2 = inst_id(func, b0, 2);
 
-        let b0_entry = intervals.block_entry(b0).unwrap();
+        let b0_entry = intervals.block_entry_point(b0).unwrap();
         let inst0_pt = intervals.instruction_point(inst0).unwrap();
         let inst1_pt = intervals.instruction_point(inst1).unwrap();
         let inst2_pt = intervals.instruction_point(inst2).unwrap();
@@ -514,7 +511,7 @@ mod tests {
         let b1_inst = inst_id(func, b1, 0);
         let b2_inst = inst_id(func, b2, 0);
 
-        let b0_entry = intervals.block_entry(b0).unwrap();
+        let b0_entry = intervals.block_entry_point(b0).unwrap();
         let b0_term = intervals.terminator_point(b0).unwrap();
         let b1_inst_pt = intervals.instruction_point(b1_inst).unwrap();
         let b1_term = intervals.terminator_point(b1).unwrap();
@@ -579,7 +576,7 @@ mod tests {
         let b1_inst = inst_id(func, b1, 0);
         let b2_inst = inst_id(func, b2, 0);
 
-        let b0_entry = intervals.block_entry(b0).unwrap();
+        let b0_entry = intervals.block_entry_point(b0).unwrap();
         let b1_inst_pt = intervals.instruction_point(b1_inst).unwrap();
         let b1_term = intervals.terminator_point(b1).unwrap();
         let b2_inst_pt = intervals.instruction_point(b2_inst).unwrap();
@@ -657,8 +654,8 @@ mod tests {
         let b4_inst = inst_id(func, b4, 0);
         let b6_inst = inst_id(func, b6, 0);
 
-        let b0_entry = intervals.block_entry(b0).unwrap();
-        let b2_entry = intervals.block_entry(b2).unwrap();
+        let b0_entry = intervals.block_entry_point(b0).unwrap();
+        let b2_entry = intervals.block_entry_point(b2).unwrap();
         let b1_inst_pt = intervals.instruction_point(b1_inst).unwrap();
         let b1_term = intervals.terminator_point(b1).unwrap();
         let b3_inst_pt = intervals.instruction_point(b3_inst).unwrap();
@@ -754,7 +751,7 @@ mod tests {
 
         // v1 and v2 are params of b3, but their defs should be at b0's entry
         // (the idom of b3).
-        let b0_entry = intervals.block_entry(b0).unwrap();
+        let b0_entry = intervals.block_entry_point(b0).unwrap();
 
         let iv1 = intervals.get(v1).expect("v1 should have an interval");
         let iv2 = intervals.get(v2).expect("v2 should have an interval");
@@ -789,7 +786,7 @@ mod tests {
         let [b0, b1, b2, b3] = block_ids();
         assert_eq!(rpo, vec![b0, b2, b1, b3]);
 
-        let b0_entry = intervals.block_entry(b0).unwrap();
+        let b0_entry = intervals.block_entry_point(b0).unwrap();
 
         let constants = ConstantAllocation::from_function(func);
 
@@ -840,7 +837,7 @@ mod tests {
         let [b0, b1, b2, b3] = block_ids();
         assert_eq!(rpo, vec![b0, b1, b3, b2]);
 
-        let b0_entry = intervals.block_entry(b0).unwrap();
+        let b0_entry = intervals.block_entry_point(b0).unwrap();
 
         let constants = ConstantAllocation::from_function(func);
 
