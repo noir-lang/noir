@@ -854,24 +854,15 @@ impl<'a> Context<'a> {
         match &dfg[value_id] {
             Value::Instruction { instruction, .. } => {
                 if let Instruction::Binary(Binary {
-                    operator: BinaryOp::Sub { unchecked: true },
                     lhs,
-                    rhs,
+                    operator: BinaryOp::Sub { unchecked: true },
+                    ..
                 }) = &dfg[*instruction]
                 {
-                    // An unchecked subtraction feeding into a truncate is safe only if the
-                    // subtraction cannot underflow. We re-verify the same safety condition
-                    // that the checked_to_unchecked pass uses to convert subs to unchecked.
-                    let mut value_max_num_bits = Default::default();
-                    assert!(
-                        crate::ssa::opt::is_unsigned_sub_safe(
-                            dfg,
-                            *lhs,
-                            *rhs,
-                            &mut value_max_num_bits
-                        ),
-                        "ICE: Truncation of unchecked subtraction that may underflow"
-                    );
+                    if matches!(dfg.type_of_value(*lhs), Type::Numeric(NumericType::Signed { .. }))
+                    {
+                        unreachable!("Truncation of unchecked signed subtraction");
+                    }
                 }
             }
             Value::Param { .. } => {
