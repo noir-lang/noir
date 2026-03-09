@@ -1,5 +1,7 @@
 //! Replaces `array_set` instructions with `make_array` instructions inside "conditional
-//! windows" when the result of the `array_set` is only used within that same "conditional window".
+//! windows" when the result of the `array_set` is only used within that same "conditional window"
+//! and eventually in an `IfElse` instruction under the predicate associated with the conditional
+//! window.
 //!
 //! A "conditional window" is the sequence of instructions between
 //! `enable_side_effects v_cond` and the matching `enable_side_effects u1 1`.
@@ -201,6 +203,8 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
     let mut candidates: HashMap<ValueId, InstructionId> = HashMap::new();
     // Maps every "tracked" value (a candidate or a value derived from candidates within the same window).
     let mut tracked: HashMap<ValueId, TrackedValue> = HashMap::new();
+    // Candidates that were found in an `IfElse` instruction under their associated predicate.
+    let mut if_else_candidates = HashSet::<ValueId>::new();
 
     let mut current_window: Option<ConditionalWindow> = None;
     let mut window_counter: ConditionalWindowId = ConditionalWindowId(0);
@@ -258,15 +262,19 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
                     match instruction {
                         // Check the "then-condition/then-value" case.
                         Instruction::IfElse { then_condition, then_value, .. }
-                            if *then_value == value =>
+                            if *then_value == value && *then_condition == tracked_value.window.predicate =>
                         {
-                            *then_condition == tracked_value.window.predicate
+                            if_else_candidates.insert(value);
+                            if_else_candidates.extend(tracked_value.dependencies.clone());
+                            true
                         }
                         // Check the "else-condition/else-value" pair
                         Instruction::IfElse { else_condition, else_value, .. }
-                            if *else_value == value =>
+                            if *else_value == value && *else_condition == tracked_value.window.predicate =>
                         {
-                            *else_condition == tracked_value.window.predicate
+                            if_else_candidates.insert(value);
+                            if_else_candidates.extend(tracked_value.dependencies.clone());
+                            true
                         }
                         _ => {
                             // Otherwise: safe as long as we are inside the tracked window.
@@ -370,7 +378,13 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
         });
     }
 
-    candidates.into_values().collect()
+    // Only keep candidates that were eventually used in an `IfElse` instruction
+    candidates
+        .into_iter()
+        .filter_map(|(value_id, instruction_id)| {
+            if if_else_candidates.contains(&value_id) { Some(instruction_id) } else { None }
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -418,10 +432,12 @@ mod tests {
         let src = r#"
         acir(inline) fn main f0 {
           b0(v0: [Field; 3], v1: u1):
+            v2 = not v1
             enable_side_effects v1
             v4 = array_set v0, index u32 0, value Field 7
             enable_side_effects u1 1
             v6 = array_get v4, index u32 0 -> Field
+            v10 = if v1 then v4 else (if v2) v0
             return v6
         }
         "#;
@@ -438,11 +454,13 @@ mod tests {
         let src = r#"
         acir(inline) fn main f0 {
           b0(v0: [Field; 3], v1: u1):
+            v2 = not v1
             enable_side_effects v1
             v4 = array_set v0, index u32 0, value Field 1
             v7 = array_set v4, index u32 1, value Field 2
             enable_side_effects u1 1
             v9 = array_get v7, index u32 0 -> Field
+            v10 = if v1 then v4 else (if v2) v0
             return v9
         }
         "#;
@@ -454,11 +472,13 @@ mod tests {
         let src = r#"
         acir(inline) fn main f0 {
           b0(v0: [Field; 3], v1: u1, v10: u32):
+            v2 = not v1
             enable_side_effects v1
             v4 = array_set v0, index u32 0, value Field 1
             v7 = array_set v4, index v10, value Field 2
             enable_side_effects u1 1
             v9 = array_get v7, index u32 0 -> Field
+            v11 = if v1 then v4 else (if v2) v0
             return v9
         }
         "#;
@@ -567,11 +587,13 @@ mod tests {
         let src = r#"
         acir(inline) fn main f0 {
           b0(v0: [Field; 4], v1: u1):
+            v99 = not v1
             enable_side_effects v1
             v2 = array_set v0, index u32 0, value Field 6
             v3 = call poseidon2_permutation(v2) -> [Field; 4]
             enable_side_effects u1 1
             v4 = array_get v3, index u32 0 -> Field
+            v10 = if v1 then v2 else (if v99) v0
             return v4
         }
         "#;
@@ -587,6 +609,21 @@ mod tests {
           b0(v0: [Field; 3]):
             v1 = array_set v0, index u32 0, value Field 5
             return v1
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::array_set_window_optimization);
+    }
+
+    #[test]
+    fn does_not_touch_array_set_that_is_not_eventually_used_in_an_if_else() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3], v1: u1):
+            v2 = not v1
+            enable_side_effects v1
+            v5 = array_set v0, index u32 1, value Field 99
+            enable_side_effects u1 1
+            return
         }
         "#;
         assert_ssa_does_not_change(src, Ssa::array_set_window_optimization);
@@ -753,7 +790,6 @@ mod tests {
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
-        println!("{ssa}");
         let ssa = ssa.array_set_window_optimization();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
