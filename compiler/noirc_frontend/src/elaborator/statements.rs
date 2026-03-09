@@ -224,15 +224,13 @@ impl Elaborator<'_> {
     pub(super) fn elaborate_assign(&mut self, assign: AssignStatement) -> (HirStatement, Type) {
         let expr_location = assign.expression.location;
         let (expression, expr_type) = self.elaborate_expression(assign.expression);
-
         let (lvalue, lvalue_type, mutable, mut new_statements) =
             self.elaborate_lvalue(assign.lvalue);
 
         self.mark_lvalue_variables_as_mutated(&lvalue);
 
         if !mutable {
-            let (_, name, location) = self.get_lvalue_error_info(&lvalue);
-            self.push_err(TypeCheckError::VariableMustBeMutable { name, location });
+            self.push_assign_to_immutable_lvalue_error(&lvalue, &lvalue);
         } else {
             let (id, name, location) = self.get_lvalue_error_info(&lvalue);
             if let Some(id) = id {
@@ -260,6 +258,46 @@ impl Elaborator<'_> {
             let block = HirExpression::Block(HirBlockExpression { statements: new_statements });
             let block = self.interner.push_expr_full(block, expr_location, Type::Unit);
             (HirStatement::Expression(block), Type::Unit)
+        }
+    }
+
+    fn push_assign_to_immutable_lvalue_error(
+        &mut self,
+        lvalue: &HirLValue,
+        main_lvalue: &HirLValue,
+    ) {
+        match lvalue {
+            HirLValue::Ident(ident, _) => {
+                let definition = self.interner.definition(ident.id);
+                let name = definition.name.clone();
+                let location = ident.location;
+                self.push_err(TypeCheckError::VariableMustBeMutable { name, location });
+            }
+
+            HirLValue::MemberAccess { object, .. } => {
+                self.push_assign_to_immutable_lvalue_error(object, main_lvalue);
+            }
+            HirLValue::Index { array, .. } => {
+                self.push_assign_to_immutable_lvalue_error(array, main_lvalue);
+            }
+            HirLValue::Dereference { lvalue, .. } => {
+                if let HirLValue::Ident(ident, _) = lvalue.as_ref() {
+                    let definition = self.interner.definition(ident.id);
+                    let name = definition.name.clone();
+                    let location = ident.location;
+                    self.push_err(TypeCheckError::CannotAssignToReference { name, location });
+                } else {
+                    let lvalue = main_lvalue.to_display_ast(self.interner).to_string();
+                    let location = main_lvalue.location();
+                    self.push_err(TypeCheckError::CannotAssignToLValueBehindReference {
+                        lvalue,
+                        location,
+                    });
+                }
+            }
+            HirLValue::Error { .. } => {
+                // An error was already pushed for this
+            }
         }
     }
 
@@ -491,6 +529,8 @@ impl Elaborator<'_> {
                         } else {
                             self.push_err(error);
                         }
+
+                        // We se this to mutable to prevent further errors from being reported
                         let mutable = true;
                         (HirLValue::Error { location }, Type::Error, mutable, Vec::new())
                     }
@@ -503,7 +543,7 @@ impl Elaborator<'_> {
                 let object_ref = &mut object;
                 let mutable_ref = &mut mutable;
 
-                let dereference_lhs = move |_: &mut Self, _, element_type| {
+                let dereference_lhs = move |_: &mut Self, _, element_type, is_mutable| {
                     // We must create a temporary value first to move out of object_ref before
                     // we eventually reassign to it.
                     let tmp_value = HirLValue::Error { location };
@@ -515,7 +555,7 @@ impl Elaborator<'_> {
                         location,
                         implicitly_added: true,
                     };
-                    *mutable_ref = true;
+                    *mutable_ref = is_mutable;
                 };
 
                 let name = field_name.as_str();
@@ -562,7 +602,7 @@ impl Elaborator<'_> {
 
                 // Before we check that the lvalue is an array, try to dereference it as many times
                 // as needed to unwrap any `&` or `&mut` wrappers.
-                while let Type::Reference(element, _) = lvalue_type.follow_bindings() {
+                while let Type::Reference(element, is_mutable) = lvalue_type.follow_bindings() {
                     let element_type = element.as_ref().clone();
                     lvalue = HirLValue::Dereference {
                         lvalue: Box::new(lvalue),
@@ -571,8 +611,7 @@ impl Elaborator<'_> {
                         implicitly_added: true,
                     };
                     lvalue_type = *element;
-                    // We know this value to be mutable now since we found an `&mut`
-                    mutable = true;
+                    mutable = is_mutable;
                 }
 
                 let typ = match lvalue_type.follow_bindings() {
@@ -606,8 +645,13 @@ impl Elaborator<'_> {
                 (HirLValue::Index { array, index, typ, location }, array_type, mutable, statements)
             }
             LValue::Dereference(lvalue, location) => {
-                let (lvalue, reference_type, _, statements) = self.elaborate_lvalue(*lvalue);
+                let (lvalue, reference_type, mut mutable, statements) =
+                    self.elaborate_lvalue(*lvalue);
                 let lvalue = Box::new(lvalue);
+
+                if let Type::Reference(_, is_mutable) = reference_type {
+                    mutable = is_mutable;
+                }
 
                 let element_type = Type::type_variable(self.interner.next_type_variable_id());
 
@@ -620,7 +664,6 @@ impl Elaborator<'_> {
                     expr_location: location,
                 });
 
-                // Dereferences are always mutable since we already type checked against a &mut T
                 let typ = element_type.clone();
                 let lvalue = HirLValue::Dereference {
                     lvalue,
@@ -628,7 +671,7 @@ impl Elaborator<'_> {
                     location,
                     implicitly_added: false,
                 };
-                (lvalue, typ, true, statements)
+                (lvalue, typ, mutable, statements)
             }
             LValue::Interned(id, location) => {
                 let lvalue = self.interner.get_lvalue(id, location);
@@ -676,8 +719,9 @@ impl Elaborator<'_> {
             return None;
         }
 
+        let lvalue_index_counter = self.next_lvalue_index_counter();
         let id = self.interner.push_definition(
-            format!("i_{}", self.interner.definition_count()),
+            format!("i_{lvalue_index_counter}"),
             false,
             false,
             DefinitionKind::Local(None),

@@ -170,7 +170,6 @@ fn vector_pop_from_empty() {
     acir(inline) fn main f0 {
       b0():
         v1 = make_array [Field 0] : [Field]           	// src/main.nr:2:24
-        v4 = unchecked_sub u32 0, u32 1
         v6, v7, v8 = call vector_pop_back(u32 0, v1) -> (u32, [Field], Field)	// src/main.nr:4:18
         return v8
     }

@@ -62,6 +62,7 @@ use crate::{
         expr::*,
         function::Parameters,
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
+        types::resolve_type_bindings,
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind},
 };
@@ -405,15 +406,32 @@ impl<'interner> Monomorphizer<'interner> {
                         let opcode = attribute.kind.foreign().expect(
                             "ICE: function marked as foreign, but attribute kind does not match this",
                         );
-                        Definition::LowLevel(opcode.clone())
+                        let opcode = opcode.clone();
+                        let location = self.interner.expr_location(&expr_id);
+
+                        if evaluate_builtin {
+                            match self.try_evaluate_builtin(
+                                &opcode,
+                                typ,
+                                turbofish_generics,
+                                is_unconstrained,
+                                id,
+                                location,
+                            )? {
+                                Some(id) => Definition::Function(id),
+                                None => Definition::LowLevel(opcode),
+                            }
+                        } else {
+                            Definition::LowLevel(opcode)
+                        }
                     }
                     FunctionKind::Builtin => {
                         let attribute = attributes.function().expect("all builtin functions must contain a function attribute which contains the opcode which it links to");
                         let opcode = attribute.kind.builtin().expect(
                             "ICE: function marked as builtin, but attribute kind does not match this",
                         );
-                        let location = self.interner.expr_location(&expr_id);
                         let opcode = opcode.clone();
+                        let location = self.interner.expr_location(&expr_id);
 
                         if evaluate_builtin {
                             match self.try_evaluate_builtin(
@@ -2967,10 +2985,7 @@ pub fn perform_impl_bindings(
             }
         })?;
 
-        for (_, kind, binding) in bindings.values_mut() {
-            *kind = kind.follow_bindings();
-            *binding = binding.follow_bindings();
-        }
+        resolve_type_bindings(&mut bindings);
 
         perform_instantiation_bindings(&bindings);
     }

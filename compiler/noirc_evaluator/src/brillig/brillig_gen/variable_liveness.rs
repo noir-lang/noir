@@ -514,7 +514,7 @@ mod tests {
 
         let v4 = builder.insert_binary(v0, BinaryOp::Eq, zero);
 
-        builder.terminate_with_jmpif(v4, b1, b2);
+        builder.terminate_with_jmpif_no_args(v4, b1, b2);
 
         builder.switch_to_block(b2);
 
@@ -634,7 +634,7 @@ mod tests {
 
         let v5 = builder.insert_binary(v4, BinaryOp::Lt, v0);
 
-        builder.terminate_with_jmpif(v5, b2, b3);
+        builder.terminate_with_jmpif_no_args(v5, b2, b3);
 
         builder.switch_to_block(b2);
 
@@ -648,7 +648,7 @@ mod tests {
 
         let v8 = builder.insert_binary(v7, BinaryOp::Lt, v1);
 
-        builder.terminate_with_jmpif(v8, b5, b6);
+        builder.terminate_with_jmpif_no_args(v8, b5, b6);
 
         builder.switch_to_block(b5);
 
@@ -657,7 +657,7 @@ mod tests {
 
         let v11 = builder.insert_not(v10);
 
-        builder.terminate_with_jmpif(v11, b7, b8);
+        builder.terminate_with_jmpif_no_args(v11, b7, b8);
 
         builder.switch_to_block(b7);
 
@@ -755,7 +755,7 @@ mod tests {
         let b2 = builder.insert_block();
         let b3 = builder.insert_block();
 
-        builder.terminate_with_jmpif(v0, b1, b2);
+        builder.terminate_with_jmpif_no_args(v0, b1, b2);
 
         builder.switch_to_block(b1);
         let twenty_seven = builder.field_constant(27_u128);
@@ -794,7 +794,7 @@ mod tests {
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: u1):
-            jmpif v1 then: b1, else: b2
+            jmpif v1 then: b1(), else: b2()
           b1():
             v7 = add v0, u32 10
             jmp b3(v0, v7)
@@ -852,7 +852,7 @@ mod tests {
 
         assert_artifact_snapshot!(main, @r"
         fn main
-        0: call 0
+        0: call 0 // -> CheckMaxStackDepth
         1: sp[3] = const field 10
         2: sp[4] = field add sp[2], sp[3]
         3: sp[2] = sp[4]
@@ -886,7 +886,7 @@ mod tests {
 
         assert_artifact_snapshot!(main, @r"
         fn main
-        0: call 0
+        0: call 0 // -> CheckMaxStackDepth
         1: sp[3] = const field 1
         2: sp[4] = field add sp[2], sp[3]
         3: sp[2] = const field 2
@@ -918,7 +918,7 @@ mod tests {
             jmp b1(u32 0)
         b1(v1: u32):
             v2 = lt v1, v0
-            jmpif v2 then: b2, else: b3
+            jmpif v2 then: b2(), else: b3()
         b2():
             v3 = add v1, u32 1
             jmp b1(v3)
@@ -930,22 +930,22 @@ mod tests {
         let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
         assert_artifact_snapshot!(main, @r"
         fn main
-         0: call 0
+         0: call 0 // -> CheckMaxStackDepth
          1: sp[4] = const u32 0
          2: sp[5] = const u32 1
          3: sp[3] = sp[4]
-         4: jump to 0
-         5: sp[4] = u32 lt sp[3], sp[2]
-         6: jump if sp[4] to 0
-         7: jump to 0
-         8: sp[2] = sp[3]
+         4: jump to 0 // -> 5: f0/b1
+         5: sp[4] = u32 lt sp[3], sp[2] // f0/b1
+         6: jump if sp[4] to 0 // -> 10: f0/b2
+         7: jump to 0 // -> 8: f0/b3
+         8: sp[2] = sp[3] // f0/b3
          9: return
-        10: sp[4] = u32 add sp[3], sp[5]
+        10: sp[4] = u32 add sp[3], sp[5] // f0/b2
         11: sp[6] = u32 lt_eq sp[3], sp[4]
-        12: jump if sp[6] to 0
-        13: call 0
-        14: sp[3] = sp[4]
-        15: jump to 0
+        12: jump if sp[6] to 0 // -> 14: f0/b2/1
+        13: call 0 // -> ErrorWithString
+        14: sp[3] = sp[4] // f0/b2/1
+        15: jump to 0 // -> 5: f0/b1
         ");
     }
 
@@ -966,7 +966,7 @@ mod tests {
         let src = "
         brillig(inline) fn main f0 {
         b0(v0: u1):
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
         b1():
             v2 = add Field 27, Field 42
             jmp b3(v2)
@@ -980,16 +980,16 @@ mod tests {
         let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
         assert_artifact_snapshot!(main, @r"
         fn main
-         0: call 0
+         0: call 0 // -> CheckMaxStackDepth
          1: sp[4] = const field 42
-         2: jump if sp[2] to 0
-         3: jump to 0
-         4: sp[3] = sp[4]
-         5: jump to 0
-         6: sp[2] = const field 27
+         2: jump if sp[2] to 0 // -> 6: f0/b1
+         3: jump to 0 // -> 4: f0/b2
+         4: sp[3] = sp[4] // f0/b2
+         5: jump to 0 // -> 9: f0/b3
+         6: sp[2] = const field 27 // f0/b1
          7: sp[3] = field add sp[2], sp[4]
-         8: jump to 0
-         9: sp[2] = sp[3]
+         8: jump to 0 // -> 9: f0/b3
+         9: sp[2] = sp[3] // f0/b3
         10: return
         ");
     }
@@ -1020,7 +1020,7 @@ mod tests {
         let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
         assert_artifact_snapshot!(main, @r"
         fn main
-        0: call 0
+        0: call 0 // -> CheckMaxStackDepth
         1: sp[3] = const field 100
         2: sp[4] = field add sp[2], sp[3]
         3: sp[3] = const field 200
@@ -1058,15 +1058,15 @@ mod tests {
         let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
         assert_artifact_snapshot!(main, @r"
         fn main
-         0: call 0
+         0: call 0 // -> CheckMaxStackDepth
          1: sp[4] = const field 1
          2: sp[5] = field add sp[2], sp[4]
          3: sp[2] = const field 2
          4: sp[4] = field add sp[5], sp[2]
          5: sp[2] = const field 3
          6: sp[3] = field mul sp[4], sp[2]
-         7: jump to 0
-         8: sp[2] = sp[3]
+         7: jump to 0 // -> 8: f0/b1
+         8: sp[2] = sp[3] // f0/b1
          9: return
         ");
     }

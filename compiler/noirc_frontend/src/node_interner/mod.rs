@@ -19,6 +19,7 @@ use crate::ast::{
 use crate::graph::CrateId;
 use crate::hir::comptime;
 use crate::hir::def_collector::dc_crate::{CompilationError, UnresolvedTrait, UnresolvedTypeAlias};
+use crate::hir::def_collector::errors::DefCollectorErrorKind;
 use crate::hir::def_map::{LocalModuleId, ModuleDefId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir::type_check::generics::TraitGenerics;
@@ -348,7 +349,7 @@ pub enum TraitImplKind {
     ///
     /// A `Prepared` is eventually replaced by a `Normal` implementation, at which
     /// point we can look up the final `TraitImpl` in the node interner.
-    Prepared(TraitImplId),
+    Prepared(TraitImplId, Location),
 }
 
 /// When searching for a trait impl, these are the types of errors we can expect
@@ -613,14 +614,17 @@ impl NodeInterner {
         attributes: Vec<SecondaryAttribute>,
         generics: ResolvedGenerics,
         visibility: ItemVisibility,
+        comptime: bool,
         krate: CrateId,
         local_id: LocalModuleId,
         file_id: FileId,
+        is_struct: bool,
     ) -> TypeId {
         let type_id = TypeId(ModuleId { krate, local_id });
 
         let location = Location::new(span, file_id);
-        let new_type = DataType::new(type_id, name, location, generics, visibility);
+        let new_type =
+            DataType::new(type_id, name, location, generics, visibility, comptime, is_struct);
         self.data_types.insert(type_id, Shared::new(new_type));
         self.type_attributes.insert(type_id, attributes);
         type_id
@@ -640,6 +644,7 @@ impl NodeInterner {
             Type::Error,
             generics,
             typ.type_alias_def.visibility,
+            typ.type_alias_def.comptime,
             ModuleId { krate: typ.crate_id, local_id: typ.module_id },
         )));
 
@@ -1017,10 +1022,11 @@ impl NodeInterner {
         }
     }
 
-    /// Adds a non-trait method to a type.
+    /// Adds a method to a type.
     ///
-    /// Returns `Some(duplicate)` if a matching method was already defined.
-    /// Returns `None` otherwise.
+    /// For inherent (non-trait) methods, this checks for overlapping implementations.
+    /// Returns `Ok(())` if the method was added successfully.
+    /// Returns `Err(error)` if there was an error (e.g., overlapping impl or unsupported type).
     pub fn add_method(
         &mut self,
         self_type: &Type,
@@ -1043,25 +1049,26 @@ impl NodeInterner {
                     return Err(error.into());
                 };
 
-                if trait_id.is_none() && matches!(self_type, Type::DataType(..)) {
-                    let check_self_param = false;
-                    if let Some(existing) =
-                        self.lookup_direct_method(self_type, &method_name, check_self_param)
-                    {
-                        let first_location = self.function_ident(&existing).location();
-                        let second_location = self.function_ident(&method_id).location();
-                        let error = ResolverError::DuplicateDefinition {
-                            name: method_name,
-                            first_location,
-                            second_location,
-                        };
-                        return Err(error.into());
-                    }
+                let typ = self_type.clone();
+
+                // For inherent (non-trait) methods, check for overlapping implementations.
+                if trait_id.is_none()
+                    && let Some(existing_methods) =
+                        self.methods.get(&key).and_then(|m| m.get(&method_name))
+                    && let Some((existing_method, existing_type)) =
+                        existing_methods.find_overlapping_method(&typ, self)
+                {
+                    let prev_location = self.function_ident(&existing_method).location();
+                    let location = self.function_ident(&method_id).location();
+                    let error = DefCollectorErrorKind::OverlappingImpl {
+                        typ: existing_type,
+                        location,
+                        prev_location,
+                    };
+                    return Err(error.into());
                 }
 
-                // Only remember the actual type if it's FieldOrInt,
-                // so later we can disambiguate on calls like `u32::call`.
-                let typ = self_type.clone();
+                // Add the method to the collection
                 self.methods
                     .entry(key)
                     .or_default()
@@ -1601,7 +1608,9 @@ impl NodeInterner {
                 &parent_bound.trait_generics.ordered,
                 &parent_bound.trait_generics.named,
             ) {
-                Ok((TraitImplKind::Normal(impl_id), _) | (TraitImplKind::Prepared(impl_id), _)) => {
+                Ok(
+                    (TraitImplKind::Normal(impl_id), _) | (TraitImplKind::Prepared(impl_id, _), _),
+                ) => {
                     let ordered_generics = self.get_ordered_generics_for_impl(impl_id);
                     self.trait_to_impl_bindings_helper(
                         trait_id,

@@ -546,7 +546,7 @@ impl Elaborator<'_> {
                 let type_vars =
                     type_vars.iter().take(self_type_generics_count).cloned().collect::<Vec<_>>();
                 let (self_type, instantiation_bindings) =
-                    self_type.instantiate_with_type_vars(&type_vars, self.interner);
+                    self_type.substitute_type_vars_with_fresh_type_vars(&type_vars, self.interner);
                 let _ = typ.unify(&self_type);
                 instantiation_bindings
             } else {
