@@ -746,8 +746,9 @@ mod tests {
         },
     };
 
-    // We set zero for `small_function_max_instructions` as to avoid the maximum weight threshold at which we always inline a function.
-    const MAX_INSTRUCTIONS: usize = 0;
+    // We set the weight threshold to zero so the "simple function" bypass is effectively
+    // disabled and inlining decisions are driven purely by aggressiveness.
+    const SMALL_FUNCTION_WEIGHT: usize = 0;
 
     #[test]
     fn basic_inlining() {
@@ -764,7 +765,7 @@ mod tests {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, SMALL_FUNCTION_WEIGHT).unwrap();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn foo f0 {
           b0():
@@ -789,7 +790,7 @@ mod tests {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, SMALL_FUNCTION_WEIGHT).unwrap();
         assert_normalized_ssa_equals(ssa, src);
     }
 
@@ -823,7 +824,7 @@ mod tests {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, SMALL_FUNCTION_WEIGHT).unwrap();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: Field):
@@ -858,7 +859,7 @@ mod tests {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, SMALL_FUNCTION_WEIGHT).unwrap();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0():
@@ -965,7 +966,7 @@ mod tests {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, SMALL_FUNCTION_WEIGHT).unwrap();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u1):
@@ -1000,7 +1001,7 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         assert_eq!(ssa.functions.len(), 2);
 
-        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS);
+        let ssa = ssa.inline_functions(i64::MAX, SMALL_FUNCTION_WEIGHT);
         let Err(err) = ssa else {
             panic!("inline_functions cannot inline recursive functions");
         };
@@ -1021,7 +1022,7 @@ mod tests {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_functions(i64::MIN, MAX_INSTRUCTIONS).unwrap();
+        let ssa = ssa.inline_functions(i64::MIN, SMALL_FUNCTION_WEIGHT).unwrap();
         // No inlining has happened
         assert_normalized_ssa_equals(ssa, src);
     }
@@ -1052,7 +1053,7 @@ mod tests {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_functions(0, MAX_INSTRUCTIONS).unwrap();
+        let ssa = ssa.inline_functions(0, SMALL_FUNCTION_WEIGHT).unwrap();
         // bar is inlined into foo (3 times), dead branches are simplified
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn foo f0 {
@@ -1110,7 +1111,7 @@ mod tests {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_functions(0, MAX_INSTRUCTIONS).unwrap();
+        let ssa = ssa.inline_functions(0, SMALL_FUNCTION_WEIGHT).unwrap();
         // heavy is NOT inlined — its weight is too high relative to call count
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn foo f0 {
@@ -1171,7 +1172,7 @@ mod tests {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, SMALL_FUNCTION_WEIGHT).unwrap();
 
         // We expect a block from all calls to f1 and f2 to be pruned and that the constant argument to the f2 call
         // is propagated to the jmpif conditional in b0.
@@ -1211,7 +1212,7 @@ mod tests {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, SMALL_FUNCTION_WEIGHT).unwrap();
 
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
@@ -1236,7 +1237,7 @@ mod tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, SMALL_FUNCTION_WEIGHT).unwrap();
         assert_normalized_ssa_equals(ssa, src);
     }
 
@@ -1255,7 +1256,7 @@ mod tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_functions_with_no_predicates(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+        let ssa = ssa.inline_functions_with_no_predicates(i64::MAX, SMALL_FUNCTION_WEIGHT).unwrap();
 
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -1279,7 +1280,7 @@ mod tests {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_functions(i64::MIN, MAX_INSTRUCTIONS).unwrap();
+        let ssa = ssa.inline_functions(i64::MIN, SMALL_FUNCTION_WEIGHT).unwrap();
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0():
@@ -1291,7 +1292,7 @@ mod tests {
         // not marked with `inline_always`
         let no_inline_always_src = &src.replace("inline_always", "inline");
         let ssa = Ssa::from_str(no_inline_always_src).unwrap();
-        let ssa = ssa.inline_functions(i64::MIN, MAX_INSTRUCTIONS).unwrap();
+        let ssa = ssa.inline_functions(i64::MIN, SMALL_FUNCTION_WEIGHT).unwrap();
         assert_normalized_ssa_equals(ssa, no_inline_always_src);
     }
 
@@ -1310,7 +1311,7 @@ mod tests {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, SMALL_FUNCTION_WEIGHT).unwrap();
         assert_normalized_ssa_equals(ssa, src);
     }
 
@@ -1333,7 +1334,7 @@ mod tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, SMALL_FUNCTION_WEIGHT).unwrap();
 
         assert_ssa_snapshot!(ssa, @r"
         g0 = Field 1
@@ -1366,7 +1367,7 @@ mod tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, SMALL_FUNCTION_WEIGHT).unwrap();
 
         assert_ssa_snapshot!(ssa, @r"
         g0 = Field 1
@@ -1397,7 +1398,7 @@ mod tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, SMALL_FUNCTION_WEIGHT).unwrap();
 
         // The string output of global constants resolve to their inner values, so we need to check whether they are globals explicitly.
         let main = ssa.main();
@@ -1436,7 +1437,7 @@ mod tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, SMALL_FUNCTION_WEIGHT).unwrap();
 
         // The string output of global constants resolve to their inner values, so we need to check whether they are globals explicitly.
         let main = ssa.main();
@@ -1475,7 +1476,7 @@ mod tests {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let _ = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+        let _ = ssa.inline_functions(i64::MAX, SMALL_FUNCTION_WEIGHT).unwrap();
     }
 
     #[test]
@@ -1495,7 +1496,7 @@ mod tests {
         }
         ";
         let ssa = Ssa::from_str_no_validation(src).unwrap();
-        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS);
+        let ssa = ssa.inline_functions(i64::MAX, SMALL_FUNCTION_WEIGHT);
         if !matches!(ssa, Err(RuntimeError::UnconstrainedCallingConstrained { .. })) {
             panic!("Expected inlining to fail with RuntimeError::UnconstrainedCallingConstrained");
         }
@@ -1525,7 +1526,7 @@ mod tests {
         ";
         let ssa = Ssa::from_str(src).unwrap();
         // This should not panic
-        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, SMALL_FUNCTION_WEIGHT).unwrap();
         // The inlined function diverges, so main should have an infinite loop
         // and an unreachable block for the dummy return values.
         assert_ssa_snapshot!(ssa, @r"
@@ -1562,7 +1563,7 @@ mod tests {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, SMALL_FUNCTION_WEIGHT).unwrap();
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0():
@@ -1644,13 +1645,15 @@ mod simple_functions {
         assert_ssa_snapshot,
         ssa::{
             Ssa,
-            opt::{assert_normalized_ssa_equals, inlining::inline_info::MAX_INSTRUCTIONS},
+            opt::{
+                assert_normalized_ssa_equals, inlining::inline_info::MAX_SIMPLE_FUNCTION_WEIGHT,
+            },
         },
     };
 
     fn assert_does_not_inline(src: &str) {
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, MAX_SIMPLE_FUNCTION_WEIGHT).unwrap();
         assert_normalized_ssa_equals(ssa, src);
     }
 
@@ -1672,7 +1675,7 @@ mod simple_functions {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.inline_functions(i64::MIN, MAX_INSTRUCTIONS).unwrap();
+        let ssa = ssa.inline_functions(i64::MIN, MAX_SIMPLE_FUNCTION_WEIGHT).unwrap();
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: Field):
@@ -1714,7 +1717,7 @@ mod simple_functions {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let mut ssa = ssa.inline_functions(i64::MIN, MAX_INSTRUCTIONS).unwrap();
+        let mut ssa = ssa.inline_functions(i64::MIN, MAX_SIMPLE_FUNCTION_WEIGHT).unwrap();
         assert_ssa_snapshot!(&mut ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: Field):
@@ -1743,7 +1746,7 @@ mod simple_functions {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.inline_functions(i64::MIN, MAX_INSTRUCTIONS).unwrap();
+        let ssa = ssa.inline_functions(i64::MIN, MAX_SIMPLE_FUNCTION_WEIGHT).unwrap();
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: Field):
@@ -1811,7 +1814,7 @@ mod simple_functions {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_functions(i64::MIN, MAX_INSTRUCTIONS).unwrap();
+        let ssa = ssa.inline_functions(i64::MIN, MAX_SIMPLE_FUNCTION_WEIGHT).unwrap();
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: Field):
@@ -1862,7 +1865,7 @@ mod simple_functions {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_functions(i64::MIN, MAX_INSTRUCTIONS);
+        let ssa = ssa.inline_functions(i64::MIN, MAX_SIMPLE_FUNCTION_WEIGHT);
 
         let Err(err) = ssa else {
             panic!("inline_functions cannot inline recursive functions");
@@ -1898,32 +1901,35 @@ mod simple_functions {
     }
 
     #[test]
-    fn does_not_inline_function_with_multiple_instructions() {
+    fn does_not_inline_function_with_high_brillig_weight() {
+        // Checked u32 muls cost 8 Brillig opcodes each, so 10 muls + 1 checked add
+        // gives a total Brillig weight of 85 (3 + 80 + return 2), exceeding
+        // MAX_SIMPLE_FUNCTION_WEIGHT (80).
         let src = "
         brillig(inline) fn main f0 {
-          b0(v0: Field):
-            v1 = call f1(v0) -> Field
+          b0(v0: u32):
+            v1 = call f1(v0) -> u32
             return v1
         }
 
         brillig(inline) fn foo f1 {
-          b0(v0: Field):
-            v1 = add v0, Field 1
-            v2 = mul v1, Field 2
-            v3 = mul v2, Field 2
-            v4 = mul v3, Field 2
-            v5 = mul v4, Field 2
-            v6 = mul v5, Field 2
-            v7 = mul v6, Field 2
-            v8 = mul v7, Field 2
-            v9 = mul v8, Field 2
-            v10 = mul v9, Field 2
-            v11 = mul v10, Field 2
+          b0(v0: u32):
+            v1 = add v0, u32 1
+            v2 = mul v1, u32 2
+            v3 = mul v2, u32 2
+            v4 = mul v3, u32 2
+            v5 = mul v4, u32 2
+            v6 = mul v5, u32 2
+            v7 = mul v6, u32 2
+            v8 = mul v7, u32 2
+            v9 = mul v8, u32 2
+            v10 = mul v9, u32 2
+            v11 = mul v10, u32 2
             return v11
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_functions(i64::MIN, MAX_INSTRUCTIONS).unwrap();
+        let ssa = ssa.inline_functions(i64::MIN, MAX_SIMPLE_FUNCTION_WEIGHT).unwrap();
         assert_normalized_ssa_equals(ssa, src);
     }
 }
