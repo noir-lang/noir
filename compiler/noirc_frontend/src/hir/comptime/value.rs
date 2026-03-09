@@ -333,24 +333,31 @@ impl Value {
                 })?;
                 ExpressionKind::Tuple(fields)
             }
-            Value::Struct(fields, typ) => {
-                let fields = try_vecmap(fields, |(name, field)| {
-                    let field = field.unwrap_or_clone().into_expression(elaborator, location)?;
-                    Ok((Ident::new(unwrap_rc(name), location), field))
-                })?;
-
-                let typ = match typ.follow_bindings_shallow().as_ref() {
-                    Type::DataType(data_type, generics) => {
-                        Type::DataType(data_type.clone(), generics.clone())
-                    }
-                    _ => return Err(InterpreterError::NonStructInConstructor { typ, location }),
+            Value::Struct(mut fields, typ) => {
+                let Type::DataType(data_type, generics) = typ.follow_bindings() else {
+                    return Err(InterpreterError::NonStructInConstructor { typ, location });
                 };
+
+                // Preserve the order of fields as they were defined in the struct definition.
+                let mut ordered_fields = Vec::new();
+                for field in data_type.borrow().fields_raw().unwrap() {
+                    let name = field.name.as_string();
+                    let Some(field) = fields.remove(name) else {
+                        continue;
+                    };
+                    let field = field.unwrap_or_clone().into_expression(elaborator, location)?;
+                    ordered_fields.push((Ident::new(name.to_string(), location), field));
+                }
+                let typ = Type::DataType(data_type, generics);
 
                 let quoted_type_id = elaborator.interner.push_quoted_type(typ);
 
                 let typ = UnresolvedTypeData::Resolved(quoted_type_id);
                 let typ = UnresolvedType { typ, location };
-                ExpressionKind::Constructor(Box::new(ConstructorExpression { typ, fields }))
+                ExpressionKind::Constructor(Box::new(ConstructorExpression {
+                    typ,
+                    fields: ordered_fields,
+                }))
             }
             value @ Value::Enum(..) => {
                 let hir = value.into_runtime_hir_expression(elaborator.interner, location)?;
@@ -493,21 +500,27 @@ impl Value {
                 })?;
                 HirExpression::Tuple(fields)
             }
-            Value::Struct(fields, typ) => {
-                let fields = try_vecmap(fields, |(name, field)| {
-                    let field =
-                        field.unwrap_or_clone().into_runtime_hir_expression(interner, location)?;
-                    Ok((Ident::new(unwrap_rc(name), location), field))
-                })?;
-
-                let Type::DataType(r#type, struct_generics) = typ.follow_bindings() else {
+            Value::Struct(mut fields, typ) => {
+                let Type::DataType(data_type, generics) = typ.follow_bindings() else {
                     return Err(InterpreterError::NonStructInConstructor { typ, location });
                 };
 
+                // Preserve the order of fields as they were defined in the struct definition.
+                let mut ordered_fields = Vec::new();
+                for field in data_type.borrow().fields_raw().unwrap() {
+                    let name = field.name.as_string();
+                    let Some(field) = fields.remove(name) else {
+                        continue;
+                    };
+                    let field =
+                        field.unwrap_or_clone().into_runtime_hir_expression(interner, location)?;
+                    ordered_fields.push((Ident::new(name.to_string(), location), field));
+                }
+
                 HirExpression::Constructor(HirConstructorExpression {
-                    r#type,
-                    struct_generics,
-                    fields,
+                    r#type: data_type,
+                    struct_generics: generics,
+                    fields: ordered_fields,
                 })
             }
             Value::Enum(variant_index, args, typ) => {
