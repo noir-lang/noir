@@ -969,10 +969,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 }
             }
         } else {
-            vecmap(results, |result| {
-                let typ = self.dfg().type_of_value(*result);
-                Value::uninitialized(&typ, *result)
-            })
+            self.uninitialized_call_results(&function, argument_ids, results)?
         };
 
         if new_results.len() != results.len() {
@@ -989,6 +986,65 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             self.define(*result, new_result)?;
         }
         Ok(())
+    }
+
+    /// Create uninitialized results for a call that was skipped due to disabled side effects.
+    ///
+    /// For vector intrinsics, we create properly-sized zeroed vectors rather than empty ones,
+    /// to avoid out-of-bounds error after Remove IfElse that need to do `array_get` to
+    /// merge the vector from a 'side effect disabled' branch.
+    fn uninitialized_call_results(
+        &self,
+        function: &Value,
+        argument_ids: &[ValueId],
+        results: &[ValueId],
+    ) -> IResult<Vec<Value>> {
+        use crate::ssa::ir::instruction::Intrinsic;
+        // Get the length of the vector
+        if let Value::Intrinsic(intrinsic) = function {
+            let input_vector_info = match intrinsic {
+                Intrinsic::VectorPushBack
+                | Intrinsic::VectorPushFront
+                | Intrinsic::VectorInsert
+                | Intrinsic::VectorPopBack
+                | Intrinsic::VectorPopFront
+                | Intrinsic::VectorRemove => {
+                    let vec = self.lookup_array_or_vector(
+                        argument_ids[1],
+                        "uninitialized vector intrinsic",
+                    )?;
+                    Some((vec.elements.borrow().len(), vec.element_types.clone()))
+                }
+                _ => None,
+            };
+
+            if let Some((input_len, element_types)) = input_vector_info {
+                let element_count = element_types.len();
+                let output_len = match intrinsic {
+                    Intrinsic::VectorPushBack
+                    | Intrinsic::VectorPushFront
+                    | Intrinsic::VectorInsert => input_len + element_count,
+                    Intrinsic::VectorPopBack
+                    | Intrinsic::VectorPopFront
+                    | Intrinsic::VectorRemove => input_len.saturating_sub(element_count),
+                    _ => unreachable!(),
+                };
+
+                return Ok(vecmap(results, |result| {
+                    let typ = self.dfg().type_of_value(*result);
+                    if matches!(typ, Type::Vector(_)) {
+                        Value::uninitialized_vector(&element_types, output_len, *result)
+                    } else {
+                        Value::uninitialized(&typ, *result)
+                    }
+                }));
+            }
+        }
+
+        Ok(vecmap(results, |result| {
+            let typ = self.dfg().type_of_value(*result);
+            Value::uninitialized(&typ, *result)
+        }))
     }
 
     /// Try to get a function's name or approximate it if it is not known
