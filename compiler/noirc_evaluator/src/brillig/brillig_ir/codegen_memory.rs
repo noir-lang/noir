@@ -285,9 +285,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     ) -> Allocated<HeapVector, Registers> {
         let heap_vector = self.allocate_heap_vector();
 
-        // Read the size using the dedicated helper function
-        let size_variable = self.codegen_read_vector_size(vector);
-        self.mov_instruction(heap_vector.size, size_variable.address);
+        self.codegen_read_vector_size_into(vector, heap_vector.size);
 
         // Get the pointer to the items using the dedicated helper function
         self.codegen_vector_items_pointer(vector, heap_vector.pointer);
@@ -334,19 +332,28 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.codegen_read_rc(vector.pointer)
     }
 
+    /// Reads the size of a given vector into `dest`.
+    pub(crate) fn codegen_read_vector_size_into(
+        &mut self,
+        vector: BrilligVector,
+        dest: MemoryAddress,
+    ) {
+        self.codegen_usize_op(
+            vector.pointer,
+            dest,
+            BrilligBinaryOp::Add,
+            assert_usize(offsets::VECTOR_SIZE),
+        );
+        self.load_instruction(dest, dest);
+    }
+
     /// Returns a variable holding the size of a given vector.
     pub(crate) fn codegen_read_vector_size(
         &mut self,
         vector: BrilligVector,
     ) -> Allocated<SingleAddrVariable, Registers> {
         let result = self.allocate_single_addr_usize();
-        self.codegen_usize_op(
-            vector.pointer,
-            result.address,
-            BrilligBinaryOp::Add,
-            assert_usize(offsets::VECTOR_SIZE),
-        );
-        self.load_instruction(result.address, result.address);
+        self.codegen_read_vector_size_into(vector, result.address);
         result
     }
 
