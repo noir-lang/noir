@@ -39,7 +39,12 @@
 //! the [`super::remove_if_else`] pass that comes after this pass will merge `v_set` with `v_arr` make sure
 //! to only use the values from `v_set` when `v_cond` is true.
 //!
-//! Note that because the optimization expands to multiple `array_get` and a `make_array` instruction,
+//! Note 1: this optimization only applies to `array_set` instructions operating on arrays, not
+//! vectors, because for arrays we can statically determine the number of elements, while for
+//! vectors we can only do that if the `array_set` value operates on a `make_array`. This could
+//! be done, but it's left as a follow-up optimization: https://github.com/noir-lang/noir/issues/11810
+//!
+//! Note 2: because the optimization expands to multiple `array_get` and a `make_array` instruction,
 //! for large arrays this might result in too many `array_get` instructions that slow down SSA optimization.
 //! For this reason, only small arrays (up to `MAX_ARRAY_SEMI_FLATTENED_LENGTH` elements) are optimized by this pass.
 use std::collections::{HashMap, HashSet};
@@ -114,6 +119,8 @@ impl Function {
             };
 
             let Type::Array(ref element_types, len) = context.dfg.type_of_value(array) else {
+                // In theory this optimization could also run on vectors with a known length, but currently
+                // it doesn't. See https://github.com/noir-lang/noir/issues/11810
                 unreachable!("candidate ArraySet array must be of array type");
             };
 
