@@ -518,6 +518,14 @@ impl Loop {
     /// if it's a numeric constant, which it will be if the previous SSA
     /// steps managed to inline it.
     ///
+    /// `resolve_value` maps ValueIds through an external substitution
+    /// (e.g. `FunctionInserter::resolve`).
+    /// If `get_const_upper_bound` is called within a pass that modifies instructions
+    /// e.g through a `FunctionInserter`, the terminator check below might reference
+    /// an old id that needs to be resolved.
+    /// If not within a pass (e.g in a test), or if the caller does not use an inserter,
+    /// we can safely use the identity `|v| v` instead.
+    ///
     /// Consider the following example of a `for i in 0..4` loop:
     /// ```text
     /// brillig(inline) fn main f0 {
@@ -532,6 +540,7 @@ impl Loop {
         &self,
         dfg: &DataFlowGraph,
         pre_header: BasicBlockId,
+        resolve_value: impl Fn(ValueId) -> ValueId,
     ) -> Option<IntegerConstant> {
         let header = &dfg[self.header];
 
@@ -565,8 +574,11 @@ impl Loop {
         let Some(TerminatorInstruction::JmpIf { condition, .. }) = header.terminator() else {
             return None;
         };
+        // Resolve the condition through the provided mapping — during mid-pass
+        // the terminator may still reference a pre-substitution ValueId.
+        let condition = resolve_value(*condition);
         let results = dfg.instruction_results(instructions[0]);
-        if results.first() != Some(condition) {
+        if results.first() != Some(&condition) {
             return None;
         }
 
@@ -606,13 +618,15 @@ impl Loop {
     }
 
     /// Get the lower and upper bounds of the loop if both are constant numeric values.
+    /// See `get_const_upper_bound` for the role of `resolve_value`.
     pub(super) fn get_const_bounds(
         &self,
         dfg: &DataFlowGraph,
         pre_header: BasicBlockId,
+        resolve_value: impl Fn(ValueId) -> ValueId,
     ) -> Option<(IntegerConstant, IntegerConstant)> {
         let lower = self.get_const_lower_bound(dfg, pre_header)?;
-        let upper = self.get_const_upper_bound(dfg, pre_header)?;
+        let upper = self.get_const_upper_bound(dfg, pre_header, resolve_value)?;
         Some((lower, upper))
     }
 
@@ -945,7 +959,7 @@ impl Loop {
         cfg: &ControlFlowGraph,
     ) -> Option<BoilerplateStats> {
         let pre_header = self.get_pre_header(function, cfg).ok()?;
-        let (lower, upper) = self.get_const_bounds(&function.dfg, pre_header)?;
+        let (lower, upper) = self.get_const_bounds(&function.dfg, pre_header, |v| v)?;
         let refs = self.find_pre_header_reference_values(function, cfg)?;
 
         let (loads, stores) = self.count_loads_and_stores(function, &refs);
@@ -1471,8 +1485,9 @@ mod tests {
         let loop_ = &loops.yet_to_unroll[0];
         let pre_header =
             loop_.get_pre_header(function, &loops.cfg).expect("Should have a pre_header");
-        let (lower, upper) =
-            loop_.get_const_bounds(&function.dfg, pre_header).expect("bounds are numeric const");
+        let (lower, upper) = loop_
+            .get_const_bounds(&function.dfg, pre_header, |v| v)
+            .expect("bounds are numeric const");
 
         assert_eq!(lower, IntegerConstant::Unsigned { value: 0, bit_size: 32 });
         assert_eq!(upper, IntegerConstant::Unsigned { value: 4, bit_size: 32 });
@@ -1504,7 +1519,7 @@ mod tests {
         let pre_header =
             loop_.get_pre_header(function, &loops.cfg).expect("Should have a pre_header");
         let (lower, upper) = loop_
-            .get_const_bounds(&function.dfg, pre_header)
+            .get_const_bounds(&function.dfg, pre_header, |v| v)
             .expect("should use the lower for upper");
 
         assert_eq!(lower, IntegerConstant::Unsigned { value: 0, bit_size: 32 });
@@ -2034,7 +2049,7 @@ mod tests {
         let loop0 = loops.yet_to_unroll.pop().expect("there should be a loop");
         let pre_header = loop0.get_pre_header(function, &loops.cfg).unwrap();
         assert!(loop0.get_const_lower_bound(&function.dfg, pre_header).is_none());
-        assert!(loop0.get_const_upper_bound(&function.dfg, pre_header).is_none());
+        assert!(loop0.get_const_upper_bound(&function.dfg, pre_header, |v| v).is_none());
     }
 
     #[test]
@@ -2066,8 +2081,9 @@ mod tests {
         let loop_ = &loops.yet_to_unroll[0];
         let pre_header =
             loop_.get_pre_header(function, &loops.cfg).expect("Should have a pre_header");
-        let (lower, upper) =
-            loop_.get_const_bounds(&function.dfg, pre_header).expect("bounds are numeric const");
+        let (lower, upper) = loop_
+            .get_const_bounds(&function.dfg, pre_header, |v| v)
+            .expect("bounds are numeric const");
         assert_ne!(lower, upper);
     }
 
@@ -2108,7 +2124,7 @@ mod tests {
         // The upper bound should be None because the lt instruction in the header
         // is not connected to the jmpif condition. If this returns Some(100),
         // the function is incorrectly assuming the header instruction feeds the jmpif.
-        let upper = loop_.get_const_upper_bound(&function.dfg, pre_header);
+        let upper = loop_.get_const_upper_bound(&function.dfg, pre_header, |v| v);
         assert!(
             upper.is_none(),
             "get_const_upper_bound should return None when the header's Lt instruction \
