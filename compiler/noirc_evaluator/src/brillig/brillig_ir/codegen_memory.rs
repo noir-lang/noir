@@ -285,9 +285,14 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     ) -> Allocated<HeapVector, Registers> {
         let heap_vector = self.allocate_heap_vector();
 
-        // Read the size using the dedicated helper function
-        let size_variable = self.codegen_read_vector_size(vector);
-        self.mov_instruction(heap_vector.size, size_variable.address);
+        // Load the size directly into heap_vector.size (avoiding a temp register + MOV)
+        self.codegen_usize_op(
+            vector.pointer,
+            heap_vector.size,
+            BrilligBinaryOp::Add,
+            assert_usize(offsets::VECTOR_SIZE),
+        );
+        self.load_instruction(heap_vector.size, heap_vector.size);
 
         // Get the pointer to the items using the dedicated helper function
         self.codegen_vector_items_pointer(vector, heap_vector.pointer);
