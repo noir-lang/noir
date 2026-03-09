@@ -14,7 +14,7 @@ and types used for inspecting and modifying Noir programs.
 ```rust title="type_of" showLineNumbers 
 pub comptime fn type_of<T>(x: T) -> Type {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L29-L31" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L29-L31</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/mod.nr#L29-L31" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L29-L31</a></sub></sup>
 
 
 Returns the type of a variable at compile-time.
@@ -34,7 +34,7 @@ comptime {
 ```rust title="unquote" showLineNumbers 
 pub comptime fn unquote(code: Quoted) -> Quoted {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L21-L23" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L21-L23</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/mod.nr#L21-L23" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L21-L23</a></sub></sup>
 
 
 Unquotes the passed-in token stream where this function was called.
@@ -55,7 +55,7 @@ comptime {
 #[varargs]
 pub comptime fn derive(s: TypeDefinition, traits: [TraitDefinition]) -> Quoted {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L50-L53" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L50-L53</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/mod.nr#L50-L53" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L50-L53</a></sub></sup>
 
 
 Attribute placed on type definitions.
@@ -85,7 +85,7 @@ fn main() {
 ```rust title="derive_via_signature" showLineNumbers 
 pub comptime fn derive_via(t: TraitDefinition, f: DeriveFunction) {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L70-L72" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L70-L72</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/mod.nr#L70-L72" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L70-L72</a></sub></sup>
 
 
 Attribute placed on trait definitions.
@@ -143,7 +143,7 @@ comptime fn derive_eq(s: TypeDefinition) -> Quoted {
     )
 }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/cmp.nr#L10-L30" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/cmp.nr#L10-L30</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/cmp.nr#L10-L30" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/cmp.nr#L10-L30</a></sub></sup>
 
 
 ### make_trait_impl
@@ -158,7 +158,7 @@ pub comptime fn make_trait_impl<Env1, Env2>(
     body: fn[Env2](Quoted) -> Quoted,
 ) -> Quoted {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L89-L98" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L89-L98</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/mod.nr#L89-L98" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L89-L98</a></sub></sup>
 
 
 A helper function to more easily create trait impls while deriving traits.
@@ -199,7 +199,7 @@ comptime fn derive_hash(s: TypeDefinition) -> Quoted {
     )
 }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/hash/mod.nr#L157-L171" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/hash/mod.nr#L157-L171</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/hash/mod.nr#L157-L171" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/hash/mod.nr#L157-L171</a></sub></sup>
 
 
 Example deriving `Ord`:
@@ -221,5 +221,5 @@ comptime fn derive_ord(s: TypeDefinition) -> Quoted {
     crate::meta::make_trait_impl(s, name, signature, for_each_field, quote {}, body)
 }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/cmp.nr#L223-L239" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/cmp.nr#L223-L239</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/cmp.nr#L223-L239" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/cmp.nr#L223-L239</a></sub></sup>
 

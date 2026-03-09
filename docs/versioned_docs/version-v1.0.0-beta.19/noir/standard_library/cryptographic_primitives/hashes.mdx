@@ -34,7 +34,7 @@ This is a different function than sha256. See [this library](https://github.com/
 ```rust title="sha256_compression" showLineNumbers 
 pub fn sha256_compression(input: [u32; 16], state: [u32; 8]) -> [u32; 8] {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/hash/mod.nr#L11-L13" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/hash/mod.nr#L11-L13</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/hash/mod.nr#L11-L13" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/hash/mod.nr#L11-L13</a></sub></sup>
 
 
 <BlackBoxInfo to="../black_box_fns"/>
@@ -46,7 +46,7 @@ Given an array of bytes, returns an array with the Blake2 hash
 ```rust title="blake2s" showLineNumbers 
 pub fn blake2s<let N: u32>(input: [u8; N]) -> [u8; 32]
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/hash/mod.nr#L28-L30" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/hash/mod.nr#L28-L30</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/hash/mod.nr#L28-L30" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/hash/mod.nr#L28-L30</a></sub></sup>
 
 
 example:
@@ -67,7 +67,7 @@ Given an array of bytes, returns an array with the Blake3 hash
 ```rust title="blake3" showLineNumbers 
 pub fn blake3<let N: u32>(input: [u8; N]) -> [u8; 32]
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/hash/mod.nr#L33-L35" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/hash/mod.nr#L33-L35</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/hash/mod.nr#L33-L35" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/hash/mod.nr#L33-L35</a></sub></sup>
 
 
 example:
@@ -88,7 +88,7 @@ Given an array of Fields, returns the Pedersen hash.
 ```rust title="pedersen_hash" showLineNumbers 
 pub fn pedersen_hash<let N: u32>(input: [Field; N]) -> Field
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/hash/mod.nr#L71-L73" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/hash/mod.nr#L71-L73</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/hash/mod.nr#L71-L73" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/hash/mod.nr#L71-L73</a></sub></sup>
 
 
 example:
@@ -99,7 +99,7 @@ fn main(x: Field, y: Field, expected_hash: Field) {
     assert_eq(hash, expected_hash);
 }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/execution_success/pedersen_hash/src/main.nr#L1-L6" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/pedersen_hash/src/main.nr#L1-L6</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/test_programs/execution_success/pedersen_hash/src/main.nr#L1-L6" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/pedersen_hash/src/main.nr#L1-L6</a></sub></sup>
 
 
 <BlackBoxInfo to="../black_box_fns" />
@@ -111,7 +111,7 @@ Given an array of Fields, returns the Pedersen commitment.
 ```rust title="pedersen_commitment" showLineNumbers 
 pub fn pedersen_commitment<let N: u32>(input: [Field; N]) -> EmbeddedCurvePoint {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/hash/mod.nr#L51-L53" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/hash/mod.nr#L51-L53</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/hash/mod.nr#L51-L53" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/hash/mod.nr#L51-L53</a></sub></sup>
 
 
 example:
@@ -123,7 +123,7 @@ fn main(x: Field, y: Field, expected_commitment: std::embedded_curve_ops::Embedd
     assert_eq(commitment.y, expected_commitment.y);
 }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/execution_success/pedersen_commitment/src/main.nr#L1-L7" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/pedersen_commitment/src/main.nr#L1-L7</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/test_programs/execution_success/pedersen_commitment/src/main.nr#L1-L7" target="_blank" rel="noopener noreferrer">Source code: test_programs/execution_success/pedersen_commitment/src/main.nr#L1-L7</a></sub></sup>
 
 
 <BlackBoxInfo to="../black_box_fns"/>
@@ -135,7 +135,7 @@ Given an initial `[u64; 25]` state, returns the state resulting from applying a 
 ```rust title="keccakf1600" showLineNumbers 
 pub fn keccakf1600(input: [u64; 25]) -> [u64; 25] {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/hash/mod.nr#L16-L18" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/hash/mod.nr#L16-L18</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/hash/mod.nr#L16-L18" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/hash/mod.nr#L16-L18</a></sub></sup>
 
 
 <BlackBoxInfo to="../black_box_fns"/>

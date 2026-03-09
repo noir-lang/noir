@@ -13,7 +13,7 @@ implementation such as `impl Foo for Bar { ... }`.
 ```rust title="trait_generic_args" showLineNumbers 
 pub comptime fn trait_generic_args(self) -> [Type] {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/trait_impl.nr#L3-L5" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/trait_impl.nr#L3-L5</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/trait_impl.nr#L3-L5" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/trait_impl.nr#L3-L5</a></sub></sup>
 
 
 Returns any generic arguments on the trait of this trait implementation, if any.
@@ -42,7 +42,7 @@ comptime {
 ```rust title="methods" showLineNumbers 
 pub comptime fn methods(self) -> [FunctionDefinition] {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/trait_impl.nr#L8-L10" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/trait_impl.nr#L8-L10</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/trait_impl.nr#L8-L10" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/trait_impl.nr#L8-L10</a></sub></sup>
 
 
 Returns each method in this trait impl.

@@ -13,7 +13,7 @@ represents trait definitions such as `trait Foo { .. }` at the top-level of a pr
 ```rust title="as_trait_constraint" showLineNumbers 
 pub comptime fn as_trait_constraint(_self: Self) -> TraitConstraint {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/trait_def.nr#L6-L8" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/trait_def.nr#L6-L8</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/trait_def.nr#L6-L8" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/trait_def.nr#L6-L8</a></sub></sup>
 
 
 Converts this trait into a trait constraint. If there are any generics on this

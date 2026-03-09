@@ -221,7 +221,7 @@ fn main() {
     pop([]);
 }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/compile_failure/arithmetic_generics_underflow/src/main.nr#L1-L14" target="_blank" rel="noopener noreferrer">Source code: test_programs/compile_failure/arithmetic_generics_underflow/src/main.nr#L1-L14</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/test_programs/compile_failure/arithmetic_generics_underflow/src/main.nr#L1-L14" target="_blank" rel="noopener noreferrer">Source code: test_programs/compile_failure/arithmetic_generics_underflow/src/main.nr#L1-L14</a></sub></sup>
 
 
 This also applies if there is underflow in an intermediate calculation:
@@ -258,5 +258,5 @@ fn push_zero<let N: u32>(array: [Field; N]) -> [Field; N + 1] {
     result
 }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/compile_failure/arithmetic_generics_intermediate_underflow/src/main.nr#L1-L32" target="_blank" rel="noopener noreferrer">Source code: test_programs/compile_failure/arithmetic_generics_intermediate_underflow/src/main.nr#L1-L32</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/test_programs/compile_failure/arithmetic_generics_intermediate_underflow/src/main.nr#L1-L32" target="_blank" rel="noopener noreferrer">Source code: test_programs/compile_failure/arithmetic_generics_intermediate_underflow/src/main.nr#L1-L32</a></sub></sup>
 

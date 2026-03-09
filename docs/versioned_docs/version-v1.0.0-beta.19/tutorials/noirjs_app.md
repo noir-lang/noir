@@ -61,7 +61,7 @@ fn main(age: u8) {
     assert(age > 18);
 }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/examples/browser/src/main.nr#L1-L5" target="_blank" rel="noopener noreferrer">Source code: examples/browser/src/main.nr#L1-L5</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/examples/browser/src/main.nr#L1-L5" target="_blank" rel="noopener noreferrer">Source code: examples/browser/src/main.nr#L1-L5</a></sub></sup>
 
 
 This program accepts a private input called age, and simply proves this number is higher than 18. But to run this code, we need to give the compiler a `Nargo.toml` with at least a name and a type:
@@ -131,7 +131,7 @@ And add something useful to our HTML file:
 </body>
 </html>
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/examples/browser/index.html#L1-L31" target="_blank" rel="noopener noreferrer">Source code: examples/browser/index.html#L1-L31</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/examples/browser/index.html#L1-L31" target="_blank" rel="noopener noreferrer">Source code: examples/browser/index.html#L1-L31</a></sub></sup>
 
 
 It _could_ be a beautiful UI... Depending on which universe you live in. In any case, we're using some scary CSS to make two boxes that will show cool things on the screen.
@@ -189,7 +189,7 @@ import circuit from './target/circuit.json';
 // Initialize WASM modules
 await Promise.all([initACVM(fetch(acvm)), initNoirC(fetch(noirc))]);
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/examples/browser/index.js#L1-L11" target="_blank" rel="noopener noreferrer">Source code: examples/browser/index.js#L1-L11</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/examples/browser/index.js#L1-L11" target="_blank" rel="noopener noreferrer">Source code: examples/browser/index.js#L1-L11</a></sub></sup>
 
 
 And instantiate them inside our try-catch block:
@@ -202,7 +202,7 @@ show('logs', 'Creating Noir...');
     show('logs', 'Creating UltraHonkBackend...');
     const backend = new UltraHonkBackend(circuit.bytecode, barretenbergAPI);
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/examples/browser/index.js#L23-L30" target="_blank" rel="noopener noreferrer">Source code: examples/browser/index.js#L23-L30</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/examples/browser/index.js#L23-L30" target="_blank" rel="noopener noreferrer">Source code: examples/browser/index.js#L23-L30</a></sub></sup>
 
 
 ## Executing and proving
@@ -215,7 +215,7 @@ const age = document.getElementById('age').value;
     const { witness } = await noir.execute({ age });
     show('logs', 'Generated witness... ✅');
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/examples/browser/index.js#L31-L36" target="_blank" rel="noopener noreferrer">Source code: examples/browser/index.js#L31-L36</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/examples/browser/index.js#L31-L36" target="_blank" rel="noopener noreferrer">Source code: examples/browser/index.js#L31-L36</a></sub></sup>
 
 
 :::note
@@ -232,7 +232,7 @@ show('logs', 'Generating proof... ⏳');
     show('logs', 'Generated proof... ✅');
     show('results', proof.proof);
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/examples/browser/index.js#L37-L42" target="_blank" rel="noopener noreferrer">Source code: examples/browser/index.js#L37-L42</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/examples/browser/index.js#L37-L42" target="_blank" rel="noopener noreferrer">Source code: examples/browser/index.js#L37-L42</a></sub></sup>
 
 
 Our program is technically **done** . You're probably eager to see stuff happening! To serve this in a convenient way, we can use a bundler like `vite` by creating a `vite.config.js` file:
@@ -271,7 +271,7 @@ export default defineConfig({
   },
 });
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/examples/browser/vite.config.js#L1-L27" target="_blank" rel="noopener noreferrer">Source code: examples/browser/vite.config.js#L1-L27</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/examples/browser/vite.config.js#L1-L27" target="_blank" rel="noopener noreferrer">Source code: examples/browser/vite.config.js#L1-L27</a></sub></sup>
 
 
 This should be enough for vite. We don't even need to install it, just run:
@@ -297,7 +297,7 @@ show('logs', 'Verifying proof... ⌛');
     const isValid = await backend.verifyProof(proof);
     show('logs', `Proof is ${isValid ? 'valid' : 'invalid'}... ✅`);
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/examples/browser/index.js#L44-L48" target="_blank" rel="noopener noreferrer">Source code: examples/browser/index.js#L44-L48</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/examples/browser/index.js#L44-L48" target="_blank" rel="noopener noreferrer">Source code: examples/browser/index.js#L44-L48</a></sub></sup>
 
 
 You have successfully generated a client-side Noir web app!

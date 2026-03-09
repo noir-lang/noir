@@ -28,4 +28,4 @@ Here is a list of the current black box functions:
 
 Most black box functions are included as part of the Noir standard library, however `AND`, `XOR` and `RANGE` are used as part of the Noir language syntax. For instance, using the bitwise operator `&` will invoke the `AND` black box function.
 
-You can view the black box functions defined in the ACVM code [here](https://github.com/noir-lang/noir/blob/master/acvm-repo/acir/src/circuit/black_box_functions.rs).
+You can view the black box functions defined in the ACVM code [here](https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/acvm-repo/acir/src/circuit/black_box_functions.rs).

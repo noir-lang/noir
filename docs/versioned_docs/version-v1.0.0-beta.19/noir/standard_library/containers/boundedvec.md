@@ -62,7 +62,7 @@ fn good() -> BoundedVec<Field, 10> {
     v2
 }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/noir_test_success/bounded_vec/src/main.nr#L6-L15" target="_blank" rel="noopener noreferrer">Source code: test_programs/noir_test_success/bounded_vec/src/main.nr#L6-L15</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/test_programs/noir_test_success/bounded_vec/src/main.nr#L6-L15" target="_blank" rel="noopener noreferrer">Source code: test_programs/noir_test_success/bounded_vec/src/main.nr#L6-L15</a></sub></sup>
 
 
 This defaulting of `MaxLen` (and numeric generics in general) to zero may change in future noir versions
@@ -114,7 +114,7 @@ fn sum_of_first_three<let N: u32>(v: BoundedVec<u32, N>) -> u32 {
     first + second + third
 }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/noir_test_success/bounded_vec/src/main.nr#L42-L52" target="_blank" rel="noopener noreferrer">Source code: test_programs/noir_test_success/bounded_vec/src/main.nr#L42-L52</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/test_programs/noir_test_success/bounded_vec/src/main.nr#L42-L52" target="_blank" rel="noopener noreferrer">Source code: test_programs/noir_test_success/bounded_vec/src/main.nr#L42-L52</a></sub></sup>
 
 
 ### set
@@ -176,7 +176,7 @@ fn set_unchecked_example() {
     println(vec);
 }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/noir_test_success/bounded_vec/src/main.nr#L55-L79" target="_blank" rel="noopener noreferrer">Source code: test_programs/noir_test_success/bounded_vec/src/main.nr#L55-L79</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/test_programs/noir_test_success/bounded_vec/src/main.nr#L55-L79" target="_blank" rel="noopener noreferrer">Source code: test_programs/noir_test_success/bounded_vec/src/main.nr#L55-L79</a></sub></sup>
 
 
 
@@ -202,7 +202,7 @@ let mut v: BoundedVec<Field, 2> = BoundedVec::new();
     // Panics with failed assertion "push out of bounds"
     v.push(3);
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/noir_test_success/bounded_vec/src/main.nr#L83-L91" target="_blank" rel="noopener noreferrer">Source code: test_programs/noir_test_success/bounded_vec/src/main.nr#L83-L91</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/test_programs/noir_test_success/bounded_vec/src/main.nr#L83-L91" target="_blank" rel="noopener noreferrer">Source code: test_programs/noir_test_success/bounded_vec/src/main.nr#L83-L91</a></sub></sup>
 
 
 ### pop
@@ -231,7 +231,7 @@ let mut v: BoundedVec<Field, 2> = BoundedVec::new();
     // error: cannot pop from an empty vector
     // let _ = v.pop();
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/noir_test_success/bounded_vec/src/main.nr#L96-L108" target="_blank" rel="noopener noreferrer">Source code: test_programs/noir_test_success/bounded_vec/src/main.nr#L96-L108</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/test_programs/noir_test_success/bounded_vec/src/main.nr#L96-L108" target="_blank" rel="noopener noreferrer">Source code: test_programs/noir_test_success/bounded_vec/src/main.nr#L96-L108</a></sub></sup>
 
 
 ### len
@@ -260,7 +260,7 @@ let mut v: BoundedVec<Field, 4> = BoundedVec::new();
     let _ = v.pop();
     assert(v.len() == 2);
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/noir_test_success/bounded_vec/src/main.nr#L113-L128" target="_blank" rel="noopener noreferrer">Source code: test_programs/noir_test_success/bounded_vec/src/main.nr#L113-L128</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/test_programs/noir_test_success/bounded_vec/src/main.nr#L113-L128" target="_blank" rel="noopener noreferrer">Source code: test_programs/noir_test_success/bounded_vec/src/main.nr#L113-L128</a></sub></sup>
 
 
 ### max_len
@@ -281,7 +281,7 @@ let mut v: BoundedVec<Field, 5> = BoundedVec::new();
     v.push(10);
     assert(v.max_len() == 5);
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/noir_test_success/bounded_vec/src/main.nr#L133-L139" target="_blank" rel="noopener noreferrer">Source code: test_programs/noir_test_success/bounded_vec/src/main.nr#L133-L139</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/test_programs/noir_test_success/bounded_vec/src/main.nr#L133-L139" target="_blank" rel="noopener noreferrer">Source code: test_programs/noir_test_success/bounded_vec/src/main.nr#L133-L139</a></sub></sup>
 
 
 ### storage
@@ -306,7 +306,7 @@ let mut v: BoundedVec<Field, 5> = BoundedVec::new();
     v.push(57);
     assert(v.storage() == [57, 0, 0, 0, 0]);
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/noir_test_success/bounded_vec/src/main.nr#L144-L151" target="_blank" rel="noopener noreferrer">Source code: test_programs/noir_test_success/bounded_vec/src/main.nr#L144-L151</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/test_programs/noir_test_success/bounded_vec/src/main.nr#L144-L151" target="_blank" rel="noopener noreferrer">Source code: test_programs/noir_test_success/bounded_vec/src/main.nr#L144-L151</a></sub></sup>
 
 
 ### extend_from_array
@@ -330,7 +330,7 @@ let mut vec: BoundedVec<Field, 3> = BoundedVec::new();
     assert(vec.get(0) == 2);
     assert(vec.get(1) == 4);
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/noir_test_success/bounded_vec/src/main.nr#L156-L163" target="_blank" rel="noopener noreferrer">Source code: test_programs/noir_test_success/bounded_vec/src/main.nr#L156-L163</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/test_programs/noir_test_success/bounded_vec/src/main.nr#L156-L163" target="_blank" rel="noopener noreferrer">Source code: test_programs/noir_test_success/bounded_vec/src/main.nr#L156-L163</a></sub></sup>
 
 
 ### extend_from_bounded_vec
@@ -357,7 +357,7 @@ let mut v1: BoundedVec<Field, 5> = BoundedVec::new();
     assert(v1.storage() == [1, 2, 3, 0, 0]);
     assert(v2.storage() == [1, 2, 3, 0, 0, 0, 0]);
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/noir_test_success/bounded_vec/src/main.nr#L168-L177" target="_blank" rel="noopener noreferrer">Source code: test_programs/noir_test_success/bounded_vec/src/main.nr#L168-L177</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/test_programs/noir_test_success/bounded_vec/src/main.nr#L168-L177" target="_blank" rel="noopener noreferrer">Source code: test_programs/noir_test_success/bounded_vec/src/main.nr#L168-L177</a></sub></sup>
 
 
 ### from_array
@@ -399,7 +399,7 @@ let vec: BoundedVec<u32, 4> = BoundedVec::from_parts([1, 2, 3, 0], 3);
             let vec2: BoundedVec<u32, 4> = BoundedVec::from_parts([1, 2, 3, 2], 3);
             assert_eq(vec1, vec2);
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/bounded_vec.nr#L1120-L1129" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/bounded_vec.nr#L1120-L1129</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/collections/bounded_vec.nr#L1120-L1129" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/bounded_vec.nr#L1120-L1129</a></sub></sup>
 
 
 ### from_parts_unchecked
@@ -431,7 +431,7 @@ let vec: BoundedVec<u32, 4> = BoundedVec::from_parts_unchecked([1, 2, 3, 0], 3);
             // fails because elements past the length are still checked in eq
             assert(vec1 != vec2);
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/bounded_vec.nr#L1134-L1145" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/bounded_vec.nr#L1134-L1145</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/collections/bounded_vec.nr#L1134-L1145" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/bounded_vec.nr#L1134-L1145</a></sub></sup>
 
 
 ### map
@@ -448,7 +448,7 @@ Example:
 let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
             let result = vec.map(|value| value * 2);
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/bounded_vec.nr#L770-L773" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/bounded_vec.nr#L770-L773</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/collections/bounded_vec.nr#L770-L773" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/bounded_vec.nr#L770-L773</a></sub></sup>
 
 
 ### mapi
@@ -466,7 +466,7 @@ Example:
 let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
             let result = vec.mapi(|i, value| i + value * 2);
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/bounded_vec.nr#L831-L834" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/bounded_vec.nr#L831-L834</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/collections/bounded_vec.nr#L831-L834" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/bounded_vec.nr#L831-L834</a></sub></sup>
 
 
 ### for_each
@@ -483,7 +483,7 @@ Example:
 let vec: BoundedVec<u32, 3> = BoundedVec::from_array([1, 2, 3]);
             vec.for_each(|value| { *acc_ref += value; });
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/bounded_vec.nr#L887-L890" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/bounded_vec.nr#L887-L890</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/collections/bounded_vec.nr#L887-L890" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/bounded_vec.nr#L887-L890</a></sub></sup>
 
 
 ### for_eachi
@@ -500,7 +500,7 @@ Example:
 let vec: BoundedVec<u32, 3> = BoundedVec::from_array([1, 2, 3]);
             vec.for_eachi(|i, value| { *acc_ref += i * value; });
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/bounded_vec.nr#L959-L962" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/bounded_vec.nr#L959-L962</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/collections/bounded_vec.nr#L959-L962" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/bounded_vec.nr#L959-L962</a></sub></sup>
 
 
 ### any
@@ -521,5 +521,5 @@ let mut v: BoundedVec<u32, 3> = BoundedVec::new();
     let all_even = !v.any(|elem: u32| elem % 2 != 0);
     assert(all_even);
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/noir_test_success/bounded_vec/src/main.nr#L244-L250" target="_blank" rel="noopener noreferrer">Source code: test_programs/noir_test_success/bounded_vec/src/main.nr#L244-L250</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/test_programs/noir_test_success/bounded_vec/src/main.nr#L244-L250" target="_blank" rel="noopener noreferrer">Source code: test_programs/noir_test_success/bounded_vec/src/main.nr#L244-L250</a></sub></sup>
 

@@ -13,7 +13,7 @@ quoted token streams and is the result of the `quote { ... }` expression.
 ```rust title="as_expr" showLineNumbers 
 pub comptime fn as_expr(self) -> Option<Expr> {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/quoted.nr#L6-L8" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/quoted.nr#L6-L8</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/quoted.nr#L6-L8" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/quoted.nr#L6-L8</a></sub></sup>
 
 
 Parses the quoted token stream as an expression. Returns `Option::none()` if
@@ -32,7 +32,7 @@ Example:
         }
     }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/noir_test_success/comptime_expr/src/main.nr#L336-L346" target="_blank" rel="noopener noreferrer">Source code: test_programs/noir_test_success/comptime_expr/src/main.nr#L336-L346</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/test_programs/noir_test_success/comptime_expr/src/main.nr#L336-L346" target="_blank" rel="noopener noreferrer">Source code: test_programs/noir_test_success/comptime_expr/src/main.nr#L336-L346</a></sub></sup>
 
 
 ### as_module
@@ -40,7 +40,7 @@ Example:
 ```rust title="as_module" showLineNumbers 
 pub comptime fn as_module(self) -> Option<Module> {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/quoted.nr#L11-L13" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/quoted.nr#L11-L13</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/quoted.nr#L11-L13" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/quoted.nr#L11-L13</a></sub></sup>
 
 
 Interprets this token stream as a module path leading to the name of a module.
@@ -61,7 +61,7 @@ fn as_module_test() {
     }
 }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/compile_success_empty/comptime_module/src/main.nr#L115-L127" target="_blank" rel="noopener noreferrer">Source code: test_programs/compile_success_empty/comptime_module/src/main.nr#L115-L127</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/test_programs/compile_success_empty/comptime_module/src/main.nr#L115-L127" target="_blank" rel="noopener noreferrer">Source code: test_programs/compile_success_empty/comptime_module/src/main.nr#L115-L127</a></sub></sup>
 
 
 ### as_trait_constraint
@@ -69,7 +69,7 @@ fn as_module_test() {
 ```rust title="as_trait_constraint" showLineNumbers 
 pub comptime fn as_trait_constraint(self) -> TraitConstraint {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/quoted.nr#L16-L18" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/quoted.nr#L16-L18</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/quoted.nr#L16-L18" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/quoted.nr#L16-L18</a></sub></sup>
 
 
 Interprets this token stream as a trait constraint (without an object type).
@@ -92,7 +92,7 @@ where
     }
 }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/compile_success_empty/comptime_type/src/main.nr#L160-L173" target="_blank" rel="noopener noreferrer">Source code: test_programs/compile_success_empty/comptime_type/src/main.nr#L160-L173</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/test_programs/compile_success_empty/comptime_type/src/main.nr#L160-L173" target="_blank" rel="noopener noreferrer">Source code: test_programs/compile_success_empty/comptime_type/src/main.nr#L160-L173</a></sub></sup>
 
 
 ### as_type
@@ -100,7 +100,7 @@ where
 ```rust title="as_type" showLineNumbers 
 pub comptime fn as_type(self) -> Type {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/quoted.nr#L21-L23" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/quoted.nr#L21-L23</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/quoted.nr#L21-L23" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/quoted.nr#L21-L23</a></sub></sup>
 
 
 Interprets this token stream as a resolved type. Panics if the token
@@ -120,7 +120,7 @@ where
     }
 }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/compile_success_empty/comptime_type/src/main.nr#L160-L173" target="_blank" rel="noopener noreferrer">Source code: test_programs/compile_success_empty/comptime_type/src/main.nr#L160-L173</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/test_programs/compile_success_empty/comptime_type/src/main.nr#L160-L173" target="_blank" rel="noopener noreferrer">Source code: test_programs/compile_success_empty/comptime_type/src/main.nr#L160-L173</a></sub></sup>
 
 
 ### tokens
@@ -128,7 +128,7 @@ where
 ```rust title="tokens" showLineNumbers 
 pub comptime fn tokens(self) -> [Quoted] {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/quoted.nr#L26-L28" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/quoted.nr#L26-L28</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/quoted.nr#L26-L28" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/quoted.nr#L26-L28</a></sub></sup>
 
 
 Returns a vector of the individual tokens that form this token stream.

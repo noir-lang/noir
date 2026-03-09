@@ -11,7 +11,7 @@ a type in the source program.
 ```rust title="fresh_type_variable" showLineNumbers 
 pub comptime fn fresh_type_variable() -> Type {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/typ.nr#L57-L59" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/typ.nr#L57-L59</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/typ.nr#L57-L59" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/typ.nr#L57-L59</a></sub></sup>
 
 
 Creates and returns an unbound type variable. This is a special kind of type internal
@@ -47,7 +47,7 @@ where
     U: Serialize<M>,
 {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/compile_success_empty/comptime_type/src/main.nr#L14-L29" target="_blank" rel="noopener noreferrer">Source code: test_programs/compile_success_empty/comptime_type/src/main.nr#L14-L29</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/test_programs/compile_success_empty/comptime_type/src/main.nr#L14-L29" target="_blank" rel="noopener noreferrer">Source code: test_programs/compile_success_empty/comptime_type/src/main.nr#L14-L29</a></sub></sup>
 
 ```rust title="fresh-type-variable-example" showLineNumbers 
 let typevar1 = std::meta::typ::fresh_type_variable();
@@ -70,7 +70,7 @@ let typevar1 = std::meta::typ::fresh_type_variable();
         // Now typevar2 should be bound to the serialized pair size 2 times the array length 5
         assert_eq(typevar2.as_constant().unwrap(), 10);
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/compile_success_empty/comptime_type/src/main.nr#L129-L149" target="_blank" rel="noopener noreferrer">Source code: test_programs/compile_success_empty/comptime_type/src/main.nr#L129-L149</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/test_programs/compile_success_empty/comptime_type/src/main.nr#L129-L149" target="_blank" rel="noopener noreferrer">Source code: test_programs/compile_success_empty/comptime_type/src/main.nr#L129-L149</a></sub></sup>
 
 
 ## Methods
@@ -80,7 +80,7 @@ let typevar1 = std::meta::typ::fresh_type_variable();
 ```rust title="as_array" showLineNumbers 
 pub comptime fn as_array(self) -> Option<(Type, Type)> {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/typ.nr#L76-L78" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/typ.nr#L76-L78</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/typ.nr#L76-L78" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/typ.nr#L76-L78</a></sub></sup>
 
 
 If this type is an array, return a pair of (element type, size type).
@@ -102,7 +102,7 @@ comptime {
 ```rust title="as_constant" showLineNumbers 
 pub comptime fn as_constant(self) -> Option<u32> {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/typ.nr#L83-L85" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/typ.nr#L83-L85</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/typ.nr#L83-L85" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/typ.nr#L83-L85</a></sub></sup>
 
 
 If this type is a constant integer (such as the `3` in the array type `[Field; 3]`),
@@ -113,7 +113,7 @@ return the numeric constant.
 ```rust title="as_integer" showLineNumbers 
 pub comptime fn as_integer(self) -> Option<(bool, u8)> {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/typ.nr#L90-L92" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/typ.nr#L90-L92</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/typ.nr#L90-L92" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/typ.nr#L90-L92</a></sub></sup>
 
 
 If this is an integer type, return a boolean which is `true`
@@ -124,7 +124,7 @@ if the type is signed, as well as the number of bits of this integer type.
 ```rust title="as_mutable_reference" showLineNumbers 
 pub comptime fn as_mutable_reference(self) -> Option<Type> {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/typ.nr#L96-L98" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/typ.nr#L96-L98</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/typ.nr#L96-L98" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/typ.nr#L96-L98</a></sub></sup>
 
 
 If this is a mutable reference type `&mut T`, returns the mutable type `T`.
@@ -134,7 +134,7 @@ If this is a mutable reference type `&mut T`, returns the mutable type `T`.
 ```rust title="as_vector" showLineNumbers 
 pub comptime fn as_vector(self) -> Option<Type> {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/typ.nr#L102-L104" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/typ.nr#L102-L104</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/typ.nr#L102-L104" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/typ.nr#L102-L104</a></sub></sup>
 
 
 If this is a vector type, return the element type of the vector.
@@ -144,7 +144,7 @@ If this is a vector type, return the element type of the vector.
 ```rust title="as_str" showLineNumbers 
 pub comptime fn as_str(self) -> Option<Type> {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/typ.nr#L113-L115" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/typ.nr#L113-L115</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/typ.nr#L113-L115" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/typ.nr#L113-L115</a></sub></sup>
 
 
 If this is a `str<N>` type, returns the length `N` as a type.
@@ -154,7 +154,7 @@ If this is a `str<N>` type, returns the length `N` as a type.
 ```rust title="as_data_type" showLineNumbers 
 pub comptime fn as_data_type(self) -> Option<(TypeDefinition, [Type])> {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/typ.nr#L124-L126" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/typ.nr#L124-L126</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/typ.nr#L124-L126" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/typ.nr#L124-L126</a></sub></sup>
 
 
 If this is a struct type, returns the struct in addition to
@@ -165,7 +165,7 @@ any generic arguments on this type.
 ```rust title="as_tuple" showLineNumbers 
 pub comptime fn as_tuple(self) -> Option<[Type]> {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/typ.nr#L130-L132" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/typ.nr#L130-L132</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/typ.nr#L130-L132" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/typ.nr#L130-L132</a></sub></sup>
 
 
 If this is a tuple type, returns each element type of the tuple.
@@ -175,7 +175,7 @@ If this is a tuple type, returns each element type of the tuple.
 ```rust title="get_trait_impl" showLineNumbers 
 pub comptime fn get_trait_impl(self, constraint: TraitConstraint) -> Option<TraitImpl> {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/typ.nr#L153-L155" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/typ.nr#L153-L155</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/typ.nr#L153-L155" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/typ.nr#L153-L155</a></sub></sup>
 
 
 Retrieves the trait implementation that implements the given
@@ -202,7 +202,7 @@ comptime {
 ```rust title="implements" showLineNumbers 
 pub comptime fn implements(self, constraint: TraitConstraint) -> bool {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/typ.nr#L176-L178" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/typ.nr#L176-L178</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/typ.nr#L176-L178" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/typ.nr#L176-L178</a></sub></sup>
 
 
 `true` if this type implements the given trait. Note that unlike
@@ -229,7 +229,7 @@ fn foo<T>() where T: Default {
 ```rust title="is_bool" showLineNumbers 
 pub comptime fn is_bool(self) -> bool {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/typ.nr#L182-L184" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/typ.nr#L182-L184</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/typ.nr#L182-L184" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/typ.nr#L182-L184</a></sub></sup>
 
 
 `true` if this type is `bool`.
@@ -239,7 +239,7 @@ pub comptime fn is_bool(self) -> bool {}
 ```rust title="is_field" showLineNumbers 
 pub comptime fn is_field(self) -> bool {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/typ.nr#L188-L190" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/typ.nr#L188-L190</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/typ.nr#L188-L190" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/typ.nr#L188-L190</a></sub></sup>
 
 
 `true` if this type is `Field`.
@@ -249,7 +249,7 @@ pub comptime fn is_field(self) -> bool {}
 ```rust title="is_unit" showLineNumbers 
 pub comptime fn is_unit(self) -> bool {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/typ.nr#L194-L196" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/typ.nr#L194-L196</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/typ.nr#L194-L196" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/typ.nr#L194-L196</a></sub></sup>
 
 
 `true` if this type is the unit `()` type.
