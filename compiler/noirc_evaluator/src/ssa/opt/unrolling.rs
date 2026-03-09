@@ -2298,7 +2298,7 @@ mod tests {
             jmp b1(u32 0)
           b1(v0: u32):
             v1 = lt v0, u32 100
-            jmpif u1 1 then: b3, else: b2
+            jmpif u1 1 then: b3(), else: b2()
           b3():
             v2 = unchecked_add v0, u32 1
             jmp b1(v2)
