@@ -42,7 +42,7 @@
 //! Note 1: this optimization only applies to `array_set` instructions operating on arrays, not
 //! vectors, because for arrays we can statically determine the number of elements, while for
 //! vectors we can only do that if the `array_set` value operates on a `make_array`. This could
-//! be done, but it's left as a follow-up optimization: https://github.com/noir-lang/noir/issues/11810
+//! be done, but it's left as a follow-up optimization: <https://github.com/noir-lang/noir/issues/11810>
 //!
 //! Note 2: because the optimization expands to multiple `array_get` and a `make_array` instruction,
 //! for large arrays this might result in too many `array_get` instructions that slow down SSA optimization.
