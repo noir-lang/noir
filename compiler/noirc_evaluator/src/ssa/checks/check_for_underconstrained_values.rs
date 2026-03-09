@@ -362,7 +362,12 @@ impl DependencyContext {
                         return;
                     }
 
-                    let current_tainted = BrilligTaintedIds::new(function, arguments, results);
+                    // Expand arguments through MakeArray chains so that
+                    // array element values are also tracked as call arguments
+                    // (e.g. for `v1 = make_array [v0]; call f(v1)`, track v0 too)
+                    let expanded_args = expand_args_through_make_array(function, arguments);
+
+                    let current_tainted = BrilligTaintedIds::new(function, &expanded_args, results);
 
                     // Record arguments/results for each Brillig call for the check.
                     //
@@ -381,7 +386,7 @@ impl DependencyContext {
                     if !wrapped_call_found {
                         // Record the current call, remember the argument values involved
                         self.tainted.insert(*instruction, current_tainted);
-                        arguments.iter().for_each(|value| {
+                        expanded_args.iter().for_each(|value| {
                             self.call_arguments.entry(*value).or_default().push(*instruction);
                         });
                     }
@@ -427,7 +432,9 @@ impl DependencyContext {
                                 // (fixes #10547)
                                 if matches!(
                                     &function.dfg[*instruction],
-                                    Instruction::Cast(..) | Instruction::Truncate { .. }
+                                    Instruction::Cast(..)
+                                        | Instruction::Truncate { .. }
+                                        | Instruction::MakeArray { .. }
                                 ) && let Some(tainted_ids) = self.tainted.get_mut(call)
                                 {
                                     tainted_ids.arguments.extend(&arguments);
@@ -561,11 +568,14 @@ impl DependencyContext {
                         // Record all the used arguments as parents of the results
                         self.update_children(&arguments, &results);
                     }
+                    Instruction::MakeArray { .. } => {
+                        // Record array elements as parents of the array value
+                        self.update_children(&arguments, &results);
+                    }
                     // These instructions won't affect the dependency graph
                     Instruction::Allocate
                     | Instruction::DecrementRc { .. }
                     | Instruction::IncrementRc { .. }
-                    | Instruction::MakeArray { .. }
                     | Instruction::Noop => {}
                 }
             }
@@ -972,6 +982,29 @@ fn intersecting<T: Hash + Eq>(a: &HashSet<T>, b: &HashSet<T>) -> bool {
 /// Return `true` if a [ValueId] identifies a numeric constant in the DFG.
 fn is_numeric_constant(func: &Function, value: ValueId) -> bool {
     func.dfg.get_numeric_constant(value).is_some()
+}
+
+/// Expand a set of call arguments by tracing through MakeArray instructions.
+/// For example, if arguments contains v1 where `v1 = make_array [v0]`,
+/// the result will contain both v1 and v0. Works recursively for nested arrays.
+fn expand_args_through_make_array(function: &Function, arguments: &[ValueId]) -> Vec<ValueId> {
+    let mut expanded: HashSet<ValueId> = HashSet::from_iter(arguments.iter().copied());
+    let mut worklist: Vec<ValueId> = arguments.to_vec();
+    while let Some(arg) = worklist.pop() {
+        let Value::Instruction { instruction, .. } = &function.dfg[arg] else { continue };
+        let Instruction::MakeArray { elements, .. } = &function.dfg[*instruction] else {
+            continue;
+        };
+
+        let non_constant_elements =
+            elements.iter().filter(|elem| !is_numeric_constant(function, **elem));
+        for elem in non_constant_elements {
+            if expanded.insert(*elem) {
+                worklist.push(*elem);
+            }
+        }
+    }
+    expanded.into_iter().collect()
 }
 
 #[cfg(test)]
@@ -1565,22 +1598,45 @@ mod tests {
 
     #[test]
     #[traced_test]
-    #[should_panic = "Expected no warnings but found some."]
     fn constrain_on_array_element_links_to_input_array() {
         // Regression test for https://github.com/noir-lang/noir/issues/11807
         let program = r#"
         acir(inline) predicate_pure fn main f0 {
           b0(v0: Field):
             v1 = make_array [v0] : [Field; 1]
-            v3 = call f1(v1) -> [Field; 1]          // We pass v1 = [v0] to the Brillig function.
-            v5 = array_get v3, index u32 0 -> Field
-            constrain v5 == v0                      // We constrain the result directly against v0, which should clear the Brillig call. 
+            v3 = call f1(v1) -> Field
+            constrain v3 == v0
             return v3
         }
         brillig(inline) predicate_pure fn helper_func f1 {
           b0(v0: [Field; 1]):
-            v2 = array_get v0, index u32 1 minus 1 -> Field
-            v3 = make_array [v2] : [Field; 1]
+            v2 = array_get v0, index u32 0 -> Field
+            return v2
+        }
+        "#;
+
+        let mut ssa = Ssa::from_str(program).unwrap();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(true);
+        assert_eq!(ssa_level_warnings.len(), 0, "Expected no warnings but found some.");
+    }
+
+    #[test]
+    #[traced_test]
+    fn constrain_on_nested_array_element_links_to_input_array() {
+        // Nested array variant: [[Field; 1]; 1] wrapping v0
+        let program = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: Field):
+            v1 = make_array [v0] : [Field; 1]
+            v2 = make_array [v1] : [[Field; 1]; 1]
+            v4 = call f1(v2) -> Field
+            constrain v4 == v0
+            return v4
+        }
+        brillig(inline) predicate_pure fn helper_func f1 {
+          b0(v0: [[Field; 1]; 1]):
+            v2 = array_get v0, index u32 0 -> [Field; 1]
+            v3 = array_get v2, index u32 0 -> Field
             return v3
         }
         "#;
