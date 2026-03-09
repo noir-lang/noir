@@ -419,7 +419,7 @@ fn pure_builtin_args_get_cloned() {
     }
     ";
 
-    let program = get_monomorphized_with_stdlib(src, stdlib_src::ARRAY_LEN).unwrap();
+    let program = get_monomorphized_with_stdlib(src, &[stdlib_src::ARRAY_LEN]).unwrap();
 
     // The ownership pass doesn't know which builtin functions are pure and which ones
     // modifies the arguments, so this optimization is deferred to the SSA generation.

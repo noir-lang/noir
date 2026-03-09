@@ -243,7 +243,6 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         destination_variable: BrilligVariable,
         index_register: SingleAddrVariable,
         value_variable: BrilligVariable,
-        mutable: bool,
         has_offset: bool,
     ) {
         assert!(index_register.bit_size == BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
@@ -252,29 +251,22 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 BrilligVariable::BrilligArray(source_array),
                 BrilligVariable::BrilligArray(destination_array),
             ) => {
-                if !mutable {
-                    self.brillig_context.call_array_copy_procedure(source_array, destination_array);
-                }
+                self.brillig_context.call_array_copy_procedure(source_array, destination_array);
             }
             (
                 BrilligVariable::BrilligVector(source_vector),
                 BrilligVariable::BrilligVector(destination_vector),
             ) => {
-                if !mutable {
-                    self.brillig_context
-                        .call_vector_copy_procedure(source_vector, destination_vector);
-                }
+                self.brillig_context.call_vector_copy_procedure(source_vector, destination_vector);
             }
             _ => unreachable!("ICE: array set on non-array"),
         }
 
-        let destination_for_store = if mutable { source_variable } else { destination_variable };
-
         // Then set the value in the newly created array
         let items_pointer = if has_offset {
-            Allocated::pure(destination_for_store.extract_register())
+            Allocated::pure(destination_variable.extract_register())
         } else {
-            self.brillig_context.codegen_make_array_or_vector_items_pointer(destination_for_store)
+            self.brillig_context.codegen_make_array_or_vector_items_pointer(destination_variable)
         };
 
         self.brillig_context.codegen_store_with_offset(
@@ -282,14 +274,6 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             index_register,
             value_variable.extract_register(),
         );
-
-        // If we mutated the source array we want instructions that use the destination array to point to the source array
-        if mutable {
-            self.brillig_context.mov_instruction(
-                destination_variable.extract_register(),
-                source_variable.extract_register(),
-            );
-        }
     }
 
     /// Debug utility method to determine whether an array's reference count (RC) is zero.
@@ -380,7 +364,6 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         array: ValueId,
         index: ValueId,
         value: ValueId,
-        mutable: bool,
         dfg: &DataFlowGraph,
     ) {
         let source_variable = self.convert_ssa_value(array, dfg);
@@ -398,7 +381,6 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             destination_variable,
             index_register,
             value_variable,
-            mutable,
             has_offset,
         );
     }
@@ -437,7 +419,9 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
 
                 self.brillig_context.codegen_initialize_vector(vector, *size, None);
             }
-            _ => unreachable!("ICE: Cannot initialize array value created as {new_variable:?}"),
+            BrilligVariable::SingleAddr(_) => {
+                unreachable!("ICE: Cannot initialize array value created as {new_variable:?}")
+            }
         }
 
         // Get a pointer to where the items need to be written.

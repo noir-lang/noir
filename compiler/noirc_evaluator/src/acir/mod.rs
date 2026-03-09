@@ -49,7 +49,7 @@ use crate::ssa::{
 };
 use crate::{acir::shared_context::SharedContext, brillig::BrilligOptions};
 
-use acir_context::{AcirContext, BrilligStdLib, power_of_two};
+use acir_context::{AcirContext, BrilligStdLib};
 use types::{AcirType, AcirVar};
 pub use {acir_context::GeneratedAcir, ssa::Artifacts};
 
@@ -494,9 +494,8 @@ impl<'a> Context<'a> {
                 warnings.extend(self.convert_ssa_call(instruction, dfg, ssa, result_ids)?);
             }
             Instruction::Not(value_id) => {
-                let (acir_var, typ) = match self.convert_value(*value_id, dfg) {
-                    AcirValue::Var(acir_var, typ) => (acir_var, typ),
-                    _ => unreachable!("NOT is only applied to numerics"),
+                let AcirValue::Var(acir_var, typ) = self.convert_value(*value_id, dfg) else {
+                    unreachable!("NOT is only applied to numerics");
                 };
                 let result_acir_var = self.acir_context.not_var(acir_var, typ)?;
                 self.define_result_var(dfg, instruction_id, result_acir_var);
@@ -842,7 +841,7 @@ impl<'a> Context<'a> {
         &mut self,
         value_id: ValueId,
         bit_size: u32,
-        mut max_bit_size: u32,
+        max_bit_size: u32,
         dfg: &DataFlowGraph,
     ) -> Result<AcirVar, RuntimeError> {
         assert_ne!(bit_size, max_bit_size, "Attempted to generate a noop truncation");
@@ -851,33 +850,14 @@ impl<'a> Context<'a> {
             "Attempted to generate a truncation into size larger than max input"
         );
 
-        let mut var = self.convert_numeric_value(value_id, dfg)?;
+        let var = self.convert_numeric_value(value_id, dfg)?;
         match &dfg[value_id] {
             Value::Instruction { instruction, .. } => {
                 if matches!(
                     &dfg[*instruction],
-                    Instruction::Binary(Binary { operator: BinaryOp::Sub { .. }, .. })
+                    Instruction::Binary(Binary { operator: BinaryOp::Sub { unchecked: true }, .. })
                 ) {
-                    // Subtractions must first have the integer modulus added before truncation can be
-                    // applied. This is done in order to prevent underflow.
-                    //
-                    // FieldElements have max bit size equals to max_num_bits so
-                    // we filter out this bit size because there is no underflow
-                    // for FieldElements. Furthermore, adding a power of two
-                    // would be incorrect for a FieldElement (cf. #8519).
-                    if max_bit_size < FieldElement::max_num_bits() {
-                        // When max_bit_size is max_num_bits() - 1, adding
-                        // 2**max_bit_size to an element of max_bit_size bits
-                        // gives an element of max_num_bits() bits which may overflow
-                        assert!(
-                            max_bit_size != FieldElement::max_num_bits() - 1,
-                            "potential underflow in subtraction when max_bit_size is {max_bit_size}"
-                        );
-                        let integer_modulus = power_of_two::<FieldElement>(max_bit_size);
-                        let integer_modulus = self.acir_context.add_constant(integer_modulus);
-                        var = self.acir_context.add_var(var, integer_modulus)?;
-                        max_bit_size += 1;
-                    }
+                    unreachable!("Truncation of unchecked subtraction");
                 }
             }
             Value::Param { .. } => {
@@ -923,24 +903,33 @@ impl<'a> Context<'a> {
     }
 }
 
-/// Check post ACIR generation properties
+/// Check post ACIR generation properties:
+/// * No empty `AssertZero` opcodes (asserting `0 == 0`) should be emitted.
 /// * No memory opcodes should be laid down that write to the internal type sizes array.
 ///   See [arrays] for more information on the type sizes array.
 #[cfg(debug_assertions)]
 fn acir_post_check(context: &Context<'_>, acir: &GeneratedAcir<FieldElement>) {
     use acvm::acir::circuit::Opcode;
     for opcode in acir.opcodes() {
-        let Opcode::MemoryOp { block_id, op } = opcode else {
-            continue;
-        };
-        if op.operation.is_one() {
-            // Check that we have no writes to the type size arrays
-            let is_type_sizes_array =
-                context.element_type_sizes_blocks.values().any(|id| id == block_id);
-            assert!(
-                !is_type_sizes_array,
-                "ICE: Writes to the internal type sizes array are forbidden"
-            );
+        match opcode {
+            Opcode::AssertZero(expr) => {
+                assert!(
+                    !expr.is_zero(),
+                    "ICE: Empty AssertZero opcodes (0 == 0) should not be emitted"
+                );
+            }
+            Opcode::MemoryOp { block_id, op } => {
+                if op.operation.is_one() {
+                    // Check that we have no writes to the type size arrays
+                    let is_type_sizes_array =
+                        context.element_type_sizes_blocks.values().any(|id| id == block_id);
+                    assert!(
+                        !is_type_sizes_array,
+                        "ICE: Writes to the internal type sizes array are forbidden"
+                    );
+                }
+            }
+            _ => {}
         }
     }
 }

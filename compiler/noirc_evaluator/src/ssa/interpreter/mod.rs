@@ -346,18 +346,19 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 Some(TerminatorInstruction::JmpIf {
                     condition,
                     then_destination,
+                    then_arguments,
                     else_destination,
+                    else_arguments,
                     call_stack: _,
                 }) => {
-                    block_id = if self.lookup_bool(*condition, "jmpif condition")? {
-                        *then_destination
+                    (block_id, arguments) = if self.lookup_bool(*condition, "jmpif condition")? {
+                        (*then_destination, self.lookup_all(then_arguments)?)
                     } else {
-                        *else_destination
+                        (*else_destination, self.lookup_all(else_arguments)?)
                     };
                     if self.options.trace {
                         println!("jump to {block_id}");
                     }
-                    arguments = Vec::new();
                 }
                 Some(TerminatorInstruction::Return { return_values, call_stack: _ }) => {
                     let return_values = self.lookup_all(return_values)?;
@@ -771,10 +772,12 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             return Err(internal(InternalError::TruncateToZeroBits { value_id, max_bit_size }));
         }
 
+        // Checked (non-unchecked) subtractions may produce Unfit values due to integer underflow;
+        // the integer modulus is added before truncating to correct for it.
         let is_sub = if let IrValue::Instruction { instruction, .. } = self.dfg()[value_id] {
             matches!(
                 self.dfg()[instruction],
-                Instruction::Binary(Binary { operator: BinaryOp::Sub { .. }, .. })
+                Instruction::Binary(Binary { operator: BinaryOp::Sub { unchecked: false }, .. })
             )
         } else {
             false
@@ -942,7 +945,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                     if !self.in_unconstrained_context()
                         && self.functions[&id].runtime().is_brillig()
                     {
-                        for argument in arguments.iter_mut() {
+                        for argument in &mut arguments {
                             Self::reset_array_state(argument)?;
                         }
                     }
@@ -1019,7 +1022,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
             Value::ArrayOrVector(array_value) => {
                 let mut elements = array_value.elements.borrow().to_vec();
-                for element in elements.iter_mut() {
+                for element in &mut elements {
                     Self::reset_array_state(element)?;
                 }
                 array_value.elements = Shared::new(elements);
@@ -1614,7 +1617,13 @@ fn evaluate_binary(
             )
         }
         BinaryOp::Sub { unchecked: true } => {
-            apply_int_binop!(lhs, rhs, binary, num_traits::CheckedSub::checked_sub, |a, b| a - b)
+            apply_int_binop_opt!(
+                lhs,
+                rhs,
+                binary,
+                num_traits::CheckedSub::checked_sub,
+                display_binary
+            )
         }
         BinaryOp::Mul { unchecked: false } => {
             // Only unsigned multiplication has side effects
@@ -1825,11 +1834,11 @@ fn interpret_u1_binary_op(
             }
         }
         BinaryOp::Sub { unchecked: true } => {
-            // (0, 0) -> 0
-            // (0, 1) -> 1  (underflow)
-            // (1, 0) -> 1
-            // (1, 1) -> 0
-            lhs ^ rhs
+            if !lhs && rhs {
+                return Err(overflow());
+            } else {
+                lhs ^ rhs
+            }
         }
         BinaryOp::Sub { unchecked: false } => {
             if !lhs && rhs {

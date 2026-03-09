@@ -62,6 +62,7 @@ use crate::{
         expr::*,
         function::Parameters,
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
+        types::resolve_type_bindings,
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind},
 };
@@ -327,7 +328,7 @@ impl<'interner> Monomorphizer<'interner> {
         let (debug_variables, debug_functions, debug_types) =
             self.debug_type_tracker.extract_vars_and_types();
 
-        for f in functions.iter_mut() {
+        for f in &mut functions {
             let is_acir_entry_point = !self.force_unconstrained && f.inline_type.is_entry_point();
             f.is_entry_point = is_acir_entry_point || f.id == Program::main_id();
         }
@@ -405,15 +406,32 @@ impl<'interner> Monomorphizer<'interner> {
                         let opcode = attribute.kind.foreign().expect(
                             "ICE: function marked as foreign, but attribute kind does not match this",
                         );
-                        Definition::LowLevel(opcode.clone())
+                        let opcode = opcode.clone();
+                        let location = self.interner.expr_location(&expr_id);
+
+                        if evaluate_builtin {
+                            match self.try_evaluate_builtin(
+                                &opcode,
+                                typ,
+                                turbofish_generics,
+                                is_unconstrained,
+                                id,
+                                location,
+                            )? {
+                                Some(id) => Definition::Function(id),
+                                None => Definition::LowLevel(opcode),
+                            }
+                        } else {
+                            Definition::LowLevel(opcode)
+                        }
                     }
                     FunctionKind::Builtin => {
                         let attribute = attributes.function().expect("all builtin functions must contain a function attribute which contains the opcode which it links to");
                         let opcode = attribute.kind.builtin().expect(
                             "ICE: function marked as builtin, but attribute kind does not match this",
                         );
-                        let location = self.interner.expr_location(&expr_id);
                         let opcode = opcode.clone();
+                        let location = self.interner.expr_location(&expr_id);
 
                         if evaluate_builtin {
                             match self.try_evaluate_builtin(
@@ -1684,11 +1702,8 @@ impl<'interner> Monomorphizer<'interner> {
                 // Default any remaining unbound type variables.
                 // This should only happen if the variable in question is unused
                 // and within a larger generic type.
-                let default = match type_var_kind.default_type() {
-                    Some(typ) => typ,
-                    None => {
-                        return Err(MonomorphizationError::NoDefaultType { location });
-                    }
+                let Some(default) = type_var_kind.default_type() else {
+                    return Err(MonomorphizationError::NoDefaultType { location });
                 };
 
                 let monomorphized_default =
@@ -1859,11 +1874,8 @@ impl<'interner> Monomorphizer<'interner> {
                 // Default any remaining unbound type variables.
                 // This should only happen if the variable in question is unused
                 // and within a larger generic type.
-                let default = match type_var_kind.default_type() {
-                    Some(typ) => typ,
-                    None => {
-                        return Err(MonomorphizationError::NoDefaultType { location });
-                    }
+                let Some(default) = type_var_kind.default_type() else {
+                    return Err(MonomorphizationError::NoDefaultType { location });
                 };
 
                 Self::check_type(&default, location)
@@ -2007,16 +2019,10 @@ impl<'interner> Monomorphizer<'interner> {
         function_type: HirType,
         trait_item_id: TraitItemId,
     ) -> Result<ast::Expression, MonomorphizationError> {
-        let func_id = match self.lookup_function(
-            func_id,
-            expr_id,
-            &function_type,
-            &[],
-            Some(trait_item_id),
-            true,
-        )? {
-            Definition::Function(func_id) => func_id,
-            _ => unreachable!(),
+        let Definition::Function(func_id) =
+            self.lookup_function(func_id, expr_id, &function_type, &[], Some(trait_item_id), true)?
+        else {
+            unreachable!();
         };
 
         let location = self.interner.expr_location(&expr_id);
@@ -2979,10 +2985,7 @@ pub fn perform_impl_bindings(
             }
         })?;
 
-        for (_, kind, binding) in bindings.values_mut() {
-            *kind = kind.follow_bindings();
-            *binding = binding.follow_bindings();
-        }
+        resolve_type_bindings(&mut bindings);
 
         perform_instantiation_bindings(&bindings);
     }

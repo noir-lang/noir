@@ -19,6 +19,7 @@ impl Parser<'_> {
         &mut self,
         attributes: Vec<(Attribute, Location)>,
         visibility: ItemVisibility,
+        comptime: bool,
         start_location: Location,
     ) -> NoirEnumeration {
         let attributes = self.validate_secondary_attributes(attributes);
@@ -29,6 +30,7 @@ impl Parser<'_> {
                 self.empty_ident_at_previous_token_end(),
                 attributes,
                 visibility,
+                comptime,
                 Vec::new(),
                 start_location,
             );
@@ -38,7 +40,14 @@ impl Parser<'_> {
 
         if !self.eat_left_brace() {
             self.expected_token(Token::LeftBrace);
-            return self.empty_enum(name, attributes, visibility, generics, start_location);
+            return self.empty_enum(
+                name,
+                attributes,
+                visibility,
+                comptime,
+                generics,
+                start_location,
+            );
         }
 
         let comma_separated = separated_by_comma_until_right_brace();
@@ -48,6 +57,7 @@ impl Parser<'_> {
             name,
             attributes,
             visibility,
+            comptime,
             generics,
             variants,
             location: self.location_since(start_location),
@@ -103,6 +113,7 @@ impl Parser<'_> {
         name: Ident,
         attributes: Vec<SecondaryAttribute>,
         visibility: ItemVisibility,
+        comptime: bool,
         generics: UnresolvedGenerics,
         start_location: Location,
     ) -> NoirEnumeration {
@@ -110,6 +121,7 @@ impl Parser<'_> {
             name,
             attributes,
             visibility,
+            comptime,
             generics,
             variants: Vec::new(),
             location: self.location_since(start_location),
@@ -148,6 +160,17 @@ mod tests {
         assert_eq!("Foo", noir_enum.name.to_string());
         assert!(noir_enum.variants.is_empty());
         assert!(noir_enum.generics.is_empty());
+        assert!(!noir_enum.comptime);
+    }
+
+    #[test]
+    fn parse_empty_comptime_enum() {
+        let src = "comptime enum Foo {}";
+        let noir_enum = parse_enum_no_errors(src);
+        assert_eq!("Foo", noir_enum.name.to_string());
+        assert!(noir_enum.variants.is_empty());
+        assert!(noir_enum.generics.is_empty());
+        assert!(noir_enum.comptime);
     }
 
     #[test]

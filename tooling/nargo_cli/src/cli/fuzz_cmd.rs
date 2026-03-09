@@ -121,10 +121,10 @@ fn list_harnesses_command(
         })
         .collect::<Result<_, _>>()?;
     let mut found_harness = false;
-    for (crate_name, discovered_harnesses) in all_harnesses_by_package.iter() {
+    for (crate_name, discovered_harnesses) in &all_harnesses_by_package {
         if !discovered_harnesses.is_empty() {
             println!("Package {crate_name} contains fuzzing harnesses:");
-            for harness in discovered_harnesses.iter() {
+            for harness in discovered_harnesses {
                 println!("\t{harness}");
             }
             found_harness = true;
@@ -263,7 +263,7 @@ fn run_fuzzers<S: BlackBoxFunctionSolver<FieldElement> + Default>(
     )?;
 
     let mut fuzzing_reports = Vec::new();
-    for fuzzing_harness_name in fuzzing_harnesses.into_iter() {
+    for fuzzing_harness_name in fuzzing_harnesses {
         let status = run_fuzzing_harness::<S>(
             file_manager,
             parsed_files,
