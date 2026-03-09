@@ -205,6 +205,10 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
     let mut current_window: Option<ConditionalWindow> = None;
     let mut window_counter: ConditionalWindowId = ConditionalWindowId(0);
 
+    // Remember all windows by their predicate. In case a new window shows up with a predicate we've
+    // already seen in a previous window, we can consider it to be the same window.
+    let mut windows_by_predicate = HashMap::<ValueId, ConditionalWindow>::new();
+
     let instructions = dfg[block_id].instructions();
 
     for &instruction_id in instructions {
@@ -217,10 +221,13 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
             let is_unconditional = dfg.get_numeric_constant(*condition).is_some_and(|v| v.is_one());
             if is_unconditional {
                 current_window = None;
+            } else if let Some(existing_window) = windows_by_predicate.get(condition) {
+                current_window = Some(*existing_window);
             } else {
                 window_counter = ConditionalWindowId(window_counter.0 + 1);
-                current_window =
-                    Some(ConditionalWindow { id: window_counter, predicate: *condition });
+                let new_window = ConditionalWindow { id: window_counter, predicate: *condition };
+                current_window = Some(new_window);
+                windows_by_predicate.insert(*condition, new_window);
             }
         }
 
@@ -724,5 +731,45 @@ mod tests {
         }
         "#;
         assert_ssa_does_not_change(src, Ssa::array_set_window_optimization);
+    }
+
+    #[test]
+    fn replaces_array_set_used_only_within_conditional_windows_with_the_same_predicate() {
+        // Here v5 is used outside it's original window, but it's used in a second window
+        // under the same predicate as the first one, so we consider those to be the same window.
+        let src = r#"
+        acir(inline) fn main f0 {
+        b0(v0: [Field; 3], v1: u1, v2: u1):
+            v3 = not v1
+            enable_side_effects v1
+            v6 = array_set v0, index u32 1, value Field 99
+            enable_side_effects v2
+            v7 = not v3
+            enable_side_effects v1
+            v8 = array_get v6, index u32 1 -> Field
+            enable_side_effects u1 1
+            v10 = if v1 then v6 else (if v3) v0
+            return v10
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        println!("{ssa}");
+        let ssa = ssa.array_set_window_optimization();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3], v1: u1, v2: u1):
+            v3 = not v1
+            enable_side_effects v1
+            v5 = array_get v0, index u32 0 -> Field
+            v7 = array_get v0, index u32 2 -> Field
+            v9 = make_array [v5, Field 99, v7] : [Field; 3]
+            enable_side_effects v2
+            v10 = not v3
+            enable_side_effects v1
+            enable_side_effects u1 1
+            v12 = if v1 then v9 else (if v3) v0
+            return v12
+        }
+        ");
     }
 }
