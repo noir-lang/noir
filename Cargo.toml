@@ -44,6 +44,7 @@ members = [
     "acvm-repo/bn254_blackbox_solver",
     "acvm-repo/msgpack_tagged",
     "acvm-repo/msgpack_tagged_derive",
+    "acvm-repo/t256_blackbox_solver",
     # Utility crates
     "utils/iter-extended",
 
@@ -126,6 +127,7 @@ acvm_blackbox_solver = { version = "1.0.0-beta.26", path = "acvm-repo/blackbox_s
 bn254_blackbox_solver = { version = "1.0.0-beta.26", path = "acvm-repo/bn254_blackbox_solver", default-features = false }
 msgpack_tagged = { version = "1.0.0-beta.26", path = "acvm-repo/msgpack_tagged", default-features = false }
 msgpack_tagged_derive = { version = "1.0.0-beta.26", path = "acvm-repo/msgpack_tagged_derive" }
+t256_blackbox_solver = { version = "1.0.0-beta.26", path = "acvm-repo/t256_blackbox_solver", default-features = false }
 
 # Noir compiler workspace dependencies
 fm = { path = "compiler/fm" }
@@ -161,6 +163,9 @@ ark-bn254 = { version = "^0.6.0", default-features = false, features = [
 ark-bls12-381 = { version = "^0.6.0", default-features = false, features = [
     "curve",
 ] }
+ark-secp256r1 = { version = "^0.6.0", default-features = false }
+ark-tom256 = { version = "0.6.0", default-features = false, features = ["zero-flag"] }
+#ark-tom256 = { path = "../ark-tom256", default-features = false, features = ["zero-flag"] }
 ark-grumpkin = { version = "^0.6.0", default-features = false }
 ark-ec = { version = "^0.6.0", default-features = false }
 ark-ff = { version = "^0.6.0", default-features = false, features = ["asm"] }

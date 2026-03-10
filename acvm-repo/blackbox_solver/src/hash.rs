@@ -1,5 +1,6 @@
 use acir::BlackBoxFunc;
 use blake2::{Blake2s256, Digest};
+use keccak::Keccak;
 
 use crate::BlackBoxResolutionError;
 

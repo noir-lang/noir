@@ -4,10 +4,15 @@ use std::path::Path;
 use std::rc::Rc;
 use std::{cell::RefCell, collections::BTreeMap};
 
+use super::{CompareArtifact, CompareCompiledResult, CompareOptions, HasPrograms};
+use crate::compare::compiled::ExecResult;
+use crate::compare::logging;
+use crate::{
+    Config, DisplayAstAsNoirComptime, arb_program_comptime, program_abi, program_wrap_expression,
+};
 use acir::FieldElement;
 use acir::native_types::WitnessMap;
 use arbitrary::Unstructured;
-use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use color_eyre::eyre::{self, WrapErr};
 use nargo::NargoError;
 use nargo::errors::ExecutionError;
@@ -25,13 +30,7 @@ use noirc_frontend::hir::def_collector::dc_crate::CompilationError;
 use noirc_frontend::{
     elaborator::test_utils::interpret, hir::Context, monomorphization::ast::Program,
 };
-
-use super::{CompareArtifact, CompareCompiledResult, CompareOptions, HasPrograms};
-use crate::compare::compiled::ExecResult;
-use crate::compare::logging;
-use crate::{
-    Config, DisplayAstAsNoirComptime, arb_program_comptime, program_abi, program_wrap_expression,
-};
+use t256_blackbox_solver::T256BlackboxSolver;
 
 /// Prepare a code snippet.
 /// (copied from `nargo_cli/tests/common.rs`)
@@ -240,7 +239,9 @@ impl CompareComptime {
         program: &acir::circuit::Program<FieldElement>,
         initial_witness: WitnessMap<FieldElement>,
     ) -> ExecResult {
-        let blackbox_solver = Bn254BlackBoxSolver;
+        // let blackbox_solver = Bn254BlackBoxSolver;
+        // let blackbox_solver = StubbedBlackBoxSolver;
+        let blackbox_solver = T256BlackboxSolver;
         let mut output = Vec::new();
 
         let mut foreign_call_executor =

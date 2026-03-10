@@ -29,4 +29,6 @@ proptest-derive = { workspace = true, optional = true }
 default = []
 bn254 = ["acir_field/bn254"]
 bls12_381 = ["acir_field/bls12_381"]
+p256 = ["acir_field/p256"]
+t256 = ["acir_field/t256"]
 arb = ["proptest", "proptest-derive"]

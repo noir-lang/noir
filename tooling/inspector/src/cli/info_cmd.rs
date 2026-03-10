@@ -1,6 +1,5 @@
 use std::path::{Path, PathBuf};
 
-use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 use color_eyre::eyre;
 use nargo::{foreign_calls::DefaultForeignCallBuilder, ops::execute_program_with_profiling};
@@ -9,6 +8,7 @@ use noir_artifact_cli::fs::inputs::read_inputs_from_file;
 use noirc_artifacts_info::{
     FunctionInfo, InfoReport, ProgramInfo, count_opcodes_and_gates_in_program, show_info_report,
 };
+use t256_blackbox_solver::T256BlackboxSolver;
 
 #[derive(Debug, Clone, Args)]
 pub(crate) struct InfoCommand {
@@ -136,7 +136,7 @@ fn profile_program_execution(
     let (_, profiling_samples) = execute_program_with_profiling(
         &program.bytecode,
         initial_witness,
-        &Bn254BlackBoxSolver,
+        &T256BlackboxSolver,
         &mut DefaultForeignCallBuilder::default().build(),
     )
     .map_err(|e| eyre::eyre!("Execution failed: {}", e))?;

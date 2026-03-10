@@ -14,6 +14,7 @@ workspace = true
 [dependencies]
 acvm.workspace = true
 bn254_blackbox_solver.workspace = true
+t256_blackbox_solver.workspace = true
 noirc_arena.workspace = true
 noirc_errors.workspace = true
 noirc_artifacts.workspace = true
@@ -49,4 +50,6 @@ test-case.workspace = true
 [features]
 bn254 = []
 bls12_381 = []
+p256 = []
+t256 = ["acvm/t256"]
 test_utils = []

@@ -19,6 +19,7 @@ path = "src/main.rs"
 
 [dependencies]
 bn254_blackbox_solver.workspace = true
+t256_blackbox_solver.workspace = true
 color-eyre.workspace = true
 clap.workspace = true
 itertools.workspace = true

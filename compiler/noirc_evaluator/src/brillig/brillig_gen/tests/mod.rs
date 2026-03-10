@@ -6,13 +6,6 @@
 //! that has not yet undergone linking. This means any calls, to both external functions or procedures,
 //! and jumps are expected to be unresolved. Thus any call/jump is expected to still have a label of `0`.
 
-use acvm::{
-    FieldElement,
-    acir::brillig::Opcode as BrilligOpcode,
-    brillig_vm::{VM, VMStatus},
-};
-use bn254_blackbox_solver::Bn254BlackBoxSolver;
-
 use crate::{
     brillig::{
         Brillig, BrilligOptions,
@@ -20,6 +13,14 @@ use crate::{
     },
     ssa::ssa_gen::Ssa,
 };
+use acvm::blackbox_solver::StubbedBlackBoxSolver;
+use acvm::{
+    FieldElement,
+    acir::brillig::Opcode as BrilligOpcode,
+    brillig_vm::{VM, VMStatus},
+};
+use bn254_blackbox_solver::Bn254BlackBoxSolver;
+use t256_blackbox_solver::T256BlackboxSolver;
 
 mod binary;
 mod black_box;
@@ -74,7 +75,9 @@ fn execute_bytecode(
     byte_code: &[BrilligOpcode<FieldElement>],
     calldata: Vec<FieldElement>,
 ) -> Vec<FieldElement> {
-    let solver = Bn254BlackBoxSolver;
+    // let solver = Bn254BlackBoxSolver;
+    // let solver = StubbedBlackBoxSolver;
+    let solver = T256BlackboxSolver;
     let mut vm = VM::new(calldata, byte_code, &solver, false, None);
     let status = vm.process_opcodes();
     match status {

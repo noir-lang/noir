@@ -31,3 +31,5 @@ rand.workspace = true
 [features]
 bn254 = ["noirc_frontend/bn254"]
 bls12_381 = []
+p256 = ["noirc_frontend/p256"]
+t256 = ["noirc_frontend/t256"]

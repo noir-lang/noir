@@ -1,4 +1,5 @@
 pub mod bn254;
+pub mod t256;
 use crate::{runtime::is_unconstrained, static_assert};
 use bn254::lt as bn254_lt;
 

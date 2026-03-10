@@ -3,13 +3,12 @@
 use std::path::{Path, PathBuf};
 
 use acvm::compiler::validator::validate_witness;
-use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::{Parser, Subcommand};
 use color_eyre::eyre;
 use const_format::formatcp;
-use tracing_subscriber::{EnvFilter, fmt::format::FmtSpan};
-
 use noir_artifact_cli::{Artifact, commands::execute_cmd, fs::witness::load_witness_from_file};
+use t256_blackbox_solver::T256BlackboxSolver;
+use tracing_subscriber::{EnvFilter, fmt::format::FmtSpan};
 
 const PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
 static VERSION_STRING: &str = formatcp!("version = {}\n", PKG_VERSION,);
@@ -106,7 +105,9 @@ fn check_witness_file(
     };
 
     let mut witness_stack = load_witness_from_file(witness_path)?;
-    let backend = Bn254BlackBoxSolver;
+    let backend = T256BlackboxSolver;
+    // let backend = StubbedBlackBoxSolver;
+    // let backend = Bn254BlackBoxSolver;
 
     while let Some(stack_item) = witness_stack.pop() {
         let function_index = stack_item.index as usize;

@@ -15,6 +15,7 @@ use crate::flamegraph::{BrilligExecutionSample, FlamegraphGenerator, InfernoFlam
 use crate::opcode_formatter::format_brillig_opcode;
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use noirc_artifacts::debug::DebugArtifact;
+use t256_blackbox_solver::T256BlackboxSolver;
 
 /// Generates a flamegraph mapping unconstrained Noir execution to source code.
 #[derive(Debug, Clone, Args)]
@@ -82,7 +83,8 @@ fn run_with_generator(
     let solved_witness_stack_err = nargo::ops::execute_program_with_profiling(
         &program.bytecode,
         initial_witness,
-        &Bn254BlackBoxSolver,
+        // &Bn254BlackBoxSolver,
+        &T256BlackboxSolver,
         &mut DefaultForeignCallBuilder::default().with_output(std::io::stdout()).build(),
     );
     let mut profiling_samples = match solved_witness_stack_err {

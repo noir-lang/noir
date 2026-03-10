@@ -723,7 +723,8 @@ where
         (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
     ) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>>,
 {
-    let solver = Bn254BlackBoxSolver;
+    // let solver = Bn254BlackBoxSolver;
+    let solver = StubbedBlackBoxSolver;
     let initial_witness_vec: Vec<_> =
         inputs.iter().enumerate().map(|(i, (x, _))| (Witness(i as u32), *x)).collect();
     let outputs: Vec<_> = (0..num_outputs)

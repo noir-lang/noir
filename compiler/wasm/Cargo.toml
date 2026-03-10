@@ -19,7 +19,7 @@ crate-type = ["cdylib"]
 [dependencies]
 fm.workspace = true
 noirc_driver.workspace = true
-noirc_frontend = { workspace = true, features = ["bn254"] }
+noirc_frontend = { workspace = true, features = ["t256"] }
 noirc_errors.workspace = true
 noirc_artifacts.workspace = true
 wasm-bindgen.workspace = true

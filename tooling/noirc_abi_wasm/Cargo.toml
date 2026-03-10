@@ -14,8 +14,8 @@ repository.workspace = true
 crate-type = ["cdylib"]
 
 [dependencies]
-acvm = { workspace = true, features = ["bn254"] }
-noirc_abi = { workspace = true, features = ["bn254"] }
+acvm = { workspace = true, features = ["t256"] }
+noirc_abi = { workspace = true, features = ["t256"] }
 iter-extended.workspace = true
 wasm-bindgen.workspace = true
 serde.workspace = true

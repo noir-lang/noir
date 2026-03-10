@@ -16,6 +16,6 @@ serde_json.workspace = true
 acir.workspace = true
 noirc_artifacts.workspace = true
 rayon.workspace = true
-acvm = { workspace = true, features = ["bn254"] }
+acvm = { workspace = true, features = ["t256"] }
 iter-extended.workspace = true
 prettytable-rs = "0.10"

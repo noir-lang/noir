@@ -32,3 +32,5 @@ test-case.workspace = true
 [features]
 bn254 = ["acir/bn254"]
 bls12_381 = ["acir/bls12_381"]
+p256 = ["acir/p256"]
+t256 = ["acir/t256"]

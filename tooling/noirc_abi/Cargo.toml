@@ -32,3 +32,5 @@ proptest-derive.workspace = true
 [features]
 bn254 = ["acvm/bn254"]
 bls12_381 = ["acvm/bls12_381"]
+p256 = ["acvm/p256"]
+t256 = ["acvm/t256"]

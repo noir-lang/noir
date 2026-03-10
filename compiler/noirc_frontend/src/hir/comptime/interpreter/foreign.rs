@@ -1,10 +1,5 @@
 //! The foreign function counterpart to `interpreter/builtin.rs`, defines how to call
 //! all foreign functions available to the interpreter.
-use acvm::{BlackBoxResolutionError, FieldElement, blackbox_solver::BlackBoxFunctionSolver};
-use bn254_blackbox_solver::Bn254BlackBoxSolver; // Currently locked to only bn254!
-use im::{Vector, vector};
-use noirc_errors::Location;
-
 use crate::{
     Type,
     hir::comptime::{
@@ -15,6 +10,13 @@ use crate::{
         },
     },
 };
+use acvm::{
+    AcirField, BlackBoxResolutionError, FieldElement, blackbox_solver::BlackBoxFunctionSolver,
+};
+use bn254_blackbox_solver::Bn254BlackBoxSolver; // Currently locked to only bn254!
+use im::{Vector, vector};
+use noirc_errors::Location;
+use t256_blackbox_solver::T256BlackboxSolver;
 
 use super::{
     Interpreter,
@@ -197,7 +199,7 @@ fn embedded_curve_add(
     let (p1x, p1y) = get_embedded_curve_point(point1)?;
     let (p2x, p2y) = get_embedded_curve_point(point2)?;
 
-    let (x, y) = Bn254BlackBoxSolver
+    let (x, y) = T256BlackboxSolver
         .ec_add(
             &p1x, &p1y, &p2x, &p2y,
             true, // Predicate is always true as interpreter has control flow to handle false case
@@ -233,7 +235,7 @@ fn multi_scalar_mul(
         scalars_hi.push(hi);
     }
 
-    let (x, y) = Bn254BlackBoxSolver
+    let (x, y) = T256BlackboxSolver
         .multi_scalar_mul(
             &points,
             &scalars_lo,
@@ -262,7 +264,7 @@ fn poseidon2_permutation(arguments: Vec<(Value, Location)>, location: Location) 
 
     let (input, typ) = get_array_map(input, get_field)?;
 
-    let fields = Bn254BlackBoxSolver
+    let fields = T256BlackboxSolver
         .poseidon2_permutation(&input)
         .map_err(|error| InterpreterError::BlackBoxError(error, location))?;
 

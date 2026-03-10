@@ -92,7 +92,7 @@ pub fn pedersen_hash_with_separator<let N: u32>(input: [Field; N], separator: u3
     multi_scalar_mul_array_return(generators, scalars, true)[0].x
 }
 
-#[field(bn254)]
+//#[field(bn254)]
 #[inline_always]
 pub fn derive_generators<let N: u32, let M: u32>(
     domain_separator_bytes: [u8; M],
@@ -104,7 +104,7 @@ pub fn derive_generators<let N: u32, let M: u32>(
 }
 
 #[builtin(derive_pedersen_generators)]
-#[field(bn254)]
+//#[field(bn254)]
 fn __derive_generators<let N: u32, let M: u32>(
     domain_separator_bytes: [u8; M],
     starting_index: u32,

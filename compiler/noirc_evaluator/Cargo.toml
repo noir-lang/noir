@@ -18,6 +18,7 @@ noirc_errors.workspace = true
 acvm.workspace = true
 bit-vec.workspace = true
 bn254_blackbox_solver.workspace = true
+t256_blackbox_solver.workspace = true
 rustc-hash.workspace = true
 rustc-stable-hash = "^0.1.2"
 iter-extended.workspace = true
@@ -39,6 +40,7 @@ cfg-if.workspace = true
 smallvec = { version = "1.13.2", features = ["serde"] }
 petgraph.workspace = true
 fm.workspace = true
+log = "0.4.29"
 
 [dev-dependencies]
 arbtest.workspace = true
@@ -52,4 +54,6 @@ noirc_frontend = { workspace = true, features = ["test_utils"] }
 
 [features]
 bn254 = ["noirc_frontend/bn254"]
+p256 = ["noirc_frontend/p256"]
+t256 = ["noirc_frontend/t256"]
 bls12_381 = []

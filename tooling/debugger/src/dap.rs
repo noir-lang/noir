@@ -2,7 +2,6 @@ use std::collections::BTreeMap;
 use std::io::{Read, Write};
 
 use acvm::{BlackBoxFunctionSolver, FieldElement};
-use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use nargo::NargoError;
 
 use crate::DebugProject;
@@ -25,6 +24,7 @@ use dap::types::{
     StoppedEventReason, Thread, Variable,
 };
 use noirc_artifacts::debug::DebugArtifact;
+use t256_blackbox_solver::T256BlackboxSolver;
 
 use fm::FileId;
 
@@ -615,7 +615,7 @@ pub fn run_session<R: Read, W: Write>(
         file_map: project.compiled_program.file_map.clone(),
     };
 
-    let solver = Bn254BlackBoxSolver;
+    let solver = T256BlackboxSolver;
     let mut session =
         DapSession::new(server, &solver, &project, &debug_artifact, run_params.oracle_resolver_url);
 

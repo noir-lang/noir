@@ -15,7 +15,6 @@ use std::{
 };
 
 use acvm::{BlackBoxFunctionSolver, FieldElement};
-use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 use fm::FileManager;
 use formatters::{Formatter, JsonFormatter, PrettyFormatter, TerseFormatter};
@@ -36,6 +35,7 @@ use noirc_frontend::graph::CrateId;
 use noirc_frontend::hir::{
     Context, FunctionNameMatch, ParsedFiles, comptime::EvaluationTracker, def_map::TestFunction,
 };
+use t256_blackbox_solver::T256BlackboxSolver;
 
 use crate::errors::CliError;
 
@@ -589,7 +589,7 @@ impl<'a> TestRunner<'a> {
                             let Some(package) = iter.lock().unwrap().next() else {
                                 break;
                             };
-                            let collected = self.collect_package_tests::<Bn254BlackBoxSolver>(
+                            let collected = self.collect_package_tests::<T256BlackboxSolver>(
                                 package,
                                 self.args.oracle_resolver.as_ref().map(|url| url.as_str()),
                                 Some(self.workspace.root_dir.clone()),

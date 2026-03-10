@@ -26,6 +26,8 @@ pub trait BlackBoxFunctionSolver<F> {
 
     fn poseidon2_permutation(&self, inputs: &[F]) -> Result<Vec<F>, BlackBoxResolutionError>;
 }
+
+#[derive(Default)]
 pub struct StubbedBlackBoxSolver;
 
 impl StubbedBlackBoxSolver {
@@ -37,7 +39,7 @@ impl StubbedBlackBoxSolver {
     }
 }
 
-impl<F> BlackBoxFunctionSolver<F> for StubbedBlackBoxSolver {
+impl<F: Clone> BlackBoxFunctionSolver<F> for StubbedBlackBoxSolver {
     fn multi_scalar_mul(
         &self,
         _points: &[F],
@@ -58,6 +60,8 @@ impl<F> BlackBoxFunctionSolver<F> for StubbedBlackBoxSolver {
         Err(Self::fail(BlackBoxFunc::EmbeddedCurveAdd))
     }
     fn poseidon2_permutation(&self, _inputs: &[F]) -> Result<Vec<F>, BlackBoxResolutionError> {
-        Err(Self::fail(BlackBoxFunc::Poseidon2Permutation))
+        // this is just to satisfy some comptime stuff in Noir's stdlib
+        Ok(Vec::from(_inputs))
+        // Err(Self::fail(BlackBoxFunc::Poseidon2Permutation))
     }
 }

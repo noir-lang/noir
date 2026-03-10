@@ -563,7 +563,7 @@ fn split_into_64_bit_limbs(x: u128) -> (u64, u64) {
     (x_lo, x_hi)
 }
 
-#[field(bn254)]
+//#[field(bn254)]
 fn wrapping_mul128_hlp(x: u128, y: u128) -> u128 {
     let (x_lo, x_hi) = split_into_64_bit_limbs(x);
     let (y_lo, y_hi) = split_into_64_bit_limbs(y);

@@ -26,14 +26,15 @@ use acvm::{
     },
     brillig_vm::MemoryValue,
 };
-use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use noirc_printable_type::PrintableValueDisplay;
+use t256_blackbox_solver::T256BlackboxSolver;
 
 use crate::{
     foreign_calls::DebugForeignCallExecutor, source_code_printer::print_source_code_location,
 };
 
-type Context<'a> = DebugContext<'a, Bn254BlackBoxSolver>;
+// type Context<'a> = DebugContext<'a, Bn254BlackBoxSolver>;
+type Context<'a> = DebugContext<'a, T256BlackboxSolver>;
 
 #[derive(Debug, Clone)]
 pub(super) enum DebugCommandAPI {
@@ -109,7 +110,8 @@ impl<'a> AsyncReplDebugger<'a> {
         mut self,
         foreign_call_executor: Box<dyn DebugForeignCallExecutor + 'a>,
     ) {
-        let blackbox_solver = &Bn254BlackBoxSolver;
+        // let blackbox_solver = &Bn254BlackBoxSolver;
+        let blackbox_solver = &T256BlackboxSolver;
         let circuits = &self.circuits.clone();
         let unconstrained_functions = &self.unconstrained_functions.clone();
         let mut context = DebugContext::new(

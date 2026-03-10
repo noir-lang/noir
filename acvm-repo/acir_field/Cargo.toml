@@ -25,7 +25,8 @@ msgpack_tagged.workspace = true
 ark-bn254.workspace = true
 ark-bls12-381 = { workspace = true, optional = true }
 ark-ff.workspace = true
-
+ark-secp256r1 = { workspace= true, optional = true }
+ark-tom256 = { workspace = true, optional = true }
 cfg-if.workspace = true
 
 [dev-dependencies]
@@ -35,6 +36,8 @@ criterion.workspace = true
 [features]
 bn254 = []
 bls12_381 = ["dep:ark-bls12-381"]
+p256 = ["dep:ark-secp256r1"]
+t256 = ["dep:ark-tom256", "dep:ark-secp256r1"]
 
 [[bench]]
 name = "field_element"

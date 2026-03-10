@@ -28,6 +28,7 @@ log.workspace = true
 acir.workspace = true
 acvm.workspace = true
 bn254_blackbox_solver.workspace = true
+t256_blackbox_solver.workspace = true
 iter-extended.workspace = true
 nargo.workspace = true
 noirc_abi.workspace = true

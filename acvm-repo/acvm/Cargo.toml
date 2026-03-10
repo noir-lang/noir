@@ -32,6 +32,16 @@ bls12_381 = [
     "brillig_vm/bls12_381",
     "acvm_blackbox_solver/bls12_381",
 ]
+p256 = [
+    "acir/p256",
+    "brillig_vm/p256",
+    "acvm_blackbox_solver/p256"
+]
+t256 = [
+    "acir/t256",
+    "brillig_vm/t256",
+    "acvm_blackbox_solver/t256"
+]
 generate-test-fixtures = ["dep:bn254_blackbox_solver", "acir/test-fixtures"]
 
 [[bin]]

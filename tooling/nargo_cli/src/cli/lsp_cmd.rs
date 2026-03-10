@@ -2,12 +2,12 @@ use async_lsp::{
     concurrency::ConcurrencyLayer, panic::CatchUnwindLayer, server::LifecycleLayer,
     tracing::TracingLayer,
 };
-use bn254_blackbox_solver::Bn254BlackBoxSolver;
+// use bn254_blackbox_solver::Bn254BlackBoxSolver;
+use crate::errors::CliError;
 use clap::Args;
 use noir_lsp::NargoLspService;
+use t256_blackbox_solver::T256BlackboxSolver;
 use tower::ServiceBuilder;
-
-use crate::errors::CliError;
 
 /// Starts the Noir LSP server
 ///
@@ -24,7 +24,9 @@ pub(crate) fn run() -> Result<(), CliError> {
 
     runtime.block_on(async {
         let (server, _) = async_lsp::MainLoop::new_server(|client| {
-            let router = NargoLspService::new(&client, Bn254BlackBoxSolver);
+            // let router = NargoLspService::new(&client, Bn254BlackBoxSolver);
+            // let router = NargoLspService::new(&client, StubbedBlackBoxSolver);
+            let router = NargoLspService::new(&client, T256BlackboxSolver);
 
             ServiceBuilder::new()
                 .layer(TracingLayer::default())
