@@ -186,6 +186,19 @@ Example:
 
 #include_code bounded-vec-max-len-example test_programs/noir_test_success/bounded_vec/src/main.nr rust
 
+### set_len
+
+```rust
+pub fn set_len(&mut self, len: u32) {
+```
+
+Sets the length of the BoundedVec manually. This is useful to update the length after
+updating the content of the vector using `set_unchecked`.
+
+Example:
+
+#include_code bounded-vec-set-len-example test_programs/noir_test_success/bounded_vec/src/main.nr rust
+
 ### storage
 
 ```rust
