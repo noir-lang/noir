@@ -871,7 +871,10 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             Value::Unit => self.push_str("()"),
             Value::Bool(bool) => self.push_str(&bool.to_string()),
             Value::Integer(int) => self.push_str(&int.to_string()),
-            Value::String(string) => self.push_str(&format!("{string:?}")),
+            Value::String(bytes) => {
+                let string = String::from_utf8_lossy(bytes);
+                self.push_str(&format!("{string:?}"));
+            }
             Value::FormatString(fragments, _typ, _) => {
                 let has_values = fragments
                     .iter()
@@ -918,7 +921,8 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                     self.push_str(" }");
                 }
             }
-            Value::CtString(string) => {
+            Value::CtString(bytes) => {
+                let string = String::from_utf8_lossy(bytes);
                 let std = if self.crate_id.is_stdlib() { "std" } else { "crate" };
                 self.push_str(&format!(
                     "{std}::meta::ctstring::AsCtString::as_ctstring({string:?})"

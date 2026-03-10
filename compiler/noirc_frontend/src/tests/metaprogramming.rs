@@ -45,8 +45,7 @@ fn comptime_code_rejects_dynamic_variable() {
 fn comptime_type_in_runtime_code() {
     let source = "
     pub fn foo(_f: FunctionDefinition) {}
-                   ^^^^^^^^^^^^^^^^^^ Comptime-only type `FunctionDefinition` cannot be used in runtime code
-                   ~~~~~~~~~~~~~~~~~~ Comptime-only type used here
+                   ^^^^^^^^^^^^^^^^^^ Comptime-only type `FunctionDefinition` cannot be used in non-comptime function
     ";
     check_errors(source);
 }
@@ -80,7 +79,7 @@ fn unquoted_integer_as_integer_token() {
     pub fn foobar() {}
 
     comptime fn attr(_f: FunctionDefinition) -> Quoted {
-        let serialized_len = 1;
+        let serialized_len = 1_u32;
         // We are testing that when we unquote $serialized_len, it's unquoted
         // as the token `1` and not as something else that later won't be parsed correctly
         // in the context of a generic argument.
@@ -108,7 +107,7 @@ fn unquoted_integer_as_integer_token() {
     }
 
     comptime fn attr(_f: FunctionDefinition) -> Quoted {
-        let serialized_len: Field = 1_Field;
+        let serialized_len: u32 = 1_u32;
         quote {
             impl Serialize < $serialized_len > for Field {
                 fn serialize() {
@@ -1181,10 +1180,8 @@ fn error_on_self_on_trait_impl_for_comptime_type_on_non_comptime_function_with_e
 
     impl Trait for Quoted {
         fn foo(self: Self) -> Self {
-                              ^^^^ Comptime-only type `Quoted` cannot be used in runtime code
-                              ~~~~ Comptime-only type used here
-                     ^^^^ Comptime-only type `Quoted` cannot be used in runtime code
-                     ~~~~ Comptime-only type used here
+                              ^^^^ Comptime-only type `Quoted` cannot be used in non-comptime function
+                     ^^^^ Comptime-only type `Quoted` cannot be used in non-comptime function
             self
         }
     }
@@ -1201,8 +1198,7 @@ fn error_on_self_on_trait_impl_for_comptime_type_on_non_comptime_function_with_i
 
     impl Trait for Quoted {
         fn foo(self) {
-               ^^^^ Comptime-only type `Quoted` cannot be used in runtime code
-               ~~~~ Comptime-only type used here
+               ^^^^ Comptime-only type `Quoted` cannot be used in non-comptime function
         }
     }
     "#;

@@ -156,7 +156,9 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
 
         // Run SSA passes in the pipeline and interpret the ones we are interested in.
         for (i, ssa_pass) in ssa_passes.iter().enumerate() {
-            let msg = format!("{} (step {})", ssa_pass.msg(), i + 1);
+            let last_step = i == ssa_passes.len() - 1;
+            let last_step_msg = if last_step { " (last step)" } else { "" };
+            let msg = format!("{} (step {}){last_step_msg}", ssa_pass.msg(), i + 1);
 
             if msg_matches(&args.compile_options.skip_ssa_pass, &msg) {
                 continue;

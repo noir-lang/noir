@@ -192,9 +192,9 @@ pub(crate) fn get_fixed_array_map<T, const N: usize>(
     })
 }
 
-pub(crate) fn get_str((value, location): (Value, Location)) -> IResult<Rc<String>> {
+pub(crate) fn get_str((value, location): (Value, Location)) -> IResult<Rc<Vec<u8>>> {
     match value {
-        Value::String(string) => Ok(string),
+        Value::String(bytes) => Ok(bytes),
         value => {
             let expected = "str";
             type_mismatch(value, expected, location)
@@ -202,9 +202,9 @@ pub(crate) fn get_str((value, location): (Value, Location)) -> IResult<Rc<String
     }
 }
 
-pub(crate) fn get_ctstring((value, location): (Value, Location)) -> IResult<Rc<String>> {
+pub(crate) fn get_ctstring((value, location): (Value, Location)) -> IResult<Rc<Vec<u8>>> {
     match value {
-        Value::CtString(string) => Ok(string),
+        Value::CtString(bytes) => Ok(bytes),
         value => type_mismatch(value, Type::Quoted(QuotedType::CtString), location),
     }
 }

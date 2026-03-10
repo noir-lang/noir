@@ -44,9 +44,9 @@ pub enum Value {
     Unit,
     Bool(bool),
     Integer(Integer),
-    String(Rc<String>),
+    String(Rc<Vec<u8>>),
     FormatString(Rc<Vec<FormatStringFragment>>, Type, u32 /* length */),
-    CtString(Rc<String>),
+    CtString(Rc<Vec<u8>>),
     Function(FuncId, Type, Rc<TypeBindings>),
 
     /// Closures also store their original scope (function & module)
@@ -222,8 +222,11 @@ impl Value {
             Value::Unit => Literal(Unit),
             Value::Bool(value) => Literal(Bool(value)),
             Value::Integer(value) => value.into_expression_kind(),
-            Value::String(value) => Literal(Str(unwrap_rc(value))),
-            Value::CtString(value) => {
+            Value::String(bytes) => {
+                let string = String::from_utf8_lossy(&bytes);
+                ExpressionKind::Literal(Str(string.to_string()))
+            }
+            Value::CtString(bytes) => {
                 // Lower to `std::meta::AsCtString::as_ctstring(contents)`
                 let ident = |name: &str| Ident::new(name.to_string(), location);
                 let segment = |name: &str| PathSegment::from(ident(name));
@@ -250,7 +253,8 @@ impl Value {
                     segment("AsCtString"),
                     segment("as_ctstring"),
                 ]);
-                let contents = Expression { kind: Literal(Str(unwrap_rc(value))), location };
+                let string = String::from_utf8_lossy(&bytes);
+                let contents = Expression { kind: Literal(Str(string.into_owned())), location };
                 call(as_ctstring, vec![contents])
             }
             Value::FormatString(fragments, _, length) => {
@@ -329,24 +333,31 @@ impl Value {
                 })?;
                 ExpressionKind::Tuple(fields)
             }
-            Value::Struct(fields, typ) => {
-                let fields = try_vecmap(fields, |(name, field)| {
-                    let field = field.unwrap_or_clone().into_expression(elaborator, location)?;
-                    Ok((Ident::new(unwrap_rc(name), location), field))
-                })?;
-
-                let typ = match typ.follow_bindings_shallow().as_ref() {
-                    Type::DataType(data_type, generics) => {
-                        Type::DataType(data_type.clone(), generics.clone())
-                    }
-                    _ => return Err(InterpreterError::NonStructInConstructor { typ, location }),
+            Value::Struct(mut fields, typ) => {
+                let Type::DataType(data_type, generics) = typ.follow_bindings() else {
+                    return Err(InterpreterError::NonStructInConstructor { typ, location });
                 };
+
+                // Preserve the order of fields as they were defined in the struct definition.
+                let mut ordered_fields = Vec::new();
+                for field in data_type.borrow().fields_raw().unwrap() {
+                    let name = field.name.as_string();
+                    let Some(field) = fields.remove(name) else {
+                        continue;
+                    };
+                    let field = field.unwrap_or_clone().into_expression(elaborator, location)?;
+                    ordered_fields.push((Ident::new(name.to_string(), location), field));
+                }
+                let typ = Type::DataType(data_type, generics);
 
                 let quoted_type_id = elaborator.interner.push_quoted_type(typ);
 
                 let typ = UnresolvedTypeData::Resolved(quoted_type_id);
                 let typ = UnresolvedType { typ, location };
-                ExpressionKind::Constructor(Box::new(ConstructorExpression { typ, fields }))
+                ExpressionKind::Constructor(Box::new(ConstructorExpression {
+                    typ,
+                    fields: ordered_fields,
+                }))
             }
             value @ Value::Enum(..) => {
                 let hir = value.into_runtime_hir_expression(elaborator.interner, location)?;
@@ -451,7 +462,10 @@ impl Value {
             Value::Unit => HirExpression::Literal(HirLiteral::Unit),
             Value::Bool(value) => HirExpression::Literal(HirLiteral::Bool(value)),
             Value::Integer(int) => int.into_hir_expression(),
-            Value::String(value) => HirExpression::Literal(HirLiteral::Str(unwrap_rc(value))),
+            Value::String(bytes) => {
+                let string = String::from_utf8_lossy(&bytes);
+                HirExpression::Literal(HirLiteral::Str(string.to_string()))
+            }
             Value::FormatString(fragments, _typ, length) => {
                 let mut captures = Vec::new();
                 let mut new_fragments = Vec::with_capacity(fragments.len());
@@ -486,29 +500,33 @@ impl Value {
                 })?;
                 HirExpression::Tuple(fields)
             }
-            Value::Struct(fields, typ) => {
-                let fields = try_vecmap(fields, |(name, field)| {
-                    let field =
-                        field.unwrap_or_clone().into_runtime_hir_expression(interner, location)?;
-                    Ok((Ident::new(unwrap_rc(name), location), field))
-                })?;
-
-                let (r#type, struct_generics) = match typ.follow_bindings() {
-                    Type::DataType(def, generics) => (def, generics),
-                    _ => return Err(InterpreterError::NonStructInConstructor { typ, location }),
+            Value::Struct(mut fields, typ) => {
+                let Type::DataType(data_type, generics) = typ.follow_bindings() else {
+                    return Err(InterpreterError::NonStructInConstructor { typ, location });
                 };
 
+                // Preserve the order of fields as they were defined in the struct definition.
+                let mut ordered_fields = Vec::new();
+                for field in data_type.borrow().fields_raw().unwrap() {
+                    let name = field.name.as_string();
+                    let Some(field) = fields.remove(name) else {
+                        continue;
+                    };
+                    let field =
+                        field.unwrap_or_clone().into_runtime_hir_expression(interner, location)?;
+                    ordered_fields.push((Ident::new(name.to_string(), location), field));
+                }
+
                 HirExpression::Constructor(HirConstructorExpression {
-                    r#type,
-                    struct_generics,
-                    fields,
+                    r#type: data_type,
+                    struct_generics: generics,
+                    fields: ordered_fields,
                 })
             }
             Value::Enum(variant_index, args, typ) => {
                 // Enum constants can have generic types but aren't functions
-                let r#type = match typ.unwrap_forall().1.follow_bindings() {
-                    Type::DataType(def, _) => def,
-                    _ => return Err(InterpreterError::NonEnumInConstructor { typ, location }),
+                let Type::DataType(r#type, _) = typ.unwrap_forall().1.follow_bindings() else {
+                    return Err(InterpreterError::NonEnumInConstructor { typ, location });
                 };
 
                 let arguments =
@@ -605,8 +623,9 @@ impl Value {
                 vec![Token::QuotedType(interner.push_quoted_type(typ))]
             }
             Value::TypedExpr(TypedExpr::ExprId(expr_id)) => vec![Token::UnquoteMarker(expr_id)],
-            Value::String(value) | Value::CtString(value) => {
-                vec![Token::Str(unwrap_rc(value))]
+            Value::String(bytes) | Value::CtString(bytes) => {
+                let string = String::from_utf8_lossy(&bytes);
+                vec![Token::Str(string.to_string())]
             }
             Value::FormatString(fragments, _, _) => {
                 // When a fmtstr is unquoted, we turn it into a normal string by evaluating the interpolations

@@ -231,7 +231,7 @@ impl ExpressionSolver {
         // This is the sum of all of the known variables
         let mut result = F::zero();
 
-        for term in linear_combinations.iter() {
+        for term in linear_combinations {
             let value = ExpressionSolver::solve_fan_in_term_helper(term, witness_assignments);
             match value {
                 Some(a) => result += a,

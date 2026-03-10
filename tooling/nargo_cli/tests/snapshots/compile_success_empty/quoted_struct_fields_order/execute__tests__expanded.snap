@@ -1,0 +1,40 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct Config {
+    alpha: Field,
+    beta: Field,
+    gamma: Field,
+    delta: Field,
+    epsilon: Field,
+    zeta: Field,
+    eta: Field,
+    theta: Field,
+}
+
+impl Eq for Config {
+    fn eq(_self: Self, _other: Self) -> bool {
+        (
+            (
+                (
+                    (
+                        (
+                            ((_self.alpha == _other.alpha) & (_self.beta == _other.beta))
+                                & (_self.gamma == _other.gamma)
+                        )
+                            & (_self.delta == _other.delta)
+                    )
+                        & (_self.epsilon == _other.epsilon)
+                )
+                    & (_self.zeta == _other.zeta)
+            )
+                & (_self.eta == _other.eta)
+        )
+            & (_self.theta == _other.theta)
+    }
+}
+
+fn main() {
+    ()
+}

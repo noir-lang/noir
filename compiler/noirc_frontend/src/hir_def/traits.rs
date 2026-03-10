@@ -240,7 +240,7 @@ impl Trait {
     }
 
     pub fn find_method(&self, name: &str, interner: &NodeInterner) -> Option<DefinitionId> {
-        for method in self.methods.iter() {
+        for method in &self.methods {
             if &method.name == name {
                 let id = *self.method_ids.get(name).unwrap();
                 return Some(interner.function_definition_id(id));

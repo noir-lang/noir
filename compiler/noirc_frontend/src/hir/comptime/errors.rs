@@ -244,7 +244,7 @@ pub enum InterpreterError {
         location: Location,
     },
     GenericNameShouldBeAnIdent {
-        name: Rc<String>,
+        name: String,
         location: Location,
     },
     DuplicateGeneric {

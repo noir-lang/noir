@@ -203,10 +203,7 @@ impl Integer {
 impl Display for Integer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Integer::Field(value) => {
-                // write!(f, "{value}") // This would display the Field as a number, but it doesn't match the runtime.
-                write!(f, "{}", value.to_short_hex())
-            }
+            Integer::Field(value) => write!(f, "{}", value.to_short_hex()),
             Integer::I8(value) => write!(f, "{value}"),
             Integer::I16(value) => write!(f, "{value}"),
             Integer::I32(value) => write!(f, "{value}"),

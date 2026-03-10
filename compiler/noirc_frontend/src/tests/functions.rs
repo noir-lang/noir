@@ -419,3 +419,36 @@ fn invalid_generic_fold_entry_point_input_type() {
     "#;
     check_monomorphization_error(src);
 }
+
+#[test]
+fn errors_if_using_comptime_type_alias_in_fn() {
+    let src = r#"
+    pub comptime type Alias = Quoted;
+
+    pub fn foo(_: Alias) {}
+                  ^^^^^ Comptime-only type `Alias` cannot be used in non-comptime function
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_if_using_comptime_struct_in_fn() {
+    let src = r#"
+    pub comptime struct Foo {}
+
+    pub fn foo(_: Foo) {}
+                  ^^^ Comptime-only type `Foo` cannot be used in non-comptime function
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_if_using_comptime_enum_in_fn() {
+    let src = r#"
+    pub comptime enum Foo {}
+
+    pub fn foo(_: Foo) {}
+                  ^^^ Comptime-only type `Foo` cannot be used in non-comptime function
+    "#;
+    check_errors(src);
+}

@@ -513,7 +513,7 @@ impl Type {
 
 impl HirLValue {
     /// Convert to AST for display (some details lost)
-    fn to_display_ast(&self, interner: &NodeInterner) -> LValue {
+    pub(crate) fn to_display_ast(&self, interner: &NodeInterner) -> LValue {
         match self {
             HirLValue::Ident(path, _) => {
                 LValue::Path(Path::from_ident(path.to_display_ast(interner)))
@@ -527,9 +527,14 @@ impl HirLValue {
                 let index = index.to_display_ast(interner);
                 LValue::Index { array, index, location: *location }
             }
-            HirLValue::Dereference { lvalue, element_type: _, location, implicitly_added: _ } => {
-                let lvalue = Box::new(lvalue.to_display_ast(interner));
-                LValue::Dereference(lvalue, *location)
+            HirLValue::Dereference { lvalue, element_type: _, location, implicitly_added } => {
+                let lvalue = lvalue.to_display_ast(interner);
+                if *implicitly_added {
+                    lvalue
+                } else {
+                    let lvalue = Box::new(lvalue);
+                    LValue::Dereference(lvalue, *location)
+                }
             }
             HirLValue::Error { location } => {
                 LValue::Path(Path::from_single("(unknown-variable)".to_string(), *location))

@@ -15,7 +15,7 @@ use crate::{
     token::FmtStrFragment,
 };
 
-/// These are the opcodes which the monomorphizer can replace with functions.
+/// These are the opcodes which the monomorphizer can replace with static results.
 /// Any opcode not included is forwarded to SSA as a built-in function.
 enum HandledOpcode {
     CheckedTransmute,
@@ -24,6 +24,8 @@ enum HandledOpcode {
     ModulusLeBits,
     ModulusLeBytes,
     ModulusNumBits,
+    // Unlike the others this is a #[foreign] function.
+    Poseidon2ConfigStateSize,
     Zeroed,
 }
 
@@ -81,6 +83,7 @@ impl Monomorphizer<'_> {
             HandledOpcode::ModulusLeBits => self.modulus_le_bits(location),
             HandledOpcode::ModulusLeBytes => self.modulus_le_bytes(location),
             HandledOpcode::ModulusNumBits => Self::modulus_num_bits(location),
+            HandledOpcode::Poseidon2ConfigStateSize => Self::poseidon2_config_state_size(location),
             HandledOpcode::Zeroed => self.zeroed_value_of_type(&converted_return_type, location),
         };
 
@@ -257,8 +260,8 @@ impl Monomorphizer<'_> {
         })
     }
 
-    /// Try to call certain builtin functions with the given arguments, returning the result as an
-    /// expression.
+    /// Try to call certain builtin functions with the given arguments,
+    /// returning the result as an expression.
     pub(super) fn try_evaluate_builtin_call(
         &mut self,
         func: &ast::Expression,
@@ -268,7 +271,7 @@ impl Monomorphizer<'_> {
         result_type: &ast::Type,
     ) -> Result<Option<ast::Expression>, MonomorphizationError> {
         if let ast::Expression::Ident(ident) = func
-            && let Definition::Builtin(opcode) = &ident.definition
+            && let Definition::Builtin(opcode) | Definition::LowLevel(opcode) = &ident.definition
         {
             let location = self.interner.expr_location(expr_id);
 
@@ -285,6 +288,9 @@ impl Monomorphizer<'_> {
                 Some(HandledOpcode::ModulusLeBits) => self.modulus_le_bits(location),
                 Some(HandledOpcode::ModulusLeBytes) => self.modulus_le_bytes(location),
                 Some(HandledOpcode::ModulusNumBits) => Self::modulus_num_bits(location),
+                Some(HandledOpcode::Poseidon2ConfigStateSize) => {
+                    Self::poseidon2_config_state_size(location)
+                }
                 Some(HandledOpcode::Zeroed) => self.zeroed_value_of_type(result_type, location),
                 None => return Ok(None),
             }));
@@ -317,6 +323,13 @@ impl Monomorphizer<'_> {
         let typ = ast::Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour);
         ast::Expression::Literal(ast::Literal::Integer(bits.into(), typ, location))
     }
+
+    fn poseidon2_config_state_size(location: Location) -> ast::Expression {
+        let size = bn254_blackbox_solver::poseidon2_config_state_size();
+        let typ = ast::Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
+        let size = SignedField::positive(size);
+        ast::Expression::Literal(ast::Literal::Integer(size, typ, location))
+    }
 }
 
 impl HandledOpcode {
@@ -328,6 +341,7 @@ impl HandledOpcode {
             "modulus_le_bits" => Some(Self::ModulusLeBits),
             "modulus_le_bytes" => Some(Self::ModulusLeBytes),
             "modulus_num_bits" => Some(Self::ModulusNumBits),
+            "poseidon2_config_state_size" => Some(Self::Poseidon2ConfigStateSize),
             "zeroed" => Some(Self::Zeroed),
             _ => None,
         }

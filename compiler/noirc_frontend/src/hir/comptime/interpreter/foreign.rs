@@ -8,8 +8,11 @@ use noirc_errors::Location;
 use crate::{
     Type,
     hir::comptime::{
-        InterpreterError, Value, errors::IResult,
-        interpreter::builtin::builtin_helpers::to_byte_array,
+        InterpreterError, Value,
+        errors::IResult,
+        interpreter::{
+            builtin::builtin_helpers::to_byte_array, builtin_helpers::check_argument_count,
+        },
     },
 };
 
@@ -58,6 +61,7 @@ fn call_foreign(
         "embedded_curve_add" => embedded_curve_add(args, return_type, location),
         "multi_scalar_mul" => multi_scalar_mul(args, return_type, location),
         "poseidon2_permutation" => poseidon2_permutation(args, location),
+        "poseidon2_config_state_size" => poseidon2_config_state_size(args, location),
         "keccakf1600" => keccakf1600(args, location),
         "sha256_compression" => sha256_compression(args, location),
         _ => {
@@ -239,6 +243,15 @@ fn poseidon2_permutation(arguments: Vec<(Value, Location)>, location: Location) 
 
     let array = fields.into_iter().map(Value::field).collect();
     Ok(Value::Array(array, typ))
+}
+
+fn poseidon2_config_state_size(
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    check_argument_count(0, &arguments, location)?;
+    let size = bn254_blackbox_solver::poseidon2_config_state_size();
+    Ok(Value::u32(size))
 }
 
 /// `fn keccakf1600(input: [u64; 25]) -> [u64; 25] {}`
