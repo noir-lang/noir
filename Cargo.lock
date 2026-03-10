@@ -1395,9 +1395,9 @@ checksum = "460fbee9c2c2f33933d720630a6a0bac33ba7053db5344fac858d4b8952d77d5"
 
 [[package]]
 name = "crypto-bigint"
-version = "0.7.0"
+version = "0.7.0-rc.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4f438b626cb7c9dd48a613a9826e6bad9db71097f9d628f7237af2f6bc13c0ec"
+checksum = "cba9eeeb213f7fd29353032f71f7c173e5f6d95d85151cb3a47197b0ea7e8be7"
 dependencies = [
  "cpubits",
  "ctutils",
@@ -6167,7 +6167,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "82a72c767771b47409d2345987fda8628641887d5466101319899796367354a0"
 dependencies = [
  "fastrand",
- "getrandom 0.4.2",
+ "getrandom 0.3.4",
  "once_cell",
  "rustix 1.1.4",
  "windows-sys 0.61.2",
