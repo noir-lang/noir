@@ -33,9 +33,12 @@ struct MyStruct<let S: u32> {
 }
 
 impl<let S: u32> MyStruct<S> {
-    pub fn insert(mut self, index: Field, elem: Field) -> Self {
+    fn insert(mut self, index: Field, elem: Field) -> Self {
         assert((index as u32) < S);
-        self.data[index as u32] = elem;
+        {
+            let i_4492: u32 = index as u32;
+            self.data[i_4492] = elem;
+        };
         self
     }
 }

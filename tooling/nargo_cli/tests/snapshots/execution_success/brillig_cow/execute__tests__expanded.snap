@@ -21,7 +21,10 @@ fn modify_in_inlined_constrained(original: [Field; 5], index: u32) -> ExecutionR
     let mut modified: [Field; 5] = original;
     modified[index] = 27_Field;
     let modified_once: [Field; 5] = modified;
-    modified[index + 1_u32] = 27_Field;
+    {
+        let i_4476: u32 = index + 1_u32;
+        modified[i_4476] = 27_Field;
+    };
     ExecutionResult { original: original, modified_once: modified_once, modified_twice: modified }
 }
 
@@ -29,7 +32,10 @@ unconstrained fn modify_in_unconstrained(original: [Field; 5], index: u32) -> Ex
     let mut modified: [Field; 5] = original;
     modified[index] = 27_Field;
     let modified_once: [Field; 5] = modified;
-    modified[index + 1_u32] = 27_Field;
+    {
+        let i_4479: u32 = index + 1_u32;
+        modified[i_4479] = 27_Field;
+    };
     ExecutionResult { original: original, modified_once: modified_once, modified_twice: modified }
 }
 
