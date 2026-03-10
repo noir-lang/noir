@@ -66,17 +66,38 @@ pub enum Value {
     Array(Vector<Value>, Type),
     Vector(Vector<Value>, Type),
     Quoted(Rc<Vec<LocatedToken>>),
-    TypeDefinition(TypeId),
+    TypeDefinition(Protected<TypeId>),
     TraitConstraint(TraitId, TraitGenerics),
     TraitDefinition(TraitId),
     TraitImpl(TraitImplId),
-    FunctionDefinition(FuncId),
-    ModuleDefinition(ModuleId),
+    FunctionDefinition(Protected<FuncId>),
+    ModuleDefinition(Protected<ModuleId>),
     Type(Type),
     Zeroed(Type),
     Expr(Box<ExprValue>),
     TypedExpr(TypedExpr),
     UnresolvedType(UnresolvedTypeData),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Protected<T: Copy> {
+    Mutable(T),
+    Readonly(T),
+}
+
+impl<T: Copy> Protected<T> {
+    pub fn read_access(&self) -> T {
+        match self {
+            Protected::Mutable(value) | Protected::Readonly(value) => *value,
+        }
+    }
+
+    pub fn write_access(&self) -> Option<T> {
+        match self {
+            Protected::Mutable(value) => Some(*value),
+            Protected::Readonly(_) => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

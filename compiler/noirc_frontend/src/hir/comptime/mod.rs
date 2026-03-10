@@ -22,4 +22,4 @@ pub use display::{tokens_to_string, tokens_to_string_with_indent};
 pub use errors::{ComptimeError, InterpreterError};
 pub use integer::Integer;
 pub use interpreter::Interpreter;
-pub use value::{FormatStringFragment, Value};
+pub use value::{FormatStringFragment, Protected, Value};

@@ -289,23 +289,63 @@ pub(crate) fn get_format_string(
     }
 }
 
-pub(crate) fn get_function_def((value, location): (Value, Location)) -> IResult<FuncId> {
+pub(crate) fn get_function_def_for_read_access(
+    (value, location): (Value, Location),
+) -> IResult<FuncId> {
     match value {
-        Value::FunctionDefinition(id) => Ok(id),
+        Value::FunctionDefinition(id) => Ok(id.read_access()),
         value => type_mismatch(value, Type::Quoted(QuotedType::FunctionDefinition), location),
     }
 }
 
-pub(crate) fn get_module((value, location): (Value, Location)) -> IResult<ModuleId> {
+pub(crate) fn get_function_def_for_write_access(
+    (value, location): (Value, Location),
+) -> IResult<FuncId> {
     match value {
-        Value::ModuleDefinition(module_id) => Ok(module_id),
+        Value::FunctionDefinition(id) => match id.write_access() {
+            Some(id) => Ok(id),
+            None => Err(InterpreterError::CannotMutateFunction { location }),
+        },
+        value => type_mismatch(value, Type::Quoted(QuotedType::FunctionDefinition), location),
+    }
+}
+
+pub(crate) fn get_module_for_read_access(
+    (value, location): (Value, Location),
+) -> IResult<ModuleId> {
+    match value {
+        Value::ModuleDefinition(module_id) => Ok(module_id.read_access()),
         value => type_mismatch(value, Type::Quoted(QuotedType::Module), location),
     }
 }
 
-pub(crate) fn get_type_id((value, location): (Value, Location)) -> IResult<TypeId> {
+pub(crate) fn get_module_for_write_access(
+    (value, location): (Value, Location),
+) -> IResult<ModuleId> {
     match value {
-        Value::TypeDefinition(id) => Ok(id),
+        Value::ModuleDefinition(module_id) => match module_id.write_access() {
+            Some(module_id) => Ok(module_id),
+            None => Err(InterpreterError::CannotMutateModule { location }),
+        },
+        value => type_mismatch(value, Type::Quoted(QuotedType::Module), location),
+    }
+}
+
+pub(crate) fn get_type_id_for_read_access((value, location): (Value, Location)) -> IResult<TypeId> {
+    match value {
+        Value::TypeDefinition(id) => Ok(id.read_access()),
+        _ => type_mismatch(value, Type::Quoted(QuotedType::TypeDefinition), location),
+    }
+}
+
+pub(crate) fn get_type_id_for_write_access(
+    (value, location): (Value, Location),
+) -> IResult<TypeId> {
+    match value {
+        Value::TypeDefinition(id) => match id.write_access() {
+            Some(id) => Ok(id),
+            None => Err(InterpreterError::CannotMutateType { location }),
+        },
         _ => type_mismatch(value, Type::Quoted(QuotedType::TypeDefinition), location),
     }
 }

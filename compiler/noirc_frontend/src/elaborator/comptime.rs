@@ -21,7 +21,7 @@ use crate::{
     Type, TypeBindings,
     ast::{Documented, Expression, ExpressionKind},
     hir::{
-        comptime::{Interpreter, InterpreterError, Value},
+        comptime::{Interpreter, InterpreterError, Protected, Value},
         def_collector::{
             dc_crate::{
                 CollectedItems, CompilationError, ModuleAttribute, UnresolvedFunctions,
@@ -207,7 +207,7 @@ impl<'context> Elaborator<'context> {
 
         for (struct_id, struct_def) in types {
             let attributes = &struct_def.struct_def.attributes;
-            let item = Value::TypeDefinition(*struct_id);
+            let item = Value::TypeDefinition(Protected::Mutable(*struct_id));
             let context = AttributeContext::new(struct_def.module_id);
             self.collect_comptime_attributes_on_item(
                 attributes,
@@ -243,7 +243,7 @@ impl<'context> Elaborator<'context> {
         for module_attribute in module_attributes {
             let local_id = module_attribute.module_id;
             let module_id = ModuleId { krate: self.crate_id, local_id };
-            let item = Value::ModuleDefinition(module_id);
+            let item = Value::ModuleDefinition(Protected::Mutable(module_id));
             let attribute = &module_attribute.attribute;
 
             let context = AttributeContext {
@@ -266,7 +266,7 @@ impl<'context> Elaborator<'context> {
             for (local_module, function_id, function) in &function_set.functions {
                 let context = AttributeContext::new(*local_module);
                 let attributes = function.secondary_attributes();
-                let item = Value::FunctionDefinition(*function_id);
+                let item = Value::FunctionDefinition(Protected::Mutable(*function_id));
                 self.collect_comptime_attributes_on_item(
                     attributes,
                     item,
