@@ -382,7 +382,7 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
     candidates
         .into_iter()
         .filter_map(|(value_id, instruction_id)| {
-            if if_else_candidates.contains(&value_id) { Some(instruction_id) } else { None }
+            if_else_candidates.contains(&value_id).then_some(instruction_id)
         })
         .collect()
 }
