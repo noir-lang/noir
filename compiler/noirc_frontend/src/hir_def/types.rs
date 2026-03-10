@@ -5,8 +5,6 @@ use rustc_hash::FxHashMap as HashMap;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 
-use acvm::{AcirField, FieldElement};
-
 use crate::{
     ast::{BinaryOpKind, IntegerBitSize, ItemVisibility, UnresolvedTypeExpression},
     elaborator::types::SELF_TYPE_NAME,
@@ -295,30 +293,62 @@ impl Kind {
         }
     }
 
-    /// Ensure the given value fits in self.integral_maximum_size()
+    /// Ensure the given integer value fits in self.integral_maximum_size()
     pub(crate) fn ensure_value_fits(
         &self,
-        value: FieldElement,
+        value: Integer,
         location: Location,
-    ) -> Result<FieldElement, TypeCheckError> {
-        // Negative field values are represented as very large fields. So when comparing
-        // we have to check if it is less than the minimum size but greater than the maximum.
-        // Unfortunately, because fields wrap we cannot distinguish between too large or too small.
-        if let Some(minimum_size) = self.integral_minimum_size()
-            && let Some(maximum_size) = self.integral_maximum_size()
-            && value > maximum_size.into()
-            && value < minimum_size.into()
-        {
-            return Err(TypeCheckError::OverflowingConstant {
+    ) -> Result<Integer, TypeCheckError> {
+        let Kind::Numeric(typ) = self else {
+            return Ok(value);
+        };
+
+        let (Some(minimum_size), Some(maximum_size)) =
+            (self.integral_minimum_size(), self.integral_maximum_size())
+        else {
+            return Ok(value);
+        };
+
+        use IntegerBitSize::*;
+        use Signedness::*;
+
+        match (typ.as_ref(), &value) {
+            // First case: exact match, integer is already of type
+            (Type::FieldElement, Integer::Field(_))
+            | (Type::Integer(Unsigned, One), Integer::U1(_))
+            | (Type::Integer(Unsigned, Eight), Integer::U8(_))
+            | (Type::Integer(Unsigned, Sixteen), Integer::U16(_))
+            | (Type::Integer(Unsigned, ThirtyTwo), Integer::U32(_))
+            | (Type::Integer(Unsigned, SixtyFour), Integer::U64(_))
+            | (Type::Integer(Unsigned, HundredTwentyEight), Integer::U128(_))
+            | (Type::Integer(Signed, Eight), Integer::I8(_))
+            | (Type::Integer(Signed, Sixteen), Integer::I16(_))
+            | (Type::Integer(Signed, ThirtyTwo), Integer::I32(_))
+            | (Type::Integer(Signed, SixtyFour), Integer::I64(_)) => Ok(value),
+            // Otherwise, to keep this working with the existing system, treat `Integer::Field` as
+            // a stand-in for an inferred type integer and attempt to cast it into the correct slot
+            // as long as it is within range.
+            (other, Integer::Field(value)) => {
+                if let Some(integer) = Integer::try_from_type(*value, other) {
+                    Ok(integer)
+                } else {
+                    Err(TypeCheckError::OverflowingConstant {
+                        value: Integer::Field(*value),
+                        kind: self.clone(),
+                        maximum_size,
+                        minimum_size,
+                        location,
+                    })
+                }
+            }
+            _ => Err(TypeCheckError::OverflowingConstant {
                 value,
                 kind: self.clone(),
                 maximum_size,
                 minimum_size,
                 location,
-            });
+            }),
         }
-
-        Ok(value)
     }
 
     /// Return the corresponding IntegerTypeSuffix if this is a numeric type kind.
@@ -1373,6 +1403,10 @@ impl Type {
         Self::type_variable_with_kind(interner, type_var_kind)
     }
 
+    pub fn constant_u32(value: u32) -> Type {
+        Type::Constant(Integer::U32(value), Kind::Numeric(Box::new(Type::u32())))
+    }
+
     /// A bit of an awkward name for this function - this function returns
     /// true for type variables or polymorphic integers which are unbound.
     /// NamedGenerics will always be false as although they are bindable,
@@ -2422,36 +2456,35 @@ impl Type {
     /// If this type is a Type::Constant (used in array lengths), or is bound
     /// to a Type::Constant, return the constant as a u32.
     pub fn evaluate_to_u32(&self, location: Location) -> Result<u32, TypeCheckError> {
-        self.evaluate_to_field(&Kind::u32(), location).map(|field| {
-            field
-                .try_to_u32()
-                .expect("ICE: size should have already been checked by evaluate_to_field_element")
+        self.evaluate_to_integer(&Kind::u32(), location).map(|int| match int {
+            Integer::U32(value) => value,
+            _ => panic!("ICE: size should have already been checked by evaluate_to_field_element"),
         })
     }
 
     // TODO(https://github.com/noir-lang/noir/issues/6260): remove
     // the unifies checks once all kinds checks are implemented?
-    pub(crate) fn evaluate_to_field(
+    pub(crate) fn evaluate_to_integer(
         &self,
         kind: &Kind,
         location: Location,
-    ) -> Result<FieldElement, TypeCheckError> {
+    ) -> Result<Integer, TypeCheckError> {
         let run_simplifications = true;
-        self.evaluate_to_field_helper(kind, location, run_simplifications)
+        self.evaluate_to_integer_helper(kind, location, run_simplifications)
     }
 
     /// `evaluate_to_field_element` with optional generic arithmetic simplifications
-    pub(crate) fn evaluate_to_field_helper(
+    pub(crate) fn evaluate_to_integer_helper(
         &self,
         kind: &Kind,
         location: Location,
         run_simplifications: bool,
-    ) -> Result<FieldElement, TypeCheckError> {
+    ) -> Result<Integer, TypeCheckError> {
         if let Some((binding, binding_kind)) = self.get_inner_type_variable() {
             match &*binding.borrow() {
                 TypeBinding::Bound(binding) => {
                     if kind.unifies(&binding_kind) {
-                        return binding.evaluate_to_field_helper(
+                        return binding.evaluate_to_integer_helper(
                             &binding_kind,
                             location,
                             run_simplifications,
@@ -2478,10 +2511,10 @@ impl Type {
                 let infix_kind = lhs.infix_kind(&rhs);
                 if kind.unifies(&infix_kind) {
                     let lhs_value =
-                        lhs.evaluate_to_field_helper(&infix_kind, location, run_simplifications)?;
+                        lhs.evaluate_to_integer_helper(&infix_kind, location, run_simplifications)?;
                     let rhs_value =
-                        rhs.evaluate_to_field_helper(&infix_kind, location, run_simplifications)?;
-                    op.function(lhs_value, rhs_value, &infix_kind, location)
+                        rhs.evaluate_to_integer_helper(&infix_kind, location, run_simplifications)?;
+                    op.function(lhs_value, rhs_value, location)
                 } else {
                     Err(TypeCheckError::TypeKindMismatch {
                         expected_kind: kind.clone(),
@@ -2491,13 +2524,13 @@ impl Type {
                 }
             }
             Type::CheckedCast { from, to } => {
-                let to_value = to.evaluate_to_field(kind, location)?;
+                let to_value = to.evaluate_to_integer(kind, location)?;
 
                 // if both 'to' and 'from' evaluate to a constant,
                 // return None unless they match
                 let skip_simplifications = false;
                 if let Ok(from_value) =
-                    from.evaluate_to_field_helper(kind, location, skip_simplifications)
+                    from.evaluate_to_integer_helper(kind, location, skip_simplifications)
                 {
                     if to_value == from_value {
                         Ok(to_value)
@@ -3316,21 +3349,6 @@ impl Type {
     }
 }
 
-impl From<u8> for Type {
-    fn from(value: u8) -> Self {
-        Type::Constant(
-            value.into(),
-            Kind::numeric(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)),
-        )
-    }
-}
-
-impl From<u32> for Type {
-    fn from(value: u32) -> Self {
-        Type::Constant(value.into(), Kind::u32())
-    }
-}
-
 impl BinaryTypeOperator {
     /// Perform the actual rust numeric operation associated with this operator
     pub fn function(
@@ -3825,7 +3843,7 @@ mod tests {
     fn create_nested_array(depth: usize) -> Type {
         let mut typ = Type::FieldElement;
         for _ in 0..depth {
-            typ = Type::Array(Box::new(Type::Constant(1.into(), Kind::u32())), Box::new(typ));
+            typ = Type::Array(Box::new(Type::constant_u32(1)), Box::new(typ));
         }
         typ
     }

@@ -49,7 +49,7 @@ pub enum TypeCheckError {
         "The value `{value}` cannot fit into `{kind}` which has a range of {minimum_size}..={maximum_size}"
     )]
     OverflowingConstant {
-        value: FieldElement,
+        value: Integer,
         kind: Kind,
         minimum_size: i128,
         maximum_size: u128,
@@ -69,8 +69,8 @@ pub enum TypeCheckError {
     TypeCanonicalizationMismatch {
         to: Type,
         from: Type,
-        to_value: FieldElement,
-        from_value: FieldElement,
+        to_value: Integer,
+        from_value: Integer,
         location: Location,
     },
     #[error("Expected {expected:?} found {found:?}")]

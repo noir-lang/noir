@@ -741,7 +741,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     .expect("Expected to find associated type");
 
                 let location = self.elaborator.interner.expr_location(&id);
-                match associated_type.typ.evaluate_to_field(&associated_type.typ.kind(), location) {
+                match associated_type.typ.evaluate_to_integer(&associated_type.typ.kind(), location) {
                     Ok(value) => self.evaluate_integer(value, id),
                     Err(err) => Err(InterpreterError::InvalidAssociatedConstant {
                         err: Box::new(err),
@@ -757,7 +757,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn evaluate_numeric_generic(&self, value: Type, expected: &Type, id: ExprId) -> IResult<Value> {
         let location = self.elaborator.interner.id_location(id);
         let value = value
-            .evaluate_to_field(&Kind::Numeric(Box::new(expected.clone())), location)
+            .evaluate_to_integer(&Kind::Numeric(Box::new(expected.clone())), location)
             .map_err(|err| {
             let err = Box::new(err);
             let location = self.elaborator.interner.expr_location(&id);
@@ -836,7 +836,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     /// Since integers are polymorphic, evaluating one requires the result type.
     /// We pass down the result type the elaborator previously inferred.
-    fn evaluate_integer(&self, value: FieldElement, id: ExprId) -> IResult<Value> {
+    fn evaluate_integer(&self, value: Integer, id: ExprId) -> IResult<Value> {
         let typ = self.elaborator.interner.id_type(id).follow_bindings();
         let location = self.elaborator.interner.expr_location(&id);
 
@@ -1737,7 +1737,7 @@ fn perform_bindings(bindings: &HashMap<TypeVariable, (Type, Kind)>) {
     }
 }
 
-fn evaluate_integer(typ: Type, value: FieldElement, location: Location) -> IResult<Value> {
+fn evaluate_integer(typ: Type, value: Integer, location: Location) -> IResult<Value> {
     use IntegerBitSize::*;
     use Signedness::*;
     use Type::*;

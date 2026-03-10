@@ -198,6 +198,54 @@ impl Integer {
             Integer::U128(value) => *value == 0,
         }
     }
+
+    pub fn is_one(&self) -> bool {
+        match self {
+            Integer::Field(value) => value.is_one(),
+            Integer::I8(value) => *value == 1,
+            Integer::I16(value) => *value == 1,
+            Integer::I32(value) => *value == 1,
+            Integer::I64(value) => *value == 1,
+            Integer::U1(value) => *value,
+            Integer::U8(value) => *value == 1,
+            Integer::U16(value) => *value == 1,
+            Integer::U32(value) => *value == 1,
+            Integer::U64(value) => *value == 1,
+            Integer::U128(value) => *value == 1,
+        }
+    }
+
+    /// Try to create an integer of the given type from the given field value.
+    /// Expects the field to be encoded such that `-7 == -FieldElement::from(7)`.
+    ///
+    /// Returns `None` if the given type is not a field or integer, or
+    /// if the field value does not fit the type.
+    pub fn try_from_type(value: FieldElement, typ: &Type) -> Option<Integer> {
+        use IntegerBitSize::*;
+        use Signedness::*;
+        match typ.follow_bindings_shallow().as_ref() {
+            Type::FieldElement => Some(Integer::Field(value)),
+            Type::Integer(Unsigned, One) => {
+                if value.is_zero() {
+                    Some(Integer::U1(false))
+                } else if value.is_one() {
+                    Some(Integer::U1(true))
+                } else {
+                    None
+                }
+            },
+            Type::Integer(Unsigned, Eight) => value.try_into().ok().map(Integer::U8),
+            Type::Integer(Unsigned, Sixteen) => value.try_into().ok().map(Integer::U16),
+            Type::Integer(Unsigned, ThirtyTwo) => value.try_into().ok().map(Integer::U32),
+            Type::Integer(Unsigned, SixtyFour) => value.try_into().ok().map(Integer::U64),
+            Type::Integer(Unsigned, HundredTwentyEight) => value.try_into().ok().map(Integer::U128),
+            Type::Integer(Signed, Eight) => value.try_into().ok().map(Integer::I8),
+            Type::Integer(Signed, Sixteen) => value.try_into().ok().map(Integer::I16),
+            Type::Integer(Signed, ThirtyTwo) => value.try_into().ok().map(Integer::I32),
+            Type::Integer(Signed, SixtyFour) => value.try_into().ok().map(Integer::I64),
+            _ => None,
+        }
+    }
 }
 
 impl Display for Integer {

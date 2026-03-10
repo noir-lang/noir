@@ -70,7 +70,7 @@ impl Type {
                 let dummy_location = Location::dummy();
 
                 let evaluate = |typ: &Type| {
-                    typ.evaluate_to_field_helper(&kind, dummy_location, run_simplifications)
+                    typ.evaluate_to_integer_helper(&kind, dummy_location, run_simplifications)
                 };
                 let lhs_evaluated = evaluate(lhs);
                 let rhs_evaluated = evaluate(rhs);
@@ -79,7 +79,7 @@ impl Type {
                 // `self.evaluate_to_field_element(..)` we'd get infinite recursion.
                 if let Ok(lhs_value) = lhs_evaluated
                     && let Ok(rhs_value) = rhs_evaluated
-                    && let Ok(result) = op.function(lhs_value, rhs_value, &kind, dummy_location)
+                    && let Ok(result) = op.function(lhs_value, rhs_value, dummy_location)
                 {
                     return Type::Constant(result, kind);
                 }
@@ -300,13 +300,13 @@ impl Type {
     ) -> Option<(Box<Type>, BinaryTypeOperator, FieldElement, FieldElement)> {
         let kind = lhs.infix_kind(rhs);
         let dummy_location = Location::dummy();
-        let rhs = rhs.evaluate_to_field(&kind, dummy_location).ok()?;
+        let rhs = rhs.evaluate_to_integer(&kind, dummy_location).ok()?;
 
         let Type::InfixExpr(l_type, l_op, l_rhs, _) = lhs.follow_bindings() else {
             return None;
         };
 
-        let l_rhs = l_rhs.evaluate_to_field(&kind, dummy_location).ok()?;
+        let l_rhs = l_rhs.evaluate_to_integer(&kind, dummy_location).ok()?;
         Some((l_type, l_op, l_rhs, rhs))
     }
 
