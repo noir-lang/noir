@@ -336,7 +336,7 @@ mod tests {
             v13 = cast v0 as Field
             v14 = cast v12 as Field
             v16 = mul v13, Field 100
-            v17 = mul v14, v10
+            v17 = mul v10, v14
             v18 = add v16, v17
             v19 = make_array [v18, Field 11] : [Field; 2]
             enable_side_effects u1 1

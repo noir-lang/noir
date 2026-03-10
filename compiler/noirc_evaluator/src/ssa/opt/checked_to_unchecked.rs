@@ -302,7 +302,7 @@ mod tests {
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u32):
             v2 = cast v0 as u32
-            v3 = unchecked_mul v2, v1
+            v3 = unchecked_mul v1, v2
             return v2
         }
         ");

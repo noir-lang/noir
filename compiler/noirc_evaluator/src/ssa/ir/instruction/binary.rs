@@ -406,6 +406,19 @@ impl BinaryOp {
         }
     }
 
+    /// Returns true if this operator is commutative (i.e. `a op b == b op a`).
+    pub(crate) fn is_commutative(self) -> bool {
+        matches!(
+            self,
+            BinaryOp::Add { .. }
+                | BinaryOp::Mul { .. }
+                | BinaryOp::And
+                | BinaryOp::Or
+                | BinaryOp::Xor
+                | BinaryOp::Eq
+        )
+    }
+
     pub(crate) fn into_unchecked(self) -> Self {
         match self {
             BinaryOp::Add { .. } => BinaryOp::Add { unchecked: true },

@@ -503,8 +503,8 @@ mod tests {
             v9 = lt v6, u32 2147483648
             v10 = eq v8, v9
             v11 = lt v4, u32 2147483648
-            v12 = eq v11, v8
-            v13 = unchecked_mul v12, v10
+            v12 = eq v8, v11
+            v13 = unchecked_mul v10, v12
             constrain v13 == v10, "attempt to add with overflow"
             return v3
         }
@@ -538,8 +538,8 @@ mod tests {
             v14 = not v13
             v15 = eq v12, v14
             v16 = lt v8, u32 2147483648
-            v17 = eq v16, v12
-            v18 = unchecked_mul v17, v15
+            v17 = eq v12, v16
+            v18 = unchecked_mul v15, v17
             constrain v18 == v15, "attempt to subtract with overflow"
             v19 = cast v7 as i32
             return v19
@@ -572,18 +572,18 @@ mod tests {
             v11 = not v8
             v12 = cast v0 as Field
             v13 = cast v8 as Field
-            v14 = mul v13, v12
+            v14 = mul v12, v13
             v16 = sub Field 4294967296, v12
             v17 = cast v11 as Field
-            v18 = mul v17, v16
+            v18 = mul v16, v17
             v19 = add v14, v18
             v20 = not v9
             v21 = cast v1 as Field
             v22 = cast v9 as Field
-            v23 = mul v22, v21
+            v23 = mul v21, v22
             v24 = sub Field 4294967296, v21
             v25 = cast v20 as Field
-            v26 = mul v25, v24
+            v26 = mul v24, v25
             v27 = add v23, v26
             v28 = mul v19, v27
             range_check v28 to 32 bits, "attempt to multiply with overflow"
@@ -591,7 +591,7 @@ mod tests {
             v30 = cast v29 as u32
             v31 = not v10
             v32 = cast v31 as u32
-            v33 = unchecked_add u32 2147483648, v32
+            v33 = unchecked_add v32, u32 2147483648
             v34 = lt v30, v33
             constrain v34 == u1 1, "attempt to multiply with overflow"
             v36 = cast v4 as i32

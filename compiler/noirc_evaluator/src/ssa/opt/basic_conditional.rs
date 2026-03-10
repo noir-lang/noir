@@ -623,8 +623,8 @@ mod tests {
             v10 = truncate v0 to 3 bits, max_bit_size: 32
             v11 = cast v7 as u32
             v12 = cast v9 as u32
-            v13 = unchecked_mul v11, v8
-            v14 = unchecked_mul v12, v10
+            v13 = unchecked_mul v8, v11
+            v14 = unchecked_mul v10, v12
             v15 = unchecked_add v13, v14
             jmp b6(v15)
           b6(v2: u32):
