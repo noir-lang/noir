@@ -281,20 +281,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         result
     }
 
-    /// Run the given function with an elaborator in the context of the given module.
-    /// Temporarily undoes any generics from the previous function.
-    fn elaborate_in_module<T>(
-        &mut self,
-        module: ModuleId,
-        reason: Option<ElaborateReason>,
-        f: impl FnOnce(&mut Elaborator) -> T,
-    ) -> T {
-        self.unbind_generics_from_previous_function();
-        let result = self.elaborator.elaborate_item_from_comptime_in_module(module, reason, f);
-        self.rebind_generics_from_previous_function();
-        result
-    }
-
     /// Calls a builtin, foreign, or oracle function (not all oracles are supported).
     ///
     /// This will ignore any oracles starting with "__debug"

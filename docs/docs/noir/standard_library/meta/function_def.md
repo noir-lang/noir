@@ -71,49 +71,6 @@ Returns each parameter of the function as a tuple of (parameter pattern, paramet
 
 The return type of the function.
 
-### set_body
-
-#include_code set_body noir_stdlib/src/meta/function_def.nr rust
-
-Mutate the function body to a new expression. This is only valid
-on functions in the current crate which have not yet been resolved.
-This means any functions called at compile-time are invalid targets for this method.
-
-### set_parameters
-
-#include_code set_parameters noir_stdlib/src/meta/function_def.nr rust
-
-Mutates the function's parameters to a new set of parameters. This is only valid
-on functions in the current crate which have not yet been resolved.
-This means any functions called at compile-time are invalid targets for this method.
-
-Expects a vector of (parameter pattern, parameter type) for each parameter. Requires
-each parameter pattern to be a syntactically valid parameter.
-
-### set_return_type
-
-#include_code set_return_type noir_stdlib/src/meta/function_def.nr rust
-
-Mutates the function's return type to a new type. This is only valid
-on functions in the current crate which have not yet been resolved.
-This means any functions called at compile-time are invalid targets for this method.
-
-### set_return_public
-
-#include_code set_return_public noir_stdlib/src/meta/function_def.nr rust
-
-Mutates the function's return visibility to public (if `true` is given) or private (if `false` is given).
-This is only valid on functions in the current crate which have not yet been resolved.
-This means any functions called at compile-time are invalid targets for this method.
-
-### set_unconstrained
-
-#include_code set_unconstrained noir_stdlib/src/meta/function_def.nr rust
-
-Mutates the function to be unconstrained (if `true` is given) or not (if `false` is given).
-This is only valid on functions in the current crate which have not yet been resolved.
-This means any functions called at compile-time are invalid targets for this method.
-
 ### visibility
 
 #include_code visibility noir_stdlib/src/meta/function_def.nr rust
