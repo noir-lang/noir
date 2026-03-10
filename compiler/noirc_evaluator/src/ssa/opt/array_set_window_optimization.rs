@@ -70,7 +70,7 @@ use crate::{
 };
 
 /// The maximum length of arrays that this optimization will apply to.
-const MAX_ARRAY_SEMI_FLATTENNED_LENGTH: u32 = 64;
+const MAX_ARRAY_SEMI_FLATTENED_LENGTH: u32 = 64;
 
 impl Ssa {
     /// Replaces qualifying `array_set` instructions with `make_array` instructions.
@@ -311,7 +311,7 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
                         let elements_length = ElementTypesLength(assert_u32(elements.len()));
                         let semi_flattened_length = len * elements_length;
                         if index.to_u128() < u128::from(semi_flattened_length.0)
-                            && semi_flattened_length.0 <= MAX_ARRAY_SEMI_FLATTENNED_LENGTH
+                            && semi_flattened_length.0 <= MAX_ARRAY_SEMI_FLATTENED_LENGTH
                         {
                             candidates.insert(result, instruction_id);
                         }
