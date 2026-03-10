@@ -70,4 +70,5 @@ This is used in <code>compute_function_should_be_inlined</code> where instructio
 cost units (not raw SSA instruction count). A value of 80 covers the worst case of 10 SSA
 instructions at maximum per-instruction cost (checked u32 mul = 8 opcodes each).
 The <code>inline_simple_functions</code> pass handles the common case using raw SSA count;
-this threshold acts as a safety net in the cost model.</dd></dl></section></div></main></body></html>
+this threshold acts as a safety net in the cost model.</dd><dt><a class="constant" href="constant.MAX_UNROLL_ITERATIONS.html" title="constant noirc_evaluator::ssa::opt::MAX_UNROLL_ITERATIONS">MAX_<wbr>UNROLL_<wbr>ITERATIONS</a></dt><dd>Maximum number of iterations for Brillig loops to be unrolled.
+Prevents code explosion from very large loops even if they pass the cost model.</dd></dl></section></div></main></body></html>

@@ -164,7 +164,7 @@
 <a href=#164 id=164 data-nosnippet>164</a>    ///
 <a href=#165 id=165 data-nosnippet>165</a>    /// There is an example in the tests where a loop does not have an induction variable,
 <a href=#166 id=166 data-nosnippet>166</a>    /// but rather loads a reference in the header, in which case this will return `None`.
-<a href=#167 id=167 data-nosnippet>167</a>    </span><span class="kw">fn </span>get_induction_variable(<span class="kw-2">&amp;</span><span class="self">self</span>, function: <span class="kw-2">&amp;</span>Function) -&gt; <span class="prelude-ty">Option</span>&lt;ValueId&gt; {
+<a href=#167 id=167 data-nosnippet>167</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>get_induction_variable(<span class="kw-2">&amp;</span><span class="self">self</span>, function: <span class="kw-2">&amp;</span>Function) -&gt; <span class="prelude-ty">Option</span>&lt;ValueId&gt; {
 <a href=#168 id=168 data-nosnippet>168</a>        function.dfg.block_parameters(<span class="self">self</span>.header).iter().next().copied()
 <a href=#169 id=169 data-nosnippet>169</a>    }
 <a href=#170 id=170 data-nosnippet>170</a>
