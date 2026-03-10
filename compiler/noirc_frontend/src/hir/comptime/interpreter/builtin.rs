@@ -716,7 +716,10 @@ fn type_def_module(
     let self_argument = check_one_argument(arguments, location)?;
     let struct_id = get_type_id_for_read_access(self_argument)?;
     let parent = struct_id.parent_module_id(interpreter.elaborator.def_maps);
-    Ok(Value::ModuleDefinition(Protected::Readonly(parent)))
+    Ok(Value::ModuleDefinition(Protected::Readonly {
+        value: parent,
+        method: "TypeDefinition::module",
+    }))
 }
 
 // fn name(self) -> Quoted
@@ -954,7 +957,12 @@ fn quoted_as_module(
             interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {
                 elaborator.resolve_module_by_path(path)
             });
-        module.map(|module_id| Value::ModuleDefinition(Protected::Readonly(module_id)))
+        module.map(|module_id| {
+            Value::ModuleDefinition(Protected::Readonly {
+                value: module_id,
+                method: "Quoted::as_module",
+            })
+        })
     });
 
     Ok(option(return_type, option_value, location))
@@ -1218,7 +1226,10 @@ fn type_as_data_type(
     type_as(arguments, return_type, location, |typ| {
         if let Type::DataType(struct_type, generics) = typ {
             Some(Value::Tuple(vec![
-                Shared::new(Value::TypeDefinition(Protected::Readonly(struct_type.borrow().id))),
+                Shared::new(Value::TypeDefinition(Protected::Readonly {
+                    value: struct_type.borrow().id,
+                    method: "TypeDefinition::as_data_type",
+                })),
                 Shared::new(Value::Vector(
                     generics.into_iter().map(Value::Type).collect(),
                     Type::Vector(Box::new(Type::Quoted(QuotedType::Type))),
@@ -1398,7 +1409,12 @@ fn trait_impl_methods(
     let methods = trait_impl
         .methods
         .iter()
-        .map(|func_id| Value::FunctionDefinition(Protected::Readonly(*func_id)))
+        .map(|func_id| {
+            Value::FunctionDefinition(Protected::Readonly {
+                value: *func_id,
+                method: "TraitImpl::methods",
+            })
+        })
         .collect();
     let vector_type = Type::Vector(Box::new(Type::Quoted(QuotedType::FunctionDefinition)));
 
@@ -1432,7 +1448,12 @@ fn typed_expr_as_function_definition(
     let typed_expr = get_typed_expr(self_argument)?;
     let option_value = if let TypedExpr::ExprId(expr_id) = typed_expr {
         let func_id = interner.lookup_function_from_expr(&expr_id, location)?;
-        func_id.map(|func_id| Value::FunctionDefinition(Protected::Readonly(func_id)))
+        func_id.map(|func_id| {
+            Value::FunctionDefinition(Protected::Readonly {
+                value: func_id,
+                method: "TypedExpr::as_function_definition",
+            })
+        })
     } else {
         None
     };
@@ -2717,7 +2738,10 @@ fn function_def_module(
     let self_argument = check_one_argument(arguments, location)?;
     let func_id = get_function_def_for_read_access(self_argument)?;
     let module = interner.function_module(func_id);
-    Ok(Value::ModuleDefinition(Protected::Readonly(module)))
+    Ok(Value::ModuleDefinition(Protected::Readonly {
+        value: module,
+        method: "FunctionDefinition::module",
+    }))
 }
 
 // fn name(self) -> Quoted
@@ -3018,7 +3042,10 @@ fn module_child_modules(
         .copied()
         .map(|local_id| {
             let krate = module_id.krate;
-            Value::ModuleDefinition(Protected::Readonly(ModuleId { local_id, krate }))
+            Value::ModuleDefinition(Protected::Readonly {
+                value: ModuleId { local_id, krate },
+                method: "Module::child_modules",
+            })
         })
         .collect();
 
@@ -3049,7 +3076,10 @@ fn module_functions(
         .iter()
         .filter_map(|module_def_id| {
             if let ModuleDefId::FunctionId(func_id) = module_def_id {
-                Some(Value::FunctionDefinition(Protected::Readonly(*func_id)))
+                Some(Value::FunctionDefinition(Protected::Readonly {
+                    value: *func_id,
+                    method: "Module::functions",
+                }))
             } else {
                 None
             }
@@ -3073,7 +3103,7 @@ fn module_parent(
 
     let value = module_data.parent.map(|local_id| {
         let id = ModuleId { krate: module_id.krate, local_id };
-        Value::ModuleDefinition(Protected::Readonly(id))
+        Value::ModuleDefinition(Protected::Readonly { value: id, method: "Module::parent" })
     });
     Ok(option(return_type, value, location))
 }
@@ -3093,7 +3123,10 @@ fn module_structs(
         .iter()
         .filter_map(|module_def_id| {
             if let ModuleDefId::TypeId(id) = module_def_id {
-                Some(Value::TypeDefinition(Protected::Readonly(*id)))
+                Some(Value::TypeDefinition(Protected::Readonly {
+                    value: *id,
+                    method: "Module::structs",
+                }))
             } else {
                 None
             }

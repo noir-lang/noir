@@ -82,20 +82,20 @@ pub enum Value {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Protected<T: Copy> {
     Mutable(T),
-    Readonly(T),
+    Readonly { value: T, method: &'static str },
 }
 
 impl<T: Copy> Protected<T> {
     pub fn read_access(&self) -> T {
         match self {
-            Protected::Mutable(value) | Protected::Readonly(value) => *value,
+            Protected::Mutable(value) | Protected::Readonly { value, .. } => *value,
         }
     }
 
-    pub fn write_access(&self) -> Option<T> {
+    pub fn write_access(&self) -> Result<T, &'static str> {
         match self {
-            Protected::Mutable(value) => Some(*value),
-            Protected::Readonly(_) => None,
+            Protected::Mutable(value) => Ok(*value),
+            Protected::Readonly { method, .. } => Err(method),
         }
     }
 }

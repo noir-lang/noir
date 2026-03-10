@@ -318,12 +318,15 @@ pub enum InterpreterError {
         location: Location,
     },
     CannotMutateModule {
+        method: &'static str,
         location: Location,
     },
     CannotMutateFunction {
+        method: &'static str,
         location: Location,
     },
     CannotMutateType {
+        method: &'static str,
         location: Location,
     },
 
@@ -429,9 +432,9 @@ impl InterpreterError {
             | InterpreterError::AttributeRecursionLimitExceeded { location }
             | InterpreterError::CannotCastNumericToBool { location, .. }
             | InterpreterError::CannotModifyExternalItem { location, .. }
-            | InterpreterError::CannotMutateModule { location }
-            | InterpreterError::CannotMutateFunction { location }
-            | InterpreterError::CannotMutateType { location } => *location,
+            | InterpreterError::CannotMutateModule { location, .. }
+            | InterpreterError::CannotMutateFunction { location, .. }
+            | InterpreterError::CannotMutateType { location, .. } => *location,
             InterpreterError::ExpectingOtherError(error) => error.location,
             InterpreterError::FailedToParseMacro { error, .. } => error.location(),
             InterpreterError::NoMatchingImplFound { error } => error.location,
@@ -916,18 +919,18 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let secondary = "Compare with zero instead: ` != 0`".to_string();
                 CustomDiagnostic::simple_error(primary, secondary, *location)
             },
-            InterpreterError::CannotMutateModule { location } => {
-                let primary = "Cannot mutate read-only module".to_string();
+            InterpreterError::CannotMutateModule { method, location } => {
+                let primary = format!("Cannot mutate read-only module returned from `{method}`");
                 let secondary = String::new();
                 CustomDiagnostic::simple_error(primary, secondary, *location)
             }
-            InterpreterError::CannotMutateFunction { location } => {
-                let primary = "Cannot mutate read-only function".to_string();
+            InterpreterError::CannotMutateFunction { method, location } => {
+                let primary = format!("Cannot mutate read-only function returned from `{method}`");
                 let secondary = String::new();
                 CustomDiagnostic::simple_error(primary, secondary, *location)
             }
-            InterpreterError::CannotMutateType { location } => {
-                let primary = "Cannot mutate read-only type".to_string();
+            InterpreterError::CannotMutateType { method, location } => {
+                let primary = format!("Cannot mutate read-only type returned from `{method}`");
                 let secondary = String::new();
                 CustomDiagnostic::simple_error(primary, secondary, *location)
             }

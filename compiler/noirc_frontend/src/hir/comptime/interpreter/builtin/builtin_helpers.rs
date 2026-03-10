@@ -303,8 +303,8 @@ pub(crate) fn get_function_def_for_write_access(
 ) -> IResult<FuncId> {
     match value {
         Value::FunctionDefinition(id) => match id.write_access() {
-            Some(id) => Ok(id),
-            None => Err(InterpreterError::CannotMutateFunction { location }),
+            Ok(id) => Ok(id),
+            Err(method) => Err(InterpreterError::CannotMutateFunction { method, location }),
         },
         value => type_mismatch(value, Type::Quoted(QuotedType::FunctionDefinition), location),
     }
@@ -324,8 +324,8 @@ pub(crate) fn get_module_for_write_access(
 ) -> IResult<ModuleId> {
     match value {
         Value::ModuleDefinition(module_id) => match module_id.write_access() {
-            Some(module_id) => Ok(module_id),
-            None => Err(InterpreterError::CannotMutateModule { location }),
+            Ok(module_id) => Ok(module_id),
+            Err(method) => Err(InterpreterError::CannotMutateModule { method, location }),
         },
         value => type_mismatch(value, Type::Quoted(QuotedType::Module), location),
     }
@@ -343,8 +343,8 @@ pub(crate) fn get_type_id_for_write_access(
 ) -> IResult<TypeId> {
     match value {
         Value::TypeDefinition(id) => match id.write_access() {
-            Some(id) => Ok(id),
-            None => Err(InterpreterError::CannotMutateType { location }),
+            Ok(id) => Ok(id),
+            Err(method) => Err(InterpreterError::CannotMutateType { method, location }),
         },
         _ => type_mismatch(value, Type::Quoted(QuotedType::TypeDefinition), location),
     }
