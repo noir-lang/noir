@@ -117,6 +117,10 @@ pub struct SsaEvaluatorOptions {
     /// instruction count is accepted.
     pub max_bytecode_increase_percent: Option<i32>,
 
+    /// Maximum iterations for Brillig loop unrolling.
+    /// Loops exceeding this limit will not be unrolled even if they pass the instruction threshold.
+    pub max_unroll_iterations: usize,
+
     /// Override the threshold for force-unrolling small loops.
     /// Loops with constant bounds and no breaks whose unrolled
     /// instruction count is at or below this threshold will always be unrolled.
@@ -186,6 +190,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             move |ssa| {
                 ssa.unroll_loops_iteratively(
                     options.max_bytecode_increase_percent,
+                    options.max_unroll_iterations,
                     options.force_unroll_threshold,
                 )
             },
@@ -237,6 +242,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             move |ssa| {
                 ssa.unroll_loops_iteratively(
                     options.max_bytecode_increase_percent,
+                    options.max_unroll_iterations,
                     options.force_unroll_threshold,
                 )
             },
