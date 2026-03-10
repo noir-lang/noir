@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773147254199,
+  "lastUpdate": 1773147585534,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23201,48 +23201,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "41caacbfc51976feaaec197107dfe0995d31042a",
-          "message": "chore: deduplicate yarn dependencies (#11758)",
-          "timestamp": "2026-03-04T15:10:50Z",
-          "tree_id": "6db637f9b507c27fb72b702275fd0e2b67ea2ec6",
-          "url": "https://github.com/noir-lang/noir/commit/41caacbfc51976feaaec197107dfe0995d31042a"
-        },
-        "date": 1772637208082,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 251718,
-            "range": "± 774",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 220770,
-            "range": "± 4588",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2744966,
-            "range": "± 4725",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25294,6 +25252,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2743504,
             "range": "± 6784",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e9f9a92fee02d9611560a7fa960474009a132a91",
+          "message": "chore: array_set_window_optimization (#11773)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
+          "timestamp": "2026-03-10T12:32:48Z",
+          "tree_id": "e22e455d3f276fafcb602042e97dbf02c043fa80",
+          "url": "https://github.com/noir-lang/noir/commit/e9f9a92fee02d9611560a7fa960474009a132a91"
+        },
+        "date": 1773147539043,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 252627,
+            "range": "± 627",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 221830,
+            "range": "± 4974",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2744747,
+            "range": "± 2073",
             "unit": "ns/iter"
           }
         ]
