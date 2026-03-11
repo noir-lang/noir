@@ -99,20 +99,16 @@ impl Elaborator<'_> {
                         self.interner.next_type_variable_with_kind(generic.kind())
                     });
                     let mut errors = Vec::new();
-                    let resolved_generics = {
-                        let type_alias_ref = self.interner.get_type_alias(type_alias_id);
-                        let type_alias_ref = type_alias_ref.borrow();
-                        self.resolve_alias_turbofish_generics(
-                            &type_alias_ref,
-                            alias_generic_types,
-                            resolved_turbofish,
-                            location,
-                            &mut errors,
-                        )
-                    };
-                    for error in errors {
-                        self.push_err(error);
-                    }
+                    let type_alias_ref = self.interner.get_type_alias(type_alias_id);
+                    let type_alias_ref = type_alias_ref.borrow();
+                    let resolved_generics = self.resolve_alias_turbofish_generics(
+                        &type_alias_ref,
+                        alias_generic_types,
+                        resolved_turbofish,
+                        location,
+                        &mut errors,
+                    );
+                    self.push_errors(errors);
 
                     // Introduce alias generics into scope so the numeric expression
                     // resolves them correctly (not to globals or other variables

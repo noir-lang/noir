@@ -929,8 +929,8 @@ fn numeric_alias_turbofish_resolves_correctly() {
     // Turbofish on a numeric type alias should resolve to the correct value,
     // not to a global that happens to share the same name.
     // The alias generic should not leak and shadow the global after usage.
-    // This only makes compile-time checks, for verifying runtime values the same logic can be found
-    // under the `test_programs/execution_success/numeric_type_alias` integratio ntest.
+    // This only makes compile-time checks, for verifying the runtime values' correctness the same logic can be found
+    // under the `test_programs/execution_success/numeric_type_alias` integration test.
     let src = r#"
     global N: u32 = 100;
 
