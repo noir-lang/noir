@@ -342,8 +342,6 @@ impl Elaborator<'_> {
     }
 
     /// Search for an associated type in parent 'trait impls'.
-    /// Used inside trait impls to resolve `Self::Foo` when `Foo` is defined on a parent trait.
-    /// For example, in `impl Lookup for u32`, resolving `Self::Key` where `Key` is from `KeyType`.
     fn lookup_associated_type_in_parent_impls(
         &self,
         trait_id: TraitId,

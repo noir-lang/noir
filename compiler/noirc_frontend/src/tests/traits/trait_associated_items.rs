@@ -1969,11 +1969,9 @@ fn associated_type_of_generic_ambiguous_from_multiple_traits() {
         type Key;
     }
 
-    fn ambiguous<M>(_m: M, _k: M::Key) where M: Foo + Bar {}
-       ^^^^^^^^^ unused function ambiguous
-       ~~~~~~~~~ unused function
-                               ^^^^^^ Multiple applicable items in scope
-                               ~~~~~~ Multiple traits which provide `Key` are implemented and in scope: `Bar`, `Foo`
+    pub fn ambiguous<M>(_m: M, _k: M::Key) where M: Foo + Bar {}
+                                   ^^^^^^ Multiple applicable items in scope
+                                   ~~~~~~ Multiple traits which provide `Key` are implemented and in scope: `Bar`, `Foo`
     fn main() {}
     "#;
     check_errors(src);

@@ -673,7 +673,9 @@ impl Elaborator<'_> {
                         .associated_types
                         .iter()
                         .find(|a| a.name.as_ref() == named_type.name.as_str())
-                        .map_or(fresh_id, |a| a.type_var.id());
+                        .expect("ICE - cannot find associated type")
+                        .type_var
+                        .id();
 
                     let fresh_type = type_var.clone().into_implicit_named_generic(
                         &Rc::new(named_type.name.to_string()),
