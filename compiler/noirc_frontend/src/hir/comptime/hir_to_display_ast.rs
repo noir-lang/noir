@@ -498,9 +498,11 @@ impl Type {
         let location = Location::dummy();
 
         match self.follow_bindings() {
-            Type::Constant(length, kind) => {
-                UnresolvedTypeExpression::Constant(length.as_field(), kind.as_integer_type_suffix(), location)
-            }
+            Type::Constant(length, kind) => UnresolvedTypeExpression::Constant(
+                length.as_field(),
+                kind.as_integer_type_suffix(),
+                location,
+            ),
             Type::NamedGeneric(NamedGeneric { name, .. }) => {
                 let path = Path::from_single(name.as_ref().clone(), location);
                 UnresolvedTypeExpression::Variable(path)

@@ -431,7 +431,7 @@ impl Elaborator<'_> {
                 let length = UnresolvedTypeExpression::from_expr(*length, location).unwrap_or_else(
                     |error| {
                         self.push_err(ResolverError::ParserError(Box::new(error)));
-                        UnresolvedTypeExpression::Constant(FieldElement::zero(), None, location  )
+                        UnresolvedTypeExpression::Constant(FieldElement::zero(), None, location)
                     },
                 );
 

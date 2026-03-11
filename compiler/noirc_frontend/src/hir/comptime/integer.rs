@@ -214,7 +214,7 @@ impl Integer {
                 } else {
                     None
                 }
-            },
+            }
             Type::Integer(Unsigned, Eight) => value.try_into().ok().map(Integer::U8),
             Type::Integer(Unsigned, Sixteen) => value.try_into().ok().map(Integer::U16),
             Type::Integer(Unsigned, ThirtyTwo) => value.try_into().ok().map(Integer::U32),
@@ -321,7 +321,9 @@ impl std::ops::Mul for Integer {
     fn mul(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
             (Integer::Field(lhs), Integer::Field(rhs)) => Some(Integer::Field(lhs * rhs)),
-            (Integer::U1(lhs), Integer::U1(rhs)) => Some(Integer::U1((lhs as u32 * rhs as u32) != 0)),
+            (Integer::U1(lhs), Integer::U1(rhs)) => {
+                Some(Integer::U1((lhs as u32 * rhs as u32) != 0))
+            }
             (Integer::U8(lhs), Integer::U8(rhs)) => lhs.checked_mul(rhs).map(Integer::U8),
             (Integer::U16(lhs), Integer::U16(rhs)) => lhs.checked_mul(rhs).map(Integer::U16),
             (Integer::U32(lhs), Integer::U32(rhs)) => lhs.checked_mul(rhs).map(Integer::U32),

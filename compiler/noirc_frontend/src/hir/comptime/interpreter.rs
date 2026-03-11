@@ -741,7 +741,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     .expect("Expected to find associated type");
 
                 let location = self.elaborator.interner.expr_location(&id);
-                match associated_type.typ.evaluate_to_integer(&associated_type.typ.kind(), location) {
+                match associated_type.typ.evaluate_to_integer(&associated_type.typ.kind(), location)
+                {
                     Ok(value) => self.evaluate_field_as_integer(value.as_field(), id),
                     Err(err) => Err(InterpreterError::InvalidAssociatedConstant {
                         err: Box::new(err),
@@ -759,10 +760,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let value = value
             .evaluate_to_integer(&Kind::Numeric(Box::new(expected.clone())), location)
             .map_err(|err| {
-            let err = Box::new(err);
-            let location = self.elaborator.interner.expr_location(&id);
-            InterpreterError::InvalidNumericGeneric { err, location }
-        })?;
+                let err = Box::new(err);
+                let location = self.elaborator.interner.expr_location(&id);
+                InterpreterError::InvalidNumericGeneric { err, location }
+            })?;
 
         self.evaluate_field_as_integer(value.as_field(), id)
     }

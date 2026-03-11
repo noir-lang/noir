@@ -6,7 +6,10 @@ use crate::{
     Kind, Type,
     ast::{Ident, UnsupportedNumericGenericType},
     elaborator::{TypedPath, types::WildcardDisallowedContext},
-    hir::{comptime::{Integer, Value}, type_check::TypeCheckError},
+    hir::{
+        comptime::{Integer, Value},
+        type_check::TypeCheckError,
+    },
     parser::ParserError,
     usage_tracker::UnusedItem,
 };

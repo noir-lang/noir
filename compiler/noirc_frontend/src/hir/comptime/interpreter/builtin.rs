@@ -3326,10 +3326,10 @@ fn field_less_than(arguments: Vec<(Value, Location)>, location: Location) -> IRe
 
 #[cfg(test)]
 mod tests {
+    use super::field_less_than;
+    use crate::hir::comptime::value::Value;
     use acvm::FieldElement;
     use noirc_errors::Location;
-    use crate::hir::comptime::value::Value;
-    use super::field_less_than;
 
     fn args(a: Value, b: Value) -> Vec<(Value, Location)> {
         vec![(a, Location::dummy()), (b, Location::dummy())]

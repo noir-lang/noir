@@ -1374,10 +1374,15 @@ impl<'interner> Monomorphizer<'interner> {
                 let Kind::Numeric(numeric_type) = associated_type.typ.kind() else {
                     unreachable!("Expected associated type to be numeric");
                 };
-                match associated_type.typ.evaluate_to_integer(&associated_type.typ.kind(), location) {
+                match associated_type.typ.evaluate_to_integer(&associated_type.typ.kind(), location)
+                {
                     Ok(value) => {
                         let typ = Self::convert_type(&numeric_type, location)?;
-                        Ok(ast::Expression::Literal(ast::Literal::Integer(value.as_field(), typ, location)))
+                        Ok(ast::Expression::Literal(ast::Literal::Integer(
+                            value.as_field(),
+                            typ,
+                            location,
+                        )))
                     }
                     Err(err) => Err(MonomorphizationError::CannotComputeAssociatedConstant {
                         name: name.clone(),

@@ -267,6 +267,10 @@ impl Type {
                 let dummy_location = Location::dummy();
                 let other = other.substitute(bindings);
                 if let Ok(other_value) = other.evaluate_to_integer(kind, dummy_location) {
+                    eprintln!(
+                        "Have 2 integer constants:\n  {value}: {kind}\n  {other_value}: {}",
+                        other.kind()
+                    );
                     if *value == other_value && kind.unifies(&other.kind()) {
                         Ok(())
                     } else {
@@ -674,7 +678,10 @@ fn invoke_function_on_expression(
 
 #[cfg(test)]
 mod tests {
-    use crate::{BinaryTypeOperator, Kind, Type, TypeBindings, TypeVariable, TypeVariableId, hir::comptime::Integer};
+    use crate::{
+        BinaryTypeOperator, Kind, Type, TypeBindings, TypeVariable, TypeVariableId,
+        hir::comptime::Integer,
+    };
 
     struct Types {
         next_type_variable_id: usize,

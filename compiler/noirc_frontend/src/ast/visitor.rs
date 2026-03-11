@@ -2,7 +2,8 @@ use acvm::FieldElement;
 use noirc_errors::{Location, Span};
 
 use crate::{
-    BinaryTypeOperator, ParsedModule, ast::{
+    BinaryTypeOperator, ParsedModule,
+    ast::{
         ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression,
         CastExpression, ConstrainExpression, ConstructorExpression, Expression, ExpressionKind,
         ForLoopStatement, ForRange, Ident, IfExpression, IndexExpression, InfixExpression, LValue,
@@ -10,13 +11,16 @@ use crate::{
         ModuleDeclaration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, Path,
         PrefixExpression, Statement, StatementKind, TraitImplItem, TraitItem, TypeImpl,
         UnresolvedGeneric, UseTree, UseTreeKind,
-    }, node_interner::{
+    },
+    node_interner::{
         ExprId, InternedExpressionKind, InternedPattern, InternedStatementKind,
         InternedUnresolvedTypeData, QuotedTypeId,
-    }, parser::{Item, ItemKind, ParsedSubModule}, token::{
+    },
+    parser::{Item, ItemKind, ParsedSubModule},
+    token::{
         FmtStrFragment, IntegerTypeSuffix, MetaAttribute, MetaAttributeName, SecondaryAttribute,
         SecondaryAttributeKind, Tokens,
-    }
+    },
 };
 
 use super::{

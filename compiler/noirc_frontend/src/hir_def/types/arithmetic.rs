@@ -1,5 +1,5 @@
-use std::collections::BTreeMap;
 use noirc_errors::Location;
+use std::collections::BTreeMap;
 
 use crate::{BinaryTypeOperator, Type, TypeBinding, hir::comptime::Integer};
 
