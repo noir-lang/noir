@@ -794,3 +794,100 @@ fn unnecessary_pub_on_argument() {
     ";
     check_errors(src);
 }
+
+#[test]
+fn errors_if_calling_private_inherent_impl_method_from_outside_impl_module() {
+    // Regression test: inherent impl methods defined in a submodule on a type from the parent
+    // module should not be callable from outside the impl's defining module.
+    let src = r#"
+    struct S {}
+
+    mod private {
+        struct R { pub x: u32 }
+
+        impl super::S {
+            fn get_r() -> R {
+                R { x: 1 }
+            }
+        }
+    }
+
+    fn main() {
+        let _ = S::get_r();
+                   ^^^^^ get_r is private and not visible from the current module
+                   ~~~~~ get_r is private
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_if_calling_private_inherent_impl_method_via_dot_notation_from_outside_impl_module() {
+    let src = r#"
+    struct S { x: u32 }
+
+    mod private {
+        impl super::S {
+            fn secret(self) -> u32 {
+                self.x
+            }
+        }
+    }
+
+    fn main() {
+        let s = S { x: 1 };
+        let _ = s.secret();
+                  ^^^^^^ secret is private and not visible from the current module
+                  ~~~~~~ secret is private
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn allows_pub_inherent_impl_method_from_outside_impl_module() {
+    // Public methods on inherent impls in submodules should remain callable.
+    let src = r#"
+    struct S {}
+
+    mod private {
+        impl super::S {
+            pub fn public_method() -> u32 {
+                42
+            }
+        }
+    }
+
+    fn main() {
+        let _ = S::public_method();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn allows_private_inherent_impl_method_via_dot_from_within_impl_block() {
+    // Private methods should still be callable via dot notation from within the same impl block.
+    let src = r#"
+    struct S {}
+
+    mod private {
+        impl super::S {
+            fn secret(self) -> u32 {
+                let _ = self;
+                42
+            }
+
+            pub fn public_wrapper(self) -> u32 {
+                self.secret()
+            }
+        }
+    }
+
+    fn main() {
+        let s = S {};
+        let _ = s.public_wrapper();
+    }
+    "#;
+    assert_no_errors(src);
+}
