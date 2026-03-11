@@ -49,12 +49,14 @@ impl Monomorphizer<'_> {
     ) -> Result<Option<FuncId>, MonomorphizationError> {
         let Some(opcode) = HandledOpcode::parse(opcode_string) else { return Ok(None) };
 
-        let (parameter_types, return_type) = match &typ {
-            Type::Function(parameters, ret, _, _) => (parameters, ret),
+        let (parameter_types, return_type, env, unconstrained) = match typ {
+            Type::Function(parameters, ret, env, unconstrained) => {
+                (parameters, ret, env, unconstrained)
+            }
             other => unreachable!("Expected built-in to be a function, found {other:?}"),
         };
 
-        let converted_return_type = Self::convert_type(return_type, location)?;
+        let converted_return_type = Self::convert_type(return_type.as_ref(), location)?;
 
         let mut parameters = Vec::new();
         let body = match opcode {
@@ -70,7 +72,7 @@ impl Monomorphizer<'_> {
                     Visibility::Private,
                 )];
 
-                self.check_transmute(&parameter_types[0], return_type, location)?;
+                self.check_transmute(&parameter_types[0], return_type.as_ref(), location)?;
 
                 ast::Expression::Ident(ast::Ident {
                     location: Some(location),
@@ -105,6 +107,7 @@ impl Monomorphizer<'_> {
                 is_entry_point: false,
             },
         );
+        let typ = Type::Function(parameter_types, return_type, env, unconstrained);
         self.define_function(id, typ, turbofish_generics, is_unconstrained, new_function_id);
         Ok(Some(new_function_id))
     }
