@@ -342,7 +342,6 @@ impl<'a, 'b> LimitContext<'a, 'b> {
 
                 let mut typ = ident.typ.as_ref().clone();
                 let unref_mut_typ = types::unref_mut(&mut typ);
-                ident.typ = Arc::new(unref_mut_typ.clone());
 
                 let Type::Function(param_types, _, _, callee_unconstrained) = unref_mut_typ else {
                     unreachable!("function type expected");
@@ -418,6 +417,8 @@ impl<'a, 'b> LimitContext<'a, 'b> {
                     *callee_unconstrained,
                     proxy_functions,
                 );
+
+                ident.typ = Arc::new(typ);
             }
 
             // Continue the visiting expressions.

@@ -65,10 +65,10 @@ pub fn change_all_functions_into_unconstrained(mut program: Program) -> Program 
         for (_, _, _, typ, _) in &mut f.parameters {
             let mut cloned_typ = typ.as_ref().clone();
             let unref_mut_typ = types::unref_mut(&mut cloned_typ);
-            *typ = Arc::new(unref_mut_typ.clone());
             if let Type::Function(_, _, _, unconstrained) = unref_mut_typ {
                 *unconstrained = true;
             }
+            *typ = Arc::new(cloned_typ);
         }
         // Modify the calls it makes (we don't call ACIR from Brillig).
         visit_expr_mut(&mut f.body, &mut |expr| {
@@ -81,11 +81,11 @@ pub fn change_all_functions_into_unconstrained(mut program: Program) -> Program 
 
             let mut cloned_typ = typ.as_ref().clone();
             let unref_mut_typ = types::unref_mut(&mut cloned_typ);
-            *typ = Arc::new(unref_mut_typ.clone());
             let Type::Function(_, _, _, unconstrained) = unref_mut_typ else {
                 unreachable!("function idents are expected to have Function type; got {typ}");
             };
             *unconstrained = true;
+            *typ = Arc::new(cloned_typ);
             true
         });
         f.handle_ownership();
