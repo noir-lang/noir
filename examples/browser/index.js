@@ -25,8 +25,9 @@ document.getElementById('submit').addEventListener('click', async () => {
     const noir = new Noir(circuit);
     show('logs', 'Creating Barretenberg...');
     const barretenbergAPI = await Barretenberg.new();
-    show('logs', 'Creating UltraHonkBackend...');
+    show('logs', 'Creating UltraHonkBackend... ⏳');
     const backend = new UltraHonkBackend(circuit.bytecode, barretenbergAPI);
+    show('logs', 'Created UltraHonkBackend... ✅');
     // docs:end:init
     // docs:start:execute
     const age = document.getElementById('age').value;
