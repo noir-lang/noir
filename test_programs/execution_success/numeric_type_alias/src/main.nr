@@ -1,6 +1,21 @@
 type Double<let N: u32>: u32 = N * 2;
 
+global N: u32 = 100;
+type AliasN<let N: u32>: u32 = N;
+
 fn main(x: Field) {
+    // Test that turbofish on a numeric alias resolves to the turbofish value,
+    // not to the global N that shares the same name.
+    let a: u32 = AliasN::<1>;
+    assert(a == 1);
+
+    // Test that N still refers to the global after using AliasN
+    assert(N == 100);
+
+    // Test multiple turbofish usages with different values
+    let b: u32 = AliasN::<5>;
+    assert(b == 5);
+
     let mut m = new_matrix::<3, 4>();
     m.elements[3 * 2 + 3] = 10;
     m.elements[3 * 2 + x as u32] = 5 + x;

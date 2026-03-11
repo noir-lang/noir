@@ -928,42 +928,28 @@ fn cannot_assign_to_numeric_type_alias() {
 fn numeric_alias_turbofish_resolves_correctly() {
     // Turbofish on a numeric type alias should resolve to the correct value,
     // not to a global that happens to share the same name.
+    // The alias generic should not leak and shadow the global after usage.
+    // This only makes compile-time checks, for verifying runtime values the same logic can be found
+    // under the `test_programs/execution_success/numeric_type_alias` integratio ntest.
     let src = r#"
     global N: u32 = 100;
 
     type Alias<let N: u32>: u32 = N;
-
-    fn main() {
-        let a: u32 = Alias::<1>;
-        assert(a == 1);
-    }
-    "#;
-    assert_no_errors(src);
-}
-
-#[test]
-fn numeric_alias_turbofish_expression_resolves_correctly() {
-    // Turbofish on a numeric type alias with an expression body
-    let src = r#"
     type Double<let N: u32>: u32 = N * 2;
-
-    fn main() {
-        let a: u32 = Double::<3>;
-        assert(a == 6);
-    }
-    "#;
-    assert_no_errors(src);
-}
-
-#[test]
-fn numeric_alias_no_turbofish_no_generics() {
-    // Numeric type alias without generics should work without turbofish
-    let src = r#"
     type X: u32 = 42;
 
     fn main() {
-        let a: u32 = X;
-        assert(a == 42);
+        // Turbofish resolves to the supplied value, not the global
+        let a: u32 = Alias::<1>;
+        assert(a == 1);
+        // Expression body works with turbofish
+        let b: u32 = Double::<3>;
+        assert(b == 6);
+        // Numeric alias w/o generics works without turbofish
+        let c: u32 = X;
+        assert(c == 42);
+        // N should still refer to the global, not the alias generic
+        assert(N == 100);
     }
     "#;
     assert_no_errors(src);
