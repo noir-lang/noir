@@ -5,7 +5,7 @@
 
 use crate::fuzz_lib::instruction::Instruction;
 use crate::mutations::configuration::{
-    ArgumentMutationOptions, BASIC_ARGUMENT_MUTATION_CONFIGURATION
+    ArgumentMutationOptions, BASIC_ARGUMENT_MUTATION_CONFIGURATION,
 };
 use crate::mutations::{
     basic_types::{
@@ -324,9 +324,9 @@ impl InstructionArgumentsMutation {
                     |rng| rng.random_range(0..=255),
                     BASIC_VEC_MUTATION_CONFIGURATION,
                 );
-                // TODO(defkit): We are not mutating `corrupt*` fields, 
+                // TODO(defkit): We are not mutating `corrupt*` fields,
                 // because they are causing strange compilation bugs, which won't be fixed
-                
+
                 mutate_bool(predicate, rng, BOOL_MUTATION_CONFIGURATION_MOSTLY_TRUE);
             }
         }

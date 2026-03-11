@@ -86,8 +86,7 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
 
 libfuzzer_sys::fuzz_mutator!(|data: &mut [u8], _size: usize, max_size: usize, seed: u32| {
     let mut rng = StdRng::seed_from_u64(u64::from(seed));
-    let mut new_fuzzer_data: FuzzerData =
-        decode_from_slice(data).unwrap_or(FuzzerData::default());
+    let mut new_fuzzer_data: FuzzerData = decode_from_slice(data).unwrap_or(FuzzerData::default());
     mutate(&mut new_fuzzer_data, &mut rng);
     let new_bytes = encode_to_json_vec(&new_fuzzer_data).unwrap();
     if new_bytes.len() > max_size {

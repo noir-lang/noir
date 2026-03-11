@@ -233,7 +233,6 @@ pub(crate) const BOOL_MUTATION_CONFIGURATION_MOSTLY_TRUE: BoolMutationConfig =
 pub(crate) const BOOL_MUTATION_CONFIGURATION_MOSTLY_FALSE: BoolMutationConfig =
     BoolMutationConfig::new([(BoolMutationOptions::True, 1), (BoolMutationOptions::False, 1000)]);
 
-
 #[derive(Copy, Clone, Debug)]
 pub(crate) enum UsizeMutationOptions {
     Random,

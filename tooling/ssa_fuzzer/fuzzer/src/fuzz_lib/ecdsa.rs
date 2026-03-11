@@ -116,4 +116,3 @@ pub(crate) fn generate_ecdsa_signature_and_corrupt_it(
     }
     prepared_signature
 }
-
