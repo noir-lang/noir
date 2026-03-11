@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::rc::Rc;
 
 use noirc_frontend::monomorphization::{
     ast::{Call, Expression, Function, Ident, LocalId, Program, Type},
@@ -68,7 +68,7 @@ pub fn change_all_functions_into_unconstrained(mut program: Program) -> Program 
             if let Type::Function(_, _, _, unconstrained) = unref_mut_typ {
                 *unconstrained = true;
             }
-            *typ = Arc::new(cloned_typ);
+            *typ = Rc::new(cloned_typ);
         }
         // Modify the calls it makes (we don't call ACIR from Brillig).
         visit_expr_mut(&mut f.body, &mut |expr| {
@@ -85,7 +85,7 @@ pub fn change_all_functions_into_unconstrained(mut program: Program) -> Program 
                 unreachable!("function idents are expected to have Function type; got {typ}");
             };
             *unconstrained = true;
-            *typ = Arc::new(cloned_typ);
+            *typ = Rc::new(cloned_typ);
             true
         });
         f.handle_ownership();

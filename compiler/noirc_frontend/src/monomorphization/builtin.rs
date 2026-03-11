@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::rc::Rc;
 
 use acvm::{AcirField, FieldElement};
 use iter_extended::vecmap;
@@ -61,7 +61,7 @@ impl Monomorphizer<'_> {
             HandledOpcode::CheckedTransmute => {
                 assert_eq!(parameter_types.len(), 1);
                 let parameter_id = self.next_local_id();
-                let parameter_type = Arc::new(Self::convert_type(&parameter_types[0], location)?);
+                let parameter_type = Rc::new(Self::convert_type(&parameter_types[0], location)?);
                 parameters = vec![(
                     parameter_id,
                     false,
@@ -231,7 +231,7 @@ impl Monomorphizer<'_> {
                 self.next_local_id(),
                 false,
                 "_".into(),
-                Arc::new(parameter_type.clone()),
+                Rc::new(parameter_type.clone()),
                 Visibility::Private,
             )
         });
@@ -260,10 +260,10 @@ impl Monomorphizer<'_> {
             mutable: false,
             location: None,
             name: lambda_name.to_owned(),
-            typ: Arc::new(ast::Type::Function(
+            typ: Rc::new(ast::Type::Function(
                 parameter_types.to_owned(),
                 Box::new(ret_type.clone()),
-                Arc::new(env_type.clone()),
+                Rc::new(env_type.clone()),
                 unconstrained,
             )),
             id: self.next_ident_id(),

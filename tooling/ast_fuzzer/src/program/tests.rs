@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::rc::Rc;
 
 use arbitrary::Unstructured;
 use nargo::errors::Location;
@@ -124,10 +124,10 @@ fn test_recursion_limit_rewrite() {
                         definition: Definition::Function(*callee_id),
                         mutable: false,
                         name: callee_name,
-                        typ: Arc::new(Type::Function(
+                        typ: Rc::new(Type::Function(
                             vec![],
                             Box::new(Type::Unit),
-                            Arc::new(Type::Unit),
+                            Rc::new(Type::Unit),
                             callee_unconstrained,
                         )),
                         id: ident_id,

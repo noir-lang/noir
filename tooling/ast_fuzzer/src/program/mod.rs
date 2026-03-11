@@ -1,7 +1,7 @@
 //! Module responsible for generating arbitrary [Program] ASTs.
 use std::{
     collections::{BTreeMap, BTreeSet},
-    sync::Arc,
+    rc::Rc,
 }; // Using BTree for deterministic enumeration, for repeatability.
 
 use func::{FunctionContext, FunctionDeclaration, can_call};
@@ -288,7 +288,7 @@ impl Context {
                 let typ = Type::Function(
                     param_types,
                     Box::new(callee.return_type.clone()),
-                    Arc::new(Type::Unit),
+                    Rc::new(Type::Unit),
                     callee.unconstrained,
                 );
                 if u.ratio(2, 5)? { types::ref_mut(typ) } else { typ }
@@ -304,7 +304,7 @@ impl Context {
                 Visibility::Private
             };
 
-            params.push((id, is_mutable, name, Arc::new(typ), visibility));
+            params.push((id, is_mutable, name, Rc::new(typ), visibility));
         }
 
         let return_visibility = if is_main {

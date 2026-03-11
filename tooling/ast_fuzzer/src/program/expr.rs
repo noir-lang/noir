@@ -1,4 +1,4 @@
-use std::{collections::HashSet, sync::Arc};
+use std::{collections::HashSet, rc::Rc};
 
 use acir::FieldElement;
 use nargo::errors::Location;
@@ -271,7 +271,7 @@ pub(crate) fn ident_inner(
         },
         mutable,
         name,
-        typ: Arc::new(typ),
+        typ: Rc::new(typ),
         id,
     }
 }

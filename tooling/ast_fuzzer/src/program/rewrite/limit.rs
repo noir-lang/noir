@@ -1,6 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
-    sync::Arc,
+    rc::Rc,
 };
 
 use arbitrary::Unstructured;
@@ -190,7 +190,7 @@ impl<'a, 'b> LimitContext<'a, 'b> {
             limit_id,
             false,
             LIMIT_NAME.to_string(),
-            Arc::new(limit_type.clone()),
+            Rc::new(limit_type.clone()),
             Visibility::Private,
         ));
 
@@ -238,7 +238,7 @@ impl<'a, 'b> LimitContext<'a, 'b> {
             limit_id,
             false,
             format!("_{LIMIT_NAME}"),
-            Arc::new(limit_type),
+            Rc::new(limit_type),
             Visibility::Private,
         ));
     }
@@ -258,7 +258,7 @@ impl<'a, 'b> LimitContext<'a, 'b> {
             limit_id,
             true,
             LIMIT_NAME.to_string(),
-            Arc::new(types::U32),
+            Rc::new(types::U32),
             Visibility::Private,
         ));
 
@@ -269,10 +269,10 @@ impl<'a, 'b> LimitContext<'a, 'b> {
                 definition: Definition::Function(self.func_id),
                 mutable: false,
                 name: self.func.name.clone(),
-                typ: Arc::new(Type::Function(
+                typ: Rc::new(Type::Function(
                     self.func.parameters.iter().map(|p| p.3.as_ref().clone()).collect(),
                     Box::new(self.func.return_type.clone()),
-                    Arc::new(Type::Unit),
+                    Rc::new(Type::Unit),
                     self.func.unconstrained,
                 )),
                 id: self.next_ident_id(),
@@ -418,7 +418,7 @@ impl<'a, 'b> LimitContext<'a, 'b> {
                     proxy_functions,
                 );
 
-                ident.typ = Arc::new(typ);
+                ident.typ = Rc::new(typ);
             }
 
             // Continue the visiting expressions.
@@ -437,13 +437,13 @@ impl<'a, 'b> LimitContext<'a, 'b> {
         for (_, _, _, param_type, _) in &mut self.func.parameters {
             let mut typ = param_type.as_ref().clone();
             modify_function_pointer_param_type(&mut typ, self.func.unconstrained);
-            *param_type = Arc::new(typ);
+            *param_type = Rc::new(typ);
         }
         if let Some(proxy) = proxy_functions.get_mut(&self.func_id) {
             for (_, _, _, param_type, _) in &mut proxy.parameters {
                 let mut typ = param_type.as_ref().clone();
                 modify_function_pointer_param_type(&mut typ, self.func.unconstrained);
-                *param_type = Arc::new(typ);
+                *param_type = Rc::new(typ);
             }
         }
     }

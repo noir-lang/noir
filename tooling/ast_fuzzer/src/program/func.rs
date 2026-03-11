@@ -3,7 +3,7 @@ use nargo::errors::Location;
 use std::{
     collections::{BTreeMap, BTreeSet, HashSet},
     fmt::Debug,
-    sync::Arc,
+    rc::Rc,
 };
 use strum::IntoEnumIterator;
 
@@ -1468,10 +1468,10 @@ impl<'a> FunctionContext<'a> {
             definition: Definition::Oracle("print".to_string()),
             mutable: false,
             name: "print_oracle".to_string(),
-            typ: Arc::new(Type::Function(
+            typ: Rc::new(Type::Function(
                 param_types,
                 Box::new(Type::Unit),
-                Arc::new(Type::Unit),
+                Rc::new(Type::Unit),
                 true,
             )),
             id: self.next_ident_id(),
@@ -2089,10 +2089,10 @@ impl<'a> FunctionContext<'a> {
             definition: Definition::Function(callee_id),
             mutable: false,
             name: callee.name.clone(),
-            typ: Arc::new(Type::Function(
+            typ: Rc::new(Type::Function(
                 param_types,
                 Box::new(callee.return_type.clone()),
-                Arc::new(Type::Unit),
+                Rc::new(Type::Unit),
                 callee.unconstrained,
             )),
             id: self.next_ident_id(),
@@ -2206,10 +2206,10 @@ impl<'a> FunctionContext<'a> {
             definition: Definition::Builtin("array_len".to_string()),
             mutable: false,
             name: "len".to_string(),
-            typ: Arc::new(Type::Function(
+            typ: Rc::new(Type::Function(
                 vec![typ],
                 Box::new(types::U32),
-                Arc::new(Type::Unit),
+                Rc::new(Type::Unit),
                 false,
             )),
             id: self.next_ident_id(),
@@ -2235,10 +2235,10 @@ impl<'a> FunctionContext<'a> {
             definition: Definition::Builtin(format!("vector_{name}")),
             mutable: false,
             name: name.to_string(),
-            typ: Arc::new(Type::Function(
+            typ: Rc::new(Type::Function(
                 arg_types,
                 Box::new(return_type.clone()),
-                Arc::new(Type::Unit),
+                Rc::new(Type::Unit),
                 false,
             )),
             id: self.next_ident_id(),
