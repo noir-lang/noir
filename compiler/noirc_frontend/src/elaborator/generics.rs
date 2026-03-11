@@ -242,10 +242,10 @@ impl Elaborator<'_> {
                     DefinitionKind::NumericGeneric(generic.type_var.clone(), typ.clone());
                 let ident = Ident::new(generic.name.to_string(), generic.location);
                 let hir_ident = self.add_variable_decl(
-                    ident, false, // mutable
-                    false, // allow_shadowing
-                    false, // warn_if_unused
-                    false, // warn_if_not_mutated
+                    ident, false,
+                    false, 
+                    false, 
+                    false, 
                     definition,
                 );
                 self.interner.push_definition_type(hir_ident.id, *typ.clone());

@@ -925,6 +925,74 @@ fn cannot_assign_to_numeric_type_alias() {
 }
 
 #[test]
+fn numeric_alias_turbofish_resolves_correctly() {
+    // Turbofish on a numeric type alias should resolve to the correct value,
+    // not to a global that happens to share the same name.
+    let src = r#"
+    global N: u32 = 100;
+
+    type Alias<let N: u32>: u32 = N;
+
+    fn main() {
+        let a: u32 = Alias::<1>;
+        assert(a == 1);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn numeric_alias_turbofish_expression_resolves_correctly() {
+    // Turbofish on a numeric type alias with an expression body
+    let src = r#"
+    type Double<let N: u32>: u32 = N * 2;
+
+    fn main() {
+        let a: u32 = Double::<3>;
+        assert(a == 6);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn numeric_alias_no_turbofish_no_generics() {
+    // Numeric type alias without generics should work without turbofish
+    let src = r#"
+    type X: u32 = 42;
+
+    fn main() {
+        let a: u32 = X;
+        assert(a == 42);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn numeric_alias_in_range_expression() {
+    // Numeric type alias should work in range expressions (value position)
+    let src = r#"
+    type Size<let N: u32, let M: u32>: u32 = N * M;
+
+    fn foo<let N: u32, let M: u32>() -> Field {
+        let mut s: Field = 0;
+        for i in 0..Size::<N, M> {
+            s += i as Field;
+        }
+        s
+    }
+
+    fn main() {
+        let result = foo::<2, 3>();
+        // sum of 0..6 = 0+1+2+3+4+5 = 15
+        assert(result == 15);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn errors_if_using_comptime_type_in_non_comptime_type_alias() {
     let src = r#"
     pub type Alias = Quoted;
