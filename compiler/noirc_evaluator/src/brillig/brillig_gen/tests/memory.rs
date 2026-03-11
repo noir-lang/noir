@@ -35,8 +35,8 @@ fn brillig_array_get() {
     13: sp[8] = u32 add sp[8], @2
     14: store sp[5] at sp[8]
     15: sp[4] = u32 add sp[6], @2
-    16: sp[5] = u32 add sp[4], sp[2]
-    17: sp[3] = load sp[5]
+    16: sp[3] = u32 add sp[4], sp[2]
+    17: sp[3] = load sp[3]
     18: sp[2] = sp[3]
     19: return
     ");
@@ -83,8 +83,8 @@ fn brillig_array_set() {
     21: sp[7] = u32 add sp[5], sp[2]
     22: store sp[3] at sp[7]
     23: sp[5] = u32 add sp[4], @2
-    24: sp[6] = u32 add sp[5], sp[2]
-    25: sp[3] = load sp[6]
+    24: sp[3] = u32 add sp[5], sp[2]
+    25: sp[3] = load sp[3]
     26: sp[2] = sp[3]
     27: return
     ");
@@ -134,8 +134,8 @@ fn brillig_array_with_rc_ops() {
     23: sp[4] = @5
     24: sp[6] = u32 add sp[4], sp[2]
     25: store sp[3] at sp[6]
-    26: sp[5] = u32 add sp[4], sp[2]
-    27: sp[3] = load sp[5]
+    26: sp[3] = u32 add sp[4], sp[2]
+    27: sp[3] = load sp[3]
     28: sp[2] = sp[3]
     29: return
     ");
