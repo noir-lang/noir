@@ -349,7 +349,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             self.mov_instruction(*target_ptr, flattened_array_pointer);
 
             for _item_index in 0..item_count.0 {
-                for subitem in item_type.iter() {
+                for subitem in item_type {
                     match subitem {
                         BrilligParameter::SingleAddr(_) => {
                             self.load_instruction(*movement_register, *source_ptr);
