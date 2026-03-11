@@ -435,6 +435,7 @@ impl DependencyContext {
                                     Instruction::Cast(..)
                                         | Instruction::Truncate { .. }
                                         | Instruction::MakeArray { .. }
+                                        | Instruction::ArraySet { .. }
                                 ) && let Some(tainted_ids) = self.tainted.get_mut(call)
                                 {
                                     tainted_ids.arguments.extend(&arguments);
@@ -984,9 +985,11 @@ fn is_numeric_constant(func: &Function, value: ValueId) -> bool {
     func.dfg.get_numeric_constant(value).is_some()
 }
 
-/// Expand a set of call arguments by tracing through MakeArray instructions.
+/// Expand a set of call arguments by tracing through MakeArray and ArraySet instructions.
 /// For example, if arguments contains v1 where `v1 = make_array [v0]`,
-/// the result will contain both v1 and v0. Works recursively for nested arrays.
+/// the result will contain both v1 and v0. For `v2 = array_set v1, index .., value v3`,
+/// the result will contain v2, v3, and (recursively) the contents of v1.
+/// Works recursively for nested arrays and chained array_sets.
 fn expand_args_through_make_array(function: &Function, arguments: &[ValueId]) -> Vec<ValueId> {
     let mut queue = VisitOnceDeque::default();
     queue.extend(arguments.iter().copied());
@@ -994,13 +997,22 @@ fn expand_args_through_make_array(function: &Function, arguments: &[ValueId]) ->
     while let Some(arg) = queue.pop_front() {
         expanded.push(arg);
         let Value::Instruction { instruction, .. } = &function.dfg[arg] else { continue };
-        let Instruction::MakeArray { elements, .. } = &function.dfg[*instruction] else {
-            continue;
-        };
-
-        let non_constant_elements =
-            elements.iter().copied().filter(|elem| !is_numeric_constant(function, *elem));
-        queue.extend(non_constant_elements);
+        match &function.dfg[*instruction] {
+            Instruction::MakeArray { elements, .. } => {
+                let non_constant_elements =
+                    elements.iter().copied().filter(|elem| !is_numeric_constant(function, *elem));
+                queue.extend(non_constant_elements);
+            }
+            Instruction::ArraySet { array, value, .. } => {
+                // Trace the source array (may be another ArraySet or MakeArray)
+                queue.push_back(*array);
+                // Trace the inserted value (contributes to the array content)
+                if !is_numeric_constant(function, *value) {
+                    queue.push_back(*value);
+                }
+            }
+            _ => {}
+        }
     }
     expanded
 }
@@ -1642,5 +1654,99 @@ mod tests {
         let mut ssa = Ssa::from_str(program).unwrap();
         let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(true);
         assert_eq!(ssa_level_warnings.len(), 0, "Expected no warnings but found some.");
+    }
+
+    #[test]
+    #[traced_test]
+    fn array_set_with_nonconstant_index_constrain_against_set_value() {
+        // Array built from constants, then array_set with a non-constant index
+        // inserts v0. Brillig result constrained against v0.
+        let program = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: Field, v1: u32):
+            v2 = make_array [Field 0, Field 0] : [Field; 2]
+            v3 = array_set v2, index v1, value v0
+            v4 = call f1(v3) -> Field
+            constrain v4 == v0
+            return v4
+        }
+        brillig(inline) predicate_pure fn helper_func f1 {
+          b0(v0: [Field; 2]):
+            v2 = array_get v0, index u32 0 -> Field
+            return v2
+        }
+        "#;
+
+        let mut ssa = Ssa::from_str(program).unwrap();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(true);
+        assert_eq!(
+            ssa_level_warnings.len(),
+            0,
+            "Expected no warnings: array_set value should be tracked as a call argument."
+        );
+    }
+
+    #[test]
+    #[traced_test]
+    fn array_set_on_param_array_constrain_against_original_element() {
+        // make_array [v0, v1], then array_set at non-constant index with v0.
+        // Brillig result constrained against v0 (which is both in the original
+        // make_array AND the array_set value).
+        let program = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: Field, v1: Field, v2: u32):
+            v3 = make_array [v0, v1] : [Field; 2]
+            v4 = array_set v3, index v2, value v0
+            v5 = call f1(v4) -> Field
+            constrain v5 == v0
+            return v5
+        }
+        brillig(inline) predicate_pure fn helper_func f1 {
+          b0(v0: [Field; 2]):
+            v2 = array_get v0, index u32 0 -> Field
+            return v2
+        }
+        "#;
+
+        let mut ssa = Ssa::from_str(program).unwrap();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(true);
+        assert_eq!(
+            ssa_level_warnings.len(),
+            0,
+            "Expected no warnings: array_set on make_array with params, constrained against original element."
+        );
+    }
+
+    #[test]
+    #[traced_test]
+    fn array_set_constrain_result_array_elements() {
+        // Brillig returns an array. We array_get each element and constrain
+        // against the values used in the array_set. Since the Brillig call's
+        // result is an array, the checker uses array element tracking.
+        let program = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: Field, v1: Field, v2: u32):
+            v3 = make_array [v0, Field 0] : [Field; 2]
+            v4 = array_set v3, index v2, value v1
+            v5 = call f1(v4) -> [Field; 2]
+            v6 = array_get v5, index u32 0 -> Field
+            v7 = array_get v5, index u32 1 -> Field
+            constrain v6 == v0
+            constrain v7 == v1
+            return
+        }
+        brillig(inline) predicate_pure fn helper_func f1 {
+          b0(v0: [Field; 2]):
+            return v0
+        }
+        "#;
+
+        let mut ssa = Ssa::from_str(program).unwrap();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(true);
+        assert_eq!(
+            ssa_level_warnings.len(),
+            0,
+            "Expected no warnings: both array elements constrained against inputs."
+        );
     }
 }
