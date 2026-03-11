@@ -237,29 +237,33 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             return;
         }
 
-        // for i in 0..size/2 { swap(items[i], items[size-1-i]); }
+        // for i in 0..size/2 { swap(*start_ptr++, *end_ptr--); }
         let iteration_count = self.allocate_register();
         self.codegen_usize_op(size, *iteration_count, BrilligBinaryOp::UnsignedDiv, 2);
 
         let start_value_register = self.allocate_register();
         let end_value_register = self.allocate_register();
-        let index_at_end = self.allocate_register();
+        let start_ptr = self.allocate_register();
+        let end_ptr = self.allocate_register();
 
-        // The index going from back to front.
-        self.mov_instruction(*index_at_end, size);
+        // start_ptr = items_pointer
+        self.mov_instruction(*start_ptr, items_pointer);
+        // end_ptr = items_pointer + size - 1
+        self.memory_op_instruction(items_pointer, size, *end_ptr, BrilligBinaryOp::Add);
+        self.codegen_usize_op_in_place(*end_ptr, BrilligBinaryOp::Sub, 1);
 
-        self.codegen_loop(*iteration_count, |ctx, iterator_register| {
-            // The index at the end of the array is size - 1 - iterator
-            ctx.codegen_usize_op_in_place(*index_at_end, BrilligBinaryOp::Sub, 1);
-            let index_at_end_var = SingleAddrVariable::new_usize(*index_at_end);
-
+        self.codegen_loop(*iteration_count, |ctx, _iterator_register| {
             // Load both values
-            ctx.codegen_load_with_offset(items_pointer, iterator_register, *start_value_register);
-            ctx.codegen_load_with_offset(items_pointer, index_at_end_var, *end_value_register);
+            ctx.load_instruction(*start_value_register, *start_ptr);
+            ctx.load_instruction(*end_value_register, *end_ptr);
 
-            // Write both values
-            ctx.codegen_store_with_offset(items_pointer, iterator_register, *end_value_register);
-            ctx.codegen_store_with_offset(items_pointer, index_at_end_var, *start_value_register);
+            // Write both values (swapped)
+            ctx.store_instruction(*start_ptr, *end_value_register);
+            ctx.store_instruction(*end_ptr, *start_value_register);
+
+            // Advance pointers
+            ctx.codegen_usize_op_in_place(*start_ptr, BrilligBinaryOp::Add, 1);
+            ctx.codegen_usize_op_in_place(*end_ptr, BrilligBinaryOp::Sub, 1);
         });
     }
 
