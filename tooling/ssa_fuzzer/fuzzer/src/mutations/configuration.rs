@@ -44,9 +44,9 @@ pub(crate) enum FuzzerDataMutationOptions {
 pub(crate) type FuzzerDataMutationConfig = WeightedSelectionConfig<FuzzerDataMutationOptions, 3>;
 pub(crate) const BASIC_FUZZER_DATA_MUTATION_CONFIGURATION: FuzzerDataMutationConfig =
     FuzzerDataMutationConfig::new([
-        (FuzzerDataMutationOptions::Functions, 1),
-        (FuzzerDataMutationOptions::InstructionBlocks, 1),
-        (FuzzerDataMutationOptions::Witnesses, 4),
+        (FuzzerDataMutationOptions::Functions, 15),
+        (FuzzerDataMutationOptions::InstructionBlocks, 30),
+        (FuzzerDataMutationOptions::Witnesses, 1),
     ]);
 
 /// Mutations config for function mutations
@@ -61,8 +61,8 @@ pub(crate) enum FunctionMutationOptions {
 pub(crate) type MutationConfig = WeightedSelectionConfig<FunctionMutationOptions, 4>;
 pub(crate) const BASIC_FUNCTION_MUTATION_CONFIGURATION: MutationConfig = MutationConfig::new([
     (FunctionMutationOptions::ReturnBlockIdx, 1),
-    (FunctionMutationOptions::FunctionFuzzerCommands, 1),
-    (FunctionMutationOptions::ReturnType, 1),
+    (FunctionMutationOptions::FunctionFuzzerCommands, 15),
+    (FunctionMutationOptions::ReturnType, 8),
     (FunctionMutationOptions::InputTypes, 1),
 ]);
 
@@ -164,10 +164,10 @@ pub(crate) enum VecMutationOptions {
 pub(crate) type VecMutationConfig = WeightedSelectionConfig<VecMutationOptions, 5>;
 
 pub(crate) const BASIC_VEC_MUTATION_CONFIGURATION: VecMutationConfig = VecMutationConfig::new([
-    (VecMutationOptions::Insertion, 7),
-    (VecMutationOptions::Deletion, 22),
-    (VecMutationOptions::Swap, 20),
-    (VecMutationOptions::ElementMutation, 100),
+    (VecMutationOptions::Insertion, 30),
+    (VecMutationOptions::Deletion, 12),
+    (VecMutationOptions::Swap, 10),
+    (VecMutationOptions::ElementMutation, 50),
     (VecMutationOptions::PushDefault, 15),
 ]);
 pub(crate) const ARRAY_WITNESS_MUTATION_CONFIGURATION: VecMutationConfig =
@@ -232,6 +232,7 @@ pub(crate) const BOOL_MUTATION_CONFIGURATION_MOSTLY_TRUE: BoolMutationConfig =
     BoolMutationConfig::new([(BoolMutationOptions::True, 1000), (BoolMutationOptions::False, 1)]);
 pub(crate) const BOOL_MUTATION_CONFIGURATION_MOSTLY_FALSE: BoolMutationConfig =
     BoolMutationConfig::new([(BoolMutationOptions::True, 1), (BoolMutationOptions::False, 1000)]);
+
 
 #[derive(Copy, Clone, Debug)]
 pub(crate) enum UsizeMutationOptions {
