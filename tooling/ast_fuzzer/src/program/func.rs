@@ -753,7 +753,7 @@ impl<'a> FunctionContext<'a> {
                 let item_expr = Expression::Index(Index {
                     collection: Box::new(src_expr),
                     index: Box::new(idx_expr),
-                    element_type: *item_type.clone(),
+                    element_type: item_type.as_ref().clone(),
                     location: Location::dummy(),
                 });
                 // Produce the target type from the item.
@@ -826,7 +826,7 @@ impl<'a> FunctionContext<'a> {
                     Expression::Index(Index {
                         collection: Box::new(Expression::Ident(ident)),
                         index: Box::new(idx),
-                        element_type: *item_type.clone(),
+                        element_type: item_type.as_ref().clone(),
                         location: Location::dummy(),
                     })
                 },
@@ -1470,7 +1470,7 @@ impl<'a> FunctionContext<'a> {
             name: "print_oracle".to_string(),
             typ: Rc::new(Type::Function(
                 param_types,
-                Box::new(Type::Unit),
+                Rc::new(Type::Unit),
                 Rc::new(Type::Unit),
                 true,
             )),
@@ -2091,7 +2091,7 @@ impl<'a> FunctionContext<'a> {
             name: callee.name.clone(),
             typ: Rc::new(Type::Function(
                 param_types,
-                Box::new(callee.return_type.clone()),
+                Rc::new(callee.return_type.clone()),
                 Rc::new(Type::Unit),
                 callee.unconstrained,
             )),
@@ -2208,7 +2208,7 @@ impl<'a> FunctionContext<'a> {
             name: "len".to_string(),
             typ: Rc::new(Type::Function(
                 vec![typ],
-                Box::new(types::U32),
+                Rc::new(types::U32),
                 Rc::new(Type::Unit),
                 false,
             )),
@@ -2237,7 +2237,7 @@ impl<'a> FunctionContext<'a> {
             name: name.to_string(),
             typ: Rc::new(Type::Function(
                 arg_types,
-                Box::new(return_type.clone()),
+                Rc::new(return_type.clone()),
                 Rc::new(Type::Unit),
                 false,
             )),

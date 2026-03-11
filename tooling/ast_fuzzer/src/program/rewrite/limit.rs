@@ -271,7 +271,7 @@ impl<'a, 'b> LimitContext<'a, 'b> {
                 name: self.func.name.clone(),
                 typ: Rc::new(Type::Function(
                     self.func.parameters.iter().map(|p| p.3.as_ref().clone()).collect(),
-                    Box::new(self.func.return_type.clone()),
+                    Rc::new(self.func.return_type.clone()),
                     Rc::new(Type::Unit),
                     self.func.unconstrained,
                 )),
@@ -340,85 +340,86 @@ impl<'a, 'b> LimitContext<'a, 'b> {
                     other => unreachable!("unexpected call target definition: {}", other),
                 };
 
-                let mut typ = ident.typ.as_ref().clone();
-                let unref_mut_typ = types::unref_mut(&mut typ);
-
-                let Type::Function(param_types, _, _, callee_unconstrained) = unref_mut_typ else {
-                    unreachable!("function type expected");
-                };
-
-                if *callee_unconstrained && !self.func.unconstrained {
-                    // Calling Brillig from ACIR: call the proxy if it's global.
-                    if let Some(proxy) = proxy {
-                        ident.name = proxy.name.clone();
-                        ident.definition = Definition::Function(proxy.id);
-                    }
-                    // Pass the limit by value.
-                    let limit_expr = if self.is_main {
-                        expr::ident(
-                            limit_var,
-                            self.next_ident_id(),
-                            true,
-                            LIMIT_NAME.to_string(),
-                            types::U32,
-                        )
-                    } else {
-                        expr::deref(
-                            expr::ident(
-                                limit_var,
-                                self.next_ident_id(),
-                                false,
-                                LIMIT_NAME.to_string(),
-                                types::ref_mut(types::U32),
-                            ),
-                            types::U32,
-                        )
+                types::unref_mut_rc(&mut ident.typ, |unref_mut_typ| {
+                    let Type::Function(mut param_types, ret, env, callee_unconstrained) =
+                        unref_mut_typ
+                    else {
+                        unreachable!("function type expected");
                     };
-                    param_types.push(types::U32);
-                    call.arguments.push(limit_expr);
-                } else {
-                    // Pass the limit by reference.
-                    let limit_type = types::ref_mut(types::U32);
-                    let limit_expr = if self.is_main {
-                        // In main we take a mutable reference to the limit.
-                        expr::ref_mut(
+
+                    if callee_unconstrained && !self.func.unconstrained {
+                        // Calling Brillig from ACIR: call the proxy if it's global.
+                        if let Some(proxy) = proxy {
+                            ident.name = proxy.name.clone();
+                            ident.definition = Definition::Function(proxy.id);
+                        }
+                        // Pass the limit by value.
+                        let limit_expr = if self.is_main {
                             expr::ident(
                                 limit_var,
                                 self.next_ident_id(),
                                 true,
                                 LIMIT_NAME.to_string(),
                                 types::U32,
-                            ),
-                            limit_type,
-                        )
+                            )
+                        } else {
+                            expr::deref(
+                                expr::ident(
+                                    limit_var,
+                                    self.next_ident_id(),
+                                    false,
+                                    LIMIT_NAME.to_string(),
+                                    types::ref_mut(types::U32),
+                                ),
+                                types::U32,
+                            )
+                        };
+                        param_types.push(types::U32);
+                        call.arguments.push(limit_expr);
                     } else {
-                        // In non-main we just pass along the parameter.
-                        expr::ident(
-                            limit_var,
-                            self.next_ident_id(),
-                            false,
-                            LIMIT_NAME.to_string(),
-                            limit_type,
-                        )
-                    };
-                    param_types.push(types::U32);
-                    call.arguments.push(limit_expr);
-                }
+                        // Pass the limit by reference.
+                        let limit_type = types::ref_mut(types::U32);
+                        let limit_expr = if self.is_main {
+                            // In main we take a mutable reference to the limit.
+                            expr::ref_mut(
+                                expr::ident(
+                                    limit_var,
+                                    self.next_ident_id(),
+                                    true,
+                                    LIMIT_NAME.to_string(),
+                                    types::U32,
+                                ),
+                                limit_type,
+                            )
+                        } else {
+                            // In non-main we just pass along the parameter.
+                            expr::ident(
+                                limit_var,
+                                self.next_ident_id(),
+                                false,
+                                LIMIT_NAME.to_string(),
+                                limit_type,
+                            )
+                        };
+                        param_types.push(types::U32);
+                        call.arguments.push(limit_expr);
+                    }
 
-                // Now go through all the parameters: if they are function pointer,
-                // change the signature type of the parameter based on the caller.
-                modify_function_pointer_param_types(param_types, *callee_unconstrained);
+                    // Now go through all the parameters: if they are function pointer,
+                    // change the signature type of the parameter based on the caller.
+                    modify_function_pointer_param_types(&mut param_types, callee_unconstrained);
 
-                // Go through the arguments of the call: if they point at a global
-                // function, they might need to point at the proxy instead.
-                modify_function_pointer_param_values(
-                    &mut call.arguments,
-                    param_types,
-                    *callee_unconstrained,
-                    proxy_functions,
-                );
+                    // Go through the arguments of the call: if they point at a global
+                    // function, they might need to point at the proxy instead.
+                    modify_function_pointer_param_values(
+                        &mut call.arguments,
+                        &param_types,
+                        callee_unconstrained,
+                        proxy_functions,
+                    );
 
-                ident.typ = Rc::new(typ);
+                    Type::Function(param_types, ret, env, callee_unconstrained)
+                });
             }
 
             // Continue the visiting expressions.
@@ -459,18 +460,22 @@ fn modify_function_pointer_param_types(param_types: &mut [Type], callee_unconstr
 
 /// Recursively modify function pointers in the param type.
 fn modify_function_pointer_param_type(param_type: &mut Type, callee_unconstrained: bool) {
-    let Type::Function(param_types, _, _, param_unconstrained) = types::unref_mut(param_type)
-    else {
-        return;
-    };
+    types::unref_mut(param_type, |param_type| {
+        let Type::Function(mut param_types, ret, env, param_unconstrained) = param_type.clone()
+        else {
+            return param_type;
+        };
 
-    let limit_typ = ctx_limit_type_for_func_param(callee_unconstrained, *param_unconstrained);
+        let limit_typ = ctx_limit_type_for_func_param(callee_unconstrained, param_unconstrained);
 
-    // Add the limit to the function described in the parameter.
-    param_types.push(limit_typ);
+        // Add the limit to the function described in the parameter.
+        param_types.push(limit_typ);
 
-    // We need to recurse into the parameters of the function pointer.
-    modify_function_pointer_param_types(param_types, *param_unconstrained);
+        // We need to recurse into the parameters of the function pointer.
+        modify_function_pointer_param_types(&mut param_types, param_unconstrained);
+
+        Type::Function(param_types, ret, env, param_unconstrained)
+    });
 }
 
 /// Go through the call arguments and update global function pointers to their

@@ -126,7 +126,7 @@ fn test_recursion_limit_rewrite() {
                         name: callee_name,
                         typ: Rc::new(Type::Function(
                             vec![],
-                            Box::new(Type::Unit),
+                            Rc::new(Type::Unit),
                             Rc::new(Type::Unit),
                             callee_unconstrained,
                         )),

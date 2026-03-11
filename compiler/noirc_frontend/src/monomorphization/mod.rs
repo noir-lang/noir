@@ -1657,7 +1657,7 @@ impl<'interner> Monomorphizer<'interner> {
                     }
                 };
                 let fields =
-                    Box::new(Self::convert_type_helper(fields.as_ref(), location, seen_types)?);
+                    Rc::new(Self::convert_type_helper(fields.as_ref(), location, seen_types)?);
                 ast::Type::FmtString(size, fields)
             }
             HirType::Unit => ast::Type::Unit,
@@ -1666,7 +1666,7 @@ impl<'interner> Monomorphizer<'interner> {
                     return Err(MonomorphizationError::NestedVectors { location });
                 }
                 let element =
-                    Box::new(Self::convert_type_helper(element.as_ref(), location, seen_types)?);
+                    Rc::new(Self::convert_type_helper(element.as_ref(), location, seen_types)?);
                 let length = match length.evaluate_to_u32(location) {
                     Ok(length) => length,
                     Err(err) => {
@@ -1680,7 +1680,7 @@ impl<'interner> Monomorphizer<'interner> {
                     return Err(MonomorphizationError::NestedVectors { location });
                 }
                 let element =
-                    Box::new(Self::convert_type_helper(element.as_ref(), location, seen_types)?);
+                    Rc::new(Self::convert_type_helper(element.as_ref(), location, seen_types)?);
                 ast::Type::Vector(element)
             }
             HirType::TraitAsType(..) => {
@@ -1784,16 +1784,19 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::Function(args, ret, env, _unconstrained) => {
                 let args =
                     try_vecmap(args, |x| Self::convert_type_helper(x, location, seen_types))?;
-                let ret = Box::new(Self::convert_type_helper(ret, location, seen_types)?);
-                let env = Self::convert_type_helper(env, location, seen_types)?;
+                let ret = Rc::new(Self::convert_type_helper(ret, location, seen_types)?);
+                let env = Rc::new(Self::convert_type_helper(env, location, seen_types)?);
 
-                let make_function = |is_unconstrained, args, ret, env| {
+                let make_function = |is_unconstrained,
+                                     args,
+                                     ret: Rc<ast::Type>,
+                                     env: Rc<ast::Type>| {
                     use ast::Type::*;
-                    match &env {
-                        Unit => Function(args, ret, Rc::new(env), is_unconstrained),
+                    match env.as_ref() {
+                        Unit => Function(args, ret, env, is_unconstrained),
                         Tuple(_) => Tuple(vec![
-                            env.clone(),
-                            Function(args, ret, Rc::new(env), is_unconstrained),
+                            env.as_ref().clone(),
+                            Function(args, ret, env, is_unconstrained),
                         ]),
                         _ => {
                             unreachable!(
@@ -1813,7 +1816,7 @@ impl<'interner> Monomorphizer<'interner> {
             // Lower both mutable & immutable references to the same reference type
             HirType::Reference(element, mutable) => {
                 let element = Self::convert_type_helper(element, location, seen_types)?;
-                ast::Type::Reference(Box::new(element), *mutable)
+                ast::Type::Reference(Rc::new(element), *mutable)
             }
 
             HirType::Forall(_, _) | HirType::Constant(..) | HirType::InfixExpr(..) => {
@@ -2479,7 +2482,7 @@ impl<'interner> Monomorphizer<'interner> {
 
         let typ = ast::Type::Function(
             parameter_types,
-            Box::new(ret_type),
+            Rc::new(ret_type),
             Rc::new(ast::Type::Unit),
             false,
         );
@@ -2623,12 +2626,12 @@ impl<'interner> Monomorphizer<'interner> {
         // Build the function type for both variants
         let constrained_fn_typ = ast::Type::Function(
             parameter_types.clone(),
-            Box::new(ret_type.clone()),
+            Rc::new(ret_type.clone()),
             env_typ.clone(),
             both_unconstrained,
         );
         let unconstrained_fn_typ =
-            ast::Type::Function(parameter_types, Box::new(ret_type), env_typ.clone(), true);
+            ast::Type::Function(parameter_types, Rc::new(ret_type), env_typ.clone(), true);
 
         // Build closure tuples: (env, fn) for each variant
         let constrained_closure_typ =

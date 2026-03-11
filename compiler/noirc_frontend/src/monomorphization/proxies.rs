@@ -259,7 +259,7 @@ fn make_proxy(id: FuncId, ident: Ident, unconstrained: bool) -> Function {
         Call {
             func: Box::new(Expression::Ident(func)),
             arguments,
-            return_type: *ret.clone(),
+            return_type: ret.as_ref().clone(),
             location: Location::dummy(),
         }
     };
@@ -269,7 +269,7 @@ fn make_proxy(id: FuncId, ident: Ident, unconstrained: bool) -> Function {
         name,
         parameters,
         body: Expression::Call(call),
-        return_type: *ret,
+        return_type: ret.as_ref().clone(),
         return_visibility: Visibility::Private,
         unconstrained,
         inline_type: InlineType::InlineAlways,

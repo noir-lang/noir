@@ -441,7 +441,7 @@ fn unwrap_tuple_type(typ: Type) -> Option<Vec<Type>> {
     match typ {
         Type::Tuple(elements) => Some(elements),
         // array accesses will automatically dereference so we do too
-        Type::Reference(element, _) => unwrap_tuple_type(*element),
+        Type::Reference(element, _) => unwrap_tuple_type(element.as_ref().clone()),
         _ => None,
     }
 }

@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use noirc_frontend::monomorphization::{
     ast::{Call, Expression, Function, Ident, LocalId, Program, Type},
     visitor::{visit_expr, visit_expr_mut},
@@ -63,12 +61,13 @@ pub fn change_all_functions_into_unconstrained(mut program: Program) -> Program 
         f.unconstrained = true;
         // Modify any function pointers it takes.
         for (_, _, _, typ, _) in &mut f.parameters {
-            let mut cloned_typ = typ.as_ref().clone();
-            let unref_mut_typ = types::unref_mut(&mut cloned_typ);
-            if let Type::Function(_, _, _, unconstrained) = unref_mut_typ {
-                *unconstrained = true;
-            }
-            *typ = Rc::new(cloned_typ);
+            types::unref_mut_rc(typ, |unref_mut_typ| {
+                if let Type::Function(args, ret, env, _unconstrained) = unref_mut_typ {
+                    Type::Function(args, ret, env, true)
+                } else {
+                    unref_mut_typ
+                }
+            });
         }
         // Modify the calls it makes (we don't call ACIR from Brillig).
         visit_expr_mut(&mut f.body, &mut |expr| {
@@ -79,13 +78,14 @@ pub fn change_all_functions_into_unconstrained(mut program: Program) -> Program 
                 unreachable!("functions are expected to be called by ident; got {func}");
             };
 
-            let mut cloned_typ = typ.as_ref().clone();
-            let unref_mut_typ = types::unref_mut(&mut cloned_typ);
-            let Type::Function(_, _, _, unconstrained) = unref_mut_typ else {
-                unreachable!("function idents are expected to have Function type; got {typ}");
-            };
-            *unconstrained = true;
-            *typ = Rc::new(cloned_typ);
+            types::unref_mut_rc(typ, |unref_mut_typ| {
+                let Type::Function(args, ret, env, _unconstrained) = unref_mut_typ else {
+                    unreachable!(
+                        "function idents are expected to have Function type; got {unref_mut_typ}"
+                    );
+                };
+                Type::Function(args, ret, env, true)
+            });
             true
         });
         f.handle_ownership();

@@ -378,7 +378,7 @@ pub fn ref_mut(rhs: Expression, tgt_type: Type) -> Expression {
 }
 
 fn ref_with_mut(rhs: Expression, tgt_type: Type, mutable: bool) -> Expression {
-    unary(UnaryOp::Reference { mutable }, rhs, Type::Reference(Box::new(tgt_type), mutable))
+    unary(UnaryOp::Reference { mutable }, rhs, Type::Reference(Rc::new(tgt_type), mutable))
 }
 
 /// Make a unary expression.

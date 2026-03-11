@@ -143,7 +143,7 @@ impl Monomorphizer<'_> {
             Expression::Literal(Literal::Integer(value, int_type.clone(), location))
         });
 
-        let typ = Type::Vector(Box::new(int_type));
+        let typ = Type::Vector(Rc::new(int_type));
         let arr_literal = ArrayLiteral { typ, contents: bytes_as_expr };
         Expression::Literal(Literal::Vector(arr_literal))
     }
@@ -265,7 +265,7 @@ impl Monomorphizer<'_> {
             name: lambda_name.to_owned(),
             typ: Rc::new(ast::Type::Function(
                 parameter_types.to_owned(),
-                Box::new(ret_type.clone()),
+                Rc::new(ret_type.clone()),
                 Rc::new(env_type.clone()),
                 unconstrained,
             )),

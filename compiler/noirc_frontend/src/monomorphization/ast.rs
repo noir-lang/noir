@@ -78,7 +78,7 @@ impl Expression {
                 Literal::Str(s) => owned(Type::String(s.len() as u32)),
                 Literal::FmtStr(_, size, expr) => {
                     let typ = expr.return_type()?;
-                    owned(Type::FmtString(*size as u32, Box::new(typ.into_owned())))
+                    owned(Type::FmtString(*size as u32, Rc::new(typ.into_owned())))
                 }
             },
             Expression::Block(xs) => {
@@ -540,19 +540,19 @@ pub struct Function {
 #[derive(Debug, PartialEq, Eq, Clone, Hash, PartialOrd, Ord)]
 pub enum Type {
     Field,
-    Array(/*len:*/ u32, Box<Type>), // Array(4, Field) = [Field; 4]
+    Array(/*len:*/ u32, Rc<Type>), // Array(4, Field) = [Field; 4]
     Integer(Signedness, /*bits:*/ IntegerBitSize), // u32 = Integer(unsigned, ThirtyTwo)
     Bool,
     String(/*len:*/ u32), // String(4) = str[4]
-    FmtString(/*len:*/ u32, Box<Type>),
+    FmtString(/*len:*/ u32, Rc<Type>),
     Unit,
     Tuple(Vec<Type>),
-    Vector(Box<Type>),
-    Reference(Box<Type>, /*mutable:*/ bool),
+    Vector(Rc<Type>),
+    Reference(Rc<Type>, /*mutable:*/ bool),
     /// `(args, ret, env, unconstrained)`
     Function(
         /*args:*/ Vec<Type>,
-        /*ret:*/ Box<Type>,
+        /*ret:*/ Rc<Type>,
         /*env:*/ Rc<Type>,
         /*unconstrained:*/ bool,
     ),

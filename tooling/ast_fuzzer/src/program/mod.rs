@@ -287,7 +287,7 @@ impl Context {
                     callee.params.iter().map(|p| p.3.as_ref().clone()).collect::<Vec<_>>();
                 let typ = Type::Function(
                     param_types,
-                    Box::new(callee.return_type.clone()),
+                    Rc::new(callee.return_type.clone()),
                     Rc::new(Type::Unit),
                     callee.unconstrained,
                 );
@@ -490,13 +490,13 @@ impl Context {
                 }
                 6 if is_vector_allowed && !self.config.avoid_vectors => {
                     let typ = gen_inner_type(self, u, false)?;
-                    Type::Vector(Box::new(typ))
+                    Type::Vector(Rc::new(typ))
                 }
                 6 | 7 => {
                     let min_size = 0;
                     let size = u.int_in_range(min_size..=self.config.max_array_size)?;
                     let typ = gen_inner_type(self, u, false)?;
-                    Type::Array(size as u32, Box::new(typ))
+                    Type::Array(size as u32, Rc::new(typ))
                 }
                 _ => unreachable!("unexpected arbitrary type index"),
             };
