@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773257194764,
+  "lastUpdate": 1773257206899,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -45111,95 +45111,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "b79712ed9190eac99a8134abfabdbc3979837d07",
-          "message": "fix: Fix LICM hoisting failing constraints out of loops (#11771)",
-          "timestamp": "2026-03-04T20:16:53Z",
-          "tree_id": "1b590a4222cbac86db827025a6566ddbd1187813",
-          "url": "https://github.com/noir-lang/noir/commit/b79712ed9190eac99a8134abfabdbc3979837d07"
-        },
-        "date": 1772657620527,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.028,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.053,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.005,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 0.003,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 0.002,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 0.003,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 0.001,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.002,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 0.028,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 0.032,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 0.001,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.024,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.015,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -49519,6 +49430,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root",
             "value": 0.002,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 0.001,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.002,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 0.028,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 0.032,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 0.001,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.007,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.016,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "26af3f7c2895ca7f1681d82c197cc9173cfa5fe9",
+          "message": "fix(frontend): Always validate macro calls (#11836)",
+          "timestamp": "2026-03-11T18:42:23Z",
+          "tree_id": "00b07b40d246fa2d0f73dfb0ea73509a277aa484",
+          "url": "https://github.com/noir-lang/noir/commit/26af3f7c2895ca7f1681d82c197cc9173cfa5fe9"
+        },
+        "date": 1773257141173,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.031,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.051,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 0.003,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 0.002,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 0.003,
             "unit": "s"
           },
           {
