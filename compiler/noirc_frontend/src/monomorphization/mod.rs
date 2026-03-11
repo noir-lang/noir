@@ -1832,7 +1832,8 @@ impl<'interner> Monomorphizer<'interner> {
             | HirType::Error
             | HirType::Quoted(_) => Ok(()),
             HirType::Constant(_value, kind) => {
-                if kind.is_error() {
+                let kind = kind.follow_bindings_shallow();
+                if matches!(kind.as_ref(), Type::Error) {
                     Err(MonomorphizationError::UnknownConstant { location })
                 } else {
                     Ok(())
@@ -1932,7 +1933,7 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<(), MonomorphizationError> {
         if from.unify(to).is_err() {
             return Err(MonomorphizationError::CheckedCastFailed {
-                actual: to.clone(),
+                actual: to.to_string(),
                 expected: from.clone(),
                 location,
             });
@@ -1944,7 +1945,7 @@ impl<'interner> Monomorphizer<'interner> {
                 from.evaluate_to_signed_field_helper(&to.kind(), location, skip_simplifications);
             if from_value.is_err() || from_value.unwrap() != to_value {
                 return Err(MonomorphizationError::CheckedCastFailed {
-                    actual: HirType::Constant(to_value, to.kind()),
+                    actual: to_value.to_string(),
                     expected: from.clone(),
                     location,
                 });

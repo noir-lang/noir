@@ -263,10 +263,12 @@ impl Type {
                 })
             }
 
-            (Constant(value, kind), other) | (other, Constant(value, kind)) => {
+            (Constant(value, constant_type), other) | (other, Constant(value, constant_type)) => {
                 let dummy_location = Location::dummy();
                 let other = other.substitute(bindings);
-                if let Ok(other_value) = other.evaluate_to_signed_field(kind, dummy_location) {
+                let kind = Kind::Numeric(constant_type.clone());
+
+                if let Ok(other_value) = other.evaluate_to_signed_field(&kind, dummy_location) {
                     if *value == other_value && kind.unifies(&other.kind()) {
                         Ok(())
                     } else {
@@ -276,7 +278,7 @@ impl Type {
                     if let Some(inverse) = op.approx_inverse() {
                         // Handle cases like `4 = a + b` by trying to solve to `a = 4 - b`
                         let new_type = Type::inverted_infix_expr(
-                            Box::new(Constant(*value, kind.clone())),
+                            Box::new(Constant(*value, constant_type.clone())),
                             inverse,
                             rhs,
                         );
@@ -466,7 +468,7 @@ impl Type {
             let dummy_location = Location::dummy();
             let lhs_rhs = lhs_rhs.substitute(bindings);
             if let Ok(value) = lhs_rhs.evaluate_to_signed_field(&kind, dummy_location) {
-                let lhs_rhs = Box::new(Type::Constant(value, kind));
+                let lhs_rhs = Box::new(Type::Constant(value, kind.into_numeric_type_or_error()));
                 let new_rhs =
                     Type::inverted_infix_expr(Box::new(other.clone()), lhs_op_inverse, lhs_rhs);
 
@@ -697,7 +699,7 @@ mod tests {
     }
 
     fn constant(value: u128) -> Type {
-        Type::Constant(value.into(), Kind::Any)
+        Type::Constant(value.into(), Box::new(Type::FieldElement))
     }
 
     fn add(a: &Type, b: &Type) -> Type {
@@ -811,8 +813,8 @@ mod tests {
         let mut bindings = TypeBindings::default();
 
         // A + 1 = B + 3
-        let (a, id_a) = types.type_variable();
-        let (b, _) = types.type_variable();
+        let (a, id_a) = types.type_variable_with_kind(Kind::Numeric(Box::new(Type::FieldElement)));
+        let (b, _) = types.type_variable_with_kind(Kind::Numeric(Box::new(Type::FieldElement)));
         let one = constant(1);
         let two = constant(2);
         let three = constant(3);
@@ -831,9 +833,9 @@ mod tests {
         let mut bindings = TypeBindings::default();
 
         // (3 - A) - 1 = B * C
-        let (a, id_a) = types.type_variable();
-        let (b, _) = types.type_variable();
-        let (c, _) = types.type_variable();
+        let (a, id_a) = types.type_variable_with_kind(Kind::Numeric(Box::new(Type::FieldElement)));
+        let (b, _) = types.type_variable_with_kind(Kind::Numeric(Box::new(Type::FieldElement)));
+        let (c, _) = types.type_variable_with_kind(Kind::Numeric(Box::new(Type::FieldElement)));
         let one = constant(1);
         let three = constant(3);
 

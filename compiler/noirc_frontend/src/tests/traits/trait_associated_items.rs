@@ -398,7 +398,7 @@ fn trait_impl_with_where_clause_with_trait_with_associated_numeric() {
     }
 
     impl Bar for Field {
-        let N: Field = 42;
+        let N: Field = 42_Field;
     }
 
     trait Foo {

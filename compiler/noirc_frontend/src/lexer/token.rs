@@ -50,18 +50,6 @@ impl IntegerTypeSuffix {
             IntegerTypeSuffix::Field => crate::Type::FieldElement,
         }
     }
-
-    /// Returns the kind of this integer constant when used in a type position.
-    /// For example, when used as `[Field; 3u32]`, this [IntegerTypeSuffix::U32]
-    /// will return `Kind::Numeric(Type::U32)`.
-    ///
-    /// This method should generally be used whenever an integer is used in a type position.
-    /// [IntegerTypeSuffix::as_type] would return a raw `u32` type which is not the actual
-    /// type of an integer in a type position - that'd be `Type::Constant(3, Kind::Numeric(u32))`
-    /// for `3u32`.
-    pub(crate) fn as_kind(self) -> crate::Kind {
-        crate::Kind::Numeric(Box::new(self.as_type()))
-    }
 }
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]

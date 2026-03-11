@@ -740,7 +740,7 @@ fn signed_numeric_type_alias_with_negative_operand() {
     // The expression `0 % (-1)` must be elaborated as a i32.
     // An unsigned type would cause an "attempt to subtract with overflow" errors.
     let src = r#"
-    pub type X: i32 = 0 % (-1);
+    pub type X: i32 = 0i32 % -1i32;
 
     fn main() {
         let _: i32 = X;
@@ -753,8 +753,8 @@ fn signed_numeric_type_alias_with_negative_operand() {
 fn regression_10971() {
     // Regression test for https://github.com/noir-lang/noir/issues/10971
     let src = r#"
-    pub type X: u8 = 257;
-    ^^^^^^^^^^^^^^^^^^^^ The value `257` cannot fit into `u8` which has range `0..=255`
+    pub type X: u8 = 257u8;
+    ^^^^^^^^^^^^^^^^^^^^^^ The value `257` cannot fit into `u8` which has range `0..=255`
 
     fn main() {
         let _ = X;
