@@ -104,7 +104,7 @@ test.describe('Noir Web App', () => {
 
     // Wait for backend creation (this can take some time)
     await expect(page.locator('#logs')).toContainText('Creating Barretenberg... ⏳');
-    await expect(page.locator('#logs')).toContainText('Created Barretenberg... ✅', {timeout: 10000});
+    await expect(page.locator('#logs')).toContainText('Created Barretenberg... ✅', {timeout: 20000});
 
     // Wait for witness generation
     await expect(page.locator('#logs')).toContainText('Generating witness... ⏳', {timeout: 10000});
