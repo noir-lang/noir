@@ -86,7 +86,6 @@ impl Elaborator<'_> {
                         _ => Box::new(Type::Error),
                     };
                     let declared_type = *declared_type;
-                    let alias_generics = &type_alias.borrow().generics;
                     let expr_location = type_alias.borrow().location;
                     let expr = UnresolvedTypeExpression::to_expression_kind(expr);
                     let expr = Expression::new(expr, expr_location);
@@ -95,6 +94,7 @@ impl Elaborator<'_> {
                     // `resolved_turbofish` contains already-resolved types from
                     // validate_path, so we use resolve_alias_turbofish_generics
                     // directly which accepts resolved types.
+                    let alias_generics = &type_alias.borrow().generics;
                     let alias_generic_types = vecmap(alias_generics, |generic| {
                         self.interner.next_type_variable_with_kind(generic.kind())
                     });
