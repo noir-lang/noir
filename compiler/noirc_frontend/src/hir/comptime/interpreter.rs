@@ -742,7 +742,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
                 let location = self.elaborator.interner.expr_location(&id);
                 match associated_type.typ.evaluate_to_integer(&associated_type.typ.kind(), location) {
-                    Ok(value) => self.evaluate_integer(value, id),
+                    Ok(value) => self.evaluate_field_as_integer(value.as_field(), id),
                     Err(err) => Err(InterpreterError::InvalidAssociatedConstant {
                         err: Box::new(err),
                         location,
@@ -764,7 +764,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             InterpreterError::InvalidNumericGeneric { err, location }
         })?;
 
-        self.evaluate_integer(value, id)
+        self.evaluate_field_as_integer(value.as_field(), id)
     }
 
     fn evaluate_trait_item(&mut self, item: TraitItem, id: ExprId) -> IResult<Value> {
@@ -784,7 +784,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         match literal {
             HirLiteral::Unit => Ok(Value::Unit),
             HirLiteral::Bool(value) => Ok(Value::Bool(value)),
-            HirLiteral::Integer(value) => self.evaluate_integer(value, id),
+            HirLiteral::Integer(value) => self.evaluate_field_as_integer(value, id),
             HirLiteral::Str(string) => Ok(Value::String(Rc::new(string.bytes().collect()))),
             HirLiteral::FmtStr(fragments, captures, length) => {
                 self.evaluate_format_string(fragments, captures, length, id)
@@ -836,11 +836,13 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     /// Since integers are polymorphic, evaluating one requires the result type.
     /// We pass down the result type the elaborator previously inferred.
-    fn evaluate_integer(&self, value: Integer, id: ExprId) -> IResult<Value> {
+    fn evaluate_field_as_integer(&self, value: FieldElement, id: ExprId) -> IResult<Value> {
         let typ = self.elaborator.interner.id_type(id).follow_bindings();
         let location = self.elaborator.interner.expr_location(&id);
-
-        evaluate_integer(typ, value, location)
+        Integer::try_from_type(value, &typ).map(Value::Integer).ok_or_else(|| {
+            let typ = typ.clone();
+            InterpreterError::IntegerOutOfRangeForType { value, typ, location }
+        })
     }
 
     pub(crate) fn evaluate_block(&mut self, mut block: HirBlockExpression) -> IResult<Value> {
@@ -1734,66 +1736,6 @@ fn undo_bindings(bindings: &HashMap<TypeVariable, (Type, Kind)>) {
 fn perform_bindings(bindings: &HashMap<TypeVariable, (Type, Kind)>) {
     for (var, (binding, _kind)) in bindings {
         var.force_bind(binding.clone());
-    }
-}
-
-fn evaluate_integer(typ: Type, value: Integer, location: Location) -> IResult<Value> {
-    use IntegerBitSize::*;
-    use Signedness::*;
-    use Type::*;
-
-    macro_rules! evaluate {
-        ($typ:ident, $signed:expr) => {{
-            let value = try_field_to_int(value, $signed)
-                .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
-            Ok(Value::$typ(value))
-        }};
-    }
-
-    match typ {
-        FieldElement => Ok(Value::field(value)),
-        Integer(Unsigned, One) => {
-            let field_value = value;
-            if field_value.is_zero() {
-                Ok(Value::u1(false))
-            } else if field_value.is_one() {
-                Ok(Value::u1(true))
-            } else {
-                Err(InterpreterError::IntegerOutOfRangeForType { value, typ, location })
-            }
-        }
-        Integer(Unsigned, Eight) => evaluate!(u8, false),
-        Integer(Unsigned, Sixteen) => evaluate!(u16, false),
-        Integer(Unsigned, ThirtyTwo) => evaluate!(u32, false),
-        Integer(Unsigned, SixtyFour) => evaluate!(u64, false),
-        Integer(Unsigned, HundredTwentyEight) => evaluate!(u128, false),
-        Integer(Signed, One) => Err(InterpreterError::TypeUnsupported { typ, location }),
-        Integer(Signed, Eight) => evaluate!(i8, true),
-        Integer(Signed, Sixteen) => evaluate!(i16, true),
-        Integer(Signed, ThirtyTwo) => evaluate!(i32, true),
-        Integer(Signed, SixtyFour) => evaluate!(i64, true),
-        Integer(Signed, HundredTwentyEight) => {
-            Err(InterpreterError::TypeUnsupported { typ, location })
-        }
-        _ => Err(InterpreterError::NonIntegerIntegerLiteral { typ, location }),
-    }
-}
-
-/// Convert a [FieldElement] into an integer type (up to u128),
-/// returning None if the value does not fit. Expects the given field to be in normal form such
-/// that `-7 == -FieldElement::from(7)`.
-fn try_field_to_int<T: TryFrom<u128> + TryFrom<i128>>(
-    field: FieldElement,
-    signed: bool,
-) -> Option<T> {
-    assert!(size_of::<T>() <= size_of::<u128>());
-
-    if signed {
-        let i128_value = field.try_into_i128()?;
-        i128_value.try_into().ok()
-    } else {
-        let u128_value = field.try_into_u128()?;
-        u128_value.try_into().ok()
     }
 }
 

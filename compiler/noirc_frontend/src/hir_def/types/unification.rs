@@ -674,7 +674,7 @@ fn invoke_function_on_expression(
 
 #[cfg(test)]
 mod tests {
-    use crate::{BinaryTypeOperator, Kind, Type, TypeBindings, TypeVariable, TypeVariableId};
+    use crate::{BinaryTypeOperator, Kind, Type, TypeBindings, TypeVariable, TypeVariableId, hir::comptime::Integer};
 
     struct Types {
         next_type_variable_id: usize,
@@ -696,8 +696,9 @@ mod tests {
         }
     }
 
+    /// Creates a type constant with `Kind::Any`
     fn constant(value: u128) -> Type {
-        Type::Constant(value.into(), Kind::Any)
+        Type::Constant(Integer::Field(value.into()), Kind::Any)
     }
 
     fn add(a: &Type, b: &Type) -> Type {

@@ -1,11 +1,8 @@
 use crate::{
-    BinaryTypeOperator,
-    ast::{
+    BinaryTypeOperator, ast::{
         GenericTypeArgKind, GenericTypeArgs, UnresolvedType, UnresolvedTypeData,
         UnresolvedTypeExpression,
-    },
-    parser::{ParserError, labels::ParsingRuleLabel},
-    token::Token,
+    }, parser::{ParserError, labels::ParsingRuleLabel}, token::Token
 };
 
 use acvm::{AcirField, FieldElement};

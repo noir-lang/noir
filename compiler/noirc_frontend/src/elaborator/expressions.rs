@@ -353,7 +353,7 @@ impl Elaborator<'_> {
                 let len: u32 = str.len().try_into().expect(
                     "ICE: Elaborator::elaborate_literal: str.len() is expected to fit into a u32",
                 );
-                let len = len.into();
+                let len = Type::constant_u32(len);
                 (Lit(HirLiteral::Str(str)), Type::String(Box::new(len)))
             }
             Literal::FmtStr(fragments, length) => self.elaborate_fmt_string(fragments, length),
@@ -423,7 +423,7 @@ impl Elaborator<'_> {
                 });
 
                 let length: u32 = elements.len().try_into().expect("ICE: Elaborator::elaborate_array_literal: elements.len() is expected to fit into a u32");
-                let length = length.into();
+                let length = Type::constant_u32(length);
                 (HirArrayLiteral::Standard(elements), first_elem_type, length)
             }
             ArrayLiteral::Repeated { repeated_element, length } => {
@@ -431,7 +431,7 @@ impl Elaborator<'_> {
                 let length = UnresolvedTypeExpression::from_expr(*length, location).unwrap_or_else(
                     |error| {
                         self.push_err(ResolverError::ParserError(Box::new(error)));
-                        UnresolvedTypeExpression::Constant(FieldElement::zero(), None, location)
+                        UnresolvedTypeExpression::Constant(FieldElement::zero(), None, location  )
                     },
                 );
 
@@ -489,7 +489,7 @@ impl Elaborator<'_> {
             }
         }
 
-        let len = length.into();
+        let len = Type::constant_u32(length);
         let fmtstr_type =
             if capture_types.is_empty() { Type::Unit } else { Type::Tuple(capture_types) };
         let typ = Type::FmtString(Box::new(len), Box::new(fmtstr_type));

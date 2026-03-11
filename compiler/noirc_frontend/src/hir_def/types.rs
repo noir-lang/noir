@@ -1,5 +1,6 @@
 use std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
+use acvm::FieldElement;
 use rustc_hash::FxHashMap as HashMap;
 
 #[cfg(test)]
@@ -1401,6 +1402,10 @@ impl Type {
     pub fn polymorphic_integer(interner: &NodeInterner) -> Type {
         let type_var_kind = Kind::Integer;
         Self::type_variable_with_kind(interner, type_var_kind)
+    }
+
+    pub fn constant_field(value: FieldElement) -> Type {
+        Type::Constant(Integer::Field(value), Kind::Numeric(Box::new(Type::FieldElement)))
     }
 
     pub fn constant_u32(value: u32) -> Type {

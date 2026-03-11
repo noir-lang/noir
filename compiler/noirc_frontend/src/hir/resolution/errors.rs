@@ -1,4 +1,3 @@
-use acvm::FieldElement;
 pub use noirc_errors::Span;
 use noirc_errors::{CustomDiagnostic as Diagnostic, Location};
 use thiserror::Error;

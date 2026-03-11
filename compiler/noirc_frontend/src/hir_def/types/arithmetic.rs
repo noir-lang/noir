@@ -1,9 +1,7 @@
 use std::collections::BTreeMap;
-
-use acvm::{AcirField, FieldElement};
 use noirc_errors::Location;
 
-use crate::{BinaryTypeOperator, Type, TypeBinding};
+use crate::{BinaryTypeOperator, Type, TypeBinding, hir::comptime::Integer};
 
 impl Type {
     /// Try to canonicalize the representation of this type.
@@ -154,13 +152,7 @@ impl Type {
 
         // Maps each term to the number of times that term was used.
         let mut sorted = BTreeMap::new();
-
-        let zero_value = if op == BinaryTypeOperator::Addition {
-            FieldElement::zero()
-        } else {
-            FieldElement::one()
-        };
-        let mut constant = zero_value;
+        let mut constant = None;
 
         // Push each non-constant term to `sorted` to sort them. Recur on InfixExprs with the same operator.
         while let Some(item) = queue.pop() {
@@ -171,13 +163,17 @@ impl Type {
                 }
                 Type::Constant(new_constant, new_constant_kind) => {
                     let dummy_location = Location::dummy();
-                    if let Ok(result) =
-                        op.function(constant, new_constant, &new_constant_kind, dummy_location)
-                    {
-                        constant = result;
+                    if let Some(existing_constant) = constant {
+                        if let Ok(result) =
+                            op.function(existing_constant, new_constant, dummy_location)
+                        {
+                            constant = Some(result);
+                        } else {
+                            let constant = Type::Constant(new_constant, new_constant_kind);
+                            *sorted.entry(constant).or_default() += 1;
+                        }
                     } else {
-                        let constant = Type::Constant(new_constant, new_constant_kind);
-                        *sorted.entry(constant).or_default() += 1;
+                        constant = Some(new_constant);
                     }
                 }
                 other => {
@@ -200,14 +196,14 @@ impl Type {
                 }
             }
 
-            if constant != zero_value {
+            if let Some(constant) = constant {
                 let constant = Type::Constant(constant, lhs.infix_kind(rhs));
                 typ = Type::infix_expr(Box::new(typ), op, Box::new(constant));
             }
 
             typ
         } else {
-            // Every type must have been a constant
+            let constant = constant.expect("Every type must have been a constant");
             Type::Constant(constant, lhs.infix_kind(rhs))
         }
     }
@@ -297,7 +293,7 @@ impl Type {
     fn parse_partial_constant_expr(
         lhs: &Type,
         rhs: &Type,
-    ) -> Option<(Box<Type>, BinaryTypeOperator, FieldElement, FieldElement)> {
+    ) -> Option<(Box<Type>, BinaryTypeOperator, Integer, Integer)> {
         let kind = lhs.infix_kind(rhs);
         let dummy_location = Location::dummy();
         let rhs = rhs.evaluate_to_integer(&kind, dummy_location).ok()?;
@@ -332,8 +328,7 @@ impl Type {
                     op = op.inverse()?;
                 }
                 let dummy_location = Location::dummy();
-                let result =
-                    op.function(l_const, r_const, &lhs.infix_kind(rhs), dummy_location).ok()?;
+                let result = op.function(l_const, r_const, dummy_location).ok()?;
                 let constant = Type::Constant(result, lhs.infix_kind(rhs));
                 Some(Type::infix_expr(l_type, l_op, Box::new(constant)))
             }
@@ -341,21 +336,14 @@ impl Type {
                 // We ensure the result divides evenly to preserve integer division semantics
                 // TODO(https://github.com/noir-lang/noir/issues/11013): do the division simplification
                 // also in case of Field elements
-                let l_128: Option<i128> = l_const.try_into_i128();
-                let r_128: Option<i128> = r_const.try_into_i128();
-                let divides_evenly = if let (Some(l_128), Some(r_128)) = (l_128, r_128) {
-                    l_128.checked_rem(r_128) == Some(0)
-                } else {
-                    false
-                };
+                let divides_evenly = (l_const % r_const).map_or(false, |rem| rem.is_zero());
 
                 // If op is a division we need to ensure it divides evenly
                 if op == Division && (r_const.is_zero() || !divides_evenly) {
                     None
                 } else {
                     let dummy_location = Location::dummy();
-                    let result =
-                        op.function(l_const, r_const, &lhs.infix_kind(rhs), dummy_location).ok()?;
+                    let result = op.function(l_const, r_const, dummy_location).ok()?;
                     let constant = Box::new(Type::Constant(result, lhs.infix_kind(rhs)));
                     Some(Type::infix_expr(l_type, l_op, constant))
                 }
@@ -417,11 +405,11 @@ mod tests {
             implicit: false,
             original_type_var_id: None,
         });
-        let n_minus_one: Type = n.clone() - 1u32.into();
+        let n_minus_one: Type = n.clone() - Type::constant_u32(1);
         let checked_cast_n_minus_one =
             Type::CheckedCast { from: Box::new(n_minus_one.clone()), to: Box::new(n_minus_one) };
 
-        let n_minus_one_plus_one = checked_cast_n_minus_one.clone() + 1u32.into();
+        let n_minus_one_plus_one = checked_cast_n_minus_one.clone() + Type::constant_u32(1);
 
         let canonicalized_typ = n_minus_one_plus_one.canonicalize();
 
@@ -429,7 +417,7 @@ mod tests {
 
         // We also want to check that if the `CheckedCast` is on the RHS then we'll still be able to canonicalize
         // the expression `1 + (N - 1)` to `N`.
-        let one_plus_n_minus_one = Type::from(1u32) + checked_cast_n_minus_one;
+        let one_plus_n_minus_one = Type::constant_u32(1u32) + checked_cast_n_minus_one;
 
         let canonicalized_typ = one_plus_n_minus_one.canonicalize();
 
@@ -442,7 +430,7 @@ mod tests {
         let x_var = TypeVariable::unbound(TypeVariableId(0), field_element_kind.clone());
         let x_type = Type::TypeVariable(x_var.clone());
 
-        let one = Type::Constant(FieldElement::one(), Kind::numeric(Type::FieldElement));
+        let one = Type::constant_field(FieldElement::one());
         let lhs = x_type.clone() + one.clone();
         let rhs = one + x_type;
 
@@ -451,7 +439,7 @@ mod tests {
         let rhs = rhs.canonicalize();
 
         // bind vars
-        let two = Type::Constant(FieldElement::from(2u128), field_element_kind.clone());
+        let two = Type::constant_field(2u32.into());
         x_var.bind(two);
 
         // canonicalize (expect constant)
@@ -472,30 +460,35 @@ mod tests {
 
     #[test]
     fn negative_u32_difference() {
-        let infix = Type::from(0u32) - Type::from(1u32);
+        let infix = Type::constant_u32(0) - Type::constant_u32(1);
         let infix_canonicalized = infix.canonicalize();
         assert_eq!(infix_canonicalized, infix);
     }
 
     #[test]
     fn zero_divided_by_zero() {
-        let infix = Type::from(0u8) / Type::from(0u8);
+        let infix = Type::constant_u32(0) / Type::constant_u32(0);
         let infix_canonicalized = infix.canonicalize();
         assert_eq!(infix_canonicalized, infix);
+    }
+
+    /// Helper to create a u32 numeric constant type
+    fn u32t(x: u32) -> Type {
+        Type::constant_u32(x)
     }
 
     #[should_panic(expected = "`left == right` failed")]
     #[test]
     fn exact_division_simplifying() {
-        let infix = (Type::from(2u8) * Type::from(160u8)) / (Type::from(91u8) - Type::from(86u8));
+        let infix = (u32t(2) * u32t(160)) / (u32t(91) - u32t(86));
         let infix_canonicalized = infix.canonicalize();
-        let expected_result = (Type::from(2u8) * Type::from(160u8)) / Type::from(5u8);
+        let expected_result = (u32t(2) * u32t(160)) / u32t(5);
         assert_eq!(infix_canonicalized, expected_result);
     }
 
     #[test]
     fn exact_division_simplifying_with_checked_cast() {
-        let infix = (Type::from(2u8) * Type::from(160u8)) / (Type::from(91u8) - Type::from(86u8));
+        let infix = (u32t(2) * u32t(160)) / (u32t(91) - u32t(86));
         let infix = Type::CheckedCast { from: Box::new(infix.clone()), to: Box::new(infix) };
 
         let infix_canonicalized = infix.canonicalize();
@@ -504,7 +497,7 @@ mod tests {
             infix_canonicalized => infix_canonicalized,
         };
 
-        let expected_result = (Type::from(2u8) * Type::from(160u8)) / Type::from(5u8);
+        let expected_result = (u32t(2) * u32t(160)) / u32t(5);
         assert_eq!(infix_canonicalized, expected_result);
     }
 }
@@ -523,7 +516,7 @@ mod proptests {
         graph::CrateId,
         hir::{
             Context,
-            comptime::{Interpreter, Value},
+            comptime::{Integer, Interpreter, Value},
         },
         hir_def::types::{BinaryTypeOperator, Kind, Type, TypeVariable, TypeVariableId},
         shared::Signedness,
@@ -630,10 +623,10 @@ mod proptests {
         typ: Type,
         arbitrary_value: BoxedStrategy<FieldElement>,
     ) -> impl Strategy<Value = Type> {
-        let leaf = prop_oneof![
-            arbitrary_value
-                .prop_map(move |value| Type::Constant(value, Kind::numeric(typ.clone()))),
-        ];
+        let leaf = prop_oneof![arbitrary_value.prop_map(move |value| {
+            let int = Integer::try_from_type(value, &typ).unwrap();
+            Type::Constant(int, Kind::numeric(typ.clone()))
+        }),];
 
         leaf.prop_recursive(
             8,   // 8 levels deep maximum
@@ -660,8 +653,10 @@ mod proptests {
     ) -> impl Strategy<Value = Type> {
         let leaf = prop_oneof![
             arbitrary_variable(typ.clone(), num_variables),
-            arbitrary_value
-                .prop_map(move |value| Type::Constant(value, Kind::numeric(typ.clone()))),
+            arbitrary_value.prop_map(move |value| {
+                let int = Integer::try_from_type(value, &typ).unwrap();
+                Type::Constant(int, Kind::numeric(typ.clone()))
+            }),
         ];
 
         leaf.prop_recursive(
@@ -692,7 +687,8 @@ mod proptests {
             let (infix_expr, typ, _value_generator) = infix_type_gen;
             let bindings: Vec<_> = first_n_variables(typ.clone(), num_variables)
                 .zip(values.iter().map(|value| {
-                    Type::Constant(*value, Kind::numeric(typ.clone()))
+                    let int = Integer::try_from_type(*value, &typ).unwrap();
+                    Type::Constant(int, Kind::numeric(typ.clone()))
                 }))
                 .collect();
             (infix_expr, typ, bindings)
@@ -729,7 +725,8 @@ mod proptests {
                         "convert_infix_type_expr_to_expr: unexpected non-numeric kind: {kind}"
                     ),
                 };
-                let literal = Literal::Integer(*value, Some(integer_type_suffix));
+                let field = value.as_field();
+                let literal = Literal::Integer(field, Some(integer_type_suffix));
                 ExpressionKind::Literal(literal)
             }
             Type::TypeVariable(type_var) => unimplemented!(
@@ -746,7 +743,7 @@ mod proptests {
     fn numeric_value_to_type(value: Value) -> Type {
         let kind_type = value.get_type();
         let kind = Kind::numeric(kind_type.into_owned());
-        let value = value.as_field().expect("ICE: numeric_value_to_type: expected a field");
+        let value = *value.as_integer().expect("ICE: numeric_value_to_type: expected an integer");
         Type::Constant(value, kind)
     }
 
@@ -917,9 +914,8 @@ mod proptests {
             0x00, 0x00, 0x00, 0x00,
         ]);
 
-        let mul_expr = n * Type::Constant(large_field, Kind::numeric(Type::FieldElement));
-        let div_expr =
-            mul_expr / Type::Constant(FieldElement::from(2u8), Kind::numeric(Type::FieldElement));
+        let mul_expr = n * Type::constant_field(large_field);
+        let div_expr = mul_expr / Type::constant_field(2u32.into());
 
         // Canonicalize the expression
         let canonicalized = div_expr.canonicalize();

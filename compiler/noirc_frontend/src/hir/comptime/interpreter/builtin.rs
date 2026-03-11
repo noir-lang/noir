@@ -1074,13 +1074,17 @@ fn to_le_radix(
 
     // Validate that the value fits in the requested number of limbs.
     // This matches the runtime behavior in our black box solvers.
-    let limb_count_usize = limb_count.to_u128() as usize;
-    if limb_count_usize < decomposed_integer.len() {
-        let message = format!("Field failed to decompose into specified {limb_count_usize} limbs");
+    let Some(limb_count_u64) = limb_count.as_field().try_to_u64().map(|x| x as usize) else {
+        let message = format!("Field failed to decompose into specified {limb_count} limbs");
+        return failing_constraint(message, location, call_stack);
+    };
+
+    if limb_count_u64 < decomposed_integer.len() {
+        let message = format!("Field failed to decompose into specified {limb_count_u64} limbs");
         return failing_constraint(message, location, call_stack);
     }
 
-    let decomposed_integer = vecmap(0..limb_count_usize, |i| {
+    let decomposed_integer = vecmap(0..limb_count_u64, |i| {
         let digit = match decomposed_integer.get(i) {
             Some(digit) => *digit,
             None => 0,
@@ -1093,7 +1097,7 @@ fn to_le_radix(
         .len()
         .try_into()
         .expect("ICE: to_le_radix: decomposed_integer.len() is expected to fit into a u32");
-    let result_type = Type::Array(Box::new(len.into()), element_type);
+    let result_type = Type::Array(Box::new(Type::constant_u32(len)), element_type);
 
     Ok(Value::Array(decomposed_integer.into(), result_type))
 }
@@ -3207,8 +3211,7 @@ fn quoted_hash(
 
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     tokens_string.hash(&mut hasher);
-    let hash = hasher.finish();
-    Ok(Value::field(SignedField::positive(u128::from(hash))))
+    Ok(Value::field(hasher.finish().into()))
 }
 
 fn trait_def_as_trait_constraint(
@@ -3315,19 +3318,17 @@ fn derive_generators(
 fn field_less_than(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     let (lhs, rhs) = check_two_arguments(arguments, location)?;
 
-    let lhs = get_field(lhs)?.to_field_element();
-    let rhs = get_field(rhs)?.to_field_element();
+    let lhs = get_field(lhs)?;
+    let rhs = get_field(rhs)?;
 
     Ok(Value::Bool(lhs < rhs))
 }
 
 #[cfg(test)]
 mod tests {
+    use acvm::FieldElement;
     use noirc_errors::Location;
-
     use crate::hir::comptime::value::Value;
-    use crate::signed_field::SignedField;
-
     use super::field_less_than;
 
     fn args(a: Value, b: Value) -> Vec<(Value, Location)> {
@@ -3335,11 +3336,11 @@ mod tests {
     }
 
     fn pos(v: u128) -> Value {
-        Value::field(SignedField::positive(v))
+        Value::field(v.into())
     }
 
     fn neg(v: u128) -> Value {
-        Value::field(SignedField::negative(v))
+        Value::field(-FieldElement::from(v))
     }
 
     #[test]

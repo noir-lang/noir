@@ -187,7 +187,7 @@ pub(crate) fn get_fixed_array_map<T, const N: usize>(
         };
         let len: u32 =
             N.try_into().expect("ICE: get_fixed_array_map: N is expected to fit into a u32");
-        let expected = Type::Array(Box::new(len.into()), elem.clone()).to_string();
+        let expected = Type::Array(Box::new(Type::constant_u32(len)), elem.clone()).to_string();
         InterpreterError::TypeMismatch { expected, actual: typ, location }
     })
 }
@@ -700,7 +700,7 @@ pub(super) fn eq_item<T: Eq>(
 pub(crate) fn byte_array_type(len: usize) -> Type {
     let len: u32 = len.try_into().expect("ICE: byte_array_type: N is expected to fit into a u32");
     Type::Array(
-        Box::new(len.into()),
+        Box::new(Type::constant_u32(len)),
         Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)),
     )
 }

@@ -26,25 +26,6 @@ pub enum Integer {
 }
 
 impl Integer {
-    /// Convert this [Integer] to a field, returning `None` for negative values.
-    /// Returns `None` for negative integers.
-    pub(crate) fn as_non_negative_field(&self) -> Option<FieldElement> {
-        match self {
-            Integer::Field(value) => Some(*value),
-            Integer::I8(value) if *value >= 0 => Some((*value).into()),
-            Integer::I16(value) if *value >= 0 => Some((*value).into()),
-            Integer::I32(value) if *value >= 0 => Some((*value).into()),
-            Integer::I64(value) if *value >= 0 => Some((*value).into()),
-            Integer::U1(value) => Some((*value).into()),
-            Integer::U8(value) => Some((*value).into()),
-            Integer::U16(value) => Some((*value).into()),
-            Integer::U32(value) => Some((*value).into()),
-            Integer::U64(value) => Some((*value).into()),
-            Integer::U128(value) => Some((*value).into()),
-            _ => None,
-        }
-    }
-
     /// Converts this [Integer] to a [FieldElement]. Any negative values are
     /// encoded as negative fields such that `-7 == -FieldElement::from(7)`.
     /// In other words, the resulting field is not in two's complement form.
@@ -246,6 +227,24 @@ impl Integer {
             _ => None,
         }
     }
+
+    /// Create an [Integer] from the given [IntegerTypeSuffix]. Returns `None` if the
+    /// given field does not fit in the desired integer type.
+    pub fn try_from_type_suffix(value: FieldElement, suffix: IntegerTypeSuffix) -> Option<Integer> {
+        match suffix {
+            IntegerTypeSuffix::I8 => value.try_into().ok().map(Integer::I8),
+            IntegerTypeSuffix::I16 => value.try_into().ok().map(Integer::I8),
+            IntegerTypeSuffix::I32 => value.try_into().ok().map(Integer::I8),
+            IntegerTypeSuffix::I64 => value.try_into().ok().map(Integer::I8),
+            IntegerTypeSuffix::U1 => value.try_into().ok().map(Integer::I8),
+            IntegerTypeSuffix::U8 => value.try_into().ok().map(Integer::I8),
+            IntegerTypeSuffix::U16 => value.try_into().ok().map(Integer::I8),
+            IntegerTypeSuffix::U32 => value.try_into().ok().map(Integer::I8),
+            IntegerTypeSuffix::U64 => value.try_into().ok().map(Integer::I8),
+            IntegerTypeSuffix::U128 => value.try_into().ok().map(Integer::I8),
+            IntegerTypeSuffix::Field => Some(Integer::Field(value)),
+        }
+    }
 }
 
 impl Display for Integer {
@@ -356,6 +355,30 @@ impl std::ops::Div for Integer {
             (Integer::I16(lhs), Integer::I16(rhs)) => lhs.checked_sub(rhs).map(Integer::I16),
             (Integer::I32(lhs), Integer::I32(rhs)) => lhs.checked_sub(rhs).map(Integer::I32),
             (Integer::I64(lhs), Integer::I64(rhs)) => lhs.checked_sub(rhs).map(Integer::I64),
+            _ => None,
+        }
+    }
+}
+
+impl std::ops::Rem for Integer {
+    type Output = Option<Self>;
+
+    fn rem(self, rhs: Self) -> Self::Output {
+        match (self, rhs) {
+            // Fields do not support the remainder operation
+            (Integer::Field(_), Integer::Field(_)) => None,
+            (Integer::U1(lhs), Integer::U1(rhs)) => {
+                (lhs as u8).checked_rem(rhs as u8).map(|x| Integer::U1(x != 0))
+            }
+            (Integer::U8(lhs), Integer::U8(rhs)) => lhs.checked_rem(rhs).map(Integer::U8),
+            (Integer::U16(lhs), Integer::U16(rhs)) => lhs.checked_rem(rhs).map(Integer::U16),
+            (Integer::U32(lhs), Integer::U32(rhs)) => lhs.checked_rem(rhs).map(Integer::U32),
+            (Integer::U64(lhs), Integer::U64(rhs)) => lhs.checked_rem(rhs).map(Integer::U64),
+            (Integer::U128(lhs), Integer::U128(rhs)) => lhs.checked_rem(rhs).map(Integer::U128),
+            (Integer::I8(lhs), Integer::I8(rhs)) => lhs.checked_rem(rhs).map(Integer::I8),
+            (Integer::I16(lhs), Integer::I16(rhs)) => lhs.checked_rem(rhs).map(Integer::I16),
+            (Integer::I32(lhs), Integer::I32(rhs)) => lhs.checked_rem(rhs).map(Integer::I32),
+            (Integer::I64(lhs), Integer::I64(rhs)) => lhs.checked_rem(rhs).map(Integer::I64),
             _ => None,
         }
     }

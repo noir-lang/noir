@@ -1377,7 +1377,7 @@ impl<'interner> Monomorphizer<'interner> {
                 match associated_type.typ.evaluate_to_integer(&associated_type.typ.kind(), location) {
                     Ok(value) => {
                         let typ = Self::convert_type(&numeric_type, location)?;
-                        Ok(ast::Expression::Literal(ast::Literal::Integer(value, typ, location)))
+                        Ok(ast::Expression::Literal(ast::Literal::Integer(value.as_field(), typ, location)))
                     }
                     Err(err) => Err(MonomorphizationError::CannotComputeAssociatedConstant {
                         name: name.clone(),
@@ -1450,7 +1450,7 @@ impl<'interner> Monomorphizer<'interner> {
         }
 
         let typ = Self::convert_type(&expected_type, location)?;
-        Ok(ast::Expression::Literal(ast::Literal::Integer(value, typ, location)))
+        Ok(ast::Expression::Literal(ast::Literal::Integer(value.as_field(), typ, location)))
     }
 
     fn global_ident(
@@ -2694,8 +2694,7 @@ impl<'interner> Monomorphizer<'interner> {
                 let length: u32 = msg.len().try_into().expect(
                     "ICE: Monomorphizer::match_expr: msg.len() is expected to fit into a u32",
                 );
-                let length = length.into();
-                let msg_type = HirType::String(Box::new(length));
+                let msg_type = HirType::String(Box::new(Type::constant_u32(length)));
 
                 let msg = Some(Box::new((msg_expr, msg_type)));
                 Ok(ast::Expression::Constrain(false_, location, msg))

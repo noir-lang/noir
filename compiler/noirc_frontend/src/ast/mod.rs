@@ -36,7 +36,6 @@ pub use traits::*;
 pub use type_alias::*;
 
 use crate::QuotedType;
-use crate::hir::comptime::Integer;
 use crate::token::IntegerTypeSuffix;
 use crate::{
     BinaryTypeOperator,
@@ -227,7 +226,7 @@ impl From<Vec<GenericTypeArg>> for GenericTypeArgs {
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum UnresolvedTypeExpression {
     Variable(Path),
-    Constant(Integer, Option<IntegerTypeSuffix>, Location),
+    Constant(FieldElement, Option<IntegerTypeSuffix>, Location),
     BinaryOperation(
         Box<UnresolvedTypeExpression>,
         BinaryTypeOperator,
@@ -489,8 +488,8 @@ impl UnresolvedTypeExpression {
 
     fn from_expr_helper(expr: Expression) -> Result<UnresolvedTypeExpression, Expression> {
         match expr.kind {
-            ExpressionKind::Literal(Literal::Integer(int, suffix)) => {
-                Ok(UnresolvedTypeExpression::Constant(int, suffix, expr.location))
+            ExpressionKind::Literal(Literal::Integer(field, suffix)) => {
+                Ok(UnresolvedTypeExpression::Constant(field, suffix, expr.location))
             }
             ExpressionKind::Variable(path) => Ok(UnresolvedTypeExpression::Variable(path)),
             ExpressionKind::Prefix(prefix) if prefix.operator == UnaryOp::Minus => {

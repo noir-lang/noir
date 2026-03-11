@@ -15,6 +15,7 @@ use crate::{
     },
     elaborator::{UnstableFeature, path_resolution::PathResolution},
     hir::{
+        comptime::Integer,
         def_collector::dc_crate::CompilationError,
         def_map::{ModuleDefId, fully_qualified_module_path},
         resolution::{errors::ResolverError, import::PathResolutionError},
@@ -847,7 +848,7 @@ impl Elaborator<'_> {
                 }
                 self.check_type_kind(typ, expected_kind, location)
             }
-            UnresolvedTypeExpression::Constant(int, suffix, _span) => {
+            UnresolvedTypeExpression::Constant(field, suffix, _span) => {
                 let suffix_kind = if let Some(suffix) = suffix {
                     suffix.as_kind()
                 } else {
@@ -861,7 +862,23 @@ impl Elaborator<'_> {
                         format!("convert_expression_type: {suffix_kind} does not unify with expected {expected_kind}"),
                         location,
                     ));
+                    return Type::Error;
                 }
+
+                let suffix = suffix.unwrap_or(crate::token::IntegerTypeSuffix::Field);
+                let Some(int) = Integer::try_from_type_suffix(field, suffix) else {
+                    // Only field doesn't have a max/min size and `try_from_type_suffix`
+                    // should already always succeed for fields.
+                    let min = suffix.as_type().integral_minimum_size().unwrap();
+                    let max = suffix.as_type().integral_maximum_size().unwrap();
+                    self.push_err(TypeCheckError::IntegerLiteralDoesNotFitItsType {
+                        expr: field,
+                        ty: suffix.as_type(),
+                        range: format!("{min}..={max}"),
+                        location,
+                    });
+                    return Type::Error;
+                };
 
                 Type::Constant(int, suffix_kind)
             }

@@ -472,7 +472,7 @@ impl Type {
             Type::Forall(_, typ) => return typ.to_display_ast(),
             Type::Constant(value, kind) => {
                 UnresolvedTypeData::Expression(UnresolvedTypeExpression::Constant(
-                    *value,
+                    value.as_field(),
                     kind.as_integer_type_suffix(),
                     Location::dummy(),
                 ))
@@ -499,7 +499,7 @@ impl Type {
 
         match self.follow_bindings() {
             Type::Constant(length, kind) => {
-                UnresolvedTypeExpression::Constant(length, kind.as_integer_type_suffix(), location)
+                UnresolvedTypeExpression::Constant(length.as_field(), kind.as_integer_type_suffix(), location)
             }
             Type::NamedGeneric(NamedGeneric { name, .. }) => {
                 let path = Path::from_single(name.as_ref().clone(), location);

@@ -327,8 +327,7 @@ impl Monomorphizer<'_> {
     fn poseidon2_config_state_size(location: Location) -> ast::Expression {
         let size = bn254_blackbox_solver::poseidon2_config_state_size();
         let typ = ast::Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
-        let size = SignedField::positive(size);
-        ast::Expression::Literal(ast::Literal::Integer(size, typ, location))
+        ast::Expression::Literal(ast::Literal::Integer(size.into(), typ, location))
     }
 }
 

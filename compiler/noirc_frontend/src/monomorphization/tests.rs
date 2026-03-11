@@ -558,7 +558,7 @@ fn unused_str_const_generic_in_enum_inferred() {
     // The enum is represented as (<index>, <variant-1-fields>, <variant-2-fields>)
     // Note that a default character is `\0`, so even though it's `"\0\0\0"` it's printed as `""`.
     let program = get_monomorphized(src).unwrap();
-    insta::assert_snapshot!(program, @"\nglobal B$g0: (Field, (str<3>,), ()) = (1, (\"\0\0\0\"), ());\nfn main$f0() -> () {\n    let _f$l0 = B$g0\n}");
+    insta::assert_snapshot!(program, @r#"global B$g0: (Field, (str<3>,), ()) = (1, (\"\0\0\0\"), ());\nfn main$f0() -> () {\n    let _f$l0 = B$g0\n}"#);
 }
 
 #[test]
@@ -1149,7 +1149,7 @@ fn evaluates_builtin_zeroed() {
     let program = get_monomorphized_with_stdlib(src, &[stdlib_src::ZEROED]).unwrap();
 
     // Note that the zeroed value of a `str<3>` is `"\0\0\0"`, which prints as "".
-    insta::assert_snapshot!(program, @"\nfn main$f0() -> () {\n    let _a$l0 = [(0, \"\0\0\0\"), (0, \"\0\0\0\")]\n}");
+    insta::assert_snapshot!(program, @r#"fn main$f0() -> () {\n    let _a$l0 = [(0, \"\0\0\0\"), (0, \"\0\0\0\")]\n}"#);
 }
 
 #[test]

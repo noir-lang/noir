@@ -170,7 +170,7 @@ impl Value {
                     .len()
                     .try_into()
                     .expect("ICE: Value::get_type: value.len() is expected to fit into a u32");
-                Type::String(Box::new(length.into()))
+                Type::String(Box::new(Type::constant_u32(length)))
             }
             Value::FormatString(_, typ, _) => return Cow::Borrowed(typ),
             Value::Function(_, typ, _) => return Cow::Borrowed(typ),
@@ -224,7 +224,7 @@ impl Value {
             Value::Integer(value) => value.into_expression_kind(),
             Value::String(bytes) => {
                 let string = String::from_utf8_lossy(&bytes);
-                ExpressionKind::Literal(Str(string.to_string()))
+                Literal(Str(string.to_string()))
             }
             Value::CtString(bytes) => {
                 // Lower to `std::meta::AsCtString::as_ctstring(contents)`
@@ -697,18 +697,6 @@ impl Value {
     pub(crate) fn as_integer(&self) -> Option<&Integer> {
         match self {
             Value::Integer(int) => Some(int),
-            _ => None,
-        }
-    }
-
-    /// Converts any integral `Value` into a `FieldElement`.
-    /// Returns `None` for non-integral `Value`s. Any negative values are
-    /// encoded as negative fields such that `-7 == -FieldElement::from(7)`.
-    /// In other words, the resulting field is not in two's complement form.
-    #[cfg(test)]
-    pub(crate) fn as_field(&self) -> Option<FieldElement> {
-        match self {
-            Value::Integer(int) => Some(int.as_field()),
             _ => None,
         }
     }

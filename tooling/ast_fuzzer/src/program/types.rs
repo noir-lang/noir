@@ -317,17 +317,11 @@ pub fn ref_mut(typ: Type) -> Type {
 ///
 /// Aims to maintain parity with [Monomorphizer::convert_type](noirc_frontend::monomorphization::Monomorphizer::convert_type).
 pub fn to_hir_type(typ: &Type) -> noirc_frontend::Type {
-    use noirc_frontend::{Kind as HirKind, Type as HirType};
+    use noirc_frontend::Type as HirType;
 
     // Meet the expectations of `Type::evaluate_to_u32`.
     fn size_const(size: u32) -> Box<HirType> {
-        Box::new(HirType::Constant(
-            size.into(),
-            HirKind::Numeric(Box::new(HirType::Integer(
-                Signedness::Unsigned,
-                IntegerBitSize::ThirtyTwo,
-            ))),
-        ))
+        Box::new(HirType::constant_u32(size))
     }
 
     // Inverse of HirType::Function -> Type::Tuple([Type::Function, Type::Function])
