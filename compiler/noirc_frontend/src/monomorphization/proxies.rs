@@ -16,7 +16,7 @@
 //! which, after creating wrappers for function values, would only present an inconvenience for users
 //! if they have to keep creating wrappers themselves.
 
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use iter_extended::vecmap;
 use noirc_errors::Location;
@@ -205,7 +205,7 @@ fn is_func_pair(typ: &Type) -> bool {
 ///
 /// The body of the function will be a single forwarding call to the original.
 fn make_proxy(id: FuncId, ident: Ident, unconstrained: bool) -> Function {
-    let Type::Tuple(items) = &ident.typ else {
+    let Type::Tuple(items) = ident.typ.as_ref() else {
         unreachable!("ICE: expected pair of functions; got {}", ident.typ);
     };
 
@@ -230,7 +230,7 @@ fn make_proxy(id: FuncId, ident: Ident, unconstrained: bool) -> Function {
         let mutable = false;
         let name = format!("p{i}");
         let vis = Visibility::Private;
-        (id, mutable, name, typ, vis)
+        (id, mutable, name, Arc::new(typ), vis)
     });
 
     let call = {

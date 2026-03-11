@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use arbitrary::Unstructured;
 use nargo::errors::Location;
 use noirc_evaluator::{assert_ssa_snapshot, ssa::ssa_gen};
@@ -122,12 +124,12 @@ fn test_recursion_limit_rewrite() {
                         definition: Definition::Function(*callee_id),
                         mutable: false,
                         name: callee_name,
-                        typ: Type::Function(
+                        typ: Arc::new(Type::Function(
                             vec![],
                             Box::new(Type::Unit),
-                            Box::new(Type::Unit),
+                            Arc::new(Type::Unit),
                             callee_unconstrained,
-                        ),
+                        )),
                         id: ident_id,
                     })),
                     arguments: vec![],

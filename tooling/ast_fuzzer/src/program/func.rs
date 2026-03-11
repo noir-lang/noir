@@ -3,6 +3,7 @@ use nargo::errors::Location;
 use std::{
     collections::{BTreeMap, BTreeSet, HashSet},
     fmt::Debug,
+    sync::Arc,
 };
 use strum::IntoEnumIterator;
 
@@ -212,11 +213,10 @@ impl<'a> FunctionContext<'a> {
         );
 
         // The function parameters are the base layer for local variables.
-        let locals = ScopeStack::from_variables(
-            decl.params
-                .iter()
-                .map(|(id, mutable, name, typ, _vis)| (*id, *mutable, name.clone(), typ.clone())),
-        );
+        let locals =
+            ScopeStack::from_variables(decl.params.iter().map(|(id, mutable, name, typ, _vis)| {
+                (*id, *mutable, name.clone(), typ.as_ref().clone())
+            }));
 
         // Function parameters are by definition considered to be dynamic input.
         let dynamics = Stack::new(locals.current().variable_ids().map(|id| (*id, true)).collect());
@@ -1468,7 +1468,12 @@ impl<'a> FunctionContext<'a> {
             definition: Definition::Oracle("print".to_string()),
             mutable: false,
             name: "print_oracle".to_string(),
-            typ: Type::Function(param_types, Box::new(Type::Unit), Box::new(Type::Unit), true),
+            typ: Arc::new(Type::Function(
+                param_types,
+                Box::new(Type::Unit),
+                Arc::new(Type::Unit),
+                true,
+            )),
             id: self.next_ident_id(),
         };
 
@@ -2028,7 +2033,11 @@ impl<'a> FunctionContext<'a> {
                 let matches = func.return_type == *return_type.as_ref()
                     && func.unconstrained == *unconstrained
                     && func.params.len() == param_types.len()
-                    && func.params.iter().zip(param_types).all(|((_, _, _, a, _), b)| a == b);
+                    && func
+                        .params
+                        .iter()
+                        .zip(param_types)
+                        .all(|((_, _, _, a, _), b)| a.as_ref() == b);
 
                 matches.then_some(*func_id)
             })
@@ -2073,19 +2082,19 @@ impl<'a> FunctionContext<'a> {
     /// Identifier for a global function.
     fn func_ident(&mut self, callee_id: FuncId) -> Ident {
         let callee = self.ctx.function_decl(callee_id).clone();
-        let param_types = callee.params.iter().map(|p| p.3.clone()).collect::<Vec<_>>();
+        let param_types = callee.params.iter().map(|p| p.3.as_ref().clone()).collect::<Vec<_>>();
 
         Ident {
             location: None,
             definition: Definition::Function(callee_id),
             mutable: false,
             name: callee.name.clone(),
-            typ: Type::Function(
+            typ: Arc::new(Type::Function(
                 param_types,
                 Box::new(callee.return_type.clone()),
-                Box::new(Type::Unit),
+                Arc::new(Type::Unit),
                 callee.unconstrained,
-            ),
+            )),
             id: self.next_ident_id(),
         }
     }
@@ -2121,7 +2130,8 @@ impl<'a> FunctionContext<'a> {
             CallableId::Global(id) => {
                 let decl = self.ctx.function_decl(id);
                 let return_type = decl.return_type.clone();
-                let param_types = decl.params.iter().map(|p| p.3.clone()).collect::<Vec<_>>();
+                let param_types =
+                    decl.params.iter().map(|p| p.3.as_ref().clone()).collect::<Vec<_>>();
                 (param_types, return_type, decl.unconstrained)
             }
             CallableId::Local(id) => {
@@ -2176,7 +2186,7 @@ impl<'a> FunctionContext<'a> {
         let is_dynamic = self.is_dynamic(&id);
         let let_expr = self.let_var(
             mutable,
-            ident.typ.clone(),
+            ident.typ.as_ref().clone(),
             Expression::Ident(ident),
             add_to_scope,
             is_dynamic,
@@ -2196,7 +2206,12 @@ impl<'a> FunctionContext<'a> {
             definition: Definition::Builtin("array_len".to_string()),
             mutable: false,
             name: "len".to_string(),
-            typ: Type::Function(vec![typ], Box::new(types::U32), Box::new(Type::Unit), false),
+            typ: Arc::new(Type::Function(
+                vec![typ],
+                Box::new(types::U32),
+                Arc::new(Type::Unit),
+                false,
+            )),
             id: self.next_ident_id(),
         };
         Expression::Call(Call {
@@ -2220,12 +2235,12 @@ impl<'a> FunctionContext<'a> {
             definition: Definition::Builtin(format!("vector_{name}")),
             mutable: false,
             name: name.to_string(),
-            typ: Type::Function(
+            typ: Arc::new(Type::Function(
                 arg_types,
                 Box::new(return_type.clone()),
-                Box::new(Type::Unit),
+                Arc::new(Type::Unit),
                 false,
-            ),
+            )),
             id: self.next_ident_id(),
         };
         Expression::Call(Call {

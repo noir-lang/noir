@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use noirc_frontend::monomorphization::{
     ast::{Call, Expression, Function, Ident, LocalId, Program, Type},
     visitor::{visit_expr, visit_expr_mut},
@@ -61,7 +63,10 @@ pub fn change_all_functions_into_unconstrained(mut program: Program) -> Program 
         f.unconstrained = true;
         // Modify any function pointers it takes.
         for (_, _, _, typ, _) in &mut f.parameters {
-            if let Type::Function(_, _, _, unconstrained) = types::unref_mut(typ) {
+            let mut cloned_typ = typ.as_ref().clone();
+            let unref_mut_typ = types::unref_mut(&mut cloned_typ);
+            *typ = Arc::new(unref_mut_typ.clone());
+            if let Type::Function(_, _, _, unconstrained) = unref_mut_typ {
                 *unconstrained = true;
             }
         }
@@ -73,7 +78,11 @@ pub fn change_all_functions_into_unconstrained(mut program: Program) -> Program 
             let Expression::Ident(Ident { typ, .. }) = expr::unref_mut(func.as_mut()) else {
                 unreachable!("functions are expected to be called by ident; got {func}");
             };
-            let Type::Function(_, _, _, unconstrained) = types::unref_mut(typ) else {
+
+            let mut cloned_typ = typ.as_ref().clone();
+            let unref_mut_typ = types::unref_mut(&mut cloned_typ);
+            *typ = Arc::new(unref_mut_typ.clone());
+            let Type::Function(_, _, _, unconstrained) = unref_mut_typ else {
                 unreachable!("function idents are expected to have Function type; got {typ}");
             };
             *unconstrained = true;

@@ -74,6 +74,7 @@ use noirc_errors::Location;
 use noirc_printable_type::PrintableType;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use std::borrow::Cow;
+use std::sync::Arc;
 use std::{
     collections::{BTreeMap, VecDeque},
     unreachable,
@@ -630,7 +631,8 @@ impl<'interner> Monomorphizer<'interner> {
     fn parameters(
         &mut self,
         params: &Parameters,
-    ) -> Result<Vec<(LocalId, bool, String, ast::Type, Visibility)>, MonomorphizationError> {
+    ) -> Result<Vec<(LocalId, bool, String, Arc<ast::Type>, Visibility)>, MonomorphizationError>
+    {
         let mut new_params = Vec::with_capacity(params.len());
         for (parameter, typ, visibility) in &params.0 {
             self.parameter(parameter, typ, visibility, &mut new_params)?;
@@ -645,14 +647,14 @@ impl<'interner> Monomorphizer<'interner> {
         param: &HirPattern,
         typ: &HirType,
         visibility: &Visibility,
-        new_params: &mut Vec<(LocalId, bool, String, ast::Type, Visibility)>,
+        new_params: &mut Vec<(LocalId, bool, String, Arc<ast::Type>, Visibility)>,
     ) -> Result<(), MonomorphizationError> {
         match param {
             HirPattern::Identifier(ident) => {
                 let new_id = self.next_local_id();
                 let definition = self.interner.definition(ident.id);
                 let name = definition.name.clone();
-                let typ = Self::convert_type(typ, ident.location)?;
+                let typ = Arc::new(Self::convert_type(typ, ident.location)?);
                 new_params.push((new_id, definition.mutable, name, typ, *visibility));
                 self.define_local(ident.id, new_id);
             }
@@ -1107,7 +1109,7 @@ impl<'interner> Monomorphizer<'interner> {
                 mutable,
                 location: None,
                 name,
-                typ,
+                typ: Arc::new(typ),
                 id: self.next_ident_id(),
             })
         });
@@ -1234,8 +1236,14 @@ impl<'interner> Monomorphizer<'interner> {
             let typ = Self::convert_type(tuple_type, location)?;
             let location = Some(location);
             let id = self.next_ident_id();
-            let new_rhs =
-                ast::Expression::Ident(ast::Ident { location, mutable, definition, name, typ, id });
+            let new_rhs = ast::Expression::Ident(ast::Ident {
+                location,
+                mutable,
+                definition,
+                name,
+                typ: Arc::new(typ),
+                id,
+            });
 
             let new_rhs = ast::Expression::ExtractTupleField(Box::new(new_rhs), i);
             let new_expr = self.unpack_pattern(field_pattern, new_rhs, &field_type)?;
@@ -1283,7 +1291,14 @@ impl<'interner> Monomorphizer<'interner> {
 
         let typ = Self::convert_type(typ, ident.location)?;
         let id = self.next_ident_id();
-        Ok(Some(ast::Ident { location: Some(ident.location), mutable, definition, name, typ, id }))
+        Ok(Some(ast::Ident {
+            location: Some(ident.location),
+            mutable,
+            definition,
+            name,
+            typ: Arc::new(typ),
+            id,
+        }))
     }
 
     fn ident(
@@ -1419,12 +1434,13 @@ impl<'interner> Monomorphizer<'interner> {
             evaluate_builtin,
         )?;
         let typ = Self::convert_type(typ, location)?;
+        let is_closure_type = self.is_closure_type(&typ);
         let location = Some(location);
         let id = self.next_ident_id();
-        let ident = ast::Ident { location, mutable, definition, name, typ: typ.clone(), id };
+        let ident = ast::Ident { location, mutable, definition, name, typ: Arc::new(typ), id };
         let ident_expression = ast::Expression::Ident(ident);
 
-        if self.is_closure_type(&typ) {
+        if is_closure_type {
             let ident_clone = Box::new(ident_expression.clone());
             let function = ast::Expression::ExtractTupleField(ident_clone, 0);
             let env = ast::Expression::ExtractTupleField(Box::new(ident_expression), 1);
@@ -1478,7 +1494,7 @@ impl<'interner> Monomorphizer<'interner> {
                 definition: Definition::Global(*seen_global),
                 mutable: false,
                 name,
-                typ,
+                typ: Arc::new(typ),
                 id: self.next_ident_id(),
             };
             ast::Expression::Ident(ident)
@@ -1521,7 +1537,7 @@ impl<'interner> Monomorphizer<'interner> {
                     definition: Definition::Global(new_id),
                     mutable: false,
                     name,
-                    typ,
+                    typ: Arc::new(typ),
                     id: self.next_ident_id(),
                 };
                 ast::Expression::Ident(ident)
@@ -1774,10 +1790,10 @@ impl<'interner> Monomorphizer<'interner> {
                 let make_function = |is_unconstrained, args, ret, env| {
                     use ast::Type::*;
                     match &env {
-                        Unit => Function(args, ret, Box::new(env), is_unconstrained),
+                        Unit => Function(args, ret, Arc::new(env), is_unconstrained),
                         Tuple(_) => Tuple(vec![
                             env.clone(),
-                            Function(args, ret, Box::new(env), is_unconstrained),
+                            Function(args, ret, Arc::new(env), is_unconstrained),
                         ]),
                         _ => {
                             unreachable!(
@@ -2033,7 +2049,7 @@ impl<'interner> Monomorphizer<'interner> {
             mutable: false,
             location: None,
             name,
-            typ: Self::convert_type(&function_type, location)?,
+            typ: Arc::new(Self::convert_type(&function_type, location)?),
             id: self.next_ident_id(),
         }))
     }
@@ -2188,7 +2204,7 @@ impl<'interner> Monomorphizer<'interner> {
                 definition: Definition::Local(local_id),
                 mutable: false,
                 name: "tmp".to_string(),
-                typ: Self::convert_type(&self.interner.id_type(call.func), location)?,
+                typ: Arc::new(Self::convert_type(&self.interner.id_type(call.func), location)?),
                 id: self.next_ident_id(),
             });
 
@@ -2464,7 +2480,7 @@ impl<'interner> Monomorphizer<'interner> {
         let typ = ast::Type::Function(
             parameter_types,
             Box::new(ret_type),
-            Box::new(ast::Type::Unit),
+            Arc::new(ast::Type::Unit),
             false,
         );
 
@@ -2474,7 +2490,7 @@ impl<'interner> Monomorphizer<'interner> {
             mutable: false,
             location: None,
             name,
-            typ,
+            typ: Arc::new(typ),
             id: self.next_ident_id(),
         }))
     }
@@ -2530,6 +2546,7 @@ impl<'interner> Monomorphizer<'interner> {
         } else {
             unreachable!("expected a Function type for a Lambda node")
         };
+        let env_typ = Arc::new(env_typ);
 
         let env_let_stmt = ast::Expression::Let(ast::Let {
             id: env_local_id,
@@ -2607,21 +2624,17 @@ impl<'interner> Monomorphizer<'interner> {
         let constrained_fn_typ = ast::Type::Function(
             parameter_types.clone(),
             Box::new(ret_type.clone()),
-            Box::new(env_typ.clone()),
+            env_typ.clone(),
             both_unconstrained,
         );
-        let unconstrained_fn_typ = ast::Type::Function(
-            parameter_types,
-            Box::new(ret_type),
-            Box::new(env_typ.clone()),
-            true,
-        );
+        let unconstrained_fn_typ =
+            ast::Type::Function(parameter_types, Box::new(ret_type), env_typ.clone(), true);
 
         // Build closure tuples: (env, fn) for each variant
         let constrained_closure_typ =
-            ast::Type::Tuple(vec![env_typ.clone(), constrained_fn_typ.clone()]);
+            ast::Type::Tuple(vec![env_typ.as_ref().clone(), constrained_fn_typ.clone()]);
         let unconstrained_closure_typ =
-            ast::Type::Tuple(vec![env_typ, unconstrained_fn_typ.clone()]);
+            ast::Type::Tuple(vec![env_typ.as_ref().clone(), unconstrained_fn_typ.clone()]);
 
         // Create the expression that builds both closure variants sharing the same env:
         // ((env, constrained_fn), (env, unconstrained_fn))
@@ -2630,7 +2643,7 @@ impl<'interner> Monomorphizer<'interner> {
             mutable: false,
             location: Some(location),
             name: lambda_name.to_owned(),
-            typ: constrained_fn_typ,
+            typ: Arc::new(constrained_fn_typ),
             id: self.next_ident_id(),
         });
 
@@ -2639,7 +2652,7 @@ impl<'interner> Monomorphizer<'interner> {
             mutable: false,
             location: Some(location),
             name: lambda_name.to_owned(),
-            typ: unconstrained_fn_typ,
+            typ: Arc::new(unconstrained_fn_typ),
             id: self.next_ident_id(),
         });
 
@@ -2669,7 +2682,7 @@ impl<'interner> Monomorphizer<'interner> {
             mutable: false,
             definition: Definition::Local(block_local_id),
             name: block_ident_name.to_string(),
-            typ: result_typ,
+            typ: Arc::new(result_typ),
             id: self.next_ident_id(),
         });
 

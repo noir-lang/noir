@@ -193,7 +193,7 @@ impl Context {
         match expr {
             Expression::Ident(ident) => {
                 let should_clone = self.should_clone_ident(ident);
-                Some((should_clone, ident.typ.clone()))
+                Some((should_clone, ident.typ.as_ref().clone()))
             }
             // Delay dereferences as well so we change `(*self).foo.bar` to `*(self.foo.bar)`
             Expression::Unary(Unary {

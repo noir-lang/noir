@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
 use arbitrary::Unstructured;
 use nargo::errors::Location;
@@ -187,7 +190,7 @@ impl<'a, 'b> LimitContext<'a, 'b> {
             limit_id,
             false,
             LIMIT_NAME.to_string(),
-            limit_type.clone(),
+            Arc::new(limit_type.clone()),
             Visibility::Private,
         ));
 
@@ -235,7 +238,7 @@ impl<'a, 'b> LimitContext<'a, 'b> {
             limit_id,
             false,
             format!("_{LIMIT_NAME}"),
-            limit_type,
+            Arc::new(limit_type),
             Visibility::Private,
         ));
     }
@@ -255,7 +258,7 @@ impl<'a, 'b> LimitContext<'a, 'b> {
             limit_id,
             true,
             LIMIT_NAME.to_string(),
-            types::U32,
+            Arc::new(types::U32),
             Visibility::Private,
         ));
 
@@ -266,12 +269,12 @@ impl<'a, 'b> LimitContext<'a, 'b> {
                 definition: Definition::Function(self.func_id),
                 mutable: false,
                 name: self.func.name.clone(),
-                typ: Type::Function(
-                    self.func.parameters.iter().map(|p| p.3.clone()).collect(),
+                typ: Arc::new(Type::Function(
+                    self.func.parameters.iter().map(|p| p.3.as_ref().clone()).collect(),
                     Box::new(self.func.return_type.clone()),
-                    Box::new(Type::Unit),
+                    Arc::new(Type::Unit),
                     self.func.unconstrained,
-                ),
+                )),
                 id: self.next_ident_id(),
             })),
             arguments: proxy
@@ -286,9 +289,9 @@ impl<'a, 'b> LimitContext<'a, 'b> {
                                 self.next_ident_id(),
                                 *mutable,
                                 name.clone(),
-                                typ.clone(),
+                                typ.as_ref().clone(),
                             ),
-                            typ.clone(),
+                            typ.as_ref().clone(),
                         )
                     } else {
                         // Pass every other parameter as-is.
@@ -297,7 +300,7 @@ impl<'a, 'b> LimitContext<'a, 'b> {
                             self.next_ident_id(),
                             *mutable,
                             name.clone(),
-                            typ.clone(),
+                            typ.as_ref().clone(),
                         )
                     }
                 })
@@ -337,9 +340,11 @@ impl<'a, 'b> LimitContext<'a, 'b> {
                     other => unreachable!("unexpected call target definition: {}", other),
                 };
 
-                let Type::Function(param_types, _, _, callee_unconstrained) =
-                    types::unref_mut(&mut ident.typ)
-                else {
+                let mut typ = ident.typ.as_ref().clone();
+                let unref_mut_typ = types::unref_mut(&mut typ);
+                ident.typ = Arc::new(unref_mut_typ.clone());
+
+                let Type::Function(param_types, _, _, callee_unconstrained) = unref_mut_typ else {
                     unreachable!("function type expected");
                 };
 
@@ -429,11 +434,15 @@ impl<'a, 'b> LimitContext<'a, 'b> {
         proxy_functions: &mut HashMap<FuncId, Function>,
     ) {
         for (_, _, _, param_type, _) in &mut self.func.parameters {
-            modify_function_pointer_param_type(param_type, self.func.unconstrained);
+            let mut typ = param_type.as_ref().clone();
+            modify_function_pointer_param_type(&mut typ, self.func.unconstrained);
+            *param_type = Arc::new(typ);
         }
         if let Some(proxy) = proxy_functions.get_mut(&self.func_id) {
             for (_, _, _, param_type, _) in &mut proxy.parameters {
-                modify_function_pointer_param_type(param_type, self.func.unconstrained);
+                let mut typ = param_type.as_ref().clone();
+                modify_function_pointer_param_type(&mut typ, self.func.unconstrained);
+                *param_type = Arc::new(typ);
             }
         }
     }

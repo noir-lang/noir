@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::Arc};
 
 use acir::FieldElement;
 use nargo::errors::Location;
@@ -271,7 +271,7 @@ pub(crate) fn ident_inner(
         },
         mutable,
         name,
-        typ,
+        typ: Arc::new(typ),
         id,
     }
 }
@@ -335,7 +335,7 @@ pub fn assign_ident(ident: Ident, expr: Expression) -> Expression {
 
 /// Assign a value to a mutable reference.
 pub fn assign_ref(ident: Ident, expr: Expression) -> Expression {
-    let typ = ident.typ.clone();
+    let typ = ident.typ.as_ref().clone();
     let lvalue = LValue::Ident(ident);
     let lvalue = LValue::Dereference { reference: Box::new(lvalue), element_type: typ };
     Expression::Assign(Assign { lvalue, expression: Box::new(expr) })

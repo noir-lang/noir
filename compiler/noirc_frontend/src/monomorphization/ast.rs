@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::{borrow::Cow, collections::BTreeMap, fmt::Display};
 
 use iter_extended::vecmap;
@@ -243,7 +244,7 @@ pub struct Ident {
     pub definition: Definition,
     pub mutable: bool,
     pub name: String,
-    pub typ: Type,
+    pub typ: Arc<Type>,
     pub id: IdentId,
 }
 
@@ -422,7 +423,7 @@ pub enum LValue {
 }
 
 pub type Parameters =
-    Vec<(LocalId, /*mutable:*/ bool, /*name:*/ String, Type, Visibility)>;
+    Vec<(LocalId, /*mutable:*/ bool, /*name:*/ String, Arc<Type>, Visibility)>;
 
 /// Represents how an Acir function should be inlined.
 /// This type is only relevant for ACIR functions as we do not inline any Brillig functions
@@ -552,7 +553,7 @@ pub enum Type {
     Function(
         /*args:*/ Vec<Type>,
         /*ret:*/ Box<Type>,
-        /*env:*/ Box<Type>,
+        /*env:*/ Arc<Type>,
         /*unconstrained:*/ bool,
     ),
 }

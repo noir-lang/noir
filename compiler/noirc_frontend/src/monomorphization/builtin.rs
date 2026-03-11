@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use acvm::{AcirField, FieldElement};
 use iter_extended::vecmap;
 use noirc_errors::Location;
@@ -59,7 +61,7 @@ impl Monomorphizer<'_> {
             HandledOpcode::CheckedTransmute => {
                 assert_eq!(parameter_types.len(), 1);
                 let parameter_id = self.next_local_id();
-                let parameter_type = Self::convert_type(&parameter_types[0], location)?;
+                let parameter_type = Arc::new(Self::convert_type(&parameter_types[0], location)?);
                 parameters = vec![(
                     parameter_id,
                     false,
@@ -225,7 +227,13 @@ impl Monomorphizer<'_> {
         let lambda_name = "zeroed_lambda";
 
         let parameters = vecmap(parameter_types, |parameter_type| {
-            (self.next_local_id(), false, "_".into(), parameter_type.clone(), Visibility::Private)
+            (
+                self.next_local_id(),
+                false,
+                "_".into(),
+                Arc::new(parameter_type.clone()),
+                Visibility::Private,
+            )
         });
 
         let body = self.zeroed_value_of_type(ret_type, location);
@@ -252,12 +260,12 @@ impl Monomorphizer<'_> {
             mutable: false,
             location: None,
             name: lambda_name.to_owned(),
-            typ: ast::Type::Function(
+            typ: Arc::new(ast::Type::Function(
                 parameter_types.to_owned(),
                 Box::new(ret_type.clone()),
-                Box::new(env_type.clone()),
+                Arc::new(env_type.clone()),
                 unconstrained,
-            ),
+            )),
             id: self.next_ident_id(),
         })
     }
