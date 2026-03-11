@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: 7 is out of bounds for the array of length 4
+  ┌─ src/main.nr:7:5
+  │
+7 │     y[i]
+  │     ----
+  │
+
+Error interpreting main function

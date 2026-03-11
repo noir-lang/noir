@@ -14,6 +14,7 @@ pub struct NoirEnumeration {
     pub name: Ident,
     pub attributes: Vec<SecondaryAttribute>,
     pub visibility: ItemVisibility,
+    pub comptime: bool,
     pub generics: UnresolvedGenerics,
     pub variants: Vec<Documented<EnumVariant>>,
     pub location: Location,
@@ -45,7 +46,7 @@ impl Display for NoirEnumeration {
 
         writeln!(f, "enum {}{} {{", self.name, generics)?;
 
-        for variant in self.variants.iter() {
+        for variant in &self.variants {
             if let Some(parameters) = &variant.item.parameters {
                 let parameters = vecmap(parameters, ToString::to_string).join(", ");
                 writeln!(f, "    {}({}),", variant.item.name, parameters)?;

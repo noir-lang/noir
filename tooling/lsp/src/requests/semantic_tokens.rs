@@ -43,7 +43,7 @@ pub(crate) fn on_semantic_tokens_full_request(
     params: SemanticTokensParams,
 ) -> impl Future<Output = Result<Option<SemanticTokensResult>, ResponseError>> + use<> {
     let text_document_position_params = TextDocumentPositionParams {
-        text_document: params.text_document.clone(),
+        text_document: params.text_document,
         position: Position { line: 0, character: 0 },
     };
 
@@ -476,7 +476,7 @@ impl Visitor for SemanticTokenCollector<'_> {
             self.process_reference_id(reference);
         }
 
-        for field in noir_struct.fields.iter() {
+        for field in &noir_struct.fields {
             let field_name_location = field.item.name.location();
             if let Some(reference) = self.args.interner.reference_at_location(field_name_location) {
                 self.process_reference_id(reference);
@@ -492,7 +492,7 @@ impl Visitor for SemanticTokenCollector<'_> {
             self.process_reference_id(reference);
         }
 
-        for variant in noir_enum.variants.iter() {
+        for variant in &noir_enum.variants {
             let variant_name_location = variant.item.name.location();
             if let Some(reference) = self.args.interner.reference_at_location(variant_name_location)
             {
@@ -509,7 +509,7 @@ impl Visitor for SemanticTokenCollector<'_> {
             self.process_reference_id(reference);
         }
 
-        for item in noir_trait.items.iter() {
+        for item in &noir_trait.items {
             if let TraitItem::Function { name, .. } = &item.item {
                 let func_name_location = name.location();
                 if let Some(reference) =

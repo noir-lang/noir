@@ -21,6 +21,7 @@ use noirc_evaluator::create_program;
 use noirc_evaluator::errors::RuntimeError;
 use noirc_evaluator::ssa::opt::{
     CONSTANT_FOLDING_MAX_ITER, FORCE_UNROLL_THRESHOLD, INLINING_MAX_INSTRUCTIONS,
+    MAX_UNROLL_ITERATIONS,
 };
 use noirc_evaluator::ssa::{
     SsaEvaluatorOptions, SsaLogging, SsaProgramArtifact, create_program_with_minimal_passes,
@@ -191,12 +192,18 @@ pub struct CompileOptions {
     pub small_function_max_instructions: usize,
 
     /// Setting the maximum acceptable increase in Brillig bytecode size due to
-    /// unrolling small loops. When left empty, any change is accepted as long
-    /// as it required fewer SSA instructions.
+    /// unrolling small loops.
+    /// When left empty, any change is accepted as long
+    /// as it required fewer SSA instructions. A value of 100 allows up to 2× growth.
     /// A higher value results in fewer jumps but a larger program.
     /// A lower value keeps the original program if it was smaller, even if it has more jumps.
     #[arg(long, hide = true, allow_hyphen_values = true)]
     pub max_bytecode_increase_percent: Option<i32>,
+
+    /// Maximum iterations for Brillig loop unrolling. Loops exceeding this
+    /// will not be unrolled even if they pass the instruction threshold.
+    #[arg(long, hide = true, default_value_t = MAX_UNROLL_ITERATIONS)]
+    pub max_unroll_iterations: usize,
 
     /// Override the threshold for force-unrolling small loops.
     ///
@@ -278,6 +285,7 @@ impl Default for CompileOptions {
             constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
             small_function_max_instructions: INLINING_MAX_INSTRUCTIONS,
             max_bytecode_increase_percent: None,
+            max_unroll_iterations: MAX_UNROLL_ITERATIONS,
             force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
             max_stack_frame_size: MAX_STACK_FRAME_SIZE,
             num_stack_frames: NUM_STACK_FRAMES,
@@ -322,6 +330,7 @@ impl CompileOptions {
             constant_folding_max_iter: self.constant_folding_max_iter,
             small_function_max_instruction: self.small_function_max_instructions,
             max_bytecode_increase_percent: self.max_bytecode_increase_percent,
+            max_unroll_iterations: self.max_unroll_iterations,
             force_unroll_threshold: self.force_unroll_threshold,
             skip_passes: self.skip_ssa_pass.clone(),
             ssa_logging_hide_unchanged: self.hide_unchanged_ssa,
@@ -645,7 +654,7 @@ fn read_contract(context: &Context, module_id: ModuleId, name: String) -> Contra
                 if let Some(tagged) = outputs.globals.get_mut(tag) {
                     tagged.push(global_info.id);
                 } else {
-                    outputs.globals.insert(tag.to_string(), vec![global_info.id]);
+                    outputs.globals.insert(tag.clone(), vec![global_info.id]);
                 }
             }
         });
@@ -658,7 +667,7 @@ fn read_contract(context: &Context, module_id: ModuleId, name: String) -> Contra
                     if let Some(tagged) = outputs.structs.get_mut(tag) {
                         tagged.push(struct_id);
                     } else {
-                        outputs.structs.insert(tag.to_string(), vec![struct_id]);
+                        outputs.structs.insert(tag.clone(), vec![struct_id]);
                     }
                 }
             });
@@ -769,7 +778,7 @@ fn compile_contract_inner(
                         AbiType::Struct { path, fields }
                     })
                     .collect();
-                (tag.to_string(), structs)
+                (tag, structs)
             })
             .collect();
 
@@ -788,7 +797,7 @@ fn compile_contract_inner(
                         value_from_hir_expression(context, hir_expression)
                     })
                     .collect();
-                (tag.to_string(), globals)
+                (tag.clone(), globals)
             })
             .collect();
 

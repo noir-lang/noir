@@ -124,10 +124,10 @@ fn list_harnesses_command(
         })
         .collect::<Result<_, _>>()?;
     let mut found_harness = false;
-    for (crate_name, discovered_harnesses) in all_harnesses_by_package.iter() {
+    for (crate_name, discovered_harnesses) in &all_harnesses_by_package {
         if !discovered_harnesses.is_empty() {
             println!("Package {crate_name} contains fuzzing harnesses:");
-            for harness in discovered_harnesses.iter() {
+            for harness in discovered_harnesses {
                 println!("\t{harness}");
             }
             found_harness = true;
@@ -147,7 +147,7 @@ pub(crate) fn run(args: FuzzCommand, workspace: Workspace) -> Result<(), CliErro
 
     let pattern = match &args.fuzzing_harness_name {
         Some(name) => {
-            let names = vec![name.to_string()];
+            let names = vec![name.clone()];
             if args.exact {
                 FunctionNameMatch::Exact(names)
             } else {
@@ -266,7 +266,7 @@ fn run_fuzzers<S: BlackBoxFunctionSolver<FieldElement> + Default>(
     )?;
 
     let mut fuzzing_reports = Vec::new();
-    for fuzzing_harness_name in fuzzing_harnesses.into_iter() {
+    for fuzzing_harness_name in fuzzing_harnesses {
         let status = run_fuzzing_harness::<S>(
             file_manager,
             parsed_files,
@@ -372,7 +372,7 @@ fn display_fuzzing_report_and_store(
     let writer = StandardStream::stderr(ColorChoice::Always);
     let mut writer = writer.lock();
     let fuzzing_failure_path =
-        fuzzing_failure_folder.map(PathBuf::from).unwrap_or(root_path.clone().unwrap_or_default());
+        fuzzing_failure_folder.map(PathBuf::from).unwrap_or(root_path.unwrap_or_default());
     if !fuzzing_failure_path.exists() {
         std::fs::create_dir_all(&fuzzing_failure_path)
             .expect("Failed to create fuzzing failure directory");
@@ -475,7 +475,7 @@ fn display_fuzzing_report_and_store(
                     .set_color(ColorSpec::new().set_fg(Some(Color::Yellow)))
                     .expect("Failed to set color");
                 // TODO(https://github.com/noir-lang/noir/issues/7796): Make the path shorter if possible
-                let mut full_path_of_example = fuzzing_failure_path.clone().join(file_name);
+                let mut full_path_of_example = fuzzing_failure_path.join(file_name);
                 full_path_of_example.set_extension(PathBuf::from("toml"));
                 writeln!(writer, "\"{}\"", full_path_of_example.to_str().unwrap())
                     .expect("Failed to write to stderr");

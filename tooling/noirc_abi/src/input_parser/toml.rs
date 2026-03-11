@@ -110,7 +110,7 @@ impl TomlTypes {
                 TomlTypes::Array(array)
             }
 
-            (InputValue::String(s), AbiType::String { .. }) => TomlTypes::String(s.to_string()),
+            (InputValue::String(s), AbiType::String { .. }) => TomlTypes::String(s.clone()),
 
             (InputValue::Struct(map), AbiType::Struct { fields, .. }) => {
                 let map_with_toml_types = try_btree_map(fields, |(key, field_type)| {
@@ -194,7 +194,7 @@ impl InputValue {
                         .get(field_name)
                         .ok_or_else(|| InputParserError::MissingArgument(field_id.clone()))?;
                     InputValue::try_from_toml(value.clone(), abi_type, &field_id)
-                        .map(|input_value| (field_name.to_string(), input_value))
+                        .map(|input_value| (field_name.clone(), input_value))
                 })?;
 
                 InputValue::Struct(native_table)
@@ -248,7 +248,7 @@ mod tests {
         #[test]
         fn signed_integer_serialization_roundtrip((typ, value) in arb_signed_integer_type_and_value()) {
             let string_input = TomlTypes::String(value.to_string());
-            let input_value = InputValue::try_from_toml(string_input.clone(), &typ, "foo").expect("should be parsable");
+            let input_value = InputValue::try_from_toml(string_input, &typ, "foo").expect("should be parsable");
             let TomlTypes::String(output_string) = TomlTypes::try_from_input_value(&input_value, &typ).expect("should be serializable") else {
                 panic!("wrong type output");
             };

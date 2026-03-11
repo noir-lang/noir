@@ -114,7 +114,7 @@ impl Formatter<'_> {
                     last_was_block_comment = false;
                 }
                 Token::LineComment(comment, None) => {
-                    let comment = comment.to_string();
+                    let comment = comment.clone();
 
                     if comment.trim() == "noir-fmt:ignore" {
                         ignore_next = true;
@@ -146,7 +146,7 @@ impl Formatter<'_> {
                     self.written_comments_count += 1;
                 }
                 Token::BlockComment(comment, None) => {
-                    let comment = comment.to_string();
+                    let comment = comment.clone();
 
                     if comment.trim() == "noir-fmt:ignore" {
                         ignore_next = true;

@@ -177,7 +177,7 @@ impl RuntimeError {
             RuntimeError::SsaValidationError { message, call_stack} => {
                 // At the moment SSA validation error is just a caught panic, it doesn't have a call stack.
                 let location =
-                    call_stack.last().cloned().unwrap_or_else(Location::dummy);
+                    call_stack.last().copied().unwrap_or_else(Location::dummy);
 
                 let mut diagnostic = CustomDiagnostic::simple_error(
                     format!("SSA validation error: {message}"),
@@ -200,7 +200,7 @@ impl RuntimeError {
                 let primary_message = self.to_string();
                 // Unrolling sometimes has to produce an empty call stack.
                 let location =
-                    self.call_stack().last().cloned().unwrap_or_else(Location::dummy);
+                    self.call_stack().last().copied().unwrap_or_else(Location::dummy);
 
                 CustomDiagnostic::simple_error(
                     primary_message,

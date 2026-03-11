@@ -402,7 +402,7 @@ impl Elaborator<'_> {
                 );
 
                 let first_elem_type = Type::TypeVariable(type_variable);
-                let first_location = elements.first().map(|elem| elem.location).unwrap_or(location);
+                let first_location = elements.first().map_or(location, |elem| elem.location);
 
                 let elements = vecmap(elements.into_iter().enumerate(), |(i, elem)| {
                     let location = elem.location;
@@ -465,7 +465,7 @@ impl Elaborator<'_> {
         for fragment in &fragments {
             if let FmtStrFragment::Interpolation(ident_name, location) = fragment {
                 let (typ, expr_id) = match self
-                    .get_ident_from_path(TypedPath::from_single(ident_name.to_string(), *location))
+                    .get_ident_from_path(TypedPath::from_single(ident_name.clone(), *location))
                 {
                     Some(IdentFromPath::Variable(variable)) => {
                         self.handle_local_variable(&variable);
@@ -855,15 +855,14 @@ impl Elaborator<'_> {
 
         let location = object_location.merge(method_name_location);
 
-        let (function_id, function_name) = method_ref.clone().into_function_id_and_name(
+        let (function_id, function_name) = method_ref.into_function_id_and_name(
             object_type.clone(),
             generics.clone(),
             location,
             self.interner,
         );
 
-        let func_type =
-            self.type_check_variable(function_name.clone(), &function_id, generics.clone());
+        let func_type = self.type_check_variable(function_name, &function_id, generics.clone());
 
         let function_id = self.intern_expr_type(function_id, func_type.clone());
 
@@ -1092,12 +1091,15 @@ impl Elaborator<'_> {
             is_self_type = last_segment.ident.is_self_type_name();
             constructor_type_location = last_segment.ident.location();
 
+            let mut errors = Vec::new();
             generics = self.resolve_struct_turbofish_generics(
                 &struct_type.borrow(),
                 generics,
                 last_segment.generics,
                 turbofish_location,
+                &mut errors,
             );
+            self.push_errors(errors);
         }
 
         // Each of the struct generics must be bound at the end of the function
@@ -1169,7 +1171,7 @@ impl Elaborator<'_> {
 
             let expected_index_and_visibility =
                 expected_field.map(|(index, visibility, _)| (index, visibility));
-            let expected_type = expected_field.map(|(_, _, typ)| typ).unwrap_or(&&Type::Error);
+            let expected_type = expected_field.map_or(&&Type::Error, |(_, _, typ)| typ);
 
             let field_location = field.location;
             let (resolved, field_type) = self.elaborate_expression(field);
@@ -1282,6 +1284,25 @@ impl Elaborator<'_> {
         let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::Cast);
         let r#type = self.resolve_type(cast.r#type, wildcard_allowed);
         let result = self.check_cast(&lhs, &lhs_type, &r#type, location);
+
+        // `Field as u1` is not supported directly by the backend. Insert an intermediate
+        // cast to u8 to transform it into: `(Field as u8) as u1`.
+        let lhs_could_be_field = match lhs_type.follow_bindings() {
+            Type::FieldElement => true,
+            Type::TypeVariable(ref var) => var.is_integer_or_field(),
+            _ => false,
+        };
+        let lhs = if lhs_could_be_field
+            && matches!(r#type, Type::Integer(Signedness::Unsigned, IntegerBitSize::One))
+        {
+            let u8_type = Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight);
+            let cast_to_u8 =
+                HirExpression::Cast(HirCastExpression { lhs, r#type: u8_type.clone() });
+            self.interner.push_expr_full(cast_to_u8, location, u8_type)
+        } else {
+            lhs
+        };
+
         let expr = HirExpression::Cast(HirCastExpression { lhs, r#type });
         (expr, result)
     }
@@ -1799,7 +1820,7 @@ impl Elaborator<'_> {
         let mut bindings = TypeBindings::default();
 
         // In `<Type as Trait>::method` we know `Self` is `Type` so we bind that now
-        bindings.insert(self_type.id(), (self_type, kind, constraint.typ.clone()));
+        bindings.insert(self_type.id(), (self_type, kind, constraint.typ));
 
         // TODO: set this to `true`. See https://github.com/noir-lang/noir/issues/8687
         let push_required_type_variables = self.current_trait.is_none();

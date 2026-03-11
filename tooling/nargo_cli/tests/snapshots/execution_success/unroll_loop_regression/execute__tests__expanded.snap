@@ -1,0 +1,28 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+global ROOTS: [Field; 16] = [
+    0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
+];
+
+unconstrained fn main(fracs: [Field; 16]) -> pub [Field; 2] {
+    let mut partial_sums: [Field; 2] = std::mem::zeroed();
+    let mut partial_sum: Field = 0_Field;
+    for i in 0_u32..8_u32 {
+        let summand: Field = ROOTS[i] * fracs[i];
+        partial_sum = partial_sum + summand;
+    }
+    partial_sums[0_u32] = partial_sum;
+    let NUM_PARTIAL_SUMS: u32 = 2_u32;
+    for i in 1_u32..NUM_PARTIAL_SUMS {
+        let mut partial_sum: Field = partial_sums[i - 1_u32];
+        for j in 0_u32..8_u32 {
+            let k: u32 = (i * 8_u32) + j;
+            let summand: Field = ROOTS[k] * fracs[k];
+            partial_sum = partial_sum + summand;
+        }
+        partial_sums[i] = partial_sum;
+    }
+    partial_sums
+}

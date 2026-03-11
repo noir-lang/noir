@@ -1,5 +1,5 @@
 use crate::acir::arrays::ElementTypeSizesArrayShift;
-use crate::acir::types::{flat_element_types, flat_numeric_types};
+use crate::acir::types::flat_element_types;
 use crate::acir::{AcirDynamicArray, AcirValue, AcirVar};
 use crate::brillig::assert_u32;
 use crate::errors::RuntimeError;
@@ -71,15 +71,13 @@ impl Context<'_> {
             };
 
             let mut elements_var = Vec::new();
-            let mut element_size = 0;
-            let mut new_vector = self.read_array_with_type(vector.clone(), &vector_typ)?;
+            let mut new_vector = self.read_array_with_type(vector, &vector_typ)?;
             let zero = self.acir_context.add_constant(FieldElement::zero());
 
             // 1. Convert the elements-to-push into flattened acir_var and at the same time
             // push_back corresponding dummy zero values to the AcirValues vector.
             for (elem, ssa_typ) in elements_to_push.iter().zip(vector_types.to_vec()) {
                 let element = self.convert_value(*elem, dfg);
-                element_size += super::arrays::flattened_value_size(&element).to_usize();
                 match element {
                     AcirValue::Var(acir_var, acir_type) => {
                         new_vector.push_back(AcirValue::Var(zero, acir_type));
@@ -129,24 +127,21 @@ impl Context<'_> {
 
             // 3. Write to the dynamic array
 
-            // 3.1 Computes the flatten_idx where to write into the dynamic array:
-            // Use element_type_size if it exists; convert the user index (vector_length) into the AcirValues index,
-            // and then flatten it with element_type_size
-            let mut flatten_idx = if let Some(element_type_sizes) = element_type_sizes {
-                let predicate_index = self
-                    .acir_context
-                    .mul_var(vector_length, self.current_side_effects_enabled_var)?;
-                let acir_element_size = self.acir_context.add_constant(elements_to_push.len());
-                let acir_value_index =
-                    self.acir_context.mul_var(predicate_index, acir_element_size)?;
-                self.acir_context
-                    .read_from_memory(element_type_sizes, &acir_value_index)
-                    .map_err(RuntimeError::from)?
-            } else {
-                // If it does not exist; the array is homogenous and we can simply multiply by size of the array elements
-                let element_size_var = self.acir_context.add_constant(element_size);
-                self.acir_context.mul_var(vector_length, element_size_var)?
-            };
+            // 3.1 Computes the flatten_idx where to write into the dynamic array.
+            // `get_flattened_index` handles both homogeneous (constant element size) and
+            // heterogeneous (element_type_sizes memory lookup with predicate guard) cases.
+            // The `is_safe_index: false` ensures the index is multiplied by the side-effects
+            // predicate to prevent out-of-bounds memory reads when side effects are disabled.
+            let acir_element_size = self.acir_context.add_constant(elements_to_push.len());
+            let acir_value_index = self.acir_context.mul_var(vector_length, acir_element_size)?;
+            let mut flatten_idx = self.get_flattened_index(
+                &vector_typ,
+                result_ids[1],
+                acir_value_index,
+                dfg,
+                false,
+                ElementTypeSizesArrayShift::None,
+            )?;
             // Write the elements to the dynamic array
             for element in &elements_var {
                 self.acir_context.write_to_memory(block_id, &flatten_idx, element)?;
@@ -317,7 +312,7 @@ impl Context<'_> {
         vector_length_id: ValueId,
         vector_length_value: AcirValue,
     ) -> Result<AcirVar, RuntimeError> {
-        let vector_length_var = vector_length_value.clone().into_var()?;
+        let vector_length_var = vector_length_value.into_var()?;
         let is_unknown_length = dfg.get_numeric_constant(vector_length_id).is_none();
 
         if is_unknown_length {
@@ -480,13 +475,6 @@ impl Context<'_> {
     ///    - If within the insertion window, write values from `flattened_elements`.
     ///    - If above the window, shift elements upward by the size of the inserted data.
     /// 4. Initialize a new memory block for the resulting vector, ensuring its type information is preserved.
-    ///
-    /// # Empty Vector Handling
-    ///
-    /// If the vector has zero length, this function skips the memory read and returns zero values.
-    /// It asserts that the current side effects must be disabled (predicate = 0), otherwise fails
-    /// with "Index out of bounds, vector has size 0". This prevents reading from empty memory blocks
-    /// which would cause "Index out of bounds" errors.
     pub(super) fn convert_vector_insert(
         &mut self,
         arguments: &[ValueId],
@@ -499,24 +487,9 @@ impl Context<'_> {
         let vector_typ = dfg.type_of_value(vector_contents);
         let block_id = self.ensure_array_is_initialized(vector_contents, dfg)?;
 
-        // Check if we're trying to insert into an empty vector
-        if self.has_zero_length(vector_contents, dfg) {
-            // Make sure this code is disabled, or fail with "Index out of bounds".
-            let msg = "Index out of bounds, vector has size 0".to_string();
-            self.acir_context.assert_zero_var(self.current_side_effects_enabled_var, msg)?;
-
-            // Fill the result with default values.
-            let mut results = Vec::with_capacity(result_ids.len());
-
-            // For insert, results are: [new_len, new_vector]
-            let vector_length_value = self.convert_value(arguments[0], dfg);
-            results.push(vector_length_value);
-
-            let vector = self.convert_value(vector_contents, dfg);
-            results.push(vector);
-
-            return Ok(results);
-        }
+        // Check if we're trying to insert into an empty vector.
+        // If so, we must avoid trying to read from the original vector.
+        let has_zero_length = self.has_zero_length(vector_contents, dfg);
 
         let vector = self.convert_value(vector_contents, dfg);
         let insert_index = self.convert_value(arguments[2], dfg).into_var()?;
@@ -630,8 +603,15 @@ impl Context<'_> {
                 self.acir_context.add_var(use_shifted_index_pred, use_current_index_pred)?
             };
 
-            let value_shifted_index =
-                self.acir_context.read_from_memory(block_id, &shifted_index)?;
+            // Read the original value, which we blend with the inserted ones.
+            let value_shifted_index = if has_zero_length {
+                // The original vector is empty, so we cannot read from it.
+                // The `should_insert_value_pred` will always be 1 in this case,
+                // and `not_pred` will be 0, so it doesn't matter what value we use here.
+                one
+            } else {
+                self.acir_context.read_from_memory(block_id, &shifted_index)?
+            };
 
             // Final predicate to determine whether we are within the insertion bounds
             let should_insert_value_pred =
@@ -668,7 +648,8 @@ impl Context<'_> {
                 None
             };
 
-        let value_types = flat_numeric_types(&vector_typ);
+        let value_types = flat_element_types(&vector_typ);
+        assert_eq!(vector_size.to_usize() % value_types.len(), 0);
 
         let result = AcirValue::DynamicArray(AcirDynamicArray {
             block_id: result_block_id,
@@ -862,7 +843,8 @@ impl Context<'_> {
                 None
             };
 
-        let value_types = flat_numeric_types(&vector_typ);
+        let value_types = flat_element_types(&vector_typ);
+        assert_eq!(result_size.to_usize() % value_types.len(), 0);
 
         let result = AcirValue::DynamicArray(AcirDynamicArray {
             block_id: result_block_id,
