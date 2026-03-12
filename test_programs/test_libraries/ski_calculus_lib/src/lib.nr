@@ -41,7 +41,7 @@ impl Eq for Node {
 
 #[derive(Eq)]
 pub struct Arena<let N: u32> {
-    inner: BoundedVec<Node, N>,
+    pub inner: BoundedVec<Node, N>,
 }
 
 impl<let N: u32> Default for Arena<N> {
@@ -50,7 +50,7 @@ impl<let N: u32> Default for Arena<N> {
     }
 }
 
-struct ShowState<let N: u32> {
+pub struct ShowState<let N: u32> {
     output: BoundedVec<str<1>, N>,
     done: bool,
     needs_open_parens: bool,
@@ -149,18 +149,18 @@ impl<let N: u32> ShowState<N> {
 
 impl<let N: u32> Arena<N> {
     // get Node from Arena or panic if it's missing
-    fn get(self, id: Id) -> Node {
+    pub fn get(self, id: Id) -> Node {
         self.inner.get(id.inner)
     }
 
     // set Node in Arena or panic if it's missing
-    fn set(&mut self, id: Id, x: Node) {
+    pub fn set(&mut self, id: Id, x: Node) {
         self.inner.set(id.inner, x);
         assert_eq(self.get(id), x, "Arena::set consistency check failed!");
     }
 
     // push Node onto Arena and return its Id
-    fn push(&mut self, x: Node) -> Id {
+    pub fn push(&mut self, x: Node) -> Id {
         let result_id = Id { inner: self.inner.len() };
         self.inner.push(x);
         assert_eq(self.get(result_id), x, "Arena::push consistency check failed!");
@@ -388,7 +388,7 @@ impl<let N: u32> Arena<N> {
 
     // I (I (.. I))
     // 1  2  .. n
-    fn push_I_n(&mut self, n: u32) -> Id {
+    pub fn push_I_n(&mut self, n: u32) -> Id {
         let I_id = self.push(Node::I);
         let mut next_id = I_id;
         for _ in 0..n {
@@ -398,7 +398,7 @@ impl<let N: u32> Arena<N> {
     }
 
     // (T & F | (NOT F | F) & T) & T
-    fn push_logic_example(&mut self) -> Id {
+    pub fn push_logic_example(&mut self) -> Id {
         let S_id = self.push(Node::S);
         let K_id = self.push(Node::K);
         let I_id = self.push(Node::I);
@@ -441,7 +441,7 @@ impl<let N: u32> Arena<N> {
     }
 
     // 3
-    fn push_numeric_example(&mut self) -> Id {
+    pub fn push_numeric_example(&mut self) -> Id {
         let S_id = self.push(Node::S);
         let K_id = self.push(Node::K);
         let I_id = self.push(Node::I);
@@ -465,7 +465,7 @@ impl<let N: u32> Arena<N> {
     }
 
     // 2^3
-    fn push_pow_example(&mut self) -> Id {
+    pub fn push_pow_example(&mut self) -> Id {
         let S_id = self.push(Node::S);
         let K_id = self.push(Node::K);
         let I_id = self.push(Node::I);
@@ -501,7 +501,7 @@ impl<let N: u32> Arena<N> {
     }
 
     // 2+3
-    fn push_add_example(&mut self) -> Id {
+    pub fn push_add_example(&mut self) -> Id {
         let S_id = self.push(Node::S);
         let K_id = self.push(Node::K);
         let I_id = self.push(Node::I);
@@ -561,316 +561,6 @@ pub global PRINT_SIZE: u32 = 5 * ARENA_SIZE;
 
 pub global MAX_NUM_DIGITS: u32 = 64;
 pub global BASE10_DIGITS: [str<1>; 10] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
-
-fn main() {}
-
-#[test]
-fn test_identity() {
-    let mut arena: Arena<ARENA_SIZE> = Arena::default();
-
-    // I (I (.. I))
-    // 1  2  .. 10
-    let target_formula = arena.push_I_n(10);
-
-    // normalize arena
-    arena.assert_eval_steps(10, 10);
-
-    // ensure it reduced to a single identity function
-    assert_eq(arena.get(target_formula), Node::I);
-
-    // check final length
-    assert_eq(arena.inner.len(), 11);
-}
-
-#[test]
-unconstrained fn test_identity_and_show() {
-    let mut arena: Arena<ARENA_SIZE> = Arena::default();
-
-    // I (I (.. I))
-    // 1  2  .. 10
-    let target_formula = arena.push_I_n(10);
-
-    // print AST
-    arena.assert_show::<ARENA_SIZE, _>(
-        target_formula,
-        [
-            "(", "I", " ", "(", "I", " ", "(", "I", " ", "(", "I", " ", "(", "I", " ", "(", "I",
-            " ", "(", "I", " ", "(", "I", " ", "(", "I", " ", "(", "I", " ", "I", ")", ")", ")",
-            ")", ")", ")", ")", ")", ")", ")",
-        ],
-    );
-
-    // normalize arena
-    arena.assert_eval_steps(10, 10);
-
-    // print normalized AST
-    arena.assert_show::<ARENA_SIZE, _>(target_formula, ["I"]);
-
-    // ensure it reduced to a single identity function
-    assert_eq(arena.get(target_formula), Node::I);
-
-    // check final length
-    assert_eq(arena.inner.len(), 11);
-}
-
-#[test]
-fn test_logic() {
-    let mut arena: Arena<ARENA_SIZE> = Arena::default();
-
-    // (T & F | (NOT F | F) & T) & T
-    let target_formula = arena.push_logic_example();
-
-    // normalize arena
-    arena.assert_eval_steps(20, 29);
-
-    // ensure result is TRUE
-    assert_eq(arena.get(target_formula), Node::K);
-
-    // check final length
-    assert_eq(arena.inner.len(), 45);
-}
-
-#[test]
-unconstrained fn test_logic_and_show() {
-    let mut arena: Arena<ARENA_SIZE> = Arena::default();
-
-    // (T & F | (NOT F | F) & T) & T
-    let target_formula = arena.push_logic_example();
-
-    // print AST
-    arena.assert_show::<ARENA_SIZE, _>(
-        target_formula,
-        [
-            "(", "(", "(", "(", "S", " ", "S", ")", " ", "(", "K", " ", "(", "K", " ", "(", "S",
-            " ", "K", ")", ")", ")", ")", " ", "(", "(", "(", "(", "S", " ", "I", ")", " ", "(",
-            "K", " ", "K", ")", ")", " ", "(", "(", "(", "(", "S", " ", "S", ")", " ", "(", "K",
-            " ", "(", "K", " ", "(", "S", " ", "K", ")", ")", ")", ")", " ", "K", ")", " ", "(",
-            "S", " ", "K", ")", ")", ")", " ", "(", "(", "(", "(", "S", " ", "I", ")", " ", "(",
-            "K", " ", "K", ")", ")", " ", "(", "(", "(", "S", " ", "(", "(", "S", " ", "I", ")",
-            " ", "(", "K", " ", "(", "S", " ", "K", ")", ")", ")", ")", " ", "(", "K", " ", "K",
-            ")", ")", " ", "(", "S", " ", "K", ")", ")", ")",
-        ],
-    );
-
-    // normalize arena
-    arena.assert_eval_steps(20, 29);
-
-    // print AST
-    arena.assert_show::<ARENA_SIZE, _>(target_formula, ["K"]);
-
-    // ensure result is TRUE
-    assert_eq(arena.get(target_formula), Node::K);
-
-    // check final length
-    assert_eq(arena.inner.len(), 45);
-}
-
-#[test]
-fn test_numeric() {
-    let mut arena: Arena<ARENA_SIZE> = Arena::default();
-
-    // 3
-    let target_formula = arena.push_numeric_example();
-
-    // normalize arena
-    arena.assert_eval_steps(1, 0);
-    assert_eq(arena.get(target_formula), arena.get(target_formula));
-
-    let SUCC = arena.push(Node::Succ);
-    let CONST_0 = arena.push(Node::Const(0));
-    let app_succ = arena.push(Node::App(target_formula, SUCC));
-    let app_succ_0 = arena.push(Node::App(app_succ, CONST_0));
-
-    // target_formula (+1) 0
-    let target_formula = app_succ_0;
-
-    // normalize arena
-    arena.assert_eval_steps(20, 20);
-    assert_eq(arena.get(target_formula), Node::Const(3));
-
-    // check final length
-    assert_eq(arena.inner.len(), 33);
-}
-
-#[test]
-unconstrained fn test_numeric_and_show() {
-    let mut arena: Arena<ARENA_SIZE> = Arena::default();
-
-    // 3
-    let target_formula = arena.push_numeric_example();
-
-    // print AST
-    arena.assert_show::<PRINT_SIZE, _>(
-        target_formula,
-        [
-            "(", "(", "S", " ", "(", "(", "S", " ", "(", "K", " ", "S", ")", ")", " ", "K", ")",
-            ")", " ", "(", "(", "S", " ", "(", "(", "S", " ", "(", "K", " ", "S", ")", ")", " ",
-            "K", ")", ")", " ", "(", "(", "S", " ", "(", "(", "S", " ", "(", "K", " ", "S", ")",
-            ")", " ", "K", ")", ")", " ", "(", "K", " ", "I", ")", ")", ")", ")",
-        ],
-    );
-
-    // normalize arena
-    arena.assert_eval_steps(1, 0);
-    assert_eq(arena.get(target_formula), arena.get(target_formula));
-
-    let SUCC = arena.push(Node::Succ);
-    let CONST_0 = arena.push(Node::Const(0));
-    let app_succ = arena.push(Node::App(target_formula, SUCC));
-    let app_succ_0 = arena.push(Node::App(app_succ, CONST_0));
-
-    // target_formula (+1) 0
-    let target_formula = app_succ_0;
-
-    // normalize arena
-    arena.assert_eval_steps(20, 20);
-    assert_eq(arena.get(target_formula), Node::Const(3));
-
-    // check final length
-    assert_eq(arena.inner.len(), 33);
-}
-
-#[test]
-fn test_pow() {
-    let mut arena: Arena<ARENA_SIZE> = Arena::default();
-
-    // 2^3
-    let target_formula = arena.push_pow_example();
-
-    // normalize arena
-    arena.assert_eval_steps(10, 15);
-
-    let SUCC = arena.push(Node::Succ);
-    let CONST_0 = arena.push(Node::Const(0));
-    let app_succ = arena.push(Node::App(target_formula, SUCC));
-    let app_succ_0 = arena.push(Node::App(app_succ, CONST_0));
-
-    // target_formula (+1) 0
-    let target_formula = app_succ_0;
-
-    // normalize arena
-    arena.assert_eval_steps(20, 82);
-    assert_eq(arena.get(target_formula), Node::Const(8));
-
-    // check final length
-    assert_eq(arena.inner.len(), 99);
-}
-
-#[test]
-unconstrained fn test_pow_and_show() {
-    let mut arena: Arena<ARENA_SIZE> = Arena::default();
-
-    // 2^3
-    let target_formula = arena.push_pow_example();
-
-    // print AST
-    arena.assert_show::<PRINT_SIZE, _>(
-        target_formula,
-        [
-            "(", "(", "(", "(", "S", " ", "(", "K", " ", "(", "S", " ", "I", ")", ")", ")", " ",
-            "K", ")", " ", "(", "(", "S", " ", "(", "(", "S", " ", "(", "K", " ", "S", ")", ")",
-            " ", "K", ")", ")", " ", "(", "(", "S", " ", "(", "(", "S", " ", "(", "K", " ", "S",
-            ")", ")", " ", "K", ")", ")", " ", "(", "K", " ", "I", ")", ")", ")", ")", " ", "(",
-            "(", "S", " ", "(", "(", "S", " ", "(", "K", " ", "S", ")", ")", " ", "K", ")", ")",
-            " ", "(", "(", "S", " ", "(", "(", "S", " ", "(", "K", " ", "S", ")", ")", " ", "K",
-            ")", ")", " ", "(", "(", "S", " ", "(", "(", "S", " ", "(", "K", " ", "S", ")", ")",
-            " ", "K", ")", ")", " ", "(", "K", " ", "I", ")", ")", ")", ")", ")",
-        ],
-    );
-
-    // normalize arena
-    arena.assert_eval_steps(10, 15);
-
-    let SUCC = arena.push(Node::Succ);
-    let CONST_0 = arena.push(Node::Const(0));
-    let app_succ = arena.push(Node::App(target_formula, SUCC));
-    let app_succ_0 = arena.push(Node::App(app_succ, CONST_0));
-
-    // target_formula (+1) 0
-    let target_formula = app_succ_0;
-
-    // normalize arena
-    arena.assert_eval_steps(20, 82);
-    assert_eq(arena.get(target_formula), Node::Const(8));
-
-    // print AST
-    arena.assert_show::<ARENA_SIZE, _>(target_formula, ["8"]);
-
-    // check final length
-    assert_eq(arena.inner.len(), 99);
-}
-
-#[test]
-fn test_add() {
-    let mut arena: Arena<ARENA_SIZE> = Arena::default();
-
-    let target_formula = arena.push_add_example();
-
-    // normalize arena
-    arena.assert_eval_steps(10, 13);
-
-    let SUCC = arena.push(Node::Succ);
-    let CONST_0 = arena.push(Node::Const(0));
-    let app_succ = arena.push(Node::App(target_formula, SUCC));
-    let app_succ_0 = arena.push(Node::App(app_succ, CONST_0));
-
-    // target_formula (+1) 0
-    let target_formula = app_succ_0;
-
-    // normalize arena
-    arena.assert_eval_steps(20, 42);
-    assert_eq(arena.get(target_formula), Node::Const(5));
-
-    // check final length
-    assert_eq(arena.inner.len(), 78);
-}
-
-#[test]
-unconstrained fn test_add_and_show() {
-    let mut arena: Arena<ARENA_SIZE> = Arena::default();
-
-    let target_formula = arena.push_add_example();
-
-    // print AST
-    arena.assert_show::<PRINT_SIZE, _>(
-        target_formula,
-        [
-            "(", "(", "(", "(", "S", " ", "(", "(", "S", " ", "(", "K", " ", "S", ")", ")", " ",
-            "(", "(", "S", " ", "(", "K", " ", "K", ")", ")", " ", "(", "(", "S", " ", "(", "K",
-            " ", "S", ")", ")", " ", "(", "(", "S", " ", "(", "K", " ", "(", "S", " ", "(", "K",
-            " ", "S", ")", ")", ")", ")", " ", "(", "S", " ", "(", "K", " ", "K", ")", ")", ")",
-            ")", ")", ")", ")", " ", "(", "K", " ", "I", ")", ")", " ", "(", "(", "S", " ", "(",
-            "(", "S", " ", "(", "K", " ", "S", ")", ")", " ", "K", ")", ")", " ", "(", "(", "S",
-            " ", "(", "(", "S", " ", "(", "K", " ", "S", ")", ")", " ", "K", ")", ")", " ", "(",
-            "K", " ", "I", ")", ")", ")", ")", " ", "(", "(", "S", " ", "(", "(", "S", " ", "(",
-            "K", " ", "S", ")", ")", " ", "K", ")", ")", " ", "(", "(", "S", " ", "(", "(", "S",
-            " ", "(", "K", " ", "S", ")", ")", " ", "K", ")", ")", " ", "(", "(", "S", " ", "(",
-            "(", "S", " ", "(", "K", " ", "S", ")", ")", " ", "K", ")", ")", " ", "(", "K", " ",
-            "I", ")", ")", ")", ")", ")",
-        ],
-    );
-
-    // normalize arena
-    arena.assert_eval_steps(10, 13);
-
-    let SUCC = arena.push(Node::Succ);
-    let CONST_0 = arena.push(Node::Const(0));
-    let app_succ = arena.push(Node::App(target_formula, SUCC));
-    let app_succ_0 = arena.push(Node::App(app_succ, CONST_0));
-
-    // target_formula (+1) 0
-    let target_formula = app_succ_0;
-
-    // normalize arena
-    arena.assert_eval_steps(20, 42);
-    assert_eq(arena.get(target_formula), Node::Const(5));
-
-    // print AST
-    arena.assert_show::<ARENA_SIZE, _>(target_formula, ["5"]);
-
-    // check final length
-    assert_eq(arena.inner.len(), 78);
-}
 
 // Docs
 

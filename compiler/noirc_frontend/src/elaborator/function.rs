@@ -125,6 +125,7 @@ impl Elaborator<'_> {
     ) {
         // Set up trait impl state
         self.current_trait_impl = trait_impl.impl_id;
+        self.current_trait = trait_impl.trait_id;
         self.self_type = trait_impl.methods.self_type.clone();
         self.generics = generics;
 
@@ -137,6 +138,7 @@ impl Elaborator<'_> {
         // Cleanup
         self.self_type = None;
         self.current_trait_impl = None;
+        self.current_trait = None;
         self.generics.clear();
     }
 
@@ -176,6 +178,13 @@ impl Elaborator<'_> {
 
         let mut trait_constraints =
             self.resolve_trait_constraints_and_add_to_scope(&func.def.where_clause);
+
+        // Add constraints for parent traits that have associated types.
+        let (parent_generics, parent_constraints) =
+            self.add_parent_associated_type_constraints(&trait_constraints);
+        generics.extend(parent_generics);
+        trait_constraints.extend(parent_constraints);
+
         let mut extra_trait_constraints =
             vecmap(extra_trait_constraints, |(constraint, _)| constraint.clone());
         extra_trait_constraints.extend(associated_generics_trait_constraints);
@@ -486,6 +495,7 @@ impl Elaborator<'_> {
         self.local_module = Some(func_meta.source_module);
         self.self_type = func_meta.self_type.clone();
         self.current_trait_impl = func_meta.trait_impl;
+        self.current_trait = func_meta.trait_id;
         self.reset_lvalue_index_counter();
 
         self.scopes.start_function();
