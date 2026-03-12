@@ -725,10 +725,7 @@ impl FuzzerBuilder {
         value: TypedValue,
         safe_index: bool,
     ) -> TypedValue {
-        let (array_type, array_length) = match array.type_of_variable.clone() {
-            Type::Array(array_type, array_length) => (array_type, array_length),
-            _ => unreachable!("Array type expected"),
-        };
+        let Type::Array(array_type, array_length) = array.type_of_variable.clone() else { unreachable!("Array type expected") };
 
         assert!(index.type_of_variable == Type::Numeric(NumericType::U32));
         let index = if safe_index {
