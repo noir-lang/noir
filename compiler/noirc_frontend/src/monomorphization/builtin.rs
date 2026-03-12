@@ -89,9 +89,7 @@ impl Monomorphizer<'_> {
             HandledOpcode::ModulusLeBytes => self.modulus_le_bytes(location),
             HandledOpcode::ModulusNumBits => Self::modulus_num_bits(location),
             HandledOpcode::Poseidon2ConfigStateSize => Self::poseidon2_config_state_size(location),
-            HandledOpcode::Zeroed => {
-                self.zeroed_value_of_type(Rc::new(converted_return_type.clone()), location)
-            }
+            HandledOpcode::Zeroed => self.zeroed_value_of_type(&converted_return_type, location),
         };
 
         let new_function_id = self.next_function_id();
@@ -155,19 +153,19 @@ impl Monomorphizer<'_> {
     /// there is no obvious zeroed value so this should be considered unsafe to use.
     pub(super) fn zeroed_value_of_type(
         &mut self,
-        typ: Rc<ast::Type>,
+        typ: &ast::Type,
         location: Location,
     ) -> ast::Expression {
-        match typ.as_ref() {
+        match typ {
             ast::Type::Field | ast::Type::Integer(..) => {
-                let typ = typ.as_ref().clone();
+                let typ = typ.clone();
                 let zero = SignedField::positive(0u32);
                 ast::Expression::Literal(ast::Literal::Integer(zero, typ, location))
             }
             ast::Type::Bool => ast::Expression::Literal(ast::Literal::Bool(false)),
             ast::Type::Unit => ast::Expression::Literal(ast::Literal::Unit),
             ast::Type::Array(length, element_type) => {
-                let element = self.zeroed_value_of_type(element_type.clone(), location);
+                let element = self.zeroed_value_of_type(element_type, location);
                 ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral {
                     contents: vec![element; *length as usize],
                     typ: ast::Type::Array(*length, element_type.clone()),
@@ -177,7 +175,7 @@ impl Monomorphizer<'_> {
                 ast::Expression::Literal(ast::Literal::Str("\0".repeat(*length as usize)))
             }
             ast::Type::FmtString(length, fields) => {
-                let zeroed_tuple = self.zeroed_value_of_type(fields.clone(), location);
+                let zeroed_tuple = self.zeroed_value_of_type(fields, location);
                 let fields_len = match &zeroed_tuple {
                     ast::Expression::Tuple(fields) => fields.len() as u64,
                     _ => unreachable!(
@@ -191,7 +189,7 @@ impl Monomorphizer<'_> {
                 ))
             }
             ast::Type::Tuple(fields) => ast::Expression::Tuple(vecmap(fields, |field| {
-                self.zeroed_value_of_type(Rc::new(field.clone()), location)
+                self.zeroed_value_of_type(field, location)
             })),
             ast::Type::Function(parameter_types, ret_type, env, unconstrained) => self
                 .create_zeroed_function(
@@ -208,8 +206,8 @@ impl Monomorphizer<'_> {
                 }))
             }
             ast::Type::Reference(element, mutable) => {
-                let rhs = Box::new(self.zeroed_value_of_type(element.clone(), location));
-                let result_type = typ.as_ref().clone();
+                let rhs = Box::new(self.zeroed_value_of_type(element, location));
+                let result_type = typ.clone();
                 ast::Expression::Unary(ast::Unary {
                     rhs,
                     result_type,
@@ -247,7 +245,7 @@ impl Monomorphizer<'_> {
             )
         });
 
-        let body = self.zeroed_value_of_type(ret_type.clone(), location);
+        let body = self.zeroed_value_of_type(&ret_type, location);
 
         let id = self.next_function_id();
         let return_type = ret_type.clone();
@@ -312,9 +310,7 @@ impl Monomorphizer<'_> {
                 Some(HandledOpcode::Poseidon2ConfigStateSize) => {
                     Self::poseidon2_config_state_size(location)
                 }
-                Some(HandledOpcode::Zeroed) => {
-                    self.zeroed_value_of_type(Rc::new(result_type.clone()), location)
-                }
+                Some(HandledOpcode::Zeroed) => self.zeroed_value_of_type(result_type, location),
                 None => return Ok(None),
             }));
         }

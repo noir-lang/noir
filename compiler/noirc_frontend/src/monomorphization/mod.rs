@@ -1153,7 +1153,7 @@ impl<'interner> Monomorphizer<'interner> {
             } else {
                 try_vecmap(arg_types, |typ| {
                     let typ = Self::convert_type(&typ, location)?;
-                    Ok(self.zeroed_value_of_type(Rc::new(typ), location))
+                    Ok(self.zeroed_value_of_type(&typ, location))
                 })
             }?;
             fields.push(ast::Expression::Tuple(args));
