@@ -61,7 +61,7 @@ use crate::{
             instruction::{Binary, BinaryOp, Instruction, TerminatorInstruction},
             integer::IntegerConstant,
             post_order::PostOrder,
-            value::{Value, ValueId},
+            value::{Value, ValueId, ValueMapping},
         },
         ssa_gen::Ssa,
     },
@@ -713,10 +713,30 @@ impl Loop {
         let mut unroll_into = self.get_pre_header(function, cfg)?;
         let mut header_args = get_header_arguments(&function.dfg, unroll_into)?;
 
+        // Collect the original header parameters before unrolling.
+        // The header may have extra parameters beyond the induction variable (promoted mutable variables).
+        // Blocks outside the loop can reference these params directly, so after unrolling we need to
+        // replace those references with the final iteration's values.
+        let header_params: Vec<ValueId> = function.dfg[self.header].parameters().to_vec();
+
         while let Some((context, loop_header_id)) =
             self.unroll_header(function, unroll_into, &header_args)?
         {
             (unroll_into, header_args) = context.unroll_loop_iteration(loop_header_id);
+        }
+
+        // After unrolling, blocks outside the loop may still reference the old header
+        // parameters (e.g. exit blocks that use promoted variables such as from mem2reg).
+        // Replace all remaining uses of header params with the final iteration's values.
+        if header_params.len() > 1 {
+            let mut mapping = ValueMapping::default();
+            mapping.batch_insert(&header_params, &header_args);
+
+            for block_id in function.reachable_blocks() {
+                if !self.blocks.contains(&block_id) {
+                    function.dfg.replace_values_in_block(block_id, &mapping);
+                }
+            }
         }
 
         Ok(())
@@ -817,15 +837,6 @@ impl Loop {
                     // ie. it wasn't between `loop_header` and `loop_body`. Otherwise we have the `loop_body`
                     // in `source_block` and can unroll that into the destination.
                     let is_in_loop = self.blocks.contains(&context.source_block);
-
-                    if !is_in_loop && header_params.len() > 1 {
-                        // The loop has terminated. context.source_block is the loop exit block.
-                        // The exit block may reference inner loop block parameters that were
-                        // promoted by mem2reg_simple (i.e. the extra params beyond the induction
-                        // variable). Inline the exit block now to resolve those references using
-                        // the current context's mappings before they become dangling references.
-                        context.inline_instructions_from_block();
-                    }
 
                     Ok(is_in_loop
                         .then_some(context)
@@ -1494,6 +1505,7 @@ mod tests {
 
     use crate::assert_ssa_snapshot;
     use crate::errors::RuntimeError;
+    use crate::ssa::interpreter::value::Value;
     use crate::ssa::ir::integer::IntegerConstant;
     use crate::ssa::opt::assert_ssa_does_not_change;
     use crate::ssa::{Ssa, ir::value::ValueId, opt::assert_normalized_ssa_equals};
@@ -2310,6 +2322,67 @@ mod tests {
             jmp b2()
           b2():
             return
+        }
+        ");
+    }
+
+    /// Regression test: after mem2reg_simple, loop headers can have multiple parameters
+    /// (induction variable + promoted mutable variables). Blocks outside the loop (like
+    /// the exit block b3) reference these header params directly. After unrolling, these
+    /// references must remain valid.
+    #[test]
+    fn unroll_loop_with_multi_param_header() {
+        // Simplified main from vector_loop after mem2reg_simple.
+        // b1 has 3 params: v1 (induction), v2 (promoted u32), v3 (promoted [Field]).
+        // b3 (exit) references v2 and v3 from b1 directly.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            jmp b1(u32 0, u32 0, Field 0)
+          b1(v1: u32, v2: u32, v3: Field):
+            v5 = lt v1, u32 3
+            jmpif v5 then: b2(), else: b3()
+          b2():
+            v6 = add v3, v0
+            v7 = unchecked_add v2, u32 1
+            v8 = unchecked_add v1, u32 1
+            jmp b1(v8, v7, v6)
+          b3():
+            v9 = lt u32 5, v2
+            jmpif v9 then: b4(), else: b5(v3)
+          b4():
+            v10 = add v3, Field 1
+            jmp b5(v10)
+          b5(v4: Field):
+            return v4
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        // Verify semantic preservation: interpret before and after unrolling
+        let input = vec![Value::field(3u128.into())];
+        let before = ssa.interpret(input.clone()).unwrap();
+
+        let (ssa, errors) = try_unroll_loops(ssa);
+        assert!(errors.is_empty(), "Unrolling should succeed: {errors:?}");
+
+        let after = ssa.interpret(input).unwrap();
+        assert_eq!(before, after, "Unrolling should preserve semantics");
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = add v0, v0
+            v3 = add v2, v0
+            jmp b1()
+          b1():
+            v6 = lt u32 5, u32 3
+            jmpif v6 then: b2(), else: b3(v3)
+          b2():
+            v8 = add v3, Field 1
+            jmp b3(v8)
+          b3(v1: Field):
+            return v1
         }
         ");
     }
