@@ -685,3 +685,58 @@ fn regression_10363() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn concrete_impl_with_dual_turbofish() {
+    // Regression: concrete impl's method generics were incorrectly bound to the
+    // type turbofish arguments because all_generics only contained direct_generics.
+    let src = r#"
+    struct S<T> {}
+
+    impl S<u32> {
+        fn foo<U>(_x: U) {}
+    }
+
+    fn main() {
+        let x: Field = 10;
+        S::<u32>::foo::<Field>(x);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn generic_impl_with_dual_turbofish() {
+    // Ensure the generic impl case still works correctly after the fix.
+    let src = r#"
+    struct S<T> {}
+
+    impl<T> S<T> {
+        fn foo<U>(_x: U) {}
+    }
+
+    fn main() {
+        let x: Field = 10;
+        S::<u32>::foo::<Field>(x);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn concrete_impl_dual_turbofish_type_mismatch() {
+    // The method turbofish binds the method generic, so passing a wrong type should error.
+    let src = r#"
+    struct S<T> {}
+
+    impl S<u32> {
+        fn foo<U>(_x: U) {}
+    }
+
+    fn main() {
+        S::<u32>::foo::<Field>(true);
+                               ^^^^ Expected type Field, found type bool
+    }
+    "#;
+    check_errors(src);
+}

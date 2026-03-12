@@ -183,9 +183,16 @@ impl Elaborator<'_> {
 
             // If this is a function call on a type that has generics, we need to bind those generic types.
             if !type_generics.is_empty() {
-                // `all_generics` will always have the enclosing type generics first, so we need to bind those
-                let func_generics = &self.interner.function_meta(func_id).all_generics;
-                for (type_generic, func_generic) in type_generics.into_iter().zip(func_generics) {
+                // `all_generics` has the enclosing type generics first, followed by `direct_generics`
+                // (the method's own generics). We must only bind the type-level portion here;
+                // method generics are handled separately by the method turbofish.
+                // For a concrete impl (e.g. `impl S<u32>`), there are no impl-level generics in
+                // `all_generics`, so `impl_generic_count` is 0 and we correctly skip binding.
+                let func_meta = self.interner.function_meta(func_id);
+                let impl_generic_count =
+                    func_meta.all_generics.len() - func_meta.direct_generics.len();
+                let impl_generics = &func_meta.all_generics[..impl_generic_count];
+                for (type_generic, func_generic) in type_generics.into_iter().zip(impl_generics) {
                     let type_var = &func_generic.type_var;
                     bindings
                         .insert(type_var.id(), (type_var.clone(), type_var.kind(), type_generic));
