@@ -496,6 +496,7 @@ impl Elaborator<'_> {
         self.self_type = func_meta.self_type.clone();
         self.current_trait_impl = func_meta.trait_impl;
         self.current_trait = func_meta.trait_id;
+        self.reset_lvalue_index_counter();
 
         self.scopes.start_function();
         let old_item = self.current_item.replace(DependencyId::Function(id));

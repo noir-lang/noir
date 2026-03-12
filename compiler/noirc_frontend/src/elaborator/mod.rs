@@ -295,6 +295,22 @@ pub struct Elaborator<'context> {
     /// when an attribute generates code that triggers further attribute expansion.
     /// This is a global counter that catches both single-function and mutual recursion.
     pub(crate) macro_expansion_depth: usize,
+
+    /// Counter used to define temporary variables for non-simple indexes in l-values.
+    ///
+    /// For example, this expression:
+    ///
+    /// ```noir
+    /// array[x + y] = 10;
+    /// ```
+    ///
+    /// is transformed into:
+    ///
+    /// ```noir
+    /// let i_0 = x + y;
+    /// array[i_0] = 10;
+    /// ```
+    lvalue_index_counter: usize,
 }
 
 #[derive(Copy, Clone)]
@@ -365,6 +381,7 @@ impl<'context> Elaborator<'context> {
             elaborate_reasons,
             comptime_evaluation_halted: false,
             macro_expansion_depth: 0,
+            lvalue_index_counter: 0,
         }
     }
 
@@ -701,6 +718,9 @@ impl<'context> Elaborator<'context> {
     fn define_type_alias(&mut self, alias_id: TypeAliasId, alias: UnresolvedTypeAlias) {
         self.local_module = Some(alias.module_id);
 
+        let previous_in_comptime_context =
+            std::mem::replace(&mut self.in_comptime_context, alias.type_alias_def.comptime);
+
         let name = &alias.type_alias_def.name;
         let visibility = alias.type_alias_def.visibility;
         let location = alias.type_alias_def.location;
@@ -750,6 +770,8 @@ impl<'context> Elaborator<'context> {
         }
         self.interner.set_type_alias(alias_id, typ, generics, num_expr);
         self.generics.clear();
+
+        self.in_comptime_context = previous_in_comptime_context;
     }
 
     /// True if we're currently within a constrained function or lambda.
@@ -836,6 +858,16 @@ impl<'context> Elaborator<'context> {
     /// The current interpreter call stack.
     pub(crate) fn interpreter_call_stack(&self) -> &im::Vector<Location> {
         &self.interpreter_call_stack
+    }
+
+    pub(crate) fn reset_lvalue_index_counter(&mut self) {
+        self.lvalue_index_counter = 0;
+    }
+
+    pub(crate) fn next_lvalue_index_counter(&mut self) -> usize {
+        let lvalue_index_counter = self.lvalue_index_counter;
+        self.lvalue_index_counter += 1;
+        lvalue_index_counter
     }
 }
 

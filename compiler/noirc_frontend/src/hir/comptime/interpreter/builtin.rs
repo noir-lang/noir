@@ -2370,6 +2370,7 @@ fn expr_has_semicolon(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let expr_value = get_expr(interner, self_argument)?;
+    let expr_value = unwrap_expr_value_except_semi(interner, expr_value);
     Ok(Value::Bool(matches!(expr_value, ExprValue::Statement(StatementKind::Semi(..)))))
 }
 
@@ -2381,6 +2382,7 @@ fn expr_is_break(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let expr_value = get_expr(interner, self_argument)?;
+    let expr_value = unwrap_expr_value(interner, expr_value);
     Ok(Value::Bool(matches!(expr_value, ExprValue::Statement(StatementKind::Break))))
 }
 
@@ -2392,6 +2394,7 @@ fn expr_is_continue(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let expr_value = get_expr(interner, self_argument)?;
+    let expr_value = unwrap_expr_value(interner, expr_value);
     Ok(Value::Bool(matches!(expr_value, ExprValue::Statement(StatementKind::Continue))))
 }
 
@@ -2476,15 +2479,36 @@ fn expr_resolve(
     })
 }
 
-fn unwrap_expr_value(interner: &NodeInterner, mut expr_value: ExprValue) -> ExprValue {
+fn unwrap_expr_value(interner: &NodeInterner, expr_value: ExprValue) -> ExprValue {
+    let unwrap_semi = true;
+    unwrap_expr_value_helper(interner, expr_value, unwrap_semi)
+}
+
+fn unwrap_expr_value_except_semi(interner: &NodeInterner, expr_value: ExprValue) -> ExprValue {
+    let unwrap_semi = false;
+    unwrap_expr_value_helper(interner, expr_value, unwrap_semi)
+}
+
+fn unwrap_expr_value_helper(
+    interner: &NodeInterner,
+    mut expr_value: ExprValue,
+    unwrap_semi: bool,
+) -> ExprValue {
     loop {
         match expr_value {
             ExprValue::Expression(ExpressionKind::Parenthesized(expression)) => {
                 expr_value = ExprValue::Expression(expression.kind);
             }
-            ExprValue::Statement(StatementKind::Expression(expression))
-            | ExprValue::Statement(StatementKind::Semi(expression)) => {
+            ExprValue::Statement(StatementKind::Expression(expression)) => {
                 expr_value = ExprValue::Expression(expression.kind);
+            }
+            ExprValue::Statement(StatementKind::Semi(expression)) => {
+                if unwrap_semi {
+                    expr_value = ExprValue::Expression(expression.kind);
+                } else {
+                    expr_value = ExprValue::Statement(StatementKind::Semi(expression));
+                    break;
+                }
             }
             ExprValue::Expression(ExpressionKind::Interned(id)) => {
                 expr_value = ExprValue::Expression(interner.get_expression_kind(id).clone());
