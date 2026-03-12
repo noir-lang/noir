@@ -1,6 +1,8 @@
 //! Everything to do with elaboration of variables.
 //! Notably, variables may require trait constraints to be solved later on.
 
+use itertools::Itertools;
+
 use super::Elaborator;
 use crate::TypeAlias;
 use crate::ast::{
@@ -116,7 +118,7 @@ impl Elaborator<'_> {
                     // variable to the turbofish-resolved type.
                     self.push_scope();
                     for (generic, resolved_type) in
-                        alias_generics.iter().zip(resolved_generics.iter())
+                        alias_generics.iter().zip_eq(resolved_generics.iter())
                     {
                         if let Kind::Numeric(numeric_type) = &generic.kind() {
                             let id = self.interner.next_type_variable_id();
@@ -185,7 +187,8 @@ impl Elaborator<'_> {
             if !type_generics.is_empty() {
                 // `all_generics` will always have the enclosing type generics first, so we need to bind those
                 let func_generics = &self.interner.function_meta(func_id).all_generics;
-                for (type_generic, func_generic) in type_generics.into_iter().zip(func_generics) {
+                for (type_generic, func_generic) in type_generics.into_iter().zip_eq(func_generics)
+                {
                     let type_var = &func_generic.type_var;
                     bindings
                         .insert(type_var.id(), (type_var.clone(), type_var.kind(), type_generic));

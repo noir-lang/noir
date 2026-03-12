@@ -1,6 +1,7 @@
 //! Path resolution for types, values, and trait methods across modules.
 
 use iter_extended::vecmap;
+use itertools::Itertools;
 use noirc_errors::{Located, Location, Span};
 
 use crate::ast::{Ident, PathKind};
@@ -583,7 +584,7 @@ impl Elaborator<'_> {
 
         let mut errors = Vec::new();
         for (index, (prev_segment, current_segment)) in
-            path.segments.iter().zip(path.segments.iter().skip(1)).enumerate()
+            path.segments.iter().tuple_windows().enumerate()
         {
             let prev_ident = &prev_segment.ident;
             let current_ident = &current_segment.ident;

@@ -72,6 +72,7 @@
 //! ```text
 //! v0 = call f1() -> Field
 //! ```
+use itertools::Itertools;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
@@ -147,7 +148,7 @@ impl Ssa {
                         // Filter the arguments using keep_list
                         let new_args: Vec<ValueId> = arguments
                             .iter()
-                            .zip(keep_list.iter())
+                            .zip_eq(keep_list.iter())
                             .filter_map(|(arg, &keep)| if keep { Some(*arg) } else { None })
                             .collect();
 

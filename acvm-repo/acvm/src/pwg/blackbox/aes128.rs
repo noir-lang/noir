@@ -4,6 +4,7 @@ use acir::{
     native_types::{Witness, WitnessMap},
 };
 use acvm_blackbox_solver::aes128_encrypt;
+use itertools::Itertools;
 
 use crate::{OpcodeResolutionError, pwg::insert_value};
 
@@ -25,7 +26,7 @@ pub(super) fn solve_aes128_encryption_opcode<F: AcirField>(
     );
 
     // Write witness assignments
-    for (output_witness, value) in outputs.iter().zip(ciphertext.into_iter()) {
+    for (output_witness, value) in outputs.iter().zip_eq(ciphertext.into_iter()) {
         insert_value(output_witness, F::from(u128::from(value)), initial_witness)?;
     }
 

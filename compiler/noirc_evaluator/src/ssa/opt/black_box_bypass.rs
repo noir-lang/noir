@@ -15,6 +15,7 @@
 //! outright reject the code.
 
 use iter_extended::vecmap;
+use itertools::Itertools;
 
 use crate::ssa::{
     ir::{
@@ -107,7 +108,7 @@ impl Function {
 
             // Redirect the old results to equal the new ones, which still go through the black box.
             let new_results = Vec::from(new_results);
-            for (old_result, new_result) in old_results.into_iter().zip(new_results) {
+            for (old_result, new_result) in old_results.into_iter().zip_eq(new_results) {
                 context.replace_value(old_result, new_result);
             }
         });

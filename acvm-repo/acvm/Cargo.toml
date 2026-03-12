@@ -22,6 +22,7 @@ acir.workspace = true
 brillig_vm.workspace = true
 acvm_blackbox_solver.workspace = true
 indexmap.workspace = true
+itertools.workspace = true
 
 [features]
 bn254 = ["acir/bn254", "brillig_vm/bn254", "acvm_blackbox_solver/bn254"]

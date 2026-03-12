@@ -3,6 +3,7 @@ use crate::{
     lengths::{ElementsFlattenedLength, FlattenedLength, SemanticLength, SemiFlattenedLength},
 };
 use acir_field::AcirField;
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 /// Represents a program location (instruction index) used as a jump target.
@@ -518,7 +519,7 @@ impl<F: std::fmt::Display> std::fmt::Display for BrilligOpcode<F> {
 
                 if !destinations.is_empty() {
                     for (index, (destination, destination_value_type)) in
-                        destinations.iter().zip(destination_value_types).enumerate()
+                        destinations.iter().zip_eq(destination_value_types).enumerate()
                     {
                         if index > 0 {
                             write!(f, ", ")?;
@@ -532,7 +533,7 @@ impl<F: std::fmt::Display> std::fmt::Display for BrilligOpcode<F> {
 
                 assert_eq!(inputs.len(), input_value_types.len());
                 for (index, (input, input_value_type)) in
-                    inputs.iter().zip(input_value_types).enumerate()
+                    inputs.iter().zip_eq(input_value_types).enumerate()
                 {
                     if index > 0 {
                         write!(f, ", ")?;

@@ -2,6 +2,7 @@ use std::hash::Hash;
 use std::marker::Copy;
 
 use fm::FileId;
+use itertools::Itertools;
 use noirc_arena::{Arena, Index};
 use noirc_errors::{Location, Span};
 use petgraph::prelude::DiGraph;
@@ -1565,7 +1566,8 @@ impl NodeInterner {
             (self_type_var.clone(), self_type_var.kind(), impl_self_type.clone()),
         );
 
-        for (trait_generic, trait_impl_generic) in trait_generics.iter().zip(trait_impl_generics) {
+        for (trait_generic, trait_impl_generic) in trait_generics.iter().zip_eq(trait_impl_generics)
+        {
             let type_var = trait_generic.type_var.clone();
             bindings.insert(
                 type_var.id(),

@@ -16,6 +16,7 @@ use crate::ssa::ir::{
 };
 use acvm::{FieldElement, acir::AcirField, acir::brillig::MemoryAddress};
 use iter_extended::vecmap;
+use itertools::Itertools;
 use noirc_errors::call_stack::{CallStackHelper, CallStackId};
 use num_bigint::BigUint;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -509,7 +510,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         let mut moves: Vec<(MemoryAddress, MemoryAddress)> = Vec::new();
 
         assert_eq!(arguments.len(), destination_block.parameters().len());
-        for (arg, param) in arguments.iter().zip(destination_block.parameters()) {
+        for (arg, param) in arguments.iter().zip_eq(destination_block.parameters()) {
             let arg_var = self.convert_ssa_value(*arg, dfg);
             let arg_reg = arg_var.extract_register();
 

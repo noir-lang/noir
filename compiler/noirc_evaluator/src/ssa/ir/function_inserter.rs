@@ -1,4 +1,5 @@
 use iter_extended::vecmap;
+use itertools::Itertools;
 use noirc_errors::call_stack::CallStackId;
 
 use super::{
@@ -173,7 +174,7 @@ impl<'f> FunctionInserter<'f> {
     pub(crate) fn remember_block_params(&mut self, block: BasicBlockId, new_values: &[ValueId]) {
         let old_parameters = self.function.dfg.block_parameters(block);
         assert_eq!(old_parameters.len(), new_values.len());
-        for (param, new_param) in old_parameters.iter().zip(new_values) {
+        for (param, new_param) in old_parameters.iter().zip_eq(new_values) {
             self.values.entry(*param).or_insert(*new_param);
         }
     }
@@ -186,7 +187,7 @@ impl<'f> FunctionInserter<'f> {
         let old_parameters = self.function.dfg.block_parameters(block);
         let new_parameters = self.function.dfg.block_parameters(new_block);
         assert_eq!(old_parameters.len(), new_parameters.len(),);
-        for (param, new_param) in old_parameters.iter().zip(new_parameters) {
+        for (param, new_param) in old_parameters.iter().zip_eq(new_parameters) {
             // Don't overwrite any existing entries to avoid overwriting the induction variable
             self.values.entry(*param).or_insert(*new_param);
         }

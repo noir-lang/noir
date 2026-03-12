@@ -4,6 +4,7 @@ use std::sync::{Arc, Mutex, RwLock};
 use acvm::acir::brillig::lengths::SemanticLength;
 use acvm::{FieldElement, acir::AcirField};
 use iter_extended::vecmap;
+use itertools::Itertools;
 use noirc_errors::Location;
 use noirc_frontend::ast::BinaryOpKind;
 use noirc_frontend::monomorphization::ast::{
@@ -905,7 +906,7 @@ impl<'a> FunctionContext<'a> {
             (Tree::Branch(lhs_branches), Tree::Branch(rhs_branches)) => {
                 assert_eq!(lhs_branches.len(), rhs_branches.len());
 
-                for (lhs, rhs) in lhs_branches.into_iter().zip(rhs_branches) {
+                for (lhs, rhs) in lhs_branches.into_iter().zip_eq(rhs_branches) {
                     self.assign(lhs, rhs);
                 }
             }
