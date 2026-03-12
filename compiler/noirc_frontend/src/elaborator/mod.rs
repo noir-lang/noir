@@ -750,7 +750,7 @@ impl<'context> Elaborator<'context> {
                 self.errors.push(CompilationError::ResolverError(
                     ResolverError::ExpectedNumericExpression {
                         typ: alias.type_alias_def.typ.typ.to_string(),
-                        location,
+                        location: alias.type_alias_def.numeric_location,
                     },
                 ));
                 (Type::Error, None)

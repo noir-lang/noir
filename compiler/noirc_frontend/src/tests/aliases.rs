@@ -181,7 +181,7 @@ fn disallows_composing_numeric_type_aliases_as_type_syntax() {
     let src = r#"
     type Double<let N: u32>: u32 = N * 2;
     type Quadruple<let N: u32>: u32 = Double<Double<N>>;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Expected a numeric expression, but got `Double<Double<N>>`
+                                      ^^^^^^^^^^^^^^^^^^ Expected a numeric expression, but got `Double<Double<N>>`
     fn main() {
         let _ = Double::<1>;
         let _ = Quadruple::<1>;
@@ -1007,6 +1007,70 @@ fn numeric_type_alias_with_other_numeric_alias() {
     }
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn numeric_type_alias_referencing_struct() {
+    // A numeric type alias referencing a struct should error.
+    // The struct resolves as a named type, but fails kind-checking since it's not numeric.
+    let src = r#"
+    struct Foo { x: u32 }
+    type Bad: u32 = Foo;
+                    ^^^ Type provided when a numeric generic was expected
+                    ~~~ the numeric generic is not of type `u32`
+
+    fn main(a: Bad) -> pub Foo {
+        Foo { x: a }
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn numeric_type_alias_referencing_tuple_type() {
+    // A numeric type alias referencing a tuple type should error.
+    // Tuple types cannot be converted to expressions via try_into_expression.
+    let src = r#"
+    type Bad: u32 = (Field, Field);
+                    ^^^^^^^^^^^^^^^ Expected a numeric expression, but got `(Field, Field)`
+
+    fn main(a: Bad) -> pub Bad {
+        a
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn numeric_type_alias_referencing_array_type() {
+    // A numeric type alias referencing an array type should error.
+    // Array types cannot be converted to expressions via try_into_expression.
+    let src = r#"
+    type Bad: u32 = [Field; 3];
+                    ^^^^^^^^^^^ Expected a numeric expression, but got `[Field; 3]`
+
+    fn main(a: Bad) -> pub Bad {
+        a
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn numeric_type_alias_referencing_function() {
+    // A numeric type alias referencing a function name should error.
+    // `foo` resolves as a variable expression, but the type resolver catches it
+    // as a function rather than a type.
+    let src = r#"
+    fn foo() -> u32 { 1 }
+    type Bad: u32 = foo;
+                    ^^^ expected type, found function `foo`
+
+    fn main(a: Bad) -> pub Bad {
+        a
+    }
+    "#;
+    check_errors(src);
 }
 
 #[test]
