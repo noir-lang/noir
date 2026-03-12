@@ -195,10 +195,10 @@ impl Methods {
                         }
 
                         // Handle auto-dereferencing `&T` and `&mut T` into `T`
-                        if let Type::Reference(object, _mutable) = object {
-                            if object.try_unify(typ, &mut bindings).is_ok() {
-                                return true;
-                            }
+                        if let Type::Reference(object, _mutable) = object
+                            && object.try_unify(typ, &mut bindings).is_ok()
+                        {
+                            return true;
                         }
                     }
                 } else {
