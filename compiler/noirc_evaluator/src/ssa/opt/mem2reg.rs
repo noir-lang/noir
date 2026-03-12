@@ -827,20 +827,27 @@ impl<'f> PerFunctionContext<'f> {
                     let aliases = references.aliases.entry(expr).or_insert(AliasSet::known_empty());
                     aliases.unify(&new_aliases);
 
-                    // Remember that we used the elements in this instruction. If they are references
-                    // then we need to keep the stores to them.
-                    for elem in elements {
-                        Self::for_each_value_alias(
-                            *elem,
-                            references,
-                            &self.inserter.function.dfg,
-                            &mut |alias| {
-                                self.aliased_references
-                                    .entry(alias)
-                                    .or_default()
-                                    .insert(instruction);
-                            },
-                        );
+                    // If any of the elements has AliasSet::unknown() as an alias set, then
+                    // now the whole array has an unknown set. If that's the case then when
+                    // we use this array, the references in it won't be marked as used,
+                    // since they are not aliases. In this case we have to eagerly mark
+                    // them as used in *this* instruction, so the stores to them are not
+                    // removed. Alternatively we could retrieve the array constant on
+                    // its first use, but if it's not used, DIE should at some point remove it.
+                    if aliases.is_unknown() {
+                        for elem in elements {
+                            Self::for_each_value_alias(
+                                *elem,
+                                references,
+                                &self.inserter.function.dfg,
+                                &mut |alias| {
+                                    self.aliased_references
+                                        .entry(alias)
+                                        .or_default()
+                                        .insert(instruction);
+                                },
+                            );
+                        }
                     }
                 }
             }
@@ -1642,6 +1649,68 @@ mod tests {
           b1():
             v1 = make_array [v0] : [&mut u1]
             return
+        }
+        ");
+    }
+
+    #[test]
+    fn keep_last_store_in_make_array_that_is_used_with_dynamic_index() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut u1
+            store u1 1 at v0
+            v2 = make_array [v0] : [&mut u1; 1]
+            v4 = call f1(v2) -> u1
+            return v4
+        }
+        brillig(inline) fn bar f1 {
+          b0(v0: [&mut u1; 1]):
+            v3 = array_get v0, index u32 0 -> &mut u1
+            v4 = allocate -> &mut u1
+            store u1 1 at v4
+            v6 = make_array [v3, v4] : [&mut u1; 2]
+            v7 = load v3 -> u1
+            jmpif v7 then: b1(), else: b2()
+          b1():
+            jmp b3(u32 1)
+          b2():
+            jmp b3(u32 0)
+          b3(v1: u32):
+            v11 = array_get v6, index v1 -> &mut u1
+            v12 = load v11 -> u1
+            return v12
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut u1
+            store u1 1 at v0
+            v2 = make_array [v0] : [&mut u1; 1]
+            v4 = call f1(v2) -> u1
+            return v4
+        }
+        brillig(inline) fn bar f1 {
+          b0(v0: [&mut u1; 1]):
+            v3 = array_get v0, index u32 0 -> &mut u1
+            v4 = allocate -> &mut u1
+            store u1 1 at v4
+            v6 = make_array [v3, v4] : [&mut u1; 2]
+            v7 = load v3 -> u1
+            jmpif v7 then: b1(), else: b2()
+          b1():
+            jmp b3(u32 1)
+          b2():
+            jmp b3(u32 0)
+          b3(v1: u32):
+            v9 = array_get v6, index v1 -> &mut u1
+            v10 = load v9 -> u1
+            return v10
         }
         ");
     }
