@@ -186,6 +186,13 @@ impl FuzzerBuilder {
         let init_bit_length = value.bit_length();
 
         let mut value_id = value.value_id;
+
+        // If we cast Field -> u1 we should cast to u8 first
+        if value.is_field() && cast_type == Type::Numeric(NumericType::U1) {
+            value_id = self.insert_cast(value, Type::Numeric(NumericType::U8));
+            return self.insert_cast(value_id, cast_type);
+        }
+
         // if not field, truncate
         if cast_type.bit_length() != 254 {
             value_id = self.builder.insert_truncate(
@@ -718,8 +725,9 @@ impl FuzzerBuilder {
         value: TypedValue,
         safe_index: bool,
     ) -> TypedValue {
-        let Type::Array(array_type, array_length) = array.type_of_variable.clone() else {
-            unreachable!("Array type expected");
+        let (array_type, array_length) = match array.type_of_variable.clone() {
+            Type::Array(array_type, array_length) => (array_type, array_length),
+            _ => unreachable!("Array type expected"),
         };
 
         assert!(index.type_of_variable == Type::Numeric(NumericType::U32));
@@ -728,8 +736,19 @@ impl FuzzerBuilder {
         } else {
             index
         };
+        // In Brillig, arrays use reference counting for copy-on-write.
+        // We must increment the RC before array_set so the original array is preserved
+        // if it's used again later, then decrement after.
+        // In ACIR, IncrementRc/DecrementRc are not supported (they hit unreachable!).
+        let is_brillig = matches!(self.runtime, RuntimeType::Brillig(_));
+        if is_brillig {
+            self.builder.insert_inc_rc(array.value_id);
+        }
         let res =
             self.builder.insert_array_set(array.value_id, index.value_id, value.value_id, false);
+        if is_brillig {
+            self.builder.insert_dec_rc(array.value_id);
+        }
         TypedValue::new(res, Type::Array(array_type, array_length))
     }
 
