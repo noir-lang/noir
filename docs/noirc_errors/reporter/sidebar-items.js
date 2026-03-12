@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["DiagnosticKind"],"fn":["convert_diagnostic","line_and_column_from_span","report","report_all","stack_trace"],"struct":["CustomDiagnostic","CustomLabel","ReportedErrors"]};
+window.SIDEBAR_ITEMS = {"enum":["DiagnosticKind"],"fn":["convert_diagnostic","find_repeating_sequences","line_and_column_from_span","report","report_all","stack_trace"],"struct":["CustomDiagnostic","CustomLabel","ReportedErrors"]};
