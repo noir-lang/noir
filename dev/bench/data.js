@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773328946181,
+  "lastUpdate": 1773328959839,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23186,48 +23186,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "a48028fa19374d904f0c9ca30670870f55ce7dd1",
-          "message": "fix: skip empty AssertZero opcodes in ACVM optimizer (#11780)",
-          "timestamp": "2026-03-05T13:59:12Z",
-          "tree_id": "7222a851dff712d26f248cab5fa49017b90f3b98",
-          "url": "https://github.com/noir-lang/noir/commit/a48028fa19374d904f0c9ca30670870f55ce7dd1"
-        },
-        "date": 1772720788431,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252510,
-            "range": "± 2221",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 221768,
-            "range": "± 4617",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2744660,
-            "range": "± 6021",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25279,6 +25237,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2205953,
             "range": "± 4827",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "605d71780dc40139ef3260c7c48db5eaa9d8cbc3",
+          "message": "chore(brillig): Avoid temp register in load with offset (#11834)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-03-12T14:53:50Z",
+          "tree_id": "b981636419b1b51c97c8a4b8b0cbcf5d78b24d98",
+          "url": "https://github.com/noir-lang/noir/commit/605d71780dc40139ef3260c7c48db5eaa9d8cbc3"
+        },
+        "date": 1773328912406,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 251359,
+            "range": "± 865",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 220924,
+            "range": "± 3252",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2732687,
+            "range": "± 3750",
             "unit": "ns/iter"
           }
         ]
