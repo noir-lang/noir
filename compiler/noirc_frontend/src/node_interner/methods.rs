@@ -185,19 +185,20 @@ impl Methods {
         interner: &NodeInterner,
     ) -> bool {
         let function_typ = &interner.function_meta(&method).typ;
+        let mut bindings = TypeBindings::default();
         match function_typ.instantiate(interner).0 {
             Type::Function(args, _, _, _) => {
                 if check_self_param {
                     if let Some(object) = args.first() {
-                        if object.unify(typ).is_ok() {
+                        if object.try_unify(typ, &mut bindings).is_ok() {
                             return true;
                         }
 
                         // Handle auto-dereferencing `&T` and `&mut T` into `T`
-                        if let Type::Reference(object, _mutable) = object
-                            && object.unify(typ).is_ok()
-                        {
-                            return true;
+                        if let Type::Reference(object, _mutable) = object {
+                            if object.try_unify(typ, &mut bindings).is_ok() {
+                                return true;
+                            }
                         }
                     }
                 } else {
@@ -207,15 +208,16 @@ impl Methods {
                         method_type.clone()
                     };
 
-                    if method_type.unify(typ).is_ok() {
+                    if method_type.try_unify(typ, &mut bindings).is_ok() {
                         return true;
                     }
 
                     // Handle auto-dereferencing `&T` and `&mut T` into `T`
-                    if let Type::Reference(method_type, _mutable) = method_type
-                        && method_type.unify(typ).is_ok()
-                    {
-                        return true;
+                    if let Type::Reference(method_type, _mutable) = method_type {
+                        let mut bindings = TypeBindings::default();
+                        if method_type.try_unify(typ, &mut bindings).is_ok() {
+                            return true;
+                        }
                     }
                 }
             }
