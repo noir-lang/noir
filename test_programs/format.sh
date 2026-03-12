@@ -37,7 +37,7 @@ done
 }
 
 echo "[workspace]" > Nargo.toml
-trap 'rm -f Nargo.toml' EXIT
+trap 'rm -f "$current_dir/Nargo.toml"' EXIT
 echo "members = [" >> Nargo.toml
 
 collect_dirs compile_success_empty
