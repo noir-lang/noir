@@ -69,6 +69,8 @@ impl Elaborator<'_> {
         let previous_local_module = self.local_module.replace(trait_impl.module_id);
         let previous_current_trait_impl =
             std::mem::replace(&mut self.current_trait_impl, trait_impl.impl_id);
+        let previous_current_trait =
+            std::mem::replace(&mut self.current_trait, trait_impl.trait_id);
 
         let self_type = trait_impl.methods.self_type.clone();
         let self_type =
@@ -270,6 +272,7 @@ impl Elaborator<'_> {
 
         self.local_module = previous_local_module;
         self.current_trait_impl = previous_current_trait_impl;
+        self.current_trait = previous_current_trait;
         self.self_type = previous_self_type;
     }
 

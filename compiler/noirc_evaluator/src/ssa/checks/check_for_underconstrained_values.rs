@@ -1562,4 +1562,31 @@ mod tests {
         let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(true);
         assert_eq!(ssa_level_warnings.len(), 0);
     }
+
+    #[test]
+    #[traced_test]
+    #[should_panic = "Expected no warnings but found some."]
+    fn constrain_on_array_element_links_to_input_array() {
+        // Regression test for https://github.com/noir-lang/noir/issues/11807
+        let program = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: Field):
+            v1 = make_array [v0] : [Field; 1]
+            v3 = call f1(v1) -> [Field; 1]          // We pass v1 = [v0] to the Brillig function.
+            v5 = array_get v3, index u32 0 -> Field
+            constrain v5 == v0                      // We constrain the result directly against v0, which should clear the Brillig call. 
+            return v3
+        }
+        brillig(inline) predicate_pure fn helper_func f1 {
+          b0(v0: [Field; 1]):
+            v2 = array_get v0, index u32 1 minus 1 -> Field
+            v3 = make_array [v2] : [Field; 1]
+            return v3
+        }
+        "#;
+
+        let mut ssa = Ssa::from_str(program).unwrap();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(true);
+        assert_eq!(ssa_level_warnings.len(), 0, "Expected no warnings but found some.");
+    }
 }

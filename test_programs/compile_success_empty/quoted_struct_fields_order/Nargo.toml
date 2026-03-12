@@ -1,5 +1,5 @@
 [package]
-name = "ski_calculus"
+name = "quoted_struct_fields_order"
 type = "bin"
 authors = [""]
 

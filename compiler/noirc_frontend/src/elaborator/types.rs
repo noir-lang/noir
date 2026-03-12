@@ -35,6 +35,7 @@ use crate::{
     modules::{get_ancestor_module_reexport, module_def_id_is_visible},
     node_interner::{
         DependencyId, ExprId, FuncId, GlobalValue, TraitId, TraitImplKind, TraitItemId,
+        TraitLookupMode,
     },
     shared::Signedness,
 };
@@ -285,25 +286,144 @@ impl Elaborator<'_> {
     }
 
     /// Resolve `Self::Foo` to an associated type on the current trait or trait impl.
-    fn lookup_associated_type_on_self(&self, path: &TypedPath) -> Option<Type> {
+    /// Also searches parent traits.
+    fn lookup_associated_type_on_self(&mut self, path: &TypedPath) -> Option<Type> {
         if path.segments.len() == 2 && path.first_name() == Some(SELF_TYPE_NAME) {
-            if let Some(trait_id) = self.current_trait {
-                let the_trait = self.interner.get_trait(trait_id);
-                if let Some(typ) = the_trait.get_associated_type(path.last_name()) {
-                    return Some(
-                        typ.clone()
-                            .into_named_generic(Some((SELF_TYPE_NAME, the_trait.name.as_str()))),
-                    );
+            let name = path.last_name();
+
+            // Inside a trait definition (not an impl): check this trait and its parent traits.
+            if self.current_trait_impl.is_none()
+                && let Some(trait_id) = self.current_trait
+            {
+                let mut found = self.lookup_associated_type_in_parent_traits(trait_id, name);
+                match found.len() {
+                    0 => {}
+                    1 => return Some(found.remove(0).1),
+                    _ => {
+                        let location = path.location;
+                        let trait_names: Vec<_> = found
+                            .iter()
+                            .map(|(id, _)| self.interner.get_trait(*id).name.to_string())
+                            .collect();
+                        let ident = Ident::new(name.to_string(), location);
+                        self.push_err(PathResolutionError::MultipleTraitsInScope {
+                            ident,
+                            traits: trait_names,
+                        });
+                        return Some(Type::Error);
+                    }
                 }
             }
 
+            // Inside a trait impl: check the impl's own types, then parent trait impls.
             if let Some(impl_id) = self.current_trait_impl {
-                let name = path.last_name();
                 if let Some(typ) = self.interner.find_associated_type_for_impl(impl_id, name) {
                     return Some(typ.clone());
                 }
+
+                if let Some(trait_id) = self.current_trait
+                    && let Some(typ) = self.lookup_associated_type_in_parent_impls(trait_id, name)
+                {
+                    return Some(typ);
+                }
             }
         }
+        None
+    }
+
+    /// Search for an associated type in a trait and its parent trait hierarchy.
+    /// Used inside trait definitions to resolve `Self::Foo` when `Foo` may be
+    /// defined on a parent trait.
+    fn lookup_associated_type_in_parent_traits(
+        &self,
+        trait_id: TraitId,
+        name: &str,
+    ) -> Vec<(TraitId, Type)> {
+        let mut found = Vec::new();
+        self.collect_associated_type_in_parent_traits(trait_id, name, &mut found);
+        found
+    }
+
+    /// Recursively collect all (trait_id, type) pairs for a named associated type
+    /// across a trait and its parent hierarchy.
+    fn collect_associated_type_in_parent_traits(
+        &self,
+        trait_id: TraitId,
+        name: &str,
+        found: &mut Vec<(TraitId, Type)>,
+    ) {
+        let the_trait = self.interner.get_trait(trait_id);
+        if let Some(typ) = the_trait.get_associated_type(name) {
+            let typ =
+                typ.clone().into_named_generic(Some((SELF_TYPE_NAME, the_trait.name.as_str())));
+            found.push((trait_id, typ));
+        }
+
+        let parent_trait_ids: Vec<_> =
+            the_trait.trait_bounds.iter().map(|bound| bound.trait_id).collect();
+        for parent_id in parent_trait_ids {
+            self.collect_associated_type_in_parent_traits(parent_id, name, found);
+        }
+    }
+
+    /// Search for an associated type in parent 'trait impls'.
+    fn lookup_associated_type_in_parent_impls(
+        &self,
+        trait_id: TraitId,
+        name: &str,
+    ) -> Option<Type> {
+        let the_trait = self.interner.get_trait(trait_id);
+        let parent_bounds = the_trait.trait_bounds.clone();
+        let self_type = self.self_type.as_ref()?;
+
+        for parent_bound in &parent_bounds {
+            let result = self.interner.try_lookup_trait_implementation(
+                self_type,
+                parent_bound.trait_id,
+                &parent_bound.trait_generics.ordered,
+                &parent_bound.trait_generics.named,
+                TraitLookupMode::Default,
+            );
+
+            match result {
+                Ok((
+                    TraitImplKind::Normal(parent_impl_id)
+                    | TraitImplKind::Prepared(parent_impl_id, _),
+                    _,
+                    _,
+                )) => {
+                    if let Some(typ) =
+                        self.interner.find_associated_type_for_impl(parent_impl_id, name)
+                    {
+                        return Some(typ.clone());
+                    }
+                }
+                Ok((TraitImplKind::Assumed { trait_generics, .. }, _, _)) => {
+                    for named in &trait_generics.named {
+                        if named.name.as_str() == name {
+                            return Some(named.typ.clone());
+                        }
+                    }
+                }
+                _ => {
+                    // Lookup failed (e.g. self type is too generic). Fall back to
+                    // searching the parent trait's definition for the associated type.
+                    let found =
+                        self.lookup_associated_type_in_parent_traits(parent_bound.trait_id, name);
+                    if let Some((_, typ)) = found.into_iter().next() {
+                        return Some(typ);
+                    }
+                }
+            }
+
+            // Recurse into grandparent traits
+            if let Some(typ) =
+                self.lookup_associated_type_in_parent_impls(parent_bound.trait_id, name)
+            {
+                return Some(typ);
+            }
+        }
+
         None
     }
 
@@ -311,6 +431,7 @@ impl Elaborator<'_> {
     ///
     /// For example, in `impl<T: Baz> Foo for T { type Bar = T::Qux; }`, this resolves `T::Qux`
     /// by finding that `T` has a bound `Baz` which defines the associated type `Qux`.
+    /// Also searches parent traits.
     fn lookup_associated_type_on_generic(&mut self, path: &TypedPath) -> Option<Type> {
         if self.trait_bounds.is_empty() {
             return None;
@@ -326,24 +447,23 @@ impl Elaborator<'_> {
         // Check if first segment is a generic parameter
         self.find_generic(type_name)?;
 
-        // Search trait bounds for this generic to find the associated type
-        let mut found_types = self
-            .trait_bounds
-            .iter()
-            .filter_map(|constraint| {
-                if let Type::NamedGeneric(generic) = &constraint.typ
-                    && generic.name.as_ref() == type_name
-                {
-                    for named_generic in &constraint.trait_bound.trait_generics.named {
-                        if named_generic.name.as_str() == assoc_name {
-                            let trait_id = constraint.trait_bound.trait_id;
-                            return Some((trait_id, named_generic.typ.clone()));
-                        }
+        // Search trait bounds for this generic to find the associated type directly.
+        // Parent associated types are expected to be in `self.trait_bounds` already,
+        // added during function elaboration.
+        let mut found_types = Vec::new();
+
+        for constraint in &self.trait_bounds {
+            if let Type::NamedGeneric(generic) = &constraint.typ
+                && generic.name.as_ref() == type_name
+            {
+                for named_generic in &constraint.trait_bound.trait_generics.named {
+                    if named_generic.name.as_str() == assoc_name {
+                        let trait_id = constraint.trait_bound.trait_id;
+                        found_types.push((trait_id, named_generic.typ.clone()));
                     }
                 }
-                None
-            })
-            .collect::<Vec<_>>();
+            }
+        }
 
         match found_types.len() {
             0 => None, // Fall through to normal resolution

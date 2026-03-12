@@ -281,14 +281,31 @@ pub fn stack_trace<'files>(
         return String::new();
     }
 
+    let repeating_sequences = find_repeating_sequences(call_stack);
+
     let mut result = "Call stack:\n".to_string();
+    let mut index = 1;
 
-    for (i, call_item) in call_stack.iter().enumerate() {
-        let path = files.name(call_item.file).expect("should get file path");
-        let source = files.source(call_item.file).expect("should get file source");
+    for (sequence, times) in repeating_sequences {
+        for (i, call_item) in sequence.iter().copied().enumerate() {
+            let path = files.name(call_item.file).expect("should get file path");
+            let source = files.source(call_item.file).expect("should get file source");
 
-        let (line, column) = line_and_column_from_span(source.as_ref(), &call_item.span);
-        result += &format!("{}. {}:{}:{}\n", i + 1, path, line, column);
+            let (line, column) = line_and_column_from_span(source.as_ref(), &call_item.span);
+            let prefix = if times == 1 {
+                ""
+            } else if i == 0 {
+                "┌─ "
+            } else {
+                "│  "
+            };
+            result += &format!("{prefix}{index}. {path}:{line}:{column}\n");
+            index += 1;
+        }
+        if times > 1 {
+            result += &format!("└─ (repeated {times} times)\n");
+        }
+        index += sequence.len() * (times - 1);
     }
 
     result
@@ -312,4 +329,117 @@ pub fn line_and_column_from_span(source: &str, span: &Span) -> (u32, u32) {
     }
 
     (line, column)
+}
+
+/// Given an array of items, returns a vector of vectors where each inner vector contains
+/// a sequence repeat of a list of items, together with how many times it's repeated.
+///
+/// For example, given the array `[1, 2, 3, 1, 2, 3, 1, 2, 3, 4, 5, 4, 5, 6, 4, 5, 6, 7, 8]`
+/// this function would return `vec![(vec![1, 2, 3], 3), (vec![4, 5], 2), (vec![6, 4, 5, 6, 7, 8], 1)]`.
+///
+/// For performance reasons, only sequences of length up to 100 are considered.
+fn find_repeating_sequences<T: Eq + Copy>(array: &[T]) -> Vec<(Vec<T>, usize)> {
+    let mut result: Vec<(Vec<T>, usize)> = Vec::new();
+    let mut start = 0;
+
+    while start < array.len() {
+        let remaining = &array[start..];
+        let mut best_pattern_len = remaining.len();
+        let mut best_count = 1;
+
+        for pattern_len in 1..remaining.len().min(100) {
+            let pattern = &remaining[..pattern_len];
+            let mut count = 1;
+            let mut pos = pattern_len;
+
+            while pos + pattern_len <= remaining.len()
+                && &remaining[pos..pos + pattern_len] == pattern
+            {
+                count += 1;
+                pos += pattern_len;
+            }
+
+            if count > best_count {
+                best_count = count;
+                best_pattern_len = pattern_len;
+            }
+        }
+
+        if best_pattern_len == remaining.len() {
+            // No repetition, treat the whole remaining as one group
+            best_pattern_len = 1;
+            best_count = 1;
+        }
+
+        // Try to merge a single repetition into a previous pattern if it's only repeated once
+        if best_count == 1
+            && let Some((pattern, 1)) = result.last_mut()
+        {
+            pattern.push(remaining[0]);
+            start += 1;
+            continue;
+        }
+
+        result.push((remaining[..best_pattern_len].to_vec(), best_count));
+        start += best_pattern_len * best_count;
+    }
+
+    result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_docstring_example() {
+        let array = [1, 2, 3, 1, 2, 3, 1, 2, 3, 4, 5, 4, 5, 6, 4, 5, 6, 7, 8];
+        assert_eq!(
+            find_repeating_sequences(&array),
+            vec![(vec![1, 2, 3], 3), (vec![4, 5], 2), (vec![6, 4, 5, 6, 7, 8], 1),]
+        );
+    }
+
+    #[test]
+    fn test_empty() {
+        let array: [i32; 0] = [];
+        assert_eq!(find_repeating_sequences(&array), vec![]);
+    }
+
+    #[test]
+    fn test_single_element() {
+        assert_eq!(find_repeating_sequences(&[42]), vec![(vec![42], 1)]);
+    }
+
+    #[test]
+    fn test_all_same() {
+        assert_eq!(find_repeating_sequences(&[3, 3, 3, 3]), vec![(vec![3], 4)]);
+    }
+
+    #[test]
+    fn test_no_repetitions() {
+        assert_eq!(find_repeating_sequences(&[1, 2, 3, 4]), vec![(vec![1, 2, 3, 4], 1)]);
+    }
+
+    #[test]
+    fn test_two_groups() {
+        assert_eq!(
+            find_repeating_sequences(&[1, 2, 1, 2, 3, 4, 3, 4]),
+            vec![(vec![1, 2], 2), (vec![3, 4], 2)]
+        );
+    }
+
+    #[test]
+    fn test_prefers_more_repetitions() {
+        // [1,2] repeats 4 times; [1,2,1,2] repeats 2 times — prefer [1,2]
+        assert_eq!(find_repeating_sequences(&[1, 2, 1, 2, 1, 2, 1, 2]), vec![(vec![1, 2], 4)]);
+    }
+
+    #[test]
+    fn test_no_initial_group() {
+        assert_eq!(
+            find_repeating_sequences(&[1, 2, 3, 2, 3, 4]),
+            vec![(vec![1], 1), (vec![2, 3], 2), (vec![4], 1)]
+        );
+    }
 }

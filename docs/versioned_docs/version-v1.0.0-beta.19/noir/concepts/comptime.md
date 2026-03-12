@@ -119,7 +119,29 @@ program at that point, and parse it as an expression. To do this, we have to add
 If the value was created locally and there is no function returning it, `std::meta::unquote!(_)` can be used instead.
 Calling such a function at compile-time without `!` will just return the `Quoted` value to be further manipulated. For example:
 
-#include_code quote-example noir_stdlib/src/meta/mod.nr rust
+```rust title="quote-example" showLineNumbers 
+comptime fn quote_one() -> Quoted {
+        quote { 1 }
+    }
+
+    #[test]
+    fn returning_versus_macro_insertion() {
+        comptime {
+            // let _a: Quoted = quote { 1 };
+            let _a: Quoted = quote_one();
+
+            // let _b: Field = 1;
+            let _b: Field = quote_one!();
+
+            // Since integers default to fields, if we
+            // want a different type we have to explicitly cast
+            // let _c: i32 = 1 as i32;
+            let _c: i32 = quote_one!() as i32;
+        }
+    }
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/mod.nr#L131-L151" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L131-L151</a></sub></sup>
+
 
 For those familiar with quoting from other languages (primarily lisps), Noir's `quote` is actually a _quasiquote_.
 This means we can escape the quoting by using the unquote operator to splice values in the middle of quoted code.
@@ -196,7 +218,42 @@ Note that formatting a quoted value with multiple tokens will always insert a sp
 undesired, you'll need to only operate on quoted values containing a single token. To do this, you can iterate
 over each token of a larger quoted value with `.tokens()`:
 
-#include_code concatenate-example noir_stdlib/src/meta/mod.nr rust
+```rust title="concatenate-example" showLineNumbers 
+comptime fn concatenate(q1: Quoted, q2: Quoted) -> Quoted {
+        assert(q1.tokens().len() <= 1);
+        assert(q2.tokens().len() <= 1);
+
+        f"{q1}{q2}".quoted_contents()
+    }
+
+    // The CtString type is also useful for a compile-time string of unbounded size
+    // so that you can append to it in a loop.
+    comptime fn double_spaced(q: Quoted) -> CtString {
+        let mut result = "".as_ctstring();
+
+        for token in q.tokens() {
+            if result != "".as_ctstring() {
+                result = result.append_str("  ");
+            }
+            result = result.append_fmtstr(f"{token}");
+        }
+
+        result
+    }
+
+    #[test]
+    fn concatenate_test() {
+        comptime {
+            let result = concatenate(quote {foo}, quote {bar});
+            assert_eq(result, quote {foobar});
+
+            let result = double_spaced(quote {foo bar 3}).as_quoted_str!();
+            assert_eq(result, "foo  bar  3");
+        }
+    }
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/mod.nr#L266-L299" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L266-L299</a></sub></sup>
+
 
 ### $crate
 
@@ -250,18 +307,67 @@ Note that expressions are not valid at top-level so you'll get an error trying t
 You can insert other top-level items such as trait impls, structs, or functions this way though.
 For example, this is the mechanism used to insert additional trait implementations into the program when deriving a trait impl from a struct:
 
-#include_code derive-field-count-example noir_stdlib/src/meta/mod.nr rust
+```rust title="derive-field-count-example" showLineNumbers 
+trait FieldCount {
+        fn field_count() -> u32;
+    }
+
+    #[derive_field_count]
+    struct Bar {
+        x: Field,
+        y: [Field; 2],
+    }
+
+    comptime fn derive_field_count(s: TypeDefinition) -> Quoted {
+        let typ = s.as_type();
+        let field_count = s.fields_as_written().len();
+        quote {
+            impl FieldCount for $typ {
+                fn field_count() -> u32 {
+                    $field_count
+                }
+            }
+        }
+    }
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/mod.nr#L153-L175" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L153-L175</a></sub></sup>
+
 
 ### Calling annotations with additional arguments
 
 Arguments may optionally be given to attributes.
 When this is done, these additional arguments are passed to the attribute function after the item argument.
 
-#include_code annotation-arguments-example noir_stdlib/src/meta/mod.nr rust
+```rust title="annotation-arguments-example" showLineNumbers 
+#[assert_field_is_type(quote { i32 }.as_type())]
+    struct MyStruct {
+        my_field: i32,
+    }
+
+    comptime fn assert_field_is_type(s: TypeDefinition, typ: Type) {
+        // Assert the first field in `s` has type `typ`
+        let fields = s.fields([]);
+        assert_eq(fields[0].1, typ);
+    }
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/mod.nr#L177-L188" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L177-L188</a></sub></sup>
+
 
 We can also take any number of arguments by adding the `varargs` attribute:
 
-#include_code annotation-varargs-example noir_stdlib/src/meta/mod.nr rust
+```rust title="annotation-varargs-example" showLineNumbers 
+#[assert_three_args(1, 2, 3)]
+    struct MyOtherStruct {
+        my_other_field: u32,
+    }
+
+    #[varargs]
+    comptime fn assert_three_args(_s: TypeDefinition, args: [Field]) {
+        assert_eq(args.len(), 3);
+    }
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/mod.nr#L190-L200" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L190-L200</a></sub></sup>
+
 
 ### Attribute Evaluation Order
 
@@ -361,10 +467,110 @@ struct MyStruct { my_field: u32 }
 To implement `derive` we'll have to create a `comptime` function that accepts
 a variable amount of traits.
 
-#include_code derive_example noir_stdlib/src/meta/mod.nr rust
+```rust title="derive_example" showLineNumbers 
+// These are needed for the unconstrained hashmap we're using to store derive functions
+use crate::collections::umap::UHashMap;
+use crate::hash::BuildHasherDefault;
+use crate::hash::poseidon2::Poseidon2Hasher;
+
+// A derive function is one that given a type definition can
+// create us a quoted trait impl from it.
+pub type DeriveFunction = fn(TypeDefinition) -> Quoted;
+
+// We'll keep a global HANDLERS map to keep track of the derive handler for each trait
+comptime mut global HANDLERS: UHashMap<TraitDefinition, DeriveFunction, BuildHasherDefault<Poseidon2Hasher>> =
+    UHashMap::default();
+
+// Given a type definition and a vector of traits to derive, create trait impls for each.
+// This function is as simple as iterating over the vector, checking if we have a trait
+// handler registered for the given trait, calling it, and appending the result.
+#[varargs]
+pub comptime fn derive(s: TypeDefinition, traits: [TraitDefinition]) -> Quoted {
+    let mut result = quote {};
+
+    for trait_to_derive in traits {
+        let handler = HANDLERS.get(trait_to_derive);
+        assert(handler.is_some(), f"No derive function registered for `{trait_to_derive}`");
+
+        let trait_impl = handler.unwrap()(s);
+        result = quote { $result $trait_impl };
+    }
+
+    result
+}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/mod.nr#L33-L66" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L33-L66</a></sub></sup>
+
 
 Registering a derive function could be done as follows:
 
-#include_code derive_via noir_stdlib/src/meta/mod.nr rust
+```rust title="derive_via" showLineNumbers 
+// To register a handler for a trait, just add it to our handlers map
+pub comptime fn derive_via(t: TraitDefinition, f: DeriveFunction) {
+    HANDLERS.insert(t, f);
+}
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/mod.nr#L68-L75" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L68-L75</a></sub></sup>
 
-#include_code big-derive-usage-example noir_stdlib/src/meta/mod.nr rust
+
+```rust title="big-derive-usage-example" showLineNumbers 
+// Finally, to register a handler we call the above function as an annotation
+    // with our handler function.
+    #[derive_via(derive_do_nothing)]
+    trait DoNothing {
+        fn do_nothing(self);
+    }
+
+    comptime fn derive_do_nothing(s: TypeDefinition) -> Quoted {
+        // This is simplified since we don't handle generics or where clauses!
+        // In a real example we'd likely also need to introduce each of
+        // `s.generics()` as well as a trait constraint for each generic
+        // to ensure they also implement the trait.
+        let typ = s.as_type();
+        quote {
+            impl DoNothing for $typ {
+                fn do_nothing(self) {
+                    // Traits can't tell us what to do
+                    println("something");
+                }
+            }
+        }
+    }
+
+    // Since `DoNothing` is a simple trait which:
+    // 1. Only has one method
+    // 2. Does not have any generics on the trait itself
+    // We can use `std::meta::make_trait_impl` to help us out.
+    // This helper function will generate our impl for us along with any
+    // necessary where clauses and still provides a flexible interface
+    // for us to work on each field on the struct.
+    comptime fn derive_do_nothing_alt(s: TypeDefinition) -> Quoted {
+        let trait_name = quote { DoNothing };
+        let method_signature = quote { fn do_nothing(self) };
+
+        // Call `do_nothing` recursively on each field in the struct
+        let for_each_field = |field_name| quote { self.$field_name.do_nothing(); };
+
+        // Some traits like Eq want to join each field expression with something like `&`.
+        // We don't need that here
+        let join_fields_with = quote {};
+
+        // The body function is a spot to insert any extra setup/teardown needed.
+        // We'll insert our println here. Since we recur on each field, we should see
+        // one println for the struct itself, followed by a println for every field (recursively).
+        let body = |body| quote {
+            println("something");
+            $body
+        };
+        crate::meta::make_trait_impl(
+            s,
+            trait_name,
+            method_signature,
+            for_each_field,
+            join_fields_with,
+            body,
+        )
+    }
+```
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/v1.0.0-beta.19/noir_stdlib/src/meta/mod.nr#L202-L260" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L202-L260</a></sub></sup>
+
