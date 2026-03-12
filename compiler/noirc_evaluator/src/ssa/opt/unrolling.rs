@@ -1197,6 +1197,50 @@ impl Loop {
                     useless_cost += instruction.cost(*instruction_id, &function.dfg);
                 }
             }
+
+            // After processing instructions in *block, propagate constants
+            // through terminator arguments to successor block parameters.
+            // This is the block-parameter analogue of constant_initial_refs:
+            // after mem2reg_simple, values communicated via load/store are now
+            // threaded through Jmp arguments.
+            let terminator = function.dfg[*block].unwrap_terminator();
+            match terminator {
+                TerminatorInstruction::Jmp { destination, arguments, .. } => {
+                    if self.blocks.contains(destination) || *destination == self.header {
+                        let params = function.dfg[*destination].parameters();
+                        for (param, arg) in params.iter().zip(arguments.iter()) {
+                            if constant_after_unroll.contains(arg)
+                                || is_from_constant_source(*arg, &function.dfg)
+                            {
+                                constant_after_unroll.insert(*param);
+                            }
+                        }
+                    }
+                }
+                TerminatorInstruction::JmpIf {
+                    then_destination,
+                    then_arguments,
+                    else_destination,
+                    else_arguments,
+                    ..
+                } => {
+                    for (dest, args) in
+                        [(then_destination, then_arguments), (else_destination, else_arguments)]
+                    {
+                        if self.blocks.contains(dest) || *dest == self.header {
+                            let params = function.dfg[*dest].parameters();
+                            for (param, arg) in params.iter().zip(args.iter()) {
+                                if constant_after_unroll.contains(arg)
+                                    || is_from_constant_source(*arg, &function.dfg)
+                                {
+                                    constant_after_unroll.insert(*param);
+                                }
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
         }
         useless_cost
     }
@@ -1709,8 +1753,8 @@ mod tests {
     use crate::ssa::{Ssa, ir::value::ValueId, opt::assert_normalized_ssa_equals};
 
     use super::{
-        Binary, BinaryOp, BoilerplateStats, FORCE_UNROLL_THRESHOLD, HashMap, Instruction,
-        LoopOrder, Loops, MAX_UNROLL_ITERATIONS, TerminatorInstruction, is_new_size_ok,
+        BoilerplateStats, FORCE_UNROLL_THRESHOLD, HashMap, LoopOrder, Loops, MAX_UNROLL_ITERATIONS,
+        is_new_size_ok,
     };
 
     /// Tries to unroll all loops in each SSA function once, calling the `Function` directly,
@@ -2868,5 +2912,72 @@ mod tests {
             jmp b1()
         }
         ");
+    }
+
+    /// Regression test: after mem2reg_simple promotes loads/stores to block parameters,
+    /// `count_useless_cost` must propagate constants through Jmp arguments to non-header
+    /// block parameters. Without this, nested loops over constant 2D arrays won't see
+    /// inner loop accumulators as constant, inflating useful_cost and preventing unrolling.
+    ///
+    /// This models the pattern from the regression_4709 integration test: outer loop indexes a constant 2D
+    /// global array, inner loop accumulates over the row. After mem2reg, the row value
+    /// is passed as a block parameter to the inner loop header.
+    #[test]
+    fn test_boilerplate_stats_nested_loop_block_param_propagation() {
+        // Outer loop (b1) iterates i in 0..3.
+        // b2 does array_get on a constant 2D array to get a row, then jumps to inner header b4
+        // passing the row as a block param along with inner induction var 0 and accumulator 0.
+        // Inner loop (b4) iterates j in 0..6, accumulating array_get row[j] into acc.
+        // After inner loop, b6 increments outer induction var and loops back.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v100 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [Field; 6]
+            v101 = make_array [Field 7, Field 8, Field 9, Field 10, Field 11, Field 12] : [Field; 6]
+            v102 = make_array [Field 13, Field 14, Field 15, Field 16, Field 17, Field 18] : [Field; 6]
+            v103 = make_array [v100, v101, v102] : [[Field; 6]; 3]
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v5 = lt v0, u32 3
+            jmpif v5 then: b2(), else: b3()
+          b2():
+            v6 = array_get v103, index v0 -> [Field; 6]
+            jmp b4(u32 0, v6, Field 0)
+          b4(v1: u32, v7: [Field; 6], v8: Field):
+            v9 = lt v1, u32 6
+            jmpif v9 then: b5(), else: b6()
+          b5():
+            v10 = array_get v7, index v1 -> Field
+            v11 = add v8, v10
+            v12 = unchecked_add v1, u32 1
+            jmp b4(v12, v7, v11)
+          b6():
+            v13 = unchecked_add v0, u32 1
+            jmp b1(v13)
+          b3():
+            return
+        }";
+        let ssa = Ssa::from_str(src).unwrap();
+        let function = ssa.main();
+        let mut loops = Loops::find_all(function, LoopOrder::OutsideIn);
+        // OutsideIn: inner loop first, outer loop last.
+        assert_eq!(loops.yet_to_unroll.len(), 2, "should find outer and inner loops");
+
+        // Check that the outer loop has useful_cost = 0.
+        let outer = loops.yet_to_unroll.pop().unwrap();
+        let stats = outer.boilerplate_stats(function, &loops.cfg, &loops.callee_costs).unwrap();
+        assert_eq!(
+            stats.useful_cost(),
+            0,
+            "all outer loop instructions should be useless after block param propagation"
+        );
+
+        // Also verify the loop would be unrolled (unrolled_cost <= baseline_cost).
+        assert!(
+            stats.unrolled_cost() <= stats.baseline_cost(),
+            "outer loop should be unrolled: unrolled={} <= baseline={}",
+            stats.unrolled_cost(),
+            stats.baseline_cost()
+        );
     }
 }
