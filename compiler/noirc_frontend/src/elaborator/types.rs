@@ -929,11 +929,12 @@ impl Elaborator<'_> {
                     return None;
                 };
 
-                let Ok(global_value) = typ.ensure_value_fits(global_value, location) else {
+                let kind = Kind::numeric(typ.clone());
+                let Ok(global_value) = kind.ensure_value_fits(global_value, location) else {
                     self.push_err(ResolverError::GlobalDoesNotFitItsType {
                         location,
                         global_value,
-                        kind: Kind::numeric(typ),
+                        kind,
                     });
                     return None;
                 };

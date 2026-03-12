@@ -3243,37 +3243,6 @@ impl Type {
             _ => None,
         }
     }
-
-    /// Ensure the given value fits in self.integral_maximum_size()
-    pub(crate) fn ensure_value_fits(
-        &self,
-        value: SignedField,
-        location: Location,
-    ) -> Result<SignedField, TypeCheckError> {
-        if let Some(maximum_size) = self.integral_maximum_size()
-            && value > SignedField::positive(maximum_size)
-        {
-            return Err(TypeCheckError::OverflowingConstant {
-                value,
-                kind: Kind::numeric(self.clone()),
-                maximum_size,
-                location,
-            });
-        }
-
-        if let Some(minimum_size) = self.integral_minimum_size()
-            && value < minimum_size
-        {
-            return Err(TypeCheckError::UnderflowingConstant {
-                value,
-                kind: Kind::numeric(self.clone()),
-                minimum_size,
-                location,
-            });
-        }
-
-        Ok(value)
-    }
 }
 
 impl From<u8> for Type {
