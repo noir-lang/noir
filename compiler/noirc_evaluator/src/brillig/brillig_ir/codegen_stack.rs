@@ -1,9 +1,6 @@
 use acvm::{AcirField, acir::brillig::MemoryAddress};
 
-use crate::brillig::{
-    assert_usize,
-    brillig_ir::{assert_u32, registers::Stack},
-};
+use crate::brillig::{assert_usize, brillig_ir::assert_u32};
 
 use super::{BrilligContext, debug_show::DebugToString, registers::RegisterAllocator};
 
@@ -21,14 +18,15 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         destinations: &[MemoryAddress],
     ) {
         assert_eq!(sources.len(), destinations.len(), "sources and destinations length must match");
+        let stack_start = self.registers().start();
         let n = sources.len();
         let mut processed = 0;
         // Compute the number of destinations for each source node that is also a destination node (i.e within 0,..n-1) in the movement graph
         let mut num_destinations = vec![0; n];
         for i in 0..n {
             // Check that destinations are relatives to 0,..,n-1
-            assert_eq!(to_index(&destinations[i]), Some(i));
-            if let Some(index) = to_index(&sources[i])
+            assert_eq!(to_index(&destinations[i], stack_start), Some(i));
+            if let Some(index) = to_index(&sources[i], stack_start)
                 && index < n
                 && index != i
             {
@@ -44,16 +42,22 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             let mut node = i;
             // A sink has no child
             while num_destinations[node] == 0 {
-                if to_index(&sources[node]) == Some(node) {
+                if to_index(&sources[node], stack_start) == Some(node) {
                     //no-op: mark the node as processed
                     num_destinations[node] = usize::MAX;
                     processed += 1;
                     break;
                 }
                 // Generates a move instruction
-                self.perform_movement(node, sources[node], &mut num_destinations, &mut processed);
+                self.perform_movement(
+                    node,
+                    sources[node],
+                    stack_start,
+                    &mut num_destinations,
+                    &mut processed,
+                );
                 // Follow the parent
-                if let Some(index) = to_index(&sources[node])
+                if let Some(index) = to_index(&sources[node], stack_start)
                     && index < n
                 {
                     num_destinations[index] -= 1;
@@ -76,12 +80,13 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         // All sinks and their parents have been processed, remaining nodes are part of a loop
         // Check if a tail_candidate is a branch to a loop
         for (entry, free) in tail_candidates {
-            let entry_idx = to_index(&entry).unwrap();
+            let entry_idx = to_index(&entry, stack_start).unwrap();
             if entry_idx < n && num_destinations[entry_idx] == 1 {
                 // Use the branch as the temporary register for the loop
                 self.process_loop(
                     entry_idx,
-                    &from_index(free),
+                    &from_index(free, stack_start),
+                    stack_start,
                     &mut num_destinations,
                     sources,
                     &mut processed,
@@ -96,7 +101,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         // since different loops may contain values of different types.
         for i in 0..n {
             if num_destinations[i] == 1 {
-                let src = from_index(i);
+                let src = from_index(i, stack_start);
                 // Copy the loop entry to a temporary register.
                 // Unfortunately, we cannot use one register for all the loops
                 // when the sources do not have the same type
@@ -105,6 +110,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                 self.process_loop(
                     i,
                     &temp_register,
+                    stack_start,
                     &mut num_destinations,
                     sources,
                     &mut processed,
@@ -123,16 +129,23 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         &mut self,
         entry: usize,
         free: &MemoryAddress,
+        stack_start: usize,
         num_destinations: &mut [usize],
         source: &[MemoryAddress],
         processed: &mut usize,
     ) {
         let mut current = entry;
-        while to_index(&source[current]).unwrap() != entry {
-            self.perform_movement(current, source[current], num_destinations, processed);
-            current = to_index(&source[current]).unwrap();
+        while to_index(&source[current], stack_start).unwrap() != entry {
+            self.perform_movement(
+                current,
+                source[current],
+                stack_start,
+                num_destinations,
+                processed,
+            );
+            current = to_index(&source[current], stack_start).unwrap();
         }
-        self.perform_movement(current, *free, num_destinations, processed);
+        self.perform_movement(current, *free, stack_start, num_destinations, processed);
     }
 
     /// Generates a move opcode from 'src' to 'dest'.
@@ -140,10 +153,11 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         &mut self,
         dest: usize,
         src: MemoryAddress,
+        stack_start: usize,
         num_destinations: &mut [usize],
         processed: &mut usize,
     ) {
-        let destination = from_index(dest);
+        let destination = from_index(dest, stack_start);
         self.mov_instruction(destination, src);
         // set the node as 'processed'
         num_destinations[dest] = usize::MAX;
@@ -152,17 +166,17 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 }
 
 /// Map the address so that the first register of the stack will have index 0
-fn to_index(adr: &MemoryAddress) -> Option<usize> {
+fn to_index(adr: &MemoryAddress, stack_start: usize) -> Option<usize> {
     match adr {
-        MemoryAddress::Relative(size) => Some(assert_usize(*size) - Stack::start()),
+        MemoryAddress::Relative(size) => Some(assert_usize(*size) - stack_start),
         MemoryAddress::Direct(_) => None,
     }
 }
 
 /// Construct the register corresponding to the given mapped 'index'
-fn from_index(idx: usize) -> MemoryAddress {
+fn from_index(idx: usize, stack_start: usize) -> MemoryAddress {
     assert!(idx != usize::MAX, "invalid index");
-    MemoryAddress::relative(assert_u32(idx + Stack::start()))
+    MemoryAddress::relative(assert_u32(idx + stack_start))
 }
 
 #[cfg(test)]
@@ -178,9 +192,7 @@ mod tests {
         brillig::{
             BrilligOptions, assert_u32, assert_usize,
             brillig_ir::{
-                BrilligContext, LayoutConfig,
-                artifact::Label,
-                registers::{RegisterAllocator, Stack},
+                BrilligContext, LayoutConfig, Stack, artifact::Label, registers::RegisterAllocator,
             },
         },
         ssa::ir::function::FunctionId,
@@ -245,71 +257,120 @@ mod tests {
         assert_eq!(opcodes, generate_opcodes(expected_moves));
     }
 
+    /// Stack offset base. All stacks now start at offset 2 (see `Stack::new`).
+    const S: usize = 2;
+
     #[test]
     fn test_no_op() {
-        let movements = vec![(1, 1), (2, 2), (1, 3), (2, 4)];
-        assert_generated_opcodes(movements, vec![(1, 3), (2, 4)]);
+        let movements = vec![(S, S), (S + 1, S + 1), (S, S + 2), (S + 1, S + 3)];
+        assert_generated_opcodes(movements, vec![(S, S + 2), (S + 1, S + 3)]);
     }
 
     #[test]
     #[should_panic]
     fn test_mov_registers_to_registers_overwrite() {
-        let movements = vec![(10, 1), (12, 1), (10, 3)];
+        let movements = vec![(S + 9, S), (S + 11, S), (S + 9, S + 2)];
         assert_generated_opcodes(movements, vec![]);
     }
 
     #[test]
     fn test_basic_no_loop() {
-        let movements = vec![(2, 1), (3, 2), (4, 3), (5, 4)];
-        assert_generated_opcodes(movements, vec![(2, 1), (3, 2), (4, 3), (5, 4)]);
+        let movements = vec![(S + 1, S), (S + 2, S + 1), (S + 3, S + 2), (S + 4, S + 3)];
+        assert_generated_opcodes(
+            movements,
+            vec![(S + 1, S), (S + 2, S + 1), (S + 3, S + 2), (S + 4, S + 3)],
+        );
     }
 
     #[test]
     fn test_basic_loop() {
-        let movements = vec![(4, 1), (1, 2), (2, 3), (3, 4)];
-        assert_generated_opcodes(movements, vec![(1, 5), (4, 1), (3, 4), (2, 3), (5, 2)]);
+        let movements = vec![(S + 3, S), (S, S + 1), (S + 1, S + 2), (S + 2, S + 3)];
+        assert_generated_opcodes(
+            movements,
+            vec![(S, S + 4), (S + 3, S), (S + 2, S + 3), (S + 1, S + 2), (S + 4, S + 1)],
+        );
     }
 
     #[test]
     fn test_no_loop() {
-        let movements = vec![(6, 1), (1, 2), (2, 3), (3, 4), (4, 5)];
-        assert_generated_opcodes(movements, vec![(4, 5), (3, 4), (2, 3), (1, 2), (6, 1)]);
+        let movements =
+            vec![(S + 5, S), (S, S + 1), (S + 1, S + 2), (S + 2, S + 3), (S + 3, S + 4)];
+        assert_generated_opcodes(
+            movements,
+            vec![(S + 3, S + 4), (S + 2, S + 3), (S + 1, S + 2), (S, S + 1), (S + 5, S)],
+        );
     }
 
     #[test]
     fn test_loop_with_branch() {
-        let movements = vec![(3, 1), (1, 2), (2, 3), (1, 4), (4, 5)];
-        assert_generated_opcodes(movements, vec![(4, 5), (1, 4), (3, 1), (2, 3), (4, 2)]);
+        let movements = vec![(S + 2, S), (S, S + 1), (S + 1, S + 2), (S, S + 3), (S + 3, S + 4)];
+        assert_generated_opcodes(
+            movements,
+            vec![(S + 3, S + 4), (S, S + 3), (S + 2, S), (S + 1, S + 2), (S + 3, S + 1)],
+        );
     }
 
     #[test]
     fn test_two_loops() {
-        let movements = vec![(3, 1), (1, 2), (2, 3), (6, 4), (4, 5), (5, 6)];
+        let movements = vec![
+            (S + 2, S),
+            (S, S + 1),
+            (S + 1, S + 2),
+            (S + 5, S + 3),
+            (S + 3, S + 4),
+            (S + 4, S + 5),
+        ];
         assert_generated_opcodes(
             movements,
-            vec![(1, 7), (3, 1), (2, 3), (7, 2), (4, 7), (6, 4), (5, 6), (7, 5)],
+            vec![
+                (S, S + 6),
+                (S + 2, S),
+                (S + 1, S + 2),
+                (S + 6, S + 1),
+                (S + 3, S + 6),
+                (S + 5, S + 3),
+                (S + 4, S + 5),
+                (S + 6, S + 4),
+            ],
         );
     }
 
     #[test]
     fn test_another_loop_with_branch() {
-        let movements = vec![(2, 1), (1, 2), (2, 3), (3, 4), (4, 5)];
-        assert_generated_opcodes(movements, vec![(4, 5), (3, 4), (2, 3), (1, 2), (3, 1)]);
+        let movements =
+            vec![(S + 1, S), (S, S + 1), (S + 1, S + 2), (S + 2, S + 3), (S + 3, S + 4)];
+        assert_generated_opcodes(
+            movements,
+            vec![(S + 3, S + 4), (S + 2, S + 3), (S + 1, S + 2), (S, S + 1), (S + 2, S)],
+        );
     }
+
     #[test]
     fn test_one_loop() {
-        let movements = vec![(2, 1), (4, 2), (5, 3), (3, 4), (1, 5)];
-        assert_generated_opcodes(movements, vec![(1, 6), (2, 1), (4, 2), (3, 4), (5, 3), (6, 5)]);
+        let movements =
+            vec![(S + 1, S), (S + 3, S + 1), (S + 4, S + 2), (S + 2, S + 3), (S, S + 4)];
+        assert_generated_opcodes(
+            movements,
+            vec![
+                (S, S + 5),
+                (S + 1, S),
+                (S + 3, S + 1),
+                (S + 2, S + 3),
+                (S + 4, S + 2),
+                (S + 5, S + 4),
+            ],
+        );
     }
 
-    /// This creates a chain (N+1)->1->2->...->N where N is large enough to overflow the stack
+    /// This creates a chain (S+N)->S->(S+1)->...->S+(N-1) where N is large enough to overflow the stack
     #[test]
     fn test_deep_chain() {
-        // Each movement is i -> i+1, creating a single long chain
         const CHAIN_DEPTH: usize = 10_000;
 
-        let mut movements: Vec<(usize, usize)> = (0..CHAIN_DEPTH).map(|i| (i, i + 1)).collect();
-        movements[0] = (CHAIN_DEPTH + 1, 1);
+        // destinations[i] = S+i, sources form a chain: S+N, S, S+1, ..., S+N-2
+        let movements: Vec<(usize, usize)> = (0..CHAIN_DEPTH)
+            .map(|i| if i == 0 { (S + CHAIN_DEPTH, S) } else { (S + i - 1, S + i) })
+            .collect();
         let (sources, destinations) = movements_to_source_and_destinations(movements);
 
         let mut context = create_context();
@@ -325,7 +386,7 @@ mod tests {
             // Allocate more memory to allow for temporary variables.
             let mut memory: Vec<u32> = vec![0; MEM_SIZE * 2];
             // Fill the memory with some random numbers.
-            for slot in memory.iter_mut() {
+            for slot in &mut memory {
                 *slot = u.arbitrary()?;
             }
 
@@ -333,9 +394,9 @@ mod tests {
             let num_destinations = u.int_in_range(0..=MEM_SIZE)?;
 
             // All potential memory slots; we can't address before the stack start.
-            let all_indexes = (0..MEM_SIZE).map(|i| i + Stack::start()).collect::<Vec<_>>();
+            let all_indexes = (0..MEM_SIZE).map(|i| i + S).collect::<Vec<_>>();
 
-            let destinations: Vec<usize> = (1..num_destinations + 1).collect();
+            let destinations: Vec<usize> = (0..num_destinations).map(|i| i + S).collect();
 
             // Pick random sources for each destination (same source can be repeated).
             let mut sources = Vec::with_capacity(num_destinations);

@@ -70,7 +70,7 @@ impl FileManager {
         if let Some(file_id) = self.path_to_id.get(&file_name) {
             return Some(*file_id);
         }
-        let file_name_path_buf = file_name.to_path_buf();
+        let file_name_path_buf = file_name;
 
         // Otherwise we add the file
         let file_id = self.file_map.add_file(file_name_path_buf.clone().into(), source);
@@ -162,7 +162,7 @@ fn resolve_components<'a>(components: impl Iterator<Item = Component<'a>>) -> Pa
     let mut components = components.peekable();
 
     // Preserve path prefix if one exists.
-    let mut normalized_path = if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
+    let mut normalized_path = if let Some(c @ Component::Prefix(..)) = components.peek().copied() {
         components.next();
         PathBuf::from(c.as_os_str())
     } else {

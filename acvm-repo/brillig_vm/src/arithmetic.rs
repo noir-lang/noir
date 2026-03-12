@@ -15,8 +15,6 @@ pub(crate) enum BrilligArithmeticError {
     MismatchedLhsBitSize { lhs_bit_size: u32, op_bit_size: u32 },
     #[error("Bit size for rhs {rhs_bit_size} does not match op bit size {op_bit_size}")]
     MismatchedRhsBitSize { rhs_bit_size: u32, op_bit_size: u32 },
-    #[error("Attempted to shift by {shift_size} bits on a type of bit size {bit_size}")]
-    BitshiftOverflow { bit_size: u32, shift_size: u128 },
     #[error("Attempted to divide by zero")]
     DivisionByZero,
 }
@@ -173,7 +171,7 @@ pub(crate) fn evaluate_binary_int_op<F: AcirField>(
         BinaryIntOp::Shl | BinaryIntOp::Shr => match (lhs, rhs, bit_size) {
             (MemoryValue::U1(lhs), MemoryValue::U1(rhs), IntegerBitSize::U1) => {
                 if rhs {
-                    Err(BrilligArithmeticError::BitshiftOverflow { bit_size: 1, shift_size: 1 })
+                    Ok(MemoryValue::U1(false))
                 } else {
                     Ok(MemoryValue::U1(lhs))
                 }
@@ -252,25 +250,19 @@ fn evaluate_binary_int_op_cmp<T: Ord + PartialEq>(op: &BinaryIntOp, lhs: T, rhs:
 /// Ensures that shifting beyond the type width returns zero.
 ///
 /// # Returns
-/// - Ok(result) if successful.
-/// - Err([BrilligArithmeticError::DivisionByZero]) if the RHS is not less than the bit size.
+/// - Ok(result)
 ///
 /// # Panics
 /// If an unsupported operator is provided (i.e., not `Shl` or `Shr`).
-fn evaluate_binary_int_op_shifts<
-    T: ToPrimitive + Zero + Shl<Output = T> + Shr<Output = T> + Into<u128>,
->(
+fn evaluate_binary_int_op_shifts<T: ToPrimitive + Zero + Shl<Output = T> + Shr<Output = T>>(
     op: &BinaryIntOp,
     lhs: T,
     rhs: T,
 ) -> Result<T, BrilligArithmeticError> {
-    let bit_size = 8 * size_of::<T>();
-    let rhs_usize: usize = rhs.to_usize().expect("Could not convert rhs to usize");
-    if rhs_usize >= bit_size {
-        return Err(BrilligArithmeticError::BitshiftOverflow {
-            bit_size: bit_size as u32,
-            shift_size: rhs.into(),
-        });
+    let bit_size = (size_of::<T>() * 8) as u128;
+    let rhs_val = rhs.to_u128().unwrap();
+    if rhs_val >= bit_size {
+        return Ok(T::zero());
     }
     match op {
         BinaryIntOp::Shl => Ok(lhs << rhs),
@@ -538,7 +530,7 @@ mod int_ops {
             vec![TestParams { a: 1, b: 7, result: 128 }, TestParams { a: 5, b: 7, result: 128 }];
 
         evaluate_int_ops(test_ops, BinaryIntOp::Shl, bit_size);
-
+        // Shifting more than bit width returns zero
         assert_eq!(
             evaluate_binary_int_op(
                 &BinaryIntOp::Shl,
@@ -546,7 +538,7 @@ mod int_ops {
                 MemoryValue::<FieldElement>::U8(8u8),
                 IntegerBitSize::U8
             ),
-            Err(BrilligArithmeticError::BitshiftOverflow { bit_size: 8, shift_size: 8 })
+            Ok(MemoryValue::<FieldElement>::U8(0u8))
         );
     }
 
@@ -558,7 +550,7 @@ mod int_ops {
             vec![TestParams { a: 1, b: 0, result: 1 }, TestParams { a: 5, b: 1, result: 2 }];
 
         evaluate_int_ops(test_ops, BinaryIntOp::Shr, bit_size);
-
+        // Shifting more than bit width returns zero
         assert_eq!(
             evaluate_binary_int_op(
                 &BinaryIntOp::Shr,
@@ -566,8 +558,77 @@ mod int_ops {
                 MemoryValue::<FieldElement>::U8(8u8),
                 IntegerBitSize::U8
             ),
-            Err(BrilligArithmeticError::BitshiftOverflow { bit_size: 8, shift_size: 8 })
+            Ok(MemoryValue::<FieldElement>::U8(0u8))
         );
+    }
+
+    /// Reference implementation: compute `lhs op rhs` using u128 arithmetic,
+    /// then truncate to the given bit width.
+    fn reference_shift(op: &BinaryIntOp, lhs: u128, rhs: u128, bit_width: u32) -> u128 {
+        let mask = if bit_width == 128 { u128::MAX } else { (1u128 << bit_width) - 1 };
+        let lhs = lhs & mask;
+        let rhs = rhs & mask;
+        if rhs >= u128::from(bit_width) {
+            return 0;
+        }
+        let result = match op {
+            BinaryIntOp::Shl => lhs << rhs as u32,
+            BinaryIntOp::Shr => lhs >> rhs as u32,
+            _ => unreachable!(),
+        };
+        result & mask
+    }
+
+    proptest::proptest! {
+        #[test]
+        fn shift_u8_fuzz(lhs in 0u128..=u128::from(u8::MAX), rhs in 0u128..=u128::from(u8::MAX)) {
+            let bit_size = IntegerBitSize::U8;
+            for op in [BinaryIntOp::Shl, BinaryIntOp::Shr] {
+                let actual = evaluate_u128(&op, lhs, rhs, bit_size);
+                let expected = reference_shift(&op, lhs, rhs, 8);
+                proptest::prop_assert_eq!(actual, expected);
+            }
+        }
+
+        #[test]
+        fn shift_u16_fuzz(lhs in 0u128..=u128::from(u16::MAX), rhs in 0u128..=u128::from(u16::MAX)) {
+            let bit_size = IntegerBitSize::U16;
+            for op in [BinaryIntOp::Shl, BinaryIntOp::Shr] {
+                let actual = evaluate_u128(&op, lhs, rhs, bit_size);
+                let expected = reference_shift(&op, lhs, rhs, 16);
+                proptest::prop_assert_eq!(actual, expected);
+            }
+        }
+
+        #[test]
+        fn shift_u32_fuzz(lhs in 0u128..=u128::from(u32::MAX), rhs in 0u128..=u128::from(u32::MAX)) {
+            let bit_size = IntegerBitSize::U32;
+            for op in [BinaryIntOp::Shl, BinaryIntOp::Shr] {
+                let actual = evaluate_u128(&op, lhs, rhs, bit_size);
+                let expected = reference_shift(&op, lhs, rhs, 32);
+                proptest::prop_assert_eq!(actual, expected);
+            }
+        }
+
+        #[test]
+        fn shift_u64_fuzz(lhs in 0u128..=u128::from(u64::MAX), rhs in 0u128..=u128::from(u64::MAX)) {
+            let bit_size = IntegerBitSize::U64;
+            for op in [BinaryIntOp::Shl, BinaryIntOp::Shr] {
+                let actual = evaluate_u128(&op, lhs, rhs, bit_size);
+                let expected = reference_shift(&op, lhs, rhs, 64);
+                proptest::prop_assert_eq!(actual, expected);
+            }
+        }
+
+        #[test]
+        fn shift_u128_fuzz(lhs: u128, rhs: u128) {
+            let bit_size = IntegerBitSize::U128;
+            for op in [BinaryIntOp::Shl, BinaryIntOp::Shr] {
+                let actual = evaluate_u128(&op, lhs, rhs, bit_size);
+                let expected = reference_shift(&op, lhs, rhs, 128);
+                proptest::prop_assert_eq!(actual, expected);
+            }
+        }
     }
 
     #[test]

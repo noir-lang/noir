@@ -55,7 +55,7 @@ impl Program {
     ///
     /// This should only be called once, before converting to SSA.
     pub fn handle_ownership(mut self) -> Self {
-        for function in self.functions.iter_mut() {
+        for function in &mut self.functions {
             function.handle_ownership();
         }
         self
@@ -244,7 +244,7 @@ impl Context {
             Literal::FmtStr(_, _, captures) => self.handle_expression(captures),
 
             Literal::Array(array) | Literal::Vector(array) => {
-                for element in array.contents.iter_mut() {
+                for element in &mut array.contents {
                     self.handle_expression(element);
                 }
             }

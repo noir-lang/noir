@@ -1,6 +1,5 @@
 use std::fmt::Display;
 
-use acvm::AcirField;
 use iter_extended::vecmap;
 use noirc_errors::Location;
 
@@ -386,23 +385,11 @@ impl Display for ValuePrinter<'_, '_> {
                 let msg = if *value { "true" } else { "false" };
                 write!(f, "{msg}")
             }
-            Value::Field(value) => {
-                // write!(f, "{value}") // This would display the Field as a number, but it doesn't match the runtime.
-                write!(f, "{}", value.to_field_element().to_short_hex())
+            Value::Integer(int) => write!(f, "{int}"),
+            Value::String(bytes) | Value::CtString(bytes) => {
+                let string = String::from_utf8_lossy(bytes);
+                write!(f, "{string}")
             }
-            Value::I8(value) => write!(f, "{value}"),
-            Value::I16(value) => write!(f, "{value}"),
-            Value::I32(value) => write!(f, "{value}"),
-            Value::I64(value) => write!(f, "{value}"),
-            Value::U1(false) => write!(f, "0"),
-            Value::U1(true) => write!(f, "1"),
-            Value::U8(value) => write!(f, "{value}"),
-            Value::U16(value) => write!(f, "{value}"),
-            Value::U32(value) => write!(f, "{value}"),
-            Value::U64(value) => write!(f, "{value}"),
-            Value::U128(value) => write!(f, "{value}"),
-            Value::String(value) => write!(f, "{value}"),
-            Value::CtString(value) => write!(f, "{value}"),
             Value::FormatString(fragments, _, _) => {
                 let string = fragments_to_string(fragments, self.interner);
                 write!(f, "{string}")

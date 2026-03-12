@@ -240,7 +240,7 @@ impl ImportTree {
     /// }
     fn simplify(self) -> ImportTree {
         let mut new_tree = ImportTree::new();
-        for (segment, tree) in self.tree.into_iter() {
+        for (segment, tree) in self.tree {
             let mut tree = tree.simplify();
             if tree.tree.len() == 1 {
                 let (first_segment, first_tree) = tree.tree.pop_first().unwrap();

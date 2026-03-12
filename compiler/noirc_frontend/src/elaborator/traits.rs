@@ -188,7 +188,7 @@ use crate::{
     },
     hir_def::{
         function::FuncMeta,
-        traits::{ResolvedTraitBound, TraitConstraint, TraitFunction},
+        traits::{NamedType, ResolvedTraitBound, TraitConstraint, TraitFunction},
     },
     node_interner::{
         DependencyId, FuncId, ImplSearchErrorKind, NodeInterner, ReferenceId, TraitId,
@@ -366,7 +366,7 @@ impl Elaborator<'_> {
         let trait_path = self.validate_path(bound.trait_path.clone());
 
         let Ok(PathResolutionItem::Trait(trait_id)) =
-            self.resolve_path_or_error(trait_path.clone(), PathResolutionTarget::Type)
+            self.resolve_path_or_error(trait_path, PathResolutionTarget::Type)
         else {
             self.push_err(TypeCheckError::expecting_other_error(
                 "add_missing_named_generics: missing trait",
@@ -589,6 +589,132 @@ impl Elaborator<'_> {
         Some(constraint)
     }
 
+    /// For each resolved trait constraint, add constraints for parent traits that have
+    /// associated types. This creates fresh type variables for the parent associated types
+    /// so that `M::Key` syntax can be resolved via `self.trait_bounds`.
+    ///
+    /// The parent trait bounds are obtained from `Trait.trait_bounds` (already resolved
+    /// during `collect_traits` with associated type variables) and instantiated via
+    /// `instantiate_parent_trait_bound` to substitute the child trait's bindings. The
+    /// named (associated) types are then replaced with fresh per-function type variables
+    /// so they can be wrapped in `Type::Forall` and freshened at each call site.
+    ///
+    /// Returns (new_generics, new_constraints) to be added to the function's generics
+    /// and trait constraints respectively.
+    pub(super) fn add_parent_associated_type_constraints(
+        &mut self,
+        constraints: &[TraitConstraint],
+    ) -> (Vec<TypeVariable>, Vec<TraitConstraint>) {
+        let mut new_generics = Vec::new();
+        let mut new_constraints = Vec::new();
+        let mut visited = rustc_hash::FxHashSet::default();
+
+        for constraint in constraints {
+            self.collect_parent_associated_types(
+                &constraint.typ,
+                &constraint.trait_bound,
+                &mut new_generics,
+                &mut new_constraints,
+                &mut visited,
+            );
+            visited.clear();
+        }
+
+        (new_generics, new_constraints)
+    }
+
+    /// Recursively walk parent trait hierarchies and create fresh type variables
+    /// for any associated types found on parent traits. The new constraints are
+    /// pushed to `self.trait_bounds` and returned via the output parameters.
+    fn collect_parent_associated_types(
+        &mut self,
+        object_type: &Type,
+        trait_bound: &ResolvedTraitBound,
+        new_generics: &mut Vec<TypeVariable>,
+        new_constraints: &mut Vec<TraitConstraint>,
+        visited: &mut rustc_hash::FxHashSet<TraitId>,
+    ) {
+        let trait_id = trait_bound.trait_id;
+        if !visited.insert(trait_id) {
+            return;
+        }
+
+        let parent_bounds: Vec<_> = self
+            .interner
+            .try_get_trait(trait_id)
+            .map(|t| t.trait_bounds.clone())
+            .unwrap_or_default();
+
+        for parent_bound in &parent_bounds {
+            // Substitute the child trait's bindings into the parent bound.
+            let instantiated = self.instantiate_parent_trait_bound(trait_bound, parent_bound);
+
+            // Skip if there are no associated types on this parent trait,
+            // or if we already have a constraint for this type + parent trait.
+            let has_named = !instantiated.trait_generics.named.is_empty();
+            let already_has = self
+                .trait_bounds
+                .iter()
+                .any(|c| c.trait_bound.trait_id == instantiated.trait_id && c.typ == *object_type);
+
+            if has_named && !already_has {
+                // Replace the named (associated) type variables with fresh per-function
+                // ones so they can be included in Type::Forall and freshened at call sites.
+                let parent_trait = self.interner.get_trait(instantiated.trait_id);
+                let parent_trait_name = parent_trait.name.to_string();
+                let object_name = object_type.to_string();
+
+                let named = vecmap(&instantiated.trait_generics.named, |named_type| {
+                    let fresh_id = self.interner.next_type_variable_id();
+                    let kind = named_type.typ.kind();
+                    let type_var = TypeVariable::unbound(fresh_id, kind);
+
+                    let assoc_type_id = parent_trait
+                        .associated_types
+                        .iter()
+                        .find(|a| a.name.as_ref() == named_type.name.as_str())
+                        .expect("ICE - cannot find associated type")
+                        .type_var
+                        .id();
+
+                    let fresh_type = type_var.clone().into_implicit_named_generic(
+                        &Rc::new(named_type.name.to_string()),
+                        Some((object_name.as_str(), parent_trait_name.as_str())),
+                        assoc_type_id,
+                    );
+
+                    new_generics.push(type_var);
+                    NamedType {
+                        name: Ident::new(named_type.name.to_string(), instantiated.location),
+                        typ: fresh_type,
+                    }
+                });
+
+                let trait_generics =
+                    TraitGenerics { ordered: instantiated.trait_generics.ordered.clone(), named };
+                let parent_constraint = TraitConstraint {
+                    typ: object_type.clone(),
+                    trait_bound: ResolvedTraitBound {
+                        trait_id: instantiated.trait_id,
+                        trait_generics,
+                        location: instantiated.location,
+                    },
+                };
+                self.trait_bounds.push(parent_constraint.clone());
+                new_constraints.push(parent_constraint);
+            }
+
+            // Recurse for grandparent traits
+            self.collect_parent_associated_types(
+                object_type,
+                &instantiated,
+                new_generics,
+                new_constraints,
+                visited,
+            );
+        }
+    }
+
     /// Adds an assumed trait implementation for the given object type and trait bound.
     ///
     /// This also recursively adds assumed implementations for any parent traits.
@@ -708,7 +834,7 @@ impl Elaborator<'_> {
                     );
 
                     let func_id = unresolved_trait.method_ids[name.as_str()];
-                    let mut where_clause = where_clause.to_vec();
+                    let mut where_clause = where_clause.clone();
 
                     // Attach any trait constraints on the trait to the function,
                     where_clause.extend(unresolved_trait.trait_def.where_clause.clone());

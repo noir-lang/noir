@@ -186,7 +186,7 @@ fn find_callsite_labels<'files>(
             {
                 let procedure_locs = debug_symbols.brillig_procedure_locs.get(&brillig_function_id);
                 if let Some(procedure_locs) = procedure_locs {
-                    for (procedure, range) in procedure_locs.iter() {
+                    for (procedure, range) in procedure_locs {
                         if brillig_location.0 >= range.0 && brillig_location.0 <= range.1 {
                             procedure_id = Some(*procedure);
                             break;
@@ -228,8 +228,7 @@ fn location_to_callsite_label<'files>(
     let filename =
         Path::new(&files.name(location.file).expect("should have a file path").to_string())
             .file_name()
-            .map(|os_str| os_str.to_string_lossy().to_string())
-            .unwrap_or("invalid_path".to_string());
+            .map_or("invalid_path".to_string(), |os_str| os_str.to_string_lossy().to_string());
     let source = files.source(location.file).expect("should have a file source");
 
     let code_vector = source
@@ -278,7 +277,7 @@ fn to_folded_sorted_lines(
 ) -> Vec<String> {
     let mut result_vector = Vec::with_capacity(folded_stack_items.len());
 
-    for (location, folded_stack_item) in folded_stack_items.iter() {
+    for (location, folded_stack_item) in folded_stack_items {
         if folded_stack_item.total_samples > 0 {
             let frame_list: Vec<String> =
                 parent_stacks.iter().cloned().chain(std::iter::once(location.clone())).collect();

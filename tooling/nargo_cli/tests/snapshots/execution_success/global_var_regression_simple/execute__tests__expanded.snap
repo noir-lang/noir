@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-global EXPONENTIATE: [[Field; 2]; 2] = [[1, 1], [0, 0]];
+global EXPONENTIATE: [[Field; 2]; 2] = [[0x01, 0x01], [0x00, 0x00]];
 
 fn main(x: Field, y: pub Field) {
     let mut acc: Field = 0_Field;

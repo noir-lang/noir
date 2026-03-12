@@ -17,8 +17,11 @@
 //!   - Brillig functions may contain loops using `continue` or `break` which this pass does not
 //!     support the unrolling of (running the pass on such functions is not an error).
 //!   - Brillig functions only have small loops unrolled, where a small loop is defined as a loop
-//!     which, when unrolled, is estimated to have the same or fewer total instructions as it
+//!     which, when unrolled, is estimated to have the same or fewer total cost as it
 //!     has when not unrolled.
+//!     This cost estimation is analogous to LLVM's `analyzeLoopUnrollCost` which estimates
+//!     which loads become constant after unrolling. See:
+//!     <https://llvm.org/doxygen/LoopUnrollPass_8cpp_source.html>
 //!   - Unrolling may be reverted for brillig functions if the increase in instruction count is
 //!     greater than `max_bytecode_increase_percent` (if set).
 //!   - Differing post-conditions (see below).
@@ -55,23 +58,27 @@ use crate::{
             cfg::ControlFlowGraph,
             dfg::DataFlowGraph,
             dom::DominatorTree,
-            function::{Function, RuntimeType},
+            function::{Function, FunctionId, RuntimeType},
             function_inserter::FunctionInserter,
             instruction::{Binary, BinaryOp, Instruction, TerminatorInstruction},
             integer::IntegerConstant,
             post_order::PostOrder,
-            value::ValueId,
+            value::{Value, ValueId},
         },
         ssa_gen::Ssa,
     },
 };
 use rustc_hash::FxHashMap as HashMap;
 
-/// Maximum number of instructions (after unrolling) for Brillig loops to be
-/// force-unrolled regardless of the cost model. Loops with no function calls,
-/// constant bounds, and no breaks whose unrolled instruction count is at or
-/// below this threshold will always be unrolled.
-pub const FORCE_UNROLL_THRESHOLD: usize = 32;
+/// Maximum Brillig-weighted cost (after unrolling) for Brillig loops to be
+/// force-unrolled regardless of the cost model. Loops with constant bounds
+/// and no breaks whose unrolled cost is at or below this threshold will
+/// always be unrolled.
+pub const FORCE_UNROLL_THRESHOLD: usize = 128;
+
+/// Maximum number of iterations for Brillig loops to be unrolled.
+/// Prevents code explosion from very large loops even if they pass the cost model.
+pub const MAX_UNROLL_ITERATIONS: usize = 1000;
 
 impl Ssa {
     /// Loop unrolling can return errors, since ACIR functions need to be fully unrolled.
@@ -88,6 +95,7 @@ impl Ssa {
     pub(crate) fn unroll_loops_iteratively(
         mut self,
         max_bytecode_increase_percent: Option<i32>,
+        max_unroll_iterations: usize,
         force_unroll_threshold: usize,
     ) -> Result<Ssa, RuntimeError> {
         for function in self.functions.values_mut() {
@@ -98,7 +106,12 @@ impl Ssa {
                 (max_bytecode_increase_percent.is_some() && is_brillig).then(|| function.clone());
 
             // We must be able to unroll ACIR loops at this point, so exit on failure to unroll.
-            let has_unrolled = function.unroll_loops_iteratively(force_unroll_threshold)?;
+            let no_callee_costs = HashMap::default();
+            let has_unrolled = function.unroll_loops_iteratively(
+                max_unroll_iterations,
+                force_unroll_threshold,
+                &no_callee_costs,
+            )?;
 
             // Check if the size increase is acceptable
             // This is here now instead of in `Function::unroll_loops_iteratively` because we'd need
@@ -133,12 +146,15 @@ impl Function {
     /// force-unrolling small Brillig loops.
     pub(super) fn unroll_loops_iteratively(
         &mut self,
+        max_unroll_iterations: usize,
         force_unroll_threshold: usize,
+        callee_costs: &HashMap<FunctionId, usize>,
     ) -> Result<bool, RuntimeError> {
         #[cfg(debug_assertions)]
         unroll_loops_pre_check(self);
 
-        let (mut has_unrolled, mut unroll_errors) = self.try_unroll_loops(force_unroll_threshold);
+        let (mut has_unrolled, mut unroll_errors) =
+            self.try_unroll_loops(max_unroll_iterations, force_unroll_threshold, callee_costs);
 
         match self.runtime() {
             RuntimeType::Acir(_) => {
@@ -150,7 +166,11 @@ impl Function {
                     simplify_between_unrolls(self);
 
                     // Unroll again
-                    let (new_unrolled, new_errors) = self.try_unroll_loops(force_unroll_threshold);
+                    let (new_unrolled, new_errors) = self.try_unroll_loops(
+                        max_unroll_iterations,
+                        force_unroll_threshold,
+                        callee_costs,
+                    );
                     unroll_errors = new_errors;
                     has_unrolled |= new_unrolled;
 
@@ -162,7 +182,11 @@ impl Function {
             }
             RuntimeType::Brillig(_) => loop {
                 simplify_between_unrolls(self);
-                let (unrolled, _) = self.try_unroll_loops(force_unroll_threshold);
+                let (unrolled, _) = self.try_unroll_loops(
+                    max_unroll_iterations,
+                    force_unroll_threshold,
+                    callee_costs,
+                );
                 has_unrolled |= unrolled;
                 if !unrolled {
                     break;
@@ -184,7 +208,12 @@ impl Function {
     /// This can also be true for ACIR, but we have no alternative to unrolling in ACIR.
     /// Brillig also generally prefers smaller code rather than faster code,
     /// so we only attempt to unroll small loops, which we decide on a case-by-case basis.
-    fn try_unroll_loops(&mut self, force_unroll_threshold: usize) -> (bool, Vec<RuntimeError>) {
+    fn try_unroll_loops(
+        &mut self,
+        max_unroll_iterations: usize,
+        force_unroll_threshold: usize,
+        callee_costs: &HashMap<FunctionId, usize>,
+    ) -> (bool, Vec<RuntimeError>) {
         // The loops that failed to be unrolled so that we do not try to unroll them again.
         // Each loop is identified by its header block id.
         let mut failed_to_unroll = HashSet::new();
@@ -200,6 +229,7 @@ impl Function {
                 LoopOrder::OutsideIn
             };
             let mut loops = Loops::find_all(self, order);
+            loops.callee_costs = callee_costs.clone();
 
             // Blocks which were part of loops we unrolled. Nested loops are included in the
             // outer loops, so if an outer loop is unrolled, we have to restart looking for
@@ -219,7 +249,12 @@ impl Function {
                 let result = if failed_to_unroll.contains(&next_loop.header) {
                     LoopUnrollResult::Skipped
                 } else {
-                    self.try_unroll_loop(next_loop, &loops, force_unroll_threshold)
+                    self.try_unroll_loop(
+                        next_loop,
+                        &loops,
+                        max_unroll_iterations,
+                        force_unroll_threshold,
+                    )
                 };
                 match result {
                     LoopUnrollResult::Skipped => continue,
@@ -249,11 +284,17 @@ impl Function {
         &mut self,
         loop_: Loop,
         loops: &Loops,
+        max_unroll_iterations: usize,
         force_unroll_threshold: usize,
     ) -> LoopUnrollResult {
         // Only unroll small loops in Brillig.
         if self.runtime().is_brillig()
-            && !loop_.should_unroll_in_brillig(self, &loops.cfg, force_unroll_threshold)
+            && !loop_.should_unroll_in_brillig(
+                self,
+                loops,
+                max_unroll_iterations,
+                force_unroll_threshold,
+            )
         {
             return LoopUnrollResult::Skipped;
         }
@@ -327,6 +368,11 @@ pub(crate) struct Loops {
     pub(crate) cfg: ControlFlowGraph,
     /// The [DominatorTree] used during the discovery of loops.
     pub(crate) dom: DominatorTree,
+    /// Body weights of callees that will be inlined, used to estimate the true cost
+    /// of call instructions in loop bodies instead of using call overhead.
+    /// Callers of unrolling set this to the
+    /// actual map of inlineable callee body weights when available.
+    pub(crate) callee_costs: HashMap<FunctionId, usize>,
 }
 
 impl Loops {
@@ -396,7 +442,7 @@ impl Loops {
             }
         }
 
-        Self { yet_to_unroll: loops, cfg, dom: dom_tree }
+        Self { yet_to_unroll: loops, cfg, dom: dom_tree, callee_costs: HashMap::default() }
     }
 }
 
@@ -563,23 +609,41 @@ impl Loop {
             return None;
         }
 
+        let Some(TerminatorInstruction::JmpIf { then_destination, .. }) = header.terminator()
+        else {
+            return None;
+        };
+
+        let then_branch_is_body = self.blocks.contains(then_destination);
+
         match &dfg[instructions[0]] {
+            // Most loops will expect the `then` block to be the body. In unconstrained code it is
+            // possible to write `loop`s that use the else branch as a body. We return `None`
+            // conservatively in this case.
             Instruction::Binary(Binary { lhs: _, operator: BinaryOp::Lt, rhs }) => {
-                dfg.get_integer_constant(*rhs)
+                if then_branch_is_body {
+                    dfg.get_integer_constant(*rhs)
+                } else {
+                    None
+                }
             }
             Instruction::Binary(Binary { lhs: _, operator: BinaryOp::Eq, rhs }) => {
                 // `for i in 0..1` is turned into:
                 // b1(v0: u32):
                 //   v12 = eq v0, u32 0
                 //   jmpif v12 then: b2, else: b3
-                dfg.get_integer_constant(*rhs).map(|c| c.inc())
+                //
+                // If `b2` is the loop body: Loop exits when v == rhs; upper = rhs + 1.
+                // If `b3` is the loop body: Loop exits when v == rhs; upper = rhs.
+                let const_rhs = dfg.get_integer_constant(*rhs)?;
+                if then_branch_is_body { Some(const_rhs.inc()) } else { Some(const_rhs) }
             }
             Instruction::Not(_) => {
                 // We simplify equality operations with booleans like `(boolean == false)` into `!boolean`.
                 // Thus, using a u1 in a loop bound can possibly lead to a Not instruction
                 // as a loop header's jump condition.
                 //
-                // `for i in 0..1` is turned into:
+                // Standard (then=body): `for i in 0..1` is turned into:
                 //  b1(v0: u1):
                 //    v2 = eq v0, u32 0
                 //    jmpif v2 then: b2, else: b3
@@ -588,12 +652,14 @@ impl Loop {
                 //  b1(v0: u1):
                 //    v2 = not v0
                 //    jmpif v2 then: b2, else: b3
-                Some(IntegerConstant::Unsigned { value: 1, bit_size: 1 })
+                if then_branch_is_body {
+                    Some(IntegerConstant::Unsigned { value: 1, bit_size: 1 })
+                } else {
+                    None
+                }
             }
-            Instruction::Cast(_, _) => {
-                // A cast of a constant would already be simplified
-                None
-            }
+            // A cast of a constant would already be simplified
+            Instruction::Cast(_, _) => None,
             other => panic!("Unexpected instruction in header: {other:?}"),
         }
     }
@@ -735,9 +801,20 @@ impl Loop {
             TerminatorInstruction::JmpIf {
                 condition,
                 then_destination,
+                then_arguments,
                 else_destination,
+                else_arguments,
                 call_stack,
             } => {
+                assert!(
+                    then_arguments.is_empty(),
+                    "unrolling has not been updated to handle jmpif arguments"
+                );
+                assert!(
+                    else_arguments.is_empty(),
+                    "unrolling has not been updated to handle jmpif arguments"
+                );
+
                 let condition = *condition;
                 let next_blocks = context.handle_jmpif(
                     condition,
@@ -824,11 +901,16 @@ impl Loop {
     /// We won't always find load _and_ store ops (e.g. the push above doesn't come with a store),
     /// but it's likely that mem2reg could eliminate a lot of the loads we can find, so we can
     /// use this as an approximation of the gains we would see.
+    /// Find reference values defined before the loop (allocations + reference params).
+    ///
+    /// Returns `(refs, constant_initial_refs)` where:
+    /// - `refs`: all pre-header reference values
+    /// - `constant_initial_refs`: the subset of refs whose pre-header stores all have constant values
     fn find_pre_header_reference_values(
         &self,
         function: &Function,
         cfg: &ControlFlowGraph,
-    ) -> Option<HashSet<ValueId>> {
+    ) -> Option<(HashSet<ValueId>, HashSet<ValueId>)> {
         // We need to traverse blocks from the pre-header up to the block entry point.
         let pre_header = self.get_pre_header(function, cfg).ok()?;
         let function_entry = function.entry_block();
@@ -850,7 +932,47 @@ impl Loop {
         let params =
             function.parameters().iter().filter(|p| function.dfg.value_is_reference(**p)).copied();
 
-        Some(params.chain(allocations).collect())
+        let refs: HashSet<ValueId> = params.chain(allocations).collect();
+
+        // Find refs whose pre-header stores all have constant values.
+        // A ref is "constant initial" if it has at least one store in the pre-header blocks
+        // AND every such store has a constant value.
+        //
+        // We must exclude the loop's own blocks from this scan: for nested loops,
+        // `find_blocks_in_loop(entry, pre_header)` traverses backward through the
+        // outer loop's back-edge and re-enters the inner loop blocks. Without this
+        // filter, stores *inside* the loop body (which are not initial values) would
+        // incorrectly prevent the ref from being recognized as constant-initial.
+        let mut has_store: HashSet<ValueId> = HashSet::default();
+        let mut has_non_constant_store: HashSet<ValueId> = HashSet::default();
+        for block in blocks.iter().filter(|b| !self.blocks.contains(b)) {
+            for instruction_id in function.dfg[*block].instructions() {
+                if let Instruction::Store { address, value } = &function.dfg[*instruction_id]
+                    && refs.contains(address)
+                {
+                    has_store.insert(*address);
+                    if !function.dfg.is_constant(*value) {
+                        has_non_constant_store.insert(*address);
+                    }
+                }
+            }
+        }
+
+        // Conservatively mark any reference that appears as a block terminator
+        // argument within the loop as non-constant. Such refs can become aliased
+        // via block parameters, meaning stores through the alias won't be visible
+        // on the original ValueId. Since we only scan pre-header stores by address,
+        // aliased refs would be incorrectly classified as constant-initial.
+        for block_id in &self.blocks {
+            for arg in function.dfg[*block_id].terminator_arguments() {
+                has_non_constant_store.insert(*arg);
+            }
+        }
+
+        let constant_initial_refs: HashSet<ValueId> =
+            has_store.difference(&has_non_constant_store).copied().collect();
+
+        Some((refs, constant_initial_refs))
     }
 
     /// Count the number of load and store instructions of specific variables in the loop.
@@ -879,55 +1001,124 @@ impl Loop {
         (loads, stores)
     }
 
-    /// Count the number of instructions in the loop, including the terminating jumps.
-    fn count_all_instructions(&self, function: &Function) -> usize {
-        let iter = self.blocks.iter().map(|block| {
-            let block = &function.dfg[*block];
-            block.instructions().len() + usize::from(block.terminator().is_some())
-        });
-        iter.sum()
-    }
-
-    /// Count the number of increments to the induction variable.
-    /// It should be one, but it can be duplicated.
-    /// The increment should be in the block where the back-edge was found.
-    fn count_induction_increments(&self, function: &Function) -> usize {
-        let back = &function.dfg[self.back_edge_start];
-        let header = &function.dfg[self.header];
-        let induction_var = header.parameters()[0];
-
-        back.instructions()
+    /// Count the Brillig-weighted cost of instructions in the loop, including terminators.
+    ///
+    /// When `callee_costs` is non-empty, calls to functions that will be inlined use
+    /// the callee's body weight instead of the default call overhead estimate. This
+    /// prevents underestimating loop cost when the loop contains calls to functions
+    /// that will grow significantly after inlining.
+    fn count_loop_cost(
+        &self,
+        function: &Function,
+        callee_costs: &HashMap<FunctionId, usize>,
+    ) -> usize {
+        self.blocks
             .iter()
-            .filter(|instruction| {
-                let instruction = &function.dfg[**instruction];
-                matches!(instruction,
-                    Instruction::Binary(Binary { lhs, operator: BinaryOp::Add { .. }, rhs: _ })
-                        if *lhs == induction_var
-                )
+            .map(|block_id| {
+                let block = &function.dfg[*block_id];
+                let instr_cost: usize = block
+                    .instructions()
+                    .iter()
+                    .map(|id| {
+                        let instr = &function.dfg[*id];
+                        if let Instruction::Call { func, .. } = instr
+                            && let Value::Function(func_id) = function.dfg[*func]
+                            && let Some(&body_cost) = callee_costs.get(&func_id)
+                        {
+                            return body_cost;
+                        }
+
+                        instr.cost(*id, &function.dfg)
+                    })
+                    .sum();
+                let term_cost = block.terminator().map_or(0, |t| t.cost());
+                instr_cost + term_cost
             })
-            .count()
+            .sum()
     }
 
     /// Whether this loop should be unrolled when compiling to Brillig.
     ///
     /// A loop is unrolled if:
     /// 1. It has constant bounds and no breaks (`boilerplate_stats` + `is_fully_executed`)
-    /// 2. AND either:
+    /// 2. The iteration count is within the `max_unroll_iterations` limit
+    /// 3. AND either:
     ///    a. The cost model predicts unrolling reduces code size (`is_small`), OR
-    ///    b. The total unrolled instruction count is within the force-unroll threshold
+    ///    b. The total unrolled cost is within the force-unroll threshold
     fn should_unroll_in_brillig(
         &self,
         function: &Function,
-        cfg: &ControlFlowGraph,
+        loops: &Loops,
+        max_unroll_iterations: usize,
         force_unroll_threshold: usize,
     ) -> bool {
-        let threshold = force_unroll_threshold;
-        self.boilerplate_stats(function, cfg)
-            .map(|s| {
-                let force_unroll = s.unrolled_instructions() <= threshold;
-                (force_unroll || s.is_small()) && self.is_fully_executed(cfg)
-            })
-            .unwrap_or_default()
+        self.boilerplate_stats(function, &loops.cfg, &loops.callee_costs).is_some_and(|s| {
+            let within_iteration_limit = s.iterations <= max_unroll_iterations;
+            let force_unroll = s.unrolled_cost() <= force_unroll_threshold;
+            (force_unroll || s.is_small())
+                && within_iteration_limit
+                && self.is_fully_executed(&loops.cfg)
+        })
+    }
+
+    /// Compute the Brillig-weighted cost of instructions that become compile-time
+    /// constants after unrolling.
+    ///
+    /// An instruction is "useless" (will be folded away) if ALL of its operands will be
+    /// known constants once the loop is unrolled. We track this with a `constant_after_unroll`
+    /// set, seeded with:
+    /// - The induction variable (becomes a known constant per unrolled iteration)
+    /// - Any value that is already a compile-time constant (`dfg.is_constant`)
+    ///
+    /// For each instruction in the loop body, if every operand is in `constant_after_unroll`,
+    /// the result will also be constant after unrolling, so we add it to the set and
+    /// accumulate its Brillig-weighted cost.
+    fn count_useless_cost(
+        &self,
+        function: &Function,
+        constant_initial_refs: &HashSet<ValueId>,
+    ) -> usize {
+        let mut useless_cost = 0;
+        let Some(induction_var) = self.get_induction_variable(function) else {
+            return 0;
+        };
+
+        let mut constant_after_unroll: HashSet<ValueId> = HashSet::default();
+        constant_after_unroll.insert(induction_var);
+
+        for block in &self.blocks {
+            for instruction_id in function.dfg[*block].instructions() {
+                let results = function.dfg.instruction_results(*instruction_id);
+                let instruction = &function.dfg[*instruction_id];
+
+                // Load from a pre-header ref with constant initial store:
+                // propagate the result into constant_after_unroll so downstream
+                // instructions can cascade, but don't count the load as useless
+                // (it's already counted as boilerplate via the load/store pair).
+                if let Instruction::Load { address } = instruction
+                    && constant_initial_refs.contains(address)
+                {
+                    for result in results {
+                        constant_after_unroll.insert(*result);
+                    }
+                    continue;
+                }
+
+                let mut all_operands_constant = true;
+                instruction.for_each_value(|value| {
+                    all_operands_constant &= constant_after_unroll.contains(&value)
+                        || is_from_constant_source(value, &function.dfg);
+                });
+
+                if all_operands_constant {
+                    for result in results {
+                        constant_after_unroll.insert(*result);
+                    }
+                    useless_cost += instruction.cost(*instruction_id, &function.dfg);
+                }
+            }
+        }
+        useless_cost
     }
 
     /// Collect boilerplate stats if we can figure out the upper and lower bounds of the loop,
@@ -936,14 +1127,24 @@ impl Loop {
         &self,
         function: &Function,
         cfg: &ControlFlowGraph,
+        callee_costs: &HashMap<FunctionId, usize>,
     ) -> Option<BoilerplateStats> {
         let pre_header = self.get_pre_header(function, cfg).ok()?;
         let (lower, upper) = self.get_const_bounds(&function.dfg, pre_header)?;
-        let refs = self.find_pre_header_reference_values(function, cfg)?;
+        let (refs, constant_initial_refs) = self.find_pre_header_reference_values(function, cfg)?;
+
+        // If we have a break block, we can potentially directly use the induction variable in that break.
+        // If we then unroll the loop, the induction variable will not exist anymore.
+        let is_fully_executed = self.is_fully_executed(cfg);
 
         let (loads, stores) = self.count_loads_and_stores(function, &refs);
-        let increments = self.count_induction_increments(function);
-        let all_instructions = self.count_all_instructions(function);
+        let total_cost = self.count_loop_cost(function, callee_costs);
+
+        let useless_cost = if !is_fully_executed {
+            0
+        } else {
+            self.count_useless_cost(function, &constant_initial_refs)
+        };
 
         // Currently we don't iterate in reverse, so if upper <= lower it means 0 iterations.
         let iterations: usize = upper
@@ -954,14 +1155,26 @@ impl Loop {
             )
             .unwrap_or_default();
 
-        Some(BoilerplateStats {
-            iterations,
-            loads,
-            stores,
-            increments,
-            all_instructions,
-            has_const_zero_jump_condition: self.has_const_zero_jump_condition(&function.dfg),
-        })
+        Some(BoilerplateStats { iterations, loads, stores, total_cost, useless_cost })
+    }
+}
+
+/// Check if a value ultimately comes from constant data by tracing through
+/// `array_get` instructions. Returns true if:
+/// - The value is a compile-time constant (`dfg.is_constant`), OR
+/// - The value is the result of an `array_get` whose array operand
+///   recursively traces back to a constant source (global, MakeArray)
+///
+/// This lets the cost model recognize that `array_get constant_array, index`
+/// will fold away after unrolling, even when `constant_array` is itself
+/// the result of indexing into a higher-dimensional constant.
+fn is_from_constant_source(value: ValueId, dfg: &DataFlowGraph) -> bool {
+    if dfg.is_constant(value) {
+        return true;
+    }
+    match dfg.get_local_or_global_instruction(value) {
+        Some(Instruction::ArrayGet { array, .. }) => is_from_constant_source(*array, dfg),
+        _ => false,
     }
 }
 
@@ -986,54 +1199,55 @@ impl Loop {
 struct BoilerplateStats {
     /// Number of iterations in the loop.
     iterations: usize,
-    /// Number of loads  pre-header references in the loop.
+    /// Number of loads of pre-header references in the loop.
     loads: usize,
     /// Number of stores into pre-header references in the loop.
     stores: usize,
-    /// Number of increments to the induction variable (might be duplicated).
-    increments: usize,
-    /// Number of instructions in the loop, including boilerplate,
+    /// Brillig-weighted cost of instructions in the loop, including boilerplate,
     /// but excluding the boilerplate which is outside the loop.
-    all_instructions: usize,
-    /// Indicate whether the comparison with the upper bound has been simplified out.
-    has_const_zero_jump_condition: bool,
+    total_cost: usize,
+    /// Brillig-weighted cost of "useless" instructions that become compile-time constants
+    /// after unrolling. This includes the bound comparison (lt), induction variable
+    /// increments, and any other instructions whose operands are all known after unrolling.
+    useless_cost: usize,
 }
 
 impl BoilerplateStats {
-    /// Instruction count if we leave the loop as-is.
-    /// It's the instructions in the loop, plus the one to kick it off in the pre-header.
-    fn baseline_instructions(&self) -> usize {
-        self.all_instructions + 1
+    /// Brillig-weighted cost if we leave the loop as-is.
+    /// It's the cost of the loop body, plus the pre-header jmp that kicks it off.
+    fn baseline_cost(&self) -> usize {
+        // Pre-header jmp has 1 argument (the induction variable initial value):
+        // Brillig cost = 1 (jump) + 1 (move for 1 arg) = 2
+        self.total_cost + 2
     }
 
-    /// Estimated number of _useful_ instructions, which is the ones in the loop
-    /// minus all in-loop boilerplate.
-    fn useful_instructions(&self) -> usize {
-        // Two jumps + plus the comparison with the upper bound.
-        // This could be just 2 if the comparison has been simplified out.
-        let boilerplate = if self.has_const_zero_jump_condition { 2 } else { 3 };
-        // Be conservative and only assume that mem2reg gets rid of load followed by store.
-        // NB we have not checked that these are actual pairs.
+    /// Estimated Brillig-weighted cost of _useful_ instructions, which is the
+    /// cost of the loop minus all in-loop boilerplate and useless (constant-foldable)
+    /// instructions.
+    fn useful_cost(&self) -> usize {
+        // Brillig costs: JmpIf=2, Jmp(1 induction var arg)=2
+        let terminators = 2 + 2;
+        // Load=1, Store=1 in Brillig (matches current *2 for pairs)
         let load_and_store = self.loads.min(self.stores) * 2;
-        let total_boilerplate = self.increments + load_and_store + boilerplate;
+        let total_boilerplate = load_and_store + terminators;
         assert!(
-            total_boilerplate <= self.all_instructions,
-            "Boilerplate instructions exceed total instructions in loop"
+            total_boilerplate <= self.total_cost,
+            "Boilerplate cost exceeds total cost in loop"
         );
-        self.all_instructions.saturating_sub(total_boilerplate)
+        self.total_cost.saturating_sub(total_boilerplate).saturating_sub(self.useless_cost)
     }
 
-    /// Estimated number of instructions if we unroll the loop.
-    fn unrolled_instructions(&self) -> usize {
-        self.useful_instructions() * self.iterations
+    /// Estimated Brillig-weighted cost if we unroll the loop.
+    fn unrolled_cost(&self) -> usize {
+        self.useful_cost() * self.iterations
     }
 
     /// A small loop is where if we unroll it into the pre-header then considering the
     /// number of iterations we still end up with a smaller bytecode than if we leave
     /// the blocks in tact with all the boilerplate involved in jumping, and the extra
-    /// reference access instructions.
+    /// reference access overhead.
     fn is_small(&self) -> bool {
-        self.unrolled_instructions() < self.baseline_instructions()
+        self.unrolled_cost() < self.baseline_cost()
     }
 }
 
@@ -1176,9 +1390,21 @@ impl<'f> LoopIteration<'f> {
             TerminatorInstruction::JmpIf {
                 condition,
                 then_destination,
+                then_arguments,
                 else_destination,
+                else_arguments,
                 call_stack,
-            } => self.handle_jmpif(*condition, *then_destination, *else_destination, *call_stack),
+            } => {
+                assert!(
+                    then_arguments.is_empty(),
+                    "unrolling has not been updated to handle jmpif arguments"
+                );
+                assert!(
+                    else_arguments.is_empty(),
+                    "unrolling has not been updated to handle jmpif arguments"
+                );
+                self.handle_jmpif(*condition, *then_destination, *else_destination, *call_stack)
+            }
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
                 if self.get_original_block(*destination) == self.loop_.header {
                     // We found the back-edge of the loop.
@@ -1349,7 +1575,10 @@ mod tests {
     use crate::ssa::opt::assert_ssa_does_not_change;
     use crate::ssa::{Ssa, ir::value::ValueId, opt::assert_normalized_ssa_equals};
 
-    use super::{BoilerplateStats, FORCE_UNROLL_THRESHOLD, LoopOrder, Loops, is_new_size_ok};
+    use super::{
+        BoilerplateStats, FORCE_UNROLL_THRESHOLD, HashMap, LoopOrder, Loops, MAX_UNROLL_ITERATIONS,
+        is_new_size_ok,
+    };
 
     /// Tries to unroll all loops in each SSA function once, calling the `Function` directly,
     /// bypassing the iterative loop done by the SSA which does further optimizations.
@@ -1358,7 +1587,15 @@ mod tests {
     fn try_unroll_loops(mut ssa: Ssa) -> (Ssa, Vec<RuntimeError>) {
         let mut errors = vec![];
         for function in ssa.functions.values_mut() {
-            errors.extend(function.try_unroll_loops(FORCE_UNROLL_THRESHOLD).1);
+            errors.extend(
+                function
+                    .try_unroll_loops(
+                        MAX_UNROLL_ITERATIONS,
+                        FORCE_UNROLL_THRESHOLD,
+                        &HashMap::default(),
+                    )
+                    .1,
+            );
         }
         (ssa, errors)
     }
@@ -1378,12 +1615,12 @@ mod tests {
                     jmp b1(u32 0)
                 b1(v0: u32):  // header of outer loop
                     v1 = lt v0, u32 3
-                    jmpif v1 then: b2, else: b3
+                    jmpif v1 then: b2(), else: b3()
                 b2():
                     jmp b4(u32 0)
                 b4(v2: u32):  // header of inner loop
                     v3 = lt v2, u32 4
-                    jmpif v3 then: b5, else: b6
+                    jmpif v3 then: b5(), else: b6()
                 b5():
                     v4 = add v0, v2
                     v5 = lt u32 10, v4
@@ -1442,7 +1679,7 @@ mod tests {
             jmp b1(v0)
           b1(v1: u32):
             v2 = lt v1, u32 5
-            jmpif v2 then: b2, else: b3
+            jmpif v2 then: b2(), else: b3()
           b2():
             v3 = add v1, u32 1
             jmp b1(v3)
@@ -1486,7 +1723,7 @@ mod tests {
           b0():
             jmp b1(u32 0)
           b1(v0: u32):
-            jmpif u1 0 then: b2, else: b3
+            jmpif u1 0 then: b2(), else: b3()
           b2():
             v41 = unchecked_add v0, u32 1
             jmp b1(v41)
@@ -1517,16 +1754,19 @@ mod tests {
         let mut loops = Loops::find_all(function, LoopOrder::OutsideIn);
         let loop0 = loops.yet_to_unroll.pop().unwrap();
 
-        let refs = loop0.find_pre_header_reference_values(function, &loops.cfg).unwrap();
+        let (refs, constant_initial_refs) =
+            loop0.find_pre_header_reference_values(function, &loops.cfg).unwrap();
         assert_eq!(refs.len(), 1);
         assert!(refs.contains(&ValueId::test_new(2)));
+        assert_eq!(constant_initial_refs.len(), 1);
+        assert!(constant_initial_refs.contains(&ValueId::test_new(2)));
 
         let (loads, stores) = loop0.count_loads_and_stores(function, &refs);
         assert_eq!(loads, 1);
         assert_eq!(stores, 1);
 
-        let all = loop0.count_all_instructions(function);
-        assert_eq!(all, 7);
+        let all = loop0.count_loop_cost(function, &HashMap::default());
+        assert_eq!(all, 13);
     }
 
     #[test]
@@ -1534,12 +1774,13 @@ mod tests {
         let ssa = brillig_unroll_test_case();
         let stats = loop0_stats(&ssa);
         assert_eq!(stats.iterations, 4);
-        assert_eq!(stats.all_instructions, 2 + 5); // Instructions in b1 and b3
-        assert_eq!(stats.increments, 1);
+        assert_eq!(stats.total_cost, 3 + 10); // Brillig-weighted cost in b1 and b3
         assert_eq!(stats.loads, 1);
         assert_eq!(stats.stores, 1);
-        assert_eq!(stats.useful_instructions(), 1); // Adding to sum
-        assert_eq!(stats.baseline_instructions(), 8);
+        // lt(1) + add of load+induction(3) + increment(3)
+        assert_eq!(stats.useless_cost, 7);
+        assert_eq!(stats.useful_cost(), 0);
+        assert_eq!(stats.baseline_cost(), 15);
         assert!(stats.is_small());
     }
 
@@ -1556,7 +1797,7 @@ mod tests {
 
         let stats = loop0_stats(&ssa);
         assert_eq!(stats.iterations, 0);
-        assert_eq!(stats.unrolled_instructions(), 0);
+        assert_eq!(stats.unrolled_cost(), 0);
     }
 
     #[test]
@@ -1578,13 +1819,15 @@ mod tests {
         let ssa = Ssa::from_str(&brillig_unroll_test_case_6470(2)).unwrap();
         let stats = loop0_stats(&ssa);
         assert_eq!(stats.iterations, 2);
-        assert_eq!(stats.all_instructions, 2 + 8); // Instructions in b1 and b3
-        assert_eq!(stats.increments, 2);
+        assert_eq!(stats.total_cost, 3 + 19); // Brillig-weighted cost in b1 and b3
         assert_eq!(stats.loads, 1);
         assert_eq!(stats.stores, 1);
-        assert_eq!(stats.useful_instructions(), 3); // cast, array get, add, array set
-        assert_eq!(stats.baseline_instructions(), 11);
-        assert!(stats.is_small());
+        // lt(1) + 2x unchecked_add(1 each) = 3; v0 is runtime so array_get/add/array_set are NOT useless
+        assert_eq!(stats.useless_cost, 3);
+        assert_eq!(stats.useful_cost(), 13); // array_get(3) + add(3) + array_set(7)
+        assert_eq!(stats.baseline_cost(), 24);
+        // Not small with Brillig weights: 13*2=26 > 24, but within force-unroll threshold
+        assert!(!stats.is_small());
     }
 
     #[test]
@@ -1594,7 +1837,7 @@ mod tests {
           b0():
             jmp b1(u32 0)
           b1(v0: u32):
-            jmpif u1 0 then: b2, else: b3
+            jmpif u1 0 then: b2(), else: b3()
           b2():
             v1 = unchecked_add v0, u32 1
             jmp b1(v1)
@@ -1604,6 +1847,170 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let stats = loop0_stats(&ssa);
         assert!(stats.is_small());
+    }
+
+    #[test]
+    fn test_boilerplate_stats_constant_array_source() {
+        // v3 is a constant array defined outside the loop.
+        // Inside the loop, `array_get v3, index v0` should be recognized as
+        // useless because v3 traces back to constant data.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v2 = allocate -> &mut u32
+            store u32 0 at v2
+            v3 = make_array [u32 10, u32 20, u32 30, u32 40] : [u32; 4]
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v5 = lt v0, u32 4
+            jmpif v5 then: b2(), else: b3()
+          b2():
+            v6 = load v2 -> u32
+            v7 = array_get v3, index v0 -> u32
+            v8 = add v6, v7
+            store v8 at v2
+            v9 = unchecked_add v0, u32 1
+            jmp b1(v9)
+          b3():
+            v10 = load v2 -> u32
+            return v10
+        }";
+        let ssa = Ssa::from_str(src).unwrap();
+        let stats = loop0_stats(&ssa);
+        // is_from_constant_source recognizes v3 as constant even though
+        // it's outside the loop and not in constant_after_unroll.
+        // Load v6 from v2 (constant initial store u32 0) → v6 in constant_after_unroll.
+        // Useless: lt, array_get (constant source + induction var), add (v6 + v7 both constant), unchecked_add = 4
+        // all=7, boilerplate=2 (jmpif+jmp), loads=1, stores=1, useless=4
+        // useful = 7 - 2 - 2 - 4 = 0 (store folds too but is already boilerplate)
+        // lt(1) + array_get(3) + add(3) + unchecked_add(1) = 8
+        assert_eq!(stats.useless_cost, 8);
+        assert_eq!(stats.useful_cost(), 0);
+        assert!(stats.is_small());
+    }
+
+    /// Regression test for nested loops with an accumulator (simplified regression_4709).
+    ///
+    /// The inner loop (b3, b4) accumulates values from a constant array indexed by
+    /// the outer loop's induction variable. Without the filter that excludes `self.blocks`
+    /// from the constant-initial store scan, the inner loop's own store (`store v10 at v2`)
+    /// would be seen as a pre-header store with a non-constant value, preventing load
+    /// propagation and making the `add` instruction appear "useful".
+    ///
+    /// With 35 inner iterations and 1 useful instruction: unrolled = 35 > baseline (8),
+    /// so the loop would NOT be unrolled. With the fix, all instructions are useless,
+    /// unrolled = 0, and the loop IS unrolled.
+    #[test]
+    fn test_boilerplate_stats_nested_loop_constant_initial_ref() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v2 = allocate -> &mut Field
+            store Field 0 at v2
+            v3 = make_array [Field 10, Field 20, Field 30, Field 40] : [Field; 4]
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v5 = lt v0, u32 4
+            jmpif v5 then: b2(), else: b5()
+          b2():
+            v7 = array_get v3, index v0 -> Field
+            jmp b3(u32 0)
+          b3(v1: u32):
+            v8 = lt v1, u32 35
+            jmpif v8 then: b4(), else: b6()
+          b4():
+            v9 = load v2 -> Field
+            v10 = add v9, v7
+            store v10 at v2
+            v11 = unchecked_add v1, u32 1
+            jmp b3(v11)
+          b6():
+            v12 = unchecked_add v0, u32 1
+            jmp b1(v12)
+          b5():
+            v13 = load v2 -> Field
+            return v13
+        }";
+        let ssa = Ssa::from_str(src).unwrap();
+        let function = ssa.main();
+        let mut loops = Loops::find_all(function, LoopOrder::OutsideIn);
+        // OutsideIn puts outer loop last; remove(0) gets the inner loop.
+        assert_eq!(loops.yet_to_unroll.len(), 2, "should find outer and inner loops");
+        let inner = loops.yet_to_unroll.remove(0);
+        let stats = inner.boilerplate_stats(function, &loops.cfg, &loops.callee_costs).unwrap();
+        // Inner loop: blocks b3 (lt + jmpif) and b4 (load + add + store + unchecked_add + jmp)
+        assert_eq!(stats.iterations, 35);
+        assert_eq!(stats.loads, 1);
+        assert_eq!(stats.stores, 1);
+        // v2 has constant initial store (Field 0 in b0). The filter excludes b4's
+        // non-constant store from the scan, so load propagation works.
+        // lt(1) + add (propagated load + constant source)(1) + unchecked_add(1) = 3
+        assert_eq!(stats.useless_cost, 3);
+        assert_eq!(stats.useful_cost(), 0);
+        assert!(stats.is_small());
+    }
+
+    /// A reference passed as a block terminator argument is NOT classified
+    /// as constant-initial.
+    ///
+    /// v2 is passed into the loop header as a block param and the back-edge swaps it with v4, creating an alias.
+    /// Stores through the alias (v0, which takes on v4's value) are not visible when
+    /// scanning pre-header stores for v4, so v4 would be incorrectly classified as
+    /// constant-initial without the terminator filter.
+    #[test]
+    fn test_boilerplate_stats_ref_block_param_alias() {
+        // Two allocations v2 and v4. v2 is passed as block param to loop header (b1),
+        // and the back-edge (b2 -> b1) swaps to v4. This creates an alias: the loop
+        // header param v0 can be either v2 or v4 depending on iteration.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v2 = allocate -> &mut Field
+            store Field 0 at v2
+            v4 = allocate -> &mut Field
+            store Field 1 at v4
+            jmp b1(v2, u32 0)
+          b1(v0: &mut Field, v1: u32):
+            v6 = lt v1, u32 4
+            jmpif v6 then: b2(), else: b3()
+          b2():
+            v7 = load v0 -> Field
+            v8 = add v7, Field 1
+            store v8 at v0
+            v10 = unchecked_add v1, u32 1
+            jmp b1(v4, v10)
+          b3():
+            v11 = load v2 -> Field
+            v12 = load v4 -> Field
+            v13 = add v11, v12
+            return v13
+        }";
+        let ssa = Ssa::from_str(src).unwrap();
+        let function = ssa.main();
+        let mut loops = Loops::find_all(function, LoopOrder::OutsideIn);
+        assert_eq!(loops.yet_to_unroll.len(), 1);
+        let loop0 = loops.yet_to_unroll.pop().unwrap();
+
+        let v2 = ValueId::test_new(2);
+        let v4 = ValueId::test_new(4);
+
+        let (refs, constant_initial_refs) =
+            loop0.find_pre_header_reference_values(function, &loops.cfg).unwrap();
+        // Both v2 and v4 are reference allocations visible in the pre-header.
+        assert!(refs.contains(&v2), "v2 should be in refs");
+        assert!(refs.contains(&v4), "v4 should be in refs");
+
+        // v2 is only passed in b0's terminator (outside the loop), so it stays.
+        assert!(
+            constant_initial_refs.contains(&v2),
+            "v2 should be constant-initial (store Field 0 in pre-header)"
+        );
+        // v4 appears in b2's `jmp b1(v4, v10)` — a terminator inside the loop —
+        // so it must be removed by the filter.
+        assert!(
+            !constant_initial_refs.contains(&v4),
+            "v4 should NOT be constant-initial (aliased via block param)"
+        );
     }
 
     /// Test that we can unroll a small loop.
@@ -1681,13 +2088,13 @@ mod tests {
     /// Test that with more iterations it's not unrolled.
     #[test]
     fn test_brillig_unroll_6470_large() {
-        // 13 iterations × 4 useful instructions = 52, above FORCE_UNROLL_THRESHOLD (32)
+        // 13 iterations × 13 useful Brillig cost = 169, above FORCE_UNROLL_THRESHOLD (128)
         let parse_ssa = || Ssa::from_str(&brillig_unroll_test_case_6470(13)).unwrap();
         let ssa = parse_ssa();
         let stats = loop0_stats(&ssa);
         assert!(!stats.is_small(), "the loop should be considered large");
         assert!(
-            stats.unrolled_instructions() > FORCE_UNROLL_THRESHOLD,
+            stats.unrolled_cost() > FORCE_UNROLL_THRESHOLD,
             "the loop should exceed the force-unroll threshold"
         );
 
@@ -1700,7 +2107,9 @@ mod tests {
     #[test]
     fn test_brillig_unroll_iteratively_respects_max_increase() {
         let ssa = brillig_unroll_test_case();
-        let ssa = ssa.unroll_loops_iteratively(Some(-90), FORCE_UNROLL_THRESHOLD).unwrap();
+        let ssa = ssa
+            .unroll_loops_iteratively(Some(-90), MAX_UNROLL_ITERATIONS, FORCE_UNROLL_THRESHOLD)
+            .unwrap();
         // Check that it's still the original
         let expected = brillig_unroll_test_case();
         assert_normalized_ssa_equals(ssa, &expected.print_without_locations().to_string());
@@ -1709,7 +2118,9 @@ mod tests {
     #[test]
     fn test_brillig_unroll_iteratively_with_large_max_increase() {
         let ssa = brillig_unroll_test_case();
-        let ssa = ssa.unroll_loops_iteratively(Some(50), FORCE_UNROLL_THRESHOLD).unwrap();
+        let ssa = ssa
+            .unroll_loops_iteratively(Some(50), MAX_UNROLL_ITERATIONS, FORCE_UNROLL_THRESHOLD)
+            .unwrap();
         // Check that it did the unroll (simplification after unrolling may merge blocks)
         assert_eq!(ssa.main().reachable_blocks().len(), 1, "The loop should be unrolled");
     }
@@ -1718,7 +2129,7 @@ mod tests {
     ///
     /// This uses a loop with 6 iterations where:
     /// - is_small() = false (unrolled cost exceeds baseline)
-    /// - unrolled_instructions = 24 (within default threshold of 32)
+    /// - unrolled_cost = 78 (within default threshold of 128)
     ///
     /// With the default threshold, this loop would be force-unrolled.
     /// With threshold=0, it should NOT be unrolled.
@@ -1731,13 +2142,13 @@ mod tests {
         let stats = loop0_stats(&ssa);
         assert!(!stats.is_small(), "loop should not be small according to cost model");
         assert!(
-            stats.unrolled_instructions() <= FORCE_UNROLL_THRESHOLD,
+            stats.unrolled_cost() <= FORCE_UNROLL_THRESHOLD,
             "loop should be within default force-unroll threshold"
         );
 
         assert_ssa_does_not_change(&brillig_unroll_test_case_6470(6), |ssa| {
             // With threshold=0, the loop should NOT be unrolled
-            ssa.unroll_loops_iteratively(None, 0).unwrap()
+            ssa.unroll_loops_iteratively(None, 0, 0).unwrap()
         });
     }
 
@@ -1765,13 +2176,13 @@ mod tests {
             jmp b1(u32 0)
           b1(v0: u32):
             v5 = lt v0, u32 10
-            jmpif v5 then: b2, else: b6
+            jmpif v5 then: b2(), else: b6()
           b2():
             v7 = eq v0, u32 2
-            jmpif v7 then: b7, else: b3
+            jmpif v7 then: b7(), else: b3()
           b3():
             v11 = eq v0, u32 5
-            jmpif v11 then: b5, else: b4
+            jmpif v11 then: b5(), else: b4()
           b4():
             v15 = load v1 -> Field
             v17 = add v15, Field 1
@@ -1828,7 +2239,7 @@ mod tests {
             jmp b1({idx_type} {lower})
           b1(v1: {idx_type}):
             v5 = lt v1, {idx_type} {upper}
-            jmpif v5 then: b3, else: b2
+            jmpif v5 then: b3(), else: b2()
           b3():
             v8 = load v2 -> u32
             v9 = add v8, v1
@@ -1881,7 +2292,7 @@ mod tests {
             jmp b1({idx_type} {lower})
           b1(v1: {idx_type}):
             v7 = lt v1, {idx_type} {upper}
-            jmpif v7 then: b3, else: b2
+            jmpif v7 then: b3(), else: b2()
           b3():
             v9 = load v4 -> [u64; 6]
             v11 = array_get v0, index v1 -> u64
@@ -1910,7 +2321,7 @@ mod tests {
             jmp b1({idx_type} {lower})
           b1(v1: {idx_type}):
             v7 = lt v1, {idx_type} {upper}
-            jmpif v7 then: b3, else: b2
+            jmpif v7 then: b3(), else: b2()
           b3():
             v9 = load v4 -> [u64; 6]
             v10 = cast v1 as u32
@@ -1935,7 +2346,9 @@ mod tests {
         let function = ssa.main();
         let mut loops = Loops::find_all(function, LoopOrder::OutsideIn);
         let loop0 = loops.yet_to_unroll.pop().expect("there should be a loop");
-        loop0.boilerplate_stats(function, &loops.cfg).expect("there should be stats")
+        loop0
+            .boilerplate_stats(function, &loops.cfg, &HashMap::default())
+            .expect("there should be stats")
     }
 
     #[test_case(1000, 700, 50, true; "size decreased")]
@@ -1959,9 +2372,9 @@ mod tests {
             jmp b1(u32 0)
           b1(v0: u32):
             v3 = lt v0, u32 5
-            jmpif v3 then: b2, else: b3
+            jmpif v3 then: b2(), else: b3()
           b2():
-            jmpif u1 1 then: b4, else: b5
+            jmpif u1 1 then: b4(), else: b5()
           b3():
             return u1 1
           b4():
@@ -1990,7 +2403,7 @@ mod tests {
             jmp b1(u32 10)
           b1(v0: u32):
             v3 = lt v0, u32 12
-            jmpif v3 then: b2, else: b3
+            jmpif v3 then: b2(), else: b3()
           b2():
             constrain v0 == u32 1
             jmp b1(u32 2)
@@ -2019,7 +2432,7 @@ mod tests {
             jmp b1()
           b1():
             v2 = load v0 -> u1
-            jmpif v2 then: b2, else: b3
+            jmpif v2 then: b2(), else: b3()
           b2():
             jmp b1()
           b3():
@@ -2037,8 +2450,9 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "ICE: overflow while incrementing constant")]
     fn unroll_loop_upper_bound_saturated() {
+        // We need to avoid overflow when the loop bounds is `u128::MAX`. In this case,
+        // the loop body is in the `else` case so we fail to unroll entirely.
         let ssa = format!(
             r#"
         acir(inline) fn main f0 {{
@@ -2046,7 +2460,7 @@ mod tests {
             jmp b1(u128 {0})
           b1(v0: u128):
             v3 = eq v0, u128 {0}
-            jmpif v3 then: b3, else: b2
+            jmpif v3 then: b3(), else: b2()
           b2():
             v6 = unchecked_add v0, u128 1
             jmp b1(v6)
@@ -2067,7 +2481,7 @@ mod tests {
             loop_.get_pre_header(function, &loops.cfg).expect("Should have a pre_header");
         let (lower, upper) =
             loop_.get_const_bounds(&function.dfg, pre_header).expect("bounds are numeric const");
-        assert_ne!(lower, upper);
+        assert_eq!(lower, upper);
     }
 
     /// Prior passes can place non-comparison instructions (like MakeArray) into a loop header block
@@ -2091,14 +2505,14 @@ mod tests {
             jmp b1(u8 0)
           b1(v1: u8):
             v24 = make_array b\"unsignedinteger\"
-            jmpif u1 0 then: b2, else: b3
+            jmpif u1 0 then: b2(), else: b3()
           b2():
             inc_rc v24
             v29 = unchecked_add v1, u8 1
             jmp b1(v29)
           b3():
             v26 = load v3 -> u1
-            jmpif v26 then: b4, else: b5
+            jmpif v26 then: b4(), else: b5()
           b4():
             inc_rc v24
             jmp b5()
@@ -2107,6 +2521,55 @@ mod tests {
         }";
         let ssa = Ssa::from_str(src).unwrap();
         // This should panic because b1 has a constant-condition `jmpif u1 0`.
-        let _ = ssa.unroll_loops_iteratively(None, FORCE_UNROLL_THRESHOLD);
+        let _ = ssa.unroll_loops_iteratively(None, MAX_UNROLL_ITERATIONS, FORCE_UNROLL_THRESHOLD);
+    }
+
+    #[test]
+    fn handles_jmpif_args() {
+        let src = r#"
+            brillig(inline) predicate_pure fn main f0 {
+              b0():
+                v0 = make_array [] : [i32]
+                call f1(u32 0, v0)
+                return
+            }
+            brillig(inline) predicate_pure fn iter_0_times f1 {
+              b0(v0: u32, v1: [i32]):
+                jmp b1(u32 0)
+              b1(v2: u32):
+                v4 = eq v2, u32 0
+                jmpif v4 then: b2(), else: b3()
+              b2():
+                jmp b4()
+              b3():
+                v6 = add v2, u32 1
+                v8 = lt u32 10000, v0
+                constrain v8 == u1 1, "Index out of bounds"
+                v10 = array_get v1, index u32 10000 -> i32
+                jmp b5()
+              b4():
+                return
+              b5():
+                jmp b1(v6)
+            }
+            "#;
+        let (ssa, errors) = try_unroll_loops(Ssa::from_str(src).unwrap());
+        assert_eq!(errors.len(), 0, "Unroll should have no errors");
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = make_array [] : [i32]
+            call f1(u32 0, v0)
+            return
+        }
+        brillig(inline) predicate_pure fn iter_0_times f1 {
+          b0(v0: u32, v1: [i32]):
+            jmp b1()
+          b1():
+            jmp b2()
+          b2():
+            return
+        }
+        ");
     }
 }

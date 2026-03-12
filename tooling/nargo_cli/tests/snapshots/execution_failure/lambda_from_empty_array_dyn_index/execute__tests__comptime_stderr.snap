@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: 0 is out of bounds for the array of length 0
+  ┌─ src/main.nr:5:5
+  │
+5 │     lambdas[x - 1](());
+  │     --------------
+  │
+
+Error interpreting main function

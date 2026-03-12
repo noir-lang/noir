@@ -536,7 +536,7 @@ impl<'a> TestRunner<'a> {
             // Also drop main sender so the channel closes
             drop(sender);
 
-            for (package, tests) in receiver.iter() {
+            for (package, tests) in &receiver {
                 match tests {
                     Ok(tests) => {
                         package_tests.insert(package.name.to_string(), tests);

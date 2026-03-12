@@ -191,8 +191,17 @@ pub(crate) enum AssertMessage {
 
 #[derive(Debug)]
 pub(crate) enum ParsedTerminator {
-    Jmp { destination: Identifier, arguments: Vec<ParsedValue> },
-    Jmpif { condition: ParsedValue, then_block: Identifier, else_block: Identifier },
+    Jmp {
+        destination: Identifier,
+        arguments: Vec<ParsedValue>,
+    },
+    Jmpif {
+        condition: ParsedValue,
+        then_block: Identifier,
+        then_arguments: Vec<ParsedValue>,
+        else_block: Identifier,
+        else_arguments: Vec<ParsedValue>,
+    },
     Return(Vec<ParsedValue>),
     Unreachable,
 }
