@@ -562,39 +562,28 @@
 <a href=#562 id=562 data-nosnippet>562</a>                | BinaryOpKind::Modulo
 <a href=#563 id=563 data-nosnippet>563</a>        )
 <a href=#564 id=564 data-nosnippet>564</a>    }
-<a href=#565 id=565 data-nosnippet>565</a>
-<a href=#566 id=566 data-nosnippet>566</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_valid_expression(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-<a href=#567 id=567 data-nosnippet>567</a>        <span class="kw">match </span><span class="self">self </span>{
-<a href=#568 id=568 data-nosnippet>568</a>            UnresolvedTypeExpression::Variable(path) =&gt; path.no_generic(),
-<a href=#569 id=569 data-nosnippet>569</a>            UnresolvedTypeExpression::Constant(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
-<a href=#570 id=570 data-nosnippet>570</a>            UnresolvedTypeExpression::BinaryOperation(lhs, <span class="kw">_</span>, rhs, <span class="kw">_</span>) =&gt; {
-<a href=#571 id=571 data-nosnippet>571</a>                lhs.is_valid_expression() &amp;&amp; rhs.is_valid_expression()
-<a href=#572 id=572 data-nosnippet>572</a>            }
-<a href=#573 id=573 data-nosnippet>573</a>            UnresolvedTypeExpression::AsTraitPath(<span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
-<a href=#574 id=574 data-nosnippet>574</a>        }
-<a href=#575 id=575 data-nosnippet>575</a>    }
-<a href=#576 id=576 data-nosnippet>576</a>}
-<a href=#577 id=577 data-nosnippet>577</a>
-<a href=#578 id=578 data-nosnippet>578</a><span class="attr">#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-<a href=#579 id=579 data-nosnippet>579</a></span><span class="doccomment">/// Represents whether the definition can be referenced outside its module/crate
-<a href=#580 id=580 data-nosnippet>580</a></span><span class="kw">pub enum </span>ItemVisibility {
-<a href=#581 id=581 data-nosnippet>581</a>    Private,
-<a href=#582 id=582 data-nosnippet>582</a>    PublicCrate,
-<a href=#583 id=583 data-nosnippet>583</a>    Public,
-<a href=#584 id=584 data-nosnippet>584</a>}
-<a href=#585 id=585 data-nosnippet>585</a>
-<a href=#586 id=586 data-nosnippet>586</a><span class="kw">impl </span>ItemVisibility {
-<a href=#587 id=587 data-nosnippet>587</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_private(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-<a href=#588 id=588 data-nosnippet>588</a>        <span class="macro">matches!</span>(<span class="self">self</span>, ItemVisibility::Private)
-<a href=#589 id=589 data-nosnippet>589</a>    }
-<a href=#590 id=590 data-nosnippet>590</a>}
-<a href=#591 id=591 data-nosnippet>591</a>
-<a href=#592 id=592 data-nosnippet>592</a><span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>ItemVisibility {
-<a href=#593 id=593 data-nosnippet>593</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
-<a href=#594 id=594 data-nosnippet>594</a>        <span class="kw">match </span><span class="self">self </span>{
-<a href=#595 id=595 data-nosnippet>595</a>            ItemVisibility::Public =&gt; <span class="macro">write!</span>(f, <span class="string">"pub"</span>),
-<a href=#596 id=596 data-nosnippet>596</a>            ItemVisibility::Private =&gt; <span class="prelude-val">Ok</span>(()),
-<a href=#597 id=597 data-nosnippet>597</a>            ItemVisibility::PublicCrate =&gt; <span class="macro">write!</span>(f, <span class="string">"pub(crate)"</span>),
-<a href=#598 id=598 data-nosnippet>598</a>        }
-<a href=#599 id=599 data-nosnippet>599</a>    }
-<a href=#600 id=600 data-nosnippet>600</a>}</code></pre></div></section></main></body></html>
+<a href=#565 id=565 data-nosnippet>565</a>}
+<a href=#566 id=566 data-nosnippet>566</a>
+<a href=#567 id=567 data-nosnippet>567</a><span class="attr">#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+<a href=#568 id=568 data-nosnippet>568</a></span><span class="doccomment">/// Represents whether the definition can be referenced outside its module/crate
+<a href=#569 id=569 data-nosnippet>569</a></span><span class="kw">pub enum </span>ItemVisibility {
+<a href=#570 id=570 data-nosnippet>570</a>    Private,
+<a href=#571 id=571 data-nosnippet>571</a>    PublicCrate,
+<a href=#572 id=572 data-nosnippet>572</a>    Public,
+<a href=#573 id=573 data-nosnippet>573</a>}
+<a href=#574 id=574 data-nosnippet>574</a>
+<a href=#575 id=575 data-nosnippet>575</a><span class="kw">impl </span>ItemVisibility {
+<a href=#576 id=576 data-nosnippet>576</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_private(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+<a href=#577 id=577 data-nosnippet>577</a>        <span class="macro">matches!</span>(<span class="self">self</span>, ItemVisibility::Private)
+<a href=#578 id=578 data-nosnippet>578</a>    }
+<a href=#579 id=579 data-nosnippet>579</a>}
+<a href=#580 id=580 data-nosnippet>580</a>
+<a href=#581 id=581 data-nosnippet>581</a><span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>ItemVisibility {
+<a href=#582 id=582 data-nosnippet>582</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
+<a href=#583 id=583 data-nosnippet>583</a>        <span class="kw">match </span><span class="self">self </span>{
+<a href=#584 id=584 data-nosnippet>584</a>            ItemVisibility::Public =&gt; <span class="macro">write!</span>(f, <span class="string">"pub"</span>),
+<a href=#585 id=585 data-nosnippet>585</a>            ItemVisibility::Private =&gt; <span class="prelude-val">Ok</span>(()),
+<a href=#586 id=586 data-nosnippet>586</a>            ItemVisibility::PublicCrate =&gt; <span class="macro">write!</span>(f, <span class="string">"pub(crate)"</span>),
+<a href=#587 id=587 data-nosnippet>587</a>        }
+<a href=#588 id=588 data-nosnippet>588</a>    }
+<a href=#589 id=589 data-nosnippet>589</a>}</code></pre></div></section></main></body></html>

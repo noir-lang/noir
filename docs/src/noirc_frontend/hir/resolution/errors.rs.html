@@ -184,8 +184,8 @@
 <a href=#184 id=184 data-nosnippet>184</a>    </span>UnexpectedItemInPattern { location: Location, item: String },
 <a href=#185 id=185 data-nosnippet>185</a>    <span class="attr">#[error(<span class="string">"Trait `{trait_name}` doesn't have a method named `{method_name}`"</span>)]
 <a href=#186 id=186 data-nosnippet>186</a>    </span>NoSuchMethodInTrait { trait_name: String, method_name: String, location: Location },
-<a href=#187 id=187 data-nosnippet>187</a>    <span class="attr">#[error(<span class="string">"Cannot use a type alias inside a type alias"</span>)]
-<a href=#188 id=188 data-nosnippet>188</a>    </span>RecursiveTypeAlias { location: Location },
+<a href=#187 id=187 data-nosnippet>187</a>    <span class="attr">#[error(<span class="string">"Numeric type alias expression must only reference generic parameters and constants"</span>)]
+<a href=#188 id=188 data-nosnippet>188</a>    </span>InvalidNumericAliasExpression { location: Location },
 <a href=#189 id=189 data-nosnippet>189</a>    <span class="attr">#[error(<span class="string">"expected numeric expressions, got {typ}"</span>)]
 <a href=#190 id=190 data-nosnippet>190</a>    </span>ExpectedNumericExpression { typ: String, location: Location },
 <a href=#191 id=191 data-nosnippet>191</a>    <span class="attr">#[error(
@@ -281,7 +281,7 @@
 <a href=#281 id=281 data-nosnippet>281</a>            | ResolverError::NoSuchMethodInTrait { location, .. }
 <a href=#282 id=282 data-nosnippet>282</a>            | ResolverError::VariableAlreadyDefinedInPattern { new_location: location, .. }
 <a href=#283 id=283 data-nosnippet>283</a>            | ResolverError::ExpectedNumericExpression { location, .. }
-<a href=#284 id=284 data-nosnippet>284</a>            | ResolverError::RecursiveTypeAlias { location } =&gt; <span class="kw-2">*</span>location,
+<a href=#284 id=284 data-nosnippet>284</a>            | ResolverError::InvalidNumericAliasExpression { location } =&gt; <span class="kw-2">*</span>location,
 <a href=#285 id=285 data-nosnippet>285</a>            ResolverError::NonU32Index { location }
 <a href=#286 id=286 data-nosnippet>286</a>            | ResolverError::NoPredicatesAttributeOnUnconstrained { location, .. }
 <a href=#287 id=287 data-nosnippet>287</a>            | ResolverError::NoPredicatesAttributeOnEntryPoint { location, .. }
@@ -853,9 +853,9 @@
 <a href=#853 id=853 data-nosnippet>853</a>                    <span class="kw-2">*</span>location,
 <a href=#854 id=854 data-nosnippet>854</a>                )
 <a href=#855 id=855 data-nosnippet>855</a>            },
-<a href=#856 id=856 data-nosnippet>856</a>            ResolverError::RecursiveTypeAlias { location } =&gt; {
+<a href=#856 id=856 data-nosnippet>856</a>            ResolverError::InvalidNumericAliasExpression { location } =&gt; {
 <a href=#857 id=857 data-nosnippet>857</a>                Diagnostic::simple_error(
-<a href=#858 id=858 data-nosnippet>858</a>                    <span class="string">"Cannot use a type alias inside a type alias"</span>.to_string(),
+<a href=#858 id=858 data-nosnippet>858</a>                    <span class="string">"Numeric type alias expression must only reference generic parameters and constants"</span>.to_string(),
 <a href=#859 id=859 data-nosnippet>859</a>                    String::new(),
 <a href=#860 id=860 data-nosnippet>860</a>                    <span class="kw-2">*</span>location,
 <a href=#861 id=861 data-nosnippet>861</a>                )
