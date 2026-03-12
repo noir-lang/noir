@@ -737,7 +737,7 @@ impl FuzzerBuilder {
         };
         // In Brillig, arrays use reference counting for copy-on-write.
         // We must increment the RC before array_set so the original array is preserved
-        // if it's used again later, then decrement after.
+        // if it's used again later, then decrement after (during ssa passes).
         // In ACIR, IncrementRc/DecrementRc are not supported (they hit unreachable!).
         if matches!(self.runtime, RuntimeType::Brillig(_)) {
             self.builder.insert_inc_rc(array.value_id);
