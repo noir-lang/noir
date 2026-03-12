@@ -36,7 +36,7 @@ impl Ssa {
 ///
 /// This function is used both by the `checked_to_unchecked` pass (to decide whether to convert)
 /// and by ACIR generation (to verify the conversion was sound).
-pub(crate) fn is_unsigned_sub_safe(
+fn is_unsigned_sub_safe(
     dfg: &DataFlowGraph,
     lhs: ValueId,
     rhs: ValueId,
