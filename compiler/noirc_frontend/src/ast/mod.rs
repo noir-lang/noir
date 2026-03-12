@@ -232,6 +232,7 @@ pub enum UnresolvedTypeExpression {
         Box<UnresolvedTypeExpression>,
         Location,
     ),
+    Negation(Box<UnresolvedTypeExpression>, Location),
     AsTraitPath(Box<AsTraitPath>),
 }
 
@@ -323,6 +324,7 @@ impl std::fmt::Display for UnresolvedTypeExpression {
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, _) => {
                 write!(f, "({lhs} {op} {rhs})")
             }
+            UnresolvedTypeExpression::Negation(rhs, _) => write!(f, "-{rhs}"),
             UnresolvedTypeExpression::AsTraitPath(path) => write!(f, "{path}"),
         }
     }
@@ -475,6 +477,7 @@ impl UnresolvedTypeExpression {
             UnresolvedTypeExpression::Variable(path) => path.location,
             UnresolvedTypeExpression::Constant(_, _, location) => *location,
             UnresolvedTypeExpression::BinaryOperation(_, _, _, location) => *location,
+            UnresolvedTypeExpression::Negation(_, location) => *location,
             UnresolvedTypeExpression::AsTraitPath(path) => {
                 path.trait_path.location.merge(path.impl_item.location())
             }
@@ -492,14 +495,8 @@ impl UnresolvedTypeExpression {
             }
             ExpressionKind::Variable(path) => Ok(UnresolvedTypeExpression::Variable(path)),
             ExpressionKind::Prefix(prefix) if prefix.operator == UnaryOp::Minus => {
-                let lhs = Box::new(UnresolvedTypeExpression::Constant(
-                    SignedField::zero(),
-                    None,
-                    expr.location,
-                ));
                 let rhs = Box::new(UnresolvedTypeExpression::from_expr_helper(prefix.rhs)?);
-                let op = BinaryTypeOperator::Subtraction;
-                Ok(UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, expr.location))
+                Ok(UnresolvedTypeExpression::Negation(rhs, expr.location))
             }
             ExpressionKind::Infix(infix) if Self::operator_allowed(infix.operator.contents) => {
                 let lhs = Box::new(UnresolvedTypeExpression::from_expr_helper(infix.lhs)?);
@@ -546,6 +543,12 @@ impl UnresolvedTypeExpression {
                     rhs: Expression { kind: rhs.to_expression_kind(), location: *location },
                 }))
             }
+            UnresolvedTypeExpression::Negation(rhs, location) => {
+                ExpressionKind::Prefix(Box::new(PrefixExpression {
+                    operator: UnaryOp::Minus,
+                    rhs: Expression { kind: rhs.to_expression_kind(), location: *location },
+                }))
+            }
             UnresolvedTypeExpression::AsTraitPath(path) => {
                 ExpressionKind::AsTraitPath(Box::new(*path.clone()))
             }
@@ -570,6 +573,7 @@ impl UnresolvedTypeExpression {
             UnresolvedTypeExpression::BinaryOperation(lhs, _, rhs, _) => {
                 lhs.is_valid_expression() && rhs.is_valid_expression()
             }
+            UnresolvedTypeExpression::Negation(rhs, _) => rhs.is_valid_expression(),
             UnresolvedTypeExpression::AsTraitPath(_) => true,
         }
     }

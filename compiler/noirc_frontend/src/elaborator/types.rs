@@ -8,7 +8,8 @@ use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
-    Kind, NamedGeneric, ResolvedGeneric, Type, TypeBinding, TypeBindings, UnificationError,
+    BinaryTypeOperator, Kind, NamedGeneric, ResolvedGeneric, Type, TypeBinding, TypeBindings,
+    UnificationError,
     ast::{
         AsTraitPath, BinaryOpKind, GenericTypeArgs, Ident, PathKind, UnaryOp, UnresolvedType,
         UnresolvedTypeData, UnresolvedTypeExpression, WILDCARD_TYPE,
@@ -37,6 +38,7 @@ use crate::{
         DependencyId, ExprId, FuncId, GlobalValue, TraitId, TraitImplKind, TraitItemId,
     },
     shared::Signedness,
+    signed_field::SignedField,
 };
 
 use super::{
@@ -899,6 +901,37 @@ impl Elaborator<'_> {
                         let infix = Type::infix_expr(Box::new(lhs), op, Box::new(rhs));
                         Type::CheckedCast { from: Box::new(infix.clone()), to: Box::new(infix) }
                             .canonicalize()
+                    }
+                }
+            }
+            UnresolvedTypeExpression::Negation(rhs, location) => {
+                let rhs_location = rhs.location();
+                let rhs = self.convert_expression_type(
+                    *rhs,
+                    expected_kind,
+                    rhs_location,
+                    wildcard_allowed,
+                );
+
+                match rhs {
+                    Type::Constant(rhs, rhs_kind) => {
+                        if rhs_kind.is_signed() {
+                            Type::Constant(-rhs, rhs_kind)
+                        } else {
+                            self.push_err(TypeCheckError::InvalidUnaryOp {
+                                typ: rhs_kind.to_string(),
+                                operator: "-",
+                                location,
+                            });
+                            Type::Error
+                        }
+                    }
+                    rhs => {
+                        let kind = rhs.kind().into_numeric_type_or_error();
+                        let zero = Type::Constant(SignedField::zero(), kind);
+                        let sub = BinaryTypeOperator::Subtraction;
+                        let infix = Box::new(Type::infix_expr(Box::new(zero), sub, Box::new(rhs)));
+                        Type::CheckedCast { from: infix.clone(), to: infix }.canonicalize()
                     }
                 }
             }
