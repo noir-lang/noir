@@ -31,6 +31,7 @@ use crate::monomorphization::ast::{self, IdentId, LocalId};
 use crate::monomorphization::ast::{Expression, Function, Literal};
 use iter_extended::vecmap;
 use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::FxHashSet as HashSet;
 
 use super::Context;
 
@@ -161,19 +162,40 @@ struct LastUseContext {
     /// as confirmed, because the reassignment essentially kills the reference to the previous
     /// version and redeclares it as new.
     confirmed_moves: HashMap<LocalId, Vec<IdentId>>,
+
+    /// Variables that have at least one non-extract use (used as a bare ident, not through
+    /// `ExtractTupleField`). Variables NOT in this set may be "extract-only".
+    non_extract_uses: HashSet<LocalId>,
+
+    /// For each variable, counts how many times each field index is extracted via
+    /// `ExtractTupleField`. Used to detect when the same field is extracted multiple
+    /// times (which would make the extract-only optimization unsafe).
+    extract_field_counts: HashMap<LocalId, HashMap<usize, u32>>,
+
+    /// Variables that have extract uses at a different loop level than where they were
+    /// declared. The extract-only optimization is unsafe for these.
+    different_loop_extract_uses: HashSet<LocalId>,
 }
 
 impl Context {
-    /// Traverse the given function and return the last use(s) of each local variable.
-    /// A variable may have multiple last uses if it was last used within a conditional expression.
+    /// Traverse the given function and return the last use(s) of each local variable,
+    /// along with the set of "extract-only" variables.
+    ///
+    /// An extract-only variable is one that is only accessed through `ExtractTupleField`
+    /// (never as a bare ident), with each field extracted at most once, and all uses at the
+    /// same loop level. For these variables, the ownership pass can skip cloning because
+    /// the extractions don't alias each other.
     pub(super) fn find_last_uses_of_variables(
         function: &Function,
-    ) -> HashMap<LocalId, Vec<IdentId>> {
+    ) -> (HashMap<LocalId, Vec<IdentId>>, HashSet<LocalId>) {
         let mut context = LastUseContext {
             current_loop_and_branch: Vec::new(),
             last_uses: HashMap::default(),
             confirmed_moves: HashMap::default(),
             next_id: 0,
+            non_extract_uses: HashSet::default(),
+            extract_field_counts: HashMap::default(),
+            different_loop_extract_uses: HashSet::default(),
         };
 
         context.push_loop_scope();
@@ -181,7 +203,8 @@ impl Context {
             context.declare_variable(*parameter);
         }
         context.track_variables_in_expression(&function.body);
-        context.get_variables_to_move()
+        let extract_only = context.get_extract_only_variables();
+        (context.get_variables_to_move(), extract_only)
     }
 }
 
@@ -347,8 +370,8 @@ impl LastUseContext {
             Expression::If(if_expr) => self.track_variables_in_if(if_expr),
             Expression::Match(match_expr) => self.track_variables_in_match(match_expr),
             Expression::Tuple(elements) => self.track_variables_in_tuple(elements),
-            Expression::ExtractTupleField(tuple, _index) => {
-                self.track_variables_in_expression(tuple);
+            Expression::ExtractTupleField(tuple, index) => {
+                self.track_extract_use(tuple, *index);
             }
             Expression::Call(call) => self.track_variables_in_call(call),
             Expression::Let(let_expr) => self.track_variables_in_let(let_expr),
@@ -368,7 +391,56 @@ impl LastUseContext {
         // We only track last uses for local variables, globals are always cloned
         if let ast::Definition::Local(local_id) = &ident.definition {
             self.remember_use_of_variable(*local_id, ident.id);
+            self.non_extract_uses.insert(*local_id);
         }
+    }
+
+    /// Track a use of a variable through `ExtractTupleField`. This records the use for
+    /// last-use analysis but does NOT mark the variable as having a "non-extract" use,
+    /// allowing it to potentially be classified as extract-only.
+    fn track_extract_use(&mut self, expr: &Expression, field_index: usize) {
+        match expr {
+            Expression::Ident(ident) => {
+                if let ast::Definition::Local(local_id) = &ident.definition {
+                    self.remember_use_of_variable(*local_id, ident.id);
+                    *self
+                        .extract_field_counts
+                        .entry(*local_id)
+                        .or_default()
+                        .entry(field_index)
+                        .or_insert(0) += 1;
+                    if let Some((var_loop_index, _)) = self.last_uses.get(local_id)
+                        && *var_loop_index != self.loop_index()
+                    {
+                        self.different_loop_extract_uses.insert(*local_id);
+                    }
+                }
+            }
+            // For nested extracts like `t.0.1`, the field extracted from `t` is the
+            // inner index (0), not the outer one (1).
+            Expression::ExtractTupleField(inner, inner_index) => {
+                self.track_extract_use(inner, *inner_index);
+            }
+            // Anything else (call, deref, etc.) breaks the extract chain
+            other => self.track_variables_in_expression(other),
+        }
+    }
+
+    /// Compute the set of variables that are only accessed through `ExtractTupleField`
+    /// and are safe to skip cloning for.
+    fn get_extract_only_variables(&self) -> HashSet<LocalId> {
+        self.extract_field_counts
+            .keys()
+            .filter(|id| {
+                !self.non_extract_uses.contains(id)
+                    && !self.different_loop_extract_uses.contains(id)
+                    && self
+                        .extract_field_counts
+                        .get(id)
+                        .is_none_or(|fields| fields.values().all(|count| *count <= 1))
+            })
+            .copied()
+            .collect()
     }
 
     fn track_variables_in_literal(&mut self, literal: &Literal) {

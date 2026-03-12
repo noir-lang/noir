@@ -934,3 +934,29 @@ fn loop_with_conditional_reassignment() {
     }
     ");
 }
+
+#[test]
+fn tuple_mixed_array_non_array_extraction() {
+    let src = "
+    unconstrained fn main() {
+        let arr1 = [1, 2];
+        let arr2 = [3, 4];
+        let t = (arr1, 42, arr2);
+        let _a = t.0;
+        let _b = t.1;
+        let _c = t.2;
+    }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let arr1$l0 = [1, 2];
+        let arr2$l1 = [3, 4];
+        let t$l2 = (arr1$l0, 42, arr2$l1);
+        let _a$l3 = t$l2.0;
+        let _b$l4 = t$l2.1;
+        let _c$l5 = t$l2.2
+    }
+    ");
+}
