@@ -2016,3 +2016,44 @@ fn associated_type_on_parent_and_child() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn associated_type_conflict_with_parent() {
+    let src = r#"
+    trait KeyType {
+        type Key;
+    }
+
+    pub trait Lookup: KeyType {
+        type Key;
+
+        fn find(_: Self::Key) {}
+                   ^^^^^^^^^ Multiple applicable items in scope
+                   ~~~~~~~~~ Multiple traits which provide `Key` are implemented and in scope: `KeyType`, `Lookup`
+    }
+    "#;
+    check_errors(src);
+}
+
+/// Diamond inheritance with a generic parameter: M: B + C where B shadows Key from A,
+/// and C inherits Key from A. M::Key is ambiguous.
+#[test]
+fn associated_type_diamond_ambiguity_on_generic() {
+    let src = r#"
+    trait A {
+        type Key;
+    }
+
+    trait B: A {
+        type Key;
+    }
+
+    trait C: A {}
+
+    pub fn find<M>(_m: M, _k: M::Key) where M: B + C {}
+                              ^^^^^^ Multiple applicable items in scope
+                              ~~~~~~ Multiple traits which provide `Key` are implemented and in scope: `A`, `B`
+    fn main() {}
+    "#;
+    check_errors(src);
+}

@@ -287,16 +287,32 @@ impl Elaborator<'_> {
 
     /// Resolve `Self::Foo` to an associated type on the current trait or trait impl.
     /// Also searches parent traits.
-    fn lookup_associated_type_on_self(&self, path: &TypedPath) -> Option<Type> {
+    fn lookup_associated_type_on_self(&mut self, path: &TypedPath) -> Option<Type> {
         if path.segments.len() == 2 && path.first_name() == Some(SELF_TYPE_NAME) {
             let name = path.last_name();
 
             // Inside a trait definition (not an impl): check this trait and its parent traits.
             if self.current_trait_impl.is_none()
                 && let Some(trait_id) = self.current_trait
-                && let Some(typ) = self.lookup_associated_type_in_parent_traits(trait_id, name)
             {
-                return Some(typ);
+                let mut found = self.lookup_associated_type_in_parent_traits(trait_id, name);
+                match found.len() {
+                    0 => {}
+                    1 => return Some(found.remove(0).1),
+                    _ => {
+                        let location = path.location;
+                        let trait_names: Vec<_> = found
+                            .iter()
+                            .map(|(id, _)| self.interner.get_trait(*id).name.to_string())
+                            .collect();
+                        let ident = Ident::new(name.to_string(), location);
+                        self.push_err(PathResolutionError::MultipleTraitsInScope {
+                            ident,
+                            traits: trait_names,
+                        });
+                        return Some(Type::Error);
+                    }
+                }
             }
 
             // Inside a trait impl: check the impl's own types, then parent trait impls.
@@ -322,23 +338,32 @@ impl Elaborator<'_> {
         &self,
         trait_id: TraitId,
         name: &str,
-    ) -> Option<Type> {
+    ) -> Vec<(TraitId, Type)> {
+        let mut found = Vec::new();
+        self.collect_associated_type_in_parent_traits(trait_id, name, &mut found);
+        found
+    }
+
+    /// Recursively collect all (trait_id, type) pairs for a named associated type
+    /// across a trait and its parent hierarchy.
+    fn collect_associated_type_in_parent_traits(
+        &self,
+        trait_id: TraitId,
+        name: &str,
+        found: &mut Vec<(TraitId, Type)>,
+    ) {
         let the_trait = self.interner.get_trait(trait_id);
         if let Some(typ) = the_trait.get_associated_type(name) {
-            return Some(
-                typ.clone().into_named_generic(Some((SELF_TYPE_NAME, the_trait.name.as_str()))),
-            );
+            let typ =
+                typ.clone().into_named_generic(Some((SELF_TYPE_NAME, the_trait.name.as_str())));
+            found.push((trait_id, typ));
         }
 
         let parent_trait_ids: Vec<_> =
             the_trait.trait_bounds.iter().map(|bound| bound.trait_id).collect();
         for parent_id in parent_trait_ids {
-            if let Some(typ) = self.lookup_associated_type_in_parent_traits(parent_id, name) {
-                return Some(typ);
-            }
+            self.collect_associated_type_in_parent_traits(parent_id, name, found);
         }
-
-        None
     }
 
     /// Search for an associated type in parent 'trait impls'.
@@ -383,9 +408,9 @@ impl Elaborator<'_> {
                 _ => {
                     // Lookup failed (e.g. self type is too generic). Fall back to
                     // searching the parent trait's definition for the associated type.
-                    if let Some(typ) =
-                        self.lookup_associated_type_in_parent_traits(parent_bound.trait_id, name)
-                    {
+                    let found =
+                        self.lookup_associated_type_in_parent_traits(parent_bound.trait_id, name);
+                    if let Some((_, typ)) = found.into_iter().next() {
                         return Some(typ);
                     }
                 }
