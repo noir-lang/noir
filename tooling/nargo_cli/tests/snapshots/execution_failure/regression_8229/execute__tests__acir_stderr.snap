@@ -9,7 +9,8 @@ warning: Return variable contains a constant value
   │     ----- This variable contains a value which is constrained to be a constant. Consider removing this value as additional return values increase proving/verification time
   │
   = Call stack:
-    1. src/main.nr:8:5
+    1: main
+            at src/main.nr:8:5
 
 error: Assertion failed: attempt to multiply with overflow
   ┌─ src/main.nr:4:10
@@ -18,6 +19,7 @@ error: Assertion failed: attempt to multiply with overflow
   │          -----------
   │
   = Call stack:
-    1. src/main.nr:4:10
+    1: main
+            at src/main.nr:4:10
 
 Failed assertion
