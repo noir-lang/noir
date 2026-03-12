@@ -1658,7 +1658,7 @@ mod tests {
 
     #[test]
     #[traced_test]
-    fn array_set_with_nonconstant_index_constrain_against_set_value() {
+    fn array_set_with_variable_index_constrain_against_set_value() {
         // Array built from constants, then array_set with a non-constant index
         // inserts v0. Brillig result constrained against v0.
         let program = r#"
