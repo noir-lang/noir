@@ -708,8 +708,10 @@ impl Elaborator<'_> {
                 .unwrap_or((HirExpression::Error, Type::Error));
         }
 
-        // Other cases just return the call (ignoring has_errors since we're not calling interpreter)
+        // In comptime context, macro calls are not immediately expanded but still need validation:
+        // the callee must be a comptime function and the return type must be Quoted.
         if is_macro_call && self.in_comptime_context() {
+            self.validate_macro_call(hir_call.func, &typ, location);
             typ = self.interner.next_type_variable();
         }
 
@@ -790,8 +792,10 @@ impl Elaborator<'_> {
                 .unwrap_or((HirExpression::Error, Type::Error));
         }
 
-        // Other cases just return the call (ignoring has_errors since we're not calling interpreter)
+        // In comptime context, macro calls are not immediately expanded but still need validation:
+        // the callee must be a comptime function and the return type must be Quoted.
         if is_macro_call && self.in_comptime_context() {
+            self.validate_macro_call(function_call.func, &typ, location);
             typ = self.interner.next_type_variable();
         }
 
@@ -1723,6 +1727,27 @@ impl Elaborator<'_> {
         }
     }
 
+    /// Validate a macro call without executing it.
+    /// Checks that the callee is a comptime function and the return type is `Quoted`.
+    fn validate_macro_call(
+        &mut self,
+        func: ExprId,
+        return_type: &Type,
+        location: Location,
+    ) -> Option<FuncId> {
+        self.unify(return_type, &Type::Quoted(QuotedType::Quoted), || {
+            TypeCheckError::MacroReturningNonExpr { typ: return_type.clone(), location }
+        });
+
+        match self.try_get_comptime_function(func, location) {
+            Ok(function) => Some(function),
+            Err(error) => {
+                self.push_err(error);
+                None
+            }
+        }
+    }
+
     /// Call a macro function and inlines its code at the call site.
     /// This will also perform a type check to ensure that the return type is an `Expr` value.
     fn call_macro(
@@ -1732,17 +1757,7 @@ impl Elaborator<'_> {
         location: Location,
         return_type: Type,
     ) -> Option<(HirExpression, Type)> {
-        self.unify(&return_type, &Type::Quoted(QuotedType::Quoted), || {
-            TypeCheckError::MacroReturningNonExpr { typ: return_type.clone(), location }
-        });
-
-        let function = match self.try_get_comptime_function(func, location) {
-            Ok(function) => function,
-            Err(error) => {
-                self.push_err(error);
-                return None;
-            }
-        };
+        let function = self.validate_macro_call(func, &return_type, location)?;
 
         let mut interpreter = self.setup_interpreter();
         let mut comptime_args = Vec::new();
