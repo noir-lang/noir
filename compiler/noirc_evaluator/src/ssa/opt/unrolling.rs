@@ -1473,7 +1473,7 @@ impl<'f> LoopIteration<'f> {
                     // We found the back-edge of the loop.
                     assert!(!arguments.is_empty(), "back-edge should have at least 1 argument");
                     assert!(self.induction_value.is_none(), "there should be only one back-edge");
-                    self.induction_value = Some((self.insert_block, arguments.to_vec()));
+                    self.induction_value = Some((self.insert_block, arguments.clone()));
                 }
                 vec![*destination]
             }
