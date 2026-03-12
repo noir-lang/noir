@@ -203,7 +203,7 @@ fn disallows_numeric_type_aliases_to_expression_with_alias() {
     let src = r#"
     type Double<let N: u32>: u32 = N * 2;
     type Quadruple<let N: u32>: u32 = Double::<N>+Double::<N>;
-                                      ^^^^^^^^^^^^^^^^^^^^^^^^ Cannot use a type alias inside a type alias
+                                      ^^^^^^^^^^^^^^^^^^^^^^^^ Numeric type alias expression must only reference generic parameters and constants
     fn main() {
         let b: [u32; 12] = foo();
                            ^^^ Type annotation needed
@@ -227,7 +227,7 @@ fn disallows_numeric_type_aliases_to_expression_with_alias_2() {
     let src = r#"
     type Double<let N: u32>: u32 = N * 2;
     type Quadruple<let N: u32>: u32 = N*(Double::<N>+3);
-                                      ^^^^^^^^^^^^^^^^^^ Cannot use a type alias inside a type alias
+                                      ^^^^^^^^^^^^^^^^^^ Numeric type alias expression must only reference generic parameters and constants
 
     fn main() {
         let b: [u32; 12] = foo();
@@ -251,8 +251,7 @@ fn disallows_numeric_type_aliases_to_expression_with_alias_2() {
 fn disallows_numeric_type_aliases_to_type() {
     let src = r#"
     type Foo: u32 = u32;
-                    ^^^ Type provided when a numeric generic was expected
-                    ~~~ the numeric generic is not of type `u32`
+                    ^^^^ Numeric type alias expression must only reference generic parameters and constants
 
     fn main(a: Foo) -> pub Foo {
         a
@@ -919,6 +918,20 @@ fn cannot_assign_to_numeric_type_alias() {
     fn main() {
         N = 2;
         ^ expected value, found type alias `N`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn numeric_type_alias_to_type_alias_errors_at_declaration() {
+    let src = r#"
+    type One: u32 = Two;
+                    ^^^^ Numeric type alias expression must only reference generic parameters and constants
+    type Two = u32;
+
+    fn main(a: One) -> pub Two {
+        a
     }
     "#;
     check_errors(src);

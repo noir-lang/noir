@@ -563,12 +563,18 @@ impl UnresolvedTypeExpression {
         )
     }
 
-    pub(crate) fn is_valid_expression(&self) -> bool {
+    /// Checks that this expression only references the given alias generics and constants.
+    /// Used to validate the RHS of numeric type alias declarations.
+    pub(crate) fn is_valid_numeric_alias_expression(&self, alias_generics: &[&str]) -> bool {
         match self {
-            UnresolvedTypeExpression::Variable(path) => path.no_generic(),
+            UnresolvedTypeExpression::Variable(path) => {
+                path.is_ident()
+                    && path.first_name().is_some_and(|name| alias_generics.contains(&name))
+            }
             UnresolvedTypeExpression::Constant(_, _, _) => true,
             UnresolvedTypeExpression::BinaryOperation(lhs, _, rhs, _) => {
-                lhs.is_valid_expression() && rhs.is_valid_expression()
+                lhs.is_valid_numeric_alias_expression(alias_generics)
+                    && rhs.is_valid_numeric_alias_expression(alias_generics)
             }
             UnresolvedTypeExpression::AsTraitPath(_) => true,
         }
