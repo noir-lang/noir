@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773331216725,
+  "lastUpdate": 1773331464672,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23186,48 +23186,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "8ed92939bd6f786f8f6468554b28915f5d441d17",
-          "message": "chore(deps): bump immutable from 4.3.7 to 4.3.8 (#11781)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-03-05T14:54:31Z",
-          "tree_id": "b20e0988feb63516a1b1e6904569f72375ae799f",
-          "url": "https://github.com/noir-lang/noir/commit/8ed92939bd6f786f8f6468554b28915f5d441d17"
-        },
-        "date": 1772724148375,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252666,
-            "range": "± 1756",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 221371,
-            "range": "± 4514",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2745245,
-            "range": "± 8296",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25279,6 +25237,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2733938,
             "range": "± 1867",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "e3904eb99585e7f67648890bae4f290b1cd2dfb4",
+          "message": "fix: look for associated types on parent traits and impls (#11745)",
+          "timestamp": "2026-03-12T15:32:10Z",
+          "tree_id": "1945ffef496cd15b1151675f63071851612e9764",
+          "url": "https://github.com/noir-lang/noir/commit/e3904eb99585e7f67648890bae4f290b1cd2dfb4"
+        },
+        "date": 1773331417350,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 251786,
+            "range": "± 900",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 220849,
+            "range": "± 6012",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2730729,
+            "range": "± 1875",
             "unit": "ns/iter"
           }
         ]
