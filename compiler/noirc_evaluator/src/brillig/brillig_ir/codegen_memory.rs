@@ -60,9 +60,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         result: MemoryAddress,
     ) {
         assert!(index.bit_size == BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
-        let final_index = self.allocate_register();
-        self.memory_op_instruction(base_ptr, index.address, *final_index, BrilligBinaryOp::Add);
-        self.load_instruction(result, *final_index);
+        self.memory_op_instruction(base_ptr, index.address, result, BrilligBinaryOp::Add);
+        self.load_instruction(result, result);
     }
 
     /// Stores value at `base_ptr` + `index`.
