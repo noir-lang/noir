@@ -557,6 +557,7 @@ impl<'a> FunctionContext<'a> {
     ) -> arbitrary::Result<Option<TrackedExpression>> {
         if let Some(id) = self.choose_producer(u, typ)? {
             let (src_mutable, src_name, src_type) = self.get_variable(&id).clone();
+            let src_type = Rc::new(src_type);
             let ident_id = self.next_ident_id();
             let src_expr = expr::ident(id, ident_id, src_mutable, src_name, src_type.clone());
             let src_dyn = match id {
@@ -1293,7 +1294,7 @@ impl<'a> FunctionContext<'a> {
             self.next_ident_id(),
             mutable,
             name.clone(),
-            typ,
+            Rc::new(typ),
         );
         (v, i)
     }
@@ -2103,7 +2104,7 @@ impl<'a> FunctionContext<'a> {
     fn local_ident(&mut self, id: LocalId) -> Ident {
         let (mutable, name, typ) = self.locals.current().get_variable(&id).clone();
         let ident_id = self.next_ident_id();
-        expr::ident_inner(VariableId::Local(id), ident_id, mutable, name, typ)
+        expr::ident_inner(VariableId::Local(id), ident_id, mutable, name, Rc::new(typ))
     }
 
     /// Type of a local variable.
@@ -2120,7 +2121,7 @@ impl<'a> FunctionContext<'a> {
         let idx_name = format!("idx_{}", make_name(idx_local_id.0 as usize, false));
         let idx_variable_id = VariableId::Local(idx_local_id);
         let idx_ident =
-            expr::ident_inner(idx_variable_id, idx_id, true, idx_name.clone(), idx_type);
+            expr::ident_inner(idx_variable_id, idx_id, true, idx_name.clone(), Rc::new(idx_type));
         (idx_local_id, idx_name, idx_ident)
     }
 
@@ -2165,7 +2166,8 @@ impl<'a> FunctionContext<'a> {
     ) -> (LocalId, String, Expression) {
         let (_, name, typ) = self.globals.get_variable(&id).clone();
         let ident_id = self.next_ident_id();
-        let ident = expr::ident(VariableId::Global(id), ident_id, false, name, typ.clone());
+        let ident =
+            expr::ident(VariableId::Global(id), ident_id, false, name, Rc::new(typ.clone()));
         let let_expr = self.let_var(mutable, typ, ident, add_to_scope, false, local_name);
         let Expression::Let(Let { id, name, .. }) = &let_expr else {
             unreachable!("expected Let; got {let_expr:?}");

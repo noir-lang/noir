@@ -185,12 +185,12 @@ impl<'a, 'b> LimitContext<'a, 'b> {
     ) -> arbitrary::Result<()> {
         let limit_var = VariableId::Local(limit_id);
 
-        let limit_type = types::ref_mut(types::U32);
+        let limit_type = Rc::new(types::ref_mut(types::U32));
         self.func.parameters.push((
             limit_id,
             false,
             LIMIT_NAME.to_string(),
-            Rc::new(limit_type.clone()),
+            limit_type.clone(),
             Visibility::Private,
         ));
 
@@ -289,7 +289,7 @@ impl<'a, 'b> LimitContext<'a, 'b> {
                                 self.next_ident_id(),
                                 *mutable,
                                 name.clone(),
-                                typ.as_ref().clone(),
+                                typ.clone(),
                             ),
                             typ.as_ref().clone(),
                         )
@@ -300,7 +300,7 @@ impl<'a, 'b> LimitContext<'a, 'b> {
                             self.next_ident_id(),
                             *mutable,
                             name.clone(),
-                            typ.as_ref().clone(),
+                            typ.clone(),
                         )
                     }
                 })
@@ -360,7 +360,7 @@ impl<'a, 'b> LimitContext<'a, 'b> {
                                 self.next_ident_id(),
                                 true,
                                 LIMIT_NAME.to_string(),
-                                types::U32,
+                                Rc::new(types::U32),
                             )
                         } else {
                             expr::deref(
@@ -369,7 +369,7 @@ impl<'a, 'b> LimitContext<'a, 'b> {
                                     self.next_ident_id(),
                                     false,
                                     LIMIT_NAME.to_string(),
-                                    types::ref_mut(types::U32),
+                                    Rc::new(types::ref_mut(types::U32)),
                                 ),
                                 types::U32,
                             )
@@ -387,7 +387,7 @@ impl<'a, 'b> LimitContext<'a, 'b> {
                                     self.next_ident_id(),
                                     true,
                                     LIMIT_NAME.to_string(),
-                                    types::U32,
+                                    Rc::new(types::U32),
                                 ),
                                 limit_type,
                             )
@@ -398,7 +398,7 @@ impl<'a, 'b> LimitContext<'a, 'b> {
                                 self.next_ident_id(),
                                 false,
                                 LIMIT_NAME.to_string(),
-                                limit_type,
+                                Rc::new(limit_type),
                             )
                         };
                         param_types.push(types::U32);

@@ -250,7 +250,7 @@ pub(crate) fn ident(
     id: IdentId,
     mutable: bool,
     name: Name,
-    typ: Type,
+    typ: Rc<Type>,
 ) -> Expression {
     Expression::Ident(ident_inner(variable_id, id, mutable, name, typ))
 }
@@ -261,7 +261,7 @@ pub(crate) fn ident_inner(
     id: IdentId,
     mutable: bool,
     name: Name,
-    typ: Type,
+    typ: Rc<Type>,
 ) -> Ident {
     Ident {
         location: None,
@@ -271,7 +271,7 @@ pub(crate) fn ident_inner(
         },
         mutable,
         name,
-        typ: Rc::new(typ),
+        typ,
         id,
     }
 }
