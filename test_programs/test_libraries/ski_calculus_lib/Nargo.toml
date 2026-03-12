@@ -1,6 +1,6 @@
 [package]
-name = "ski_calculus"
-type = "bin"
+name = "ski_calculus_lib"
+type = "lib"
 authors = [""]
 compiler_unstable_features = ["enums"]
 
