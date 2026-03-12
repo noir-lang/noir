@@ -116,20 +116,6 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         );
     }
 
-    /// This codegen will issue a loop that will iterate from 0 to iteration_count.
-    /// The body of the loop should be issued by the caller in the on_iteration closure.
-    ///
-    /// # Safety
-    /// `iteration_count` value must not exceed u32::MAX for correct behavior.
-    /// See [BrilligContext::codegen_for_loop] for more information.     
-    pub(crate) fn codegen_loop(
-        &mut self,
-        iteration_count: MemoryAddress,
-        on_iteration: impl FnOnce(&mut BrilligContext<F, Registers>, SingleAddrVariable),
-    ) {
-        self.codegen_for_loop(None, iteration_count, None, on_iteration);
-    }
-
     /// This codegen will issue an if-then branch that will check if the condition is true
     /// and if so, perform the instructions given in `f(self, true)` and otherwise perform the
     /// instructions given in `f(self, false)`. A boolean is passed instead of two separate
