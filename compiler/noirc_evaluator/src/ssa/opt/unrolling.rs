@@ -1031,6 +1031,47 @@ impl Loop {
         (loads, stores)
     }
 
+    /// Count the total extra block parameter move costs from promoted mutable variables
+    /// across all terminators in the loop.
+    ///
+    /// After unrolling, all Jmp terminators within the loop are eliminated, so every
+    /// argument on them (except the induction variable on back-edge Jmps) is boilerplate.
+    /// Similarly, JmpIf `then_arguments`/`else_arguments` that thread promoted values
+    /// to loop-internal blocks are also boilerplate.
+    fn count_extra_jmp_params(&self, function: &Function) -> usize {
+        let mut extra = 0;
+        for block_id in &self.blocks {
+            match function.dfg[*block_id].terminator() {
+                Some(TerminatorInstruction::Jmp { destination, arguments, .. }) => {
+                    if self.blocks.contains(destination) || *destination == self.header {
+                        // For Jmps to the header, the first arg is the induction variable (not extra).
+                        // For Jmps between loop-internal blocks, all args are extra.
+                        let structural_args = if *destination == self.header { 1 } else { 0 };
+                        extra += arguments.len().saturating_sub(structural_args);
+                    }
+                }
+                Some(TerminatorInstruction::JmpIf {
+                    then_destination,
+                    then_arguments,
+                    else_destination,
+                    else_arguments,
+                    ..
+                }) => {
+                    // Count args to loop-internal destinations (these are promoted
+                    // variable moves that disappear after unrolling).
+                    if self.blocks.contains(then_destination) {
+                        extra += then_arguments.len();
+                    }
+                    if self.blocks.contains(else_destination) {
+                        extra += else_arguments.len();
+                    }
+                }
+                _ => {}
+            }
+        }
+        extra
+    }
+
     /// Count the Brillig-weighted cost of instructions in the loop, including terminators.
     ///
     /// When `callee_costs` is non-empty, calls to functions that will be inlined use
@@ -1106,6 +1147,7 @@ impl Loop {
     fn count_useless_cost(
         &self,
         function: &Function,
+        cfg: &ControlFlowGraph,
         constant_initial_refs: &HashSet<ValueId>,
     ) -> usize {
         let mut useless_cost = 0;
@@ -1115,6 +1157,22 @@ impl Loop {
 
         let mut constant_after_unroll: HashSet<ValueId> = HashSet::default();
         constant_after_unroll.insert(induction_var);
+
+        // Seed with header block parameters whose pre-header initial values are constant.
+        // This is the promoted-variable analogue of the constant_initial_refs load propagation:
+        // after mem2reg, what were loads from constant-initial refs become header params
+        // initialized with constant values from the pre-header Jmp.
+        if let Ok(pre_header) = self.get_pre_header(function, cfg)
+            && let Some(TerminatorInstruction::Jmp { arguments, .. }) =
+                function.dfg[pre_header].terminator()
+        {
+            let header_params = function.dfg[self.header].parameters();
+            for (param, arg) in header_params.iter().zip(arguments.iter()) {
+                if is_from_constant_source(*arg, &function.dfg) {
+                    constant_after_unroll.insert(*param);
+                }
+            }
+        }
 
         for block in &self.blocks {
             for instruction_id in function.dfg[*block].instructions() {
@@ -1173,8 +1231,15 @@ impl Loop {
         let useless_cost = if !is_fully_executed {
             0
         } else {
-            self.count_useless_cost(function, &constant_initial_refs)
+            self.count_useless_cost(function, cfg, &constant_initial_refs)
         };
+
+        // Count extra block parameter move costs from promoted mutable variables.
+        // After mem2reg, what were load/store pairs become block parameter
+        // moves threaded through Jmp terminators. These moves are boilerplate that
+        // disappears after unrolling, analogous to the load/store pairs they replaced.
+        let extra_jmp_params = self.count_extra_jmp_params(function);
+        let header_params = function.dfg[self.header].parameters().len();
 
         // Currently we don't iterate in reverse, so if upper <= lower it means 0 iterations.
         let iterations: usize = upper
@@ -1185,7 +1250,15 @@ impl Loop {
             )
             .unwrap_or_default();
 
-        Some(BoilerplateStats { iterations, loads, stores, total_cost, useless_cost })
+        Some(BoilerplateStats {
+            iterations,
+            loads,
+            stores,
+            total_cost,
+            useless_cost,
+            extra_jmp_params,
+            header_params,
+        })
     }
 }
 
@@ -1240,15 +1313,22 @@ struct BoilerplateStats {
     /// after unrolling. This includes the bound comparison (lt), induction variable
     /// increments, and any other instructions whose operands are all known after unrolling.
     useless_cost: usize,
+    /// Total extra Jmp arguments across all loop-internal Jmps that are boilerplate
+    /// from promoted mutable variables (e.g. block parameters from mem2reg).
+    /// These move costs disappear after unrolling.
+    extra_jmp_params: usize,
+    /// Number of header block parameters (including the induction variable).
+    /// Used to compute the pre-header Jmp cost in `baseline_cost`.
+    header_params: usize,
 }
 
 impl BoilerplateStats {
     /// Brillig-weighted cost if we leave the loop as-is.
     /// It's the cost of the loop body, plus the pre-header jmp that kicks it off.
     fn baseline_cost(&self) -> usize {
-        // Pre-header jmp has 1 argument (the induction variable initial value):
-        // Brillig cost = 1 (jump) + 1 (move for 1 arg) = 2
-        self.total_cost + 2
+        // Pre-header jmp: 1 (jump) + N moves for header params
+        let pre_header_jmp = 1 + self.header_params;
+        self.total_cost + pre_header_jmp
     }
 
     /// Estimated Brillig-weighted cost of _useful_ instructions, which is the
@@ -1259,7 +1339,8 @@ impl BoilerplateStats {
         let terminators = 2 + 2;
         // Load=1, Store=1 in Brillig (matches current *2 for pairs)
         let load_and_store = self.loads.min(self.stores) * 2;
-        let total_boilerplate = load_and_store + terminators;
+        // Extra Jmp args from promoted block parameters (all boilerplate)
+        let total_boilerplate = load_and_store + terminators + self.extra_jmp_params;
         assert!(
             total_boilerplate <= self.total_cost,
             "Boilerplate cost exceeds total cost in loop"
@@ -1644,8 +1725,8 @@ mod tests {
     use crate::ssa::{Ssa, ir::value::ValueId, opt::assert_normalized_ssa_equals};
 
     use super::{
-        BoilerplateStats, FORCE_UNROLL_THRESHOLD, HashMap, LoopOrder, Loops, MAX_UNROLL_ITERATIONS,
-        is_new_size_ok,
+        Binary, BinaryOp, BoilerplateStats, FORCE_UNROLL_THRESHOLD, HashMap, Instruction,
+        LoopOrder, Loops, MAX_UNROLL_ITERATIONS, TerminatorInstruction, is_new_size_ok,
     };
 
     /// Tries to unroll all loops in each SSA function once, calling the `Function` directly,
@@ -2698,6 +2779,109 @@ mod tests {
             jmp b3(v8)
           b3(v1: Field):
             return v1
+        }
+        ");
+    }
+
+    /// Regression test: after mem2reg promotes loads/stores to block parameters,
+    /// the loop should still be identified as small enough to unroll.
+    /// This is the SSA for the `brillig_cow_assign` integration test post mem2reg.
+    #[test]
+    fn test_brillig_unroll_after_mem2reg_simple() {
+        let src = "
+            brillig(inline) predicate_pure fn main f0 {
+                b0():
+                    v6 = make_array [Field 0, Field 0, Field 0, Field 0, Field 0, Field 0, Field 0, Field 0, Field 0, Field 0] : [Field; 10]
+                    inc_rc v6
+                    jmp b1(u32 0, v6, v6)
+                b1(v1: u32, v2: [Field; 10], v3: [Field; 10]):
+                    v8 = lt v1, u32 10
+                    jmpif v8 then: b2(), else: b3()
+                b2():
+                    v16 = eq v1, u32 5
+                    jmpif v16 then: b4(), else: b5(v3)
+                b3():
+                    v10 = array_get v2, index u32 6 -> Field
+                    constrain v10 == Field 27
+                    v12 = array_get v3, index u32 6 -> Field
+                    v13 = eq v12, Field 27
+                    constrain v13 == u1 0
+                    return
+                b4():
+                    inc_rc v2
+                    jmp b5(v2)
+                b5(v4: [Field; 10]):
+                    v17 = array_set v2, index v1, value Field 27
+                    v19 = unchecked_add v1, u32 1
+                    jmp b1(v19, v17, v4)
+            }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        // After mem2reg_simple, no loads/stores remain — the cost model must recognize
+        // the extra Jmp params and constant-initial header params as boilerplate.
+        let stats = loop0_stats(&ssa);
+        assert_eq!(
+            stats.extra_jmp_params, 4,
+            "should count extra block param moves as boilerplate"
+        );
+        assert_eq!(stats.header_params, 3, "header has induction var + 2 promoted params");
+        assert!(
+            stats.unrolled_cost() <= FORCE_UNROLL_THRESHOLD,
+            "unrolled_cost {} should be within force-unroll threshold {}",
+            stats.unrolled_cost(),
+            FORCE_UNROLL_THRESHOLD,
+        );
+
+        let (ssa, errors) = try_unroll_loops(ssa);
+        assert_eq!(errors.len(), 0, "Unroll should have no errors");
+        // Loop has been unrolled
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            v5 = make_array [Field 0, Field 0, Field 0, Field 0, Field 0, Field 0, Field 0, Field 0, Field 0, Field 0] : [Field; 10]
+            inc_rc v5
+            jmp b9(v5)
+          b3():
+            v10 = array_get v73, index u32 6 -> Field
+            constrain v10 == Field 27
+            v12 = array_get v72, index u32 6 -> Field
+            v13 = eq v12, Field 27
+            constrain v13 == u1 0
+            return
+          b9(v21: [Field; 10]):
+            v22 = array_set v5, index u32 0, value Field 27
+            jmp b14(v21)
+          b14(v26: [Field; 10]):
+            v27 = array_set v22, index u32 1, value Field 27
+            jmp b19(v26)
+          b19(v32: [Field; 10]):
+            v33 = array_set v27, index u32 2, value Field 27
+            jmp b24(v32)
+          b24(v38: [Field; 10]):
+            v39 = array_set v33, index u32 3, value Field 27
+            jmp b29(v38)
+          b29(v44: [Field; 10]):
+            v45 = array_set v39, index u32 4, value Field 27
+            jmp b33()
+          b33():
+            inc_rc v45
+            jmp b34(v45)
+          b34(v49: [Field; 10]):
+            v50 = array_set v45, index u32 5, value Field 27
+            jmp b39(v49)
+          b39(v54: [Field; 10]):
+            v55 = array_set v50, index u32 6, value Field 27
+            jmp b44(v54)
+          b44(v60: [Field; 10]):
+            v61 = array_set v55, index u32 7, value Field 27
+            jmp b49(v60)
+          b49(v66: [Field; 10]):
+            v67 = array_set v61, index u32 8, value Field 27
+            jmp b54(v66)
+          b54(v72: [Field; 10]):
+            v73 = array_set v67, index u32 9, value Field 27
+            jmp b3()
         }
         ");
     }
