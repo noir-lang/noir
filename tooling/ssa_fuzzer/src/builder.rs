@@ -188,9 +188,9 @@ impl FuzzerBuilder {
         let mut value_id = value.value_id;
 
         // If we cast Field -> u1 we should cast to u8 first
-        if value.is_field() && cast_type == Type::Numeric(NumericType::U1) {
-            value_id = self.insert_cast(value, Type::Numeric(NumericType::U8));
-            return self.insert_cast(value_id, cast_type);
+        if value.is_field() && cast_type == Type::Numeric(NumericType::Boolean) {
+            let casted_to_u8 = self.insert_cast(value, Type::Numeric(NumericType::U8));
+            return self.insert_cast(casted_to_u8, cast_type);
         }
 
         // if not field, truncate
