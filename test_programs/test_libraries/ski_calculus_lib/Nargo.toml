@@ -1,6 +1,6 @@
 [package]
-name = "regression_7323"
-type = "bin"
+name = "ski_calculus_lib"
+type = "lib"
 authors = [""]
 compiler_unstable_features = ["enums"]
 
