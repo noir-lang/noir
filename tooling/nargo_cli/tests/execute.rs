@@ -56,10 +56,6 @@ mod tests {
             nargo.arg("--enable-brillig-debug-assertions");
         }
 
-        // Enable enums and trait_as_type as unstable features
-        nargo.arg("-Zenums");
-        nargo.arg("-Ztrait_as_type");
-
         if force_brillig.0 {
             {
                 nargo.arg("--force-brillig");
@@ -203,10 +199,6 @@ mod tests {
                 nargo.arg("--force-brillig");
             }
         }
-
-        // Enable enums and trait_as_type as unstable features
-        nargo.arg("-Zenums");
-        nargo.arg("-Ztrait_as_type");
 
         nargo
             .assert()
@@ -378,9 +370,6 @@ mod tests {
         nargo.arg("--program-dir").arg(test_program_dir.clone());
         nargo.arg("execute").arg("--force").arg("--disable-comptime-printing");
 
-        // Enable enums as an unstable feature
-        nargo.arg("-Zenums");
-
         nargo.assert().success();
 
         let original_output = nargo.output().unwrap();
@@ -390,9 +379,6 @@ mod tests {
         let mut nargo = Command::cargo_bin("nargo").unwrap();
         nargo.arg("--program-dir").arg(test_program_dir.clone());
         nargo.arg("expand").arg("--force").arg("--disable-comptime-printing");
-
-        // Enable enums as an unstable feature
-        nargo.arg("-Zenums");
 
         nargo.assert().success();
 
@@ -428,9 +414,6 @@ mod tests {
         nargo.arg("--program-dir").arg(temp_dir);
         nargo.arg("execute").arg("--force").arg("--disable-comptime-printing");
 
-        // Enable enums as an unstable feature
-        nargo.arg("-Zenums");
-
         nargo.assert().success();
 
         let expanded_output = nargo.output().unwrap();
@@ -447,9 +430,6 @@ mod tests {
         let mut nargo = Command::cargo_bin("nargo").unwrap();
         nargo.arg("--program-dir").arg(&test_program_dir);
         nargo.arg("expand").arg("--force").arg("--disable-comptime-printing");
-
-        // Enable enums as an unstable feature
-        nargo.arg("-Zenums");
 
         nargo.assert().success();
 
@@ -485,9 +465,6 @@ mod tests {
         nargo.arg("--program-dir").arg(temp_dir);
         nargo.arg("compile").arg("--force");
 
-        // Enable enums as an unstable feature
-        nargo.arg("-Zenums");
-
         nargo.assert().success();
     }
 
@@ -496,9 +473,6 @@ mod tests {
         let mut nargo = Command::cargo_bin("nargo").unwrap();
         nargo.arg("--program-dir").arg(test_program_dir.clone());
         nargo.arg("execute").arg("--force-comptime");
-
-        // Enable enums as an unstable feature
-        nargo.arg("-Zenums");
 
         nargo.assert().success();
 
@@ -512,9 +486,6 @@ mod tests {
         let mut nargo = Command::cargo_bin("nargo").unwrap();
         nargo.arg("--program-dir").arg(test_program_dir.clone());
         nargo.arg("execute").arg("--force-comptime");
-
-        // Enable enums as an unstable feature
-        nargo.arg("-Zenums");
 
         execution_failure(nargo, test_program_dir, Runtime::Comptime);
     }
@@ -532,10 +503,6 @@ mod tests {
         if !skip_brillig_debug_assertions {
             nargo.arg("--enable-brillig-debug-assertions");
         }
-
-        // Enable enums and trait_as_type as unstable features
-        nargo.arg("-Zenums");
-        nargo.arg("-Ztrait_as_type");
 
         nargo.assert().success();
     }
