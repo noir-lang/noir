@@ -826,6 +826,22 @@ impl<'f> PerFunctionContext<'f> {
                     let new_aliases = self.collect_array_aliases(elements, references);
                     let aliases = references.aliases.entry(expr).or_insert(AliasSet::known_empty());
                     aliases.unify(&new_aliases);
+
+                    // Remember that we used the elements in this instruction. If they are references
+                    // then we need to keep the stores to them.
+                    for elem in elements {
+                        Self::for_each_value_alias(
+                            *elem,
+                            references,
+                            &self.inserter.function.dfg,
+                            &mut |alias| {
+                                self.aliased_references
+                                    .entry(alias)
+                                    .or_default()
+                                    .insert(instruction);
+                            },
+                        );
+                    }
                 }
             }
             Instruction::IfElse { then_value, else_value, .. } => {
@@ -3132,29 +3148,29 @@ mod tests {
 
     #[test]
     fn repeat_load_not_removed_across_call_indirect_mutation_deeply_nested() {
-        let src = r#"                                                                                  
-      brillig(inline) fn main f0 {                                                                       
-        b0():                                                                                            
-          v0 = allocate -> &mut Field                                                                    
-          store Field 0 at v0                                                                              
-          v1 = allocate -> &mut &mut Field                                                               
-          store v0 at v1                                                                                      
-          v2 = allocate -> &mut &mut &mut Field                                                          
-          store v1 at v2                                                                                                                                                                           
-          // Call mutates v0 indirectly via v2 -> v1 -> v0                                               
-          call f1(v2)                                                                                   
-          // This load should be preserved                                                               
-          v4 = load v0 -> Field                                                                          
-          constrain v4 == Field 1                                                                        
-          return                                                                                         
-      }                                                                                                                                                                                                 
-      brillig(inline) fn helper f1 {                                                                     
-        b0(v0: &mut &mut &mut Field):                                                                    
-          v1 = load v0 -> &mut &mut Field                                                                
-          v2 = load v1 -> &mut Field                                                                     
-          store Field 1 at v2                                                                            
-          return                                                                                         
-      }                                                                                                  
+        let src = r#"
+      brillig(inline) fn main f0 {
+        b0():
+          v0 = allocate -> &mut Field
+          store Field 0 at v0
+          v1 = allocate -> &mut &mut Field
+          store v0 at v1
+          v2 = allocate -> &mut &mut &mut Field
+          store v1 at v2
+          // Call mutates v0 indirectly via v2 -> v1 -> v0
+          call f1(v2)
+          // This load should be preserved
+          v4 = load v0 -> Field
+          constrain v4 == Field 1
+          return
+      }
+      brillig(inline) fn helper f1 {
+        b0(v0: &mut &mut &mut Field):
+          v1 = load v0 -> &mut &mut Field
+          v2 = load v1 -> &mut Field
+          store Field 1 at v2
+          return
+      }
       "#;
 
         assert_ssa_does_not_change(src, Ssa::mem2reg);
