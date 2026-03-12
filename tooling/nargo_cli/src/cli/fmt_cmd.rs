@@ -52,22 +52,22 @@ pub(crate) fn run(args: FormatCommand, workspace: Workspace) -> Result<(), CliEr
 
     for package in &workspace {
         visit_noir_files(&package.root_dir.join("src"), &mut |entry| {
-            let file_id = workspace_file_manager.name_to_id(entry.path()).expect("The file should exist since we added all files in the package into the file manager");
+            let file_id =   workspace_file_manager.name_to_id(entry.path()).expect("The file should exist since we added all files in the package into the file manager");
 
             let (parsed_module, errors) = parse_file(&workspace_file_manager, file_id);
 
-            let is_all_warnings = errors.iter().all(ParserError::is_warning);
+            let is_all_warnings =  errors.iter().all(ParserError::is_warning);
             if !is_all_warnings {
-                let mut parsed_files = ParsedFiles::new();
-                parsed_files.insert(file_id, (parsed_module.clone(), errors.clone()));
-
-                let errors = errors
+                let diagnostics = errors
                     .iter()
                     .map(CustomDiagnostic::from)
                     .collect();
 
+                let mut parsed_files = ParsedFiles::new();
+                parsed_files.insert(file_id, (parsed_module, errors));
+
                 let _ = report_errors::<()>(
-                    Err(errors),
+                    Err(diagnostics),
                     &workspace_file_manager,
                     &parsed_files,
                     false,
