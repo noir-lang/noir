@@ -501,7 +501,7 @@ impl<'a> Parser<'a> {
     }
 
     fn eat(&mut self, token: Token) -> bool {
-        if self.token.token() == &token {
+        if self.current_is(token) {
             self.bump();
             true
         } else {
@@ -539,12 +539,16 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn current_is(&self, token: Token) -> bool {
+        self.token.token() == &token
+    }
+
     fn next_is(&self, token: Token) -> bool {
         self.next_token.token() == &token
     }
 
     fn at_eof(&self) -> bool {
-        self.token.token() == &Token::EOF
+        self.current_is(Token::EOF)
     }
 
     /// Skips tokens until we reach a recovery point (`;`, `}`, or EOF).
