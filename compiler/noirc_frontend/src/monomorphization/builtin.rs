@@ -89,7 +89,9 @@ impl Monomorphizer<'_> {
             HandledOpcode::ModulusLeBytes => self.modulus_le_bytes(location),
             HandledOpcode::ModulusNumBits => Self::modulus_num_bits(location),
             HandledOpcode::Poseidon2ConfigStateSize => Self::poseidon2_config_state_size(location),
-            HandledOpcode::Zeroed => self.zeroed_value_of_type(&converted_return_type, location),
+            HandledOpcode::Zeroed => {
+                self.zeroed_value_of_type(Rc::new(converted_return_type.clone()), location)
+            }
         };
 
         let new_function_id = self.next_function_id();
@@ -153,19 +155,19 @@ impl Monomorphizer<'_> {
     /// there is no obvious zeroed value so this should be considered unsafe to use.
     pub(super) fn zeroed_value_of_type(
         &mut self,
-        typ: &ast::Type,
+        typ: Rc<ast::Type>,
         location: Location,
     ) -> ast::Expression {
-        match typ {
+        match typ.as_ref() {
             ast::Type::Field | ast::Type::Integer(..) => {
-                let typ = typ.clone();
+                let typ = typ.as_ref().clone();
                 let zero = SignedField::positive(0u32);
                 ast::Expression::Literal(ast::Literal::Integer(zero, typ, location))
             }
             ast::Type::Bool => ast::Expression::Literal(ast::Literal::Bool(false)),
             ast::Type::Unit => ast::Expression::Literal(ast::Literal::Unit),
             ast::Type::Array(length, element_type) => {
-                let element = self.zeroed_value_of_type(element_type.as_ref(), location);
+                let element = self.zeroed_value_of_type(element_type.clone(), location);
                 ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral {
                     contents: vec![element; *length as usize],
                     typ: ast::Type::Array(*length, element_type.clone()),
@@ -175,7 +177,7 @@ impl Monomorphizer<'_> {
                 ast::Expression::Literal(ast::Literal::Str("\0".repeat(*length as usize)))
             }
             ast::Type::FmtString(length, fields) => {
-                let zeroed_tuple = self.zeroed_value_of_type(fields, location);
+                let zeroed_tuple = self.zeroed_value_of_type(fields.clone(), location);
                 let fields_len = match &zeroed_tuple {
                     ast::Expression::Tuple(fields) => fields.len() as u64,
                     _ => unreachable!(
@@ -189,10 +191,16 @@ impl Monomorphizer<'_> {
                 ))
             }
             ast::Type::Tuple(fields) => ast::Expression::Tuple(vecmap(fields, |field| {
-                self.zeroed_value_of_type(field, location)
+                self.zeroed_value_of_type(Rc::new(field.clone()), location)
             })),
             ast::Type::Function(parameter_types, ret_type, env, unconstrained) => self
-                .create_zeroed_function(parameter_types, ret_type, env, *unconstrained, location),
+                .create_zeroed_function(
+                    parameter_types,
+                    ret_type.clone(),
+                    env.clone(),
+                    *unconstrained,
+                    location,
+                ),
             ast::Type::Vector(element_type) => {
                 ast::Expression::Literal(ast::Literal::Vector(ast::ArrayLiteral {
                     contents: vec![],
@@ -200,8 +208,8 @@ impl Monomorphizer<'_> {
                 }))
             }
             ast::Type::Reference(element, mutable) => {
-                let rhs = Box::new(self.zeroed_value_of_type(element, location));
-                let result_type = typ.clone();
+                let rhs = Box::new(self.zeroed_value_of_type(element.clone(), location));
+                let result_type = typ.as_ref().clone();
                 ast::Expression::Unary(ast::Unary {
                     rhs,
                     result_type,
@@ -222,8 +230,8 @@ impl Monomorphizer<'_> {
     fn create_zeroed_function(
         &mut self,
         parameter_types: &[ast::Type],
-        ret_type: &ast::Type,
-        env_type: &ast::Type,
+        ret_type: Rc<ast::Type>,
+        env_type: Rc<ast::Type>,
         unconstrained: bool,
         location: Location,
     ) -> ast::Expression {
@@ -239,7 +247,7 @@ impl Monomorphizer<'_> {
             )
         });
 
-        let body = self.zeroed_value_of_type(ret_type, location);
+        let body = self.zeroed_value_of_type(ret_type.clone(), location);
 
         let id = self.next_function_id();
         let return_type = ret_type.clone();
@@ -250,7 +258,7 @@ impl Monomorphizer<'_> {
             name,
             parameters,
             body,
-            return_type,
+            return_type: return_type.as_ref().clone(),
             return_visibility: Visibility::Private,
             unconstrained,
             inline_type: InlineType::default(),
@@ -265,8 +273,8 @@ impl Monomorphizer<'_> {
             name: lambda_name.to_owned(),
             typ: Rc::new(ast::Type::Function(
                 parameter_types.to_owned(),
-                Rc::new(ret_type.clone()),
-                Rc::new(env_type.clone()),
+                ret_type,
+                env_type,
                 unconstrained,
             )),
             id: self.next_ident_id(),
@@ -304,7 +312,9 @@ impl Monomorphizer<'_> {
                 Some(HandledOpcode::Poseidon2ConfigStateSize) => {
                     Self::poseidon2_config_state_size(location)
                 }
-                Some(HandledOpcode::Zeroed) => self.zeroed_value_of_type(result_type, location),
+                Some(HandledOpcode::Zeroed) => {
+                    self.zeroed_value_of_type(Rc::new(result_type.clone()), location)
+                }
                 None => return Ok(None),
             }));
         }
