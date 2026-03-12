@@ -185,10 +185,12 @@ impl Elaborator<'_> {
 
             // If this is a function call on a type that has generics, we need to bind those generic types.
             if !type_generics.is_empty() {
-                // `all_generics` will always have the enclosing type generics first, so we need to bind those
+                // `all_generics` will always have the enclosing type generics first, so we need to bind those.
+                // Note: `func_generics` may be longer than `type_generics` since it includes both
+                // the enclosing type's generics and the function's own generics. We intentionally use
+                // `zip` (not `zip_eq`) here to only bind the type generic prefix.
                 let func_generics = &self.interner.function_meta(func_id).all_generics;
-                for (type_generic, func_generic) in type_generics.into_iter().zip_eq(func_generics)
-                {
+                for (type_generic, func_generic) in type_generics.into_iter().zip(func_generics) {
                     let type_var = &func_generic.type_var;
                     bindings
                         .insert(type_var.id(), (type_var.clone(), type_var.kind(), type_generic));
