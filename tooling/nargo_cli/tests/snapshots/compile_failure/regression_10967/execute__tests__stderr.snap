@@ -9,11 +9,11 @@ warning: variable does not need to be mutable
   │             ----------
   │
 
-error: 3 is out of bounds for the array of length 1
-  ┌─ src/main.nr:3:5
+error: Index 3 is out of bounds for this array of length 1
+  ┌─ src/main.nr:3:16
   │
 3 │     unit_array[3];
-  │     -------------
+  │                -
   │
 
-Error interpreting main function
+Aborting due to 1 previous error
