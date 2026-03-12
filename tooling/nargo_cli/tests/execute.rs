@@ -13,6 +13,7 @@ mod tests {
     use noirc_artifacts::program::ProgramArtifact;
     use predicates::prelude::*;
     use serde::Deserialize;
+    use tempfile::TempDir;
 
     use std::collections::BTreeMap;
     use std::fs;
@@ -37,15 +38,13 @@ mod tests {
     // These tests fail with stack too deep errors when debug assertions are active
     const IGNORED_BRILLIG_DEBUG_ASSERTIONS_TESTS: [&str; 1] = ["ski_calculus"];
 
-    fn setup_nargo(
+    fn setup_nargo_command(
         test_program_dir: &Path,
         test_command: &str,
         force_brillig: ForceBrillig,
         inliner_aggressiveness: Inliner,
-    ) -> Command {
-        #[allow(deprecated)]
-        let mut nargo = Command::cargo_bin("nargo").unwrap();
-        nargo.arg("--program-dir").arg(test_program_dir);
+    ) -> (Command, TempDir) {
+        let (mut nargo, target_dir) = setup_nargo(test_program_dir);
         nargo.arg(test_command).arg("--force");
         nargo.arg("--inliner-aggressiveness").arg(inliner_aggressiveness.0.to_string());
         let skip_brillig_debug_assertions = IGNORED_BRILLIG_DEBUG_ASSERTIONS_TESTS
@@ -70,7 +69,17 @@ mod tests {
             }
         }
 
-        nargo
+        (nargo, target_dir)
+    }
+
+    fn setup_nargo(test_program_dir: &Path) -> (Command, TempDir) {
+        let target_dir = tempfile::tempdir().unwrap();
+
+        #[allow(deprecated)]
+        let mut nargo = Command::cargo_bin("nargo").unwrap();
+        nargo.arg("--program-dir").arg(test_program_dir);
+        nargo.arg(format!("--target-dir={}", target_dir.path().to_string_lossy()));
+        (nargo, target_dir)
     }
 
     fn remove_noise_lines(string: String) -> String {
@@ -130,10 +139,6 @@ mod tests {
     }
 
     fn execution_success(mut nargo: Command, test_program_dir: PathBuf, check_stdout: bool) {
-        let target_dir = tempfile::tempdir().unwrap().keep();
-
-        nargo.arg(format!("--target-dir={}", target_dir.to_string_lossy()));
-
         nargo.assert().success();
 
         let mut has_circuit_output = false;
@@ -193,10 +198,9 @@ mod tests {
     }
 
     fn execution_failure_check_compiles(test_program_dir: PathBuf, runtime: Runtime) {
-        #[allow(deprecated)]
-        let mut nargo = Command::cargo_bin("nargo").unwrap();
-        nargo.arg("--program-dir").arg(test_program_dir);
+        let (mut nargo, target_dir) = setup_nargo(&test_program_dir);
         nargo.arg("check");
+
         match runtime {
             Runtime::Acir | Runtime::Comptime => (),
             Runtime::Brillig => {
@@ -212,6 +216,8 @@ mod tests {
             .assert()
             .success()
             .stderr(predicate::str::contains("The application panicked (crashed).").not());
+
+        drop(target_dir);
     }
 
     fn check_execution_failure_stderr(
@@ -258,18 +264,7 @@ mod tests {
             .stderr(predicate::str::contains("The application panicked (crashed).").not());
     }
 
-    fn compile_success_empty(
-        mut nargo: Command,
-        test_program_dir: PathBuf,
-        no_warnings: bool,
-        force_brillig: ForceBrillig,
-        inliner: Inliner,
-    ) {
-        let target_dir = test_program_dir
-            .join(format!("target_force_brillig_{}_inliner_{}", force_brillig.0, inliner.0));
-
-        nargo.arg(format!("--target-dir={}", target_dir.to_string_lossy()));
-
+    fn compile_success_empty(mut nargo: Command, no_warnings: bool) {
         nargo.arg("--json");
 
         let output = nargo.output().expect("Failed to execute command");
@@ -305,16 +300,7 @@ mod tests {
         );
     }
 
-    fn compile_success_contract(
-        mut nargo: Command,
-        test_program_dir: PathBuf,
-        force_brillig: ForceBrillig,
-        inliner: Inliner,
-    ) {
-        let target_dir = test_program_dir
-            .join(format!("target_force_brillig_{}_inliner_{}", force_brillig.0, inliner.0));
-        nargo.arg(format!("--target-dir={}", target_dir.to_string_lossy()));
-
+    fn compile_success_contract(mut nargo: Command) {
         nargo.assert().success().stderr(predicate::str::contains("warning:").not());
     }
 
@@ -373,9 +359,7 @@ mod tests {
 
     fn nargo_expand_execute(test_program_dir: PathBuf) {
         // First run `nargo execute` on the original code to get the output
-        #[allow(deprecated)]
-        let mut nargo = Command::cargo_bin("nargo").unwrap();
-        nargo.arg("--program-dir").arg(test_program_dir.clone());
+        let (mut nargo, target_dir) = setup_nargo(&test_program_dir);
         nargo.arg("execute").arg("--force").arg("--disable-comptime-printing");
 
         // Enable enums as an unstable feature
@@ -386,9 +370,9 @@ mod tests {
         let original_output = nargo.output().unwrap();
         let original_output: String = String::from_utf8(original_output.stdout).unwrap();
 
-        #[allow(deprecated)]
-        let mut nargo = Command::cargo_bin("nargo").unwrap();
-        nargo.arg("--program-dir").arg(test_program_dir.clone());
+        drop(target_dir);
+
+        let (mut nargo, target_dir) = setup_nargo(&test_program_dir);
         nargo.arg("expand").arg("--force").arg("--disable-comptime-printing");
 
         // Enable enums as an unstable feature
@@ -398,6 +382,8 @@ mod tests {
 
         let expanded_code = nargo.output().unwrap();
         let expanded_code: String = String::from_utf8(expanded_code.stdout).unwrap();
+
+        drop(target_dir);
 
         let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
         let snapshot_name = "expanded";
@@ -410,22 +396,20 @@ mod tests {
         });
 
         // Create a new directory where we'll put the expanded code
-        let temp_dir = tempfile::tempdir().unwrap().keep();
+        let temp_dir = tempfile::tempdir().unwrap();
 
         // Copy everything from the original directory to the new directory
         // (because some dependencies might be there and might be needed for the expanded code to work)
-        copy_dir_all(&test_program_dir, temp_dir.clone()).unwrap();
+        copy_dir_all(&test_program_dir, temp_dir.path()).unwrap();
 
         // Create a main file for the expanded code
-        fs::write(temp_dir.join("src").join("main.nr"), expanded_code).unwrap();
+        fs::write(temp_dir.path().join("src").join("main.nr"), expanded_code).unwrap();
 
         // First check if `nargo fmt` works on the expanded code. If not, it means the code is not valid.
-        run_nargo_fmt(temp_dir.clone());
+        run_nargo_fmt(temp_dir.path());
 
         // Now we can run `nargo execute` on the expanded code
-        #[allow(deprecated)]
-        let mut nargo = Command::cargo_bin("nargo").unwrap();
-        nargo.arg("--program-dir").arg(temp_dir);
+        let (mut nargo, target_dir) = setup_nargo(temp_dir.path());
         nargo.arg("execute").arg("--force").arg("--disable-comptime-printing");
 
         // Enable enums as an unstable feature
@@ -436,6 +420,8 @@ mod tests {
         let expanded_output = nargo.output().unwrap();
         let expanded_output: String = String::from_utf8(expanded_output.stdout).unwrap();
 
+        drop(target_dir);
+
         let original_output = remove_noise_lines(original_output);
         let expanded_output = remove_noise_lines(expanded_output);
 
@@ -443,9 +429,7 @@ mod tests {
     }
 
     fn nargo_expand_compile(test_program_dir: PathBuf, prefix: &'static str) {
-        #[allow(deprecated)]
-        let mut nargo = Command::cargo_bin("nargo").unwrap();
-        nargo.arg("--program-dir").arg(&test_program_dir);
+        let (mut nargo, target_dir) = setup_nargo(&test_program_dir);
         nargo.arg("expand").arg("--force").arg("--disable-comptime-printing");
 
         // Enable enums as an unstable feature
@@ -455,6 +439,8 @@ mod tests {
 
         let expanded_code = nargo.output().unwrap();
         let expanded_code: String = String::from_utf8(expanded_code.stdout).unwrap();
+
+        drop(target_dir);
 
         let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
         let snapshot_name = "expanded";
@@ -467,34 +453,32 @@ mod tests {
         });
 
         // Create a new directory where we'll put the expanded code
-        let temp_dir = tempfile::tempdir().unwrap().keep();
+        let temp_dir = tempfile::tempdir().unwrap();
 
         // Copy everything from the original directory to the new directory
         // (because some dependencies might be there and might be needed for the expanded code to work)
-        copy_dir_all(test_program_dir, temp_dir.clone()).unwrap();
+        copy_dir_all(test_program_dir, temp_dir.path()).unwrap();
 
         // Create a main file for the expanded code
-        fs::write(temp_dir.join("src").join("main.nr"), expanded_code).unwrap();
+        fs::write(temp_dir.path().join("src").join("main.nr"), expanded_code).unwrap();
 
         // First check if `nargo fmt` works on the expanded code. If not, it means the code is not valid.
-        run_nargo_fmt(temp_dir.clone());
+        run_nargo_fmt(temp_dir.path());
 
         // Now we can run `nargo compile` on the expanded code
-        #[allow(deprecated)]
-        let mut nargo = Command::cargo_bin("nargo").unwrap();
-        nargo.arg("--program-dir").arg(temp_dir);
+        let (mut nargo, target_dir) = setup_nargo(temp_dir.path());
         nargo.arg("compile").arg("--force");
 
         // Enable enums as an unstable feature
         nargo.arg("-Zenums");
 
         nargo.assert().success();
+
+        drop(target_dir);
     }
 
     fn nargo_execute_comptime(test_program_dir: PathBuf, check_stdout: bool) {
-        #[allow(deprecated)]
-        let mut nargo = Command::cargo_bin("nargo").unwrap();
-        nargo.arg("--program-dir").arg(test_program_dir.clone());
+        let (mut nargo, target_dir) = setup_nargo(&test_program_dir);
         nargo.arg("execute").arg("--force-comptime");
 
         // Enable enums as an unstable feature
@@ -505,24 +489,24 @@ mod tests {
         if check_stdout {
             check_execution_success_stdout(&mut nargo, &test_program_dir);
         }
+
+        drop(target_dir);
     }
 
     fn nargo_execute_comptime_expect_failure(test_program_dir: PathBuf) {
-        #[allow(deprecated)]
-        let mut nargo = Command::cargo_bin("nargo").unwrap();
-        nargo.arg("--program-dir").arg(test_program_dir.clone());
+        let (mut nargo, target_dir) = setup_nargo(&test_program_dir);
         nargo.arg("execute").arg("--force-comptime");
 
         // Enable enums as an unstable feature
         nargo.arg("-Zenums");
 
         execution_failure(nargo, test_program_dir, Runtime::Comptime);
+
+        drop(target_dir);
     }
 
     fn nargo_execute_brillig_small_stack(test_program_dir: PathBuf) {
-        #[allow(deprecated)]
-        let mut nargo = Command::cargo_bin("nargo").unwrap();
-        nargo.arg("--program-dir").arg(test_program_dir.clone());
+        let (mut nargo, target_dir) = setup_nargo(&test_program_dir);
         nargo.arg("execute").arg("--force").arg("--force-brillig");
         nargo.arg("--max-stack-frame-size").arg("64");
 
@@ -538,14 +522,16 @@ mod tests {
         nargo.arg("-Ztrait_as_type");
 
         nargo.assert().success();
+
+        drop(target_dir);
     }
 
-    fn run_nargo_fmt(target_dir: PathBuf) {
-        #[allow(deprecated)]
-        let mut nargo = Command::cargo_bin("nargo").unwrap();
-        nargo.arg("--program-dir").arg(target_dir);
+    fn run_nargo_fmt(target_dir: &Path) {
+        let (mut nargo, target_dir) = setup_nargo(target_dir);
         nargo.arg("fmt");
         nargo.assert().success();
+
+        drop(target_dir);
     }
 
     fn find_prover_toml_in_dir(dir: &PathBuf) -> Option<PathBuf> {
