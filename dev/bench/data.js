@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773332799052,
+  "lastUpdate": 1773333076329,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23206,48 +23206,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "f179cc05ee5fc76b0260b70b3f4d09fa4d9b0d4b",
-          "message": "fix: disallow mutating non-mutable references (owernship feature) (#11674)",
-          "timestamp": "2026-03-05T17:07:42Z",
-          "tree_id": "b151b0b228f15a237bc87f26c0730cf084fce8c4",
-          "url": "https://github.com/noir-lang/noir/commit/f179cc05ee5fc76b0260b70b3f4d09fa4d9b0d4b"
-        },
-        "date": 1772735667975,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 254830,
-            "range": "± 1740",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 223997,
-            "range": "± 1297",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2746826,
-            "range": "± 11980",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "abf4a8787f8cdf5acd370508971d6f28632b3807",
           "message": "feat!: comptime struct/enum/type (#11698)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
           "timestamp": "2026-03-05T17:55:30Z",
@@ -25289,6 +25247,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2732308,
             "range": "± 5686",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "d377ad8488b81508df9aca566fbda6075fc2aebd",
+          "message": "chore: always use a temp dir when running test programs (#11843)",
+          "timestamp": "2026-03-12T16:02:57Z",
+          "tree_id": "b90104adc4c5b2030db24706de1e7f662c6d1f42",
+          "url": "https://github.com/noir-lang/noir/commit/d377ad8488b81508df9aca566fbda6075fc2aebd"
+        },
+        "date": 1773333029032,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 252391,
+            "range": "± 723",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 221644,
+            "range": "± 4349",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2730840,
+            "range": "± 4521",
             "unit": "ns/iter"
           }
         ]
