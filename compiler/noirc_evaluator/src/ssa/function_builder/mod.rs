@@ -379,7 +379,7 @@ impl FunctionBuilder {
 
     /// Insert an instruction to decrement an array's reference count. This only has an effect
     /// in unconstrained code where arrays are reference counted and copy on write.
-    pub fn insert_dec_rc(&mut self, value: ValueId) {
+    pub(crate) fn insert_dec_rc(&mut self, value: ValueId) {
         self.insert_instruction(Instruction::DecrementRc { value }, None);
     }
 

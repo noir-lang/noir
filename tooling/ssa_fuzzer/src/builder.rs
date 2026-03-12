@@ -739,15 +739,11 @@ impl FuzzerBuilder {
         // We must increment the RC before array_set so the original array is preserved
         // if it's used again later, then decrement after.
         // In ACIR, IncrementRc/DecrementRc are not supported (they hit unreachable!).
-        let is_brillig = matches!(self.runtime, RuntimeType::Brillig(_));
-        if is_brillig {
+        if matches!(self.runtime, RuntimeType::Brillig(_)) {
             self.builder.insert_inc_rc(array.value_id);
         }
         let res =
             self.builder.insert_array_set(array.value_id, index.value_id, value.value_id, false);
-        if is_brillig {
-            self.builder.insert_dec_rc(array.value_id);
-        }
         TypedValue::new(res, Type::Array(array_type, array_length))
     }
 
