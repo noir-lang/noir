@@ -858,11 +858,9 @@ impl<'a> Context<'a> {
                     operator: BinaryOp::Sub { unchecked: true },
                     ..
                 }) = &dfg[*instruction]
+                    && matches!(dfg.type_of_value(*lhs), Type::Numeric(NumericType::Signed { .. }))
                 {
-                    if matches!(dfg.type_of_value(*lhs), Type::Numeric(NumericType::Signed { .. }))
-                    {
-                        unreachable!("Truncation of unchecked signed subtraction");
-                    }
+                    unreachable!("Truncation of unchecked signed subtraction");
                 }
             }
             Value::Param { .. } => {
