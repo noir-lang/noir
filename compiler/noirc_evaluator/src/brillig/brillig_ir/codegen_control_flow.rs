@@ -330,8 +330,6 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     }
 
     // Flattens an array by recursively copying nested arrays and regular items.
-    // Uses incrementing pointers instead of per-element constant index computation
-    // to reduce opcode and register allocation overhead.
     pub(super) fn flatten_array(
         &mut self,
         item_type: &[BrilligParameter],
