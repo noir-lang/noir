@@ -960,3 +960,36 @@ fn tuple_mixed_array_non_array_extraction() {
     }
     ");
 }
+
+#[test]
+fn struct_field_extraction_no_unnecessary_clone() {
+    let src = "
+    struct MyStruct {
+        data: [Field; 3],
+        flag: bool,
+        other: [Field; 2],
+    }
+
+    unconstrained fn main() {
+        let s = MyStruct { data: [1, 2, 3], flag: true, other: [4, 5] };
+        let _d = s.data;
+        let _f = s.flag;
+        let _o = s.other;
+    }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let s$l3 = {
+            let data$l0 = [1, 2, 3];
+            let flag$l1 = true;
+            let other$l2 = [4, 5];
+            (data$l0, flag$l1, other$l2)
+        };
+        let _d$l4 = s$l3.0;
+        let _f$l5 = s$l3.1;
+        let _o$l6 = s$l3.2
+    }
+    ");
+}
