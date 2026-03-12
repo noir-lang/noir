@@ -998,7 +998,7 @@ impl Elaborator<'_> {
 
                 match (lhs, rhs) {
                     (Type::Constant(lhs, lhs_kind), Type::Constant(rhs, rhs_kind)) => {
-                        if !lhs_kind.unify(&rhs_kind).is_ok() {
+                        if lhs_kind.unify(&rhs_kind).is_err() {
                             self.push_err(TypeCheckError::TypeKindMismatch {
                                 expected_kind: Kind::Numeric(lhs_kind),
                                 expr_kind: Kind::Numeric(rhs_kind),
