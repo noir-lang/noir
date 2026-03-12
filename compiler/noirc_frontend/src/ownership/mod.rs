@@ -47,6 +47,7 @@ use rustc_hash::FxHashMap as HashMap;
 
 mod last_uses;
 mod tests;
+mod verify;
 
 impl Program {
     /// Perform "ownership analysis".
@@ -93,6 +94,9 @@ impl Context {
 
         self.variables_to_move = Self::find_last_uses_of_variables(function);
         self.handle_expression(&mut function.body);
+
+        #[cfg(debug_assertions)]
+        verify::verify_no_use_after_move(function);
     }
 
     fn handle_expression(&mut self, expr: &mut Expression) {

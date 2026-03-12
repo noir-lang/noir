@@ -934,3 +934,320 @@ fn loop_with_conditional_reassignment() {
     }
     ");
 }
+
+#[test]
+fn break_inside_loop_with_array() {
+    let src = "
+    unconstrained fn main() {
+        let arr = [1, 2, 3];
+        for i in 0..5 {
+            use_var(arr);
+            if i == 3 {
+                break;
+            }
+        }
+    }
+
+    fn use_var<T>(_x: T) {}
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let arr$l0 = [1, 2, 3];
+        for i$l1 in 0 .. 5 {
+            use_var$f1(arr$l0.clone());;
+            if (i$l1 == 3) {
+                break
+            }
+        }
+    }
+    unconstrained fn use_var$f1(_x$l2: [Field; 3]) -> () {
+    }
+    ");
+}
+
+#[test]
+fn continue_skipping_last_use() {
+    let src = "
+    unconstrained fn main(cond: bool) {
+        let arr = [1, 2, 3];
+        for _ in 0..5 {
+            if cond {
+                use_var(arr);
+                continue;
+            }
+            use_var(arr);
+        }
+    }
+
+    fn use_var<T>(_x: T) {}
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(cond$l0: bool) -> () {
+        let arr$l1 = [1, 2, 3];
+        for _$l2 in 0 .. 5 {
+            if cond$l0 {
+                use_var$f1(arr$l1.clone());;
+                continue
+            };
+            use_var$f1(arr$l1.clone());
+        }
+    }
+    unconstrained fn use_var$f1(_x$l3: [Field; 3]) -> () {
+    }
+    ");
+}
+
+#[test]
+fn sequential_if_without_else_same_array() {
+    let src = "
+    unconstrained fn main(c1: bool, c2: bool) {
+        let arr = [1, 2, 3];
+        if c1 { use_var(arr); }
+        if c2 { use_var(arr); }
+        use_var(arr);
+    }
+
+    fn use_var<T>(_x: T) {}
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(c1$l0: bool, c2$l1: bool) -> () {
+        let arr$l2 = [1, 2, 3];
+        if c1$l0 {
+            use_var$f1(arr$l2.clone());
+        };
+        if c2$l1 {
+            use_var$f1(arr$l2.clone());
+        };
+        use_var$f1(arr$l2);
+    }
+    unconstrained fn use_var$f1(_x$l3: [Field; 3]) -> () {
+    }
+    ");
+}
+
+#[test]
+fn array_in_while_condition_and_body() {
+    let src = "
+    unconstrained fn main() {
+        let arr = [1, 2, 3];
+        let mut i = 0;
+        while check(arr) {
+            use_var(arr);
+            i += 1;
+            if i > 3 { break; }
+        }
+    }
+
+    fn check(_a: [Field; 3]) -> bool { true }
+    fn use_var<T>(_x: T) {}
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let arr$l0 = [1, 2, 3];
+        let mut i$l1 = 0;
+        while check$f1(arr$l0.clone()) {
+            use_var$f2(arr$l0.clone());;
+            i$l1 = (i$l1 + 1);
+            if (i$l1 > 3) {
+                break
+            }
+        }
+    }
+    unconstrained fn check$f1(_a$l2: [Field; 3]) -> bool {
+        true
+    }
+    unconstrained fn use_var$f2(_x$l3: [Field; 3]) -> () {
+    }
+    ");
+}
+
+#[test]
+fn tuple_mixed_array_non_array_extraction() {
+    let src = "
+    unconstrained fn main() {
+        let arr1 = [1, 2];
+        let arr2 = [3, 4];
+        let t = (arr1, 42, arr2);
+        let _a = t.0;
+        let _b = t.1;
+        let _c = t.2;
+    }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let arr1$l0 = [1, 2];
+        let arr2$l1 = [3, 4];
+        let t$l2 = (arr1$l0, 42, arr2$l1);
+        let _a$l3 = t$l2.0.clone();
+        let _b$l4 = t$l2.1;
+        let _c$l5 = t$l2.2
+    }
+    ");
+}
+
+#[test]
+fn loop_break_with_array() {
+    let src = "
+    unconstrained fn main() {
+        let arr = [1, 2, 3];
+        let mut i = 0;
+        loop {
+            use_var(arr);
+            i += 1;
+            if i > 3 { break; }
+        }
+    }
+
+    fn use_var<T>(_x: T) {}
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let arr$l0 = [1, 2, 3];
+        let mut i$l1 = 0;
+        loop {
+            use_var$f1(arr$l0.clone());;
+            i$l1 = (i$l1 + 1);
+            if (i$l1 > 3) {
+                break
+            }
+        }
+    }
+    unconstrained fn use_var$f1(_x$l2: [Field; 3]) -> () {
+    }
+    ");
+}
+
+#[test]
+fn nested_loops_with_reassignment() {
+    let src = "
+    unconstrained fn main() {
+        let mut v = [1, 2, 3];
+        for _ in 0..3 {
+            for _ in 0..3 {
+                v = identity(v);
+            }
+            use_var(v);
+        }
+        use_var(v);
+    }
+
+    fn use_var<T>(_x: T) {}
+    fn identity<T>(x: T) -> T { x }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let mut v$l0 = [1, 2, 3];
+        for _$l1 in 0 .. 3 {
+            for _$l2 in 0 .. 3 {
+                v$l0 = identity$f1(v$l0)
+            };
+            use_var$f2(v$l0.clone());
+        };
+        use_var$f2(v$l0);
+    }
+    unconstrained fn identity$f1(x$l3: [Field; 3]) -> [Field; 3] {
+        x$l3
+    }
+    unconstrained fn use_var$f2(_x$l4: [Field; 3]) -> () {
+    }
+    ");
+}
+
+#[test]
+fn global_array_in_loop() {
+    let src = "
+    global G: [Field; 3] = [10, 20, 30];
+
+    unconstrained fn main() {
+        for _ in 0..3 {
+            use_var(G);
+        }
+    }
+
+    fn use_var<T>(_x: T) {}
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    global G$g0: [Field; 3] = [10, 20, 30];
+    unconstrained fn main$f0() -> () {
+        for _$l0 in 0 .. 3 {
+            use_var$f1(G$g0.clone());
+        }
+    }
+    unconstrained fn use_var$f1(_x$l1: [Field; 3]) -> () {
+    }
+    ");
+}
+
+#[test]
+fn array_passed_to_multiple_calls_in_sequence() {
+    let src = "
+    unconstrained fn main() {
+        let arr = [1, 2, 3];
+        f(arr);
+        g(arr);
+        h(arr);
+    }
+
+    fn f<T>(_x: T) {}
+    fn g<T>(_x: T) {}
+    fn h<T>(_x: T) {}
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let arr$l0 = [1, 2, 3];
+        f$f1(arr$l0.clone());;
+        g$f2(arr$l0.clone());;
+        h$f3(arr$l0);
+    }
+    unconstrained fn f$f1(_x$l1: [Field; 3]) -> () {
+    }
+    unconstrained fn g$f2(_x$l2: [Field; 3]) -> () {
+    }
+    unconstrained fn h$f3(_x$l3: [Field; 3]) -> () {
+    }
+    ");
+}
+
+#[test]
+fn match_with_array_in_destructured_binding() {
+    let src = "
+    unconstrained fn main() {
+        let value: (bool, [Field; 2]) = (true, [1, 2]);
+        let arr = value.1;
+        use_var(arr);
+        use_var(arr);
+    }
+
+    fn use_var<T>(_x: T) {}
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let value$l0 = (true, [1, 2]);
+        let arr$l1 = value$l0.1;
+        use_var$f1(arr$l1.clone());;
+        use_var$f1(arr$l1);
+    }
+    unconstrained fn use_var$f1(_x$l2: [Field; 2]) -> () {
+    }
+    ");
+}
