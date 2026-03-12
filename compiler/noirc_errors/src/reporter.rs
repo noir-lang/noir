@@ -293,6 +293,10 @@ pub fn stack_trace<'files>(
     let mut result = "Call stack:\n".to_string();
     let mut index = 1;
 
+    // If there are repeated sequences we are going to indent non-repeating sequences so that the entire
+    // call stack is aligned (repeating sequences have some ascii chars to show the grouping)
+    let has_repetitions = repeating_sequences.iter().any(|(_, times)| *times > 1);
+
     for (sequence, times) in repeating_sequences {
         for (i, call_item) in sequence.iter().copied().enumerate() {
             let name = function_locations.lookup(call_item).unwrap_or("?");
@@ -301,7 +305,7 @@ pub fn stack_trace<'files>(
 
             let (line, column) = line_and_column_from_span(source.as_ref(), &call_item.span);
             let prefix = if times == 1 {
-                ""
+                if has_repetitions { "   " } else { "" }
             } else if i == 0 {
                 "┌─ "
             } else {
@@ -309,7 +313,8 @@ pub fn stack_trace<'files>(
             };
             result += &format!("{prefix}{index}: {name}\n");
 
-            let prefix = if times == 1 { "" } else { "│  " };
+            let prefix =
+                if times == 1 { if has_repetitions { "   " } else { "" } } else { "│  " };
             result += &format!("{prefix}        at {path}:{line}:{column}\n");
             index += 1;
         }

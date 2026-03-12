@@ -9,8 +9,8 @@ error: Assertion failed: Stack too deep
    │               --------------------
    │
    = Call stack:
-     1: main
-             at src/main.nr:9:16
+        1: main
+                at src/main.nr:9:16
      ┌─ 2: func_1
      │          at src/main.nr:44:15
      └─ (repeated 2363 times)

@@ -15,10 +15,10 @@ error: Comptime Evaluation Depth Overflow
    │ ╰─────' Exceeded the limit on the combined depth of expressions and recursion
    │  
    = Call stack:
-     1: ?
-             at src/main.nr:5:18
-     2: main
-             at src/main.nr:9:16
+        1: ?
+                at src/main.nr:5:18
+        2: main
+                at src/main.nr:9:16
      ┌─ 3: func_1
      │          at src/main.nr:44:15
      └─ (repeated 73 times)

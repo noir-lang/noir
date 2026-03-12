@@ -16,8 +16,8 @@ error: Assertion failed: Stack too deep
    │     ---
    │
    = Call stack:
-     1: main
-             at src/main.nr:2:5
+        1: main
+                at src/main.nr:2:5
      ┌─ 2: baz
      │          at src/main.nr:18:9
      │  3: foo
