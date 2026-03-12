@@ -175,83 +175,68 @@ fn type_alias_to_numeric_generic() {
 }
 
 #[test]
-fn disallows_composing_numeric_type_aliases() {
+fn disallows_composing_numeric_type_aliases_as_type_syntax() {
+    // Double<Double<N>> uses type syntax (Named with generics), not expression syntax.
+    // try_into_expression rejects Named with non-empty generics.
     let src = r#"
     type Double<let N: u32>: u32 = N * 2;
     type Quadruple<let N: u32>: u32 = Double<Double<N>>;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Expected a numeric expression, but got `Double<Double<N>>`
     fn main() {
-        let b: [u32; 12] = foo();
-                           ^^^ Type annotation needed
-                           ~~~ Could not determine the value of the generic argument `N` declared on the function `foo`
-        assert(b[0] == 0);
-    }
-    fn foo<let N:u32>() -> [u32;Quadruple::<N>] {
-        let n = Double::<N>;    // To avoid the unused 'Double' error
-        let mut a = [0;Quadruple::<N>];
-        for i in 0..Quadruple::<N> {
-            a[i] = i + n;
-        }
-        a
+        let _ = Double::<1>;
+        let _ = Quadruple::<1>;
     }
     "#;
     check_errors(src);
 }
 
 #[test]
-fn disallows_numeric_type_aliases_to_expression_with_alias() {
+fn allows_composing_numeric_type_aliases_in_expression() {
     let src = r#"
     type Double<let N: u32>: u32 = N * 2;
     type Quadruple<let N: u32>: u32 = Double::<N>+Double::<N>;
-                                      ^^^^^^^^^^^^^^^^^^^^^^^^ Numeric type alias expression must only reference generic parameters and constants
     fn main() {
-        let b: [u32; 12] = foo();
-                           ^^^ Type annotation needed
-                           ~~~ Could not determine the value of the generic argument `N` declared on the function `foo`
+        let b: [u32; 12] = foo::<3>();
         assert(b[0] == 0);
     }
     fn foo<let N:u32>() -> [u32;Quadruple::<N>] {
-        let n = Double::<N>;    // To avoid the unused 'Double' error
         let mut a = [0;Quadruple::<N>];
         for i in 0..Quadruple::<N> {
-            a[i] = i + n;
+            a[i] = i;
         }
         a
     }
     "#;
-    check_errors(src);
+    assert_no_errors(src);
 }
 
 #[test]
-fn disallows_numeric_type_aliases_to_expression_with_alias_2() {
+fn allows_composing_numeric_type_aliases_in_expression_2() {
     let src = r#"
     type Double<let N: u32>: u32 = N * 2;
-    type Quadruple<let N: u32>: u32 = N*(Double::<N>+3);
-                                      ^^^^^^^^^^^^^^^^^^ Numeric type alias expression must only reference generic parameters and constants
+    type Mixed<let N: u32>: u32 = N*(Double::<N>+3);
 
     fn main() {
-        let b: [u32; 12] = foo();
-                           ^^^ Type annotation needed
-                           ~~~ Could not determine the value of the generic argument `N` declared on the function `foo`
+        let b: [u32; 14] = foo::<2>();
         assert(b[0] == 0);
     }
-    fn foo<let N:u32>() -> [u32;Quadruple::<N>] {
-        let n = Double::<N>;    // To avoid the unused 'Double' error
-        let mut a = [0;Quadruple::<N>];
-        for i in 0..Quadruple::<N> {
-            a[i] = i + n;
+    fn foo<let N:u32>() -> [u32;Mixed::<N>] {
+        let mut a = [0;Mixed::<N>];
+        for i in 0..Mixed::<N> {
+            a[i] = i;
         }
         a
     }
     "#;
-    check_errors(src);
+    assert_no_errors(src);
 }
 
 #[test]
 fn disallows_numeric_type_aliases_to_type() {
     let src = r#"
     type Foo: u32 = u32;
-                    ^^^^ Numeric type alias expression must only reference generic parameters and constants
+                    ^^^ Type provided when a numeric generic was expected
+                    ~~~ the numeric generic is not of type `u32`
 
     fn main(a: Foo) -> pub Foo {
         a
@@ -924,7 +909,9 @@ fn cannot_assign_to_numeric_type_alias() {
 }
 
 #[test]
-fn numeric_type_alias_to_type_alias_errors_at_declaration() {
+fn numeric_type_alias_referencing_non_numeric_type_alias() {
+    // A numeric type alias referencing a non-numeric type alias should error
+    // because `Two` is not a numeric alias.
     let src = r#"
     type One: u32 = Two;
                     ^^^^ Numeric type alias expression must only reference generic parameters and constants
@@ -986,6 +973,37 @@ fn numeric_alias_in_range_expression() {
         let result = foo::<2, 3>();
         // sum of 0..6 = 0+1+2+3+4+5 = 15
         assert(result == 15);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn numeric_type_alias_with_global_constants() {
+    // Numeric type aliases should be able to reference global constants
+    let src = r#"
+    global One: u32 = 1;
+    type Two: u32 = One + One;
+
+    fn main() {
+        let a: u32 = Two;
+        assert(a == 2);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn numeric_type_alias_with_other_numeric_alias() {
+    // Numeric type aliases should be able to reference other numeric type aliases
+    // (without generics)
+    let src = r#"
+    type One: u32 = 1;
+    type Two: u32 = One + One;
+
+    fn main() {
+        let a: u32 = Two;
+        assert(a == 2);
     }
     "#;
     assert_no_errors(src);

@@ -730,29 +730,21 @@ impl<'context> Elaborator<'context> {
             let num_expr = alias.type_alias_def.typ.typ.try_into_expression();
 
             if let Some(num_expr) = num_expr {
-                // Checks that the expression only references the alias's own generics and constants
-                let generic_names: Vec<&str> = alias
-                    .type_alias_def
-                    .generics
-                    .iter()
-                    .filter_map(|g| g.ident().ident().map(|i| i.as_str()))
-                    .collect();
-                if !num_expr.is_valid_numeric_alias_expression(&generic_names) {
-                    self.errors.push(CompilationError::ResolverError(
-                        ResolverError::InvalidNumericAliasExpression {
-                            location: alias.type_alias_def.numeric_location,
-                        },
-                    ));
-                    (Type::Error, None)
+                let typ =
+                    self.resolve_type_with_kind(alias.type_alias_def.typ, &kind, wildcard_allowed);
+                if let Type::Alias(ref alias_ref, _) = typ {
+                    if alias_ref.borrow().numeric_expr.is_none() {
+                        self.errors.push(CompilationError::ResolverError(
+                            ResolverError::InvalidNumericAliasExpression {
+                                location: alias.type_alias_def.numeric_location,
+                            },
+                        ));
+                        (Type::Error, None)
+                    } else {
+                        (typ, Some(num_expr))
+                    }
                 } else {
-                    (
-                        self.resolve_type_with_kind(
-                            alias.type_alias_def.typ,
-                            &kind,
-                            wildcard_allowed,
-                        ),
-                        Some(num_expr),
-                    )
+                    (typ, Some(num_expr))
                 }
             } else {
                 self.errors.push(CompilationError::ResolverError(

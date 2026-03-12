@@ -841,8 +841,12 @@ impl Elaborator<'_> {
                 let path = self.validate_path(path);
                 let mode = PathResolutionMode::MarkAsReferenced;
                 let mut typ = self.resolve_named_type(path, ab, mode, wildcard_allowed);
-                if let Type::Alias(alias, vec) = typ {
-                    typ = alias.borrow().get_type(&vec);
+                if let Type::Alias(alias, ref vec) = typ {
+                    if alias.borrow().numeric_expr.is_none() {
+                        self.push_err(ResolverError::InvalidNumericAliasExpression { location });
+                        return Type::Error;
+                    }
+                    typ = alias.borrow().get_type(vec);
                 }
                 self.check_type_kind(typ, expected_kind, location)
             }
