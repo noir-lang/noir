@@ -128,7 +128,6 @@ impl Context {
                         new_call_stack,
                     );
 
-                assert_eq!(old_results.len(), new_results.len());
                 for (old_result, new_result) in
                     old_results.iter().zip_eq(new_results.results().iter())
                 {

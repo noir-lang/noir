@@ -515,8 +515,6 @@ impl<F: std::fmt::Display> std::fmt::Display for BrilligOpcode<F> {
                 inputs,
                 input_value_types,
             } => {
-                assert_eq!(destinations.len(), destination_value_types.len());
-
                 if !destinations.is_empty() {
                     for (index, (destination, destination_value_type)) in
                         destinations.iter().zip_eq(destination_value_types).enumerate()
@@ -531,7 +529,6 @@ impl<F: std::fmt::Display> std::fmt::Display for BrilligOpcode<F> {
 
                 write!(f, "foreign call {function}(")?;
 
-                assert_eq!(inputs.len(), input_value_types.len());
                 for (index, (input, input_value_type)) in
                     inputs.iter().zip_eq(input_value_types).enumerate()
                 {

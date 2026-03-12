@@ -133,7 +133,6 @@ impl<T> Tree<T> {
     {
         match (self, other) {
             (Tree::Branch(self_trees), Tree::Branch(other_trees)) => {
-                assert_eq!(self_trees.len(), other_trees.len());
                 let trees = self_trees.iter().zip_eq(other_trees);
                 Tree::Branch(vecmap(trees, |(l, r)| l.map_both_helper(r, f)))
             }

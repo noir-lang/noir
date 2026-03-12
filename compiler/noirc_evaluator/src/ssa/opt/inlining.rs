@@ -271,7 +271,6 @@ impl InlineContext {
         let mut context = PerFunctionContext::new(self, entry_point, source_function);
 
         let parameters = source_function.parameters();
-        assert_eq!(parameters.len(), arguments.len());
         context.values = parameters.iter().copied().zip_eq(arguments.iter().copied()).collect();
 
         let current_block = context.context.builder.current_block();

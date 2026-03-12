@@ -457,7 +457,6 @@ fn remove_block_parameters(
             ),
         };
 
-        assert_eq!(block_params.len(), jump_args.len());
         for (param, arg) in block_params.iter().zip_eq(jump_args) {
             values_to_replace.insert(*param, arg);
         }

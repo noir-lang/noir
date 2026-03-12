@@ -78,7 +78,6 @@ pub fn validate_witness<F: AcirField>(
                             iv,
                             key,
                         )?;
-                        assert_eq!(outputs.len(), ciphertext.len());
                         for (output_witness, value) in outputs.iter().zip_eq(ciphertext.into_iter())
                         {
                             let witness_value = witness_value(output_witness, &witness_map)?;
@@ -323,13 +322,6 @@ pub fn validate_witness<F: AcirField>(
                             &witness_map,
                             inputs,
                         )?;
-                        assert_eq!(
-                            outputs.len(),
-                            state.len(),
-                            "Poseidon2Permutation opcode violation: expected {} but found {} results",
-                            state.len(),
-                            outputs.len()
-                        );
                         for (output_witness, value) in outputs.iter().zip_eq(state.into_iter()) {
                             let witness_value = witness_map
                                 .get(output_witness)

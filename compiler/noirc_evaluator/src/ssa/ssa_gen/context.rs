@@ -904,8 +904,6 @@ impl<'a> FunctionContext<'a> {
     fn assign(&mut self, lhs: Values, rhs: Values) {
         match (lhs, rhs) {
             (Tree::Branch(lhs_branches), Tree::Branch(rhs_branches)) => {
-                assert_eq!(lhs_branches.len(), rhs_branches.len());
-
                 for (lhs, rhs) in lhs_branches.into_iter().zip_eq(rhs_branches) {
                     self.assign(lhs, rhs);
                 }

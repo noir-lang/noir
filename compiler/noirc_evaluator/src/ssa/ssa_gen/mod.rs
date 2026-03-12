@@ -1210,12 +1210,6 @@ impl FunctionContext<'_> {
             unreachable!("Expected enum variant to contain a tag and each variant's arguments");
         };
 
-        assert_eq!(
-            variant.len(),
-            case.arguments.len(),
-            "Expected enum variant to contain a value for each variant argument"
-        );
-
         for (value, (arg, _)) in variant.into_iter().zip_eq(&case.arguments) {
             self.define(*arg, value);
         }
@@ -1225,12 +1219,6 @@ impl FunctionContext<'_> {
         let Tree::Branch(fields) = struct_value else {
             unreachable!("Expected struct value to contain each field");
         };
-
-        assert_eq!(
-            fields.len(),
-            case.arguments.len(),
-            "Expected field length to match constructor argument count"
-        );
 
         for (value, (arg, _)) in fields.into_iter().zip_eq(&case.arguments) {
             self.define(*arg, value);
