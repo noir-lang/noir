@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773342652103,
+  "lastUpdate": 1773344400261,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23196,48 +23196,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "8d63ab7d7b68a42732097015bb4b36ff835e98e5",
-          "message": "chore: update node-gyp to v12 (tar v6 → v7) (#11791)",
-          "timestamp": "2026-03-05T20:06:01Z",
-          "tree_id": "1840086726f95e277c111052c851612dd54612d6",
-          "url": "https://github.com/noir-lang/noir/commit/8d63ab7d7b68a42732097015bb4b36ff835e98e5"
-        },
-        "date": 1772741314515,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 251728,
-            "range": "± 1522",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 221888,
-            "range": "± 437",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2743869,
-            "range": "± 2460",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25289,6 +25247,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2734713,
             "range": "± 2115",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ef7a218effeb435e15c89012e37d1e19e1d40169",
+          "message": "fix(frontend): Numeric type alias validation (#11845)",
+          "timestamp": "2026-03-12T19:15:20Z",
+          "tree_id": "01a92cf9bd318e3d823c95a23e8ea18f799d2a29",
+          "url": "https://github.com/noir-lang/noir/commit/ef7a218effeb435e15c89012e37d1e19e1d40169"
+        },
+        "date": 1773344353104,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 252650,
+            "range": "± 625",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 221779,
+            "range": "± 3045",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2731463,
+            "range": "± 2214",
             "unit": "ns/iter"
           }
         ]
