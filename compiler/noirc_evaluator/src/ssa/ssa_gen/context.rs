@@ -239,7 +239,7 @@ impl<'a> FunctionContext<'a> {
                 // The message string, the number of fields to be formatted, and
                 // then the encapsulated fields themselves
                 let final_fmt_str_fields =
-                    vec![ast::Type::String(*len), ast::Type::Field, *fields.clone()];
+                    vec![ast::Type::String(*len), ast::Type::Field, fields.as_ref().clone()];
                 let fmt_str_tuple = ast::Type::Tuple(final_fmt_str_fields);
                 Self::map_type_helper(&fmt_str_tuple, f)
             }
