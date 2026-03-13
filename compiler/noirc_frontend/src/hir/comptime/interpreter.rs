@@ -142,6 +142,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
     }
 
+    pub(crate) fn current_function(&self) -> Option<FuncId> {
+        self.current_function
+    }
+
     /// Call the given function with the given arguments and return the result.
     ///
     /// This will handle internal details like binding generics and error handling.

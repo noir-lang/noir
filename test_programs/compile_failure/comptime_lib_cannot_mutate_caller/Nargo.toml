@@ -1,0 +1,7 @@
+[package]
+name = "comptime_lib_cannot_mutate_caller"
+type = "bin"
+authors = [""]
+
+[dependencies]
+dependency = { path = "dependency" }
