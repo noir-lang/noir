@@ -97,7 +97,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                                     "ICE: expected the semantic vector length to precede a vector input"
                                 );
                             };
-                            // Get rid of any items beyond the semantic length.
+                            // Get rid of any items beyond the flattened length.
                             let flattened_length =
                                 vector_flattened_length(value_types, SemanticLength(length));
                             let ForeignCallParam::Array(fields) = &mut input else {
