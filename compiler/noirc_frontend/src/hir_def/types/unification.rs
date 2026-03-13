@@ -91,6 +91,13 @@ impl Type {
         self.try_unify_with_flags(other, UnificationFlags::None, bindings)
     }
 
+    /// `unify` with a type, and returns an error if unification failed
+    /// Do not commit anything.
+    pub fn try_unify_with_default_bindings(&self, other: &Type) -> Result<(), UnificationError> {
+        let mut bindings = TypeBindings::default();
+        self.try_unify(other, &mut bindings)
+    }
+
     fn try_unify_with_flags(
         &self,
         other: &Type,
