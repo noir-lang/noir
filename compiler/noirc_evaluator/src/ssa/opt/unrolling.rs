@@ -1499,17 +1499,23 @@ impl BoilerplateStats {
         self.total_cost + pre_header_jmp
     }
 
-    /// Estimated Brillig-weighted cost of _useful_ instructions, which is the
-    /// cost of the loop minus all in-loop boilerplate and useless (constant-foldable)
-    /// instructions.
-    fn useful_cost(&self) -> usize {
+    /// Per-iteration cost excluding boilerplate but NOT subtracting useless_cost.
+    /// This is the conservative estimate: it assumes no constant folding happens.
+    fn conservative_useful_cost(&self) -> usize {
         let load_and_store = self.loads.min(self.stores) * 2;
         let total_boilerplate = load_and_store + self.terminator_boilerplate;
         assert!(
             total_boilerplate <= self.total_cost,
             "Boilerplate cost exceeds total cost in loop"
         );
-        self.total_cost.saturating_sub(total_boilerplate).saturating_sub(self.useless_cost)
+        self.total_cost.saturating_sub(total_boilerplate)
+    }
+
+    /// Estimated Brillig-weighted cost of _useful_ instructions, which is the
+    /// cost of the loop minus all in-loop boilerplate and useless (constant-foldable)
+    /// instructions.
+    fn useful_cost(&self) -> usize {
+        self.conservative_useful_cost().saturating_sub(self.useless_cost)
     }
 
     /// Estimated Brillig-weighted cost if we unroll the loop.
@@ -1526,9 +1532,7 @@ impl BoilerplateStats {
     /// The `force_unroll` path still uses `unrolled_cost()` with full useless_cost
     /// subtraction, ensuring genuinely tiny loops are still unrolled.
     fn conservative_unrolled_cost(&self) -> usize {
-        let load_and_store = self.loads.min(self.stores) * 2;
-        let total_boilerplate = load_and_store + self.terminator_boilerplate;
-        self.total_cost.saturating_sub(total_boilerplate) * self.iterations
+        self.conservative_useful_cost() * self.iterations
     }
 
     /// A small loop is where if we unroll it into the pre-header then considering the
