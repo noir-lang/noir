@@ -835,7 +835,7 @@
 <a href=#835 id=835 data-nosnippet>835</a>            }
 <a href=#836 id=836 data-nosnippet>836</a>        }
 <a href=#837 id=837 data-nosnippet>837</a>
-<a href=#838 id=838 data-nosnippet>838</a>        <span class="kw">let </span>typ = <span class="self">self</span>.elaborator.interner.id_type(id);
+<a href=#838 id=838 data-nosnippet>838</a>        <span class="kw">let </span>typ = <span class="self">self</span>.elaborator.interner.id_type(id).follow_bindings();
 <a href=#839 id=839 data-nosnippet>839</a>        <span class="prelude-val">Ok</span>(Value::FormatString(Rc::new(new_fragments), typ, length))
 <a href=#840 id=840 data-nosnippet>840</a>    }
 <a href=#841 id=841 data-nosnippet>841</a>
