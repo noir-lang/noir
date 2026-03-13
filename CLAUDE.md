@@ -65,6 +65,7 @@ The project uses `just` as a task runner and `cargo` for Rust builds. Minimum Ru
 cargo build                          # Build default members (nargo_cli, acvm_cli, etc.)
 cargo build -p noirc_frontend        # Build a specific crate
 cargo build --release                # Release build
+just doc                             # Generate docs (--document-private-items --workspace)
 ```
 
 ### Testing (Rust / Noir)

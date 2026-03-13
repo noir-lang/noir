@@ -83,7 +83,7 @@ struct Context {
     variables_to_move: HashMap<LocalId, Vec<IdentId>>,
 
     /// Variables that are only accessed through `ExtractTupleField` and are safe to
-    /// skip cloning for. See [`LastUseContext::get_extract_only_variables`].
+    /// skip cloning for. See `LastUseContext::get_extract_only_variables`.
     extract_only_variables: HashSet<LocalId>,
 }
 
