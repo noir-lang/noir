@@ -27,6 +27,8 @@ enum UnificationFlags {
     None,
     /// If the right-hand side is `expr op constant`, don't try to move the constant to the left-hand side.
     DoNotMoveConstantsOnTheRight,
+    /// Don't try to move constants on either side.
+    DoNotMoveConstants,
 }
 
 impl Kind {
@@ -288,7 +290,11 @@ impl Type {
                             rhs,
                         );
 
-                        new_type.try_unify(&lhs, bindings)?;
+                        // Use DoNotMoveConstants to prevent try_unify_by_moving_single_constant_term
+                        // from undoing this rewrite, which would cause infinite recursion when
+                        // constant folding fails (e.g. `0 - 2` underflows u32).
+                        let flags = UnificationFlags::DoNotMoveConstants;
+                        new_type.try_unify_with_flags(&lhs, flags, bindings)?;
                         Ok(())
                     } else {
                         Err(UnificationError)
@@ -432,7 +438,7 @@ impl Type {
         Err(UnificationError)
     }
 
-    /// Try to unify the following equations:
+    /// Try to unify the following equations, unless prohibited by DoNotMoveConstants flag:
     /// - `(..a..) + 1 = (..b..)` -> `(..a..) = (..b..) - 1`
     /// - `(..a..) - 1 = (..b..)` -> `(..a..) = (..b..) + 1`
     /// - `(..a..) = (..b..) + 1` -> `(..b..) = (..a..) - 1`
@@ -443,12 +449,14 @@ impl Type {
         flags: UnificationFlags,
         bindings: &mut TypeBindings,
     ) -> Result<(), UnificationError> {
-        let result = self.try_unify_by_moving_single_constant_term_in_self(other, bindings);
-        if result.is_ok() {
-            return Ok(());
+        if flags != UnificationFlags::DoNotMoveConstants {
+            let result = self.try_unify_by_moving_single_constant_term_in_self(other, bindings);
+            if result.is_ok() {
+                return Ok(());
+            }
         }
 
-        if flags != UnificationFlags::DoNotMoveConstantsOnTheRight {
+        if flags == UnificationFlags::None {
             let result = other.try_unify_by_moving_single_constant_term_in_self(self, bindings);
             if result.is_ok() {
                 return Ok(());
