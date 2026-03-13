@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773412254722,
+  "lastUpdate": 1773412464683,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23171,48 +23171,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "ebb5ff171249cbb3518dd5399e155471e3e174b0",
-          "message": "fix(ssa): do not fold ArraySet to MakeArray in simplifier (#11659)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
-          "timestamp": "2026-03-06T11:46:16Z",
-          "tree_id": "b6ce46270f577e323ab008ab10a1d1cc5ab242b3",
-          "url": "https://github.com/noir-lang/noir/commit/ebb5ff171249cbb3518dd5399e155471e3e174b0"
-        },
-        "date": 1772800195241,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252550,
-            "range": "± 1400",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 221121,
-            "range": "± 3776",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2743564,
-            "range": "± 2585",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25264,6 +25222,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2756589,
             "range": "± 11343",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "02e54ece642f45f67ab3745ee1ad957de10cd834",
+          "message": "chore!: remove deprecated `StructDefinition` (#11859)",
+          "timestamp": "2026-03-13T14:05:25Z",
+          "tree_id": "acb8a6712f2c49a5ab06f75e490a9d3eb9cd3adb",
+          "url": "https://github.com/noir-lang/noir/commit/02e54ece642f45f67ab3745ee1ad957de10cd834"
+        },
+        "date": 1773412417929,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 253383,
+            "range": "± 1275",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 224225,
+            "range": "± 7618",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2741994,
+            "range": "± 29349",
             "unit": "ns/iter"
           }
         ]
