@@ -165,12 +165,12 @@ fn nested_array_two_disjoint_indexes() {
     ");
 }
 
-/// Nested array index: `arr[0][1]` on a 3D array. The chained indexing is
-/// lowered to two separate index operations, each inserting a clone.
+/// Nested array index: `arr[0][1]` on a 3D array. The outermost index result
+/// gets cloned; the intermediate `arr[0]` does not because `handle_index`
+/// processes the collection via `handle_reference_expression`.
 ///
 /// Suboptimal: `handle_index` always clones when the element type contains an
-/// array. Here `arr` has no further uses and the intermediate `arr[0]` is a
-/// temporary used only for the inner index, so neither clone is needed.
+/// array. Here `arr` has no further uses, so the clone is unnecessary.
 #[test]
 fn nested_array_double_index() {
     let src = "
