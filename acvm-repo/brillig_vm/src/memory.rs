@@ -405,7 +405,9 @@ impl<F: AcirField> Memory<F> {
     fn resolve(&self, address: MemoryAddress) -> u32 {
         match address {
             MemoryAddress::Direct(address) => address,
-            MemoryAddress::Relative(offset) => self.get_stack_pointer() + offset,
+            MemoryAddress::Relative(offset) => {
+                self.get_stack_pointer().checked_add(offset).expect("stack pointer offset overflow")
+            }
         }
     }
 
@@ -492,6 +494,8 @@ impl<F: AcirField> Memory<F> {
 
 #[cfg(test)]
 mod tests {
+    use std::u32;
+
     use super::*;
     use acir::FieldElement;
     use test_case::test_case;
@@ -647,5 +651,14 @@ mod tests {
     #[should_panic(expected = "range")]
     fn memory_value_new_integer_out_of_range(bit_size: IntegerBitSize, value: u128) {
         let _ = MemoryValue::<FieldElement>::new_integer(value, bit_size);
+    }
+
+    #[test]
+    #[should_panic = "stack pointer offset overflow"]
+    fn memory_resolve_overflow() {
+        let mut memory = Memory::<FieldElement>::default();
+        memory.write(STACK_POINTER_ADDRESS, MemoryValue::from(u32::MAX - 10));
+        let addr = MemoryAddress::relative(20);
+        let _wrap = memory.resolve(addr);
     }
 }
