@@ -100,9 +100,10 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                             // Get rid of any items beyond the semantic length.
                             let flattened_length =
                                 vector_flattened_length(value_types, SemanticLength(length));
-                            let mut fields = input.fields();
+                            let ForeignCallParam::Array(fields) = &mut input else {
+                                unreachable!("ICE: expected Array parameter for vector content");
+                            };
                             fields.truncate(assert_usize(flattened_length.0));
-                            input = ForeignCallParam::Array(fields);
                             vector_length = None;
                         }
                         _ => {
