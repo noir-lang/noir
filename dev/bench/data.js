@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773416048718,
+  "lastUpdate": 1773416211556,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23171,48 +23171,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "43ef6a7cd7640d983e217e1a7491c72ed28292d8",
-          "message": "chore: use stable lvalue index counter (#11792)",
-          "timestamp": "2026-03-06T12:09:07Z",
-          "tree_id": "bb7ee83910a0f72cca64e2d79da73a08f97b94db",
-          "url": "https://github.com/noir-lang/noir/commit/43ef6a7cd7640d983e217e1a7491c72ed28292d8"
-        },
-        "date": 1772800583290,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 251826,
-            "range": "± 444",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 221903,
-            "range": "± 5968",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2744428,
-            "range": "± 17617",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -25264,6 +25222,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2728771,
             "range": "± 4447",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "764aca4afca0106fde9ca5925000a2effe618c13",
+          "message": "fix: don't update the bindings when checking functions (#11844)",
+          "timestamp": "2026-03-13T15:04:27Z",
+          "tree_id": "1705acbb632134bd0723fe194f89c34bf3df40de",
+          "url": "https://github.com/noir-lang/noir/commit/764aca4afca0106fde9ca5925000a2effe618c13"
+        },
+        "date": 1773416163883,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 255516,
+            "range": "± 2524",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 224942,
+            "range": "± 6093",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2730754,
+            "range": "± 2888",
             "unit": "ns/iter"
           }
         ]
