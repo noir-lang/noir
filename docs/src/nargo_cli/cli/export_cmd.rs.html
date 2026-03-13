@@ -86,18 +86,19 @@
 <a href=#86 id=86 data-nosnippet>86</a>
 <a href=#87 id=87 data-nosnippet>87</a>            <span class="kw">let </span>program = report_errors(
 <a href=#88 id=88 data-nosnippet>88</a>                program.map(|program| (program, Vec::new())),
-<a href=#89 id=89 data-nosnippet>89</a>                file_manager,
-<a href=#90 id=90 data-nosnippet>90</a>                compile_options.deny_warnings,
-<a href=#91 id=91 data-nosnippet>91</a>                compile_options.silence_warnings,
-<a href=#92 id=92 data-nosnippet>92</a>            )<span class="question-mark">?</span>;
-<a href=#93 id=93 data-nosnippet>93</a>
-<a href=#94 id=94 data-nosnippet>94</a>            <span class="prelude-val">Ok</span>((function_name, program))
-<a href=#95 id=95 data-nosnippet>95</a>        },
-<a href=#96 id=96 data-nosnippet>96</a>    )<span class="question-mark">?</span>;
-<a href=#97 id=97 data-nosnippet>97</a>
-<a href=#98 id=98 data-nosnippet>98</a>    <span class="kw">let </span>export_dir = workspace.export_directory_path();
-<a href=#99 id=99 data-nosnippet>99</a>    <span class="kw">for </span>(function_name, program) <span class="kw">in </span>exported_programs {
-<a href=#100 id=100 data-nosnippet>100</a>        save_program_to_file(<span class="kw-2">&amp;</span>program.into(), <span class="kw-2">&amp;</span>function_name.parse().unwrap(), <span class="kw-2">&amp;</span>export_dir)<span class="question-mark">?</span>;
-<a href=#101 id=101 data-nosnippet>101</a>    }
-<a href=#102 id=102 data-nosnippet>102</a>    <span class="prelude-val">Ok</span>(())
-<a href=#103 id=103 data-nosnippet>103</a>}</code></pre></div></section></main></body></html>
+<a href=#89 id=89 data-nosnippet>89</a>                <span class="kw-2">&amp;</span>context.file_manager,
+<a href=#90 id=90 data-nosnippet>90</a>                <span class="kw-2">&amp;</span>context.parsed_files,
+<a href=#91 id=91 data-nosnippet>91</a>                compile_options.deny_warnings,
+<a href=#92 id=92 data-nosnippet>92</a>                compile_options.silence_warnings,
+<a href=#93 id=93 data-nosnippet>93</a>            )<span class="question-mark">?</span>;
+<a href=#94 id=94 data-nosnippet>94</a>
+<a href=#95 id=95 data-nosnippet>95</a>            <span class="prelude-val">Ok</span>((function_name, program))
+<a href=#96 id=96 data-nosnippet>96</a>        },
+<a href=#97 id=97 data-nosnippet>97</a>    )<span class="question-mark">?</span>;
+<a href=#98 id=98 data-nosnippet>98</a>
+<a href=#99 id=99 data-nosnippet>99</a>    <span class="kw">let </span>export_dir = workspace.export_directory_path();
+<a href=#100 id=100 data-nosnippet>100</a>    <span class="kw">for </span>(function_name, program) <span class="kw">in </span>exported_programs {
+<a href=#101 id=101 data-nosnippet>101</a>        save_program_to_file(<span class="kw-2">&amp;</span>program.into(), <span class="kw-2">&amp;</span>function_name.parse().unwrap(), <span class="kw-2">&amp;</span>export_dir)<span class="question-mark">?</span>;
+<a href=#102 id=102 data-nosnippet>102</a>    }
+<a href=#103 id=103 data-nosnippet>103</a>    <span class="prelude-val">Ok</span>(())
+<a href=#104 id=104 data-nosnippet>104</a>}</code></pre></div></section></main></body></html>
