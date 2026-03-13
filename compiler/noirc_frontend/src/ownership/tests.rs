@@ -997,12 +997,11 @@ fn struct_field_extraction_no_unnecessary_clone() {
 /// The clone of `x.0.0` here is unnecessary: `x.0` is only used to extract its
 /// sub-fields, never as a whole value. The extract-only optimization doesn't catch
 /// this because `track_extract_use` flattens nested extracts (`x.0.0` and `x.0.1`)
-/// down to the root variable, recording field index `0` against `x` both times.
-/// The duplicate-field check then marks `x` as unsafe for the optimization.
-/// Fixing this requires tracking the full access path, not just the top-level index.
+/// Both `x.0.0` and `x.0.1` extract distinct sub-fields, so no clone is needed.
+/// Previously this was broken because `track_extract_use` flattened both paths to
+/// field index `0`, triggering a false duplicate. Now it tracks the full access path.
 #[test]
-#[should_panic]
-fn clones_nested_tuple_extraction_even_though_it_is_not_needed() {
+fn no_clone_for_nested_tuple_extraction() {
     let src = "
     unconstrained fn main() {
         let x = (([1], [2]), ([3], [4]));
@@ -1017,6 +1016,49 @@ fn clones_nested_tuple_extraction_even_though_it_is_not_needed() {
         let x$l0 = (([1], [2]), ([3], [4]));
         let _a$l1 = x$l0.0.0;
         let _b$l2 = x$l0.0.1
+    }
+    ");
+}
+
+/// `x.0.0` and `x.0` overlap because `x.0` accesses the entire sub-tuple that
+/// `x.0.0` also reaches into. This requires a clone.
+#[test]
+fn clone_needed_when_extract_paths_overlap() {
+    let src = "
+    unconstrained fn main() {
+        let x = (([1], [2]), [3]);
+        let _a = x.0.0;
+        let _b = x.0;
+    }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let x$l0 = (([1], [2]), [3]);
+        let _a$l1 = x$l0.0.0.clone();
+        let _b$l2 = x$l0.0
+    }
+    ");
+}
+
+/// `x.0.0` and `x.1` are completely disjoint paths — no clone needed.
+#[test]
+fn no_clone_for_disjoint_nested_and_shallow_extraction() {
+    let src = "
+    unconstrained fn main() {
+        let x = (([1], [2]), [3]);
+        let _a = x.0.0;
+        let _b = x.1;
+    }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let x$l0 = (([1], [2]), [3]);
+        let _a$l1 = x$l0.0.0;
+        let _b$l2 = x$l0.1
     }
     ");
 }
