@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
@@ -257,5 +259,15 @@ impl FuncMeta {
 
     pub fn all_trait_constraints(&self) -> impl Iterator<Item = &TraitConstraint> {
         self.trait_constraints.iter().chain(self.extra_trait_constraints.iter())
+    }
+
+    /// Instantiates a type by substituting any generics declared on this function that appear
+    /// in the given type with fresh type variables.
+    pub(crate) fn instantiate<'a>(&self, typ: &'a Type, interner: &NodeInterner) -> Cow<'a, Type> {
+        if let Type::Forall(type_vars, _) = &self.typ {
+            Cow::Owned(typ.substitute_type_vars_with_fresh_type_vars(type_vars, interner).0)
+        } else {
+            Cow::Borrowed(typ)
+        }
     }
 }
