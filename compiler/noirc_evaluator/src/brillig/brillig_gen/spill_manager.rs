@@ -515,7 +515,7 @@ mod tests {
         let off = sm.allocate_spill_offset();
         sm.record_spill(v0, off, test_var(0));
         sm.unmark_spilled(&v0);
-        sm.record_spill(v0, off, test_var(1)); // Differt BrilligVariable to show it's not checked.
+        sm.record_spill(v0, off, test_var(1)); // Different BrilligVariable to show it's not checked.
     }
 
     #[test]
