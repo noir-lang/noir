@@ -135,20 +135,53 @@ impl Instruction {
                         5 + arguments.len() + results.len()
                     }
                     Value::ForeignFunction(_) => {
-                        // TODO: we should differentiate inputs/outputs with array and vector allocations
-                        1
+                        // ForeignCall opcode + args + results
+                        let results = dfg.instruction_results(id);
+                        3 + arguments.len() + results.len()
                     }
-                    Value::Intrinsic(intrinsic) => {
-                        match intrinsic {
-                            Intrinsic::ArrayLen => 1,
-                            Intrinsic::BlackBox(_) => {
-                                // TODO: we could differentiate inputs/outputs with array and vector inputs (we add one to the pointer)
-                                1
-                            }
-                            Intrinsic::FieldLessThan => 1,
-                            _ => 1,
+                    Value::Intrinsic(intrinsic) => match intrinsic {
+                        // 1 BlackBoxOp + input/output array setup
+                        Intrinsic::BlackBox(_) => {
+                            let results = dfg.instruction_results(id);
+                            3 + arguments.len() + results.len()
                         }
-                    }
+                        // Single opcode intrinsics
+                        Intrinsic::ArrayLen
+                        | Intrinsic::FieldLessThan
+                        | Intrinsic::ArrayRefCount
+                        | Intrinsic::VectorRefCount
+                        | Intrinsic::IsUnconstrained => 1,
+
+                        // Vector ops compile to procedure calls. The procedure body
+                        // (RC check, capacity check, mem_copy) is shared global code
+                        // compiled once regardless of inlining. Only count the
+                        // call-site static opcodes: 2 Mov (args to scratch) + 1 Const
+                        // (element count) + 1 Call + 2 Mov (results) + 1 Store (element).
+                        Intrinsic::VectorPushBack
+                        | Intrinsic::VectorPushFront
+                        | Intrinsic::VectorPopBack
+                        | Intrinsic::VectorPopFront
+                        | Intrinsic::VectorInsert
+                        | Intrinsic::VectorRemove => 7,
+
+                        // Array init + 1 BlackBoxOp::ToRadix + ArrayReverse procedure call
+                        Intrinsic::ToBits(_) => 10,
+                        // Array init + 1 BlackBoxOp::ToRadix (no reverse)
+                        Intrinsic::ToRadix(_) => 8,
+
+                        // Semantic length + vector init + pointer + MemCopy procedure call
+                        Intrinsic::AsVector => 8,
+
+                        // Removed before Brillig codegen / compile-time only
+                        Intrinsic::ArrayAsStrUnchecked
+                        | Intrinsic::StrAsBytes
+                        | Intrinsic::AssertConstant
+                        | Intrinsic::StaticAssert
+                        | Intrinsic::AsWitness
+                        | Intrinsic::ApplyRangeConstraint
+                        | Intrinsic::DerivePedersenGenerators
+                        | Intrinsic::Hint(_) => 0,
+                    },
 
                     // Indirect calls (e.g., calling a function pointer from an instruction result or parameter).
                     // These can occur before defunctionalization.
