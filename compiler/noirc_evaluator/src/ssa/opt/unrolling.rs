@@ -3001,8 +3001,8 @@ mod tests {
     /// unrolls (which calls mem2reg), should not panic on a block missing its
     /// terminator instruction.
     ///
-    /// We used to create a fresh block for the loop header at the back-edge destination, 
-    /// but if unrolling aborted that block was never visited (since the header was already visited), 
+    /// We used to create a fresh block for the loop header at the back-edge destination,
+    /// but if unrolling aborted that block was never visited (since the header was already visited),
     /// leaving it without a terminator.
     #[test]
     fn unroll_nested_loop_with_multi_param_inner_header() {
