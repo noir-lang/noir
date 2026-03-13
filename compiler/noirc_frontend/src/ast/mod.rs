@@ -565,18 +565,6 @@ impl UnresolvedTypeExpression {
                 | BinaryOpKind::Modulo
         )
     }
-
-    pub(crate) fn is_valid_expression(&self) -> bool {
-        match self {
-            UnresolvedTypeExpression::Variable(path) => path.no_generic(),
-            UnresolvedTypeExpression::Constant(_, _, _) => true,
-            UnresolvedTypeExpression::BinaryOperation(lhs, _, rhs, _) => {
-                lhs.is_valid_expression() && rhs.is_valid_expression()
-            }
-            UnresolvedTypeExpression::Negation(rhs, _) => rhs.is_valid_expression(),
-            UnresolvedTypeExpression::AsTraitPath(_) => true,
-        }
-    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
