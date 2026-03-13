@@ -164,15 +164,12 @@ impl SpillManager {
             is_permanent: false,
             is_currently_spilled: true,
         });
-        if record.is_permanent {
-            // Permanent record — preserve offset, just re-mark as spilled.
-            assert_eq!(offset, record.offset);
-            record.is_currently_spilled = true;
-        } else {
+        // Always preserve the offset, so we don't leak free slots.
+        assert_eq!(offset, record.offset, "Spill of {value_id} orphaned existing slot");
+        record.is_currently_spilled = true;
+        if !record.is_permanent {
             // Transient record from a previous spill/reload cycle — update it.
-            record.offset = offset;
             record.variable = variable;
-            record.is_currently_spilled = true;
         }
     }
 
@@ -480,6 +477,22 @@ mod tests {
         sm.record_spill(v0, off, test_var(0));
 
         // Attempting to spill v0 again without unmark/remove should panic
+        let off2 = sm.allocate_spill_offset();
+        sm.record_spill(v0, off2, test_var(0));
+    }
+
+    #[test]
+    #[should_panic(expected = "orphaned existing slot")]
+    fn record_spill_panics_on_orphaned_slot() {
+        let mut sm = SpillManager::new();
+        let v0 = Id::test_new(0);
+
+        let off = sm.allocate_spill_offset();
+        sm.record_spill(v0, off, test_var(0));
+
+        sm.unmark_spilled(&v0);
+
+        // Attempting to spill v0 again with a different offset should panic.
         let off2 = sm.allocate_spill_offset();
         sm.record_spill(v0, off2, test_var(0));
     }
