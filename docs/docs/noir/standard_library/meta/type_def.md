@@ -8,11 +8,11 @@ This type corresponds to `struct Name { field1: Type1, ... }` and `enum Name { V
 
 ## Methods
 
-### add_attribute
+### add_abi
 
 #include_code add_attribute noir_stdlib/src/meta/type_def.nr rust
 
-Adds an attribute to the data type.
+Adds an abi attribute to the data type with the specified argument.
 
 ### as_type
 

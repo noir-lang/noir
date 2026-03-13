@@ -11,9 +11,9 @@ use builtin_helpers::{
     block_expression_to_value, byte_array_type, check_argument_count,
     check_function_not_yet_resolved, check_one_argument, check_three_arguments,
     check_two_arguments, get_bool, get_expr, get_field, get_format_string, get_function_def,
-    get_module, get_quoted, get_trait_constraint, get_trait_def, get_trait_impl, get_type, get_type_id, get_typed_expr, get_u32, get_unresolved_type, get_vector,
-    has_named_attribute, hir_pattern_to_tokens, new_binary_op, new_unary_op,
-    parse, quote_ident, visibility_to_quoted,
+    get_module, get_quoted, get_trait_constraint, get_trait_def, get_trait_impl, get_type,
+    get_type_id, get_typed_expr, get_u32, get_unresolved_type, get_vector, has_named_attribute,
+    hir_pattern_to_tokens, new_binary_op, new_unary_op, parse, quote_ident, visibility_to_quoted,
 };
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
@@ -22,10 +22,10 @@ use num_bigint::BigUint;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
-    Kind, QuotedType, Shared, Type, TypeBindings, ast::{
-        ArrayLiteral, ConstrainKind, Expression, ExpressionKind, ForRange,
-        IntegerBitSize, LValue, Literal, Pattern,
-        Statement, StatementKind, UnresolvedTypeData, UnsafeExpression,
+    Kind, QuotedType, Shared, Type, TypeBindings,
+    ast::{
+        ArrayLiteral, ConstrainKind, Expression, ExpressionKind, ForRange, IntegerBitSize, LValue,
+        Literal, Pattern, Statement, StatementKind, UnresolvedTypeData, UnsafeExpression,
     },
     elaborator::{
         ElaborateReason, Elaborator, PrimitiveType,
@@ -53,7 +53,7 @@ use crate::{
     parser::{Parser, StatementOrExpressionOrLValue},
     shared::Signedness,
     signed_field::SignedField,
-    token::{Attribute, LocatedToken, Token},
+    token::{Attribute, LocatedToken, SecondaryAttribute, Token},
 };
 
 use self::builtin_helpers::{eq_item, get_array, get_ctstring, get_str, get_u8, hash_item, lex};
@@ -131,9 +131,9 @@ impl Interpreter<'_, '_> {
             "fmtstr_as_ctstring" => fmtstr_as_ctstring(interner, arguments, location),
             "fmtstr_quoted_contents" => fmtstr_quoted_contents(interner, arguments, location),
             "fresh_type_variable" => fresh_type_variable(interner),
-            "function_def_add_attribute" => function_def_add_attribute(self, arguments, location),
             "function_def_as_typed_expr" => function_def_as_typed_expr(self, arguments, location),
             "function_def_body" => function_def_body(interner, arguments, location),
+            "function_def_disable" => function_def_disable(self, arguments, location),
             "function_def_eq" => function_def_eq(arguments, location),
             "function_def_has_named_attribute" => {
                 function_def_has_named_attribute(interner, arguments, location)
@@ -203,7 +203,7 @@ impl Interpreter<'_, '_> {
             "type_as_str" => type_as_str(arguments, return_type, location),
             "type_as_data_type" => type_as_data_type(arguments, return_type, location),
             "type_as_tuple" => type_as_tuple(arguments, return_type, location),
-            "type_def_add_attribute" => type_def_add_attribute(self, arguments, location),
+            "type_def_add_abi" => type_def_add_abi(self, arguments, location),
             "type_def_as_type" => type_def_as_type(interner, arguments, location),
             "type_def_as_type_with_generics" => {
                 type_def_as_type_with_generics(interner, arguments, return_type, location)
@@ -394,17 +394,17 @@ fn str_as_ctstring(arguments: Vec<(Value, Location)>, location: Location) -> IRe
     Ok(Value::CtString(string_bytes))
 }
 
-// fn add_attribute<let N: u32>(self, attribute: str<N>)
-fn type_def_add_attribute(
+// fn add_abi(self, abi_argument: CtString)
+fn type_def_add_abi(
     interpreter: &mut Interpreter,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
     let (self_argument, attribute) = check_two_arguments(arguments, location)?;
     let attribute_location = attribute.1;
-    let attribute = get_str(attribute)?;
+    let attribute = get_ctstring(attribute)?;
     let attribute = String::from_utf8_lossy(&attribute);
-    let attribute = format!("#[{attribute}]");
+    let attribute = format!("#[abi({attribute})]");
     let mut parser = Parser::for_str(&attribute, attribute_location.file);
     let Some((Attribute::Secondary(attribute), _span)) = parser.parse_attribute() else {
         return Err(InterpreterError::InvalidAttribute {
@@ -2400,42 +2400,6 @@ fn fresh_type_variable(interner: &NodeInterner) -> IResult<Value> {
     Ok(Value::Type(interner.next_type_variable_with_kind(Kind::Any)))
 }
 
-// fn add_attribute<let N: u32>(self, attribute: str<N>)
-fn function_def_add_attribute(
-    interpreter: &mut Interpreter,
-    arguments: Vec<(Value, Location)>,
-    location: Location,
-) -> IResult<Value> {
-    let (self_argument, attribute) = check_two_arguments(arguments, location)?;
-    let attribute_location = attribute.1;
-    let attribute = get_str(attribute)?;
-    let attribute = String::from_utf8_lossy(&attribute);
-    let attribute = format!("#[{attribute}]");
-    let mut parser = Parser::for_str(&attribute, attribute_location.file);
-    let Some((attribute, _span)) = parser.parse_attribute() else {
-        return Err(InterpreterError::InvalidAttribute {
-            attribute: attribute.clone(),
-            location: attribute_location,
-        });
-    };
-
-    let func_id = get_function_def(self_argument)?;
-    check_function_not_yet_resolved(interpreter, func_id, location)?;
-
-    let function_modifiers = interpreter.elaborator.interner.function_modifiers_mut(&func_id);
-
-    match &attribute {
-        Attribute::Function(attribute) => {
-            function_modifiers.attributes.set_function(attribute.clone());
-        }
-        Attribute::Secondary(attribute) => {
-            function_modifiers.attributes.secondary.push(attribute.clone());
-        }
-    }
-
-    Ok(Value::Unit)
-}
-
 // fn as_typed_expr(self) -> TypedExpr
 fn function_def_as_typed_expr(
     interpreter: &mut Interpreter,
@@ -2497,6 +2461,33 @@ fn function_def_body(
     } else {
         Err(InterpreterError::FunctionAlreadyResolved { location })
     }
+}
+
+// fn disable(self, error_message: CtString)
+fn function_def_disable(
+    interpreter: &mut Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (self_argument, error_message) = check_two_arguments(arguments, location)?;
+    let error_message = get_ctstring(error_message)?;
+    let error_message = String::from_utf8_lossy(&error_message).into_owned();
+
+    let func_id = get_function_def(self_argument)?;
+    check_function_not_yet_resolved(interpreter, func_id, location)?;
+
+    let function_modifiers = interpreter.elaborator.interner.function_modifiers_mut(&func_id);
+
+    function_modifiers.attributes.secondary.push(SecondaryAttribute {
+        kind: crate::token::SecondaryAttributeKind::Deprecated(true, Some(error_message)),
+        location,
+    });
+
+    function_modifiers.attributes.secondary.push(SecondaryAttribute {
+        kind: crate::token::SecondaryAttributeKind::ContractLibraryMethod,
+        location,
+    });
+    Ok(Value::Unit)
 }
 
 // fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}

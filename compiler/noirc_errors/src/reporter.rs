@@ -50,7 +50,7 @@ impl CustomDiagnostic {
         }
     }
 
-    fn simple_with_kind(
+    pub fn simple_with_kind(
         primary_message: String,
         secondary_message: String,
         secondary_location: Location,

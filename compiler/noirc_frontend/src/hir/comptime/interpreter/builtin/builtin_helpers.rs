@@ -36,10 +36,7 @@ use crate::{
         def_map::ModuleId,
         type_check::generics::TraitGenerics,
     },
-    hir_def::{
-        function::FunctionBody,
-        stmt::HirPattern,
-    },
+    hir_def::{function::FunctionBody, stmt::HirPattern},
     node_interner::{FuncId, NodeInterner, TraitId, TraitImplId, TypeId},
     shared::Signedness,
     token::{SecondaryAttribute, Token, Tokens},
@@ -598,7 +595,7 @@ fn secondary_attribute_name(
     interner: &NodeInterner,
 ) -> Option<String> {
     match &attribute.kind {
-        SecondaryAttributeKind::Deprecated(_) => Some("deprecated".to_string()),
+        SecondaryAttributeKind::Deprecated(_, _) => Some("deprecated".to_string()),
         SecondaryAttributeKind::ContractLibraryMethod => {
             Some("contract_library_method".to_string())
         }

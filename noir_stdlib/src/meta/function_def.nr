@@ -1,9 +1,4 @@
 impl FunctionDefinition {
-    #[builtin(function_def_add_attribute)]
-    // docs:start:add_attribute
-    pub comptime fn add_attribute<let N: u32>(self, attribute: str<N>) {}
-    // docs:end:add_attribute
-
     #[builtin(function_def_as_typed_expr)]
     // docs:start:as_typed_expr
     pub comptime fn as_typed_expr(self) -> TypedExpr {}
@@ -13,6 +8,11 @@ impl FunctionDefinition {
     // docs:start:body
     pub comptime fn body(self) -> Expr {}
     // docs:end:body
+
+    #[builtin(function_def_disable)]
+    // docs:start:disable
+    pub comptime fn disable(self, error_message: CtString) {}
+    // docs:end:disable
 
     #[builtin(function_def_has_named_attribute)]
     // docs:start:has_named_attribute

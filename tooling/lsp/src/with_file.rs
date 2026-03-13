@@ -596,7 +596,7 @@ fn secondary_attribute_with_file(
         SecondaryAttributeKind::Meta(meta_attribute) => {
             SecondaryAttributeKind::Meta(meta_attribute_with_file(meta_attribute, file))
         }
-        SecondaryAttributeKind::Deprecated(_)
+        SecondaryAttributeKind::Deprecated(..)
         | SecondaryAttributeKind::ContractLibraryMethod
         | SecondaryAttributeKind::Export
         | SecondaryAttributeKind::Field(_)

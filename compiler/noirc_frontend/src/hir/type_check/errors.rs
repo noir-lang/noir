@@ -4,6 +4,7 @@ use std::rc::Rc;
 use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::CustomDiagnostic as Diagnostic;
+use noirc_errors::DiagnosticKind;
 use noirc_errors::Location;
 use thiserror::Error;
 
@@ -166,8 +167,8 @@ pub enum TypeCheckError {
     TypeAnnotationsNeededForFieldAccess { location: Location },
     #[error("Multiple trait impls may apply to this object type")]
     MultipleMatchingImpls { object_type: Type, candidates: Vec<String>, location: Location },
-    #[error("use of deprecated function {name}")]
-    CallDeprecated { name: String, note: Option<String>, location: Location },
+    #[error("Use of deprecated function {name}")]
+    CallDeprecated { name: String, note: Option<String>, deny: bool, location: Location },
     #[error("{0}")]
     ResolverError(ResolverError),
     #[error("Unused expression result of type {expr_type}")]
@@ -657,11 +658,16 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
 
                 Diagnostic::simple_error(message, String::new(), *location)
             }
-            TypeCheckError::CallDeprecated { location,  note, .. } => {
-                let primary_message = error.to_string();
-                let secondary_message = note.clone().unwrap_or_default();
+            TypeCheckError::CallDeprecated { location, note, deny, name } => {
+                let default_primary = format!("`{name}` has been deprecated");
 
-                let mut diagnostic = Diagnostic::simple_warning(primary_message, secondary_message, *location);
+                let (primary, secondary) = match note {
+                    Some(note) => (note.clone(), default_primary),
+                    None => (default_primary, String::new()),
+                };
+
+                let kind = if *deny { DiagnosticKind::Error } else { DiagnosticKind::Warning };
+                let mut diagnostic = Diagnostic::simple_with_kind(primary, secondary, *location, kind);
                 diagnostic.deprecated = true;
                 diagnostic
             }
