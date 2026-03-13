@@ -274,6 +274,14 @@ impl Function {
             if !needs_refresh {
                 break;
             }
+
+            // In Brillig, simplify between inner and outer loop evaluations.
+            // After unrolling inner loops, the expanded instructions need to be
+            // constant-folded before the outer loop's cost model is evaluated,
+            // otherwise useless_cost is inflated by un-simplified instructions.
+            if self.runtime().is_brillig() {
+                simplify_between_unrolls(self);
+            }
         }
         (has_unrolled, unroll_errors)
     }
@@ -1115,13 +1123,14 @@ impl Loop {
         max_unroll_iterations: usize,
         force_unroll_threshold: usize,
     ) -> bool {
-        self.boilerplate_stats(function, &loops.cfg, &loops.callee_costs).is_some_and(|s| {
-            let within_iteration_limit = s.iterations <= max_unroll_iterations;
-            let force_unroll = s.unrolled_cost() <= force_unroll_threshold;
-            (force_unroll || s.is_small())
-                && within_iteration_limit
-                && self.is_fully_executed(&loops.cfg)
-        })
+        self.boilerplate_stats(function, &loops.cfg, &loops.dom, &loops.callee_costs).is_some_and(
+            |s| {
+                let within_iteration_limit = s.iterations <= max_unroll_iterations;
+                let force_unroll = s.unrolled_cost() <= force_unroll_threshold;
+                let is_fully = self.is_fully_executed(&loops.cfg);
+                (force_unroll || s.is_small()) && within_iteration_limit && is_fully
+            },
+        )
     }
 
     /// Compute the Brillig-weighted cost of instructions that become compile-time
@@ -1136,10 +1145,19 @@ impl Loop {
     /// For each instruction in the loop body, if every operand is in `constant_after_unroll`,
     /// the result will also be constant after unrolling, so we add it to the set and
     /// accumulate its Brillig-weighted cost.
+    ///
+    /// For block parameters, a param is marked constant only when ALL forward
+    /// (non-back-edge) in-loop predecessors send constant values at that
+    /// position. Back-edges are identified via dominance (dest dominates pred)
+    /// and excluded from the agreement check to avoid circular dependencies
+    /// in nested loops. This is analogous to LLVM's per-iteration PHI
+    /// simulation in `analyzeLoopUnrollCost`.
     fn count_useless_cost(
         &self,
         function: &Function,
         cfg: &ControlFlowGraph,
+        dom: &DominatorTree,
+        callee_costs: &HashMap<FunctionId, usize>,
         constant_initial_refs: &HashSet<ValueId>,
     ) -> usize {
         let mut useless_cost = 0;
@@ -1166,7 +1184,13 @@ impl Loop {
             }
         }
 
+        // Track which blocks have been processed so we only seed a param when
+        // all its forward predecessors have been visited.
+        let mut processed: HashSet<BasicBlockId> = HashSet::default();
+
         for block in &self.blocks {
+            processed.insert(*block);
+
             for instruction_id in function.dfg[*block].instructions() {
                 let results = function.dfg.instruction_results(*instruction_id);
                 let instruction = &function.dfg[*instruction_id];
@@ -1194,55 +1218,123 @@ impl Loop {
                     for result in results {
                         constant_after_unroll.insert(*result);
                     }
-                    useless_cost += instruction.cost(*instruction_id, &function.dfg);
+                    // Use callee body cost for calls, matching count_loop_cost.
+                    // Without this, total_cost uses the callee body cost but
+                    // useless_cost would only subtract the default call overhead,
+                    // inflating useful_cost and preventing unrolling.
+                    if let Instruction::Call { func, .. } = instruction
+                        && let Value::Function(func_id) = function.dfg[*func]
+                        && let Some(&body_cost) = callee_costs.get(&func_id)
+                    {
+                        useless_cost += body_cost;
+                    } else {
+                        useless_cost += instruction.cost(*instruction_id, &function.dfg);
+                    }
                 }
             }
 
-            // After processing instructions in *block, propagate constants
-            // through terminator arguments to successor block parameters.
-            // This is the block-parameter analogue of constant_initial_refs:
-            // after mem2reg_simple, values communicated via load/store are now
-            // threaded through Jmp arguments.
+            // Propagate constants through terminator arguments to in-loop
+            // successor block parameters, checking that ALL forward (non-back-edge)
+            // in-loop predecessors agree before marking a param as constant.
             let terminator = function.dfg[*block].unwrap_terminator();
-            match terminator {
-                TerminatorInstruction::Jmp { destination, arguments, .. } => {
-                    if self.blocks.contains(destination) || *destination == self.header {
-                        let params = function.dfg[*destination].parameters();
-                        for (param, arg) in params.iter().zip(arguments.iter()) {
-                            if constant_after_unroll.contains(arg)
-                                || is_from_constant_source(*arg, &function.dfg)
-                            {
-                                constant_after_unroll.insert(*param);
-                            }
-                        }
+            let successors = Self::terminator_successors(terminator);
+            for (dest, _args) in successors {
+                if !self.blocks.contains(&dest) {
+                    continue;
+                }
+                let params = function.dfg[dest].parameters();
+                for (i, param) in params.iter().enumerate() {
+                    if constant_after_unroll.contains(param) {
+                        continue;
+                    }
+                    // Collect forward (non-back-edge) in-loop predecessors.
+                    // A pred forms a back-edge if dest dominates it.
+                    let forward_preds: Vec<_> = cfg
+                        .predecessors(dest)
+                        .filter(|p| self.blocks.contains(p) && !dom.dominates_helper(dest, *p))
+                        .collect();
+                    if forward_preds.is_empty() {
+                        continue;
+                    }
+                    // Only seed when all forward preds have been processed.
+                    if !forward_preds.iter().all(|p| processed.contains(p)) {
+                        continue;
+                    }
+                    let all_agree = forward_preds.iter().all(|&pred| {
+                        Self::pred_sends_constant_at(
+                            &function.dfg,
+                            pred,
+                            dest,
+                            i,
+                            &constant_after_unroll,
+                        )
+                    });
+                    if all_agree {
+                        constant_after_unroll.insert(*param);
                     }
                 }
-                TerminatorInstruction::JmpIf {
-                    then_destination,
-                    then_arguments,
-                    else_destination,
-                    else_arguments,
-                    ..
-                } => {
-                    for (dest, args) in
-                        [(then_destination, then_arguments), (else_destination, else_arguments)]
-                    {
-                        if self.blocks.contains(dest) || *dest == self.header {
-                            let params = function.dfg[*dest].parameters();
-                            for (param, arg) in params.iter().zip(args.iter()) {
-                                if constant_after_unroll.contains(arg)
-                                    || is_from_constant_source(*arg, &function.dfg)
-                                {
-                                    constant_after_unroll.insert(*param);
-                                }
-                            }
-                        }
-                    }
-                }
-                _ => {}
             }
         }
         useless_cost
+    }
+
+    /// Extract (destination, arguments) pairs from a terminator instruction.
+    fn terminator_successors(
+        terminator: &TerminatorInstruction,
+    ) -> Vec<(BasicBlockId, &[ValueId])> {
+        match terminator {
+            TerminatorInstruction::Jmp { destination, arguments, .. } => {
+                vec![(*destination, arguments)]
+            }
+            TerminatorInstruction::JmpIf {
+                then_destination,
+                then_arguments,
+                else_destination,
+                else_arguments,
+                ..
+            } => {
+                vec![(*then_destination, then_arguments), (*else_destination, else_arguments)]
+            }
+            _ => vec![],
+        }
+    }
+
+    /// Check whether `source`'s terminator sends a constant value at position
+    /// `param_index` to `target`. For JmpIf where both branches go to the same
+    /// target, both must send constants.
+    fn pred_sends_constant_at(
+        dfg: &DataFlowGraph,
+        source: BasicBlockId,
+        target: BasicBlockId,
+        param_index: usize,
+        constant_after_unroll: &HashSet<ValueId>,
+    ) -> bool {
+        let is_const =
+            |v: &ValueId| constant_after_unroll.contains(v) || is_from_constant_source(*v, dfg);
+
+        let Some(terminator) = dfg[source].terminator() else {
+            return false;
+        };
+        match terminator {
+            TerminatorInstruction::Jmp { destination, arguments, .. } => {
+                *destination == target && arguments.get(param_index).is_some_and(is_const)
+            }
+            TerminatorInstruction::JmpIf {
+                then_destination,
+                then_arguments,
+                else_destination,
+                else_arguments,
+                ..
+            } => {
+                let then_ok = *then_destination != target
+                    || then_arguments.get(param_index).is_some_and(is_const);
+                let else_ok = *else_destination != target
+                    || else_arguments.get(param_index).is_some_and(is_const);
+                // At least one branch must target this block
+                (*then_destination == target || *else_destination == target) && then_ok && else_ok
+            }
+            _ => false,
+        }
     }
 
     /// Collect boilerplate stats if we can figure out the upper and lower bounds of the loop,
@@ -1251,6 +1343,7 @@ impl Loop {
         &self,
         function: &Function,
         cfg: &ControlFlowGraph,
+        dom: &DominatorTree,
         callee_costs: &HashMap<FunctionId, usize>,
     ) -> Option<BoilerplateStats> {
         let pre_header = self.get_pre_header(function, cfg).ok()?;
@@ -1267,7 +1360,7 @@ impl Loop {
         let useless_cost = if !is_fully_executed {
             0
         } else {
-            self.count_useless_cost(function, cfg, &constant_initial_refs)
+            self.count_useless_cost(function, cfg, dom, callee_costs, &constant_initial_refs)
         };
 
         let terminator_boilerplate = self.count_terminator_boilerplate(function);
@@ -1282,7 +1375,7 @@ impl Loop {
             )
             .unwrap_or_default();
 
-        Some(BoilerplateStats {
+        let stats = BoilerplateStats {
             iterations,
             loads,
             stores,
@@ -1290,7 +1383,8 @@ impl Loop {
             useless_cost,
             terminator_boilerplate,
             header_params,
-        })
+        };
+        Some(stats)
     }
 }
 
@@ -1381,12 +1475,30 @@ impl BoilerplateStats {
         self.useful_cost() * self.iterations
     }
 
+    /// Conservative estimate of unrolled cost that excludes useless_cost.
+    ///
+    /// Unlike `unrolled_cost()` which assumes constant-foldable instructions will be
+    /// eliminated, this gives the cost if NO folding happens. Used by `is_small()` to
+    /// avoid over-aggressive unrolling of large loops whose `useless_cost` may be
+    /// overestimated (e.g. loops containing previously-unrolled inner loops).
+    /// The `force_unroll` path still uses `unrolled_cost()` with full useless_cost
+    /// subtraction, ensuring genuinely tiny loops are still unrolled.
+    fn conservative_unrolled_cost(&self) -> usize {
+        let load_and_store = self.loads.min(self.stores) * 2;
+        let total_boilerplate = load_and_store + self.terminator_boilerplate;
+        self.total_cost.saturating_sub(total_boilerplate) * self.iterations
+    }
+
     /// A small loop is where if we unroll it into the pre-header then considering the
     /// number of iterations we still end up with a smaller bytecode than if we leave
     /// the blocks in tact with all the boilerplate involved in jumping, and the extra
     /// reference access overhead.
+    ///
+    /// Uses `conservative_unrolled_cost` (without useless_cost subtraction) to avoid
+    /// false positives from overestimated constant folding, particularly for loops
+    /// containing previously-unrolled inner loops.
     fn is_small(&self) -> bool {
-        self.unrolled_cost() < self.baseline_cost()
+        self.conservative_unrolled_cost() < self.baseline_cost()
     }
 }
 
@@ -1958,7 +2070,10 @@ mod tests {
         assert_eq!(stats.useless_cost, 7);
         assert_eq!(stats.useful_cost(), 0);
         assert_eq!(stats.baseline_cost(), 15);
-        assert!(stats.is_small());
+        // useful_cost = 0 → unrolled_cost = 0, force_unrolled via threshold.
+        // is_small uses conservative_unrolled_cost (without useless subtraction)
+        // which is higher, but force_unroll handles this case.
+        assert_eq!(stats.unrolled_cost(), 0);
     }
 
     #[test]
@@ -2063,7 +2178,8 @@ mod tests {
         // lt(1) + array_get(3) + add(3) + unchecked_add(1) = 8
         assert_eq!(stats.useless_cost, 8);
         assert_eq!(stats.useful_cost(), 0);
-        assert!(stats.is_small());
+        // useful_cost = 0 → unrolled_cost = 0, force_unrolled via threshold.
+        assert_eq!(stats.unrolled_cost(), 0);
     }
 
     /// Regression test for nested loops with an accumulator (simplified regression_4709).
@@ -2114,7 +2230,8 @@ mod tests {
         // OutsideIn puts outer loop last; remove(0) gets the inner loop.
         assert_eq!(loops.yet_to_unroll.len(), 2, "should find outer and inner loops");
         let inner = loops.yet_to_unroll.remove(0);
-        let stats = inner.boilerplate_stats(function, &loops.cfg, &loops.callee_costs).unwrap();
+        let stats =
+            inner.boilerplate_stats(function, &loops.cfg, &loops.dom, &loops.callee_costs).unwrap();
         // Inner loop: blocks b3 (lt + jmpif) and b4 (load + add + store + unchecked_add + jmp)
         assert_eq!(stats.iterations, 35);
         assert_eq!(stats.loads, 1);
@@ -2124,7 +2241,8 @@ mod tests {
         // lt(1) + add (propagated load + constant source)(1) + unchecked_add(1) = 3
         assert_eq!(stats.useless_cost, 3);
         assert_eq!(stats.useful_cost(), 0);
-        assert!(stats.is_small());
+        // useful_cost = 0 → unrolled_cost = 0, force_unrolled via threshold.
+        assert_eq!(stats.unrolled_cost(), 0);
     }
 
     /// A reference passed as a block terminator argument is NOT classified
@@ -2524,7 +2642,7 @@ mod tests {
         let mut loops = Loops::find_all(function, LoopOrder::OutsideIn);
         let loop0 = loops.yet_to_unroll.pop().expect("there should be a loop");
         loop0
-            .boilerplate_stats(function, &loops.cfg, &HashMap::default())
+            .boilerplate_stats(function, &loops.cfg, &loops.dom, &HashMap::default())
             .expect("there should be stats")
     }
 
@@ -2965,7 +3083,8 @@ mod tests {
 
         // Check that the outer loop has useful_cost = 0.
         let outer = loops.yet_to_unroll.pop().unwrap();
-        let stats = outer.boilerplate_stats(function, &loops.cfg, &loops.callee_costs).unwrap();
+        let stats =
+            outer.boilerplate_stats(function, &loops.cfg, &loops.dom, &loops.callee_costs).unwrap();
         assert_eq!(
             stats.useful_cost(),
             0,
