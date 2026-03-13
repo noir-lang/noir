@@ -4,6 +4,7 @@ use super::{
     options::{FunctionContextOptions, FuzzerMode, FuzzerOptions},
 };
 use acvm::FieldElement;
+use itertools::Itertools;
 use noir_ssa_fuzzer::{
     builder::{FuzzerBuilder, FuzzerBuilderError},
     typed_value::Type,
@@ -233,7 +234,7 @@ impl FuzzerProgramContext {
                 FuzzerFunctionContext::new_constant_context(
                     self.values
                         .iter()
-                        .zip(stored_function.types.iter())
+                        .zip_eq(stored_function.types.iter())
                         .map(|(value, type_)| (*value, type_.unwrap_numeric()))
                         .collect(),
                     &self.instruction_blocks,

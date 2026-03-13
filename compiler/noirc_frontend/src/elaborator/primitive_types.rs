@@ -38,7 +38,6 @@ pub enum PrimitiveType {
     Module,
     Quoted,
     Str,
-    StructDefinition,
     TraitConstraint,
     TraitDefinition,
     TraitImpl,
@@ -70,7 +69,6 @@ impl PrimitiveType {
             "Module" => Some(Self::Module),
             "Quoted" => Some(Self::Quoted),
             "str" => Some(Self::Str),
-            "StructDefinition" => Some(Self::StructDefinition),
             "TraitConstraint" => Some(Self::TraitConstraint),
             "TraitDefinition" => Some(Self::TraitDefinition),
             "TraitImpl" => Some(Self::TraitImpl),
@@ -106,9 +104,7 @@ impl PrimitiveType {
             Self::TraitConstraint => Type::Quoted(QuotedType::TraitConstraint),
             Self::TraitDefinition => Type::Quoted(QuotedType::TraitDefinition),
             Self::TraitImpl => Type::Quoted(QuotedType::TraitImpl),
-            Self::StructDefinition | Self::TypeDefinition => {
-                Type::Quoted(QuotedType::TypeDefinition)
-            }
+            Self::TypeDefinition => Type::Quoted(QuotedType::TypeDefinition),
             Self::TypedExpr => Type::Quoted(QuotedType::TypedExpr),
             Self::Type => Type::Quoted(QuotedType::Type),
             Self::UnresolvedType => Type::Quoted(QuotedType::UnresolvedType),
@@ -138,7 +134,6 @@ impl PrimitiveType {
             | Self::Module
             | Self::Quoted
             | Self::Str
-            | Self::StructDefinition
             | Self::TraitConstraint
             | Self::TraitDefinition
             | Self::TraitImpl
@@ -170,7 +165,6 @@ impl PrimitiveType {
             Self::Module => "Module",
             Self::Quoted => "Quoted",
             Self::Str => "str",
-            Self::StructDefinition => "StructDefinition",
             Self::TraitConstraint => "TraitConstraint",
             Self::TraitDefinition => "TraitDefinition",
             Self::TraitImpl => "TraitImpl",
@@ -208,7 +202,6 @@ impl Elaborator<'_> {
             | PrimitiveType::U128
             | PrimitiveType::Module
             | PrimitiveType::Quoted
-            | PrimitiveType::StructDefinition
             | PrimitiveType::TraitConstraint
             | PrimitiveType::TraitDefinition
             | PrimitiveType::TraitImpl
@@ -290,7 +283,6 @@ impl Elaborator<'_> {
             | PrimitiveType::U128
             | PrimitiveType::Module
             | PrimitiveType::Quoted
-            | PrimitiveType::StructDefinition
             | PrimitiveType::TraitConstraint
             | PrimitiveType::TraitDefinition
             | PrimitiveType::TraitImpl

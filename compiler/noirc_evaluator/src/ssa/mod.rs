@@ -22,6 +22,7 @@ use acvm::{
 
 use ir::instruction::ErrorType;
 use iter_extended::vecmap;
+use itertools::Itertools;
 use noirc_artifacts::{
     debug::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables, LocationTree},
     ssa::SsaReport,
@@ -488,7 +489,7 @@ pub fn combine_artifacts(
     );
     let functions: Vec<SsaCircuitArtifact> = generated_acirs
         .into_iter()
-        .zip(arg_size_and_visibilities)
+        .zip_eq(arg_size_and_visibilities)
         .map(|(acir, arg_size_and_visibility)| {
             convert_generated_acir_into_circuit(
                 acir,

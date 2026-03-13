@@ -95,6 +95,7 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
         let (program, abi) = report_errors(
             program_result,
             &file_manager,
+            &parsed_files,
             args.compile_options.deny_warnings,
             args.compile_options.silence_warnings,
         )?;

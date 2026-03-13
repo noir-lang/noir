@@ -32,6 +32,8 @@ jobs:
       - name: Query active docs versions
         working-directory: docs
         run: yarn version::stables
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build docs for deploying
         working-directory: docs

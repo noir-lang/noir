@@ -12,6 +12,7 @@
 use std::collections::HashSet;
 
 use iter_extended::vecmap;
+use itertools::Itertools;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::ssa::{
@@ -229,7 +230,7 @@ fn differing_merge_cost(
     };
     let exit_params = dfg.block_parameters(exit_block);
     let mut cost = 0;
-    for ((a, b), param) in then_args.iter().zip(else_args.iter()).zip(exit_params.iter()) {
+    for ((a, b), param) in then_args.iter().zip_eq(else_args.iter()).zip_eq(exit_params.iter()) {
         if a != b {
             let typ = dfg.type_of_value(*param);
             if typ.is_numeric() || matches!(typ, Type::Reference(_)) {

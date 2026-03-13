@@ -2,6 +2,7 @@ use std::path::Path;
 
 use acir::{AcirField, FieldElement, native_types::WitnessStack};
 use acvm::BlackBoxFunctionSolver;
+use itertools::Itertools;
 use nargo::{NargoError, foreign_calls::ForeignCallExecutor};
 use noirc_abi::{AbiType, MAIN_RETURN_NAME, Sign, input_parser::InputValue};
 use noirc_artifacts::{debug::DebugArtifact, program::CompiledProgram};
@@ -72,8 +73,8 @@ pub fn show_diagnostic(circuit: &CompiledProgram, err: &NargoError<FieldElement>
             debug_symbols: circuit.debug.clone(),
             file_map: circuit.file_map.clone(),
         };
-
-        diagnostic.report(&debug_artifact, false);
+        let function_locations = debug_artifact.function_locations_for_diagnostic(&diagnostic);
+        diagnostic.report(&debug_artifact, &function_locations, false);
     }
 }
 
@@ -231,7 +232,8 @@ fn append_input_value_to_string(input_value: &InputValue, abi_type: &AbiType, st
             assert_eq!(fields.len(), input_values.len());
 
             string.push('(');
-            for (index, (input_value, field_type)) in input_values.iter().zip(fields).enumerate() {
+            for (index, (input_value, field_type)) in input_values.iter().zip_eq(fields).enumerate()
+            {
                 if index != 0 {
                     string.push_str(", ");
                 }

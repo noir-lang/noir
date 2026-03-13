@@ -1,5 +1,7 @@
 use std::borrow::Cow;
 
+use itertools::Itertools;
+
 use crate::{
     NamedGeneric, Type, TypeBindings,
     ast::{ItemVisibility, UnaryOp},
@@ -310,7 +312,7 @@ impl ItemPrinter<'_, '_> {
                         if let Some(fields) = get_type_fields(&typ) {
                             self.push('{');
                             self.show_separated_by_comma(
-                                &case.arguments.into_iter().zip(fields).collect::<Vec<_>>(),
+                                &case.arguments.into_iter().zip_eq(fields).collect::<Vec<_>>(),
                                 |this, (argument, (name, _, _))| {
                                     this.push_str(name);
                                     this.push_str(": ");

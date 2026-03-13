@@ -78,6 +78,8 @@ mod block;
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use itertools::Itertools;
+
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use vec_collections::VecSet;
 
@@ -985,7 +987,7 @@ impl<'f> PerFunctionContext<'f> {
                 let mut arg_set: HashMap<ValueId, VecSet<[ValueId; 1]>> = HashMap::default();
 
                 // Add an alias for each reference parameter
-                for (parameter, argument) in destination_parameters.iter().zip(arguments) {
+                for (parameter, argument) in destination_parameters.iter().zip_eq(arguments) {
                     match self.inserter.function.dfg.type_of_value(*parameter) {
                         // If the type indirectly contains a reference we have to assume all references
                         // are unknown since we don't have any ValueIds to use.

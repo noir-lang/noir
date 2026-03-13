@@ -9,8 +9,10 @@ bug: Assertion is always false
    │                -------------- As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution
    │
    = Call stack:
-     1. src/main.nr:7:12
-     2. std/option.nr:65:16
+     1: main
+             at src/main.nr:7:12
+     2: Option<T>::expect
+             at std/option.nr:65:16
 
 error: Assertion failed: Should have the value 0x03
    ┌─ std/option.nr:65:16
@@ -19,7 +21,9 @@ error: Assertion failed: Should have the value 0x03
    │                --------------
    │
    = Call stack:
-     1. src/main.nr:7:12
-     2. std/option.nr:65:16
+     1: main
+             at src/main.nr:7:12
+     2: Option<T>::expect
+             at std/option.nr:65:16
 
 Failed assertion

@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use rustc_hash::FxHashMap as HashMap;
 use std::borrow::Cow;
 
@@ -93,8 +94,7 @@ impl ValueMapping {
     }
 
     pub(crate) fn batch_insert(&mut self, from: &[ValueId], to: &[ValueId]) {
-        assert_eq!(from.len(), to.len(), "Lengths of arrays of values being mapped must match");
-        for (from_value, to_value) in from.iter().zip(to) {
+        for (from_value, to_value) in from.iter().zip_eq(to) {
             self.insert(*from_value, *to_value);
         }
     }
