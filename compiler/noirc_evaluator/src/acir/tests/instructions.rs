@@ -350,7 +350,9 @@ fn make_array() {
 /// A signed-typed unchecked sub whose result feeds a truncate is an SSA invariant violation;
 /// the SSA validator must reject it before ACIR generation even starts.
 #[test]
-#[should_panic(expected = "Truncate follows a signed integer-typed unchecked Sub, which may underflow")]
+#[should_panic(
+    expected = "Truncate follows a signed integer-typed unchecked Sub, which may underflow"
+)]
 fn truncate_after_signed_unchecked_sub_is_rejected() {
     let src = "
     acir(inline) fn main f0 {

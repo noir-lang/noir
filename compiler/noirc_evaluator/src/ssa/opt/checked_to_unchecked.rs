@@ -28,33 +28,6 @@ impl Ssa {
     }
 }
 
-/// Returns true if an unsigned subtraction `lhs - rhs` is guaranteed not to underflow.
-///
-/// This is the case when `lhs` is a constant that is >= the maximum possible value of `rhs`
-/// (determined by its bit width). For example, `256 - (x as u32)` where `x: u8` cannot
-/// underflow because `256 >= 255`.
-///
-/// This function is used both by the `checked_to_unchecked` pass (to decide whether to convert)
-/// and by ACIR generation (to verify the conversion was sound).
-fn is_unsigned_sub_safe(
-    dfg: &DataFlowGraph,
-    lhs: ValueId,
-    rhs: ValueId,
-    value_max_num_bits: &mut HashMap<ValueId, u32>,
-) -> bool {
-    let Some(lhs_const) = dfg.get_numeric_constant(lhs) else {
-        return false;
-    };
-
-    let max_rhs_bits = get_max_num_bits(dfg, rhs, value_max_num_bits);
-    let max_rhs = if max_rhs_bits == 128 { u128::MAX } else { (1 << max_rhs_bits) - 1 };
-
-    // `lhs` is a fixed constant and `rhs` is restricted such that `lhs - rhs >= 0`.
-    // For example: `lhs` is 1 and `rhs` max bitsize is 1, so at most it's `1 - 1`.
-    // Another example: `lhs` is 255 and `rhs` max bitsize is 8, so at most it's `255 - 255`.
-    lhs_const >= max_rhs.into()
-}
-
 impl Function {
     fn checked_to_unchecked(&mut self) {
         #[cfg(debug_assertions)]
@@ -91,7 +64,24 @@ impl Function {
                     max_lhs_bits < bit_size && max_rhs_bits < bit_size
                 }
                 BinaryOp::Sub { unchecked: false } => {
-                    is_unsigned_sub_safe(dfg, lhs, rhs, &mut value_max_num_bits)
+                    // True when an unsigned subtraction `lhs - rhs` is guaranteed not to underflow.
+                    //
+                    // This is the case when `lhs` is a constant that is >= the maximum possible value of `rhs`
+                    // (determined by its bit width). For example, `256 - (x as u32)` where `x: u8` cannot
+                    // underflow because `256 >= 255`.
+
+                    if let Some(lhs_const) = dfg.get_numeric_constant(lhs) {
+                        let max_rhs_bits = get_max_num_bits(dfg, rhs, &mut value_max_num_bits);
+                        let max_rhs =
+                            if max_rhs_bits == 128 { u128::MAX } else { (1 << max_rhs_bits) - 1 };
+
+                        // `lhs` is a fixed constant and `rhs` is restricted such that `lhs - rhs >= 0`.
+                        // For example: `lhs` is 1 and `rhs` max bitsize is 1, so at most it's `1 - 1`.
+                        // Another example: `lhs` is 255 and `rhs` max bitsize is 8, so at most it's `255 - 255`.
+                        lhs_const >= max_rhs.into()
+                    } else {
+                        false
+                    }
                 }
                 BinaryOp::Mul { unchecked: false } => {
                     let bit_size = dfg.type_of_value(lhs).bit_size();
