@@ -163,18 +163,16 @@ struct LastUseContext {
     /// version and redeclares it as new.
     confirmed_moves: HashMap<LocalId, Vec<IdentId>>,
 
-    /// Variables that have at least one non-extract use (used as a bare ident, not through
-    /// `ExtractTupleField`). Variables NOT in this set may be "extract-only".
-    non_extract_uses: HashSet<LocalId>,
+    /// Variables that have been disqualified from the extract-only optimization.
+    /// A variable is disqualified if it has a bare ident use (not through `ExtractTupleField`),
+    /// if the same field is extracted more than once, or if an extract use occurs at a
+    /// different loop level than the declaration.
+    unsafe_for_extract: HashSet<LocalId>,
 
-    /// For each variable, counts how many times each field index is extracted via
-    /// `ExtractTupleField`. Used to detect when the same field is extracted multiple
-    /// times (which would make the extract-only optimization unsafe).
-    extract_field_counts: HashMap<LocalId, HashMap<usize, u32>>,
-
-    /// Variables that have extract uses at a different loop level than where they were
-    /// declared. The extract-only optimization is unsafe for these.
-    different_loop_extract_uses: HashSet<LocalId>,
+    /// For each variable, tracks which field indices have been extracted via
+    /// `ExtractTupleField`. Variables present here are candidates for the extract-only
+    /// optimization (unless also in `unsafe_for_extract`).
+    extract_fields_seen: HashMap<LocalId, HashSet<usize>>,
 }
 
 impl Context {
@@ -193,9 +191,8 @@ impl Context {
             last_uses: HashMap::default(),
             confirmed_moves: HashMap::default(),
             next_id: 0,
-            non_extract_uses: HashSet::default(),
-            extract_field_counts: HashMap::default(),
-            different_loop_extract_uses: HashSet::default(),
+            unsafe_for_extract: HashSet::default(),
+            extract_fields_seen: HashMap::default(),
         };
 
         context.push_loop_scope();
@@ -391,7 +388,7 @@ impl LastUseContext {
         // We only track last uses for local variables, globals are always cloned
         if let ast::Definition::Local(local_id) = &ident.definition {
             self.remember_use_of_variable(*local_id, ident.id);
-            self.non_extract_uses.insert(*local_id);
+            self.unsafe_for_extract.insert(*local_id);
         }
     }
 
@@ -403,16 +400,15 @@ impl LastUseContext {
             Expression::Ident(ident) => {
                 if let ast::Definition::Local(local_id) = &ident.definition {
                     self.remember_use_of_variable(*local_id, ident.id);
-                    *self
-                        .extract_field_counts
-                        .entry(*local_id)
-                        .or_default()
-                        .entry(field_index)
-                        .or_insert(0) += 1;
-                    if let Some((var_loop_index, _)) = self.last_uses.get(local_id)
-                        && *var_loop_index != self.loop_index()
+                    let is_duplicate =
+                        !self.extract_fields_seen.entry(*local_id).or_default().insert(field_index);
+                    if is_duplicate
+                        || self
+                            .last_uses
+                            .get(local_id)
+                            .is_some_and(|(var_loop_index, _)| *var_loop_index != self.loop_index())
                     {
-                        self.different_loop_extract_uses.insert(*local_id);
+                        self.unsafe_for_extract.insert(*local_id);
                     }
                 }
             }
@@ -429,16 +425,9 @@ impl LastUseContext {
     /// Compute the set of variables that are only accessed through `ExtractTupleField`
     /// and are safe to skip cloning for.
     fn get_extract_only_variables(&self) -> HashSet<LocalId> {
-        self.extract_field_counts
+        self.extract_fields_seen
             .keys()
-            .filter(|id| {
-                !self.non_extract_uses.contains(id)
-                    && !self.different_loop_extract_uses.contains(id)
-                    && self
-                        .extract_field_counts
-                        .get(id)
-                        .is_none_or(|fields| fields.values().all(|count| *count <= 1))
-            })
+            .filter(|id| !self.unsafe_for_extract.contains(id))
             .copied()
             .collect()
     }
