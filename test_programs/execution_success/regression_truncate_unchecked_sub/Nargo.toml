@@ -1,5 +1,5 @@
 [package]
-name = "ski_calculus"
+name = "regression_truncate_unchecked_sub"
 type = "bin"
 authors = [""]
 

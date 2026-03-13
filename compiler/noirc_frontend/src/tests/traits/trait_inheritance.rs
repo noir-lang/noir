@@ -227,10 +227,13 @@ fn trait_inheritance_with_ambiguous_associated_type() {
 
     pub trait Qux: Foo {
         type Bar;
-        // This is rejected by Rust as ambiguous, but is accepted by Noir.
         fn qux() -> Self::Bar;
+                    ^^^^^^^^^ Multiple applicable items in scope
+                    ~~~~~~~~~ Multiple traits which provide `Bar` are implemented and in scope: `Foo`, `Qux`
 
         fn quy() -> <Self as Qux>::Bar;
+                     ^^^^ Multiple applicable items in scope
+                     ~~~~ Multiple traits which provide `Bar` are implemented and in scope: `Foo`, `Qux`
         fn quz() -> <Self as Foo>::Bar;
     }
     "#;
@@ -267,6 +270,8 @@ fn trait_inheritance_assoc_via_self_as_in_impl() {
 
 #[test]
 fn trait_inheritance_assoc_disambiguate_via_self_as_in_impl() {
+    // Because Qux inherit from Foo, and they both define the associated type Bar
+    // `<Self as Qux>::Bar` does not disambiguate `Bar`
     let src = r#"
     pub trait Foo {
         type Bar;
@@ -276,6 +281,8 @@ fn trait_inheritance_assoc_disambiguate_via_self_as_in_impl() {
     pub trait Qux: Foo {
         type Bar;
         fn quy() -> <Self as Qux>::Bar;
+                     ^^^^ Multiple applicable items in scope
+                     ~~~~ Multiple traits which provide `Bar` are implemented and in scope: `Foo`, `Qux`
         fn quz() -> <Self as Foo>::Bar;
     }
 
@@ -299,7 +306,7 @@ fn trait_inheritance_assoc_disambiguate_via_self_as_in_impl() {
 
     fn main() {}
     "#;
-    assert_no_errors(src);
+    check_errors(src);
 }
 
 #[test]
