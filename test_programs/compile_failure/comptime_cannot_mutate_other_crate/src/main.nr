@@ -1,30 +1,25 @@
 // We should not be able to mutate this external type in any way!
-use dependency::Foo;
+use dependency::{ Foo, foo };
 
-comptime fn get_lib_foo() -> TypeDefinition {
-    quote { Foo }.as_type().as_data_type().unwrap().0
-}
-
-// We should not be able to mutate the fields of an external type
-#[mutate_fields]
-comptime fn mutate_fields(_: FunctionDefinition) {
-    let foo = get_lib_foo();
-    let int = quote[i32].as_type();
-    foo.set_fields([(quote[bad], int, quote[])]);
+comptime fn get_lib_foos() -> (TypeDefinition, FunctionDefinition) {
+    let foo_t = quote { Foo }.as_type().as_data_type().unwrap().0;
+    let foo_f = quote { foo }.as_expr().unwrap().resolve(Option::none()).as_function_definition().unwrap();
+    (foo_t, foo_f)
 }
 
 // We should not be able to mutate the attributes of an external type
-#[mutate_attrs]
-comptime fn mutate_attrs(_: FunctionDefinition) {
-    let foo = get_lib_foo();
-    foo.add_attribute("bad_type_attr");
+#[add_attr_to_external_type]
+comptime fn add_attr_to_external_type(_: FunctionDefinition) {
+    let (foo_t, _) = get_lib_foos();
+
+    foo_t.add_attribute("bad_type_attr");
 }
 
-// We should not be able to mutate the generics of an external type
-#[mutate_generics]
-comptime fn mutate_generics(_: FunctionDefinition) {
-    let foo = get_lib_foo();
-    let _ = foo.add_generic("T");
+// We should not be able to mutate the attributes of an external type
+#[add_attr_to_external_function]
+comptime fn add_attr_to_external_function(_: FunctionDefinition) {
+    let (_, foo_f) = get_lib_foos();
+    foo_f.add_attribute("bad_function_attr");
 }
 
 fn main() {}

@@ -36,10 +36,7 @@ use crate::{
         def_map::ModuleId,
         type_check::generics::TraitGenerics,
     },
-    hir_def::{
-        function::{FuncMeta, FunctionBody},
-        stmt::HirPattern,
-    },
+    hir_def::{function::FunctionBody, stmt::HirPattern},
     node_interner::{FuncId, NodeInterner, TraitId, TraitImplId, TypeId},
     shared::Signedness,
     token::{SecondaryAttribute, Token, Tokens},
@@ -206,16 +203,6 @@ pub(crate) fn get_ctstring((value, location): (Value, Location)) -> IResult<Rc<V
     match value {
         Value::CtString(bytes) => Ok(bytes),
         value => type_mismatch(value, Type::Quoted(QuotedType::CtString), location),
-    }
-}
-
-pub(crate) fn get_tuple((value, location): (Value, Location)) -> IResult<Vec<Shared<Value>>> {
-    match value {
-        Value::Tuple(values) => Ok(values),
-        value => {
-            let expected = "tuple";
-            type_mismatch(value, expected, location)
-        }
     }
 }
 
@@ -579,39 +566,6 @@ where
     })
 }
 
-pub(super) fn mutate_func_meta_type<F>(interner: &mut NodeInterner, func_id: FuncId, f: F)
-where
-    F: FnOnce(&mut FuncMeta),
-{
-    let (name_id, function_type) = {
-        let func_meta = interner.function_meta_mut(&func_id);
-        f(func_meta);
-        (func_meta.name.id, func_meta.typ.clone())
-    };
-
-    interner.push_definition_type(name_id, function_type);
-}
-
-pub(super) fn replace_func_meta_parameters(typ: &mut Type, parameter_types: Vec<Type>) {
-    match typ {
-        Type::Function(parameters, _, _, _) => {
-            *parameters = parameter_types;
-        }
-        Type::Forall(_, typ) => replace_func_meta_parameters(typ, parameter_types),
-        _ => {}
-    }
-}
-
-pub(super) fn replace_func_meta_return_type(typ: &mut Type, return_type: Type) {
-    match typ {
-        Type::Function(_, ret, _, _) => {
-            **ret = return_type;
-        }
-        Type::Forall(_, typ) => replace_func_meta_return_type(typ, return_type),
-        _ => {}
-    }
-}
-
 pub(super) fn block_expression_to_value(block_expr: BlockExpression) -> Value {
     let typ = Type::Vector(Box::new(Type::Quoted(QuotedType::Expr)));
     let statements = block_expr.statements.into_iter();
@@ -641,7 +595,7 @@ fn secondary_attribute_name(
     interner: &NodeInterner,
 ) -> Option<String> {
     match &attribute.kind {
-        SecondaryAttributeKind::Deprecated(_) => Some("deprecated".to_string()),
+        SecondaryAttributeKind::Deprecated(_, _) => Some("deprecated".to_string()),
         SecondaryAttributeKind::ContractLibraryMethod => {
             Some("contract_library_method".to_string())
         }

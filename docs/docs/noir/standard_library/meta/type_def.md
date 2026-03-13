@@ -8,29 +8,11 @@ This type corresponds to `struct Name { field1: Type1, ... }` and `enum Name { V
 
 ## Methods
 
-### add_attribute
+### add_abi
 
 #include_code add_attribute noir_stdlib/src/meta/type_def.nr rust
 
-Adds an attribute to the data type.
-
-### add_generic
-
-#include_code add_generic noir_stdlib/src/meta/type_def.nr rust
-
-Adds an generic to the type. Returns the new generic type.
-Errors if the given generic name isn't a single identifier or if
-the type already has a generic with the same name.
-
-This method should be used carefully, if there is existing code referring
-to the type it may be checked before this function is called and
-see the type with the original number of generics. This method should
-thus be preferred to use on code generated from other macros and types
-that are not used in function signatures.
-
-Example:
-
-#include_code add-generic-example test_programs/compile_success_empty/comptime_struct_definition/src/main.nr rust
+Adds an abi attribute to the data type with the specified argument.
 
 ### as_type
 
@@ -112,35 +94,6 @@ Returns the name of this type
 
 Note that the returned quoted value will be just the type name, it will
 not be the full path to the type definition, nor will it include any generics.
-
-### set_fields
-
-#include_code set_fields noir_stdlib/src/meta/type_def.nr rust
-
-Sets the fields of this struct to the given fields list where each element
-is a pair of the field's name and the field's type. Expects each field name
-to be a single identifier. Note that this will override any previous fields
-on this struct. If those should be preserved, use `.fields()` to retrieve the
-current fields on the struct type and append the new fields from there.
-
-Example:
-
-```rust
-// Change this struct to:
-// struct Foo {
-//     pub a: u32,
-//     b: i8,
-// }
-#[mangle_fields]
-struct Foo { x: Field }
-
-comptime fn mangle_fields(s: TypeDefinition) {
-    s.set_fields(@[
-        (quote { a }, quote { u32 }.as_type(), quote { pub }),
-        (quote { b }, quote { i8 }.as_type(), quote {}),
-    ]);
-}
-```
 
 ## Trait Implementations
 
