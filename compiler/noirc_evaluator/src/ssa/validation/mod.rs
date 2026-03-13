@@ -2038,7 +2038,7 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "Truncate follows an integer-typed unchecked Sub, which may underflow"
+        expected = "Truncate follows a signed integer-typed unchecked Sub, which may underflow. Use Field arithmetic with an explicit 2^bit_size addition before the Sub to prevent integer underflow, then Truncate the Field result."
     )]
     fn signed_unchecked_sub_before_truncate_is_rejected() {
         // An unchecked Sub on signed types whose result feeds a Truncate may underflow:
