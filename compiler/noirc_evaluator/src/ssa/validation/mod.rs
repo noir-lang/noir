@@ -289,7 +289,7 @@ impl<'f> Validator<'f> {
                     && matches!(dfg.type_of_value(*lhs), Type::Numeric(NumericType::Signed { .. }))
                 {
                     panic!(
-                        "Truncate follows an integer-typed unchecked Sub, which may underflow. \
+                        "Truncate follows a signed integer-typed unchecked Sub, which may underflow. \
                          Use Field arithmetic with an explicit 2^bit_size addition before the \
                          Sub to prevent integer underflow, then Truncate the Field result."
                     );
