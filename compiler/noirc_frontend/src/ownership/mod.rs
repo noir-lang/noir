@@ -46,6 +46,7 @@ use crate::{
 use rustc_hash::FxHashMap as HashMap;
 
 mod last_uses;
+mod suboptimal_cloning_tests;
 mod tests;
 
 impl Program {
