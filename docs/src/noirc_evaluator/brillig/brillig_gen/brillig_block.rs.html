@@ -241,9 +241,9 @@
 <a href=#241 id=241 data-nosnippet>241</a>        </span><span class="kw">let </span>sm = <span class="self">self</span>.function_context.spill_manager.as_mut().unwrap();
 <a href=#242 id=242 data-nosnippet>242</a>        <span class="kw">let </span>victim_id = sm.lru_victim().expect(<span class="string">"No values available to spill"</span>);
 <a href=#243 id=243 data-nosnippet>243</a>        <span class="comment">// Reuse the permanent spill slot if one exists (the data is already there
-<a href=#244 id=244 data-nosnippet>244</a>        // since SSA values are immutable), otherwise allocate a fresh slot.
-<a href=#245 id=245 data-nosnippet>245</a>        </span><span class="kw">let </span>offset =
-<a href=#246 id=246 data-nosnippet>246</a>            sm.get_permanent_spill_offset(<span class="kw-2">&amp;</span>victim_id).unwrap_or_else(|| sm.allocate_spill_offset());
+<a href=#244 id=244 data-nosnippet>244</a>        // since SSA values are immutable), or the transient one if it has just been
+<a href=#245 id=245 data-nosnippet>245</a>        // unmarked, but still available; otherwise allocate a fresh slot.
+<a href=#246 id=246 data-nosnippet>246</a>        </span><span class="kw">let </span>offset = sm.get_spill_offset(<span class="kw-2">&amp;</span>victim_id).unwrap_or_else(|| sm.allocate_spill_offset());
 <a href=#247 id=247 data-nosnippet>247</a>
 <a href=#248 id=248 data-nosnippet>248</a>        <span class="kw">let </span>victim_var = <span class="kw-2">*</span><span class="self">self</span>.function_context.ssa_value_allocations.get(<span class="kw-2">&amp;</span>victim_id).unwrap();
 <a href=#249 id=249 data-nosnippet>249</a>        <span class="kw">let </span>victim_reg = victim_var.extract_register();
