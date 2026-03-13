@@ -112,7 +112,7 @@
 <a href=#112 id=112 data-nosnippet>112</a>            <span class="comment">// If the loop does not have a preheader we skip checking whether the loop is empty
 <a href=#113 id=113 data-nosnippet>113</a>            </span><span class="kw">continue</span>;
 <a href=#114 id=114 data-nosnippet>114</a>        };
-<a href=#115 id=115 data-nosnippet>115</a>        <span class="kw">let </span>const_bounds = loop_.get_const_bounds(<span class="kw-2">&amp;</span>function.dfg, pre_header);
+<a href=#115 id=115 data-nosnippet>115</a>        <span class="kw">let </span>const_bounds = loop_.get_const_bounds(<span class="kw-2">&amp;</span>function.dfg, pre_header, |v| v);
 <a href=#116 id=116 data-nosnippet>116</a>
 <a href=#117 id=117 data-nosnippet>117</a>        <span class="kw">let </span>does_execute = const_bounds
 <a href=#118 id=118 data-nosnippet>118</a>            .and_then(|(lower_bound, upper_bound)| {
