@@ -206,12 +206,8 @@ impl Context {
                 // If this variable is extract-only (only accessed through ExtractTupleField,
                 // each field extracted at most once), skip cloning. The extractions don't alias
                 // each other, so no reference counting is needed.
-                if let Definition::Local(local_id) = &ident.definition
-                    && self.extract_only_variables.contains(local_id)
-                {
-                    return Some((false, ident.typ.clone()));
-                }
-                let should_clone = self.should_clone_ident(ident);
+                let is_extract_only = matches!(&ident.definition, Definition::Local(local_id) if self.extract_only_variables.contains(local_id));
+                let should_clone = !is_extract_only && self.should_clone_ident(ident);
                 Some((should_clone, ident.typ.clone()))
             }
             // Delay dereferences as well so we change `(*self).foo.bar` to `*(self.foo.bar)`
