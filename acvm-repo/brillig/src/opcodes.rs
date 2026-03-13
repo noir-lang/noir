@@ -81,7 +81,7 @@ impl MemoryAddress {
     pub fn offset(&self, amount: u32) -> Self {
         // We disallow offsetting relatively addresses as this is not expected to be meaningful.
         let address = self.unwrap_direct();
-        MemoryAddress::direct(address + amount)
+        MemoryAddress::direct(address.checked_add(amount).expect("memory offset overflow"))
     }
 }
 
@@ -651,6 +651,8 @@ impl std::fmt::Display for BinaryIntOp {
 
 #[cfg(test)]
 mod tests {
+    use crate::MemoryAddress;
+
     use super::{BitSize, IntegerBitSize};
     use acir_field::FieldElement;
 
@@ -771,6 +773,13 @@ mod tests {
         assert!(BitSize::try_from_u32::<FieldElement>(7).is_err());
         assert!(BitSize::try_from_u32::<FieldElement>(0).is_err());
         assert!(BitSize::try_from_u32::<FieldElement>(256).is_err());
+    }
+
+    #[test]
+    #[should_panic = "memory offset overflow"]
+    fn memory_offset_overflow() {
+        let addr = MemoryAddress::direct(u32::MAX);
+        let _ = addr.offset(1);
     }
 }
 

@@ -242,9 +242,9 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         let sm = self.function_context.spill_manager.as_mut().unwrap();
         let victim_id = sm.lru_victim().expect("No values available to spill");
         // Reuse the permanent spill slot if one exists (the data is already there
-        // since SSA values are immutable), otherwise allocate a fresh slot.
-        let offset =
-            sm.get_permanent_spill_offset(&victim_id).unwrap_or_else(|| sm.allocate_spill_offset());
+        // since SSA values are immutable), or the transient one if it has just been
+        // unmarked, but still available; otherwise allocate a fresh slot.
+        let offset = sm.get_spill_offset(&victim_id).unwrap_or_else(|| sm.allocate_spill_offset());
 
         let victim_var = *self.function_context.ssa_value_allocations.get(&victim_id).unwrap();
         let victim_reg = victim_var.extract_register();

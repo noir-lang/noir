@@ -932,12 +932,6 @@ impl Elaborator<'_> {
         let typ = primitive_type.to_type();
         let mut errors = Vec::new();
 
-        if primitive_type == PrimitiveType::StructDefinition {
-            errors.push(PathResolutionError::StructDefinitionDeprecated {
-                location: path.segments[0].ident.location(),
-            });
-        }
-
         if path.segments.len() == 1 {
             let item = PathResolutionItem::PrimitiveType(primitive_type);
             return Some(Ok(PathResolution { item, errors }));

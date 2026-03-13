@@ -886,6 +886,7 @@ dependencies = [
  "proptest",
  "proptest-derive",
  "serde",
+ "test-case",
  "thiserror 2.0.18",
 ]
 

@@ -854,11 +854,14 @@ impl<'a> Context<'a> {
         let var = self.convert_numeric_value(value_id, dfg)?;
         match &dfg[value_id] {
             Value::Instruction { instruction, .. } => {
-                if matches!(
-                    &dfg[*instruction],
-                    Instruction::Binary(Binary { operator: BinaryOp::Sub { unchecked: true }, .. })
-                ) {
-                    unreachable!("Truncation of unchecked subtraction");
+                if let Instruction::Binary(Binary {
+                    lhs,
+                    operator: BinaryOp::Sub { unchecked: true },
+                    ..
+                }) = &dfg[*instruction]
+                    && matches!(dfg.type_of_value(*lhs), Type::Numeric(NumericType::Signed { .. }))
+                {
+                    unreachable!("Truncation of unchecked signed subtraction");
                 }
             }
             Value::Param { .. } => {

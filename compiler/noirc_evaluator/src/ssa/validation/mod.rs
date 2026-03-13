@@ -278,21 +278,19 @@ impl<'f> Validator<'f> {
                 }
             }
             Instruction::Truncate { value, .. } => {
-                // Truncating an unchecked sub is not allowed, because the truncate
+                // Truncating an unchecked signed sub is not allowed, because the truncate
                 // is not compatible with a potential underflow due to the unchecked subtraction.
+                // Unsigned unchecked subs must have already proven that the underflow is impossible.
                 if let Value::Instruction { instruction, .. } = &dfg[*value]
                     && let Instruction::Binary(Binary {
                         lhs,
                         operator: BinaryOp::Sub { unchecked: true },
                         ..
                     }) = &dfg[*instruction]
-                    && matches!(
-                        dfg.type_of_value(*lhs),
-                        Type::Numeric(NumericType::Unsigned { .. } | NumericType::Signed { .. })
-                    )
+                    && matches!(dfg.type_of_value(*lhs), Type::Numeric(NumericType::Signed { .. }))
                 {
                     panic!(
-                        "Truncate follows an integer-typed unchecked Sub, which may underflow. \
+                        "Truncate follows a signed integer-typed unchecked Sub, which may underflow. \
                          Use Field arithmetic with an explicit 2^bit_size addition before the \
                          Sub to prevent integer underflow, then Truncate the Field result."
                     );
@@ -2041,11 +2039,27 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "Truncate follows an integer-typed unchecked Sub, which may underflow"
+        expected = "Truncate follows a signed integer-typed unchecked Sub, which may underflow. Use Field arithmetic with an explicit 2^bit_size addition before the Sub to prevent integer underflow, then Truncate the Field result."
     )]
-    fn integer_unchecked_sub_before_truncate_is_rejected() {
-        // An unchecked Sub on integer types whose result feeds a Truncate may underflow:
+    fn signed_unchecked_sub_before_truncate_is_rejected() {
+        // An unchecked Sub on signed types whose result feeds a Truncate may underflow:
         // lhs - rhs wraps to near `p` in the field, making the Truncate output wrong.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: i8, v1: i8):
+            v2 = unchecked_sub v0, v1
+            v3 = truncate v2 to 8 bits, max_bit_size: 9
+            return v3
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn unsigned_unchecked_sub_before_truncate_is_allowed() {
+        // An unchecked Sub on unsigned types feeding a Truncate is fine:
+        // checked_to_unchecked only marks a sub as unchecked when underflow
+        // is proven impossible, so the truncation is safe.
         let src = "
         acir(inline) fn main f0 {
           b0(v0: u8, v1: u8):
