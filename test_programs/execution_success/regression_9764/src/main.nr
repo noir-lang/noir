@@ -1,4 +1,4 @@
-fn main(a: Field, x:u32) -> pub Field {
+fn main(a: Field, x: u32) -> pub Field {
     if a == 1 {
         0
     } else {
