@@ -1,5 +1,6 @@
 use std::{borrow::Cow, collections::BTreeMap, fmt::Display};
 
+use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_artifacts::debug::{DebugFunctions, DebugTypes, DebugVariables};
 use noirc_errors::Location;
@@ -9,7 +10,6 @@ use crate::{
     ast::{BinaryOpKind, IntegerBitSize},
     hir_def::expr::Constructor,
     shared::Signedness,
-    signed_field::SignedField,
     token::Attributes,
 };
 use crate::{shared::Visibility, token::FunctionAttributeKind};
@@ -280,7 +280,7 @@ pub enum Literal {
         is_vector: bool,
         typ: Type,
     },
-    Integer(SignedField, Type, Location),
+    Integer(FieldElement, Type, Location),
     Bool(bool),
     Unit,
     Str(String),

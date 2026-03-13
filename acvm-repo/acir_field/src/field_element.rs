@@ -179,10 +179,39 @@ impl<F: PrimeField> TryFrom<FieldElement<F>> for u128 {
     type Error = ();
 
     fn try_from(value: FieldElement<F>) -> Result<Self, Self::Error> {
-        match value.try_into_u128() {
-            Some(value) => Ok(value),
-            None => Err(()),
-        }
+        value.try_into_u128().ok_or(())
+    }
+}
+
+impl<F: PrimeField> TryFrom<FieldElement<F>> for u64 {
+    type Error = ();
+
+    fn try_from(value: FieldElement<F>) -> Result<Self, Self::Error> {
+        value.try_to_u64().ok_or(())
+    }
+}
+
+impl<F: PrimeField> TryFrom<FieldElement<F>> for u32 {
+    type Error = ();
+
+    fn try_from(value: FieldElement<F>) -> Result<Self, Self::Error> {
+        value.try_to_u32().ok_or(())
+    }
+}
+
+impl<F: PrimeField> TryFrom<FieldElement<F>> for u16 {
+    type Error = ();
+
+    fn try_from(value: FieldElement<F>) -> Result<Self, Self::Error> {
+        value.try_to_u32().and_then(|x| x.try_into().ok()).ok_or(())
+    }
+}
+
+impl<F: PrimeField> TryFrom<FieldElement<F>> for u8 {
+    type Error = ();
+
+    fn try_from(value: FieldElement<F>) -> Result<Self, Self::Error> {
+        value.try_to_u32().and_then(|x| x.try_into().ok()).ok_or(())
     }
 }
 
@@ -190,10 +219,39 @@ impl<F: PrimeField> TryFrom<FieldElement<F>> for i128 {
     type Error = ();
 
     fn try_from(value: FieldElement<F>) -> Result<Self, Self::Error> {
-        match value.try_into_i128() {
-            Some(value) => Ok(value),
-            None => Err(()),
-        }
+        value.try_into_i128().ok_or(())
+    }
+}
+
+impl<F: PrimeField> TryFrom<FieldElement<F>> for i64 {
+    type Error = ();
+
+    fn try_from(value: FieldElement<F>) -> Result<Self, Self::Error> {
+        value.try_into_i128().and_then(|x| x.try_into().ok()).ok_or(())
+    }
+}
+
+impl<F: PrimeField> TryFrom<FieldElement<F>> for i32 {
+    type Error = ();
+
+    fn try_from(value: FieldElement<F>) -> Result<Self, Self::Error> {
+        value.try_into_i128().and_then(|x| x.try_into().ok()).ok_or(())
+    }
+}
+
+impl<F: PrimeField> TryFrom<FieldElement<F>> for i16 {
+    type Error = ();
+
+    fn try_from(value: FieldElement<F>) -> Result<Self, Self::Error> {
+        value.try_into_i128().and_then(|x| x.try_into().ok()).ok_or(())
+    }
+}
+
+impl<F: PrimeField> TryFrom<FieldElement<F>> for i8 {
+    type Error = ();
+
+    fn try_from(value: FieldElement<F>) -> Result<Self, Self::Error> {
+        value.try_into_i128().and_then(|x| x.try_into().ok()).ok_or(())
     }
 }
 

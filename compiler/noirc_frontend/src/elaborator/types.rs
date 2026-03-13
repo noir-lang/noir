@@ -15,6 +15,7 @@ use crate::{
     },
     elaborator::{UnstableFeature, path_resolution::PathResolution},
     hir::{
+        comptime::Integer,
         def_collector::dc_crate::CompilationError,
         def_map::{ModuleDefId, fully_qualified_module_path},
         resolution::{errors::ResolverError, import::PathResolutionError},
@@ -914,7 +915,7 @@ impl Elaborator<'_> {
                     return None;
                 };
 
-                let Some(global_value) = global_value.as_non_negative_signed_field() else {
+                let Some(global_value) = global_value.as_integer() else {
                     let global_value = global_value.clone();
                     if global_value.is_integral() {
                         self.push_err(ResolverError::NegativeGlobalType { location, global_value });
@@ -927,7 +928,8 @@ impl Elaborator<'_> {
                     return None;
                 };
 
-                let Ok(global_value) = kind.ensure_value_fits(global_value, location) else {
+                if !kind.matches_integer(global_value) {
+                    let global_value = *global_value;
                     self.push_err(ResolverError::GlobalDoesNotFitItsType {
                         location,
                         global_value,
@@ -936,7 +938,7 @@ impl Elaborator<'_> {
                     return None;
                 };
 
-                Some(Type::Constant(global_value, kind))
+                Some(Type::Constant(*global_value, kind))
             }
             _ => None,
         }
@@ -970,7 +972,7 @@ impl Elaborator<'_> {
                 }
                 self.check_type_kind(typ, expected_kind, location)
             }
-            UnresolvedTypeExpression::Constant(int, suffix, _span) => {
+            UnresolvedTypeExpression::Constant(field, suffix, _span) => {
                 let suffix_kind = if let Some(suffix) = suffix {
                     suffix.as_kind()
                 } else {
@@ -984,7 +986,23 @@ impl Elaborator<'_> {
                         format!("convert_expression_type: {suffix_kind} does not unify with expected {expected_kind}"),
                         location,
                     ));
+                    return Type::Error;
                 }
+
+                let suffix = suffix.unwrap_or(crate::token::IntegerTypeSuffix::Field);
+                let Some(int) = Integer::try_from_type_suffix(field, suffix) else {
+                    // Only field doesn't have a max/min size and `try_from_type_suffix`
+                    // should already always succeed for fields.
+                    let min = suffix.as_type().integral_minimum_size().unwrap();
+                    let max = suffix.as_type().integral_maximum_size().unwrap();
+                    self.push_err(TypeCheckError::IntegerLiteralDoesNotFitItsType {
+                        expr: field,
+                        ty: suffix.as_type(),
+                        range: format!("{min}..={max}"),
+                        location,
+                    });
+                    return Type::Error;
+                };
 
                 Type::Constant(int, suffix_kind)
             }
@@ -1013,7 +1031,7 @@ impl Elaborator<'_> {
                             });
                             return Type::Error;
                         }
-                        match op.function(lhs, rhs, &lhs_kind, location) {
+                        match op.function(lhs, rhs, location) {
                             Ok(result) => Type::Constant(result, lhs_kind),
                             Err(err) => {
                                 let err = Box::new(err);
@@ -1694,12 +1712,7 @@ impl Elaborator<'_> {
 
         use HirExpression::Literal;
         let from_value_opt = match self.interner.expression(from_expr_id) {
-            Literal(HirLiteral::Integer(field)) if !field.is_negative() => {
-                Some(field.absolute_value())
-            }
-
-            // TODO(https://github.com/noir-lang/noir/issues/6247):
-            // handle negative literals
+            Literal(HirLiteral::Integer(field)) => Some(field),
             _ => None,
         };
 
@@ -1733,7 +1746,7 @@ impl Elaborator<'_> {
         if let (Some(from_value), Some(to_maximum_size)) =
             (from_value_opt, to.integral_maximum_size())
             && from_is_polymorphic
-            && from_value > to_maximum_size
+            && from_value > to_maximum_size.into()
         {
             let from = from.clone();
             let to = to.clone();
@@ -2897,6 +2910,7 @@ impl Elaborator<'_> {
                 body_id,
                 last_expr_location,
                 || {
+                    eprintln!("Failed to unify:\n  {declared_return_type:?}\n  {body_type:?}\n");
                     let mut error = TypeCheckError::TypeMismatchWithSource {
                         expected: declared_return_type.clone(),
                         actual: body_type.clone(),

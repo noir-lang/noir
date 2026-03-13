@@ -10,7 +10,6 @@ use crate::ast::{
 use crate::elaborator::PrimitiveType;
 use crate::node_interner::{ExprId, InternedExpressionKind, InternedStatementKind, QuotedTypeId};
 use crate::shared::Visibility;
-use crate::signed_field::SignedField;
 use crate::token::{Attributes, FmtStrFragment, IntegerTypeSuffix, Token, Tokens};
 use crate::{Kind, Type};
 use acvm::FieldElement;
@@ -200,21 +199,11 @@ impl From<Ident> for UnresolvedGeneric {
 
 impl ExpressionKind {
     pub fn prefix(operator: UnaryOp, rhs: Expression) -> ExpressionKind {
-        match (operator, &rhs) {
-            (
-                UnaryOp::Minus,
-                Expression {
-                    kind: ExpressionKind::Literal(Literal::Integer(field, suffix)), ..
-                },
-            ) if !field.is_negative() => {
-                ExpressionKind::Literal(Literal::Integer(-*field, *suffix))
-            }
-            _ => ExpressionKind::Prefix(Box::new(PrefixExpression { operator, rhs })),
-        }
+        ExpressionKind::Prefix(Box::new(PrefixExpression { operator, rhs }))
     }
 
     pub fn integer(contents: FieldElement, suffix: Option<IntegerTypeSuffix>) -> ExpressionKind {
-        ExpressionKind::Literal(Literal::Integer(SignedField::positive(contents), suffix))
+        ExpressionKind::Literal(Literal::Integer(contents, suffix))
     }
 
     pub fn boolean(contents: bool) -> ExpressionKind {
@@ -295,6 +284,7 @@ impl Expression {
 
 pub type BinaryOp = Located<BinaryOpKind>;
 
+// `builtin_helpers::new_binary_op` depends on the ordering here
 #[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone, strum_macros::EnumIter)]
 pub enum BinaryOpKind {
     Add,
@@ -423,7 +413,7 @@ pub enum Literal {
     Array(ArrayLiteral),
     Vector(ArrayLiteral),
     Bool(bool),
-    Integer(SignedField, Option<IntegerTypeSuffix>),
+    Integer(FieldElement, Option<IntegerTypeSuffix>),
     Str(String),
     RawStr(String, u8),
     FmtStr(Vec<FmtStrFragment>, u32 /* length */),

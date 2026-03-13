@@ -9,10 +9,9 @@ use crate::{
         type_check::{ExpectingOtherError, NoMatchingImplFoundError, TypeCheckError},
     },
     parser::ParserError,
-    signed_field::SignedField,
     token::Token,
 };
-use acvm::BlackBoxResolutionError;
+use acvm::{BlackBoxResolutionError, FieldElement};
 use noirc_errors::{CustomDiagnostic, Location};
 
 /// The possible errors that can halt the interpreter.
@@ -40,7 +39,7 @@ pub enum InterpreterError {
         location: Location,
     },
     IntegerOutOfRangeForType {
-        value: SignedField,
+        value: FieldElement,
         typ: Type,
         location: Location,
     },

@@ -1,3 +1,4 @@
+use acir::FieldElement;
 use iter_extended::vecmap;
 use nargo::errors::Location;
 use std::{
@@ -19,7 +20,6 @@ use noirc_frontend::{
         },
     },
     shared::{Signedness, Visibility},
-    signed_field::SignedField,
 };
 
 use super::{
@@ -1964,7 +1964,7 @@ impl<'a> FunctionContext<'a> {
     }
 
     /// Generate a random field that can be used in the match constructor of a numeric type.
-    fn gen_num_field(&self, u: &mut Unstructured, typ: &Type) -> arbitrary::Result<SignedField> {
+    fn gen_num_field(&self, u: &mut Unstructured, typ: &Type) -> arbitrary::Result<FieldElement> {
         let literal = self.gen_literal(u, typ)?;
         let Expression::Literal(Literal::Integer(field, _, _)) = literal else {
             unreachable!("expected Literal::Integer; got {literal:?}");
