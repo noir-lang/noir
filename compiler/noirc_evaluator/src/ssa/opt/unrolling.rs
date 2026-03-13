@@ -277,7 +277,7 @@ impl Function {
                     )
                 };
                 match result {
-                    LoopUnrollResult::Skipped => { },
+                    LoopUnrollResult::Skipped => {}
                     LoopUnrollResult::Failed(header, error) => {
                         failed_to_unroll.insert(header);
                         unroll_errors.push(error);
@@ -2926,7 +2926,7 @@ mod tests {
         }
         ");
     }
-    
+
     /// Test that `get_const_upper_bound` does not blindly trust the single
     /// instruction in the loop header without checking that the jmpif
     /// condition actually uses that instruction's result.
@@ -3205,12 +3205,7 @@ mod tests {
     }
 
     /// Regression test: nested loops where the inner loop header has multiple
-    /// parameters. The inner loop's first block param is non-constant (comes from
-    /// the outer loop's induction variable), so the inner loop is skipped in
-    /// InsideOut order. With `skipped_or_failed_blocks`, the outer loop is also
-    /// skipped because it contains the inner loop's blocks. Both loops survive
-    /// the single pass unchanged; `unroll_loops_iteratively` would handle them
-    /// in subsequent passes after simplification.
+    /// parameters.
     #[test]
     fn unroll_nested_loop_with_multi_param_inner_header() {
         // Outer loop (b1) iterates v2 in 0..3 with 3 header params.
@@ -3245,9 +3240,36 @@ mod tests {
         // Structural validity: no orphan blocks, all terminators present.
         crate::ssa::ssa_gen::validate_ssa(&ssa);
 
-        // Both loops are skipped: inner loop has non-constant lower bound,
-        // outer loop contains the inner loop's blocks. SSA is unchanged.
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b7(u32 0, u32 0, u32 1, u32 0)
+          b1(v0: u32, v1: u32, v2: u32):
+            v15 = lt v2, u32 3
+            jmpif v15 then: b2(), else: b5()
+          b2():
+            v16 = unchecked_add v2, u32 1
+            jmp b3(v0, v1, v16, u32 0)
+          b3(v3: u32, v4: u32, v5: u32, v6: u32):
+            v17 = lt v6, u32 1
+            jmpif v17 then: b6(), else: b4()
+          b4():
+            jmp b1(v3, v4, v5)
+          b5():
+            return
+          b6():
+            v18 = unchecked_add v6, u32 1
+            jmp b3(v3, v4, v5, v18)
+          b7(v7: u32, v8: u32, v9: u32, v10: u32):
+            v13 = eq v10, u32 0
+            jmpif v13 then: b8(), else: b9()
+          b8():
+            v19 = unchecked_add v10, u32 1
+            jmp b7(v7, v8, v9, v19)
+          b9():
+            jmp b1(v7, v8, v9)
+        }
+        ");
     }
 
     /// Regression test: a loop with a single header parameter (the induction variable)
