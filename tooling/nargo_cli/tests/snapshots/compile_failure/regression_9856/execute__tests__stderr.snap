@@ -9,11 +9,11 @@ warning: variable does not need to be mutable
   │             -
   │
 
-error: 2147483648 is out of bounds for the array of length 1
-  ┌─ src/main.nr:3:5
+error: Index 2147483648 is out of bounds for this array of length 1
+  ┌─ src/main.nr:3:7
   │
 3 │     e[2147483648_u32].1
-  │     -----------------
+  │       --------------
   │
 
-Error interpreting main function
+Aborting due to 1 previous error

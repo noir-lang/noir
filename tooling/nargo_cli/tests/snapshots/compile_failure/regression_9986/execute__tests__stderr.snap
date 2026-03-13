@@ -9,13 +9,11 @@ warning: Unused expression result of type bool
   │     --------------------------------
   │
 
-error: Assertion failed: Index out of bounds
-  ┌─ src/main.nr:2:5
+error: Index 2147483648 is out of bounds for this array of length 1
+  ┌─ src/main.nr:2:19
   │
 2 │     [("", 0_u32)][2147483648].1 == 0;
-  │     -------------------------
+  │                   ----------
   │
-  = Call stack:
-    1. src/main.nr:2:5
 
-Failed assertion
+Aborting due to 1 previous error
