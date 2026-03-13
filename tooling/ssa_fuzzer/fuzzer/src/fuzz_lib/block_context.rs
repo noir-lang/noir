@@ -945,7 +945,7 @@ impl BlockContext {
         // Use zip (not zip_eq): args_to_use may be longer than input_types when the
         // fuzzer generates more args than the function accepts; extras are intentionally ignored.
         for (value_type, index) in function_signature.input_types.iter().zip(args_to_use) {
-            let value = self.find_values_with_type(builder, &value_type, Some(index));
+            let value = self.find_values_with_type(builder, value_type, Some(index));
             values.push(value);
         }
 
