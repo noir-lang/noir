@@ -757,9 +757,10 @@ impl Loop {
         }
 
         // After unrolling, blocks outside the loop may still reference the old header
-        // parameters (e.g. exit blocks that use promoted variables such as from mem2reg).
+        // parameters (e.g. exit blocks that use promoted variables such as from mem2reg,
+        // or references to the induction variable itself in post-loop code).
         // Replace all remaining uses of header params with the final iteration's values.
-        if header_params.len() > 1 {
+        if !header_params.is_empty() {
             let mut mapping = ValueMapping::default();
             mapping.batch_insert(&header_params, &header_args);
 
@@ -3070,5 +3071,43 @@ mod tests {
             jmp b1(v7, v8, v9)
         }
         ");
+    }
+
+    /// Regression test: a loop with a single header parameter (the induction variable)
+    /// where the induction variable is referenced in post-loop blocks.
+    ///
+    /// After unrolling the first loop (b1), the induction variable v0 is used in b3
+    /// (outside the loop) as an argument to the second loop header b4.
+    #[test]
+    fn unroll_single_param_header_referenced_in_post_loop() {
+        // b1 is a simple loop 0..3, b3 uses v0 (b1's param) to enter second loop b4.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v1 = eq v0, u32 3
+            jmpif v1 then: b2(), else: b3()
+          b2():
+            v2 = unchecked_add v0, u32 1
+            jmp b1(v2)
+          b3():
+            jmp b4(v0, u32 0)
+          b4(v3: u32, v4: u32):
+            v5 = eq v4, u32 2
+            jmpif v5 then: b5(), else: b6()
+          b5():
+            return
+          b6():
+            v6 = unchecked_add v4, u32 1
+            jmp b4(v3, v6)
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let (ssa, _errors) = try_unroll_loops(ssa);
+
+        // This used to panic because v0 from b1 was referenced in b3 after
+        // b1 was unrolled away, leaving an orphan block parameter.
+        crate::ssa::ssa_gen::validate_ssa(&ssa);
     }
 }
