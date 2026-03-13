@@ -993,3 +993,30 @@ fn struct_field_extraction_no_unnecessary_clone() {
     }
     ");
 }
+
+/// The clone of `x.0.0` here is unnecessary: `x.0` is only used to extract its
+/// sub-fields, never as a whole value. The extract-only optimization doesn't catch
+/// this because `track_extract_use` flattens nested extracts (`x.0.0` and `x.0.1`)
+/// down to the root variable, recording field index `0` against `x` both times.
+/// The duplicate-field check then marks `x` as unsafe for the optimization.
+/// Fixing this requires tracking the full access path, not just the top-level index.
+#[test]
+#[should_panic]
+fn clones_nested_tuple_extraction_even_though_it_is_not_needed() {
+    let src = "
+    unconstrained fn main() {
+        let x = (([1], [2]), ([3], [4]));
+        let _a = x.0.0;
+        let _b = x.0.1;
+    }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let x$l0 = (([1], [2]), ([3], [4]));
+        let _a$l1 = x$l0.0.0;
+        let _b$l2 = x$l0.0.1
+    }
+    ");
+}
