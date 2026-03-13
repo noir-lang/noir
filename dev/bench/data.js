@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773413713758,
+  "lastUpdate": 1773416048718,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23171,48 +23171,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "0adc7fb706b4fb126315cf41846f77d05251bbac",
-          "message": "fix: correct token conversion for Integer::Field in comptime (#11786)",
-          "timestamp": "2026-03-06T12:05:23Z",
-          "tree_id": "86f2519b306d983e26af779107b8453c1f5d3726",
-          "url": "https://github.com/noir-lang/noir/commit/0adc7fb706b4fb126315cf41846f77d05251bbac"
-        },
-        "date": 1772800339235,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 251554,
-            "range": "± 518",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 221141,
-            "range": "± 627",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2745435,
-            "range": "± 5399",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25264,6 +25222,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2741994,
             "range": "± 29349",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "3a5091b66870360469277eaf440a34e56dd8453a",
+          "message": "fix(brillig): Protect against memory address overflows (#11864)",
+          "timestamp": "2026-03-13T15:03:41Z",
+          "tree_id": "970eadf5fa453ea029f3afe8068f13cc900fadf5",
+          "url": "https://github.com/noir-lang/noir/commit/3a5091b66870360469277eaf440a34e56dd8453a"
+        },
+        "date": 1773416000789,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 252956,
+            "range": "± 2590",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 224066,
+            "range": "± 1630",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2728771,
+            "range": "± 4447",
             "unit": "ns/iter"
           }
         ]
