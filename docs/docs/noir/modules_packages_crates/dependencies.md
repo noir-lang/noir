@@ -125,3 +125,13 @@ Some libraries that are available today include:
 - [Sparse Merkle Tree Verifier](https://github.com/vocdoni/smtverifier-noir/tree/main) - a library for verification of sparse Merkle trees
 - [Signed Int](https://github.com/resurgencelabs/signed_int) - a library for accessing a custom Signed Integer data type, allowing access to negative numbers on Noir
 - [Fraction](https://github.com/resurgencelabs/fraction) - a library for accessing fractional number data type in Noir, allowing results that aren't whole numbers
+
+## Dependencies installation path
+
+By default, `nargo` stores all the external dependencies inside `~/nargo`.
+
+You can override that location by defining the `NARGO_CRATES_ROOT` environment variable. For example:
+
+```bash
+NARGO_CRATES_ROOT="~/.nargo/crates"
+```
