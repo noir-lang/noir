@@ -1578,13 +1578,20 @@ impl<'f> LoopIteration<'f> {
                 )
             }
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
-                if self.get_original_block(*destination) == self.loop_.header {
+                if *destination == self.loop_.header {
                     // We found the back-edge of the loop.
                     assert!(!arguments.is_empty(), "back-edge should have at least 1 argument");
                     assert!(self.induction_value.is_none(), "there should be only one back-edge");
                     self.induction_value = Some((self.insert_block, arguments.clone()));
+                    self.encountered_loop_header = true;
+                    // Don't enqueue the header as a next block: it was already visited
+                    // at the start of this iteration. The next call to `unroll_header`
+                    // in the `unroll()` while loop will handle the header for the next
+                    // iteration.
+                    vec![]
+                } else {
+                    vec![*destination]
                 }
-                vec![*destination]
             }
             TerminatorInstruction::Return { .. } => {
                 // Early returns from loops are not implemented.
@@ -1647,7 +1654,15 @@ impl<'f> LoopIteration<'f> {
     ///
     /// If the given block id is not within the loop, it is returned as-is,
     /// which is the case for when the header jumps to the block following the loop.
+    ///
+    /// The loop header is also returned as-is: the header is handled separately
+    /// by `unroll_header`, so creating a fresh block for it here would leave an
+    /// orphan block with no terminator if unrolling is later aborted.
     fn get_or_insert_block(&mut self, block: BasicBlockId) -> BasicBlockId {
+        if block == self.loop_.header {
+            return block;
+        }
+
         if let Some(new_block) = self.blocks.get(&block) {
             return *new_block;
         }
@@ -2979,5 +2994,81 @@ mod tests {
             stats.unrolled_cost(),
             stats.baseline_cost()
         );
+    }
+
+    /// Regression test: nested loops where the inner loop header has multiple
+    /// parameters. Unrolling the inner loop first, then simplifying between
+    /// unrolls (which calls mem2reg), should not panic on a block missing its
+    /// terminator instruction.
+    ///
+    /// We used to create a fresh block for the loop header at the back-edge destination, 
+    /// but if unrolling aborted that block was never visited (since the header was already visited), 
+    /// leaving it without a terminator.
+    #[test]
+    fn unroll_nested_loop_with_multi_param_inner_header() {
+        // Outer loop (b1) iterates v2 in 0..3 with 3 header params.
+        // b2 enters inner loop (b3) passing 4 params (3 outer + induction var).
+        // Inner loop (b3) iterates v8 in 0..1.
+        // On exit (b4) jumps back to outer header b1.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1(u32 0, u32 0, u32 0)
+          b1(v0: u32, v1: u32, v2: u32):
+            v3 = lt v2, u32 3
+            jmpif v3 then: b2(), else: b5()
+          b2():
+            v4 = unchecked_add v2, u32 1
+            jmp b3(v0, v1, v4, u32 0)
+          b3(v5: u32, v6: u32, v7: u32, v8: u32):
+            v9 = lt v8, u32 1
+            jmpif v9 then: b6(), else: b4()
+          b4():
+            jmp b1(v5, v6, v7)
+          b5():
+            return
+          b6():
+            v10 = unchecked_add v8, u32 1
+            jmp b3(v5, v6, v7, v10)
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let (ssa, _errors) = try_unroll_loops(ssa);
+
+        // Structural validity: no orphan blocks, all terminators present.
+        // This used to panic with "Expected block to have terminator instruction"
+        // because the back-edge's mapped header block was left without a terminator.
+        crate::ssa::ssa_gen::validate_ssa(&ssa);
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b7(u32 0, u32 0, u32 1, u32 0)
+          b1(v0: u32, v1: u32, v2: u32):
+            v15 = lt v2, u32 3
+            jmpif v15 then: b2(), else: b5()
+          b2():
+            v16 = unchecked_add v2, u32 1
+            jmp b3(v0, v1, v16, u32 0)
+          b3(v3: u32, v4: u32, v5: u32, v6: u32):
+            v17 = lt v6, u32 1
+            jmpif v17 then: b6(), else: b4()
+          b4():
+            jmp b1(v3, v4, v5)
+          b5():
+            return
+          b6():
+            v18 = unchecked_add v6, u32 1
+            jmp b3(v3, v4, v5, v18)
+          b7(v7: u32, v8: u32, v9: u32, v10: u32):
+            v13 = eq v10, u32 0
+            jmpif v13 then: b8(), else: b9()
+          b8():
+            v19 = unchecked_add v10, u32 1
+            jmp b7(v7, v8, v9, v19)
+          b9():
+            jmp b1(v7, v8, v9)
+        }
+        ");
     }
 }
