@@ -1,10 +1,10 @@
-// This program will fail when the input is "i_hate_rust"
+// This program will fail when the input is "i_hate_ice"
 #[fuzz]
-fn strings(a: str<11>) {
-    let start = "i_love_rust".as_bytes();
-    let mut password_bytes: [u8; 11] = [0; 11];
+fn strings(a: str<10>) {
+    let start = "i_love_ice".as_bytes();
+    let mut password_bytes: [u8; 10] = [0; 10];
     let begin = 2; // Where "lov" starts, to be replaced with "hat".
-    for i in 0..11 {
+    for i in 0..10 {
         if i < begin {
             password_bytes[i] = start[i];
         }
@@ -15,7 +15,7 @@ fn strings(a: str<11>) {
             password_bytes[i] = 97; // a
         }
         if i == begin + 2 {
-            password_bytes[i] = 116; // t
+            password_bytes[i] = 106; // t
         }
         if i > begin + 2 {
             password_bytes[i] = start[i];
