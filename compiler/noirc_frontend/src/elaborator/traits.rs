@@ -1027,7 +1027,9 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
         for (
             ResolvedGeneric { type_var: trait_fn_generic, .. },
             ResolvedGeneric { name, type_var: impl_fn_generic, .. },
-        ) in trait_fn_meta.direct_generics.iter().zip_eq(&meta.direct_generics)
+            // Use zip (not zip_eq) since the impl may have a different number of
+            // generics than the trait method (error pushed above).
+        ) in trait_fn_meta.direct_generics.iter().zip(&meta.direct_generics)
         {
             let trait_fn_kind = trait_fn_generic.kind();
             let arg = impl_fn_generic.clone().into_named_generic(name, None);

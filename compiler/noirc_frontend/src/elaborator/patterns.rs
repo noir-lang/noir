@@ -1,7 +1,6 @@
 //! Pattern elaboration, variable binding, and turbofish generic resolution.
 
 use iter_extended::vecmap;
-use itertools::Itertools;
 use noirc_errors::{Located, Location};
 use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
@@ -693,7 +692,9 @@ impl Elaborator<'_> {
         kinds: Vec<Kind>,
         turbofish_generics: Vec<Located<Type>>,
     ) -> Vec<Type> {
-        let kinds_with_types = kinds.into_iter().zip_eq(turbofish_generics);
+        // Use zip (not zip_eq) since callers like resolve_function_turbofish_generics
+        // may push an error for mismatched counts but still call this function.
+        let kinds_with_types = kinds.into_iter().zip(turbofish_generics);
 
         vecmap(kinds_with_types, |(kind, located_type)| {
             let location = located_type.location();

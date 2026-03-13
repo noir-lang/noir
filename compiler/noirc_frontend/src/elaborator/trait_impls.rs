@@ -2,8 +2,6 @@
 
 use std::rc::Rc;
 
-use itertools::Itertools;
-
 use crate::{
     Kind, NamedGeneric, ResolvedGeneric, Shared, TypeBindings, TypeVariable,
     ast::{GenericTypeArgs, Ident, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
@@ -429,7 +427,9 @@ impl Elaborator<'_> {
 
         // Substitute each generic on the trait function with the corresponding generic on the impl function
         for (ResolvedGeneric { type_var: trait_fn_generic, .. }, impl_fn_resolved_generic) in
-            method.direct_generics.iter().zip_eq(&override_meta.direct_generics)
+            // Use zip (not zip_eq) since the impl may have a different number of
+            // generics than the trait method (which is a user error caught elsewhere).
+            method.direct_generics.iter().zip(&override_meta.direct_generics)
         {
             let trait_fn_kind = trait_fn_generic.kind();
             let arg = impl_fn_resolved_generic.clone().into_named_generic(None);
