@@ -79,101 +79,102 @@
 <a href=#79 id=79 data-nosnippet>79</a>
 <a href=#80 id=80 data-nosnippet>80</a>    <span class="kw">use </span>ark_ec::AffineRepr;
 <a href=#81 id=81 data-nosnippet>81</a>    <span class="kw">use </span>ark_ff::{BigInteger, PrimeField};
-<a href=#82 id=82 data-nosnippet>82</a>
-<a href=#83 id=83 data-nosnippet>83</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
-<a href=#84 id=84 data-nosnippet>84</a>
-<a href=#85 id=85 data-nosnippet>85</a>    <span class="attr">#[test]
-<a href=#86 id=86 data-nosnippet>86</a>    </span><span class="kw">fn </span>test_derive_generators() {
-<a href=#87 id=87 data-nosnippet>87</a>        <span class="kw">let </span>res = derive_generators(<span class="string">"test domain"</span>.as_bytes(), <span class="number">128</span>, <span class="number">0</span>);
-<a href=#88 id=88 data-nosnippet>88</a>
-<a href=#89 id=89 data-nosnippet>89</a>        <span class="kw">let </span>is_unique = |y: Affine, j: usize| -&gt; bool {
-<a href=#90 id=90 data-nosnippet>90</a>            <span class="kw">for </span>(i, res) <span class="kw">in </span>res.iter().enumerate() {
-<a href=#91 id=91 data-nosnippet>91</a>                <span class="kw">if </span>i != j &amp;&amp; <span class="kw-2">*</span>res == y {
-<a href=#92 id=92 data-nosnippet>92</a>                    <span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#93 id=93 data-nosnippet>93</a>                }
-<a href=#94 id=94 data-nosnippet>94</a>            }
-<a href=#95 id=95 data-nosnippet>95</a>            <span class="bool-val">true
-<a href=#96 id=96 data-nosnippet>96</a>        </span>};
-<a href=#97 id=97 data-nosnippet>97</a>
-<a href=#98 id=98 data-nosnippet>98</a>        <span class="kw">for </span>(i, res) <span class="kw">in </span>res.iter().enumerate() {
-<a href=#99 id=99 data-nosnippet>99</a>            <span class="macro">assert!</span>(is_unique(<span class="kw-2">*</span>res, i));
-<a href=#100 id=100 data-nosnippet>100</a>            <span class="macro">assert!</span>(res.is_on_curve());
-<a href=#101 id=101 data-nosnippet>101</a>        }
-<a href=#102 id=102 data-nosnippet>102</a>    }
-<a href=#103 id=103 data-nosnippet>103</a>
-<a href=#104 id=104 data-nosnippet>104</a>    <span class="attr">#[test]
-<a href=#105 id=105 data-nosnippet>105</a>    </span><span class="kw">fn </span>derive_length_generator() {
-<a href=#106 id=106 data-nosnippet>106</a>        <span class="kw">let </span>domain_separator = <span class="string">"pedersen_hash_length"</span>;
-<a href=#107 id=107 data-nosnippet>107</a>        <span class="kw">let </span>length_generator = derive_generators(domain_separator.as_bytes(), <span class="number">1</span>, <span class="number">0</span>)[<span class="number">0</span>];
-<a href=#108 id=108 data-nosnippet>108</a>
-<a href=#109 id=109 data-nosnippet>109</a>        <span class="kw">let </span>expected_generator = (
-<a href=#110 id=110 data-nosnippet>110</a>            <span class="string">"2df8b940e5890e4e1377e05373fae69a1d754f6935e6a780b666947431f2cdcd"</span>,
-<a href=#111 id=111 data-nosnippet>111</a>            <span class="string">"2ecd88d15967bc53b885912e0d16866154acb6aac2d3f85e27ca7eefb2c19083"</span>,
-<a href=#112 id=112 data-nosnippet>112</a>        );
-<a href=#113 id=113 data-nosnippet>113</a>        <span class="macro">assert_eq!</span>(
-<a href=#114 id=114 data-nosnippet>114</a>            hex::encode(length_generator.x().unwrap().into_bigint().to_bytes_be()),
-<a href=#115 id=115 data-nosnippet>115</a>            expected_generator.<span class="number">0</span>,
-<a href=#116 id=116 data-nosnippet>116</a>            <span class="string">"Failed on x component"
-<a href=#117 id=117 data-nosnippet>117</a>        </span>);
-<a href=#118 id=118 data-nosnippet>118</a>        <span class="macro">assert_eq!</span>(
-<a href=#119 id=119 data-nosnippet>119</a>            hex::encode(length_generator.y().unwrap().into_bigint().to_bytes_be()),
-<a href=#120 id=120 data-nosnippet>120</a>            expected_generator.<span class="number">1</span>,
-<a href=#121 id=121 data-nosnippet>121</a>            <span class="string">"Failed on y component"
-<a href=#122 id=122 data-nosnippet>122</a>        </span>);
-<a href=#123 id=123 data-nosnippet>123</a>    }
-<a href=#124 id=124 data-nosnippet>124</a>
-<a href=#125 id=125 data-nosnippet>125</a>    <span class="attr">#[test]
-<a href=#126 id=126 data-nosnippet>126</a>    </span><span class="kw">fn </span>derives_default_generators() {
-<a href=#127 id=127 data-nosnippet>127</a>        <span class="kw">const </span>DEFAULT_GENERATORS: <span class="kw-2">&amp;</span>[[<span class="kw-2">&amp;</span>str; <span class="number">2</span>]] = <span class="kw-2">&amp;</span>[
-<a href=#128 id=128 data-nosnippet>128</a>            [
-<a href=#129 id=129 data-nosnippet>129</a>                <span class="string">"083e7911d835097629f0067531fc15cafd79a89beecb39903f69572c636f4a5a"</span>,
-<a href=#130 id=130 data-nosnippet>130</a>                <span class="string">"1a7f5efaad7f315c25a918f30cc8d7333fccab7ad7c90f14de81bcc528f9935d"</span>,
-<a href=#131 id=131 data-nosnippet>131</a>            ],
-<a href=#132 id=132 data-nosnippet>132</a>            [
-<a href=#133 id=133 data-nosnippet>133</a>                <span class="string">"054aa86a73cb8a34525e5bbed6e43ba1198e860f5f3950268f71df4591bde402"</span>,
-<a href=#134 id=134 data-nosnippet>134</a>                <span class="string">"209dcfbf2cfb57f9f6046f44d71ac6faf87254afc7407c04eb621a6287cac126"</span>,
-<a href=#135 id=135 data-nosnippet>135</a>            ],
-<a href=#136 id=136 data-nosnippet>136</a>            [
-<a href=#137 id=137 data-nosnippet>137</a>                <span class="string">"1c44f2a5207c81c28a8321a5815ce8b1311024bbed131819bbdaf5a2ada84748"</span>,
-<a href=#138 id=138 data-nosnippet>138</a>                <span class="string">"03aaee36e6422a1d0191632ac6599ae9eba5ac2c17a8c920aa3caf8b89c5f8a8"</span>,
-<a href=#139 id=139 data-nosnippet>139</a>            ],
-<a href=#140 id=140 data-nosnippet>140</a>            [
-<a href=#141 id=141 data-nosnippet>141</a>                <span class="string">"26d8b1160c6821a30c65f6cb47124afe01c29f4338f44d4a12c9fccf22fb6fb2"</span>,
-<a href=#142 id=142 data-nosnippet>142</a>                <span class="string">"05c70c3b9c0d25a4c100e3a27bf3cc375f8af8cdd9498ec4089a823d7464caff"</span>,
-<a href=#143 id=143 data-nosnippet>143</a>            ],
-<a href=#144 id=144 data-nosnippet>144</a>            [
-<a href=#145 id=145 data-nosnippet>145</a>                <span class="string">"20ed9c6a1d27271c4498bfce0578d59db1adbeaa8734f7facc097b9b994fcf6e"</span>,
-<a href=#146 id=146 data-nosnippet>146</a>                <span class="string">"29cd7d370938b358c62c4a00f73a0d10aba7e5aaa04704a0713f891ebeb92371"</span>,
-<a href=#147 id=147 data-nosnippet>147</a>            ],
-<a href=#148 id=148 data-nosnippet>148</a>            [
-<a href=#149 id=149 data-nosnippet>149</a>                <span class="string">"0224a8abc6c8b8d50373d64cd2a1ab1567bf372b3b1f7b861d7f01257052d383"</span>,
-<a href=#150 id=150 data-nosnippet>150</a>                <span class="string">"2358629b90eafb299d6650a311e79914b0215eb0a790810b26da5a826726d711"</span>,
-<a href=#151 id=151 data-nosnippet>151</a>            ],
-<a href=#152 id=152 data-nosnippet>152</a>            [
-<a href=#153 id=153 data-nosnippet>153</a>                <span class="string">"0f106f6d46bc904a5290542490b2f238775ff3c445b2f8f704c466655f460a2a"</span>,
-<a href=#154 id=154 data-nosnippet>154</a>                <span class="string">"29ab84d472f1d33f42fe09c47b8f7710f01920d6155250126731e486877bcf27"</span>,
-<a href=#155 id=155 data-nosnippet>155</a>            ],
-<a href=#156 id=156 data-nosnippet>156</a>            [
-<a href=#157 id=157 data-nosnippet>157</a>                <span class="string">"0298f2e42249f0519c8a8abd91567ebe016e480f219b8c19461d6a595cc33696"</span>,
-<a href=#158 id=158 data-nosnippet>158</a>                <span class="string">"035bec4b8520a4ece27bd5aafabee3dfe1390d7439c419a8c55aceb207aac83b"</span>,
-<a href=#159 id=159 data-nosnippet>159</a>            ],
-<a href=#160 id=160 data-nosnippet>160</a>        ];
-<a href=#161 id=161 data-nosnippet>161</a>
-<a href=#162 id=162 data-nosnippet>162</a>        <span class="kw">let </span>generated_generators =
-<a href=#163 id=163 data-nosnippet>163</a>            derive_generators(DEFAULT_DOMAIN_SEPARATOR, DEFAULT_GENERATORS.len() <span class="kw">as </span>u32, <span class="number">0</span>);
-<a href=#164 id=164 data-nosnippet>164</a>        <span class="kw">for </span>(i, (generator, expected_generator)) <span class="kw">in
-<a href=#165 id=165 data-nosnippet>165</a>            </span>generated_generators.iter().zip(DEFAULT_GENERATORS).enumerate()
-<a href=#166 id=166 data-nosnippet>166</a>        {
-<a href=#167 id=167 data-nosnippet>167</a>            <span class="macro">assert_eq!</span>(
-<a href=#168 id=168 data-nosnippet>168</a>                hex::encode(generator.x().unwrap().into_bigint().to_bytes_be()),
-<a href=#169 id=169 data-nosnippet>169</a>                expected_generator[<span class="number">0</span>],
-<a href=#170 id=170 data-nosnippet>170</a>                <span class="string">"Failed on x component of generator {i}"
-<a href=#171 id=171 data-nosnippet>171</a>            </span>);
-<a href=#172 id=172 data-nosnippet>172</a>            <span class="macro">assert_eq!</span>(
-<a href=#173 id=173 data-nosnippet>173</a>                hex::encode(generator.y().unwrap().into_bigint().to_bytes_be()),
-<a href=#174 id=174 data-nosnippet>174</a>                expected_generator[<span class="number">1</span>],
-<a href=#175 id=175 data-nosnippet>175</a>                <span class="string">"Failed on y component of generator {i}"
-<a href=#176 id=176 data-nosnippet>176</a>            </span>);
-<a href=#177 id=177 data-nosnippet>177</a>        }
-<a href=#178 id=178 data-nosnippet>178</a>    }
-<a href=#179 id=179 data-nosnippet>179</a>}</code></pre></div></section></main></body></html>
+<a href=#82 id=82 data-nosnippet>82</a>    <span class="kw">use </span>itertools::Itertools;
+<a href=#83 id=83 data-nosnippet>83</a>
+<a href=#84 id=84 data-nosnippet>84</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+<a href=#85 id=85 data-nosnippet>85</a>
+<a href=#86 id=86 data-nosnippet>86</a>    <span class="attr">#[test]
+<a href=#87 id=87 data-nosnippet>87</a>    </span><span class="kw">fn </span>test_derive_generators() {
+<a href=#88 id=88 data-nosnippet>88</a>        <span class="kw">let </span>res = derive_generators(<span class="string">"test domain"</span>.as_bytes(), <span class="number">128</span>, <span class="number">0</span>);
+<a href=#89 id=89 data-nosnippet>89</a>
+<a href=#90 id=90 data-nosnippet>90</a>        <span class="kw">let </span>is_unique = |y: Affine, j: usize| -&gt; bool {
+<a href=#91 id=91 data-nosnippet>91</a>            <span class="kw">for </span>(i, res) <span class="kw">in </span>res.iter().enumerate() {
+<a href=#92 id=92 data-nosnippet>92</a>                <span class="kw">if </span>i != j &amp;&amp; <span class="kw-2">*</span>res == y {
+<a href=#93 id=93 data-nosnippet>93</a>                    <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#94 id=94 data-nosnippet>94</a>                }
+<a href=#95 id=95 data-nosnippet>95</a>            }
+<a href=#96 id=96 data-nosnippet>96</a>            <span class="bool-val">true
+<a href=#97 id=97 data-nosnippet>97</a>        </span>};
+<a href=#98 id=98 data-nosnippet>98</a>
+<a href=#99 id=99 data-nosnippet>99</a>        <span class="kw">for </span>(i, res) <span class="kw">in </span>res.iter().enumerate() {
+<a href=#100 id=100 data-nosnippet>100</a>            <span class="macro">assert!</span>(is_unique(<span class="kw-2">*</span>res, i));
+<a href=#101 id=101 data-nosnippet>101</a>            <span class="macro">assert!</span>(res.is_on_curve());
+<a href=#102 id=102 data-nosnippet>102</a>        }
+<a href=#103 id=103 data-nosnippet>103</a>    }
+<a href=#104 id=104 data-nosnippet>104</a>
+<a href=#105 id=105 data-nosnippet>105</a>    <span class="attr">#[test]
+<a href=#106 id=106 data-nosnippet>106</a>    </span><span class="kw">fn </span>derive_length_generator() {
+<a href=#107 id=107 data-nosnippet>107</a>        <span class="kw">let </span>domain_separator = <span class="string">"pedersen_hash_length"</span>;
+<a href=#108 id=108 data-nosnippet>108</a>        <span class="kw">let </span>length_generator = derive_generators(domain_separator.as_bytes(), <span class="number">1</span>, <span class="number">0</span>)[<span class="number">0</span>];
+<a href=#109 id=109 data-nosnippet>109</a>
+<a href=#110 id=110 data-nosnippet>110</a>        <span class="kw">let </span>expected_generator = (
+<a href=#111 id=111 data-nosnippet>111</a>            <span class="string">"2df8b940e5890e4e1377e05373fae69a1d754f6935e6a780b666947431f2cdcd"</span>,
+<a href=#112 id=112 data-nosnippet>112</a>            <span class="string">"2ecd88d15967bc53b885912e0d16866154acb6aac2d3f85e27ca7eefb2c19083"</span>,
+<a href=#113 id=113 data-nosnippet>113</a>        );
+<a href=#114 id=114 data-nosnippet>114</a>        <span class="macro">assert_eq!</span>(
+<a href=#115 id=115 data-nosnippet>115</a>            hex::encode(length_generator.x().unwrap().into_bigint().to_bytes_be()),
+<a href=#116 id=116 data-nosnippet>116</a>            expected_generator.<span class="number">0</span>,
+<a href=#117 id=117 data-nosnippet>117</a>            <span class="string">"Failed on x component"
+<a href=#118 id=118 data-nosnippet>118</a>        </span>);
+<a href=#119 id=119 data-nosnippet>119</a>        <span class="macro">assert_eq!</span>(
+<a href=#120 id=120 data-nosnippet>120</a>            hex::encode(length_generator.y().unwrap().into_bigint().to_bytes_be()),
+<a href=#121 id=121 data-nosnippet>121</a>            expected_generator.<span class="number">1</span>,
+<a href=#122 id=122 data-nosnippet>122</a>            <span class="string">"Failed on y component"
+<a href=#123 id=123 data-nosnippet>123</a>        </span>);
+<a href=#124 id=124 data-nosnippet>124</a>    }
+<a href=#125 id=125 data-nosnippet>125</a>
+<a href=#126 id=126 data-nosnippet>126</a>    <span class="attr">#[test]
+<a href=#127 id=127 data-nosnippet>127</a>    </span><span class="kw">fn </span>derives_default_generators() {
+<a href=#128 id=128 data-nosnippet>128</a>        <span class="kw">const </span>DEFAULT_GENERATORS: <span class="kw-2">&amp;</span>[[<span class="kw-2">&amp;</span>str; <span class="number">2</span>]] = <span class="kw-2">&amp;</span>[
+<a href=#129 id=129 data-nosnippet>129</a>            [
+<a href=#130 id=130 data-nosnippet>130</a>                <span class="string">"083e7911d835097629f0067531fc15cafd79a89beecb39903f69572c636f4a5a"</span>,
+<a href=#131 id=131 data-nosnippet>131</a>                <span class="string">"1a7f5efaad7f315c25a918f30cc8d7333fccab7ad7c90f14de81bcc528f9935d"</span>,
+<a href=#132 id=132 data-nosnippet>132</a>            ],
+<a href=#133 id=133 data-nosnippet>133</a>            [
+<a href=#134 id=134 data-nosnippet>134</a>                <span class="string">"054aa86a73cb8a34525e5bbed6e43ba1198e860f5f3950268f71df4591bde402"</span>,
+<a href=#135 id=135 data-nosnippet>135</a>                <span class="string">"209dcfbf2cfb57f9f6046f44d71ac6faf87254afc7407c04eb621a6287cac126"</span>,
+<a href=#136 id=136 data-nosnippet>136</a>            ],
+<a href=#137 id=137 data-nosnippet>137</a>            [
+<a href=#138 id=138 data-nosnippet>138</a>                <span class="string">"1c44f2a5207c81c28a8321a5815ce8b1311024bbed131819bbdaf5a2ada84748"</span>,
+<a href=#139 id=139 data-nosnippet>139</a>                <span class="string">"03aaee36e6422a1d0191632ac6599ae9eba5ac2c17a8c920aa3caf8b89c5f8a8"</span>,
+<a href=#140 id=140 data-nosnippet>140</a>            ],
+<a href=#141 id=141 data-nosnippet>141</a>            [
+<a href=#142 id=142 data-nosnippet>142</a>                <span class="string">"26d8b1160c6821a30c65f6cb47124afe01c29f4338f44d4a12c9fccf22fb6fb2"</span>,
+<a href=#143 id=143 data-nosnippet>143</a>                <span class="string">"05c70c3b9c0d25a4c100e3a27bf3cc375f8af8cdd9498ec4089a823d7464caff"</span>,
+<a href=#144 id=144 data-nosnippet>144</a>            ],
+<a href=#145 id=145 data-nosnippet>145</a>            [
+<a href=#146 id=146 data-nosnippet>146</a>                <span class="string">"20ed9c6a1d27271c4498bfce0578d59db1adbeaa8734f7facc097b9b994fcf6e"</span>,
+<a href=#147 id=147 data-nosnippet>147</a>                <span class="string">"29cd7d370938b358c62c4a00f73a0d10aba7e5aaa04704a0713f891ebeb92371"</span>,
+<a href=#148 id=148 data-nosnippet>148</a>            ],
+<a href=#149 id=149 data-nosnippet>149</a>            [
+<a href=#150 id=150 data-nosnippet>150</a>                <span class="string">"0224a8abc6c8b8d50373d64cd2a1ab1567bf372b3b1f7b861d7f01257052d383"</span>,
+<a href=#151 id=151 data-nosnippet>151</a>                <span class="string">"2358629b90eafb299d6650a311e79914b0215eb0a790810b26da5a826726d711"</span>,
+<a href=#152 id=152 data-nosnippet>152</a>            ],
+<a href=#153 id=153 data-nosnippet>153</a>            [
+<a href=#154 id=154 data-nosnippet>154</a>                <span class="string">"0f106f6d46bc904a5290542490b2f238775ff3c445b2f8f704c466655f460a2a"</span>,
+<a href=#155 id=155 data-nosnippet>155</a>                <span class="string">"29ab84d472f1d33f42fe09c47b8f7710f01920d6155250126731e486877bcf27"</span>,
+<a href=#156 id=156 data-nosnippet>156</a>            ],
+<a href=#157 id=157 data-nosnippet>157</a>            [
+<a href=#158 id=158 data-nosnippet>158</a>                <span class="string">"0298f2e42249f0519c8a8abd91567ebe016e480f219b8c19461d6a595cc33696"</span>,
+<a href=#159 id=159 data-nosnippet>159</a>                <span class="string">"035bec4b8520a4ece27bd5aafabee3dfe1390d7439c419a8c55aceb207aac83b"</span>,
+<a href=#160 id=160 data-nosnippet>160</a>            ],
+<a href=#161 id=161 data-nosnippet>161</a>        ];
+<a href=#162 id=162 data-nosnippet>162</a>
+<a href=#163 id=163 data-nosnippet>163</a>        <span class="kw">let </span>generated_generators =
+<a href=#164 id=164 data-nosnippet>164</a>            derive_generators(DEFAULT_DOMAIN_SEPARATOR, DEFAULT_GENERATORS.len() <span class="kw">as </span>u32, <span class="number">0</span>);
+<a href=#165 id=165 data-nosnippet>165</a>        <span class="kw">for </span>(i, (generator, expected_generator)) <span class="kw">in
+<a href=#166 id=166 data-nosnippet>166</a>            </span>generated_generators.iter().zip_eq(DEFAULT_GENERATORS).enumerate()
+<a href=#167 id=167 data-nosnippet>167</a>        {
+<a href=#168 id=168 data-nosnippet>168</a>            <span class="macro">assert_eq!</span>(
+<a href=#169 id=169 data-nosnippet>169</a>                hex::encode(generator.x().unwrap().into_bigint().to_bytes_be()),
+<a href=#170 id=170 data-nosnippet>170</a>                expected_generator[<span class="number">0</span>],
+<a href=#171 id=171 data-nosnippet>171</a>                <span class="string">"Failed on x component of generator {i}"
+<a href=#172 id=172 data-nosnippet>172</a>            </span>);
+<a href=#173 id=173 data-nosnippet>173</a>            <span class="macro">assert_eq!</span>(
+<a href=#174 id=174 data-nosnippet>174</a>                hex::encode(generator.y().unwrap().into_bigint().to_bytes_be()),
+<a href=#175 id=175 data-nosnippet>175</a>                expected_generator[<span class="number">1</span>],
+<a href=#176 id=176 data-nosnippet>176</a>                <span class="string">"Failed on y component of generator {i}"
+<a href=#177 id=177 data-nosnippet>177</a>            </span>);
+<a href=#178 id=178 data-nosnippet>178</a>        }
+<a href=#179 id=179 data-nosnippet>179</a>    }
+<a href=#180 id=180 data-nosnippet>180</a>}</code></pre></div></section></main></body></html>
