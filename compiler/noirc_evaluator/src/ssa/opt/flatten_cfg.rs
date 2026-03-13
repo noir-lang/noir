@@ -145,6 +145,7 @@ use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use acvm::{FieldElement, acir::AcirField, acir::BlackBoxFunc};
 use indexmap::set::IndexSet;
 use iter_extended::vecmap;
+use itertools::Itertools;
 use noirc_errors::call_stack::CallStackId;
 
 use crate::ssa::{
@@ -713,7 +714,7 @@ impl<'f> Context<'f> {
             return;
         }
 
-        let args = vecmap(then_args.iter().zip(else_args), |(then_arg, else_arg)| {
+        let args = vecmap(then_args.iter().zip_eq(else_args), |(then_arg, else_arg)| {
             (self.inserter.resolve(*then_arg), self.inserter.resolve(else_arg))
         });
         let Some(else_branch) = cond_context.else_branch else {

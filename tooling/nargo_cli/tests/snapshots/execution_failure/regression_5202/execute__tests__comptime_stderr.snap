@@ -9,6 +9,7 @@ error: Assertion failed
    │               ------------
    │
    = Call stack:
-     1. src/main.nr:40:4
+     1: ?
+             at src/main.nr:40:4
 
 Error interpreting main function

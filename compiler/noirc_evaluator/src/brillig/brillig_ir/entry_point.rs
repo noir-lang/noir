@@ -1,3 +1,5 @@
+use itertools::Itertools;
+
 use crate::{
     brillig::{BrilligOptions, assert_u32, assert_usize, brillig_ir::registers::Allocated},
     ssa::ir::function::FunctionId,
@@ -125,7 +127,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         let mut current_calldata_pointer = self.calldata_start_offset();
 
         // Initialize the variables with the calldata
-        for (argument_variable, argument) in argument_variables.iter().zip(arguments) {
+        for (argument_variable, argument) in argument_variables.iter().zip_eq(arguments) {
             match (**argument_variable, argument) {
                 (BrilligVariable::SingleAddr(single_address), BrilligParameter::SingleAddr(_)) => {
                     self.mov_instruction(
@@ -339,7 +341,9 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         let return_data_offset = self.return_data_start_offset(calldata_size);
         let mut return_data_index = return_data_offset;
 
-        for (return_param, returned_variable) in return_parameters.iter().zip(&returned_variables) {
+        for (return_param, returned_variable) in
+            return_parameters.iter().zip_eq(&returned_variables)
+        {
             match return_param {
                 BrilligParameter::SingleAddr(_) => {
                     self.mov_instruction(

@@ -184,8 +184,8 @@ pub enum ResolverError {
     UnexpectedItemInPattern { location: Location, item: String },
     #[error("Trait `{trait_name}` doesn't have a method named `{method_name}`")]
     NoSuchMethodInTrait { trait_name: String, method_name: String, location: Location },
-    #[error("Cannot use a type alias inside a type alias")]
-    RecursiveTypeAlias { location: Location },
+    #[error("Numeric type alias expression must only reference generic parameters and constants")]
+    InvalidNumericAliasExpression { location: Location },
     #[error("expected numeric expressions, got {typ}")]
     ExpectedNumericExpression { typ: String, location: Location },
     #[error(
@@ -281,7 +281,7 @@ impl ResolverError {
             | ResolverError::NoSuchMethodInTrait { location, .. }
             | ResolverError::VariableAlreadyDefinedInPattern { new_location: location, .. }
             | ResolverError::ExpectedNumericExpression { location, .. }
-            | ResolverError::RecursiveTypeAlias { location } => *location,
+            | ResolverError::InvalidNumericAliasExpression { location } => *location,
             ResolverError::NonU32Index { location }
             | ResolverError::NoPredicatesAttributeOnUnconstrained { location, .. }
             | ResolverError::NoPredicatesAttributeOnEntryPoint { location, .. }
@@ -853,9 +853,9 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             },
-            ResolverError::RecursiveTypeAlias { location } => {
+            ResolverError::InvalidNumericAliasExpression { location } => {
                 Diagnostic::simple_error(
-                    "Cannot use a type alias inside a type alias".to_string(),
+                    "Numeric type alias expression must only reference generic parameters and constants".to_string(),
                     String::new(),
                     *location,
                 )
