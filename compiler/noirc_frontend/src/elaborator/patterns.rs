@@ -9,7 +9,7 @@ use crate::elaborator::scope::ItemAsValue;
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::node_interner::DefinitionId;
 use crate::{
-    DataType, Kind, Type, TypeAlias, TypeVariable,
+    DataType, Kind, Type, TypeAlias,
     ast::{ERROR_IDENT, Ident, ItemVisibility, Path, PathSegment, Pattern},
     elaborator::{Turbofish, types::WildcardAllowed},
     hir::{
@@ -555,7 +555,7 @@ impl Elaborator<'_> {
         resolved_turbofish: Option<Vec<Located<Type>>>,
         location: Location,
     ) -> Option<Vec<Type>> {
-        resolved_turbofish.map(|resolved_turbofish| {
+        resolved_turbofish.map(|mut resolved_turbofish| {
             let direct_generic_kinds =
                 vecmap(&self.interner.function_meta(func_id).direct_generics, |generic| {
                     generic.kind()
@@ -563,27 +563,16 @@ impl Elaborator<'_> {
             let expected = direct_generic_kinds.len();
             let actual = resolved_turbofish.len();
 
-            let resolved_turbofish = if actual != expected {
+            if actual != expected {
                 self.push_err(TypeCheckError::IncorrectTurbofishGenericCount {
                     expected_count: expected,
                     actual_count: actual,
                     location,
                 });
 
-                // Pad with fresh type variables (if too few) or truncate (if too many)
-                // so the result has the expected length. Provided types are still resolved.
-                let padding =
-                    direct_generic_kinds.get(actual..).unwrap_or_default().iter().map(|kind| {
-                        let var = TypeVariable::unbound(
-                            self.interner.next_type_variable_id(),
-                            kind.clone(),
-                        );
-                        Located::from(location, Type::TypeVariable(var))
-                    });
-                resolved_turbofish.into_iter().take(expected).chain(padding).collect()
-            } else {
-                resolved_turbofish
-            };
+                // Pad so the result has the expected length for future checks
+                resolved_turbofish.resize(expected, Located::from(location, Type::Error));
+            }
 
             self.resolve_turbofish_generics(direct_generic_kinds, resolved_turbofish)
         })
