@@ -19,6 +19,7 @@ use color_eyre::eyre;
 use crate::errors::CliError;
 
 mod check_cmd;
+mod clean_cmd;
 pub mod compile_cmd;
 mod dap_cmd;
 mod debug_cmd;
@@ -119,6 +120,8 @@ enum NargoCommand {
     Expand(expand_cmd::ExpandCommand),
     Doc(doc_cmd::DocCommand),
     GenerateCompletionScript(generate_completion_script_cmd::GenerateCompletionScriptCommand),
+    /// Clean build artifacts (target) and optional CRS caches
+    Clean(clean_cmd::CleanCommand),
 }
 
 /// Commands that can execute on the workspace level, or be limited to a selected package.
@@ -164,6 +167,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         NargoCommand::Expand(args) => with_workspace(args, config, expand_cmd::run),
         NargoCommand::Doc(args) => with_workspace(args, config, doc_cmd::run),
         NargoCommand::GenerateCompletionScript(args) => generate_completion_script_cmd::run(args),
+        NargoCommand::Clean(args) => with_workspace(args, config, clean_cmd::run),
     }?;
 
     Ok(())
