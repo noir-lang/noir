@@ -31,6 +31,7 @@ use crate::monomorphization::ast::{self, IdentId, LocalId};
 use crate::monomorphization::ast::{Expression, Function, Literal};
 use iter_extended::vecmap;
 use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::FxHashSet as HashSet;
 
 use super::Context;
 
@@ -161,19 +162,76 @@ struct LastUseContext {
     /// as confirmed, because the reassignment essentially kills the reference to the previous
     /// version and redeclares it as new.
     confirmed_moves: HashMap<LocalId, Vec<IdentId>>,
+
+    /// Tracks extract-only optimization eligibility for each variable.
+    extract_tracker: ExtractTracker,
+}
+
+/// Tracks which field access paths have been extracted from each variable via
+/// `ExtractTupleField`, and determines whether each variable is safe for the
+/// extract-only optimization (i.e. can skip cloning).
+///
+/// A variable is safe when every access goes through `ExtractTupleField` and no
+/// two access paths overlap. Two paths overlap when one is a prefix of the other,
+/// e.g. `x.0` and `x.0.1` overlap because accessing `x.0` as a whole conflicts
+/// with also extracting a sub-field.
+struct ExtractTracker {
+    /// Variables disqualified from the optimization: bare ident use, overlapping
+    /// paths, or extract at a different loop level than the declaration.
+    unsafe_for_extract: HashSet<LocalId>,
+
+    /// For each variable, the set of full access paths seen so far.
+    /// E.g. `x.0.1` is recorded as `[0, 1]`.
+    paths_seen: HashMap<LocalId, HashSet<Vec<usize>>>,
+}
+
+impl ExtractTracker {
+    fn new() -> Self {
+        Self { unsafe_for_extract: HashSet::default(), paths_seen: HashMap::default() }
+    }
+
+    /// Mark a variable as unconditionally unsafe (e.g. bare ident use).
+    fn mark_unsafe(&mut self, id: LocalId) {
+        self.unsafe_for_extract.insert(id);
+    }
+
+    /// Record an extract access path for a variable. If the path overlaps with
+    /// any previously recorded path (one is a prefix of the other), the variable
+    /// is marked unsafe.
+    fn record_path(&mut self, id: LocalId, path: Vec<usize>) {
+        let paths = self.paths_seen.entry(id).or_default();
+        let has_overlap =
+            paths.iter().any(|existing| path.starts_with(existing) || existing.starts_with(&path));
+        paths.insert(path);
+        if has_overlap {
+            self.unsafe_for_extract.insert(id);
+        }
+    }
+
+    /// Return the set of variables that are only accessed through `ExtractTupleField`
+    /// with non-overlapping paths — safe to skip cloning.
+    fn get_safe_variables(&self) -> HashSet<LocalId> {
+        self.paths_seen.keys().filter(|id| !self.unsafe_for_extract.contains(id)).copied().collect()
+    }
 }
 
 impl Context {
-    /// Traverse the given function and return the last use(s) of each local variable.
-    /// A variable may have multiple last uses if it was last used within a conditional expression.
+    /// Traverse the given function and return the last use(s) of each local variable,
+    /// along with the set of "extract-only" variables.
+    ///
+    /// An extract-only variable is one that is only accessed through `ExtractTupleField`
+    /// (never as a bare ident), with each field extracted at most once, and all uses at the
+    /// same loop level. For these variables, the ownership pass can skip cloning because
+    /// the extractions don't alias each other.
     pub(super) fn find_last_uses_of_variables(
         function: &Function,
-    ) -> HashMap<LocalId, Vec<IdentId>> {
+    ) -> (HashMap<LocalId, Vec<IdentId>>, HashSet<LocalId>) {
         let mut context = LastUseContext {
             current_loop_and_branch: Vec::new(),
             last_uses: HashMap::default(),
             confirmed_moves: HashMap::default(),
             next_id: 0,
+            extract_tracker: ExtractTracker::new(),
         };
 
         context.push_loop_scope();
@@ -181,7 +239,8 @@ impl Context {
             context.declare_variable(*parameter);
         }
         context.track_variables_in_expression(&function.body);
-        context.get_variables_to_move()
+        let extract_only = context.extract_tracker.get_safe_variables();
+        (context.get_variables_to_move(), extract_only)
     }
 }
 
@@ -347,8 +406,8 @@ impl LastUseContext {
             Expression::If(if_expr) => self.track_variables_in_if(if_expr),
             Expression::Match(match_expr) => self.track_variables_in_match(match_expr),
             Expression::Tuple(elements) => self.track_variables_in_tuple(elements),
-            Expression::ExtractTupleField(tuple, _index) => {
-                self.track_variables_in_expression(tuple);
+            Expression::ExtractTupleField(tuple, index) => {
+                self.track_extract_use(tuple, vec![*index]);
             }
             Expression::Call(call) => self.track_variables_in_call(call),
             Expression::Let(let_expr) => self.track_variables_in_let(let_expr),
@@ -368,6 +427,42 @@ impl LastUseContext {
         // We only track last uses for local variables, globals are always cloned
         if let ast::Definition::Local(local_id) = &ident.definition {
             self.remember_use_of_variable(*local_id, ident.id);
+            self.extract_tracker.mark_unsafe(*local_id);
+        }
+    }
+
+    /// Track a use of a variable through `ExtractTupleField`. This records the use for
+    /// last-use analysis but does NOT mark the variable as unsafe for extract-only
+    /// optimization (unless the same full access path is extracted twice or the use is
+    /// at a different loop level).
+    ///
+    /// The `path` accumulates field indices from outermost to innermost as we recurse
+    /// through nested `ExtractTupleField` nodes. For example, `x.0.1` builds the path
+    /// `[0, 1]`.
+    fn track_extract_use(&mut self, expr: &Expression, path: Vec<usize>) {
+        match expr {
+            Expression::Ident(ident) => {
+                if let ast::Definition::Local(local_id) = &ident.definition {
+                    self.remember_use_of_variable(*local_id, ident.id);
+                    self.extract_tracker.record_path(*local_id, path);
+                    let wrong_loop = self
+                        .last_uses
+                        .get(local_id)
+                        .is_some_and(|(var_loop_index, _)| *var_loop_index != self.loop_index());
+                    if wrong_loop {
+                        self.extract_tracker.mark_unsafe(*local_id);
+                    }
+                }
+            }
+            // For nested extracts like `t.0.1`, prepend the inner index to the path
+            // and recurse. This builds the full access path from root to leaf.
+            Expression::ExtractTupleField(inner, inner_index) => {
+                let mut new_path = vec![*inner_index];
+                new_path.extend(path);
+                self.track_extract_use(inner, new_path);
+            }
+            // Anything else (call, deref, etc.) breaks the extract chain
+            other => self.track_variables_in_expression(other),
         }
     }
 

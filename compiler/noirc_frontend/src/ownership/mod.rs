@@ -44,6 +44,7 @@ use crate::{
 };
 
 use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::FxHashSet as HashSet;
 
 mod last_uses;
 mod tests;
@@ -69,7 +70,10 @@ impl Function {
     ///
     /// This should only be called on a function once.
     pub fn handle_ownership(&mut self) {
-        let mut context = Context { variables_to_move: Default::default() };
+        let mut context = Context {
+            variables_to_move: Default::default(),
+            extract_only_variables: Default::default(),
+        };
         context.handle_ownership_in_function(self);
     }
 }
@@ -77,6 +81,10 @@ impl Function {
 struct Context {
     /// This contains each instance of a variable we should move instead of cloning.
     variables_to_move: HashMap<LocalId, Vec<IdentId>>,
+
+    /// Variables that are only accessed through `ExtractTupleField` and are safe to
+    /// skip cloning for. See `LastUseContext::get_extract_only_variables`.
+    extract_only_variables: HashSet<LocalId>,
 }
 
 impl Context {
@@ -91,7 +99,10 @@ impl Context {
             return;
         }
 
-        self.variables_to_move = Self::find_last_uses_of_variables(function);
+        let (variables_to_move, extract_only_variables) =
+            Self::find_last_uses_of_variables(function);
+        self.variables_to_move = variables_to_move;
+        self.extract_only_variables = extract_only_variables;
         self.handle_expression(&mut function.body);
     }
 
@@ -192,7 +203,11 @@ impl Context {
     fn handle_extract_expression_rec(&mut self, expr: &mut Expression) -> Option<(bool, Type)> {
         match expr {
             Expression::Ident(ident) => {
-                let should_clone = self.should_clone_ident(ident);
+                // If this variable is extract-only (only accessed through ExtractTupleField,
+                // each field extracted at most once), skip cloning. The extractions don't alias
+                // each other, so no reference counting is needed.
+                let is_extract_only = matches!(&ident.definition, Definition::Local(local_id) if self.extract_only_variables.contains(local_id));
+                let should_clone = !is_extract_only && self.should_clone_ident(ident);
                 Some((should_clone, ident.typ.clone()))
             }
             // Delay dereferences as well so we change `(*self).foo.bar` to `*(self.foo.bar)`
