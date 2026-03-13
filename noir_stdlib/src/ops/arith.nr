@@ -37,12 +37,6 @@ impl Add for u8 {
         self + other
     }
 }
-impl Add for u1 {
-    fn add(self, other: u1) -> u1 {
-        self + other
-    }
-}
-
 impl Add for i8 {
     fn add(self, other: i8) -> i8 {
         self + other
@@ -101,12 +95,6 @@ impl Sub for u8 {
         self - other
     }
 }
-impl Sub for u1 {
-    fn sub(self, other: u1) -> u1 {
-        self - other
-    }
-}
-
 impl Sub for i8 {
     fn sub(self, other: i8) -> i8 {
         self - other
@@ -165,12 +153,6 @@ impl Mul for u8 {
         self * other
     }
 }
-impl Mul for u1 {
-    fn mul(self, other: u1) -> u1 {
-        self * other
-    }
-}
-
 impl Mul for i8 {
     fn mul(self, other: i8) -> i8 {
         self * other
@@ -229,12 +211,6 @@ impl Div for u8 {
         self / other
     }
 }
-impl Div for u1 {
-    fn div(self, other: u1) -> u1 {
-        self / other
-    }
-}
-
 impl Div for i8 {
     fn div(self, other: i8) -> i8 {
         self / other
@@ -287,12 +263,6 @@ impl Rem for u8 {
         self % other
     }
 }
-impl Rem for u1 {
-    fn rem(self, other: u1) -> u1 {
-        self % other
-    }
-}
-
 impl Rem for i8 {
     fn rem(self, other: i8) -> i8 {
         self % other
@@ -354,12 +324,6 @@ pub trait WrappingAdd {
     fn wrapping_add(self, y: Self) -> Self;
 }
 // docs:end:wrapping-add-trait
-
-impl WrappingAdd for u1 {
-    fn wrapping_add(self: u1, y: u1) -> u1 {
-        self ^ y
-    }
-}
 
 impl WrappingAdd for u8 {
     fn wrapping_add(self: u8, y: u8) -> u8 {
@@ -430,12 +394,6 @@ pub trait WrappingSub {
 }
 // docs:start:wrapping-sub-trait
 
-impl WrappingSub for u1 {
-    fn wrapping_sub(self: u1, y: u1) -> u1 {
-        self ^ y
-    }
-}
-
 impl WrappingSub for u8 {
     fn wrapping_sub(self: u8, y: u8) -> u8 {
         wrapping_sub_hlp(self, y) as u8
@@ -501,12 +459,6 @@ pub trait WrappingMul {
     fn wrapping_mul(self, y: Self) -> Self;
 }
 // docs:start:wrapping-mul-trait
-
-impl WrappingMul for u1 {
-    fn wrapping_mul(self: u1, y: u1) -> u1 {
-        self & y
-    }
-}
 
 impl WrappingMul for u8 {
     fn wrapping_mul(self: u8, y: u8) -> u8 {
@@ -867,27 +819,6 @@ mod tests {
             let neg_four: Field = -4;
             assert_eq(six.wrapping_mul(seven), forty_two);
             assert_eq(neg_two.wrapping_mul(two), neg_four);
-        }
-
-        #[test]
-        fn test_u1_behavior() {
-            // u1 wrapping add is XOR
-            assert_eq(0u1.wrapping_add(0u1), 0u1);
-            assert_eq(0u1.wrapping_add(1u1), 1u1);
-            assert_eq(1u1.wrapping_add(0u1), 1u1);
-            assert_eq(1u1.wrapping_add(1u1), 0u1);
-
-            // u1 wrapping sub is XOR
-            assert_eq(0u1.wrapping_sub(0u1), 0u1);
-            assert_eq(0u1.wrapping_sub(1u1), 1u1);
-            assert_eq(1u1.wrapping_sub(0u1), 1u1);
-            assert_eq(1u1.wrapping_sub(1u1), 0u1);
-
-            // u1 wrapping mul is AND
-            assert_eq(0u1.wrapping_mul(0u1), 0u1);
-            assert_eq(0u1.wrapping_mul(1u1), 0u1);
-            assert_eq(1u1.wrapping_mul(0u1), 0u1);
-            assert_eq(1u1.wrapping_mul(1u1), 1u1);
         }
 
         // test wrapping operations is the same as the regular operations

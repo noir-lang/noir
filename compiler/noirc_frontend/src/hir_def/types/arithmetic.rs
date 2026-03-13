@@ -575,8 +575,6 @@ mod proptests {
             }),
             any::<IntegerBitSize>().prop_map(|bit_size| {
                 let bit_size = match bit_size {
-                    // I1 is rejected
-                    IntegerBitSize::One => IntegerBitSize::Eight,
                     // I128 is rejected
                     IntegerBitSize::HundredTwentyEight => IntegerBitSize::SixtyFour,
                     bit_size => bit_size,

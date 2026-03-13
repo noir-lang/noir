@@ -119,7 +119,6 @@ pub(super) fn evaluate_cast_one_step(
         Type::FieldElement => Ok(Value::field(SignedField::new(lhs, false))),
         typ @ Type::Integer(sign, bit_size) => match (sign, bit_size) {
             // These casts are expected to be no-ops
-            (Signedness::Unsigned, IntegerBitSize::One) => Ok(Value::u1(lhs.to_u128() != 0)),
             (Signedness::Unsigned, IntegerBitSize::Eight) => Ok(Value::u8(lhs.to_u128() as u8)),
             (Signedness::Unsigned, IntegerBitSize::Sixteen) => Ok(Value::u16(lhs.to_u128() as u16)),
             (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => {
@@ -130,9 +129,6 @@ pub(super) fn evaluate_cast_one_step(
             }
             (Signedness::Unsigned, IntegerBitSize::HundredTwentyEight) => {
                 Ok(Value::u128(lhs.to_u128()))
-            }
-            (Signedness::Signed, IntegerBitSize::One) => {
-                Err(InterpreterError::TypeUnsupported { typ, location })
             }
             (Signedness::Signed, IntegerBitSize::Eight) => Ok(Value::i8(lhs.to_u128() as i8)),
             (Signedness::Signed, IntegerBitSize::Sixteen) => Ok(Value::i16(lhs.to_u128() as i16)),
@@ -163,7 +159,6 @@ mod tests {
         let lhs_values = [
             Value::field(SignedField::one()),
             Value::Bool(true),
-            Value::u1(true),
             Value::u8(1),
             Value::u16(1),
             Value::u32(1),

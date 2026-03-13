@@ -44,7 +44,6 @@ pub fn gen_literal(
         Type::Integer(signedness, integer_bit_size) => {
             let (field, is_negative) = if signedness.is_signed() {
                 match integer_bit_size {
-                    One => bool::arbitrary(u).map(|n| (Field::from(n), n))?,
                     Eight => i8::arbitrary(u)
                         .map(|n| (Field::from(u32::from(n.unsigned_abs())), n < 0))?,
                     Sixteen => i16::arbitrary(u)
@@ -63,7 +62,6 @@ pub fn gen_literal(
                 }
             } else {
                 let f = match integer_bit_size {
-                    One => Field::from(bool::arbitrary(u)?),
                     Eight => Field::from(u32::from(u8::arbitrary(u)?)),
                     Sixteen => Field::from(u32::from(u16::arbitrary(u)?)),
                     ThirtyTwo => Field::from(u32::arbitrary(u)?),
@@ -188,7 +186,9 @@ pub fn gen_range(
                     let e = (Field::from(e.unsigned_abs()), e < 0);
                     (s, e)
                 }
-                _ => unreachable!("invalid bit size for range: {integer_bit_size} (signed)"),
+                HundredTwentyEight => {
+                    unreachable!("invalid bit size for range: {integer_bit_size} (signed)")
+                }
             }
         } else {
             let (s, e) = match integer_bit_size {
@@ -227,7 +227,6 @@ pub fn gen_range(
                     let e = Field::from(e);
                     (s, e)
                 }
-                One => unreachable!("invalid bit size for range: {integer_bit_size} (unsigned)"),
             };
             ((s, false), (e, false))
         }

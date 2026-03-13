@@ -18,7 +18,6 @@ pub enum Integer {
     I16(i16),
     I32(i32),
     I64(i64),
-    U1(bool),
     U8(u8),
     U16(u16),
     U32(u32),
@@ -36,7 +35,6 @@ impl Integer {
             Integer::I16(value) if *value >= 0 => Some((*value).into()),
             Integer::I32(value) if *value >= 0 => Some((*value).into()),
             Integer::I64(value) if *value >= 0 => Some((*value).into()),
-            Integer::U1(value) => Some((*value).into()),
             Integer::U8(value) => Some((*value).into()),
             Integer::U16(value) => Some((*value).into()),
             Integer::U32(value) => Some((*value).into()),
@@ -54,7 +52,6 @@ impl Integer {
             Integer::I16(value) => value.into(),
             Integer::I32(value) => value.into(),
             Integer::I64(value) => value.into(),
-            Integer::U1(value) => value.into(),
             Integer::U8(value) => value.into(),
             Integer::U16(value) => value.into(),
             Integer::U32(value) => value.into(),
@@ -74,7 +71,6 @@ impl Integer {
             Integer::I16(value) => (value as u16).into(),
             Integer::I32(value) => (value as u32).into(),
             Integer::I64(value) => (value as u64).into(),
-            Integer::U1(value) => value.into(),
             Integer::U8(value) => value.into(),
             Integer::U16(value) => value.into(),
             Integer::U32(value) => value.into(),
@@ -100,7 +96,6 @@ impl Integer {
             Integer::I16(_) => Type::Integer(Signedness::Signed, IntegerBitSize::Sixteen),
             Integer::I32(_) => Type::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo),
             Integer::I64(_) => Type::Integer(Signedness::Signed, IntegerBitSize::SixtyFour),
-            Integer::U1(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::One),
             Integer::U8(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight),
             Integer::U16(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::Sixteen),
             Integer::U32(_) => Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo),
@@ -120,7 +115,6 @@ impl Integer {
             Integer::I16(value) => Literal(Int(value.into(), Some(IntegerTypeSuffix::I16))),
             Integer::I32(value) => Literal(Int(value.into(), Some(IntegerTypeSuffix::I32))),
             Integer::I64(value) => Literal(Int(value.into(), Some(IntegerTypeSuffix::I64))),
-            Integer::U1(value) => Literal(Int(value.into(), Some(IntegerTypeSuffix::U1))),
             Integer::U8(value) => Literal(Int(value.into(), Some(IntegerTypeSuffix::U8))),
             Integer::U16(value) => Literal(Int(value.into(), Some(IntegerTypeSuffix::U16))),
             Integer::U32(value) => Literal(Int(value.into(), Some(IntegerTypeSuffix::U32))),
@@ -136,7 +130,6 @@ impl Integer {
             Integer::I16(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),
             Integer::I32(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),
             Integer::I64(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),
-            Integer::U1(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),
             Integer::U8(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),
             Integer::U16(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),
             Integer::U32(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),
@@ -147,9 +140,6 @@ impl Integer {
 
     pub(crate) fn into_tokens(self) -> Vec<Token> {
         match self {
-            Integer::U1(bool) => {
-                vec![Token::Int(bool.into(), Some(IntegerTypeSuffix::U1))]
-            }
             Integer::U8(value) => {
                 vec![Token::Int(value.into(), Some(IntegerTypeSuffix::U8))]
             }
@@ -217,7 +207,6 @@ impl Integer {
             Integer::I16(value) => *value == 0,
             Integer::I32(value) => *value == 0,
             Integer::I64(value) => *value == 0,
-            Integer::U1(value) => !value,
             Integer::U8(value) => *value == 0,
             Integer::U16(value) => *value == 0,
             Integer::U32(value) => *value == 0,
@@ -240,8 +229,6 @@ impl Display for Integer {
             Integer::I16(value) => write!(f, "{value}"),
             Integer::I32(value) => write!(f, "{value}"),
             Integer::I64(value) => write!(f, "{value}"),
-            Integer::U1(false) => write!(f, "0"),
-            Integer::U1(true) => write!(f, "1"),
             Integer::U8(value) => write!(f, "{value}"),
             Integer::U16(value) => write!(f, "{value}"),
             Integer::U32(value) => write!(f, "{value}"),

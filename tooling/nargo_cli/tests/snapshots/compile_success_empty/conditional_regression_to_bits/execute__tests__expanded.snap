@@ -4,10 +4,10 @@ expression: expanded_code
 ---
 fn main() {
     let arr: [u8; 2] = [1_u8, 2_u8];
-    let as_bits_hardcode_1: [u1; 2] = [1_u1, 0_u1];
+    let as_bits_hardcode_1: [bool; 2] = [true, false];
     let mut c1: Field = 0_Field;
     for i in 0_u32..2_u32 {
-        let as_bits: [u1; 2] = (arr[i] as Field).to_le_bits();
+        let as_bits: [bool; 2] = (arr[i] as Field).to_le_bits();
         c1 = c1 + (as_bits[0_u32] as Field);
         if i == 0_u32 {
             assert(arr[i] == 1_u8);

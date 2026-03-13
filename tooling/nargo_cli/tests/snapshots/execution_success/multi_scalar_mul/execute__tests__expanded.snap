@@ -19,10 +19,10 @@ unconstrained fn double_then_add_msm<let N: u32>(
     for i in 0_u32..N {
         let full_scalar: Field = scalars[i];
         if full_scalar == 0_Field { continue; };
-        let full_scalar_bits: [u1; 254] = full_scalar.to_be_bits();
+        let full_scalar_bits: [bool; 254] = full_scalar.to_be_bits();
         let mut index_of_msb: u32 = 0_u32;
         for j in 0_u32..254_u32 {
-            if full_scalar_bits[j] == 1_u1 {
+            if full_scalar_bits[j] {
                 index_of_msb = j;
                 break;
             }
@@ -31,7 +31,7 @@ unconstrained fn double_then_add_msm<let N: u32>(
         let mut res: EmbeddedCurvePoint = points[i];
         for j in index_of_msb + 1_u32..254_u32 {
             res = embedded_curve_add(res, res);
-            if full_scalar_bits[j] == 1_u1 {
+            if full_scalar_bits[j] {
                 res = embedded_curve_add(res, temp);
             }
         }
