@@ -66,8 +66,7 @@ impl Methods {
             // Check if two types overlap, by instantiating both types (replacing NamedGenerics
             // with fresh TypeVariables) and then checking if they can unify.
             let existing_func_meta = interner.function_meta(&existing.method);
-            let existing_type = &existing_func_meta.typ;
-            let instantiate_existing = existing_func_meta.instantiate(existing_type, interner);
+            let instantiate_existing = existing_func_meta.instantiate(&existing.typ, interner);
             let mut bindings = TypeBindings::default();
             let types_can_unify =
                 instantiate_existing.try_unify(&instantiate_typ, &mut bindings).is_ok();
