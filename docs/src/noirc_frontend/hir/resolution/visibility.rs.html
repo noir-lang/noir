@@ -192,77 +192,97 @@
 <a href=#192 id=192 data-nosnippet>192</a>            }
 <a href=#193 id=193 data-nosnippet>193</a>
 <a href=#194 id=194 data-nosnippet>194</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(struct_id) = func_meta.type_id {
-<a href=#195 id=195 data-nosnippet>195</a>                <span class="kw">return </span>struct_member_is_visible(
-<a href=#196 id=196 data-nosnippet>196</a>                    struct_id,
-<a href=#197 id=197 data-nosnippet>197</a>                    modifiers.visibility,
-<a href=#198 id=198 data-nosnippet>198</a>                    current_module,
-<a href=#199 id=199 data-nosnippet>199</a>                    def_maps,
-<a href=#200 id=200 data-nosnippet>200</a>                );
-<a href=#201 id=201 data-nosnippet>201</a>            }
-<a href=#202 id=202 data-nosnippet>202</a>
-<a href=#203 id=203 data-nosnippet>203</a>            <span class="kw">if </span>object_type.is_primitive() {
-<a href=#204 id=204 data-nosnippet>204</a>                <span class="kw">let </span>func_module = interner.function_module(func_id);
-<a href=#205 id=205 data-nosnippet>205</a>                <span class="kw">return </span>item_in_module_is_visible(
-<a href=#206 id=206 data-nosnippet>206</a>                    def_maps,
-<a href=#207 id=207 data-nosnippet>207</a>                    current_module,
-<a href=#208 id=208 data-nosnippet>208</a>                    func_module,
-<a href=#209 id=209 data-nosnippet>209</a>                    modifiers.visibility,
-<a href=#210 id=210 data-nosnippet>210</a>                );
-<a href=#211 id=211 data-nosnippet>211</a>            }
-<a href=#212 id=212 data-nosnippet>212</a>
-<a href=#213 id=213 data-nosnippet>213</a>            <span class="bool-val">true
-<a href=#214 id=214 data-nosnippet>214</a>        </span>}
-<a href=#215 id=215 data-nosnippet>215</a>    }
-<a href=#216 id=216 data-nosnippet>216</a>}
-<a href=#217 id=217 data-nosnippet>217</a>
-<a href=#218 id=218 data-nosnippet>218</a><span class="doccomment">/// Returns whether two types are the same disregarding their generic arguments.
-<a href=#219 id=219 data-nosnippet>219</a></span><span class="kw">fn </span>is_same_type_regardless_generics(type1: <span class="kw-2">&amp;</span>Type, type2: <span class="kw-2">&amp;</span>Type) -&gt; bool {
-<a href=#220 id=220 data-nosnippet>220</a>    <span class="kw">if </span>type1 == type2 {
-<a href=#221 id=221 data-nosnippet>221</a>        <span class="kw">return </span><span class="bool-val">true</span>;
-<a href=#222 id=222 data-nosnippet>222</a>    }
-<a href=#223 id=223 data-nosnippet>223</a>
-<a href=#224 id=224 data-nosnippet>224</a>    <span class="kw">match </span>(type1.follow_bindings(), type2.follow_bindings()) {
-<a href=#225 id=225 data-nosnippet>225</a>        (Type::Array(..), Type::Array(..)) =&gt; <span class="bool-val">true</span>,
-<a href=#226 id=226 data-nosnippet>226</a>        (Type::Vector(..), Type::Vector(..)) =&gt; <span class="bool-val">true</span>,
-<a href=#227 id=227 data-nosnippet>227</a>        (Type::String(..), Type::String(..)) =&gt; <span class="bool-val">true</span>,
-<a href=#228 id=228 data-nosnippet>228</a>        (Type::FmtString(..), Type::FmtString(..)) =&gt; <span class="bool-val">true</span>,
-<a href=#229 id=229 data-nosnippet>229</a>        (Type::Tuple(..), Type::Tuple(..)) =&gt; <span class="bool-val">true</span>,
-<a href=#230 id=230 data-nosnippet>230</a>        (Type::Function(..), Type::Function(..)) =&gt; <span class="bool-val">true</span>,
-<a href=#231 id=231 data-nosnippet>231</a>        (Type::DataType(data_type1, ..), Type::DataType(data_type2, ..)) =&gt; {
-<a href=#232 id=232 data-nosnippet>232</a>            data_type1.borrow().id == data_type2.borrow().id
-<a href=#233 id=233 data-nosnippet>233</a>        }
-<a href=#234 id=234 data-nosnippet>234</a>        (Type::Reference(type1, <span class="kw">_</span>), <span class="kw">_</span>) =&gt; is_same_type_regardless_generics(<span class="kw-2">&amp;</span>type1, type2),
-<a href=#235 id=235 data-nosnippet>235</a>        (<span class="kw">_</span>, Type::Reference(type2, <span class="kw">_</span>)) =&gt; is_same_type_regardless_generics(type1, <span class="kw-2">&amp;</span>type2),
-<a href=#236 id=236 data-nosnippet>236</a>        <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
-<a href=#237 id=237 data-nosnippet>237</a>    }
-<a href=#238 id=238 data-nosnippet>238</a>}
-<a href=#239 id=239 data-nosnippet>239</a>
-<a href=#240 id=240 data-nosnippet>240</a><span class="kw">pub fn </span>module_def_id_visibility(
-<a href=#241 id=241 data-nosnippet>241</a>    module_def_id: ModuleDefId,
-<a href=#242 id=242 data-nosnippet>242</a>    interner: <span class="kw-2">&amp;</span>NodeInterner,
-<a href=#243 id=243 data-nosnippet>243</a>) -&gt; ItemVisibility {
-<a href=#244 id=244 data-nosnippet>244</a>    <span class="kw">match </span>module_def_id {
-<a href=#245 id=245 data-nosnippet>245</a>        ModuleDefId::ModuleId(module_id) =&gt; {
-<a href=#246 id=246 data-nosnippet>246</a>            <span class="kw">let </span>attributes = interner.try_module_attributes(module_id);
-<a href=#247 id=247 data-nosnippet>247</a>            attributes.map_or(ItemVisibility::Private, |a| a.visibility)
-<a href=#248 id=248 data-nosnippet>248</a>        }
-<a href=#249 id=249 data-nosnippet>249</a>        ModuleDefId::FunctionId(func_id) =&gt; interner.function_modifiers(<span class="kw-2">&amp;</span>func_id).visibility,
-<a href=#250 id=250 data-nosnippet>250</a>        ModuleDefId::TypeId(type_id) =&gt; {
-<a href=#251 id=251 data-nosnippet>251</a>            <span class="kw">let </span>data_type = interner.get_type(type_id);
-<a href=#252 id=252 data-nosnippet>252</a>            data_type.borrow().visibility
+<a href=#195 id=195 data-nosnippet>195</a>                <span class="comment">// For inherent impl methods, check visibility against the impl's
+<a href=#196 id=196 data-nosnippet>196</a>                // defining module (source_module). This prevents private methods defined
+<a href=#197 id=197 data-nosnippet>197</a>                // in `impl super::S` inside `mod private` from being callable outside
+<a href=#198 id=198 data-nosnippet>198</a>                // `mod private` via `s.method()`.
+<a href=#199 id=199 data-nosnippet>199</a>                </span><span class="kw">if </span>func_meta.trait_impl.is_none() {
+<a href=#200 id=200 data-nosnippet>200</a>                    <span class="kw">let </span>source_module = ModuleId {
+<a href=#201 id=201 data-nosnippet>201</a>                        krate: func_meta.source_crate,
+<a href=#202 id=202 data-nosnippet>202</a>                        local_id: func_meta.source_module,
+<a href=#203 id=203 data-nosnippet>203</a>                    };
+<a href=#204 id=204 data-nosnippet>204</a>                    <span class="kw">let </span>type_module = struct_id.module_id();
+<a href=#205 id=205 data-nosnippet>205</a>                    <span class="kw">if </span>source_module != type_module {
+<a href=#206 id=206 data-nosnippet>206</a>                        <span class="kw">return </span>item_in_module_is_visible(
+<a href=#207 id=207 data-nosnippet>207</a>                            def_maps,
+<a href=#208 id=208 data-nosnippet>208</a>                            current_module,
+<a href=#209 id=209 data-nosnippet>209</a>                            source_module,
+<a href=#210 id=210 data-nosnippet>210</a>                            modifiers.visibility,
+<a href=#211 id=211 data-nosnippet>211</a>                        );
+<a href=#212 id=212 data-nosnippet>212</a>                    }
+<a href=#213 id=213 data-nosnippet>213</a>                }
+<a href=#214 id=214 data-nosnippet>214</a>
+<a href=#215 id=215 data-nosnippet>215</a>                <span class="kw">return </span>struct_member_is_visible(
+<a href=#216 id=216 data-nosnippet>216</a>                    struct_id,
+<a href=#217 id=217 data-nosnippet>217</a>                    modifiers.visibility,
+<a href=#218 id=218 data-nosnippet>218</a>                    current_module,
+<a href=#219 id=219 data-nosnippet>219</a>                    def_maps,
+<a href=#220 id=220 data-nosnippet>220</a>                );
+<a href=#221 id=221 data-nosnippet>221</a>            }
+<a href=#222 id=222 data-nosnippet>222</a>
+<a href=#223 id=223 data-nosnippet>223</a>            <span class="kw">if </span>object_type.is_primitive() {
+<a href=#224 id=224 data-nosnippet>224</a>                <span class="kw">let </span>func_module = interner.function_module(func_id);
+<a href=#225 id=225 data-nosnippet>225</a>                <span class="kw">return </span>item_in_module_is_visible(
+<a href=#226 id=226 data-nosnippet>226</a>                    def_maps,
+<a href=#227 id=227 data-nosnippet>227</a>                    current_module,
+<a href=#228 id=228 data-nosnippet>228</a>                    func_module,
+<a href=#229 id=229 data-nosnippet>229</a>                    modifiers.visibility,
+<a href=#230 id=230 data-nosnippet>230</a>                );
+<a href=#231 id=231 data-nosnippet>231</a>            }
+<a href=#232 id=232 data-nosnippet>232</a>
+<a href=#233 id=233 data-nosnippet>233</a>            <span class="bool-val">true
+<a href=#234 id=234 data-nosnippet>234</a>        </span>}
+<a href=#235 id=235 data-nosnippet>235</a>    }
+<a href=#236 id=236 data-nosnippet>236</a>}
+<a href=#237 id=237 data-nosnippet>237</a>
+<a href=#238 id=238 data-nosnippet>238</a><span class="doccomment">/// Returns whether two types are the same disregarding their generic arguments.
+<a href=#239 id=239 data-nosnippet>239</a></span><span class="kw">fn </span>is_same_type_regardless_generics(type1: <span class="kw-2">&amp;</span>Type, type2: <span class="kw-2">&amp;</span>Type) -&gt; bool {
+<a href=#240 id=240 data-nosnippet>240</a>    <span class="kw">if </span>type1 == type2 {
+<a href=#241 id=241 data-nosnippet>241</a>        <span class="kw">return </span><span class="bool-val">true</span>;
+<a href=#242 id=242 data-nosnippet>242</a>    }
+<a href=#243 id=243 data-nosnippet>243</a>
+<a href=#244 id=244 data-nosnippet>244</a>    <span class="kw">match </span>(type1.follow_bindings(), type2.follow_bindings()) {
+<a href=#245 id=245 data-nosnippet>245</a>        (Type::Array(..), Type::Array(..)) =&gt; <span class="bool-val">true</span>,
+<a href=#246 id=246 data-nosnippet>246</a>        (Type::Vector(..), Type::Vector(..)) =&gt; <span class="bool-val">true</span>,
+<a href=#247 id=247 data-nosnippet>247</a>        (Type::String(..), Type::String(..)) =&gt; <span class="bool-val">true</span>,
+<a href=#248 id=248 data-nosnippet>248</a>        (Type::FmtString(..), Type::FmtString(..)) =&gt; <span class="bool-val">true</span>,
+<a href=#249 id=249 data-nosnippet>249</a>        (Type::Tuple(..), Type::Tuple(..)) =&gt; <span class="bool-val">true</span>,
+<a href=#250 id=250 data-nosnippet>250</a>        (Type::Function(..), Type::Function(..)) =&gt; <span class="bool-val">true</span>,
+<a href=#251 id=251 data-nosnippet>251</a>        (Type::DataType(data_type1, ..), Type::DataType(data_type2, ..)) =&gt; {
+<a href=#252 id=252 data-nosnippet>252</a>            data_type1.borrow().id == data_type2.borrow().id
 <a href=#253 id=253 data-nosnippet>253</a>        }
-<a href=#254 id=254 data-nosnippet>254</a>        ModuleDefId::TypeAliasId(type_alias_id) =&gt; {
-<a href=#255 id=255 data-nosnippet>255</a>            <span class="kw">let </span>type_alias = interner.get_type_alias(type_alias_id);
-<a href=#256 id=256 data-nosnippet>256</a>            type_alias.borrow().visibility
-<a href=#257 id=257 data-nosnippet>257</a>        }
-<a href=#258 id=258 data-nosnippet>258</a>        ModuleDefId::TraitAssociatedTypeId(<span class="kw">_</span>) =&gt; ItemVisibility::Public,
-<a href=#259 id=259 data-nosnippet>259</a>        ModuleDefId::TraitId(trait_id) =&gt; {
-<a href=#260 id=260 data-nosnippet>260</a>            <span class="kw">let </span>trait_ = interner.get_trait(trait_id);
-<a href=#261 id=261 data-nosnippet>261</a>            trait_.visibility
-<a href=#262 id=262 data-nosnippet>262</a>        }
-<a href=#263 id=263 data-nosnippet>263</a>        ModuleDefId::GlobalId(global_id) =&gt; {
-<a href=#264 id=264 data-nosnippet>264</a>            <span class="kw">let </span>global_info = interner.get_global(global_id);
-<a href=#265 id=265 data-nosnippet>265</a>            global_info.visibility
-<a href=#266 id=266 data-nosnippet>266</a>        }
-<a href=#267 id=267 data-nosnippet>267</a>    }
-<a href=#268 id=268 data-nosnippet>268</a>}</code></pre></div></section></main></body></html>
+<a href=#254 id=254 data-nosnippet>254</a>        (Type::Reference(type1, <span class="kw">_</span>), <span class="kw">_</span>) =&gt; is_same_type_regardless_generics(<span class="kw-2">&amp;</span>type1, type2),
+<a href=#255 id=255 data-nosnippet>255</a>        (<span class="kw">_</span>, Type::Reference(type2, <span class="kw">_</span>)) =&gt; is_same_type_regardless_generics(type1, <span class="kw-2">&amp;</span>type2),
+<a href=#256 id=256 data-nosnippet>256</a>        <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+<a href=#257 id=257 data-nosnippet>257</a>    }
+<a href=#258 id=258 data-nosnippet>258</a>}
+<a href=#259 id=259 data-nosnippet>259</a>
+<a href=#260 id=260 data-nosnippet>260</a><span class="kw">pub fn </span>module_def_id_visibility(
+<a href=#261 id=261 data-nosnippet>261</a>    module_def_id: ModuleDefId,
+<a href=#262 id=262 data-nosnippet>262</a>    interner: <span class="kw-2">&amp;</span>NodeInterner,
+<a href=#263 id=263 data-nosnippet>263</a>) -&gt; ItemVisibility {
+<a href=#264 id=264 data-nosnippet>264</a>    <span class="kw">match </span>module_def_id {
+<a href=#265 id=265 data-nosnippet>265</a>        ModuleDefId::ModuleId(module_id) =&gt; {
+<a href=#266 id=266 data-nosnippet>266</a>            <span class="kw">let </span>attributes = interner.try_module_attributes(module_id);
+<a href=#267 id=267 data-nosnippet>267</a>            attributes.map_or(ItemVisibility::Private, |a| a.visibility)
+<a href=#268 id=268 data-nosnippet>268</a>        }
+<a href=#269 id=269 data-nosnippet>269</a>        ModuleDefId::FunctionId(func_id) =&gt; interner.function_modifiers(<span class="kw-2">&amp;</span>func_id).visibility,
+<a href=#270 id=270 data-nosnippet>270</a>        ModuleDefId::TypeId(type_id) =&gt; {
+<a href=#271 id=271 data-nosnippet>271</a>            <span class="kw">let </span>data_type = interner.get_type(type_id);
+<a href=#272 id=272 data-nosnippet>272</a>            data_type.borrow().visibility
+<a href=#273 id=273 data-nosnippet>273</a>        }
+<a href=#274 id=274 data-nosnippet>274</a>        ModuleDefId::TypeAliasId(type_alias_id) =&gt; {
+<a href=#275 id=275 data-nosnippet>275</a>            <span class="kw">let </span>type_alias = interner.get_type_alias(type_alias_id);
+<a href=#276 id=276 data-nosnippet>276</a>            type_alias.borrow().visibility
+<a href=#277 id=277 data-nosnippet>277</a>        }
+<a href=#278 id=278 data-nosnippet>278</a>        ModuleDefId::TraitAssociatedTypeId(<span class="kw">_</span>) =&gt; ItemVisibility::Public,
+<a href=#279 id=279 data-nosnippet>279</a>        ModuleDefId::TraitId(trait_id) =&gt; {
+<a href=#280 id=280 data-nosnippet>280</a>            <span class="kw">let </span>trait_ = interner.get_trait(trait_id);
+<a href=#281 id=281 data-nosnippet>281</a>            trait_.visibility
+<a href=#282 id=282 data-nosnippet>282</a>        }
+<a href=#283 id=283 data-nosnippet>283</a>        ModuleDefId::GlobalId(global_id) =&gt; {
+<a href=#284 id=284 data-nosnippet>284</a>            <span class="kw">let </span>global_info = interner.get_global(global_id);
+<a href=#285 id=285 data-nosnippet>285</a>            global_info.visibility
+<a href=#286 id=286 data-nosnippet>286</a>        }
+<a href=#287 id=287 data-nosnippet>287</a>    }
+<a href=#288 id=288 data-nosnippet>288</a>}</code></pre></div></section></main></body></html>
