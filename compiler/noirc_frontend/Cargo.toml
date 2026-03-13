@@ -20,6 +20,7 @@ noirc_artifacts.workspace = true
 noirc_printable_type.workspace = true
 fm.workspace = true
 iter-extended.workspace = true
+itertools.workspace = true
 thiserror.workspace = true
 smol_str.workspace = true
 im.workspace = true

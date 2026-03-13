@@ -19,6 +19,7 @@ use crate::ssa::{
     ssa_gen::Ssa,
 };
 use iter_extended::vecmap;
+use itertools::Itertools;
 use rustc_hash::FxHashMap as HashMap;
 
 impl Ssa {
@@ -127,8 +128,8 @@ impl Context {
                         new_call_stack,
                     );
 
-                assert_eq!(old_results.len(), new_results.len());
-                for (old_result, new_result) in old_results.iter().zip(new_results.results().iter())
+                for (old_result, new_result) in
+                    old_results.iter().zip_eq(new_results.results().iter())
                 {
                     let old_result = *old_result;
                     self.new_ids.values.insert(old_result, *new_result);

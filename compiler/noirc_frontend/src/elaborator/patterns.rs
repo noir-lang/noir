@@ -696,6 +696,8 @@ impl Elaborator<'_> {
         kinds: Vec<Kind>,
         turbofish_generics: Vec<Located<Type>>,
     ) -> Vec<Type> {
+        // Use zip (not zip_eq) since callers like resolve_function_turbofish_generics
+        // may push an error for mismatched counts but still call this function.
         let kinds_with_types = kinds.into_iter().zip(turbofish_generics);
 
         vecmap(kinds_with_types, |(kind, located_type)| {

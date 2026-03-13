@@ -70,6 +70,7 @@ use crate::{NamedGeneric, TypeVariable, TypeVariableId};
 use acvm::{FieldElement, acir::AcirField};
 use ast::{GlobalId, IdentId, While};
 use iter_extended::{btree_map, try_vecmap, vecmap};
+use itertools::Itertools;
 use noirc_errors::Location;
 use noirc_printable_type::PrintableType;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -666,7 +667,7 @@ impl<'interner> Monomorphizer<'interner> {
                     tuple_field_types.len(),
                     "ICE: Unexpected number of tuple pattern fields"
                 );
-                for (field, typ) in fields.iter().zip(tuple_field_types) {
+                for (field, typ) in fields.iter().zip_eq(tuple_field_types) {
                     self.parameter(field, &typ, visibility, new_params)?;
                 }
             }
@@ -1190,7 +1191,7 @@ impl<'interner> Monomorphizer<'interner> {
             HirPattern::Mutable(pattern, _) => self.unpack_pattern(*pattern, value, typ),
             HirPattern::Tuple(patterns, _) => {
                 let fields = unwrap_tuple_type(typ);
-                self.unpack_tuple_pattern(value, patterns.into_iter().zip(fields), typ)
+                self.unpack_tuple_pattern(value, patterns.into_iter().zip_eq(fields), typ)
             }
             HirPattern::Struct(_, patterns, location) => {
                 let fields = unwrap_struct_type(typ, location)?;
@@ -2101,7 +2102,7 @@ impl<'interner> Monomorphizer<'interner> {
         let mut arguments = Vec::with_capacity(call.arguments.len());
         if let Type::Function(params, _, _, callee_unconstrained) = &func_type {
             assert_eq!(params.len(), call.arguments.len(), "ICE: Unexpected number of call args");
-            for (typ, id) in params.iter().zip(&call.arguments) {
+            for (typ, id) in params.iter().zip_eq(&call.arguments) {
                 // If we know that the function expects an unconstrained lambda, or can only make use
                 // of the unconstrained variant, being itself unconstrained, we can generate a pair of
                 // two unconstrained functions, and avoid potential illegal passing of mutable references
@@ -3140,7 +3141,7 @@ fn bind_trait_impl_func_generics_to_trait_func_generics(
         "Trait impl function generics and trait function generics should have the same length"
     );
     for (trait_func_generic, trait_impl_func_generic) in
-        trait_func_generics.iter().zip(trait_impl_func_generics.iter())
+        trait_func_generics.iter().zip_eq(trait_impl_func_generics.iter())
     {
         let trait_impl_generic = &trait_impl_func_generic.type_var;
         bindings.entry(trait_impl_generic.id()).or_insert_with(|| {

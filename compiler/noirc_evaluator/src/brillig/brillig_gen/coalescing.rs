@@ -5,6 +5,8 @@
 //! with a parameter, the instruction defining the argument writes directly to the
 //! parameter's register, eliminating the mov at the jmp site.
 
+use itertools::Itertools;
+
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
     cfg::ControlFlowGraph,
@@ -76,7 +78,7 @@ impl CoalescingMap {
             // two params of the same destination from reusing the same register.
             let mut param_side_targets = HashSet::default();
 
-            for (arg, param) in arguments.iter().zip(params.iter()) {
+            for (arg, param) in arguments.iter().zip_eq(params.iter()) {
                 if arg == param {
                     continue;
                 }

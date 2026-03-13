@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+use itertools::Itertools;
 use noirc_errors::Location;
 
 use crate::{
@@ -176,7 +177,7 @@ impl Type {
                 if elements_a.len() != elements_b.len() {
                     Err(UnificationError)
                 } else {
-                    for (a, b) in elements_a.iter().zip(elements_b) {
+                    for (a, b) in elements_a.iter().zip_eq(elements_b) {
                         a.try_unify(b, bindings)?;
                     }
                     Ok(())
@@ -188,7 +189,7 @@ impl Type {
             // This isn't possible currently but will be once noir gets generic types
             (DataType(id_a, args_a), DataType(id_b, args_b)) => {
                 if id_a == id_b && args_a.len() == args_b.len() {
-                    for (a, b) in args_a.iter().zip(args_b) {
+                    for (a, b) in args_a.iter().zip_eq(args_b) {
                         a.try_unify(b, bindings)?;
                     }
                     Ok(())
@@ -232,7 +233,7 @@ impl Type {
                 Function(params_b, ret_b, env_b, unconstrained_b),
             ) => {
                 if unconstrained_a == unconstrained_b && params_a.len() == params_b.len() {
-                    for (a, b) in params_a.iter().zip(params_b.iter()) {
+                    for (a, b) in params_a.iter().zip_eq(params_b.iter()) {
                         a.try_unify(b, bindings)?;
                     }
 

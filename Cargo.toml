@@ -210,6 +210,7 @@ bincode = { version = "^2.0.1", features = ["serde"] }
 hex = "0.4.2"
 const_format = "0.2.30"
 indexmap = "^2.10.0"
+itertools = "0.14"
 libfuzzer-sys = "0.4"
 num-bigint = "0.4"
 num-traits = "0.2"
