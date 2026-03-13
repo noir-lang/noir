@@ -61,7 +61,7 @@ jobs:
       - name: Check for unprocessed include_code directives in versioned docs
         run: |
           if grep -r 'include_code' docs/versioned_docs/; then
-            echo "::error::Found include_code directives in versioned_docs. Run the preprocessing step before committing versioned docs."
+            echo "::error::Found include_code directives in versioned_docs. See docs/README.md#cutting-a-new-version for how to correctly cut a versioned docs snapshot."
             exit 1
           fi
 
