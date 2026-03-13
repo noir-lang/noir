@@ -98,7 +98,6 @@ jobs:
         run: yarn version::stables
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NODE_DEBUG: http,https
 
       - name: Build docs
         working-directory: docs
