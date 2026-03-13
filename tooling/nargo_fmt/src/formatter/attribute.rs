@@ -107,6 +107,10 @@ impl Formatter<'_> {
             SecondaryAttributeKind::MustUse(message) => {
                 self.format_must_use_attribute(message);
             }
+            SecondaryAttributeKind::AllowEditsFrom(_)
+            | SecondaryAttributeKind::AllowEditsFromRec(_) => {
+                self.format_one_arg_attribute();
+            }
         }
 
         self.write_line();

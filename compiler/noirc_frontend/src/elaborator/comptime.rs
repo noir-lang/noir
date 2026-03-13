@@ -396,7 +396,9 @@ impl<'context> Elaborator<'context> {
             location,
         )?;
 
-        arguments.insert(0, (item, location));
+        arguments.insert(0, (item.clone(), location));
+
+        interpreter.set_current_attribute(function, item);
 
         let result =
             interpreter.call_function(function, arguments, TypeBindings::default(), location);
