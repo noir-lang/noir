@@ -759,6 +759,23 @@ impl Elaborator<'_> {
 
         if let ImplKind::TraitItem(mut method) = ident.impl_kind {
             method.constraint.apply_bindings(&bindings);
+
+            // Error if a trait method is called on an unresolved generic inside an inline
+            // `comptime { }` block (not a comptime function). Comptime blocks run during
+            // elaboration before monomorphization, so enclosing function generics are still
+            // unresolved and trait dispatch cannot determine the concrete impl. Comptime
+            // *functions* are excluded because the interpreter monomorphizes their generics
+            // at each call site.
+            if self.in_comptime_context() && !self.in_comptime_function() {
+                let object_type = method.constraint.typ.follow_bindings();
+                if matches!(object_type, Type::NamedGeneric(..)) {
+                    self.push_err(ResolverError::RuntimeGenericTypeInComptime {
+                        typ: object_type.to_string(),
+                        location,
+                    });
+                }
+            }
+
             if method.assumed {
                 let trait_generics = method.constraint.trait_bound.trait_generics.clone();
                 let object_type = method.constraint.typ;

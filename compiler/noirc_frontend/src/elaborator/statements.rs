@@ -136,6 +136,7 @@ impl Elaborator<'_> {
             WildcardAllowed::Yes
         };
 
+        let type_annotation_location = let_stmt.r#type.as_ref().map(|t| t.location);
         let annotated_type = self.resolve_inferred_type(let_stmt.r#type, wildcard_allowed);
 
         // After resolving the type we'll elaborate the global's value. The value is interpreted
@@ -148,6 +149,22 @@ impl Elaborator<'_> {
 
         let pattern_location = let_stmt.pattern.location();
         let expr_location = let_stmt.expression.location;
+
+        // A comptime block inside a non-comptime function cannot meaningfully use types
+        // that contain runtime generics, since those are not resolved until monomorphization.
+        // Note: if there is no type annotation then `annotated_type` was inferred, meaning
+        // the generic must be referenced explicitly elsewhere (e.g. a turbofish or trait path)
+        // and will be caught by other checks in those paths.
+        if self.in_comptime_context()
+            && !self.in_comptime_function()
+            && let Some(type_location) = type_annotation_location
+            && annotated_type.contains_named_generic()
+        {
+            self.push_err(ResolverError::RuntimeGenericTypeInComptime {
+                typ: annotated_type.to_string(),
+                location: type_location,
+            });
+        }
 
         // If this is a global, the global's value will be interpreted at compile time later on,
         // which means the expression must be elaborated in a comptime context. For example

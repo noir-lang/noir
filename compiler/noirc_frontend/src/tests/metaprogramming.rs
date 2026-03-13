@@ -1,4 +1,5 @@
 mod comptime_for;
+mod runtime_generics_in_comptime;
 mod skip_interpreter_on_fail;
 
 use crate::{

@@ -32,9 +32,35 @@ for greater analysis and modification of programs.
 - `comptime let` to define a variable whose value is evaluated at compile-time.
 - `comptime for` to run a for loop at compile-time. Syntax sugar for `comptime { for .. }`.
 
+Comptime code is evaluated early in the compilation pipeline, _before_ [monomorphization](https://en.wikipedia.org/wiki/Monomorphization). This means that generic type parameters have not yet been resolved to concrete types when comptime code runs. See [Scoping](#scoping) for the implications of this.
+
 ### Scoping
 
 Note that while in a `comptime` context, any runtime variables _local to the current function_ are never visible.
+
+Because comptime code runs before monomorphization, generic type parameters from an enclosing runtime function cannot be used inside a `comptime` block — they are still unresolved at that point. For example, the following will produce an error:
+
+```rust
+fn foo<T>() {
+    comptime {
+        // Error: `T` is not resolved until after comptime evaluation
+        let _x: T = std::mem::zeroed();
+    }
+}
+```
+
+Note that `comptime fn` functions _do_ support their own generics, since the comptime interpreter monomorphizes them at each call site:
+
+```rust
+comptime fn make_zeroed<T>() -> T {
+    std::mem::zeroed()
+}
+
+fn foo() {
+    // The comptime interpreter resolves T = Field at this call site
+    let _x: Field = comptime { make_zeroed() };
+}
+```
 
 ### Evaluating
 
