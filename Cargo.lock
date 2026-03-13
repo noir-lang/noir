@@ -4026,6 +4026,7 @@ dependencies = [
  "codespan-reporting",
  "fm",
  "noirc_span",
+ "rangemap",
  "rustc-hash",
  "serde",
 ]

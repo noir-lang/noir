@@ -53,6 +53,7 @@ fn run_package_comptime(
     match report_errors(
         result,
         &context.file_manager,
+        &context.parsed_files,
         args.compile_options.deny_warnings,
         args.compile_options.silence_warnings,
     ) {
@@ -110,7 +111,8 @@ fn run_package_comptime(
             let errors = vec![diagnostic];
             report_errors(
                 Ok(((), errors)),
-                file_manager,
+                &context.file_manager,
+                &context.parsed_files,
                 args.compile_options.deny_warnings,
                 args.compile_options.silence_warnings,
             )?;
