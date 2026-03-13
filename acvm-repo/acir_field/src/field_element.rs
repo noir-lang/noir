@@ -62,6 +62,58 @@ impl<F: PrimeField> From<i128> for FieldElement<F> {
     }
 }
 
+impl<F: PrimeField> From<i64> for FieldElement<F> {
+    fn from(a: i64) -> Self {
+        // Optimized: Convert directly without string conversion
+        if a >= 0 {
+            FieldElement(F::from(a as u64))
+        } else {
+            // Negative case: handle i64::MIN specially to avoid overflow
+            let abs_value = a.wrapping_neg() as u64;
+            FieldElement(-F::from(abs_value))
+        }
+    }
+}
+
+impl<F: PrimeField> From<i32> for FieldElement<F> {
+    fn from(a: i32) -> Self {
+        // Optimized: Convert directly without string conversion
+        if a >= 0 {
+            FieldElement(F::from(a as u32))
+        } else {
+            // Negative case: handle i32::MIN specially to avoid overflow
+            let abs_value = a.wrapping_neg() as u32;
+            FieldElement(-F::from(abs_value))
+        }
+    }
+}
+
+impl<F: PrimeField> From<i16> for FieldElement<F> {
+    fn from(a: i16) -> Self {
+        // Optimized: Convert directly without string conversion
+        if a >= 0 {
+            FieldElement(F::from(a as u16))
+        } else {
+            // Negative case: handle i16::MIN specially to avoid overflow
+            let abs_value = a.wrapping_neg() as u16;
+            FieldElement(-F::from(abs_value))
+        }
+    }
+}
+
+impl<F: PrimeField> From<i8> for FieldElement<F> {
+    fn from(a: i8) -> Self {
+        // Optimized: Convert directly without string conversion
+        if a >= 0 {
+            FieldElement(F::from(a as u8))
+        } else {
+            // Negative case: handle i8::MIN specially to avoid overflow
+            let abs_value = a.wrapping_neg() as u8;
+            FieldElement(-F::from(abs_value))
+        }
+    }
+}
+
 impl<T: PrimeField> Serialize for FieldElement<T> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -105,9 +157,49 @@ impl<F: PrimeField> From<u32> for FieldElement<F> {
     }
 }
 
+impl<F: PrimeField> From<u16> for FieldElement<F> {
+    fn from(a: u16) -> FieldElement<F> {
+        FieldElement(F::from(a))
+    }
+}
+
+impl<F: PrimeField> From<u8> for FieldElement<F> {
+    fn from(a: u8) -> FieldElement<F> {
+        FieldElement(F::from(a))
+    }
+}
+
 impl<F: PrimeField> From<bool> for FieldElement<F> {
     fn from(boolean: bool) -> FieldElement<F> {
         if boolean { FieldElement::one() } else { FieldElement::zero() }
+    }
+}
+
+impl<F: PrimeField> TryFrom<FieldElement<F>> for u128 {
+    type Error = ();
+
+    fn try_from(value: FieldElement<F>) -> Result<Self, Self::Error> {
+        match value.try_into_u128() {
+            Some(value) => Ok(value),
+            None => Err(()),
+        }
+    }
+}
+
+impl<F: PrimeField> TryFrom<FieldElement<F>> for i128 {
+    type Error = ();
+
+    fn try_from(value: FieldElement<F>) -> Result<Self, Self::Error> {
+        match value.try_into_i128() {
+            Some(value) => Ok(value),
+            None => Err(()),
+        }
+    }
+}
+
+impl<F: PrimeField> From<FieldElement<F>> for bool {
+    fn from(field: FieldElement<F>) -> bool {
+        !field.is_zero()
     }
 }
 

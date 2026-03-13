@@ -1,3 +1,5 @@
+use itertools::Itertools;
+
 use crate::{
     brillig::{BrilligOptions, assert_u32, assert_usize, brillig_ir::registers::Allocated},
     ssa::ir::function::FunctionId,
@@ -125,7 +127,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         let mut current_calldata_pointer = self.calldata_start_offset();
 
         // Initialize the variables with the calldata
-        for (argument_variable, argument) in argument_variables.iter().zip(arguments) {
+        for (argument_variable, argument) in argument_variables.iter().zip_eq(arguments) {
             match (**argument_variable, argument) {
                 (BrilligVariable::SingleAddr(single_address), BrilligParameter::SingleAddr(_)) => {
                     self.mov_instruction(
@@ -250,66 +252,47 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         if Self::has_nested_arrays(item_type) {
             let movement_register = self.allocate_register();
 
-            let target_item_size = item_type.len();
-            let source_item_size = Self::flattened_tuple_size(item_type);
+            // Use incrementing pointers instead of computing fresh constant indices each iteration
+            let source_ptr = self.allocate_register();
+            self.mov_instruction(*source_ptr, flattened_array_pointer);
+            let target_ptr = self.allocate_register();
+            self.mov_instruction(*target_ptr, *deflattened_items_pointer);
 
-            for item_index in 0..item_count.0 {
-                let source_item_base_index = assert_usize(item_index) * source_item_size;
-                let target_item_base_index = assert_usize(item_index) * target_item_size;
-
-                let mut source_offset = 0;
-
-                for (subitem_index, subitem) in item_type.iter().enumerate() {
-                    let source_index = self.make_usize_constant_instruction(
-                        (source_item_base_index + source_offset).into(),
-                    );
-
-                    let target_index = self.make_usize_constant_instruction(
-                        (target_item_base_index + subitem_index).into(),
-                    );
-
+            for _item_index in 0..item_count.0 {
+                for subitem in item_type {
                     match subitem {
                         BrilligParameter::SingleAddr(_) => {
-                            self.codegen_load_with_offset(
-                                flattened_array_pointer,
-                                *source_index,
-                                *movement_register,
-                            );
-                            self.codegen_store_with_offset(
-                                *deflattened_items_pointer,
-                                *target_index,
-                                *movement_register,
-                            );
+                            self.load_instruction(*movement_register, *source_ptr);
+                            self.store_instruction(*target_ptr, *movement_register);
+                            self.codegen_usize_op_in_place(*source_ptr, BrilligBinaryOp::Add, 1);
+                            self.codegen_usize_op_in_place(*target_ptr, BrilligBinaryOp::Add, 1);
                         }
                         BrilligParameter::Array(
                             nested_array_item_type,
                             nested_array_item_count,
                         ) => {
-                            let nested_array_pointer = self.allocate_register();
-                            self.memory_op_instruction(
-                                flattened_array_pointer,
-                                source_index.address,
-                                *nested_array_pointer,
-                                BrilligBinaryOp::Add,
-                            );
                             let deflattened_nested_array_pointer = self.deflatten_array(
                                 nested_array_item_type,
                                 *nested_array_item_count,
-                                *nested_array_pointer,
+                                *source_ptr,
                                 false,
                             );
-                            self.codegen_store_with_offset(
-                                *deflattened_items_pointer,
-                                *target_index,
-                                *deflattened_nested_array_pointer,
+                            self.store_instruction(*target_ptr, *deflattened_nested_array_pointer);
+
+                            let nested_flattened_size =
+                                Self::flattened_tuple_size(nested_array_item_type)
+                                    * assert_usize(nested_array_item_count.0);
+                            self.codegen_usize_op_in_place(
+                                *source_ptr,
+                                BrilligBinaryOp::Add,
+                                nested_flattened_size,
                             );
+                            self.codegen_usize_op_in_place(*target_ptr, BrilligBinaryOp::Add, 1);
                         }
                         BrilligParameter::Vector(..) => {
                             unreachable!("ICE: Cannot deflatten vectors")
                         }
                     }
-
-                    source_offset += subitem.flattened_size();
                 }
             }
         } else {
@@ -358,7 +341,9 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         let return_data_offset = self.return_data_start_offset(calldata_size);
         let mut return_data_index = return_data_offset;
 
-        for (return_param, returned_variable) in return_parameters.iter().zip(&returned_variables) {
+        for (return_param, returned_variable) in
+            return_parameters.iter().zip_eq(&returned_variables)
+        {
             match return_param {
                 BrilligParameter::SingleAddr(_) => {
                     self.mov_instruction(

@@ -666,23 +666,76 @@ impl DataFlowGraph {
             _ => None,
         }
     }
+
+    /// Try to find out the capacity of a vector by tracing it back to a `MakeArray`.
     pub(crate) fn try_get_vector_capacity(&self, value: ValueId) -> Option<SemanticLength> {
         // For arrays we know the size statically
         if let Some(length) = self.try_get_array_length(value) {
             return Some(length);
         }
 
-        // Check if the value was made by a MakeArray instruction, which can create vectors as well.
-        let (array, typ) = self.get_array_constant(value)?;
-        let elements_size = typ.element_size();
+        match self.get_local_or_global_instruction(value)? {
+            Instruction::MakeArray { .. } => {
+                let (array, typ) = self.get_array_constant(value)?;
+                let elements_size = typ.element_size();
 
-        let length = if elements_size.0 == 0 {
-            SemanticLength(assert_u32(array.len()))
-        } else {
-            SemiFlattenedLength(assert_u32(array.len())) / elements_size
-        };
+                let length = if elements_size.0 == 0 {
+                    SemanticLength(assert_u32(array.len()))
+                } else {
+                    SemiFlattenedLength(assert_u32(array.len())) / elements_size
+                };
+                Some(length)
+            }
+            Instruction::ArraySet { array, .. } | Instruction::ArrayGet { array, .. } => {
+                self.try_get_vector_capacity(*array)
+            }
+            Instruction::Call { func, arguments } => {
+                // Handle vector intrinsics that return vectors with known capacities
+                if !matches!(self.type_of_value(value), Type::Vector(_)) {
+                    return None;
+                }
 
-        Some(length)
+                if let Value::Intrinsic(intrinsic) = &self[*func] {
+                    use crate::ssa::ir::instruction::Intrinsic;
+                    // Try to get the semantic length, if it's a known constant.
+                    // It should be okay to use the semantic length; for example the ValueMerger would get fewer items.
+                    let length = self
+                        .get_numeric_constant(arguments[0])
+                        .map(|length| length.to_u128() as u32)
+                        .map(SemanticLength);
+                    // Otherwise fall back to the physical capacity.
+                    let length = length.or_else(|| self.try_get_vector_capacity(arguments[1]));
+                    // Then adjust it. Note that this handling of PushBack assumes that even if
+                    // the dynamic semantic length was less than the capacity, we will grow the vector.
+                    if let Some(base) = length {
+                        match intrinsic {
+                            Intrinsic::VectorPopFront
+                            | Intrinsic::VectorPopBack
+                            | Intrinsic::VectorRemove => {
+                                Some(SemanticLength(base.0.saturating_sub(1)))
+                            }
+                            Intrinsic::VectorPushBack
+                            | Intrinsic::VectorPushFront
+                            | Intrinsic::VectorInsert => {
+                                Some(SemanticLength(base.0.saturating_add(1)))
+                            }
+                            _ => None,
+                        }
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            }
+            Instruction::IfElse { then_value, else_value, .. } => {
+                // The capacity is the longer of the two after merging.
+                let then_capacity = self.try_get_vector_capacity(*then_value)?;
+                let else_capacity = self.try_get_vector_capacity(*else_value)?;
+                Some(SemanticLength(std::cmp::max(then_capacity.0, else_capacity.0)))
+            }
+            _ => None,
+        }
     }
 
     /// If this value points to an array of constant bytes, returns a string

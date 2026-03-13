@@ -346,6 +346,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
         options: &BrilligOptions,
     ) -> BrilligContext<F, ScratchSpace> {
         let mut obj = BrilligArtifact::default();
+        obj.name = format!("{procedure_id}");
         obj.procedure = Some(procedure_id);
         BrilligContext {
             obj,
@@ -384,9 +385,9 @@ impl<F: AcirField + DebugToString> BrilligContext<F, GlobalSpace> {
     }
 
     /// Total size of the global memory space.
+    /// Returns 0 when nothing has been allocated (max_memory_address < start).
     pub(crate) fn global_space_size(&self) -> usize {
-        // `GlobalSpace::start` is inclusive so we must add one to get the accurate total global memory size
-        (self.registers().max_memory_address() + 1) - self.registers().start()
+        (self.registers().max_memory_address() + 1).saturating_sub(self.registers().start())
     }
 }
 

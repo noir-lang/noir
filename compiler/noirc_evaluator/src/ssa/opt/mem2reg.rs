@@ -78,6 +78,8 @@ mod block;
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use itertools::Itertools;
+
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use vec_collections::VecSet;
 
@@ -985,7 +987,7 @@ impl<'f> PerFunctionContext<'f> {
                 let mut arg_set: HashMap<ValueId, VecSet<[ValueId; 1]>> = HashMap::default();
 
                 // Add an alias for each reference parameter
-                for (parameter, argument) in destination_parameters.iter().zip(arguments) {
+                for (parameter, argument) in destination_parameters.iter().zip_eq(arguments) {
                     match self.inserter.function.dfg.type_of_value(*parameter) {
                         // If the type indirectly contains a reference we have to assume all references
                         // are unknown since we don't have any ValueIds to use.
@@ -2605,22 +2607,19 @@ mod tests {
         brillig(inline) predicate_pure fn main f0 {
           b0():
             v1 = allocate -> &mut u1
-            store u1 0 at v1
-            v3 = make_array [v1] : [&mut u1]
-            v4 = allocate -> &mut u1
-            store u1 0 at v4
-            v5 = make_array [v1, v4] : [&mut u1]
-            v7 = array_set v5, index u32 2, value v4
-            v8 = make_array [v1, v4] : [&mut u1]
+            v2 = make_array [v1] : [&mut u1]
+            v3 = allocate -> &mut u1
+            v4 = make_array [v1, v3] : [&mut u1]
+            v6 = array_set v4, index u32 2, value v3
             jmpif u1 0 then: b1(), else: b2()
           b1():
-            jmp b3(v8)
+            jmp b3(v6)
           b2():
-            jmp b3(v8)
+            jmp b3(v6)
           b3(v0: [&mut u1]):
-            v10 = array_get v0, index u32 0 -> &mut u1
-            v11 = load v10 -> u1
-            return v11
+            v9 = array_get v0, index u32 0 -> &mut u1
+            v10 = load v9 -> u1
+            return v10
         }
         "
         );

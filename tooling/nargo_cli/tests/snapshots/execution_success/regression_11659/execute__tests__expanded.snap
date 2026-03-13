@@ -1,0 +1,51 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+pub struct Poseidon2Sponge {
+    pub cache: [Field; 3],
+    pub state: [Field; 4],
+}
+
+fn absorb_full_permutations<let NUM_ITEMS: u32, let MAX_PERMUTATIONS: u32>(
+    mut sponge: Poseidon2Sponge,
+    input: [Field; NUM_ITEMS],
+    num_permutations: u32,
+) -> Poseidon2Sponge {
+    let mut should_add: bool = true;
+    for i in 0_u32..MAX_PERMUTATIONS {
+        should_add = should_add & (i != num_permutations);
+        let chunk_base_index: u32 = i * 3_u32;
+        if should_add {
+            sponge.cache[1_u32] = input[chunk_base_index];
+            sponge.cache[2_u32] = input[chunk_base_index + 1_u32];
+            for j in 0_u32..3_u32 {
+                sponge.state[j] = sponge.state[j] + sponge.cache[j];
+            }
+            sponge.state = std::hash::poseidon2_permutation(sponge.state, 4_u32);
+            sponge.cache[0_u32] = input[chunk_base_index + 2_u32];
+        }
+    }
+    sponge
+}
+
+fn absorb<let NUM_ITEMS: u32>(
+    mut sponge: Poseidon2Sponge,
+    input: [Field; NUM_ITEMS],
+    input_len: u32,
+) -> Poseidon2Sponge {
+    absorb_full_permutations::<NUM_ITEMS, (NUM_ITEMS - (NUM_ITEMS % 3)) / 3>(
+        sponge,
+        input,
+        input_len / 3_u32,
+    )
+}
+
+fn main(input: [Field; 12], input_len: u32) -> pub [Field; 4] {
+    let sponge: Poseidon2Sponge = Poseidon2Sponge {
+        cache: [0_Field, 0_Field, 0_Field],
+        state: [0_Field, 0_Field, 0_Field, 0_Field],
+    };
+    let sponge: Poseidon2Sponge = absorb(sponge, input, input_len);
+    sponge.state
+}

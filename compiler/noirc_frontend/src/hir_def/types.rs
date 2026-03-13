@@ -1,5 +1,6 @@
 use std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
+use itertools::Itertools;
 use rustc_hash::FxHashMap as HashMap;
 
 #[cfg(test)]
@@ -370,6 +371,15 @@ pub enum QuotedType {
 /// the binding to later be undone if needed.
 pub type TypeBindings = HashMap<TypeVariableId, (TypeVariable, Kind, Type)>;
 
+/// Resolve all indirections in a set of type bindings by calling
+/// `follow_bindings` on every kind and type in the map.
+pub fn resolve_type_bindings(bindings: &mut TypeBindings) {
+    for (_type_var, kind, binding) in bindings.values_mut() {
+        *kind = kind.follow_bindings();
+        *binding = binding.follow_bindings();
+    }
+}
+
 /// Pretty print type bindings for debugging
 #[allow(unused)]
 pub fn type_bindings_to_string(bindings: &TypeBindings) -> String {
@@ -399,6 +409,7 @@ pub struct DataType {
 
     pub name: Ident,
     pub visibility: ItemVisibility,
+    pub comptime: bool,
 
     /// A type's body is private to force struct fields or enum variants to only be
     /// accessed through get_field(), get_fields(), instantiate(), or similar functions
@@ -420,8 +431,10 @@ pub enum MustUse {
 }
 
 enum TypeBody {
-    /// A type with no body is still in the process of being created
-    None,
+    /// A struct whose fields have not yet been resolved.
+    StructWithUnknownFields,
+    /// An enum whose variants have not yet been resolved.
+    EnumWithUnknownVariants,
     Struct(Vec<StructField>),
 
     #[allow(unused)]
@@ -513,14 +526,21 @@ impl DataType {
         location: Location,
         generics: ResolvedGenerics,
         visibility: ItemVisibility,
+        comptime: bool,
+        is_struct: bool,
     ) -> DataType {
         DataType {
             id,
             name,
             location,
             generics,
-            body: TypeBody::None,
+            body: if is_struct {
+                TypeBody::StructWithUnknownFields
+            } else {
+                TypeBody::EnumWithUnknownVariants
+            },
             visibility,
+            comptime,
             must_use: MustUse::NoMustUse,
         }
     }
@@ -535,10 +555,10 @@ impl DataType {
 
     pub(crate) fn init_variants(&mut self) {
         match &mut self.body {
-            TypeBody::None => {
+            TypeBody::EnumWithUnknownVariants => {
                 self.body = TypeBody::Enum(vec![]);
             }
-            _ => panic!("Called init_variants but body was None"),
+            _ => panic!("Called init_variants but body was not EnumWithUnknownVariants"),
         }
     }
 
@@ -550,11 +570,11 @@ impl DataType {
     }
 
     pub fn is_struct(&self) -> bool {
-        matches!(&self.body, TypeBody::Struct(_))
+        matches!(&self.body, TypeBody::StructWithUnknownFields | TypeBody::Struct(_))
     }
 
     pub fn is_enum(&self) -> bool {
-        matches!(&self.body, TypeBody::Enum(_))
+        matches!(&self.body, TypeBody::EnumWithUnknownVariants | TypeBody::Enum(_))
     }
 
     /// Retrieve the fields of this type with no modifications.
@@ -591,7 +611,7 @@ impl DataType {
 
         let mut fields = self.fields_raw()?.iter().enumerate();
         fields.find(|(_, field)| field.name.as_str() == field_name).map(|(i, field)| {
-            let generics = self.generics.iter().zip(generic_args);
+            let generics = self.generics.iter().zip_eq(generic_args);
             let substitutions = generics
                 .map(|(old, new)| {
                     (old.type_var.id(), (old.type_var.clone(), old.type_var.kind(), new.clone()))
@@ -664,7 +684,7 @@ impl DataType {
 
         self.generics
             .iter()
-            .zip(generic_args)
+            .zip_eq(generic_args)
             .map(|(old, new)| {
                 (old.type_var.id(), (old.type_var.clone(), old.type_var.kind(), new.clone()))
             })
@@ -768,6 +788,7 @@ pub struct TypeAlias {
     pub typ: Type,
     pub generics: ResolvedGenerics,
     pub visibility: ItemVisibility,
+    pub comptime: bool,
     pub location: Location,
     /// Optional expression, used by type aliases to numeric generics
     pub numeric_expr: Option<UnresolvedTypeExpression>,
@@ -805,6 +826,7 @@ impl std::fmt::Display for TypeAlias {
 }
 
 impl TypeAlias {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         id: TypeAliasId,
         name: Ident,
@@ -812,9 +834,20 @@ impl TypeAlias {
         typ: Type,
         generics: ResolvedGenerics,
         visibility: ItemVisibility,
+        comptime: bool,
         module_id: ModuleId,
     ) -> TypeAlias {
-        TypeAlias { id, typ, name, location, generics, visibility, module_id, numeric_expr: None }
+        TypeAlias {
+            id,
+            typ,
+            name,
+            location,
+            generics,
+            visibility,
+            comptime,
+            module_id,
+            numeric_expr: None,
+        }
     }
 
     pub fn set_type_and_generics(
@@ -838,7 +871,7 @@ impl TypeAlias {
         let substitutions = self
             .generics
             .iter()
-            .zip(generic_args)
+            .zip_eq(generic_args)
             .map(|(old, new)| {
                 (old.type_var.id(), (old.type_var.clone(), old.type_var.kind(), new.clone()))
             })
@@ -2591,7 +2624,7 @@ impl Type {
 
                 let mut replacements: TypeBindings = typevars
                     .iter()
-                    .zip(implicit_and_turbofish_bindings)
+                    .zip_eq(implicit_and_turbofish_bindings)
                     .map(|(var, binding)| (var.id(), (var.clone(), var.kind(), binding)))
                     .collect();
 

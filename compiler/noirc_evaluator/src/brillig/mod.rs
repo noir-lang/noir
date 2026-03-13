@@ -227,6 +227,7 @@ impl Ssa {
 #[cfg(test)]
 mod memory_layout {
     use acvm::{AcirField, acir::brillig::Opcode};
+    use itertools::Itertools;
 
     use crate::{
         brillig::{
@@ -250,10 +251,10 @@ mod memory_layout {
         assert_eq!(bytecode1.len(), bytecode2.len());
 
         // Offset where stack starts
-        // This assumes the same SSA where we have a single global register and a single call data argument.
-        let stack_start = ReservedRegisters::len() + MAX_SCRATCH_SPACE + 1 + 1;
+        // This assumes the same SSA where we have no globals and a single call data argument.
+        let stack_start = ReservedRegisters::len() + MAX_SCRATCH_SPACE + 1;
 
-        for (op1, op2) in bytecode1.iter().zip(bytecode2) {
+        for (op1, op2) in bytecode1.iter().zip_eq(bytecode2) {
             if op1 != op2 {
                 match (op1, op2) {
                     // All opcodes are expected to be stable across memory layouts except for a few that rely

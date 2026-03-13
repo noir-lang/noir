@@ -4,6 +4,7 @@ use std::{borrow::Cow, rc::Rc};
 
 use im::HashSet;
 use iter_extended::vecmap;
+use itertools::Itertools;
 use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
 
@@ -35,6 +36,7 @@ use crate::{
     modules::{get_ancestor_module_reexport, module_def_id_is_visible},
     node_interner::{
         DependencyId, ExprId, FuncId, GlobalValue, TraitId, TraitImplKind, TraitItemId,
+        TraitLookupMode,
     },
     shared::Signedness,
 };
@@ -285,25 +287,144 @@ impl Elaborator<'_> {
     }
 
     /// Resolve `Self::Foo` to an associated type on the current trait or trait impl.
-    fn lookup_associated_type_on_self(&self, path: &TypedPath) -> Option<Type> {
+    /// Also searches parent traits.
+    fn lookup_associated_type_on_self(&mut self, path: &TypedPath) -> Option<Type> {
         if path.segments.len() == 2 && path.first_name() == Some(SELF_TYPE_NAME) {
-            if let Some(trait_id) = self.current_trait {
-                let the_trait = self.interner.get_trait(trait_id);
-                if let Some(typ) = the_trait.get_associated_type(path.last_name()) {
-                    return Some(
-                        typ.clone()
-                            .into_named_generic(Some((SELF_TYPE_NAME, the_trait.name.as_str()))),
-                    );
+            let name = path.last_name();
+
+            // Inside a trait definition (not an impl): check this trait and its parent traits.
+            if self.current_trait_impl.is_none()
+                && let Some(trait_id) = self.current_trait
+            {
+                let mut found = self.lookup_associated_type_in_parent_traits(trait_id, name);
+                match found.len() {
+                    0 => {}
+                    1 => return Some(found.remove(0).1),
+                    _ => {
+                        let location = path.location;
+                        let trait_names: Vec<_> = found
+                            .iter()
+                            .map(|(id, _)| self.interner.get_trait(*id).name.to_string())
+                            .collect();
+                        let ident = Ident::new(name.to_string(), location);
+                        self.push_err(PathResolutionError::MultipleTraitsInScope {
+                            ident,
+                            traits: trait_names,
+                        });
+                        return Some(Type::Error);
+                    }
                 }
             }
 
+            // Inside a trait impl: check the impl's own types, then parent trait impls.
             if let Some(impl_id) = self.current_trait_impl {
-                let name = path.last_name();
                 if let Some(typ) = self.interner.find_associated_type_for_impl(impl_id, name) {
                     return Some(typ.clone());
                 }
+
+                if let Some(trait_id) = self.current_trait
+                    && let Some(typ) = self.lookup_associated_type_in_parent_impls(trait_id, name)
+                {
+                    return Some(typ);
+                }
             }
         }
+        None
+    }
+
+    /// Search for an associated type in a trait and its parent trait hierarchy.
+    /// Used inside trait definitions to resolve `Self::Foo` when `Foo` may be
+    /// defined on a parent trait.
+    fn lookup_associated_type_in_parent_traits(
+        &self,
+        trait_id: TraitId,
+        name: &str,
+    ) -> Vec<(TraitId, Type)> {
+        let mut found = Vec::new();
+        self.collect_associated_type_in_parent_traits(trait_id, name, &mut found);
+        found
+    }
+
+    /// Recursively collect all (trait_id, type) pairs for a named associated type
+    /// across a trait and its parent hierarchy.
+    fn collect_associated_type_in_parent_traits(
+        &self,
+        trait_id: TraitId,
+        name: &str,
+        found: &mut Vec<(TraitId, Type)>,
+    ) {
+        let the_trait = self.interner.get_trait(trait_id);
+        if let Some(typ) = the_trait.get_associated_type(name) {
+            let typ =
+                typ.clone().into_named_generic(Some((SELF_TYPE_NAME, the_trait.name.as_str())));
+            found.push((trait_id, typ));
+        }
+
+        let parent_trait_ids: Vec<_> =
+            the_trait.trait_bounds.iter().map(|bound| bound.trait_id).collect();
+        for parent_id in parent_trait_ids {
+            self.collect_associated_type_in_parent_traits(parent_id, name, found);
+        }
+    }
+
+    /// Search for an associated type in parent 'trait impls'.
+    fn lookup_associated_type_in_parent_impls(
+        &self,
+        trait_id: TraitId,
+        name: &str,
+    ) -> Option<Type> {
+        let the_trait = self.interner.get_trait(trait_id);
+        let parent_bounds = the_trait.trait_bounds.clone();
+        let self_type = self.self_type.as_ref()?;
+
+        for parent_bound in &parent_bounds {
+            let result = self.interner.try_lookup_trait_implementation(
+                self_type,
+                parent_bound.trait_id,
+                &parent_bound.trait_generics.ordered,
+                &parent_bound.trait_generics.named,
+                TraitLookupMode::Default,
+            );
+
+            match result {
+                Ok((
+                    TraitImplKind::Normal(parent_impl_id)
+                    | TraitImplKind::Prepared(parent_impl_id, _),
+                    _,
+                    _,
+                )) => {
+                    if let Some(typ) =
+                        self.interner.find_associated_type_for_impl(parent_impl_id, name)
+                    {
+                        return Some(typ.clone());
+                    }
+                }
+                Ok((TraitImplKind::Assumed { trait_generics, .. }, _, _)) => {
+                    for named in &trait_generics.named {
+                        if named.name.as_str() == name {
+                            return Some(named.typ.clone());
+                        }
+                    }
+                }
+                _ => {
+                    // Lookup failed (e.g. self type is too generic). Fall back to
+                    // searching the parent trait's definition for the associated type.
+                    let found =
+                        self.lookup_associated_type_in_parent_traits(parent_bound.trait_id, name);
+                    if let Some((_, typ)) = found.into_iter().next() {
+                        return Some(typ);
+                    }
+                }
+            }
+
+            // Recurse into grandparent traits
+            if let Some(typ) =
+                self.lookup_associated_type_in_parent_impls(parent_bound.trait_id, name)
+            {
+                return Some(typ);
+            }
+        }
+
         None
     }
 
@@ -311,6 +432,7 @@ impl Elaborator<'_> {
     ///
     /// For example, in `impl<T: Baz> Foo for T { type Bar = T::Qux; }`, this resolves `T::Qux`
     /// by finding that `T` has a bound `Baz` which defines the associated type `Qux`.
+    /// Also searches parent traits.
     fn lookup_associated_type_on_generic(&mut self, path: &TypedPath) -> Option<Type> {
         if self.trait_bounds.is_empty() {
             return None;
@@ -326,24 +448,23 @@ impl Elaborator<'_> {
         // Check if first segment is a generic parameter
         self.find_generic(type_name)?;
 
-        // Search trait bounds for this generic to find the associated type
-        let mut found_types = self
-            .trait_bounds
-            .iter()
-            .filter_map(|constraint| {
-                if let Type::NamedGeneric(generic) = &constraint.typ
-                    && generic.name.as_ref() == type_name
-                {
-                    for named_generic in &constraint.trait_bound.trait_generics.named {
-                        if named_generic.name.as_str() == assoc_name {
-                            let trait_id = constraint.trait_bound.trait_id;
-                            return Some((trait_id, named_generic.typ.clone()));
-                        }
+        // Search trait bounds for this generic to find the associated type directly.
+        // Parent associated types are expected to be in `self.trait_bounds` already,
+        // added during function elaboration.
+        let mut found_types = Vec::new();
+
+        for constraint in &self.trait_bounds {
+            if let Type::NamedGeneric(generic) = &constraint.typ
+                && generic.name.as_ref() == type_name
+            {
+                for named_generic in &constraint.trait_bound.trait_generics.named {
+                    if named_generic.name.as_str() == assoc_name {
+                        let trait_id = constraint.trait_bound.trait_id;
+                        found_types.push((trait_id, named_generic.typ.clone()));
                     }
                 }
-                None
-            })
-            .collect::<Vec<_>>();
+            }
+        }
 
         match found_types.len() {
             0 => None, // Fall through to normal resolution
@@ -372,6 +493,19 @@ impl Elaborator<'_> {
         mode: PathResolutionMode,
         wildcard_allowed: WildcardAllowed,
     ) -> Type {
+        let location = path.location;
+        let typ = self.resolve_named_type_helper(path, args, mode, wildcard_allowed);
+        self.check_comptime_type_in_non_comptime_item(&typ, location);
+        typ
+    }
+
+    fn resolve_named_type_helper(
+        &mut self,
+        path: TypedPath,
+        args: GenericTypeArgs,
+        mode: PathResolutionMode,
+        wildcard_allowed: WildcardAllowed,
+    ) -> Type {
         if args.is_empty()
             && let Some(typ) = self.lookup_generic_or_global_type(&path, mode)
         {
@@ -383,7 +517,7 @@ impl Elaborator<'_> {
         // Check if the path is a type variable first. We currently disallow generics on type
         // variables since we do not support higher-kinded types.
         if let Some(typ) = self.lookup_type_variable(&path, &args, wildcard_allowed) {
-            self.check_comptime_type_in_runtime_code(&typ, location);
+            self.check_comptime_type_in_non_comptime_item(&typ, location);
             return typ;
         }
 
@@ -436,14 +570,7 @@ impl Elaborator<'_> {
                 Type::DataType(data_type, args)
             }
             Ok(PathResolutionItem::PrimitiveType(primitive_type)) => {
-                let typ = self.instantiate_primitive_type(
-                    primitive_type,
-                    args,
-                    location,
-                    wildcard_allowed,
-                );
-                self.check_comptime_type_in_runtime_code(&typ, location);
-                typ
+                self.instantiate_primitive_type(primitive_type, args, location, wildcard_allowed)
             }
             Ok(PathResolutionItem::TraitAssociatedType(associated_type_id)) => {
                 if wildcard_allowed == WildcardAllowed::No(WildcardDisallowedContext::ImplType) {
@@ -478,15 +605,48 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Reports an error if `typ` is a comptime-only type and we are in runtime code.
-    fn check_comptime_type_in_runtime_code(&mut self, typ: &Type, location: Location) {
-        if let Type::Quoted(quoted) = typ {
-            use DependencyId::*;
-            let in_function_or_global = matches!(self.current_item, Some(Function(_) | Global(_)));
-            if in_function_or_global && !self.in_comptime_context() {
-                let typ = quoted.to_string();
-                self.push_err(ResolverError::ComptimeTypeInRuntimeCode { location, typ });
-            }
+    /// Reports an error if `typ` is a comptime-only type and we are not in a comptime item
+    fn check_comptime_type_in_non_comptime_item(&mut self, typ: &Type, location: Location) {
+        if self.in_comptime_context() {
+            return;
+        }
+
+        let Some(item) = self.current_item else {
+            // Early return if we're not actually inside any item.
+            return;
+        };
+
+        let typ_is_comptime_only = match typ {
+            Type::Quoted(_) => true,
+            Type::DataType(data_type, _) => data_type.borrow().comptime,
+            Type::Alias(type_alias, _) => type_alias.borrow().comptime,
+            _ => false,
+        };
+
+        // We return early if we are in a comptime context, so if we find a comptime-only type here
+        // it means we are trying to use it in a non-comptime item, which is an error.
+        if typ_is_comptime_only {
+            let item = match item {
+                DependencyId::Function(_) => "function",
+                DependencyId::Global(_) => "global",
+                DependencyId::Alias(_) => "type alias",
+                DependencyId::DataType(type_id) => {
+                    if self.interner.get_type(type_id).borrow().is_struct() {
+                        "struct"
+                    } else {
+                        "enum"
+                    }
+                }
+                DependencyId::Trait(_) | DependencyId::Variable(_) => {
+                    unreachable!(
+                        "Unexpected current item when checking for comptime type usage: {:?}",
+                        self.current_item
+                    )
+                }
+            };
+
+            let typ = typ.to_string();
+            self.push_err(ResolverError::ComptimeTypeInNonComptimeItem { location, typ, item });
         }
     }
 
@@ -608,7 +768,7 @@ impl Elaborator<'_> {
             args.ordered_args.resize(expected_kinds.len(), error_type);
         }
 
-        let ordered_args = expected_kinds.iter().zip(args.ordered_args);
+        let ordered_args = expected_kinds.iter().zip_eq(args.ordered_args);
         let ordered = vecmap(ordered_args, |(kind, typ)| {
             self.resolve_type_with_kind_inner(typ, kind, mode, wildcard_allowed)
         });
@@ -755,7 +915,7 @@ impl Elaborator<'_> {
                     return None;
                 };
 
-                let Some(global_value) = global_value.to_non_negative_signed_field() else {
+                let Some(global_value) = global_value.as_non_negative_signed_field() else {
                     let global_value = global_value.clone();
                     if global_value.is_integral() {
                         self.push_err(ResolverError::NegativeGlobalType { location, global_value });
@@ -802,8 +962,12 @@ impl Elaborator<'_> {
                 let path = self.validate_path(path);
                 let mode = PathResolutionMode::MarkAsReferenced;
                 let mut typ = self.resolve_named_type(path, ab, mode, wildcard_allowed);
-                if let Type::Alias(alias, vec) = typ {
-                    typ = alias.borrow().get_type(&vec);
+                if let Type::Alias(alias, ref vec) = typ {
+                    if alias.borrow().numeric_expr.is_none() {
+                        self.push_err(ResolverError::InvalidNumericAliasExpression { location });
+                        return Type::Error;
+                    }
+                    typ = alias.borrow().get_type(vec);
                 }
                 self.check_type_kind(typ, expected_kind, location)
             }
@@ -1467,7 +1631,7 @@ impl Elaborator<'_> {
             return Type::Error;
         }
 
-        for (param, (arg, arg_expr_id, arg_location)) in fn_params.iter().zip(callsite_args) {
+        for (param, (arg, arg_expr_id, arg_location)) in fn_params.iter().zip_eq(callsite_args) {
             self.unify_with_coercions(arg, param, *arg_expr_id, *arg_location, || {
                 CompilationError::TypeError(TypeCheckError::TypeMismatch {
                     expected_typ: param.to_string(),
@@ -2061,7 +2225,7 @@ impl Elaborator<'_> {
     ) -> Type {
         let access_lhs = &mut access.lhs;
 
-        let dereference_lhs = |this: &mut Self, lhs_type, element| {
+        let dereference_lhs = |this: &mut Self, lhs_type, element, _is_mutable| {
             let old_lhs = *access_lhs;
             let old_location = this.interner.id_location(old_lhs);
             let location = Location::new(location.span, old_location.file);
@@ -2098,7 +2262,7 @@ impl Elaborator<'_> {
         lhs_type: &Type,
         field_name: &str,
         location: Location,
-        dereference_lhs: Option<impl FnMut(&mut Self, Type, Type)>,
+        dereference_lhs: Option<impl FnMut(&mut Self, Type, Type, bool /* mutable */)>,
     ) -> Option<(Type, usize)> {
         let lhs_type = lhs_type.follow_bindings();
 
@@ -2132,7 +2296,7 @@ impl Elaborator<'_> {
             // If the lhs is a reference we automatically transform `lhs.field` into `(*lhs).field`
             Type::Reference(element, mutable) => {
                 if let Some(mut dereference_lhs) = dereference_lhs {
-                    dereference_lhs(self, lhs_type.clone(), element.as_ref().clone());
+                    dereference_lhs(self, lhs_type.clone(), element.as_ref().clone(), *mutable);
                     return self.check_field_access(
                         element,
                         field_name,
@@ -2908,7 +3072,7 @@ pub(super) fn bind_ordered_generics(
 ) {
     assert_eq!(params.len(), args.len(), "unexpected number of ordered generics");
 
-    for (param, arg) in params.iter().zip(args) {
+    for (param, arg) in params.iter().zip_eq(args) {
         bind_generic(param, arg, bindings);
     }
 }

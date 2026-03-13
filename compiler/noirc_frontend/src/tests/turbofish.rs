@@ -509,6 +509,22 @@ fn incorrect_turbofish_count_method_call() {
 }
 
 #[test]
+fn incorrect_turbofish_count_with_fewer_generics_than_expected() {
+    // Regression: when fewer turbofish generics than expected are provided,
+    // the returned list had fewer elements than expected, which caused a
+    // duplicate "incorrect generic count" error from a redundant check downstream.
+    let src = r#"
+        fn two_generics<A, B>(_a: A, _b: B) {}
+
+        fn main() {
+            two_generics::<Field>(1, 2);
+            ^^^^^^^^^^^^^^^^^^^^^ Expected 2 generics from this function, but 1 was provided
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn cannot_determine_type_of_generic_argument_in_function_call_with_regular_generic() {
     let src = r#"
     fn foo<T>() {}
