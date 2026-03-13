@@ -108,23 +108,18 @@ fn basic_loop() {
 #[test]
 fn acir_no_access_check_on_array_read() {
     let src = "
-    fn main(mut array: [Field; 3], index: u32) -> pub Field {
+    fn main(array: [Field; 3], index: u32) -> pub Field {
         array[index]
     }
     ";
     let ssa = get_initial_ssa(src).unwrap();
-
-    let expected = "
+    assert_ssa_snapshot!(ssa, @r"
     acir(inline) fn main f0 {
       b0(v0: [Field; 3], v1: u32):
-        v2 = allocate -> &mut [Field; 3]
-        store v0 at v2
-        v3 = load v2 -> [Field; 3]
-        v4 = array_get v3, index v1 -> Field
-        return v4
+        v2 = array_get v0, index v1 -> Field
+        return v2
     }
-    ";
-    assert_normalized_ssa_equals(ssa, expected);
+    ");
 }
 
 #[test]
@@ -154,25 +149,20 @@ fn acir_no_access_check_on_array_assignment() {
 #[test]
 fn brillig_access_check_on_array_read() {
     let src = "
-    unconstrained fn main(mut array: [Field; 3], index: u32) -> pub Field {
+    unconstrained fn main(array: [Field; 3], index: u32) -> pub Field {
         array[index]
     }
     ";
     let ssa = get_initial_ssa(src).unwrap();
-
-    let expected = r#"
+    assert_ssa_snapshot!(ssa, @r#"
     brillig(inline) fn main f0 {
       b0(v0: [Field; 3], v1: u32):
-        v2 = allocate -> &mut [Field; 3]
-        store v0 at v2
-        v3 = load v2 -> [Field; 3]
-        v5 = lt v1, u32 3
-        constrain v5 == u1 1, "Index out of bounds"
-        v7 = array_get v3, index v1 -> Field
-        return v7
+        v3 = lt v1, u32 3
+        constrain v3 == u1 1, "Index out of bounds"
+        v5 = array_get v0, index v1 -> Field
+        return v5
     }
-    "#;
-    assert_normalized_ssa_equals(ssa, expected);
+    "#);
 }
 
 #[test]
