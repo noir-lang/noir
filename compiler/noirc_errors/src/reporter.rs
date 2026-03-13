@@ -288,6 +288,13 @@ pub fn stack_trace<'files>(
         return String::new();
     }
 
+    // Compute the length of the longest frame number so we show them like this:
+    //   1: ..
+    //  23: ..
+    // 234: ..
+    let call_stack_length = call_stack.len();
+    let maximum_frame_string_length = call_stack_length.to_string().len();
+
     let repeating_sequences = find_repeating_sequences(call_stack);
 
     let mut result = "Call stack:\n".to_string();
@@ -311,7 +318,7 @@ pub fn stack_trace<'files>(
             } else {
                 "│  "
             };
-            result += &format!("{prefix}{index}: {name}\n");
+            result += &format!("{prefix}{index:>maximum_frame_string_length$}: {name}\n");
 
             let prefix =
                 if times == 1 { if has_repetitions { "   " } else { "" } } else { "│  " };
