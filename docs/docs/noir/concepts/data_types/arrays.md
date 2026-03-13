@@ -147,7 +147,7 @@ So anywhere `self` appears, it refers to the variable `self: [T; N]`.
 Returns the length of an array
 
 ```rust
-fn len(self) -> Field
+fn len(self) -> u32
 ```
 
 example
