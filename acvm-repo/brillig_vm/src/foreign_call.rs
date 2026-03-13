@@ -92,13 +92,17 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                             vector_length = Some(length.to_u128() as u32);
                         }
                         HeapValueType::Vector { value_types } => {
-                            if let Some(length) = vector_length {
-                                let flattened_length =
-                                    vector_flattened_length(value_types, SemanticLength(length));
-                                let mut fields = input.fields();
-                                fields.truncate(assert_usize(flattened_length.0));
-                                input = ForeignCallParam::Array(fields);
-                            }
+                            let Some(length) = vector_length else {
+                                unreachable!(
+                                    "ICE: expected the semantic vector length to precede a vector input"
+                                );
+                            };
+                            // Get rid of any items beyond the semantic length.
+                            let flattened_length =
+                                vector_flattened_length(value_types, SemanticLength(length));
+                            let mut fields = input.fields();
+                            fields.truncate(assert_usize(flattened_length.0));
+                            input = ForeignCallParam::Array(fields);
                             vector_length = None;
                         }
                         _ => {
