@@ -109,7 +109,11 @@ impl<F: std::fmt::Display> MemoryValue<F> {
     /// Builds an integer-typed memory value.
     pub fn new_integer(value: u128, bit_size: IntegerBitSize) -> Self {
         match bit_size {
-            IntegerBitSize::U1 => MemoryValue::U1(value != 0),
+            IntegerBitSize::U1 => MemoryValue::U1(match value {
+                0 => false,
+                1 => true,
+                _ => panic!("{value} is out of 1 bit range"),
+            }),
             IntegerBitSize::U8 => {
                 MemoryValue::U8(value.try_into().expect("{value} is out of 8 bits range"))
             }
@@ -490,6 +494,7 @@ impl<F: AcirField> Memory<F> {
 mod tests {
     use super::*;
     use acir::FieldElement;
+    use test_case::test_case;
 
     #[test]
     fn direct_write_and_read() {
@@ -632,5 +637,15 @@ mod tests {
         let mut memory = Memory::<FieldElement>::default();
         // Attempting to resize beyond i32::MAX should panic
         memory.resize_to_fit(Memory::<FieldElement>::MAX_MEMORY_SIZE + 1);
+    }
+
+    #[test_case(IntegerBitSize::U1, 2)]
+    #[test_case(IntegerBitSize::U8, 256)]
+    #[test_case(IntegerBitSize::U16, u128::from(u16::MAX) + 1)]
+    #[test_case(IntegerBitSize::U32, u128::from(u32::MAX) + 1)]
+    #[test_case(IntegerBitSize::U64, u128::from(u64::MAX) + 1)]
+    #[should_panic(expected = "range")]
+    fn memory_value_new_integer_out_of_range(bit_size: IntegerBitSize, value: u128) {
+        let _ = MemoryValue::<FieldElement>::new_integer(value, bit_size);
     }
 }

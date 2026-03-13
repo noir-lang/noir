@@ -788,11 +788,16 @@ impl NodeInterner {
 
     /// Returns the interned expression corresponding to `expr_id`
     pub fn expression(&self, expr_id: &ExprId) -> HirExpression {
+        self.expression_ref(expr_id).clone()
+    }
+
+    /// Returns the interned expression corresponding to `expr_id`
+    pub fn expression_ref(&self, expr_id: &ExprId) -> &HirExpression {
         let def =
             self.nodes.get(expr_id.0).expect("ice: all expression ids should have definitions");
 
         match def {
-            Node::Expression(expr) => expr.clone(),
+            Node::Expression(expr) => expr,
             _ => {
                 panic!("ice: all expression ids should correspond to a expression in the interner")
             }
