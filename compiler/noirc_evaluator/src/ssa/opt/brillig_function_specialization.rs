@@ -274,6 +274,10 @@ fn substitute_constants(function: &mut Function, constants: &[Option<ConstantArg
     let entry_block = function.entry_block();
     let params: Vec<ValueId> = function.dfg.block_parameters(entry_block).to_vec();
 
+    // Save the original instructions before creating MakeArray constants,
+    // which append to the entry block.
+    let original_instructions = function.dfg[entry_block].take_instructions();
+
     let mut mapping = ValueMapping::default();
     for (param, constant) in params.iter().zip(constants.iter()) {
         if let Some(arg) = constant {
@@ -281,6 +285,11 @@ fn substitute_constants(function: &mut Function, constants: &[Option<ConstantArg
             mapping.insert(*param, const_value);
         }
     }
+
+    // The entry block now contains only the newly-created MakeArray instructions.
+    // Append the original instructions after them so that MakeArrays are defined
+    // before their uses (required by the inliner's instruction-order traversal).
+    function.dfg[entry_block].instructions_mut().extend(original_instructions);
 
     // Apply the mapping to all reachable blocks.
     for block_id in function.reachable_blocks() {
