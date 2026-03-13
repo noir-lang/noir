@@ -1654,7 +1654,7 @@ mod tests {
     }
 
     #[test]
-    fn keep_last_store_in_make_array_that_is_used_with_dynamic_index() {
+    fn keep_last_store_in_make_array_that_has_no_aliases() {
         let src = "
         brillig(inline) fn main f0 {
           b0():
@@ -1665,11 +1665,11 @@ mod tests {
             return v4
         }
         brillig(inline) fn bar f1 {
-          b0(v0: [&mut u1; 1]):
-            v3 = array_get v0, index u32 0 -> &mut u1
-            v4 = allocate -> &mut u1
+          b0(v0: [&mut u1; 1]):                        // The input array has references, so it gets AliasSet::unknown()
+            v3 = array_get v0, index u32 0 -> &mut u1  // v3 inherits the unknown alias property
+            v4 = allocate -> &mut u1                   // v4 has AliasSet::known(v4)
             store u1 1 at v4
-            v6 = make_array [v3, v4] : [&mut u1; 2]
+            v6 = make_array [v3, v4] : [&mut u1; 2]    // Because v3 is unknown, v6 becomes unknown as well
             v7 = load v3 -> u1
             jmpif v7 then: b1(), else: b2()
           b1():
@@ -1677,42 +1677,13 @@ mod tests {
           b2():
             jmp b3(u32 0)
           b3(v1: u32):
-            v11 = array_get v6, index v1 -> &mut u1
+            v11 = array_get v6, index v1 -> &mut u1    // We load from v6, but it has no aliases, so it doesn't keep the store to v4 alive
             v12 = load v11 -> u1
             return v12
         }
         ";
 
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg();
-
-        assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
-          b0():
-            v0 = allocate -> &mut u1
-            store u1 1 at v0
-            v2 = make_array [v0] : [&mut u1; 1]
-            v4 = call f1(v2) -> u1
-            return v4
-        }
-        brillig(inline) fn bar f1 {
-          b0(v0: [&mut u1; 1]):
-            v3 = array_get v0, index u32 0 -> &mut u1
-            v4 = allocate -> &mut u1
-            store u1 1 at v4
-            v6 = make_array [v3, v4] : [&mut u1; 2]
-            v7 = load v3 -> u1
-            jmpif v7 then: b1(), else: b2()
-          b1():
-            jmp b3(u32 1)
-          b2():
-            jmp b3(u32 0)
-          b3(v1: u32):
-            v9 = array_get v6, index v1 -> &mut u1
-            v10 = load v9 -> u1
-            return v10
-        }
-        ");
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     #[test]
