@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use color_eyre::eyre;
 use eyre::eyre;
 
+pub mod check_dead_witnesses_cmd;
 pub mod execute_cmd;
 
 /// Parses a path and turns it into an absolute one by joining to the current directory,

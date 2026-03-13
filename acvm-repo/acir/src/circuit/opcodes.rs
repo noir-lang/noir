@@ -20,7 +20,7 @@ pub use black_box_function_call::{BlackBoxFuncCall, FunctionInput, InvalidInputB
 pub use memory_operation::{BlockId, MemOp};
 
 /// Type for a memory block
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum BlockType {
     /// The default type of memory block.

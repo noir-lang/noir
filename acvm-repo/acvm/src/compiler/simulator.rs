@@ -172,7 +172,7 @@ impl CircuitSimulator {
     }
 
     fn can_solve_expression<F>(&self, expr: &Expression<F>) -> bool {
-        for w in Self::expr_witness(expr) {
+        for w in expr.witnesses() {
             if !self.solvable_witnesses.contains(&w) {
                 return false;
             }
@@ -194,13 +194,6 @@ impl CircuitSimulator {
 
             BrilligInputs::MemoryArray(block_id) => self.initialized_blocks.contains(block_id),
         }
-    }
-
-    pub(crate) fn expr_witness<F>(expr: &Expression<F>) -> impl Iterator<Item = Witness> {
-        expr.mul_terms
-            .iter()
-            .flat_map(|i| [i.1, i.2])
-            .chain(expr.linear_combinations.iter().map(|i| i.1))
     }
 }
 
