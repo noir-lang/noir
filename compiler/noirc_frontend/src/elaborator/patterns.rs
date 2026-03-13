@@ -9,7 +9,7 @@ use crate::elaborator::scope::ItemAsValue;
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::node_interner::DefinitionId;
 use crate::{
-    DataType, Kind, Type, TypeAlias,
+    DataType, Kind, Type, TypeAlias, TypeVariable,
     ast::{ERROR_IDENT, Ident, ItemVisibility, Path, PathSegment, Pattern},
     elaborator::{Turbofish, types::WildcardAllowed},
     hir::{
@@ -560,15 +560,30 @@ impl Elaborator<'_> {
                 vecmap(&self.interner.function_meta(func_id).direct_generics, |generic| {
                     generic.kind()
                 });
+            let expected = direct_generic_kinds.len();
+            let actual = resolved_turbofish.len();
 
-            if resolved_turbofish.len() != direct_generic_kinds.len() {
-                let type_check_err = TypeCheckError::IncorrectTurbofishGenericCount {
-                    expected_count: direct_generic_kinds.len(),
-                    actual_count: resolved_turbofish.len(),
+            let resolved_turbofish = if actual != expected {
+                self.push_err(TypeCheckError::IncorrectTurbofishGenericCount {
+                    expected_count: expected,
+                    actual_count: actual,
                     location,
-                };
-                self.push_err(type_check_err);
-            }
+                });
+
+                // Pad with fresh type variables (if too few) or truncate (if too many)
+                // so the result has the expected length. Provided types are still resolved.
+                let padding =
+                    direct_generic_kinds.get(actual..).unwrap_or_default().iter().map(|kind| {
+                        let var = TypeVariable::unbound(
+                            self.interner.next_type_variable_id(),
+                            kind.clone(),
+                        );
+                        Located::from(location, Type::TypeVariable(var))
+                    });
+                resolved_turbofish.into_iter().take(expected).chain(padding).collect()
+            } else {
+                resolved_turbofish
+            };
 
             self.resolve_turbofish_generics(direct_generic_kinds, resolved_turbofish)
         })
