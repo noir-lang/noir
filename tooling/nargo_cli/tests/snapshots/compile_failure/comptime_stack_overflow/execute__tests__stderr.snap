@@ -16,9 +16,9 @@ error: Comptime Stack Overflow
   │     ----- Exceeded the recursion limit
   │
   = Call stack:
-         1: main
+       1: main
                at src/main.nr:3:9
-    ┌─   2: foo
+    ┌─ 2: foo
     │          at src/main.nr:8:5
     └─ (repeated 99 times)
 

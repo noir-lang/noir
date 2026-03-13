@@ -16,13 +16,13 @@ error: Assertion failed: Stack too deep
    │     ---
    │
    = Call stack:
-            1: main
+        1: main
                 at src/main.nr:2:5
-     ┌─     2: baz
+     ┌─ 2: baz
      │          at src/main.nr:18:9
-     │      3: foo
+     │  3: foo
      │          at src/main.nr:7:5
-     │      4: bar
+     │  4: bar
      │          at src/main.nr:12:5
      └─ (repeated 3413 times)
 

@@ -9,7 +9,7 @@ error: Attempted to recurse more than 1000 times during inlining function 'main'
   │     ------
   │
   = Call stack:
-    ┌─    1: main
+    ┌─ 1: main
     │          at src/main.nr:3:5
     └─ (repeated 1001 times)
 
