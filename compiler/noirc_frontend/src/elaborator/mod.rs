@@ -226,7 +226,9 @@ pub struct Elaborator<'context> {
     /// to the corresponding trait impl ID.
     current_trait_impl: Option<TraitImplId>,
 
-    /// The trait  we're currently resolving, if we are resolving one.
+    /// The trait we're currently resolving or implementing, if any.
+    /// Set during both trait definitions (`trait Foo { ... }`) and
+    /// trait impl elaboration (`impl Foo for Bar { ... }`).
     current_trait: Option<TraitId>,
 
     /// In-resolution names
@@ -293,6 +295,22 @@ pub struct Elaborator<'context> {
     /// when an attribute generates code that triggers further attribute expansion.
     /// This is a global counter that catches both single-function and mutual recursion.
     pub(crate) macro_expansion_depth: usize,
+
+    /// Counter used to define temporary variables for non-simple indexes in l-values.
+    ///
+    /// For example, this expression:
+    ///
+    /// ```noir
+    /// array[x + y] = 10;
+    /// ```
+    ///
+    /// is transformed into:
+    ///
+    /// ```noir
+    /// let i_0 = x + y;
+    /// array[i_0] = 10;
+    /// ```
+    lvalue_index_counter: usize,
 }
 
 #[derive(Copy, Clone)]
@@ -363,6 +381,7 @@ impl<'context> Elaborator<'context> {
             elaborate_reasons,
             comptime_evaluation_halted: false,
             macro_expansion_depth: 0,
+            lvalue_index_counter: 0,
         }
     }
 
@@ -661,6 +680,7 @@ impl<'context> Elaborator<'context> {
 
         self.generics = trait_impl.resolved_generics.clone();
         self.current_trait_impl = trait_impl.impl_id;
+        self.current_trait = trait_impl.trait_id;
 
         self.add_trait_impl_assumed_trait_implementations(trait_impl.impl_id);
         self.check_trait_impl_where_clause_matches_trait_where_clause(&trait_impl);
@@ -681,6 +701,7 @@ impl<'context> Elaborator<'context> {
 
         self.self_type = None;
         self.current_trait_impl = None;
+        self.current_trait = None;
         self.generics.clear();
     }
 
@@ -697,6 +718,9 @@ impl<'context> Elaborator<'context> {
     fn define_type_alias(&mut self, alias_id: TypeAliasId, alias: UnresolvedTypeAlias) {
         self.local_module = Some(alias.module_id);
 
+        let previous_in_comptime_context =
+            std::mem::replace(&mut self.in_comptime_context, alias.type_alias_def.comptime);
+
         let name = &alias.type_alias_def.name;
         let visibility = alias.type_alias_def.visibility;
         let location = alias.type_alias_def.location;
@@ -710,29 +734,27 @@ impl<'context> Elaborator<'context> {
             let num_expr = alias.type_alias_def.typ.typ.try_into_expression();
 
             if let Some(num_expr) = num_expr {
-                // Checks that the expression only references generics and constants
-                if !num_expr.is_valid_expression() {
-                    self.errors.push(CompilationError::ResolverError(
-                        ResolverError::RecursiveTypeAlias {
-                            location: alias.type_alias_def.numeric_location,
-                        },
-                    ));
-                    (Type::Error, None)
+                let typ =
+                    self.resolve_type_with_kind(alias.type_alias_def.typ, &kind, wildcard_allowed);
+                if let Type::Alias(ref alias_ref, _) = typ {
+                    if alias_ref.borrow().numeric_expr.is_none() {
+                        self.errors.push(CompilationError::ResolverError(
+                            ResolverError::InvalidNumericAliasExpression {
+                                location: alias.type_alias_def.numeric_location,
+                            },
+                        ));
+                        (Type::Error, None)
+                    } else {
+                        (typ, Some(num_expr))
+                    }
                 } else {
-                    (
-                        self.resolve_type_with_kind(
-                            alias.type_alias_def.typ,
-                            &kind,
-                            wildcard_allowed,
-                        ),
-                        Some(num_expr),
-                    )
+                    (typ, Some(num_expr))
                 }
             } else {
                 self.errors.push(CompilationError::ResolverError(
                     ResolverError::ExpectedNumericExpression {
                         typ: alias.type_alias_def.typ.typ.to_string(),
-                        location,
+                        location: alias.type_alias_def.numeric_location,
                     },
                 ));
                 (Type::Error, None)
@@ -746,6 +768,8 @@ impl<'context> Elaborator<'context> {
         }
         self.interner.set_type_alias(alias_id, typ, generics, num_expr);
         self.generics.clear();
+
+        self.in_comptime_context = previous_in_comptime_context;
     }
 
     /// True if we're currently within a constrained function or lambda.
@@ -832,6 +856,16 @@ impl<'context> Elaborator<'context> {
     /// The current interpreter call stack.
     pub(crate) fn interpreter_call_stack(&self) -> &im::Vector<Location> {
         &self.interpreter_call_stack
+    }
+
+    pub(crate) fn reset_lvalue_index_counter(&mut self) {
+        self.lvalue_index_counter = 0;
+    }
+
+    pub(crate) fn next_lvalue_index_counter(&mut self) -> usize {
+        let lvalue_index_counter = self.lvalue_index_counter;
+        self.lvalue_index_counter += 1;
+        lvalue_index_counter
     }
 }
 

@@ -91,8 +91,7 @@ impl PathResolutionItem {
             PathResolutionItem::Module(module) => {
                 let module_data = interner.try_module_attributes(*module);
                 module_data
-                    .map(|data| format!("module `{}`", data.name))
-                    .unwrap_or_else(|| "module".to_string())
+                    .map_or_else(|| "module".to_string(), |data| format!("module `{}`", data.name))
             }
             PathResolutionItem::Type(type_id) => {
                 let datatype = interner.get_type(*type_id);
@@ -783,7 +782,7 @@ impl Elaborator<'_> {
             current_module_id,
             visibility,
         ) {
-            errors.push(PathResolutionError::Private(name.clone()));
+            errors.push(PathResolutionError::Private(name));
         }
 
         item
@@ -815,7 +814,7 @@ impl Elaborator<'_> {
         // Gather a list of items for which their trait is in scope.
         let mut results = Vec::new();
 
-        for (trait_id, item) in values.iter() {
+        for (trait_id, item) in values {
             let trait_id = trait_id.expect("The None option was already considered before");
             if let Some(name) = starting_module.find_trait_in_scope(trait_id) {
                 results.push((trait_id, name, item));
@@ -931,12 +930,6 @@ impl Elaborator<'_> {
         let primitive_type = PrimitiveType::lookup_by_name(object_name)?;
         let typ = primitive_type.to_type();
         let mut errors = Vec::new();
-
-        if primitive_type == PrimitiveType::StructDefinition {
-            errors.push(PathResolutionError::StructDefinitionDeprecated {
-                location: path.segments[0].ident.location(),
-            });
-        }
 
         if path.segments.len() == 1 {
             let item = PathResolutionItem::PrimitiveType(primitive_type);

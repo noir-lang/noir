@@ -66,7 +66,7 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
 
         // Keep track, for each witness, of the gates that use it
         let circuit_io: BTreeSet<Witness> =
-            circuit.circuit_arguments().union(&circuit.public_inputs().0).cloned().collect();
+            circuit.circuit_arguments().union(&circuit.public_inputs().0).copied().collect();
 
         let mut used_witnesses: BTreeMap<Witness, BTreeSet<usize>> = BTreeMap::new();
         for (i, opcode) in circuit.opcodes.iter().enumerate() {
@@ -210,7 +210,7 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
                 .collect(),
 
             Opcode::MemoryInit { block_id: _, init, block_type: _ } => {
-                init.iter().cloned().collect()
+                init.iter().copied().collect()
             }
             Opcode::BrilligCall { inputs, outputs, predicate, .. } => {
                 let mut witnesses = BTreeSet::new();
@@ -324,7 +324,7 @@ mod tests {
         ASSERT w2 = 4*w1 + 4
         ";
         let circuit = Circuit::from_str(src).unwrap();
-        let optimized_circuit = merge_expressions(circuit.clone());
+        let optimized_circuit = merge_expressions(circuit);
         assert_circuit_snapshot!(optimized_circuit, @r"
         private parameters: [w0]
         public parameters: []

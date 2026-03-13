@@ -129,7 +129,7 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
         };
 
         for (idx, opcode) in circuit.opcodes.iter().enumerate() {
-            let Some((witness, num_bits, is_implied)) = (match opcode {
+            match opcode {
                 Opcode::AssertZero(expr) => {
                     // If the opcode is constraining a witness to be equal to a value then it can be considered
                     // as a range opcode for the number of bits required to hold that value.
@@ -142,42 +142,45 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
                         );
                         let witness_value = -constant / k;
 
-                        if witness_value.is_zero() {
-                            Some((witness, 0, true))
-                        } else {
-                            let implied_range_constraint_bits = witness_value.num_bits();
-                            Some((witness, implied_range_constraint_bits, true))
-                        }
-                    } else {
-                        None
+                        let num_bits =
+                            if witness_value.is_zero() { 0 } else { witness_value.num_bits() };
+                        update_witness_entry(&mut infos, witness, num_bits, true, idx);
                     }
                 }
 
-                Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input, num_bits }) => {
-                    if let FunctionInput::Witness(witness) = input {
-                        Some((*witness, *num_bits, false))
-                    } else {
-                        None
-                    }
+                Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
+                    input: FunctionInput::Witness(witness),
+                    num_bits,
+                }) => {
+                    update_witness_entry(&mut infos, *witness, *num_bits, false, idx);
                 }
 
                 Opcode::MemoryInit { block_id, init, .. } => {
                     memory_block_lengths_bit_size
                         .insert(*block_id, memory_block_implied_max_bits(init));
-                    None
                 }
 
                 Opcode::MemoryOp { block_id, op: MemOp { index, .. }, .. } => {
-                    index.to_witness().map(|witness| {
-                        (
-                            witness,
-                            *memory_block_lengths_bit_size
-                                .get(block_id)
-                                .expect("memory must be initialized before any reads/writes"),
-                            true,
-                        )
-                    })
+                    if let Some(witness) = index.to_witness() {
+                        let num_bits = *memory_block_lengths_bit_size
+                            .get(block_id)
+                            .expect("memory must be initialized before any reads/writes");
+                        update_witness_entry(&mut infos, witness, num_bits, true, idx);
+                    }
                 }
+
+                // Barretenberg implementation of the AND and XOR blackbox constrain the inputs and output to be 'num_bit' bits
+                Opcode::BlackBoxFuncCall(BlackBoxFuncCall::AND { lhs, rhs, num_bits, output })
+                | Opcode::BlackBoxFuncCall(BlackBoxFuncCall::XOR { lhs, rhs, num_bits, output }) => {
+                    if let FunctionInput::Witness(witness) = lhs {
+                        update_witness_entry(&mut infos, *witness, *num_bits, true, idx);
+                    }
+                    if let FunctionInput::Witness(witness) = rhs {
+                        update_witness_entry(&mut infos, *witness, *num_bits, true, idx);
+                    }
+                    update_witness_entry(&mut infos, *output, *num_bits, true, idx);
+                }
+
                 Opcode::BlackBoxFuncCall(BlackBoxFuncCall::MultiScalarMul {
                     scalars,
                     predicate,
@@ -203,16 +206,10 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
                             lo = scalar_iters.next();
                         }
                     }
-                    None
                 }
-                _ => None,
-            }) else {
-                continue;
-            };
 
-            // Check if the witness has already been recorded and if the witness'
-            // recorded size is more than the current one, we replace it
-            update_witness_entry(&mut infos, witness, num_bits, is_implied, idx);
+                _ => {}
+            }
         }
         infos
     }
@@ -480,6 +477,33 @@ mod tests {
         return values: []
         BLACKBOX::RANGE input: w1, bits: 8
         ASSERT w1 = 256
+        ");
+    }
+
+    #[test]
+    fn logic_opcode() {
+        // Logic operations implicitly constrain their inputs and outputs to fit within their bit size.
+        let src = "
+        private parameters: [w0, w1]
+        public parameters: []
+        return values: [w2]
+        BLACKBOX::RANGE input: w0, bits: 8
+        BLACKBOX::RANGE input: w1, bits: 8
+        BLACKBOX::XOR lhs: w0, rhs: w1, output: w2, bits: 8
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        assert!(CircuitSimulator::check_circuit(&circuit).is_none());
+
+        let acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
+        let brillig_side_effects = BTreeMap::new();
+        let optimizer = RangeOptimizer::new(circuit, &brillig_side_effects);
+        let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
+        assert!(CircuitSimulator::check_circuit(&optimized_circuit).is_none());
+        assert_circuit_snapshot!(optimized_circuit, @r"
+        private parameters: [w0, w1]
+        public parameters: []
+        return values: [w2]
+        BLACKBOX::XOR lhs: w0, rhs: w1, output: w2, bits: 8
         ");
     }
 

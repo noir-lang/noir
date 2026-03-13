@@ -53,64 +53,60 @@ fn multiple_brillig_calls_one_bytecode() {
 
     unconstrained func 0: foo
      0: @2 = const u32 1
-     1: @1 = const u32 32839
-     2: @0 = const u32 71
-     3: call 14
-     4: sp[3] = const u32 2
-     5: sp[4] = const u32 0
-     6: @68 = calldata copy [sp[4]; sp[3]]
-     7: sp[1] = @68
-     8: sp[2] = @69
-     9: call 15
-    10: @70 = sp[1]
-    11: sp[2] = const u32 70
-    12: sp[3] = const u32 1
-    13: stop @[sp[2]; sp[3]]
-    14: return
-    15: call 23
-    16: sp[3] = field eq sp[1], sp[2]
-    17: sp[2] = const bool 0
-    18: sp[4] = bool eq sp[3], sp[2]
-    19: jump if sp[4] to 22
-    20: sp[5] = const u32 0
-    21: trap @[@1; sp[5]]
-    22: return
-    23: @4 = const u32 30791
-    24: @3 = u32 lt @0, @4
-    25: jump if @3 to 28
-    26: @1 = indirect const u64 15764276373176857197
-    27: trap @[@1; @2]
-    28: return
+     1: @1 = const u32 32838
+     2: @0 = const u32 70
+     3: sp[4] = const u32 2
+     4: sp[5] = const u32 0
+     5: @67 = calldata copy [sp[5]; sp[4]]
+     6: sp[2] = @67
+     7: sp[3] = @68
+     8: call 13
+     9: @69 = sp[2]
+    10: sp[3] = const u32 69
+    11: sp[4] = const u32 1
+    12: stop @[sp[3]; sp[4]]
+    13: call 21
+    14: sp[4] = field eq sp[2], sp[3]
+    15: sp[3] = const bool 0
+    16: sp[5] = bool eq sp[4], sp[3]
+    17: jump if sp[5] to 20
+    18: sp[6] = const u32 0
+    19: trap @[@1; sp[6]]
+    20: return
+    21: @4 = const u32 30790
+    22: @3 = u32 lt @0, @4
+    23: jump if @3 to 26
+    24: @1 = indirect const u64 15764276373176857197
+    25: trap @[@1; @2]
+    26: return
     unconstrained func 1: foo
      0: @2 = const u32 1
-     1: @1 = const u32 32839
-     2: @0 = const u32 71
-     3: call 14
-     4: sp[3] = const u32 2
-     5: sp[4] = const u32 0
-     6: @68 = calldata copy [sp[4]; sp[3]]
-     7: sp[1] = @68
-     8: sp[2] = @69
-     9: call 15
-    10: @70 = sp[1]
-    11: sp[2] = const u32 70
-    12: sp[3] = const u32 1
-    13: stop @[sp[2]; sp[3]]
-    14: return
-    15: call 23
-    16: sp[3] = field eq sp[1], sp[2]
-    17: sp[2] = const bool 0
-    18: sp[4] = bool eq sp[3], sp[2]
-    19: jump if sp[4] to 22
-    20: sp[5] = const u32 0
-    21: trap @[@1; sp[5]]
-    22: return
-    23: @4 = const u32 30791
-    24: @3 = u32 lt @0, @4
-    25: jump if @3 to 28
-    26: @1 = indirect const u64 15764276373176857197
-    27: trap @[@1; @2]
-    28: return
+     1: @1 = const u32 32838
+     2: @0 = const u32 70
+     3: sp[4] = const u32 2
+     4: sp[5] = const u32 0
+     5: @67 = calldata copy [sp[5]; sp[4]]
+     6: sp[2] = @67
+     7: sp[3] = @68
+     8: call 13
+     9: @69 = sp[2]
+    10: sp[3] = const u32 69
+    11: sp[4] = const u32 1
+    12: stop @[sp[3]; sp[4]]
+    13: call 21
+    14: sp[4] = field eq sp[2], sp[3]
+    15: sp[3] = const bool 0
+    16: sp[5] = bool eq sp[4], sp[3]
+    17: jump if sp[5] to 20
+    18: sp[6] = const u32 0
+    19: trap @[@1; sp[6]]
+    20: return
+    21: @4 = const u32 30790
+    22: @3 = u32 lt @0, @4
+    23: jump if @3 to 26
+    24: @1 = indirect const u64 15764276373176857197
+    25: trap @[@1; @2]
+    26: return
     ");
 }
 
@@ -262,36 +258,34 @@ fn brillig_stdlib_calls_with_regular_brillig_call() {
 
     unconstrained func 0: foo
      0: @2 = const u32 1
-     1: @1 = const u32 32839
-     2: @0 = const u32 71
-     3: call 16
-     4: sp[3] = const u32 2
-     5: sp[4] = const u32 0
-     6: @68 = calldata copy [sp[4]; sp[3]]
+     1: @1 = const u32 32838
+     2: @0 = const u32 70
+     3: sp[4] = const u32 2
+     4: sp[5] = const u32 0
+     5: @67 = calldata copy [sp[5]; sp[4]]
+     6: @67 = cast @67 to u32
      7: @68 = cast @68 to u32
-     8: @69 = cast @69 to u32
-     9: sp[1] = @68
-    10: sp[2] = @69
-    11: call 17
-    12: @70 = sp[1]
-    13: sp[2] = const u32 70
-    14: sp[3] = const u32 1
-    15: stop @[sp[2]; sp[3]]
-    16: return
-    17: call 25
-    18: sp[3] = u32 eq sp[1], sp[2]
-    19: sp[2] = const bool 0
-    20: sp[4] = bool eq sp[3], sp[2]
-    21: jump if sp[4] to 24
-    22: sp[5] = const u32 0
-    23: trap @[@1; sp[5]]
-    24: return
-    25: @4 = const u32 30791
-    26: @3 = u32 lt @0, @4
-    27: jump if @3 to 30
-    28: @1 = indirect const u64 15764276373176857197
-    29: trap @[@1; @2]
-    30: return
+     8: sp[2] = @67
+     9: sp[3] = @68
+    10: call 15
+    11: @69 = sp[2]
+    12: sp[3] = const u32 69
+    13: sp[4] = const u32 1
+    14: stop @[sp[3]; sp[4]]
+    15: call 23
+    16: sp[4] = u32 eq sp[2], sp[3]
+    17: sp[3] = const bool 0
+    18: sp[5] = bool eq sp[4], sp[3]
+    19: jump if sp[5] to 22
+    20: sp[6] = const u32 0
+    21: trap @[@1; sp[6]]
+    22: return
+    23: @4 = const u32 30790
+    24: @3 = u32 lt @0, @4
+    25: jump if @3 to 28
+    26: @1 = indirect const u64 15764276373176857197
+    27: trap @[@1; @2]
+    28: return
     unconstrained func 1: directive_invert
     0: @21 = const u32 1
     1: @20 = const u32 0
@@ -409,36 +403,34 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
 
     unconstrained func 0: foo
      0: @2 = const u32 1
-     1: @1 = const u32 32839
-     2: @0 = const u32 71
-     3: call 16
-     4: sp[3] = const u32 2
-     5: sp[4] = const u32 0
-     6: @68 = calldata copy [sp[4]; sp[3]]
+     1: @1 = const u32 32838
+     2: @0 = const u32 70
+     3: sp[4] = const u32 2
+     4: sp[5] = const u32 0
+     5: @67 = calldata copy [sp[5]; sp[4]]
+     6: @67 = cast @67 to u32
      7: @68 = cast @68 to u32
-     8: @69 = cast @69 to u32
-     9: sp[1] = @68
-    10: sp[2] = @69
-    11: call 17
-    12: @70 = sp[1]
-    13: sp[2] = const u32 70
-    14: sp[3] = const u32 1
-    15: stop @[sp[2]; sp[3]]
-    16: return
-    17: call 25
-    18: sp[3] = u32 eq sp[1], sp[2]
-    19: sp[2] = const bool 0
-    20: sp[4] = bool eq sp[3], sp[2]
-    21: jump if sp[4] to 24
-    22: sp[5] = const u32 0
-    23: trap @[@1; sp[5]]
-    24: return
-    25: @4 = const u32 30791
-    26: @3 = u32 lt @0, @4
-    27: jump if @3 to 30
-    28: @1 = indirect const u64 15764276373176857197
-    29: trap @[@1; @2]
-    30: return
+     8: sp[2] = @67
+     9: sp[3] = @68
+    10: call 15
+    11: @69 = sp[2]
+    12: sp[3] = const u32 69
+    13: sp[4] = const u32 1
+    14: stop @[sp[3]; sp[4]]
+    15: call 23
+    16: sp[4] = u32 eq sp[2], sp[3]
+    17: sp[3] = const bool 0
+    18: sp[5] = bool eq sp[4], sp[3]
+    19: jump if sp[5] to 22
+    20: sp[6] = const u32 0
+    21: trap @[@1; sp[6]]
+    22: return
+    23: @4 = const u32 30790
+    24: @3 = u32 lt @0, @4
+    25: jump if @3 to 28
+    26: @1 = indirect const u64 15764276373176857197
+    27: trap @[@1; @2]
+    28: return
     unconstrained func 1: directive_invert
     0: @21 = const u32 1
     1: @20 = const u32 0

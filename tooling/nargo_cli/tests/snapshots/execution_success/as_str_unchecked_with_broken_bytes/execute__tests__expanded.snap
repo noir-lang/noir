@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    let bytes: [u8; 3] = [65_u8, 255_u8, 66_u8];
+    let s: str<3> = bytes.as_str_unchecked();
+    let roundtrip: [u8; 3] = s.as_bytes();
+    assert(roundtrip[0_u32] == 65_u8);
+    assert(roundtrip[1_u32] == 255_u8);
+    assert(roundtrip[2_u32] == 66_u8);
+}

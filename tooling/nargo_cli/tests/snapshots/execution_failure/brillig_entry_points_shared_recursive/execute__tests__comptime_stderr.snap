@@ -1,0 +1,28 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+warning: function `baz` cannot return without recursing
+   ┌─ src/main.nr:15:4
+   │
+15 │ fn baz() {
+   │    --- function cannot return without recursing
+   │
+
+error: Comptime Stack Overflow
+   ┌─ std/lib.nr:40:9
+   │
+40 │         print_unconstrained(true, input);
+   │         -------------------------------- Exceeded the recursion limit
+   │
+   = Call stack:
+     1. src/main.nr:1:4
+     2. src/main.nr:2:5
+     ┌─ 3. src/main.nr:18:9
+     │  4. src/main.nr:7:5
+     │  5. src/main.nr:12:5
+     └─ (repeated 32 times)
+     99. src/main.nr:18:9
+     100. src/main.nr:6:5
+
+Error interpreting main function

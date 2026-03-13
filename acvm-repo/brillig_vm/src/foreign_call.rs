@@ -92,13 +92,18 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                             vector_length = Some(length.to_u128() as u32);
                         }
                         HeapValueType::Vector { value_types } => {
-                            if let Some(length) = vector_length {
-                                let flattened_length =
-                                    vector_flattened_length(value_types, SemanticLength(length));
-                                let mut fields = input.fields();
-                                fields.truncate(assert_usize(flattened_length.0));
-                                input = ForeignCallParam::Array(fields);
-                            }
+                            let Some(length) = vector_length else {
+                                unreachable!(
+                                    "ICE: expected the semantic vector length to precede a vector input"
+                                );
+                            };
+                            // Get rid of any items beyond the flattened length.
+                            let flattened_length =
+                                vector_flattened_length(value_types, SemanticLength(length));
+                            let ForeignCallParam::Array(fields) = &mut input else {
+                                unreachable!("ICE: expected Array parameter for vector content");
+                            };
+                            fields.truncate(assert_usize(flattened_length.0));
                             vector_length = None;
                         }
                         _ => {
@@ -287,7 +292,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                         ForeignCallParam::Single(value) => {
                             self.write_value_to_memory(*value_addr, value, *bit_size)?;
                         }
-                        _ => {
+                        ForeignCallParam::Array(_) => {
                             return Err(format!(
                                 "Function result size does not match brillig bytecode. Expected 1 result but got {output:?}"
                             ));

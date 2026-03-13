@@ -109,6 +109,10 @@ pub enum TypeCheckError {
     TupleIndexOutOfBounds { index: usize, lhs_type: Type, length: usize, location: Location },
     #[error("Variable `{name}` must be mutable to be assigned to")]
     VariableMustBeMutable { name: String, location: Location },
+    #[error("`{name}` is a `&` reference, so it cannot be written to")]
+    CannotAssignToReference { name: String, location: Location },
+    #[error("Cannot assign to `{lvalue}`, which is behind a `&` reference")]
+    CannotAssignToLValueBehindReference { lvalue: String, location: Location },
     #[error("Cannot mutate immutable variable `{name}`")]
     CannotMutateImmutableVariable { name: String, location: Location },
     #[error("Variable {name} captured in lambda must be a mutable reference")]
@@ -277,7 +281,7 @@ pub struct ExpectingOtherError {
 impl<'a> From<&'a ExpectingOtherError> for Diagnostic {
     fn from(error: &'a ExpectingOtherError) -> Self {
         let secondary = "".to_string();
-        Diagnostic::simple_error(error.message.to_string(), secondary, error.location)
+        Diagnostic::simple_error(error.message.clone(), secondary, error.location)
     }
 }
 
@@ -323,6 +327,8 @@ impl TypeCheckError {
             | TypeCheckError::UnsupportedFieldCast { location }
             | TypeCheckError::TupleIndexOutOfBounds { location, .. }
             | TypeCheckError::VariableMustBeMutable { location, .. }
+            | TypeCheckError::CannotAssignToReference { location, .. }
+            | TypeCheckError::CannotAssignToLValueBehindReference { location, .. }
             | TypeCheckError::CannotMutateImmutableVariable { location, .. }
             | TypeCheckError::MutableCaptureWithoutRef { location, .. }
             | TypeCheckError::MutableReferenceToArrayElement { location }
@@ -542,6 +548,8 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::UnsupportedFieldCast { location }
             | TypeCheckError::TupleIndexOutOfBounds { location, .. }
             | TypeCheckError::VariableMustBeMutable { location, .. }
+            | TypeCheckError::CannotAssignToReference { location, .. }
+            | TypeCheckError::CannotAssignToLValueBehindReference { location, .. }
             | TypeCheckError::CannotMutateImmutableVariable { location, .. }
             | TypeCheckError::UnresolvedMethodCall { location, .. }
             | TypeCheckError::IntegerSignedness { location, .. }
@@ -716,17 +724,17 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             },
             TypeCheckError::DuplicateNamedTypeArg { name, prev_location } => {
                 let msg = format!("`{name}` has already been specified");
-                let mut error = Diagnostic::simple_error(msg.to_string(), "".to_string(), name.location());
+                let mut error = Diagnostic::simple_error(msg, "".to_string(), name.location());
                 error.add_secondary(format!("`{name}` previously specified here"), *prev_location);
                 error
             },
             TypeCheckError::NoSuchNamedTypeArg { name, item } => {
                 let msg = format!("`{item}` has no associated type named `{name}`");
-                Diagnostic::simple_error(msg.to_string(), "".to_string(), name.location())
+                Diagnostic::simple_error(msg, "".to_string(), name.location())
             },
             TypeCheckError::MissingNamedTypeArg { name, item, location } => {
                 let msg = format!("`{item}` is missing the associated type `{name}`");
-                Diagnostic::simple_error(msg.to_string(), "".to_string(), *location)
+                Diagnostic::simple_error(msg, "".to_string(), *location)
             },
             TypeCheckError::Unsafe { location } => {
                 Diagnostic::simple_error(error.to_string(), String::new(), *location)

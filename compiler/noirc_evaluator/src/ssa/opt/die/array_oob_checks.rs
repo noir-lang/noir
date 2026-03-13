@@ -70,10 +70,10 @@ impl Context {
             }
 
             // This is an instruction that might be out of bounds: let's add a constrain.
-            let (array, index) = match instruction {
-                Instruction::ArrayGet { array, index, .. }
-                | Instruction::ArraySet { array, index, .. } => (array, index),
-                _ => panic!("Expected an ArrayGet or ArraySet instruction here"),
+            let (Instruction::ArrayGet { array, index, .. }
+            | Instruction::ArraySet { array, index, .. }) = instruction
+            else {
+                panic!("Expected an ArrayGet or ArraySet instruction here");
             };
 
             let call_stack = function.dfg.get_instruction_call_stack_id(instruction_id);
@@ -86,9 +86,8 @@ impl Context {
             } else {
                 let array_typ = function.dfg.type_of_value(*array);
                 let element_size = array_typ.element_size();
-                let len = match array_typ {
-                    Type::Array(_, len) => len,
-                    _ => panic!("Expected an array"),
+                let Type::Array(_, len) = array_typ else {
+                    panic!("Expected an array");
                 };
                 // `index` will be relative to the flattened array length, so we need to take that into account
                 let array_length = element_size * len;

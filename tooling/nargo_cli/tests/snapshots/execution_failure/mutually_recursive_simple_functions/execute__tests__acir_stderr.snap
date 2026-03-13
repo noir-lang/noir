@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Assertion failed: Stack too deep
+   ┌─ src/main.nr:13:5
+   │
+13 │     pong()
+   │     ------
+   │
+   = Call stack:
+     1. src/main.nr:4:9
+     2. src/main.nr:9:5
+     ┌─ 3. src/main.nr:13:5
+     │  4. src/main.nr:17:5
+     └─ (repeated 5119 times)
+     10241. src/main.nr:13:5
+
+Failed assertion
