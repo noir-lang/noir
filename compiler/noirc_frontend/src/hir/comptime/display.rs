@@ -461,7 +461,8 @@ impl Display for ValuePrinter<'_, '_> {
             }
             Value::Quoted(tokens) => display_quoted(tokens, 0, self.interner, f),
             Value::TypeDefinition(id) => {
-                let def = self.interner.get_type(*id);
+                let id = id.read_access();
+                let def = self.interner.get_type(id);
                 let def = def.borrow();
                 write!(f, "{}", def.name)
             }
@@ -502,10 +503,12 @@ impl Display for ValuePrinter<'_, '_> {
                 )
             }
             Value::FunctionDefinition(function_id) => {
-                write!(f, "{}", self.interner.function_name(function_id))
+                let function_id = function_id.read_access();
+                write!(f, "{}", self.interner.function_name(&function_id))
             }
             Value::ModuleDefinition(module_id) => {
-                if let Some(attributes) = self.interner.try_module_attributes(*module_id) {
+                let module_id = module_id.read_access();
+                if let Some(attributes) = self.interner.try_module_attributes(module_id) {
                     write!(f, "{}", &attributes.name)
                 } else {
                     write!(f, "(crate root)")

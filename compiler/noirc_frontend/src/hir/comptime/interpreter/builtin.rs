@@ -10,12 +10,11 @@ use acvm::{AcirField, FieldElement};
 use builtin_helpers::{
     block_expression_to_value, byte_array_type, check_argument_count,
     check_function_not_yet_resolved, check_one_argument, check_three_arguments,
-    check_two_arguments, get_bool, get_expr, get_field, get_format_string, get_function_def,
-    get_module, get_quoted, get_trait_constraint, get_trait_def, get_trait_impl, get_tuple,
-    get_type, get_type_id, get_typed_expr, get_u32, get_unresolved_type, get_vector,
-    has_named_attribute, hir_pattern_to_tokens, mutate_func_meta_type, new_binary_op, new_unary_op,
-    parse, quote_ident, replace_func_meta_parameters, replace_func_meta_return_type,
-    visibility_to_quoted,
+    check_two_arguments, get_bool, get_expr, get_field, get_format_string, get_quoted,
+    get_trait_constraint, get_trait_def, get_trait_impl, get_tuple, get_type, get_typed_expr,
+    get_u32, get_unresolved_type, get_vector, has_named_attribute, hir_pattern_to_tokens,
+    mutate_func_meta_type, new_binary_op, new_unary_op, parse, quote_ident,
+    replace_func_meta_parameters, replace_func_meta_return_type, visibility_to_quoted,
 };
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
@@ -36,12 +35,17 @@ use crate::{
     },
     hir::{
         comptime::{
-            InterpreterError, Value,
+            InterpreterError, Protected, Value,
             display::tokens_to_string,
             errors::IResult,
             interpreter::{
                 builtin::builtin_helpers::fragments_to_string,
-                builtin_helpers::check_item_crate_matches_current_crate,
+                builtin_helpers::{
+                    check_item_crate_matches_current_crate, get_function_def_for_read_access,
+                    get_function_def_for_write_access, get_module_for_read_access,
+                    get_module_for_write_access, get_type_id_for_read_access,
+                    get_type_id_for_write_access,
+                },
             },
             value::{ExprValue, FormatStringFragment, TypedExpr},
         },
@@ -435,7 +439,8 @@ fn type_def_add_attribute(
     };
 
     let self_arg = self_argument.0.clone();
-    let type_id = get_type_id(self_argument)?;
+    let type_id = get_type_id_for_write_access(self_argument)?;
+
     check_item_crate_matches_current_crate(interpreter, &self_arg, type_id.module_id(), location)?;
 
     interpreter.elaborator.interner.update_type_attributes(type_id, |attributes| {
@@ -472,7 +477,7 @@ fn type_def_add_generic(
     };
 
     let self_arg = self_argument.0.clone();
-    let struct_id = get_type_id(self_argument)?;
+    let struct_id = get_type_id_for_write_access(self_argument)?;
     let struct_module = struct_id.module_id();
 
     check_item_crate_matches_current_crate(interpreter, &self_arg, struct_module, location)?;
@@ -508,7 +513,7 @@ fn type_def_as_type(
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
-    let struct_id = get_type_id(argument)?;
+    let struct_id = get_type_id_for_read_access(argument)?;
     let type_def_rc = interner.get_type(struct_id);
     let type_def = type_def_rc.borrow();
 
@@ -526,7 +531,7 @@ fn type_def_as_type_with_generics(
     location: Location,
 ) -> IResult<Value> {
     let (type_def, generics) = check_two_arguments(arguments, location)?;
-    let type_id = get_type_id(type_def)?;
+    let type_id = get_type_id_for_read_access(type_def)?;
     let type_def_rc = interner.get_type(type_id);
     let type_def = type_def_rc.borrow();
 
@@ -551,7 +556,7 @@ fn type_def_generics(
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
-    let type_id = get_type_id(argument)?;
+    let type_id = get_type_id_for_read_access(argument)?;
     let type_def = interner.get_type(type_id);
     let type_def = type_def.borrow();
 
@@ -593,11 +598,11 @@ fn type_def_generics(
 }
 
 fn type_def_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    hash_item(arguments, location, get_type_id)
+    hash_item(arguments, location, get_type_id_for_read_access)
 }
 
 fn type_def_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    eq_item(arguments, location, get_type_id)
+    eq_item(arguments, location, get_type_id_for_read_access)
 }
 
 // fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
@@ -607,7 +612,7 @@ fn type_def_has_named_attribute(
     location: Location,
 ) -> IResult<Value> {
     let (self_argument, name) = check_two_arguments(arguments, location)?;
-    let type_id = get_type_id(self_argument)?;
+    let type_id = get_type_id_for_read_access(self_argument)?;
 
     let name = get_str(name)?;
     let name = String::from_utf8_lossy(&name);
@@ -625,7 +630,7 @@ fn type_def_fields(
     call_stack: &Vector<Location>,
 ) -> IResult<Value> {
     let (typ, generic_args) = check_two_arguments(arguments, location)?;
-    let struct_id = get_type_id(typ)?;
+    let struct_id = get_type_id_for_read_access(typ)?;
     let struct_def = interner.get_type(struct_id);
     let struct_def = struct_def.borrow();
 
@@ -677,7 +682,7 @@ fn type_def_fields_as_written(
     location: Location,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
-    let struct_id = get_type_id(argument)?;
+    let struct_id = get_type_id_for_read_access(argument)?;
     let struct_def = interner.get_type(struct_id);
     let struct_def = struct_def.borrow();
 
@@ -709,9 +714,12 @@ fn type_def_module(
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
-    let struct_id = get_type_id(self_argument)?;
+    let struct_id = get_type_id_for_read_access(self_argument)?;
     let parent = struct_id.parent_module_id(interpreter.elaborator.def_maps);
-    Ok(Value::ModuleDefinition(parent))
+    Ok(Value::ModuleDefinition(Protected::Readonly {
+        value: parent,
+        method: "TypeDefinition::module",
+    }))
 }
 
 // fn name(self) -> Quoted
@@ -721,7 +729,7 @@ fn type_def_name(
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
-    let struct_id = get_type_id(self_argument)?;
+    let struct_id = get_type_id_for_read_access(self_argument)?;
     let the_struct = interner.get_type(struct_id);
 
     let name = Token::Ident(the_struct.borrow().name.to_string());
@@ -738,7 +746,7 @@ fn type_def_set_fields(
 ) -> IResult<Value> {
     let (the_struct, fields) = check_two_arguments(arguments, location)?;
     let self_arg = the_struct.0.clone();
-    let struct_id = get_type_id(the_struct)?;
+    let struct_id = get_type_id_for_write_access(the_struct)?;
     let struct_module = struct_id.module_id();
 
     check_item_crate_matches_current_crate(interpreter, &self_arg, struct_module, location)?;
@@ -949,7 +957,12 @@ fn quoted_as_module(
             interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {
                 elaborator.resolve_module_by_path(path)
             });
-        module.map(Value::ModuleDefinition)
+        module.map(|module_id| {
+            Value::ModuleDefinition(Protected::Readonly {
+                value: module_id,
+                method: "Quoted::as_module",
+            })
+        })
     });
 
     Ok(option(return_type, option_value, location))
@@ -1213,7 +1226,10 @@ fn type_as_data_type(
     type_as(arguments, return_type, location, |typ| {
         if let Type::DataType(struct_type, generics) = typ {
             Some(Value::Tuple(vec![
-                Shared::new(Value::TypeDefinition(struct_type.borrow().id)),
+                Shared::new(Value::TypeDefinition(Protected::Readonly {
+                    value: struct_type.borrow().id,
+                    method: "TypeDefinition::as_data_type",
+                })),
                 Shared::new(Value::Vector(
                     generics.into_iter().map(Value::Type).collect(),
                     Type::Vector(Box::new(Type::Quoted(QuotedType::Type))),
@@ -1390,8 +1406,16 @@ fn trait_impl_methods(
     let trait_impl_id = get_trait_impl(argument)?;
     let trait_impl = interner.get_trait_implementation(trait_impl_id);
     let trait_impl = trait_impl.borrow();
-    let methods =
-        trait_impl.methods.iter().map(|func_id| Value::FunctionDefinition(*func_id)).collect();
+    let methods = trait_impl
+        .methods
+        .iter()
+        .map(|func_id| {
+            Value::FunctionDefinition(Protected::Readonly {
+                value: *func_id,
+                method: "TraitImpl::methods",
+            })
+        })
+        .collect();
     let vector_type = Type::Vector(Box::new(Type::Quoted(QuotedType::FunctionDefinition)));
 
     Ok(Value::Vector(methods, vector_type))
@@ -1424,7 +1448,12 @@ fn typed_expr_as_function_definition(
     let typed_expr = get_typed_expr(self_argument)?;
     let option_value = if let TypedExpr::ExprId(expr_id) = typed_expr {
         let func_id = interner.lookup_function_from_expr(&expr_id, location)?;
-        func_id.map(Value::FunctionDefinition)
+        func_id.map(|func_id| {
+            Value::FunctionDefinition(Protected::Readonly {
+                value: func_id,
+                method: "TypedExpr::as_function_definition",
+            })
+        })
     } else {
         None
     };
@@ -2443,7 +2472,7 @@ fn expr_resolve(
         let Value::FunctionDefinition(func_id) = value.borrow().clone() else {
             panic!("Expected option value to be a FunctionDefinition");
         };
-        Some(func_id)
+        Some(func_id.read_access())
     } else {
         interpreter.current_function
     };
@@ -2578,7 +2607,7 @@ fn function_def_add_attribute(
         });
     };
 
-    let func_id = get_function_def(self_argument)?;
+    let func_id = get_function_def_for_write_access(self_argument)?;
     check_function_not_yet_resolved(interpreter, func_id, location)?;
 
     let function_modifiers = interpreter.elaborator.interner.function_modifiers_mut(&func_id);
@@ -2602,7 +2631,7 @@ fn function_def_as_typed_expr(
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
-    let func_id = get_function_def(self_argument)?;
+    let func_id = get_function_def_for_read_access(self_argument)?;
     let trait_impl_id = interpreter.elaborator.interner.function_meta(&func_id).trait_impl;
     let definition_id = interpreter.elaborator.interner.function_definition_id(func_id);
     let hir_ident = if let Some(trait_impl_id) = trait_impl_id {
@@ -2649,7 +2678,7 @@ fn function_def_body(
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
-    let func_id = get_function_def(self_argument)?;
+    let func_id = get_function_def_for_read_access(self_argument)?;
     let func_meta = interner.function_meta(&func_id);
     if let FunctionBody::Unresolved(_, block_expr, _) = &func_meta.function_body {
         Ok(Value::expression(ExpressionKind::Block(block_expr.clone())))
@@ -2665,7 +2694,7 @@ fn function_def_has_named_attribute(
     location: Location,
 ) -> IResult<Value> {
     let (self_argument, name) = check_two_arguments(arguments, location)?;
-    let func_id = get_function_def(self_argument)?;
+    let func_id = get_function_def_for_read_access(self_argument)?;
 
     let name = &*get_str(name)?;
     let name = String::from_utf8_lossy(name);
@@ -2681,11 +2710,11 @@ fn function_def_has_named_attribute(
 }
 
 fn function_def_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    hash_item(arguments, location, get_function_def)
+    hash_item(arguments, location, get_function_def_for_read_access)
 }
 
 fn function_def_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    eq_item(arguments, location, get_function_def)
+    eq_item(arguments, location, get_function_def_for_read_access)
 }
 
 // fn is_unconstrained(self) -> bool
@@ -2695,7 +2724,7 @@ fn function_def_is_unconstrained(
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
-    let func_id = get_function_def(self_argument)?;
+    let func_id = get_function_def_for_read_access(self_argument)?;
     let is_unconstrained = interner.function_meta(&func_id).is_unconstrained();
     Ok(Value::Bool(is_unconstrained))
 }
@@ -2707,9 +2736,12 @@ fn function_def_module(
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
-    let func_id = get_function_def(self_argument)?;
+    let func_id = get_function_def_for_read_access(self_argument)?;
     let module = interner.function_module(func_id);
-    Ok(Value::ModuleDefinition(module))
+    Ok(Value::ModuleDefinition(Protected::Readonly {
+        value: module,
+        method: "FunctionDefinition::module",
+    }))
 }
 
 // fn name(self) -> Quoted
@@ -2719,7 +2751,7 @@ fn function_def_name(
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
-    let func_id = get_function_def(self_argument)?;
+    let func_id = get_function_def_for_read_access(self_argument)?;
     let name = interner.function_name(&func_id).to_string();
     let token = Token::Ident(name);
     let token = LocatedToken::new(token, location);
@@ -2734,7 +2766,7 @@ fn function_def_parameters(
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
-    let func_id = get_function_def(self_argument)?;
+    let func_id = get_function_def_for_read_access(self_argument)?;
     let func_meta = interner.function_meta(&func_id);
 
     let parameters = func_meta
@@ -2764,7 +2796,7 @@ fn function_def_return_type(
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
-    let func_id = get_function_def(self_argument)?;
+    let func_id = get_function_def_for_read_access(self_argument)?;
     let func_meta = interner.function_meta(&func_id);
 
     Ok(Value::Type(func_meta.return_type().follow_bindings()))
@@ -2779,7 +2811,7 @@ fn function_def_set_body(
     let (self_argument, body_argument) = check_two_arguments(arguments, location)?;
     let body_location = body_argument.1;
 
-    let func_id = get_function_def(self_argument)?;
+    let func_id = get_function_def_for_write_access(self_argument)?;
     check_function_not_yet_resolved(interpreter, func_id, location)?;
 
     let body_argument = get_expr(interpreter.elaborator.interner, body_argument)?;
@@ -2820,7 +2852,7 @@ fn function_def_set_parameters(
     let (self_argument, parameters_argument) = check_two_arguments(arguments, location)?;
     let parameters_argument_location = parameters_argument.1;
 
-    let func_id = get_function_def(self_argument)?;
+    let func_id = get_function_def_for_write_access(self_argument)?;
     check_function_not_yet_resolved(interpreter, func_id, location)?;
 
     let (input_parameters, _type) = get_vector(parameters_argument)?;
@@ -2879,7 +2911,7 @@ fn function_def_set_return_type(
     let (self_argument, return_type_argument) = check_two_arguments(arguments, location)?;
     let return_type = get_type(return_type_argument)?;
 
-    let func_id = get_function_def(self_argument)?;
+    let func_id = get_function_def_for_write_access(self_argument)?;
     check_function_not_yet_resolved(interpreter, func_id, location)?;
 
     let quoted_type_id = interpreter.elaborator.interner.push_quoted_type(return_type.clone());
@@ -2903,7 +2935,7 @@ fn function_def_set_return_public(
 ) -> IResult<Value> {
     let (self_argument, public) = check_two_arguments(arguments, location)?;
 
-    let func_id = get_function_def(self_argument)?;
+    let func_id = get_function_def_for_write_access(self_argument)?;
     check_function_not_yet_resolved(interpreter, func_id, location)?;
 
     let public = get_bool(public)?;
@@ -2923,7 +2955,7 @@ fn function_def_set_return_data(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
 
-    let func_id = get_function_def(self_argument)?;
+    let func_id = get_function_def_for_write_access(self_argument)?;
     check_function_not_yet_resolved(interpreter, func_id, location)?;
 
     let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
@@ -2941,7 +2973,7 @@ fn function_def_set_unconstrained(
 ) -> IResult<Value> {
     let (self_argument, unconstrained) = check_two_arguments(arguments, location)?;
 
-    let func_id = get_function_def(self_argument)?;
+    let func_id = get_function_def_for_write_access(self_argument)?;
     check_function_not_yet_resolved(interpreter, func_id, location)?;
 
     let unconstrained = get_bool(unconstrained)?;
@@ -2960,7 +2992,7 @@ fn function_def_visibility(
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
-    let func_id = get_function_def(self_argument)?;
+    let func_id = get_function_def_for_read_access(self_argument)?;
     let visibility = interner.function_visibility(func_id);
     Ok(visibility_to_quoted(visibility, location))
 }
@@ -2973,7 +3005,7 @@ fn module_add_item(
 ) -> IResult<Value> {
     let (self_argument, item) = check_two_arguments(arguments, location)?;
     let module_value = self_argument.0.clone();
-    let module_id = get_module(self_argument)?;
+    let module_id = get_module_for_write_access(self_argument)?;
 
     check_item_crate_matches_current_crate(interpreter, &module_value, module_id, location)?;
 
@@ -3001,14 +3033,20 @@ fn module_child_modules(
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
-    let module_id = get_module(self_argument)?;
+    let module_id = get_module_for_read_access(self_argument)?;
     let module_data = interpreter.elaborator.get_module(module_id);
 
     let children = module_data
         .child_declaration_order
         .iter()
         .copied()
-        .map(|local_id| Value::ModuleDefinition(ModuleId { local_id, krate: module_id.krate }))
+        .map(|local_id| {
+            let krate = module_id.krate;
+            Value::ModuleDefinition(Protected::Readonly {
+                value: ModuleId { local_id, krate },
+                method: "Module::child_modules",
+            })
+        })
         .collect();
 
     let vector_type = Type::Vector(Box::new(Type::Quoted(QuotedType::Module)));
@@ -3016,11 +3054,11 @@ fn module_child_modules(
 }
 
 fn module_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    hash_item(arguments, location, get_module)
+    hash_item(arguments, location, get_module_for_read_access)
 }
 
 fn module_eq(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    eq_item(arguments, location, get_module)
+    eq_item(arguments, location, get_module_for_read_access)
 }
 
 // fn functions(self) -> [FunctionDefinition]
@@ -3030,7 +3068,7 @@ fn module_functions(
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
-    let module_id = get_module(self_argument)?;
+    let module_id = get_module_for_read_access(self_argument)?;
     let module_data = interpreter.elaborator.get_module(module_id);
     let func_ids = module_data
         .definitions()
@@ -3038,7 +3076,10 @@ fn module_functions(
         .iter()
         .filter_map(|module_def_id| {
             if let ModuleDefId::FunctionId(func_id) = module_def_id {
-                Some(Value::FunctionDefinition(*func_id))
+                Some(Value::FunctionDefinition(Protected::Readonly {
+                    value: *func_id,
+                    method: "Module::functions",
+                }))
             } else {
                 None
             }
@@ -3057,12 +3098,12 @@ fn module_parent(
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
-    let module_id = get_module(self_argument)?;
+    let module_id = get_module_for_read_access(self_argument)?;
     let module_data = interpreter.elaborator.get_module(module_id);
 
     let value = module_data.parent.map(|local_id| {
         let id = ModuleId { krate: module_id.krate, local_id };
-        Value::ModuleDefinition(id)
+        Value::ModuleDefinition(Protected::Readonly { value: id, method: "Module::parent" })
     });
     Ok(option(return_type, value, location))
 }
@@ -3074,7 +3115,7 @@ fn module_structs(
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
-    let module_id = get_module(self_argument)?;
+    let module_id = get_module_for_read_access(self_argument)?;
     let module_data = interpreter.elaborator.get_module(module_id);
     let struct_ids = module_data
         .definitions()
@@ -3082,7 +3123,10 @@ fn module_structs(
         .iter()
         .filter_map(|module_def_id| {
             if let ModuleDefId::TypeId(id) = module_def_id {
-                Some(Value::TypeDefinition(*id))
+                Some(Value::TypeDefinition(Protected::Readonly {
+                    value: *id,
+                    method: "Module::structs",
+                }))
             } else {
                 None
             }
@@ -3100,7 +3144,7 @@ fn module_has_named_attribute(
     location: Location,
 ) -> IResult<Value> {
     let (self_argument, name) = check_two_arguments(arguments, location)?;
-    let module_id = get_module(self_argument)?;
+    let module_id = get_module_for_read_access(self_argument)?;
     let module_data = interpreter.elaborator.get_module(module_id);
 
     let name = get_str(name)?;
@@ -3120,7 +3164,7 @@ fn module_is_contract(
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
-    let module_id = get_module(self_argument)?;
+    let module_id = get_module_for_read_access(self_argument)?;
     Ok(Value::Bool(interpreter.elaborator.module_is_contract(module_id)))
 }
 
@@ -3131,7 +3175,7 @@ fn module_name(
     location: Location,
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
-    let module_id = get_module(self_argument)?;
+    let module_id = get_module_for_read_access(self_argument)?;
     let name = &interner.module_attributes(module_id).name;
     let token = Token::Ident(name.clone());
     let token = LocatedToken::new(token, location);
