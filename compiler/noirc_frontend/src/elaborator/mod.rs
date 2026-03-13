@@ -226,7 +226,9 @@ pub struct Elaborator<'context> {
     /// to the corresponding trait impl ID.
     current_trait_impl: Option<TraitImplId>,
 
-    /// The trait  we're currently resolving, if we are resolving one.
+    /// The trait we're currently resolving or implementing, if any.
+    /// Set during both trait definitions (`trait Foo { ... }`) and
+    /// trait impl elaboration (`impl Foo for Bar { ... }`).
     current_trait: Option<TraitId>,
 
     /// In-resolution names
@@ -678,6 +680,7 @@ impl<'context> Elaborator<'context> {
 
         self.generics = trait_impl.resolved_generics.clone();
         self.current_trait_impl = trait_impl.impl_id;
+        self.current_trait = trait_impl.trait_id;
 
         self.add_trait_impl_assumed_trait_implementations(trait_impl.impl_id);
         self.check_trait_impl_where_clause_matches_trait_where_clause(&trait_impl);
@@ -698,6 +701,7 @@ impl<'context> Elaborator<'context> {
 
         self.self_type = None;
         self.current_trait_impl = None;
+        self.current_trait = None;
         self.generics.clear();
     }
 
@@ -730,29 +734,27 @@ impl<'context> Elaborator<'context> {
             let num_expr = alias.type_alias_def.typ.typ.try_into_expression();
 
             if let Some(num_expr) = num_expr {
-                // Checks that the expression only references generics and constants
-                if !num_expr.is_valid_expression() {
-                    self.errors.push(CompilationError::ResolverError(
-                        ResolverError::RecursiveTypeAlias {
-                            location: alias.type_alias_def.numeric_location,
-                        },
-                    ));
-                    (Type::Error, None)
+                let typ =
+                    self.resolve_type_with_kind(alias.type_alias_def.typ, &kind, wildcard_allowed);
+                if let Type::Alias(ref alias_ref, _) = typ {
+                    if alias_ref.borrow().numeric_expr.is_none() {
+                        self.errors.push(CompilationError::ResolverError(
+                            ResolverError::InvalidNumericAliasExpression {
+                                location: alias.type_alias_def.numeric_location,
+                            },
+                        ));
+                        (Type::Error, None)
+                    } else {
+                        (typ, Some(num_expr))
+                    }
                 } else {
-                    (
-                        self.resolve_type_with_kind(
-                            alias.type_alias_def.typ,
-                            &kind,
-                            wildcard_allowed,
-                        ),
-                        Some(num_expr),
-                    )
+                    (typ, Some(num_expr))
                 }
             } else {
                 self.errors.push(CompilationError::ResolverError(
                     ResolverError::ExpectedNumericExpression {
                         typ: alias.type_alias_def.typ.typ.to_string(),
-                        location,
+                        location: alias.type_alias_def.numeric_location,
                     },
                 ));
                 (Type::Error, None)

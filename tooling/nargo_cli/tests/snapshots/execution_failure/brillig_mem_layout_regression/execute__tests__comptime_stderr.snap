@@ -15,80 +15,12 @@ error: Comptime Evaluation Depth Overflow
    │ ╰─────' Exceeded the limit on the combined depth of expressions and recursion
    │  
    = Call stack:
-     1. src/main.nr:5:18
-     2. src/main.nr:9:16
-     3. src/main.nr:44:15
-     4. src/main.nr:44:15
-     5. src/main.nr:44:15
-     6. src/main.nr:44:15
-     7. src/main.nr:44:15
-     8. src/main.nr:44:15
-     9. src/main.nr:44:15
-     10. src/main.nr:44:15
-     11. src/main.nr:44:15
-     12. src/main.nr:44:15
-     13. src/main.nr:44:15
-     14. src/main.nr:44:15
-     15. src/main.nr:44:15
-     16. src/main.nr:44:15
-     17. src/main.nr:44:15
-     18. src/main.nr:44:15
-     19. src/main.nr:44:15
-     20. src/main.nr:44:15
-     21. src/main.nr:44:15
-     22. src/main.nr:44:15
-     23. src/main.nr:44:15
-     24. src/main.nr:44:15
-     25. src/main.nr:44:15
-     26. src/main.nr:44:15
-     27. src/main.nr:44:15
-     28. src/main.nr:44:15
-     29. src/main.nr:44:15
-     30. src/main.nr:44:15
-     31. src/main.nr:44:15
-     32. src/main.nr:44:15
-     33. src/main.nr:44:15
-     34. src/main.nr:44:15
-     35. src/main.nr:44:15
-     36. src/main.nr:44:15
-     37. src/main.nr:44:15
-     38. src/main.nr:44:15
-     39. src/main.nr:44:15
-     40. src/main.nr:44:15
-     41. src/main.nr:44:15
-     42. src/main.nr:44:15
-     43. src/main.nr:44:15
-     44. src/main.nr:44:15
-     45. src/main.nr:44:15
-     46. src/main.nr:44:15
-     47. src/main.nr:44:15
-     48. src/main.nr:44:15
-     49. src/main.nr:44:15
-     50. src/main.nr:44:15
-     51. src/main.nr:44:15
-     52. src/main.nr:44:15
-     53. src/main.nr:44:15
-     54. src/main.nr:44:15
-     55. src/main.nr:44:15
-     56. src/main.nr:44:15
-     57. src/main.nr:44:15
-     58. src/main.nr:44:15
-     59. src/main.nr:44:15
-     60. src/main.nr:44:15
-     61. src/main.nr:44:15
-     62. src/main.nr:44:15
-     63. src/main.nr:44:15
-     64. src/main.nr:44:15
-     65. src/main.nr:44:15
-     66. src/main.nr:44:15
-     67. src/main.nr:44:15
-     68. src/main.nr:44:15
-     69. src/main.nr:44:15
-     70. src/main.nr:44:15
-     71. src/main.nr:44:15
-     72. src/main.nr:44:15
-     73. src/main.nr:44:15
-     74. src/main.nr:44:15
-     75. src/main.nr:44:15
+        1: ?
+                at src/main.nr:5:18
+        2: main
+                at src/main.nr:9:16
+     ┌─ 3: func_1
+     │          at src/main.nr:44:15
+     └─ (repeated 73 times)
 
 Error interpreting main function

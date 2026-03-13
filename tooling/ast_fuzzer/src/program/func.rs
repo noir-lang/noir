@@ -1,4 +1,5 @@
 use iter_extended::vecmap;
+use itertools::Itertools;
 use nargo::errors::Location;
 use std::{
     collections::{BTreeMap, BTreeSet, HashSet},
@@ -2037,7 +2038,7 @@ impl<'a> FunctionContext<'a> {
                     && func
                         .params
                         .iter()
-                        .zip(param_types)
+                        .zip_eq(param_types)
                         .all(|((_, _, _, a, _), b)| a.as_ref() == b);
 
                 matches.then_some(*func_id)

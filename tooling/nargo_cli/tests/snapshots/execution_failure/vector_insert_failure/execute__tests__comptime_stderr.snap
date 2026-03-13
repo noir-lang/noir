@@ -9,7 +9,9 @@ error: vector_insert: index 10 is out of bounds for a vector of length 3
    │              ---------------------- Assertion failed
    │
    = Call stack:
-     1. src/main.nr:1:4
-     2. src/main.nr:10:14
+     1: ?
+             at src/main.nr:1:4
+     2: main
+             at src/main.nr:10:14
 
 Error interpreting main function

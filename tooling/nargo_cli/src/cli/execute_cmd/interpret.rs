@@ -4,6 +4,7 @@ use std::rc::Rc;
 use acvm::AcirField;
 use fm::FileManager;
 use iter_extended::vecmap;
+use itertools::Itertools;
 use nargo::ops::report_errors;
 use nargo::package::Package;
 use nargo::workspace::Workspace;
@@ -52,6 +53,7 @@ fn run_package_comptime(
     match report_errors(
         result,
         &context.file_manager,
+        &context.parsed_files,
         args.compile_options.deny_warnings,
         args.compile_options.silence_warnings,
     ) {
@@ -109,7 +111,8 @@ fn run_package_comptime(
             let errors = vec![diagnostic];
             report_errors(
                 Ok(((), errors)),
-                file_manager,
+                &context.file_manager,
+                &context.parsed_files,
                 args.compile_options.deny_warnings,
                 args.compile_options.silence_warnings,
             )?;
@@ -240,7 +243,7 @@ fn input_value_to_comptime_value(input: &InputValue, typ: &Type, location: Locat
                 panic!("expected vec input for tuple type");
             };
             assert_eq!(inputs.len(), types.len(), "Tuple length does not match input length");
-            let tuple = vecmap(inputs.iter().zip(types.iter()), |(input, typ)| {
+            let tuple = vecmap(inputs.iter().zip_eq(types.iter()), |(input, typ)| {
                 let value = input_value_to_comptime_value(input, typ, location);
                 Shared::new(value)
             });

@@ -11,6 +11,7 @@ use acir::{
     },
 };
 use acvm_blackbox_solver::BlackBoxFunctionSolver;
+use itertools::Itertools;
 
 use crate::{MemoryValue, VM, VMStatus, assert_u32, assert_usize, memory::ArrayAddress};
 
@@ -77,7 +78,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
 
             let resolved_inputs = inputs
                 .iter()
-                .zip(input_value_types)
+                .zip_eq(input_value_types)
                 .map(|(input, input_type)| {
                     let mut input = self.get_memory_values(*input, input_type);
                     // Truncate vectors to their semantic length, which we remember from the preceding field.
@@ -92,13 +93,18 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                             vector_length = Some(length.to_u128() as u32);
                         }
                         HeapValueType::Vector { value_types } => {
-                            if let Some(length) = vector_length {
-                                let flattened_length =
-                                    vector_flattened_length(value_types, SemanticLength(length));
-                                let mut fields = input.fields();
-                                fields.truncate(assert_usize(flattened_length.0));
-                                input = ForeignCallParam::Array(fields);
-                            }
+                            let Some(length) = vector_length else {
+                                unreachable!(
+                                    "ICE: expected the semantic vector length to precede a vector input"
+                                );
+                            };
+                            // Get rid of any items beyond the flattened length.
+                            let flattened_length =
+                                vector_flattened_length(value_types, SemanticLength(length));
+                            let ForeignCallParam::Array(fields) = &mut input else {
+                                unreachable!("ICE: expected Array parameter for vector content");
+                            };
+                            fields.truncate(assert_usize(flattened_length.0));
                             vector_length = None;
                         }
                         _ => {
@@ -268,7 +274,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
         );
 
         for ((destination, value_type), output) in
-            destinations.iter().zip(destination_value_types).zip(&values)
+            destinations.iter().zip_eq(destination_value_types).zip_eq(&values)
         {
             match (destination, value_type) {
                 (ValueOrArray::MemoryAddress(value_addr), HeapValueType::Simple(bit_size)) => {
