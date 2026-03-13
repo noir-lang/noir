@@ -494,8 +494,6 @@ impl<F: AcirField> Memory<F> {
 
 #[cfg(test)]
 mod tests {
-    use std::u32;
-
     use super::*;
     use acir::FieldElement;
     use test_case::test_case;

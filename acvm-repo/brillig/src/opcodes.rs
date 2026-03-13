@@ -653,8 +653,6 @@ impl std::fmt::Display for BinaryIntOp {
 
 #[cfg(test)]
 mod tests {
-    use std::u32;
-
     use crate::MemoryAddress;
 
     use super::{BitSize, IntegerBitSize};
