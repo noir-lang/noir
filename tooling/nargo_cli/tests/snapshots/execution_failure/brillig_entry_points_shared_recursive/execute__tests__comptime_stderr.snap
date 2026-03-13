@@ -10,9 +10,9 @@ warning: function `baz` cannot return without recursing
    │
 
 error: Comptime Stack Overflow
-   ┌─ std/lib.nr:40:9
+   ┌─ std/lib.nr:41:9
    │
-40 │         print_unconstrained(true, input);
+41 │         print_unconstrained(true, input);
    │         -------------------------------- Exceeded the recursion limit
    │
    = Call stack:
