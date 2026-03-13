@@ -18,18 +18,25 @@ Check out the contributing guide [here](../CONTRIBUTING.md).
 
 ### Prerequisites
 
-- Node.js (tested and working with v21.6.1)
-- Yarn (tested and working with v4.5.2)
+- Node.js (tested working with v25.8.0)
+- Yarn (tested working with v4.10.3)
+- Rust (tested working with v1.89.0)
+- GNU ld (tested working with v2.45.1-4.fc43)
+- jq (tested working with v1.8.1)
 
-### Installation
+### Navigation
 
-This project requires recent versions of Rust and Cargo to be installed.
-Any build errors should indicate dependencies that need installing, and at what version.
-
-Navigate to the docs directory and install dependencies:
+If you are in the main noir directory, navigate into this docs directory:
 
 ```sh
 cd docs
+```
+
+### Dependency Installation
+
+Install Node.js dependencies:
+
+```sh
 yarn install
 ```
 
@@ -76,6 +83,32 @@ contents hosting service.
 ```sh
 yarn serve
 ```
+
+### Version Cutting
+
+The cutting of new versioned docs is automatically managed by the [release GitHub Action](../.github/workflows/release.yml).
+
+To manually cut new versions for testing or patching purposes:
+
+1. Checkout the desired content to cut with:
+
+```sh
+git checkout <version_tag>
+```
+
+2. Cut a new version based on the checked out content:
+
+```sh
+yarn cut_version <version_name>
+```
+
+3. Start a development server serving docs preview:
+
+```sh
+yarn dev
+```
+
+> **Note**: Only the latest stable versions are expected to show by default. To test cutting a custom version, manually edit the `versions.json` file after running step (2).
 
 ## Production Testing
 
