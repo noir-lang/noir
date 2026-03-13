@@ -418,7 +418,7 @@ impl<'f> Context<'f> {
     /// Prepare the arguments for the next block to consume.
     ///
     /// Panics if we already have something prepared.
-    fn prepare_args(&mut self, args: Vec<ValueId>) {
+    pub(crate) fn prepare_args(&mut self, args: Vec<ValueId>) {
         assert!(self.next_arguments.is_none(), "already prepared the arguments");
         assert!(!args.is_empty(), "only prepare args for non-empty parameter list");
         self.next_arguments = Some(args);
@@ -563,7 +563,7 @@ impl<'f> Context<'f> {
     /// Local allocations are moved to the 'then_branch' of the `ConditionalContext`.
     /// Returns the blocks corresponding to the 'then_branch', 'else_branch',
     /// and exit block of the conditional statement, so that they will be processed in this order.
-    fn if_start(
+    pub(crate) fn if_start(
         &mut self,
         condition: &ValueId,
         then_destination: &BasicBlockId,

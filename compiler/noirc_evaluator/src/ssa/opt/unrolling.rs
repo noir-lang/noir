@@ -36,7 +36,8 @@
 //!     used as loop bounds, into a form which loop unrolling may better identify.
 //!
 //! Conditions:
-//!   - Pre-condition: All loop headers have a single induction variable.
+//!   - Pre-condition: The first block parameter of each loop header is the induction variable.
+//!     Loop headers may have additional parameters for promoted mutable variables (e.g. from mem2reg_simple).
 //!   - Pre-condition: No loop header has a JmpIf with a constant condition (run simplify_cfg first).
 //!   - Pre-condition: The SSA must be optimized to a point at which loop bounds are known.
 //!     Some passes such as inlining and mem2reg are de-facto required before running this pass on arbitrary noir code.
@@ -63,7 +64,7 @@ use crate::{
             instruction::{Binary, BinaryOp, Instruction, TerminatorInstruction},
             integer::IntegerConstant,
             post_order::PostOrder,
-            value::{Value, ValueId},
+            value::{Value, ValueId, ValueMapping},
         },
         ssa_gen::Ssa,
     },
@@ -272,6 +273,14 @@ impl Function {
             // If we didn't need to refresh, we're done
             if !needs_refresh {
                 break;
+            }
+
+            // In Brillig, simplify between inner and outer loop evaluations.
+            // After unrolling inner loops, the expanded instructions need to be
+            // constant-folded before the outer loop's cost model is evaluated,
+            // otherwise useless_cost is inflated by un-simplified instructions.
+            if self.runtime().is_brillig() {
+                simplify_between_unrolls(self);
             }
         }
         (has_unrolled, unroll_errors)
@@ -507,7 +516,7 @@ impl Loop {
             unreachable!("the back edge is expected to end in a `Jmp`");
         };
         assert_eq!(*destination, self.header, "back edge goes to the header");
-        assert_eq!(arguments.len(), 1);
+        assert!(!arguments.is_empty(), "back edge should have at least 1 argument");
         dfg.get_numeric_constant(arguments[0]).is_some()
     }
 
@@ -679,7 +688,13 @@ impl Loop {
             }
             // A cast of a constant would already be simplified
             Instruction::Cast(_, _) => None,
-            other => panic!("Unexpected instruction in header: {other:?}"),
+            _ => {
+                // Certain patterns can cause other instructions to be hoisted into the loop
+                // header, or at least what looks to be the loop header.
+                // `func_1` in `regression_mem2reg_unknown_array_aliases` is one such example
+                // if `mem2reg_simple` is performed on it before unrolling.
+                None
+            }
         }
     }
 
@@ -756,12 +771,32 @@ impl Loop {
     /// that a few SSA passes are required to evaluate and simplify these values.
     fn unroll(&self, function: &mut Function, cfg: &ControlFlowGraph) -> Result<(), CallStack> {
         let mut unroll_into = self.get_pre_header(function, cfg)?;
-        let mut jump_value = get_induction_variable(&function.dfg, unroll_into)?;
+        let mut header_args = get_header_arguments(&function.dfg, unroll_into)?;
+
+        // Collect the original header parameters before unrolling.
+        // The header may have extra parameters beyond the induction variable (promoted mutable variables).
+        // Blocks outside the loop can reference these params directly, so after unrolling we need to
+        // replace those references with the final iteration's values.
+        let header_params: Vec<ValueId> = function.dfg[self.header].parameters().to_vec();
 
         while let Some((context, loop_header_id)) =
-            self.unroll_header(function, unroll_into, jump_value)?
+            self.unroll_header(function, unroll_into, &header_args)?
         {
-            (unroll_into, jump_value) = context.unroll_loop_iteration(loop_header_id);
+            (unroll_into, header_args) = context.unroll_loop_iteration(loop_header_id);
+        }
+
+        // After unrolling, blocks outside the loop may still reference the old header
+        // parameters (e.g. exit blocks that use promoted variables such as from mem2reg).
+        // Replace all remaining uses of header params with the final iteration's values.
+        if header_params.len() > 1 {
+            let mut mapping = ValueMapping::default();
+            mapping.batch_insert(&header_params, &header_args);
+
+            for block_id in function.reachable_blocks() {
+                if !self.blocks.contains(&block_id) {
+                    function.dfg.replace_values_in_block(block_id, &mapping);
+                }
+            }
         }
 
         Ok(())
@@ -798,7 +833,7 @@ impl Loop {
         &'a self,
         function: &'a mut Function,
         unroll_into: BasicBlockId,
-        induction_value: ValueId,
+        header_args: &[ValueId],
     ) -> Result<Option<(LoopIteration<'a>, BasicBlockId)>, CallStack> {
         // We insert into a fresh block first and move instructions into the unroll_into block later
         // only once we verify the jmpif instruction has a constant condition. If it does not, we can
@@ -807,12 +842,17 @@ impl Loop {
 
         let mut context = LoopIteration::new(function, self, fresh_block, self.header);
         let loop_header_id = context.source_block;
-        let source_block = &context.dfg()[loop_header_id];
-        assert_eq!(source_block.parameters().len(), 1, "Expected only 1 argument in loop header");
 
-        // Insert the current value of the loop induction variable into our context.
-        let first_param = source_block.parameters()[0];
-        context.inserter.try_map_value(first_param, induction_value);
+        // Collect all header parameters before mutably borrowing context.
+        // The first parameter is the induction variable; additional parameters are
+        // promoted mutable variables (e.g. from mem2reg_simple).
+        let header_params: Vec<ValueId> = context.dfg()[loop_header_id].parameters().to_vec();
+
+        // Map each header parameter to the corresponding argument value from the previous iteration
+        // (or the initial values from the pre-header for the first iteration).
+        for (param, &arg) in header_params.iter().zip(header_args) {
+            context.inserter.try_map_value(*param, arg);
+        }
         // Copy over all instructions and a fresh terminator.
         context.inline_instructions_from_block();
         context.visited_blocks.insert(loop_header_id);
@@ -827,21 +867,19 @@ impl Loop {
                 else_arguments,
                 call_stack,
             } => {
-                assert!(
-                    then_arguments.is_empty(),
-                    "unrolling has not been updated to handle jmpif arguments"
-                );
-                assert!(
-                    else_arguments.is_empty(),
-                    "unrolling has not been updated to handle jmpif arguments"
-                );
-
                 let condition = *condition;
+                let then_destination = *then_destination;
+                let then_arguments = then_arguments.clone();
+                let else_destination = *else_destination;
+                let else_arguments = else_arguments.clone();
+                let call_stack = *call_stack;
                 let next_blocks = context.handle_jmpif(
                     condition,
-                    *then_destination,
-                    *else_destination,
-                    *call_stack,
+                    then_destination,
+                    then_arguments,
+                    else_destination,
+                    else_arguments,
+                    call_stack,
                 );
 
                 // If there is only 1 next block the jmpif evaluated to a single known block.
@@ -858,9 +896,9 @@ impl Loop {
                     // have no more loops to unroll, because that block was not part of the loop itself,
                     // ie. it wasn't between `loop_header` and `loop_body`. Otherwise we have the `loop_body`
                     // in `source_block` and can unroll that into the destination.
-                    Ok(self
-                        .blocks
-                        .contains(&context.source_block)
+                    let is_in_loop = self.blocks.contains(&context.source_block);
+
+                    Ok(is_in_loop
                         .then_some(context)
                         .map(|iteration_context| (iteration_context, loop_header_id)))
                 } else {
@@ -1022,6 +1060,39 @@ impl Loop {
         (loads, stores)
     }
 
+    /// Count the total extra block parameter move costs from promoted mutable variables
+    /// across all terminators in the loop.
+    ///
+    /// After unrolling, all Jmp terminators within the loop are eliminated, so every
+    /// argument on them (except the induction variable on back-edge Jmps) is boilerplate.
+    /// Similarly, JmpIf `then_arguments`/`else_arguments` that thread promoted values
+    /// to loop-internal blocks are also boilerplate.
+    /// Sum the Brillig-weighted cost of all terminators in the loop whose
+    /// destinations are within the loop (including the header). These terminators
+    /// are pure boilerplate that disappears entirely after unrolling.
+    fn count_terminator_boilerplate(&self, function: &Function) -> usize {
+        let mut cost = 0;
+        for block_id in &self.blocks {
+            match function.dfg[*block_id].unwrap_terminator() {
+                t @ TerminatorInstruction::Jmp { destination, .. } => {
+                    if self.blocks.contains(destination) || *destination == self.header {
+                        cost += t.cost();
+                    }
+                }
+                t @ TerminatorInstruction::JmpIf { then_destination, else_destination, .. } => {
+                    // If either branch targets a loop block, the whole JmpIf is boilerplate.
+                    if self.blocks.contains(then_destination)
+                        || self.blocks.contains(else_destination)
+                    {
+                        cost += t.cost();
+                    }
+                }
+                _ => {}
+            }
+        }
+        cost
+    }
+
     /// Count the Brillig-weighted cost of instructions in the loop, including terminators.
     ///
     /// When `callee_costs` is non-empty, calls to functions that will be inlined use
@@ -1073,13 +1144,14 @@ impl Loop {
         max_unroll_iterations: usize,
         force_unroll_threshold: usize,
     ) -> bool {
-        self.boilerplate_stats(function, &loops.cfg, &loops.callee_costs).is_some_and(|s| {
-            let within_iteration_limit = s.iterations <= max_unroll_iterations;
-            let force_unroll = s.unrolled_cost() <= force_unroll_threshold;
-            (force_unroll || s.is_small())
-                && within_iteration_limit
-                && self.is_fully_executed(&loops.cfg)
-        })
+        self.boilerplate_stats(function, &loops.cfg, &loops.dom, &loops.callee_costs).is_some_and(
+            |s| {
+                let within_iteration_limit = s.iterations <= max_unroll_iterations;
+                let force_unroll = s.unrolled_cost() <= force_unroll_threshold;
+                let is_fully = self.is_fully_executed(&loops.cfg);
+                (force_unroll || s.is_small()) && within_iteration_limit && is_fully
+            },
+        )
     }
 
     /// Compute the Brillig-weighted cost of instructions that become compile-time
@@ -1094,9 +1166,19 @@ impl Loop {
     /// For each instruction in the loop body, if every operand is in `constant_after_unroll`,
     /// the result will also be constant after unrolling, so we add it to the set and
     /// accumulate its Brillig-weighted cost.
+    ///
+    /// For block parameters, a param is marked constant only when ALL forward
+    /// (non-back-edge) in-loop predecessors send constant values at that
+    /// position. Back-edges are identified via dominance (dest dominates pred)
+    /// and excluded from the agreement check to avoid circular dependencies
+    /// in nested loops. This is analogous to LLVM's per-iteration PHI
+    /// simulation in `analyzeLoopUnrollCost`.
     fn count_useless_cost(
         &self,
         function: &Function,
+        cfg: &ControlFlowGraph,
+        dom: &DominatorTree,
+        callee_costs: &HashMap<FunctionId, usize>,
         constant_initial_refs: &HashSet<ValueId>,
     ) -> usize {
         let mut useless_cost = 0;
@@ -1107,7 +1189,29 @@ impl Loop {
         let mut constant_after_unroll: HashSet<ValueId> = HashSet::default();
         constant_after_unroll.insert(induction_var);
 
+        // Seed with header block parameters whose pre-header initial values are constant.
+        // This is the promoted-variable analogue of the constant_initial_refs load propagation:
+        // after mem2reg, what were loads from constant-initial refs become header params
+        // initialized with constant values from the pre-header Jmp.
+        if let Ok(pre_header) = self.get_pre_header(function, cfg)
+            && let Some(TerminatorInstruction::Jmp { arguments, .. }) =
+                function.dfg[pre_header].terminator()
+        {
+            let header_params = function.dfg[self.header].parameters();
+            for (param, arg) in header_params.iter().zip(arguments.iter()) {
+                if is_from_constant_source(*arg, &function.dfg) {
+                    constant_after_unroll.insert(*param);
+                }
+            }
+        }
+
+        // Track which blocks have been processed so we only seed a param when
+        // all its forward predecessors have been visited.
+        let mut processed: HashSet<BasicBlockId> = HashSet::default();
+
         for block in &self.blocks {
+            processed.insert(*block);
+
             for instruction_id in function.dfg[*block].instructions() {
                 let results = function.dfg.instruction_results(*instruction_id);
                 let instruction = &function.dfg[*instruction_id];
@@ -1135,11 +1239,123 @@ impl Loop {
                     for result in results {
                         constant_after_unroll.insert(*result);
                     }
-                    useless_cost += instruction.cost(*instruction_id, &function.dfg);
+                    // Use callee body cost for calls, matching count_loop_cost.
+                    // Without this, total_cost uses the callee body cost but
+                    // useless_cost would only subtract the default call overhead,
+                    // inflating useful_cost and preventing unrolling.
+                    if let Instruction::Call { func, .. } = instruction
+                        && let Value::Function(func_id) = function.dfg[*func]
+                        && let Some(&body_cost) = callee_costs.get(&func_id)
+                    {
+                        useless_cost += body_cost;
+                    } else {
+                        useless_cost += instruction.cost(*instruction_id, &function.dfg);
+                    }
+                }
+            }
+
+            // Propagate constants through terminator arguments to in-loop
+            // successor block parameters, checking that ALL forward (non-back-edge)
+            // in-loop predecessors agree before marking a param as constant.
+            let terminator = function.dfg[*block].unwrap_terminator();
+            let successors = Self::terminator_successors(terminator);
+            for (dest, _args) in successors {
+                if !self.blocks.contains(&dest) {
+                    continue;
+                }
+                let params = function.dfg[dest].parameters();
+                for (i, param) in params.iter().enumerate() {
+                    if constant_after_unroll.contains(param) {
+                        continue;
+                    }
+                    // Collect forward (non-back-edge) in-loop predecessors.
+                    // A pred forms a back-edge if dest dominates it.
+                    let forward_preds: Vec<_> = cfg
+                        .predecessors(dest)
+                        .filter(|p| self.blocks.contains(p) && !dom.dominates_helper(dest, *p))
+                        .collect();
+                    if forward_preds.is_empty() {
+                        continue;
+                    }
+                    // Only seed when all forward preds have been processed.
+                    if !forward_preds.iter().all(|p| processed.contains(p)) {
+                        continue;
+                    }
+                    let all_agree = forward_preds.iter().all(|&pred| {
+                        Self::pred_sends_constant_at(
+                            &function.dfg,
+                            pred,
+                            dest,
+                            i,
+                            &constant_after_unroll,
+                        )
+                    });
+                    if all_agree {
+                        constant_after_unroll.insert(*param);
+                    }
                 }
             }
         }
         useless_cost
+    }
+
+    /// Extract (destination, arguments) pairs from a terminator instruction.
+    fn terminator_successors(
+        terminator: &TerminatorInstruction,
+    ) -> Vec<(BasicBlockId, &[ValueId])> {
+        match terminator {
+            TerminatorInstruction::Jmp { destination, arguments, .. } => {
+                vec![(*destination, arguments)]
+            }
+            TerminatorInstruction::JmpIf {
+                then_destination,
+                then_arguments,
+                else_destination,
+                else_arguments,
+                ..
+            } => {
+                vec![(*then_destination, then_arguments), (*else_destination, else_arguments)]
+            }
+            _ => vec![],
+        }
+    }
+
+    /// Check whether `source`'s terminator sends a constant value at position
+    /// `param_index` to `target`. For JmpIf where both branches go to the same
+    /// target, both must send constants.
+    fn pred_sends_constant_at(
+        dfg: &DataFlowGraph,
+        source: BasicBlockId,
+        target: BasicBlockId,
+        param_index: usize,
+        constant_after_unroll: &HashSet<ValueId>,
+    ) -> bool {
+        let is_const =
+            |v: &ValueId| constant_after_unroll.contains(v) || is_from_constant_source(*v, dfg);
+
+        let Some(terminator) = dfg[source].terminator() else {
+            return false;
+        };
+        match terminator {
+            TerminatorInstruction::Jmp { destination, arguments, .. } => {
+                *destination == target && arguments.get(param_index).is_some_and(is_const)
+            }
+            TerminatorInstruction::JmpIf {
+                then_destination,
+                then_arguments,
+                else_destination,
+                else_arguments,
+                ..
+            } => {
+                let then_ok = *then_destination != target
+                    || then_arguments.get(param_index).is_some_and(is_const);
+                let else_ok = *else_destination != target
+                    || else_arguments.get(param_index).is_some_and(is_const);
+                // At least one branch must target this block
+                (*then_destination == target || *else_destination == target) && then_ok && else_ok
+            }
+            _ => false,
+        }
     }
 
     /// Collect boilerplate stats if we can figure out the upper and lower bounds of the loop,
@@ -1148,6 +1364,7 @@ impl Loop {
         &self,
         function: &Function,
         cfg: &ControlFlowGraph,
+        dom: &DominatorTree,
         callee_costs: &HashMap<FunctionId, usize>,
     ) -> Option<BoilerplateStats> {
         let pre_header = self.get_pre_header(function, cfg).ok()?;
@@ -1164,8 +1381,11 @@ impl Loop {
         let useless_cost = if !is_fully_executed {
             0
         } else {
-            self.count_useless_cost(function, &constant_initial_refs)
+            self.count_useless_cost(function, cfg, dom, callee_costs, &constant_initial_refs)
         };
+
+        let terminator_boilerplate = self.count_terminator_boilerplate(function);
+        let header_params = function.dfg[self.header].parameters().len();
 
         // Currently we don't iterate in reverse, so if upper <= lower it means 0 iterations.
         let iterations: usize = upper
@@ -1176,7 +1396,16 @@ impl Loop {
             )
             .unwrap_or_default();
 
-        Some(BoilerplateStats { iterations, loads, stores, total_cost, useless_cost })
+        let stats = BoilerplateStats {
+            iterations,
+            loads,
+            stores,
+            total_cost,
+            useless_cost,
+            terminator_boilerplate,
+            header_params,
+        };
+        Some(stats)
     }
 }
 
@@ -1231,31 +1460,41 @@ struct BoilerplateStats {
     /// after unrolling. This includes the bound comparison (lt), induction variable
     /// increments, and any other instructions whose operands are all known after unrolling.
     useless_cost: usize,
+    /// Sum of `TerminatorInstruction::cost()` for all terminators in the loop
+    /// whose destinations are within the loop (including the header).
+    /// These terminators disappear entirely after unrolling.
+    terminator_boilerplate: usize,
+    /// Number of header block parameters (including the induction variable).
+    /// Used to compute the pre-header Jmp cost in `baseline_cost`.
+    header_params: usize,
 }
 
 impl BoilerplateStats {
     /// Brillig-weighted cost if we leave the loop as-is.
     /// It's the cost of the loop body, plus the pre-header jmp that kicks it off.
     fn baseline_cost(&self) -> usize {
-        // Pre-header jmp has 1 argument (the induction variable initial value):
-        // Brillig cost = 1 (jump) + 1 (move for 1 arg) = 2
-        self.total_cost + 2
+        // Pre-header jmp: 1 (jump) + N moves for header params
+        let pre_header_jmp = 1 + self.header_params;
+        self.total_cost + pre_header_jmp
+    }
+
+    /// Per-iteration cost excluding boilerplate but NOT subtracting useless_cost.
+    /// This is the conservative estimate: it assumes no constant folding happens.
+    fn conservative_useful_cost(&self) -> usize {
+        let load_and_store = self.loads.min(self.stores) * 2;
+        let total_boilerplate = load_and_store + self.terminator_boilerplate;
+        assert!(
+            total_boilerplate <= self.total_cost,
+            "Boilerplate cost exceeds total cost in loop"
+        );
+        self.total_cost.saturating_sub(total_boilerplate)
     }
 
     /// Estimated Brillig-weighted cost of _useful_ instructions, which is the
     /// cost of the loop minus all in-loop boilerplate and useless (constant-foldable)
     /// instructions.
     fn useful_cost(&self) -> usize {
-        // Brillig costs: JmpIf=2, Jmp(1 induction var arg)=2
-        let terminators = 2 + 2;
-        // Load=1, Store=1 in Brillig (matches current *2 for pairs)
-        let load_and_store = self.loads.min(self.stores) * 2;
-        let total_boilerplate = load_and_store + terminators;
-        assert!(
-            total_boilerplate <= self.total_cost,
-            "Boilerplate cost exceeds total cost in loop"
-        );
-        self.total_cost.saturating_sub(total_boilerplate).saturating_sub(self.useless_cost)
+        self.conservative_useful_cost().saturating_sub(self.useless_cost)
     }
 
     /// Estimated Brillig-weighted cost if we unroll the loop.
@@ -1263,12 +1502,28 @@ impl BoilerplateStats {
         self.useful_cost() * self.iterations
     }
 
+    /// Conservative estimate of unrolled cost that excludes useless_cost.
+    ///
+    /// Unlike `unrolled_cost()` which assumes constant-foldable instructions will be
+    /// eliminated, this gives the cost if NO folding happens. Used by `is_small()` to
+    /// avoid over-aggressive unrolling of large loops whose `useless_cost` may be
+    /// overestimated (e.g. loops containing previously-unrolled inner loops).
+    /// The `force_unroll` path still uses `unrolled_cost()` with full useless_cost
+    /// subtraction, ensuring genuinely tiny loops are still unrolled.
+    fn conservative_unrolled_cost(&self) -> usize {
+        self.conservative_useful_cost() * self.iterations
+    }
+
     /// A small loop is where if we unroll it into the pre-header then considering the
     /// number of iterations we still end up with a smaller bytecode than if we leave
     /// the blocks in tact with all the boilerplate involved in jumping, and the extra
     /// reference access overhead.
+    ///
+    /// Uses `conservative_unrolled_cost` (without useless_cost subtraction) to avoid
+    /// false positives from overestimated constant folding, particularly for loops
+    /// containing previously-unrolled inner loops.
     fn is_small(&self) -> bool {
-        self.unrolled_cost() < self.baseline_cost()
+        self.conservative_unrolled_cost() < self.baseline_cost()
     }
 }
 
@@ -1294,8 +1549,8 @@ fn get_induction_variable(dfg: &DataFlowGraph, block: BasicBlockId) -> Result<Va
             // block parameters. If that becomes the case we'll need to figure out which variable
             // is generally constant and increasing to guess which parameter is the induction
             // variable.
-            if arguments.len() != 1 {
-                // It is expected that a loop's induction variable is the only block parameter of the loop header.
+            if arguments.is_empty() {
+                // It is expected that a loop's induction variable is the first block parameter of the loop header.
                 // If there's no variable this might be a `loop`.
                 let call_stack = dfg.get_call_stack(*location);
                 return Err(call_stack);
@@ -1308,6 +1563,32 @@ fn get_induction_variable(dfg: &DataFlowGraph, block: BasicBlockId) -> Result<Va
                 let call_stack = dfg.get_call_stack(*location);
                 Err(call_stack)
             }
+        }
+        Some(terminator) => Err(dfg.get_call_stack(terminator.call_stack())),
+        None => Err(CallStack::new()),
+    }
+}
+
+/// Get all arguments of the jump into the loop header from the pre-header block.
+///
+/// The first argument is the induction variable (must be a numeric constant).
+/// Additional arguments are promoted mutable variables (e.g. from mem2reg_simple).
+/// Returns `Err` if the block does not end with a `Jmp`, has no arguments, or the
+/// first argument is not a numeric constant.
+fn get_header_arguments(
+    dfg: &DataFlowGraph,
+    block: BasicBlockId,
+) -> Result<Vec<ValueId>, CallStack> {
+    match dfg[block].terminator() {
+        Some(TerminatorInstruction::Jmp { arguments, call_stack: location, .. }) => {
+            if arguments.is_empty() {
+                return Err(dfg.get_call_stack(*location));
+            }
+            let induction = arguments[0];
+            if dfg.get_numeric_constant(induction).is_none() {
+                return Err(dfg.get_call_stack(*location));
+            }
+            Ok(arguments.clone())
         }
         Some(terminator) => Err(dfg.get_call_stack(terminator.call_stack())),
         None => Err(CallStack::new()),
@@ -1334,11 +1615,12 @@ struct LoopIteration<'f> {
     insert_block: BasicBlockId,
     source_block: BasicBlockId,
 
-    /// The induction value (and the block it was found in) is the new value for
-    /// the variable traditionally called `i` on each iteration of the loop.
+    /// All back-edge arguments (and the block they were found in) for the next loop iteration.
+    /// The first element is the new induction variable; additional elements are promoted
+    /// mutable variables (e.g. from mem2reg_simple).
     /// This is None until we visit the block which jumps back to the start of the
-    /// loop, at which point we record its value and the block it was found in.
-    induction_value: Option<(BasicBlockId, ValueId)>,
+    /// loop, at which point we record the arguments and the block they were found in.
+    induction_value: Option<(BasicBlockId, Vec<ValueId>)>,
 }
 
 impl<'f> LoopIteration<'f> {
@@ -1368,7 +1650,10 @@ impl<'f> LoopIteration<'f> {
     /// It is expected the terminator instructions are set up to branch into an empty block
     /// for further unrolling. When the loop is finished this will need to be mutated to
     /// jump to the end of the loop instead.
-    fn unroll_loop_iteration(mut self, loop_header_id: BasicBlockId) -> (BasicBlockId, ValueId) {
+    fn unroll_loop_iteration(
+        mut self,
+        loop_header_id: BasicBlockId,
+    ) -> (BasicBlockId, Vec<ValueId>) {
         // Kick off the unrolling from the initial source block.
         let mut next_blocks = self.unroll_loop_block();
 
@@ -1384,7 +1669,7 @@ impl<'f> LoopIteration<'f> {
         }
         // After having unrolled all blocks in the loop body, we must know how to get back to the header;
         // this is also the block into which we have to unroll into next.
-        let (end_block, induction_value) = self
+        let (end_block, all_args) = self
             .induction_value
             .expect("Expected to find the induction variable by end of loop iteration");
 
@@ -1393,7 +1678,7 @@ impl<'f> LoopIteration<'f> {
             "expected to encounter loop header when visiting blocks"
         );
 
-        (end_block, induction_value)
+        (end_block, all_args)
     }
 
     /// Unroll a single block in the current iteration of the loop.
@@ -1416,22 +1701,25 @@ impl<'f> LoopIteration<'f> {
                 else_arguments,
                 call_stack,
             } => {
-                assert!(
-                    then_arguments.is_empty(),
-                    "unrolling has not been updated to handle jmpif arguments"
-                );
-                assert!(
-                    else_arguments.is_empty(),
-                    "unrolling has not been updated to handle jmpif arguments"
-                );
-                self.handle_jmpif(*condition, *then_destination, *else_destination, *call_stack)
+                let (condition, then_destination, else_destination, call_stack) =
+                    (*condition, *then_destination, *else_destination, *call_stack);
+                let then_arguments = then_arguments.clone();
+                let else_arguments = else_arguments.clone();
+                self.handle_jmpif(
+                    condition,
+                    then_destination,
+                    then_arguments,
+                    else_destination,
+                    else_arguments,
+                    call_stack,
+                )
             }
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
                 if self.get_original_block(*destination) == self.loop_.header {
                     // We found the back-edge of the loop.
-                    assert_eq!(arguments.len(), 1, "back-edge should only have 1 argument");
+                    assert!(!arguments.is_empty(), "back-edge should have at least 1 argument");
                     assert!(self.induction_value.is_none(), "there should be only one back-edge");
-                    self.induction_value = Some((self.insert_block, arguments[0]));
+                    self.induction_value = Some((self.insert_block, arguments.clone()));
                 }
                 vec![*destination]
             }
@@ -1467,19 +1755,23 @@ impl<'f> LoopIteration<'f> {
         &mut self,
         condition: ValueId,
         then_destination: BasicBlockId,
+        then_arguments: Vec<ValueId>,
         else_destination: BasicBlockId,
+        else_arguments: Vec<ValueId>,
         call_stack: CallStackId,
     ) -> Vec<BasicBlockId> {
         let condition = self.inserter.resolve(condition);
 
         match self.dfg().get_numeric_constant(condition) {
             Some(constant) => {
-                let destination =
-                    if constant.is_zero() { else_destination } else { then_destination };
+                let (destination, arguments) = if constant.is_zero() {
+                    (else_destination, else_arguments)
+                } else {
+                    (then_destination, then_arguments)
+                };
 
                 self.source_block = self.get_original_block(destination);
 
-                let arguments = Vec::new();
                 let jmp = TerminatorInstruction::Jmp { destination, arguments, call_stack };
                 self.inserter.function.dfg.set_block_terminator(self.insert_block, jmp);
                 vec![destination]
@@ -1592,6 +1884,7 @@ mod tests {
 
     use crate::assert_ssa_snapshot;
     use crate::errors::RuntimeError;
+    use crate::ssa::interpreter::value::Value;
     use crate::ssa::ir::integer::IntegerConstant;
     use crate::ssa::opt::assert_ssa_does_not_change;
     use crate::ssa::{Ssa, ir::value::ValueId, opt::assert_normalized_ssa_equals};
@@ -1803,7 +2096,10 @@ mod tests {
         assert_eq!(stats.useless_cost, 7);
         assert_eq!(stats.useful_cost(), 0);
         assert_eq!(stats.baseline_cost(), 15);
-        assert!(stats.is_small());
+        // useful_cost = 0 → unrolled_cost = 0, force_unrolled via threshold.
+        // is_small uses conservative_unrolled_cost (without useless subtraction)
+        // which is higher, but force_unroll handles this case.
+        assert_eq!(stats.unrolled_cost(), 0);
     }
 
     #[test]
@@ -1908,7 +2204,8 @@ mod tests {
         // lt(1) + array_get(3) + add(3) + unchecked_add(1) = 8
         assert_eq!(stats.useless_cost, 8);
         assert_eq!(stats.useful_cost(), 0);
-        assert!(stats.is_small());
+        // useful_cost = 0 → unrolled_cost = 0, force_unrolled via threshold.
+        assert_eq!(stats.unrolled_cost(), 0);
     }
 
     /// Regression test for nested loops with an accumulator (simplified regression_4709).
@@ -1959,7 +2256,8 @@ mod tests {
         // OutsideIn puts outer loop last; remove(0) gets the inner loop.
         assert_eq!(loops.yet_to_unroll.len(), 2, "should find outer and inner loops");
         let inner = loops.yet_to_unroll.remove(0);
-        let stats = inner.boilerplate_stats(function, &loops.cfg, &loops.callee_costs).unwrap();
+        let stats =
+            inner.boilerplate_stats(function, &loops.cfg, &loops.dom, &loops.callee_costs).unwrap();
         // Inner loop: blocks b3 (lt + jmpif) and b4 (load + add + store + unchecked_add + jmp)
         assert_eq!(stats.iterations, 35);
         assert_eq!(stats.loads, 1);
@@ -1969,7 +2267,8 @@ mod tests {
         // lt(1) + add (propagated load + constant source)(1) + unchecked_add(1) = 3
         assert_eq!(stats.useless_cost, 3);
         assert_eq!(stats.useful_cost(), 0);
-        assert!(stats.is_small());
+        // useful_cost = 0 → unrolled_cost = 0, force_unrolled via threshold.
+        assert_eq!(stats.unrolled_cost(), 0);
     }
 
     /// A reference passed as a block terminator argument is NOT classified
@@ -2369,7 +2668,7 @@ mod tests {
         let mut loops = Loops::find_all(function, LoopOrder::OutsideIn);
         let loop0 = loops.yet_to_unroll.pop().expect("there should be a loop");
         loop0
-            .boilerplate_stats(function, &loops.cfg, &HashMap::default())
+            .boilerplate_stats(function, &loops.cfg, &loops.dom, &HashMap::default())
             .expect("there should be stats")
     }
 
@@ -2594,6 +2893,238 @@ mod tests {
             return
         }
         ");
+    }
+
+    /// Regression test: after mem2reg_simple, loop headers can have multiple parameters
+    /// (induction variable + promoted mutable variables). Blocks outside the loop (like
+    /// the exit block b3) reference these header params directly. After unrolling, these
+    /// references must remain valid.
+    #[test]
+    fn unroll_loop_with_multi_param_header() {
+        // Simplified main from vector_loop after mem2reg_simple.
+        // b1 has 3 params: v1 (induction), v2 (promoted u32), v3 (promoted [Field]).
+        // b3 (exit) references v2 and v3 from b1 directly.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            jmp b1(u32 0, u32 0, Field 0)
+          b1(v1: u32, v2: u32, v3: Field):
+            v5 = lt v1, u32 3
+            jmpif v5 then: b2(), else: b3()
+          b2():
+            v6 = add v3, v0
+            v7 = unchecked_add v2, u32 1
+            v8 = unchecked_add v1, u32 1
+            jmp b1(v8, v7, v6)
+          b3():
+            v9 = lt u32 5, v2
+            jmpif v9 then: b4(), else: b5(v3)
+          b4():
+            v10 = add v3, Field 1
+            jmp b5(v10)
+          b5(v4: Field):
+            return v4
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        // Verify semantic preservation: interpret before and after unrolling
+        let input = vec![Value::field(3u128.into())];
+        let before = ssa.interpret(input.clone()).unwrap();
+
+        let (ssa, errors) = try_unroll_loops(ssa);
+        assert!(errors.is_empty(), "Unrolling should succeed: {errors:?}");
+
+        let after = ssa.interpret(input).unwrap();
+        assert_eq!(before, after, "Unrolling should preserve semantics");
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = add v0, v0
+            v3 = add v2, v0
+            jmp b1()
+          b1():
+            v6 = lt u32 5, u32 3
+            jmpif v6 then: b2(), else: b3(v3)
+          b2():
+            v8 = add v3, Field 1
+            jmp b3(v8)
+          b3(v1: Field):
+            return v1
+        }
+        ");
+    }
+
+    /// Regression test: after mem2reg promotes loads/stores to block parameters,
+    /// the loop should still be identified as small enough to unroll.
+    /// This is the SSA for the `brillig_cow_assign` integration test post mem2reg.
+    #[test]
+    fn test_brillig_unroll_after_mem2reg_simple() {
+        let src = "
+            brillig(inline) predicate_pure fn main f0 {
+                b0():
+                    v6 = make_array [Field 0, Field 0, Field 0, Field 0, Field 0, Field 0, Field 0, Field 0, Field 0, Field 0] : [Field; 10]
+                    inc_rc v6
+                    jmp b1(u32 0, v6, v6)
+                b1(v1: u32, v2: [Field; 10], v3: [Field; 10]):
+                    v8 = lt v1, u32 10
+                    jmpif v8 then: b2(), else: b3()
+                b2():
+                    v16 = eq v1, u32 5
+                    jmpif v16 then: b4(), else: b5(v3)
+                b3():
+                    v10 = array_get v2, index u32 6 -> Field
+                    constrain v10 == Field 27
+                    v12 = array_get v3, index u32 6 -> Field
+                    v13 = eq v12, Field 27
+                    constrain v13 == u1 0
+                    return
+                b4():
+                    inc_rc v2
+                    jmp b5(v2)
+                b5(v4: [Field; 10]):
+                    v17 = array_set v2, index v1, value Field 27
+                    v19 = unchecked_add v1, u32 1
+                    jmp b1(v19, v17, v4)
+            }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        // After mem2reg_simple, no loads/stores remain — the cost model must recognize
+        // the loop-internal terminator costs as boilerplate.
+        let stats = loop0_stats(&ssa);
+        assert_eq!(
+            stats.terminator_boilerplate, 11,
+            "should count all loop-internal terminator costs as boilerplate"
+        );
+        assert_eq!(stats.header_params, 3, "header has induction var + 2 promoted params");
+        assert!(
+            stats.unrolled_cost() <= FORCE_UNROLL_THRESHOLD,
+            "unrolled_cost {} should be within force-unroll threshold {}",
+            stats.unrolled_cost(),
+            FORCE_UNROLL_THRESHOLD,
+        );
+
+        let (ssa, errors) = try_unroll_loops(ssa);
+        assert_eq!(errors.len(), 0, "Unroll should have no errors");
+        // Loop has been unrolled
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            v11 = make_array [Field 0, Field 0, Field 0, Field 0, Field 0, Field 0, Field 0, Field 0, Field 0, Field 0] : [Field; 10]
+            inc_rc v11
+            jmp b2(v11)
+          b1():
+            v33 = array_get v32, index u32 6 -> Field
+            constrain v33 == Field 27
+            v34 = array_get v9, index u32 6 -> Field
+            v35 = eq v34, Field 27
+            constrain v35 == u1 0
+            return
+          b2(v0: [Field; 10]):
+            v14 = array_set v11, index u32 0, value Field 27
+            jmp b3(v0)
+          b3(v1: [Field; 10]):
+            v16 = array_set v14, index u32 1, value Field 27
+            jmp b4(v1)
+          b4(v2: [Field; 10]):
+            v18 = array_set v16, index u32 2, value Field 27
+            jmp b5(v2)
+          b5(v3: [Field; 10]):
+            v20 = array_set v18, index u32 3, value Field 27
+            jmp b6(v3)
+          b6(v4: [Field; 10]):
+            v22 = array_set v20, index u32 4, value Field 27
+            jmp b7()
+          b7():
+            inc_rc v22
+            jmp b8(v22)
+          b8(v5: [Field; 10]):
+            v24 = array_set v22, index u32 5, value Field 27
+            jmp b9(v5)
+          b9(v6: [Field; 10]):
+            v26 = array_set v24, index u32 6, value Field 27
+            jmp b10(v6)
+          b10(v7: [Field; 10]):
+            v28 = array_set v26, index u32 7, value Field 27
+            jmp b11(v7)
+          b11(v8: [Field; 10]):
+            v30 = array_set v28, index u32 8, value Field 27
+            jmp b12(v8)
+          b12(v9: [Field; 10]):
+            v32 = array_set v30, index u32 9, value Field 27
+            jmp b1()
+        }
+        ");
+    }
+
+    /// Regression test: after mem2reg_simple promotes loads/stores to block parameters,
+    /// `count_useless_cost` must propagate constants through Jmp arguments to non-header
+    /// block parameters. Without this, nested loops over constant 2D arrays won't see
+    /// inner loop accumulators as constant, inflating useful_cost and preventing unrolling.
+    ///
+    /// This models the pattern from the regression_4709 integration test: outer loop indexes a constant 2D
+    /// global array, inner loop accumulates over the row. After mem2reg, the row value
+    /// is passed as a block parameter to the inner loop header.
+    #[test]
+    fn test_boilerplate_stats_nested_loop_block_param_propagation() {
+        // Outer loop (b1) iterates i in 0..3.
+        // b2 does array_get on a constant 2D array to get a row, then jumps to inner header b4
+        // passing the row as a block param along with inner induction var 0 and accumulator 0.
+        // Inner loop (b4) iterates j in 0..6, accumulating array_get row[j] into acc.
+        // After inner loop, b6 increments outer induction var and loops back.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v100 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [Field; 6]
+            v101 = make_array [Field 7, Field 8, Field 9, Field 10, Field 11, Field 12] : [Field; 6]
+            v102 = make_array [Field 13, Field 14, Field 15, Field 16, Field 17, Field 18] : [Field; 6]
+            v103 = make_array [v100, v101, v102] : [[Field; 6]; 3]
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v5 = lt v0, u32 3
+            jmpif v5 then: b2(), else: b3()
+          b2():
+            v6 = array_get v103, index v0 -> [Field; 6]
+            jmp b4(u32 0, v6, Field 0)
+          b4(v1: u32, v7: [Field; 6], v8: Field):
+            v9 = lt v1, u32 6
+            jmpif v9 then: b5(), else: b6()
+          b5():
+            v10 = array_get v7, index v1 -> Field
+            v11 = add v8, v10
+            v12 = unchecked_add v1, u32 1
+            jmp b4(v12, v7, v11)
+          b6():
+            v13 = unchecked_add v0, u32 1
+            jmp b1(v13)
+          b3():
+            return
+        }";
+        let ssa = Ssa::from_str(src).unwrap();
+        let function = ssa.main();
+        let mut loops = Loops::find_all(function, LoopOrder::OutsideIn);
+        // OutsideIn: inner loop first, outer loop last.
+        assert_eq!(loops.yet_to_unroll.len(), 2, "should find outer and inner loops");
+
+        // Check that the outer loop has useful_cost = 0.
+        let outer = loops.yet_to_unroll.pop().unwrap();
+        let stats =
+            outer.boilerplate_stats(function, &loops.cfg, &loops.dom, &loops.callee_costs).unwrap();
+        assert_eq!(
+            stats.useful_cost(),
+            0,
+            "all outer loop instructions should be useless after block param propagation"
+        );
+
+        // Also verify the loop would be unrolled (unrolled_cost <= baseline_cost).
+        assert!(
+            stats.unrolled_cost() <= stats.baseline_cost(),
+            "outer loop should be unrolled: unrolled={} <= baseline={}",
+            stats.unrolled_cost(),
+            stats.baseline_cost()
+        );
     }
 
     /// Test that `get_const_upper_bound` does not blindly trust the single
