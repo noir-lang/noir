@@ -192,16 +192,7 @@ pub fn method_call_is_visible(
             }
 
             if let Some(struct_id) = func_meta.type_id {
-                if !struct_member_is_visible(
-                    struct_id,
-                    modifiers.visibility,
-                    current_module,
-                    def_maps,
-                ) {
-                    return false;
-                }
-
-                // For inherent impl methods, also check visibility against the impl's
+                // For inherent impl methods, check visibility against the impl's
                 // defining module (source_module). This prevents private methods defined
                 // in `impl super::S` inside `mod private` from being callable outside
                 // `mod private` via `s.method()`.
@@ -221,7 +212,12 @@ pub fn method_call_is_visible(
                     }
                 }
 
-                return true;
+                return struct_member_is_visible(
+                    struct_id,
+                    modifiers.visibility,
+                    current_module,
+                    def_maps,
+                );
             }
 
             if object_type.is_primitive() {

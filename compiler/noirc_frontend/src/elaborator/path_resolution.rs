@@ -776,16 +776,7 @@ impl Elaborator<'_> {
             module_def_id,
         );
 
-        if !item_in_module_is_visible(
-            self.def_maps,
-            importing_module,
-            current_module_id,
-            visibility,
-        ) {
-            errors.push(PathResolutionError::Private(name.clone()));
-        }
-
-        // For inherent impl methods, also check visibility against the impl's defining module
+        // For inherent impl methods, check visibility against the impl's defining module
         // (source_module), not just the type's module where the method was declared for lookup.
         // This prevents private methods defined in `impl super::S` inside `mod private` from
         // being accessible outside `mod private` via `S::method()`.
@@ -796,16 +787,21 @@ impl Elaborator<'_> {
         {
             let source_module =
                 ModuleId { krate: func_meta.source_crate, local_id: func_meta.source_module };
-            if source_module != current_module_id
-                && !item_in_module_is_visible(
-                    self.def_maps,
-                    importing_module,
-                    source_module,
-                    visibility,
-                )
-            {
+            if !item_in_module_is_visible(
+                self.def_maps,
+                importing_module,
+                source_module,
+                visibility,
+            ) {
                 errors.push(PathResolutionError::Private(name));
             }
+        } else if !item_in_module_is_visible(
+            self.def_maps,
+            importing_module,
+            current_module_id,
+            visibility,
+        ) {
+            errors.push(PathResolutionError::Private(name));
         }
 
         item
