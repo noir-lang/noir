@@ -96,6 +96,8 @@ jobs:
       - name: Query active docs versions
         working-directory: docs
         run: yarn version::stables
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build docs
         working-directory: docs
