@@ -34,6 +34,22 @@ impl<F: AcirField> ForeignCallExecutor<F> for Unhandled {
     }
 }
 
+/// Returns `AztecOracleError`  if the oracle call depends on an Aztec environment.
+pub struct RejectAztecOracles;
+
+impl<F: AcirField> ForeignCallExecutor<F> for RejectAztecOracles {
+    fn execute(
+        &mut self,
+        foreign_call: &ForeignCallWaitInfo<F>,
+    ) -> Result<ForeignCallResult<F>, ForeignCallError> {
+        if foreign_call.function.starts_with("aztec_") {
+            Err(ForeignCallError::AztecOracleError(foreign_call.function.clone()))
+        } else {
+            Err(ForeignCallError::NoHandler(foreign_call.function.clone()))
+        }
+    }
+}
+
 /// Forwards to the inner executor if its own handler doesn't handle the call.
 pub struct Layer<H, I> {
     pub handler: H,
