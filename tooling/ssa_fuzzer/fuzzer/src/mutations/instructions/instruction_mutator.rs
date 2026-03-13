@@ -244,6 +244,11 @@ impl InstructionArgumentsMutation {
                 mutate_usize(&mut u64_indices[idx], rng, BASIC_USIZE_MUTATION_CONFIGURATION);
                 mutate_bool(load_elements_of_array, rng, BASIC_BOOL_MUTATION_CONFIGURATION);
             }
+            Instruction::Poseidon2Permutation { field_indices, load_elements_of_array } => {
+                let idx = rng.random_range(0..field_indices.len());
+                mutate_usize(&mut field_indices[idx], rng, BASIC_USIZE_MUTATION_CONFIGURATION);
+                mutate_bool(load_elements_of_array, rng, BASIC_BOOL_MUTATION_CONFIGURATION);
+            }
             Instruction::Sha256Compression {
                 input_indices,
                 state_indices,
