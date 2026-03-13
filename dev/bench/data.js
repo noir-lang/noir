@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773409854351,
+  "lastUpdate": 1773410033254,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23181,48 +23181,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "001f1042d5a68dbe5ee3a378788b29a92cb0d420",
-          "message": "chore(deps): bump tar from 7.5.9 to 7.5.10 in /docs (#11790)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-03-06T09:46:49Z",
-          "tree_id": "0dfb55c7b83ff152f3b3471cc8b177df1aab39a9",
-          "url": "https://github.com/noir-lang/noir/commit/001f1042d5a68dbe5ee3a378788b29a92cb0d420"
-        },
-        "date": 1772790557156,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 251446,
-            "range": "± 484",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 221480,
-            "range": "± 6603",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2745617,
-            "range": "± 6703",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "000e862aad58d13cf0b8b22536e8b75bfc40adb2",
           "message": "chore(deps): bump @nomicfoundation/hardhat-ethers from 3.1.2 to 4.0.5 (#11739)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
           "timestamp": "2026-03-06T11:10:03Z",
@@ -25264,6 +25222,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2738786,
             "range": "± 4743",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8bdc389d14e6a963b9361bff0c9fea90e02cafad",
+          "message": "fix(ssa): verify jmpif condition matches header instruction in get_const_upper_bound (#11615)\n\nCo-authored-by: guipublic <guipublic@gmail.com>\nCo-authored-by: guipublic <47281315+guipublic@users.noreply.github.com>",
+          "timestamp": "2026-03-13T13:25:46Z",
+          "tree_id": "0716bb1e8d23f004203929027095061d4d0f52c0",
+          "url": "https://github.com/noir-lang/noir/commit/8bdc389d14e6a963b9361bff0c9fea90e02cafad"
+        },
+        "date": 1773409985050,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 255052,
+            "range": "± 831",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 225466,
+            "range": "± 5367",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2745994,
+            "range": "± 18600",
             "unit": "ns/iter"
           }
         ]
