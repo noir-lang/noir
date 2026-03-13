@@ -236,6 +236,11 @@ impl Function {
             // outer loops, so if an outer loop is unrolled, we have to restart looking for
             // the nested ones.
             let mut modified_blocks = HashSet::new();
+            // Blocks from loops that were skipped or failed to unroll. In InsideOut
+            // ordering, if an inner loop can't be unrolled, any enclosing loop that
+            // contains those blocks must also be skipped: the unroller visits each
+            // block once and cannot traverse the inner loop's cycle.
+            let mut skipped_or_failed_blocks: HashSet<BasicBlockId> = HashSet::new();
             let mut needs_refresh = false;
 
             while let Some(next_loop) = loops.yet_to_unroll.pop() {
@@ -246,7 +251,21 @@ impl Function {
                     continue;
                 }
 
-                // Don't try to unroll the loop again if it is known to fail
+                // InsideOut: skip if this loop contains blocks from an inner loop
+                // that couldn't be unrolled. The unroller visits each block once and
+                // can't traverse an inner loop's cycle, so attempting to unroll an
+                // outer loop with an un-unrolled inner loop would corrupt the SSA.
+                // OutsideIn (ACIR) does not need this: outer loops are processed
+                // first, and if they fail, inner loops are tried independently.
+                if order == LoopOrder::InsideOut
+                    && next_loop.blocks.iter().any(|block| skipped_or_failed_blocks.contains(block))
+                {
+                    continue;
+                }
+
+                // Don't try to unroll the loop again if it is known to fail.
+                // Save loop blocks before `try_unroll_loop` takes ownership.
+                let loop_blocks = next_loop.blocks.clone();
                 let result = if failed_to_unroll.contains(&next_loop.header) {
                     LoopUnrollResult::Skipped
                 } else {
@@ -258,10 +277,13 @@ impl Function {
                     )
                 };
                 match result {
-                    LoopUnrollResult::Skipped => continue,
+                    LoopUnrollResult::Skipped => {
+                        skipped_or_failed_blocks.extend(loop_blocks);
+                    }
                     LoopUnrollResult::Failed(header, error) => {
                         failed_to_unroll.insert(header);
                         unroll_errors.push(error);
+                        skipped_or_failed_blocks.extend(loop_blocks);
                     }
                     LoopUnrollResult::Unrolled(blocks) => {
                         has_unrolled = true;
@@ -2998,13 +3020,12 @@ mod tests {
     }
 
     /// Regression test: nested loops where the inner loop header has multiple
-    /// parameters. Unrolling the inner loop first, then simplifying between
-    /// unrolls (which calls mem2reg), should not panic on a block missing its
-    /// terminator instruction.
-    ///
-    /// We used to create a fresh block for the loop header at the back-edge destination,
-    /// but if unrolling aborted that block was never visited (since the header was already visited),
-    /// leaving it without a terminator.
+    /// parameters. The inner loop's first block param is non-constant (comes from
+    /// the outer loop's induction variable), so the inner loop is skipped in
+    /// InsideOut order. With `skipped_or_failed_blocks`, the outer loop is also
+    /// skipped because it contains the inner loop's blocks. Both loops survive
+    /// the single pass unchanged; `unroll_loops_iteratively` would handle them
+    /// in subsequent passes after simplification.
     #[test]
     fn unroll_nested_loop_with_multi_param_inner_header() {
         // Outer loop (b1) iterates v2 in 0..3 with 3 header params.
@@ -3037,40 +3058,11 @@ mod tests {
         let (ssa, _errors) = try_unroll_loops(ssa);
 
         // Structural validity: no orphan blocks, all terminators present.
-        // This used to panic with "Expected block to have terminator instruction"
-        // because the back-edge's mapped header block was left without a terminator.
         crate::ssa::ssa_gen::validate_ssa(&ssa);
 
-        assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
-          b0():
-            jmp b7(u32 0, u32 0, u32 1, u32 0)
-          b1(v0: u32, v1: u32, v2: u32):
-            v15 = lt v2, u32 3
-            jmpif v15 then: b2(), else: b5()
-          b2():
-            v16 = unchecked_add v2, u32 1
-            jmp b3(v0, v1, v16, u32 0)
-          b3(v3: u32, v4: u32, v5: u32, v6: u32):
-            v17 = lt v6, u32 1
-            jmpif v17 then: b6(), else: b4()
-          b4():
-            jmp b1(v3, v4, v5)
-          b5():
-            return
-          b6():
-            v18 = unchecked_add v6, u32 1
-            jmp b3(v3, v4, v5, v18)
-          b7(v7: u32, v8: u32, v9: u32, v10: u32):
-            v13 = eq v10, u32 0
-            jmpif v13 then: b8(), else: b9()
-          b8():
-            v19 = unchecked_add v10, u32 1
-            jmp b7(v7, v8, v9, v19)
-          b9():
-            jmp b1(v7, v8, v9)
-        }
-        ");
+        // Both loops are skipped: inner loop has non-constant lower bound,
+        // outer loop contains the inner loop's blocks. SSA is unchanged.
+        assert_normalized_ssa_equals(ssa, src);
     }
 
     /// Regression test: a loop with a single header parameter (the induction variable)
@@ -3109,5 +3101,60 @@ mod tests {
         // This used to panic because v0 from b1 was referenced in b3 after
         // b1 was unrolled away, leaving an orphan block parameter.
         crate::ssa::ssa_gen::validate_ssa(&ssa);
+    }
+
+    #[test]
+    fn unroll_nested_loop_with_break_to_outer_loop() {
+        // Regression (fuzzer seed 0x4a6418c600059c93 for acir_vs_brillig): 3-nested-loop structure
+        // where the inner loop has a non-constant lower bound and a break that
+        // exits to the middle loop. In InsideOut ordering:
+        //   1. Inner loop (b8<->b10) is skipped (non-constant lower bound)
+        //   2. Middle loop (b4..b10) is skipped (contains inner loop's blocks)
+        //   3. Outer loop (b1..b10) is skipped (contains inner loop's blocks)
+        //
+        // Without checking skipped or failed blocks, the middle loop would proceed
+        // to unroll, fail to traverse the inner loop's cycle, and corrupt SSA.
+        //
+        // Reduced from:
+        //   for idx_a in 0..1 {
+        //     loop { if idx_b == 1 { break } else {
+        //       loop { if idx_c == 1 { break } else { while false {} } }
+        //     }}
+        //   }
+        let src = "
+            brillig(inline) fn func_1 f0 {
+                b0():
+                    jmp b1(u32 0)
+                b1(v0: u32):
+                    v2 = eq v0, u32 0
+                    jmpif v2 then: b2(), else: b3()
+                b2():
+                    jmp b4(u32 0)
+                b3():
+                    return u1 1
+                b4(v3: u32):
+                    v6 = eq v3, u32 1
+                    jmpif v6 then: b5(), else: b6()
+                b5():
+                    v10 = unchecked_add v0, u32 1
+                    jmp b1(v10)
+                b6():
+                    v7 = unchecked_add v3, u32 1
+                    jmp b8(v7, u32 0)
+                b8(v8: u32, v9: u32):
+                    v11 = eq v9, u32 1
+                    jmpif v11 then: b9(), else: b10()
+                b9():
+                    jmp b4(v8)
+                b10():
+                    v12 = add v9, u32 1
+                    jmp b8(v8, v12)
+            }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        // All loops are skipped in a single pass. SSA remains unchanged and valid.
+        let (ssa, _errors) = try_unroll_loops(ssa);
+        crate::ssa::ssa_gen::validate_ssa(&ssa);
+        assert_normalized_ssa_equals(ssa, src);
     }
 }
