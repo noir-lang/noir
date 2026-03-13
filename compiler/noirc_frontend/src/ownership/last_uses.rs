@@ -393,8 +393,9 @@ impl LastUseContext {
     }
 
     /// Track a use of a variable through `ExtractTupleField`. This records the use for
-    /// last-use analysis but does NOT mark the variable as having a "non-extract" use,
-    /// allowing it to potentially be classified as extract-only.
+    /// last-use analysis but does NOT mark the variable as unsafe for extract-only
+    /// optimization (unless the same field is extracted twice or the use is at a
+    /// different loop level).
     fn track_extract_use(&mut self, expr: &Expression, field_index: usize) {
         match expr {
             Expression::Ident(ident) => {
