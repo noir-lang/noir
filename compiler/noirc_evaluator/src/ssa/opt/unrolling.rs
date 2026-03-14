@@ -2749,6 +2749,48 @@ mod tests {
         assert_normalized_ssa_equals(ssa, src);
     }
 
+    /// Regression test: a for-loop with a conditional break from a body block
+    /// should not be unrolled by Brillig. The break creates an exit edge from
+    /// a non-header block to outside the loop. Previously, `is_fully_executed`
+    /// only checked the header's exit block, missing body exits, which caused
+    /// the unroller to panic with "destination not in original loop".
+    #[test]
+    fn do_not_unroll_loop_with_body_break() {
+        // for i in 0..2 {
+        //     if some_call() { break; }
+        //     println(i);
+        // }
+        let src = r#"
+        brillig(inline) impure fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v3 = lt v0, u32 2
+            jmpif v3 then: b2(), else: b3()
+          b2():
+            v4 = call f1() -> u1
+            jmpif v4 then: b4(), else: b5()
+          b3():
+            return
+          b4():
+            jmp b3()
+          b5():
+            v6 = unchecked_add v0, u32 1
+            jmp b1(v6)
+        }
+        brillig(inline) fn f1 f1 {
+          b0():
+            return u1 0
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let (ssa, errors) = try_unroll_loops(ssa);
+        assert_eq!(errors.len(), 0, "Unroll should have no errors");
+
+        // The SSA is expected to be unchanged because the loop has a body break
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
     #[test]
     fn test_brillig_unroll_with_const_back_edge() {
         // The loop is small enough that Brillig wants to unroll it,

@@ -170,27 +170,41 @@ impl Loop {
 
     /// Check if the loop will be fully executed, that is, there is no early `break` in it.
     ///
-    /// Our SSA code generation restricts loops to having one exit block.
-    /// If the exit block has only one predecessor, that means there is no `break` in the loop.
-    ///
-    /// If a loop can have several exit blocks, we would need to update this function.
-    ///
     /// If the loop header doesn't lead to an exit block, then it must be a `loop` or `while`,
     /// rather than a `for` loop. Even if such blocks don't have a `break` (e.g. they are infinite),
     /// we don't consider them fully executed.
     pub(super) fn is_fully_executed(&self, cfg: &ControlFlowGraph) -> bool {
         // A typical for-loop header has 2 successors: the loop body and the exit block.
+        let mut has_header_exit = false;
         for block in cfg.successors(self.header) {
             // The exit block is not contained in the loop.
             if !self.blocks.contains(&block) {
                 // If the exit block can be reached from the header and somewhere else in the loop,
                 // then there must be a `break`.
-                return cfg.predecessors(block).len() == 1;
+                if cfg.predecessors(block).len() != 1 {
+                    return false;
+                }
+                has_header_exit = true;
             }
         }
-        // If we are here then we haven't found an exit block from the header,
-        // which means we must be dealing with a `loop` or `while`.
-        false
+        // If we haven't found an exit block from the header,
+        // we must be dealing with a `loop` or `while`.
+        if !has_header_exit {
+            return false;
+        }
+        // Check that no body block has a successor outside the loop,
+        // which would indicate a `break` from inside the loop body.
+        for block in &self.blocks {
+            if *block == self.header {
+                continue;
+            }
+            for succ in cfg.successors(*block) {
+                if !self.blocks.contains(&succ) {
+                    return false;
+                }
+            }
+        }
+        true
     }
 }
 
