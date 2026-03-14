@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773436478377,
+  "lastUpdate": 1773464649709,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23156,48 +23156,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "e4b6337426c0fa4bd71c96d83886fde17fdbfc19",
-          "message": "chore(deps): bump tar-fs from 3.0.9 to 3.1.2 (#11802)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-03-06T16:33:08Z",
-          "tree_id": "e75435fcbbc3f66f00951eada8a8aa4dff78d763",
-          "url": "https://github.com/noir-lang/noir/commit/e4b6337426c0fa4bd71c96d83886fde17fdbfc19"
-        },
-        "date": 1772814938294,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 256008,
-            "range": "± 484",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 221958,
-            "range": "± 3045",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2748781,
-            "range": "± 12601",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25249,6 +25207,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3126705,
             "range": "± 2210",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fe37187322c34ded12e74aabd1b49bf43f6ad947",
+          "message": "chore: align call stack frame numbers/names (#11873)",
+          "timestamp": "2026-03-14T04:35:34Z",
+          "tree_id": "2491004448d720aef1bc9057418c71553109ff26",
+          "url": "https://github.com/noir-lang/noir/commit/fe37187322c34ded12e74aabd1b49bf43f6ad947"
+        },
+        "date": 1773464602132,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 253566,
+            "range": "± 778",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 221726,
+            "range": "± 4572",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2732172,
+            "range": "± 4730",
             "unit": "ns/iter"
           }
         ]
