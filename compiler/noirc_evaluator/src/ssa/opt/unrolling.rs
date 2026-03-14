@@ -236,6 +236,11 @@ impl Function {
             // outer loops, so if an outer loop is unrolled, we have to restart looking for
             // the nested ones.
             let mut modified_blocks = HashSet::new();
+            // Blocks from loops that were skipped or failed to unroll. In InsideOut
+            // ordering, if an inner loop can't be unrolled, any enclosing loop that
+            // contains those blocks must also be skipped: the unroller visits each
+            // block once and cannot traverse the inner loop's cycle.
+            let mut failed_blocks: HashSet<BasicBlockId> = HashSet::new();
             let mut needs_refresh = false;
 
             while let Some(next_loop) = loops.yet_to_unroll.pop() {
@@ -246,7 +251,21 @@ impl Function {
                     continue;
                 }
 
-                // Don't try to unroll the loop again if it is known to fail
+                // InsideOut: skip if this loop contains blocks from an inner loop
+                // that couldn't be unrolled. The unroller visits each block once and
+                // can't traverse an inner loop's cycle, so attempting to unroll an
+                // outer loop with an un-unrolled inner loop would corrupt the SSA.
+                // OutsideIn (ACIR) does not need this: outer loops are processed
+                // first, and if they fail, inner loops are tried independently.
+                if order == LoopOrder::InsideOut
+                    && next_loop.blocks.iter().any(|block| failed_blocks.contains(block))
+                {
+                    continue;
+                }
+
+                // Don't try to unroll the loop again if it is known to fail.
+                // Save loop blocks before `try_unroll_loop` takes ownership.
+                let loop_blocks = next_loop.blocks.clone();
                 let result = if failed_to_unroll.contains(&next_loop.header) {
                     LoopUnrollResult::Skipped
                 } else {
@@ -258,10 +277,11 @@ impl Function {
                     )
                 };
                 match result {
-                    LoopUnrollResult::Skipped => continue,
+                    LoopUnrollResult::Skipped => {}
                     LoopUnrollResult::Failed(header, error) => {
                         failed_to_unroll.insert(header);
                         unroll_errors.push(error);
+                        failed_blocks.extend(loop_blocks);
                     }
                     LoopUnrollResult::Unrolled(blocks) => {
                         has_unrolled = true;
@@ -786,9 +806,10 @@ impl Loop {
         }
 
         // After unrolling, blocks outside the loop may still reference the old header
-        // parameters (e.g. exit blocks that use promoted variables such as from mem2reg).
+        // parameters (e.g. exit blocks that use promoted variables such as from mem2reg,
+        // or references to the induction variable itself in post-loop code).
         // Replace all remaining uses of header params with the final iteration's values.
-        if header_params.len() > 1 {
+        if !header_params.is_empty() {
             let mut mapping = ValueMapping::default();
             mapping.batch_insert(&header_params, &header_args);
 
@@ -1715,13 +1736,20 @@ impl<'f> LoopIteration<'f> {
                 )
             }
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
-                if self.get_original_block(*destination) == self.loop_.header {
+                if *destination == self.loop_.header {
                     // We found the back-edge of the loop.
                     assert!(!arguments.is_empty(), "back-edge should have at least 1 argument");
                     assert!(self.induction_value.is_none(), "there should be only one back-edge");
                     self.induction_value = Some((self.insert_block, arguments.clone()));
+                    self.encountered_loop_header = true;
+                    // Don't enqueue the header as a next block: it was already visited
+                    // at the start of this iteration. The next call to `unroll_header`
+                    // in the `unroll()` while loop will handle the header for the next
+                    // iteration.
+                    vec![]
+                } else {
+                    vec![*destination]
                 }
-                vec![*destination]
             }
             TerminatorInstruction::Return { .. } => {
                 // Early returns from loops are not implemented.
@@ -1784,7 +1812,15 @@ impl<'f> LoopIteration<'f> {
     ///
     /// If the given block id is not within the loop, it is returned as-is,
     /// which is the case for when the header jumps to the block following the loop.
+    ///
+    /// The loop header is also returned as-is: the header is handled separately
+    /// by `unroll_header`, so creating a fresh block for it here would leave an
+    /// orphan block with no terminator if unrolling is later aborted.
     fn get_or_insert_block(&mut self, block: BasicBlockId) -> BasicBlockId {
+        if block == self.loop_.header {
+            return block;
+        }
+
         if let Some(new_block) = self.blocks.get(&block) {
             return *new_block;
         }
@@ -2713,6 +2749,48 @@ mod tests {
         assert_normalized_ssa_equals(ssa, src);
     }
 
+    /// Regression test: a for-loop with a conditional break from a body block
+    /// should not be unrolled by Brillig. The break creates an exit edge from
+    /// a non-header block to outside the loop. Previously, `is_fully_executed`
+    /// only checked the header's exit block, missing body exits, which caused
+    /// the unroller to panic with "destination not in original loop".
+    #[test]
+    fn do_not_unroll_loop_with_body_break() {
+        // for i in 0..2 {
+        //     if some_call() { break; }
+        //     println(i);
+        // }
+        let src = r#"
+        brillig(inline) impure fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v3 = lt v0, u32 2
+            jmpif v3 then: b2(), else: b3()
+          b2():
+            v4 = call f1() -> u1
+            jmpif v4 then: b4(), else: b5()
+          b3():
+            return
+          b4():
+            jmp b3()
+          b5():
+            v6 = unchecked_add v0, u32 1
+            jmp b1(v6)
+        }
+        brillig(inline) fn f1 f1 {
+          b0():
+            return u1 0
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let (ssa, errors) = try_unroll_loops(ssa);
+        assert_eq!(errors.len(), 0, "Unroll should have no errors");
+
+        // The SSA is expected to be unchanged because the loop has a body break
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
     #[test]
     fn test_brillig_unroll_with_const_back_edge() {
         // The loop is small enough that Brillig wants to unroll it,
@@ -2893,6 +2971,51 @@ mod tests {
             return
         }
         ");
+    }
+
+    /// Test that `get_const_upper_bound` does not blindly trust the single
+    /// instruction in the loop header without checking that the jmpif
+    /// condition actually uses that instruction's result.
+    ///
+    /// Here the header has a `lt` with rhs=100, but the jmpif condition
+    /// is a completely different value (`v10`) defined in the pre-header.
+    /// `get_const_upper_bound` should return `None` (or at least not 100).
+    #[test]
+    fn get_const_upper_bound_ignores_unrelated_instruction() {
+        // The loop header has a single `lt v0, u32 100` instruction
+        // but the jmpif uses a constant `u1 1`, not the result of that lt.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v1 = lt v0, u32 100
+            jmpif u1 1 then: b3(), else: b2()
+          b3():
+            v2 = unchecked_add v0, u32 1
+            jmp b1(v2)
+          b2():
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let function = ssa.main();
+        let loops = Loops::find_all(function, LoopOrder::OutsideIn);
+        assert_eq!(loops.yet_to_unroll.len(), 1);
+
+        let loop_ = &loops.yet_to_unroll[0];
+        let pre_header =
+            loop_.get_pre_header(function, &loops.cfg).expect("Should have a pre_header");
+
+        // The upper bound should be None because the lt instruction in the header
+        // is not connected to the jmpif condition. If this returns Some(100),
+        // the function is incorrectly assuming the header instruction feeds the jmpif.
+        let upper = loop_.get_const_upper_bound(&function.dfg, pre_header, |v| v);
+        assert!(
+            upper.is_none(),
+            "get_const_upper_bound should return None when the header's Lt instruction \
+             does not feed the jmpif condition, but got: {upper:?}"
+        );
     }
 
     /// Regression test: after mem2reg_simple, loop headers can have multiple parameters
@@ -3127,48 +3250,109 @@ mod tests {
         );
     }
 
-    /// Test that `get_const_upper_bound` does not blindly trust the single
-    /// instruction in the loop header without checking that the jmpif
-    /// condition actually uses that instruction's result.
-    ///
-    /// Here the header has a `lt` with rhs=100, but the jmpif condition
-    /// is a completely different value (`v10`) defined in the pre-header.
-    /// `get_const_upper_bound` should return `None` (or at least not 100).
+    /// Regression test: nested loops where the inner loop header has multiple
+    /// parameters.
     #[test]
-    fn get_const_upper_bound_ignores_unrelated_instruction() {
-        // The loop header has a single `lt v0, u32 100` instruction
-        // but the jmpif uses a constant `u1 1`, not the result of that lt.
+    fn unroll_nested_loop_with_multi_param_inner_header() {
+        // Outer loop (b1) iterates v2 in 0..3 with 3 header params.
+        // b2 enters inner loop (b3) passing 4 params (3 outer + induction var).
+        // Inner loop (b3) iterates v8 in 0..1.
+        // On exit (b4) jumps back to outer header b1.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1(u32 0, u32 0, u32 0)
+          b1(v0: u32, v1: u32, v2: u32):
+            v3 = lt v2, u32 3
+            jmpif v3 then: b2(), else: b5()
+          b2():
+            v4 = unchecked_add v2, u32 1
+            jmp b3(v0, v1, v4, u32 0)
+          b3(v5: u32, v6: u32, v7: u32, v8: u32):
+            v9 = lt v8, u32 1
+            jmpif v9 then: b6(), else: b4()
+          b4():
+            jmp b1(v5, v6, v7)
+          b5():
+            return
+          b6():
+            v10 = unchecked_add v8, u32 1
+            jmp b3(v5, v6, v7, v10)
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let (ssa, _errors) = try_unroll_loops(ssa);
+
+        // Structural validity: no orphan blocks, all terminators present.
+        crate::ssa::ssa_gen::validate_ssa(&ssa);
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b7(u32 0, u32 0, u32 1, u32 0)
+          b1(v0: u32, v1: u32, v2: u32):
+            v15 = lt v2, u32 3
+            jmpif v15 then: b2(), else: b5()
+          b2():
+            v16 = unchecked_add v2, u32 1
+            jmp b3(v0, v1, v16, u32 0)
+          b3(v3: u32, v4: u32, v5: u32, v6: u32):
+            v17 = lt v6, u32 1
+            jmpif v17 then: b6(), else: b4()
+          b4():
+            jmp b1(v3, v4, v5)
+          b5():
+            return
+          b6():
+            v18 = unchecked_add v6, u32 1
+            jmp b3(v3, v4, v5, v18)
+          b7(v7: u32, v8: u32, v9: u32, v10: u32):
+            v13 = eq v10, u32 0
+            jmpif v13 then: b8(), else: b9()
+          b8():
+            v19 = unchecked_add v10, u32 1
+            jmp b7(v7, v8, v9, v19)
+          b9():
+            jmp b1(v7, v8, v9)
+        }
+        ");
+    }
+
+    /// Regression test: a loop with a single header parameter (the induction variable)
+    /// where the induction variable is referenced in post-loop blocks.
+    ///
+    /// After unrolling the first loop (b1), the induction variable v0 is used in b3
+    /// (outside the loop) as an argument to the second loop header b4.
+    #[test]
+    fn unroll_single_param_header_referenced_in_post_loop() {
+        // b1 is a simple loop 0..3, b3 uses v0 (b1's param) to enter second loop b4.
         let src = "
         brillig(inline) fn main f0 {
           b0():
             jmp b1(u32 0)
           b1(v0: u32):
-            v1 = lt v0, u32 100
-            jmpif u1 1 then: b3(), else: b2()
-          b3():
+            v1 = eq v0, u32 3
+            jmpif v1 then: b2(), else: b3()
+          b2():
             v2 = unchecked_add v0, u32 1
             jmp b1(v2)
-          b2():
+          b3():
+            jmp b4(v0, u32 0)
+          b4(v3: u32, v4: u32):
+            v5 = eq v4, u32 2
+            jmpif v5 then: b5(), else: b6()
+          b5():
             return
+          b6():
+            v6 = unchecked_add v4, u32 1
+            jmp b4(v3, v6)
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let function = ssa.main();
-        let loops = Loops::find_all(function, LoopOrder::OutsideIn);
-        assert_eq!(loops.yet_to_unroll.len(), 1);
+        let (ssa, _errors) = try_unroll_loops(ssa);
 
-        let loop_ = &loops.yet_to_unroll[0];
-        let pre_header =
-            loop_.get_pre_header(function, &loops.cfg).expect("Should have a pre_header");
-
-        // The upper bound should be None because the lt instruction in the header
-        // is not connected to the jmpif condition. If this returns Some(100),
-        // the function is incorrectly assuming the header instruction feeds the jmpif.
-        let upper = loop_.get_const_upper_bound(&function.dfg, pre_header, |v| v);
-        assert!(
-            upper.is_none(),
-            "get_const_upper_bound should return None when the header's Lt instruction \
-             does not feed the jmpif condition, but got: {upper:?}"
-        );
+        // This used to panic because v0 from b1 was referenced in b3 after
+        // b1 was unrolled away, leaving an orphan block parameter.
+        crate::ssa::ssa_gen::validate_ssa(&ssa);
     }
 }
