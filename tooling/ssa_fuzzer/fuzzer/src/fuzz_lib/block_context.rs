@@ -632,9 +632,6 @@ impl BlockContext {
                 if !self.options.instruction_options.ecdsa_secp256r1_enabled {
                     return;
                 }
-                if corrupt_hash || corrupt_pubkey_x || corrupt_pubkey_y || corrupt_signature {
-                    return;
-                }
                 let prepared_signature = generate_ecdsa_signature_and_corrupt_it(
                     &msg,
                     Curve::Secp256r1,
@@ -661,9 +658,6 @@ impl BlockContext {
                 predicate,
             } => {
                 if !self.options.instruction_options.ecdsa_secp256k1_enabled {
-                    return;
-                }
-                if corrupt_hash || corrupt_pubkey_x || corrupt_pubkey_y || corrupt_signature {
                     return;
                 }
                 let prepared_signature = generate_ecdsa_signature_and_corrupt_it(
