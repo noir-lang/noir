@@ -1,107 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773679405073,
+  "lastUpdate": 1773679825119,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "17f185dc97dc262f9b119f89c99a8142f6998e8a",
-          "message": "fix: unwrap expr in comptime is_break/is_continue/has_semicolon (#11805)",
-          "timestamp": "2026-03-06T21:34:39Z",
-          "tree_id": "4cd0ca1cd2ab1cc83136215ac255e53d7b28f9f6",
-          "url": "https://github.com/noir-lang/noir/commit/17f185dc97dc262f9b119f89c99a8142f6998e8a"
-        },
-        "date": 1772835783774,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 293.68,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 508.06,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 266.16,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 346.44,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 345.24,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 348.11,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 346.07,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 10320,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 10320,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 348.52,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 1070,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 2810,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 345.25,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 99.18,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 185.41,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -4949,6 +4850,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512_100_bytes",
             "value": 185.52,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4214c3d6c2e141daa57850bb39477934452227bc",
+          "message": "chore(deps): bump marocchino/sticky-pull-request-comment from 2 to 3 (#11874)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-03-16T15:59:53Z",
+          "tree_id": "443713b534e0a0c6fb046021c2f2267e845c592d",
+          "url": "https://github.com/noir-lang/noir/commit/4214c3d6c2e141daa57850bb39477934452227bc"
+        },
+        "date": 1773679770956,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 293.06,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 507.92,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 266.51,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 346.76,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 345.56,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 348.58,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 346.55,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 10320,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 10320,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 349.01,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 1070,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 2810,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 345.73,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 99.28,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 185.49,
             "unit": "MB"
           }
         ]
