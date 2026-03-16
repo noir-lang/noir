@@ -56,6 +56,18 @@ impl FunctionDefinition {
     pub comptime fn set_body(self, body: Expr) {}
     // docs:end:set_body
 
+    #[deprecated]
+    #[builtin(function_def_set_parameters)]
+    // docs:start:set_parameters
+    pub comptime fn set_parameters(self, parameters: [(Quoted, Type)]) {}
+    // docs:end:set_parameters
+
+    #[deprecated]
+    #[builtin(function_def_set_return_public)]
+    // docs:start:set_return_public
+    pub comptime fn set_return_public(self, public: bool) {}
+    // docs:end:set_return_public
+
     #[builtin(function_def_visibility)]
     // docs:start:visibility
     pub comptime fn visibility(self) -> Quoted {}

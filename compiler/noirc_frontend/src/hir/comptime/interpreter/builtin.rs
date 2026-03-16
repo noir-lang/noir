@@ -39,7 +39,10 @@ use crate::{
             errors::IResult,
             interpreter::{
                 builtin::builtin_helpers::fragments_to_string,
-                builtin_helpers::check_item_crate_matches_current_crate,
+                builtin_helpers::{
+                    check_item_crate_matches_current_crate, get_tuple, mutate_func_meta_type,
+                    replace_func_meta_parameters,
+                },
             },
             value::{ExprValue, FormatStringFragment, TypedExpr},
         },
@@ -50,9 +53,9 @@ use crate::{
         function::FunctionBody,
         traits::{ResolvedTraitBound, TraitConstraint},
     },
-    node_interner::{NodeInterner, TraitImplKind},
+    node_interner::{DefinitionKind, NodeInterner, TraitImplKind},
     parser::{Parser, StatementOrExpressionOrLValue},
-    shared::Signedness,
+    shared::{Signedness, Visibility},
     signed_field::SignedField,
     token::{Attribute, LocatedToken, SecondaryAttribute, SecondaryAttributeKind, Token},
 };
@@ -149,6 +152,10 @@ impl Interpreter<'_, '_> {
             "function_def_parameters" => function_def_parameters(interner, arguments, location),
             "function_def_return_type" => function_def_return_type(interner, arguments, location),
             "function_def_set_body" => function_def_set_body(self, arguments, location),
+            "function_def_set_parameters" => function_def_set_parameters(self, arguments, location),
+            "function_def_set_return_public" => {
+                function_def_set_return_public(self, arguments, location)
+            }
             "function_def_visibility" => function_def_visibility(interner, arguments, location),
             "module_child_modules" => module_child_modules(self, arguments, location),
             "module_eq" => module_eq(arguments, location),
@@ -2713,6 +2720,85 @@ fn function_def_set_body(
     let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
     func_meta.has_body = true;
     func_meta.function_body = FunctionBody::Unresolved(FunctionKind::Normal, body, location);
+
+    Ok(Value::Unit)
+}
+
+// fn set_parameters(self, parameters: [(Quoted, Type)])
+fn function_def_set_parameters(
+    interpreter: &mut Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (self_argument, parameters_argument) = check_two_arguments(arguments, location)?;
+    let parameters_argument_location = parameters_argument.1;
+
+    let func_id = get_function_def(self_argument)?;
+    check_function_not_yet_resolved(interpreter, func_id, location)?;
+
+    let (input_parameters, _type) = get_vector(parameters_argument)?;
+
+    // What follows is very similar to what happens in Elaborator::define_function_meta
+    let mut parameters = Vec::new();
+    let mut parameter_types = Vec::new();
+    let mut parameter_idents = Vec::new();
+    let mut parameter_names_in_list = rustc_hash::FxHashMap::default();
+
+    for input_parameter in input_parameters {
+        let mut tuple = get_tuple((input_parameter, parameters_argument_location))?;
+        let parameter = tuple.pop().unwrap().unwrap_or_clone();
+        let parameter_type = get_type((parameter, parameters_argument_location))?;
+        let parameter_pattern = parse(
+            interpreter.elaborator,
+            (tuple.pop().unwrap().unwrap_or_clone(), parameters_argument_location),
+            Parser::parse_pattern_or_error,
+            "a pattern",
+        )?;
+
+        let reason =
+            ElaborateReason::EvaluatingComptimeCall("FunctionDefinition::set_parameters", location);
+        let reason = Some(reason);
+        let hir_pattern = interpreter.elaborate_in_function(Some(func_id), reason, |elaborator| {
+            elaborator.elaborate_pattern_and_store_ids(
+                parameter_pattern,
+                parameter_type.clone(),
+                DefinitionKind::Local(None),
+                &mut parameter_idents,
+                true, // warn_if_unused
+                true, // warn_if_not_mutated
+                &mut parameter_names_in_list,
+            )
+        });
+
+        parameters.push((hir_pattern, parameter_type.clone(), Visibility::Private));
+        parameter_types.push(parameter_type);
+    }
+
+    mutate_func_meta_type(interpreter.elaborator.interner, func_id, |func_meta| {
+        func_meta.parameters = parameters.into();
+        func_meta.parameter_idents = parameter_idents;
+        replace_func_meta_parameters(&mut func_meta.typ, parameter_types);
+    });
+
+    Ok(Value::Unit)
+}
+
+// fn set_return_public(self, public: bool)
+fn function_def_set_return_public(
+    interpreter: &mut Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (self_argument, public) = check_two_arguments(arguments, location)?;
+
+    let func_id = get_function_def(self_argument)?;
+    check_function_not_yet_resolved(interpreter, func_id, location)?;
+
+    let public = get_bool(public)?;
+
+    let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
+    func_meta.return_visibility = if public { Visibility::Public } else { Visibility::Private };
+    func_meta.return_visibility_location = location;
 
     Ok(Value::Unit)
 }
