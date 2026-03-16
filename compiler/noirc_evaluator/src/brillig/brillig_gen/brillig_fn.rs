@@ -156,7 +156,7 @@ impl FunctionContext {
     /// Panics if called with a vector type, as a vector's memory layout cannot be inferred without runtime data.
     pub(crate) fn ssa_type_to_parameter(typ: &Type) -> BrilligParameter {
         match typ {
-            Type::Numeric(_) | Type::Reference(_) => {
+            Type::Numeric(_) | Type::Reference(_) | Type::Function => {
                 BrilligParameter::SingleAddr(get_bit_size_from_ssa_type(typ))
             }
             Type::Array(item_type, size) => BrilligParameter::Array(
@@ -165,10 +165,6 @@ impl FunctionContext {
             ),
             Type::Vector(_) => {
                 panic!("ICE: Vector parameters cannot be derived from type information")
-            }
-            // Treat functions as field values
-            Type::Function => {
-                BrilligParameter::SingleAddr(get_bit_size_from_ssa_type(&Type::field()))
             }
         }
     }
