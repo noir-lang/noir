@@ -69,9 +69,7 @@ impl Elaborator<'_> {
                     .iter()
                     .position(|capture| capture.ident.id == variable.ident.id);
 
-                let capture_index = if let Some(pos) = position {
-                    Some(pos)
-                } else {
+                let capture_index = position.or_else(|| {
                     // In a comptime context we capture comptime and non-comptime variables
                     // (the latter will be an error).
                     // In a non-comptime context we don't capture comptime variables.
