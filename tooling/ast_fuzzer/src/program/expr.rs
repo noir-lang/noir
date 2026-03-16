@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, rc::Rc};
 
 use acir::FieldElement;
 use nargo::errors::Location;
@@ -250,7 +250,7 @@ pub(crate) fn ident(
     id: IdentId,
     mutable: bool,
     name: Name,
-    typ: Type,
+    typ: Rc<Type>,
 ) -> Expression {
     Expression::Ident(ident_inner(variable_id, id, mutable, name, typ))
 }
@@ -261,7 +261,7 @@ pub(crate) fn ident_inner(
     id: IdentId,
     mutable: bool,
     name: Name,
-    typ: Type,
+    typ: Rc<Type>,
 ) -> Ident {
     Ident {
         location: None,
@@ -335,7 +335,7 @@ pub fn assign_ident(ident: Ident, expr: Expression) -> Expression {
 
 /// Assign a value to a mutable reference.
 pub fn assign_ref(ident: Ident, expr: Expression) -> Expression {
-    let typ = ident.typ.clone();
+    let typ = ident.typ.as_ref().clone();
     let lvalue = LValue::Ident(ident);
     let lvalue = LValue::Dereference { reference: Box::new(lvalue), element_type: typ };
     Expression::Assign(Assign { lvalue, expression: Box::new(expr) })
@@ -378,7 +378,7 @@ pub fn ref_mut(rhs: Expression, tgt_type: Type) -> Expression {
 }
 
 fn ref_with_mut(rhs: Expression, tgt_type: Type, mutable: bool) -> Expression {
-    unary(UnaryOp::Reference { mutable }, rhs, Type::Reference(Box::new(tgt_type), mutable))
+    unary(UnaryOp::Reference { mutable }, rhs, Type::Reference(Rc::new(tgt_type), mutable))
 }
 
 /// Make a unary expression.
