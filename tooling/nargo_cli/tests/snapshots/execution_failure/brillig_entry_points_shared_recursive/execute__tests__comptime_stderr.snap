@@ -16,18 +16,18 @@ error: Comptime Stack Overflow
    │         -------------------------------- Exceeded the recursion limit
    │
    = Call stack:
-        1: ?
+          1: ?
                 at src/main.nr:1:4
-        2: main
+          2: main
                 at src/main.nr:2:5
-     ┌─ 3: baz
+     ┌─   3: baz
      │          at src/main.nr:18:9
-     │  4: foo
+     │    4: foo
      │          at src/main.nr:7:5
-     │  5: bar
+     │    5: bar
      │          at src/main.nr:12:5
      └─ (repeated 32 times)
-        99: baz
+         99: baz
                 at src/main.nr:18:9
         100: foo
                 at src/main.nr:6:5
