@@ -355,8 +355,8 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                             return Err("Foreign call returned a single value for an vector type"
                                 .to_string());
                         };
-                        if value_types.len() == 0 {
-                            if values.len() != 0 {
+                        if value_types.is_empty() {
+                            if !values.is_empty() {
                                 return Err("Returned non-empty data for zero vector element size"
                                     .to_string());
                             }
