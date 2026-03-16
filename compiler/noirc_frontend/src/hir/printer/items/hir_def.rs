@@ -470,6 +470,11 @@ impl ItemPrinter<'_, '_> {
         self.show_hir_expression_id_maybe_inside_parens(first_argument);
         self.push('.');
         self.push_str(self.interner.function_name(&func_id));
+
+        if hir_call_expression.is_macro_call {
+            self.push('!');
+        }
+
         if let Some(generics) = generics {
             let use_colons = true;
             self.show_generic_types(&generics, use_colons);
