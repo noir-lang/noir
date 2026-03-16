@@ -11,6 +11,7 @@ use acir::{
     },
 };
 use acvm_blackbox_solver::BlackBoxFunctionSolver;
+use itertools::Itertools;
 
 use crate::{MemoryValue, VM, VMStatus, assert_u32, assert_usize, memory::ArrayAddress};
 
@@ -77,7 +78,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
 
             let resolved_inputs = inputs
                 .iter()
-                .zip(input_value_types)
+                .zip_eq(input_value_types)
                 .map(|(input, input_type)| {
                     let mut input = self.get_memory_values(*input, input_type);
                     // Truncate vectors to their semantic length, which we remember from the preceding field.
@@ -273,7 +274,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
         );
 
         for ((destination, value_type), output) in
-            destinations.iter().zip(destination_value_types).zip(&values)
+            destinations.iter().zip_eq(destination_value_types).zip_eq(&values)
         {
             match (destination, value_type) {
                 (ValueOrArray::MemoryAddress(value_addr), HeapValueType::Simple(bit_size)) => {

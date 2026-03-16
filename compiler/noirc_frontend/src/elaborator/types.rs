@@ -4,6 +4,7 @@ use std::{borrow::Cow, rc::Rc};
 
 use im::HashSet;
 use iter_extended::vecmap;
+use itertools::Itertools;
 use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
 
@@ -769,7 +770,7 @@ impl Elaborator<'_> {
             args.ordered_args.resize(expected_kinds.len(), error_type);
         }
 
-        let ordered_args = expected_kinds.iter().zip(args.ordered_args);
+        let ordered_args = expected_kinds.iter().zip_eq(args.ordered_args);
         let ordered = vecmap(ordered_args, |(kind, typ)| {
             self.resolve_type_with_kind_inner(typ, kind, mode, wildcard_allowed)
         });
@@ -1659,7 +1660,7 @@ impl Elaborator<'_> {
             return Type::Error;
         }
 
-        for (param, (arg, arg_expr_id, arg_location)) in fn_params.iter().zip(callsite_args) {
+        for (param, (arg, arg_expr_id, arg_location)) in fn_params.iter().zip_eq(callsite_args) {
             self.unify_with_coercions(arg, param, *arg_expr_id, *arg_location, || {
                 CompilationError::TypeError(TypeCheckError::TypeMismatch {
                     expected_typ: param.to_string(),
@@ -3100,7 +3101,7 @@ pub(super) fn bind_ordered_generics(
 ) {
     assert_eq!(params.len(), args.len(), "unexpected number of ordered generics");
 
-    for (param, arg) in params.iter().zip(args) {
+    for (param, arg) in params.iter().zip_eq(args) {
         bind_generic(param, arg, bindings);
     }
 }

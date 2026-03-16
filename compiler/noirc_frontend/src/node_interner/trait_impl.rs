@@ -1,4 +1,5 @@
 use iter_extended::vecmap;
+use itertools::Itertools;
 use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
 use std::collections::HashSet;
@@ -437,7 +438,7 @@ impl NodeInterner {
                 TraitImplKind::Assumed { trait_generics, .. } => trait_generics.clone(),
             };
 
-            let generics_unify = trait_generics.iter().zip(&impl_trait_generics.ordered).all(
+            let generics_unify = trait_generics.iter().zip_eq(&impl_trait_generics.ordered).all(
                 |(trait_generic, impl_generic)| {
                     let impl_generic = impl_generic.substitute(&instantiation_bindings);
                     trait_generic.try_unify(&impl_generic, &mut fresh_bindings).is_ok()

@@ -22,6 +22,7 @@ use acvm::{
         brillig::lengths::{ElementTypesLength, SemiFlattenedLength},
     },
 };
+use itertools::Itertools;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 pub(crate) mod dynamic_array_indices;
@@ -327,7 +328,7 @@ impl<'f> Validator<'f> {
                 );
 
                 for (index, (argument, parameter_type)) in
-                    arguments.iter().zip(parameter_types).enumerate()
+                    arguments.iter().zip_eq(parameter_types).enumerate()
                 {
                     let argument_type = dfg.type_of_value(*argument);
                     if argument_type != parameter_type {
@@ -349,7 +350,7 @@ impl<'f> Validator<'f> {
                         );
                     }
                     for (index, (instruction_result, return_value)) in
-                        instruction_results.iter().zip(returns).enumerate()
+                        instruction_results.iter().zip_eq(returns).enumerate()
                     {
                         let return_type = called_function.dfg.type_of_value(*return_value);
                         let instruction_result_type = dfg.type_of_value(*instruction_result);
@@ -1063,7 +1064,7 @@ impl<'f> Validator<'f> {
                     block_parameters.len(),
                     "Number of arguments in jmp must match number of block parameters"
                 );
-                for (argument, parameter) in arguments.iter().zip(block_parameters) {
+                for (argument, parameter) in arguments.iter().zip_eq(block_parameters) {
                     let argument_type = self.function.dfg.type_of_value(*argument);
                     let parameter_type = self.function.dfg.type_of_value(*parameter);
                     assert_eq!(
