@@ -794,3 +794,83 @@ fn unnecessary_pub_on_argument() {
     ";
     check_errors(src);
 }
+
+#[test]
+fn errors_if_cross_module_impl_leaks_private_type_in_return() {
+    let src = r#"
+    struct S {}
+    mod private_mod {
+        struct R { pub x: u32 }
+        impl super::S {
+            fn get_r() -> R {
+               ^^^^^ Type `R` is more private than item `get_r`
+                R { x: 1 }
+            }
+        }
+    }
+    fn main() {
+        let _ = S {};
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_if_cross_module_impl_leaks_private_type_in_param() {
+    let src = r#"
+    struct S {}
+    mod private_mod {
+        struct R {}
+        impl super::S {
+            pub fn take_r(_r: R) {
+                   ^^^^^^ Type `R` is more private than item `take_r`
+            }
+        }
+
+        pub fn remove_warnings() {
+            let _ = R {};
+        }
+    }
+    fn main() {
+        let _ = S {};
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn no_error_if_cross_module_impl_uses_pub_type() {
+    let src = r#"
+    struct S {}
+    mod helper {
+        pub struct R { pub x: u32 }
+        impl super::S {
+            fn get_r() -> R {
+                R { x: 1 }
+            }
+        }
+    }
+    fn main() {
+        let _ = S {};
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn no_error_if_same_module_impl_uses_private_type() {
+    let src = r#"
+    struct S {}
+    struct R {}
+    impl S {
+        fn get_r() -> R {
+            R {}
+        }
+    }
+    fn main() {
+        let _ = S {};
+        let _ = R {};
+    }
+    "#;
+    assert_no_errors(src);
+}

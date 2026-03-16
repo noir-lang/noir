@@ -5,16 +5,31 @@ use noirc_errors::{Located, Location};
 use crate::{
     DataType, StructField, Type,
     ast::{Ident, ItemVisibility, NoirStruct},
-    hir::resolution::{
-        errors::ResolverError,
-        import::PathResolutionError,
-        visibility::{method_call_is_visible, struct_member_is_visible},
+    hir::{
+        def_map::ModuleId,
+        resolution::{
+            errors::ResolverError,
+            import::PathResolutionError,
+            visibility::{
+                item_in_module_is_visible, method_call_is_visible, struct_member_is_visible,
+            },
+        },
     },
     hir_def::function::FuncMeta,
     node_interner::{FuncId, FunctionModifiers},
 };
 
 use super::Elaborator;
+
+/// Describes how to determine whether a referenced type is "too private" for an item.
+enum VisibilityCheck {
+    /// The referenced type's visibility must be at least this level.
+    /// Used for struct fields, type aliases, and function signatures.
+    Visibility(ItemVisibility),
+    /// The referenced type must be visible from this module.
+    /// Used for cross-module impl methods where types are hoisted to a different module.
+    VisibleFromModule(ModuleId),
+}
 
 impl Elaborator<'_> {
     /// Checks whether calling the method `func_id` on an object of type `object_type` is allowed
@@ -122,6 +137,10 @@ impl Elaborator<'_> {
                 location,
             );
         }
+
+        // Check that cross-module impl methods don't leak types
+        // that are private to the impl's module.
+        self.check_cross_module_impl_type_visibility(func_meta, name, location);
     }
 
     /// Check whether a function's args and return value should be checked for private type visibility.
@@ -157,6 +176,48 @@ impl Elaborator<'_> {
         typ: &Type,
         location: Location,
     ) {
+        self.check_type_privacy(name, &VisibilityCheck::Visibility(visibility), typ, location);
+    }
+
+    /// For methods defined in cross-module impls (where the impl block is in a different
+    /// module than the struct), check that all types in the method's signature are visible
+    /// from the struct's defining module.
+    fn check_cross_module_impl_type_visibility(
+        &mut self,
+        func_meta: &FuncMeta,
+        name: &Ident,
+        location: Location,
+    ) {
+        let Some(struct_id) = func_meta.type_id else { return };
+
+        if func_meta.trait_impl.is_some() {
+            return;
+        }
+
+        let struct_parent_module = struct_id.parent_module_id(self.def_maps);
+        let impl_module =
+            ModuleId { krate: func_meta.source_crate, local_id: func_meta.source_module };
+
+        if struct_parent_module == impl_module {
+            return;
+        }
+
+        let check = VisibilityCheck::VisibleFromModule(struct_parent_module);
+        for (_, typ, _) in func_meta.parameters.iter() {
+            self.check_type_privacy(name, &check, typ, location);
+        }
+        self.check_type_privacy(name, &check, func_meta.return_type(), location);
+    }
+
+    /// Recursively walks a type and checks that every DataType referenced in it
+    /// satisfies the given visibility check.
+    fn check_type_privacy(
+        &mut self,
+        name: &Ident,
+        check: &VisibilityCheck,
+        typ: &Type,
+        location: Location,
+    ) {
         match typ {
             Type::DataType(struct_type, generics) => {
                 let struct_type = struct_type.borrow();
@@ -165,9 +226,25 @@ impl Elaborator<'_> {
                 // We only check this in types in the same crate. If it's in a different crate
                 // then it's either accessible (all good) or it's not, in which case a different
                 // error will happen somewhere else, but no need to error again here.
-                if struct_module_id.krate == self.crate_id {
+                let check_crate = match check {
+                    VisibilityCheck::Visibility(_) => self.crate_id,
+                    VisibilityCheck::VisibleFromModule(module) => module.krate,
+                };
+                if struct_module_id.krate == check_crate {
                     let aliased_visibility = self.find_struct_visibility(&struct_type);
-                    if aliased_visibility < visibility {
+                    let is_private = match check {
+                        VisibilityCheck::Visibility(visibility) => aliased_visibility < *visibility,
+                        VisibilityCheck::VisibleFromModule(from_module) => {
+                            let target_module = struct_type.id.parent_module_id(self.def_maps);
+                            !item_in_module_is_visible(
+                                self.def_maps,
+                                *from_module,
+                                target_module,
+                                aliased_visibility,
+                            )
+                        }
+                    };
+                    if is_private {
                         self.push_err(ResolverError::TypeIsMorePrivateThenItem {
                             typ: struct_type.name.to_string(),
                             item: name.to_string(),
@@ -177,46 +254,39 @@ impl Elaborator<'_> {
                 }
 
                 for generic in generics {
-                    self.check_type_is_not_more_private_then_item(
-                        name, visibility, generic, location,
-                    );
+                    self.check_type_privacy(name, check, generic, location);
                 }
             }
             Type::Tuple(types) => {
                 for typ in types {
-                    self.check_type_is_not_more_private_then_item(name, visibility, typ, location);
+                    self.check_type_privacy(name, check, typ, location);
                 }
             }
             Type::Alias(alias_type, generics) => {
-                self.check_type_is_not_more_private_then_item(
+                self.check_type_privacy(
                     name,
-                    visibility,
+                    check,
                     &alias_type.borrow().get_type(generics),
                     location,
                 );
             }
             Type::CheckedCast { from, to } => {
-                self.check_type_is_not_more_private_then_item(name, visibility, from, location);
-                self.check_type_is_not_more_private_then_item(name, visibility, to, location);
+                self.check_type_privacy(name, check, from, location);
+                self.check_type_privacy(name, check, to, location);
             }
             Type::Function(args, return_type, env, _) => {
                 for arg in args {
-                    self.check_type_is_not_more_private_then_item(name, visibility, arg, location);
+                    self.check_type_privacy(name, check, arg, location);
                 }
-                self.check_type_is_not_more_private_then_item(
-                    name,
-                    visibility,
-                    return_type,
-                    location,
-                );
-                self.check_type_is_not_more_private_then_item(name, visibility, env, location);
+                self.check_type_privacy(name, check, return_type, location);
+                self.check_type_privacy(name, check, env, location);
             }
             Type::Reference(typ, _) | Type::Array(_, typ) | Type::Vector(typ) => {
-                self.check_type_is_not_more_private_then_item(name, visibility, typ, location);
+                self.check_type_privacy(name, check, typ, location);
             }
             Type::InfixExpr(left, _op, right, _) => {
-                self.check_type_is_not_more_private_then_item(name, visibility, left, location);
-                self.check_type_is_not_more_private_then_item(name, visibility, right, location);
+                self.check_type_privacy(name, check, left, location);
+                self.check_type_privacy(name, check, right, location);
             }
             Type::FieldElement
             | Type::Integer(..)
