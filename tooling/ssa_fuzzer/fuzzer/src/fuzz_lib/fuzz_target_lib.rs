@@ -47,7 +47,7 @@ pub(crate) fn fuzz_target(
     ensure_boolean_defined_in_all_functions(&mut data);
 
     if data.contains_nested_vector() {
-        return FuzzerOutput { witness_stack, program: None, compile_error: Some("Nested vectors, i.e. vectors within an array or vector, are not supported".into()) }
+        return FuzzerOutput { witness_stack: WitnessStack::from(witness_map), program: None, compile_error: Some("Nested vectors, i.e. vectors within an array or vector, are not supported".into()) }
     }
 
     if type_contains_vector_or_reference(&data.functions[0].return_type) {
