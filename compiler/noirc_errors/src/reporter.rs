@@ -290,6 +290,12 @@ pub fn stack_trace<'files>(
 
     let repeating_sequences = find_repeating_sequences(call_stack);
 
+    // Compute the length of the longest frame number so we show them like this:
+    //   1: ..
+    //  23: ..
+    // 234: ..
+    let maximum_frame_string_length = compute_maximum_frame_string_length(&repeating_sequences);
+
     let mut result = "Call stack:\n".to_string();
     let mut index = 1;
 
@@ -311,7 +317,7 @@ pub fn stack_trace<'files>(
             } else {
                 "│  "
             };
-            result += &format!("{prefix}{index}: {name}\n");
+            result += &format!("{prefix}{index:>maximum_frame_string_length$}: {name}\n");
 
             let prefix =
                 if times == 1 { if has_repetitions { "   " } else { "" } } else { "│  " };
@@ -325,6 +331,19 @@ pub fn stack_trace<'files>(
     }
 
     result
+}
+
+/// Computes the maximum number of digits to represent all **shown** frames in the callstack.
+fn compute_maximum_frame_string_length(repeating_sequences: &[(Vec<Location>, usize)]) -> usize {
+    let mut index = 1;
+    let mut maximum_index = 0;
+    for (sequence, times) in repeating_sequences {
+        index += sequence.len();
+        // In a group, the maximum shown frame is the last one in the group
+        maximum_index = index;
+        index += sequence.len() * (times - 1);
+    }
+    maximum_index.to_string().len()
 }
 
 pub fn line_and_column_from_span(source: &str, span: &Span) -> (u32, u32) {
