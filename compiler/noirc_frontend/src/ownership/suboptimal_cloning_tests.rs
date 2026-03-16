@@ -109,32 +109,6 @@ fn nested_tuple_extraction_disjoint_subfields() {
     ");
 }
 
-/// Indexing into a nested array: `arr[0]` where `arr` is `[[Field; 2]; 2]`.
-/// The element is used once and the outer array is not used again, so no
-/// clone is needed.
-///
-/// Suboptimal: the index result gets `.clone()` because `handle_index` always
-/// clones when the element type contains an array. Safe to remove because the
-/// outer array has no further uses.
-#[test]
-fn nested_array_single_index() {
-    let src = "
-    unconstrained fn main() {
-        let arr = [[1, 2], [3, 4]];
-        let _inner = arr[0];
-    }
-    ";
-
-    let program = get_monomorphized(src).unwrap();
-    // arr$l0[0].clone() is suboptimal — arr is not used again after this index
-    insta::assert_snapshot!(program, @r"
-    unconstrained fn main$f0() -> () {
-        let arr$l0 = [[1, 2], [3, 4]];
-        let _inner$l1 = arr$l0[0].clone()
-    }
-    ");
-}
-
 /// Two disjoint indexes into a nested array. Each index accesses a different
 /// element, so they don't alias.
 ///
