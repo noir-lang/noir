@@ -325,7 +325,7 @@ impl Parser<'_> {
                 message = Some(s);
             }
             ExpressionKind::Variable(variable)
-                if !deny && variable.as_ident().map_or(false, |ident| ident == "deny") =>
+                if !deny && variable.as_ident().is_some_and(|ident| ident == "deny") =>
             {
                 deny = true;
             }
