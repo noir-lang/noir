@@ -1520,7 +1520,7 @@ impl BoilerplateStats {
 
     /// Estimated Brillig-weighted cost if we unroll the loop.
     fn unrolled_cost(&self) -> usize {
-        self.useful_cost() * self.iterations
+        self.useful_cost().saturating_mul(self.iterations)
     }
 
     /// Conservative estimate of unrolled cost that excludes useless_cost.
@@ -1532,7 +1532,7 @@ impl BoilerplateStats {
     /// The `force_unroll` path still uses `unrolled_cost()` with full useless_cost
     /// subtraction, ensuring genuinely tiny loops are still unrolled.
     fn conservative_unrolled_cost(&self) -> usize {
-        self.conservative_useful_cost() * self.iterations
+        self.conservative_useful_cost().saturating_mul(self.iterations)
     }
 
     /// A small loop is where if we unroll it into the pre-header then considering the
