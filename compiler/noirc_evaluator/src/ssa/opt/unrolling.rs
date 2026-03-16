@@ -81,6 +81,12 @@ pub const FORCE_UNROLL_THRESHOLD: usize = 128;
 /// Prevents code explosion from very large loops even if they pass the cost model.
 pub const MAX_UNROLL_ITERATIONS: usize = 1000;
 
+/// Maximum number of simplify-and-retry cycles for the outer Brillig unrolling
+/// loop in [Function::unroll_loops_iteratively]. Each cycle runs [simplify_between_unrolls]
+/// then retries `try_unroll_loops`. Without this bound,
+/// simplification can keep revealing new unrollable loops indefinitely.
+const MAX_BRILLIG_UNROLL_CYCLES: usize = 5;
+
 impl Ssa {
     /// Loop unrolling can return errors, since ACIR functions need to be fully unrolled.
     /// This meta-pass will keep trying to unroll loops and simplifying the SSA until no more errors are found.
@@ -181,18 +187,20 @@ impl Function {
                     }
                 }
             }
-            RuntimeType::Brillig(_) => loop {
-                simplify_between_unrolls(self);
-                let (unrolled, _) = self.try_unroll_loops(
-                    max_unroll_iterations,
-                    force_unroll_threshold,
-                    callee_costs,
-                );
-                has_unrolled |= unrolled;
-                if !unrolled {
-                    break;
+            RuntimeType::Brillig(_) => {
+                for _ in 0..MAX_BRILLIG_UNROLL_CYCLES {
+                    simplify_between_unrolls(self);
+                    let (unrolled, _) = self.try_unroll_loops(
+                        max_unroll_iterations,
+                        force_unroll_threshold,
+                        callee_costs,
+                    );
+                    has_unrolled |= unrolled;
+                    if !unrolled {
+                        break;
+                    }
                 }
-            },
+            }
         }
 
         #[cfg(debug_assertions)]
