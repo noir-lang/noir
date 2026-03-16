@@ -182,7 +182,7 @@ jobs:
       - name: Add gates diff to sticky comment
         # We don't run this step on external PRs
         if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@v3
         with:
           # delete the comment in case changes no longer impact circuit sizes
           delete: ${{ !steps.gates_diff.outputs.markdown }}
@@ -235,7 +235,7 @@ jobs:
 
       - name: Add bytecode size diff to sticky comment
         if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@v3
         with:
           header: brillig
           # delete the comment in case changes no longer impact brillig bytecode sizes
@@ -289,7 +289,7 @@ jobs:
 
       - name: Add bytecode size diff to sticky comment
         if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@v3
         with:
           header: brillig_execution
           # delete the comment in case changes no longer impact brillig bytecode sizes
