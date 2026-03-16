@@ -16,7 +16,7 @@
 use super::{
     function_context::FunctionData,
     initial_witness::WitnessValue,
-    instruction::InstructionBlock,
+    instruction::{Instruction, InstructionBlock},
     options::{FuzzerMode, FuzzerOptions},
     program_context::{FuzzerProgramContext, program_context_by_mode},
 };
@@ -41,6 +41,38 @@ impl Default for FuzzerData {
             functions: vec![FunctionData::default()],
             initial_witness: vec![WitnessValue::default()],
             instruction_blocks: vec![],
+        }
+    }
+}
+
+impl FuzzerData {
+    pub(crate) fn contains_nested_vector(&self) -> bool {
+        self.functions.iter().any(FunctionData::contains_nested_vector)
+            || self.instruction_blocks.iter().any(InstructionBlock::contains_nested_vector)
+    }
+}
+
+impl FunctionData {
+    fn contains_nested_vector(&self) -> bool {
+        self.return_type.is_nested_vector() || self.input_types.iter().any(Type::is_nested_vector)
+    }
+}
+
+impl InstructionBlock {
+    fn contains_nested_vector(&self) -> bool {
+        self.instructions.iter().any(Instruction::contains_nested_vector)
+    }
+}
+
+impl Instruction {
+    fn contains_nested_vector(&self) -> bool {
+        match self {
+            Instruction::AddToMemory { lhs } | Instruction::LoadFromMemory { memory_addr: lhs } => {
+                lhs.value_type.is_nested_vector()
+            }
+            Instruction::SetToMemory { value, .. } => value.value_type.is_nested_vector(),
+            Instruction::CreateArray { element_type, .. } => element_type.is_nested_vector(),
+            _ => false,
         }
     }
 }
