@@ -23,4 +23,18 @@ error: Oracle functions cannot return multiple vectors
   │                  ------------
   │
 
-Aborting due to 3 previous errors
+error: Oracle functions cannot return vectors containing nested arrays
+  ┌─ src/main.nr:7:18
+  │
+7 │ unconstrained fn byte_vec_vec() -> [[u8]] {}
+  │                  ------------ Vectors with nested arrays are not yet supported for foreign call returns
+  │
+
+error: Oracle functions cannot return vectors containing nested arrays
+   ┌─ src/main.nr:11:18
+   │
+11 │ unconstrained fn str_vec() -> [str<2>] {}
+   │                  ------- Vectors with nested arrays are not yet supported for foreign call returns
+   │
+
+Aborting due to 5 previous errors
