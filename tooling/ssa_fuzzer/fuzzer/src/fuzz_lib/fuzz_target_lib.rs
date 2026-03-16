@@ -32,10 +32,18 @@ pub(crate) fn fuzz_target(
     data.functions[0].input_types = types;
     ensure_boolean_defined_in_all_functions(&mut data);
     if data.instruction_blocks.is_empty() {
-        return FuzzerOutput { witness_stack: WitnessStack::from(witness_map), program: None };
+        return FuzzerOutput {
+            witness_stack: WitnessStack::from(witness_map),
+            program: None,
+            compile_error: None,
+        };
     }
     if data.functions.is_empty() {
-        return FuzzerOutput { witness_stack: WitnessStack::from(witness_map), program: None };
+        return FuzzerOutput {
+            witness_stack: WitnessStack::from(witness_map),
+            program: None,
+            compile_error: None,
+        };
     }
 
     if type_contains_vector_or_reference(&data.functions[0].return_type) {
@@ -73,16 +81,22 @@ pub(crate) fn fuzz_target(
                     );
                 }
                 CompareResults::LeftCompilationFailed => {
+                    let compile_error =
+                        fuzzer_outputs[i].get_compile_error().unwrap_or("unknown compile error");
                     panic!(
-                        "Fuzzer runtime {} failed to compile, other returned {:?}",
+                        "Fuzzer runtime {} failed to compile: {}, other returned {:?}",
                         runtimes[i],
+                        compile_error,
                         fuzzer_outputs[j].get_return_witnesses()
                     );
                 }
                 CompareResults::RightCompilationFailed => {
+                    let compile_error =
+                        fuzzer_outputs[j].get_compile_error().unwrap_or("unknown compile error");
                     panic!(
-                        "Fuzzer runtime {} failed to compile, other returned {:?}",
+                        "Fuzzer runtime {} failed to compile: {}, other returned {:?}",
                         runtimes[j],
+                        compile_error,
                         fuzzer_outputs[i].get_return_witnesses()
                     );
                 }

@@ -54,6 +54,7 @@ pub(crate) struct FuzzerOutput {
     pub(crate) witness_stack: WitnessStack<FieldElement>,
     // None if the program failed to compile
     pub(crate) program: Option<CompiledProgram>,
+    pub(crate) compile_error: Option<String>,
 }
 
 pub(crate) enum CompareResults {
@@ -68,6 +69,10 @@ pub(crate) enum CompareResults {
 
 // TODO(sn): https://github.com/noir-lang/noir/issues/9743
 impl FuzzerOutput {
+    pub(crate) fn get_compile_error(&self) -> Option<&str> {
+        self.compile_error.as_deref()
+    }
+
     pub(crate) fn get_return_witnesses(&self) -> Vec<FieldElement> {
         // program failed to compile
         if self.program.is_none() {
@@ -193,6 +198,9 @@ impl Fuzzer {
                 if !result.get_return_witnesses().is_empty() {
                     panic_string
                         .push_str(&format!("Mode {mode:?}: {:?}\n", result.get_return_witnesses()));
+                } else if let Some(compile_error) = result.get_compile_error() {
+                    panic_string
+                        .push_str(&format!("Mode {mode:?} failed to compile: {compile_error}\n"));
                 } else {
                     panic_string.push_str(&format!("Mode {mode:?} failed\n"));
                 }
@@ -206,18 +214,29 @@ impl Fuzzer {
         context: FuzzerProgramContext,
         initial_witness: WitnessMap<FieldElement>,
     ) -> FuzzerOutput {
-        let program = context.get_program();
         let input_witness_stack = WitnessStack::from(initial_witness.clone());
-        if program.is_err() {
-            return FuzzerOutput { witness_stack: input_witness_stack, program: None };
-        }
-        let witness_stack = execute(&program.as_ref().unwrap().program, initial_witness);
+        let program = match context.get_program() {
+            Ok(program) => program,
+            Err(error) => {
+                return FuzzerOutput {
+                    witness_stack: input_witness_stack,
+                    program: None,
+                    compile_error: Some(error.to_string()),
+                };
+            }
+        };
+        let witness_stack = execute(&program.program, initial_witness);
         if witness_stack.is_err() {
             return FuzzerOutput {
                 witness_stack: input_witness_stack,
-                program: Some(program.unwrap()),
+                program: Some(program),
+                compile_error: None,
             };
         }
-        FuzzerOutput { witness_stack: witness_stack.unwrap(), program: Some(program.unwrap()) }
+        FuzzerOutput {
+            witness_stack: witness_stack.unwrap(),
+            program: Some(program),
+            compile_error: None,
+        }
     }
 }
