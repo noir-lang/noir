@@ -194,7 +194,8 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
                 )
             },
             "Brillig Function Specialization",
-        ),
+        )
+        .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::as_vector_optimization, "`as_vector` optimization")
             .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new_try(
