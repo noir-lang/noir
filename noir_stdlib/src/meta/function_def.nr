@@ -1,4 +1,10 @@
 impl FunctionDefinition {
+    #[deprecated]
+    #[builtin(function_def_add_attribute)]
+    // docs:start:add_attribute
+    pub comptime fn add_attribute<let N: u32>(self, attribute: str<N>) {}
+    // docs:end:add_attribute
+
     #[builtin(function_def_as_typed_expr)]
     // docs:start:as_typed_expr
     pub comptime fn as_typed_expr(self) -> TypedExpr {}
@@ -43,6 +49,12 @@ impl FunctionDefinition {
     // docs:start:return_type
     pub comptime fn return_type(self) -> Type {}
     // docs:end:return_type
+
+    #[deprecated]
+    #[builtin(function_def_set_body)]
+    // docs:start:set_body
+    pub comptime fn set_body(self, body: Expr) {}
+    // docs:end:set_body
 
     #[builtin(function_def_visibility)]
     // docs:start:visibility

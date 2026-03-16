@@ -24,8 +24,9 @@ use rustc_hash::FxHashMap as HashMap;
 use crate::{
     Kind, QuotedType, Shared, Type, TypeBindings,
     ast::{
-        ArrayLiteral, ConstrainKind, Expression, ExpressionKind, ForRange, IntegerBitSize, LValue,
-        Literal, Pattern, Statement, StatementKind, UnresolvedTypeData, UnsafeExpression,
+        ArrayLiteral, BlockExpression, ConstrainKind, Expression, ExpressionKind, ForRange,
+        FunctionKind, IntegerBitSize, LValue, Literal, Pattern, Statement, StatementKind,
+        UnresolvedTypeData, UnsafeExpression,
     },
     elaborator::{
         ElaborateReason, Elaborator, PrimitiveType,
@@ -53,7 +54,7 @@ use crate::{
     parser::{Parser, StatementOrExpressionOrLValue},
     shared::Signedness,
     signed_field::SignedField,
-    token::{Attribute, LocatedToken, SecondaryAttribute, Token},
+    token::{Attribute, LocatedToken, SecondaryAttribute, SecondaryAttributeKind, Token},
 };
 
 use self::builtin_helpers::{eq_item, get_array, get_ctstring, get_str, get_u8, hash_item, lex};
@@ -131,6 +132,7 @@ impl Interpreter<'_, '_> {
             "fmtstr_as_ctstring" => fmtstr_as_ctstring(interner, arguments, location),
             "fmtstr_quoted_contents" => fmtstr_quoted_contents(interner, arguments, location),
             "fresh_type_variable" => fresh_type_variable(interner),
+            "function_def_add_attribute" => function_def_add_attribute(self, arguments, location),
             "function_def_as_typed_expr" => function_def_as_typed_expr(self, arguments, location),
             "function_def_body" => function_def_body(interner, arguments, location),
             "function_def_disable" => function_def_disable(self, arguments, location),
@@ -146,6 +148,7 @@ impl Interpreter<'_, '_> {
             "function_def_name" => function_def_name(interner, arguments, location),
             "function_def_parameters" => function_def_parameters(interner, arguments, location),
             "function_def_return_type" => function_def_return_type(interner, arguments, location),
+            "function_def_set_body" => function_def_set_body(self, arguments, location),
             "function_def_visibility" => function_def_visibility(interner, arguments, location),
             "module_child_modules" => module_child_modules(self, arguments, location),
             "module_eq" => module_eq(arguments, location),
@@ -203,6 +206,7 @@ impl Interpreter<'_, '_> {
             "type_as_str" => type_as_str(arguments, return_type, location),
             "type_as_data_type" => type_as_data_type(arguments, return_type, location),
             "type_as_tuple" => type_as_tuple(arguments, return_type, location),
+            "type_def_add_attribute" => type_def_add_attribute(self, arguments, location),
             "type_def_add_abi" => type_def_add_abi(self, arguments, location),
             "type_def_as_type" => type_def_as_type(interner, arguments, location),
             "type_def_as_type_with_generics" => {
@@ -394,6 +398,36 @@ fn str_as_ctstring(arguments: Vec<(Value, Location)>, location: Location) -> IRe
     Ok(Value::CtString(string_bytes))
 }
 
+// fn add_attribute<let N: u32>(self, attribute: str<N>)
+fn type_def_add_attribute(
+    interpreter: &mut Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (self_argument, attribute) = check_two_arguments(arguments, location)?;
+    let attribute_location = attribute.1;
+    let attribute = get_str(attribute)?;
+    let attribute = String::from_utf8_lossy(&attribute);
+    let attribute = format!("#[{attribute}]");
+    let mut parser = Parser::for_str(&attribute, attribute_location.file);
+    let Some((Attribute::Secondary(attribute), _span)) = parser.parse_attribute() else {
+        return Err(InterpreterError::InvalidAttribute {
+            attribute: attribute.clone(),
+            location: attribute_location,
+        });
+    };
+
+    let self_arg = self_argument.0.clone();
+    let type_id = get_type_id(self_argument)?;
+    check_item_crate_matches_current_crate(interpreter, &self_arg, type_id.module_id(), location)?;
+
+    interpreter.elaborator.interner.update_type_attributes(type_id, |attributes| {
+        attributes.push(attribute);
+    });
+
+    Ok(Value::Unit)
+}
+
 // fn add_abi(self, abi_argument: CtString)
 fn type_def_add_abi(
     interpreter: &mut Interpreter,
@@ -404,13 +438,10 @@ fn type_def_add_abi(
     let attribute_location = attribute.1;
     let attribute = get_ctstring(attribute)?;
     let attribute = String::from_utf8_lossy(&attribute);
-    let attribute = format!("#[abi({attribute})]");
-    let mut parser = Parser::for_str(&attribute, attribute_location.file);
-    let Some((Attribute::Secondary(attribute), _span)) = parser.parse_attribute() else {
-        return Err(InterpreterError::InvalidAttribute {
-            attribute: attribute.clone(),
-            location: attribute_location,
-        });
+
+    let attribute = SecondaryAttribute {
+        kind: SecondaryAttributeKind::Abi(attribute.into_owned()),
+        location: attribute_location,
     };
 
     let self_arg = self_argument.0.clone();
@@ -2400,6 +2431,42 @@ fn fresh_type_variable(interner: &NodeInterner) -> IResult<Value> {
     Ok(Value::Type(interner.next_type_variable_with_kind(Kind::Any)))
 }
 
+// fn add_attribute<let N: u32>(self, attribute: str<N>)
+fn function_def_add_attribute(
+    interpreter: &mut Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (self_argument, attribute) = check_two_arguments(arguments, location)?;
+    let attribute_location = attribute.1;
+    let attribute = get_str(attribute)?;
+    let attribute = String::from_utf8_lossy(&attribute);
+    let attribute = format!("#[{attribute}]");
+    let mut parser = Parser::for_str(&attribute, attribute_location.file);
+    let Some((attribute, _span)) = parser.parse_attribute() else {
+        return Err(InterpreterError::InvalidAttribute {
+            attribute: attribute.clone(),
+            location: attribute_location,
+        });
+    };
+
+    let func_id = get_function_def(self_argument)?;
+    check_function_not_yet_resolved(interpreter, func_id, location)?;
+
+    let function_modifiers = interpreter.elaborator.interner.function_modifiers_mut(&func_id);
+
+    match &attribute {
+        Attribute::Function(attribute) => {
+            function_modifiers.attributes.set_function(attribute.clone());
+        }
+        Attribute::Secondary(attribute) => {
+            function_modifiers.attributes.secondary.push(attribute.clone());
+        }
+    }
+
+    Ok(Value::Unit)
+}
+
 // fn as_typed_expr(self) -> TypedExpr
 fn function_def_as_typed_expr(
     interpreter: &mut Interpreter,
@@ -2479,14 +2546,14 @@ fn function_def_disable(
     let function_modifiers = interpreter.elaborator.interner.function_modifiers_mut(&func_id);
 
     function_modifiers.attributes.secondary.push(SecondaryAttribute {
-        kind: crate::token::SecondaryAttributeKind::Deprecated(true, Some(error_message)),
+        kind: SecondaryAttributeKind::Deprecated(true, Some(error_message)),
         location,
     });
 
-    function_modifiers.attributes.secondary.push(SecondaryAttribute {
-        kind: crate::token::SecondaryAttributeKind::ContractLibraryMethod,
-        location,
-    });
+    function_modifiers
+        .attributes
+        .secondary
+        .push(SecondaryAttribute { kind: SecondaryAttributeKind::ContractLibraryMethod, location });
 
     let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
 
@@ -2607,6 +2674,47 @@ fn function_def_return_type(
     let func_meta = interner.function_meta(&func_id);
 
     Ok(Value::Type(func_meta.return_type().follow_bindings()))
+}
+
+// fn set_body(self, body: Expr)
+fn function_def_set_body(
+    interpreter: &mut Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (self_argument, body_argument) = check_two_arguments(arguments, location)?;
+    let body_location = body_argument.1;
+
+    let func_id = get_function_def(self_argument)?;
+    check_function_not_yet_resolved(interpreter, func_id, location)?;
+
+    let body_argument = get_expr(interpreter.elaborator.interner, body_argument)?;
+    let statement_kind = match body_argument {
+        ExprValue::Expression(expression_kind) => {
+            StatementKind::Expression(Expression { kind: expression_kind, location: body_location })
+        }
+        ExprValue::Statement(statement_kind) => statement_kind,
+        ExprValue::LValue(lvalue) => StatementKind::Expression(lvalue.as_expression()),
+        ExprValue::Pattern(pattern) => {
+            if let Some(expression) = pattern.try_as_expression(interpreter.elaborator.interner) {
+                StatementKind::Expression(expression)
+            } else {
+                let expression =
+                    Value::pattern(pattern).display(interpreter.elaborator.interner).to_string();
+                let location = body_location;
+                return Err(InterpreterError::CannotSetFunctionBody { location, expression });
+            }
+        }
+    };
+
+    let statement = Statement { kind: statement_kind, location: body_location };
+    let body = BlockExpression { statements: vec![statement] };
+
+    let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
+    func_meta.has_body = true;
+    func_meta.function_body = FunctionBody::Unresolved(FunctionKind::Normal, body, location);
+
+    Ok(Value::Unit)
 }
 
 // fn visibility(self) -> Quoted
