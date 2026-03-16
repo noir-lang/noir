@@ -78,3 +78,11 @@ unconstrained fn handle_return_of_mismatched_unit_vector() {
     let res = unit_vector_oracle();
     assert_eq(res, @[(), (), ()]);
 }
+
+#[test(should_fail_with = "non-empty data for zero vector element size")]
+unconstrained fn reject_non_empty_data_for_zero_element_length() {
+    let mut mock = OracleMock::mock("unit_vector_oracle");
+    // Here the oracle returns non-empty data for a zero type, which should be rejected.
+    mock = mock.returns((0, [1, 2, 3]));
+    let _ = unit_vector_oracle();
+}

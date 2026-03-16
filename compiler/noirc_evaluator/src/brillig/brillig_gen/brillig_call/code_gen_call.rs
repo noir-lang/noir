@@ -91,9 +91,26 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 // Get the number of fields in a vector element.
                 let element_size = dfg[result_ids[i]].get_type().element_size();
 
-                // If the element size is 0, then the contents will be zero as well.
-                // In this case we have to accept the returned semantic length as is.
-                if element_size.0 != 0 {
+                let zero = self.brillig_context.allocate_single_addr(32);
+                self.brillig_context.const_instruction(*zero, FieldElement::zero());
+
+                if element_size.0 == 0 {
+                    // If the element size is 0, then the contents will be zero as well;
+                    // this is verified by the Brillig VM, but to make sure the AVM also rejects such a circuit,
+                    // we lay down an opcode to check. This is such an edge case that it wouldn't affect normal circuit size.
+                    // In this case we have to accept the returned semantic length as is.
+                    let is_length_zero = self.brillig_context.allocate_single_addr_bool();
+                    self.brillig_context.binary_instruction(
+                        flattened_size_var,
+                        *zero,
+                        *is_length_zero,
+                        BrilligBinaryOp::Equals,
+                    );
+                    self.brillig_context.codegen_constrain(
+                        *is_length_zero,
+                        Some("Returned non-empty data for zero vector element size".to_string()),
+                    );
+                } else {
                     // If the element size is not 0, then we can divide the flattened content length with it
                     // to calculate the semantic length of the vector.
                     let calculated_semantic_length = self.brillig_context.allocate_single_addr(32);
@@ -112,9 +129,6 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                     // * if the returned semantic length is 0, we assume the foreign call handler just wasn't updated to set it,
                     //   and we update it to the calculated length
                     let length = SingleAddrVariable::new(length_addr, 32);
-
-                    let zero = self.brillig_context.allocate_single_addr(32);
-                    self.brillig_context.const_instruction(*zero, FieldElement::zero());
 
                     let is_length_zero = self.brillig_context.allocate_single_addr_bool();
                     self.brillig_context.binary_instruction(
