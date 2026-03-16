@@ -2487,6 +2487,13 @@ fn function_def_disable(
         kind: crate::token::SecondaryAttributeKind::ContractLibraryMethod,
         location,
     });
+
+    let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
+
+    // Lie and say that the body of this function is resolved in order to avoid any
+    // errors from resolving it since it is now disabled. The addition of `deprecated(deny, _)`
+    // above should ensure it is never called.
+    func_meta.function_body = FunctionBody::Resolved;
     Ok(Value::Unit)
 }
 
