@@ -1,3 +1,5 @@
+use std::meta::ctstring::AsCtString;
+
 #['some_attribute]
 #['another_attribute]
 pub struct SomeStruct {
@@ -16,6 +18,6 @@ contract moo {
 
 comptime fn add_attribute(s: TypeDefinition) {
     assert(!s.has_named_attribute("abi"));
-    s.add_abi("foo");
+    s.add_abi("foo".as_ctstring());
     assert(s.has_named_attribute("abi"));
 }

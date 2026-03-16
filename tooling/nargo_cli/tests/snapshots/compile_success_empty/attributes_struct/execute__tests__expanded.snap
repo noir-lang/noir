@@ -2,6 +2,8 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
+use std::meta::ctstring::AsCtString;
+
 #['some_attribute]
 #['another_attribute]
 pub struct SomeStruct {
