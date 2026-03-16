@@ -64,20 +64,24 @@ impl Function {
                     max_lhs_bits < bit_size && max_rhs_bits < bit_size
                 }
                 BinaryOp::Sub { unchecked: false } => {
-                    let Some(lhs_const) = dfg.get_numeric_constant(lhs) else {
-                        return;
-                    };
+                    // True when an unsigned subtraction `lhs - rhs` is guaranteed not to underflow.
+                    //
+                    // This is the case when `lhs` is a constant that is >= the maximum possible value of `rhs`
+                    // (determined by its bit width). For example, `256 - (x as u32)` where `x: u8` cannot
+                    // underflow because `256 >= 255`.
 
-                    let max_rhs_bits = get_max_num_bits(dfg, rhs, &mut value_max_num_bits);
-                    let max_rhs =
-                        if max_rhs_bits == 128 { u128::MAX } else { (1 << max_rhs_bits) - 1 };
+                    if let Some(lhs_const) = dfg.get_numeric_constant(lhs) {
+                        let max_rhs_bits = get_max_num_bits(dfg, rhs, &mut value_max_num_bits);
+                        let max_rhs =
+                            if max_rhs_bits == 128 { u128::MAX } else { (1 << max_rhs_bits) - 1 };
 
-                    // 1. `lhs` is a fixed constant and `rhs` is restricted such that `lhs - rhs > 0`
-                    //    Note strict inequality as `rhs > lhs` while `lhs_bits == max_rhs_bits` is possible.
-                    // 2. `lhs` is the maximum value for the maximum bitsize of `rhs`.
-                    //    For example: `lhs` is 1 and `rhs` max bitsize is 1, so at most it's `1 - 1` which cannot overflow.
-                    //    Another example: `lhs` is 255 and `rhs` max bitsize is 8, so at most it's `255 - 255` which cannot overflow, etc.
-                    lhs_const >= max_rhs.into()
+                        // `lhs` is a fixed constant and `rhs` is restricted such that `lhs - rhs >= 0`.
+                        // For example: `lhs` is 1 and `rhs` max bitsize is 1, so at most it's `1 - 1`.
+                        // Another example: `lhs` is 255 and `rhs` max bitsize is 8, so at most it's `255 - 255`.
+                        lhs_const >= max_rhs.into()
+                    } else {
+                        false
+                    }
                 }
                 BinaryOp::Mul { unchecked: false } => {
                     let bit_size = dfg.type_of_value(lhs).bit_size();

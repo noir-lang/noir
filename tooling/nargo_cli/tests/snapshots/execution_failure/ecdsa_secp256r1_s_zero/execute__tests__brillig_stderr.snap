@@ -9,7 +9,9 @@ error: Assertion failed: 'failed to solve blackbox function: ecdsa_secp256r1, re
    │     ----------------------------------------------------------------------------
    │
    = Call stack:
-     1. src/main.nr:3:9
-     2. std/ecdsa_secp256r1.nr:10:5
+     1: main
+             at src/main.nr:3:9
+     2: verify_signature
+             at std/ecdsa_secp256r1.nr:10:5
 
 Failed assertion

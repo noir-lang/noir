@@ -336,6 +336,7 @@ impl<'a> TestRunner<'a> {
                 .test_end_async(
                     &test_result,
                     self.file_manager,
+                    self.parsed_files,
                     self.args.show_output,
                     self.args.compile_options.deny_warnings,
                     self.args.compile_options.silence_warnings,
@@ -483,6 +484,7 @@ impl<'a> TestRunner<'a> {
                         package_name,
                         &test_report,
                         self.file_manager,
+                        self.parsed_files,
                         self.args.show_output,
                         self.args.compile_options.deny_warnings,
                         self.args.compile_options.silence_warnings,
@@ -698,6 +700,7 @@ impl<'a> TestRunner<'a> {
             current_test_count,
             total_test_count,
             self.file_manager,
+            self.parsed_files,
             self.args.show_output,
             self.args.compile_options.deny_warnings,
             self.args.compile_options.silence_warnings,

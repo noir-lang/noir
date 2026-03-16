@@ -9,7 +9,6 @@ use noir_ssa_fuzzer::builder::{FuzzerBuilder, InstructionWithOneArg, Instruction
 use noir_ssa_fuzzer::typed_value::{NumericType, Point, Scalar, Type, TypedValue};
 use noirc_evaluator::ssa::ir::{basic_block::BasicBlockId, function::Function, map::Id};
 use std::collections::{HashMap, VecDeque};
-use std::iter::zip;
 
 /// Main context for the ssa block containing both ACIR and Brillig builders and their state
 /// It works with indices of variables Ids, because it cannot handle Ids logic for ACIR and Brillig
@@ -969,8 +968,10 @@ impl BlockContext {
         if args.len() < function_signature.input_types.len() {
             args_to_use.extend(vec![0; function_signature.input_types.len() - args.len()]);
         }
-        for (value_type, index) in zip(function_signature.input_types, args_to_use) {
-            let value = self.find_values_with_type(builder, &value_type, Some(index));
+        // Use zip (not zip_eq): args_to_use may be longer than input_types when the
+        // fuzzer generates more args than the function accepts; extras are intentionally ignored.
+        for (value_type, index) in function_signature.input_types.iter().zip(args_to_use) {
+            let value = self.find_values_with_type(builder, value_type, Some(index));
             values.push(value);
         }
 

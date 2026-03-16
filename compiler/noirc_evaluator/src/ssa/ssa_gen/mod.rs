@@ -11,6 +11,7 @@ pub use program::Ssa;
 
 use context::{Loop, SharedContext};
 use iter_extended::{try_vecmap, vecmap};
+use itertools::Itertools;
 use noirc_errors::Location;
 use noirc_frontend::ast::UnaryOp;
 use noirc_frontend::hir_def::types::Type as HirType;
@@ -1209,13 +1210,7 @@ impl FunctionContext<'_> {
             unreachable!("Expected enum variant to contain a tag and each variant's arguments");
         };
 
-        assert_eq!(
-            variant.len(),
-            case.arguments.len(),
-            "Expected enum variant to contain a value for each variant argument"
-        );
-
-        for (value, (arg, _)) in variant.into_iter().zip(&case.arguments) {
+        for (value, (arg, _)) in variant.into_iter().zip_eq(&case.arguments) {
             self.define(*arg, value);
         }
     }
@@ -1225,13 +1220,7 @@ impl FunctionContext<'_> {
             unreachable!("Expected struct value to contain each field");
         };
 
-        assert_eq!(
-            fields.len(),
-            case.arguments.len(),
-            "Expected field length to match constructor argument count"
-        );
-
-        for (value, (arg, _)) in fields.into_iter().zip(&case.arguments) {
+        for (value, (arg, _)) in fields.into_iter().zip_eq(&case.arguments) {
             self.define(*arg, value);
         }
     }

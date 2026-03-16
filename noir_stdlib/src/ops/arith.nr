@@ -653,8 +653,8 @@ mod tests {
             assert_eq(10u8.div(3u8), 3u8);
             assert_eq(15.div(3), 5);
 
-            // rem
-            assert_eq(17.rem(5), 2);
+            // rem (Field doesn't implement Rem)
+            assert_eq(17u64.rem(5u64), 2u64);
             assert_eq(10u8.rem(3u8), 1u8);
 
             // neg
@@ -674,10 +674,10 @@ mod tests {
             assert_eq(42.div(42), 1);
             assert_eq(1.div(1), 1);
 
-            // test remainder
-            assert_eq(42.rem(42), 0);
-            assert_eq(0.rem(42), 0);
-            assert_eq(1.rem(42), 1);
+            // test remainder (Field doesn't implement Rem)
+            assert_eq(42u32.rem(42u32), 0u32);
+            assert_eq(0u16.rem(42u16), 0u16);
+            assert_eq(1u64.rem(42u64), 1u64);
         }
 
         #[test(should_fail)]

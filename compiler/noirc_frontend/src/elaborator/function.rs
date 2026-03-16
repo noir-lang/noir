@@ -8,6 +8,7 @@
 //!   - Shared strategy for all types of functions (standalone, impl, trait impl)
 
 use iter_extended::vecmap;
+use itertools::Itertools;
 use noirc_errors::Location;
 
 use crate::{
@@ -66,7 +67,7 @@ impl Elaborator<'_> {
 
         // Define metas for trait impl functions
         for (trait_impl, (trait_constraints, generics)) in
-            trait_impls.iter_mut().zip(trait_constraints_and_generics)
+            trait_impls.iter_mut().zip_eq(trait_constraints_and_generics)
         {
             self.define_function_metas_for_trait_impl(trait_impl, trait_constraints, generics);
         }

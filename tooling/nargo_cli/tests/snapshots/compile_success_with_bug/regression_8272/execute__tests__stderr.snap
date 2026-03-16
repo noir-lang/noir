@@ -9,5 +9,7 @@ bug: Assertion is always false: attempt to subtract with overflow
   │                     ------------- As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution
   │
   = Call stack:
-    1. src/main.nr:2:5
-    2. src/main.nr:5:21
+    1: main
+            at src/main.nr:2:5
+    2: func_1
+            at src/main.nr:5:21
