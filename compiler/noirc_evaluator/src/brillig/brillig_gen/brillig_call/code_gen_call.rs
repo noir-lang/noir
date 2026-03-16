@@ -14,7 +14,9 @@ use crate::ssa::ir::{
 };
 
 use super::brillig_black_box::convert_black_box_call;
-use crate::brillig::brillig_ir::brillig_variable::{BrilligVariable, type_to_heap_value_type};
+use crate::brillig::brillig_ir::brillig_variable::{
+    BrilligVariable, SingleAddrVariable, type_to_heap_value_type,
+};
 
 impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     /// Converts a foreign function call into Brillig bytecode.
@@ -83,17 +85,66 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 .brillig_context
                 .codegen_initialize_externally_returned_vector(vector, &heap_vector);
 
-            // Update the dynamic vector length maintained in SSA, a.k.a semantic length,
+            // Update or validate the dynamic vector length maintained in SSA, a.k.a semantic length,
             // which is the parameter preceding the vector.
             if let ValueOrArray::MemoryAddress(length_addr) = *output_values[i - 1] {
-                // Calculate the semantic length as flattened_size / element_size.
+                // Get the number of fields in a vector element.
                 let element_size = dfg[result_ids[i]].get_type().element_size();
-                self.brillig_context.mov_instruction(length_addr, flattened_size_var.address);
-                self.brillig_context.codegen_usize_op_in_place(
-                    length_addr,
-                    BrilligBinaryOp::UnsignedDiv,
-                    element_size.to_usize(),
-                );
+
+                // If the element size is 0, then the contents will be zero as well.
+                // In this case we have to accept the returned semantic length as is.
+                if element_size.0 != 0 {
+                    // If the element size is not 0, then we can divide the flattened content length with it
+                    // to calculate the semantic length of the vector.
+                    let calculated_semantic_length = self.brillig_context.allocate_single_addr(32);
+                    self.brillig_context.mov_instruction(
+                        calculated_semantic_length.address,
+                        flattened_size_var.address,
+                    );
+                    self.brillig_context.codegen_usize_op_in_place(
+                        calculated_semantic_length.address,
+                        BrilligBinaryOp::UnsignedDiv,
+                        element_size.to_usize(),
+                    );
+
+                    // We use the calculated semantic length in one of two ways:
+                    // * if the returned semantic length is not zero, then we assert that it matches the data
+                    // * if the returned semantic length is 0, we assume the foreign call handler just wasn't updated to set it,
+                    //   and we update it to the calculated length
+                    let length = SingleAddrVariable::new(length_addr, 32);
+
+                    let zero = self.brillig_context.allocate_single_addr(32);
+                    self.brillig_context.const_instruction(*zero, FieldElement::zero());
+
+                    let is_length_zero = self.brillig_context.allocate_single_addr_bool();
+                    self.brillig_context.binary_instruction(
+                        length,
+                        *zero,
+                        *is_length_zero,
+                        BrilligBinaryOp::Equals,
+                    );
+
+                    self.brillig_context.codegen_branch(is_length_zero.address, |ctx, is_zero| {
+                        if is_zero {
+                            ctx.mov_instruction(length_addr, calculated_semantic_length.address);
+                        } else {
+                            let length_equals = ctx.allocate_single_addr_bool();
+                            ctx.binary_instruction(
+                                length,
+                                *calculated_semantic_length,
+                                *length_equals,
+                                BrilligBinaryOp::Equals,
+                            );
+                            ctx.codegen_constrain(
+                                *length_equals,
+                                Some(
+                                    "semantic length returned from oracle does not match data"
+                                        .to_string(),
+                                ),
+                            );
+                        }
+                    });
+                }
             } else {
                 unreachable!("ICE: a vector must be preceded by a register containing its length");
             }
