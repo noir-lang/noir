@@ -86,7 +86,7 @@ impl Elaborator<'_> {
                     } else {
                         None
                     }
-                };
+                });
 
                 if lambda_index + 1 < self.lambda_stack.len() {
                     // There is more than one closure between the current scope and
