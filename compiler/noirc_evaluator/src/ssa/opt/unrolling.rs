@@ -257,11 +257,11 @@ impl Function {
                 // outer loop with a non-unrolled inner loop would corrupt the SSA.
                 // OutsideIn (ACIR) does not need this: outer loops are processed
                 // first, and if they fail, inner loops are tried independently.
-                if order == LoopOrder::InsideOut
-                    && next_loop.blocks.iter().any(|block| failed_blocks.contains(block))
-                {
-                    continue;
-                }
+                // if order == LoopOrder::InsideOut
+                //     && next_loop.blocks.iter().any(|block| failed_blocks.contains(block))
+                // {
+                //     continue;
+                // }
 
                 // Don't try to unroll the loop again if it is known to fail.
                 // Save loop blocks before `try_unroll_loop` takes ownership.
@@ -820,14 +820,39 @@ impl Loop {
         // After unrolling, blocks outside the loop may still reference the old header
         // parameters (e.g. exit blocks that use promoted variables such as from mem2reg,
         // or references to the induction variable itself in post-loop code).
-        // Replace all remaining uses of header params with the final iteration's values.
+        // Replace remaining uses of header params with the final iteration's values.
+        //
+        // Instead of scanning ALL reachable blocks (which is O(total_blocks) per loop and
+        // becomes quadratic for functions with many loops), we walk forward only from the
+        // loop's exit edges. Header params can only be referenced in blocks dominated by the
+        // header, which are exactly the blocks reachable from exit edges.
         if !header_params.is_empty() {
             let mut mapping = ValueMapping::default();
             mapping.batch_insert(&header_params, &header_args);
 
-            for block_id in function.reachable_blocks() {
-                if !self.blocks.contains(&block_id) {
-                    function.dfg.replace_values_in_block(block_id, &mapping);
+            // Find exit edges: successors of loop blocks that are outside the loop.
+            // After unrolling, the original loop blocks are orphaned but still have their
+            // original terminators, so their successors point to the correct exit blocks.
+            let mut visited = HashSet::new();
+            let mut stack: Vec<BasicBlockId> = Vec::new();
+            for &block in &self.blocks {
+                for successor in function.dfg[block].successors() {
+                    if !self.blocks.contains(&successor) {
+                        stack.push(successor);
+                    }
+                }
+            }
+
+            // Walk forward from exit blocks, replacing header param references.
+            while let Some(block) = stack.pop() {
+                if !visited.insert(block) {
+                    continue;
+                }
+                function.dfg.replace_values_in_block(block, &mapping);
+                for successor in function.dfg[block].successors() {
+                    if !visited.contains(&successor) {
+                        stack.push(successor);
+                    }
                 }
             }
         }
