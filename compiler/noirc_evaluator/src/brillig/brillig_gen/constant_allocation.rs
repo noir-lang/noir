@@ -148,13 +148,12 @@ impl ConstantAllocation {
         used_in_blocks: &[BasicBlockId],
         func: &Function,
     ) -> BasicBlockId {
-        assert!(!used_in_blocks.is_empty(), "At least one block must use the constant");
         // Find the common dominator of all the blocks where the constant is used.
         let common_dominator = used_in_blocks
             .iter()
             .copied()
             .reduce(|a, b| self.dominator_tree.common_dominator(a, b))
-            .unwrap_or(used_in_blocks[0]);
+            .expect("At least one block must use the constant");
 
         // If the value only contains constants, it's safe to hoist outside of any loop.
         // Technically we know this is going to be true, because we only collected values which are `Value::NumericConstant`.
