@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773765945399,
+  "lastUpdate": 1773780873910,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23091,48 +23091,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "556fb622a439140eaff16ccbeb6859a7fba328b9",
-          "message": "chore(deps): bump lockfile to stabilize RustCrypto crates (#11820)",
-          "timestamp": "2026-03-10T16:58:35Z",
-          "tree_id": "fd4821ec2320881f5de2f80c6be1997f01f56311",
-          "url": "https://github.com/noir-lang/noir/commit/556fb622a439140eaff16ccbeb6859a7fba328b9"
-        },
-        "date": 1773162097101,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 251289,
-            "range": "± 512",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 222043,
-            "range": "± 3465",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2731802,
-            "range": "± 4412",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -25184,6 +25142,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2732279,
             "range": "± 13235",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f78444a5d351eb75924fec493fc76b9beb341297",
+          "message": "fix: Remove most comptime mut functions (#11825)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2026-03-17T20:30:12Z",
+          "tree_id": "732fa9fa9e6b741e5549770c79996ac8154608b1",
+          "url": "https://github.com/noir-lang/noir/commit/f78444a5d351eb75924fec493fc76b9beb341297"
+        },
+        "date": 1773780824011,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 250214,
+            "range": "± 374",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 222158,
+            "range": "± 2649",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2732239,
+            "range": "± 2458",
             "unit": "ns/iter"
           }
         ]
