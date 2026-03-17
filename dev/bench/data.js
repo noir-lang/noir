@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773760531717,
+  "lastUpdate": 1773764291838,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23116,48 +23116,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "8e57c6b3abcdbe6891225d6b29fb8780dc0414a1",
-          "message": "feat(ssa): More aggressive Brillig loop unrolling (#7236)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-03-10T14:00:54Z",
-          "tree_id": "6624a6670c61903f58b394c151813599768ed35b",
-          "url": "https://github.com/noir-lang/noir/commit/8e57c6b3abcdbe6891225d6b29fb8780dc0414a1"
-        },
-        "date": 1773152884906,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 251137,
-            "range": "± 1207",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 221246,
-            "range": "± 3737",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2744380,
-            "range": "± 2245",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -25209,6 +25167,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2214207,
             "range": "± 10398",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "eb65201272238b6a697664cce44319b4d2e335ba",
+          "message": "fix(ssa): Check induction var when fetching const upper bound (#11896)",
+          "timestamp": "2026-03-17T15:41:36Z",
+          "tree_id": "6fbe426f72844ec0fbc8506f91bf220fc5ce7653",
+          "url": "https://github.com/noir-lang/noir/commit/eb65201272238b6a697664cce44319b4d2e335ba"
+        },
+        "date": 1773764025305,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 251152,
+            "range": "± 638",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 221908,
+            "range": "± 3926",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2730308,
+            "range": "± 5263",
             "unit": "ns/iter"
           }
         ]
