@@ -238,7 +238,7 @@ impl Function {
             let mut modified_blocks = HashSet::new();
             // Blocks from loops that were skipped or failed to unroll. In InsideOut
             // ordering, if an inner loop can't be unrolled, any enclosing loop that
-            // contains those blocks must also be skipped: the unroller visits each
+            // contains those blocks must also be skipped: unrolling visits each
             // block once and cannot traverse the inner loop's cycle.
             let mut failed_blocks: HashSet<BasicBlockId> = HashSet::new();
             let mut needs_refresh = false;
@@ -252,9 +252,9 @@ impl Function {
                 }
 
                 // InsideOut: skip if this loop contains blocks from an inner loop
-                // that couldn't be unrolled. The unroller visits each block once and
+                // that couldn't be unrolled. Unrolling visits each block once and
                 // can't traverse an inner loop's cycle, so attempting to unroll an
-                // outer loop with an un-unrolled inner loop would corrupt the SSA.
+                // outer loop with a non-unrolled inner loop would corrupt the SSA.
                 // OutsideIn (ACIR) does not need this: outer loops are processed
                 // first, and if they fail, inner loops are tried independently.
                 if order == LoopOrder::InsideOut
@@ -615,8 +615,8 @@ impl Loop {
     ///     v5 = lt v1, u32 4           // Upper bound
     ///     jmpif v5 then: b3, else: b2
     /// ```
-    /// 
-    /// TODO(https://github.com/noir-lang/noir/issues/11900): Handle induction variable at any block parameter position
+    ///
+    /// TODO(<https://github.com/noir-lang/noir/issues/11900>): Handle induction variable at any block parameter position
     fn get_const_upper_bound(
         &self,
         dfg: &DataFlowGraph,
@@ -1575,8 +1575,8 @@ impl BoilerplateStats {
 ///   ...
 /// ```
 /// We're looking for the terminating jump of the `main` predecessor of `loop_entry`.
-/// 
-/// TODO(https://github.com/noir-lang/noir/issues/11900): Handle induction variable at any block parameter position
+///
+/// TODO(<https://github.com/noir-lang/noir/issues/11900>): Handle induction variable at any block parameter position
 fn get_induction_variable(dfg: &DataFlowGraph, block: BasicBlockId) -> Result<ValueId, CallStack> {
     match dfg[block].terminator() {
         Some(TerminatorInstruction::Jmp { arguments, call_stack: location, .. }) => {
@@ -2768,7 +2768,7 @@ mod tests {
     /// should not be unrolled by Brillig. The break creates an exit edge from
     /// a non-header block to outside the loop. Previously, `is_fully_executed`
     /// only checked the header's exit block, missing body exits, which caused
-    /// the unroller to panic with "destination not in original loop".
+    /// unrolling to panic with "destination not in original loop".
     #[test]
     fn do_not_unroll_loop_with_body_break() {
         // for i in 0..2 {
@@ -3365,8 +3365,23 @@ mod tests {
         let (ssa, _errors) = try_unroll_loops(ssa);
 
         // This used to panic because v0 from b1 was referenced in b3 after
-        // b1 was unrolled away, leaving an orphan block parameter.
-        crate::ssa::ssa_gen::validate_ssa(&ssa);
+        // b1 was unrolled away, potentially leaving an orphan block parameter.
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1()
+          b1():
+            jmp b2(u32 0, u32 0)
+          b2(v0: u32, v1: u32):
+            v4 = eq v1, u32 2
+            jmpif v4 then: b3(), else: b4()
+          b3():
+            return
+          b4():
+            v6 = unchecked_add v1, u32 1
+            jmp b2(v0, v6)
+        }
+        ");
     }
 
     /// Regression test: `get_const_upper_bound` must verify the header instruction

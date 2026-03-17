@@ -165,7 +165,7 @@ impl Loop {
     /// There is an example in the tests where a loop does not have an induction variable,
     /// but rather loads a reference in the header, in which case this will return `None`.
     ///
-    /// TODO(https://github.com/noir-lang/noir/issues/11900): Handle induction variable at any block parameter position
+    /// TODO(<https://github.com/noir-lang/noir/issues/11900>): Handle induction variable at any block parameter position
     pub(super) fn get_induction_variable(&self, function: &Function) -> Option<ValueId> {
         function.dfg.block_parameters(self.header).iter().next().copied()
     }
@@ -200,8 +200,8 @@ impl Loop {
             if *block == self.header {
                 continue;
             }
-            for succ in cfg.successors(*block) {
-                if !self.blocks.contains(&succ) {
+            for successor in cfg.successors(*block) {
+                if !self.blocks.contains(&successor) {
                     return false;
                 }
             }
