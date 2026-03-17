@@ -40,7 +40,7 @@ impl<W: Write> Interpreter<'_, W> {
                 let length = Value::u32(length as u32);
 
                 let elements = array.elements.borrow().to_vec();
-                let vector = Value::vector(elements, array.element_types.clone());
+                let vector = Value::vector(elements, array.element_types);
                 Ok(vec![length, vector])
             }
             Intrinsic::AssertConstant => {
@@ -448,7 +448,7 @@ impl<W: Write> Interpreter<'_, W> {
 
                 let generators = derive_generators(&inputs, n.0, index);
                 let mut result = Vec::with_capacity(inputs.len());
-                for generator in generators.iter() {
+                for generator in &generators {
                     let x_big: BigUint = generator.x.into();
                     let x = FieldElement::from_le_bytes_reduce(&x_big.to_bytes_le());
                     let y_big: BigUint = generator.y.into();
@@ -540,13 +540,22 @@ impl<W: Write> Interpreter<'_, W> {
         // The resulting vector should be cloned - should we check RC here to try mutating it?
         // It'd need to be brillig-only if so since RC is always 1 in acir.
         let mut new_elements = vector.elements.borrow().to_vec();
-        let element_types = vector.element_types.clone();
+        let element_types = vector.element_types;
 
         // The vector might contain more elements than its length.
         // We need to either insert before the extras, overwrite, or remove them.
-        new_elements.truncate(element_types.len() * length as usize);
-        for arg in args.iter().skip(2) {
-            new_elements.push(self.lookup(*arg)?);
+        // We could remove any extras and then append:
+        //  new_elements.truncate(element_types.len() * length as usize);
+        // But the way some SSA passes work is that they assume we *always* grow the vector capacity,
+        // so instead of truncating, we append as well as overwrite.
+        let end_index = element_types.len() * (length as usize);
+        let push_only = end_index == new_elements.len();
+        for (i, arg) in args.iter().skip(2).enumerate() {
+            let value = self.lookup(*arg)?;
+            if !push_only {
+                new_elements[end_index + i] = value.clone();
+            }
+            new_elements.push(value);
         }
 
         let new_length = Value::u32(length + 1);
@@ -559,7 +568,7 @@ impl<W: Write> Interpreter<'_, W> {
         let length = self.lookup_u32(args[0], "call to vector_push_front")?;
         let vector = self.lookup_array_or_vector(args[1], "call to vector_push_front")?;
         let vector_elements = vector.elements.clone();
-        let element_types = vector.element_types.clone();
+        let element_types = vector.element_types;
 
         let mut new_elements = try_vecmap(args.iter().skip(2), |arg| self.lookup(*arg))?;
         new_elements.extend_from_slice(&vector_elements.borrow());
@@ -628,7 +637,7 @@ impl<W: Write> Interpreter<'_, W> {
         let index = self.lookup_u32(args[2], "call to vector_insert")?;
 
         let mut vector_elements = vector.elements.borrow().to_vec();
-        let element_types = vector.element_types.clone();
+        let element_types = vector.element_types;
 
         let mut index = index as usize * element_types.len();
         for arg in args.iter().skip(3) {

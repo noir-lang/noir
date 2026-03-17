@@ -6,6 +6,7 @@ use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::elaborator::scope::ItemAsValue;
+use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::node_interner::DefinitionId;
 use crate::{
     DataType, Kind, Type, TypeAlias,
@@ -58,6 +59,7 @@ impl Elaborator<'_> {
         expected_type: Type,
         definition_kind: DefinitionKind,
         warn_if_unused: bool,
+        warn_if_not_mutated: bool,
         parameter_names_in_list: &mut HashMap<String, Location>,
     ) -> HirPattern {
         self.elaborate_pattern_mut(
@@ -67,6 +69,7 @@ impl Elaborator<'_> {
             None,
             &mut Vec::new(),
             warn_if_unused,
+            warn_if_not_mutated,
             &mut HashSet::default(),
             parameter_names_in_list,
         )
@@ -77,6 +80,7 @@ impl Elaborator<'_> {
     ///
     /// `parameter_names_in_list` keeps track of parameter names, and their location, across multiple
     /// patterns in a list. If a name is found multiple times, an error is captured.
+    #[allow(clippy::too_many_arguments)]
     pub fn elaborate_pattern_and_store_ids(
         &mut self,
         pattern: Pattern,
@@ -84,6 +88,7 @@ impl Elaborator<'_> {
         definition_kind: DefinitionKind,
         created_ids: &mut Vec<HirIdent>,
         warn_if_unused: bool,
+        warn_if_not_mutated: bool,
         parameter_names_in_list: &mut HashMap<String, Location>,
     ) -> HirPattern {
         self.elaborate_pattern_mut(
@@ -93,6 +98,7 @@ impl Elaborator<'_> {
             None,
             created_ids,
             warn_if_unused,
+            warn_if_not_mutated,
             &mut HashSet::default(),
             parameter_names_in_list,
         )
@@ -115,6 +121,7 @@ impl Elaborator<'_> {
         mutable: Option<Location>,
         new_definitions: &mut Vec<HirIdent>,
         warn_if_unused: bool,
+        warn_if_not_mutated: bool,
         pattern_names: &mut HashSet<String>,
         parameter_names_in_list: &mut HashMap<String, Location>,
     ) -> HirPattern {
@@ -154,6 +161,7 @@ impl Elaborator<'_> {
                         mutable.is_some(),
                         true, // allow_shadowing
                         warn_if_unused,
+                        warn_if_not_mutated,
                         definition,
                     )
                 };
@@ -177,6 +185,7 @@ impl Elaborator<'_> {
                     Some(location),
                     new_definitions,
                     warn_if_unused,
+                    warn_if_not_mutated,
                     pattern_names,
                     parameter_names_in_list,
                 );
@@ -227,6 +236,7 @@ impl Elaborator<'_> {
                         mutable,
                         new_definitions,
                         warn_if_unused,
+                        warn_if_not_mutated,
                         pattern_names,
                         parameter_names_in_list,
                     )
@@ -256,6 +266,7 @@ impl Elaborator<'_> {
                 mutable,
                 new_definitions,
                 warn_if_unused,
+                warn_if_not_mutated,
                 pattern_names,
                 parameter_names_in_list,
             ),
@@ -268,6 +279,7 @@ impl Elaborator<'_> {
                     mutable,
                     new_definitions,
                     warn_if_unused,
+                    warn_if_not_mutated,
                     pattern_names,
                     parameter_names_in_list,
                 )
@@ -297,7 +309,8 @@ impl Elaborator<'_> {
             // shadowing here lets us avoid further errors if we define ERROR_IDENT
             // multiple times.
             let name = ERROR_IDENT.into();
-            let identifier = this.add_variable_decl(name, false, true, true, definition.clone());
+            let identifier =
+                this.add_variable_decl(name, false, true, true, true, definition.clone());
             HirPattern::Identifier(identifier)
         };
 
@@ -317,12 +330,15 @@ impl Elaborator<'_> {
 
         let turbofish_location = last_segment.turbofish_location();
 
+        let mut errors = Vec::new();
         let generics = self.resolve_struct_turbofish_generics(
             &struct_type.borrow(),
             generics,
             last_segment.generics,
             turbofish_location,
+            &mut errors,
         );
+        self.push_errors(errors);
 
         let actual_type = Type::DataType(struct_type.clone(), generics);
 
@@ -392,6 +408,7 @@ impl Elaborator<'_> {
                 mutable,
                 new_definitions,
                 true, // warn_if_unused
+                true, // warn_if_not_mutated
                 pattern_names,
                 parameter_names_in_list,
             );
@@ -443,6 +460,7 @@ impl Elaborator<'_> {
         mutable: bool,
         allow_shadowing: bool,
         warn_if_unused: bool,
+        warn_if_not_mutated: bool,
         definition: DefinitionKind,
     ) -> HirIdent {
         if let DefinitionKind::Global(_) = definition {
@@ -456,7 +474,13 @@ impl Elaborator<'_> {
             self.interner.push_definition(name.clone(), mutable, comptime, definition, location);
         let ident = HirIdent::non_trait_method(id, location);
 
-        self.add_existing_variable_to_scope(name, ident.clone(), warn_if_unused, allow_shadowing);
+        self.add_existing_variable_to_scope(
+            name,
+            ident.clone(),
+            warn_if_unused,
+            warn_if_not_mutated,
+            allow_shadowing,
+        );
 
         ident
     }
@@ -468,6 +492,7 @@ impl Elaborator<'_> {
         name: String,
         ident: HirIdent,
         warn_if_unused: bool,
+        warn_if_not_mutated: bool,
         allow_shadowing: bool,
     ) {
         if name == "_" {
@@ -475,7 +500,13 @@ impl Elaborator<'_> {
         }
 
         let second_location = ident.location;
-        let resolver_meta = ResolverMeta { num_times_used: 0, ident, warn_if_unused };
+        let resolver_meta = ResolverMeta {
+            used: false,
+            mutated: false,
+            ident,
+            warn_if_unused,
+            warn_if_not_mutated,
+        };
 
         let old_value = self.scopes.get_mut_scope().add_key_value(name.clone(), resolver_meta);
 
@@ -500,7 +531,7 @@ impl Elaborator<'_> {
 
         let location = name.location();
         if let Some((variable_found, scope)) = variable {
-            variable_found.num_times_used += 1;
+            variable_found.used = true;
             let id = variable_found.ident.id;
             let ident = HirIdent::non_trait_method(id, location);
             let variable = Variable { ident, scope };
@@ -524,19 +555,23 @@ impl Elaborator<'_> {
         resolved_turbofish: Option<Vec<Located<Type>>>,
         location: Location,
     ) -> Option<Vec<Type>> {
-        resolved_turbofish.map(|resolved_turbofish| {
+        resolved_turbofish.map(|mut resolved_turbofish| {
             let direct_generic_kinds =
                 vecmap(&self.interner.function_meta(func_id).direct_generics, |generic| {
                     generic.kind()
                 });
+            let expected = direct_generic_kinds.len();
+            let actual = resolved_turbofish.len();
 
-            if resolved_turbofish.len() != direct_generic_kinds.len() {
-                let type_check_err = TypeCheckError::IncorrectTurbofishGenericCount {
-                    expected_count: direct_generic_kinds.len(),
-                    actual_count: resolved_turbofish.len(),
+            if actual != expected {
+                self.push_err(TypeCheckError::IncorrectTurbofishGenericCount {
+                    expected_count: expected,
+                    actual_count: actual,
                     location,
-                };
-                self.push_err(type_check_err);
+                });
+
+                // Pad so the result has the expected length for future checks
+                resolved_turbofish.resize(expected, Located::from(location, Type::Error));
             }
 
             self.resolve_turbofish_generics(direct_generic_kinds, resolved_turbofish)
@@ -552,6 +587,7 @@ impl Elaborator<'_> {
         generics: Vec<Type>,
         resolved_turbofish: Option<Vec<Located<Type>>>,
         location: Location,
+        errors: &mut Vec<CompilationError>,
     ) -> Vec<Type> {
         let kinds = vecmap(&struct_type.generics, |generic| generic.kind());
         self.resolve_item_turbofish_generics(
@@ -561,6 +597,7 @@ impl Elaborator<'_> {
             generics,
             resolved_turbofish,
             location,
+            errors,
         )
     }
 
@@ -574,6 +611,7 @@ impl Elaborator<'_> {
         generics: Vec<Type>,
         resolved_turbofish: Option<Vec<Located<Type>>>,
         location: Location,
+        errors: &mut Vec<CompilationError>,
     ) -> Vec<Type> {
         self.resolve_item_turbofish_generics(
             "trait",
@@ -582,6 +620,7 @@ impl Elaborator<'_> {
             generics,
             resolved_turbofish,
             location,
+            errors,
         )
     }
 
@@ -594,6 +633,7 @@ impl Elaborator<'_> {
         generics: Vec<Type>,
         resolved_turbofish: Option<Vec<Located<Type>>>,
         location: Location,
+        errors: &mut Vec<CompilationError>,
     ) -> Vec<Type> {
         let kinds = vecmap(&type_alias.generics, |generic| generic.kind());
         self.resolve_item_turbofish_generics(
@@ -603,6 +643,7 @@ impl Elaborator<'_> {
             generics,
             resolved_turbofish,
             location,
+            errors,
         )
     }
 
@@ -610,6 +651,7 @@ impl Elaborator<'_> {
     /// check if we have a non-empty turbofish with the expected number of generics,
     /// and if so try unify them with the expected kinds, otherwise return the default
     /// generics of the type.
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn resolve_item_turbofish_generics(
         &mut self,
         item_kind: &'static str,
@@ -618,6 +660,7 @@ impl Elaborator<'_> {
         generics: Vec<Type>,
         resolved_turbofish: Option<Vec<Located<Type>>>,
         location: Location,
+        errors: &mut Vec<CompilationError>,
     ) -> Vec<Type> {
         assert_eq!(
             generics.len(),
@@ -630,12 +673,15 @@ impl Elaborator<'_> {
         };
 
         if turbofish_generics.len() != generics.len() {
-            self.push_err(TypeCheckError::GenericCountMismatch {
-                item: format!("{item_kind} {item_name}"),
-                expected: generics.len(),
-                found: turbofish_generics.len(),
-                location,
-            });
+            errors.push(
+                TypeCheckError::GenericCountMismatch {
+                    item: format!("{item_kind} {item_name}"),
+                    expected: generics.len(),
+                    found: turbofish_generics.len(),
+                    location,
+                }
+                .into(),
+            );
             return generics;
         }
 
@@ -650,12 +696,13 @@ impl Elaborator<'_> {
         kinds: Vec<Kind>,
         turbofish_generics: Vec<Located<Type>>,
     ) -> Vec<Type> {
+        // Use zip (not zip_eq) since callers like resolve_function_turbofish_generics
+        // may push an error for mismatched counts but still call this function.
         let kinds_with_types = kinds.into_iter().zip(turbofish_generics);
 
         vecmap(kinds_with_types, |(kind, located_type)| {
             let location = located_type.location();
             let typ = located_type.contents;
-            let typ = typ.substitute_kind_any_with_kind(&kind);
             self.check_type_kind(typ, &kind, location)
         })
     }
@@ -704,6 +751,7 @@ impl Elaborator<'_> {
         &mut self,
         struct_id: TypeId,
         mut turbofish: Option<Turbofish>,
+        errors: &mut Vec<CompilationError>,
     ) -> Vec<Type> {
         let struct_type = self.interner.get_type(struct_id);
         let struct_type = struct_type.borrow();
@@ -714,6 +762,7 @@ impl Elaborator<'_> {
                 struct_generics,
                 Some(turbofish.generics),
                 turbofish.location,
+                errors,
             )
         } else {
             struct_generics
@@ -725,6 +774,7 @@ impl Elaborator<'_> {
         &mut self,
         type_alias_id: TypeAliasId,
         generics: Option<Turbofish>,
+        errors: &mut Vec<CompilationError>,
     ) -> Vec<Type> {
         let type_alias = self.interner.get_type_alias(type_alias_id);
         let type_alias = type_alias.borrow();
@@ -738,6 +788,7 @@ impl Elaborator<'_> {
                 alias_generics,
                 Some(generics.generics),
                 generics.location,
+                errors,
             )
         } else {
             alias_generics

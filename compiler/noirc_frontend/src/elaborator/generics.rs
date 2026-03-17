@@ -3,6 +3,7 @@
 use std::rc::Rc;
 
 use iter_extended::vecmap;
+use itertools::Itertools;
 use noirc_errors::Location;
 use rustc_hash::FxHashSet as HashSet;
 
@@ -94,7 +95,7 @@ impl Elaborator<'_> {
     ) {
         assert_eq!(unresolved_generics.len(), generics.len());
 
-        for (unresolved_generic, generic) in unresolved_generics.iter().zip(generics) {
+        for (unresolved_generic, generic) in unresolved_generics.iter().zip_eq(generics) {
             self.add_existing_generic(unresolved_generic, unresolved_generic.location(), generic);
         }
     }
@@ -140,12 +141,10 @@ impl Elaborator<'_> {
             }
             IdentOrQuotedType::Quoted(id, location) => {
                 match self.interner.get_quoted_type(*id).follow_bindings() {
-                    Type::NamedGeneric(NamedGeneric { type_var, name, .. }) => {
-                        Ok((type_var.clone(), name))
-                    }
+                    Type::NamedGeneric(NamedGeneric { type_var, name, .. }) => Ok((type_var, name)),
                     other => Err(ResolverError::MacroResultInGenericsListNotAGeneric {
                         location: *location,
-                        typ: other.clone(),
+                        typ: other,
                     }),
                 }
             }
@@ -247,6 +246,7 @@ impl Elaborator<'_> {
                     ident, false, // mutable
                     false, // allow_shadowing
                     false, // warn_if_unused
+                    false, // warn_if_not_mutated
                     definition,
                 );
                 self.interner.push_definition_type(hir_ident.id, *typ.clone());

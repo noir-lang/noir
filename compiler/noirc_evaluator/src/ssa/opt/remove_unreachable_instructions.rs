@@ -472,10 +472,7 @@ fn zeroed_value(
             dfg.insert_instruction_and_results(instruction, block_id, None, stack).first()
         }
         Type::Vector(_) => {
-            let array = im::Vector::new();
-            let instruction = Instruction::MakeArray { elements: array, typ: typ.clone() };
-            let stack = CallStackId::root();
-            dfg.insert_instruction_and_results(instruction, block_id, None, stack).first()
+            panic!("zeroed_value() does not support vectors, use zeroed_vector_of_size() instead");
         }
         Type::Reference(element_type) => {
             // The result of the instruction is a reference; Allocate creates a reference,
@@ -509,15 +506,64 @@ fn remove_and_replace_with_defaults(
     func_id: FunctionId,
     block_id: BasicBlockId,
 ) {
+    let result_ids = context.dfg.instruction_results(context.instruction_id).to_vec();
+    let mut replacements: Vec<(ValueId, ValueId)> = Vec::new();
+    for (i, result_id) in result_ids.iter().enumerate() {
+        let typ = &context.dfg.type_of_value(*result_id);
+        if matches!(typ, Type::Vector(_)) {
+            let Some(len) = context.dfg.try_get_vector_capacity(*result_id) else {
+                // If we can't figure out the capacity of the vector, then we cannot safely replace it with defaults.
+                return;
+            };
+            // Check if this result is preceded the semantic length.
+            let follows_semantic_length = i > 0
+                && context.dfg.type_of_value(result_ids[i - 1]) == Type::unsigned(32)
+                && matches!(context.instruction(), Instruction::Call { .. });
+
+            if follows_semantic_length {
+                replacements[i - 1].1 = context.dfg.make_constant(
+                    FieldElement::from(len.to_usize()),
+                    NumericType::Unsigned { bit_size: 32 },
+                );
+            }
+            replacements.push((
+                *result_id,
+                zeroed_vector_of_size(context.dfg, func_id, block_id, typ, len.to_usize()),
+            ));
+        } else {
+            replacements.push((*result_id, zeroed_value(context.dfg, func_id, block_id, typ)));
+        }
+    }
+
+    // Only remove the current instruction if we haven't exited early.
     context.remove_current_instruction();
 
-    let result_ids = context.dfg.instruction_results(context.instruction_id).to_vec();
-
-    for result_id in result_ids {
-        let typ = &context.dfg.type_of_value(result_id);
-        let default_value = zeroed_value(context.dfg, func_id, block_id, typ);
-        context.replace_value(result_id, default_value);
+    for (result_id, default_id) in replacements {
+        context.replace_value(result_id, default_id);
     }
+}
+
+fn zeroed_vector_of_size(
+    dfg: &mut DataFlowGraph,
+    func_id: FunctionId,
+    block_id: BasicBlockId,
+    typ: &Type,
+    size: usize,
+) -> ValueId {
+    let Type::Vector(element_type) = typ else {
+        panic!("Expected vector type");
+    };
+
+    let mut array = im::Vector::new();
+    for _ in 0..size {
+        for elem_typ in element_type.iter() {
+            array.push_back(zeroed_value(dfg, func_id, block_id, elem_typ));
+        }
+    }
+
+    let instruction = Instruction::MakeArray { elements: array, typ: typ.clone() };
+    let stack = CallStackId::root();
+    dfg.insert_instruction_and_results(instruction, block_id, None, stack).first()
 }
 
 /// Insert a `constrain 0 == <predicate>, "<msg>"` instruction.
@@ -973,7 +1019,7 @@ mod tests {
             jmp b1()
           b1():
             v1 = add Field 1, Field 2
-            jmpif u1 0 then: b2, else: b3
+            jmpif u1 0 then: b2(), else: b3()
           b2():
             v2 = add Field 1, Field 2
             jmp b1()
@@ -1033,10 +1079,10 @@ mod tests {
             v2 = add Field 1, Field 2
             jmp b2(v2)
           b2(v3: Field):
-            jmpif u1 0 then: b3, else: b4
+            jmpif u1 0 then: b3(), else: b4()
           b3():
             constrain u1 0 == u1 1, "Index out of bounds"
-            jmpif u1 0 then: b4, else: b1
+            jmpif u1 0 then: b4(), else: b1()
           b4():
             v1 = add Field 1, Field 2
             return v1
@@ -1053,7 +1099,7 @@ mod tests {
             v3 = add Field 1, Field 2
             jmp b2(v3)
           b2(v0: Field):
-            jmpif u1 0 then: b3, else: b4
+            jmpif u1 0 then: b3(), else: b4()
           b3():
             constrain u1 0 == u1 1, "Index out of bounds"
             unreachable
@@ -1072,7 +1118,7 @@ mod tests {
           b0():
             jmp b1()
           b1():
-            jmpif u1 0 then: b2, else: b3
+            jmpif u1 0 then: b2(), else: b3()
           b2():
             constrain u1 0 == u1 1, "Index out of bounds"
             jmp b3()
@@ -1089,7 +1135,7 @@ mod tests {
           b0():
             jmp b1()
           b1():
-            jmpif u1 0 then: b2, else: b3
+            jmpif u1 0 then: b2(), else: b3()
           b2():
             constrain u1 0 == u1 1, "Index out of bounds"
             unreachable
@@ -1108,7 +1154,7 @@ mod tests {
           b0():
             jmp b1()
           b1():
-            jmpif u1 0 then: b2, else: b3
+            jmpif u1 0 then: b2(), else: b3()
           b2():
             constrain u1 0 == u1 1, "Index out of bounds"
             jmp b4()
@@ -1127,7 +1173,7 @@ mod tests {
           b0():
             jmp b1()
           b1():
-            jmpif u1 0 then: b2, else: b3
+            jmpif u1 0 then: b2(), else: b3()
           b2():
             constrain u1 0 == u1 1, "Index out of bounds"
             unreachable
@@ -1149,7 +1195,7 @@ mod tests {
           b0():
             jmp b1()
           b1():
-            jmpif u1 0 then: b2, else: b3
+            jmpif u1 0 then: b2(), else: b3()
           b2():
             constrain u1 0 == u1 1, "Index out of bounds"
             jmp b4()
@@ -1170,7 +1216,7 @@ mod tests {
           b0():
             jmp b1()
           b1():
-            jmpif u1 0 then: b2, else: b3
+            jmpif u1 0 then: b2(), else: b3()
           b2():
             constrain u1 0 == u1 1, "Index out of bounds"
             unreachable
@@ -1193,7 +1239,7 @@ mod tests {
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
-            jmpif u1 0 then: b1, else: b2
+            jmpif u1 0 then: b1(), else: b2()
           b1():
             jmp b3()
           b2():
@@ -1212,7 +1258,7 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
-            jmpif u1 0 then: b1, else: b2
+            jmpif u1 0 then: b1(), else: b2()
           b1():
             jmp b3()
           b2():
@@ -1418,6 +1464,77 @@ mod tests {
             constrain u1 0 == u1 1
             v4 = make_array [Field 0] : [Field; 1]
             return v4
+        }
+        ");
+    }
+
+    #[test]
+    fn keep_vector_length() {
+        // When VectorInsert becomes unreachable under a predicate,
+        // try_get_vector_capacity should determine the correct length (4 in this case)
+        // and replace it with a 4-element zero vector, not an empty vector.
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            v1 = make_array [u32 1, u32 2, u32 3] : [u32]
+            enable_side_effects v0
+            v2 = div u32 1, u32 0
+            v4, v5 = call vector_insert(u32 3, v1, u32 1, u32 42) -> (u32, [u32])
+            enable_side_effects u1 1
+            v6 = array_get v5, index u32 0 -> u32
+            return v6
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_instructions();
+
+        // v7 is NOT replaced with an empty array []
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            v4 = make_array [u32 1, u32 2, u32 3] : [u32]
+            enable_side_effects v0
+            constrain u1 0 == v0, "attempt to divide by zero"
+            v7 = make_array [u32 0, u32 0, u32 0, u32 0] : [u32]
+            enable_side_effects u1 1
+            return u32 0
+        }
+        "#);
+    }
+
+    #[test]
+    fn keep_vector_length_of_disabled_array_set() {
+        // This is an excerpt from the `execution_success/vectors` test.
+        // The crux of it is that we have an `array_set` under `enable_side_effects u1 0`,
+        // and then a bunch of `array_get` after  enable_side_effects u1 1;
+        // if we don't preserve the length of the default array, we get Index OOB later.
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32, v1: Field):
+            v2 = make_array [Field 0, Field 0, v1, Field 10] : [Field]
+            enable_side_effects u1 0
+            v3 = array_set v2, index v0, value Field 10
+            enable_side_effects u1 1
+            v4 = array_get v3, index u32 3 -> Field
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_instructions();
+
+        // v3 does not become empty, so we don't get an index OOB.
+        // This assumes that we don't actually use the read result in a side-effecting way.
+        // If we returned v4 above, it would return an incorrect value.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32, v1: Field):
+            v4 = make_array [Field 0, Field 0, v1, Field 10] : [Field]
+            enable_side_effects u1 0
+            v6 = make_array [Field 0, Field 0, Field 0, Field 0] : [Field]
+            enable_side_effects u1 1
+            return
         }
         ");
     }

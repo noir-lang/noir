@@ -48,12 +48,12 @@ where
         Expression::Ident(ident) => i(ident),
         Expression::Literal(literal) => match literal {
             Literal::Array(array_literal) => {
-                for expr in array_literal.contents.iter_mut() {
+                for expr in &mut array_literal.contents {
                     visit_expr_be_mut(expr, b, e, i);
                 }
             }
             Literal::Vector(array_literal) => {
-                for expr in array_literal.contents.iter_mut() {
+                for expr in &mut array_literal.contents {
                     visit_expr_be_mut(expr, b, e, i);
                 }
             }
@@ -104,7 +104,7 @@ where
             }
         }
         Expression::Match(match_) => {
-            for case in match_.cases.iter_mut() {
+            for case in &mut match_.cases {
                 visit_expr_be_mut(&mut case.branch, b, e, i);
             }
             if let Some(ref mut case) = match_.default_case {
@@ -121,7 +121,7 @@ where
         }
         Expression::Call(call) => {
             visit_expr_be_mut(&mut call.func, b, e, i);
-            for arg in call.arguments.iter_mut() {
+            for arg in &mut call.arguments {
                 visit_expr_be_mut(arg, b, e, i);
             }
         }

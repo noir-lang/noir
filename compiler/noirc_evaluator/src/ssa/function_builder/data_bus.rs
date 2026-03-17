@@ -8,6 +8,8 @@ use crate::{
         value::{ValueId, ValueMapping},
     },
 };
+use itertools::Itertools;
+
 use acvm::{
     FieldElement,
     acir::brillig::lengths::{FlattenedLength, SemanticLength},
@@ -98,7 +100,7 @@ impl DataBus {
             .iter()
             .map(|cd| {
                 let mut call_data_map = HashMap::default();
-                for (k, v) in cd.index_map.iter() {
+                for (k, v) in &cd.index_map {
                     call_data_map.insert(f(*k), *v);
                 }
                 CallData {
@@ -119,7 +121,7 @@ impl DataBus {
 
     /// Updates the databus values in place with the provided function
     pub(crate) fn map_values_mut(&mut self, mut f: impl FnMut(ValueId) -> ValueId) {
-        for cd in self.call_data.iter_mut() {
+        for cd in &mut self.call_data {
             cd.array_id = f(cd.array_id);
 
             // Can't mutate a hashmap's keys so we need to collect into a new one.
@@ -248,7 +250,7 @@ impl FunctionBuilder {
             self.deflatten_databus_visibilities(params, flattened_databus_visibilities);
 
         let mut databus_param: BTreeMap<u32, Vec<ValueId>> = BTreeMap::new();
-        for (param, databus_attribute) in params.iter().zip(is_params_databus) {
+        for (param, databus_attribute) in params.iter().zip_eq(is_params_databus) {
             match databus_attribute {
                 DatabusVisibility::None | DatabusVisibility::ReturnData => continue,
                 DatabusVisibility::CallData(call_data_id) => {

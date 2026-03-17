@@ -305,7 +305,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
         B: BuildHasher,
     {
         // docs:end:iter_mut
-        let mut entries = self.entries();
+        let entries = self.entries();
         let mut new_map = HashMap::with_hasher(self._build_hasher);
 
         for i in 0..N {
@@ -343,7 +343,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
         B: BuildHasher,
     {
         // docs:end:iter_keys_mut
-        let mut entries = self.entries();
+        let entries = self.entries();
         let mut new_map = HashMap::with_hasher(self._build_hasher);
 
         for i in 0..N {

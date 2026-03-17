@@ -12,6 +12,7 @@
 use std::collections::HashSet;
 
 use iter_extended::vecmap;
+use itertools::Itertools;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::ssa::{
@@ -84,12 +85,23 @@ fn is_conditional(
     let Some(TerminatorInstruction::JmpIf {
         condition: _,
         then_destination,
+        then_arguments,
         else_destination,
+        else_arguments,
         call_stack: _,
     }) = function.dfg[block].terminator()
     else {
         return None;
     };
+
+    assert!(
+        then_arguments.is_empty(),
+        "basic_conditionals pass hasn't been updated to handle jmpif args"
+    );
+    assert!(
+        else_arguments.is_empty(),
+        "basic_conditions pass has not yet been updated to handle jmpif args"
+    );
 
     // Cost of the JmpIf terminator (2 opcodes: jump_if + jump)
     let jmpif_cost = function.dfg[block].unwrap_terminator().cost();
@@ -215,7 +227,7 @@ fn differing_merge_cost(
     };
     let exit_params = dfg.block_parameters(exit_block);
     let mut cost = 0;
-    for ((a, b), param) in then_args.iter().zip(else_args.iter()).zip(exit_params.iter()) {
+    for ((a, b), param) in then_args.iter().zip_eq(else_args.iter()).zip_eq(exit_params.iter()) {
         if a != b {
             let typ = dfg.type_of_value(*param);
             if typ.is_numeric() || matches!(typ, Type::Reference(_)) {
@@ -404,14 +416,18 @@ impl Context<'_> {
             TerminatorInstruction::JmpIf {
                 condition,
                 then_destination,
+                then_arguments,
                 else_destination,
+                else_arguments,
                 call_stack,
             } => {
                 let condition = self.inserter.resolve(condition);
                 TerminatorInstruction::JmpIf {
                     condition,
                     then_destination,
+                    then_arguments,
                     else_destination,
+                    else_arguments,
                     call_stack,
                 }
             }
@@ -473,7 +489,7 @@ mod tests {
               brillig(inline) fn foo f0 {
                 b0(v0: u32):
                   v3 = eq v0, u32 0
-                  jmpif v3 then: b2, else: b1
+                  jmpif v3 then: b2(), else: b1()
                 b1():
                   jmp b3(u32 5)
                 b2():
@@ -510,7 +526,7 @@ mod tests {
               brillig(inline) fn foo f0 {
                 b0(v0: u32):
                   v3 = eq v0, u32 5
-                  jmpif v3 then: b2, else: b1
+                  jmpif v3 then: b2(), else: b1()
                 b1():
                   v10 = make_array b"foo"
                   jmp b3(v10)
@@ -532,7 +548,7 @@ mod tests {
               brillig(inline) fn foo f0 {
                 b0(v0: u32):
                   v3 = eq v0, u32 5
-                  jmpif v3 then: b2, else: b1
+                  jmpif v3 then: b2(), else: b1()
                 b1():
                   v10 = make_array b"0123456789a"
                   jmp b3(v10)
@@ -553,10 +569,10 @@ mod tests {
               b0(v0: u32):
                 v5 = eq v0, u32 5
                 v6 = not v5
-                jmpif v5 then: b5, else: b1
+                jmpif v5 then: b5(), else: b1()
               b1():
                 v8 = lt v0, u32 3
-                jmpif v8 then: b3, else: b2
+                jmpif v8 then: b3(), else: b2()
               b2():
                 v9 = truncate v0 to 2 bits, max_bit_size: 32
                 jmp b4(v9)
@@ -567,7 +583,7 @@ mod tests {
                 jmp b9(v1)
               b5():
                 v12 = lt u32 2, v0
-                jmpif v12 then: b7, else: b6
+                jmpif v12 then: b7(), else: b6()
               b6():
                 v13 = truncate v0 to 3 bits, max_bit_size: 32
                 jmp b8(v13)
@@ -589,10 +605,10 @@ mod tests {
           b0(v0: u32):
             v4 = eq v0, u32 5
             v5 = not v4
-            jmpif v4 then: b5, else: b1
+            jmpif v4 then: b5(), else: b1()
           b1():
             v17 = lt v0, u32 3
-            jmpif v17 then: b3, else: b2
+            jmpif v17 then: b3(), else: b2()
           b2():
             v19 = truncate v0 to 2 bits, max_bit_size: 32
             jmp b4(v19)
@@ -628,10 +644,10 @@ mod tests {
               b0(v0: u32):
                 v5 = eq v0, u32 5
                 v6 = not v5
-                jmpif v5 then: b5, else: b1
+                jmpif v5 then: b5(), else: b1()
               b1():
                 v8 = lt v0, u32 3
-                jmpif v8 then: b3, else: b2
+                jmpif v8 then: b3(), else: b2()
               b2():
                 v9 = truncate v0 to 2 bits, max_bit_size: 32
                 jmp b4(v9)
@@ -642,7 +658,7 @@ mod tests {
                 jmp b9(v1)
               b5():
                 v12 = lt u32 2, v0
-                jmpif v12 then: b7, else: b6
+                jmpif v12 then: b7(), else: b6()
               b6():
                 v13 = truncate v0 to 3 bits, max_bit_size: 32
                 jmp b8(v13)

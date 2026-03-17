@@ -30,6 +30,7 @@ toml.workspace = true
 [dependencies]
 clap.workspace = true
 fm.workspace = true
+itertools.workspace = true
 rustc-hash.workspace = true
 iter-extended.workspace = true
 # This is the only crate that really needs the RPC feature,
@@ -77,7 +78,7 @@ clap-markdown = { git = "https://github.com/noir-lang/clap-markdown", rev = "450
 
 notify = "6.1.1"
 notify-debouncer-full = "0.3.1"
-termion = "3.0.0"
+termion = "4"
 
 # Logs
 tracing.workspace = true
@@ -95,7 +96,7 @@ tempfile.workspace = true
 dirs.workspace = true
 assert_cmd = "2.0.8"
 assert_fs = "1.0.10"
-predicates = "2.1.5"
+predicates = "3"
 fm.workspace = true
 criterion.workspace = true
 pprof.workspace = true
@@ -105,7 +106,6 @@ regex.workspace = true
 serde.workspace = true
 similar.workspace = true
 sha2.workspace = true
-sha3.workspace = true
 iai = "0.1.1"
 test-case.workspace = true
 light-poseidon = "0.3.0"

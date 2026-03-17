@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: 2147483648 is out of bounds for the array of length 2
+  ┌─ src/main.nr:3:5
+  │
+3 │     v7[index]
+  │     ---------
+  │
+
+Error interpreting main function

@@ -103,8 +103,8 @@ impl ItemScope {
     /// Returns the preferred, unambiguous result in both.
     pub fn find_name(&self, name: &Ident) -> PerNs {
         PerNs {
-            types: Self::find_name_in(name, &self.types).cloned(),
-            values: Self::find_name_in(name, &self.values).cloned(),
+            types: Self::find_name_in(name, &self.types).copied(),
+            values: Self::find_name_in(name, &self.values).copied(),
         }
     }
 
@@ -114,8 +114,8 @@ impl ItemScope {
     /// or one in a specific trait (regardless of the presence of other traits).
     pub fn find_name_for_trait_id(&self, name: &Ident, trait_id: &Option<TraitId>) -> PerNs {
         PerNs {
-            types: self.types.get(name).and_then(|t| t.get(trait_id)).cloned(),
-            values: self.values.get(name).and_then(|v| v.get(trait_id)).cloned(),
+            types: self.types.get(name).and_then(|t| t.get(trait_id)).copied(),
+            values: self.values.get(name).and_then(|v| v.get(trait_id)).copied(),
         }
     }
 

@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Expected x to equal 10, but got 0x05
+  ┌─ src/main.nr:9:12
+  │
+9 │     assert(x == 10, f"Expected x to equal 10, but got {x}");
+  │            ------- Assertion failed
+  │
+  = Call stack:
+    1: ?
+            at src/main.nr:1:4
+    2: main
+            at src/main.nr:3:26
+
+Error interpreting main function

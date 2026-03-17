@@ -1,7 +1,8 @@
 use crate::{
     elaborator::UnstableFeature,
     tests::{
-        assert_no_errors, check_errors, check_monomorphization_error, get_program_using_features,
+        assert_no_errors, check_errors, check_errors_using_features, check_monomorphization_error,
+        get_program_using_features,
     },
 };
 
@@ -60,7 +61,7 @@ fn mutable_reference_to_field_of_mutable_reference() {
 fn auto_dereferences_array_access() {
     let src = r#"
     fn main() {
-        let mut ref_array = &mut &mut &mut [0, 1, 2];
+        let ref_array = &mut &mut &mut [0, 1, 2];
         assert(ref_array[2] == 2);
     }
     "#;
@@ -110,7 +111,7 @@ fn constrained_reference_to_unconstrained() {
 fn immutable_references_with_ownership_feature() {
     let src = r#"
         unconstrained fn main() {
-            let mut array = [1, 2, 3];
+            let array = [1, 2, 3];
             borrow(&array);
         }
 
@@ -125,7 +126,7 @@ fn immutable_references_with_ownership_feature() {
 fn immutable_references_without_ownership_feature() {
     let src = r#"
         fn main() {
-            let mut array = [1, 2, 3];
+            let array = [1, 2, 3];
             borrow(&array);
                    ^^^^^^ This requires the unstable feature 'ownership' which is not enabled
                    ~~~~~~ Pass -Zownership to nargo to enable this feature at your own risk.
@@ -204,4 +205,65 @@ fn mutable_reference_behind_generics_returned_from_oracle() {
     ) -> fn[Env](Field) -> () {}
     "#;
     check_monomorphization_error(src);
+}
+
+#[test]
+fn disallows_mutating_non_mutable_ref_member_access() {
+    let src = r#"
+    fn main() {
+        let s = (0,);
+        let ps = &s;
+        ps.0 = 1;
+        ^^ `ps` is a `&` reference, so it cannot be written to
+    }
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+}
+
+#[test]
+fn disallows_mutating_non_mutable_ref_array_index() {
+    let src = r#"
+    fn main() {
+        let s = [0];
+        let ps = &s;
+        ps[0] = 1;
+        ^^ `ps` is a `&` reference, so it cannot be written to
+    }
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+}
+
+#[test]
+fn disallows_mutating_non_mutable_nested_reference_in_tuple_1() {
+    let src = r#"
+    fn main() {
+        let x = (&(0,),);
+        x.0.0 = 1;
+        ^^^^^ Cannot assign to `x.0.0`, which is behind a `&` reference
+    }
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+}
+
+#[test]
+fn allows_mutating_mutable_reference_inside_non_mutable_reference() {
+    let src = r#"
+    fn main() {
+        let x = &(&mut (0,),);
+        x.0.0 = 1;
+    }
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+}
+
+#[test]
+fn disallows_mutating_non_mutable_reference_inside_mutable_reference() {
+    let src = r#"
+    fn main() {
+        let x = &mut (&(0,),);
+        x.0.0 = 1;
+        ^^^^^ Cannot assign to `x.0.0`, which is behind a `&` reference
+    }
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::Ownership]);
 }

@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: vector_pop_front called on empty vector
+  ┌─ src/main.nr:9:23
+  │
+9 │         let (x, s2) = vector.pop_front();
+  │                       ------------------ Assertion failed
+  │
+  = Call stack:
+    1: ?
+            at src/main.nr:1:4
+    2: main
+            at src/main.nr:9:23
+
+Error interpreting main function

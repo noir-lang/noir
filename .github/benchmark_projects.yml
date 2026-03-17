@@ -1,4 +1,4 @@
-define: &AZ_COMMIT b2b258d7e3d7f2be4c6fdd8baa9075c524749866
+define: &AZ_COMMIT 478515c214a18530d89f35fad261b8250f473152
 projects:
   private-kernel-inner:
     repo: AztecProtocol/aztec-packages
@@ -135,9 +135,9 @@ projects:
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/rollup-tx-base-public
     num_runs: 5
-    compilation-timeout: 100
+    compilation-timeout: 120
     execution-timeout: 0.75
-    brillig-compilation-timeout: 100
+    brillig-compilation-timeout: 120
     brillig-execution-timeout: 0.75
     compilation-memory-limit: 8000
     execution-memory-limit: 600

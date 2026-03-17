@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use arbitrary::Unstructured;
 use nargo::errors::Location;
 use noirc_evaluator::{assert_ssa_snapshot, ssa::ssa_gen};
@@ -87,7 +89,7 @@ fn test_modulo_of_negative_literals_in_range() {
         jmp b1(i64 -4)
       b1(v0: i64):
         v3 = lt v0, i64 -1
-        jmpif v3 then: b2, else: b3
+        jmpif v3 then: b2(), else: b3()
       b2():
         jmp b3()
       b3():
@@ -122,12 +124,12 @@ fn test_recursion_limit_rewrite() {
                         definition: Definition::Function(*callee_id),
                         mutable: false,
                         name: callee_name,
-                        typ: Type::Function(
+                        typ: Rc::new(Type::Function(
                             vec![],
-                            Box::new(Type::Unit),
-                            Box::new(Type::Unit),
+                            Rc::new(Type::Unit),
+                            Rc::new(Type::Unit),
                             callee_unconstrained,
-                        ),
+                        )),
                         id: ident_id,
                     })),
                     arguments: vec![],

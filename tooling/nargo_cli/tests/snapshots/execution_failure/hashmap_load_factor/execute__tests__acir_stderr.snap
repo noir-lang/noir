@@ -1,0 +1,21 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Assertion failed: Load factor is exceeded, consider increasing the capacity.
+    ┌─ std/collections/map.nr:620:16
+    │
+620 │         assert(!exceeded, "Load factor is exceeded, consider increasing the capacity.");
+    │                ---------
+    │
+    = Call stack:
+      1: main
+              at src/main.nr:18:5
+      2: test_load_factor
+              at src/main.nr:34:5
+      3: HashMap<K, V, N, B>::insert
+              at std/collections/map.nr:514:9
+      4: HashMap<K, V, N, B>::assert_load_factor
+              at std/collections/map.nr:620:16
+
+Failed assertion

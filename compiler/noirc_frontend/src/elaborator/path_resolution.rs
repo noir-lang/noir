@@ -1,6 +1,7 @@
 //! Path resolution for types, values, and trait methods across modules.
 
 use iter_extended::vecmap;
+use itertools::Itertools;
 use noirc_errors::{Located, Location, Span};
 
 use crate::ast::{Ident, PathKind};
@@ -91,8 +92,7 @@ impl PathResolutionItem {
             PathResolutionItem::Module(module) => {
                 let module_data = interner.try_module_attributes(*module);
                 module_data
-                    .map(|data| format!("module `{}`", data.name))
-                    .unwrap_or_else(|| "module".to_string())
+                    .map_or_else(|| "module".to_string(), |data| format!("module `{}`", data.name))
             }
             PathResolutionItem::Type(type_id) => {
                 let datatype = interner.get_type(*type_id);
@@ -584,7 +584,7 @@ impl Elaborator<'_> {
 
         let mut errors = Vec::new();
         for (index, (prev_segment, current_segment)) in
-            path.segments.iter().zip(path.segments.iter().skip(1)).enumerate()
+            path.segments.iter().tuple_windows().enumerate()
         {
             let prev_ident = &prev_segment.ident;
             let current_ident = &current_segment.ident;
@@ -777,13 +777,32 @@ impl Elaborator<'_> {
             module_def_id,
         );
 
-        if !item_in_module_is_visible(
+        // For inherent impl methods, check visibility against the impl's defining module
+        // (source_module), not just the type's module where the method was declared for lookup.
+        // This prevents private methods defined in `impl super::S` inside `mod private` from
+        // being accessible outside `mod private` via `S::method()`.
+        if let ModuleDefId::FunctionId(func_id) = module_def_id
+            && let Some(func_meta) = self.interner.try_function_meta(&func_id)
+            && func_meta.type_id.is_some()
+            && func_meta.trait_impl.is_none()
+        {
+            let source_module =
+                ModuleId { krate: func_meta.source_crate, local_id: func_meta.source_module };
+            if !item_in_module_is_visible(
+                self.def_maps,
+                importing_module,
+                source_module,
+                visibility,
+            ) {
+                errors.push(PathResolutionError::Private(name));
+            }
+        } else if !item_in_module_is_visible(
             self.def_maps,
             importing_module,
             current_module_id,
             visibility,
         ) {
-            errors.push(PathResolutionError::Private(name.clone()));
+            errors.push(PathResolutionError::Private(name));
         }
 
         item
@@ -815,7 +834,7 @@ impl Elaborator<'_> {
         // Gather a list of items for which their trait is in scope.
         let mut results = Vec::new();
 
-        for (trait_id, item) in values.iter() {
+        for (trait_id, item) in values {
             let trait_id = trait_id.expect("The None option was already considered before");
             if let Some(name) = starting_module.find_trait_in_scope(trait_id) {
                 results.push((trait_id, name, item));
@@ -931,12 +950,6 @@ impl Elaborator<'_> {
         let primitive_type = PrimitiveType::lookup_by_name(object_name)?;
         let typ = primitive_type.to_type();
         let mut errors = Vec::new();
-
-        if primitive_type == PrimitiveType::StructDefinition {
-            errors.push(PathResolutionError::StructDefinitionDeprecated {
-                location: path.segments[0].ident.location(),
-            });
-        }
 
         if path.segments.len() == 1 {
             let item = PathResolutionItem::PrimitiveType(primitive_type);

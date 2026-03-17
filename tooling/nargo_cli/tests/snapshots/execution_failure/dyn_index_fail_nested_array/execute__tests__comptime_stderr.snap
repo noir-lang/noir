@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: 4 is out of bounds for the array of length 3
+  ┌─ src/main.nr:7:12
+  │
+7 │     assert(x[y + 2].a == 5);
+  │            --------
+  │
+
+Error interpreting main function

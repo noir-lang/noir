@@ -1,0 +1,21 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Assertion failed: QPA
+   ┌─ src/main.nr:8:17
+   │  
+ 8 │ ╭                 if b {
+ 9 │ │                     // safety:
+10 │ │                     unsafe {
+11 │ │                         func_3()
+   · │
+15 │ │                 }
+16 │ │                     != 0_u128
+   │ ╰─────────────────────────────'
+   │  
+   = Call stack:
+     1: main
+             at src/main.nr:8:17
+
+Failed assertion

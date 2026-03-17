@@ -53,6 +53,9 @@ impl<F> WitnessMap<F> {
     pub fn insert(&mut self, key: Witness, value: F) -> Option<F> {
         self.0.insert(key, value)
     }
+    pub fn entry(&mut self, key: Witness) -> btree_map::Entry<'_, Witness, F> {
+        self.0.entry(key)
+    }
 }
 
 impl<F> Index<&Witness> for WitnessMap<F> {

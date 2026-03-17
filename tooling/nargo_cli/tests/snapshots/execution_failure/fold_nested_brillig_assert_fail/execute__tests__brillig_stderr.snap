@@ -1,0 +1,23 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Failed to solve program: 'Failed to solve brillig function'
+   ┌─ src/main.nr:28:12
+   │
+28 │     assert(x);
+   │            -
+   │
+   = Call stack:
+     1: main
+             at src/main.nr:7:17
+     2: fold_conditional_wrapper
+             at src/main.nr:12:5
+     3: fold_conditional
+             at src/main.nr:19:9
+     4: conditional_wrapper
+             at src/main.nr:24:5
+     5: conditional
+             at src/main.nr:28:12
+
+Failed to solve program: 'Failed to solve brillig function'

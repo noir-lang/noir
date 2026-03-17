@@ -85,7 +85,7 @@ jobs:
       - name: Install wasm-bindgen-cli
         uses: taiki-e/install-action@v2
         with:
-          tool: wasm-bindgen-cli@0.2.100
+          tool: wasm-bindgen-cli@0.2.113
 
       - name: Install wasm-opt
         run: |
@@ -131,7 +131,7 @@ jobs:
 
     steps:
       - name: Add warning to sticky comment
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@v3
         with:
           # We need to specify the PR on which to make the comment as workflow is triggered by push.
           number: ${{ fromJSON(needs.release-please.outputs.release-pr).number }}

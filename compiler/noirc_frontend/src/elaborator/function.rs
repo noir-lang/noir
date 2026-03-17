@@ -8,6 +8,7 @@
 //!   - Shared strategy for all types of functions (standalone, impl, trait impl)
 
 use iter_extended::vecmap;
+use itertools::Itertools;
 use noirc_errors::Location;
 
 use crate::{
@@ -66,7 +67,7 @@ impl Elaborator<'_> {
 
         // Define metas for trait impl functions
         for (trait_impl, (trait_constraints, generics)) in
-            trait_impls.iter_mut().zip(trait_constraints_and_generics)
+            trait_impls.iter_mut().zip_eq(trait_constraints_and_generics)
         {
             self.define_function_metas_for_trait_impl(trait_impl, trait_constraints, generics);
         }
@@ -125,6 +126,7 @@ impl Elaborator<'_> {
     ) {
         // Set up trait impl state
         self.current_trait_impl = trait_impl.impl_id;
+        self.current_trait = trait_impl.trait_id;
         self.self_type = trait_impl.methods.self_type.clone();
         self.generics = generics;
 
@@ -137,6 +139,7 @@ impl Elaborator<'_> {
         // Cleanup
         self.self_type = None;
         self.current_trait_impl = None;
+        self.current_trait = None;
         self.generics.clear();
     }
 
@@ -176,6 +179,13 @@ impl Elaborator<'_> {
 
         let mut trait_constraints =
             self.resolve_trait_constraints_and_add_to_scope(&func.def.where_clause);
+
+        // Add constraints for parent traits that have associated types.
+        let (parent_generics, parent_constraints) =
+            self.add_parent_associated_type_constraints(&trait_constraints);
+        generics.extend(parent_generics);
+        trait_constraints.extend(parent_constraints);
+
         let mut extra_trait_constraints =
             vecmap(extra_trait_constraints, |(constraint, _)| constraint.clone());
         extra_trait_constraints.extend(associated_generics_trait_constraints);
@@ -400,6 +410,7 @@ impl Elaborator<'_> {
                 DefinitionKind::Local(None),
                 &mut parameter_idents,
                 true, // warn_if_unused
+                true, // warn_if_not_mutated
                 &mut parameter_names_in_list,
             );
 
@@ -485,6 +496,8 @@ impl Elaborator<'_> {
         self.local_module = Some(func_meta.source_module);
         self.self_type = func_meta.self_type.clone();
         self.current_trait_impl = func_meta.trait_impl;
+        self.current_trait = func_meta.trait_id;
+        self.reset_lvalue_index_counter();
 
         self.scopes.start_function();
         let old_item = self.current_item.replace(DependencyId::Function(id));
@@ -509,6 +522,7 @@ impl Elaborator<'_> {
         for parameter in &func_meta.parameter_idents {
             let name = self.interner.definition_name(parameter.id).to_owned();
             let warn_if_unused = !(func_meta.trait_impl.is_some() && name == "self");
+            let warn_if_not_mutated = false;
             // We allow shadowing here because there's no outer scope to shadow
             // (duplicate parameter names were already checked in `resolve_function_parameters`)
             let allow_shadowing = true;
@@ -516,6 +530,7 @@ impl Elaborator<'_> {
                 name,
                 parameter.clone(),
                 warn_if_unused,
+                warn_if_not_mutated,
                 allow_shadowing,
             );
         }
@@ -566,7 +581,8 @@ impl Elaborator<'_> {
 
         // The arguments to low-level and oracle functions are always unused so we do not produce warnings for them.
         if !func_meta.is_stub() {
-            self.check_for_unused_variables_in_scope_tree(func_scope_tree);
+            self.check_for_unused_variables_in_scope_tree(&func_scope_tree);
+            self.check_for_unnecessary_mut_variables_in_scope_tree(&func_scope_tree);
         }
 
         // Check that the body can return without calling the function.

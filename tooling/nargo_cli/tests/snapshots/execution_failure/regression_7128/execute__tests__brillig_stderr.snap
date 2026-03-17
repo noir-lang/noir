@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Assertion failed: soundness violation
+   ┌─ src/main.nr:23:12
+   │
+23 │     assert(out0 != 0, "soundness violation");
+   │            ---------
+   │
+   = Call stack:
+     1: main
+             at src/main.nr:23:12
+
+Failed assertion

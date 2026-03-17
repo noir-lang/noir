@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Assertion failed: Index out of bounds
+   ┌─ src/main.nr:12:13
+   │
+12 │     assert((vector[3] == 0) & (vector[2] != y));
+   │             ---------
+   │
+   = Call stack:
+     1: main
+             at src/main.nr:12:13
+
+Failed assertion

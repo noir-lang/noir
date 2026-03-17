@@ -7,6 +7,7 @@ mod simple_files;
 pub use file_map::{File, FileId, FileMap, PathString};
 
 use iter_extended::vecmap;
+use itertools::Itertools;
 // Re-export for the lsp
 pub use codespan_reporting::files as codespan_files;
 
@@ -70,7 +71,7 @@ impl FileManager {
         if let Some(file_id) = self.path_to_id.get(&file_name) {
             return Some(*file_id);
         }
-        let file_name_path_buf = file_name.to_path_buf();
+        let file_name_path_buf = file_name;
 
         // Otherwise we add the file
         let file_id = self.file_map.add_file(file_name_path_buf.clone().into(), source);
@@ -122,7 +123,7 @@ impl FileManager {
             .path_to_id
             .iter()
             .filter(|(path, _id)| {
-                path.components().rev().zip(suffix_path.iter()).all(|(x, y)| &x == y)
+                path.components().rev().zip_eq(suffix_path.iter()).all(|(x, y)| &x == y)
             })
             .collect();
         if results.is_empty() {
@@ -162,7 +163,7 @@ fn resolve_components<'a>(components: impl Iterator<Item = Component<'a>>) -> Pa
     let mut components = components.peekable();
 
     // Preserve path prefix if one exists.
-    let mut normalized_path = if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
+    let mut normalized_path = if let Some(c @ Component::Prefix(..)) = components.peek().copied() {
         components.next();
         PathBuf::from(c.as_os_str())
     } else {

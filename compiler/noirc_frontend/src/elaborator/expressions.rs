@@ -17,6 +17,7 @@ use crate::{
         UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression,
     },
     elaborator::{
+        ScopeForest,
         patterns::IdentFromPath,
         types::{WildcardAllowed, WildcardDisallowedContext},
     },
@@ -34,11 +35,12 @@ use crate::{
             HirMatch, HirMemberAccess, HirMethodCallExpression, HirPrefixExpression, ImplKind,
             TraitItem,
         },
-        stmt::{HirLetStatement, HirPattern, HirStatement},
+        stmt::{HirLValue, HirLetStatement, HirPattern, HirStatement},
         traits::{ResolvedTraitBound, TraitConstraint},
     },
     node_interner::{
-        DefinitionId, DefinitionKind, ExprId, FuncId, InternedStatementKind, StmtId, TraitItemId,
+        DefinitionId, DefinitionInfo, DefinitionKind, ExprId, FuncId, InternedStatementKind,
+        StmtId, TraitItemId,
         pusher::{HasLocation, PushedExpr},
     },
     shared::Signedness,
@@ -400,7 +402,7 @@ impl Elaborator<'_> {
                 );
 
                 let first_elem_type = Type::TypeVariable(type_variable);
-                let first_location = elements.first().map(|elem| elem.location).unwrap_or(location);
+                let first_location = elements.first().map_or(location, |elem| elem.location);
 
                 let elements = vecmap(elements.into_iter().enumerate(), |(i, elem)| {
                     let location = elem.location;
@@ -463,7 +465,7 @@ impl Elaborator<'_> {
         for fragment in &fragments {
             if let FmtStrFragment::Interpolation(ident_name, location) = fragment {
                 let (typ, expr_id) = match self
-                    .get_ident_from_path(TypedPath::from_single(ident_name.to_string(), *location))
+                    .get_ident_from_path(TypedPath::from_single(ident_name.clone(), *location))
                 {
                     Some(IdentFromPath::Variable(variable)) => {
                         self.handle_local_variable(&variable);
@@ -565,13 +567,16 @@ impl Elaborator<'_> {
     }
 
     /// Check whether we can create a mutable reference over an expression.
-    ///
     /// Pushes an error if it cannot be done.
+    ///
+    /// Also, if the expression is a local variable, marks it as mutated.
     pub(super) fn check_can_mutate(&mut self, expr_id: ExprId, location: Location) {
         match self.interner.expression(&expr_id) {
             HirExpression::Ident(hir_ident, _) => {
                 let definition = self.interner.definition(hir_ident.id);
                 let name = definition.name.clone();
+                Self::mark_local_variable_as_mutated(definition, &mut self.scopes);
+
                 if !definition.mutable {
                     self.push_err(TypeCheckError::CannotMutateImmutableVariable { name, location });
                 } else {
@@ -609,6 +614,39 @@ impl Elaborator<'_> {
         }
     }
 
+    /// Go over the given `lvalue` and any nested l-values and mark any local variables as mutated.
+    /// However, dereferences do not cause mutation of their inner variables.
+    pub(super) fn mark_lvalue_variables_as_mutated(&mut self, lvalue: &HirLValue) {
+        match lvalue {
+            HirLValue::Ident(hir_ident, _) => {
+                let definition = self.interner.definition(hir_ident.id);
+                Self::mark_local_variable_as_mutated(definition, &mut self.scopes);
+            }
+            HirLValue::MemberAccess { object, .. } => {
+                self.mark_lvalue_variables_as_mutated(object);
+            }
+            HirLValue::Index { array, .. } => {
+                self.mark_lvalue_variables_as_mutated(array);
+            }
+            HirLValue::Dereference { .. } => {
+                // A dereference like `*x` means `x` is `&mut Something` so the contents of `x`
+                // can be mutated even if `x` isn't itself `mut`
+            }
+            HirLValue::Error { .. } => (),
+        }
+    }
+
+    /// If the given definition corresponds to a local variable, find a local variable with the
+    /// given definition name and mark it as mutated.
+    fn mark_local_variable_as_mutated(definition: &DefinitionInfo, scopes: &mut ScopeForest) {
+        if matches!(definition.kind, DefinitionKind::Local(_)) {
+            let scope_tree = scopes.current_scope_tree();
+            if let Some((variable, _index)) = scope_tree.find(&definition.name) {
+                variable.mutated = true;
+            }
+        }
+    }
+
     fn elaborate_index(&mut self, index_expr: IndexExpression) -> (HirExpression, Type) {
         let location = index_expr.index.location;
 
@@ -629,9 +667,10 @@ impl Elaborator<'_> {
         let (collection, lhs_type) = self.insert_auto_dereferences(lhs, lhs_type);
 
         let typ = match lhs_type.follow_bindings() {
-            // XXX: We can check the array bounds here also, but it may be better to constant fold first
-            // and have ConstId instead of ExprId for constants
-            Type::Array(_, base_type) => *base_type,
+            Type::Array(ref size, ref base_type) => {
+                self.check_array_index_out_of_bounds(size, &index, location);
+                *base_type.clone()
+            }
             Type::Vector(base_type) => *base_type,
             Type::Error => Type::Error,
             Type::TypeVariable(_) => {
@@ -654,6 +693,28 @@ impl Elaborator<'_> {
         (expr, typ)
     }
 
+    /// If the index expression is a constant integer literal, check that it is
+    /// within bounds for the given array length type.
+    pub(super) fn check_array_index_out_of_bounds(
+        &mut self,
+        array_size: &Type,
+        index: &ExprId,
+        location: Location,
+    ) {
+        if let HirExpression::Literal(HirLiteral::Integer(index_value)) =
+            self.interner.expression(index)
+            && let Some(index_u32) = index_value.try_to_unsigned::<u32>()
+            && let Ok(array_len) = array_size.evaluate_to_u32(location)
+            && index_u32 >= array_len
+        {
+            self.push_err(TypeCheckError::ArrayIndexOutOfBounds {
+                index: index_u32,
+                array_length: array_len,
+                location,
+            });
+        }
+    }
+
     fn elaborate_call(
         &mut self,
         call: CallExpression,
@@ -670,8 +731,10 @@ impl Elaborator<'_> {
                 .unwrap_or((HirExpression::Error, Type::Error));
         }
 
-        // Other cases just return the call (ignoring has_errors since we're not calling interpreter)
+        // In comptime context, macro calls are not immediately expanded but still need validation:
+        // the callee must be a comptime function and the return type must be Quoted.
         if is_macro_call && self.in_comptime_context() {
+            self.validate_macro_call(hir_call.func, &typ, location);
             typ = self.interner.next_type_variable();
         }
 
@@ -752,8 +815,10 @@ impl Elaborator<'_> {
                 .unwrap_or((HirExpression::Error, Type::Error));
         }
 
-        // Other cases just return the call (ignoring has_errors since we're not calling interpreter)
+        // In comptime context, macro calls are not immediately expanded but still need validation:
+        // the callee must be a comptime function and the return type must be Quoted.
         if is_macro_call && self.in_comptime_context() {
+            self.validate_macro_call(function_call.func, &typ, location);
             typ = self.interner.next_type_variable();
         }
 
@@ -817,15 +882,14 @@ impl Elaborator<'_> {
 
         let location = object_location.merge(method_name_location);
 
-        let (function_id, function_name) = method_ref.clone().into_function_id_and_name(
+        let (function_id, function_name) = method_ref.into_function_id_and_name(
             object_type.clone(),
             generics.clone(),
             location,
             self.interner,
         );
 
-        let func_type =
-            self.type_check_variable(function_name.clone(), &function_id, generics.clone());
+        let func_type = self.type_check_variable(function_name, &function_id, generics.clone());
 
         let function_id = self.intern_expr_type(function_id, func_type.clone());
 
@@ -1054,12 +1118,15 @@ impl Elaborator<'_> {
             is_self_type = last_segment.ident.is_self_type_name();
             constructor_type_location = last_segment.ident.location();
 
+            let mut errors = Vec::new();
             generics = self.resolve_struct_turbofish_generics(
                 &struct_type.borrow(),
                 generics,
                 last_segment.generics,
                 turbofish_location,
+                &mut errors,
             );
+            self.push_errors(errors);
         }
 
         // Each of the struct generics must be bound at the end of the function
@@ -1131,7 +1198,7 @@ impl Elaborator<'_> {
 
             let expected_index_and_visibility =
                 expected_field.map(|(index, visibility, _)| (index, visibility));
-            let expected_type = expected_field.map(|(_, _, typ)| typ).unwrap_or(&&Type::Error);
+            let expected_type = expected_field.map_or(&&Type::Error, |(_, _, typ)| typ);
 
             let field_location = field.location;
             let (resolved, field_type) = self.elaborate_expression(field);
@@ -1244,6 +1311,25 @@ impl Elaborator<'_> {
         let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::Cast);
         let r#type = self.resolve_type(cast.r#type, wildcard_allowed);
         let result = self.check_cast(&lhs, &lhs_type, &r#type, location);
+
+        // `Field as u1` is not supported directly by the backend. Insert an intermediate
+        // cast to u8 to transform it into: `(Field as u8) as u1`.
+        let lhs_could_be_field = match lhs_type.follow_bindings() {
+            Type::FieldElement => true,
+            Type::TypeVariable(ref var) => var.is_integer_or_field(),
+            _ => false,
+        };
+        let lhs = if lhs_could_be_field
+            && matches!(r#type, Type::Integer(Signedness::Unsigned, IntegerBitSize::One))
+        {
+            let u8_type = Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight);
+            let cast_to_u8 =
+                HirExpression::Cast(HirCastExpression { lhs, r#type: u8_type.clone() });
+            self.interner.push_expr_full(cast_to_u8, location, u8_type)
+        } else {
+            lhs
+        };
+
         let expr = HirExpression::Cast(HirCastExpression { lhs, r#type });
         (expr, result)
     }
@@ -1519,7 +1605,8 @@ impl Elaborator<'_> {
                         pattern,
                         typ.clone(),
                         parameter,
-                        true,
+                        true, // warn_if_unused
+                        true, // warn_if_not_mutated
                         &mut parameter_names_in_list,
                     ),
                     typ,
@@ -1663,6 +1750,27 @@ impl Elaborator<'_> {
         }
     }
 
+    /// Validate a macro call without executing it.
+    /// Checks that the callee is a comptime function and the return type is `Quoted`.
+    fn validate_macro_call(
+        &mut self,
+        func: ExprId,
+        return_type: &Type,
+        location: Location,
+    ) -> Option<FuncId> {
+        self.unify(return_type, &Type::Quoted(QuotedType::Quoted), || {
+            TypeCheckError::MacroReturningNonExpr { typ: return_type.clone(), location }
+        });
+
+        match self.try_get_comptime_function(func, location) {
+            Ok(function) => Some(function),
+            Err(error) => {
+                self.push_err(error);
+                None
+            }
+        }
+    }
+
     /// Call a macro function and inlines its code at the call site.
     /// This will also perform a type check to ensure that the return type is an `Expr` value.
     fn call_macro(
@@ -1672,17 +1780,7 @@ impl Elaborator<'_> {
         location: Location,
         return_type: Type,
     ) -> Option<(HirExpression, Type)> {
-        self.unify(&return_type, &Type::Quoted(QuotedType::Quoted), || {
-            TypeCheckError::MacroReturningNonExpr { typ: return_type.clone(), location }
-        });
-
-        let function = match self.try_get_comptime_function(func, location) {
-            Ok(function) => function,
-            Err(error) => {
-                self.push_err(error);
-                return None;
-            }
-        };
+        let function = self.validate_macro_call(func, &return_type, location)?;
 
         let mut interpreter = self.setup_interpreter();
         let mut comptime_args = Vec::new();
@@ -1760,7 +1858,7 @@ impl Elaborator<'_> {
         let mut bindings = TypeBindings::default();
 
         // In `<Type as Trait>::method` we know `Self` is `Type` so we bind that now
-        bindings.insert(self_type.id(), (self_type, kind, constraint.typ.clone()));
+        bindings.insert(self_type.id(), (self_type, kind, constraint.typ));
 
         // TODO: set this to `true`. See https://github.com/noir-lang/noir/issues/8687
         let push_required_type_variables = self.current_trait.is_none();

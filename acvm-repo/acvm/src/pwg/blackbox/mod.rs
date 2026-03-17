@@ -4,6 +4,7 @@ use acir::{
     native_types::{Witness, WitnessMap},
 };
 use acvm_blackbox_solver::{blake2s, blake3, keccakf1600};
+use itertools::Itertools;
 
 use self::{aes128::solve_aes128_encryption_opcode, hash::solve_poseidon2_permutation_opcode};
 
@@ -99,13 +100,13 @@ pub(crate) fn solve<F: AcirField>(
         }
         BlackBoxFuncCall::Keccakf1600 { inputs, outputs } => {
             let mut state = [0; 25];
-            for (it, input) in state.iter_mut().zip(inputs.as_ref()) {
+            for (it, input) in state.iter_mut().zip_eq(inputs.as_ref()) {
                 let witness_assignment = input_to_value(initial_witness, *input)?;
                 let lane = witness_assignment.try_to_u64();
                 *it = lane.unwrap();
             }
             let output_state = keccakf1600(state)?;
-            for (output_witness, value) in outputs.iter().zip(output_state.into_iter()) {
+            for (output_witness, value) in outputs.iter().zip_eq(output_state.into_iter()) {
                 insert_value(output_witness, F::from(u128::from(value)), initial_witness)?;
             }
             Ok(())

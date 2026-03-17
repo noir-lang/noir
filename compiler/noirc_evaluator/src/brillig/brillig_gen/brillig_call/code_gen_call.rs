@@ -2,6 +2,7 @@ use acvm::acir::BlackBoxFunc;
 use acvm::acir::brillig::ValueOrArray;
 use acvm::{AcirField, FieldElement};
 use iter_extended::vecmap;
+use itertools::Itertools;
 
 use crate::brillig::BrilligBlock;
 use crate::brillig::brillig_ir::registers::Allocated;
@@ -64,7 +65,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         // Pair up the heap typed output values of the call with the Brillig variables created for the results,
         // so that we can do some post processing for vectors.
         for (i, (output_value, output_variable)) in
-            output_values.iter().zip(output_variables).enumerate()
+            output_values.iter().zip_eq(output_variables).enumerate()
         {
             // We need to emit some bytecode to format the output as a BrilligVector
             let BrilligVariable::BrilligVector(vector) = output_variable else {
@@ -125,10 +126,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         assert!(rhs.bit_size == FieldElement::max_num_bits());
 
         let [result] = dfg.instruction_result(instruction_id);
-        let destination = self
-            .variables
-            .define_variable(self.function_context, self.brillig_context, result, dfg)
-            .extract_single_addr();
+        let destination = self.define_variable(result, dfg).extract_single_addr();
         assert!(destination.bit_size == 1);
 
         self.brillig_context.binary_instruction(lhs, rhs, destination, BrilligBinaryOp::LessThan);
@@ -195,18 +193,8 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         let source_id = arguments[0];
         let source_variable = self.convert_ssa_value(source_id, dfg);
         let [length_id, destination_id] = dfg.instruction_result(instruction_id);
-        let destination_len_variable = self.variables.define_single_addr_variable(
-            self.function_context,
-            self.brillig_context,
-            length_id,
-            dfg,
-        );
-        let destination_variable = self.variables.define_variable(
-            self.function_context,
-            self.brillig_context,
-            destination_id,
-            dfg,
-        );
+        let destination_len_variable = self.define_single_addr_variable(length_id, dfg);
+        let destination_variable = self.define_variable(destination_id, dfg);
         let destination_vector = destination_variable.extract_vector();
         let source_array = source_variable.extract_array();
         let element_size = dfg.type_of_value(source_id).element_size();
@@ -282,15 +270,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
 
                         let source = self.convert_ssa_single_addr_value(arguments[0], dfg);
 
-                        let target_array = self
-                            .variables
-                            .define_variable(
-                                self.function_context,
-                                self.brillig_context,
-                                result,
-                                dfg,
-                            )
-                            .extract_array();
+                        let target_array = self.define_variable(result, dfg).extract_array();
 
                         let two =
                             self.brillig_context.make_usize_constant_instruction(2_usize.into());
@@ -310,15 +290,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                         let source = self.convert_ssa_single_addr_value(arguments[0], dfg);
                         let radix = self.convert_ssa_single_addr_value(arguments[1], dfg);
 
-                        let target_array = self
-                            .variables
-                            .define_variable(
-                                self.function_context,
-                                self.brillig_context,
-                                result,
-                                dfg,
-                            )
-                            .extract_array();
+                        let target_array = self.define_variable(result, dfg).extract_array();
 
                         self.brillig_context.codegen_to_radix(
                             source,
@@ -345,12 +317,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                         let array = self.convert_ssa_value(arguments[0], dfg);
                         let [result] = dfg.instruction_result(instruction_id);
 
-                        let destination = self.variables.define_variable(
-                            self.function_context,
-                            self.brillig_context,
-                            result,
-                            dfg,
-                        );
+                        let destination = self.define_variable(result, dfg);
                         let destination = destination.extract_register();
                         let array = array.extract_register();
                         self.brillig_context.load_instruction(destination, array);
@@ -359,12 +326,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                         let array = self.convert_ssa_value(arguments[1], dfg);
                         let [result] = dfg.instruction_result(instruction_id);
 
-                        let destination = self.variables.define_variable(
-                            self.function_context,
-                            self.brillig_context,
-                            result,
-                            dfg,
-                        );
+                        let destination = self.define_variable(result, dfg);
                         let destination = destination.extract_register();
                         let array = array.extract_register();
                         self.brillig_context.load_instruction(destination, array);

@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Failed constraint
+  ┌─ crates/a/src/main.nr:2:12
+  │
+2 │     assert(x == y);
+  │            ------
+  │
+  = Call stack:
+    1: main
+            at crates/a/src/main.nr:2:12
+
+Failed to solve program: 'Cannot satisfy constraint'

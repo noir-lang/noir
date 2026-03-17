@@ -5,6 +5,8 @@
 //! with a parameter, the instruction defining the argument writes directly to the
 //! parameter's register, eliminating the mov at the jmp site.
 
+use itertools::Itertools;
+
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
     cfg::ControlFlowGraph,
@@ -39,6 +41,10 @@ fn can_coalesce_param_side(
 #[derive(Default)]
 pub(crate) struct CoalescingMap {
     coalesced: HashMap<ValueId, ValueId>,
+    /// Reverse mapping: values that are targets of coalescing.
+    /// Maps a coalescing target back to all its sources (multiple values
+    /// can map to the same hub value).
+    coalesced_reverse: HashMap<ValueId, Vec<ValueId>>,
 }
 
 impl CoalescingMap {
@@ -72,7 +78,7 @@ impl CoalescingMap {
             // two params of the same destination from reusing the same register.
             let mut param_side_targets = HashSet::default();
 
-            for (arg, param) in arguments.iter().zip(params.iter()) {
+            for (arg, param) in arguments.iter().zip_eq(params.iter()) {
                 if arg == param {
                     continue;
                 }
@@ -150,17 +156,61 @@ impl CoalescingMap {
             }
         }
 
-        Self { coalesced }
+        let mut coalesced_reverse: HashMap<ValueId, Vec<ValueId>> = HashMap::default();
+        for (k, v) in &coalesced {
+            coalesced_reverse.entry(*v).or_default().push(*k);
+        }
+        Self { coalesced, coalesced_reverse }
     }
 
-    /// Look up whether `value_id` has been coalesced with a partner.
+    /// Forward-only lookup: if `value_id` is a coalesced arg, returns the param
+    /// whose register it reuses. Used when defining a variable to check whether
+    /// it should share an already-allocated param's register.
     pub(crate) fn get_coalesced(&self, value_id: &ValueId) -> Option<ValueId> {
         self.coalesced.get(value_id).copied()
     }
 
     /// Check whether `value_id` is a coalesced argument (i.e., shares a register with a parameter).
+    #[cfg(test)]
     pub(crate) fn is_coalesced(&self, value_id: &ValueId) -> bool {
         self.coalesced.contains_key(value_id)
+    }
+
+    /// Check whether any value sharing a register with `value_id` through
+    /// coalescing is still alive (i.e., satisfies the `is_alive` predicate).
+    ///
+    /// Multiple values can share a register through a "hub" pattern:
+    /// e.g., `v1 -> v_hub <- v3` means v1, v_hub, and v3 all share one register.
+    /// When `v1` dies we must check whether `v_hub` or any sibling (like `v3`)
+    /// is still alive before deallocating the register.
+    pub(crate) fn has_live_partner(
+        &self,
+        value_id: &ValueId,
+        is_alive: impl Fn(&ValueId) -> bool,
+    ) -> bool {
+        // Forward: check the hub this value maps to
+        if let Some(hub) = self.coalesced.get(value_id) {
+            if is_alive(hub) {
+                return true;
+            }
+            // Also check siblings: other values that map to the same hub
+            if let Some(siblings) = self.coalesced_reverse.get(hub) {
+                for sibling in siblings {
+                    if sibling != value_id && is_alive(sibling) {
+                        return true;
+                    }
+                }
+            }
+        }
+        // Reverse: this value is a hub — check all values that map to it
+        if let Some(sources) = self.coalesced_reverse.get(value_id) {
+            for source in sources {
+                if is_alive(source) {
+                    return true;
+                }
+            }
+        }
+        false
     }
 
     #[cfg(test)]
@@ -219,7 +269,7 @@ mod tests {
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: u1, v1: Field):
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             v2 = add v1, Field 42
             jmp b3(v2)
@@ -254,7 +304,7 @@ mod tests {
             jmp b1(u32 0)
           b1(v1: u32):
             v2 = lt v1, v0
-            jmpif v2 then: b2, else: b3
+            jmpif v2 then: b2(), else: b3()
           b2():
             v3 = add v1, u32 1
             jmp b1(v3)
@@ -284,7 +334,7 @@ mod tests {
             jmp b1(v2)
           b1(v3: u32):
             v4 = lt v3, v0
-            jmpif v4 then: b2, else: b3
+            jmpif v4 then: b2(), else: b3()
           b2():
             v5 = add v3, v2
             jmp b1(v5)
@@ -316,7 +366,7 @@ mod tests {
             jmp b1(v0)
           b1(v1: u32):
             v2 = lt v1, u32 10
-            jmpif v2 then: b2, else: b3
+            jmpif v2 then: b2(), else: b3()
           b2():
             jmp b1(v1)
           b3():
@@ -403,7 +453,7 @@ mod tests {
         brillig(inline) fn main f0 {
           b0(v0: [u8; 1]):
             v1 = call f1() -> u1
-            jmpif v1 then: b1, else: b2
+            jmpif v1 then: b1(), else: b2()
           b1():
             inc_rc g0
             jmp b3(g0)
@@ -440,7 +490,7 @@ mod tests {
             jmp b1(u32 0)
           b1(v1: u32):
             v2 = lt v1, v0
-            jmpif v2 then: b2, else: b3
+            jmpif v2 then: b2(), else: b3()
           b2():
             v3 = add v1, u32 1
             v4 = mul v3, u32 2
@@ -473,7 +523,7 @@ mod tests {
             jmp b1(u32 0, u32 10)
           b1(v1: u32, v2: u32):
             v3 = lt v1, v0
-            jmpif v3 then: b2, else: b3
+            jmpif v3 then: b2(), else: b3()
           b2():
             v4 = mul v0, u32 2
             jmp b1(v4, v1)
@@ -576,7 +626,7 @@ mod tests {
         brillig(inline) fn main f0 {
           b0(v0: u1, v1: Field):
             v2 = add v1, Field 1
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             jmp b3(v2)
           b2():

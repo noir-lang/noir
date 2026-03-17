@@ -22,6 +22,7 @@ use acvm::{
 
 use ir::instruction::ErrorType;
 use iter_extended::vecmap;
+use itertools::Itertools;
 use noirc_artifacts::{
     debug::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables, LocationTree},
     ssa::SsaReport,
@@ -117,6 +118,10 @@ pub struct SsaEvaluatorOptions {
     /// instruction count is accepted.
     pub max_bytecode_increase_percent: Option<i32>,
 
+    /// Maximum iterations for Brillig loop unrolling.
+    /// Loops exceeding this limit will not be unrolled even if they pass the instruction threshold.
+    pub max_unroll_iterations: usize,
+
     /// Override the threshold for force-unrolling small loops.
     /// Loops with constant bounds and no breaks whose unrolled
     /// instruction count is at or below this threshold will always be unrolled.
@@ -133,6 +138,7 @@ pub struct ArtifactsAndWarnings(pub Artifacts, pub Vec<SsaReport>);
 pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
     vec![
         SsaPass::new(Ssa::black_box_bypass, "black_box bypass"),
+        SsaPass::new(Ssa::array_set_optimization, "ArraySet optimization"),
         SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
         SsaPass::new(Ssa::expand_signed_checks, "expand signed checks"),
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
@@ -140,6 +146,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new_try(Ssa::inline_simple_functions, "Inlining simple functions")
             .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
+        SsaPass::new(Ssa::array_set_optimization, "ArraySet optimization"),
         SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
         SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
         SsaPass::new_try(
@@ -163,6 +170,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         ),
         // Run mem2reg with the CFG separated into blocks
         SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
+        SsaPass::new(Ssa::array_set_optimization, "ArraySet optimization"),
         SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
         // Running DIE here might remove some unused instructions mem2reg could not eliminate.
         SsaPass::new(
@@ -183,6 +191,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             move |ssa| {
                 ssa.unroll_loops_iteratively(
                     options.max_bytecode_increase_percent,
+                    options.max_unroll_iterations,
                     options.force_unroll_threshold,
                 )
             },
@@ -191,16 +200,17 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
         SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
         SsaPass::new(Ssa::remove_bit_shifts, "Removing Bit Shifts"),
+        SsaPass::new(Ssa::array_set_optimization, "ArraySet optimization"),
         SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
         // Expand signed lt/div/mod after "Removing Bit Shifts" because that pass might
         // introduce signed divisions.
         SsaPass::new(Ssa::expand_signed_math, "Expand signed math"),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
         SsaPass::new(Ssa::flatten_cfg, "Flattening"),
+        SsaPass::new(Ssa::array_set_window_optimization, "ArraySet Window optimization"),
         // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores,
         // then try to free memory before inlining, which involves copying a instructions.
         SsaPass::new(Ssa::mem2reg, "Mem2Reg").and_then(Ssa::remove_unused_instructions),
-        SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
         // Run the inlining pass again to handle functions with `InlineType::NoPredicates`.
         // Before flattening is run, we treat functions marked with the `InlineType::NoPredicates` as an entry point.
         // This pass must come immediately following `mem2reg` as the succeeding passes
@@ -214,6 +224,8 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             },
             "Inlining",
         ),
+        SsaPass::new(Ssa::array_set_optimization, "ArraySet optimization"),
+        SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
         SsaPass::new_try(Ssa::remove_if_else, "Remove IfElse"),
         SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
         SsaPass::new(
@@ -231,6 +243,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             move |ssa| {
                 ssa.unroll_loops_iteratively(
                     options.max_bytecode_increase_percent,
+                    options.max_unroll_iterations,
                     options.force_unroll_threshold,
                 )
             },
@@ -245,6 +258,8 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         // Simplifying the CFG can have a positive effect on mem2reg: every time we unify with a
         // yet-to-be-visited predecessor we forget known values; less blocks mean less unification.
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
+        SsaPass::new(Ssa::mem2reg_simple, "Mem2Reg Simple"),
+        SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
         // Removing unreachable instructions before mem2reg, which may result in some default Store
         // instructions being added, which it can pair up with Loads. If we ran it after it,
         // then DIE would just remove the Stores, leaving the Loads dangling.
@@ -254,7 +269,9 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         // We cannot run mem2reg after DIE, because it removes Store instructions.
         // We have to run it before, to give it a chance to turn Store+Load into known values.
         SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
+        SsaPass::new(Ssa::array_set_optimization, "ArraySet optimization"),
         SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
+        SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
         SsaPass::new(Ssa::brillig_entry_point_analysis, "Brillig Entry Point Analysis")
             // Remove any potentially unnecessary duplication from the Brillig entry point analysis.
@@ -278,12 +295,13 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             Ssa::verify_no_dynamic_indices_to_references,
             "Verifying no dynamic array indices to reference value elements",
         ),
-        SsaPass::new(Ssa::array_set_optimization, "Array Set Optimizations").and_then(|ssa| {
-            // Deferred sanity checks that don't modify the SSA, just panic if we have something unexpected
-            // that we don't know how to attribute to a concrete error with the Noir code.
-            ssa.dead_instruction_elimination_post_check(true);
-            ssa
-        }),
+        SsaPass::new(Ssa::mutable_array_set_optimization, "Mutable Array Set Optimizations")
+            .and_then(|ssa| {
+                // Deferred sanity checks that don't modify the SSA, just panic if we have something unexpected
+                // that we don't know how to attribute to a concrete error with the Noir code.
+                ssa.dead_instruction_elimination_post_check(true);
+                ssa
+            }),
     ]
 }
 
@@ -472,7 +490,7 @@ pub fn combine_artifacts(
     );
     let functions: Vec<SsaCircuitArtifact> = generated_acirs
         .into_iter()
-        .zip(arg_size_and_visibilities)
+        .zip_eq(arg_size_and_visibilities)
         .map(|(acir, arg_size_and_visibility)| {
             convert_generated_acir_into_circuit(
                 acir,
@@ -510,7 +528,8 @@ pub fn convert_generated_acir_into_circuit(
     debug_types: DebugTypes,
 ) -> SsaCircuitArtifact {
     let opcodes = generated_acir.take_opcodes();
-    let current_witness_index = generated_acir.current_witness_index().0;
+    let current_witness_index = generated_acir.current_witness_index();
+
     let GeneratedAcir {
         return_witnesses,
         location_map,
@@ -531,7 +550,9 @@ pub fn convert_generated_acir_into_circuit(
 
     let circuit = Circuit {
         function_name: name.clone(),
-        current_witness_index,
+        // XXX: The Circuit cannot differentiate between having 0 or 1 witnesses,
+        // but making this field optional could break serialization.
+        current_witness_index: current_witness_index.unwrap_or_default().witness_index(),
         opcodes,
         private_parameters,
         public_parameters,
