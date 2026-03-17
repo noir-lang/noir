@@ -648,7 +648,7 @@
 <a href=#648 id=648 data-nosnippet>648</a>            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
 <a href=#649 id=649 data-nosnippet>649</a>
 <a href=#650 id=650 data-nosnippet>650</a>        <span class="kw">let </span>attributes = <span class="self">self</span>.interner.function_attributes(<span class="kw-2">&amp;</span>func_id);
-<a href=#651 id=651 data-nosnippet>651</a>        <span class="kw">let </span>deprecated = attributes.get_deprecated_note();
+<a href=#651 id=651 data-nosnippet>651</a>        <span class="kw">let </span>deprecated = attributes.get_deprecated().map(|(<span class="kw">_</span>, note)| note);
 <a href=#652 id=652 data-nosnippet>652</a>
 <a href=#653 id=653 data-nosnippet>653</a>        <span class="kw">let </span>id = get_function_id(func_id, <span class="self">self</span>.interner);
 <a href=#654 id=654 data-nosnippet>654</a>
