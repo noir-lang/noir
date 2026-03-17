@@ -1,4 +1,5 @@
 impl FunctionDefinition {
+    #[deprecated]
     #[builtin(function_def_add_attribute)]
     // docs:start:add_attribute
     pub comptime fn add_attribute<let N: u32>(self, attribute: str<N>) {}
@@ -13,6 +14,11 @@ impl FunctionDefinition {
     // docs:start:body
     pub comptime fn body(self) -> Expr {}
     // docs:end:body
+
+    #[builtin(function_def_disable)]
+    // docs:start:disable
+    pub comptime fn disable(self, error_message: CtString) {}
+    // docs:end:disable
 
     #[builtin(function_def_has_named_attribute)]
     // docs:start:has_named_attribute
@@ -44,33 +50,23 @@ impl FunctionDefinition {
     pub comptime fn return_type(self) -> Type {}
     // docs:end:return_type
 
+    #[deprecated]
     #[builtin(function_def_set_body)]
     // docs:start:set_body
     pub comptime fn set_body(self, body: Expr) {}
     // docs:end:set_body
 
+    #[deprecated]
     #[builtin(function_def_set_parameters)]
     // docs:start:set_parameters
     pub comptime fn set_parameters(self, parameters: [(Quoted, Type)]) {}
     // docs:end:set_parameters
 
-    #[builtin(function_def_set_return_type)]
-    // docs:start:set_return_type
-    pub comptime fn set_return_type(self, return_type: Type) {}
-    // docs:end:set_return_type
-
+    #[deprecated]
     #[builtin(function_def_set_return_public)]
     // docs:start:set_return_public
     pub comptime fn set_return_public(self, public: bool) {}
     // docs:end:set_return_public
-
-    #[builtin(function_def_set_return_data)]
-    pub comptime fn set_return_data(self) {}
-
-    #[builtin(function_def_set_unconstrained)]
-    // docs:start:set_unconstrained
-    pub comptime fn set_unconstrained(self, value: bool) {}
-    // docs:end:set_unconstrained
 
     #[builtin(function_def_visibility)]
     // docs:start:visibility

@@ -1,5 +1,5 @@
 [package]
-name = "inject_context_attribute"
+name = "comptime_fn_disable"
 type = "bin"
 authors = [""]
 

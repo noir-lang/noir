@@ -730,10 +730,12 @@ impl Attributes {
             && !self.is_fuzzing_harness()
     }
 
-    /// Returns note if a deprecated secondary attribute is found
-    pub fn get_deprecated_note(&self) -> Option<Option<String>> {
+    /// If there is a deprecated attribute, return a tuple of (deny, message)
+    /// from the attribute's arguments. If neither argument is specified, deny
+    /// defaults to false while message defaults to None.
+    pub fn get_deprecated(&self) -> Option<(bool, Option<String>)> {
         self.secondary.iter().find_map(|attr| match &attr.kind {
-            SecondaryAttributeKind::Deprecated(note) => Some(note.clone()),
+            SecondaryAttributeKind::Deprecated(deny, note) => Some((*deny, note.clone())),
             _ => None,
         })
     }
@@ -908,7 +910,14 @@ pub struct SecondaryAttribute {
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum SecondaryAttributeKind {
-    Deprecated(Option<String>),
+    /// Marks whether a function is deprecated or not.
+    ///
+    /// - The first parameter is `true` if this should be a hard error, or `false` for a warning.
+    ///   In source code, not specifying "deny" will default this to a warning.
+    /// - The second parameter is the optional error message. If provided, this becomes the primary
+    ///   error message.
+    Deprecated(bool, Option<String>),
+
     // This is an attribute to specify that a function
     // is a helper method for a contract and should not be seen as
     // the entry point.
@@ -922,6 +931,14 @@ pub enum SecondaryAttributeKind {
     /// An attribute expected to run a comptime function of the same name: `#[foo]`
     Meta(MetaAttribute),
 
+    /// Tags a struct or global inside a `contract` block for inclusion in the
+    /// compiled contract artifact. The string is the tag name used as a key in
+    /// the compiled contract artifact: tagged structs go into a `structs` map and
+    /// tagged globals go into a `globals` map, both keyed by tag.
+    ///
+    /// Only valid inside `contract` blocks (enforced during elaboration).
+    ///
+    /// Example: `#[abi(my_tag)]`
     Abi(String),
 
     /// A variable-argument comptime function.
@@ -956,9 +973,11 @@ impl SecondaryAttributeKind {
 
     pub(crate) fn contents(&self) -> String {
         match self {
-            SecondaryAttributeKind::Deprecated(None) => "deprecated".to_string(),
-            SecondaryAttributeKind::Deprecated(Some(note)) => {
-                format!("deprecated({note:?})")
+            SecondaryAttributeKind::Deprecated(false, None) => "deprecated".to_string(),
+            SecondaryAttributeKind::Deprecated(true, None) => "deprecated(deny)".to_string(),
+            SecondaryAttributeKind::Deprecated(deny, Some(note)) => {
+                let deny = if *deny { "deny, " } else { "" };
+                format!("deprecated({deny}{note:?})")
             }
             SecondaryAttributeKind::Tag(contents) => format!("'{contents}"),
             SecondaryAttributeKind::Meta(meta) => meta.to_string(),
