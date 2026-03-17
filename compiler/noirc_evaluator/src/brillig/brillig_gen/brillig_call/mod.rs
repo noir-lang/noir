@@ -5,6 +5,7 @@ pub(super) mod code_gen_call;
 use acvm::acir::brillig::lengths::{ElementTypesLength, SemiFlattenedLength};
 use acvm::brillig_vm::offsets;
 use iter_extended::vecmap;
+use itertools::Itertools;
 
 use crate::brillig::brillig_ir::{BrilligBinaryOp, registers::RegisterAllocator};
 use crate::brillig::{BrilligBlock, assert_u32};
@@ -204,7 +205,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         let return_variables =
             vecmap(result_ids, |result_id| self.define_variable(*result_id, dfg));
 
-        for (src, dst) in argument_variables.into_iter().zip(return_variables) {
+        for (src, dst) in argument_variables.into_iter().zip_eq(return_variables) {
             self.brillig_context.mov_instruction(dst.extract_register(), src.extract_register());
         }
     }

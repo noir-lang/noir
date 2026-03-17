@@ -9,6 +9,7 @@ error: Assertion failed: Expected x == y, but x is 0x05 and y is 0x0a
   │               ----
   │
   = Call stack:
-    1. src/main.nr:6:15
+    1: main
+            at src/main.nr:6:15
 
 Failed assertion

@@ -1,5 +1,6 @@
 use acir::AcirField;
 use acvm_blackbox_solver::BlackBoxResolutionError;
+use itertools::Itertools;
 
 use crate::FieldElement;
 use crate::poseidon2_constants::{POSEIDON2_CONFIG, Poseidon2Config};
@@ -37,7 +38,7 @@ impl Poseidon2<'_> {
 
     fn add_round_constants(&self, state: &mut [FieldElement], round: usize) {
         for (state_element, constant_element) in
-            state.iter_mut().zip(self.config.round_constant[round])
+            state.iter_mut().zip_eq(self.config.round_constant[round])
         {
             *state_element += constant_element;
         }

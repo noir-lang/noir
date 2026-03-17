@@ -4,6 +4,7 @@ use acir::{
     native_types::{Witness, WitnessMap},
 };
 use acvm_blackbox_solver::{BlackBoxFunctionSolver, BlackBoxResolutionError, sha256_compression};
+use itertools::Itertools;
 
 use crate::OpcodeResolutionError;
 use crate::pwg::{input_to_value, insert_value};
@@ -71,7 +72,7 @@ fn write_digest_to_outputs<F: AcirField>(
     outputs: &[Witness; 32],
     digest: [u8; 32],
 ) -> Result<(), OpcodeResolutionError<F>> {
-    for (output_witness, value) in outputs.iter().zip(digest.into_iter()) {
+    for (output_witness, value) in outputs.iter().zip_eq(digest.into_iter()) {
         insert_value(output_witness, F::from_be_bytes_reduce(&[value]), initial_witness)?;
     }
 
@@ -83,7 +84,7 @@ fn to_u32_array<const N: usize, F: AcirField>(
     inputs: &[FunctionInput<F>; N],
 ) -> Result<[u32; N], OpcodeResolutionError<F>> {
     let mut result = [0; N];
-    for (it, input) in result.iter_mut().zip(inputs) {
+    for (it, input) in result.iter_mut().zip_eq(inputs) {
         let witness_value = input_to_value(initial_witness, *input)?;
         *it = witness_value
             .try_into_u128()
@@ -102,7 +103,7 @@ pub(crate) fn solve_sha_256_permutation_opcode<F: AcirField>(
 ) -> Result<(), OpcodeResolutionError<F>> {
     let state = execute_sha_256_permutation_opcode(initial_witness, inputs, hash_values)?;
 
-    for (output_witness, value) in outputs.iter().zip(state.into_iter()) {
+    for (output_witness, value) in outputs.iter().zip_eq(state.into_iter()) {
         insert_value(output_witness, F::from(u128::from(value)), initial_witness)?;
     }
 
@@ -142,7 +143,7 @@ pub(crate) fn solve_poseidon2_permutation_opcode<F: AcirField>(
     let state = execute_poseidon2_permutation_opcode(backend, initial_witness, inputs)?;
 
     // Write witness assignments
-    for (output_witness, value) in outputs.iter().zip(state.into_iter()) {
+    for (output_witness, value) in outputs.iter().zip_eq(state.into_iter()) {
         insert_value(output_witness, value, initial_witness)?;
     }
     Ok(())
