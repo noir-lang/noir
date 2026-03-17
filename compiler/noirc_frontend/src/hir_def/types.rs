@@ -3344,41 +3344,55 @@ impl BinaryTypeOperator {
             Some(maximum_size) => {
                 if maximum_size.to_u128() == u128::MAX {
                     // For u128 operations we need to use u128
-                    let a = a.to_u128();
-                    let b = b.to_u128();
+                    let overflow_err = |value| TypeCheckError::ConstantOverflow {
+                        value,
+                        target: "u128",
+                        location,
+                    };
+                    let a_val = a.try_to_unsigned::<u128>().ok_or_else(|| overflow_err(a))?;
+                    let b_val = b.try_to_unsigned::<u128>().ok_or_else(|| overflow_err(b))?;
 
                     let err = TypeCheckError::FailingBinaryOp {
                         op: self,
-                        lhs: a.to_string(),
-                        rhs: b.to_string(),
+                        lhs: a_val.to_string(),
+                        rhs: b_val.to_string(),
                         location,
                     };
                     let result = match self {
-                        BinaryTypeOperator::Addition => a.checked_add(b).ok_or(err)?,
-                        BinaryTypeOperator::Subtraction => a.checked_sub(b).ok_or(err)?,
-                        BinaryTypeOperator::Multiplication => a.checked_mul(b).ok_or(err)?,
-                        BinaryTypeOperator::Division => a.checked_div(b).ok_or(err)?,
-                        BinaryTypeOperator::Modulo => a.checked_rem(b).ok_or(err)?,
+                        BinaryTypeOperator::Addition => a_val.checked_add(b_val).ok_or(err)?,
+                        BinaryTypeOperator::Subtraction => a_val.checked_sub(b_val).ok_or(err)?,
+                        BinaryTypeOperator::Multiplication => {
+                            a_val.checked_mul(b_val).ok_or(err)?
+                        }
+                        BinaryTypeOperator::Division => a_val.checked_div(b_val).ok_or(err)?,
+                        BinaryTypeOperator::Modulo => a_val.checked_rem(b_val).ok_or(err)?,
                     };
 
                     Ok(result.into())
                 } else {
                     // Every other type first in i128, allowing both positive and negative values
-                    let a = a.to_i128();
-                    let b = b.to_i128();
+                    let overflow_err = |value| TypeCheckError::ConstantOverflow {
+                        value,
+                        target: "i128",
+                        location,
+                    };
+                    let a_val = a.try_to_signed::<i128>().ok_or_else(|| overflow_err(a))?;
+                    let b_val = b.try_to_signed::<i128>().ok_or_else(|| overflow_err(b))?;
 
                     let err = TypeCheckError::FailingBinaryOp {
                         op: self,
-                        lhs: a.to_string(),
-                        rhs: b.to_string(),
+                        lhs: a_val.to_string(),
+                        rhs: b_val.to_string(),
                         location,
                     };
                     let result = match self {
-                        BinaryTypeOperator::Addition => a.checked_add(b).ok_or(err)?,
-                        BinaryTypeOperator::Subtraction => a.checked_sub(b).ok_or(err)?,
-                        BinaryTypeOperator::Multiplication => a.checked_mul(b).ok_or(err)?,
-                        BinaryTypeOperator::Division => a.checked_div(b).ok_or(err)?,
-                        BinaryTypeOperator::Modulo => a.checked_rem(b).ok_or(err)?,
+                        BinaryTypeOperator::Addition => a_val.checked_add(b_val).ok_or(err)?,
+                        BinaryTypeOperator::Subtraction => a_val.checked_sub(b_val).ok_or(err)?,
+                        BinaryTypeOperator::Multiplication => {
+                            a_val.checked_mul(b_val).ok_or(err)?
+                        }
+                        BinaryTypeOperator::Division => a_val.checked_div(b_val).ok_or(err)?,
+                        BinaryTypeOperator::Modulo => a_val.checked_rem(b_val).ok_or(err)?,
                     };
 
                     kind.ensure_value_fits(result.into(), location)

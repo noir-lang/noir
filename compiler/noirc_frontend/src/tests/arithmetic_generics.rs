@@ -2,12 +2,14 @@
 
 use core::panic;
 
+use crate::hir::def_collector::dc_crate::CompilationError;
+use crate::hir::resolution::errors::ResolverError;
 use crate::hir::type_check::TypeCheckError;
 use crate::hir_def::types::BinaryTypeOperator;
 use crate::monomorphization::errors::MonomorphizationError;
 use crate::signed_field::SignedField;
 use crate::test_utils::get_monomorphized;
-use crate::tests::{assert_no_errors, check_errors};
+use crate::tests::{assert_no_errors, check_errors, get_program_errors};
 
 #[test]
 fn arithmetic_generics_canonicalization_deduplication_regression() {
@@ -286,4 +288,30 @@ fn numeric_generic_arithmetic_in_return_type_concat() {
     }
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn type_level_constant_overflow_produces_error() {
+    // Regression test: field-backed constants that don't fit in i128 should
+    // produce a TypeCheckError and should not panic.
+    let source = r#"
+        global N: T::u32 = 5;
+
+        fn main(_a: [Field; (30 + (N / 2))]) {
+        }
+    "#;
+
+    let errors = get_program_errors(source);
+    assert!(!errors.is_empty(), "Expected a compilation error for overflowing type constant");
+
+    let found = errors.iter().any(|e| {
+        matches!(
+            e,
+            CompilationError::ResolverError(ResolverError::BinaryOpError {
+                err,
+                ..
+            }) if matches!(**err, TypeCheckError::ConstantOverflow { .. })
+        )
+    });
+    assert!(found, "Expected TypeLevelConstantOverflow error, got: {errors:?}");
 }

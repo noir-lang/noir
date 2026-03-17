@@ -65,6 +65,8 @@ pub enum TypeCheckError {
     },
     #[error("Evaluating `{op}` on `{lhs}`, `{rhs}` failed")]
     FailingBinaryOp { op: BinaryTypeOperator, lhs: String, rhs: String, location: Location },
+    #[error("The value `{value}` does not fit in {target}")]
+    ConstantOverflow { value: SignedField, target: &'static str, location: Location },
     #[error("Type {typ:?} cannot be used in a {place:?}")]
     TypeCannotBeUsed { typ: Type, place: &'static str, location: Location },
     #[error("Expected type {expected_typ:?} is not the same as {expr_typ:?}")]
@@ -308,6 +310,7 @@ impl TypeCheckError {
             | TypeCheckError::OverflowingConstant { location, .. }
             | TypeCheckError::UnderflowingConstant { location, .. }
             | TypeCheckError::FailingBinaryOp { location, .. }
+            | TypeCheckError::ConstantOverflow { location, .. }
             | TypeCheckError::TypeCannotBeUsed { location, .. }
             | TypeCheckError::TypeMismatch { expr_location: location, .. }
             | TypeCheckError::TypeMismatchWithSource { location, .. }
@@ -561,6 +564,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::OverflowingConstant { location, .. }
             | TypeCheckError::UnderflowingConstant { location, .. }
             | TypeCheckError::FailingBinaryOp { location, .. }
+            | TypeCheckError::ConstantOverflow { location, .. }
             | TypeCheckError::FieldModulo { location }
             | TypeCheckError::FieldNot { location }
             | TypeCheckError::ConstrainedReferenceToUnconstrained { location }
