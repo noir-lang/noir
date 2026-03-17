@@ -442,14 +442,20 @@ impl Type {
         flags: UnificationFlags,
         bindings: &mut TypeBindings,
     ) -> Result<(), UnificationError> {
-        if flags != UnificationFlags::DoNotMoveConstants {
+        let (try_left, try_right) = match flags {
+            UnificationFlags::DoNotMoveConstants => (false, false),
+            UnificationFlags::DoNotMoveConstantsOnTheRight => (true, false),
+            UnificationFlags::None => (true, true),
+        };
+
+        if try_left {
             let result = self.try_unify_by_moving_single_constant_term_in_self(other, bindings);
             if result.is_ok() {
                 return Ok(());
             }
         }
 
-        if flags == UnificationFlags::None {
+        if try_right {
             let result = other.try_unify_by_moving_single_constant_term_in_self(self, bindings);
             if result.is_ok() {
                 return Ok(());
