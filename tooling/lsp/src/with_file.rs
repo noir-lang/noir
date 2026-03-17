@@ -548,6 +548,10 @@ fn unresolved_type_expression_with_file(
                 location_with_file(location, file),
             )
         }
+        UnresolvedTypeExpression::Negation(rhs, location) => UnresolvedTypeExpression::Negation(
+            Box::new(unresolved_type_expression_with_file(*rhs, file)),
+            location_with_file(location, file),
+        ),
         UnresolvedTypeExpression::AsTraitPath(as_trait_path) => {
             UnresolvedTypeExpression::AsTraitPath(Box::new(as_trait_path_with_file(
                 *as_trait_path,
