@@ -148,6 +148,7 @@ impl ConstantAllocation {
         used_in_blocks: &[BasicBlockId],
         func: &Function,
     ) -> BasicBlockId {
+        assert!(!used_in_blocks.is_empty(), "At least one block must use the constant");
         // Find the common dominator of all the blocks where the constant is used.
         let common_dominator = used_in_blocks
             .iter()
