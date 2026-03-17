@@ -2,7 +2,7 @@
 <a href=#2 id=2 data-nosnippet>2</a>
 <a href=#3 id=3 data-nosnippet>3</a><span class="kw">use </span>noirc_errors::Location;
 <a href=#4 id=4 data-nosnippet>4</a>
-<a href=#5 id=5 data-nosnippet>5</a><span class="kw">use crate</span>::{BinaryTypeOperator, Type, TypeBinding, signed_field::SignedField};
+<a href=#5 id=5 data-nosnippet>5</a><span class="kw">use crate</span>::{BinaryTypeOperator, Kind, Type, TypeBinding, signed_field::SignedField};
 <a href=#6 id=6 data-nosnippet>6</a>
 <a href=#7 id=7 data-nosnippet>7</a><span class="kw">impl </span>Type {
 <a href=#8 id=8 data-nosnippet>8</a>    <span class="doccomment">/// Try to canonicalize the representation of this type.
@@ -80,7 +80,7 @@
 <a href=#80 id=80 data-nosnippet>80</a>                    &amp;&amp; <span class="kw">let </span><span class="prelude-val">Ok</span>(rhs_value) = rhs_evaluated
 <a href=#81 id=81 data-nosnippet>81</a>                    &amp;&amp; <span class="kw">let </span><span class="prelude-val">Ok</span>(result) = op.function(lhs_value, rhs_value, <span class="kw-2">&amp;</span>kind, dummy_location)
 <a href=#82 id=82 data-nosnippet>82</a>                {
-<a href=#83 id=83 data-nosnippet>83</a>                    <span class="kw">return </span>Type::Constant(result, kind);
+<a href=#83 id=83 data-nosnippet>83</a>                    <span class="kw">return </span>Type::Constant(result, kind.into_numeric_type_or_error());
 <a href=#84 id=84 data-nosnippet>84</a>                }
 <a href=#85 id=85 data-nosnippet>85</a>
 <a href=#86 id=86 data-nosnippet>86</a>                <span class="kw">let </span>lhs = lhs.canonicalize_helper(found_checked_cast, run_simplifications);
@@ -170,192 +170,192 @@
 <a href=#170 id=170 data-nosnippet>170</a>                }
 <a href=#171 id=171 data-nosnippet>171</a>                Type::Constant(new_constant, new_constant_kind) =&gt; {
 <a href=#172 id=172 data-nosnippet>172</a>                    <span class="kw">let </span>dummy_location = Location::dummy();
-<a href=#173 id=173 data-nosnippet>173</a>                    <span class="kw">if let </span><span class="prelude-val">Ok</span>(result) =
-<a href=#174 id=174 data-nosnippet>174</a>                        op.function(constant, new_constant, <span class="kw-2">&amp;</span>new_constant_kind, dummy_location)
-<a href=#175 id=175 data-nosnippet>175</a>                    {
-<a href=#176 id=176 data-nosnippet>176</a>                        constant = result;
-<a href=#177 id=177 data-nosnippet>177</a>                    } <span class="kw">else </span>{
-<a href=#178 id=178 data-nosnippet>178</a>                        <span class="kw">let </span>constant = Type::Constant(new_constant, new_constant_kind);
-<a href=#179 id=179 data-nosnippet>179</a>                        <span class="kw-2">*</span>sorted.entry(constant).or_default() += <span class="number">1</span>;
-<a href=#180 id=180 data-nosnippet>180</a>                    }
-<a href=#181 id=181 data-nosnippet>181</a>                }
-<a href=#182 id=182 data-nosnippet>182</a>                other =&gt; {
-<a href=#183 id=183 data-nosnippet>183</a>                    <span class="kw-2">*</span>sorted.entry(other).or_default() += <span class="number">1</span>;
-<a href=#184 id=184 data-nosnippet>184</a>                }
-<a href=#185 id=185 data-nosnippet>185</a>            }
-<a href=#186 id=186 data-nosnippet>186</a>        }
-<a href=#187 id=187 data-nosnippet>187</a>
-<a href=#188 id=188 data-nosnippet>188</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(first) = sorted.pop_first() {
-<a href=#189 id=189 data-nosnippet>189</a>            <span class="kw">let </span>(<span class="kw-2">mut </span>typ, first_type_count) = first.clone();
-<a href=#190 id=190 data-nosnippet>190</a>
-<a href=#191 id=191 data-nosnippet>191</a>            <span class="comment">// - 1 since `typ` already is set to the first instance
-<a href=#192 id=192 data-nosnippet>192</a>            </span><span class="kw">for _ in </span><span class="number">0</span>..first_type_count - <span class="number">1 </span>{
-<a href=#193 id=193 data-nosnippet>193</a>                typ = Type::infix_expr(Box::new(typ), op, Box::new(first.<span class="number">0</span>.clone()));
-<a href=#194 id=194 data-nosnippet>194</a>            }
-<a href=#195 id=195 data-nosnippet>195</a>
-<a href=#196 id=196 data-nosnippet>196</a>            <span class="kw">for </span>(rhs, rhs_count) <span class="kw">in </span>sorted {
-<a href=#197 id=197 data-nosnippet>197</a>                <span class="kw">for _ in </span><span class="number">0</span>..rhs_count {
-<a href=#198 id=198 data-nosnippet>198</a>                    typ = Type::infix_expr(Box::new(typ), op, Box::new(rhs.clone()));
-<a href=#199 id=199 data-nosnippet>199</a>                }
-<a href=#200 id=200 data-nosnippet>200</a>            }
-<a href=#201 id=201 data-nosnippet>201</a>
-<a href=#202 id=202 data-nosnippet>202</a>            <span class="kw">if </span>constant != zero_value {
-<a href=#203 id=203 data-nosnippet>203</a>                <span class="kw">let </span>constant = Type::Constant(constant, lhs.infix_kind(rhs));
-<a href=#204 id=204 data-nosnippet>204</a>                typ = Type::infix_expr(Box::new(typ), op, Box::new(constant));
-<a href=#205 id=205 data-nosnippet>205</a>            }
-<a href=#206 id=206 data-nosnippet>206</a>
-<a href=#207 id=207 data-nosnippet>207</a>            typ
-<a href=#208 id=208 data-nosnippet>208</a>        } <span class="kw">else </span>{
-<a href=#209 id=209 data-nosnippet>209</a>            <span class="comment">// Every type must have been a constant
-<a href=#210 id=210 data-nosnippet>210</a>            </span>Type::Constant(constant, lhs.infix_kind(rhs))
-<a href=#211 id=211 data-nosnippet>211</a>        }
-<a href=#212 id=212 data-nosnippet>212</a>    }
-<a href=#213 id=213 data-nosnippet>213</a>
-<a href=#214 id=214 data-nosnippet>214</a>    <span class="doccomment">/// Try to simplify non-constant expressions in the form `(N op1 M) op2 M`
-<a href=#215 id=215 data-nosnippet>215</a>    /// where the two `M` terms are expected to cancel out.
-<a href=#216 id=216 data-nosnippet>216</a>    /// Precondition: `lhs &amp; rhs are in canonical form`
-<a href=#217 id=217 data-nosnippet>217</a>    ///
-<a href=#218 id=218 data-nosnippet>218</a>    /// - Simplifies `(N +/- M) -/+ M` to `N`
-<a href=#219 id=219 data-nosnippet>219</a>    /// - Simplifies `(N * M) ÷ M` to `N`
-<a href=#220 id=220 data-nosnippet>220</a>    </span><span class="kw">fn </span>try_simplify_non_constants_in_lhs(
-<a href=#221 id=221 data-nosnippet>221</a>        lhs: <span class="kw-2">&amp;</span>Type,
-<a href=#222 id=222 data-nosnippet>222</a>        op: BinaryTypeOperator,
-<a href=#223 id=223 data-nosnippet>223</a>        rhs: <span class="kw-2">&amp;</span>Type,
-<a href=#224 id=224 data-nosnippet>224</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;Type&gt; {
-<a href=#225 id=225 data-nosnippet>225</a>        <span class="kw">match </span>lhs {
-<a href=#226 id=226 data-nosnippet>226</a>            Type::CheckedCast { from, to } =&gt; {
-<a href=#227 id=227 data-nosnippet>227</a>                <span class="comment">// Apply operation directly to `from` while attempting simplification to `to`.
-<a href=#228 id=228 data-nosnippet>228</a>                </span><span class="kw">let </span>from = Type::infix_expr(from.clone(), op, Box::new(rhs.clone()));
-<a href=#229 id=229 data-nosnippet>229</a>                <span class="kw">let </span>to = <span class="self">Self</span>::try_simplify_non_constants_in_lhs(to, op, rhs)<span class="question-mark">?</span>;
-<a href=#230 id=230 data-nosnippet>230</a>                <span class="prelude-val">Some</span>(Type::CheckedCast { from: Box::new(from), to: Box::new(to) })
-<a href=#231 id=231 data-nosnippet>231</a>            }
-<a href=#232 id=232 data-nosnippet>232</a>            Type::InfixExpr(l_lhs, l_op, l_rhs, <span class="kw">_</span>) =&gt; {
-<a href=#233 id=233 data-nosnippet>233</a>                <span class="comment">// Note that this is exact, syntactic equality, not unification.
-<a href=#234 id=234 data-nosnippet>234</a>                // `rhs` is expected to already be in canonical form.
-<a href=#235 id=235 data-nosnippet>235</a>                </span><span class="kw">if </span>l_op.approx_inverse() != <span class="prelude-val">Some</span>(op)
-<a href=#236 id=236 data-nosnippet>236</a>                    || <span class="kw-2">*</span>l_op == BinaryTypeOperator::Division
-<a href=#237 id=237 data-nosnippet>237</a>                    || l_rhs.canonicalize_unchecked() != <span class="kw-2">*</span>rhs
-<a href=#238 id=238 data-nosnippet>238</a>                {
-<a href=#239 id=239 data-nosnippet>239</a>                    <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#240 id=240 data-nosnippet>240</a>                }
-<a href=#241 id=241 data-nosnippet>241</a>
-<a href=#242 id=242 data-nosnippet>242</a>                <span class="prelude-val">Some</span>(<span class="kw-2">*</span>l_lhs.clone())
-<a href=#243 id=243 data-nosnippet>243</a>            }
-<a href=#244 id=244 data-nosnippet>244</a>            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
-<a href=#245 id=245 data-nosnippet>245</a>        }
-<a href=#246 id=246 data-nosnippet>246</a>    }
-<a href=#247 id=247 data-nosnippet>247</a>
-<a href=#248 id=248 data-nosnippet>248</a>    <span class="doccomment">/// Try to simplify non-constant expressions in the form `N op1 (M op1 N)`
-<a href=#249 id=249 data-nosnippet>249</a>    /// where the two `M` terms are expected to cancel out.
-<a href=#250 id=250 data-nosnippet>250</a>    /// Precondition: `lhs &amp; rhs are in canonical form`
-<a href=#251 id=251 data-nosnippet>251</a>    ///
-<a href=#252 id=252 data-nosnippet>252</a>    /// Unlike `try_simplify_non_constants_in_lhs` we can't simplify `N / (M * N)`
-<a href=#253 id=253 data-nosnippet>253</a>    /// Since that should simplify to `1 / M` instead of `M`.
-<a href=#254 id=254 data-nosnippet>254</a>    ///
-<a href=#255 id=255 data-nosnippet>255</a>    /// - Simplifies `N +/- (M -/+ N)` to `M`
-<a href=#256 id=256 data-nosnippet>256</a>    /// - Simplifies `N * (M ÷ N)` to `M`
-<a href=#257 id=257 data-nosnippet>257</a>    </span><span class="kw">fn </span>try_simplify_non_constants_in_rhs(
-<a href=#258 id=258 data-nosnippet>258</a>        lhs: <span class="kw-2">&amp;</span>Type,
-<a href=#259 id=259 data-nosnippet>259</a>        op: BinaryTypeOperator,
-<a href=#260 id=260 data-nosnippet>260</a>        rhs: <span class="kw-2">&amp;</span>Type,
-<a href=#261 id=261 data-nosnippet>261</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;Type&gt; {
-<a href=#262 id=262 data-nosnippet>262</a>        <span class="kw">match </span>rhs {
-<a href=#263 id=263 data-nosnippet>263</a>            Type::CheckedCast { from, to } =&gt; {
-<a href=#264 id=264 data-nosnippet>264</a>                <span class="comment">// Apply operation directly to `from` while attempting simplification to `to`.
-<a href=#265 id=265 data-nosnippet>265</a>                </span><span class="kw">let </span>from = Type::infix_expr(Box::new(lhs.clone()), op, from.clone());
-<a href=#266 id=266 data-nosnippet>266</a>                <span class="kw">let </span>to = <span class="self">Self</span>::try_simplify_non_constants_in_rhs(lhs, op, to)<span class="question-mark">?</span>;
-<a href=#267 id=267 data-nosnippet>267</a>                <span class="prelude-val">Some</span>(Type::CheckedCast { from: Box::new(from), to: Box::new(to) })
-<a href=#268 id=268 data-nosnippet>268</a>            }
-<a href=#269 id=269 data-nosnippet>269</a>            Type::InfixExpr(r_lhs, r_op, r_rhs, <span class="kw">_</span>) =&gt; {
-<a href=#270 id=270 data-nosnippet>270</a>                <span class="comment">// `N / (M * N)` should be simplified to `1 / M`, but we only handle
-<a href=#271 id=271 data-nosnippet>271</a>                // simplifying to `M` in this function.
-<a href=#272 id=272 data-nosnippet>272</a>                </span><span class="kw">if </span>op == BinaryTypeOperator::Division &amp;&amp; <span class="kw-2">*</span>r_op == BinaryTypeOperator::Multiplication
-<a href=#273 id=273 data-nosnippet>273</a>                {
-<a href=#274 id=274 data-nosnippet>274</a>                    <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#275 id=275 data-nosnippet>275</a>                }
-<a href=#276 id=276 data-nosnippet>276</a>
-<a href=#277 id=277 data-nosnippet>277</a>                <span class="comment">// Note that this is exact, syntactic equality, not unification.
-<a href=#278 id=278 data-nosnippet>278</a>                // `lhs` is expected to already be in canonical form.
-<a href=#279 id=279 data-nosnippet>279</a>                </span><span class="kw">if </span>r_op.inverse() != <span class="prelude-val">Some</span>(op) || <span class="kw-2">*</span>lhs != r_rhs.canonicalize_unchecked() {
-<a href=#280 id=280 data-nosnippet>280</a>                    <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#281 id=281 data-nosnippet>281</a>                }
-<a href=#282 id=282 data-nosnippet>282</a>
-<a href=#283 id=283 data-nosnippet>283</a>                <span class="prelude-val">Some</span>(<span class="kw-2">*</span>r_lhs.clone())
-<a href=#284 id=284 data-nosnippet>284</a>            }
-<a href=#285 id=285 data-nosnippet>285</a>            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
-<a href=#286 id=286 data-nosnippet>286</a>        }
-<a href=#287 id=287 data-nosnippet>287</a>    }
-<a href=#288 id=288 data-nosnippet>288</a>
-<a href=#289 id=289 data-nosnippet>289</a>    <span class="doccomment">/// Given:
-<a href=#290 id=290 data-nosnippet>290</a>    ///   lhs = `N op C1`
-<a href=#291 id=291 data-nosnippet>291</a>    ///   rhs = C2
-<a href=#292 id=292 data-nosnippet>292</a>    /// Returns: `(N, op, C1, C2)` if C1 and C2 are constants.
-<a href=#293 id=293 data-nosnippet>293</a>    ///   Note that the operator here is within the `lhs` term, the operator
-<a href=#294 id=294 data-nosnippet>294</a>    ///   separating lhs and rhs is not needed.
-<a href=#295 id=295 data-nosnippet>295</a>    /// Precondition: `lhs &amp; rhs are in canonical form`
-<a href=#296 id=296 data-nosnippet>296</a>    </span><span class="kw">fn </span>parse_partial_constant_expr(
-<a href=#297 id=297 data-nosnippet>297</a>        lhs: <span class="kw-2">&amp;</span>Type,
-<a href=#298 id=298 data-nosnippet>298</a>        rhs: <span class="kw-2">&amp;</span>Type,
-<a href=#299 id=299 data-nosnippet>299</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;(Box&lt;Type&gt;, BinaryTypeOperator, SignedField, SignedField)&gt; {
-<a href=#300 id=300 data-nosnippet>300</a>        <span class="kw">let </span>kind = lhs.infix_kind(rhs);
-<a href=#301 id=301 data-nosnippet>301</a>        <span class="kw">let </span>dummy_location = Location::dummy();
-<a href=#302 id=302 data-nosnippet>302</a>        <span class="kw">let </span>rhs = rhs.evaluate_to_signed_field(<span class="kw-2">&amp;</span>kind, dummy_location).ok()<span class="question-mark">?</span>;
-<a href=#303 id=303 data-nosnippet>303</a>
-<a href=#304 id=304 data-nosnippet>304</a>        <span class="kw">let </span>Type::InfixExpr(l_type, l_op, l_rhs, <span class="kw">_</span>) = lhs.follow_bindings() <span class="kw">else </span>{
-<a href=#305 id=305 data-nosnippet>305</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#306 id=306 data-nosnippet>306</a>        };
-<a href=#307 id=307 data-nosnippet>307</a>
-<a href=#308 id=308 data-nosnippet>308</a>        <span class="kw">let </span>l_rhs = l_rhs.evaluate_to_signed_field(<span class="kw-2">&amp;</span>kind, dummy_location).ok()<span class="question-mark">?</span>;
-<a href=#309 id=309 data-nosnippet>309</a>        <span class="prelude-val">Some</span>((l_type, l_op, l_rhs, rhs))
-<a href=#310 id=310 data-nosnippet>310</a>    }
-<a href=#311 id=311 data-nosnippet>311</a>
-<a href=#312 id=312 data-nosnippet>312</a>    <span class="doccomment">/// Try to simplify partially constant expressions in the form `(N op1 C1) op2 C2`
-<a href=#313 id=313 data-nosnippet>313</a>    /// where C1 and C2 are constants that can be combined (e.g. N + 5 - 3 = N + 2)
-<a href=#314 id=314 data-nosnippet>314</a>    /// Precondition: `lhs &amp; rhs are in canonical form`
-<a href=#315 id=315 data-nosnippet>315</a>    ///
-<a href=#316 id=316 data-nosnippet>316</a>    /// - Simplifies `(N +/- C1) +/- C2` to `N +/- (C1 +/- C2)` if C1 and C2 are constants.
-<a href=#317 id=317 data-nosnippet>317</a>    /// - Simplifies `(N * C1) ÷ C2` to `N * (C1 ÷ C2)` if C1 and C2 are constants which divide
-<a href=#318 id=318 data-nosnippet>318</a>    ///   without a remainder.
-<a href=#319 id=319 data-nosnippet>319</a>    </span><span class="kw">fn </span>try_simplify_partial_constants(
-<a href=#320 id=320 data-nosnippet>320</a>        lhs: <span class="kw-2">&amp;</span>Type,
-<a href=#321 id=321 data-nosnippet>321</a>        <span class="kw-2">mut </span>op: BinaryTypeOperator,
-<a href=#322 id=322 data-nosnippet>322</a>        rhs: <span class="kw-2">&amp;</span>Type,
-<a href=#323 id=323 data-nosnippet>323</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;Type&gt; {
-<a href=#324 id=324 data-nosnippet>324</a>        <span class="kw">use </span>BinaryTypeOperator::<span class="kw-2">*</span>;
-<a href=#325 id=325 data-nosnippet>325</a>        <span class="kw">let </span>(l_type, l_op, l_const, r_const) = Type::parse_partial_constant_expr(lhs, rhs)<span class="question-mark">?</span>;
-<a href=#326 id=326 data-nosnippet>326</a>
-<a href=#327 id=327 data-nosnippet>327</a>        <span class="kw">match </span>(l_op, op) {
-<a href=#328 id=328 data-nosnippet>328</a>            (Addition | Subtraction, Addition | Subtraction) =&gt; {
-<a href=#329 id=329 data-nosnippet>329</a>                <span class="comment">// If l_op is a subtraction we want to inverse the rhs operator.
-<a href=#330 id=330 data-nosnippet>330</a>                </span><span class="kw">if </span>l_op == Subtraction {
-<a href=#331 id=331 data-nosnippet>331</a>                    op = op.inverse()<span class="question-mark">?</span>;
-<a href=#332 id=332 data-nosnippet>332</a>                }
-<a href=#333 id=333 data-nosnippet>333</a>                <span class="kw">let </span>dummy_location = Location::dummy();
-<a href=#334 id=334 data-nosnippet>334</a>                <span class="kw">let </span>result =
-<a href=#335 id=335 data-nosnippet>335</a>                    op.function(l_const, r_const, <span class="kw-2">&amp;</span>lhs.infix_kind(rhs), dummy_location).ok()<span class="question-mark">?</span>;
-<a href=#336 id=336 data-nosnippet>336</a>                <span class="kw">let </span>constant = Type::Constant(result, lhs.infix_kind(rhs));
-<a href=#337 id=337 data-nosnippet>337</a>                <span class="prelude-val">Some</span>(Type::infix_expr(l_type, l_op, Box::new(constant)))
-<a href=#338 id=338 data-nosnippet>338</a>            }
-<a href=#339 id=339 data-nosnippet>339</a>            (Multiplication, Division) =&gt; {
-<a href=#340 id=340 data-nosnippet>340</a>                <span class="comment">// We ensure the result divides evenly to preserve integer division semantics
-<a href=#341 id=341 data-nosnippet>341</a>                // TODO(https://github.com/noir-lang/noir/issues/11013): do the division simplification
-<a href=#342 id=342 data-nosnippet>342</a>                // also in case of Field elements
-<a href=#343 id=343 data-nosnippet>343</a>                </span><span class="kw">let </span>l_128: <span class="prelude-ty">Option</span>&lt;i128&gt; = l_const.try_to_signed();
-<a href=#344 id=344 data-nosnippet>344</a>                <span class="kw">let </span>r_128: <span class="prelude-ty">Option</span>&lt;i128&gt; = r_const.try_to_signed();
-<a href=#345 id=345 data-nosnippet>345</a>                <span class="kw">let </span>divides_evenly = <span class="kw">if let </span>(<span class="prelude-val">Some</span>(l_128), <span class="prelude-val">Some</span>(r_128)) = (l_128, r_128) {
-<a href=#346 id=346 data-nosnippet>346</a>                    l_128.checked_rem(r_128) == <span class="prelude-val">Some</span>(<span class="number">0</span>)
-<a href=#347 id=347 data-nosnippet>347</a>                } <span class="kw">else </span>{
-<a href=#348 id=348 data-nosnippet>348</a>                    <span class="bool-val">false
-<a href=#349 id=349 data-nosnippet>349</a>                </span>};
-<a href=#350 id=350 data-nosnippet>350</a>
-<a href=#351 id=351 data-nosnippet>351</a>                <span class="comment">// If op is a division we need to ensure it divides evenly
-<a href=#352 id=352 data-nosnippet>352</a>                </span><span class="kw">if </span>op == Division &amp;&amp; (r_const.is_zero() || !divides_evenly) {
-<a href=#353 id=353 data-nosnippet>353</a>                    <span class="prelude-val">None
-<a href=#354 id=354 data-nosnippet>354</a>                </span>} <span class="kw">else </span>{
-<a href=#355 id=355 data-nosnippet>355</a>                    <span class="kw">let </span>dummy_location = Location::dummy();
-<a href=#356 id=356 data-nosnippet>356</a>                    <span class="kw">let </span>result =
-<a href=#357 id=357 data-nosnippet>357</a>                        op.function(l_const, r_const, <span class="kw-2">&amp;</span>lhs.infix_kind(rhs), dummy_location).ok()<span class="question-mark">?</span>;
-<a href=#358 id=358 data-nosnippet>358</a>                    <span class="kw">let </span>constant = Box::new(Type::Constant(result, lhs.infix_kind(rhs)));
+<a href=#173 id=173 data-nosnippet>173</a>                    <span class="kw">let </span>kind = Kind::Numeric(new_constant_kind.clone());
+<a href=#174 id=174 data-nosnippet>174</a>                    <span class="kw">if let </span><span class="prelude-val">Ok</span>(result) = op.function(constant, new_constant, <span class="kw-2">&amp;</span>kind, dummy_location) {
+<a href=#175 id=175 data-nosnippet>175</a>                        constant = result;
+<a href=#176 id=176 data-nosnippet>176</a>                    } <span class="kw">else </span>{
+<a href=#177 id=177 data-nosnippet>177</a>                        <span class="kw">let </span>constant = Type::Constant(new_constant, new_constant_kind);
+<a href=#178 id=178 data-nosnippet>178</a>                        <span class="kw-2">*</span>sorted.entry(constant).or_default() += <span class="number">1</span>;
+<a href=#179 id=179 data-nosnippet>179</a>                    }
+<a href=#180 id=180 data-nosnippet>180</a>                }
+<a href=#181 id=181 data-nosnippet>181</a>                other =&gt; {
+<a href=#182 id=182 data-nosnippet>182</a>                    <span class="kw-2">*</span>sorted.entry(other).or_default() += <span class="number">1</span>;
+<a href=#183 id=183 data-nosnippet>183</a>                }
+<a href=#184 id=184 data-nosnippet>184</a>            }
+<a href=#185 id=185 data-nosnippet>185</a>        }
+<a href=#186 id=186 data-nosnippet>186</a>
+<a href=#187 id=187 data-nosnippet>187</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(first) = sorted.pop_first() {
+<a href=#188 id=188 data-nosnippet>188</a>            <span class="kw">let </span>(<span class="kw-2">mut </span>typ, first_type_count) = first.clone();
+<a href=#189 id=189 data-nosnippet>189</a>
+<a href=#190 id=190 data-nosnippet>190</a>            <span class="comment">// - 1 since `typ` already is set to the first instance
+<a href=#191 id=191 data-nosnippet>191</a>            </span><span class="kw">for _ in </span><span class="number">0</span>..first_type_count - <span class="number">1 </span>{
+<a href=#192 id=192 data-nosnippet>192</a>                typ = Type::infix_expr(Box::new(typ), op, Box::new(first.<span class="number">0</span>.clone()));
+<a href=#193 id=193 data-nosnippet>193</a>            }
+<a href=#194 id=194 data-nosnippet>194</a>
+<a href=#195 id=195 data-nosnippet>195</a>            <span class="kw">for </span>(rhs, rhs_count) <span class="kw">in </span>sorted {
+<a href=#196 id=196 data-nosnippet>196</a>                <span class="kw">for _ in </span><span class="number">0</span>..rhs_count {
+<a href=#197 id=197 data-nosnippet>197</a>                    typ = Type::infix_expr(Box::new(typ), op, Box::new(rhs.clone()));
+<a href=#198 id=198 data-nosnippet>198</a>                }
+<a href=#199 id=199 data-nosnippet>199</a>            }
+<a href=#200 id=200 data-nosnippet>200</a>
+<a href=#201 id=201 data-nosnippet>201</a>            <span class="kw">if </span>constant != zero_value {
+<a href=#202 id=202 data-nosnippet>202</a>                <span class="kw">let </span>constant = Type::Constant(constant, lhs.infix_type(rhs));
+<a href=#203 id=203 data-nosnippet>203</a>                typ = Type::infix_expr(Box::new(typ), op, Box::new(constant));
+<a href=#204 id=204 data-nosnippet>204</a>            }
+<a href=#205 id=205 data-nosnippet>205</a>
+<a href=#206 id=206 data-nosnippet>206</a>            typ
+<a href=#207 id=207 data-nosnippet>207</a>        } <span class="kw">else </span>{
+<a href=#208 id=208 data-nosnippet>208</a>            <span class="comment">// Every type must have been a constant
+<a href=#209 id=209 data-nosnippet>209</a>            </span>Type::Constant(constant, lhs.infix_type(rhs))
+<a href=#210 id=210 data-nosnippet>210</a>        }
+<a href=#211 id=211 data-nosnippet>211</a>    }
+<a href=#212 id=212 data-nosnippet>212</a>
+<a href=#213 id=213 data-nosnippet>213</a>    <span class="doccomment">/// Try to simplify non-constant expressions in the form `(N op1 M) op2 M`
+<a href=#214 id=214 data-nosnippet>214</a>    /// where the two `M` terms are expected to cancel out.
+<a href=#215 id=215 data-nosnippet>215</a>    /// Precondition: `lhs &amp; rhs are in canonical form`
+<a href=#216 id=216 data-nosnippet>216</a>    ///
+<a href=#217 id=217 data-nosnippet>217</a>    /// - Simplifies `(N +/- M) -/+ M` to `N`
+<a href=#218 id=218 data-nosnippet>218</a>    /// - Simplifies `(N * M) ÷ M` to `N`
+<a href=#219 id=219 data-nosnippet>219</a>    </span><span class="kw">fn </span>try_simplify_non_constants_in_lhs(
+<a href=#220 id=220 data-nosnippet>220</a>        lhs: <span class="kw-2">&amp;</span>Type,
+<a href=#221 id=221 data-nosnippet>221</a>        op: BinaryTypeOperator,
+<a href=#222 id=222 data-nosnippet>222</a>        rhs: <span class="kw-2">&amp;</span>Type,
+<a href=#223 id=223 data-nosnippet>223</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;Type&gt; {
+<a href=#224 id=224 data-nosnippet>224</a>        <span class="kw">match </span>lhs {
+<a href=#225 id=225 data-nosnippet>225</a>            Type::CheckedCast { from, to } =&gt; {
+<a href=#226 id=226 data-nosnippet>226</a>                <span class="comment">// Apply operation directly to `from` while attempting simplification to `to`.
+<a href=#227 id=227 data-nosnippet>227</a>                </span><span class="kw">let </span>from = Type::infix_expr(from.clone(), op, Box::new(rhs.clone()));
+<a href=#228 id=228 data-nosnippet>228</a>                <span class="kw">let </span>to = <span class="self">Self</span>::try_simplify_non_constants_in_lhs(to, op, rhs)<span class="question-mark">?</span>;
+<a href=#229 id=229 data-nosnippet>229</a>                <span class="prelude-val">Some</span>(Type::CheckedCast { from: Box::new(from), to: Box::new(to) })
+<a href=#230 id=230 data-nosnippet>230</a>            }
+<a href=#231 id=231 data-nosnippet>231</a>            Type::InfixExpr(l_lhs, l_op, l_rhs, <span class="kw">_</span>) =&gt; {
+<a href=#232 id=232 data-nosnippet>232</a>                <span class="comment">// Note that this is exact, syntactic equality, not unification.
+<a href=#233 id=233 data-nosnippet>233</a>                // `rhs` is expected to already be in canonical form.
+<a href=#234 id=234 data-nosnippet>234</a>                </span><span class="kw">if </span>l_op.approx_inverse() != <span class="prelude-val">Some</span>(op)
+<a href=#235 id=235 data-nosnippet>235</a>                    || <span class="kw-2">*</span>l_op == BinaryTypeOperator::Division
+<a href=#236 id=236 data-nosnippet>236</a>                    || l_rhs.canonicalize_unchecked() != <span class="kw-2">*</span>rhs
+<a href=#237 id=237 data-nosnippet>237</a>                {
+<a href=#238 id=238 data-nosnippet>238</a>                    <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#239 id=239 data-nosnippet>239</a>                }
+<a href=#240 id=240 data-nosnippet>240</a>
+<a href=#241 id=241 data-nosnippet>241</a>                <span class="prelude-val">Some</span>(<span class="kw-2">*</span>l_lhs.clone())
+<a href=#242 id=242 data-nosnippet>242</a>            }
+<a href=#243 id=243 data-nosnippet>243</a>            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+<a href=#244 id=244 data-nosnippet>244</a>        }
+<a href=#245 id=245 data-nosnippet>245</a>    }
+<a href=#246 id=246 data-nosnippet>246</a>
+<a href=#247 id=247 data-nosnippet>247</a>    <span class="doccomment">/// Try to simplify non-constant expressions in the form `N op1 (M op1 N)`
+<a href=#248 id=248 data-nosnippet>248</a>    /// where the two `M` terms are expected to cancel out.
+<a href=#249 id=249 data-nosnippet>249</a>    /// Precondition: `lhs &amp; rhs are in canonical form`
+<a href=#250 id=250 data-nosnippet>250</a>    ///
+<a href=#251 id=251 data-nosnippet>251</a>    /// Unlike `try_simplify_non_constants_in_lhs` we can't simplify `N / (M * N)`
+<a href=#252 id=252 data-nosnippet>252</a>    /// Since that should simplify to `1 / M` instead of `M`.
+<a href=#253 id=253 data-nosnippet>253</a>    ///
+<a href=#254 id=254 data-nosnippet>254</a>    /// - Simplifies `N +/- (M -/+ N)` to `M`
+<a href=#255 id=255 data-nosnippet>255</a>    /// - Simplifies `N * (M ÷ N)` to `M`
+<a href=#256 id=256 data-nosnippet>256</a>    </span><span class="kw">fn </span>try_simplify_non_constants_in_rhs(
+<a href=#257 id=257 data-nosnippet>257</a>        lhs: <span class="kw-2">&amp;</span>Type,
+<a href=#258 id=258 data-nosnippet>258</a>        op: BinaryTypeOperator,
+<a href=#259 id=259 data-nosnippet>259</a>        rhs: <span class="kw-2">&amp;</span>Type,
+<a href=#260 id=260 data-nosnippet>260</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;Type&gt; {
+<a href=#261 id=261 data-nosnippet>261</a>        <span class="kw">match </span>rhs {
+<a href=#262 id=262 data-nosnippet>262</a>            Type::CheckedCast { from, to } =&gt; {
+<a href=#263 id=263 data-nosnippet>263</a>                <span class="comment">// Apply operation directly to `from` while attempting simplification to `to`.
+<a href=#264 id=264 data-nosnippet>264</a>                </span><span class="kw">let </span>from = Type::infix_expr(Box::new(lhs.clone()), op, from.clone());
+<a href=#265 id=265 data-nosnippet>265</a>                <span class="kw">let </span>to = <span class="self">Self</span>::try_simplify_non_constants_in_rhs(lhs, op, to)<span class="question-mark">?</span>;
+<a href=#266 id=266 data-nosnippet>266</a>                <span class="prelude-val">Some</span>(Type::CheckedCast { from: Box::new(from), to: Box::new(to) })
+<a href=#267 id=267 data-nosnippet>267</a>            }
+<a href=#268 id=268 data-nosnippet>268</a>            Type::InfixExpr(r_lhs, r_op, r_rhs, <span class="kw">_</span>) =&gt; {
+<a href=#269 id=269 data-nosnippet>269</a>                <span class="comment">// `N / (M * N)` should be simplified to `1 / M`, but we only handle
+<a href=#270 id=270 data-nosnippet>270</a>                // simplifying to `M` in this function.
+<a href=#271 id=271 data-nosnippet>271</a>                </span><span class="kw">if </span>op == BinaryTypeOperator::Division &amp;&amp; <span class="kw-2">*</span>r_op == BinaryTypeOperator::Multiplication
+<a href=#272 id=272 data-nosnippet>272</a>                {
+<a href=#273 id=273 data-nosnippet>273</a>                    <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#274 id=274 data-nosnippet>274</a>                }
+<a href=#275 id=275 data-nosnippet>275</a>
+<a href=#276 id=276 data-nosnippet>276</a>                <span class="comment">// Note that this is exact, syntactic equality, not unification.
+<a href=#277 id=277 data-nosnippet>277</a>                // `lhs` is expected to already be in canonical form.
+<a href=#278 id=278 data-nosnippet>278</a>                </span><span class="kw">if </span>r_op.inverse() != <span class="prelude-val">Some</span>(op) || <span class="kw-2">*</span>lhs != r_rhs.canonicalize_unchecked() {
+<a href=#279 id=279 data-nosnippet>279</a>                    <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#280 id=280 data-nosnippet>280</a>                }
+<a href=#281 id=281 data-nosnippet>281</a>
+<a href=#282 id=282 data-nosnippet>282</a>                <span class="prelude-val">Some</span>(<span class="kw-2">*</span>r_lhs.clone())
+<a href=#283 id=283 data-nosnippet>283</a>            }
+<a href=#284 id=284 data-nosnippet>284</a>            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+<a href=#285 id=285 data-nosnippet>285</a>        }
+<a href=#286 id=286 data-nosnippet>286</a>    }
+<a href=#287 id=287 data-nosnippet>287</a>
+<a href=#288 id=288 data-nosnippet>288</a>    <span class="doccomment">/// Given:
+<a href=#289 id=289 data-nosnippet>289</a>    ///   lhs = `N op C1`
+<a href=#290 id=290 data-nosnippet>290</a>    ///   rhs = C2
+<a href=#291 id=291 data-nosnippet>291</a>    /// Returns: `(N, op, C1, C2)` if C1 and C2 are constants.
+<a href=#292 id=292 data-nosnippet>292</a>    ///   Note that the operator here is within the `lhs` term, the operator
+<a href=#293 id=293 data-nosnippet>293</a>    ///   separating lhs and rhs is not needed.
+<a href=#294 id=294 data-nosnippet>294</a>    /// Precondition: `lhs &amp; rhs are in canonical form`
+<a href=#295 id=295 data-nosnippet>295</a>    </span><span class="kw">fn </span>parse_partial_constant_expr(
+<a href=#296 id=296 data-nosnippet>296</a>        lhs: <span class="kw-2">&amp;</span>Type,
+<a href=#297 id=297 data-nosnippet>297</a>        rhs: <span class="kw-2">&amp;</span>Type,
+<a href=#298 id=298 data-nosnippet>298</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;(Box&lt;Type&gt;, BinaryTypeOperator, SignedField, SignedField)&gt; {
+<a href=#299 id=299 data-nosnippet>299</a>        <span class="kw">let </span>kind = lhs.infix_kind(rhs);
+<a href=#300 id=300 data-nosnippet>300</a>        <span class="kw">let </span>dummy_location = Location::dummy();
+<a href=#301 id=301 data-nosnippet>301</a>        <span class="kw">let </span>rhs = rhs.evaluate_to_signed_field(<span class="kw-2">&amp;</span>kind, dummy_location).ok()<span class="question-mark">?</span>;
+<a href=#302 id=302 data-nosnippet>302</a>
+<a href=#303 id=303 data-nosnippet>303</a>        <span class="kw">let </span>Type::InfixExpr(l_type, l_op, l_rhs, <span class="kw">_</span>) = lhs.follow_bindings() <span class="kw">else </span>{
+<a href=#304 id=304 data-nosnippet>304</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#305 id=305 data-nosnippet>305</a>        };
+<a href=#306 id=306 data-nosnippet>306</a>
+<a href=#307 id=307 data-nosnippet>307</a>        <span class="kw">let </span>l_rhs = l_rhs.evaluate_to_signed_field(<span class="kw-2">&amp;</span>kind, dummy_location).ok()<span class="question-mark">?</span>;
+<a href=#308 id=308 data-nosnippet>308</a>        <span class="prelude-val">Some</span>((l_type, l_op, l_rhs, rhs))
+<a href=#309 id=309 data-nosnippet>309</a>    }
+<a href=#310 id=310 data-nosnippet>310</a>
+<a href=#311 id=311 data-nosnippet>311</a>    <span class="doccomment">/// Try to simplify partially constant expressions in the form `(N op1 C1) op2 C2`
+<a href=#312 id=312 data-nosnippet>312</a>    /// where C1 and C2 are constants that can be combined (e.g. N + 5 - 3 = N + 2)
+<a href=#313 id=313 data-nosnippet>313</a>    /// Precondition: `lhs &amp; rhs are in canonical form`
+<a href=#314 id=314 data-nosnippet>314</a>    ///
+<a href=#315 id=315 data-nosnippet>315</a>    /// - Simplifies `(N +/- C1) +/- C2` to `N +/- (C1 +/- C2)` if C1 and C2 are constants.
+<a href=#316 id=316 data-nosnippet>316</a>    /// - Simplifies `(N * C1) ÷ C2` to `N * (C1 ÷ C2)` if C1 and C2 are constants which divide
+<a href=#317 id=317 data-nosnippet>317</a>    ///   without a remainder.
+<a href=#318 id=318 data-nosnippet>318</a>    </span><span class="kw">fn </span>try_simplify_partial_constants(
+<a href=#319 id=319 data-nosnippet>319</a>        lhs: <span class="kw-2">&amp;</span>Type,
+<a href=#320 id=320 data-nosnippet>320</a>        <span class="kw-2">mut </span>op: BinaryTypeOperator,
+<a href=#321 id=321 data-nosnippet>321</a>        rhs: <span class="kw-2">&amp;</span>Type,
+<a href=#322 id=322 data-nosnippet>322</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;Type&gt; {
+<a href=#323 id=323 data-nosnippet>323</a>        <span class="kw">use </span>BinaryTypeOperator::<span class="kw-2">*</span>;
+<a href=#324 id=324 data-nosnippet>324</a>        <span class="kw">let </span>(l_type, l_op, l_const, r_const) = Type::parse_partial_constant_expr(lhs, rhs)<span class="question-mark">?</span>;
+<a href=#325 id=325 data-nosnippet>325</a>
+<a href=#326 id=326 data-nosnippet>326</a>        <span class="kw">match </span>(l_op, op) {
+<a href=#327 id=327 data-nosnippet>327</a>            (Addition | Subtraction, Addition | Subtraction) =&gt; {
+<a href=#328 id=328 data-nosnippet>328</a>                <span class="comment">// If l_op is a subtraction we want to inverse the rhs operator.
+<a href=#329 id=329 data-nosnippet>329</a>                </span><span class="kw">if </span>l_op == Subtraction {
+<a href=#330 id=330 data-nosnippet>330</a>                    op = op.inverse()<span class="question-mark">?</span>;
+<a href=#331 id=331 data-nosnippet>331</a>                }
+<a href=#332 id=332 data-nosnippet>332</a>                <span class="kw">let </span>dummy_location = Location::dummy();
+<a href=#333 id=333 data-nosnippet>333</a>                <span class="kw">let </span>kind = lhs.infix_kind(rhs);
+<a href=#334 id=334 data-nosnippet>334</a>                <span class="kw">let </span>result = op.function(l_const, r_const, <span class="kw-2">&amp;</span>kind, dummy_location).ok()<span class="question-mark">?</span>;
+<a href=#335 id=335 data-nosnippet>335</a>                <span class="kw">let </span>constant = Type::Constant(result, kind.into_numeric_type_or_error());
+<a href=#336 id=336 data-nosnippet>336</a>                <span class="prelude-val">Some</span>(Type::infix_expr(l_type, l_op, Box::new(constant)))
+<a href=#337 id=337 data-nosnippet>337</a>            }
+<a href=#338 id=338 data-nosnippet>338</a>            (Multiplication, Division) =&gt; {
+<a href=#339 id=339 data-nosnippet>339</a>                <span class="comment">// We ensure the result divides evenly to preserve integer division semantics
+<a href=#340 id=340 data-nosnippet>340</a>                // TODO(https://github.com/noir-lang/noir/issues/11013): do the division simplification
+<a href=#341 id=341 data-nosnippet>341</a>                // also in case of Field elements
+<a href=#342 id=342 data-nosnippet>342</a>                </span><span class="kw">let </span>l_128: <span class="prelude-ty">Option</span>&lt;i128&gt; = l_const.try_to_signed();
+<a href=#343 id=343 data-nosnippet>343</a>                <span class="kw">let </span>r_128: <span class="prelude-ty">Option</span>&lt;i128&gt; = r_const.try_to_signed();
+<a href=#344 id=344 data-nosnippet>344</a>                <span class="kw">let </span>divides_evenly = <span class="kw">if let </span>(<span class="prelude-val">Some</span>(l_128), <span class="prelude-val">Some</span>(r_128)) = (l_128, r_128) {
+<a href=#345 id=345 data-nosnippet>345</a>                    l_128.checked_rem(r_128) == <span class="prelude-val">Some</span>(<span class="number">0</span>)
+<a href=#346 id=346 data-nosnippet>346</a>                } <span class="kw">else </span>{
+<a href=#347 id=347 data-nosnippet>347</a>                    <span class="bool-val">false
+<a href=#348 id=348 data-nosnippet>348</a>                </span>};
+<a href=#349 id=349 data-nosnippet>349</a>
+<a href=#350 id=350 data-nosnippet>350</a>                <span class="comment">// If op is a division we need to ensure it divides evenly
+<a href=#351 id=351 data-nosnippet>351</a>                </span><span class="kw">if </span>op == Division &amp;&amp; (r_const.is_zero() || !divides_evenly) {
+<a href=#352 id=352 data-nosnippet>352</a>                    <span class="prelude-val">None
+<a href=#353 id=353 data-nosnippet>353</a>                </span>} <span class="kw">else </span>{
+<a href=#354 id=354 data-nosnippet>354</a>                    <span class="kw">let </span>dummy_location = Location::dummy();
+<a href=#355 id=355 data-nosnippet>355</a>                    <span class="kw">let </span>kind = lhs.infix_kind(rhs);
+<a href=#356 id=356 data-nosnippet>356</a>                    <span class="kw">let </span>result = op.function(l_const, r_const, <span class="kw-2">&amp;</span>kind, dummy_location).ok()<span class="question-mark">?</span>;
+<a href=#357 id=357 data-nosnippet>357</a>                    <span class="kw">let </span>constant =
+<a href=#358 id=358 data-nosnippet>358</a>                        Box::new(Type::Constant(result, kind.into_numeric_type_or_error()));
 <a href=#359 id=359 data-nosnippet>359</a>                    <span class="prelude-val">Some</span>(Type::infix_expr(l_type, l_op, constant))
 <a href=#360 id=360 data-nosnippet>360</a>                }
 <a href=#361 id=361 data-nosnippet>361</a>            }
@@ -448,7 +448,7 @@
 <a href=#448 id=448 data-nosnippet>448</a>        <span class="kw">let </span>rhs = rhs.canonicalize();
 <a href=#449 id=449 data-nosnippet>449</a>
 <a href=#450 id=450 data-nosnippet>450</a>        <span class="comment">// bind vars
-<a href=#451 id=451 data-nosnippet>451</a>        </span><span class="kw">let </span>two = Type::Constant(SignedField::from(<span class="number">2u128</span>), field_element_kind.clone());
+<a href=#451 id=451 data-nosnippet>451</a>        </span><span class="kw">let </span>two = Type::Constant(SignedField::from(<span class="number">2u128</span>), Box::new(Type::FieldElement));
 <a href=#452 id=452 data-nosnippet>452</a>        x_var.bind(two);
 <a href=#453 id=453 data-nosnippet>453</a>
 <a href=#454 id=454 data-nosnippet>454</a>        <span class="comment">// canonicalize (expect constant)
@@ -630,300 +630,292 @@
 <a href=#630 id=630 data-nosnippet>630</a>        arbitrary_value: BoxedStrategy&lt;SignedField&gt;,
 <a href=#631 id=631 data-nosnippet>631</a>    ) -&gt; <span class="kw">impl </span>Strategy&lt;Value = Type&gt; {
 <a href=#632 id=632 data-nosnippet>632</a>        <span class="kw">let </span>leaf = <span class="macro">prop_oneof!</span>[
-<a href=#633 id=633 data-nosnippet>633</a>            arbitrary_value
-<a href=#634 id=634 data-nosnippet>634</a>                .prop_map(<span class="kw">move </span>|value| Type::Constant(value, Kind::numeric(typ.clone()))),
-<a href=#635 id=635 data-nosnippet>635</a>        ];
-<a href=#636 id=636 data-nosnippet>636</a>
-<a href=#637 id=637 data-nosnippet>637</a>        leaf.prop_recursive(
-<a href=#638 id=638 data-nosnippet>638</a>            <span class="number">8</span>,   <span class="comment">// 8 levels deep maximum
-<a href=#639 id=639 data-nosnippet>639</a>            </span><span class="number">256</span>, <span class="comment">// Shoot for maximum size of 256 nodes
-<a href=#640 id=640 data-nosnippet>640</a>            </span><span class="number">10</span>,  <span class="comment">// We put up to 10 items per collection
-<a href=#641 id=641 data-nosnippet>641</a>            </span>|inner| (inner.clone(), any::&lt;BinaryTypeOperator&gt;(), inner).prop_map(infix_expr_helper),
-<a href=#642 id=642 data-nosnippet>642</a>        )
-<a href=#643 id=643 data-nosnippet>643</a>    }
-<a href=#644 id=644 data-nosnippet>644</a>
-<a href=#645 id=645 data-nosnippet>645</a>    <span class="macro">prop_compose!</span> {
-<a href=#646 id=646 data-nosnippet>646</a>        <span class="kw">fn </span>arbitrary_infix_expr()
-<a href=#647 id=647 data-nosnippet>647</a>            (type_and_gen <span class="kw">in </span>arbitrary_numeric_type_with_generator())
-<a href=#648 id=648 data-nosnippet>648</a>            (infix_expr <span class="kw">in </span>arbitrary_infix_expr_without_variables_helper(type_and_gen.clone().<span class="number">0</span>, type_and_gen.clone().<span class="number">1</span>), type_and_gen <span class="kw">in </span>Just(type_and_gen))
-<a href=#649 id=649 data-nosnippet>649</a>        -&gt; (Type, Type) {
-<a href=#650 id=650 data-nosnippet>650</a>            <span class="kw">let </span>(typ, _value_generator) = type_and_gen;
-<a href=#651 id=651 data-nosnippet>651</a>            (infix_expr, typ)
-<a href=#652 id=652 data-nosnippet>652</a>        }
-<a href=#653 id=653 data-nosnippet>653</a>    }
-<a href=#654 id=654 data-nosnippet>654</a>
-<a href=#655 id=655 data-nosnippet>655</a>    <span class="kw">fn </span>arbitrary_infix_expr_with_variables(
-<a href=#656 id=656 data-nosnippet>656</a>        typ: Type,
-<a href=#657 id=657 data-nosnippet>657</a>        arbitrary_value: BoxedStrategy&lt;SignedField&gt;,
-<a href=#658 id=658 data-nosnippet>658</a>        num_variables: usize,
-<a href=#659 id=659 data-nosnippet>659</a>    ) -&gt; <span class="kw">impl </span>Strategy&lt;Value = Type&gt; {
-<a href=#660 id=660 data-nosnippet>660</a>        <span class="kw">let </span>leaf = <span class="macro">prop_oneof!</span>[
-<a href=#661 id=661 data-nosnippet>661</a>            arbitrary_variable(typ.clone(), num_variables),
-<a href=#662 id=662 data-nosnippet>662</a>            arbitrary_value
-<a href=#663 id=663 data-nosnippet>663</a>                .prop_map(<span class="kw">move </span>|value| Type::Constant(value, Kind::numeric(typ.clone()))),
-<a href=#664 id=664 data-nosnippet>664</a>        ];
-<a href=#665 id=665 data-nosnippet>665</a>
-<a href=#666 id=666 data-nosnippet>666</a>        leaf.prop_recursive(
-<a href=#667 id=667 data-nosnippet>667</a>            <span class="number">8</span>,   <span class="comment">// 8 levels deep maximum
-<a href=#668 id=668 data-nosnippet>668</a>            </span><span class="number">256</span>, <span class="comment">// Shoot for maximum size of 256 nodes
-<a href=#669 id=669 data-nosnippet>669</a>            </span><span class="number">10</span>,  <span class="comment">// We put up to 10 items per collection
-<a href=#670 id=670 data-nosnippet>670</a>            </span>|inner| (inner.clone(), any::&lt;BinaryTypeOperator&gt;(), inner).prop_map(infix_expr_helper),
-<a href=#671 id=671 data-nosnippet>671</a>        )
-<a href=#672 id=672 data-nosnippet>672</a>    }
-<a href=#673 id=673 data-nosnippet>673</a>
-<a href=#674 id=674 data-nosnippet>674</a>    <span class="macro">prop_compose!</span> {
-<a href=#675 id=675 data-nosnippet>675</a>        <span class="comment">// (infix_expr, type, generator)
-<a href=#676 id=676 data-nosnippet>676</a>        </span><span class="kw">fn </span>arbitrary_infix_expr_type_gen(num_variables: usize)
-<a href=#677 id=677 data-nosnippet>677</a>            (type_and_gen <span class="kw">in </span>arbitrary_numeric_type_with_generator())
-<a href=#678 id=678 data-nosnippet>678</a>            (infix_expr <span class="kw">in </span>arbitrary_infix_expr_with_variables(type_and_gen.clone().<span class="number">0</span>, type_and_gen.clone().<span class="number">1</span>, num_variables), type_and_gen <span class="kw">in </span>Just(type_and_gen))
-<a href=#679 id=679 data-nosnippet>679</a>        -&gt; (Type, Type, BoxedStrategy&lt;SignedField&gt;) {
-<a href=#680 id=680 data-nosnippet>680</a>            <span class="kw">let </span>(typ, value_generator) = type_and_gen;
-<a href=#681 id=681 data-nosnippet>681</a>            (infix_expr, typ, value_generator)
-<a href=#682 id=682 data-nosnippet>682</a>        }
-<a href=#683 id=683 data-nosnippet>683</a>    }
-<a href=#684 id=684 data-nosnippet>684</a>
-<a href=#685 id=685 data-nosnippet>685</a>    <span class="macro">prop_compose!</span> {
-<a href=#686 id=686 data-nosnippet>686</a>        <span class="comment">// (Type::InfixExpr, numeric kind, bindings)
-<a href=#687 id=687 data-nosnippet>687</a>        </span><span class="kw">fn </span>arbitrary_infix_expr_with_bindings_sized(num_variables: usize)
-<a href=#688 id=688 data-nosnippet>688</a>            (infix_type_gen <span class="kw">in </span>arbitrary_infix_expr_type_gen(num_variables))
-<a href=#689 id=689 data-nosnippet>689</a>            (values <span class="kw">in </span>collection::vec(infix_type_gen.clone().<span class="number">2</span>, num_variables), infix_type_gen <span class="kw">in </span>Just(infix_type_gen))
-<a href=#690 id=690 data-nosnippet>690</a>        -&gt; (Type, Type, Vec&lt;(TypeVariable, Type)&gt;) {
-<a href=#691 id=691 data-nosnippet>691</a>            <span class="kw">let </span>(infix_expr, typ, _value_generator) = infix_type_gen;
-<a href=#692 id=692 data-nosnippet>692</a>            <span class="kw">let </span>bindings: Vec&lt;<span class="kw">_</span>&gt; = first_n_variables(typ.clone(), num_variables)
-<a href=#693 id=693 data-nosnippet>693</a>                .zip_eq(values.iter().map(|value| {
-<a href=#694 id=694 data-nosnippet>694</a>                    Type::Constant(<span class="kw-2">*</span>value, Kind::numeric(typ.clone()))
-<a href=#695 id=695 data-nosnippet>695</a>                }))
-<a href=#696 id=696 data-nosnippet>696</a>                .collect();
-<a href=#697 id=697 data-nosnippet>697</a>            (infix_expr, typ, bindings)
-<a href=#698 id=698 data-nosnippet>698</a>        }
-<a href=#699 id=699 data-nosnippet>699</a>    }
-<a href=#700 id=700 data-nosnippet>700</a>
-<a href=#701 id=701 data-nosnippet>701</a>    <span class="macro">prop_compose!</span> {
-<a href=#702 id=702 data-nosnippet>702</a>        <span class="comment">// the lint misfires on 'num_variables'
-<a href=#703 id=703 data-nosnippet>703</a>        </span><span class="attr">#[allow(unused_variables)]
-<a href=#704 id=704 data-nosnippet>704</a>        </span><span class="kw">fn </span>arbitrary_infix_expr_with_bindings(max_num_variables: usize)
-<a href=#705 id=705 data-nosnippet>705</a>            (num_variables <span class="kw">in </span>any::&lt;usize&gt;().prop_map(<span class="kw">move </span>|num_variables| (num_variables % max_num_variables).clamp(<span class="number">1</span>, max_num_variables)))
-<a href=#706 id=706 data-nosnippet>706</a>            (infix_type_bindings <span class="kw">in </span>arbitrary_infix_expr_with_bindings_sized(num_variables), num_variables <span class="kw">in </span>Just(num_variables))
-<a href=#707 id=707 data-nosnippet>707</a>        -&gt; (Type, Type, Vec&lt;(TypeVariable, Type)&gt;) {
-<a href=#708 id=708 data-nosnippet>708</a>            infix_type_bindings
-<a href=#709 id=709 data-nosnippet>709</a>        }
-<a href=#710 id=710 data-nosnippet>710</a>    }
-<a href=#711 id=711 data-nosnippet>711</a>
-<a href=#712 id=712 data-nosnippet>712</a>    <span class="kw">fn </span>convert_infix_type_expr_to_expr(infix_expr: <span class="kw-2">&amp;</span>Type) -&gt; Expression {
-<a href=#713 id=713 data-nosnippet>713</a>        <span class="kw">let </span>kind = <span class="kw">match </span>infix_expr {
-<a href=#714 id=714 data-nosnippet>714</a>            Type::InfixExpr(lhs, op, rhs, _inversion) =&gt; {
-<a href=#715 id=715 data-nosnippet>715</a>                <span class="kw">let </span>lhs = convert_infix_type_expr_to_expr(lhs);
-<a href=#716 id=716 data-nosnippet>716</a>                <span class="kw">let </span>rhs = convert_infix_type_expr_to_expr(rhs);
-<a href=#717 id=717 data-nosnippet>717</a>                <span class="kw">let </span>binary_op_kind = op.operator_to_binary_op_kind_helper();
-<a href=#718 id=718 data-nosnippet>718</a>                <span class="kw">let </span>location = Location::dummy();
-<a href=#719 id=719 data-nosnippet>719</a>                <span class="kw">let </span>operator = Located::from(location, binary_op_kind);
-<a href=#720 id=720 data-nosnippet>720</a>                ExpressionKind::Infix(Box::new(InfixExpression { lhs, operator, rhs }))
-<a href=#721 id=721 data-nosnippet>721</a>            }
-<a href=#722 id=722 data-nosnippet>722</a>            Type::Constant(value, kind) =&gt; {
-<a href=#723 id=723 data-nosnippet>723</a>                <span class="kw">let </span>integer_type_suffix = <span class="kw">match </span>kind {
-<a href=#724 id=724 data-nosnippet>724</a>                    Kind::Numeric(typ) =&gt; {
-<a href=#725 id=725 data-nosnippet>725</a>                        typ.as_integer_type_suffix().expect(<span class="string">"ICE: unexpected numeric type {typ:?}"</span>)
-<a href=#726 id=726 data-nosnippet>726</a>                    }
-<a href=#727 id=727 data-nosnippet>727</a>                    kind =&gt; <span class="macro">unimplemented!</span>(
-<a href=#728 id=728 data-nosnippet>728</a>                        <span class="string">"convert_infix_type_expr_to_expr: unexpected non-numeric kind: {kind}"
-<a href=#729 id=729 data-nosnippet>729</a>                    </span>),
-<a href=#730 id=730 data-nosnippet>730</a>                };
-<a href=#731 id=731 data-nosnippet>731</a>                <span class="kw">let </span>literal = Literal::Integer(<span class="kw-2">*</span>value, <span class="prelude-val">Some</span>(integer_type_suffix));
-<a href=#732 id=732 data-nosnippet>732</a>                ExpressionKind::Literal(literal)
-<a href=#733 id=733 data-nosnippet>733</a>            }
-<a href=#734 id=734 data-nosnippet>734</a>            Type::TypeVariable(type_var) =&gt; <span class="macro">unimplemented!</span>(
-<a href=#735 id=735 data-nosnippet>735</a>                <span class="string">"convert_infix_type_expr_to_expr: unexpected type variable {type_var:?}"
-<a href=#736 id=736 data-nosnippet>736</a>            </span>),
-<a href=#737 id=737 data-nosnippet>737</a>            infix_expr =&gt; <span class="macro">unimplemented!</span>(<span class="string">"unexpected infix expression type: {infix_expr:?}"</span>),
-<a href=#738 id=738 data-nosnippet>738</a>        };
-<a href=#739 id=739 data-nosnippet>739</a>        <span class="kw">let </span>location = Location::dummy();
-<a href=#740 id=740 data-nosnippet>740</a>        Expression { kind, location }
-<a href=#741 id=741 data-nosnippet>741</a>    }
-<a href=#742 id=742 data-nosnippet>742</a>
-<a href=#743 id=743 data-nosnippet>743</a>    <span class="comment">// Convert a numeric Value to a `Type::Constant` or panic if `Value::to_signed_field` fails
-<a href=#744 id=744 data-nosnippet>744</a>    // (expected to happen when it's not numeric)
-<a href=#745 id=745 data-nosnippet>745</a>    </span><span class="kw">fn </span>numeric_value_to_type(value: Value) -&gt; Type {
-<a href=#746 id=746 data-nosnippet>746</a>        <span class="kw">let </span>kind_type = value.get_type();
-<a href=#747 id=747 data-nosnippet>747</a>        <span class="kw">let </span>kind = Kind::numeric(kind_type.into_owned());
-<a href=#748 id=748 data-nosnippet>748</a>        <span class="kw">let </span>value = value.as_signed_field().expect(<span class="string">"ICE: numeric_value_to_type: expected a field"</span>);
-<a href=#749 id=749 data-nosnippet>749</a>        Type::Constant(value, kind)
-<a href=#750 id=750 data-nosnippet>750</a>    }
-<a href=#751 id=751 data-nosnippet>751</a>
-<a href=#752 id=752 data-nosnippet>752</a>    <span class="macro">proptest!</span> {
-<a href=#753 id=753 data-nosnippet>753</a>        <span class="comment">// Expecting cases that don't resolve to constants, e.g. see
-<a href=#754 id=754 data-nosnippet>754</a>        // `arithmetic_generics_checked_cast_indirect_zeros`
-<a href=#755 id=755 data-nosnippet>755</a>        </span><span class="attr">#[should_panic(expected = <span class="string">"expected an InfixExpr, but found: "</span>)]
-<a href=#756 id=756 data-nosnippet>756</a>        #[test]
-<a href=#757 id=757 data-nosnippet>757</a>        #[allow(clippy::redundant_clone)]
-<a href=#758 id=758 data-nosnippet>758</a>        </span><span class="kw">fn </span>instantiate_before_or_after_canonicalize(infix_type_bindings <span class="kw">in </span>arbitrary_infix_expr_with_bindings(<span class="number">10</span>)) {
-<a href=#759 id=759 data-nosnippet>759</a>            <span class="kw">let </span>(infix, typ, bindings) = infix_type_bindings;
+<a href=#633 id=633 data-nosnippet>633</a>            arbitrary_value.prop_map(<span class="kw">move </span>|value| Type::Constant(value, Box::new(typ.clone()))),
+<a href=#634 id=634 data-nosnippet>634</a>        ];
+<a href=#635 id=635 data-nosnippet>635</a>
+<a href=#636 id=636 data-nosnippet>636</a>        leaf.prop_recursive(
+<a href=#637 id=637 data-nosnippet>637</a>            <span class="number">8</span>,   <span class="comment">// 8 levels deep maximum
+<a href=#638 id=638 data-nosnippet>638</a>            </span><span class="number">256</span>, <span class="comment">// Shoot for maximum size of 256 nodes
+<a href=#639 id=639 data-nosnippet>639</a>            </span><span class="number">10</span>,  <span class="comment">// We put up to 10 items per collection
+<a href=#640 id=640 data-nosnippet>640</a>            </span>|inner| (inner.clone(), any::&lt;BinaryTypeOperator&gt;(), inner).prop_map(infix_expr_helper),
+<a href=#641 id=641 data-nosnippet>641</a>        )
+<a href=#642 id=642 data-nosnippet>642</a>    }
+<a href=#643 id=643 data-nosnippet>643</a>
+<a href=#644 id=644 data-nosnippet>644</a>    <span class="macro">prop_compose!</span> {
+<a href=#645 id=645 data-nosnippet>645</a>        <span class="kw">fn </span>arbitrary_infix_expr()
+<a href=#646 id=646 data-nosnippet>646</a>            (type_and_gen <span class="kw">in </span>arbitrary_numeric_type_with_generator())
+<a href=#647 id=647 data-nosnippet>647</a>            (infix_expr <span class="kw">in </span>arbitrary_infix_expr_without_variables_helper(type_and_gen.clone().<span class="number">0</span>, type_and_gen.clone().<span class="number">1</span>), type_and_gen <span class="kw">in </span>Just(type_and_gen))
+<a href=#648 id=648 data-nosnippet>648</a>        -&gt; (Type, Type) {
+<a href=#649 id=649 data-nosnippet>649</a>            <span class="kw">let </span>(typ, _value_generator) = type_and_gen;
+<a href=#650 id=650 data-nosnippet>650</a>            (infix_expr, typ)
+<a href=#651 id=651 data-nosnippet>651</a>        }
+<a href=#652 id=652 data-nosnippet>652</a>    }
+<a href=#653 id=653 data-nosnippet>653</a>
+<a href=#654 id=654 data-nosnippet>654</a>    <span class="kw">fn </span>arbitrary_infix_expr_with_variables(
+<a href=#655 id=655 data-nosnippet>655</a>        typ: Type,
+<a href=#656 id=656 data-nosnippet>656</a>        arbitrary_value: BoxedStrategy&lt;SignedField&gt;,
+<a href=#657 id=657 data-nosnippet>657</a>        num_variables: usize,
+<a href=#658 id=658 data-nosnippet>658</a>    ) -&gt; <span class="kw">impl </span>Strategy&lt;Value = Type&gt; {
+<a href=#659 id=659 data-nosnippet>659</a>        <span class="kw">let </span>leaf = <span class="macro">prop_oneof!</span>[
+<a href=#660 id=660 data-nosnippet>660</a>            arbitrary_variable(typ.clone(), num_variables),
+<a href=#661 id=661 data-nosnippet>661</a>            arbitrary_value.prop_map(<span class="kw">move </span>|value| Type::Constant(value, Box::new(typ.clone()))),
+<a href=#662 id=662 data-nosnippet>662</a>        ];
+<a href=#663 id=663 data-nosnippet>663</a>
+<a href=#664 id=664 data-nosnippet>664</a>        leaf.prop_recursive(
+<a href=#665 id=665 data-nosnippet>665</a>            <span class="number">8</span>,   <span class="comment">// 8 levels deep maximum
+<a href=#666 id=666 data-nosnippet>666</a>            </span><span class="number">256</span>, <span class="comment">// Shoot for maximum size of 256 nodes
+<a href=#667 id=667 data-nosnippet>667</a>            </span><span class="number">10</span>,  <span class="comment">// We put up to 10 items per collection
+<a href=#668 id=668 data-nosnippet>668</a>            </span>|inner| (inner.clone(), any::&lt;BinaryTypeOperator&gt;(), inner).prop_map(infix_expr_helper),
+<a href=#669 id=669 data-nosnippet>669</a>        )
+<a href=#670 id=670 data-nosnippet>670</a>    }
+<a href=#671 id=671 data-nosnippet>671</a>
+<a href=#672 id=672 data-nosnippet>672</a>    <span class="macro">prop_compose!</span> {
+<a href=#673 id=673 data-nosnippet>673</a>        <span class="comment">// (infix_expr, type, generator)
+<a href=#674 id=674 data-nosnippet>674</a>        </span><span class="kw">fn </span>arbitrary_infix_expr_type_gen(num_variables: usize)
+<a href=#675 id=675 data-nosnippet>675</a>            (type_and_gen <span class="kw">in </span>arbitrary_numeric_type_with_generator())
+<a href=#676 id=676 data-nosnippet>676</a>            (infix_expr <span class="kw">in </span>arbitrary_infix_expr_with_variables(type_and_gen.clone().<span class="number">0</span>, type_and_gen.clone().<span class="number">1</span>, num_variables), type_and_gen <span class="kw">in </span>Just(type_and_gen))
+<a href=#677 id=677 data-nosnippet>677</a>        -&gt; (Type, Type, BoxedStrategy&lt;SignedField&gt;) {
+<a href=#678 id=678 data-nosnippet>678</a>            <span class="kw">let </span>(typ, value_generator) = type_and_gen;
+<a href=#679 id=679 data-nosnippet>679</a>            (infix_expr, typ, value_generator)
+<a href=#680 id=680 data-nosnippet>680</a>        }
+<a href=#681 id=681 data-nosnippet>681</a>    }
+<a href=#682 id=682 data-nosnippet>682</a>
+<a href=#683 id=683 data-nosnippet>683</a>    <span class="macro">prop_compose!</span> {
+<a href=#684 id=684 data-nosnippet>684</a>        <span class="comment">// (Type::InfixExpr, numeric kind, bindings)
+<a href=#685 id=685 data-nosnippet>685</a>        </span><span class="kw">fn </span>arbitrary_infix_expr_with_bindings_sized(num_variables: usize)
+<a href=#686 id=686 data-nosnippet>686</a>            (infix_type_gen <span class="kw">in </span>arbitrary_infix_expr_type_gen(num_variables))
+<a href=#687 id=687 data-nosnippet>687</a>            (values <span class="kw">in </span>collection::vec(infix_type_gen.clone().<span class="number">2</span>, num_variables), infix_type_gen <span class="kw">in </span>Just(infix_type_gen))
+<a href=#688 id=688 data-nosnippet>688</a>        -&gt; (Type, Type, Vec&lt;(TypeVariable, Type)&gt;) {
+<a href=#689 id=689 data-nosnippet>689</a>            <span class="kw">let </span>(infix_expr, typ, _value_generator) = infix_type_gen;
+<a href=#690 id=690 data-nosnippet>690</a>            <span class="kw">let </span>bindings: Vec&lt;<span class="kw">_</span>&gt; = first_n_variables(typ.clone(), num_variables)
+<a href=#691 id=691 data-nosnippet>691</a>                .zip_eq(values.iter().map(|value| {
+<a href=#692 id=692 data-nosnippet>692</a>                    Type::Constant(<span class="kw-2">*</span>value, Box::new(typ.clone()))
+<a href=#693 id=693 data-nosnippet>693</a>                }))
+<a href=#694 id=694 data-nosnippet>694</a>                .collect();
+<a href=#695 id=695 data-nosnippet>695</a>            (infix_expr, typ, bindings)
+<a href=#696 id=696 data-nosnippet>696</a>        }
+<a href=#697 id=697 data-nosnippet>697</a>    }
+<a href=#698 id=698 data-nosnippet>698</a>
+<a href=#699 id=699 data-nosnippet>699</a>    <span class="macro">prop_compose!</span> {
+<a href=#700 id=700 data-nosnippet>700</a>        <span class="comment">// the lint misfires on 'num_variables'
+<a href=#701 id=701 data-nosnippet>701</a>        </span><span class="attr">#[allow(unused_variables)]
+<a href=#702 id=702 data-nosnippet>702</a>        </span><span class="kw">fn </span>arbitrary_infix_expr_with_bindings(max_num_variables: usize)
+<a href=#703 id=703 data-nosnippet>703</a>            (num_variables <span class="kw">in </span>any::&lt;usize&gt;().prop_map(<span class="kw">move </span>|num_variables| (num_variables % max_num_variables).clamp(<span class="number">1</span>, max_num_variables)))
+<a href=#704 id=704 data-nosnippet>704</a>            (infix_type_bindings <span class="kw">in </span>arbitrary_infix_expr_with_bindings_sized(num_variables), num_variables <span class="kw">in </span>Just(num_variables))
+<a href=#705 id=705 data-nosnippet>705</a>        -&gt; (Type, Type, Vec&lt;(TypeVariable, Type)&gt;) {
+<a href=#706 id=706 data-nosnippet>706</a>            infix_type_bindings
+<a href=#707 id=707 data-nosnippet>707</a>        }
+<a href=#708 id=708 data-nosnippet>708</a>    }
+<a href=#709 id=709 data-nosnippet>709</a>
+<a href=#710 id=710 data-nosnippet>710</a>    <span class="kw">fn </span>convert_infix_type_expr_to_expr(infix_expr: <span class="kw-2">&amp;</span>Type) -&gt; Expression {
+<a href=#711 id=711 data-nosnippet>711</a>        <span class="kw">let </span>kind = <span class="kw">match </span>infix_expr {
+<a href=#712 id=712 data-nosnippet>712</a>            Type::InfixExpr(lhs, op, rhs, _inversion) =&gt; {
+<a href=#713 id=713 data-nosnippet>713</a>                <span class="kw">let </span>lhs = convert_infix_type_expr_to_expr(lhs);
+<a href=#714 id=714 data-nosnippet>714</a>                <span class="kw">let </span>rhs = convert_infix_type_expr_to_expr(rhs);
+<a href=#715 id=715 data-nosnippet>715</a>                <span class="kw">let </span>binary_op_kind = op.operator_to_binary_op_kind_helper();
+<a href=#716 id=716 data-nosnippet>716</a>                <span class="kw">let </span>location = Location::dummy();
+<a href=#717 id=717 data-nosnippet>717</a>                <span class="kw">let </span>operator = Located::from(location, binary_op_kind);
+<a href=#718 id=718 data-nosnippet>718</a>                ExpressionKind::Infix(Box::new(InfixExpression { lhs, operator, rhs }))
+<a href=#719 id=719 data-nosnippet>719</a>            }
+<a href=#720 id=720 data-nosnippet>720</a>            Type::Constant(value, kind) =&gt; {
+<a href=#721 id=721 data-nosnippet>721</a>                <span class="kw">let </span>integer_type_suffix =
+<a href=#722 id=722 data-nosnippet>722</a>                    kind.as_integer_type_suffix().expect(<span class="string">"ICE: unexpected numeric type"</span>);
+<a href=#723 id=723 data-nosnippet>723</a>                <span class="kw">let </span>literal = Literal::Integer(<span class="kw-2">*</span>value, <span class="prelude-val">Some</span>(integer_type_suffix));
+<a href=#724 id=724 data-nosnippet>724</a>                ExpressionKind::Literal(literal)
+<a href=#725 id=725 data-nosnippet>725</a>            }
+<a href=#726 id=726 data-nosnippet>726</a>            Type::TypeVariable(type_var) =&gt; <span class="macro">unimplemented!</span>(
+<a href=#727 id=727 data-nosnippet>727</a>                <span class="string">"convert_infix_type_expr_to_expr: unexpected type variable {type_var:?}"
+<a href=#728 id=728 data-nosnippet>728</a>            </span>),
+<a href=#729 id=729 data-nosnippet>729</a>            infix_expr =&gt; <span class="macro">unimplemented!</span>(<span class="string">"unexpected infix expression type: {infix_expr:?}"</span>),
+<a href=#730 id=730 data-nosnippet>730</a>        };
+<a href=#731 id=731 data-nosnippet>731</a>        <span class="kw">let </span>location = Location::dummy();
+<a href=#732 id=732 data-nosnippet>732</a>        Expression { kind, location }
+<a href=#733 id=733 data-nosnippet>733</a>    }
+<a href=#734 id=734 data-nosnippet>734</a>
+<a href=#735 id=735 data-nosnippet>735</a>    <span class="comment">// Convert a numeric Value to a `Type::Constant` or panic if `Value::to_signed_field` fails
+<a href=#736 id=736 data-nosnippet>736</a>    // (expected to happen when it's not numeric)
+<a href=#737 id=737 data-nosnippet>737</a>    </span><span class="kw">fn </span>numeric_value_to_type(value: Value) -&gt; Type {
+<a href=#738 id=738 data-nosnippet>738</a>        <span class="kw">let </span>kind_type = value.get_type();
+<a href=#739 id=739 data-nosnippet>739</a>        <span class="kw">let </span>kind = Box::new(kind_type.into_owned());
+<a href=#740 id=740 data-nosnippet>740</a>        <span class="kw">let </span>value = value.as_signed_field().expect(<span class="string">"ICE: numeric_value_to_type: expected a field"</span>);
+<a href=#741 id=741 data-nosnippet>741</a>        Type::Constant(value, kind)
+<a href=#742 id=742 data-nosnippet>742</a>    }
+<a href=#743 id=743 data-nosnippet>743</a>
+<a href=#744 id=744 data-nosnippet>744</a>    <span class="macro">proptest!</span> {
+<a href=#745 id=745 data-nosnippet>745</a>        <span class="comment">// Expecting cases that don't resolve to constants, e.g. see
+<a href=#746 id=746 data-nosnippet>746</a>        // `arithmetic_generics_checked_cast_indirect_zeros`
+<a href=#747 id=747 data-nosnippet>747</a>        </span><span class="attr">#[should_panic(expected = <span class="string">"expected an InfixExpr, but found: "</span>)]
+<a href=#748 id=748 data-nosnippet>748</a>        #[test]
+<a href=#749 id=749 data-nosnippet>749</a>        #[allow(clippy::redundant_clone)]
+<a href=#750 id=750 data-nosnippet>750</a>        </span><span class="kw">fn </span>instantiate_before_or_after_canonicalize(infix_type_bindings <span class="kw">in </span>arbitrary_infix_expr_with_bindings(<span class="number">10</span>)) {
+<a href=#751 id=751 data-nosnippet>751</a>            <span class="kw">let </span>(infix, typ, bindings) = infix_type_bindings;
+<a href=#752 id=752 data-nosnippet>752</a>
+<a href=#753 id=753 data-nosnippet>753</a>            <span class="comment">// canonicalize
+<a href=#754 id=754 data-nosnippet>754</a>            </span><span class="kw">let </span>infix_canonicalized = infix.canonicalize();
+<a href=#755 id=755 data-nosnippet>755</a>
+<a href=#756 id=756 data-nosnippet>756</a>            <span class="comment">// bind vars
+<a href=#757 id=757 data-nosnippet>757</a>            </span><span class="kw">for </span>(var, binding) <span class="kw">in </span><span class="kw-2">&amp;</span>bindings {
+<a href=#758 id=758 data-nosnippet>758</a>                var.bind(binding.clone());
+<a href=#759 id=759 data-nosnippet>759</a>            }
 <a href=#760 id=760 data-nosnippet>760</a>
-<a href=#761 id=761 data-nosnippet>761</a>            <span class="comment">// canonicalize
-<a href=#762 id=762 data-nosnippet>762</a>            </span><span class="kw">let </span>infix_canonicalized = infix.canonicalize();
-<a href=#763 id=763 data-nosnippet>763</a>
-<a href=#764 id=764 data-nosnippet>764</a>            <span class="comment">// bind vars
-<a href=#765 id=765 data-nosnippet>765</a>            </span><span class="kw">for </span>(var, binding) <span class="kw">in </span><span class="kw-2">&amp;</span>bindings {
-<a href=#766 id=766 data-nosnippet>766</a>                var.bind(binding.clone());
-<a href=#767 id=767 data-nosnippet>767</a>            }
-<a href=#768 id=768 data-nosnippet>768</a>
-<a href=#769 id=769 data-nosnippet>769</a>            <span class="comment">// attempt to canonicalize to a constant
-<a href=#770 id=770 data-nosnippet>770</a>            </span><span class="kw">let </span>infix = infix.canonicalize();
-<a href=#771 id=771 data-nosnippet>771</a>            <span class="kw">let </span>infix_canonicalized = infix_canonicalized.canonicalize();
+<a href=#761 id=761 data-nosnippet>761</a>            <span class="comment">// attempt to canonicalize to a constant
+<a href=#762 id=762 data-nosnippet>762</a>            </span><span class="kw">let </span>infix = infix.canonicalize();
+<a href=#763 id=763 data-nosnippet>763</a>            <span class="kw">let </span>infix_canonicalized = infix_canonicalized.canonicalize();
+<a href=#764 id=764 data-nosnippet>764</a>
+<a href=#765 id=765 data-nosnippet>765</a>            <span class="kw">if </span><span class="macro">matches!</span>(infix, Type::InfixExpr(..)) {
+<a href=#766 id=766 data-nosnippet>766</a>                <span class="macro">prop_assert!</span>(<span class="macro">matches!</span>(infix_canonicalized, Type::InfixExpr(..)), <span class="string">"expected an InfixExpr, but found: {infix_canonicalized:?}"</span>);
+<a href=#767 id=767 data-nosnippet>767</a>            } <span class="kw">else </span>{
+<a href=#768 id=768 data-nosnippet>768</a>                <span class="comment">// ensure result kinds are the same as the original kind
+<a href=#769 id=769 data-nosnippet>769</a>                </span><span class="kw">let </span>kind = Kind::numeric(typ);
+<a href=#770 id=770 data-nosnippet>770</a>                <span class="macro">prop_assert_eq!</span>(infix.kind(), kind.clone());
+<a href=#771 id=771 data-nosnippet>771</a>                <span class="macro">prop_assert_eq!</span>(infix_canonicalized.kind(), kind);
 <a href=#772 id=772 data-nosnippet>772</a>
-<a href=#773 id=773 data-nosnippet>773</a>            <span class="kw">if </span><span class="macro">matches!</span>(infix, Type::InfixExpr(..)) {
-<a href=#774 id=774 data-nosnippet>774</a>                <span class="macro">prop_assert!</span>(<span class="macro">matches!</span>(infix_canonicalized, Type::InfixExpr(..)), <span class="string">"expected an InfixExpr, but found: {infix_canonicalized:?}"</span>);
-<a href=#775 id=775 data-nosnippet>775</a>            } <span class="kw">else </span>{
-<a href=#776 id=776 data-nosnippet>776</a>                <span class="comment">// ensure result kinds are the same as the original kind
-<a href=#777 id=777 data-nosnippet>777</a>                </span><span class="kw">let </span>kind = Kind::numeric(typ);
-<a href=#778 id=778 data-nosnippet>778</a>                <span class="macro">prop_assert_eq!</span>(infix.kind(), kind.clone());
-<a href=#779 id=779 data-nosnippet>779</a>                <span class="macro">prop_assert_eq!</span>(infix_canonicalized.kind(), kind);
-<a href=#780 id=780 data-nosnippet>780</a>
-<a href=#781 id=781 data-nosnippet>781</a>                <span class="comment">// ensure results are the same
-<a href=#782 id=782 data-nosnippet>782</a>                </span><span class="macro">prop_assert_eq!</span>(infix, infix_canonicalized);
-<a href=#783 id=783 data-nosnippet>783</a>            }
-<a href=#784 id=784 data-nosnippet>784</a>        }
-<a href=#785 id=785 data-nosnippet>785</a>
-<a href=#786 id=786 data-nosnippet>786</a>        <span class="attr">#[test]
-<a href=#787 id=787 data-nosnippet>787</a>        #[allow(clippy::redundant_clone)]
-<a href=#788 id=788 data-nosnippet>788</a>        </span><span class="kw">fn </span>instantiate_before_or_after_canonicalize_checked_cast(infix_type_bindings <span class="kw">in </span>arbitrary_infix_expr_with_bindings(<span class="number">10</span>)) {
-<a href=#789 id=789 data-nosnippet>789</a>            <span class="kw">let </span>(infix, typ, bindings) = infix_type_bindings;
-<a href=#790 id=790 data-nosnippet>790</a>
-<a href=#791 id=791 data-nosnippet>791</a>            <span class="comment">// wrap in CheckedCast
-<a href=#792 id=792 data-nosnippet>792</a>            </span><span class="kw">let </span>infix = Type::CheckedCast {
-<a href=#793 id=793 data-nosnippet>793</a>                from: Box::new(infix.clone()),
-<a href=#794 id=794 data-nosnippet>794</a>                to: Box::new(infix)
-<a href=#795 id=795 data-nosnippet>795</a>            };
+<a href=#773 id=773 data-nosnippet>773</a>                <span class="comment">// ensure results are the same
+<a href=#774 id=774 data-nosnippet>774</a>                </span><span class="macro">prop_assert_eq!</span>(infix, infix_canonicalized);
+<a href=#775 id=775 data-nosnippet>775</a>            }
+<a href=#776 id=776 data-nosnippet>776</a>        }
+<a href=#777 id=777 data-nosnippet>777</a>
+<a href=#778 id=778 data-nosnippet>778</a>        <span class="attr">#[test]
+<a href=#779 id=779 data-nosnippet>779</a>        #[allow(clippy::redundant_clone)]
+<a href=#780 id=780 data-nosnippet>780</a>        </span><span class="kw">fn </span>instantiate_before_or_after_canonicalize_checked_cast(infix_type_bindings <span class="kw">in </span>arbitrary_infix_expr_with_bindings(<span class="number">10</span>)) {
+<a href=#781 id=781 data-nosnippet>781</a>            <span class="kw">let </span>(infix, typ, bindings) = infix_type_bindings;
+<a href=#782 id=782 data-nosnippet>782</a>
+<a href=#783 id=783 data-nosnippet>783</a>            <span class="comment">// wrap in CheckedCast
+<a href=#784 id=784 data-nosnippet>784</a>            </span><span class="kw">let </span>infix = Type::CheckedCast {
+<a href=#785 id=785 data-nosnippet>785</a>                from: Box::new(infix.clone()),
+<a href=#786 id=786 data-nosnippet>786</a>                to: Box::new(infix)
+<a href=#787 id=787 data-nosnippet>787</a>            };
+<a href=#788 id=788 data-nosnippet>788</a>
+<a href=#789 id=789 data-nosnippet>789</a>            <span class="comment">// canonicalize
+<a href=#790 id=790 data-nosnippet>790</a>            </span><span class="kw">let </span>infix_canonicalized = infix.canonicalize();
+<a href=#791 id=791 data-nosnippet>791</a>
+<a href=#792 id=792 data-nosnippet>792</a>            <span class="comment">// bind vars
+<a href=#793 id=793 data-nosnippet>793</a>            </span><span class="kw">for </span>(var, binding) <span class="kw">in </span>bindings {
+<a href=#794 id=794 data-nosnippet>794</a>                var.bind(binding);
+<a href=#795 id=795 data-nosnippet>795</a>            }
 <a href=#796 id=796 data-nosnippet>796</a>
-<a href=#797 id=797 data-nosnippet>797</a>            <span class="comment">// canonicalize
-<a href=#798 id=798 data-nosnippet>798</a>            </span><span class="kw">let </span>infix_canonicalized = infix.canonicalize();
-<a href=#799 id=799 data-nosnippet>799</a>
-<a href=#800 id=800 data-nosnippet>800</a>            <span class="comment">// bind vars
-<a href=#801 id=801 data-nosnippet>801</a>            </span><span class="kw">for </span>(var, binding) <span class="kw">in </span>bindings {
-<a href=#802 id=802 data-nosnippet>802</a>                var.bind(binding);
-<a href=#803 id=803 data-nosnippet>803</a>            }
-<a href=#804 id=804 data-nosnippet>804</a>
-<a href=#805 id=805 data-nosnippet>805</a>            <span class="comment">// attempt to canonicalize to a constant
-<a href=#806 id=806 data-nosnippet>806</a>            </span><span class="kw">let </span>infix = infix.canonicalize();
-<a href=#807 id=807 data-nosnippet>807</a>            <span class="kw">let </span>infix_canonicalized = infix_canonicalized.canonicalize();
-<a href=#808 id=808 data-nosnippet>808</a>
-<a href=#809 id=809 data-nosnippet>809</a>            <span class="comment">// ensure result kinds are the same as the original kind
-<a href=#810 id=810 data-nosnippet>810</a>            </span><span class="kw">let </span>kind = Kind::numeric(typ);
-<a href=#811 id=811 data-nosnippet>811</a>            <span class="macro">prop_assert_eq!</span>(infix.kind(), kind.clone());
-<a href=#812 id=812 data-nosnippet>812</a>            <span class="macro">prop_assert_eq!</span>(infix_canonicalized.kind(), kind.clone());
-<a href=#813 id=813 data-nosnippet>813</a>
-<a href=#814 id=814 data-nosnippet>814</a>            <span class="comment">// ensure the results are still wrapped in CheckedCast's
-<a href=#815 id=815 data-nosnippet>815</a>            </span><span class="kw">match </span>(<span class="kw-2">&amp;</span>infix, <span class="kw-2">&amp;</span>infix_canonicalized) {
-<a href=#816 id=816 data-nosnippet>816</a>                (Type::CheckedCast { from, to }, Type::CheckedCast { from: from_canonicalized, to: to_canonicalized }) =&gt; {
-<a href=#817 id=817 data-nosnippet>817</a>                    <span class="comment">// ensure from's are the same
-<a href=#818 id=818 data-nosnippet>818</a>                    </span><span class="macro">prop_assert_eq!</span>(from.canonicalize(), from_canonicalized.canonicalize());
-<a href=#819 id=819 data-nosnippet>819</a>
-<a href=#820 id=820 data-nosnippet>820</a>                    <span class="comment">// ensure to's have the same kinds
-<a href=#821 id=821 data-nosnippet>821</a>                    </span><span class="macro">prop_assert_eq!</span>(to.kind(), kind.clone());
-<a href=#822 id=822 data-nosnippet>822</a>                    <span class="macro">prop_assert_eq!</span>(to_canonicalized.kind(), kind);
-<a href=#823 id=823 data-nosnippet>823</a>                }
-<a href=#824 id=824 data-nosnippet>824</a>                <span class="kw">_ </span>=&gt; {
-<a href=#825 id=825 data-nosnippet>825</a>                    <span class="macro">prop_assert!</span>(<span class="bool-val">false</span>, <span class="string">"expected CheckedCast"</span>);
-<a href=#826 id=826 data-nosnippet>826</a>                }
-<a href=#827 id=827 data-nosnippet>827</a>            }
-<a href=#828 id=828 data-nosnippet>828</a>        }
-<a href=#829 id=829 data-nosnippet>829</a>
-<a href=#830 id=830 data-nosnippet>830</a>        <span class="attr">#[test]
-<a href=#831 id=831 data-nosnippet>831</a>        </span><span class="kw">fn </span>compare_to_comptime(infix_type <span class="kw">in </span>arbitrary_infix_expr()) {
-<a href=#832 id=832 data-nosnippet>832</a>            <span class="kw">let </span>(infix, typ) = infix_type;
-<a href=#833 id=833 data-nosnippet>833</a>            <span class="kw">let </span>kind = Kind::numeric(typ.clone());
-<a href=#834 id=834 data-nosnippet>834</a>            <span class="kw">let </span>expr = convert_infix_type_expr_to_expr(<span class="kw-2">&amp;</span>infix);
-<a href=#835 id=835 data-nosnippet>835</a>
-<a href=#836 id=836 data-nosnippet>836</a>            <span class="kw">let </span>root = Path::new(<span class="string">"."</span>);
-<a href=#837 id=837 data-nosnippet>837</a>            <span class="kw">let </span>file_manager = FileManager::new(root);
-<a href=#838 id=838 data-nosnippet>838</a>            <span class="kw">let </span>parsed_files = HashMap::new();
-<a href=#839 id=839 data-nosnippet>839</a>            <span class="kw">let </span><span class="kw-2">mut </span>context = Context::from_ref_file_manager(
-<a href=#840 id=840 data-nosnippet>840</a>                <span class="kw-2">&amp;</span>file_manager,
-<a href=#841 id=841 data-nosnippet>841</a>                <span class="kw-2">&amp;</span>parsed_files,
-<a href=#842 id=842 data-nosnippet>842</a>            );
-<a href=#843 id=843 data-nosnippet>843</a>            <span class="kw">let </span>options = ElaboratorOptions {
-<a href=#844 id=844 data-nosnippet>844</a>                debug_comptime_in_file: <span class="prelude-val">None</span>,
-<a href=#845 id=845 data-nosnippet>845</a>                enabled_unstable_features: <span class="kw-2">&amp;</span>[],
-<a href=#846 id=846 data-nosnippet>846</a>                disable_required_unstable_features: <span class="bool-val">false</span>,
-<a href=#847 id=847 data-nosnippet>847</a>            };
-<a href=#848 id=848 data-nosnippet>848</a>            <span class="kw">let </span><span class="kw-2">mut </span>elaborator = Elaborator::from_context(
-<a href=#849 id=849 data-nosnippet>849</a>                <span class="kw-2">&amp;mut </span>context,
-<a href=#850 id=850 data-nosnippet>850</a>                CrateId::Root(<span class="number">0</span>),
-<a href=#851 id=851 data-nosnippet>851</a>                options,
-<a href=#852 id=852 data-nosnippet>852</a>            );
-<a href=#853 id=853 data-nosnippet>853</a>            <span class="kw">let </span>(expr_id, expr_type) = elaborator.elaborate_expression(expr);
-<a href=#854 id=854 data-nosnippet>854</a>
-<a href=#855 id=855 data-nosnippet>855</a>            <span class="macro">assert_eq!</span>(elaborator.errors, <span class="macro">vec!</span>[]);
-<a href=#856 id=856 data-nosnippet>856</a>            <span class="macro">assert_eq!</span>(typ, expr_type);
-<a href=#857 id=857 data-nosnippet>857</a>
-<a href=#858 id=858 data-nosnippet>858</a>            <span class="kw">let </span>current_function = <span class="prelude-val">None</span>;
-<a href=#859 id=859 data-nosnippet>859</a>            <span class="kw">let </span><span class="kw-2">mut </span>interpreter = Interpreter::new(
-<a href=#860 id=860 data-nosnippet>860</a>                <span class="kw-2">&amp;mut </span>elaborator,
-<a href=#861 id=861 data-nosnippet>861</a>                current_function,
-<a href=#862 id=862 data-nosnippet>862</a>            );
+<a href=#797 id=797 data-nosnippet>797</a>            <span class="comment">// attempt to canonicalize to a constant
+<a href=#798 id=798 data-nosnippet>798</a>            </span><span class="kw">let </span>infix = infix.canonicalize();
+<a href=#799 id=799 data-nosnippet>799</a>            <span class="kw">let </span>infix_canonicalized = infix_canonicalized.canonicalize();
+<a href=#800 id=800 data-nosnippet>800</a>
+<a href=#801 id=801 data-nosnippet>801</a>            <span class="comment">// ensure result kinds are the same as the original kind
+<a href=#802 id=802 data-nosnippet>802</a>            </span><span class="kw">let </span>kind = Kind::numeric(typ);
+<a href=#803 id=803 data-nosnippet>803</a>            <span class="macro">prop_assert_eq!</span>(infix.kind(), kind.clone());
+<a href=#804 id=804 data-nosnippet>804</a>            <span class="macro">prop_assert_eq!</span>(infix_canonicalized.kind(), kind.clone());
+<a href=#805 id=805 data-nosnippet>805</a>
+<a href=#806 id=806 data-nosnippet>806</a>            <span class="comment">// ensure the results are still wrapped in CheckedCast's
+<a href=#807 id=807 data-nosnippet>807</a>            </span><span class="kw">match </span>(<span class="kw-2">&amp;</span>infix, <span class="kw-2">&amp;</span>infix_canonicalized) {
+<a href=#808 id=808 data-nosnippet>808</a>                (Type::CheckedCast { from, to }, Type::CheckedCast { from: from_canonicalized, to: to_canonicalized }) =&gt; {
+<a href=#809 id=809 data-nosnippet>809</a>                    <span class="comment">// ensure from's are the same
+<a href=#810 id=810 data-nosnippet>810</a>                    </span><span class="macro">prop_assert_eq!</span>(from.canonicalize(), from_canonicalized.canonicalize());
+<a href=#811 id=811 data-nosnippet>811</a>
+<a href=#812 id=812 data-nosnippet>812</a>                    <span class="comment">// ensure to's have the same kinds
+<a href=#813 id=813 data-nosnippet>813</a>                    </span><span class="macro">prop_assert_eq!</span>(to.kind(), kind.clone());
+<a href=#814 id=814 data-nosnippet>814</a>                    <span class="macro">prop_assert_eq!</span>(to_canonicalized.kind(), kind);
+<a href=#815 id=815 data-nosnippet>815</a>                }
+<a href=#816 id=816 data-nosnippet>816</a>                <span class="kw">_ </span>=&gt; {
+<a href=#817 id=817 data-nosnippet>817</a>                    <span class="macro">prop_assert!</span>(<span class="bool-val">false</span>, <span class="string">"expected CheckedCast"</span>);
+<a href=#818 id=818 data-nosnippet>818</a>                }
+<a href=#819 id=819 data-nosnippet>819</a>            }
+<a href=#820 id=820 data-nosnippet>820</a>        }
+<a href=#821 id=821 data-nosnippet>821</a>
+<a href=#822 id=822 data-nosnippet>822</a>        <span class="attr">#[test]
+<a href=#823 id=823 data-nosnippet>823</a>        </span><span class="kw">fn </span>compare_to_comptime(infix_type <span class="kw">in </span>arbitrary_infix_expr()) {
+<a href=#824 id=824 data-nosnippet>824</a>            <span class="kw">let </span>(infix, typ) = infix_type;
+<a href=#825 id=825 data-nosnippet>825</a>            <span class="kw">let </span>kind = Kind::numeric(typ.clone());
+<a href=#826 id=826 data-nosnippet>826</a>            <span class="kw">let </span>expr = convert_infix_type_expr_to_expr(<span class="kw-2">&amp;</span>infix);
+<a href=#827 id=827 data-nosnippet>827</a>
+<a href=#828 id=828 data-nosnippet>828</a>            <span class="kw">let </span>root = Path::new(<span class="string">"."</span>);
+<a href=#829 id=829 data-nosnippet>829</a>            <span class="kw">let </span>file_manager = FileManager::new(root);
+<a href=#830 id=830 data-nosnippet>830</a>            <span class="kw">let </span>parsed_files = HashMap::new();
+<a href=#831 id=831 data-nosnippet>831</a>            <span class="kw">let </span><span class="kw-2">mut </span>context = Context::from_ref_file_manager(
+<a href=#832 id=832 data-nosnippet>832</a>                <span class="kw-2">&amp;</span>file_manager,
+<a href=#833 id=833 data-nosnippet>833</a>                <span class="kw-2">&amp;</span>parsed_files,
+<a href=#834 id=834 data-nosnippet>834</a>            );
+<a href=#835 id=835 data-nosnippet>835</a>            <span class="kw">let </span>options = ElaboratorOptions {
+<a href=#836 id=836 data-nosnippet>836</a>                debug_comptime_in_file: <span class="prelude-val">None</span>,
+<a href=#837 id=837 data-nosnippet>837</a>                enabled_unstable_features: <span class="kw-2">&amp;</span>[],
+<a href=#838 id=838 data-nosnippet>838</a>                disable_required_unstable_features: <span class="bool-val">false</span>,
+<a href=#839 id=839 data-nosnippet>839</a>            };
+<a href=#840 id=840 data-nosnippet>840</a>            <span class="kw">let </span><span class="kw-2">mut </span>elaborator = Elaborator::from_context(
+<a href=#841 id=841 data-nosnippet>841</a>                <span class="kw-2">&amp;mut </span>context,
+<a href=#842 id=842 data-nosnippet>842</a>                CrateId::Root(<span class="number">0</span>),
+<a href=#843 id=843 data-nosnippet>843</a>                options,
+<a href=#844 id=844 data-nosnippet>844</a>            );
+<a href=#845 id=845 data-nosnippet>845</a>            <span class="kw">let </span>(expr_id, expr_type) = elaborator.elaborate_expression(expr);
+<a href=#846 id=846 data-nosnippet>846</a>
+<a href=#847 id=847 data-nosnippet>847</a>            <span class="macro">assert_eq!</span>(elaborator.errors, <span class="macro">vec!</span>[]);
+<a href=#848 id=848 data-nosnippet>848</a>            <span class="macro">assert_eq!</span>(typ, expr_type);
+<a href=#849 id=849 data-nosnippet>849</a>
+<a href=#850 id=850 data-nosnippet>850</a>            <span class="kw">let </span>current_function = <span class="prelude-val">None</span>;
+<a href=#851 id=851 data-nosnippet>851</a>            <span class="kw">let </span><span class="kw-2">mut </span>interpreter = Interpreter::new(
+<a href=#852 id=852 data-nosnippet>852</a>                <span class="kw-2">&amp;mut </span>elaborator,
+<a href=#853 id=853 data-nosnippet>853</a>                current_function,
+<a href=#854 id=854 data-nosnippet>854</a>            );
+<a href=#855 id=855 data-nosnippet>855</a>
+<a href=#856 id=856 data-nosnippet>856</a>            <span class="kw">let </span>result_value = interpreter.evaluate(expr_id);
+<a href=#857 id=857 data-nosnippet>857</a>            <span class="macro">assert_eq!</span>(elaborator.errors, <span class="macro">vec!</span>[]);
+<a href=#858 id=858 data-nosnippet>858</a>
+<a href=#859 id=859 data-nosnippet>859</a>            <span class="kw">let </span>result_type = <span class="kw">match </span>result_value {
+<a href=#860 id=860 data-nosnippet>860</a>                <span class="prelude-val">Ok</span>(result_value) =&gt; numeric_value_to_type(result_value),
+<a href=#861 id=861 data-nosnippet>861</a>                <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; Type::Error,
+<a href=#862 id=862 data-nosnippet>862</a>            };
 <a href=#863 id=863 data-nosnippet>863</a>
-<a href=#864 id=864 data-nosnippet>864</a>            <span class="kw">let </span>result_value = interpreter.evaluate(expr_id);
-<a href=#865 id=865 data-nosnippet>865</a>            <span class="macro">assert_eq!</span>(elaborator.errors, <span class="macro">vec!</span>[]);
-<a href=#866 id=866 data-nosnippet>866</a>
-<a href=#867 id=867 data-nosnippet>867</a>            <span class="kw">let </span>result_type = <span class="kw">match </span>result_value {
-<a href=#868 id=868 data-nosnippet>868</a>                <span class="prelude-val">Ok</span>(result_value) =&gt; numeric_value_to_type(result_value),
-<a href=#869 id=869 data-nosnippet>869</a>                <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; Type::Error,
-<a href=#870 id=870 data-nosnippet>870</a>            };
-<a href=#871 id=871 data-nosnippet>871</a>
-<a href=#872 id=872 data-nosnippet>872</a>            <span class="kw">let </span>infix = Type::CheckedCast {
-<a href=#873 id=873 data-nosnippet>873</a>                from: Box::new(infix.clone()),
-<a href=#874 id=874 data-nosnippet>874</a>                to: Box::new(infix)
-<a href=#875 id=875 data-nosnippet>875</a>            };
-<a href=#876 id=876 data-nosnippet>876</a>
-<a href=#877 id=877 data-nosnippet>877</a>            <span class="kw">let </span>infix_canonicalized = infix.canonicalize();
-<a href=#878 id=878 data-nosnippet>878</a>            <span class="macro">prop_assert_eq!</span>(infix_canonicalized.kind(), kind);
-<a href=#879 id=879 data-nosnippet>879</a>            <span class="macro">prop_assert!</span>(infix.kind().unifies(<span class="kw-2">&amp;</span>result_type.kind()));
-<a href=#880 id=880 data-nosnippet>880</a>
-<a href=#881 id=881 data-nosnippet>881</a>            <span class="kw">let </span>infix_canonicalized = <span class="kw">match </span>infix_canonicalized {
-<a href=#882 id=882 data-nosnippet>882</a>                Type::CheckedCast { from, .. } =&gt; {
-<a href=#883 id=883 data-nosnippet>883</a>                    <span class="kw-2">*</span>from
-<a href=#884 id=884 data-nosnippet>884</a>                }
-<a href=#885 id=885 data-nosnippet>885</a>                <span class="kw">_ </span>=&gt; infix_canonicalized,
-<a href=#886 id=886 data-nosnippet>886</a>            };
-<a href=#887 id=887 data-nosnippet>887</a>
-<a href=#888 id=888 data-nosnippet>888</a>            <span class="comment">// expect an error from the interpreter when canonicalize does not produce a constant
-<a href=#889 id=889 data-nosnippet>889</a>            </span><span class="kw">if </span><span class="macro">matches!</span>(infix_canonicalized, Type::Constant(..)) {
-<a href=#890 id=890 data-nosnippet>890</a>                <span class="macro">prop_assert_eq!</span>(infix_canonicalized, result_type);
-<a href=#891 id=891 data-nosnippet>891</a>            } <span class="kw">else </span>{
-<a href=#892 id=892 data-nosnippet>892</a>                <span class="macro">prop_assert!</span>(<span class="macro">matches!</span>(result_type, Type::Error));
-<a href=#893 id=893 data-nosnippet>893</a>            }
-<a href=#894 id=894 data-nosnippet>894</a>        }
-<a href=#895 id=895 data-nosnippet>895</a>    }
+<a href=#864 id=864 data-nosnippet>864</a>            <span class="kw">let </span>infix = Type::CheckedCast {
+<a href=#865 id=865 data-nosnippet>865</a>                from: Box::new(infix.clone()),
+<a href=#866 id=866 data-nosnippet>866</a>                to: Box::new(infix)
+<a href=#867 id=867 data-nosnippet>867</a>            };
+<a href=#868 id=868 data-nosnippet>868</a>
+<a href=#869 id=869 data-nosnippet>869</a>            <span class="kw">let </span>infix_canonicalized = infix.canonicalize();
+<a href=#870 id=870 data-nosnippet>870</a>            <span class="macro">prop_assert_eq!</span>(infix_canonicalized.kind(), kind);
+<a href=#871 id=871 data-nosnippet>871</a>            <span class="macro">prop_assert!</span>(infix.kind().unifies(<span class="kw-2">&amp;</span>result_type.kind()));
+<a href=#872 id=872 data-nosnippet>872</a>
+<a href=#873 id=873 data-nosnippet>873</a>            <span class="kw">let </span>infix_canonicalized = <span class="kw">match </span>infix_canonicalized {
+<a href=#874 id=874 data-nosnippet>874</a>                Type::CheckedCast { from, .. } =&gt; {
+<a href=#875 id=875 data-nosnippet>875</a>                    <span class="kw-2">*</span>from
+<a href=#876 id=876 data-nosnippet>876</a>                }
+<a href=#877 id=877 data-nosnippet>877</a>                <span class="kw">_ </span>=&gt; infix_canonicalized,
+<a href=#878 id=878 data-nosnippet>878</a>            };
+<a href=#879 id=879 data-nosnippet>879</a>
+<a href=#880 id=880 data-nosnippet>880</a>            <span class="comment">// expect an error from the interpreter when canonicalize does not produce a constant
+<a href=#881 id=881 data-nosnippet>881</a>            </span><span class="kw">if </span><span class="macro">matches!</span>(infix_canonicalized, Type::Constant(..)) {
+<a href=#882 id=882 data-nosnippet>882</a>                <span class="macro">prop_assert_eq!</span>(infix_canonicalized, result_type);
+<a href=#883 id=883 data-nosnippet>883</a>            } <span class="kw">else </span>{
+<a href=#884 id=884 data-nosnippet>884</a>                <span class="macro">prop_assert!</span>(<span class="macro">matches!</span>(result_type, Type::Error));
+<a href=#885 id=885 data-nosnippet>885</a>            }
+<a href=#886 id=886 data-nosnippet>886</a>        }
+<a href=#887 id=887 data-nosnippet>887</a>    }
+<a href=#888 id=888 data-nosnippet>888</a>
+<a href=#889 id=889 data-nosnippet>889</a>    <span class="attr">#[test]
+<a href=#890 id=890 data-nosnippet>890</a>    </span><span class="kw">fn </span>try_simplify_partial_constants_does_not_simplify_large_field_elements() {
+<a href=#891 id=891 data-nosnippet>891</a>        <span class="comment">// TODO(https://github.com/noir-lang/noir/issues/11013): This test demonstrates that
+<a href=#892 id=892 data-nosnippet>892</a>        // try_simplify_partial_constants() does not simplify expressions with FieldElements
+<a href=#893 id=893 data-nosnippet>893</a>        // that don't fit in 128 bits, although this case should be handled.
+<a href=#894 id=894 data-nosnippet>894</a>        </span><span class="kw">use crate</span>::{TypeVariableId, signed_field::SignedField};
+<a href=#895 id=895 data-nosnippet>895</a>        <span class="kw">use </span>acvm::FieldElement;
 <a href=#896 id=896 data-nosnippet>896</a>
-<a href=#897 id=897 data-nosnippet>897</a>    <span class="attr">#[test]
-<a href=#898 id=898 data-nosnippet>898</a>    </span><span class="kw">fn </span>try_simplify_partial_constants_does_not_simplify_large_field_elements() {
-<a href=#899 id=899 data-nosnippet>899</a>        <span class="comment">// TODO(https://github.com/noir-lang/noir/issues/11013): This test demonstrates that
-<a href=#900 id=900 data-nosnippet>900</a>        // try_simplify_partial_constants() does not simplify expressions with FieldElements
-<a href=#901 id=901 data-nosnippet>901</a>        // that don't fit in 128 bits, although this case should be handled.
-<a href=#902 id=902 data-nosnippet>902</a>        </span><span class="kw">use crate</span>::{TypeVariableId, signed_field::SignedField};
-<a href=#903 id=903 data-nosnippet>903</a>        <span class="kw">use </span>acvm::FieldElement;
-<a href=#904 id=904 data-nosnippet>904</a>
-<a href=#905 id=905 data-nosnippet>905</a>        <span class="kw">let </span>typ = Type::FieldElement;
-<a href=#906 id=906 data-nosnippet>906</a>        <span class="kw">let </span>kind = Kind::numeric(typ);
-<a href=#907 id=907 data-nosnippet>907</a>
-<a href=#908 id=908 data-nosnippet>908</a>        <span class="comment">// Create a type variable N
-<a href=#909 id=909 data-nosnippet>909</a>        </span><span class="kw">let </span>var_n = TypeVariable::unbound(TypeVariableId(<span class="number">0</span>), kind);
-<a href=#910 id=910 data-nosnippet>910</a>        <span class="kw">let </span>n = Type::TypeVariable(var_n);
-<a href=#911 id=911 data-nosnippet>911</a>
-<a href=#912 id=912 data-nosnippet>912</a>        <span class="comment">// large_field ≈ 2^200
-<a href=#913 id=913 data-nosnippet>913</a>        </span><span class="kw">let </span>large_field = SignedField::positive(FieldElement::from_be_bytes_reduce(<span class="kw-2">&amp;</span>[
-<a href=#914 id=914 data-nosnippet>914</a>            <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x01</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>,
-<a href=#915 id=915 data-nosnippet>915</a>            <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>,
-<a href=#916 id=916 data-nosnippet>916</a>            <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>,
-<a href=#917 id=917 data-nosnippet>917</a>        ]));
-<a href=#918 id=918 data-nosnippet>918</a>
-<a href=#919 id=919 data-nosnippet>919</a>        <span class="kw">let </span>mul_expr = n * large_field.into();
-<a href=#920 id=920 data-nosnippet>920</a>        <span class="kw">let </span>div_expr = mul_expr / SignedField::from(<span class="number">2u8</span>).into();
-<a href=#921 id=921 data-nosnippet>921</a>
-<a href=#922 id=922 data-nosnippet>922</a>        <span class="comment">// Canonicalize the expression
-<a href=#923 id=923 data-nosnippet>923</a>        </span><span class="kw">let </span>canonicalized = div_expr.canonicalize();
-<a href=#924 id=924 data-nosnippet>924</a>
-<a href=#925 id=925 data-nosnippet>925</a>        <span class="comment">// The expression should remain unchanged because try_simplify_partial_constants
-<a href=#926 id=926 data-nosnippet>926</a>        // cannot simplify it when field elements don't fit in 128 bits
-<a href=#927 id=927 data-nosnippet>927</a>        </span><span class="macro">assert_eq!</span>(canonicalized, div_expr);
-<a href=#928 id=928 data-nosnippet>928</a>    }
-<a href=#929 id=929 data-nosnippet>929</a>}</code></pre></div></section></main></body></html>
+<a href=#897 id=897 data-nosnippet>897</a>        <span class="kw">let </span>typ = Type::FieldElement;
+<a href=#898 id=898 data-nosnippet>898</a>        <span class="kw">let </span>kind = Kind::numeric(typ);
+<a href=#899 id=899 data-nosnippet>899</a>
+<a href=#900 id=900 data-nosnippet>900</a>        <span class="comment">// Create a type variable N
+<a href=#901 id=901 data-nosnippet>901</a>        </span><span class="kw">let </span>var_n = TypeVariable::unbound(TypeVariableId(<span class="number">0</span>), kind);
+<a href=#902 id=902 data-nosnippet>902</a>        <span class="kw">let </span>n = Type::TypeVariable(var_n);
+<a href=#903 id=903 data-nosnippet>903</a>
+<a href=#904 id=904 data-nosnippet>904</a>        <span class="comment">// large_field ≈ 2^200
+<a href=#905 id=905 data-nosnippet>905</a>        </span><span class="kw">let </span>large_field = SignedField::positive(FieldElement::from_be_bytes_reduce(<span class="kw-2">&amp;</span>[
+<a href=#906 id=906 data-nosnippet>906</a>            <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x01</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>,
+<a href=#907 id=907 data-nosnippet>907</a>            <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>,
+<a href=#908 id=908 data-nosnippet>908</a>            <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0x00</span>,
+<a href=#909 id=909 data-nosnippet>909</a>        ]));
+<a href=#910 id=910 data-nosnippet>910</a>
+<a href=#911 id=911 data-nosnippet>911</a>        <span class="kw">let </span>mul_expr = n * large_field.into();
+<a href=#912 id=912 data-nosnippet>912</a>        <span class="kw">let </span>div_expr = mul_expr / SignedField::from(<span class="number">2u8</span>).into();
+<a href=#913 id=913 data-nosnippet>913</a>
+<a href=#914 id=914 data-nosnippet>914</a>        <span class="comment">// Canonicalize the expression
+<a href=#915 id=915 data-nosnippet>915</a>        </span><span class="kw">let </span>canonicalized = div_expr.canonicalize();
+<a href=#916 id=916 data-nosnippet>916</a>
+<a href=#917 id=917 data-nosnippet>917</a>        <span class="comment">// The expression should remain unchanged because try_simplify_partial_constants
+<a href=#918 id=918 data-nosnippet>918</a>        // cannot simplify it when field elements don't fit in 128 bits
+<a href=#919 id=919 data-nosnippet>919</a>        </span><span class="macro">assert_eq!</span>(canonicalized, div_expr);
+<a href=#920 id=920 data-nosnippet>920</a>    }
+<a href=#921 id=921 data-nosnippet>921</a>}</code></pre></div></section></main></body></html>

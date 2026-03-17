@@ -1057,7 +1057,7 @@
 <a href=#1057 id=1057 data-nosnippet>1057</a>    <span class="kw">let </span>radix = get_u32(radix)<span class="question-mark">?</span>;
 <a href=#1058 id=1058 data-nosnippet>1058</a>    <span class="kw">let </span>(limb_count, element_type) = <span class="kw">if let </span>Type::Array(length, element_type) = return_type {
 <a href=#1059 id=1059 data-nosnippet>1059</a>        <span class="kw">if let </span>Type::Constant(limb_count, kind) = <span class="kw-2">*</span>length {
-<a href=#1060 id=1060 data-nosnippet>1060</a>            <span class="kw">if </span>kind.unifies(<span class="kw-2">&amp;</span>Kind::u32()) {
+<a href=#1060 id=1060 data-nosnippet>1060</a>            <span class="kw">if </span>kind.unify(<span class="kw-2">&amp;</span>Type::u32()).is_ok() {
 <a href=#1061 id=1061 data-nosnippet>1061</a>                (limb_count.to_field_element(), element_type)
 <a href=#1062 id=1062 data-nosnippet>1062</a>            } <span class="kw">else </span>{
 <a href=#1063 id=1063 data-nosnippet>1063</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::TypeAnnotationsNeededForMethodCall { location });

@@ -70,6 +70,11 @@
 <a href=#70 id=70 data-nosnippet>70</a>            // Copying a vector this way is an implicit side effect of setting an item by index through a mutable variable;
 <a href=#71 id=71 data-nosnippet>71</a>            // unlike with pop and push, we won't end up with a new vector handle, so we can split the RC between the old and the new.
 <a href=#72 id=72 data-nosnippet>72</a>            </span>ctx.codegen_decrement_rc(source_vector.pointer, rc.address);
-<a href=#73 id=73 data-nosnippet>73</a>        }
-<a href=#74 id=74 data-nosnippet>74</a>    });
-<a href=#75 id=75 data-nosnippet>75</a>}</code></pre></div></section></main></body></html>
+<a href=#73 id=73 data-nosnippet>73</a>
+<a href=#74 id=74 data-nosnippet>74</a>            <span class="comment">// Increase our array copy counter if that flag is set
+<a href=#75 id=75 data-nosnippet>75</a>            </span><span class="kw">if </span>ctx.count_arrays_copied {
+<a href=#76 id=76 data-nosnippet>76</a>                ctx.codegen_increment_array_copy_counter();
+<a href=#77 id=77 data-nosnippet>77</a>            }
+<a href=#78 id=78 data-nosnippet>78</a>        }
+<a href=#79 id=79 data-nosnippet>79</a>    });
+<a href=#80 id=80 data-nosnippet>80</a>}</code></pre></div></section></main></body></html>
