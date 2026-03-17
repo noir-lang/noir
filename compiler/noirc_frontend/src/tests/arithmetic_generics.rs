@@ -62,7 +62,7 @@ fn arithmetic_generics_checked_cast_zeros() {
     let source = r#"
         struct W<let N: u1> {}
         
-        fn foo<let N: u1>(_x: W<N>) -> W<(0 * N) / (N % N)> {
+        fn foo<let N: u1>(_x: W<N>) -> W<(0u1 * N) / (N % N)> {
             W {}
         }
         
@@ -71,7 +71,7 @@ fn arithmetic_generics_checked_cast_zeros() {
         }
         
         fn main() -> pub u1 {
-            let w_0: W<0> = W {};
+            let w_0: W<0u1> = W {};
             let w: W<_> = foo(w_0);
             bar(w)
         }
@@ -108,7 +108,7 @@ fn arithmetic_generics_checked_cast_indirect_zeros() {
         }
         
         fn main() {
-            let w_0: W<0> = W {};
+            let w_0: W<0Field> = W {};
             let w = foo(w_0);
             let _ = bar(w);
         }
