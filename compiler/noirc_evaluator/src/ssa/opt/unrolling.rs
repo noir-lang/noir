@@ -81,12 +81,6 @@ pub const FORCE_UNROLL_THRESHOLD: usize = 128;
 /// Prevents code explosion from very large loops even if they pass the cost model.
 pub const MAX_UNROLL_ITERATIONS: usize = 1000;
 
-/// Maximum number of simplify-and-retry cycles for the outer Brillig unrolling
-/// loop in [Function::unroll_loops_iteratively]. Each cycle runs [simplify_between_unrolls]
-/// then retries `try_unroll_loops`. Without this bound,
-/// simplification can keep revealing new unrollable loops indefinitely.
-const MAX_BRILLIG_UNROLL_CYCLES: usize = 5;
-
 impl Ssa {
     /// Loop unrolling can return errors, since ACIR functions need to be fully unrolled.
     /// This meta-pass will keep trying to unroll loops and simplifying the SSA until no more errors are found.
@@ -187,20 +181,18 @@ impl Function {
                     }
                 }
             }
-            RuntimeType::Brillig(_) => {
-                for _ in 0..MAX_BRILLIG_UNROLL_CYCLES {
-                    simplify_between_unrolls(self);
-                    let (unrolled, _) = self.try_unroll_loops(
-                        max_unroll_iterations,
-                        force_unroll_threshold,
-                        callee_costs,
-                    );
-                    has_unrolled |= unrolled;
-                    if !unrolled {
-                        break;
-                    }
+            RuntimeType::Brillig(_) => loop {
+                simplify_between_unrolls(self);
+                let (unrolled, _) = self.try_unroll_loops(
+                    max_unroll_iterations,
+                    force_unroll_threshold,
+                    callee_costs,
+                );
+                has_unrolled |= unrolled;
+                if !unrolled {
+                    break;
                 }
-            }
+            },
         }
 
         #[cfg(debug_assertions)]
@@ -623,6 +615,8 @@ impl Loop {
     ///     v5 = lt v1, u32 4           // Upper bound
     ///     jmpif v5 then: b3, else: b2
     /// ```
+    /// 
+    /// TODO(https://github.com/noir-lang/noir/issues/11900): Handle induction variable at any block parameter position
     fn get_const_upper_bound(
         &self,
         dfg: &DataFlowGraph,
@@ -1581,6 +1575,8 @@ impl BoilerplateStats {
 ///   ...
 /// ```
 /// We're looking for the terminating jump of the `main` predecessor of `loop_entry`.
+/// 
+/// TODO(https://github.com/noir-lang/noir/issues/11900): Handle induction variable at any block parameter position
 fn get_induction_variable(dfg: &DataFlowGraph, block: BasicBlockId) -> Result<ValueId, CallStack> {
     match dfg[block].terminator() {
         Some(TerminatorInstruction::Jmp { arguments, call_stack: location, .. }) => {
@@ -3305,34 +3301,32 @@ mod tests {
         // Structural validity: no orphan blocks, all terminators present.
         crate::ssa::ssa_gen::validate_ssa(&ssa);
 
+        // TODO(https://github.com/noir-lang/noir/issues/11900): The inner loop is not unrolled
+        // because `get_const_upper_bound` and `get_induction_variable` assume the induction
+        // variable is always the first block parameter. For multi-param inner loop headers
+        // (where outer loop variables are forwarded as earlier params), the actual induction
+        // variable can be at a later position. A follow-up should identify the induction
+        // variable by its increment pattern rather than by position.
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0():
-            jmp b7(u32 0, u32 0, u32 1, u32 0)
+            jmp b1(u32 0, u32 0, u32 0)
           b1(v0: u32, v1: u32, v2: u32):
-            v15 = lt v2, u32 3
-            jmpif v15 then: b2(), else: b5()
+            v9 = lt v2, u32 3
+            jmpif v9 then: b2(), else: b5()
           b2():
-            v16 = unchecked_add v2, u32 1
-            jmp b3(v0, v1, v16, u32 0)
+            v11 = unchecked_add v2, u32 1
+            jmp b3(v0, v1, v11, u32 0)
           b3(v3: u32, v4: u32, v5: u32, v6: u32):
-            v17 = lt v6, u32 1
-            jmpif v17 then: b6(), else: b4()
+            v12 = lt v6, u32 1
+            jmpif v12 then: b6(), else: b4()
           b4():
             jmp b1(v3, v4, v5)
           b5():
             return
           b6():
-            v18 = unchecked_add v6, u32 1
-            jmp b3(v3, v4, v5, v18)
-          b7(v7: u32, v8: u32, v9: u32, v10: u32):
-            v13 = eq v10, u32 0
-            jmpif v13 then: b8(), else: b9()
-          b8():
-            v19 = unchecked_add v10, u32 1
-            jmp b7(v7, v8, v9, v19)
-          b9():
-            jmp b1(v7, v8, v9)
+            v13 = unchecked_add v6, u32 1
+            jmp b3(v3, v4, v5, v13)
         }
         ");
     }
