@@ -174,6 +174,29 @@ fn cannot_determine_type_of_generic_argument_in_struct_constructor() {
 }
 
 #[test]
+fn phantom_type_parameter_not_silently_resolved_by_trait_method() {
+    let src = r#"
+    struct Empty<T> {}
+
+    trait Foo { fn foo(self) -> u32; }
+
+    impl Foo for Empty<u32> { fn foo(_self: Self) -> u32 { 32 } }
+    impl Foo for Empty<u64> { fn foo(_self: Self) -> u32 { 64 } }
+
+    fn main()
+    {
+        let z = Empty {};
+                ^^^^^ Type annotation needed
+                ~~~~~ Could not determine the type of the generic argument `T` declared on the struct `Empty`
+        let _ = z.foo();
+                ^^^^^ Multiple trait impls match the object type `Empty<_>`
+                ~~~~~ Ambiguous impl
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn resolves_generic_type_argument_via_self() {
     let src = "
     pub struct Foo<T> {}

@@ -9,6 +9,7 @@ error: Failed to solve program: 'Failed to solve brillig function'
   │            ------
   │
   = Call stack:
-    1. crates/a/src/main.nr:2:12
+    1: main
+            at crates/a/src/main.nr:2:12
 
 Failed to solve program: 'Failed to solve brillig function'

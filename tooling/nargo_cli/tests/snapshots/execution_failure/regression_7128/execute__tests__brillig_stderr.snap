@@ -9,6 +9,7 @@ error: Assertion failed: soundness violation
    │            ---------
    │
    = Call stack:
-     1. src/main.nr:23:12
+     1: main
+             at src/main.nr:23:12
 
 Failed assertion

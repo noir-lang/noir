@@ -512,6 +512,7 @@ mod proptests {
 
     use acvm::{AcirField, FieldElement};
     use fm::FileManager;
+    use itertools::Itertools;
     use proptest::{arbitrary::any, collection, prelude::*, result::maybe_ok};
 
     use crate::{
@@ -689,7 +690,7 @@ mod proptests {
         -> (Type, Type, Vec<(TypeVariable, Type)>) {
             let (infix_expr, typ, _value_generator) = infix_type_gen;
             let bindings: Vec<_> = first_n_variables(typ.clone(), num_variables)
-                .zip(values.iter().map(|value| {
+                .zip_eq(values.iter().map(|value| {
                     Type::Constant(*value, Kind::numeric(typ.clone()))
                 }))
                 .collect();

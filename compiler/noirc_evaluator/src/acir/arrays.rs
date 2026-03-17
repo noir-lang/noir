@@ -124,6 +124,7 @@ use acvm::acir::brillig::lengths::{
 use acvm::acir::{circuit::opcodes::BlockType, native_types::Witness};
 use acvm::{FieldElement, acir::AcirField, acir::circuit::opcodes::BlockId};
 use iter_extended::{try_vecmap, vecmap};
+use itertools::Itertools;
 
 use crate::acir::types::flat_element_types;
 use crate::brillig::assert_u32;
@@ -511,7 +512,7 @@ impl Context<'_> {
                     dummy_values.len(),
                     "ICE: The store value and dummy must have the same number of inner values"
                 );
-                for (val, dummy_val) in values.iter().zip(dummy_values) {
+                for (val, dummy_val) in values.iter().zip_eq(dummy_values) {
                     elements.push_back(self.convert_array_set_store_value(val, dummy_val)?);
                 }
 
@@ -537,7 +538,7 @@ impl Context<'_> {
                     .read_dynamic_array(*block_id, *len, value_types)
                     .collect::<Result<_, _>>()?;
                 let mut elements = im::Vector::new();
-                for (val, dummy_val) in values.iter().zip(dummy_values) {
+                for (val, dummy_val) in values.iter().zip_eq(dummy_values) {
                     elements.push_back(self.convert_array_set_store_value(val, &dummy_val)?);
                 }
 

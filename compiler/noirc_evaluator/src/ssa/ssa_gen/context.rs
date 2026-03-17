@@ -4,6 +4,7 @@ use std::sync::{Arc, Mutex, RwLock};
 use acvm::acir::brillig::lengths::SemanticLength;
 use acvm::{FieldElement, acir::AcirField};
 use iter_extended::vecmap;
+use itertools::Itertools;
 use noirc_errors::Location;
 use noirc_frontend::ast::BinaryOpKind;
 use noirc_frontend::monomorphization::ast::{
@@ -238,7 +239,7 @@ impl<'a> FunctionContext<'a> {
                 // The message string, the number of fields to be formatted, and
                 // then the encapsulated fields themselves
                 let final_fmt_str_fields =
-                    vec![ast::Type::String(*len), ast::Type::Field, *fields.clone()];
+                    vec![ast::Type::String(*len), ast::Type::Field, fields.as_ref().clone()];
                 let fmt_str_tuple = ast::Type::Tuple(final_fmt_str_fields);
                 Self::map_type_helper(&fmt_str_tuple, f)
             }
@@ -903,9 +904,7 @@ impl<'a> FunctionContext<'a> {
     fn assign(&mut self, lhs: Values, rhs: Values) {
         match (lhs, rhs) {
             (Tree::Branch(lhs_branches), Tree::Branch(rhs_branches)) => {
-                assert_eq!(lhs_branches.len(), rhs_branches.len());
-
-                for (lhs, rhs) in lhs_branches.into_iter().zip(rhs_branches) {
+                for (lhs, rhs) in lhs_branches.into_iter().zip_eq(rhs_branches) {
                     self.assign(lhs, rhs);
                 }
             }
