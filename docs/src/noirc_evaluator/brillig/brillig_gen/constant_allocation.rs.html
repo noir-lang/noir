@@ -153,7 +153,7 @@
 <a href=#153 id=153 data-nosnippet>153</a>            .iter()
 <a href=#154 id=154 data-nosnippet>154</a>            .copied()
 <a href=#155 id=155 data-nosnippet>155</a>            .reduce(|a, b| <span class="self">self</span>.dominator_tree.common_dominator(a, b))
-<a href=#156 id=156 data-nosnippet>156</a>            .unwrap_or(used_in_blocks[<span class="number">0</span>]);
+<a href=#156 id=156 data-nosnippet>156</a>            .expect(<span class="string">"At least one block must use the constant"</span>);
 <a href=#157 id=157 data-nosnippet>157</a>
 <a href=#158 id=158 data-nosnippet>158</a>        <span class="comment">// If the value only contains constants, it's safe to hoist outside of any loop.
 <a href=#159 id=159 data-nosnippet>159</a>        // Technically we know this is going to be true, because we only collected values which are `Value::NumericConstant`.
