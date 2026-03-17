@@ -328,7 +328,7 @@ impl<'a> FunctionContext<'a> {
             assert!(numeric_type.is_signed());
             let bit_size = numeric_type.bit_size::<FieldElement>();
             assert!(bit_size < 128);
-            value = FieldElement::from(1u128 << bit_size) - value;
+            value = FieldElement::from(1u128 << bit_size) + value;
         }
 
         Ok(self.builder.numeric_constant(value, numeric_type))
