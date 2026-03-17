@@ -1,6 +1,8 @@
 //! Everything to do with elaboration of variables.
 //! Notably, variables may require trait constraints to be solved later on.
 
+use itertools::Itertools;
+
 use super::Elaborator;
 use crate::TypeAlias;
 use crate::ast::{
@@ -21,7 +23,7 @@ use crate::node_interner::pusher::{HasLocation, PushedExpr};
 use crate::node_interner::{
     DefinitionId, DefinitionInfo, DefinitionKind, ExprId, TraitImplKind, TypeAliasId,
 };
-use crate::{Kind, Type, TypeBindings};
+use crate::{Kind, Type, TypeBindings, TypeVariable};
 use iter_extended::vecmap;
 use noirc_errors::Location;
 
@@ -89,7 +91,56 @@ impl Elaborator<'_> {
                     let expr_location = type_alias.borrow().location;
                     let expr = UnresolvedTypeExpression::to_expression_kind(expr);
                     let expr = Expression::new(expr, expr_location);
+
+                    // Resolve turbofish generics for the type alias.
+                    // `resolved_turbofish` contains already-resolved types from
+                    // validate_path, so we use resolve_alias_turbofish_generics
+                    // directly which accepts resolved types.
+                    let alias_generics = &type_alias.borrow().generics;
+                    let alias_generic_types = vecmap(alias_generics, |generic| {
+                        self.interner.next_type_variable_with_kind(generic.kind())
+                    });
+                    let mut errors = Vec::new();
+                    let type_alias_ref = self.interner.get_type_alias(type_alias_id);
+                    let type_alias_ref = type_alias_ref.borrow();
+                    let resolved_generics = self.resolve_alias_turbofish_generics(
+                        &type_alias_ref,
+                        alias_generic_types,
+                        resolved_turbofish,
+                        location,
+                        &mut errors,
+                    );
+                    self.push_errors(errors);
+
+                    // Introduce alias generics into scope so the numeric expression
+                    // resolves them correctly (not to globals or other variables
+                    // that happen to share the same name). Bind each generic's type
+                    // variable to the turbofish-resolved type.
+                    self.push_scope();
+                    for (generic, resolved_type) in
+                        alias_generics.iter().zip_eq(resolved_generics.iter())
+                    {
+                        if let Kind::Numeric(numeric_type) = &generic.kind() {
+                            let id = self.interner.next_type_variable_id();
+                            let type_var = TypeVariable::unbound(id, generic.kind());
+                            type_var.bind(resolved_type.clone());
+                            let definition =
+                                DefinitionKind::NumericGeneric(type_var, numeric_type.clone());
+                            let ident = Ident::new(generic.name.to_string(), generic.location);
+                            let hir_ident = self.add_variable_decl(
+                                ident, false, // mutable
+                                true,  // allow_shadowing
+                                false, // warn_if_unused
+                                false, // warn_if_not_mutated
+                                definition,
+                            );
+                            self.interner.push_definition_type(hir_ident.id, *numeric_type.clone());
+                        }
+                    }
+
                     let (id, typ) = self.elaborate_expression(expr);
+                    self.pop_scope();
+
                     // Unify the expression's type with the declared type from the type alias
                     // to ensure proper type checking.
                     self.unify(&typ, &declared_type, || TypeCheckError::TypeMismatch {
@@ -134,7 +185,10 @@ impl Elaborator<'_> {
 
             // If this is a function call on a type that has generics, we need to bind those generic types.
             if !type_generics.is_empty() {
-                // `all_generics` will always have the enclosing type generics first, so we need to bind those
+                // `all_generics` will always have the enclosing type generics first, so we need to bind those.
+                // Note: `func_generics` may be longer than `type_generics` since it includes both
+                // the enclosing type's generics and the function's own generics. We intentionally use
+                // `zip` (not `zip_eq`) here to only bind the type generic prefix.
                 let func_generics = &self.interner.function_meta(func_id).all_generics;
                 for (type_generic, func_generic) in type_generics.into_iter().zip(func_generics) {
                     let type_var = &func_generic.type_var;

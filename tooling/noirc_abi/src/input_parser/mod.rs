@@ -4,6 +4,7 @@ use std::collections::{BTreeMap, HashSet};
 use thiserror::Error;
 
 use acvm::{AcirField, FieldElement};
+use itertools::Itertools;
 use serde::Serialize;
 
 use crate::errors::InputParserError;
@@ -167,7 +168,7 @@ impl InputValue {
                     });
                 }
                 // Check that all of the array's elements' values match the ABI as well.
-                for (i, (element, expected_typ)) in vec_elements.iter().zip(fields).enumerate() {
+                for (i, (element, expected_typ)) in vec_elements.iter().zip_eq(fields).enumerate() {
                     let mut path = path.clone();
                     path.push_str(&format!(".{i}"));
                     element.find_type_mismatch(expected_typ, path)?;

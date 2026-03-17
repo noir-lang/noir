@@ -7,12 +7,13 @@ use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::Location;
 use thiserror::Error;
 
+use crate::Kind;
 use crate::ast::BinaryOpKind;
 use crate::ast::{ConstrainKind, FunctionReturnType, Ident, IntegerBitSize};
 use crate::hir::comptime::Integer;
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::traits::TraitConstraint;
-use crate::hir_def::types::{BinaryTypeOperator, Kind, Type};
+use crate::hir_def::types::{BinaryTypeOperator, Type};
 use crate::node_interner::NodeInterner;
 use crate::shared::Signedness;
 use crate::validity::InvalidType;
@@ -99,6 +100,8 @@ pub enum TypeCheckError {
     UnsupportedFieldCast { location: Location },
     #[error("Index {index} is out of bounds for this tuple {lhs_type} of length {length}")]
     TupleIndexOutOfBounds { index: usize, lhs_type: Type, length: usize, location: Location },
+    #[error("Index {index} is out of bounds for this array of length {array_length}")]
+    ArrayIndexOutOfBounds { index: u32, array_length: u32, location: Location },
     #[error("Variable `{name}` must be mutable to be assigned to")]
     VariableMustBeMutable { name: String, location: Location },
     #[error("`{name}` is a `&` reference, so it cannot be written to")]
@@ -317,6 +320,7 @@ impl TypeCheckError {
             | TypeCheckError::UnsupportedCast { location }
             | TypeCheckError::UnsupportedFieldCast { location }
             | TypeCheckError::TupleIndexOutOfBounds { location, .. }
+            | TypeCheckError::ArrayIndexOutOfBounds { location, .. }
             | TypeCheckError::VariableMustBeMutable { location, .. }
             | TypeCheckError::CannotAssignToReference { location, .. }
             | TypeCheckError::CannotAssignToLValueBehindReference { location, .. }
@@ -538,6 +542,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::UnsupportedCast { location }
             | TypeCheckError::UnsupportedFieldCast { location }
             | TypeCheckError::TupleIndexOutOfBounds { location, .. }
+            | TypeCheckError::ArrayIndexOutOfBounds { location, .. }
             | TypeCheckError::VariableMustBeMutable { location, .. }
             | TypeCheckError::CannotAssignToReference { location, .. }
             | TypeCheckError::CannotAssignToLValueBehindReference { location, .. }

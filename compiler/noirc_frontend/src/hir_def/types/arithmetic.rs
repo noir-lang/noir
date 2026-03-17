@@ -1,6 +1,8 @@
 use noirc_errors::Location;
 use std::collections::BTreeMap;
 
+use noirc_errors::Location;
+
 use crate::{BinaryTypeOperator, Type, TypeBinding, hir::comptime::Integer};
 
 impl Type {
@@ -79,7 +81,7 @@ impl Type {
                     && let Ok(rhs_value) = rhs_evaluated
                     && let Ok(result) = op.function(lhs_value, rhs_value, dummy_location)
                 {
-                    return Type::Constant(result, kind);
+                    return Type::Constant(result, kind.into_numeric_type_or_error());
                 }
 
                 let lhs = lhs.canonicalize_helper(found_checked_cast, run_simplifications);
@@ -508,6 +510,7 @@ mod proptests {
 
     use acvm::{AcirField, FieldElement};
     use fm::FileManager;
+    use itertools::Itertools;
     use proptest::{arbitrary::any, collection, prelude::*, result::maybe_ok};
 
     use crate::{

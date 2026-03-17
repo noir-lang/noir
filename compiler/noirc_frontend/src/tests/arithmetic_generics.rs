@@ -8,7 +8,7 @@ use crate::hir::type_check::TypeCheckError;
 use crate::hir_def::types::BinaryTypeOperator;
 use crate::monomorphization::errors::MonomorphizationError;
 use crate::test_utils::get_monomorphized;
-use crate::tests::{assert_no_errors, check_errors};
+use crate::tests::{assert_no_errors, check_errors, get_program_errors};
 
 #[test]
 fn arithmetic_generics_canonicalization_deduplication_regression() {
@@ -63,7 +63,7 @@ fn arithmetic_generics_checked_cast_zeros() {
     let source = r#"
         struct W<let N: u1> {}
         
-        fn foo<let N: u1>(_x: W<N>) -> W<(0 * N) / (N % N)> {
+        fn foo<let N: u1>(_x: W<N>) -> W<(0u1 * N) / (N % N)> {
             W {}
         }
         
@@ -72,7 +72,7 @@ fn arithmetic_generics_checked_cast_zeros() {
         }
         
         fn main() -> pub u1 {
-            let w_0: W<0> = W {};
+            let w_0: W<0u1> = W {};
             let w: W<_> = foo(w_0);
             bar(w)
         }
@@ -109,7 +109,7 @@ fn arithmetic_generics_checked_cast_indirect_zeros() {
         }
         
         fn main() {
-            let w_0: W<0> = W {};
+            let w_0: W<0Field> = W {};
             let w = foo(w_0);
             let _ = bar(w);
         }
@@ -287,4 +287,24 @@ fn numeric_generic_arithmetic_in_return_type_concat() {
     }
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn no_stack_overflow_from_unification_of_unfoldable_constant_exprs() {
+    // Regression test: `0 - N` with kind u32 can't be constant-folded (underflow),
+    // leaving `((0 - N) + 3)` as an InfixExpr. This caused infinite recursion
+    // with unification trying to move the constant term on every other sides
+    let src = r#"
+        fn foo<let N: u32>(y: [u8; ((0 - N) + 3)]) {
+            let x: [u8; (N + 0)] = y;
+            let _ = x;
+        }
+
+        fn main() {
+            let a: [u8; 1] = [0];
+            foo::<2>(a);
+        }
+    "#;
+    let errors = get_program_errors(src);
+    assert!(!errors.is_empty(), "Expected type errors but got none");
 }

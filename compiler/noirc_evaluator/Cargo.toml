@@ -20,6 +20,7 @@ bn254_blackbox_solver.workspace = true
 rustc-hash.workspace = true
 rustc-stable-hash = "^0.1.2"
 iter-extended.workspace = true
+itertools.workspace = true
 thiserror.workspace = true
 noirc_printable_type.workspace = true
 num-bigint.workspace = true

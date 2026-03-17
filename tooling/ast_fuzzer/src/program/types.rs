@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, rc::Rc};
 
 use iter_extended::vecmap;
 use noirc_frontend::{
@@ -174,9 +174,37 @@ pub(crate) fn unref(typ: &Type) -> &Type {
     if let Type::Reference(typ, _) = typ { unref(typ.as_ref()) } else { typ }
 }
 
-/// Peel off all reference types, to get to a concrete underlying type.
-pub(crate) fn unref_mut(typ: &mut Type) -> &mut Type {
-    if let Type::Reference(typ, _) = typ { unref_mut(typ.as_mut()) } else { typ }
+/// Peel off all reference types, to get to a concrete underlying type. Then invokes the given
+/// function with a copy of the type. The returned type replaces the original type, recursively.
+pub(crate) fn unref_mut<F>(typ: &mut Type, f: F)
+where
+    F: FnOnce(Type) -> Type,
+{
+    if let Type::Reference(typ, _) = typ {
+        // One
+        *typ = Rc::new(unref_mut_helper(typ.as_ref(), f));
+    } else {
+        *typ = f(typ.clone());
+    }
+}
+
+/// Similar to [`unref_mut`] but for `&mut Rc<Type>`.
+pub(crate) fn unref_mut_rc<F>(typ: &mut Rc<Type>, f: F)
+where
+    F: FnOnce(Type) -> Type,
+{
+    *typ = Rc::new(unref_mut_helper(typ.as_ref(), f));
+}
+
+fn unref_mut_helper<F>(typ: &Type, f: F) -> Type
+where
+    F: FnOnce(Type) -> Type,
+{
+    if let Type::Reference(typ, mutable) = typ {
+        Type::Reference(Rc::new(unref_mut_helper(typ.as_ref(), f)), *mutable)
+    } else {
+        f(typ.clone())
+    }
 }
 
 /// Check if the type contains any references.
@@ -310,7 +338,7 @@ pub fn can_binary_op_return_from_input(op: &BinaryOp, input: &Type, output: &Typ
 
 /// Reference an expression into a target type
 pub fn ref_mut(typ: Type) -> Type {
-    Type::Reference(Box::new(typ), true)
+    Type::Reference(Rc::new(typ), true)
 }
 
 /// Convert the type back into a HIR equivalent (not necessarily the original HIR type).

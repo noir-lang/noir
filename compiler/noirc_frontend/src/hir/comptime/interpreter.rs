@@ -38,6 +38,7 @@ use std::{collections::hash_map::Entry, rc::Rc};
 use acvm::{AcirField, FieldElement};
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
+use itertools::Itertools;
 use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
 
@@ -220,7 +221,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let parameters = meta.parameters.0.clone();
         let previous_state = self.enter_function();
 
-        for ((parameter, typ, _), (argument, arg_location)) in parameters.iter().zip(arguments) {
+        for ((parameter, typ, _), (argument, arg_location)) in parameters.iter().zip_eq(arguments) {
             let result = self.define_pattern(parameter, typ, argument, arg_location);
             if let Err(err) = result {
                 self.exit_function(previous_state);
@@ -382,7 +383,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             });
         }
 
-        let parameters = closure.parameters.iter().zip(arguments);
+        let parameters = closure.parameters.iter().zip_eq(arguments);
         for ((parameter, typ), (argument, arg_location)) in parameters {
             let result = self.define_pattern(parameter, typ, argument, arg_location);
             if let Err(err) = result {
@@ -391,7 +392,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             }
         }
 
-        for (param, arg) in closure.captures.into_iter().zip(environment) {
+        for (param, arg) in closure.captures.into_iter().zip_eq(environment) {
             self.define(param.ident.id, arg);
         }
 
@@ -528,7 +529,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         if fields.len() == pattern_fields.len() =>
                     {
                         for ((pattern, typ), argument) in
-                            pattern_fields.iter().zip(type_fields).zip(fields)
+                            pattern_fields.iter().zip_eq(type_fields).zip_eq(fields)
                         {
                             let argument = argument.borrow().clone();
                             self.define_pattern(pattern, typ, argument, location)?;
@@ -831,7 +832,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             }
         }
 
-        let typ = self.elaborator.interner.id_type(id);
+        let typ = self.elaborator.interner.id_type(id).follow_bindings();
         Ok(Value::FormatString(Rc::new(new_fragments), typ, length))
     }
 
@@ -1436,7 +1437,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     This should have been caught by type checking."
                 );
 
-                for (lvalue, rvalue) in lvalue_fields.iter().zip(rvalue_fields) {
+                for (lvalue, rvalue) in lvalue_fields.iter().zip_eq(rvalue_fields) {
                     Self::store_flattened(lvalue.clone(), rvalue.unwrap_or_clone());
                 }
             }

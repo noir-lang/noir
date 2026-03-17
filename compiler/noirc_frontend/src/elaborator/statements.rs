@@ -18,7 +18,7 @@ use crate::{
         type_check::{Source, TypeCheckError},
     },
     hir_def::{
-        expr::{HirBlockExpression, HirExpression, HirIdent},
+        expr::{HirBlockExpression, HirExpression, HirIdent, HirLiteral},
         stmt::{
             HirAssignStatement, HirForStatement, HirLValue, HirLetStatement, HirPattern,
             HirStatement,
@@ -615,7 +615,10 @@ impl Elaborator<'_> {
                 }
 
                 let typ = match lvalue_type.follow_bindings() {
-                    Type::Array(_, elem_type) => *elem_type,
+                    Type::Array(ref size, ref elem_type) => {
+                        self.check_array_index_out_of_bounds(size, &index, location);
+                        *elem_type.clone()
+                    }
                     Type::Vector(elem_type) => *elem_type,
                     Type::Error => Type::Error,
                     Type::String(_) => {
@@ -712,10 +715,7 @@ impl Elaborator<'_> {
         // If the original expression trivially cannot have side-effects, don't bother cluttering
         // the output with a let binding. Note that array literals can have side-effects but these
         // would produce type errors anyway.
-        if matches!(
-            self.interner.expression(&expr),
-            HirExpression::Ident(..) | HirExpression::Literal(..)
-        ) {
+        if !self.index_could_have_side_effects(expr) {
             return None;
         }
 
@@ -736,6 +736,57 @@ impl Elaborator<'_> {
         let let_ = HirStatement::Let(HirLetStatement::basic(pattern, typ, expr));
         let let_ = self.interner.push_stmt_full(let_, location);
         Some((let_, ident_id))
+    }
+
+    /// Returns `true` if the given index expression could potentially have side-effects.
+    /// Returns `false` if the expression is guaranteed to not have side-effects.
+    fn index_could_have_side_effects(&self, expr: ExprId) -> bool {
+        match self.interner.expression_ref(&expr) {
+            HirExpression::Ident(..) => false,
+            HirExpression::Literal(hir_literal) => match hir_literal {
+                HirLiteral::Bool(_)
+                | HirLiteral::Integer(..)
+                | HirLiteral::Str(_)
+                | HirLiteral::Unit => false,
+                HirLiteral::Array(..) | HirLiteral::Vector(..) | HirLiteral::FmtStr(..) => true,
+            },
+            HirExpression::Prefix(hir_prefix_expression) => {
+                hir_prefix_expression.trait_method_id.is_some()
+                    || self.index_could_have_side_effects(hir_prefix_expression.rhs)
+            }
+            HirExpression::Infix(hir_infix_expression) => {
+                hir_infix_expression.trait_method_id.is_some()
+                    || self.index_could_have_side_effects(hir_infix_expression.lhs)
+                    || self.index_could_have_side_effects(hir_infix_expression.rhs)
+            }
+            HirExpression::Index(hir_index_expression) => {
+                self.index_could_have_side_effects(hir_index_expression.collection)
+                    || self.index_could_have_side_effects(hir_index_expression.index)
+            }
+            HirExpression::Constructor(hir_constructor_expression) => {
+                !hir_constructor_expression.fields.is_empty()
+            }
+            HirExpression::EnumConstructor(hir_enum_constructor_expression) => {
+                !hir_enum_constructor_expression.arguments.is_empty()
+            }
+            HirExpression::MemberAccess(hir_member_access) => {
+                self.index_could_have_side_effects(hir_member_access.lhs)
+            }
+            HirExpression::Call(..) => true,
+            HirExpression::Constrain(..) => true,
+            HirExpression::Cast(hir_cast_expression) => {
+                self.index_could_have_side_effects(hir_cast_expression.lhs)
+            }
+            HirExpression::If(..)
+            | HirExpression::Match(..)
+            | HirExpression::Tuple(..)
+            | HirExpression::Lambda(..)
+            | HirExpression::Quote(..)
+            | HirExpression::Unquote(..)
+            | HirExpression::Unsafe(..)
+            | HirExpression::Block(..)
+            | HirExpression::Error => true,
+        }
     }
 
     fn elaborate_comptime_statement(

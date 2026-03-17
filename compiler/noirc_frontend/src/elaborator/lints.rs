@@ -265,7 +265,7 @@ pub(super) fn oracle_returns_vector_with_nested_array(
         return None;
     }
 
-    if func.return_type().is_vector_with_nested_array() {
+    if func.return_type().contains_vector_with_nested_array() {
         let ident = func_meta_name_ident(func, modifiers);
         Some(ResolverError::OracleReturnsVectorWithNestedArray { location: ident.location() })
     } else {

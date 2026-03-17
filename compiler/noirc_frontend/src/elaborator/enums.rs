@@ -4,6 +4,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use acvm::{AcirField, FieldElement};
 use iter_extended::{btree_map, try_vecmap, vecmap};
+use itertools::Itertools;
 use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
 
@@ -840,7 +841,7 @@ impl Elaborator<'_> {
             return Pattern::Error;
         }
 
-        let args = args.into_iter().zip(expected_arg_types);
+        let args = args.into_iter().zip_eq(expected_arg_types);
         let args = vecmap(args, |(arg, expected_arg_type)| {
             self.expression_to_pattern(arg, &expected_arg_type, variables_defined)
         });
@@ -1174,7 +1175,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
                     let idx = cons.variant_index();
                     let mut cols = row.columns;
 
-                    for (var, pat) in cases[idx].1.iter().zip(args.into_iter()) {
+                    for (var, pat) in cases[idx].1.iter().zip_eq(args.into_iter()) {
                         cols.push(Column::new(*var, pat));
                     }
 
