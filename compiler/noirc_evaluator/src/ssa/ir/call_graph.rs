@@ -273,9 +273,7 @@ impl CallGraph {
         let mut stack: Vec<FunctionId> = recursive.iter().copied().collect();
 
         while let Some(f) = stack.pop() {
-            let Some(&f_index) = self.ids_to_indices.get(&f) else {
-                continue;
-            };
+            let f_index = self.ids_to_indices[&f];
             for edge in self.graph.edges(f_index) {
                 let callee_id = self.indices_to_ids[&edge.target()];
                 if reachable.contains(&callee_id) && tainted.insert(callee_id) {
@@ -290,32 +288,30 @@ impl CallGraph {
         // Build in-degree map: number of non-tainted, reachable callers for each non-tainted function.
         let callers_map = self.callers();
         let mut in_degree: HashMap<FunctionId, usize> = HashMap::default();
-        for &f in reachable {
-            if tainted.contains(&f) {
+        for f in reachable {
+            if tainted.contains(f) {
                 continue;
             }
-            let bounded_callers = callers_map.get(&f).map_or(0, |callers| {
+            let bounded_callers = callers_map.get(f).map_or(0, |callers| {
                 callers.keys().filter(|c| reachable.contains(c) && !tainted.contains(c)).count()
             });
-            in_degree.insert(f, bounded_callers);
+            in_degree.insert(*f, bounded_callers);
         }
 
-        // Seed the BFS with root functions (no bounded callers → call-stack depth 1).
+        // Seed the BFS with root functions (no bounded callers -> call-stack depth 1).
         let mut depths: HashMap<FunctionId, usize> = HashMap::default();
         let mut queue: VecDeque<FunctionId> = VecDeque::new();
-        for (&f, &deg) in &in_degree {
-            if deg == 0 {
-                depths.insert(f, 1);
-                queue.push_back(f);
+        for (f, deg) in &in_degree {
+            if *deg == 0 {
+                depths.insert(*f, 1);
+                queue.push_back(*f);
             }
         }
 
         // Process the DAG in topological order, propagating the maximum depth.
         while let Some(f) = queue.pop_front() {
             let f_depth = depths[&f];
-            let Some(&f_index) = self.ids_to_indices.get(&f) else {
-                continue;
-            };
+            let f_index = self.ids_to_indices[&f];
             for edge in self.graph.edges(f_index) {
                 let callee_id = self.indices_to_ids[&edge.target()];
                 if !reachable.contains(&callee_id) || tainted.contains(&callee_id) {
@@ -324,7 +320,7 @@ impl CallGraph {
                 // Keep the maximum depth seen so far for this callee.
                 let callee_depth = depths.entry(callee_id).or_insert(0);
                 *callee_depth = (*callee_depth).max(f_depth + 1);
-
+                // When all callers have been processed for this callee, enqueue it for propagation.
                 let deg = in_degree.get_mut(&callee_id).unwrap();
                 *deg -= 1;
                 if *deg == 0 {
@@ -335,16 +331,15 @@ impl CallGraph {
 
         // Assemble the final result.
         let mut result: BTreeMap<FunctionId, Option<usize>> = BTreeMap::new();
-        for &f in reachable {
-            if tainted.contains(&f) {
-                result.insert(f, None);
-            } else if let Some(&d) = depths.get(&f) {
-                result.insert(f, Some(d));
-            }
-            // If a non-tainted function has no entry in `depths` it was unreachable within
-            // the non-tainted subgraph (e.g. dead code); treat it as depth 1.
-            else {
-                result.insert(f, Some(1));
+        for f in reachable {
+            if tainted.contains(f) {
+                result.insert(*f, None);
+            } else if let Some(&d) = depths.get(f) {
+                result.insert(*f, Some(d));
+            } else {
+                // If a non-tainted function has no entry in `depths` it was unreachable within
+                // the non-tainted subgraph (e.g. dead code); treat it as depth 1.
+                result.insert(*f, Some(1));
             }
         }
 
@@ -794,7 +789,7 @@ mod tests {
     // max_call_depths tests
     // -----------------------------------------------------------------------
 
-    /// Linear chain: f0 → f1 → f2 → f3
+    /// Linear chain: f0 -> f1 -> f2 -> f3
     /// f0 is the entry point (depth 1), so expected depths are 1, 2, 3, 4.
     #[test]
     fn max_call_depths_linear_chain() {
@@ -831,7 +826,7 @@ mod tests {
         assert_eq!(depths[&Id::test_new(3)], Some(4));
     }
 
-    /// Diamond: f0 → {f1, f2}, f1 → f3, f2 → f3.
+    /// Diamond: f0 -> {f1, f2}, f1 -> f3, f2 -> f3.
     /// f3 is reachable via two paths of equal length, max depth = 3.
     #[test]
     fn max_call_depths_diamond() {
@@ -895,18 +890,18 @@ mod tests {
         let reachable: BTreeSet<_> = [0, 1, 2].map(Id::test_new).into_iter().collect();
         let depths = call_graph.max_call_depths(&reachable);
 
-        // f0 is not recursive and has no recursive callers → bounded
+        // f0 is not recursive and has no recursive callers -> bounded
         assert_eq!(depths[&Id::test_new(0)], Some(1));
-        // f1 is self-recursive → unbounded
+        // f1 is self-recursive -> unbounded
         assert_eq!(depths[&Id::test_new(1)], None);
-        // f2 is called by recursive f1 → unbounded
+        // f2 is called by recursive f1 -> unbounded
         assert_eq!(depths[&Id::test_new(2)], None);
     }
 
-    /// f0 → f1 (recursive cycle) → f3 (leaf)
-    /// f0 → f2 (non-recursive) → f3
+    /// f0 -> f1 (recursive cycle) -> f3 (leaf)
+    /// f0 -> f2 (non-recursive) -> f3
     /// f3 is reachable from the recursive f1, so it must be None even though
-    /// it is also reachable via the non-recursive path f0 → f2 → f3.
+    /// it is also reachable via the non-recursive path f0 -> f2 -> f3.
     #[test]
     fn max_call_depths_shared_callee_of_recursive_and_non_recursive() {
         let src = "
@@ -945,8 +940,8 @@ mod tests {
     }
 
     /// Two independent entry points calling a shared leaf:
-    /// f0 (depth 1) → f2 → f3
-    /// f1 (depth 1) → f3
+    /// f0 (depth 1) -> f2 -> f3
+    /// f1 (depth 1) -> f3
     /// Max depth of f2 = 2, f3 = 3.
     #[test]
     fn max_call_depths_two_entry_points() {
