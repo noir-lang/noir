@@ -3,6 +3,71 @@ use crate::{
     ssa::ir::map::Id,
 };
 
+// Check that CheckMaxStackDepth is emitted for recursive functions and those reachable from them.
+#[test]
+fn brillig_check_max_stack_depth() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u32):
+        v2 = lt v0, u32 10
+        jmpif v2 then: b1(), else: b2()
+      b1():
+        v5 = add v0, u32 1
+        call f0(v5)
+        jmp b3()
+      b2():
+        call f1()
+        jmp b3()
+      b3():
+        return
+    }
+    brillig(inline) fn foo f1 {
+      b0():
+        call f2()
+        return
+    }
+    brillig(inline) fn bar f2 {
+      b0():
+        return
+    }
+    ";
+
+    let brillig = ssa_to_brillig_artifacts(src);
+    let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
+    assert_artifact_snapshot!(main, @r"
+    fn main
+     0: call 0 // -> CheckMaxStackDepth
+     1: sp[3] = u32 lt sp[2], @68
+     2: jump if sp[3] to 0 // -> 10: f0/b1
+     3: jump to 0 // -> 4: f0/b2
+     4: sp[2] = const u32 3 // f0/b2
+     5: sp[3] = @0
+     6: @0 = u32 add @0, sp[2]
+     7: call 0 // -> f1
+     8: @0 = sp[0]
+     9: jump to 0 // -> 21: f0/b3
+    10: sp[3] = u32 add sp[2], @67 // f0/b1
+    11: sp[4] = u32 lt_eq sp[2], sp[3]
+    12: jump if sp[4] to 0 // -> 14: f0/b1/1
+    13: call 0 // -> ErrorWithString
+    14: sp[2] = const u32 4 // f0/b1/1
+    15: sp[4] = @0
+    16: sp[6] = sp[3]
+    17: @0 = u32 add @0, sp[2]
+    18: call 0 // -> 0: f0
+    19: @0 = sp[0]
+    20: jump to 0 // -> 21: f0/b3
+    21: return // f0/b3
+    ");
+
+    let bar = &brillig.ssa_function_to_brillig[&Id::test_new(2)];
+    assert_artifact_snapshot!(bar, @r"
+    fn bar
+    0: call 0 // -> CheckMaxStackDepth
+    1: return
+    ");
+}
+
 // Tests AsVector intrinsic code-gen for Brillig.
 #[test]
 fn brillig_as_vector() {
