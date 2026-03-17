@@ -946,7 +946,7 @@ mod tests {
 
     /// Two independent entry points calling a shared leaf:
     /// f0 (depth 1) → f2 → f3
-    /// f1 (depth 1) → f2
+    /// f1 (depth 1) → f3
     /// Max depth of f2 = 2, f3 = 3.
     #[test]
     fn max_call_depths_two_entry_points() {
@@ -958,7 +958,7 @@ mod tests {
         }
         brillig(inline) fn f1 f1 {
           b0():
-            call f2()
+            call f3()
             return
         }
         brillig(inline) fn f2 f2 {
