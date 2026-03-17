@@ -61,25 +61,34 @@
 <a href=#61 id=61 data-nosnippet>61</a>        </span>f.unconstrained = <span class="bool-val">true</span>;
 <a href=#62 id=62 data-nosnippet>62</a>        <span class="comment">// Modify any function pointers it takes.
 <a href=#63 id=63 data-nosnippet>63</a>        </span><span class="kw">for </span>(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, typ, <span class="kw">_</span>) <span class="kw">in </span><span class="kw-2">&amp;mut </span>f.parameters {
-<a href=#64 id=64 data-nosnippet>64</a>            <span class="kw">if let </span>Type::Function(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, unconstrained) = types::unref_mut(typ) {
-<a href=#65 id=65 data-nosnippet>65</a>                <span class="kw-2">*</span>unconstrained = <span class="bool-val">true</span>;
-<a href=#66 id=66 data-nosnippet>66</a>            }
-<a href=#67 id=67 data-nosnippet>67</a>        }
-<a href=#68 id=68 data-nosnippet>68</a>        <span class="comment">// Modify the calls it makes (we don't call ACIR from Brillig).
-<a href=#69 id=69 data-nosnippet>69</a>        </span>visit_expr_mut(<span class="kw-2">&amp;mut </span>f.body, <span class="kw-2">&amp;mut </span>|expr| {
-<a href=#70 id=70 data-nosnippet>70</a>            <span class="kw">let </span>Expression::Call(Call { func, .. }) = expr <span class="kw">else </span>{
-<a href=#71 id=71 data-nosnippet>71</a>                <span class="kw">return </span><span class="bool-val">true</span>;
-<a href=#72 id=72 data-nosnippet>72</a>            };
-<a href=#73 id=73 data-nosnippet>73</a>            <span class="kw">let </span>Expression::Ident(Ident { typ, .. }) = expr::unref_mut(func.as_mut()) <span class="kw">else </span>{
-<a href=#74 id=74 data-nosnippet>74</a>                <span class="macro">unreachable!</span>(<span class="string">"functions are expected to be called by ident; got {func}"</span>);
-<a href=#75 id=75 data-nosnippet>75</a>            };
-<a href=#76 id=76 data-nosnippet>76</a>            <span class="kw">let </span>Type::Function(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, unconstrained) = types::unref_mut(typ) <span class="kw">else </span>{
-<a href=#77 id=77 data-nosnippet>77</a>                <span class="macro">unreachable!</span>(<span class="string">"function idents are expected to have Function type; got {typ}"</span>);
-<a href=#78 id=78 data-nosnippet>78</a>            };
-<a href=#79 id=79 data-nosnippet>79</a>            <span class="kw-2">*</span>unconstrained = <span class="bool-val">true</span>;
-<a href=#80 id=80 data-nosnippet>80</a>            <span class="bool-val">true
-<a href=#81 id=81 data-nosnippet>81</a>        </span>});
-<a href=#82 id=82 data-nosnippet>82</a>        f.handle_ownership();
-<a href=#83 id=83 data-nosnippet>83</a>    }
-<a href=#84 id=84 data-nosnippet>84</a>    program
-<a href=#85 id=85 data-nosnippet>85</a>}</code></pre></div></section></main></body></html>
+<a href=#64 id=64 data-nosnippet>64</a>            types::unref_mut_rc(typ, |unref_mut_typ| {
+<a href=#65 id=65 data-nosnippet>65</a>                <span class="kw">if let </span>Type::Function(args, ret, env, _unconstrained) = unref_mut_typ {
+<a href=#66 id=66 data-nosnippet>66</a>                    Type::Function(args, ret, env, <span class="bool-val">true</span>)
+<a href=#67 id=67 data-nosnippet>67</a>                } <span class="kw">else </span>{
+<a href=#68 id=68 data-nosnippet>68</a>                    unref_mut_typ
+<a href=#69 id=69 data-nosnippet>69</a>                }
+<a href=#70 id=70 data-nosnippet>70</a>            });
+<a href=#71 id=71 data-nosnippet>71</a>        }
+<a href=#72 id=72 data-nosnippet>72</a>        <span class="comment">// Modify the calls it makes (we don't call ACIR from Brillig).
+<a href=#73 id=73 data-nosnippet>73</a>        </span>visit_expr_mut(<span class="kw-2">&amp;mut </span>f.body, <span class="kw-2">&amp;mut </span>|expr| {
+<a href=#74 id=74 data-nosnippet>74</a>            <span class="kw">let </span>Expression::Call(Call { func, .. }) = expr <span class="kw">else </span>{
+<a href=#75 id=75 data-nosnippet>75</a>                <span class="kw">return </span><span class="bool-val">true</span>;
+<a href=#76 id=76 data-nosnippet>76</a>            };
+<a href=#77 id=77 data-nosnippet>77</a>            <span class="kw">let </span>Expression::Ident(Ident { typ, .. }) = expr::unref_mut(func.as_mut()) <span class="kw">else </span>{
+<a href=#78 id=78 data-nosnippet>78</a>                <span class="macro">unreachable!</span>(<span class="string">"functions are expected to be called by ident; got {func}"</span>);
+<a href=#79 id=79 data-nosnippet>79</a>            };
+<a href=#80 id=80 data-nosnippet>80</a>
+<a href=#81 id=81 data-nosnippet>81</a>            types::unref_mut_rc(typ, |unref_mut_typ| {
+<a href=#82 id=82 data-nosnippet>82</a>                <span class="kw">let </span>Type::Function(args, ret, env, _unconstrained) = unref_mut_typ <span class="kw">else </span>{
+<a href=#83 id=83 data-nosnippet>83</a>                    <span class="macro">unreachable!</span>(
+<a href=#84 id=84 data-nosnippet>84</a>                        <span class="string">"function idents are expected to have Function type; got {unref_mut_typ}"
+<a href=#85 id=85 data-nosnippet>85</a>                    </span>);
+<a href=#86 id=86 data-nosnippet>86</a>                };
+<a href=#87 id=87 data-nosnippet>87</a>                Type::Function(args, ret, env, <span class="bool-val">true</span>)
+<a href=#88 id=88 data-nosnippet>88</a>            });
+<a href=#89 id=89 data-nosnippet>89</a>            <span class="bool-val">true
+<a href=#90 id=90 data-nosnippet>90</a>        </span>});
+<a href=#91 id=91 data-nosnippet>91</a>        f.handle_ownership();
+<a href=#92 id=92 data-nosnippet>92</a>    }
+<a href=#93 id=93 data-nosnippet>93</a>    program
+<a href=#94 id=94 data-nosnippet>94</a>}</code></pre></div></section></main></body></html>

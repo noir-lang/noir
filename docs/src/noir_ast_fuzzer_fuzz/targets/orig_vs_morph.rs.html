@@ -87,215 +87,215 @@
 <a href=#87 id=87 data-nosnippet>87</a>    <span class="kw">fn </span>new(func: <span class="kw-2">&amp;</span>Function) -&gt; <span class="self">Self </span>{
 <a href=#88 id=88 data-nosnippet>88</a>        <span class="kw">let </span>(next_local_id, next_ident_id) = rewrite::next_local_and_ident_id(func);
 <a href=#89 id=89 data-nosnippet>89</a>
-<a href=#90 id=90 data-nosnippet>90</a>        <span class="kw">let </span>locals = ScopeStack::from_variables(
-<a href=#91 id=91 data-nosnippet>91</a>            func.parameters
-<a href=#92 id=92 data-nosnippet>92</a>                .iter()
-<a href=#93 id=93 data-nosnippet>93</a>                .map(|(id, mutable, name, typ, _vis)| (<span class="kw-2">*</span>id, <span class="kw-2">*</span>mutable, name.clone(), typ.clone())),
-<a href=#94 id=94 data-nosnippet>94</a>        );
-<a href=#95 id=95 data-nosnippet>95</a>
-<a href=#96 id=96 data-nosnippet>96</a>        <span class="self">Self </span>{ next_local_id, next_ident_id, locals }
-<a href=#97 id=97 data-nosnippet>97</a>    }
-<a href=#98 id=98 data-nosnippet>98</a>
-<a href=#99 id=99 data-nosnippet>99</a>    <span class="kw">fn </span>next_local_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; LocalId {
-<a href=#100 id=100 data-nosnippet>100</a>        <span class="kw">let </span>id = <span class="self">self</span>.next_local_id;
-<a href=#101 id=101 data-nosnippet>101</a>        <span class="self">self</span>.next_local_id += <span class="number">1</span>;
-<a href=#102 id=102 data-nosnippet>102</a>        LocalId(id)
-<a href=#103 id=103 data-nosnippet>103</a>    }
-<a href=#104 id=104 data-nosnippet>104</a>
-<a href=#105 id=105 data-nosnippet>105</a>    <span class="kw">fn </span>next_ident_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; IdentId {
-<a href=#106 id=106 data-nosnippet>106</a>        <span class="kw">let </span>id = <span class="self">self</span>.next_ident_id;
-<a href=#107 id=107 data-nosnippet>107</a>        <span class="self">self</span>.next_ident_id += <span class="number">1</span>;
-<a href=#108 id=108 data-nosnippet>108</a>        IdentId(id)
-<a href=#109 id=109 data-nosnippet>109</a>    }
-<a href=#110 id=110 data-nosnippet>110</a>}
-<a href=#111 id=111 data-nosnippet>111</a>
-<a href=#112 id=112 data-nosnippet>112</a><span class="doccomment">/// Recursively apply rules while keeping a tally on how many we have done.
-<a href=#113 id=113 data-nosnippet>113</a></span><span class="kw">struct </span>MorphContext&lt;<span class="lifetime">'a</span>&gt; {
-<a href=#114 id=114 data-nosnippet>114</a>    <span class="doccomment">/// Number of rewrites we want to achieve.
-<a href=#115 id=115 data-nosnippet>115</a>    </span>target: usize,
-<a href=#116 id=116 data-nosnippet>116</a>    <span class="doccomment">/// (Over)estimate of the maximum number we could hope to apply.
-<a href=#117 id=117 data-nosnippet>117</a>    </span>estimate: usize,
-<a href=#118 id=118 data-nosnippet>118</a>    <span class="doccomment">/// Number of rewrites applied so far, up to the `target`.
-<a href=#119 id=119 data-nosnippet>119</a>    </span>count: Cell&lt;usize&gt;,
-<a href=#120 id=120 data-nosnippet>120</a>    <span class="doccomment">/// Rules to apply.
-<a href=#121 id=121 data-nosnippet>121</a>    </span>rules: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[rules::Rule],
-<a href=#122 id=122 data-nosnippet>122</a>    <span class="doccomment">/// Book keeping for local variables.
-<a href=#123 id=123 data-nosnippet>123</a>    </span>vars: RefCell&lt;VariableContext&gt;,
-<a href=#124 id=124 data-nosnippet>124</a>}
-<a href=#125 id=125 data-nosnippet>125</a>
-<a href=#126 id=126 data-nosnippet>126</a><span class="kw">impl </span>MorphContext&lt;<span class="lifetime">'_</span>&gt; {
-<a href=#127 id=127 data-nosnippet>127</a>    <span class="doccomment">/// Check if we have reached the target.
-<a href=#128 id=128 data-nosnippet>128</a>    </span><span class="kw">fn </span>limit_reached(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-<a href=#129 id=129 data-nosnippet>129</a>        <span class="self">self</span>.target == <span class="number">0 </span>|| <span class="self">self</span>.estimate == <span class="number">0 </span>|| <span class="self">self</span>.count.get() == <span class="self">self</span>.target
-<a href=#130 id=130 data-nosnippet>130</a>    }
-<a href=#131 id=131 data-nosnippet>131</a>
-<a href=#132 id=132 data-nosnippet>132</a>    <span class="kw">fn </span>rewrite_expr(<span class="kw-2">&amp;</span><span class="self">self</span>, ctx: <span class="kw-2">&amp;</span>rules::Context, u: <span class="kw-2">&amp;mut </span>Unstructured, expr: <span class="kw-2">&amp;mut </span>Expression) {
-<a href=#133 id=133 data-nosnippet>133</a>        visit_expr_be_mut(
-<a href=#134 id=134 data-nosnippet>134</a>            expr,
-<a href=#135 id=135 data-nosnippet>135</a>            <span class="kw-2">&amp;mut </span>|expr: <span class="kw-2">&amp;mut </span>Expression| {
-<a href=#136 id=136 data-nosnippet>136</a>                <span class="kw">if </span><span class="self">self</span>.limit_reached() {
-<a href=#137 id=137 data-nosnippet>137</a>                    <span class="kw">return </span>(<span class="bool-val">false</span>, <span class="bool-val">false</span>);
-<a href=#138 id=138 data-nosnippet>138</a>                }
-<a href=#139 id=139 data-nosnippet>139</a>
-<a href=#140 id=140 data-nosnippet>140</a>                <span class="comment">// Check if we are entering a new scope.
-<a href=#141 id=141 data-nosnippet>141</a>                </span><span class="kw">let </span>entered = <span class="macro">matches!</span>(
-<a href=#142 id=142 data-nosnippet>142</a>                    expr,
-<a href=#143 id=143 data-nosnippet>143</a>                    Expression::Block(<span class="kw">_</span>)
-<a href=#144 id=144 data-nosnippet>144</a>                        | Expression::For(<span class="kw">_</span>)
-<a href=#145 id=145 data-nosnippet>145</a>                        | Expression::Loop(<span class="kw">_</span>)
-<a href=#146 id=146 data-nosnippet>146</a>                        | Expression::While(<span class="kw">_</span>)
-<a href=#147 id=147 data-nosnippet>147</a>                        | Expression::If(<span class="kw">_</span>)
-<a href=#148 id=148 data-nosnippet>148</a>                );
-<a href=#149 id=149 data-nosnippet>149</a>
-<a href=#150 id=150 data-nosnippet>150</a>                <span class="kw">if </span>entered {
-<a href=#151 id=151 data-nosnippet>151</a>                    <span class="self">self</span>.vars.borrow_mut().locals.enter();
-<a href=#152 id=152 data-nosnippet>152</a>                }
-<a href=#153 id=153 data-nosnippet>153</a>
-<a href=#154 id=154 data-nosnippet>154</a>                <span class="comment">// We apply the rules on this expression, but its
-<a href=#155 id=155 data-nosnippet>155</a>                // children will be visited after this call.
-<a href=#156 id=156 data-nosnippet>156</a>                </span><span class="kw">let </span>cont = <span class="self">self</span>.apply_rules(ctx, u, expr);
-<a href=#157 id=157 data-nosnippet>157</a>
-<a href=#158 id=158 data-nosnippet>158</a>                (cont, entered)
-<a href=#159 id=159 data-nosnippet>159</a>            },
-<a href=#160 id=160 data-nosnippet>160</a>            <span class="kw-2">&amp;mut </span>|expr, entered| {
-<a href=#161 id=161 data-nosnippet>161</a>                <span class="comment">// A `let` variable becomes visible *after* we have have processed all its children,
-<a href=#162 id=162 data-nosnippet>162</a>                // so, only its siblings can see it.
-<a href=#163 id=163 data-nosnippet>163</a>                </span><span class="kw">if let </span>Expression::Let(let_) = expr {
-<a href=#164 id=164 data-nosnippet>164</a>                    <span class="kw">let </span>typ = let_.expression.return_type().expect(<span class="string">"let should have a type"</span>);
-<a href=#165 id=165 data-nosnippet>165</a>                    <span class="self">self</span>.vars.borrow_mut().locals.add(
-<a href=#166 id=166 data-nosnippet>166</a>                        let_.id,
-<a href=#167 id=167 data-nosnippet>167</a>                        let_.mutable,
-<a href=#168 id=168 data-nosnippet>168</a>                        let_.name.clone(),
-<a href=#169 id=169 data-nosnippet>169</a>                        typ.into_owned(),
-<a href=#170 id=170 data-nosnippet>170</a>                    );
-<a href=#171 id=171 data-nosnippet>171</a>                }
-<a href=#172 id=172 data-nosnippet>172</a>                <span class="kw">if </span>entered {
-<a href=#173 id=173 data-nosnippet>173</a>                    <span class="self">self</span>.vars.borrow_mut().locals.exit();
-<a href=#174 id=174 data-nosnippet>174</a>                }
-<a href=#175 id=175 data-nosnippet>175</a>            },
-<a href=#176 id=176 data-nosnippet>176</a>            <span class="kw-2">&amp;mut </span>|<span class="kw">_</span>| {},
-<a href=#177 id=177 data-nosnippet>177</a>        );
-<a href=#178 id=178 data-nosnippet>178</a>    }
-<a href=#179 id=179 data-nosnippet>179</a>
-<a href=#180 id=180 data-nosnippet>180</a>    <span class="kw">fn </span>apply_rules(
-<a href=#181 id=181 data-nosnippet>181</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#182 id=182 data-nosnippet>182</a>        ctx: <span class="kw-2">&amp;</span>rules::Context,
-<a href=#183 id=183 data-nosnippet>183</a>        u: <span class="kw-2">&amp;mut </span>Unstructured,
-<a href=#184 id=184 data-nosnippet>184</a>        expr: <span class="kw-2">&amp;mut </span>Expression,
-<a href=#185 id=185 data-nosnippet>185</a>    ) -&gt; bool {
-<a href=#186 id=186 data-nosnippet>186</a>        <span class="kw">match </span>expr {
-<a href=#187 id=187 data-nosnippet>187</a>            Expression::For(for_) =&gt; {
-<a href=#188 id=188 data-nosnippet>188</a>                <span class="comment">// Separate context for just the ranges.
-<a href=#189 id=189 data-nosnippet>189</a>                </span><span class="kw">let </span>range_ctx = rules::Context { is_in_range: <span class="bool-val">true</span>, ..<span class="kw-2">*</span>ctx };
-<a href=#190 id=190 data-nosnippet>190</a>                <span class="self">self</span>.rewrite_expr(<span class="kw-2">&amp;</span>range_ctx, u, <span class="kw-2">&amp;mut </span>for_.start_range);
-<a href=#191 id=191 data-nosnippet>191</a>                <span class="self">self</span>.rewrite_expr(<span class="kw-2">&amp;</span>range_ctx, u, <span class="kw-2">&amp;mut </span>for_.end_range);
-<a href=#192 id=192 data-nosnippet>192</a>                <span class="comment">// Original context for the body.
-<a href=#193 id=193 data-nosnippet>193</a>                </span><span class="self">self</span>.vars.borrow_mut().locals.add(
-<a href=#194 id=194 data-nosnippet>194</a>                    for_.index_variable,
-<a href=#195 id=195 data-nosnippet>195</a>                    <span class="bool-val">false</span>,
-<a href=#196 id=196 data-nosnippet>196</a>                    for_.index_name.clone(),
-<a href=#197 id=197 data-nosnippet>197</a>                    for_.index_type.clone(),
-<a href=#198 id=198 data-nosnippet>198</a>                );
-<a href=#199 id=199 data-nosnippet>199</a>                <span class="self">self</span>.rewrite_expr(ctx, u, <span class="kw-2">&amp;mut </span>for_.block);
-<a href=#200 id=200 data-nosnippet>200</a>                <span class="self">self</span>.vars.borrow_mut().locals.remove(<span class="kw-2">&amp;</span>for_.index_variable);
-<a href=#201 id=201 data-nosnippet>201</a>                <span class="comment">// No need to visit children, we just visited them.
-<a href=#202 id=202 data-nosnippet>202</a>                </span><span class="bool-val">false
-<a href=#203 id=203 data-nosnippet>203</a>            </span>}
-<a href=#204 id=204 data-nosnippet>204</a>            Expression::Unary(
-<a href=#205 id=205 data-nosnippet>205</a>                unary @ Unary { operator: UnaryOp::Reference { mutable: <span class="bool-val">true </span>}, .. },
-<a href=#206 id=206 data-nosnippet>206</a>            ) =&gt; {
-<a href=#207 id=207 data-nosnippet>207</a>                <span class="kw">let </span>ctx = rules::Context { is_in_ref_mut: <span class="bool-val">true</span>, ..<span class="kw-2">*</span>ctx };
-<a href=#208 id=208 data-nosnippet>208</a>                <span class="self">self</span>.rewrite_expr(<span class="kw-2">&amp;</span>ctx, u, <span class="kw-2">&amp;mut </span>unary.rhs);
-<a href=#209 id=209 data-nosnippet>209</a>                <span class="bool-val">false
-<a href=#210 id=210 data-nosnippet>210</a>            </span>}
-<a href=#211 id=211 data-nosnippet>211</a>            Expression::Call(call) <span class="kw">if </span>is_special_call(call) =&gt; {
-<a href=#212 id=212 data-nosnippet>212</a>                <span class="kw">let </span>ctx = rules::Context { is_in_special_call: <span class="bool-val">true</span>, ..<span class="kw-2">*</span>ctx };
-<a href=#213 id=213 data-nosnippet>213</a>                <span class="kw">for </span>arg <span class="kw">in </span>call.arguments.iter_mut() {
-<a href=#214 id=214 data-nosnippet>214</a>                    <span class="self">self</span>.rewrite_expr(<span class="kw-2">&amp;</span>ctx, u, arg);
-<a href=#215 id=215 data-nosnippet>215</a>                }
-<a href=#216 id=216 data-nosnippet>216</a>                <span class="bool-val">false
-<a href=#217 id=217 data-nosnippet>217</a>            </span>}
-<a href=#218 id=218 data-nosnippet>218</a>            <span class="comment">// The rest can just have the rules applied on them, using the same context.
-<a href=#219 id=219 data-nosnippet>219</a>            </span><span class="kw">_ </span>=&gt; {
-<a href=#220 id=220 data-nosnippet>220</a>                <span class="kw">for </span>rule <span class="kw">in </span><span class="self">self</span>.rules {
-<a href=#221 id=221 data-nosnippet>221</a>                    <span class="kw">match </span><span class="self">self</span>.try_apply_rule(ctx, u, expr, rule) {
-<a href=#222 id=222 data-nosnippet>222</a>                        <span class="prelude-val">Ok</span>(<span class="bool-val">false</span>) =&gt; {
-<a href=#223 id=223 data-nosnippet>223</a>                            <span class="comment">// We couldn't, or decided not to apply this rule; try the next one.
-<a href=#224 id=224 data-nosnippet>224</a>                            </span><span class="kw">continue</span>;
-<a href=#225 id=225 data-nosnippet>225</a>                        }
-<a href=#226 id=226 data-nosnippet>226</a>                        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; {
-<a href=#227 id=227 data-nosnippet>227</a>                            <span class="comment">// We ran out of randomness; stop visiting the AST.
-<a href=#228 id=228 data-nosnippet>228</a>                            </span><span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#229 id=229 data-nosnippet>229</a>                        }
-<a href=#230 id=230 data-nosnippet>230</a>
-<a href=#231 id=231 data-nosnippet>231</a>                        <span class="prelude-val">Ok</span>(<span class="bool-val">true</span>) =&gt; {
-<a href=#232 id=232 data-nosnippet>232</a>                            <span class="comment">// We applied a rule on this expression.
-<a href=#233 id=233 data-nosnippet>233</a>                            </span><span class="self">self</span>.count.set(<span class="self">self</span>.count.get() + <span class="number">1</span>);
-<a href=#234 id=234 data-nosnippet>234</a>                            <span class="comment">// We could visit the children of this morphed expression, which could result in repeatedly applying
-<a href=#235 id=235 data-nosnippet>235</a>                            // the same rule over and over again. When we have 100% application rate (e.g. a small function),
-<a href=#236 id=236 data-nosnippet>236</a>                            // it would be wasting all the potential on the first rule that matched, e.g. `(x - (0 + (0 - 0)))`.
-<a href=#237 id=237 data-nosnippet>237</a>                            // It would also throw off the estimate if we introduce new items on which we can apply rules.
-<a href=#238 id=238 data-nosnippet>238</a>                            </span><span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#239 id=239 data-nosnippet>239</a>                        }
-<a href=#240 id=240 data-nosnippet>240</a>                    }
-<a href=#241 id=241 data-nosnippet>241</a>                }
-<a href=#242 id=242 data-nosnippet>242</a>                <span class="comment">// If we made it this far, we did not apply any rule, so look deeper in the AST.
-<a href=#243 id=243 data-nosnippet>243</a>                </span><span class="bool-val">true
-<a href=#244 id=244 data-nosnippet>244</a>            </span>}
-<a href=#245 id=245 data-nosnippet>245</a>        }
-<a href=#246 id=246 data-nosnippet>246</a>    }
-<a href=#247 id=247 data-nosnippet>247</a>
-<a href=#248 id=248 data-nosnippet>248</a>    <span class="doccomment">/// Check if a rule can be applied on an expression. If it can, apply it based on some arbitrary
-<a href=#249 id=249 data-nosnippet>249</a>    /// criteria, returning a flag showing whether it was applied.
-<a href=#250 id=250 data-nosnippet>250</a>    </span><span class="kw">fn </span>try_apply_rule(
-<a href=#251 id=251 data-nosnippet>251</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#252 id=252 data-nosnippet>252</a>        ctx: <span class="kw-2">&amp;</span>rules::Context,
-<a href=#253 id=253 data-nosnippet>253</a>        u: <span class="kw-2">&amp;mut </span>Unstructured,
-<a href=#254 id=254 data-nosnippet>254</a>        expr: <span class="kw-2">&amp;mut </span>Expression,
-<a href=#255 id=255 data-nosnippet>255</a>        rule: <span class="kw-2">&amp;</span>rules::Rule,
-<a href=#256 id=256 data-nosnippet>256</a>    ) -&gt; arbitrary::Result&lt;bool&gt; {
-<a href=#257 id=257 data-nosnippet>257</a>        <span class="kw">if </span>rule.matches(ctx, expr) &amp;&amp; u.ratio(<span class="self">self</span>.target, <span class="self">self</span>.estimate)<span class="question-mark">? </span>{
-<a href=#258 id=258 data-nosnippet>258</a>            rule.rewrite(u, <span class="kw-2">&amp;mut </span><span class="self">self</span>.vars.borrow_mut(), expr)<span class="question-mark">?</span>;
-<a href=#259 id=259 data-nosnippet>259</a>            <span class="prelude-val">Ok</span>(<span class="bool-val">true</span>)
-<a href=#260 id=260 data-nosnippet>260</a>        } <span class="kw">else </span>{
-<a href=#261 id=261 data-nosnippet>261</a>            <span class="prelude-val">Ok</span>(<span class="bool-val">false</span>)
-<a href=#262 id=262 data-nosnippet>262</a>        }
-<a href=#263 id=263 data-nosnippet>263</a>    }
-<a href=#264 id=264 data-nosnippet>264</a>}
-<a href=#265 id=265 data-nosnippet>265</a>
-<a href=#266 id=266 data-nosnippet>266</a><span class="doccomment">/// Provide a rough estimate for how many rules can be applied.
-<a href=#267 id=267 data-nosnippet>267</a>///
-<a href=#268 id=268 data-nosnippet>268</a>/// It will overestimate, because it ignores the finer points of when a rule can match.
-<a href=#269 id=269 data-nosnippet>269</a></span><span class="kw">fn </span>estimate_applicable_rules(
-<a href=#270 id=270 data-nosnippet>270</a>    ctx: <span class="kw-2">&amp;</span>rules::Context,
-<a href=#271 id=271 data-nosnippet>271</a>    expr: <span class="kw-2">&amp;</span>Expression,
-<a href=#272 id=272 data-nosnippet>272</a>    rules: <span class="kw-2">&amp;</span>[rules::Rule],
-<a href=#273 id=273 data-nosnippet>273</a>) -&gt; usize {
-<a href=#274 id=274 data-nosnippet>274</a>    <span class="kw">let </span><span class="kw-2">mut </span>count = <span class="number">0</span>;
-<a href=#275 id=275 data-nosnippet>275</a>    visit_expr(expr, <span class="kw-2">&amp;mut </span>|expr| {
-<a href=#276 id=276 data-nosnippet>276</a>        <span class="kw">for </span>rule <span class="kw">in </span>rules {
-<a href=#277 id=277 data-nosnippet>277</a>            <span class="kw">if </span>rule.matches(ctx, expr) {
-<a href=#278 id=278 data-nosnippet>278</a>                count += <span class="number">1</span>;
-<a href=#279 id=279 data-nosnippet>279</a>            }
-<a href=#280 id=280 data-nosnippet>280</a>        }
-<a href=#281 id=281 data-nosnippet>281</a>        <span class="bool-val">true
-<a href=#282 id=282 data-nosnippet>282</a>    </span>});
-<a href=#283 id=283 data-nosnippet>283</a>    count
-<a href=#284 id=284 data-nosnippet>284</a>}
-<a href=#285 id=285 data-nosnippet>285</a>
-<a href=#286 id=286 data-nosnippet>286</a><span class="doccomment">/// Check if we are calling an oracle or builtin function.
-<a href=#287 id=287 data-nosnippet>287</a></span><span class="kw">fn </span>is_special_call(call: <span class="kw-2">&amp;</span>Call) -&gt; bool {
-<a href=#288 id=288 data-nosnippet>288</a>    <span class="macro">matches!</span>(
-<a href=#289 id=289 data-nosnippet>289</a>        call.func.as_ref(),
-<a href=#290 id=290 data-nosnippet>290</a>        Expression::Ident(Ident {
-<a href=#291 id=291 data-nosnippet>291</a>            definition: Definition::Oracle(<span class="kw">_</span>) | Definition::Builtin(<span class="kw">_</span>) | Definition::LowLevel(<span class="kw">_</span>),
-<a href=#292 id=292 data-nosnippet>292</a>            ..
-<a href=#293 id=293 data-nosnippet>293</a>        })
-<a href=#294 id=294 data-nosnippet>294</a>    )
-<a href=#295 id=295 data-nosnippet>295</a>}
-<a href=#296 id=296 data-nosnippet>296</a>
-<a href=#297 id=297 data-nosnippet>297</a><span class="doccomment">/// Metamorphic transformation rules.
-<a href=#298 id=298 data-nosnippet>298</a></span><span class="kw">mod </span>rules {
+<a href=#90 id=90 data-nosnippet>90</a>        <span class="kw">let </span>locals = ScopeStack::from_variables(func.parameters.iter().map(
+<a href=#91 id=91 data-nosnippet>91</a>            |(id, mutable, name, typ, _vis)| (<span class="kw-2">*</span>id, <span class="kw-2">*</span>mutable, name.clone(), typ.as_ref().clone()),
+<a href=#92 id=92 data-nosnippet>92</a>        ));
+<a href=#93 id=93 data-nosnippet>93</a>
+<a href=#94 id=94 data-nosnippet>94</a>        <span class="self">Self </span>{ next_local_id, next_ident_id, locals }
+<a href=#95 id=95 data-nosnippet>95</a>    }
+<a href=#96 id=96 data-nosnippet>96</a>
+<a href=#97 id=97 data-nosnippet>97</a>    <span class="kw">fn </span>next_local_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; LocalId {
+<a href=#98 id=98 data-nosnippet>98</a>        <span class="kw">let </span>id = <span class="self">self</span>.next_local_id;
+<a href=#99 id=99 data-nosnippet>99</a>        <span class="self">self</span>.next_local_id += <span class="number">1</span>;
+<a href=#100 id=100 data-nosnippet>100</a>        LocalId(id)
+<a href=#101 id=101 data-nosnippet>101</a>    }
+<a href=#102 id=102 data-nosnippet>102</a>
+<a href=#103 id=103 data-nosnippet>103</a>    <span class="kw">fn </span>next_ident_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; IdentId {
+<a href=#104 id=104 data-nosnippet>104</a>        <span class="kw">let </span>id = <span class="self">self</span>.next_ident_id;
+<a href=#105 id=105 data-nosnippet>105</a>        <span class="self">self</span>.next_ident_id += <span class="number">1</span>;
+<a href=#106 id=106 data-nosnippet>106</a>        IdentId(id)
+<a href=#107 id=107 data-nosnippet>107</a>    }
+<a href=#108 id=108 data-nosnippet>108</a>}
+<a href=#109 id=109 data-nosnippet>109</a>
+<a href=#110 id=110 data-nosnippet>110</a><span class="doccomment">/// Recursively apply rules while keeping a tally on how many we have done.
+<a href=#111 id=111 data-nosnippet>111</a></span><span class="kw">struct </span>MorphContext&lt;<span class="lifetime">'a</span>&gt; {
+<a href=#112 id=112 data-nosnippet>112</a>    <span class="doccomment">/// Number of rewrites we want to achieve.
+<a href=#113 id=113 data-nosnippet>113</a>    </span>target: usize,
+<a href=#114 id=114 data-nosnippet>114</a>    <span class="doccomment">/// (Over)estimate of the maximum number we could hope to apply.
+<a href=#115 id=115 data-nosnippet>115</a>    </span>estimate: usize,
+<a href=#116 id=116 data-nosnippet>116</a>    <span class="doccomment">/// Number of rewrites applied so far, up to the `target`.
+<a href=#117 id=117 data-nosnippet>117</a>    </span>count: Cell&lt;usize&gt;,
+<a href=#118 id=118 data-nosnippet>118</a>    <span class="doccomment">/// Rules to apply.
+<a href=#119 id=119 data-nosnippet>119</a>    </span>rules: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[rules::Rule],
+<a href=#120 id=120 data-nosnippet>120</a>    <span class="doccomment">/// Book keeping for local variables.
+<a href=#121 id=121 data-nosnippet>121</a>    </span>vars: RefCell&lt;VariableContext&gt;,
+<a href=#122 id=122 data-nosnippet>122</a>}
+<a href=#123 id=123 data-nosnippet>123</a>
+<a href=#124 id=124 data-nosnippet>124</a><span class="kw">impl </span>MorphContext&lt;<span class="lifetime">'_</span>&gt; {
+<a href=#125 id=125 data-nosnippet>125</a>    <span class="doccomment">/// Check if we have reached the target.
+<a href=#126 id=126 data-nosnippet>126</a>    </span><span class="kw">fn </span>limit_reached(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+<a href=#127 id=127 data-nosnippet>127</a>        <span class="self">self</span>.target == <span class="number">0 </span>|| <span class="self">self</span>.estimate == <span class="number">0 </span>|| <span class="self">self</span>.count.get() == <span class="self">self</span>.target
+<a href=#128 id=128 data-nosnippet>128</a>    }
+<a href=#129 id=129 data-nosnippet>129</a>
+<a href=#130 id=130 data-nosnippet>130</a>    <span class="kw">fn </span>rewrite_expr(<span class="kw-2">&amp;</span><span class="self">self</span>, ctx: <span class="kw-2">&amp;</span>rules::Context, u: <span class="kw-2">&amp;mut </span>Unstructured, expr: <span class="kw-2">&amp;mut </span>Expression) {
+<a href=#131 id=131 data-nosnippet>131</a>        visit_expr_be_mut(
+<a href=#132 id=132 data-nosnippet>132</a>            expr,
+<a href=#133 id=133 data-nosnippet>133</a>            <span class="kw-2">&amp;mut </span>|expr: <span class="kw-2">&amp;mut </span>Expression| {
+<a href=#134 id=134 data-nosnippet>134</a>                <span class="kw">if </span><span class="self">self</span>.limit_reached() {
+<a href=#135 id=135 data-nosnippet>135</a>                    <span class="kw">return </span>(<span class="bool-val">false</span>, <span class="bool-val">false</span>);
+<a href=#136 id=136 data-nosnippet>136</a>                }
+<a href=#137 id=137 data-nosnippet>137</a>
+<a href=#138 id=138 data-nosnippet>138</a>                <span class="comment">// Check if we are entering a new scope.
+<a href=#139 id=139 data-nosnippet>139</a>                </span><span class="kw">let </span>entered = <span class="macro">matches!</span>(
+<a href=#140 id=140 data-nosnippet>140</a>                    expr,
+<a href=#141 id=141 data-nosnippet>141</a>                    Expression::Block(<span class="kw">_</span>)
+<a href=#142 id=142 data-nosnippet>142</a>                        | Expression::For(<span class="kw">_</span>)
+<a href=#143 id=143 data-nosnippet>143</a>                        | Expression::Loop(<span class="kw">_</span>)
+<a href=#144 id=144 data-nosnippet>144</a>                        | Expression::While(<span class="kw">_</span>)
+<a href=#145 id=145 data-nosnippet>145</a>                        | Expression::If(<span class="kw">_</span>)
+<a href=#146 id=146 data-nosnippet>146</a>                );
+<a href=#147 id=147 data-nosnippet>147</a>
+<a href=#148 id=148 data-nosnippet>148</a>                <span class="kw">if </span>entered {
+<a href=#149 id=149 data-nosnippet>149</a>                    <span class="self">self</span>.vars.borrow_mut().locals.enter();
+<a href=#150 id=150 data-nosnippet>150</a>                }
+<a href=#151 id=151 data-nosnippet>151</a>
+<a href=#152 id=152 data-nosnippet>152</a>                <span class="comment">// We apply the rules on this expression, but its
+<a href=#153 id=153 data-nosnippet>153</a>                // children will be visited after this call.
+<a href=#154 id=154 data-nosnippet>154</a>                </span><span class="kw">let </span>cont = <span class="self">self</span>.apply_rules(ctx, u, expr);
+<a href=#155 id=155 data-nosnippet>155</a>
+<a href=#156 id=156 data-nosnippet>156</a>                (cont, entered)
+<a href=#157 id=157 data-nosnippet>157</a>            },
+<a href=#158 id=158 data-nosnippet>158</a>            <span class="kw-2">&amp;mut </span>|expr, entered| {
+<a href=#159 id=159 data-nosnippet>159</a>                <span class="comment">// A `let` variable becomes visible *after* we have have processed all its children,
+<a href=#160 id=160 data-nosnippet>160</a>                // so, only its siblings can see it.
+<a href=#161 id=161 data-nosnippet>161</a>                </span><span class="kw">if let </span>Expression::Let(let_) = expr {
+<a href=#162 id=162 data-nosnippet>162</a>                    <span class="kw">let </span>typ = let_.expression.return_type().expect(<span class="string">"let should have a type"</span>);
+<a href=#163 id=163 data-nosnippet>163</a>                    <span class="self">self</span>.vars.borrow_mut().locals.add(
+<a href=#164 id=164 data-nosnippet>164</a>                        let_.id,
+<a href=#165 id=165 data-nosnippet>165</a>                        let_.mutable,
+<a href=#166 id=166 data-nosnippet>166</a>                        let_.name.clone(),
+<a href=#167 id=167 data-nosnippet>167</a>                        typ.into_owned(),
+<a href=#168 id=168 data-nosnippet>168</a>                    );
+<a href=#169 id=169 data-nosnippet>169</a>                }
+<a href=#170 id=170 data-nosnippet>170</a>                <span class="kw">if </span>entered {
+<a href=#171 id=171 data-nosnippet>171</a>                    <span class="self">self</span>.vars.borrow_mut().locals.exit();
+<a href=#172 id=172 data-nosnippet>172</a>                }
+<a href=#173 id=173 data-nosnippet>173</a>            },
+<a href=#174 id=174 data-nosnippet>174</a>            <span class="kw-2">&amp;mut </span>|<span class="kw">_</span>| {},
+<a href=#175 id=175 data-nosnippet>175</a>        );
+<a href=#176 id=176 data-nosnippet>176</a>    }
+<a href=#177 id=177 data-nosnippet>177</a>
+<a href=#178 id=178 data-nosnippet>178</a>    <span class="kw">fn </span>apply_rules(
+<a href=#179 id=179 data-nosnippet>179</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#180 id=180 data-nosnippet>180</a>        ctx: <span class="kw-2">&amp;</span>rules::Context,
+<a href=#181 id=181 data-nosnippet>181</a>        u: <span class="kw-2">&amp;mut </span>Unstructured,
+<a href=#182 id=182 data-nosnippet>182</a>        expr: <span class="kw-2">&amp;mut </span>Expression,
+<a href=#183 id=183 data-nosnippet>183</a>    ) -&gt; bool {
+<a href=#184 id=184 data-nosnippet>184</a>        <span class="kw">match </span>expr {
+<a href=#185 id=185 data-nosnippet>185</a>            Expression::For(for_) =&gt; {
+<a href=#186 id=186 data-nosnippet>186</a>                <span class="comment">// Separate context for just the ranges.
+<a href=#187 id=187 data-nosnippet>187</a>                </span><span class="kw">let </span>range_ctx = rules::Context { is_in_range: <span class="bool-val">true</span>, ..<span class="kw-2">*</span>ctx };
+<a href=#188 id=188 data-nosnippet>188</a>                <span class="self">self</span>.rewrite_expr(<span class="kw-2">&amp;</span>range_ctx, u, <span class="kw-2">&amp;mut </span>for_.start_range);
+<a href=#189 id=189 data-nosnippet>189</a>                <span class="self">self</span>.rewrite_expr(<span class="kw-2">&amp;</span>range_ctx, u, <span class="kw-2">&amp;mut </span>for_.end_range);
+<a href=#190 id=190 data-nosnippet>190</a>                <span class="comment">// Original context for the body.
+<a href=#191 id=191 data-nosnippet>191</a>                </span><span class="self">self</span>.vars.borrow_mut().locals.add(
+<a href=#192 id=192 data-nosnippet>192</a>                    for_.index_variable,
+<a href=#193 id=193 data-nosnippet>193</a>                    <span class="bool-val">false</span>,
+<a href=#194 id=194 data-nosnippet>194</a>                    for_.index_name.clone(),
+<a href=#195 id=195 data-nosnippet>195</a>                    for_.index_type.clone(),
+<a href=#196 id=196 data-nosnippet>196</a>                );
+<a href=#197 id=197 data-nosnippet>197</a>                <span class="self">self</span>.rewrite_expr(ctx, u, <span class="kw-2">&amp;mut </span>for_.block);
+<a href=#198 id=198 data-nosnippet>198</a>                <span class="self">self</span>.vars.borrow_mut().locals.remove(<span class="kw-2">&amp;</span>for_.index_variable);
+<a href=#199 id=199 data-nosnippet>199</a>                <span class="comment">// No need to visit children, we just visited them.
+<a href=#200 id=200 data-nosnippet>200</a>                </span><span class="bool-val">false
+<a href=#201 id=201 data-nosnippet>201</a>            </span>}
+<a href=#202 id=202 data-nosnippet>202</a>            Expression::Unary(
+<a href=#203 id=203 data-nosnippet>203</a>                unary @ Unary { operator: UnaryOp::Reference { mutable: <span class="bool-val">true </span>}, .. },
+<a href=#204 id=204 data-nosnippet>204</a>            ) =&gt; {
+<a href=#205 id=205 data-nosnippet>205</a>                <span class="kw">let </span>ctx = rules::Context { is_in_ref_mut: <span class="bool-val">true</span>, ..<span class="kw-2">*</span>ctx };
+<a href=#206 id=206 data-nosnippet>206</a>                <span class="self">self</span>.rewrite_expr(<span class="kw-2">&amp;</span>ctx, u, <span class="kw-2">&amp;mut </span>unary.rhs);
+<a href=#207 id=207 data-nosnippet>207</a>                <span class="bool-val">false
+<a href=#208 id=208 data-nosnippet>208</a>            </span>}
+<a href=#209 id=209 data-nosnippet>209</a>            Expression::Call(call) <span class="kw">if </span>is_special_call(call) =&gt; {
+<a href=#210 id=210 data-nosnippet>210</a>                <span class="kw">let </span>ctx = rules::Context { is_in_special_call: <span class="bool-val">true</span>, ..<span class="kw-2">*</span>ctx };
+<a href=#211 id=211 data-nosnippet>211</a>                <span class="kw">for </span>arg <span class="kw">in </span>call.arguments.iter_mut() {
+<a href=#212 id=212 data-nosnippet>212</a>                    <span class="self">self</span>.rewrite_expr(<span class="kw-2">&amp;</span>ctx, u, arg);
+<a href=#213 id=213 data-nosnippet>213</a>                }
+<a href=#214 id=214 data-nosnippet>214</a>                <span class="bool-val">false
+<a href=#215 id=215 data-nosnippet>215</a>            </span>}
+<a href=#216 id=216 data-nosnippet>216</a>            <span class="comment">// The rest can just have the rules applied on them, using the same context.
+<a href=#217 id=217 data-nosnippet>217</a>            </span><span class="kw">_ </span>=&gt; {
+<a href=#218 id=218 data-nosnippet>218</a>                <span class="kw">for </span>rule <span class="kw">in </span><span class="self">self</span>.rules {
+<a href=#219 id=219 data-nosnippet>219</a>                    <span class="kw">match </span><span class="self">self</span>.try_apply_rule(ctx, u, expr, rule) {
+<a href=#220 id=220 data-nosnippet>220</a>                        <span class="prelude-val">Ok</span>(<span class="bool-val">false</span>) =&gt; {
+<a href=#221 id=221 data-nosnippet>221</a>                            <span class="comment">// We couldn't, or decided not to apply this rule; try the next one.
+<a href=#222 id=222 data-nosnippet>222</a>                            </span><span class="kw">continue</span>;
+<a href=#223 id=223 data-nosnippet>223</a>                        }
+<a href=#224 id=224 data-nosnippet>224</a>                        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; {
+<a href=#225 id=225 data-nosnippet>225</a>                            <span class="comment">// We ran out of randomness; stop visiting the AST.
+<a href=#226 id=226 data-nosnippet>226</a>                            </span><span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#227 id=227 data-nosnippet>227</a>                        }
+<a href=#228 id=228 data-nosnippet>228</a>
+<a href=#229 id=229 data-nosnippet>229</a>                        <span class="prelude-val">Ok</span>(<span class="bool-val">true</span>) =&gt; {
+<a href=#230 id=230 data-nosnippet>230</a>                            <span class="comment">// We applied a rule on this expression.
+<a href=#231 id=231 data-nosnippet>231</a>                            </span><span class="self">self</span>.count.set(<span class="self">self</span>.count.get() + <span class="number">1</span>);
+<a href=#232 id=232 data-nosnippet>232</a>                            <span class="comment">// We could visit the children of this morphed expression, which could result in repeatedly applying
+<a href=#233 id=233 data-nosnippet>233</a>                            // the same rule over and over again. When we have 100% application rate (e.g. a small function),
+<a href=#234 id=234 data-nosnippet>234</a>                            // it would be wasting all the potential on the first rule that matched, e.g. `(x - (0 + (0 - 0)))`.
+<a href=#235 id=235 data-nosnippet>235</a>                            // It would also throw off the estimate if we introduce new items on which we can apply rules.
+<a href=#236 id=236 data-nosnippet>236</a>                            </span><span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#237 id=237 data-nosnippet>237</a>                        }
+<a href=#238 id=238 data-nosnippet>238</a>                    }
+<a href=#239 id=239 data-nosnippet>239</a>                }
+<a href=#240 id=240 data-nosnippet>240</a>                <span class="comment">// If we made it this far, we did not apply any rule, so look deeper in the AST.
+<a href=#241 id=241 data-nosnippet>241</a>                </span><span class="bool-val">true
+<a href=#242 id=242 data-nosnippet>242</a>            </span>}
+<a href=#243 id=243 data-nosnippet>243</a>        }
+<a href=#244 id=244 data-nosnippet>244</a>    }
+<a href=#245 id=245 data-nosnippet>245</a>
+<a href=#246 id=246 data-nosnippet>246</a>    <span class="doccomment">/// Check if a rule can be applied on an expression. If it can, apply it based on some arbitrary
+<a href=#247 id=247 data-nosnippet>247</a>    /// criteria, returning a flag showing whether it was applied.
+<a href=#248 id=248 data-nosnippet>248</a>    </span><span class="kw">fn </span>try_apply_rule(
+<a href=#249 id=249 data-nosnippet>249</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#250 id=250 data-nosnippet>250</a>        ctx: <span class="kw-2">&amp;</span>rules::Context,
+<a href=#251 id=251 data-nosnippet>251</a>        u: <span class="kw-2">&amp;mut </span>Unstructured,
+<a href=#252 id=252 data-nosnippet>252</a>        expr: <span class="kw-2">&amp;mut </span>Expression,
+<a href=#253 id=253 data-nosnippet>253</a>        rule: <span class="kw-2">&amp;</span>rules::Rule,
+<a href=#254 id=254 data-nosnippet>254</a>    ) -&gt; arbitrary::Result&lt;bool&gt; {
+<a href=#255 id=255 data-nosnippet>255</a>        <span class="kw">if </span>rule.matches(ctx, expr) &amp;&amp; u.ratio(<span class="self">self</span>.target, <span class="self">self</span>.estimate)<span class="question-mark">? </span>{
+<a href=#256 id=256 data-nosnippet>256</a>            rule.rewrite(u, <span class="kw-2">&amp;mut </span><span class="self">self</span>.vars.borrow_mut(), expr)<span class="question-mark">?</span>;
+<a href=#257 id=257 data-nosnippet>257</a>            <span class="prelude-val">Ok</span>(<span class="bool-val">true</span>)
+<a href=#258 id=258 data-nosnippet>258</a>        } <span class="kw">else </span>{
+<a href=#259 id=259 data-nosnippet>259</a>            <span class="prelude-val">Ok</span>(<span class="bool-val">false</span>)
+<a href=#260 id=260 data-nosnippet>260</a>        }
+<a href=#261 id=261 data-nosnippet>261</a>    }
+<a href=#262 id=262 data-nosnippet>262</a>}
+<a href=#263 id=263 data-nosnippet>263</a>
+<a href=#264 id=264 data-nosnippet>264</a><span class="doccomment">/// Provide a rough estimate for how many rules can be applied.
+<a href=#265 id=265 data-nosnippet>265</a>///
+<a href=#266 id=266 data-nosnippet>266</a>/// It will overestimate, because it ignores the finer points of when a rule can match.
+<a href=#267 id=267 data-nosnippet>267</a></span><span class="kw">fn </span>estimate_applicable_rules(
+<a href=#268 id=268 data-nosnippet>268</a>    ctx: <span class="kw-2">&amp;</span>rules::Context,
+<a href=#269 id=269 data-nosnippet>269</a>    expr: <span class="kw-2">&amp;</span>Expression,
+<a href=#270 id=270 data-nosnippet>270</a>    rules: <span class="kw-2">&amp;</span>[rules::Rule],
+<a href=#271 id=271 data-nosnippet>271</a>) -&gt; usize {
+<a href=#272 id=272 data-nosnippet>272</a>    <span class="kw">let </span><span class="kw-2">mut </span>count = <span class="number">0</span>;
+<a href=#273 id=273 data-nosnippet>273</a>    visit_expr(expr, <span class="kw-2">&amp;mut </span>|expr| {
+<a href=#274 id=274 data-nosnippet>274</a>        <span class="kw">for </span>rule <span class="kw">in </span>rules {
+<a href=#275 id=275 data-nosnippet>275</a>            <span class="kw">if </span>rule.matches(ctx, expr) {
+<a href=#276 id=276 data-nosnippet>276</a>                count += <span class="number">1</span>;
+<a href=#277 id=277 data-nosnippet>277</a>            }
+<a href=#278 id=278 data-nosnippet>278</a>        }
+<a href=#279 id=279 data-nosnippet>279</a>        <span class="bool-val">true
+<a href=#280 id=280 data-nosnippet>280</a>    </span>});
+<a href=#281 id=281 data-nosnippet>281</a>    count
+<a href=#282 id=282 data-nosnippet>282</a>}
+<a href=#283 id=283 data-nosnippet>283</a>
+<a href=#284 id=284 data-nosnippet>284</a><span class="doccomment">/// Check if we are calling an oracle or builtin function.
+<a href=#285 id=285 data-nosnippet>285</a></span><span class="kw">fn </span>is_special_call(call: <span class="kw-2">&amp;</span>Call) -&gt; bool {
+<a href=#286 id=286 data-nosnippet>286</a>    <span class="macro">matches!</span>(
+<a href=#287 id=287 data-nosnippet>287</a>        call.func.as_ref(),
+<a href=#288 id=288 data-nosnippet>288</a>        Expression::Ident(Ident {
+<a href=#289 id=289 data-nosnippet>289</a>            definition: Definition::Oracle(<span class="kw">_</span>) | Definition::Builtin(<span class="kw">_</span>) | Definition::LowLevel(<span class="kw">_</span>),
+<a href=#290 id=290 data-nosnippet>290</a>            ..
+<a href=#291 id=291 data-nosnippet>291</a>        })
+<a href=#292 id=292 data-nosnippet>292</a>    )
+<a href=#293 id=293 data-nosnippet>293</a>}
+<a href=#294 id=294 data-nosnippet>294</a>
+<a href=#295 id=295 data-nosnippet>295</a><span class="doccomment">/// Metamorphic transformation rules.
+<a href=#296 id=296 data-nosnippet>296</a></span><span class="kw">mod </span>rules {
+<a href=#297 id=297 data-nosnippet>297</a>    <span class="kw">use </span>std::rc::Rc;
+<a href=#298 id=298 data-nosnippet>298</a>
 <a href=#299 id=299 data-nosnippet>299</a>    <span class="kw">use </span><span class="kw">crate</span>::targets::orig_vs_morph::{
 <a href=#300 id=300 data-nosnippet>300</a>        VariableContext,
 <a href=#301 id=301 data-nosnippet>301</a>        helpers::{has_side_effect, reassign_ids},
@@ -552,7 +552,7 @@
 <a href=#552 id=552 data-nosnippet>552</a>                        definition: Definition::Local(<span class="kw-2">*</span>id),
 <a href=#553 id=553 data-nosnippet>553</a>                        mutable: <span class="kw-2">*</span>mutable,
 <a href=#554 id=554 data-nosnippet>554</a>                        name: name.clone(),
-<a href=#555 id=555 data-nosnippet>555</a>                        typ: typ.clone(),
+<a href=#555 id=555 data-nosnippet>555</a>                        typ: Rc::new(typ.clone()),
 <a href=#556 id=556 data-nosnippet>556</a>                        id: vars.next_ident_id(),
 <a href=#557 id=557 data-nosnippet>557</a>                    })
 <a href=#558 id=558 data-nosnippet>558</a>                };
@@ -621,7 +621,7 @@
 <a href=#621 id=621 data-nosnippet>621</a>}
 <a href=#622 id=622 data-nosnippet>622</a>
 <a href=#623 id=623 data-nosnippet>623</a><span class="kw">mod </span>helpers {
-<a href=#624 id=624 data-nosnippet>624</a>    <span class="kw">use </span>std::{cell::RefCell, collections::HashMap, sync::OnceLock};
+<a href=#624 id=624 data-nosnippet>624</a>    <span class="kw">use </span>std::{cell::RefCell, collections::HashMap};
 <a href=#625 id=625 data-nosnippet>625</a>
 <a href=#626 id=626 data-nosnippet>626</a>    <span class="kw">use </span>arbitrary::Unstructured;
 <a href=#627 id=627 data-nosnippet>627</a>    <span class="kw">use </span>noir_ast_fuzzer::{Config, expr, types};
@@ -720,122 +720,146 @@
 <a href=#720 id=720 data-nosnippet>720</a>        <span class="comment">// Choose a random operation.
 <a href=#721 id=721 data-nosnippet>721</a>        </span><span class="kw">let </span>op = u.choose_iter(ops)<span class="question-mark">?</span>;
 <a href=#722 id=722 data-nosnippet>722</a>
-<a href=#723 id=723 data-nosnippet>723</a>        <span class="kw">let </span>type_options = TYPES.get_or_init(|| {
-<a href=#724 id=724 data-nosnippet>724</a>            <span class="kw">let </span><span class="kw-2">mut </span>types = <span class="macro">vec!</span>[Type::Bool, Type::Field];
+<a href=#723 id=723 data-nosnippet>723</a>        <span class="comment">// let type_options = TYPES.get_or_init(|| {
+<a href=#724 id=724 data-nosnippet>724</a>        //     let mut types = vec![Type::Bool, Type::Field];
 <a href=#725 id=725 data-nosnippet>725</a>
-<a href=#726 id=726 data-nosnippet>726</a>            <span class="kw">for </span>sign <span class="kw">in </span>[Signedness::Signed, Signedness::Unsigned] {
-<a href=#727 id=727 data-nosnippet>727</a>                <span class="kw">for </span>size <span class="kw">in </span>IntegerBitSize::iter() {
-<a href=#728 id=728 data-nosnippet>728</a>                    <span class="kw">if </span>sign.is_signed() &amp;&amp; size.bit_size() == <span class="number">1 </span>{
-<a href=#729 id=729 data-nosnippet>729</a>                        <span class="kw">continue</span>;
-<a href=#730 id=730 data-nosnippet>730</a>                    }
-<a href=#731 id=731 data-nosnippet>731</a>                    <span class="comment">// Avoid negative literals; the frontend makes them difficult to work with in expressions
-<a href=#732 id=732 data-nosnippet>732</a>                    // where no type inference information is available.
-<a href=#733 id=733 data-nosnippet>733</a>                    </span><span class="kw">if </span>sign.is_signed() {
-<a href=#734 id=734 data-nosnippet>734</a>                        <span class="kw">continue</span>;
-<a href=#735 id=735 data-nosnippet>735</a>                    }
-<a href=#736 id=736 data-nosnippet>736</a>                    <span class="comment">// Avoid large integers; frontend doesn't like them.
-<a href=#737 id=737 data-nosnippet>737</a>                    </span><span class="kw">if </span>size.bit_size() &gt; <span class="number">32 </span>{
-<a href=#738 id=738 data-nosnippet>738</a>                        <span class="kw">continue</span>;
-<a href=#739 id=739 data-nosnippet>739</a>                    }
-<a href=#740 id=740 data-nosnippet>740</a>                    types.push(Type::Integer(sign, size));
-<a href=#741 id=741 data-nosnippet>741</a>                }
-<a href=#742 id=742 data-nosnippet>742</a>            }
-<a href=#743 id=743 data-nosnippet>743</a>            types
-<a href=#744 id=744 data-nosnippet>744</a>        });
+<a href=#726 id=726 data-nosnippet>726</a>        //     for sign in [Signedness::Signed, Signedness::Unsigned] {
+<a href=#727 id=727 data-nosnippet>727</a>        //         for size in IntegerBitSize::iter() {
+<a href=#728 id=728 data-nosnippet>728</a>        //             if sign.is_signed() &amp;&amp; size.bit_size() == 1 {
+<a href=#729 id=729 data-nosnippet>729</a>        //                 continue;
+<a href=#730 id=730 data-nosnippet>730</a>        //             }
+<a href=#731 id=731 data-nosnippet>731</a>        //             // Avoid negative literals; the frontend makes them difficult to work with in expressions
+<a href=#732 id=732 data-nosnippet>732</a>        //             // where no type inference information is available.
+<a href=#733 id=733 data-nosnippet>733</a>        //             if sign.is_signed() {
+<a href=#734 id=734 data-nosnippet>734</a>        //                 continue;
+<a href=#735 id=735 data-nosnippet>735</a>        //             }
+<a href=#736 id=736 data-nosnippet>736</a>        //             // Avoid large integers; frontend doesn't like them.
+<a href=#737 id=737 data-nosnippet>737</a>        //             if size.bit_size() &gt; 32 {
+<a href=#738 id=738 data-nosnippet>738</a>        //                 continue;
+<a href=#739 id=739 data-nosnippet>739</a>        //             }
+<a href=#740 id=740 data-nosnippet>740</a>        //             types.push(Type::Integer(sign, size));
+<a href=#741 id=741 data-nosnippet>741</a>        //         }
+<a href=#742 id=742 data-nosnippet>742</a>        //     }
+<a href=#743 id=743 data-nosnippet>743</a>        //     types
+<a href=#744 id=744 data-nosnippet>744</a>        // });
 <a href=#745 id=745 data-nosnippet>745</a>
-<a href=#746 id=746 data-nosnippet>746</a>        <span class="comment">// Select input types that can produce the output we want.
-<a href=#747 id=747 data-nosnippet>747</a>        </span><span class="kw">let </span>type_options = type_options
-<a href=#748 id=748 data-nosnippet>748</a>            .iter()
-<a href=#749 id=749 data-nosnippet>749</a>            .filter(|input| types::can_binary_op_return_from_input(<span class="kw-2">&amp;</span>op, input, typ))
-<a href=#750 id=750 data-nosnippet>750</a>            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-<a href=#751 id=751 data-nosnippet>751</a>
-<a href=#752 id=752 data-nosnippet>752</a>        <span class="comment">// Choose a type for the LHS and RHS.
-<a href=#753 id=753 data-nosnippet>753</a>        </span><span class="kw">let </span>lhs_type = u.choose_iter(type_options)<span class="question-mark">?</span>;
+<a href=#746 id=746 data-nosnippet>746</a>        </span>TYPES.with(|types| {
+<a href=#747 id=747 data-nosnippet>747</a>            <span class="comment">// Select input types that can produce the output we want.
+<a href=#748 id=748 data-nosnippet>748</a>            </span><span class="kw">let </span>type_options = types
+<a href=#749 id=749 data-nosnippet>749</a>                .iter()
+<a href=#750 id=750 data-nosnippet>750</a>                .filter(|input| types::can_binary_op_return_from_input(<span class="kw-2">&amp;</span>op, input, typ))
+<a href=#751 id=751 data-nosnippet>751</a>                .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#752 id=752 data-nosnippet>752</a>            <span class="comment">// Choose a type for the LHS and RHS.
+<a href=#753 id=753 data-nosnippet>753</a>            </span><span class="kw">let </span>lhs_type = u.choose_iter(type_options)<span class="question-mark">?</span>;
 <a href=#754 id=754 data-nosnippet>754</a>
-<a href=#755 id=755 data-nosnippet>755</a>        <span class="comment">// Generate expressions for LHS and RHS.
-<a href=#756 id=756 data-nosnippet>756</a>        </span><span class="kw">let </span>lhs_expr = gen_expr(u, lhs_type, max_depth.saturating_sub(<span class="number">1</span>))<span class="question-mark">?</span>;
-<a href=#757 id=757 data-nosnippet>757</a>        <span class="kw">let </span>rhs_expr = gen_expr(u, lhs_type, max_depth.saturating_sub(<span class="number">1</span>))<span class="question-mark">?</span>;
+<a href=#755 id=755 data-nosnippet>755</a>            <span class="comment">// Generate expressions for LHS and RHS.
+<a href=#756 id=756 data-nosnippet>756</a>            </span><span class="kw">let </span>lhs_expr = gen_expr(u, lhs_type, max_depth.saturating_sub(<span class="number">1</span>))<span class="question-mark">?</span>;
+<a href=#757 id=757 data-nosnippet>757</a>            <span class="kw">let </span>rhs_expr = gen_expr(u, lhs_type, max_depth.saturating_sub(<span class="number">1</span>))<span class="question-mark">?</span>;
 <a href=#758 id=758 data-nosnippet>758</a>
-<a href=#759 id=759 data-nosnippet>759</a>        <span class="kw">let </span><span class="kw-2">mut </span>expr = expr::binary(lhs_expr, op, rhs_expr);
+<a href=#759 id=759 data-nosnippet>759</a>            <span class="kw">let </span><span class="kw-2">mut </span>expr = expr::binary(lhs_expr, op, rhs_expr);
 <a href=#760 id=760 data-nosnippet>760</a>
-<a href=#761 id=761 data-nosnippet>761</a>        <span class="comment">// If we have chosen e.g. u8 and need u32 we need to cast.
-<a href=#762 id=762 data-nosnippet>762</a>        </span><span class="kw">if </span>!(lhs_type == typ || types::is_bool(typ) &amp;&amp; op.is_comparator()) {
-<a href=#763 id=763 data-nosnippet>763</a>            expr = expr::cast(expr, typ.clone());
-<a href=#764 id=764 data-nosnippet>764</a>        }
+<a href=#761 id=761 data-nosnippet>761</a>            <span class="comment">// If we have chosen e.g. u8 and need u32 we need to cast.
+<a href=#762 id=762 data-nosnippet>762</a>            </span><span class="kw">if </span>!(lhs_type == typ || types::is_bool(typ) &amp;&amp; op.is_comparator()) {
+<a href=#763 id=763 data-nosnippet>763</a>                expr = expr::cast(expr, typ.clone());
+<a href=#764 id=764 data-nosnippet>764</a>            }
 <a href=#765 id=765 data-nosnippet>765</a>
-<a href=#766 id=766 data-nosnippet>766</a>        <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(expr))
-<a href=#767 id=767 data-nosnippet>767</a>    }
-<a href=#768 id=768 data-nosnippet>768</a>
-<a href=#769 id=769 data-nosnippet>769</a>    <span class="doccomment">/// Types we can consider using in this context.
-<a href=#770 id=770 data-nosnippet>770</a>    </span><span class="kw">static </span>TYPES: OnceLock&lt;Vec&lt;Type&gt;&gt; = OnceLock::new();
-<a href=#771 id=771 data-nosnippet>771</a>
-<a href=#772 id=772 data-nosnippet>772</a>    <span class="doccomment">/// Assign new IDs to variables and identifiers created in the expression.
-<a href=#773 id=773 data-nosnippet>773</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>reassign_ids(vars: <span class="kw-2">&amp;mut </span>VariableContext, expr: <span class="kw-2">&amp;mut </span>Expression) {
-<a href=#774 id=774 data-nosnippet>774</a>        <span class="kw">fn </span>replace_local_id(
-<a href=#775 id=775 data-nosnippet>775</a>            vars: <span class="kw-2">&amp;mut </span>VariableContext,
-<a href=#776 id=776 data-nosnippet>776</a>            replacements: <span class="kw-2">&amp;mut </span>HashMap&lt;LocalId, LocalId&gt;,
-<a href=#777 id=777 data-nosnippet>777</a>            id: <span class="kw-2">&amp;mut </span>LocalId,
-<a href=#778 id=778 data-nosnippet>778</a>        ) {
-<a href=#779 id=779 data-nosnippet>779</a>            <span class="kw">let </span>curr = <span class="kw-2">*</span>id;
-<a href=#780 id=780 data-nosnippet>780</a>            <span class="kw">let </span>next = vars.next_local_id();
-<a href=#781 id=781 data-nosnippet>781</a>            replacements.insert(curr, next);
-<a href=#782 id=782 data-nosnippet>782</a>            <span class="kw-2">*</span>id = next;
-<a href=#783 id=783 data-nosnippet>783</a>        }
-<a href=#784 id=784 data-nosnippet>784</a>
-<a href=#785 id=785 data-nosnippet>785</a>        <span class="kw">let </span>replacements = RefCell::new(HashMap::new());
-<a href=#786 id=786 data-nosnippet>786</a>
-<a href=#787 id=787 data-nosnippet>787</a>        visit_expr_be_mut(
-<a href=#788 id=788 data-nosnippet>788</a>            expr,
-<a href=#789 id=789 data-nosnippet>789</a>            <span class="comment">// Assign a new ID where variables are created, and remember what original value they replaced.
-<a href=#790 id=790 data-nosnippet>790</a>            </span><span class="kw-2">&amp;mut </span>|expr| {
-<a href=#791 id=791 data-nosnippet>791</a>                <span class="kw">match </span>expr {
-<a href=#792 id=792 data-nosnippet>792</a>                    Expression::Ident(ident) =&gt; {
-<a href=#793 id=793 data-nosnippet>793</a>                        ident.id = vars.next_ident_id();
-<a href=#794 id=794 data-nosnippet>794</a>                    }
-<a href=#795 id=795 data-nosnippet>795</a>                    Expression::Let(let_) =&gt; {
-<a href=#796 id=796 data-nosnippet>796</a>                        replace_local_id(vars, <span class="kw-2">&amp;mut </span>replacements.borrow_mut(), <span class="kw-2">&amp;mut </span>let_.id)
-<a href=#797 id=797 data-nosnippet>797</a>                    }
-<a href=#798 id=798 data-nosnippet>798</a>                    Expression::For(for_) =&gt; replace_local_id(
-<a href=#799 id=799 data-nosnippet>799</a>                        vars,
-<a href=#800 id=800 data-nosnippet>800</a>                        <span class="kw-2">&amp;mut </span>replacements.borrow_mut(),
-<a href=#801 id=801 data-nosnippet>801</a>                        <span class="kw-2">&amp;mut </span>for_.index_variable,
-<a href=#802 id=802 data-nosnippet>802</a>                    ),
-<a href=#803 id=803 data-nosnippet>803</a>                    Expression::Match(match_) =&gt; {
-<a href=#804 id=804 data-nosnippet>804</a>                        <span class="kw">let </span><span class="kw-2">mut </span>replacements = replacements.borrow_mut();
-<a href=#805 id=805 data-nosnippet>805</a>                        <span class="kw">if let </span><span class="prelude-val">Some</span>(replacement) = replacements.get(<span class="kw-2">&amp;</span>match_.variable_to_match.<span class="number">0</span>) {
-<a href=#806 id=806 data-nosnippet>806</a>                            match_.variable_to_match.<span class="number">0 </span>= <span class="kw-2">*</span>replacement;
-<a href=#807 id=807 data-nosnippet>807</a>                        }
-<a href=#808 id=808 data-nosnippet>808</a>                        <span class="kw">for </span>case <span class="kw">in </span>match_.cases.iter_mut() {
-<a href=#809 id=809 data-nosnippet>809</a>                            <span class="kw">for </span>(arg, <span class="kw">_</span>) <span class="kw">in </span>case.arguments.iter_mut() {
-<a href=#810 id=810 data-nosnippet>810</a>                                replace_local_id(vars, <span class="kw-2">&amp;mut </span>replacements, arg);
-<a href=#811 id=811 data-nosnippet>811</a>                            }
-<a href=#812 id=812 data-nosnippet>812</a>                        }
-<a href=#813 id=813 data-nosnippet>813</a>                    }
-<a href=#814 id=814 data-nosnippet>814</a>                    <span class="kw">_ </span>=&gt; (),
-<a href=#815 id=815 data-nosnippet>815</a>                }
-<a href=#816 id=816 data-nosnippet>816</a>                (<span class="bool-val">true</span>, ())
-<a href=#817 id=817 data-nosnippet>817</a>            },
-<a href=#818 id=818 data-nosnippet>818</a>            <span class="kw-2">&amp;mut </span>|<span class="kw">_</span>, <span class="kw">_</span>| {},
-<a href=#819 id=819 data-nosnippet>819</a>            <span class="comment">// Update the IDs in identifiers based on the replacements we remember from above.
-<a href=#820 id=820 data-nosnippet>820</a>            </span><span class="kw-2">&amp;mut </span>|ident| {
-<a href=#821 id=821 data-nosnippet>821</a>                <span class="kw">if let </span>Definition::Local(id) = <span class="kw-2">&amp;mut </span>ident.definition
-<a href=#822 id=822 data-nosnippet>822</a>                    &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(replacement) = replacements.borrow().get(id)
-<a href=#823 id=823 data-nosnippet>823</a>                {
-<a href=#824 id=824 data-nosnippet>824</a>                    <span class="kw-2">*</span>id = <span class="kw-2">*</span>replacement;
-<a href=#825 id=825 data-nosnippet>825</a>                }
-<a href=#826 id=826 data-nosnippet>826</a>            },
-<a href=#827 id=827 data-nosnippet>827</a>        );
-<a href=#828 id=828 data-nosnippet>828</a>    }
-<a href=#829 id=829 data-nosnippet>829</a>}
-<a href=#830 id=830 data-nosnippet>830</a>
-<a href=#831 id=831 data-nosnippet>831</a><span class="attr">#[cfg(test)]
-<a href=#832 id=832 data-nosnippet>832</a></span><span class="kw">mod </span>tests {
-<a href=#833 id=833 data-nosnippet>833</a>    <span class="doccomment">/// ```ignore
-<a href=#834 id=834 data-nosnippet>834</a>    /// NOIR_AST_FUZZER_SEED=0xb2fb5f0b00100000 \
-<a href=#835 id=835 data-nosnippet>835</a>    /// cargo test -p noir_ast_fuzzer_fuzz orig_vs_morph
-<a href=#836 id=836 data-nosnippet>836</a>    /// ```
-<a href=#837 id=837 data-nosnippet>837</a>    </span><span class="attr">#[test]
-<a href=#838 id=838 data-nosnippet>838</a>    </span><span class="kw">fn </span>fuzz_with_arbtest() {
-<a href=#839 id=839 data-nosnippet>839</a>        <span class="kw">crate</span>::targets::tests::fuzz_with_arbtest(<span class="kw">super</span>::fuzz, <span class="number">10000</span>);
-<a href=#840 id=840 data-nosnippet>840</a>    }
-<a href=#841 id=841 data-nosnippet>841</a>}</code></pre></div></section></main></body></html>
+<a href=#766 id=766 data-nosnippet>766</a>            <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(expr))
+<a href=#767 id=767 data-nosnippet>767</a>        })
+<a href=#768 id=768 data-nosnippet>768</a>    }
+<a href=#769 id=769 data-nosnippet>769</a>
+<a href=#770 id=770 data-nosnippet>770</a>    <span class="macro">thread_local!</span> {
+<a href=#771 id=771 data-nosnippet>771</a>        <span class="doccomment">/// Types we can consider using in this context.
+<a href=#772 id=772 data-nosnippet>772</a>        </span><span class="kw">static </span>TYPES: Vec&lt;Type&gt; = {
+<a href=#773 id=773 data-nosnippet>773</a>            <span class="kw">let </span><span class="kw-2">mut </span>types = <span class="macro">vec!</span>[Type::Bool, Type::Field];
+<a href=#774 id=774 data-nosnippet>774</a>
+<a href=#775 id=775 data-nosnippet>775</a>            <span class="kw">for </span>sign <span class="kw">in </span>[Signedness::Signed, Signedness::Unsigned] {
+<a href=#776 id=776 data-nosnippet>776</a>                <span class="kw">for </span>size <span class="kw">in </span>IntegerBitSize::iter() {
+<a href=#777 id=777 data-nosnippet>777</a>                    <span class="kw">if </span>sign.is_signed() &amp;&amp; size.bit_size() == <span class="number">1 </span>{
+<a href=#778 id=778 data-nosnippet>778</a>                        <span class="kw">continue</span>;
+<a href=#779 id=779 data-nosnippet>779</a>                    }
+<a href=#780 id=780 data-nosnippet>780</a>                    <span class="comment">// Avoid negative literals; the frontend makes them difficult to work with in expressions
+<a href=#781 id=781 data-nosnippet>781</a>                    // where no type inference information is available.
+<a href=#782 id=782 data-nosnippet>782</a>                    </span><span class="kw">if </span>sign.is_signed() {
+<a href=#783 id=783 data-nosnippet>783</a>                        <span class="kw">continue</span>;
+<a href=#784 id=784 data-nosnippet>784</a>                    }
+<a href=#785 id=785 data-nosnippet>785</a>                    <span class="comment">// Avoid large integers; frontend doesn't like them.
+<a href=#786 id=786 data-nosnippet>786</a>                    </span><span class="kw">if </span>size.bit_size() &gt; <span class="number">32 </span>{
+<a href=#787 id=787 data-nosnippet>787</a>                        <span class="kw">continue</span>;
+<a href=#788 id=788 data-nosnippet>788</a>                    }
+<a href=#789 id=789 data-nosnippet>789</a>                    types.push(Type::Integer(sign, size));
+<a href=#790 id=790 data-nosnippet>790</a>                }
+<a href=#791 id=791 data-nosnippet>791</a>            }
+<a href=#792 id=792 data-nosnippet>792</a>            types
+<a href=#793 id=793 data-nosnippet>793</a>        };
+<a href=#794 id=794 data-nosnippet>794</a>    }
+<a href=#795 id=795 data-nosnippet>795</a>
+<a href=#796 id=796 data-nosnippet>796</a>    <span class="doccomment">/// Assign new IDs to variables and identifiers created in the expression.
+<a href=#797 id=797 data-nosnippet>797</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>reassign_ids(vars: <span class="kw-2">&amp;mut </span>VariableContext, expr: <span class="kw-2">&amp;mut </span>Expression) {
+<a href=#798 id=798 data-nosnippet>798</a>        <span class="kw">fn </span>replace_local_id(
+<a href=#799 id=799 data-nosnippet>799</a>            vars: <span class="kw-2">&amp;mut </span>VariableContext,
+<a href=#800 id=800 data-nosnippet>800</a>            replacements: <span class="kw-2">&amp;mut </span>HashMap&lt;LocalId, LocalId&gt;,
+<a href=#801 id=801 data-nosnippet>801</a>            id: <span class="kw-2">&amp;mut </span>LocalId,
+<a href=#802 id=802 data-nosnippet>802</a>        ) {
+<a href=#803 id=803 data-nosnippet>803</a>            <span class="kw">let </span>curr = <span class="kw-2">*</span>id;
+<a href=#804 id=804 data-nosnippet>804</a>            <span class="kw">let </span>next = vars.next_local_id();
+<a href=#805 id=805 data-nosnippet>805</a>            replacements.insert(curr, next);
+<a href=#806 id=806 data-nosnippet>806</a>            <span class="kw-2">*</span>id = next;
+<a href=#807 id=807 data-nosnippet>807</a>        }
+<a href=#808 id=808 data-nosnippet>808</a>
+<a href=#809 id=809 data-nosnippet>809</a>        <span class="kw">let </span>replacements = RefCell::new(HashMap::new());
+<a href=#810 id=810 data-nosnippet>810</a>
+<a href=#811 id=811 data-nosnippet>811</a>        visit_expr_be_mut(
+<a href=#812 id=812 data-nosnippet>812</a>            expr,
+<a href=#813 id=813 data-nosnippet>813</a>            <span class="comment">// Assign a new ID where variables are created, and remember what original value they replaced.
+<a href=#814 id=814 data-nosnippet>814</a>            </span><span class="kw-2">&amp;mut </span>|expr| {
+<a href=#815 id=815 data-nosnippet>815</a>                <span class="kw">match </span>expr {
+<a href=#816 id=816 data-nosnippet>816</a>                    Expression::Ident(ident) =&gt; {
+<a href=#817 id=817 data-nosnippet>817</a>                        ident.id = vars.next_ident_id();
+<a href=#818 id=818 data-nosnippet>818</a>                    }
+<a href=#819 id=819 data-nosnippet>819</a>                    Expression::Let(let_) =&gt; {
+<a href=#820 id=820 data-nosnippet>820</a>                        replace_local_id(vars, <span class="kw-2">&amp;mut </span>replacements.borrow_mut(), <span class="kw-2">&amp;mut </span>let_.id)
+<a href=#821 id=821 data-nosnippet>821</a>                    }
+<a href=#822 id=822 data-nosnippet>822</a>                    Expression::For(for_) =&gt; replace_local_id(
+<a href=#823 id=823 data-nosnippet>823</a>                        vars,
+<a href=#824 id=824 data-nosnippet>824</a>                        <span class="kw-2">&amp;mut </span>replacements.borrow_mut(),
+<a href=#825 id=825 data-nosnippet>825</a>                        <span class="kw-2">&amp;mut </span>for_.index_variable,
+<a href=#826 id=826 data-nosnippet>826</a>                    ),
+<a href=#827 id=827 data-nosnippet>827</a>                    Expression::Match(match_) =&gt; {
+<a href=#828 id=828 data-nosnippet>828</a>                        <span class="kw">let </span><span class="kw-2">mut </span>replacements = replacements.borrow_mut();
+<a href=#829 id=829 data-nosnippet>829</a>                        <span class="kw">if let </span><span class="prelude-val">Some</span>(replacement) = replacements.get(<span class="kw-2">&amp;</span>match_.variable_to_match.<span class="number">0</span>) {
+<a href=#830 id=830 data-nosnippet>830</a>                            match_.variable_to_match.<span class="number">0 </span>= <span class="kw-2">*</span>replacement;
+<a href=#831 id=831 data-nosnippet>831</a>                        }
+<a href=#832 id=832 data-nosnippet>832</a>                        <span class="kw">for </span>case <span class="kw">in </span>match_.cases.iter_mut() {
+<a href=#833 id=833 data-nosnippet>833</a>                            <span class="kw">for </span>(arg, <span class="kw">_</span>) <span class="kw">in </span>case.arguments.iter_mut() {
+<a href=#834 id=834 data-nosnippet>834</a>                                replace_local_id(vars, <span class="kw-2">&amp;mut </span>replacements, arg);
+<a href=#835 id=835 data-nosnippet>835</a>                            }
+<a href=#836 id=836 data-nosnippet>836</a>                        }
+<a href=#837 id=837 data-nosnippet>837</a>                    }
+<a href=#838 id=838 data-nosnippet>838</a>                    <span class="kw">_ </span>=&gt; (),
+<a href=#839 id=839 data-nosnippet>839</a>                }
+<a href=#840 id=840 data-nosnippet>840</a>                (<span class="bool-val">true</span>, ())
+<a href=#841 id=841 data-nosnippet>841</a>            },
+<a href=#842 id=842 data-nosnippet>842</a>            <span class="kw-2">&amp;mut </span>|<span class="kw">_</span>, <span class="kw">_</span>| {},
+<a href=#843 id=843 data-nosnippet>843</a>            <span class="comment">// Update the IDs in identifiers based on the replacements we remember from above.
+<a href=#844 id=844 data-nosnippet>844</a>            </span><span class="kw-2">&amp;mut </span>|ident| {
+<a href=#845 id=845 data-nosnippet>845</a>                <span class="kw">if let </span>Definition::Local(id) = <span class="kw-2">&amp;mut </span>ident.definition
+<a href=#846 id=846 data-nosnippet>846</a>                    &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(replacement) = replacements.borrow().get(id)
+<a href=#847 id=847 data-nosnippet>847</a>                {
+<a href=#848 id=848 data-nosnippet>848</a>                    <span class="kw-2">*</span>id = <span class="kw-2">*</span>replacement;
+<a href=#849 id=849 data-nosnippet>849</a>                }
+<a href=#850 id=850 data-nosnippet>850</a>            },
+<a href=#851 id=851 data-nosnippet>851</a>        );
+<a href=#852 id=852 data-nosnippet>852</a>    }
+<a href=#853 id=853 data-nosnippet>853</a>}
+<a href=#854 id=854 data-nosnippet>854</a>
+<a href=#855 id=855 data-nosnippet>855</a><span class="attr">#[cfg(test)]
+<a href=#856 id=856 data-nosnippet>856</a></span><span class="kw">mod </span>tests {
+<a href=#857 id=857 data-nosnippet>857</a>    <span class="doccomment">/// ```ignore
+<a href=#858 id=858 data-nosnippet>858</a>    /// NOIR_AST_FUZZER_SEED=0xb2fb5f0b00100000 \
+<a href=#859 id=859 data-nosnippet>859</a>    /// cargo test -p noir_ast_fuzzer_fuzz orig_vs_morph
+<a href=#860 id=860 data-nosnippet>860</a>    /// ```
+<a href=#861 id=861 data-nosnippet>861</a>    </span><span class="attr">#[test]
+<a href=#862 id=862 data-nosnippet>862</a>    </span><span class="kw">fn </span>fuzz_with_arbtest() {
+<a href=#863 id=863 data-nosnippet>863</a>        <span class="kw">crate</span>::targets::tests::fuzz_with_arbtest(<span class="kw">super</span>::fuzz, <span class="number">10000</span>);
+<a href=#864 id=864 data-nosnippet>864</a>    }
+<a href=#865 id=865 data-nosnippet>865</a>}</code></pre></div></section></main></body></html>

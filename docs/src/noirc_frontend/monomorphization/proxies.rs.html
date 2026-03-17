@@ -16,7 +16,7 @@
 <a href=#16 id=16 data-nosnippet>16</a>//! which, after creating wrappers for function values, would only present an inconvenience for users
 <a href=#17 id=17 data-nosnippet>17</a>//! if they have to keep creating wrappers themselves.
 <a href=#18 id=18 data-nosnippet>18</a>
-<a href=#19 id=19 data-nosnippet>19</a></span><span class="kw">use </span>std::collections::HashMap;
+<a href=#19 id=19 data-nosnippet>19</a></span><span class="kw">use </span>std::{collections::HashMap, rc::Rc};
 <a href=#20 id=20 data-nosnippet>20</a>
 <a href=#21 id=21 data-nosnippet>21</a><span class="kw">use </span>iter_extended::vecmap;
 <a href=#22 id=22 data-nosnippet>22</a><span class="kw">use </span>noirc_errors::Location;
@@ -205,7 +205,7 @@
 <a href=#205 id=205 data-nosnippet>205</a>///
 <a href=#206 id=206 data-nosnippet>206</a>/// The body of the function will be a single forwarding call to the original.
 <a href=#207 id=207 data-nosnippet>207</a></span><span class="kw">fn </span>make_proxy(id: FuncId, ident: Ident, unconstrained: bool) -&gt; Function {
-<a href=#208 id=208 data-nosnippet>208</a>    <span class="kw">let </span>Type::Tuple(items) = <span class="kw-2">&amp;</span>ident.typ <span class="kw">else </span>{
+<a href=#208 id=208 data-nosnippet>208</a>    <span class="kw">let </span>Type::Tuple(items) = ident.typ.as_ref() <span class="kw">else </span>{
 <a href=#209 id=209 data-nosnippet>209</a>        <span class="macro">unreachable!</span>(<span class="string">"ICE: expected pair of functions; got {}"</span>, ident.typ);
 <a href=#210 id=210 data-nosnippet>210</a>    };
 <a href=#211 id=211 data-nosnippet>211</a>
@@ -230,7 +230,7 @@
 <a href=#230 id=230 data-nosnippet>230</a>        <span class="kw">let </span>mutable = <span class="bool-val">false</span>;
 <a href=#231 id=231 data-nosnippet>231</a>        <span class="kw">let </span>name = <span class="macro">format!</span>(<span class="string">"p{i}"</span>);
 <a href=#232 id=232 data-nosnippet>232</a>        <span class="kw">let </span>vis = Visibility::Private;
-<a href=#233 id=233 data-nosnippet>233</a>        (id, mutable, name, typ, vis)
+<a href=#233 id=233 data-nosnippet>233</a>        (id, mutable, name, Rc::new(typ), vis)
 <a href=#234 id=234 data-nosnippet>234</a>    });
 <a href=#235 id=235 data-nosnippet>235</a>
 <a href=#236 id=236 data-nosnippet>236</a>    <span class="kw">let </span>call = {
@@ -259,7 +259,7 @@
 <a href=#259 id=259 data-nosnippet>259</a>        Call {
 <a href=#260 id=260 data-nosnippet>260</a>            func: Box::new(Expression::Ident(func)),
 <a href=#261 id=261 data-nosnippet>261</a>            arguments,
-<a href=#262 id=262 data-nosnippet>262</a>            return_type: <span class="kw-2">*</span>ret.clone(),
+<a href=#262 id=262 data-nosnippet>262</a>            return_type: ret.as_ref().clone(),
 <a href=#263 id=263 data-nosnippet>263</a>            location: Location::dummy(),
 <a href=#264 id=264 data-nosnippet>264</a>        }
 <a href=#265 id=265 data-nosnippet>265</a>    };
@@ -269,7 +269,7 @@
 <a href=#269 id=269 data-nosnippet>269</a>        name,
 <a href=#270 id=270 data-nosnippet>270</a>        parameters,
 <a href=#271 id=271 data-nosnippet>271</a>        body: Expression::Call(call),
-<a href=#272 id=272 data-nosnippet>272</a>        return_type: <span class="kw-2">*</span>ret,
+<a href=#272 id=272 data-nosnippet>272</a>        return_type: ret.as_ref().clone(),
 <a href=#273 id=273 data-nosnippet>273</a>        return_visibility: Visibility::Private,
 <a href=#274 id=274 data-nosnippet>274</a>        unconstrained,
 <a href=#275 id=275 data-nosnippet>275</a>        inline_type: InlineType::InlineAlways,

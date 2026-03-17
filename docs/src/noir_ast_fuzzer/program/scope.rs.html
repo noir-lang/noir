@@ -206,33 +206,35 @@
 <a href=#206 id=206 data-nosnippet>206</a>
 <a href=#207 id=207 data-nosnippet>207</a><span class="attr">#[cfg(test)]
 <a href=#208 id=208 data-nosnippet>208</a></span><span class="kw">mod </span>tests {
-<a href=#209 id=209 data-nosnippet>209</a>    <span class="kw">use </span>noirc_frontend::monomorphization::ast::{LocalId, Type};
+<a href=#209 id=209 data-nosnippet>209</a>    <span class="kw">use </span>std::rc::Rc;
 <a href=#210 id=210 data-nosnippet>210</a>
-<a href=#211 id=211 data-nosnippet>211</a>    <span class="kw">use </span><span class="kw">crate</span>::program::types;
+<a href=#211 id=211 data-nosnippet>211</a>    <span class="kw">use </span>noirc_frontend::monomorphization::ast::{LocalId, Type};
 <a href=#212 id=212 data-nosnippet>212</a>
-<a href=#213 id=213 data-nosnippet>213</a>    <span class="kw">use </span><span class="kw">super</span>::ScopeStack;
+<a href=#213 id=213 data-nosnippet>213</a>    <span class="kw">use </span><span class="kw">crate</span>::program::types;
 <a href=#214 id=214 data-nosnippet>214</a>
-<a href=#215 id=215 data-nosnippet>215</a>    <span class="attr">#[test]
-<a href=#216 id=216 data-nosnippet>216</a>    </span><span class="kw">fn </span>test_scope_stack() {
-<a href=#217 id=217 data-nosnippet>217</a>        <span class="kw">let </span>foo_type =
-<a href=#218 id=218 data-nosnippet>218</a>            Type::Tuple(<span class="macro">vec!</span>[Type::Field, Type::Bool, Type::Array(<span class="number">4</span>, Box::new(types::U32))]);
-<a href=#219 id=219 data-nosnippet>219</a>
-<a href=#220 id=220 data-nosnippet>220</a>        <span class="kw">let </span><span class="kw-2">mut </span>stack = ScopeStack::from_variables(
-<a href=#221 id=221 data-nosnippet>221</a>            [(LocalId(<span class="number">0</span>), <span class="bool-val">false</span>, <span class="string">"foo"</span>.to_string(), foo_type)].into_iter(),
-<a href=#222 id=222 data-nosnippet>222</a>        );
-<a href=#223 id=223 data-nosnippet>223</a>
-<a href=#224 id=224 data-nosnippet>224</a>        stack.enter();
-<a href=#225 id=225 data-nosnippet>225</a>        stack.add(LocalId(<span class="number">1</span>), <span class="bool-val">false</span>, <span class="string">"bar"</span>.to_string(), Type::String(<span class="number">10</span>));
-<a href=#226 id=226 data-nosnippet>226</a>
-<a href=#227 id=227 data-nosnippet>227</a>        <span class="kw">let </span>scope0 = <span class="kw-2">&amp;</span>stack.<span class="number">0</span>[<span class="number">0</span>];
-<a href=#228 id=228 data-nosnippet>228</a>        <span class="kw">let </span>scope1 = <span class="kw-2">&amp;</span>stack.<span class="number">0</span>[<span class="number">1</span>];
-<a href=#229 id=229 data-nosnippet>229</a>
-<a href=#230 id=230 data-nosnippet>230</a>        <span class="macro">assert_eq!</span>(scope0.variable_ids().len(), <span class="number">1</span>);
-<a href=#231 id=231 data-nosnippet>231</a>        <span class="macro">assert_eq!</span>(scope0.types_produced().len(), <span class="number">5 </span>+ <span class="number">2</span>); <span class="comment">// What we see plus upcasts from u32 to u64 and u128
-<a href=#232 id=232 data-nosnippet>232</a>        </span><span class="macro">assert_eq!</span>(scope1.variable_ids().len(), <span class="number">2</span>);
-<a href=#233 id=233 data-nosnippet>233</a>        <span class="macro">assert_eq!</span>(scope1.types_produced().len(), <span class="number">5 </span>+ <span class="number">2 </span>+ <span class="number">1</span>);
-<a href=#234 id=234 data-nosnippet>234</a>
-<a href=#235 id=235 data-nosnippet>235</a>        stack.exit();
-<a href=#236 id=236 data-nosnippet>236</a>        <span class="macro">assert_eq!</span>(stack.<span class="number">0</span>.len(), <span class="number">1</span>);
-<a href=#237 id=237 data-nosnippet>237</a>    }
-<a href=#238 id=238 data-nosnippet>238</a>}</code></pre></div></section></main></body></html>
+<a href=#215 id=215 data-nosnippet>215</a>    <span class="kw">use </span><span class="kw">super</span>::ScopeStack;
+<a href=#216 id=216 data-nosnippet>216</a>
+<a href=#217 id=217 data-nosnippet>217</a>    <span class="attr">#[test]
+<a href=#218 id=218 data-nosnippet>218</a>    </span><span class="kw">fn </span>test_scope_stack() {
+<a href=#219 id=219 data-nosnippet>219</a>        <span class="kw">let </span>foo_type =
+<a href=#220 id=220 data-nosnippet>220</a>            Type::Tuple(<span class="macro">vec!</span>[Type::Field, Type::Bool, Type::Array(<span class="number">4</span>, Rc::new(types::U32))]);
+<a href=#221 id=221 data-nosnippet>221</a>
+<a href=#222 id=222 data-nosnippet>222</a>        <span class="kw">let </span><span class="kw-2">mut </span>stack = ScopeStack::from_variables(
+<a href=#223 id=223 data-nosnippet>223</a>            [(LocalId(<span class="number">0</span>), <span class="bool-val">false</span>, <span class="string">"foo"</span>.to_string(), foo_type)].into_iter(),
+<a href=#224 id=224 data-nosnippet>224</a>        );
+<a href=#225 id=225 data-nosnippet>225</a>
+<a href=#226 id=226 data-nosnippet>226</a>        stack.enter();
+<a href=#227 id=227 data-nosnippet>227</a>        stack.add(LocalId(<span class="number">1</span>), <span class="bool-val">false</span>, <span class="string">"bar"</span>.to_string(), Type::String(<span class="number">10</span>));
+<a href=#228 id=228 data-nosnippet>228</a>
+<a href=#229 id=229 data-nosnippet>229</a>        <span class="kw">let </span>scope0 = <span class="kw-2">&amp;</span>stack.<span class="number">0</span>[<span class="number">0</span>];
+<a href=#230 id=230 data-nosnippet>230</a>        <span class="kw">let </span>scope1 = <span class="kw-2">&amp;</span>stack.<span class="number">0</span>[<span class="number">1</span>];
+<a href=#231 id=231 data-nosnippet>231</a>
+<a href=#232 id=232 data-nosnippet>232</a>        <span class="macro">assert_eq!</span>(scope0.variable_ids().len(), <span class="number">1</span>);
+<a href=#233 id=233 data-nosnippet>233</a>        <span class="macro">assert_eq!</span>(scope0.types_produced().len(), <span class="number">5 </span>+ <span class="number">2</span>); <span class="comment">// What we see plus upcasts from u32 to u64 and u128
+<a href=#234 id=234 data-nosnippet>234</a>        </span><span class="macro">assert_eq!</span>(scope1.variable_ids().len(), <span class="number">2</span>);
+<a href=#235 id=235 data-nosnippet>235</a>        <span class="macro">assert_eq!</span>(scope1.types_produced().len(), <span class="number">5 </span>+ <span class="number">2 </span>+ <span class="number">1</span>);
+<a href=#236 id=236 data-nosnippet>236</a>
+<a href=#237 id=237 data-nosnippet>237</a>        stack.exit();
+<a href=#238 id=238 data-nosnippet>238</a>        <span class="macro">assert_eq!</span>(stack.<span class="number">0</span>.len(), <span class="number">1</span>);
+<a href=#239 id=239 data-nosnippet>239</a>    }
+<a href=#240 id=240 data-nosnippet>240</a>}</code></pre></div></section></main></body></html>
