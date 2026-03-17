@@ -147,7 +147,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Tag dev rel in comment
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@v3
         with:
           message: |
             FYI @noir-lang/developerrelations on Noir doc changes.

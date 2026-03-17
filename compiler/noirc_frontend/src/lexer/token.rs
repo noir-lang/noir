@@ -32,8 +32,7 @@ impl IntegerTypeSuffix {
     ///
     /// An integer value like `3u32` has type `u32` but when used in a type `[Field; 3u32]`,
     /// `3u32` will have the type `Type::Constant(3, Kind::Numeric(u32))`. As a result, using
-    /// this method for any kind checks on integer types will result in a kind error! For those
-    /// cases, use [IntegerTypeSuffix::as_kind] instead.
+    /// this method for any kind checks on integer types will result in a kind error!
     pub(crate) fn as_type(self) -> crate::Type {
         use crate::{Type::Integer, ast::IntegerBitSize::*, shared::Signedness::*};
         match self {
@@ -49,18 +48,6 @@ impl IntegerTypeSuffix {
             IntegerTypeSuffix::U128 => Integer(Unsigned, HundredTwentyEight),
             IntegerTypeSuffix::Field => crate::Type::FieldElement,
         }
-    }
-
-    /// Returns the kind of this integer constant when used in a type position.
-    /// For example, when used as `[Field; 3u32]`, this [IntegerTypeSuffix::U32]
-    /// will return `Kind::Numeric(Type::U32)`.
-    ///
-    /// This method should generally be used whenever an integer is used in a type position.
-    /// [IntegerTypeSuffix::as_type] would return a raw `u32` type which is not the actual
-    /// type of an integer in a type position - that'd be `Type::Constant(3, Kind::Numeric(u32))`
-    /// for `3u32`.
-    pub(crate) fn as_kind(self) -> crate::Kind {
-        crate::Kind::Numeric(Box::new(self.as_type()))
     }
 }
 

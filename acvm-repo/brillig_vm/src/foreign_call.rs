@@ -372,6 +372,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                         self.memory.write(*size_addr, assert_u32(values.len()).into());
                         self.write_values_to_memory(*pointer, values, value_types)?;
                     } else {
+                        // This should have been rejected by the frontend.
                         unreachable!("deflattening heap vectors from foreign calls");
                     }
                 }

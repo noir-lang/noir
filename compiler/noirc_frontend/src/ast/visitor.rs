@@ -1573,6 +1573,9 @@ impl UnresolvedTypeExpression {
                     rhs.accept(visitor);
                 }
             }
+            UnresolvedTypeExpression::Negation(rhs, _location) => {
+                rhs.accept(visitor);
+            }
             UnresolvedTypeExpression::AsTraitPath(as_trait_path) => {
                 if visitor.visit_as_trait_path_type_expression(as_trait_path) {
                     as_trait_path.accept(self.span(), visitor);
