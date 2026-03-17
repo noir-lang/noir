@@ -30,6 +30,7 @@ unconstrained fn accept_semantic_length_when_matches_content() {
     // element size.
     mock = mock.returns((2, [(1, 2), (3, 4)]));
     let res = int_vector_oracle();
+    assert_eq(res.len(), 2);
     assert_eq(res, @[(1, 2), (3, 4)]);
 }
 
@@ -53,6 +54,7 @@ unconstrained fn handle_return_of_empty_unit_vector() {
     // which is clearly a zero length array.
     mock = mock.returns((0, empty));
     let res = unit_vector_oracle();
+    assert_eq(res.len(), 0);
     assert_eq(res, @[]);
 }
 
@@ -65,6 +67,7 @@ unconstrained fn handle_return_of_non_empty_unit_vector() {
     // take up physical space.
     mock = mock.returns((3, non_empty));
     let res = unit_vector_oracle();
+    assert_eq(res.len(), 3);
     assert_eq(res, @[(), (), ()]);
 }
 
@@ -76,6 +79,7 @@ unconstrained fn handle_return_of_mismatched_unit_vector() {
     // of zero-sized data: it's all empty, and only the semantic length matters.
     mock = mock.returns((3, empty));
     let res = unit_vector_oracle();
+    assert_eq(res.len(), 3);
     assert_eq(res, @[(), (), ()]);
 }
 
