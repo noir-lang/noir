@@ -294,12 +294,9 @@ impl CallGraph {
             if tainted.contains(&f) {
                 continue;
             }
-            let bounded_callers = callers_map
-                .get(&f)
-                .map(|callers| {
-                    callers.keys().filter(|c| reachable.contains(c) && !tainted.contains(c)).count()
-                })
-                .unwrap_or(0);
+            let bounded_callers = callers_map.get(&f).map_or(0, |callers| {
+                callers.keys().filter(|c| reachable.contains(c) && !tainted.contains(c)).count()
+            });
             in_degree.insert(f, bounded_callers);
         }
 
