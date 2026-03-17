@@ -1817,10 +1817,7 @@ impl Type {
         self.contains_vector_helper(TypeRecursionContext::default())
     }
 
-    pub(crate) fn contains_vector_helper(
-        &self,
-        mut type_recursion_context: TypeRecursionContext,
-    ) -> bool {
+    fn contains_vector_helper(&self, mut type_recursion_context: TypeRecursionContext) -> bool {
         match self {
             Type::Vector(_) => true,
             Type::Array(_, elem) => {
@@ -1901,105 +1898,35 @@ impl Type {
         }
     }
 
-    /// Check whether this type is itself an array, or a struct/enum/tuple/vector which contains an array.
-    pub(crate) fn contains_array(&self) -> bool {
-        self.contains_array_helper(TypeRecursionContext::default())
+    /// Check whether this type is a vector that contains a nested array-like type in its element type:
+    /// strings, arrays or other vectors.
+    pub(crate) fn contains_vector_with_nested_array(&self) -> bool {
+        self.contains_vector_with_nested_array_helper(false, TypeRecursionContext::default())
     }
 
-    fn contains_array_helper(&self, mut type_recursion_context: TypeRecursionContext) -> bool {
-        match self {
-            Type::Array(..) => true,
-            Type::Vector(elem) => {
-                elem.as_ref().contains_array_helper(type_recursion_context.recur())
-            }
-            Type::Alias(alias, generics) => {
-                if type_recursion_context.insert_alias(alias.borrow().id, generics.clone()) {
-                    alias
-                        .borrow()
-                        .get_type(generics)
-                        .contains_array_helper(type_recursion_context.recur())
-                } else {
-                    false
-                }
-            }
-            Type::DataType(typ, generics) => {
-                let typ = typ.borrow();
-                if type_recursion_context.insert_data_type(typ.id, generics.clone()) {
-                    if let Some(fields) = typ.get_fields(generics) {
-                        if fields.iter().any(|(_, field, _)| {
-                            field.contains_array_helper(type_recursion_context.clone().recur())
-                        }) {
-                            return true;
-                        }
-                    } else if let Some(variants) = typ.get_variants(generics)
-                        && variants.iter().flat_map(|(_, args)| args).any(|typ| {
-                            typ.contains_array_helper(type_recursion_context.clone().recur())
-                        })
-                    {
-                        return true;
-                    }
-                }
-                false
-            }
-            Type::Tuple(types) => types
-                .iter()
-                .any(|typ| typ.contains_array_helper(type_recursion_context.clone().recur())),
-            Type::FmtString(_size, elem) => {
-                elem.contains_array_helper(type_recursion_context.recur())
-            }
-            Type::TypeVariable(type_variable)
-            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
-                match &*type_variable.borrow() {
-                    TypeBinding::Bound(binding) => {
-                        binding.contains_array_helper(type_recursion_context.recur())
-                    }
-                    TypeBinding::Unbound(_, _) => false,
-                }
-            }
-            Type::CheckedCast { from, to } => {
-                from.contains_array_helper(type_recursion_context.clone().recur())
-                    || to.contains_array_helper(type_recursion_context.recur())
-            }
-            Type::Reference(element, _) => {
-                element.contains_array_helper(type_recursion_context.recur())
-            }
-            Type::Forall(_, typ) => typ.contains_array_helper(type_recursion_context.recur()),
-            Type::Function(_arg, _ret, env, _unconstrained) => {
-                env.contains_array_helper(type_recursion_context.recur())
-            }
-            Type::FieldElement
-            | Type::Integer(..)
-            | Type::Bool
-            | Type::String(..)
-            | Type::Unit
-            | Type::TraitAsType(..)
-            | Type::Constant(..)
-            | Type::Quoted(..)
-            | Type::InfixExpr(..)
-            | Type::Error => false,
-        }
-    }
-
-    /// Check whether this type is a vector that contains a nested array in its element type.
-    pub(crate) fn is_vector_with_nested_array(&self) -> bool {
-        self.is_vector_with_nested_array_helper(TypeRecursionContext::default())
-    }
-
-    fn is_vector_with_nested_array_helper(
+    fn contains_vector_with_nested_array_helper(
         &self,
+        in_vector: bool,
         mut type_recursion_context: TypeRecursionContext,
     ) -> bool {
         match self {
-            Type::Vector(elem) => elem.as_ref().contains_array(),
+            Type::Vector(elem) => {
+                in_vector
+                    || elem.contains_vector_with_nested_array_helper(true, type_recursion_context)
+            }
             Type::Array(_, elem) => {
-                elem.as_ref().is_vector_with_nested_array_helper(type_recursion_context.recur())
+                in_vector
+                    || elem.as_ref().contains_vector_with_nested_array_helper(
+                        in_vector,
+                        type_recursion_context.recur(),
+                    )
             }
             Type::Alias(alias, generics) => {
                 if type_recursion_context.insert_alias(alias.borrow().id, generics.clone()) {
-                    alias
-                        .borrow()
-                        .get_type(generics)
-                        .is_vector_with_nested_array_helper(type_recursion_context.recur())
+                    alias.borrow().get_type(generics).contains_vector_with_nested_array_helper(
+                        in_vector,
+                        type_recursion_context.recur(),
+                    )
                 } else {
                     false
                 }
@@ -2009,7 +1936,8 @@ impl Type {
                 if type_recursion_context.insert_data_type(typ.id, generics.clone()) {
                     if let Some(fields) = typ.get_fields(generics) {
                         if fields.iter().any(|(_, field, _)| {
-                            field.is_vector_with_nested_array_helper(
+                            field.contains_vector_with_nested_array_helper(
+                                in_vector,
                                 type_recursion_context.clone().recur(),
                             )
                         }) {
@@ -2017,7 +1945,8 @@ impl Type {
                         }
                     } else if let Some(variants) = typ.get_variants(generics)
                         && variants.iter().flat_map(|(_, args)| args).any(|typ| {
-                            typ.is_vector_with_nested_array_helper(
+                            typ.contains_vector_with_nested_array_helper(
+                                in_vector,
                                 type_recursion_context.clone().recur(),
                             )
                         })
@@ -2028,34 +1957,50 @@ impl Type {
                 false
             }
             Type::Tuple(types) => types.iter().any(|typ| {
-                typ.is_vector_with_nested_array_helper(type_recursion_context.clone().recur())
+                typ.contains_vector_with_nested_array_helper(
+                    in_vector,
+                    type_recursion_context.clone().recur(),
+                )
             }),
             Type::FmtString(_size, elem) => {
-                elem.is_vector_with_nested_array_helper(type_recursion_context.recur())
+                in_vector
+                    || elem.contains_vector_with_nested_array_helper(
+                        in_vector,
+                        type_recursion_context.recur(),
+                    )
             }
             Type::TypeVariable(type_variable)
             | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
                 match &*type_variable.borrow() {
-                    TypeBinding::Bound(binding) => {
-                        binding.is_vector_with_nested_array_helper(type_recursion_context.recur())
-                    }
+                    TypeBinding::Bound(binding) => binding
+                        .contains_vector_with_nested_array_helper(
+                            in_vector,
+                            type_recursion_context.recur(),
+                        ),
                     TypeBinding::Unbound(_, _) => false,
                 }
             }
             Type::CheckedCast { from, to } => {
-                from.is_vector_with_nested_array_helper(type_recursion_context.clone().recur())
-                    || to.is_vector_with_nested_array_helper(type_recursion_context.recur())
+                from.contains_vector_with_nested_array_helper(
+                    in_vector,
+                    type_recursion_context.clone().recur(),
+                ) || to.contains_vector_with_nested_array_helper(
+                    in_vector,
+                    type_recursion_context.recur(),
+                )
             }
-            Type::Reference(element, _) => {
-                element.is_vector_with_nested_array_helper(type_recursion_context.recur())
-            }
-            Type::Forall(_, typ) => {
-                typ.is_vector_with_nested_array_helper(type_recursion_context.recur())
-            }
+            Type::Reference(element, _) => element.contains_vector_with_nested_array_helper(
+                in_vector,
+                type_recursion_context.recur(),
+            ),
+            Type::Forall(_, typ) => typ.contains_vector_with_nested_array_helper(
+                in_vector,
+                type_recursion_context.recur(),
+            ),
+            Type::String(_) => in_vector,
             Type::FieldElement
             | Type::Integer(..)
             | Type::Bool
-            | Type::String(..)
             | Type::Unit
             | Type::TraitAsType(..)
             | Type::Function(..)
