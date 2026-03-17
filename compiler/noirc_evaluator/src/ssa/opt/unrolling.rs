@@ -635,18 +635,25 @@ impl Loop {
         }
         let then_branch_is_body = self.blocks.contains(then_destination);
 
+        // The header's instruction must reference the induction variable (first block param).
+        // Without this check, an unrelated instruction (e.g. `not` of a function parameter)
+        // could be misinterpreted as a loop bound comparison.
+        let induction_var = *dfg.block_parameters(self.header).first()?;
+
         match &dfg[instructions[0]] {
             // Most loops will expect the `then` block to be the body. In unconstrained code it is
             // possible to write `loop`s that use the else branch as a body. We return `None`
             // conservatively in this case.
-            Instruction::Binary(Binary { lhs: _, operator: BinaryOp::Lt, rhs }) => {
-                if then_branch_is_body {
-                    dfg.get_integer_constant(*rhs)
-                } else {
-                    None
+            Instruction::Binary(Binary { lhs, operator: BinaryOp::Lt, rhs }) => {
+                if *lhs != induction_var {
+                    return None;
                 }
+                if then_branch_is_body { dfg.get_integer_constant(*rhs) } else { None }
             }
-            Instruction::Binary(Binary { lhs: _, operator: BinaryOp::Eq, rhs }) => {
+            Instruction::Binary(Binary { lhs, operator: BinaryOp::Eq, rhs }) => {
+                if *lhs != induction_var {
+                    return None;
+                }
                 // `for i in 0..1` is turned into:
                 // b1(v0: u32):
                 //   v12 = eq v0, u32 0
@@ -657,7 +664,10 @@ impl Loop {
                 let const_rhs = dfg.get_integer_constant(*rhs)?;
                 if then_branch_is_body { Some(const_rhs.inc()) } else { Some(const_rhs) }
             }
-            Instruction::Not(_) => {
+            Instruction::Not(operand) => {
+                if *operand != induction_var {
+                    return None;
+                }
                 // We simplify equality operations with booleans like `(boolean == false)` into `!boolean`.
                 // Thus, using a u1 in a loop bound can possibly lead to a Not instruction
                 // as a loop header's jump condition.
@@ -1592,6 +1602,8 @@ mod tests {
 
     use crate::assert_ssa_snapshot;
     use crate::errors::RuntimeError;
+    use crate::ssa::interpreter::value::Value as InterpreterValue;
+    use crate::ssa::ir::cfg::ControlFlowGraph;
     use crate::ssa::ir::integer::IntegerConstant;
     use crate::ssa::opt::assert_ssa_does_not_change;
     use crate::ssa::{Ssa, ir::value::ValueId, opt::assert_normalized_ssa_equals};
@@ -2639,5 +2651,59 @@ mod tests {
             "get_const_upper_bound should return None when the header's Lt instruction \
              does not feed the jmpif condition, but got: {upper:?}"
         );
+    }
+
+    /// Regression test: `get_const_upper_bound` must verify the header instruction
+    /// references the induction variable. Without this check, a loop header with a
+    /// single instruction like `not v0` (on a function parameter, not the induction
+    /// variable) is misidentified as a bound check, producing bogus bounds that cause
+    /// LICM to replace induction-variable-dependent expressions with constants.
+    ///
+    /// In this test, the loop header b1 has `not v0` (where v0 is a u1 parameter)
+    /// and the actual loop exit is `eq v1, u32 1` in b2 (where v1 is the induction
+    /// variable). Without the fix, `get_const_upper_bound` returns upper=1 (bit_size 1),
+    /// and LICM's `simplify_induction_variable_in_binary` replaces `eq v1, u32 1` with
+    /// constant `false`, creating an infinite loop.
+    #[test]
+    fn get_const_upper_bound_checks_induction_variable() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v2 = not v0
+            jmpif v2 then: b2(), else: b3()
+          b2():
+            v3 = eq v1, u32 1
+            jmpif v3 then: b3(), else: b4()
+          b3():
+            return
+          b4():
+            v4 = add v1, u32 1
+            jmp b1(v4)
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        // The loop header's `not v0` does NOT reference the induction variable v1,
+        // so get_const_upper_bound must return None (no known bounds).
+        let function = ssa.main();
+        let cfg = ControlFlowGraph::with_function(function);
+        let loops = Loops::find_all(function, LoopOrder::InsideOut);
+        assert_eq!(loops.yet_to_unroll.len(), 1, "should find exactly one loop");
+        let the_loop = &loops.yet_to_unroll[0];
+        let pre_header = the_loop.get_pre_header(function, &cfg).unwrap();
+        let upper = the_loop.get_const_upper_bound(&function.dfg, pre_header, |v| v);
+        assert!(
+            upper.is_none(),
+            "upper bound should be None when header instruction doesn't reference the induction variable, got {upper:?}"
+        );
+
+        // Verify semantics are preserved: interpret before and after LICM.
+        let before = ssa.interpret(vec![InterpreterValue::bool(false)]);
+        let mut ssa_after = ssa;
+        ssa_after = ssa_after.loop_invariant_code_motion();
+        let after = ssa_after.interpret(vec![InterpreterValue::bool(false)]);
+        assert_eq!(before, after, "LICM should preserve semantics");
     }
 }
