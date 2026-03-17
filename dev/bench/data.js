@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773695526691,
+  "lastUpdate": 1773745578527,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23136,48 +23136,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "f1db02c64e5cb713fd242e3147d959c93f1cc2d3",
-          "message": "fix(comptime): Implement `Hash` and `PartialEq` for `TraitConstraint` (#11809)",
-          "timestamp": "2026-03-09T15:23:45Z",
-          "tree_id": "272e9a60bbbaac1e319a98331c44864e12f65019",
-          "url": "https://github.com/noir-lang/noir/commit/f1db02c64e5cb713fd242e3147d959c93f1cc2d3"
-        },
-        "date": 1773071424119,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252362,
-            "range": "± 492",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 221399,
-            "range": "± 4989",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2744648,
-            "range": "± 19938",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -25229,6 +25187,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2729005,
             "range": "± 1515",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "d837face28873e80d113d1fe548d9ac70961ae3f",
+          "message": "fix: Prevent infinite constant term movement during unification (#11867)",
+          "timestamp": "2026-03-17T10:38:37Z",
+          "tree_id": "01c74a2af85b4d5467cf3d3ee982a57f16693af3",
+          "url": "https://github.com/noir-lang/noir/commit/d837face28873e80d113d1fe548d9ac70961ae3f"
+        },
+        "date": 1773745524575,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 242278,
+            "range": "± 678",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 221000,
+            "range": "± 3563",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2212906,
+            "range": "± 6565",
             "unit": "ns/iter"
           }
         ]
