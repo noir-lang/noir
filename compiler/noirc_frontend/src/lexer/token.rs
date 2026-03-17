@@ -944,8 +944,14 @@ pub enum SecondaryAttributeKind {
     /// An attribute expected to run a comptime function of the same name: `#[foo]`
     Meta(MetaAttribute),
 
-    /// TODO: What is this? There was no doc comment on it and it was committed
-    /// by aztec-bot from a sync
+    /// Tags a struct or global inside a `contract` block for inclusion in the
+    /// compiled contract artifact. The string is the tag name used as a key in
+    /// the compiled contract artifact: tagged structs go into a `structs` map and
+    /// tagged globals go into a `globals` map, both keyed by tag.
+    ///
+    /// Only valid inside `contract` blocks (enforced during elaboration).
+    ///
+    /// Example: `#[abi(my_tag)]`
     Abi(String),
 
     /// A variable-argument comptime function.
