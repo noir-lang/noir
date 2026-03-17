@@ -269,24 +269,14 @@ impl CallGraph {
 
         // Phase 1: forward-propagate "unbounded" through callees.
         // Any function reachable (via calls) from a recursive function is also unbounded.
-        let mut tainted: HashSet<FunctionId> = recursive.clone();
-        let mut stack: Vec<FunctionId> = recursive.iter().copied().collect();
-
-        while let Some(f) = stack.pop() {
-            let f_index = self.ids_to_indices[&f];
-            for edge in self.graph.edges(f_index) {
-                let callee_id = self.indices_to_ids[&edge.target()];
-                if reachable.contains(&callee_id) && tainted.insert(callee_id) {
-                    stack.push(callee_id);
-                }
-            }
-        }
+        let tainted = self.reachable_from(recursive);
 
         // Phase 2: compute max depth for non-tainted functions using topological BFS.
         // We only count callers that are themselves inside `reachable` and not tainted.
 
         // Select only the nodes which are not reachable from recursive functions.
         let non_tainted = self.build_acyclic_subgraph(&tainted);
+
         // Sort them topologically, so we can propagate the call depth from entries to leaves.
         let topological_order = petgraph::algo::toposort(non_tainted.graph(), None).unwrap();
 
