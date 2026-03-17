@@ -9,14 +9,11 @@ warning: variable does not need to be mutable
   │             -
   │
 
-error: Index out of bounds, array has size 2, but index was 4294967297
-  ┌─ src/main.nr:3:5
+error: Index 2147483648 is out of bounds for this array of length 1
+  ┌─ src/main.nr:3:7
   │
 3 │     e[2147483648_u32].1
-  │     -----------------
+  │       --------------
   │
-  = Call stack:
-    1: main
-            at src/main.nr:3:5
 
-Failed to solve program: 'Index out of bounds, array has size 2, but index was 4294967297'
+Aborting due to 1 previous error
