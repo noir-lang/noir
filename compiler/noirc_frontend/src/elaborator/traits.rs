@@ -167,6 +167,7 @@
 use std::{collections::BTreeMap, rc::Rc};
 
 use iter_extended::vecmap;
+use itertools::Itertools;
 use noirc_errors::Location;
 
 use crate::{
@@ -1026,6 +1027,8 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
         for (
             ResolvedGeneric { type_var: trait_fn_generic, .. },
             ResolvedGeneric { name, type_var: impl_fn_generic, .. },
+            // Use zip (not zip_eq) since the impl may have a different number of
+            // generics than the trait method (error pushed above).
         ) in trait_fn_meta.direct_generics.iter().zip(&meta.direct_generics)
         {
             let trait_fn_kind = trait_fn_generic.kind();
@@ -1110,7 +1113,7 @@ fn check_function_type_matches_expected_type(
         }
 
         if params_a.len() == params_b.len() {
-            for (i, (a, b)) in params_a.iter().zip(params_b.iter()).enumerate() {
+            for (i, (a, b)) in params_a.iter().zip_eq(params_b.iter()).enumerate() {
                 if a.try_unify(b, &mut bindings).is_err() {
                     let parameter_location = noir_function.def.parameters.get(i);
                     let parameter_location = parameter_location.map(|param| param.typ.location);

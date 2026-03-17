@@ -9,6 +9,7 @@ error: Index out of bounds, array has size 4, but index was 4294967296
   │     ---------
   │
   = Call stack:
-    1. src/main.nr:3:5
+    1: main
+            at src/main.nr:3:5
 
 Failed to solve program: 'Index out of bounds, array has size 4, but index was 4294967296'

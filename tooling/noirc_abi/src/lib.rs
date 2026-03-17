@@ -11,6 +11,7 @@ use acvm::{
 use errors::AbiError;
 use input_parser::InputValue;
 use iter_extended::{try_btree_map, try_vecmap};
+use itertools::Itertools;
 use noirc_printable_type::{
     PrintableType, PrintableValue, PrintableValueDisplay, decode_printable_value,
     decode_string_value,
@@ -302,7 +303,7 @@ impl Abi {
                 }
             }
             (InputValue::Vec(vec_elements), AbiType::Tuple { fields }) => {
-                for (value, typ) in vec_elements.into_iter().zip(fields) {
+                for (value, typ) in vec_elements.into_iter().zip_eq(fields) {
                     encoded_value.extend(Self::encode_value(value, typ)?);
                 }
             }

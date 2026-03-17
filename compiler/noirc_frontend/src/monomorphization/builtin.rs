@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use acvm::{AcirField, FieldElement};
 use iter_extended::vecmap;
 use noirc_errors::Location;
@@ -47,19 +49,21 @@ impl Monomorphizer<'_> {
     ) -> Result<Option<FuncId>, MonomorphizationError> {
         let Some(opcode) = HandledOpcode::parse(opcode_string) else { return Ok(None) };
 
-        let (parameter_types, return_type) = match &typ {
-            Type::Function(parameters, ret, _, _) => (parameters, ret),
+        let (parameter_types, return_type, env, unconstrained) = match typ {
+            Type::Function(parameters, ret, env, unconstrained) => {
+                (parameters, ret, env, unconstrained)
+            }
             other => unreachable!("Expected built-in to be a function, found {other:?}"),
         };
 
-        let converted_return_type = Self::convert_type(return_type, location)?;
+        let converted_return_type = Self::convert_type(return_type.as_ref(), location)?;
 
         let mut parameters = Vec::new();
         let body = match opcode {
             HandledOpcode::CheckedTransmute => {
                 assert_eq!(parameter_types.len(), 1);
                 let parameter_id = self.next_local_id();
-                let parameter_type = Self::convert_type(&parameter_types[0], location)?;
+                let parameter_type = Rc::new(Self::convert_type(&parameter_types[0], location)?);
                 parameters = vec![(
                     parameter_id,
                     false,
@@ -68,7 +72,7 @@ impl Monomorphizer<'_> {
                     Visibility::Private,
                 )];
 
-                self.check_transmute(&parameter_types[0], return_type, location)?;
+                self.check_transmute(&parameter_types[0], return_type.as_ref(), location)?;
 
                 ast::Expression::Ident(ast::Ident {
                     location: Some(location),
@@ -103,6 +107,7 @@ impl Monomorphizer<'_> {
                 is_entry_point: false,
             },
         );
+        let typ = Type::Function(parameter_types, return_type, env, unconstrained);
         self.define_function(id, typ, turbofish_generics, is_unconstrained, new_function_id);
         Ok(Some(new_function_id))
     }
@@ -138,7 +143,7 @@ impl Monomorphizer<'_> {
             Expression::Literal(Literal::Integer(value, int_type.clone(), location))
         });
 
-        let typ = Type::Vector(Box::new(int_type));
+        let typ = Type::Vector(Rc::new(int_type));
         let arr_literal = ArrayLiteral { typ, contents: bytes_as_expr };
         Expression::Literal(Literal::Vector(arr_literal))
     }
@@ -160,7 +165,7 @@ impl Monomorphizer<'_> {
             ast::Type::Bool => ast::Expression::Literal(ast::Literal::Bool(false)),
             ast::Type::Unit => ast::Expression::Literal(ast::Literal::Unit),
             ast::Type::Array(length, element_type) => {
-                let element = self.zeroed_value_of_type(element_type.as_ref(), location);
+                let element = self.zeroed_value_of_type(element_type, location);
                 ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral {
                     contents: vec![element; *length as usize],
                     typ: ast::Type::Array(*length, element_type.clone()),
@@ -187,7 +192,13 @@ impl Monomorphizer<'_> {
                 self.zeroed_value_of_type(field, location)
             })),
             ast::Type::Function(parameter_types, ret_type, env, unconstrained) => self
-                .create_zeroed_function(parameter_types, ret_type, env, *unconstrained, location),
+                .create_zeroed_function(
+                    parameter_types,
+                    ret_type.clone(),
+                    env.clone(),
+                    *unconstrained,
+                    location,
+                ),
             ast::Type::Vector(element_type) => {
                 ast::Expression::Literal(ast::Literal::Vector(ast::ArrayLiteral {
                     contents: vec![],
@@ -217,18 +228,24 @@ impl Monomorphizer<'_> {
     fn create_zeroed_function(
         &mut self,
         parameter_types: &[ast::Type],
-        ret_type: &ast::Type,
-        env_type: &ast::Type,
+        ret_type: Rc<ast::Type>,
+        env_type: Rc<ast::Type>,
         unconstrained: bool,
         location: Location,
     ) -> ast::Expression {
         let lambda_name = "zeroed_lambda";
 
         let parameters = vecmap(parameter_types, |parameter_type| {
-            (self.next_local_id(), false, "_".into(), parameter_type.clone(), Visibility::Private)
+            (
+                self.next_local_id(),
+                false,
+                "_".into(),
+                Rc::new(parameter_type.clone()),
+                Visibility::Private,
+            )
         });
 
-        let body = self.zeroed_value_of_type(ret_type, location);
+        let body = self.zeroed_value_of_type(&ret_type, location);
 
         let id = self.next_function_id();
         let return_type = ret_type.clone();
@@ -239,7 +256,7 @@ impl Monomorphizer<'_> {
             name,
             parameters,
             body,
-            return_type,
+            return_type: return_type.as_ref().clone(),
             return_visibility: Visibility::Private,
             unconstrained,
             inline_type: InlineType::default(),
@@ -252,12 +269,12 @@ impl Monomorphizer<'_> {
             mutable: false,
             location: None,
             name: lambda_name.to_owned(),
-            typ: ast::Type::Function(
+            typ: Rc::new(ast::Type::Function(
                 parameter_types.to_owned(),
-                Box::new(ret_type.clone()),
-                Box::new(env_type.clone()),
+                ret_type,
+                env_type,
                 unconstrained,
-            ),
+            )),
             id: self.next_ident_id(),
         })
     }
