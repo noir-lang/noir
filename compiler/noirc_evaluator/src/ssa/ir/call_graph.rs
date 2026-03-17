@@ -8,7 +8,7 @@
 //!
 //! This utility is used by SSA passes such as inlining, which need to avoid recursive functions,
 //! and purity analysis which needs to unify the purities of all functions called within another function.
-use std::collections::{BTreeMap, BTreeSet, VecDeque};
+use std::collections::{BTreeMap, BTreeSet};
 
 use petgraph::{
     algo::kosaraju_scc,
@@ -154,10 +154,10 @@ impl CallGraph {
         &self.indices_to_ids
     }
 
-    pub(crate) fn build_acyclic_subgraph(
-        &self,
-        recursive_functions: &HashSet<FunctionId>,
-    ) -> CallGraph {
+    /// Build a sub-graph from node that aren't contained in `recursive_functions`.
+    ///
+    /// The indices returned will be different than the ones in this graph.
+    pub(crate) fn build_acyclic_subgraph(&self, recursive_functions: &HashSet<FunctionId>) -> Self {
         let mut graph = DiGraph::new();
         let mut ids_to_indices = HashMap::default();
         let mut indices_to_ids = HashMap::default();
@@ -285,65 +285,48 @@ impl CallGraph {
         // Phase 2: compute max depth for non-tainted functions using topological BFS.
         // We only count callers that are themselves inside `reachable` and not tainted.
 
-        // Build in-degree map: number of non-tainted, reachable callers for each non-tainted function.
-        let callers_map = self.callers();
-        let mut in_degree: HashMap<FunctionId, usize> = HashMap::default();
-        for f in reachable {
-            if tainted.contains(f) {
+        // Select only the nodes which are not reachable from recursive functions.
+        let non_tainted = self.build_acyclic_subgraph(&tainted);
+        // Sort them topologically, so we can propagate the call depth from entries to leaves.
+        let topological_order = petgraph::algo::toposort(non_tainted.graph(), None).unwrap();
+
+        // The call depth of each function, to be filled out in the order we encounter them.
+        let mut depths: HashMap<FunctionId, usize> = HashMap::default();
+
+        for f_index in topological_order {
+            let f_id = non_tainted.indices_to_ids[&f_index];
+            if !reachable.contains(&f_id) {
                 continue;
             }
-            let bounded_callers = callers_map.get(f).map_or(0, |callers| {
-                callers.keys().filter(|c| reachable.contains(c) && !tainted.contains(c)).count()
-            });
-            in_degree.insert(*f, bounded_callers);
-        }
-
-        // Seed the BFS with root functions (no bounded callers -> call-stack depth 1).
-        let mut depths: HashMap<FunctionId, usize> = HashMap::default();
-        let mut queue: VecDeque<FunctionId> = VecDeque::new();
-        for (f, deg) in &in_degree {
-            if *deg == 0 {
-                depths.insert(*f, 1);
-                queue.push_back(*f);
-            }
-        }
-
-        // Process the DAG in topological order, propagating the maximum depth.
-        while let Some(f) = queue.pop_front() {
-            let f_depth = depths[&f];
-            let f_index = self.ids_to_indices[&f];
-            for edge in self.graph.edges(f_index) {
-                let callee_id = self.indices_to_ids[&edge.target()];
-                if !reachable.contains(&callee_id) || tainted.contains(&callee_id) {
+            // If this is the first time we reach a function, treat as a top level one with a depth of 1.
+            let f_depth = *depths.entry(f_id).or_insert(1);
+            // Propagate the depth to each callee before visiting them.
+            for edge in non_tainted.graph.edges(f_index) {
+                let callee_id = non_tainted.indices_to_ids[&edge.target()];
+                if !reachable.contains(&callee_id) {
                     continue;
                 }
                 // Keep the maximum depth seen so far for this callee.
                 let callee_depth = depths.entry(callee_id).or_insert(0);
                 *callee_depth = (*callee_depth).max(f_depth + 1);
-                // When all callers have been processed for this callee, enqueue it for propagation.
-                let deg = in_degree.get_mut(&callee_id).unwrap();
-                *deg -= 1;
-                if *deg == 0 {
-                    queue.push_back(callee_id);
-                }
             }
         }
 
         // Assemble the final result.
-        let mut result: BTreeMap<FunctionId, Option<usize>> = BTreeMap::new();
-        for f in reachable {
-            if tainted.contains(f) {
-                result.insert(*f, None);
-            } else if let Some(&d) = depths.get(f) {
-                result.insert(*f, Some(d));
-            } else {
-                // If a non-tainted function has no entry in `depths` it was unreachable within
-                // the non-tainted subgraph (e.g. dead code); treat it as depth 1.
-                result.insert(*f, Some(1));
-            }
-        }
-
-        result
+        reachable
+            .iter()
+            .map(|f| {
+                if tainted.contains(f) {
+                    (*f, None)
+                } else if let Some(&d) = depths.get(f) {
+                    (*f, Some(d))
+                } else {
+                    // If a non-tainted function has no entry in `depths` it was unreachable within
+                    // the non-tainted subgraph (e.g. dead code); treat it as depth 1.
+                    (*f, Some(1))
+                }
+            })
+            .collect()
     }
 
     /// Returns all functions reachable from the provided root(s).
