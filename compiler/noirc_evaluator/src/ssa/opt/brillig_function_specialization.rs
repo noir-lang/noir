@@ -36,7 +36,7 @@ pub const DEFAULT_MAX_SPECIALIZATIONS_PER_FN: usize = 3;
 /// intentionally excluded: substituting a constant array into the specialized clone creates a
 /// fresh `MakeArray` with an independent reference count. The caller's `inc_rc` still targets
 /// the original array, so the clone's copy starts at RC 1 instead of the expected value. This
-/// breaks `array_refcount` assertions and could silently alter copy-on-write behaviour.
+/// breaks `array_refcount` assertions and could silently alter copy-on-write behavior.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct SpecializationKey {
     callee: FunctionId,
