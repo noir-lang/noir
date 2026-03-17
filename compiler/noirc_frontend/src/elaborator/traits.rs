@@ -164,7 +164,10 @@
 //!     which is trivially solved by finding the corresponding impl.
 //!   - If a single impl candidate is found, it is used. Otherwise, an error is issued.
 
-use std::{collections::BTreeMap, rc::Rc};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    rc::Rc,
+};
 
 use iter_extended::vecmap;
 use itertools::Itertools;
@@ -507,11 +510,12 @@ impl Elaborator<'_> {
         location: Location,
     ) {
         for constraint in constraints {
+            let mut visited = BTreeSet::from([constraint.trait_bound.trait_id]);
             self.add_trait_bound_to_scope(
                 location,
                 &constraint.typ,
                 &constraint.trait_bound,
-                constraint.trait_bound.trait_id,
+                &mut visited,
             );
         }
 
@@ -522,11 +526,12 @@ impl Elaborator<'_> {
             let self_type =
                 self.self_type.clone().expect("Expected a self type if there's a current trait");
 
+            let mut visited = BTreeSet::from([constraint.trait_bound.trait_id]);
             self.add_trait_bound_to_scope(
                 location,
                 &self_type,
                 &constraint.trait_bound,
-                constraint.trait_bound.trait_id,
+                &mut visited,
             );
         }
     }
@@ -582,7 +587,8 @@ impl Elaborator<'_> {
         let trait_bound = self.resolve_trait_bound(&constraint.trait_bound)?;
         let location = constraint.trait_bound.trait_path.location;
 
-        self.add_trait_bound_to_scope(location, &typ, &trait_bound, trait_bound.trait_id);
+        let mut visited = BTreeSet::from([trait_bound.trait_id]);
+        self.add_trait_bound_to_scope(location, &typ, &trait_bound, &mut visited);
 
         let constraint = TraitConstraint { typ, trait_bound };
         // Also add to trait_bounds so that T::AssocType syntax can be resolved
@@ -728,7 +734,7 @@ impl Elaborator<'_> {
         location: Location,
         object: &Type,
         trait_bound: &ResolvedTraitBound,
-        starting_trait_id: TraitId,
+        visited: &mut BTreeSet<TraitId>,
     ) {
         let trait_id = trait_bound.trait_id;
         let generics = trait_bound.trait_generics.clone();
@@ -779,18 +785,13 @@ impl Elaborator<'_> {
         {
             for parent_trait_bound in trait_bounds {
                 // Avoid looping forever in case there are cycles
-                if parent_trait_bound.trait_id == starting_trait_id {
+                if !visited.insert(parent_trait_bound.trait_id) {
                     continue;
                 }
 
                 let parent_trait_bound =
                     self.instantiate_parent_trait_bound(trait_bound, &parent_trait_bound);
-                self.add_trait_bound_to_scope(
-                    location,
-                    object,
-                    &parent_trait_bound,
-                    starting_trait_id,
-                );
+                self.add_trait_bound_to_scope(location, object, &parent_trait_bound, visited);
             }
         }
     }

@@ -7,6 +7,8 @@
 //! - Second stage elaboration strategy of function bodies and their return type.
 //!   - Shared strategy for all types of functions (standalone, impl, trait impl)
 
+use std::collections::BTreeSet;
+
 use iter_extended::vecmap;
 use itertools::Itertools;
 use noirc_errors::Location;
@@ -174,7 +176,8 @@ impl Elaborator<'_> {
         // Setup trait constraints
         for (extra_constraint, location) in extra_trait_constraints {
             let bound = &extra_constraint.trait_bound;
-            self.add_trait_bound_to_scope(*location, &extra_constraint.typ, bound, bound.trait_id);
+            let mut visited = BTreeSet::from([bound.trait_id]);
+            self.add_trait_bound_to_scope(*location, &extra_constraint.typ, bound, &mut visited);
         }
 
         let mut trait_constraints =
@@ -304,7 +307,8 @@ impl Elaborator<'_> {
             for bound in bounds {
                 let typ = Type::TypeVariable(associated_generic.type_var.clone());
                 let location = associated_generic.location;
-                self.add_trait_bound_to_scope(location, &typ, &bound, bound.trait_id);
+                let mut visited = BTreeSet::from([bound.trait_id]);
+                self.add_trait_bound_to_scope(location, &typ, &bound, &mut visited);
                 associated_generics_trait_constraints
                     .push(TraitConstraint { typ, trait_bound: bound });
             }
