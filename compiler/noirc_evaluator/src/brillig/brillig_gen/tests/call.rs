@@ -84,40 +84,39 @@ fn brillig_as_vector() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-     0: call 0 // -> CheckMaxStackDepth
-     1: sp[2] = const u32 10
-     2: sp[3] = const u32 20
-     3: sp[4] = const u32 30
-     4: sp[5] = @1
-     5: sp[6] = const u32 4
-     6: @1 = u32 add @1, sp[6]
-     7: sp[5] = indirect const u32 1
-     8: sp[6] = u32 add sp[5], @2
-     9: sp[7] = sp[6]
-    10: store sp[2] at sp[7]
-    11: sp[7] = u32 add sp[7], @2
-    12: store sp[3] at sp[7]
-    13: sp[7] = u32 add sp[7], @2
-    14: store sp[4] at sp[7]
-    15: sp[4] = const u32 3
-    16: sp[2] = u32 div sp[4], @2
-    17: sp[7] = const u32 3
-    18: sp[6] = u32 add sp[4], sp[7]
-    19: sp[3] = @1
-    20: @1 = u32 add @1, sp[6]
-    21: sp[3] = indirect const u32 1
-    22: sp[6] = u32 add sp[3], @2
-    23: store sp[4] at sp[6]
-    24: sp[6] = u32 add sp[6], @2
-    25: store sp[4] at sp[6]
-    26: sp[7] = const u32 3
-    27: sp[6] = u32 add sp[3], sp[7]
-    28: sp[7] = u32 add sp[5], @2
-    29: @3 = sp[7]
-    30: @4 = sp[6]
-    31: @5 = sp[4]
-    32: call 0 // -> MemCopy
-    33: return
+     0: sp[2] = const u32 10
+     1: sp[3] = const u32 20
+     2: sp[4] = const u32 30
+     3: sp[5] = @1
+     4: sp[6] = const u32 4
+     5: @1 = u32 add @1, sp[6]
+     6: sp[5] = indirect const u32 1
+     7: sp[6] = u32 add sp[5], @2
+     8: sp[7] = sp[6]
+     9: store sp[2] at sp[7]
+    10: sp[7] = u32 add sp[7], @2
+    11: store sp[3] at sp[7]
+    12: sp[7] = u32 add sp[7], @2
+    13: store sp[4] at sp[7]
+    14: sp[4] = const u32 3
+    15: sp[2] = u32 div sp[4], @2
+    16: sp[7] = const u32 3
+    17: sp[6] = u32 add sp[4], sp[7]
+    18: sp[3] = @1
+    19: @1 = u32 add @1, sp[6]
+    20: sp[3] = indirect const u32 1
+    21: sp[6] = u32 add sp[3], @2
+    22: store sp[4] at sp[6]
+    23: sp[6] = u32 add sp[6], @2
+    24: store sp[4] at sp[6]
+    25: sp[7] = const u32 3
+    26: sp[6] = u32 add sp[3], sp[7]
+    27: sp[7] = u32 add sp[5], @2
+    28: @3 = sp[7]
+    29: @4 = sp[6]
+    30: @5 = sp[4]
+    31: call 0 // -> MemCopy
+    32: return
     ");
 }
 
@@ -136,21 +135,20 @@ fn brillig_to_bits() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-     0: call 0 // -> CheckMaxStackDepth
-     1: sp[4] = const u32 2
-     2: sp[5] = const bool 1
-     3: sp[3] = @1
-     4: sp[6] = const u32 9
-     5: @1 = u32 add @1, sp[6]
-     6: sp[3] = indirect const u32 1
-     7: sp[6] = u32 add sp[3], @2
-     8: sp[7] = const u32 8
-     9: to_radix(input: sp[2], radix: sp[4], num_limbs: sp[7], output_pointer: sp[6], output_bits: sp[5])
-    10: @3 = sp[6]
-    11: @4 = sp[7]
-    12: call 0 // -> ArrayReverse
-    13: sp[2] = sp[3]
-    14: return
+     0: sp[4] = const u32 2
+     1: sp[5] = const bool 1
+     2: sp[3] = @1
+     3: sp[6] = const u32 9
+     4: @1 = u32 add @1, sp[6]
+     5: sp[3] = indirect const u32 1
+     6: sp[6] = u32 add sp[3], @2
+     7: sp[7] = const u32 8
+     8: to_radix(input: sp[2], radix: sp[4], num_limbs: sp[7], output_pointer: sp[6], output_bits: sp[5])
+     9: @3 = sp[6]
+    10: @4 = sp[7]
+    11: call 0 // -> ArrayReverse
+    12: sp[2] = sp[3]
+    13: return
     ");
 }
 
@@ -169,20 +167,19 @@ fn brillig_to_radix() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-     0: call 0 // -> CheckMaxStackDepth
-     1: sp[5] = const bool 0
-     2: sp[4] = @1
-     3: sp[6] = const u32 9
-     4: @1 = u32 add @1, sp[6]
-     5: sp[4] = indirect const u32 1
-     6: sp[6] = u32 add sp[4], @2
-     7: sp[7] = const u32 8
-     8: to_radix(input: sp[2], radix: sp[3], num_limbs: sp[7], output_pointer: sp[6], output_bits: sp[5])
-     9: @3 = sp[6]
-    10: @4 = sp[7]
-    11: call 0 // -> ArrayReverse
-    12: sp[2] = sp[4]
-    13: return
+     0: sp[5] = const bool 0
+     1: sp[4] = @1
+     2: sp[6] = const u32 9
+     3: @1 = u32 add @1, sp[6]
+     4: sp[4] = indirect const u32 1
+     5: sp[6] = u32 add sp[4], @2
+     6: sp[7] = const u32 8
+     7: to_radix(input: sp[2], radix: sp[3], num_limbs: sp[7], output_pointer: sp[6], output_bits: sp[5])
+     8: @3 = sp[6]
+     9: @4 = sp[7]
+    10: call 0 // -> ArrayReverse
+    11: sp[2] = sp[4]
+    12: return
     ");
 }
 
@@ -201,10 +198,9 @@ fn brillig_field_less_than() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-    0: call 0 // -> CheckMaxStackDepth
-    1: sp[4] = field lt sp[2], sp[3]
-    2: sp[2] = sp[4]
-    3: return
+    0: sp[4] = field lt sp[2], sp[3]
+    1: sp[2] = sp[4]
+    2: return
     ");
 }
 
@@ -224,23 +220,22 @@ fn brillig_array_ref_count() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-     0: call 0 // -> CheckMaxStackDepth
-     1: sp[2] = const u32 10
-     2: sp[3] = const u32 20
-     3: sp[4] = const u32 30
-     4: sp[5] = @1
-     5: sp[6] = const u32 4
-     6: @1 = u32 add @1, sp[6]
-     7: sp[5] = indirect const u32 1
-     8: sp[6] = u32 add sp[5], @2
-     9: sp[7] = sp[6]
-    10: store sp[2] at sp[7]
-    11: sp[7] = u32 add sp[7], @2
-    12: store sp[3] at sp[7]
-    13: sp[7] = u32 add sp[7], @2
-    14: store sp[4] at sp[7]
-    15: sp[2] = load sp[5]
-    16: return
+     0: sp[2] = const u32 10
+     1: sp[3] = const u32 20
+     2: sp[4] = const u32 30
+     3: sp[5] = @1
+     4: sp[6] = const u32 4
+     5: @1 = u32 add @1, sp[6]
+     6: sp[5] = indirect const u32 1
+     7: sp[6] = u32 add sp[5], @2
+     8: sp[7] = sp[6]
+     9: store sp[2] at sp[7]
+    10: sp[7] = u32 add sp[7], @2
+    11: store sp[3] at sp[7]
+    12: sp[7] = u32 add sp[7], @2
+    13: store sp[4] at sp[7]
+    14: sp[2] = load sp[5]
+    15: return
     ");
 }
 
@@ -261,41 +256,40 @@ fn brillig_vector_ref_count() {
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert_artifact_snapshot!(foo, @r"
     fn foo
-     0: call 0 // -> CheckMaxStackDepth
-     1: sp[2] = const u32 10
-     2: sp[3] = const u32 20
-     3: sp[4] = const u32 30
-     4: sp[5] = @1
-     5: sp[6] = const u32 4
-     6: @1 = u32 add @1, sp[6]
-     7: sp[5] = indirect const u32 1
-     8: sp[6] = u32 add sp[5], @2
-     9: sp[7] = sp[6]
-    10: store sp[2] at sp[7]
-    11: sp[7] = u32 add sp[7], @2
-    12: store sp[3] at sp[7]
-    13: sp[7] = u32 add sp[7], @2
-    14: store sp[4] at sp[7]
-    15: sp[4] = const u32 3
-    16: sp[2] = u32 div sp[4], @2
-    17: sp[7] = const u32 3
-    18: sp[6] = u32 add sp[4], sp[7]
-    19: sp[3] = @1
-    20: @1 = u32 add @1, sp[6]
-    21: sp[3] = indirect const u32 1
-    22: sp[6] = u32 add sp[3], @2
-    23: store sp[4] at sp[6]
-    24: sp[6] = u32 add sp[6], @2
-    25: store sp[4] at sp[6]
-    26: sp[7] = const u32 3
-    27: sp[6] = u32 add sp[3], sp[7]
-    28: sp[7] = u32 add sp[5], @2
-    29: @3 = sp[7]
-    30: @4 = sp[6]
-    31: @5 = sp[4]
-    32: call 0 // -> MemCopy
-    33: sp[4] = load sp[3]
-    34: sp[2] = sp[4]
-    35: return
+     0: sp[2] = const u32 10
+     1: sp[3] = const u32 20
+     2: sp[4] = const u32 30
+     3: sp[5] = @1
+     4: sp[6] = const u32 4
+     5: @1 = u32 add @1, sp[6]
+     6: sp[5] = indirect const u32 1
+     7: sp[6] = u32 add sp[5], @2
+     8: sp[7] = sp[6]
+     9: store sp[2] at sp[7]
+    10: sp[7] = u32 add sp[7], @2
+    11: store sp[3] at sp[7]
+    12: sp[7] = u32 add sp[7], @2
+    13: store sp[4] at sp[7]
+    14: sp[4] = const u32 3
+    15: sp[2] = u32 div sp[4], @2
+    16: sp[7] = const u32 3
+    17: sp[6] = u32 add sp[4], sp[7]
+    18: sp[3] = @1
+    19: @1 = u32 add @1, sp[6]
+    20: sp[3] = indirect const u32 1
+    21: sp[6] = u32 add sp[3], @2
+    22: store sp[4] at sp[6]
+    23: sp[6] = u32 add sp[6], @2
+    24: store sp[4] at sp[6]
+    25: sp[7] = const u32 3
+    26: sp[6] = u32 add sp[3], sp[7]
+    27: sp[7] = u32 add sp[5], @2
+    28: @3 = sp[7]
+    29: @4 = sp[6]
+    30: @5 = sp[4]
+    31: call 0 // -> MemCopy
+    32: sp[4] = load sp[3]
+    33: sp[2] = sp[4]
+    34: return
     ");
 }

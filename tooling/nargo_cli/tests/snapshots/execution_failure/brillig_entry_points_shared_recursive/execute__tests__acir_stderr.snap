@@ -10,24 +10,20 @@ warning: function `baz` cannot return without recursing
    │
 
 error: Assertion failed: Stack too deep
-  ┌─ src/main.nr:7:5
-  │
-7 │     bar(f);
-  │     ------
-  │
-  = Call stack:
-           1: main
-               at src/main.nr:2:5
-    ┌─     2: baz
-    │          at src/main.nr:18:9
-    │      3: foo
-    │          at src/main.nr:7:5
-    │      4: bar
-    │          at src/main.nr:12:5
-    └─ (repeated 3413 times)
-       10241: baz
-               at src/main.nr:18:9
-       10242: foo
-               at src/main.nr:7:5
+   ┌─ src/main.nr:12:5
+   │
+12 │     f();
+   │     ---
+   │
+   = Call stack:
+        1: main
+                at src/main.nr:2:5
+     ┌─ 2: baz
+     │          at src/main.nr:18:9
+     │  3: foo
+     │          at src/main.nr:7:5
+     │  4: bar
+     │          at src/main.nr:12:5
+     └─ (repeated 3414 times)
 
 Failed assertion
