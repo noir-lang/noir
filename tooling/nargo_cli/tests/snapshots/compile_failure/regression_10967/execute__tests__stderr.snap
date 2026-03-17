@@ -15,8 +15,5 @@ error: Index 3 is out of bounds for this array of length 1
 3 │     unit_array[3];
   │                -
   │
-  = Call stack:
-    1: main
-            at src/main.nr:3:5
 
 Aborting due to 1 previous error
