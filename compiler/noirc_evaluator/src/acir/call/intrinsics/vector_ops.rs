@@ -322,7 +322,7 @@ impl Context<'_> {
             // This is different from the previous check as this is a runtime check.
             let zero = self.acir_context.add_constant(FieldElement::zero());
             let assert_message = self.acir_context.generate_assertion_message_payload(
-                "Attempt to pop_front from an empty vector".to_string(),
+                "Attempt to pop from an empty vector".to_string(),
             );
             self.acir_context.assert_neq_var(
                 vector_length_var,
