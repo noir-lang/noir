@@ -494,126 +494,127 @@
 <a href=#494 id=494 data-nosnippet>494</a>                    </span><span class="self">self</span>.write_value_or_array(destination, location);
 <a href=#495 id=495 data-nosnippet>495</a>                }
 <a href=#496 id=496 data-nosnippet>496</a>            }
-<a href=#497 id=497 data-nosnippet>497</a>            Opcode::ConditionalMov { source_a, source_b, condition, .. } =&gt; {
+<a href=#497 id=497 data-nosnippet>497</a>            Opcode::ConditionalMov { source_a, source_b, condition, destination } =&gt; {
 <a href=#498 id=498 data-nosnippet>498</a>                <span class="self">self</span>.read(condition, location);
 <a href=#499 id=499 data-nosnippet>499</a>                <span class="self">self</span>.read(source_a, location);
 <a href=#500 id=500 data-nosnippet>500</a>                <span class="self">self</span>.read(source_b, location);
-<a href=#501 id=501 data-nosnippet>501</a>            }
-<a href=#502 id=502 data-nosnippet>502</a>            Opcode::BlackBox(black_box_op) =&gt; <span class="self">self</span>.visit_black_box_op(black_box_op, location),
-<a href=#503 id=503 data-nosnippet>503</a>            Opcode::Trap { revert_data } =&gt; <span class="self">self</span>.read_heap_vector(revert_data, location),
-<a href=#504 id=504 data-nosnippet>504</a>            Opcode::Stop { return_data } =&gt; <span class="self">self</span>.read_heap_vector(return_data, location),
-<a href=#505 id=505 data-nosnippet>505</a>            Opcode::Jump { .. } | Opcode::Call { .. } | Opcode::Return =&gt; {}
-<a href=#506 id=506 data-nosnippet>506</a>        }
-<a href=#507 id=507 data-nosnippet>507</a>    }
-<a href=#508 id=508 data-nosnippet>508</a>
-<a href=#509 id=509 data-nosnippet>509</a>    <span class="kw">fn </span>read_heap_array(<span class="kw-2">&amp;mut </span><span class="self">self</span>, array: <span class="kw-2">&amp;</span>HeapArray, location: OpcodeLocation) {
-<a href=#510 id=510 data-nosnippet>510</a>        <span class="self">self</span>.read(<span class="kw-2">&amp;</span>array.pointer, location);
-<a href=#511 id=511 data-nosnippet>511</a>    }
-<a href=#512 id=512 data-nosnippet>512</a>
-<a href=#513 id=513 data-nosnippet>513</a>    <span class="kw">fn </span>read_heap_vector(<span class="kw-2">&amp;mut </span><span class="self">self</span>, vector: <span class="kw-2">&amp;</span>HeapVector, location: OpcodeLocation) {
-<a href=#514 id=514 data-nosnippet>514</a>        <span class="self">self</span>.read(<span class="kw-2">&amp;</span>vector.pointer, location);
-<a href=#515 id=515 data-nosnippet>515</a>        <span class="self">self</span>.read(<span class="kw-2">&amp;</span>vector.size, location);
-<a href=#516 id=516 data-nosnippet>516</a>    }
-<a href=#517 id=517 data-nosnippet>517</a>
-<a href=#518 id=518 data-nosnippet>518</a>    <span class="kw">fn </span>read_value_or_array(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: <span class="kw-2">&amp;</span>ValueOrArray, location: OpcodeLocation) {
-<a href=#519 id=519 data-nosnippet>519</a>        <span class="kw">match </span>value {
-<a href=#520 id=520 data-nosnippet>520</a>            ValueOrArray::MemoryAddress(memory_address) =&gt; <span class="self">self</span>.read(memory_address, location),
-<a href=#521 id=521 data-nosnippet>521</a>            ValueOrArray::HeapArray(heap_array) =&gt; <span class="self">self</span>.read_heap_array(heap_array, location),
-<a href=#522 id=522 data-nosnippet>522</a>            ValueOrArray::HeapVector(heap_vector) =&gt; <span class="self">self</span>.read_heap_vector(heap_vector, location),
-<a href=#523 id=523 data-nosnippet>523</a>        }
-<a href=#524 id=524 data-nosnippet>524</a>    }
-<a href=#525 id=525 data-nosnippet>525</a>
-<a href=#526 id=526 data-nosnippet>526</a>    <span class="kw">fn </span>write_heap_array(<span class="kw-2">&amp;mut </span><span class="self">self</span>, array: <span class="kw-2">&amp;</span>HeapArray, location: OpcodeLocation) {
-<a href=#527 id=527 data-nosnippet>527</a>        <span class="self">self</span>.write(<span class="kw-2">&amp;</span>array.pointer, location);
-<a href=#528 id=528 data-nosnippet>528</a>    }
-<a href=#529 id=529 data-nosnippet>529</a>
-<a href=#530 id=530 data-nosnippet>530</a>    <span class="kw">fn </span>write_heap_vector(<span class="kw-2">&amp;mut </span><span class="self">self</span>, vector: <span class="kw-2">&amp;</span>HeapVector, location: OpcodeLocation) {
-<a href=#531 id=531 data-nosnippet>531</a>        <span class="self">self</span>.write(<span class="kw-2">&amp;</span>vector.pointer, location);
-<a href=#532 id=532 data-nosnippet>532</a>        <span class="self">self</span>.write(<span class="kw-2">&amp;</span>vector.size, location);
-<a href=#533 id=533 data-nosnippet>533</a>    }
-<a href=#534 id=534 data-nosnippet>534</a>
-<a href=#535 id=535 data-nosnippet>535</a>    <span class="kw">fn </span>write_value_or_array(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: <span class="kw-2">&amp;</span>ValueOrArray, location: OpcodeLocation) {
-<a href=#536 id=536 data-nosnippet>536</a>        <span class="kw">match </span>value {
-<a href=#537 id=537 data-nosnippet>537</a>            ValueOrArray::MemoryAddress(memory_address) =&gt; <span class="self">self</span>.write(memory_address, location),
-<a href=#538 id=538 data-nosnippet>538</a>            ValueOrArray::HeapArray(heap_array) =&gt; <span class="self">self</span>.write_heap_array(heap_array, location),
-<a href=#539 id=539 data-nosnippet>539</a>            ValueOrArray::HeapVector(heap_vector) =&gt; <span class="self">self</span>.write_heap_vector(heap_vector, location),
-<a href=#540 id=540 data-nosnippet>540</a>        }
-<a href=#541 id=541 data-nosnippet>541</a>    }
-<a href=#542 id=542 data-nosnippet>542</a>
-<a href=#543 id=543 data-nosnippet>543</a>    <span class="kw">fn </span>visit_black_box_op(<span class="kw-2">&amp;mut </span><span class="self">self</span>, op: <span class="kw-2">&amp;</span>BlackBoxOp, location: OpcodeLocation) {
-<a href=#544 id=544 data-nosnippet>544</a>        <span class="kw">match </span>op {
-<a href=#545 id=545 data-nosnippet>545</a>            BlackBoxOp::AES128Encrypt { inputs, iv, key, outputs } =&gt; {
-<a href=#546 id=546 data-nosnippet>546</a>                <span class="self">self</span>.read_heap_array(inputs, location);
-<a href=#547 id=547 data-nosnippet>547</a>                <span class="self">self</span>.read_heap_array(iv, location);
-<a href=#548 id=548 data-nosnippet>548</a>                <span class="self">self</span>.read_heap_array(key, location);
-<a href=#549 id=549 data-nosnippet>549</a>                <span class="self">self</span>.write_heap_array(outputs, location);
-<a href=#550 id=550 data-nosnippet>550</a>            }
-<a href=#551 id=551 data-nosnippet>551</a>            BlackBoxOp::Blake2s { message, output } | BlackBoxOp::Blake3 { message, output } =&gt; {
-<a href=#552 id=552 data-nosnippet>552</a>                <span class="self">self</span>.read_heap_array(message, location);
-<a href=#553 id=553 data-nosnippet>553</a>                <span class="self">self</span>.write_heap_array(output, location);
-<a href=#554 id=554 data-nosnippet>554</a>            }
-<a href=#555 id=555 data-nosnippet>555</a>            BlackBoxOp::Keccakf1600 { input, output } =&gt; {
-<a href=#556 id=556 data-nosnippet>556</a>                <span class="self">self</span>.read_heap_array(input, location);
-<a href=#557 id=557 data-nosnippet>557</a>                <span class="self">self</span>.write_heap_array(output, location);
-<a href=#558 id=558 data-nosnippet>558</a>            }
-<a href=#559 id=559 data-nosnippet>559</a>            BlackBoxOp::EcdsaSecp256k1 {
-<a href=#560 id=560 data-nosnippet>560</a>                hashed_msg,
-<a href=#561 id=561 data-nosnippet>561</a>                public_key_x,
-<a href=#562 id=562 data-nosnippet>562</a>                public_key_y,
-<a href=#563 id=563 data-nosnippet>563</a>                signature,
-<a href=#564 id=564 data-nosnippet>564</a>                result,
-<a href=#565 id=565 data-nosnippet>565</a>            }
-<a href=#566 id=566 data-nosnippet>566</a>            | BlackBoxOp::EcdsaSecp256r1 {
-<a href=#567 id=567 data-nosnippet>567</a>                hashed_msg,
-<a href=#568 id=568 data-nosnippet>568</a>                public_key_x,
-<a href=#569 id=569 data-nosnippet>569</a>                public_key_y,
-<a href=#570 id=570 data-nosnippet>570</a>                signature,
-<a href=#571 id=571 data-nosnippet>571</a>                result,
-<a href=#572 id=572 data-nosnippet>572</a>            } =&gt; {
-<a href=#573 id=573 data-nosnippet>573</a>                <span class="self">self</span>.read_heap_array(hashed_msg, location);
-<a href=#574 id=574 data-nosnippet>574</a>                <span class="self">self</span>.read_heap_array(public_key_x, location);
-<a href=#575 id=575 data-nosnippet>575</a>                <span class="self">self</span>.read_heap_array(public_key_y, location);
-<a href=#576 id=576 data-nosnippet>576</a>                <span class="self">self</span>.read_heap_array(signature, location);
-<a href=#577 id=577 data-nosnippet>577</a>                <span class="self">self</span>.write(result, location);
-<a href=#578 id=578 data-nosnippet>578</a>            }
-<a href=#579 id=579 data-nosnippet>579</a>            BlackBoxOp::MultiScalarMul { points, scalars, outputs } =&gt; {
-<a href=#580 id=580 data-nosnippet>580</a>                <span class="self">self</span>.read_heap_array(points, location);
-<a href=#581 id=581 data-nosnippet>581</a>                <span class="self">self</span>.read_heap_array(scalars, location);
-<a href=#582 id=582 data-nosnippet>582</a>                <span class="self">self</span>.write_heap_array(outputs, location);
-<a href=#583 id=583 data-nosnippet>583</a>            }
-<a href=#584 id=584 data-nosnippet>584</a>            BlackBoxOp::EmbeddedCurveAdd {
-<a href=#585 id=585 data-nosnippet>585</a>                input1_x,
-<a href=#586 id=586 data-nosnippet>586</a>                input1_y,
-<a href=#587 id=587 data-nosnippet>587</a>                input1_infinite,
-<a href=#588 id=588 data-nosnippet>588</a>                input2_x,
-<a href=#589 id=589 data-nosnippet>589</a>                input2_y,
-<a href=#590 id=590 data-nosnippet>590</a>                input2_infinite,
-<a href=#591 id=591 data-nosnippet>591</a>                result,
-<a href=#592 id=592 data-nosnippet>592</a>            } =&gt; {
-<a href=#593 id=593 data-nosnippet>593</a>                <span class="self">self</span>.read(input1_x, location);
-<a href=#594 id=594 data-nosnippet>594</a>                <span class="self">self</span>.read(input1_y, location);
-<a href=#595 id=595 data-nosnippet>595</a>                <span class="self">self</span>.read(input1_infinite, location);
-<a href=#596 id=596 data-nosnippet>596</a>                <span class="self">self</span>.read(input2_x, location);
-<a href=#597 id=597 data-nosnippet>597</a>                <span class="self">self</span>.read(input2_y, location);
-<a href=#598 id=598 data-nosnippet>598</a>                <span class="self">self</span>.read(input2_infinite, location);
-<a href=#599 id=599 data-nosnippet>599</a>                <span class="self">self</span>.write_heap_array(result, location);
-<a href=#600 id=600 data-nosnippet>600</a>            }
-<a href=#601 id=601 data-nosnippet>601</a>            BlackBoxOp::Poseidon2Permutation { message, output } =&gt; {
-<a href=#602 id=602 data-nosnippet>602</a>                <span class="self">self</span>.read_heap_array(message, location);
-<a href=#603 id=603 data-nosnippet>603</a>                <span class="self">self</span>.write_heap_array(output, location);
-<a href=#604 id=604 data-nosnippet>604</a>            }
-<a href=#605 id=605 data-nosnippet>605</a>            BlackBoxOp::Sha256Compression { input, hash_values, output } =&gt; {
-<a href=#606 id=606 data-nosnippet>606</a>                <span class="self">self</span>.read_heap_array(input, location);
-<a href=#607 id=607 data-nosnippet>607</a>                <span class="self">self</span>.read_heap_array(hash_values, location);
-<a href=#608 id=608 data-nosnippet>608</a>                <span class="self">self</span>.write_heap_array(output, location);
-<a href=#609 id=609 data-nosnippet>609</a>            }
-<a href=#610 id=610 data-nosnippet>610</a>            BlackBoxOp::ToRadix { input, radix, output_pointer, num_limbs, output_bits } =&gt; {
-<a href=#611 id=611 data-nosnippet>611</a>                <span class="self">self</span>.read(input, location);
-<a href=#612 id=612 data-nosnippet>612</a>                <span class="self">self</span>.read(radix, location);
-<a href=#613 id=613 data-nosnippet>613</a>                <span class="self">self</span>.read(num_limbs, location);
-<a href=#614 id=614 data-nosnippet>614</a>                <span class="self">self</span>.read(output_bits, location);
-<a href=#615 id=615 data-nosnippet>615</a>                <span class="self">self</span>.read(output_pointer, location); <span class="comment">// indirect
-<a href=#616 id=616 data-nosnippet>616</a>            </span>}
-<a href=#617 id=617 data-nosnippet>617</a>        }
-<a href=#618 id=618 data-nosnippet>618</a>    }
-<a href=#619 id=619 data-nosnippet>619</a>}</code></pre></div></section></main></body></html>
+<a href=#501 id=501 data-nosnippet>501</a>                <span class="self">self</span>.write(destination, location);
+<a href=#502 id=502 data-nosnippet>502</a>            }
+<a href=#503 id=503 data-nosnippet>503</a>            Opcode::BlackBox(black_box_op) =&gt; <span class="self">self</span>.visit_black_box_op(black_box_op, location),
+<a href=#504 id=504 data-nosnippet>504</a>            Opcode::Trap { revert_data } =&gt; <span class="self">self</span>.read_heap_vector(revert_data, location),
+<a href=#505 id=505 data-nosnippet>505</a>            Opcode::Stop { return_data } =&gt; <span class="self">self</span>.read_heap_vector(return_data, location),
+<a href=#506 id=506 data-nosnippet>506</a>            Opcode::Jump { .. } | Opcode::Call { .. } | Opcode::Return =&gt; {}
+<a href=#507 id=507 data-nosnippet>507</a>        }
+<a href=#508 id=508 data-nosnippet>508</a>    }
+<a href=#509 id=509 data-nosnippet>509</a>
+<a href=#510 id=510 data-nosnippet>510</a>    <span class="kw">fn </span>read_heap_array(<span class="kw-2">&amp;mut </span><span class="self">self</span>, array: <span class="kw-2">&amp;</span>HeapArray, location: OpcodeLocation) {
+<a href=#511 id=511 data-nosnippet>511</a>        <span class="self">self</span>.read(<span class="kw-2">&amp;</span>array.pointer, location);
+<a href=#512 id=512 data-nosnippet>512</a>    }
+<a href=#513 id=513 data-nosnippet>513</a>
+<a href=#514 id=514 data-nosnippet>514</a>    <span class="kw">fn </span>read_heap_vector(<span class="kw-2">&amp;mut </span><span class="self">self</span>, vector: <span class="kw-2">&amp;</span>HeapVector, location: OpcodeLocation) {
+<a href=#515 id=515 data-nosnippet>515</a>        <span class="self">self</span>.read(<span class="kw-2">&amp;</span>vector.pointer, location);
+<a href=#516 id=516 data-nosnippet>516</a>        <span class="self">self</span>.read(<span class="kw-2">&amp;</span>vector.size, location);
+<a href=#517 id=517 data-nosnippet>517</a>    }
+<a href=#518 id=518 data-nosnippet>518</a>
+<a href=#519 id=519 data-nosnippet>519</a>    <span class="kw">fn </span>read_value_or_array(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: <span class="kw-2">&amp;</span>ValueOrArray, location: OpcodeLocation) {
+<a href=#520 id=520 data-nosnippet>520</a>        <span class="kw">match </span>value {
+<a href=#521 id=521 data-nosnippet>521</a>            ValueOrArray::MemoryAddress(memory_address) =&gt; <span class="self">self</span>.read(memory_address, location),
+<a href=#522 id=522 data-nosnippet>522</a>            ValueOrArray::HeapArray(heap_array) =&gt; <span class="self">self</span>.read_heap_array(heap_array, location),
+<a href=#523 id=523 data-nosnippet>523</a>            ValueOrArray::HeapVector(heap_vector) =&gt; <span class="self">self</span>.read_heap_vector(heap_vector, location),
+<a href=#524 id=524 data-nosnippet>524</a>        }
+<a href=#525 id=525 data-nosnippet>525</a>    }
+<a href=#526 id=526 data-nosnippet>526</a>
+<a href=#527 id=527 data-nosnippet>527</a>    <span class="kw">fn </span>write_heap_array(<span class="kw-2">&amp;mut </span><span class="self">self</span>, array: <span class="kw-2">&amp;</span>HeapArray, location: OpcodeLocation) {
+<a href=#528 id=528 data-nosnippet>528</a>        <span class="self">self</span>.write(<span class="kw-2">&amp;</span>array.pointer, location);
+<a href=#529 id=529 data-nosnippet>529</a>    }
+<a href=#530 id=530 data-nosnippet>530</a>
+<a href=#531 id=531 data-nosnippet>531</a>    <span class="kw">fn </span>write_heap_vector(<span class="kw-2">&amp;mut </span><span class="self">self</span>, vector: <span class="kw-2">&amp;</span>HeapVector, location: OpcodeLocation) {
+<a href=#532 id=532 data-nosnippet>532</a>        <span class="self">self</span>.write(<span class="kw-2">&amp;</span>vector.pointer, location);
+<a href=#533 id=533 data-nosnippet>533</a>        <span class="self">self</span>.write(<span class="kw-2">&amp;</span>vector.size, location);
+<a href=#534 id=534 data-nosnippet>534</a>    }
+<a href=#535 id=535 data-nosnippet>535</a>
+<a href=#536 id=536 data-nosnippet>536</a>    <span class="kw">fn </span>write_value_or_array(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: <span class="kw-2">&amp;</span>ValueOrArray, location: OpcodeLocation) {
+<a href=#537 id=537 data-nosnippet>537</a>        <span class="kw">match </span>value {
+<a href=#538 id=538 data-nosnippet>538</a>            ValueOrArray::MemoryAddress(memory_address) =&gt; <span class="self">self</span>.write(memory_address, location),
+<a href=#539 id=539 data-nosnippet>539</a>            ValueOrArray::HeapArray(heap_array) =&gt; <span class="self">self</span>.write_heap_array(heap_array, location),
+<a href=#540 id=540 data-nosnippet>540</a>            ValueOrArray::HeapVector(heap_vector) =&gt; <span class="self">self</span>.write_heap_vector(heap_vector, location),
+<a href=#541 id=541 data-nosnippet>541</a>        }
+<a href=#542 id=542 data-nosnippet>542</a>    }
+<a href=#543 id=543 data-nosnippet>543</a>
+<a href=#544 id=544 data-nosnippet>544</a>    <span class="kw">fn </span>visit_black_box_op(<span class="kw-2">&amp;mut </span><span class="self">self</span>, op: <span class="kw-2">&amp;</span>BlackBoxOp, location: OpcodeLocation) {
+<a href=#545 id=545 data-nosnippet>545</a>        <span class="kw">match </span>op {
+<a href=#546 id=546 data-nosnippet>546</a>            BlackBoxOp::AES128Encrypt { inputs, iv, key, outputs } =&gt; {
+<a href=#547 id=547 data-nosnippet>547</a>                <span class="self">self</span>.read_heap_array(inputs, location);
+<a href=#548 id=548 data-nosnippet>548</a>                <span class="self">self</span>.read_heap_array(iv, location);
+<a href=#549 id=549 data-nosnippet>549</a>                <span class="self">self</span>.read_heap_array(key, location);
+<a href=#550 id=550 data-nosnippet>550</a>                <span class="self">self</span>.write_heap_array(outputs, location);
+<a href=#551 id=551 data-nosnippet>551</a>            }
+<a href=#552 id=552 data-nosnippet>552</a>            BlackBoxOp::Blake2s { message, output } | BlackBoxOp::Blake3 { message, output } =&gt; {
+<a href=#553 id=553 data-nosnippet>553</a>                <span class="self">self</span>.read_heap_array(message, location);
+<a href=#554 id=554 data-nosnippet>554</a>                <span class="self">self</span>.write_heap_array(output, location);
+<a href=#555 id=555 data-nosnippet>555</a>            }
+<a href=#556 id=556 data-nosnippet>556</a>            BlackBoxOp::Keccakf1600 { input, output } =&gt; {
+<a href=#557 id=557 data-nosnippet>557</a>                <span class="self">self</span>.read_heap_array(input, location);
+<a href=#558 id=558 data-nosnippet>558</a>                <span class="self">self</span>.write_heap_array(output, location);
+<a href=#559 id=559 data-nosnippet>559</a>            }
+<a href=#560 id=560 data-nosnippet>560</a>            BlackBoxOp::EcdsaSecp256k1 {
+<a href=#561 id=561 data-nosnippet>561</a>                hashed_msg,
+<a href=#562 id=562 data-nosnippet>562</a>                public_key_x,
+<a href=#563 id=563 data-nosnippet>563</a>                public_key_y,
+<a href=#564 id=564 data-nosnippet>564</a>                signature,
+<a href=#565 id=565 data-nosnippet>565</a>                result,
+<a href=#566 id=566 data-nosnippet>566</a>            }
+<a href=#567 id=567 data-nosnippet>567</a>            | BlackBoxOp::EcdsaSecp256r1 {
+<a href=#568 id=568 data-nosnippet>568</a>                hashed_msg,
+<a href=#569 id=569 data-nosnippet>569</a>                public_key_x,
+<a href=#570 id=570 data-nosnippet>570</a>                public_key_y,
+<a href=#571 id=571 data-nosnippet>571</a>                signature,
+<a href=#572 id=572 data-nosnippet>572</a>                result,
+<a href=#573 id=573 data-nosnippet>573</a>            } =&gt; {
+<a href=#574 id=574 data-nosnippet>574</a>                <span class="self">self</span>.read_heap_array(hashed_msg, location);
+<a href=#575 id=575 data-nosnippet>575</a>                <span class="self">self</span>.read_heap_array(public_key_x, location);
+<a href=#576 id=576 data-nosnippet>576</a>                <span class="self">self</span>.read_heap_array(public_key_y, location);
+<a href=#577 id=577 data-nosnippet>577</a>                <span class="self">self</span>.read_heap_array(signature, location);
+<a href=#578 id=578 data-nosnippet>578</a>                <span class="self">self</span>.write(result, location);
+<a href=#579 id=579 data-nosnippet>579</a>            }
+<a href=#580 id=580 data-nosnippet>580</a>            BlackBoxOp::MultiScalarMul { points, scalars, outputs } =&gt; {
+<a href=#581 id=581 data-nosnippet>581</a>                <span class="self">self</span>.read_heap_array(points, location);
+<a href=#582 id=582 data-nosnippet>582</a>                <span class="self">self</span>.read_heap_array(scalars, location);
+<a href=#583 id=583 data-nosnippet>583</a>                <span class="self">self</span>.write_heap_array(outputs, location);
+<a href=#584 id=584 data-nosnippet>584</a>            }
+<a href=#585 id=585 data-nosnippet>585</a>            BlackBoxOp::EmbeddedCurveAdd {
+<a href=#586 id=586 data-nosnippet>586</a>                input1_x,
+<a href=#587 id=587 data-nosnippet>587</a>                input1_y,
+<a href=#588 id=588 data-nosnippet>588</a>                input1_infinite,
+<a href=#589 id=589 data-nosnippet>589</a>                input2_x,
+<a href=#590 id=590 data-nosnippet>590</a>                input2_y,
+<a href=#591 id=591 data-nosnippet>591</a>                input2_infinite,
+<a href=#592 id=592 data-nosnippet>592</a>                result,
+<a href=#593 id=593 data-nosnippet>593</a>            } =&gt; {
+<a href=#594 id=594 data-nosnippet>594</a>                <span class="self">self</span>.read(input1_x, location);
+<a href=#595 id=595 data-nosnippet>595</a>                <span class="self">self</span>.read(input1_y, location);
+<a href=#596 id=596 data-nosnippet>596</a>                <span class="self">self</span>.read(input1_infinite, location);
+<a href=#597 id=597 data-nosnippet>597</a>                <span class="self">self</span>.read(input2_x, location);
+<a href=#598 id=598 data-nosnippet>598</a>                <span class="self">self</span>.read(input2_y, location);
+<a href=#599 id=599 data-nosnippet>599</a>                <span class="self">self</span>.read(input2_infinite, location);
+<a href=#600 id=600 data-nosnippet>600</a>                <span class="self">self</span>.write_heap_array(result, location);
+<a href=#601 id=601 data-nosnippet>601</a>            }
+<a href=#602 id=602 data-nosnippet>602</a>            BlackBoxOp::Poseidon2Permutation { message, output } =&gt; {
+<a href=#603 id=603 data-nosnippet>603</a>                <span class="self">self</span>.read_heap_array(message, location);
+<a href=#604 id=604 data-nosnippet>604</a>                <span class="self">self</span>.write_heap_array(output, location);
+<a href=#605 id=605 data-nosnippet>605</a>            }
+<a href=#606 id=606 data-nosnippet>606</a>            BlackBoxOp::Sha256Compression { input, hash_values, output } =&gt; {
+<a href=#607 id=607 data-nosnippet>607</a>                <span class="self">self</span>.read_heap_array(input, location);
+<a href=#608 id=608 data-nosnippet>608</a>                <span class="self">self</span>.read_heap_array(hash_values, location);
+<a href=#609 id=609 data-nosnippet>609</a>                <span class="self">self</span>.write_heap_array(output, location);
+<a href=#610 id=610 data-nosnippet>610</a>            }
+<a href=#611 id=611 data-nosnippet>611</a>            BlackBoxOp::ToRadix { input, radix, output_pointer, num_limbs, output_bits } =&gt; {
+<a href=#612 id=612 data-nosnippet>612</a>                <span class="self">self</span>.read(input, location);
+<a href=#613 id=613 data-nosnippet>613</a>                <span class="self">self</span>.read(radix, location);
+<a href=#614 id=614 data-nosnippet>614</a>                <span class="self">self</span>.read(num_limbs, location);
+<a href=#615 id=615 data-nosnippet>615</a>                <span class="self">self</span>.read(output_bits, location);
+<a href=#616 id=616 data-nosnippet>616</a>                <span class="self">self</span>.read(output_pointer, location); <span class="comment">// indirect
+<a href=#617 id=617 data-nosnippet>617</a>            </span>}
+<a href=#618 id=618 data-nosnippet>618</a>        }
+<a href=#619 id=619 data-nosnippet>619</a>    }
+<a href=#620 id=620 data-nosnippet>620</a>}</code></pre></div></section></main></body></html>

@@ -322,7 +322,7 @@
 <a href=#322 id=322 data-nosnippet>322</a>            // This is different from the previous check as this is a runtime check.
 <a href=#323 id=323 data-nosnippet>323</a>            </span><span class="kw">let </span>zero = <span class="self">self</span>.acir_context.add_constant(FieldElement::zero());
 <a href=#324 id=324 data-nosnippet>324</a>            <span class="kw">let </span>assert_message = <span class="self">self</span>.acir_context.generate_assertion_message_payload(
-<a href=#325 id=325 data-nosnippet>325</a>                <span class="string">"Attempt to pop_front from an empty vector"</span>.to_string(),
+<a href=#325 id=325 data-nosnippet>325</a>                <span class="string">"Attempt to pop from an empty vector"</span>.to_string(),
 <a href=#326 id=326 data-nosnippet>326</a>            );
 <a href=#327 id=327 data-nosnippet>327</a>            <span class="self">self</span>.acir_context.assert_neq_var(
 <a href=#328 id=328 data-nosnippet>328</a>                vector_length_var,
