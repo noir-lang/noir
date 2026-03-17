@@ -129,6 +129,30 @@ fn array_length_overflow_during_monomorphization() {
 }
 
 #[test]
+fn constant_index_out_of_bounds() {
+    let src = r#"
+    fn main(a: u32, mut c: [u32; 2]) {
+        if (a == c[0]) {
+            assert((c[0] == 12));
+        } else if (a == c[1]) {
+            assert((c[1] == 0));
+        } else if (a == c[2]) {
+                          ^ Index 2 is out of bounds for this array of length 2
+            assert((c[2] == 0));
+                      ^ Index 2 is out of bounds for this array of length 2
+        } else if (a == c[3]) {
+                          ^ Index 3 is out of bounds for this array of length 2
+            assert((c[3] == 0));
+                      ^ Index 3 is out of bounds for this array of length 2
+        } else {
+            assert((c[0] == 10));
+        }
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn array_length_overflow_at_comptime() {
     let src = r#"
     fn main() {

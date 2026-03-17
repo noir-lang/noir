@@ -703,7 +703,6 @@ impl Elaborator<'_> {
         vecmap(kinds_with_types, |(kind, located_type)| {
             let location = located_type.location();
             let typ = located_type.contents;
-            let typ = typ.substitute_kind_any_with_kind(&kind);
             self.check_type_kind(typ, &kind, location)
         })
     }
