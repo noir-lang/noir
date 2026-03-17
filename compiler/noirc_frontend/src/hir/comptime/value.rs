@@ -640,11 +640,6 @@ impl Value {
         Ok(tokens)
     }
 
-    /// Returns false for non-integral `Value`s.
-    pub(crate) fn is_integral(&self) -> bool {
-        matches!(self, Value::Integer(_))
-    }
-
     pub(crate) fn is_zero(&self) -> bool {
         use Value::*;
         match self {

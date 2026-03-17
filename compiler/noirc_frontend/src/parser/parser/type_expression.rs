@@ -8,7 +8,6 @@ use crate::{
     token::Token,
 };
 
-use acvm::{AcirField, FieldElement};
 use noirc_errors::Location;
 
 use super::{Parser, parse_many::separated_by_comma_until_right_paren};

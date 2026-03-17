@@ -1053,9 +1053,9 @@ fn to_le_radix(
     let value = get_field(value)?;
     let radix = get_u32(radix)?;
     let (limb_count, element_type) = if let Type::Array(length, element_type) = return_type {
-        if let Type::Constant(limb_count, kind) = *length {
-            if kind.unify(&Type::u32()).is_ok() {
-                (limb_count.to_field_element(), element_type)
+        if let Type::Constant(limb_count) = *length {
+            if limb_count.get_type().unify(&Type::u32()).is_ok() {
+                (limb_count.as_field(), element_type)
             } else {
                 return Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location });
             }
@@ -1074,7 +1074,7 @@ fn to_le_radix(
 
     // Validate that the value fits in the requested number of limbs.
     // This matches the runtime behavior in our black box solvers.
-    let Some(limb_count_u64) = limb_count.as_field().try_to_u64().map(|x| x as usize) else {
+    let Some(limb_count_u64) = limb_count.try_to_u64().map(|x| x as usize) else {
         let message = format!("Field failed to decompose into specified {limb_count} limbs");
         return failing_constraint(message, location, call_stack);
     };

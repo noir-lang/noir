@@ -703,7 +703,7 @@ impl Elaborator<'_> {
     ) {
         if let HirExpression::Literal(HirLiteral::Integer(index_value)) =
             self.interner.expression(index)
-            && let Some(index_u32) = index_value.try_to_unsigned::<u32>()
+            && let Ok(index_u32) = index_value.try_into()
             && let Ok(array_len) = array_size.evaluate_to_u32(location)
             && index_u32 >= array_len
         {

@@ -3,14 +3,14 @@ use std::fmt::Display;
 use acvm::{AcirField, FieldElement};
 
 use crate::{
-    Type,
+    Kind, Type,
     ast::{ExpressionKind, IntegerBitSize},
     hir_def::expr::{HirExpression, HirLiteral},
     shared::Signedness,
     token::{IntegerTypeSuffix, Token},
 };
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Integer {
     Field(FieldElement),
     I8(i8),
@@ -92,6 +92,11 @@ impl Integer {
         }
     }
 
+    /// Returns the type of this kind wrapped in `Kind::Numeric`
+    pub fn numeric_kind(&self) -> Kind {
+        Kind::Numeric(Box::new(self.get_type()))
+    }
+
     pub(crate) fn into_expression_kind(self) -> ExpressionKind {
         use crate::ast::Literal::Integer as Int;
         use ExpressionKind::Literal;
@@ -159,7 +164,7 @@ impl Integer {
                 vec![Token::Int(value.into(), Some(IntegerTypeSuffix::I64))]
             }
             Integer::Field(value) => {
-                vec![Token::Int(value, None)]
+                vec![Token::Int(value, Some(IntegerTypeSuffix::Field))]
             }
         }
     }
@@ -233,16 +238,40 @@ impl Integer {
     pub fn try_from_type_suffix(value: FieldElement, suffix: IntegerTypeSuffix) -> Option<Integer> {
         match suffix {
             IntegerTypeSuffix::I8 => value.try_into().ok().map(Integer::I8),
-            IntegerTypeSuffix::I16 => value.try_into().ok().map(Integer::I8),
-            IntegerTypeSuffix::I32 => value.try_into().ok().map(Integer::I8),
-            IntegerTypeSuffix::I64 => value.try_into().ok().map(Integer::I8),
-            IntegerTypeSuffix::U1 => value.try_into().ok().map(Integer::I8),
-            IntegerTypeSuffix::U8 => value.try_into().ok().map(Integer::I8),
-            IntegerTypeSuffix::U16 => value.try_into().ok().map(Integer::I8),
-            IntegerTypeSuffix::U32 => value.try_into().ok().map(Integer::I8),
-            IntegerTypeSuffix::U64 => value.try_into().ok().map(Integer::I8),
-            IntegerTypeSuffix::U128 => value.try_into().ok().map(Integer::I8),
+            IntegerTypeSuffix::I16 => value.try_into().ok().map(Integer::I16),
+            IntegerTypeSuffix::I32 => value.try_into().ok().map(Integer::I32),
+            IntegerTypeSuffix::I64 => value.try_into().ok().map(Integer::I64),
+            IntegerTypeSuffix::U1 => {
+                if value.is_zero() {
+                    Some(Integer::U1(false))
+                } else if value.is_one() {
+                    Some(Integer::U1(true))
+                } else {
+                    None
+                }
+            }
+            IntegerTypeSuffix::U8 => value.try_into().ok().map(Integer::U8),
+            IntegerTypeSuffix::U16 => value.try_into().ok().map(Integer::U16),
+            IntegerTypeSuffix::U32 => value.try_into().ok().map(Integer::U32),
+            IntegerTypeSuffix::U64 => value.try_into().ok().map(Integer::U64),
+            IntegerTypeSuffix::U128 => value.try_into().ok().map(Integer::U128),
             IntegerTypeSuffix::Field => Some(Integer::Field(value)),
+        }
+    }
+
+    pub fn integer_type_suffix(&self) -> IntegerTypeSuffix {
+        match self {
+            Integer::Field(_) => IntegerTypeSuffix::Field,
+            Integer::I8(_) => IntegerTypeSuffix::I8,
+            Integer::I16(_) => IntegerTypeSuffix::I16,
+            Integer::I32(_) => IntegerTypeSuffix::I32,
+            Integer::I64(_) => IntegerTypeSuffix::I64,
+            Integer::U1(_) => IntegerTypeSuffix::U1,
+            Integer::U8(_) => IntegerTypeSuffix::U8,
+            Integer::U16(_) => IntegerTypeSuffix::U16,
+            Integer::U32(_) => IntegerTypeSuffix::U32,
+            Integer::U64(_) => IntegerTypeSuffix::U64,
+            Integer::U128(_) => IntegerTypeSuffix::U128,
         }
     }
 }
@@ -262,6 +291,25 @@ impl Display for Integer {
             Integer::U32(value) => write!(f, "{value}"),
             Integer::U64(value) => write!(f, "{value}"),
             Integer::U128(value) => write!(f, "{value}"),
+        }
+    }
+}
+
+impl std::fmt::Debug for Integer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Integer::Field(value) => write!(f, "{}_Field", value.to_short_hex()),
+            Integer::I8(value) => write!(f, "{value}_i8"),
+            Integer::I16(value) => write!(f, "{value}_i16"),
+            Integer::I32(value) => write!(f, "{value}_i32"),
+            Integer::I64(value) => write!(f, "{value}_i64"),
+            Integer::U1(false) => write!(f, "0_u1"),
+            Integer::U1(true) => write!(f, "1_u1"),
+            Integer::U8(value) => write!(f, "{value}_u8"),
+            Integer::U16(value) => write!(f, "{value}_u16"),
+            Integer::U32(value) => write!(f, "{value}_u32"),
+            Integer::U64(value) => write!(f, "{value}_u64"),
+            Integer::U128(value) => write!(f, "{value}_u128"),
         }
     }
 }
@@ -344,19 +392,16 @@ impl std::ops::Div for Integer {
     fn div(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
             (Integer::Field(lhs), Integer::Field(rhs)) => Some(Integer::Field(lhs / rhs)),
-            (Integer::U1(lhs), Integer::U1(rhs)) => {
-                let result = lhs as u32 + rhs as u32;
-                (result != 2).then(|| Integer::U1(result != 0))
-            }
+            (Integer::U1(lhs), Integer::U1(rhs)) => rhs.then_some(Integer::U1(lhs)),
             (Integer::U8(lhs), Integer::U8(rhs)) => lhs.checked_div(rhs).map(Integer::U8),
             (Integer::U16(lhs), Integer::U16(rhs)) => lhs.checked_div(rhs).map(Integer::U16),
-            (Integer::U32(lhs), Integer::U32(rhs)) => lhs.checked_sub(rhs).map(Integer::U32),
-            (Integer::U64(lhs), Integer::U64(rhs)) => lhs.checked_sub(rhs).map(Integer::U64),
-            (Integer::U128(lhs), Integer::U128(rhs)) => lhs.checked_sub(rhs).map(Integer::U128),
-            (Integer::I8(lhs), Integer::I8(rhs)) => lhs.checked_sub(rhs).map(Integer::I8),
-            (Integer::I16(lhs), Integer::I16(rhs)) => lhs.checked_sub(rhs).map(Integer::I16),
-            (Integer::I32(lhs), Integer::I32(rhs)) => lhs.checked_sub(rhs).map(Integer::I32),
-            (Integer::I64(lhs), Integer::I64(rhs)) => lhs.checked_sub(rhs).map(Integer::I64),
+            (Integer::U32(lhs), Integer::U32(rhs)) => lhs.checked_div(rhs).map(Integer::U32),
+            (Integer::U64(lhs), Integer::U64(rhs)) => lhs.checked_div(rhs).map(Integer::U64),
+            (Integer::U128(lhs), Integer::U128(rhs)) => lhs.checked_div(rhs).map(Integer::U128),
+            (Integer::I8(lhs), Integer::I8(rhs)) => lhs.checked_div(rhs).map(Integer::I8),
+            (Integer::I16(lhs), Integer::I16(rhs)) => lhs.checked_div(rhs).map(Integer::I16),
+            (Integer::I32(lhs), Integer::I32(rhs)) => lhs.checked_div(rhs).map(Integer::I32),
+            (Integer::I64(lhs), Integer::I64(rhs)) => lhs.checked_div(rhs).map(Integer::I64),
             _ => None,
         }
     }
@@ -424,6 +469,26 @@ impl Integer {
             (Integer::I32(lhs), Integer::I32(rhs)) => Some(lhs <= rhs),
             (Integer::I64(lhs), Integer::I64(rhs)) => Some(lhs <= rhs),
             _ => None,
+        }
+    }
+}
+
+impl std::ops::Neg for Integer {
+    type Output = Option<Self>;
+
+    fn neg(self) -> Self::Output {
+        match self {
+            Integer::Field(rhs) => Some(Integer::Field(-rhs)),
+            Integer::U1(_) => None,
+            Integer::U8(_) => None,
+            Integer::U16(_) => None,
+            Integer::U32(_) => None,
+            Integer::U64(_) => None,
+            Integer::U128(_) => None,
+            Integer::I8(rhs) => rhs.checked_neg().map(Integer::I8),
+            Integer::I16(rhs) => rhs.checked_neg().map(Integer::I16),
+            Integer::I32(rhs) => rhs.checked_neg().map(Integer::I32),
+            Integer::I64(rhs) => rhs.checked_neg().map(Integer::I64),
         }
     }
 }

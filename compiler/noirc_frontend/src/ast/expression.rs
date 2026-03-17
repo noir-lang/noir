@@ -199,7 +199,17 @@ impl From<Ident> for UnresolvedGeneric {
 
 impl ExpressionKind {
     pub fn prefix(operator: UnaryOp, rhs: Expression) -> ExpressionKind {
-        ExpressionKind::Prefix(Box::new(PrefixExpression { operator, rhs }))
+        match (operator, &rhs) {
+            (
+                UnaryOp::Minus,
+                Expression {
+                    kind: ExpressionKind::Literal(Literal::Integer(field, suffix)), ..
+                },
+            ) if field.fits_in_u128() => {
+                ExpressionKind::Literal(Literal::Integer(-*field, *suffix))
+            }
+            _ => ExpressionKind::Prefix(Box::new(PrefixExpression { operator, rhs })),
+        }
     }
 
     pub fn integer(contents: FieldElement, suffix: Option<IntegerTypeSuffix>) -> ExpressionKind {

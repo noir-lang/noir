@@ -14,7 +14,6 @@ mod traits;
 mod type_alias;
 mod visitor;
 
-use acvm::AcirField;
 use acvm::FieldElement;
 use noirc_errors::Located;
 use noirc_errors::Location;

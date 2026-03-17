@@ -1850,15 +1850,8 @@ impl<'interner> Monomorphizer<'interner> {
             | HirType::TraitAsType(..)
             | HirType::Forall(_, _)
             | HirType::Error
+            | HirType::Constant(_)
             | HirType::Quoted(_) => Ok(()),
-            HirType::Constant(_value, kind) => {
-                let kind = kind.follow_bindings_shallow();
-                if matches!(kind.as_ref(), Type::Error) {
-                    Err(MonomorphizationError::UnknownConstant { location })
-                } else {
-                    Ok(())
-                }
-            }
             HirType::CheckedCast { from, to } => {
                 Self::check_checked_cast(from, to, location)?;
                 Self::check_type(to, location)

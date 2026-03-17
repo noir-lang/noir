@@ -1168,6 +1168,7 @@ mod tests {
         },
         token::Token,
     };
+    use acvm::FieldElement;
 
     fn parse_expression_no_errors(src: &str) -> Expression {
         let mut parser = Parser::for_str_with_dummy_file(src);
@@ -1206,7 +1207,7 @@ mod tests {
         let ExpressionKind::Literal(Literal::Integer(value, None)) = expr.kind else {
             panic!("Expected integer literal");
         };
-        assert_eq!(value, 42_u128.into());
+        assert_eq!(value, -FieldElement::from(42u128));
     }
 
     #[test]

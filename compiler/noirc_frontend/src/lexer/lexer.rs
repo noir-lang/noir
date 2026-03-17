@@ -286,17 +286,7 @@ impl<'a> Lexer<'a> {
                 }
             }
             Token::Bang => self.single_double_peek_token('=', prev_token, Token::NotEqual),
-            Token::Minus => {
-                let start = self.position;
-                if self.peek_char_is('>') {
-                    self.next_char();
-                    Ok(Token::Arrow.into_span(start, start + 1))
-                } else if self.peek_char().is_some_and(|c| c.is_numeric()) {
-                    self.eat_digits(None, true)
-                } else {
-                    Ok(prev_token.into_single_span(start))
-                }
-            }
+            Token::Minus => self.single_double_peek_token('>', prev_token, Token::Arrow),
             Token::Colon => self.single_double_peek_token(':', prev_token, Token::DoubleColon),
             Token::Slash => {
                 let start = self.position;
@@ -1361,7 +1351,6 @@ mod tests {
             ("0x1u1", Token::Int(1_u32.into(), Some(IntegerTypeSuffix::U1))),
             ("97_i64", Token::Int(97_u32.into(), Some(IntegerTypeSuffix::I64))),
             ("97_u128", Token::Int(97_u32.into(), Some(IntegerTypeSuffix::U128))),
-            ("-52_i8", Token::Int((-52i8).into(), Some(IntegerTypeSuffix::I8))),
         ];
 
         for (input, expected_token) in test_cases {

@@ -212,7 +212,7 @@ pub(super) fn oracle_returns_multiple_vectors(
                 }
             }
             Type::Forall(_, _)
-            | Type::Constant(_, _)
+            | Type::Constant(_)
             | Type::Quoted(_)
             | Type::InfixExpr(_, _, _, _)
             | Type::Reference(_, _)

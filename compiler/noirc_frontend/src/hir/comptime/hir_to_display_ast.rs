@@ -470,10 +470,10 @@ impl Type {
             // Since there is no UnresolvedTypeData equivalent for Type::Forall, we use
             // this to ignore this case since it shouldn't be needed anyway.
             Type::Forall(_, typ) => return typ.to_display_ast(),
-            Type::Constant(value, kind) => {
+            Type::Constant(value) => {
                 UnresolvedTypeData::Expression(UnresolvedTypeExpression::Constant(
                     value.as_field(),
-                    kind.as_integer_type_suffix(),
+                    Some(value.integer_type_suffix()),
                     Location::dummy(),
                 ))
             }
@@ -498,9 +498,9 @@ impl Type {
         let location = Location::dummy();
 
         match self.follow_bindings() {
-            Type::Constant(length, kind) => UnresolvedTypeExpression::Constant(
+            Type::Constant(length) => UnresolvedTypeExpression::Constant(
                 length.as_field(),
-                kind.as_integer_type_suffix(),
+                Some(length.integer_type_suffix()),
                 location,
             ),
             Type::NamedGeneric(NamedGeneric { name, .. }) => {
@@ -555,8 +555,8 @@ impl HirArrayLiteral {
             HirArrayLiteral::Repeated { repeated_element, length } => {
                 let repeated_element = Box::new(repeated_element.to_display_ast(interner));
                 let length = match length {
-                    Type::Constant(length, kind) => {
-                        let suffix = kind.as_integer_type_suffix();
+                    Type::Constant(length) => {
+                        let suffix = Some(length.integer_type_suffix());
                         let literal = Literal::Integer(length.as_field(), suffix);
                         let expr_kind = ExpressionKind::Literal(literal);
                         Box::new(Expression::new(expr_kind, location))

@@ -1037,7 +1037,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
             | Type::Quoted(_)
 
             // These seem unlikely to be able to be matched on:
-            | Type::Constant(_, _)
+            | Type::Constant(_)
             | Type::CheckedCast { .. }
             | Type::NamedGeneric(_)
 
