@@ -2286,7 +2286,7 @@
 <a href=#2286 id=2286 data-nosnippet>2286</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::ReferenceReturnedFromOracle { typ, location });
 <a href=#2287 id=2287 data-nosnippet>2287</a>        }
 <a href=#2288 id=2288 data-nosnippet>2288</a>
-<a href=#2289 id=2289 data-nosnippet>2289</a>        <span class="kw">if </span>return_type.is_vector_with_nested_array() {
+<a href=#2289 id=2289 data-nosnippet>2289</a>        <span class="kw">if </span>return_type.contains_vector_with_nested_array() {
 <a href=#2290 id=2290 data-nosnippet>2290</a>            <span class="kw">let </span>typ = return_type.to_string();
 <a href=#2291 id=2291 data-nosnippet>2291</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::VectorWithNestedArrayReturnedFromOracle {
 <a href=#2292 id=2292 data-nosnippet>2292</a>                typ,
