@@ -66,7 +66,7 @@ pub(crate) fn get_program_errors(src: &str) -> Vec<CompilationError> {
 }
 
 pub(crate) fn assert_no_errors(src: &str) -> Context<'static, 'static> {
-    assert_no_errors_using_features(src, &[])
+    assert_no_errors_using_features(src, FrontendOptions::test_default().enabled_unstable_features)
 }
 
 pub(crate) fn assert_no_errors_using_features(
