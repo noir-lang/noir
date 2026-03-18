@@ -705,7 +705,7 @@ fn regression_10363() {
 #[test]
 fn concrete_impl_with_dual_turbofish() {
     // Regression: https://github.com/noir-lang/noir/pull/11848
-    // Concrete impl's method generics were incorrectly bound to the type 
+    // Concrete impl's method generics were incorrectly bound to the type
     // turbofish arguments because all_generics only contained direct_generics.
     let src = r#"
     struct S<T> {}
@@ -735,6 +735,25 @@ fn generic_impl_with_dual_turbofish() {
     fn main() {
         let x: Field = 10;
         S::<u32>::foo::<Field>(x);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn partially_concrete_impl_turbofish_binds_correct_generic() {
+    let src = r#"
+    struct S<A, B> {}
+
+    impl<B> S<u32, B> {
+        fn foo(x: B) -> B {
+            x
+        }
+    }
+
+    fn main() {
+        let x: bool = true;
+        let _result: bool = S::<u32, bool>::foo(x);
     }
     "#;
     assert_no_errors(src);
