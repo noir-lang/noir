@@ -108,11 +108,12 @@ impl Expr {
     pub comptime fn as_index(self) -> Option<(Expr, Expr)> {}
     // docs:end:as_index
 
-    /// If this expression is an integer literal, return the integer as a field
-    /// as well as whether the integer is negative (true) or not (false).
+    /// If this expression is an integer literal, return the integer as a field.
+    /// Note that negative integers of signed integer types will be encoded
+    /// as the equivalent negative field value.
     #[builtin(expr_as_integer)]
     // docs:start:as_integer
-    pub comptime fn as_integer(self) -> Option<(Field, bool)> {}
+    pub comptime fn as_integer(self) -> Option<Field> {}
     // docs:end:as_integer
 
     /// If this expression is a lambda, returns the parameters, return type and body.

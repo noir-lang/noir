@@ -2929,7 +2929,6 @@ impl Elaborator<'_> {
                 body_id,
                 last_expr_location,
                 || {
-                    eprintln!("Failed to unify:\n  {declared_return_type:?}\n  {body_type:?}\n");
                     let mut error = TypeCheckError::TypeMismatchWithSource {
                         expected: declared_return_type.clone(),
                         actual: body_type.clone(),

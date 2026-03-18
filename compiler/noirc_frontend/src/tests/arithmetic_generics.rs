@@ -4,6 +4,7 @@ use core::panic;
 
 use acvm::{AcirField, FieldElement};
 
+use crate::hir::comptime::Integer;
 use crate::hir::type_check::TypeCheckError;
 use crate::hir_def::types::BinaryTypeOperator;
 use crate::monomorphization::errors::MonomorphizationError;
@@ -84,12 +85,12 @@ fn arithmetic_generics_checked_cast_zeros() {
     if let MonomorphizationError::UnknownArrayLength { ref err, location: _ } =
         monomorphization_error
     {
-        let TypeCheckError::FailingBinaryOp { op, lhs, rhs, .. } = err else {
+        let TypeCheckError::OverflowingBinaryOp { op, lhs, rhs, .. } = err else {
             panic!("Expected FailingBinaryOp, but found: {err:?}");
         };
         assert_eq!(op, &BinaryTypeOperator::Modulo);
-        assert_eq!(lhs, "0");
-        assert_eq!(rhs, "0");
+        assert_eq!(*lhs, Integer::U1(false));
+        assert_eq!(*rhs, Integer::U1(false));
     } else {
         panic!("unexpected error: {monomorphization_error:?}");
     }
