@@ -23,6 +23,7 @@ use self::brillig_ir::{
 };
 
 use crate::brillig::brillig_ir::LayoutConfig;
+use crate::ssa::ir::call_graph::CallGraph;
 use crate::ssa::{
     ir::{
         dfg::DataFlowGraph,
@@ -79,6 +80,7 @@ impl Brillig {
         globals: &HashMap<ValueId, BrilligVariable>,
         hoisted_global_constants: &HashMap<(FieldElement, NumericType), BrilligVariable>,
         is_entry_point: bool,
+        check_max_stack_depth: bool,
     ) {
         let obj = self.convert_ssa_function(
             func,
@@ -86,6 +88,7 @@ impl Brillig {
             globals,
             hoisted_global_constants,
             is_entry_point,
+            check_max_stack_depth,
         );
         self.ssa_function_to_brillig.insert(func.id(), obj);
     }
@@ -118,6 +121,7 @@ impl Brillig {
         globals: &HashMap<ValueId, BrilligVariable>,
         hoisted_global_constants: &HashMap<(FieldElement, NumericType), BrilligVariable>,
         is_entry_point: bool,
+        check_max_stack_depth: bool,
     ) -> BrilligArtifact<FieldElement> {
         let mut function_context =
             FunctionContext::new(func, is_entry_point, options.layout.max_stack_frame_size());
@@ -126,7 +130,9 @@ impl Brillig {
 
         brillig_context.enter_context(Label::function(func.id()));
 
-        brillig_context.call_check_max_stack_depth_procedure();
+        if check_max_stack_depth {
+            brillig_context.call_check_max_stack_depth_procedure();
+        }
 
         // Only emit spill prologue placeholders when the function may need spilling.
         if function_context.spill_enabled() {
@@ -191,6 +197,9 @@ impl Ssa {
             return brillig;
         }
 
+        let call_graph = CallGraph::from_ssa(self);
+        let max_call_depths = call_graph.max_call_depths(&brillig_reachable_function_ids);
+
         // SSA Globals are computed once at compile time and shared across all functions,
         // thus we can just fetch globals from the main function.
         // This same globals graph will then be used to declare Brillig globals for the respective entry points.
@@ -210,6 +219,8 @@ impl Ssa {
 
             let func = &self.functions[&brillig_function_id];
             let is_entry_point = brillig_globals.is_entry_point(&brillig_function_id);
+            let check_max_stack_depth = max_call_depths[&brillig_function_id]
+                .is_none_or(|max_depth| max_depth >= options.layout.num_stack_frames());
 
             brillig.compile(
                 func,
@@ -217,6 +228,7 @@ impl Ssa {
                 globals_allocations,
                 hoisted_constant_allocations,
                 is_entry_point,
+                check_max_stack_depth,
             );
         }
 

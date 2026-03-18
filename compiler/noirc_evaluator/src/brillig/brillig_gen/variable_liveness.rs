@@ -852,11 +852,10 @@ mod tests {
 
         assert_artifact_snapshot!(main, @r"
         fn main
-        0: call 0 // -> CheckMaxStackDepth
-        1: sp[3] = const field 10
-        2: sp[4] = field add sp[2], sp[3]
-        3: sp[2] = sp[4]
-        4: return
+        0: sp[3] = const field 10
+        1: sp[4] = field add sp[2], sp[3]
+        2: sp[2] = sp[4]
+        3: return
         ");
     }
 
@@ -886,15 +885,14 @@ mod tests {
 
         assert_artifact_snapshot!(main, @r"
         fn main
-        0: call 0 // -> CheckMaxStackDepth
-        1: sp[3] = const field 1
-        2: sp[4] = field add sp[2], sp[3]
-        3: sp[2] = const field 2
-        4: sp[3] = field add sp[4], sp[2]
-        5: sp[2] = const field 3
-        6: sp[4] = field add sp[3], sp[2]
-        7: sp[2] = sp[4]
-        8: return
+        0: sp[3] = const field 1
+        1: sp[4] = field add sp[2], sp[3]
+        2: sp[2] = const field 2
+        3: sp[3] = field add sp[4], sp[2]
+        4: sp[2] = const field 3
+        5: sp[4] = field add sp[3], sp[2]
+        6: sp[2] = sp[4]
+        7: return
         ");
     }
 
@@ -930,22 +928,21 @@ mod tests {
         let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
         assert_artifact_snapshot!(main, @r"
         fn main
-         0: call 0 // -> CheckMaxStackDepth
-         1: sp[4] = const u32 0
-         2: sp[5] = const u32 1
-         3: sp[3] = sp[4]
-         4: jump to 0 // -> 5: f0/b1
-         5: sp[4] = u32 lt sp[3], sp[2] // f0/b1
-         6: jump if sp[4] to 0 // -> 10: f0/b2
-         7: jump to 0 // -> 8: f0/b3
-         8: sp[2] = sp[3] // f0/b3
-         9: return
-        10: sp[4] = u32 add sp[3], sp[5] // f0/b2
-        11: sp[6] = u32 lt_eq sp[3], sp[4]
-        12: jump if sp[6] to 0 // -> 14: f0/b2/1
-        13: call 0 // -> ErrorWithString
-        14: sp[3] = sp[4] // f0/b2/1
-        15: jump to 0 // -> 5: f0/b1
+         0: sp[4] = const u32 0
+         1: sp[5] = const u32 1
+         2: sp[3] = sp[4]
+         3: jump to 0 // -> 4: f0/b1
+         4: sp[4] = u32 lt sp[3], sp[2] // f0/b1
+         5: jump if sp[4] to 0 // -> 9: f0/b2
+         6: jump to 0 // -> 7: f0/b3
+         7: sp[2] = sp[3] // f0/b3
+         8: return
+         9: sp[4] = u32 add sp[3], sp[5] // f0/b2
+        10: sp[6] = u32 lt_eq sp[3], sp[4]
+        11: jump if sp[6] to 0 // -> 13: f0/b2/1
+        12: call 0 // -> ErrorWithString
+        13: sp[3] = sp[4] // f0/b2/1
+        14: jump to 0 // -> 4: f0/b1
         ");
     }
 
@@ -980,17 +977,16 @@ mod tests {
         let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
         assert_artifact_snapshot!(main, @r"
         fn main
-         0: call 0 // -> CheckMaxStackDepth
-         1: sp[4] = const field 42
-         2: jump if sp[2] to 0 // -> 6: f0/b1
-         3: jump to 0 // -> 4: f0/b2
-         4: sp[3] = sp[4] // f0/b2
-         5: jump to 0 // -> 9: f0/b3
-         6: sp[2] = const field 27 // f0/b1
-         7: sp[3] = field add sp[2], sp[4]
-         8: jump to 0 // -> 9: f0/b3
-         9: sp[2] = sp[3] // f0/b3
-        10: return
+         0: sp[4] = const field 42
+         1: jump if sp[2] to 0 // -> 5: f0/b1
+         2: jump to 0 // -> 3: f0/b2
+         3: sp[3] = sp[4] // f0/b2
+         4: jump to 0 // -> 8: f0/b3
+         5: sp[2] = const field 27 // f0/b1
+         6: sp[3] = field add sp[2], sp[4]
+         7: jump to 0 // -> 8: f0/b3
+         8: sp[2] = sp[3] // f0/b3
+         9: return
         ");
     }
 
@@ -1020,13 +1016,12 @@ mod tests {
         let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
         assert_artifact_snapshot!(main, @r"
         fn main
-        0: call 0 // -> CheckMaxStackDepth
-        1: sp[3] = const field 100
-        2: sp[4] = field add sp[2], sp[3]
-        3: sp[3] = const field 200
-        4: sp[5] = field mul sp[2], sp[3]
-        5: sp[2] = field add sp[4], sp[5]
-        6: return
+        0: sp[3] = const field 100
+        1: sp[4] = field add sp[2], sp[3]
+        2: sp[3] = const field 200
+        3: sp[5] = field mul sp[2], sp[3]
+        4: sp[2] = field add sp[4], sp[5]
+        5: return
         ");
     }
 
@@ -1058,16 +1053,15 @@ mod tests {
         let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
         assert_artifact_snapshot!(main, @r"
         fn main
-         0: call 0 // -> CheckMaxStackDepth
-         1: sp[4] = const field 1
-         2: sp[5] = field add sp[2], sp[4]
-         3: sp[2] = const field 2
-         4: sp[4] = field add sp[5], sp[2]
-         5: sp[2] = const field 3
-         6: sp[3] = field mul sp[4], sp[2]
-         7: jump to 0 // -> 8: f0/b1
-         8: sp[2] = sp[3] // f0/b1
-         9: return
+        0: sp[4] = const field 1
+        1: sp[5] = field add sp[2], sp[4]
+        2: sp[2] = const field 2
+        3: sp[4] = field add sp[5], sp[2]
+        4: sp[2] = const field 3
+        5: sp[3] = field mul sp[4], sp[2]
+        6: jump to 0 // -> 7: f0/b1
+        7: sp[2] = sp[3] // f0/b1
+        8: return
         ");
     }
 }
