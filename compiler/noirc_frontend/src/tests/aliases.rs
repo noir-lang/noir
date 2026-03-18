@@ -1,7 +1,7 @@
 use crate::tests::{
     UnstableFeature, assert_no_errors, check_errors, check_errors_using_features,
     get_program_errors,
-};
+use crate::tests::{UnstableFeature, assert_no_errors, check_errors, check_errors_using_features};
 
 #[test]
 fn allows_usage_of_type_alias_as_argument_type() {
@@ -1102,16 +1102,5 @@ fn no_false_cycle_from_stale_current_item_after_type_alias() {
 
         fn main(x: A) {}
     "#;
-    let errors = get_program_errors(src);
-    let cycle_errors: Vec<_> = errors
-        .iter()
-        .filter(|e| {
-            let msg = format!("{e:?}");
-            msg.contains("DependencyCycle")
-        })
-        .collect();
-    assert!(
-        cycle_errors.is_empty(),
-        "Expected no dependency cycle errors, but got: {cycle_errors:?}"
-    );
+    assert_no_errors(src);
 }
