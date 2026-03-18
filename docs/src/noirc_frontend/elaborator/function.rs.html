@@ -174,7 +174,7 @@
 <a href=#174 id=174 data-nosnippet>174</a>        <span class="comment">// Setup trait constraints
 <a href=#175 id=175 data-nosnippet>175</a>        </span><span class="kw">for </span>(extra_constraint, location) <span class="kw">in </span>extra_trait_constraints {
 <a href=#176 id=176 data-nosnippet>176</a>            <span class="kw">let </span>bound = <span class="kw-2">&amp;</span>extra_constraint.trait_bound;
-<a href=#177 id=177 data-nosnippet>177</a>            <span class="self">self</span>.add_trait_bound_to_scope(<span class="kw-2">*</span>location, <span class="kw-2">&amp;</span>extra_constraint.typ, bound, bound.trait_id);
+<a href=#177 id=177 data-nosnippet>177</a>            <span class="self">self</span>.add_trait_bound_to_scope(<span class="kw-2">*</span>location, <span class="kw-2">&amp;</span>extra_constraint.typ, bound);
 <a href=#178 id=178 data-nosnippet>178</a>        }
 <a href=#179 id=179 data-nosnippet>179</a>
 <a href=#180 id=180 data-nosnippet>180</a>        <span class="kw">let </span><span class="kw-2">mut </span>trait_constraints =
@@ -304,7 +304,7 @@
 <a href=#304 id=304 data-nosnippet>304</a>            <span class="kw">for </span>bound <span class="kw">in </span>bounds {
 <a href=#305 id=305 data-nosnippet>305</a>                <span class="kw">let </span>typ = Type::TypeVariable(associated_generic.type_var.clone());
 <a href=#306 id=306 data-nosnippet>306</a>                <span class="kw">let </span>location = associated_generic.location;
-<a href=#307 id=307 data-nosnippet>307</a>                <span class="self">self</span>.add_trait_bound_to_scope(location, <span class="kw-2">&amp;</span>typ, <span class="kw-2">&amp;</span>bound, bound.trait_id);
+<a href=#307 id=307 data-nosnippet>307</a>                <span class="self">self</span>.add_trait_bound_to_scope(location, <span class="kw-2">&amp;</span>typ, <span class="kw-2">&amp;</span>bound);
 <a href=#308 id=308 data-nosnippet>308</a>                associated_generics_trait_constraints
 <a href=#309 id=309 data-nosnippet>309</a>                    .push(TraitConstraint { typ, trait_bound: bound });
 <a href=#310 id=310 data-nosnippet>310</a>            }
