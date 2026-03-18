@@ -242,6 +242,10 @@ impl Function {
             // block once and cannot traverse the inner loop's cycle.
             let mut failed_blocks: HashSet<BasicBlockId> = HashSet::new();
             let mut needs_refresh = false;
+            // Accumulated header-param→final-value mappings from all unrolled loops
+            // in this iteration. Applied in bulk after the loop processing is done,
+            // avoiding O(loops * blocks) per-loop exit-block walks.
+            let mut accumulated_mapping = ValueMapping::default();
 
             while let Some(next_loop) = loops.yet_to_unroll.pop() {
                 // If we've previously modified a block in this loop we need to refresh.
@@ -283,10 +287,19 @@ impl Function {
                         unroll_errors.push(error);
                         failed_blocks.extend(loop_blocks);
                     }
-                    LoopUnrollResult::Unrolled(blocks) => {
+                    LoopUnrollResult::Unrolled(blocks, mapping) => {
                         has_unrolled = true;
                         modified_blocks.extend(blocks);
+                        accumulated_mapping.extend(mapping);
                     }
+                }
+            }
+
+            // Apply all header param->final value replacements in a single pass over
+            // reachable blocks. This is O(blocks) total instead of O(loops * blocks).
+            if !accumulated_mapping.is_empty() {
+                for block_id in self.reachable_blocks() {
+                    self.dfg.replace_values_in_block(block_id, &accumulated_mapping);
                 }
             }
 
@@ -343,7 +356,7 @@ impl Function {
 
         // Try to unroll.
         match loop_.unroll(self, &loops.cfg) {
-            Ok(_) => LoopUnrollResult::Unrolled(loop_.blocks),
+            Ok(mapping) => LoopUnrollResult::Unrolled(loop_.blocks, mapping),
             Err(call_stack) => LoopUnrollResult::Failed(
                 loop_.header,
                 RuntimeError::UnknownLoopBound { call_stack },
@@ -358,8 +371,9 @@ enum LoopUnrollResult {
     Skipped,
     /// Loop failed to unroll.
     Failed(BasicBlockId, RuntimeError),
-    /// Loop was successfully unrolled. Contains the blocks that were part of the loop.
-    Unrolled(BTreeSet<BasicBlockId>),
+    /// Loop was successfully unrolled. Contains the blocks that were part of the loop
+    /// and a mapping from header params to their final values (to be applied in bulk).
+    Unrolled(BTreeSet<BasicBlockId>, ValueMapping),
 }
 
 /// Describe the blocks that constitute up a loop.
@@ -801,7 +815,11 @@ impl Loop {
     ///
     /// When e.g. `v8 = lt v7, v1` cannot be evaluated to a constant, the loop signals by returning `Err`
     /// that a few SSA passes are required to evaluate and simplify these values.
-    fn unroll(&self, function: &mut Function, cfg: &ControlFlowGraph) -> Result<(), CallStack> {
+    fn unroll(
+        &self,
+        function: &mut Function,
+        cfg: &ControlFlowGraph,
+    ) -> Result<ValueMapping, CallStack> {
         let mut unroll_into = self.get_pre_header(function, cfg)?;
         let mut header_args = get_header_arguments(&function.dfg, unroll_into)?;
 
@@ -817,47 +835,14 @@ impl Loop {
             (unroll_into, header_args) = context.unroll_loop_iteration(loop_header_id);
         }
 
-        // After unrolling, blocks outside the loop may still reference the old header
-        // parameters (e.g. exit blocks that use promoted variables such as from mem2reg,
-        // or references to the induction variable itself in post-loop code).
-        // Replace remaining uses of header params with the final iteration's values.
-        //
-        // Instead of scanning ALL reachable blocks (which is O(total_blocks) per loop and
-        // becomes quadratic for functions with many loops), we walk forward only from the
-        // loop's exit edges. Header params can only be referenced in blocks dominated by the
-        // header, which are exactly the blocks reachable from exit edges.
+        // Build a mapping from header params to their final values.
+        // The caller is responsible for applying this mapping to blocks outside the loop.
+        let mut mapping = ValueMapping::default();
         if !header_params.is_empty() {
-            let mut mapping = ValueMapping::default();
             mapping.batch_insert(&header_params, &header_args);
-
-            // Find exit edges: successors of loop blocks that are outside the loop.
-            // After unrolling, the original loop blocks are orphaned but still have their
-            // original terminators, so their successors point to the correct exit blocks.
-            let mut visited = HashSet::new();
-            let mut stack: Vec<BasicBlockId> = Vec::new();
-            for &block in &self.blocks {
-                for successor in function.dfg[block].successors() {
-                    if !self.blocks.contains(&successor) {
-                        stack.push(successor);
-                    }
-                }
-            }
-
-            // Walk forward from exit blocks, replacing header param references.
-            while let Some(block) = stack.pop() {
-                if !visited.insert(block) {
-                    continue;
-                }
-                function.dfg.replace_values_in_block(block, &mapping);
-                for successor in function.dfg[block].successors() {
-                    if !visited.contains(&successor) {
-                        stack.push(successor);
-                    }
-                }
-            }
         }
 
-        Ok(())
+        Ok(mapping)
     }
 
     /// The loop pre-header is the block that comes before the loop begins. Generally a header block
