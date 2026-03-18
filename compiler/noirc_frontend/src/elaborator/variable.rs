@@ -199,40 +199,47 @@ impl Elaborator<'_> {
                 // [A, B], not the impl's generics [B]. Use the impl's self_type to find
                 // the correct positional mapping from struct params to impl generics.
                 if let Some(Type::DataType(_, self_type_args)) = &func_meta.self_type {
-                    let mut concrete_mismatches = Vec::new();
-                    for (type_generic, self_type_arg) in
-                        type_generics.into_iter().zip(self_type_args)
-                    {
-                        let type_var = match self_type_arg {
-                            Type::NamedGeneric(named) => Some(&named.type_var),
-                            Type::TypeVariable(tv) => Some(tv),
-                            _ => None,
-                        };
-                        if let Some(type_var) = type_var {
-                            if impl_generics.iter().any(|g| g.type_var.id() == type_var.id()) {
-                                bindings.insert(
-                                    type_var.id(),
-                                    (type_var.clone(), type_var.kind(), type_generic),
-                                );
+                    if type_generics.len() == self_type_args.len() {
+                        let mut concrete_mismatches = Vec::new();
+                        for (type_generic, self_type_arg) in
+                            type_generics.into_iter().zip_eq(self_type_args)
+                        {
+                            let type_var = match self_type_arg {
+                                Type::NamedGeneric(named) => Some(&named.type_var),
+                                Type::TypeVariable(tv) => Some(tv),
+                                _ => None,
+                            };
+                            if let Some(type_var) = type_var {
+                                if impl_generics.iter().any(|g| g.type_var.id() == type_var.id()) {
+                                    bindings.insert(
+                                        type_var.id(),
+                                        (type_var.clone(), type_var.kind(), type_generic),
+                                    );
+                                }
+                            } else {
+                                // Concrete position: collect for verification after releasing borrow
+                                concrete_mismatches.push((type_generic, self_type_arg.clone()));
                             }
-                        } else {
-                            // Concrete position: collect for verification after releasing borrow
-                            concrete_mismatches.push((type_generic, self_type_arg.clone()));
+                        }
+                        // Verify turbofish types match the impl's concrete types
+                        for (turbofish_type, concrete_type) in concrete_mismatches {
+                            self.unify(&turbofish_type, &concrete_type, || {
+                                TypeCheckError::TypeMismatch {
+                                    expected_typ: concrete_type.to_string(),
+                                    expr_typ: turbofish_type.to_string(),
+                                    expr_location: location,
+                                }
+                            });
                         }
                     }
-                    // Verify turbofish types match the impl's concrete types
-                    for (turbofish_type, concrete_type) in concrete_mismatches {
-                        self.unify(&turbofish_type, &concrete_type, || {
-                            TypeCheckError::TypeMismatch {
-                                expected_typ: concrete_type.to_string(),
-                                expr_typ: turbofish_type.to_string(),
-                                expr_location: location,
-                            }
-                        });
-                    }
-                } else {
-                    // Fallback for non-DataType self types
-                    for (type_generic, func_generic) in type_generics.into_iter().zip(impl_generics)
+                } else if type_generics.len() <= impl_generics.len() {
+                    // For trait function paths, impl_generics may include Self and associated
+                    // type generics after the trait's declared generics. The turbofish only
+                    // provides types for the declared generics, which are always the first
+                    // elements. Slice to match.
+                    let impl_generics = &impl_generics[..type_generics.len()];
+                    for (type_generic, func_generic) in
+                        type_generics.into_iter().zip_eq(impl_generics)
                     {
                         let type_var = &func_generic.type_var;
                         bindings.insert(
@@ -240,6 +247,13 @@ impl Elaborator<'_> {
                             (type_var.clone(), type_var.kind(), type_generic),
                         );
                     }
+                } else {
+                    unreachable!(
+                        "type_generics.len() ({}) > impl_generics.len() ({}): \
+                        turbofish resolution should normalize the count",
+                        type_generics.len(),
+                        impl_generics.len()
+                    );
                 }
             }
 
