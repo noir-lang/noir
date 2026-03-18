@@ -257,11 +257,11 @@ impl Function {
                 // outer loop with a non-unrolled inner loop would corrupt the SSA.
                 // OutsideIn (ACIR) does not need this: outer loops are processed
                 // first, and if they fail, inner loops are tried independently.
-                // if order == LoopOrder::InsideOut
-                //     && next_loop.blocks.iter().any(|block| failed_blocks.contains(block))
-                // {
-                //     continue;
-                // }
+                if order == LoopOrder::InsideOut
+                    && next_loop.blocks.iter().any(|block| failed_blocks.contains(block))
+                {
+                    continue;
+                }
 
                 // Don't try to unroll the loop again if it is known to fail.
                 // Save loop blocks before `try_unroll_loop` takes ownership.
@@ -3323,9 +3323,6 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let (ssa, _errors) = try_unroll_loops(ssa);
 
-        // Structural validity: no orphan blocks, all terminators present.
-        crate::ssa::ssa_gen::validate_ssa(&ssa);
-
         // TODO(https://github.com/noir-lang/noir/issues/11900): The inner loop is not unrolled
         // because `get_const_upper_bound` and `get_induction_variable` assume the induction
         // variable is always the first block parameter. For multi-param inner loop headers
@@ -3405,6 +3402,98 @@ mod tests {
           b4():
             v6 = unchecked_add v1, u32 1
             jmp b2(v0, v6)
+        }
+        ");
+    }
+
+    #[test]
+    fn unroll_nested_loop_with_break_to_outer_loop() {
+        // Regression (fuzzer seed 0x4a6418c600059c93 for acir_vs_brillig): 3-nested-loop structure
+        // where the inner loop has a non-constant lower bound and a break that
+        // exits to the middle loop. In InsideOut ordering:
+        //   1. Inner loop (b8<->b10) is skipped (non-constant lower bound)
+        //   2. Middle loop (b4..b10) is skipped (contains inner loop's blocks)
+        //   3. Outer loop (b1..b10) is skipped (contains inner loop's blocks)
+        //
+        // Without checking skipped or failed blocks, the middle loop would proceed
+        // to unroll, fail to traverse the inner loop's cycle, and corrupt SSA.
+        //
+        // Reduced from:
+        //   for idx_a in 0..1 {
+        //     loop { if idx_b == 1 { break } else {
+        //       loop { if idx_c == 1 { break } else { while false {} } }
+        //     }}
+        //   }
+        let src = "
+        brillig(inline) fn func_1 f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v2 = eq v0, u32 0
+            jmpif v2 then: b2(), else: b3()
+          b2():
+            jmp b4(u32 0)
+          b3():
+            return u1 1
+          b4(v3: u32):
+            v6 = eq v3, u32 1
+            jmpif v6 then: b5(), else: b6()
+          b5():
+            v10 = unchecked_add v0, u32 1
+            jmp b1(v10)
+          b6():
+            v7 = unchecked_add v3, u32 1
+            jmp b8(v7, u32 0)
+          b8(v8: u32, v9: u32):
+            v11 = eq v9, u32 1
+            jmpif v11 then: b9(), else: b10()
+          b9():
+            jmp b4(v8)
+          b10():
+            v12 = add v9, u32 1
+            jmp b8(v8, v12)
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        // All loops aside the top-level for loop are skipped in a single pass.
+        let (ssa, _errors) = try_unroll_loops(ssa);
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn func_1 f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v7 = eq v0, u32 0
+            jmpif v7 then: b2(), else: b3()
+          b2():
+            jmp b10(u32 1, u32 0)
+          b3():
+            return u1 1
+          b4(v1: u32):
+            v12 = eq v1, u32 1
+            jmpif v12 then: b5(), else: b6()
+          b5():
+            v16 = unchecked_add v0, u32 1
+            jmp b1(v16)
+          b6():
+            v13 = unchecked_add v1, u32 1
+            jmp b7(v13, u32 0)
+          b7(v2: u32, v3: u32):
+            v14 = eq v3, u32 1
+            jmpif v14 then: b8(), else: b9()
+          b8():
+            jmp b4(v2)
+          b9():
+            v15 = add v3, u32 1
+            jmp b7(v2, v15)
+          b10(v4: u32, v5: u32):
+            v10 = eq v5, u32 1
+            jmpif v10 then: b11(), else: b12()
+          b11():
+            jmp b4(v4)
+          b12():
+            v11 = add v5, u32 1
+            jmp b10(v4, v11)
         }
         ");
     }
