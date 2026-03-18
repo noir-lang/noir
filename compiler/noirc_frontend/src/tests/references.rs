@@ -208,6 +208,26 @@ fn mutable_reference_behind_generics_returned_from_oracle() {
 }
 
 #[test]
+fn disallows_trait_impl_on_type_containing_reference() {
+    let src = r#"
+    struct S {}
+
+    trait A {
+        fn foo(self);
+    }
+
+    impl A for [&S; 1] {
+               ^^^^^^^ Trait impls are not allowed on reference types
+               ~~~~~~~ Try using a struct or enum type here instead
+        fn foo(self) {
+            let _ = S {};
+        }
+    }
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::Ownership]);
+}
+
+#[test]
 fn disallows_mutating_non_mutable_ref_member_access() {
     let src = r#"
     fn main() {
