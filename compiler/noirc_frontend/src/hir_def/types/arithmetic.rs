@@ -64,7 +64,7 @@ impl Type {
     fn canonicalize_helper(&self, found_checked_cast: bool, run_simplifications: bool) -> Type {
         match self {
             Type::InfixExpr(lhs, op, rhs, inversion) => {
-                let kind = lhs.infix_kind(&rhs);
+                let kind = lhs.infix_kind(rhs);
                 let dummy_location = Location::dummy();
 
                 let (mut lhs, mut rhs) = (lhs, rhs);
@@ -348,7 +348,7 @@ impl Type {
                 // We ensure the result divides evenly to preserve integer division semantics
                 // TODO(https://github.com/noir-lang/noir/issues/11013): do the division simplification
                 // also in case of Field elements
-                let divides_evenly = (l_const % r_const).map_or(false, |rem| rem.is_zero());
+                let divides_evenly = (l_const % r_const).is_some_and(|rem| rem.is_zero());
 
                 // If op is a division we need to ensure it divides evenly
                 if op == Division && (r_const.is_zero() || !divides_evenly) {

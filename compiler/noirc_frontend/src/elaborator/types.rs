@@ -932,7 +932,7 @@ impl Elaborator<'_> {
                         typ,
                     });
                     return None;
-                };
+                }
 
                 Some(Type::Constant(*global_value))
             }

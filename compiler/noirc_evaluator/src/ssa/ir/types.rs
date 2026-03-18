@@ -110,7 +110,9 @@ impl NumericType {
                 assert!(*bit_size <= 128);
                 Ok(FieldElement::from(2u128.pow(*bit_size - 1) - 1))
             }
-            other => Err(format!("Cannot get max value for type: {other}")),
+            NumericType::NativeField => {
+                Err("Cannot get max value for type: NativeField".to_string())
+            }
         }
     }
 }

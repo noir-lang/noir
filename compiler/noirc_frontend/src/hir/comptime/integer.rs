@@ -322,8 +322,8 @@ impl std::ops::Add for Integer {
         match (self, rhs) {
             (Integer::Field(lhs), Integer::Field(rhs)) => Some(Integer::Field(lhs + rhs)),
             (Integer::U1(lhs), Integer::U1(rhs)) => {
-                let result = lhs as u32 + rhs as u32;
-                (result != 2).then(|| Integer::U1(result != 0))
+                let result = u32::from(lhs) + u32::from(rhs);
+                (result != 2).then_some(Integer::U1(result != 0))
             }
             (Integer::U8(lhs), Integer::U8(rhs)) => lhs.checked_add(rhs).map(Integer::U8),
             (Integer::U16(lhs), Integer::U16(rhs)) => lhs.checked_add(rhs).map(Integer::U16),
@@ -346,8 +346,8 @@ impl std::ops::Sub for Integer {
         match (self, rhs) {
             (Integer::Field(lhs), Integer::Field(rhs)) => Some(Integer::Field(lhs - rhs)),
             (Integer::U1(lhs), Integer::U1(rhs)) => {
-                let result = lhs as i32 - rhs as i32;
-                (result > 0).then(|| Integer::U1(result != 0))
+                let result = i32::from(lhs) - i32::from(rhs);
+                (result > 0).then_some(Integer::U1(result != 0))
             }
             (Integer::U8(lhs), Integer::U8(rhs)) => lhs.checked_sub(rhs).map(Integer::U8),
             (Integer::U16(lhs), Integer::U16(rhs)) => lhs.checked_sub(rhs).map(Integer::U16),
@@ -370,7 +370,7 @@ impl std::ops::Mul for Integer {
         match (self, rhs) {
             (Integer::Field(lhs), Integer::Field(rhs)) => Some(Integer::Field(lhs * rhs)),
             (Integer::U1(lhs), Integer::U1(rhs)) => {
-                Some(Integer::U1((lhs as u32 * rhs as u32) != 0))
+                Some(Integer::U1(u32::from(lhs) * u32::from(rhs) != 0))
             }
             (Integer::U8(lhs), Integer::U8(rhs)) => lhs.checked_mul(rhs).map(Integer::U8),
             (Integer::U16(lhs), Integer::U16(rhs)) => lhs.checked_mul(rhs).map(Integer::U16),
@@ -415,7 +415,7 @@ impl std::ops::Rem for Integer {
             // Fields do not support the remainder operation
             (Integer::Field(_), Integer::Field(_)) => None,
             (Integer::U1(lhs), Integer::U1(rhs)) => {
-                (lhs as u8).checked_rem(rhs as u8).map(|x| Integer::U1(x != 0))
+                u8::from(lhs).checked_rem(u8::from(rhs)).map(|x| Integer::U1(x != 0))
             }
             (Integer::U8(lhs), Integer::U8(rhs)) => lhs.checked_rem(rhs).map(Integer::U8),
             (Integer::U16(lhs), Integer::U16(rhs)) => lhs.checked_rem(rhs).map(Integer::U16),
