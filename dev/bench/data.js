@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773870391333,
+  "lastUpdate": 1773870452825,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23081,48 +23081,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "5fc2c79b1dfe0888dd661cbcbb49b1a1600b74d5",
-          "message": "feat: group repeating sequences of call stack frames (#11691)",
-          "timestamp": "2026-03-12T17:22:26Z",
-          "tree_id": "12f9f88009662ba4bfc9678fcb3fa9f0768b7153",
-          "url": "https://github.com/noir-lang/noir/commit/5fc2c79b1dfe0888dd661cbcbb49b1a1600b74d5"
-        },
-        "date": 1773337867111,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 240425,
-            "range": "± 792",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 211659,
-            "range": "± 2413",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2207543,
-            "range": "± 10931",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -25174,6 +25132,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2732246,
             "range": "± 6470",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e7e4dda4773c63d89791f15e902f7069346ab56d",
+          "message": "chore: Remove deprecated attribute to unblock aztec CI (#11914)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2026-03-18T21:22:42Z",
+          "tree_id": "aa9def85b3be33ad045e5c3d6a3b1fc1a725d73b",
+          "url": "https://github.com/noir-lang/noir/commit/e7e4dda4773c63d89791f15e902f7069346ab56d"
+        },
+        "date": 1773870378082,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 252079,
+            "range": "± 1184",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 221383,
+            "range": "± 2711",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2731929,
+            "range": "± 2173",
             "unit": "ns/iter"
           }
         ]
