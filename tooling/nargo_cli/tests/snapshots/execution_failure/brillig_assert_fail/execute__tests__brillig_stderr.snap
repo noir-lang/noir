@@ -9,7 +9,9 @@ error: Failed to solve program: 'Failed to solve brillig function'
    │            -
    │
    = Call stack:
-     1. src/main.nr:6:26
-     2. src/main.nr:10:12
+     1: main
+             at src/main.nr:6:26
+     2: conditional
+             at src/main.nr:10:12
 
 Failed to solve program: 'Failed to solve brillig function'

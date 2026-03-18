@@ -2,6 +2,7 @@ use acvm::acir::BlackBoxFunc;
 use acvm::acir::brillig::ValueOrArray;
 use acvm::{AcirField, FieldElement};
 use iter_extended::vecmap;
+use itertools::Itertools;
 
 use crate::brillig::BrilligBlock;
 use crate::brillig::brillig_ir::registers::Allocated;
@@ -64,7 +65,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         // Pair up the heap typed output values of the call with the Brillig variables created for the results,
         // so that we can do some post processing for vectors.
         for (i, (output_value, output_variable)) in
-            output_values.iter().zip(output_variables).enumerate()
+            output_values.iter().zip_eq(output_variables).enumerate()
         {
             // We need to emit some bytecode to format the output as a BrilligVector
             let BrilligVariable::BrilligVector(vector) = output_variable else {

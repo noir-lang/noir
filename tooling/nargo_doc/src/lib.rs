@@ -648,7 +648,7 @@ impl DocItemBuilder<'_> {
             .collect::<Vec<_>>();
 
         let attributes = self.interner.function_attributes(&func_id);
-        let deprecated = attributes.get_deprecated_note();
+        let deprecated = attributes.get_deprecated().map(|(_, note)| note);
 
         let id = get_function_id(func_id, self.interner);
 
@@ -921,9 +921,6 @@ pub(crate) fn convert_primitive_type(
             PrimitiveTypeKind::FunctionDefinition
         }
         noirc_frontend::elaborator::PrimitiveType::Module => PrimitiveTypeKind::Module,
-        noirc_frontend::elaborator::PrimitiveType::StructDefinition => {
-            PrimitiveTypeKind::TypeDefinition
-        }
         noirc_frontend::elaborator::PrimitiveType::TraitDefinition => {
             PrimitiveTypeKind::TraitDefinition
         }

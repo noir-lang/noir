@@ -7,6 +7,7 @@ use acir::brillig::lengths::SemanticLength;
 use arbitrary::Unstructured;
 use color_eyre::eyre;
 use iter_extended::vecmap;
+use itertools::Itertools;
 use noirc_abi::{Abi, AbiType, InputMap, Sign, input_parser::InputValue};
 use noirc_evaluator::ssa::{
     self,
@@ -315,7 +316,7 @@ fn append_input_value_to_ssa(typ: &AbiType, input: &InputValue, values: &mut Vec
                 assert_eq!(fields.len(), input_values.len(), "tuple size != input length");
 
                 // Tuples are flattened
-                for (typ, input) in fields.iter().zip(input_values) {
+                for (typ, input) in fields.iter().zip_eq(input_values) {
                     append_input_value_to_ssa(typ, input, values);
                 }
             }

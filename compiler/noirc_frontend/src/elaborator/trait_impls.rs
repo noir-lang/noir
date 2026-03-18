@@ -427,6 +427,8 @@ impl Elaborator<'_> {
 
         // Substitute each generic on the trait function with the corresponding generic on the impl function
         for (ResolvedGeneric { type_var: trait_fn_generic, .. }, impl_fn_resolved_generic) in
+            // Use zip (not zip_eq) since the impl may have a different number of
+            // generics than the trait method (which is a user error caught elsewhere).
             method.direct_generics.iter().zip(&override_meta.direct_generics)
         {
             let trait_fn_kind = trait_fn_generic.kind();

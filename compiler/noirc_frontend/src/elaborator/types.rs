@@ -4,11 +4,13 @@ use std::{borrow::Cow, rc::Rc};
 
 use im::HashSet;
 use iter_extended::vecmap;
+use itertools::Itertools;
 use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
-    Kind, NamedGeneric, ResolvedGeneric, Type, TypeBinding, TypeBindings, UnificationError,
+    BinaryTypeOperator, Kind, NamedGeneric, ResolvedGeneric, Type, TypeBinding, TypeBindings,
+    UnificationError,
     ast::{
         AsTraitPath, BinaryOpKind, GenericTypeArgs, Ident, PathKind, UnaryOp, UnresolvedType,
         UnresolvedTypeData, UnresolvedTypeExpression, WILDCARD_TYPE,
@@ -38,6 +40,7 @@ use crate::{
         TraitLookupMode,
     },
     shared::Signedness,
+    signed_field::SignedField,
 };
 
 use super::{
@@ -767,7 +770,7 @@ impl Elaborator<'_> {
             args.ordered_args.resize(expected_kinds.len(), error_type);
         }
 
-        let ordered_args = expected_kinds.iter().zip(args.ordered_args);
+        let ordered_args = expected_kinds.iter().zip_eq(args.ordered_args);
         let ordered = vecmap(ordered_args, |(kind, typ)| {
             self.resolve_type_with_kind_inner(typ, kind, mode, wildcard_allowed)
         });
@@ -891,9 +894,9 @@ impl Elaborator<'_> {
                 let reference_location = path.location;
                 self.interner.add_global_reference(id, reference_location);
                 let opt_global_let_statement = self.interner.get_global_let_statement(id);
-                let kind = opt_global_let_statement.as_ref().map_or(Kind::u32(), |let_statement| {
-                    Kind::numeric(let_statement.r#type.clone())
-                });
+                let typ = opt_global_let_statement
+                    .as_ref()
+                    .map_or(Type::u32(), |let_statement| let_statement.r#type.clone());
 
                 let Some(stmt) = opt_global_let_statement else {
                     if self.elaborate_global_if_unresolved(&id) {
@@ -927,6 +930,7 @@ impl Elaborator<'_> {
                     return None;
                 };
 
+                let kind = Kind::numeric(typ.clone());
                 let Ok(global_value) = kind.ensure_value_fits(global_value, location) else {
                     self.push_err(ResolverError::GlobalDoesNotFitItsType {
                         location,
@@ -936,7 +940,7 @@ impl Elaborator<'_> {
                     return None;
                 };
 
-                Some(Type::Constant(global_value, kind))
+                Some(Type::Constant(global_value, Box::new(typ)))
             }
             _ => None,
         }
@@ -971,22 +975,17 @@ impl Elaborator<'_> {
                 self.check_type_kind(typ, expected_kind, location)
             }
             UnresolvedTypeExpression::Constant(int, suffix, _span) => {
-                let suffix_kind = if let Some(suffix) = suffix {
-                    suffix.as_kind()
-                } else {
-                    let integer_or_field_var =
-                        self.interner.next_type_variable_with_kind(Kind::IntegerOrField);
-                    Kind::Numeric(Box::new(integer_or_field_var))
-                };
+                // Default type constants to u32 if not specified
+                let kind = suffix.unwrap_or(crate::token::IntegerTypeSuffix::U32).as_type();
 
-                if !suffix_kind.unifies(expected_kind) {
+                if !Kind::numeric(kind.clone()).unifies(expected_kind) {
                     self.push_err(TypeCheckError::expecting_other_error(
-                        format!("convert_expression_type: {suffix_kind} does not unify with expected {expected_kind}"),
+                        format!("convert_expression_type: {kind} does not unify with expected {expected_kind}"),
                         location,
                     ));
                 }
 
-                Type::Constant(int, suffix_kind)
+                Type::Constant(int, Box::new(kind))
             }
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, location) => {
                 let (lhs_location, rhs_location) = (lhs.location(), rhs.location());
@@ -1005,15 +1004,15 @@ impl Elaborator<'_> {
 
                 match (lhs, rhs) {
                     (Type::Constant(lhs, lhs_kind), Type::Constant(rhs, rhs_kind)) => {
-                        if !lhs_kind.unifies(&rhs_kind) {
+                        if lhs_kind.unify(&rhs_kind).is_err() {
                             self.push_err(TypeCheckError::TypeKindMismatch {
-                                expected_kind: lhs_kind,
-                                expr_kind: rhs_kind,
+                                expected_kind: Kind::Numeric(lhs_kind),
+                                expr_kind: Kind::Numeric(rhs_kind),
                                 expr_location: location,
                             });
                             return Type::Error;
                         }
-                        match op.function(lhs, rhs, &lhs_kind, location) {
+                        match op.function(lhs, rhs, &Kind::Numeric(lhs_kind.clone()), location) {
                             Ok(result) => Type::Constant(result, lhs_kind),
                             Err(err) => {
                                 let err = Box::new(err);
@@ -1028,6 +1027,37 @@ impl Elaborator<'_> {
                         let infix = Type::infix_expr(Box::new(lhs), op, Box::new(rhs));
                         Type::CheckedCast { from: Box::new(infix.clone()), to: Box::new(infix) }
                             .canonicalize()
+                    }
+                }
+            }
+            UnresolvedTypeExpression::Negation(rhs, location) => {
+                let rhs_location = rhs.location();
+                let rhs = self.convert_expression_type(
+                    *rhs,
+                    expected_kind,
+                    rhs_location,
+                    wildcard_allowed,
+                );
+
+                match rhs {
+                    Type::Constant(rhs, rhs_kind) => {
+                        if rhs_kind.is_signed() {
+                            Type::Constant(-rhs, rhs_kind)
+                        } else {
+                            self.push_err(TypeCheckError::InvalidUnaryOp {
+                                typ: rhs_kind.to_string(),
+                                operator: "-",
+                                location,
+                            });
+                            Type::Error
+                        }
+                    }
+                    rhs => {
+                        let kind = rhs.kind().into_numeric_type_or_error();
+                        let zero = Type::Constant(SignedField::zero(), kind);
+                        let sub = BinaryTypeOperator::Subtraction;
+                        let infix = Box::new(Type::infix_expr(Box::new(zero), sub, Box::new(rhs)));
+                        Type::CheckedCast { from: infix.clone(), to: infix }.canonicalize()
                     }
                 }
             }
@@ -1630,7 +1660,7 @@ impl Elaborator<'_> {
             return Type::Error;
         }
 
-        for (param, (arg, arg_expr_id, arg_location)) in fn_params.iter().zip(callsite_args) {
+        for (param, (arg, arg_expr_id, arg_location)) in fn_params.iter().zip_eq(callsite_args) {
             self.unify_with_coercions(arg, param, *arg_expr_id, *arg_location, || {
                 CompilationError::TypeError(TypeCheckError::TypeMismatch {
                     expected_typ: param.to_string(),
@@ -3071,7 +3101,7 @@ pub(super) fn bind_ordered_generics(
 ) {
     assert_eq!(params.len(), args.len(), "unexpected number of ordered generics");
 
-    for (param, arg) in params.iter().zip(args) {
+    for (param, arg) in params.iter().zip_eq(args) {
         bind_generic(param, arg, bindings);
     }
 }

@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Index 1 is out of bounds for this array of length 1
+  ┌─ src/main.nr:3:7
+  │
+3 │     b[1].0
+  │       -
+  │
+
+Aborting due to 1 previous error
