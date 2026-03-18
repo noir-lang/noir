@@ -85,7 +85,6 @@ dependencies = [
  "blake3",
  "cbc",
  "criterion",
- "itertools 0.14.0",
  "k256",
  "keccak 0.2.0-rc.2",
  "log",
