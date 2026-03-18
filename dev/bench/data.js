@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773861252121,
+  "lastUpdate": 1773861955124,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23101,48 +23101,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "c7fe61541a36bfeb6bf8815df03a3bd851ce9009",
-          "message": "fix(fmt): off by one error when wrapping comments (#11847)",
-          "timestamp": "2026-03-12T15:55:46Z",
-          "tree_id": "9fda01730dc0524ed9781bcf8e3e9a46ed293763",
-          "url": "https://github.com/noir-lang/noir/commit/c7fe61541a36bfeb6bf8815df03a3bd851ce9009"
-        },
-        "date": 1773332684777,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 251565,
-            "range": "± 1089",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 221618,
-            "range": "± 4981",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2732308,
-            "range": "± 5686",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "d377ad8488b81508df9aca566fbda6075fc2aebd",
           "message": "chore: always use a temp dir when running test programs (#11843)",
           "timestamp": "2026-03-12T16:02:57Z",
@@ -25184,6 +25142,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2730781,
             "range": "± 2224",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "c10d1eab1722d8f6c23250d5ac27bfbc1d34db56",
+          "message": "fix: add type checking for constructor patterns in match expressions (#11887)",
+          "timestamp": "2026-03-18T18:59:51Z",
+          "tree_id": "d315079cf479e063324f097337385191a0a4075a",
+          "url": "https://github.com/noir-lang/noir/commit/c10d1eab1722d8f6c23250d5ac27bfbc1d34db56"
+        },
+        "date": 1773861907072,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 251657,
+            "range": "± 1524",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 221101,
+            "range": "± 4179",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2734506,
+            "range": "± 6021",
             "unit": "ns/iter"
           }
         ]
