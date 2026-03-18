@@ -688,8 +688,9 @@ fn regression_10363() {
 
 #[test]
 fn concrete_impl_with_dual_turbofish() {
-    // Regression: concrete impl's method generics were incorrectly bound to the
-    // type turbofish arguments because all_generics only contained direct_generics.
+    // Regression: https://github.com/noir-lang/noir/pull/11848
+    // Concrete impl's method generics were incorrectly bound to the type 
+    // turbofish arguments because all_generics only contained direct_generics.
     let src = r#"
     struct S<T> {}
 
