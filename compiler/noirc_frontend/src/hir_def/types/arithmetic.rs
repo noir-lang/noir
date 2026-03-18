@@ -147,6 +147,13 @@ impl Type {
         }
     }
 
+    /// Sorts the ordering of `a <op> b` such that `b` appears on the rhs of the
+    /// resulting type iff:
+    /// - `b` is a constant
+    /// - `b` is non-constant and is `<` a according to an arbitrary `impl Ord for Type`.
+    ///
+    /// The intent is to simplify handling of `a + b = b + a` and ensure we only need
+    /// to look for constants on the rhs of commutative operations.
     fn sort_commutative(lhs: &Type, op: BinaryTypeOperator, rhs: &Type) -> Type {
         let mut queue = vec![lhs.clone(), rhs.clone()];
 
