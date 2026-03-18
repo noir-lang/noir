@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773853532735,
+  "lastUpdate": 1773854160768,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -49463,105 +49463,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "605d71780dc40139ef3260c7c48db5eaa9d8cbc3",
-          "message": "chore(brillig): Avoid temp register in load with offset (#11834)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-03-12T14:53:50Z",
-          "tree_id": "b981636419b1b51c97c8a4b8b0cbcf5d78b24d98",
-          "url": "https://github.com/noir-lang/noir/commit/605d71780dc40139ef3260c7c48db5eaa9d8cbc3"
-        },
-        "date": 1773329719142,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.928,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.941,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.973,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 1.398,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 1.4,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1.43,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 1.428,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1.42,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1.4,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.374,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 1.404,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 1.388,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 1.464,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.149,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.13,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "c57df1941c8f18ab910fd50b2681d04de7d327aa",
           "message": "chore(brillig): Avoid temp registers by incrementing pointers in array reverse (#11831)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
           "timestamp": "2026-03-12T14:52:13Z",
@@ -54396,6 +54297,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.134,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3d29746786bcbae15d0c02b15367df14390be130",
+          "message": "fix: prevent cyclic recursion in trait bound resolution (#11901)",
+          "timestamp": "2026-03-18T16:41:53Z",
+          "tree_id": "d2aec11c75364ae4792c226011d7a509f98a2f44",
+          "url": "https://github.com/noir-lang/noir/commit/3d29746786bcbae15d0c02b15367df14390be130"
+        },
+        "date": 1773854112331,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.924,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.905,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.915,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 1.39,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 1.41,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1.38,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 1.38,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1.47,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1.41,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.4,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 1.404,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 1.412,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 1.48,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.14,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.14,
             "unit": "s"
           }
         ]
