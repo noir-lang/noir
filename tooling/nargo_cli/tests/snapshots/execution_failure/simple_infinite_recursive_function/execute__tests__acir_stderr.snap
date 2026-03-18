@@ -22,6 +22,6 @@ error: Assertion failed: Stack too deep
                 at src/main.nr:9:5
      ┌─ 3: bar
      │          at src/main.nr:13:5
-     └─ (repeated 10239 times)
+     └─ (repeated 10240 times)
 
 Failed assertion

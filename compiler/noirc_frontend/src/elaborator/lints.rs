@@ -34,10 +34,9 @@ pub(super) fn deprecated_function(interner: &NodeInterner, expr: ExprId) -> Opti
     };
 
     let attributes = interner.function_attributes(&func_id);
-    attributes.get_deprecated_note().map(|note| TypeCheckError::CallDeprecated {
-        name: interner.definition_name(id).to_string(),
-        note,
-        location,
+    attributes.get_deprecated().map(|(deny, note)| {
+        let name = interner.definition_name(id).to_string();
+        TypeCheckError::CallDeprecated { name, deny, note, location }
     })
 }
 
