@@ -1,7 +1,0 @@
-[package]
-name = "bignum_mul_perf"
-type = "bin"
-authors = [""]
-
-[dependencies]
-bignum = { git = "https://github.com/noir-lang/noir-bignum", tag = "v0.9.2" }
