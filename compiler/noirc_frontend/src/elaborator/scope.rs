@@ -69,7 +69,7 @@ impl Elaborator<'_> {
                     .iter()
                     .position(|capture| capture.ident.id == variable.ident.id);
 
-                if position.is_none() {
+                let capture_index = position.or_else(|| {
                     // In a comptime context we capture comptime and non-comptime variables
                     // (the latter will be an error).
                     // In a non-comptime context we don't capture comptime variables.
@@ -80,19 +80,20 @@ impl Elaborator<'_> {
                             ident: variable.ident.clone(),
                             transitive_capture_index,
                         });
+                        // If this was a fresh capture, we added it to the end of
+                        // the captures vector:
+                        Some(self.lambda_stack[lambda_index].captures.len() - 1)
+                    } else {
+                        None
                     }
-                }
+                });
 
                 if lambda_index + 1 < self.lambda_stack.len() {
                     // There is more than one closure between the current scope and
                     // the scope of the variable, so this is a propagated capture.
                     // We need to track the transitive capture index as we go up in
                     // the closure stack.
-                    transitive_capture_index = Some(position.unwrap_or(
-                        // If this was a fresh capture, we added it to the end of
-                        // the captures vector:
-                        self.lambda_stack[lambda_index].captures.len() - 1,
-                    ));
+                    transitive_capture_index = capture_index;
                 }
             }
         }

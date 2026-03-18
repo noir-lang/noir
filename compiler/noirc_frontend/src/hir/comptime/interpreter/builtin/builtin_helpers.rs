@@ -17,6 +17,7 @@ use crate::hir::comptime::value::unwrap_rc;
 use crate::hir::comptime::value::{FormatStringFragment, StructFields};
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::def_map::fully_qualified_module_path;
+use crate::hir_def::function::FuncMeta;
 use crate::lexer::Lexer;
 use crate::parser::{Parser, ParserError};
 use crate::signed_field::SignedField;
@@ -36,10 +37,7 @@ use crate::{
         def_map::ModuleId,
         type_check::generics::TraitGenerics,
     },
-    hir_def::{
-        function::{FuncMeta, FunctionBody},
-        stmt::HirPattern,
-    },
+    hir_def::{function::FunctionBody, stmt::HirPattern},
     node_interner::{FuncId, NodeInterner, TraitId, TraitImplId, TypeId},
     shared::Signedness,
     token::{SecondaryAttribute, Token, Tokens},
@@ -209,6 +207,13 @@ pub(crate) fn get_ctstring((value, location): (Value, Location)) -> IResult<Rc<V
     }
 }
 
+pub(crate) fn get_field((value, location): (Value, Location)) -> IResult<SignedField> {
+    match value {
+        Value::Integer(Integer::Field(value)) => Ok(value),
+        value => type_mismatch(value, Type::FieldElement, location),
+    }
+}
+
 pub(crate) fn get_tuple((value, location): (Value, Location)) -> IResult<Vec<Shared<Value>>> {
     match value {
         Value::Tuple(values) => Ok(values),
@@ -216,13 +221,6 @@ pub(crate) fn get_tuple((value, location): (Value, Location)) -> IResult<Vec<Sha
             let expected = "tuple";
             type_mismatch(value, expected, location)
         }
-    }
-}
-
-pub(crate) fn get_field((value, location): (Value, Location)) -> IResult<SignedField> {
-    match value {
-        Value::Integer(Integer::Field(value)) => Ok(value),
-        value => type_mismatch(value, Type::FieldElement, location),
     }
 }
 
@@ -579,6 +577,14 @@ where
     })
 }
 
+pub(super) fn block_expression_to_value(block_expr: BlockExpression) -> Value {
+    let typ = Type::Vector(Box::new(Type::Quoted(QuotedType::Expr)));
+    let statements = block_expr.statements.into_iter();
+    let statements = statements.map(|statement| Value::statement(statement.kind)).collect();
+
+    Value::Vector(statements, typ)
+}
+
 pub(super) fn mutate_func_meta_type<F>(interner: &mut NodeInterner, func_id: FuncId, f: F)
 where
     F: FnOnce(&mut FuncMeta),
@@ -602,24 +608,6 @@ pub(super) fn replace_func_meta_parameters(typ: &mut Type, parameter_types: Vec<
     }
 }
 
-pub(super) fn replace_func_meta_return_type(typ: &mut Type, return_type: Type) {
-    match typ {
-        Type::Function(_, ret, _, _) => {
-            **ret = return_type;
-        }
-        Type::Forall(_, typ) => replace_func_meta_return_type(typ, return_type),
-        _ => {}
-    }
-}
-
-pub(super) fn block_expression_to_value(block_expr: BlockExpression) -> Value {
-    let typ = Type::Vector(Box::new(Type::Quoted(QuotedType::Expr)));
-    let statements = block_expr.statements.into_iter();
-    let statements = statements.map(|statement| Value::statement(statement.kind)).collect();
-
-    Value::Vector(statements, typ)
-}
-
 pub(super) fn has_named_attribute(
     name: &str,
     attributes: &[SecondaryAttribute],
@@ -641,7 +629,7 @@ fn secondary_attribute_name(
     interner: &NodeInterner,
 ) -> Option<String> {
     match &attribute.kind {
-        SecondaryAttributeKind::Deprecated(_) => Some("deprecated".to_string()),
+        SecondaryAttributeKind::Deprecated(_, _) => Some("deprecated".to_string()),
         SecondaryAttributeKind::ContractLibraryMethod => {
             Some("contract_library_method".to_string())
         }

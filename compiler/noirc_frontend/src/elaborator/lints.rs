@@ -34,10 +34,9 @@ pub(super) fn deprecated_function(interner: &NodeInterner, expr: ExprId) -> Opti
     };
 
     let attributes = interner.function_attributes(&func_id);
-    attributes.get_deprecated_note().map(|note| TypeCheckError::CallDeprecated {
-        name: interner.definition_name(id).to_string(),
-        note,
-        location,
+    attributes.get_deprecated().map(|(deny, note)| {
+        let name = interner.definition_name(id).to_string();
+        TypeCheckError::CallDeprecated { name, deny, note, location }
     })
 }
 
@@ -265,7 +264,7 @@ pub(super) fn oracle_returns_vector_with_nested_array(
         return None;
     }
 
-    if func.return_type().is_vector_with_nested_array() {
+    if func.return_type().contains_vector_with_nested_array() {
         let ident = func_meta_name_ident(func, modifiers);
         Some(ResolverError::OracleReturnsVectorWithNestedArray { location: ident.location() })
     } else {

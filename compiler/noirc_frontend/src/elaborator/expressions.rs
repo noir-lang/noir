@@ -676,9 +676,10 @@ impl Elaborator<'_> {
         let (collection, lhs_type) = self.insert_auto_dereferences(lhs, lhs_type);
 
         let typ = match lhs_type.follow_bindings() {
-            // XXX: We can check the array bounds here also, but it may be better to constant fold first
-            // and have ConstId instead of ExprId for constants
-            Type::Array(_, base_type) => *base_type,
+            Type::Array(ref size, ref base_type) => {
+                self.check_array_index_out_of_bounds(size, &index, location);
+                *base_type.clone()
+            }
             Type::Vector(base_type) => *base_type,
             Type::Error => Type::Error,
             Type::TypeVariable(_) => {
@@ -699,6 +700,28 @@ impl Elaborator<'_> {
 
         let expr = HirExpression::Index(HirIndexExpression { collection, index });
         (expr, typ)
+    }
+
+    /// If the index expression is a constant integer literal, check that it is
+    /// within bounds for the given array length type.
+    pub(super) fn check_array_index_out_of_bounds(
+        &mut self,
+        array_size: &Type,
+        index: &ExprId,
+        location: Location,
+    ) {
+        if let HirExpression::Literal(HirLiteral::Integer(index_value)) =
+            self.interner.expression(index)
+            && let Some(index_u32) = index_value.try_to_unsigned::<u32>()
+            && let Ok(array_len) = array_size.evaluate_to_u32(location)
+            && index_u32 >= array_len
+        {
+            self.push_err(TypeCheckError::ArrayIndexOutOfBounds {
+                index: index_u32,
+                array_length: array_len,
+                location,
+            });
+        }
     }
 
     fn elaborate_call(

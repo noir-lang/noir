@@ -982,7 +982,10 @@ impl<'a> FunctionContext<'a> {
                 self.gen_expr(u, &types::U32, max_depth.saturating_sub(1), Flags::NESTED)?;
 
             // Limit the index to be in the valid range for the array length, with a small chance of index OOB.
-            if self.avoid_index_out_of_bounds(u)? {
+            // Always apply modulo for constant literal indices because constant
+            // out-of-bounds are rejected at compile time
+            let is_literal = matches!(idx, Expression::Literal(_));
+            if is_literal || self.avoid_index_out_of_bounds(u)? {
                 idx = expr::index_modulo(idx, len);
             }
 
