@@ -723,6 +723,24 @@ fn concrete_impl_with_dual_turbofish() {
 }
 
 #[test]
+fn concrete_impl_with_dual_turbofish_mismatch() {
+    let src = r#"
+    struct S<T> {}
+
+    impl S<u32> {
+        fn foo<U>(_x: U) {}
+    }
+
+    fn main() {
+        let x: Field = 10;
+        S::<bool>::foo::<Field>(x);
+        ^^^^^^^^^^^^^^^^^^^^^^^ Expected type u32, found type bool
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn generic_impl_with_dual_turbofish() {
     // Ensure the generic impl case still works correctly after the fix.
     let src = r#"
@@ -757,6 +775,68 @@ fn partially_concrete_impl_turbofish_binds_correct_generic() {
     }
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn partially_concrete_impl_turbofish_reverse_direction() {
+    // The first struct param is the impl generic, the second is concrete.
+    let src = r#"
+    struct S<A, B> {}
+
+    impl<A> S<A, u32> {
+        fn foo(x: A) -> A {
+            x
+        }
+    }
+
+    fn main() {
+        let x: bool = true;
+        let _result: bool = S::<bool, u32>::foo(x);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn partially_concrete_impl_turbofish_three_params_middle_generic() {
+    // Three struct params where only the middle one is an impl generic.
+    let src = r#"
+    struct S<A, B, C> {}
+
+    impl<B> S<u32, B, Field> {
+        fn foo(x: B) -> B {
+            x
+        }
+    }
+
+    fn main() {
+        let x: bool = true;
+        let _result: bool = S::<u32, bool, Field>::foo(x);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn partially_concrete_impl_turbofish_mismatch_on_concrete_param() {
+    // Turbofish type conflicts with the impl's concrete param.
+    // S::<bool, bool>::foo(...) but impl hardcodes A=u32.
+    let src = r#"
+    struct S<A, B> {}
+
+    impl<B> S<u32, B> {
+        fn foo(x: B) -> B {
+            x
+        }
+    }
+
+    fn main() {
+        let x: bool = true;
+        let _result: bool = S::<bool, bool>::foo(x);
+                            ^^^^^^^^^^^^^^^^^^^^ Expected type u32, found type bool
+    }
+    "#;
+    check_errors(src);
 }
 
 #[test]

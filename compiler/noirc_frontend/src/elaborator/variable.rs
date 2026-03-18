@@ -186,18 +186,60 @@ impl Elaborator<'_> {
             // If this is a function call on a type that has generics, we need to bind those generic types.
             if !type_generics.is_empty() {
                 // `all_generics` has the enclosing type generics first, followed by `direct_generics`
-                // (the method's own generics). We must only bind the type-level portion here;.
+                // (the method's own generics). We must only bind the type-level portion here;
                 // method generics are handled separately by the method turbofish.
-                // For a concrete impl (e.g. `impl S<u32>`), there are no impl-level generics in
-                // `all_generics`, so `impl_generic_count` is 0 and we correctly skip binding.
                 let func_meta = self.interner.function_meta(func_id);
                 let impl_generic_count =
                     func_meta.all_generics.len() - func_meta.direct_generics.len();
                 let impl_generics = &func_meta.all_generics[..impl_generic_count];
-                for (type_generic, func_generic) in type_generics.into_iter().zip(impl_generics) {
-                    let type_var = &func_generic.type_var;
-                    bindings
-                        .insert(type_var.id(), (type_var.clone(), type_var.kind(), type_generic));
+
+                // For partially concrete impls (e.g. `impl<B> S<u32, B>`), the number of
+                // impl generics differs from the number of struct generics. The turbofish
+                // `S::<u32, bool>` provides type_generics aligned with the struct's params
+                // [A, B], not the impl's generics [B]. Use the impl's self_type to find
+                // the correct positional mapping from struct params to impl generics.
+                if let Some(Type::DataType(_, self_type_args)) = &func_meta.self_type {
+                    let mut concrete_mismatches = Vec::new();
+                    for (type_generic, self_type_arg) in
+                        type_generics.into_iter().zip(self_type_args)
+                    {
+                        let type_var = match self_type_arg {
+                            Type::NamedGeneric(named) => Some(&named.type_var),
+                            Type::TypeVariable(tv) => Some(tv),
+                            _ => None,
+                        };
+                        if let Some(type_var) = type_var {
+                            if impl_generics.iter().any(|g| g.type_var.id() == type_var.id()) {
+                                bindings.insert(
+                                    type_var.id(),
+                                    (type_var.clone(), type_var.kind(), type_generic),
+                                );
+                            }
+                        } else {
+                            // Concrete position: collect for verification after releasing borrow
+                            concrete_mismatches.push((type_generic, self_type_arg.clone()));
+                        }
+                    }
+                    // Verify turbofish types match the impl's concrete types
+                    for (turbofish_type, concrete_type) in concrete_mismatches {
+                        self.unify(&turbofish_type, &concrete_type, || {
+                            TypeCheckError::TypeMismatch {
+                                expected_typ: concrete_type.to_string(),
+                                expr_typ: turbofish_type.to_string(),
+                                expr_location: location,
+                            }
+                        });
+                    }
+                } else {
+                    // Fallback for non-DataType self types
+                    for (type_generic, func_generic) in type_generics.into_iter().zip(impl_generics)
+                    {
+                        let type_var = &func_generic.type_var;
+                        bindings.insert(
+                            type_var.id(),
+                            (type_var.clone(), type_var.kind(), type_generic),
+                        );
+                    }
                 }
             }
 
