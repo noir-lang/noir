@@ -1296,14 +1296,7 @@ impl Elaborator<'_> {
                 }
 
                 let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
-                let mut visited = BTreeSet::from([the_trait.id]);
-                self.find_methods_or_constants_in_trait(
-                    path,
-                    constraint,
-                    the_trait,
-                    &mut visited,
-                    &mut matches,
-                );
+                self.find_methods_or_constants_in_trait(path, constraint, the_trait, &mut matches);
             }
         }
 
@@ -1344,6 +1337,23 @@ impl Elaborator<'_> {
         path: &TypedPath,
         constraint: TraitConstraint,
         the_trait: &Trait,
+        matches: &mut Vec<(TraitPathResolutionMethod, TraitId)>,
+    ) {
+        let mut visited = BTreeSet::from([the_trait.id]);
+        self.find_methods_or_constants_in_trait_inner(
+            path,
+            constraint,
+            the_trait,
+            &mut visited,
+            matches,
+        );
+    }
+
+    fn find_methods_or_constants_in_trait_inner(
+        &self,
+        path: &TypedPath,
+        constraint: TraitConstraint,
+        the_trait: &Trait,
         visited: &mut BTreeSet<TraitId>,
         matches: &mut Vec<(TraitPathResolutionMethod, TraitId)>,
     ) {
@@ -1364,7 +1374,7 @@ impl Elaborator<'_> {
             let parent_trait = self.interner.get_trait(trait_bound.trait_id);
             let constraint =
                 TraitConstraint { typ: constraint.typ.clone(), trait_bound: trait_bound.clone() };
-            self.find_methods_or_constants_in_trait(
+            self.find_methods_or_constants_in_trait_inner(
                 path,
                 constraint,
                 parent_trait,
@@ -2598,13 +2608,8 @@ impl Elaborator<'_> {
         {
             let the_trait = self.interner.get_trait(trait_id);
             let constraint = the_trait.as_constraint(the_trait.name.location());
-            let mut visited = BTreeSet::from([the_trait.id]);
-            let mut matches = self.lookup_methods_in_trait(
-                the_trait,
-                method_name,
-                &constraint.trait_bound,
-                &mut visited,
-            );
+            let mut matches =
+                self.lookup_methods_in_trait(the_trait, method_name, &constraint.trait_bound);
             if matches.len() == 1 {
                 let method = matches.remove(0);
                 let assumed = true;
@@ -2634,13 +2639,8 @@ impl Elaborator<'_> {
                 && let Some(the_trait) =
                     self.interner.try_get_trait(constraint.trait_bound.trait_id)
             {
-                let mut visited = BTreeSet::from([the_trait.id]);
-                let trait_matches = self.lookup_methods_in_trait(
-                    the_trait,
-                    method_name,
-                    &constraint.trait_bound,
-                    &mut visited,
-                );
+                let trait_matches =
+                    self.lookup_methods_in_trait(the_trait, method_name, &constraint.trait_bound);
                 matches.extend(trait_matches);
             }
         }
@@ -2719,6 +2719,16 @@ impl Elaborator<'_> {
         the_trait: &Trait,
         method_name: &str,
         trait_bound: &ResolvedTraitBound,
+    ) -> Vec<HirTraitMethodReference> {
+        let mut visited = BTreeSet::from([the_trait.id]);
+        self.lookup_methods_in_trait_inner(the_trait, method_name, trait_bound, &mut visited)
+    }
+
+    fn lookup_methods_in_trait_inner(
+        &self,
+        the_trait: &Trait,
+        method_name: &str,
+        trait_bound: &ResolvedTraitBound,
         visited: &mut BTreeSet<TraitId>,
     ) -> Vec<HirTraitMethodReference> {
         let mut matches = Vec::new();
@@ -2747,7 +2757,7 @@ impl Elaborator<'_> {
 
                 let parent_trait_bound =
                     self.instantiate_parent_trait_bound(trait_bound, parent_trait_bound);
-                let parent_matches = self.lookup_methods_in_trait(
+                let parent_matches = self.lookup_methods_in_trait_inner(
                     the_trait,
                     method_name,
                     &parent_trait_bound,

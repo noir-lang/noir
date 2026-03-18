@@ -1,6 +1,6 @@
 //! Trait implementation collection, method matching, and coherence checking.
 
-use std::{collections::BTreeSet, rc::Rc};
+use std::rc::Rc;
 
 use crate::{
     Kind, NamedGeneric, ResolvedGeneric, Shared, TypeBindings, TypeVariable,
@@ -557,12 +557,10 @@ impl Elaborator<'_> {
         {
             for trait_constrain in &trait_implementation.borrow().where_clause {
                 let trait_bound = &trait_constrain.trait_bound;
-                let mut visited = BTreeSet::from([trait_bound.trait_id]);
                 self.add_trait_bound_to_scope(
                     trait_bound.location,
                     &trait_constrain.typ,
                     trait_bound,
-                    &mut visited,
                 );
             }
         }
@@ -958,8 +956,7 @@ impl Elaborator<'_> {
             for bound in bounds {
                 let typ = Type::TypeVariable(new_generic.type_var.clone());
                 let location = new_generic.location;
-                let mut visited = BTreeSet::from([bound.trait_id]);
-                self.add_trait_bound_to_scope(location, &typ, &bound, &mut visited);
+                self.add_trait_bound_to_scope(location, &typ, &bound);
                 new_generics_trait_constraints
                     .push((TraitConstraint { typ, trait_bound: bound }, location));
             }
