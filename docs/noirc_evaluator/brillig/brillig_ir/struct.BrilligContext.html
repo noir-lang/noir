@@ -346,8 +346,8 @@ This is safe because:</p>
 <li>The loop exit condition <code>source_pointer &lt; source_start</code> becomes <code>true</code> immediately</li>
 <li>The loop exits without any iterations, which is correct for 0 elements</li>
 </ol>
-<p>This relies on the <strong>value</strong> at <code>source_start</code> being &gt; 0. Current callers satisfy this<br />
-invariant because they pass heap pointers (from vector metadata), and heap allocations<br />
+<p>This relies on the <strong>value</strong> at <code>source_start</code> being &gt; 0. Current callers satisfy this
+invariant because they pass heap pointers (from vector metadata), and heap allocations
 always produce pointers &gt; 0 since the heap starts after reserved registers and the stack.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.codegen_array_reverse" class="method"><a class="src rightside" href="../../../src/noirc_evaluator/brillig/brillig_ir/codegen_memory.rs.html#229-280">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.codegen_array_reverse" class="fn">codegen_array_reverse</a>(
     &amp;mut self,
@@ -513,7 +513,7 @@ increment, which is unacceptable overhead for a theoretical issue.</li>
 <p>We don’t know the length of a vector returned externally before the call,
 so we write the size and the data to the <em>free memory pointer</em>.</p>
 <p>Here we are adjusting the rest of the meta-data required by the vector structure: basically the RC and the capacity.</p>
-<p>Returns the size variable, which we can use to set the semantic length.</p>
+<p>Returns the size variable, which we can use to set the semantic length, if it wasn’t set to a non-zero value.</p>
 </div></details></div></details><details class="toggle implementors-toggle" open><summary><section id="impl-BrilligContext%3CF,+Registers%3E-18" class="impl"><a class="src rightside" href="../../../src/noirc_evaluator/brillig/brillig_ir/codegen_stack.rs.html#7-166">Source</a><a href="#impl-BrilligContext%3CF,+Registers%3E-18" class="anchor">§</a><h3 class="code-header">impl&lt;F: <a class="trait" href="../../../acir_field/generic_ark/trait.AcirField.html" title="trait acir_field::generic_ark::AcirField">AcirField</a> + <a class="trait" href="debug_show/trait.DebugToString.html" title="trait noirc_evaluator::brillig::brillig_ir::debug_show::DebugToString">DebugToString</a>, Registers: <a class="trait" href="registers/trait.RegisterAllocator.html" title="trait noirc_evaluator::brillig::brillig_ir::registers::RegisterAllocator">RegisterAllocator</a>&gt; <a class="struct" href="struct.BrilligContext.html" title="struct noirc_evaluator::brillig::brillig_ir::BrilligContext">BrilligContext</a>&lt;F, Registers&gt;</h3></section></summary><div class="impl-items"><details class="toggle method-toggle" open><summary><section id="method.codegen_mov_registers_to_registers" class="method"><a class="src rightside" href="../../../src/noirc_evaluator/brillig/brillig_ir/codegen_stack.rs.html#15-124">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.codegen_mov_registers_to_registers" class="fn">codegen_mov_registers_to_registers</a>(
     &amp;mut self,
     sources: &amp;[<a class="enum" href="../../../brillig/opcodes/enum.MemoryAddress.html" title="enum brillig::opcodes::MemoryAddress">MemoryAddress</a>],

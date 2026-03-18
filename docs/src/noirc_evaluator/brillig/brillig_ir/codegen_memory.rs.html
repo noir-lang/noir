@@ -152,9 +152,9 @@
 <a href=#152 id=152 data-nosnippet>152</a>    /// 2. The loop exit condition `source_pointer &lt; source_start` becomes `true` immediately
 <a href=#153 id=153 data-nosnippet>153</a>    /// 3. The loop exits without any iterations, which is correct for 0 elements
 <a href=#154 id=154 data-nosnippet>154</a>    ///
-<a href=#155 id=155 data-nosnippet>155</a>    /// This relies on the **value** at `source_start` being &gt; 0. Current callers satisfy this                                                             
-<a href=#156 id=156 data-nosnippet>156</a>    /// invariant because they pass heap pointers (from vector metadata), and heap allocations                                                             
-<a href=#157 id=157 data-nosnippet>157</a>    /// always produce pointers &gt; 0 since the heap starts after reserved registers and the stack.   
+<a href=#155 id=155 data-nosnippet>155</a>    /// This relies on the **value** at `source_start` being &gt; 0. Current callers satisfy this
+<a href=#156 id=156 data-nosnippet>156</a>    /// invariant because they pass heap pointers (from vector metadata), and heap allocations
+<a href=#157 id=157 data-nosnippet>157</a>    /// always produce pointers &gt; 0 since the heap starts after reserved registers and the stack.
 <a href=#158 id=158 data-nosnippet>158</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_mem_copy_from_the_end(
 <a href=#159 id=159 data-nosnippet>159</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#160 id=160 data-nosnippet>160</a>        source_start: MemoryAddress,
@@ -678,7 +678,7 @@
 <a href=#678 id=678 data-nosnippet>678</a>    ///
 <a href=#679 id=679 data-nosnippet>679</a>    /// Here we are adjusting the rest of the meta-data required by the vector structure: basically the RC and the capacity.
 <a href=#680 id=680 data-nosnippet>680</a>    ///
-<a href=#681 id=681 data-nosnippet>681</a>    /// Returns the size variable, which we can use to set the semantic length.
+<a href=#681 id=681 data-nosnippet>681</a>    /// Returns the size variable, which we can use to set the semantic length, if it wasn't set to a non-zero value.
 <a href=#682 id=682 data-nosnippet>682</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_initialize_externally_returned_vector(
 <a href=#683 id=683 data-nosnippet>683</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#684 id=684 data-nosnippet>684</a>        vector: BrilligVector,
