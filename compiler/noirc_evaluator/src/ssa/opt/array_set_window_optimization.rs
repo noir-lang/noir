@@ -120,17 +120,11 @@ impl Function {
             };
 
             let typ = context.dfg.type_of_value(array);
-            let (element_types, len) = match &typ {
-                Type::Array(element_types, len) => (element_types.clone(), *len),
-                Type::Vector(element_types) => {
-                    let capacity = context
-                        .dfg
-                        .try_get_vector_capacity(array)
-                        .expect("candidate Vector ArraySet must have a known capacity");
-                    (element_types.clone(), capacity)
-                }
-                _ => unreachable!("candidate ArraySet must be of array or vector type"),
-            };
+            let element_types = typ.element_types();
+            let len = context
+                .dfg
+                .try_get_vector_capacity(array)
+                .expect("candidate ArraySet must have a known capacity");
 
             let array_constant = context.dfg.get_array_constant(array);
             let element_count = ElementTypesLength(element_types.len() as u32);
@@ -161,10 +155,6 @@ impl Function {
                 }
             }
 
-            let typ = match context.dfg.type_of_value(array) {
-                Type::Vector(_) => Type::Vector(element_types),
-                _ => Type::Array(element_types, len),
-            };
             let make_array = Instruction::MakeArray { elements, typ: typ.clone() };
             let new_result = context.insert_instruction(make_array, Some(vec![typ])).first();
             context.replace_value(old_result, new_result);
@@ -859,19 +849,25 @@ mod tests {
         ");
     }
 
-    /// Vector as a block parameter — `try_get_vector_capacity` returns None,
+    /// Vector returned by a call — `try_get_vector_capacity` returns None,
     /// so the optimization should not apply.
     #[test]
     fn does_not_replace_vector_array_set_with_unknown_capacity() {
         let src = r#"
         acir(inline) fn main f0 {
-          b0(v0: [Field], v1: u1):
+          b0(v1: u1):
             v2 = not v1
+            v3 = call f1() -> [Field]
             enable_side_effects v1
-            v4 = array_set v0, index u32 1, value Field 99
+            v5 = array_set v3, index u32 1, value Field 99
             enable_side_effects u1 1
-            v6 = if v1 then v4 else (if v2) v0
-            return v6
+            v7 = if v1 then v5 else (if v2) v3
+            return v7
+        }
+        acir(inline) fn get_vector f1 {
+          b0():
+            v0 = make_array [Field 1, Field 2, Field 3] : [Field]
+            return v0
         }
         "#;
         assert_ssa_does_not_change(src, Ssa::array_set_window_optimization);
