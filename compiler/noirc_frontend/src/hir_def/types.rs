@@ -3212,25 +3212,21 @@ impl BinaryTypeOperator {
         b: Integer,
         location: Location,
     ) -> Result<Integer, TypeCheckError> {
-        let error = TypeCheckError::FailingBinaryOp {
-            op: self,
-            lhs: a.to_string(),
-            rhs: b.to_string(),
-            location,
-        };
+        let make_error =
+            || TypeCheckError::OverflowingBinaryOp { op: self, lhs: a, rhs: b, location };
 
         match self {
-            BinaryTypeOperator::Addition => (a + b).ok_or(error),
-            BinaryTypeOperator::Subtraction => (a - b).ok_or(error),
-            BinaryTypeOperator::Multiplication => (a * b).ok_or(error),
+            BinaryTypeOperator::Addition => (a + b).ok_or_else(make_error),
+            BinaryTypeOperator::Subtraction => (a - b).ok_or_else(make_error),
+            BinaryTypeOperator::Multiplication => (a * b).ok_or_else(make_error),
             BinaryTypeOperator::Division => {
-                (a / b).ok_or(TypeCheckError::DivisionByZero { lhs: a, rhs: b, location })
+                (a / b).ok_or_else(|| TypeCheckError::DivisionByZero { lhs: a, rhs: b, location })
             }
             BinaryTypeOperator::Modulo => {
                 if let (Integer::Field(lhs), Integer::Field(rhs)) = (a, b) {
                     Err(TypeCheckError::ModuloOnFields { lhs, rhs, location })
                 } else {
-                    (a % b).ok_or(error)
+                    (a % b).ok_or_else(make_error)
                 }
             }
         }

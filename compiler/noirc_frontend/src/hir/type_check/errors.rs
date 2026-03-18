@@ -56,8 +56,8 @@ pub enum TypeCheckError {
         maximum_size: u128,
         location: Location,
     },
-    #[error("Evaluating `{op}` on `{lhs}`, `{rhs}` failed")]
-    FailingBinaryOp { op: BinaryTypeOperator, lhs: String, rhs: String, location: Location },
+    #[error("`{lhs} {op} {rhs}` in the arithmetic generics here would overflow the bounds of a(n) `{}`", lhs.get_type())]
+    OverflowingBinaryOp { op: BinaryTypeOperator, lhs: Integer, rhs: Integer, location: Location },
     #[error("Type {typ:?} cannot be used in a {place:?}")]
     TypeCannotBeUsed { typ: Type, place: &'static str, location: Location },
     #[error("Expected type {expected_typ:?} is not the same as {expr_typ:?}")]
@@ -301,7 +301,7 @@ impl TypeCheckError {
             | TypeCheckError::ModuloOnFields { location, .. }
             | TypeCheckError::IntegerLiteralDoesNotFitItsType { location, .. }
             | TypeCheckError::OverflowingConstant { location, .. }
-            | TypeCheckError::FailingBinaryOp { location, .. }
+            | TypeCheckError::OverflowingBinaryOp { location, .. }
             | TypeCheckError::TypeCannotBeUsed { location, .. }
             | TypeCheckError::TypeMismatch { expr_location: location, .. }
             | TypeCheckError::TypeMismatchWithSource { location, .. }
@@ -555,7 +555,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::FieldComparison { location, .. }
             | TypeCheckError::IntegerLiteralDoesNotFitItsType { location, .. }
             | TypeCheckError::OverflowingConstant { location, .. }
-            | TypeCheckError::FailingBinaryOp { location, .. }
+            | TypeCheckError::OverflowingBinaryOp { location, .. }
             | TypeCheckError::FieldModulo { location }
             | TypeCheckError::FieldNot { location }
             | TypeCheckError::ConstrainedReferenceToUnconstrained { location }
