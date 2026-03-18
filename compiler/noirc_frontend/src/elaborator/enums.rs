@@ -547,9 +547,12 @@ impl Elaborator<'_> {
                 expected_type,
                 variables_defined,
             ),
-            ExpressionKind::Constructor(constructor) => {
-                self.constructor_to_pattern(*constructor, variables_defined)
-            }
+            ExpressionKind::Constructor(constructor) => self.constructor_to_pattern(
+                *constructor,
+                expected_type,
+                expr_location,
+                variables_defined,
+            ),
             ExpressionKind::Tuple(fields) => {
                 let field_types = vecmap(0..fields.len(), |_| self.interner.next_type_variable());
                 let actual = Type::Tuple(field_types.clone());
@@ -631,11 +634,19 @@ impl Elaborator<'_> {
     fn constructor_to_pattern(
         &mut self,
         constructor: ConstructorExpression,
+        expected_type: &Type,
+        expr_location: Location,
         variables_defined: &mut Vec<Ident>,
     ) -> Pattern {
         let location = constructor.typ.location;
         let wildcard_allowed = WildcardAllowed::Yes;
         let typ = self.resolve_type(constructor.typ, wildcard_allowed);
+
+        self.unify(&typ, expected_type, || TypeCheckError::TypeMismatch {
+            expected_typ: expected_type.to_string(),
+            expr_typ: typ.to_string(),
+            expr_location,
+        });
 
         let Some((struct_name, mut expected_field_types)) =
             self.struct_name_and_field_types(&typ, location)
@@ -1406,9 +1417,10 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
         cases: &[Case],
         typ: &Type,
     ) -> Vec<(String, Vec<Option<DefinitionId>>)> {
-        // We expect `cases` to come from a `Switch` which should always have
-        // at least 2 cases, otherwise it should be a Success or Failure node.
-        let first_case = &cases[0];
+        // Cases can be empty if a type error was already emitted
+        let Some(first_case) = cases.first() else {
+            return Vec::new();
+        };
 
         if matches!(&first_case.constructor, Constructor::Int(_) | Constructor::Range(..)) {
             return self.missing_integer_cases(cases, typ);

@@ -509,6 +509,15 @@ impl Elaborator<'_> {
     }
 
     fn elaborate_prefix(&mut self, prefix: PrefixExpression, location: Location) -> (ExprId, Type) {
+        // Simplify `*&x` and `*&mut x` to just `x`
+        if let UnaryOp::Dereference { .. } = prefix.operator
+            && let ExpressionKind::Prefix(ref inner) = prefix.rhs.kind
+            && matches!(inner.operator, UnaryOp::Reference { .. })
+        {
+            let ExpressionKind::Prefix(inner) = prefix.rhs.kind else { unreachable!() };
+            return self.elaborate_expression(inner.rhs);
+        }
+
         let rhs_location = prefix.rhs.location;
         let operator = prefix.operator;
 

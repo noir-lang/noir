@@ -1460,3 +1460,43 @@ fn main() {{
         Err(e) => panic!("Expected ComplexType error, but got {e:?}"),
     }
 }
+
+#[test]
+fn deref_of_ref_is_simplified() {
+    let src = "
+        unconstrained fn main() {
+            let x: Field = 5;
+            let y = *&mut x;
+            assert(y == 5);
+        }
+    ";
+    let program = get_monomorphized(src).unwrap();
+    // `*&mut x` should be simplified to just `x` during elaboration
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let x$l0 = 5;
+        let y$l1 = x$l0;
+        assert((y$l1 == 5));
+    }
+    ");
+}
+
+#[test]
+fn deref_of_immutable_ref_is_simplified() {
+    let src = "
+        unconstrained fn main() {
+            let x: Field = 5;
+            let y = *&x;
+            assert(y == 5);
+        }
+    ";
+    let program = get_monomorphized(src).unwrap();
+    // `*&x` should be simplified to just `x` during elaboration
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let x$l0 = 5;
+        let y$l1 = x$l0;
+        assert((y$l1 == 5));
+    }
+    ");
+}

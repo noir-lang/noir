@@ -71,14 +71,14 @@
     "prettier": "3.8.1",
     "process": "^0.11.10",
     "readable-stream": "^4.7.0",
-    "sinon": "^21.0.2",
+    "sinon": "^21.0.3",
     "ts-loader": "^9.5.4",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3",
     "unzipit": "^1.4.3",
     "url": "^0.11.4",
     "webpack": "^5.105.4",
-    "webpack-cli": "^6.0.1",
+    "webpack-cli": "^7.0.1",
     "webpack-dev-server": "^5.2.3"
   },
   "dependencies": {
