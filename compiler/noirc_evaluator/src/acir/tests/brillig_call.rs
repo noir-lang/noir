@@ -74,7 +74,7 @@ fn multiple_brillig_calls_one_bytecode() {
     19: trap @[@1; sp[6]]
     20: return
     21: @4 = const u32 30790
-    22: @3 = u32 lt @0, @4
+    22: @3 = u32 lt_eq @0, @4
     23: jump if @3 to 26
     24: @1 = indirect const u64 15764276373176857197
     25: trap @[@1; @2]
@@ -102,7 +102,7 @@ fn multiple_brillig_calls_one_bytecode() {
     19: trap @[@1; sp[6]]
     20: return
     21: @4 = const u32 30790
-    22: @3 = u32 lt @0, @4
+    22: @3 = u32 lt_eq @0, @4
     23: jump if @3 to 26
     24: @1 = indirect const u64 15764276373176857197
     25: trap @[@1; @2]
@@ -281,7 +281,7 @@ fn brillig_stdlib_calls_with_regular_brillig_call() {
     21: trap @[@1; sp[6]]
     22: return
     23: @4 = const u32 30790
-    24: @3 = u32 lt @0, @4
+    24: @3 = u32 lt_eq @0, @4
     25: jump if @3 to 28
     26: @1 = indirect const u64 15764276373176857197
     27: trap @[@1; @2]
@@ -426,7 +426,7 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
     21: trap @[@1; sp[6]]
     22: return
     23: @4 = const u32 30790
-    24: @3 = u32 lt @0, @4
+    24: @3 = u32 lt_eq @0, @4
     25: jump if @3 to 28
     26: @1 = indirect const u64 15764276373176857197
     27: trap @[@1; @2]

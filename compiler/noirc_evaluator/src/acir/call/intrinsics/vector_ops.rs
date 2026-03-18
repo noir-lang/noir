@@ -1,3 +1,5 @@
+use itertools::Itertools;
+
 use crate::acir::arrays::ElementTypeSizesArrayShift;
 use crate::acir::types::flat_element_types;
 use crate::acir::{AcirDynamicArray, AcirValue, AcirVar};
@@ -76,7 +78,7 @@ impl Context<'_> {
 
             // 1. Convert the elements-to-push into flattened acir_var and at the same time
             // push_back corresponding dummy zero values to the AcirValues vector.
-            for (elem, ssa_typ) in elements_to_push.iter().zip(vector_types.to_vec()) {
+            for (elem, ssa_typ) in elements_to_push.iter().zip_eq(vector_types.to_vec()) {
                 let element = self.convert_value(*elem, dfg);
                 match element {
                     AcirValue::Var(acir_var, acir_type) => {
@@ -320,7 +322,7 @@ impl Context<'_> {
             // This is different from the previous check as this is a runtime check.
             let zero = self.acir_context.add_constant(FieldElement::zero());
             let assert_message = self.acir_context.generate_assertion_message_payload(
-                "Attempt to pop_front from an empty vector".to_string(),
+                "Attempt to pop from an empty vector".to_string(),
             );
             self.acir_context.assert_neq_var(
                 vector_length_var,

@@ -1,4 +1,5 @@
 use acir::AcirField;
+use itertools::Itertools;
 
 pub fn bit_and<F: AcirField>(lhs: F, rhs: F, num_bits: u32) -> F {
     bitwise_op(lhs, rhs, num_bits, |lhs_byte, rhs_byte| lhs_byte & rhs_byte)
@@ -22,7 +23,7 @@ fn bitwise_op<F: AcirField>(lhs: F, rhs: F, num_bits: u32, op: fn(u8, u8) -> u8)
     let rhs_bytes = mask_to_le_bytes(rhs, num_bits);
 
     let and_byte_arr: Vec<_> =
-        lhs_bytes.into_iter().zip(rhs_bytes).map(|(left, right)| op(left, right)).collect();
+        lhs_bytes.into_iter().zip_eq(rhs_bytes).map(|(left, right)| op(left, right)).collect();
 
     F::from_le_bytes_reduce(&and_byte_arr)
 }

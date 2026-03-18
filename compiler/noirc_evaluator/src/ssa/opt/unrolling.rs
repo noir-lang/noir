@@ -568,6 +568,14 @@ impl Loop {
     /// if it's a numeric constant, which it will be if the previous SSA
     /// steps managed to inline it.
     ///
+    /// `resolve_value` maps ValueIds through an external substitution
+    /// (e.g. `FunctionInserter::resolve`).
+    /// If `get_const_upper_bound` is called within a pass that modifies instructions
+    /// e.g through a `FunctionInserter`, the terminator check below might reference
+    /// an old id that needs to be resolved.
+    /// If not within a pass (e.g in a test), or if the caller does not use an inserter,
+    /// we can safely use the identity `|v| v` instead.
+    ///
     /// Consider the following example of a `for i in 0..4` loop:
     /// ```text
     /// brillig(inline) fn main f0 {
@@ -582,6 +590,7 @@ impl Loop {
         &self,
         dfg: &DataFlowGraph,
         pre_header: BasicBlockId,
+        resolve_value: impl Fn(ValueId) -> ValueId,
     ) -> Option<IntegerConstant> {
         let header = &dfg[self.header];
 
@@ -609,25 +618,42 @@ impl Loop {
             return None;
         }
 
-        let Some(TerminatorInstruction::JmpIf { then_destination, .. }) = header.terminator()
+        // Verify that the jmpif condition actually uses the result of this instruction.
+        // Without this check we could return a bogus upper bound from an unrelated instruction
+        // that happens to be in the header.
+        let Some(TerminatorInstruction::JmpIf { then_destination, condition, .. }) =
+            header.terminator()
         else {
             return None;
         };
-
+        // Resolve the condition through the provided mapping — during mid-pass
+        // the terminator may still reference a pre-substitution ValueId.
+        let condition = resolve_value(*condition);
+        let results = dfg.instruction_results(instructions[0]);
+        if results.first() != Some(&condition) {
+            return None;
+        }
         let then_branch_is_body = self.blocks.contains(then_destination);
+
+        // The header's instruction must reference the induction variable (first block param).
+        // Without this check, an unrelated instruction (e.g. `not` of a function parameter)
+        // could be misinterpreted as a loop bound comparison.
+        let induction_var = *dfg.block_parameters(self.header).first()?;
 
         match &dfg[instructions[0]] {
             // Most loops will expect the `then` block to be the body. In unconstrained code it is
             // possible to write `loop`s that use the else branch as a body. We return `None`
             // conservatively in this case.
-            Instruction::Binary(Binary { lhs: _, operator: BinaryOp::Lt, rhs }) => {
-                if then_branch_is_body {
-                    dfg.get_integer_constant(*rhs)
-                } else {
-                    None
+            Instruction::Binary(Binary { lhs, operator: BinaryOp::Lt, rhs }) => {
+                if *lhs != induction_var {
+                    return None;
                 }
+                if then_branch_is_body { dfg.get_integer_constant(*rhs) } else { None }
             }
-            Instruction::Binary(Binary { lhs: _, operator: BinaryOp::Eq, rhs }) => {
+            Instruction::Binary(Binary { lhs, operator: BinaryOp::Eq, rhs }) => {
+                if *lhs != induction_var {
+                    return None;
+                }
                 // `for i in 0..1` is turned into:
                 // b1(v0: u32):
                 //   v12 = eq v0, u32 0
@@ -638,7 +664,10 @@ impl Loop {
                 let const_rhs = dfg.get_integer_constant(*rhs)?;
                 if then_branch_is_body { Some(const_rhs.inc()) } else { Some(const_rhs) }
             }
-            Instruction::Not(_) => {
+            Instruction::Not(operand) => {
+                if *operand != induction_var {
+                    return None;
+                }
                 // We simplify equality operations with booleans like `(boolean == false)` into `!boolean`.
                 // Thus, using a u1 in a loop bound can possibly lead to a Not instruction
                 // as a loop header's jump condition.
@@ -665,13 +694,15 @@ impl Loop {
     }
 
     /// Get the lower and upper bounds of the loop if both are constant numeric values.
+    /// See `get_const_upper_bound` for the role of `resolve_value`.
     pub(super) fn get_const_bounds(
         &self,
         dfg: &DataFlowGraph,
         pre_header: BasicBlockId,
+        resolve_value: impl Fn(ValueId) -> ValueId,
     ) -> Option<(IntegerConstant, IntegerConstant)> {
         let lower = self.get_const_lower_bound(dfg, pre_header)?;
-        let upper = self.get_const_upper_bound(dfg, pre_header)?;
+        let upper = self.get_const_upper_bound(dfg, pre_header, resolve_value)?;
         Some((lower, upper))
     }
 
@@ -1130,7 +1161,7 @@ impl Loop {
         callee_costs: &HashMap<FunctionId, usize>,
     ) -> Option<BoilerplateStats> {
         let pre_header = self.get_pre_header(function, cfg).ok()?;
-        let (lower, upper) = self.get_const_bounds(&function.dfg, pre_header)?;
+        let (lower, upper) = self.get_const_bounds(&function.dfg, pre_header, |v| v)?;
         let (refs, constant_initial_refs) = self.find_pre_header_reference_values(function, cfg)?;
 
         // If we have a break block, we can potentially directly use the induction variable in that break.
@@ -1571,6 +1602,8 @@ mod tests {
 
     use crate::assert_ssa_snapshot;
     use crate::errors::RuntimeError;
+    use crate::ssa::interpreter::value::Value as InterpreterValue;
+    use crate::ssa::ir::cfg::ControlFlowGraph;
     use crate::ssa::ir::integer::IntegerConstant;
     use crate::ssa::opt::assert_ssa_does_not_change;
     use crate::ssa::{Ssa, ir::value::ValueId, opt::assert_normalized_ssa_equals};
@@ -1707,8 +1740,9 @@ mod tests {
         let loop_ = &loops.yet_to_unroll[0];
         let pre_header =
             loop_.get_pre_header(function, &loops.cfg).expect("Should have a pre_header");
-        let (lower, upper) =
-            loop_.get_const_bounds(&function.dfg, pre_header).expect("bounds are numeric const");
+        let (lower, upper) = loop_
+            .get_const_bounds(&function.dfg, pre_header, |v| v)
+            .expect("bounds are numeric const");
 
         assert_eq!(lower, IntegerConstant::Unsigned { value: 0, bit_size: 32 });
         assert_eq!(upper, IntegerConstant::Unsigned { value: 4, bit_size: 32 });
@@ -1740,7 +1774,7 @@ mod tests {
         let pre_header =
             loop_.get_pre_header(function, &loops.cfg).expect("Should have a pre_header");
         let (lower, upper) = loop_
-            .get_const_bounds(&function.dfg, pre_header)
+            .get_const_bounds(&function.dfg, pre_header, |v| v)
             .expect("should use the lower for upper");
 
         assert_eq!(lower, IntegerConstant::Unsigned { value: 0, bit_size: 32 });
@@ -2446,7 +2480,7 @@ mod tests {
         let loop0 = loops.yet_to_unroll.pop().expect("there should be a loop");
         let pre_header = loop0.get_pre_header(function, &loops.cfg).unwrap();
         assert!(loop0.get_const_lower_bound(&function.dfg, pre_header).is_none());
-        assert!(loop0.get_const_upper_bound(&function.dfg, pre_header).is_none());
+        assert!(loop0.get_const_upper_bound(&function.dfg, pre_header, |v| v).is_none());
     }
 
     #[test]
@@ -2479,8 +2513,9 @@ mod tests {
         let loop_ = &loops.yet_to_unroll[0];
         let pre_header =
             loop_.get_pre_header(function, &loops.cfg).expect("Should have a pre_header");
-        let (lower, upper) =
-            loop_.get_const_bounds(&function.dfg, pre_header).expect("bounds are numeric const");
+        let (lower, upper) = loop_
+            .get_const_bounds(&function.dfg, pre_header, |v| v)
+            .expect("bounds are numeric const");
         assert_eq!(lower, upper);
     }
 
@@ -2571,5 +2606,104 @@ mod tests {
             return
         }
         ");
+    }
+
+    /// Test that `get_const_upper_bound` does not blindly trust the single
+    /// instruction in the loop header without checking that the jmpif
+    /// condition actually uses that instruction's result.
+    ///
+    /// Here the header has a `lt` with rhs=100, but the jmpif condition
+    /// is a completely different value (`v10`) defined in the pre-header.
+    /// `get_const_upper_bound` should return `None` (or at least not 100).
+    #[test]
+    fn get_const_upper_bound_ignores_unrelated_instruction() {
+        // The loop header has a single `lt v0, u32 100` instruction
+        // but the jmpif uses a constant `u1 1`, not the result of that lt.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v1 = lt v0, u32 100
+            jmpif u1 1 then: b3(), else: b2()
+          b3():
+            v2 = unchecked_add v0, u32 1
+            jmp b1(v2)
+          b2():
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let function = ssa.main();
+        let loops = Loops::find_all(function, LoopOrder::OutsideIn);
+        assert_eq!(loops.yet_to_unroll.len(), 1);
+
+        let loop_ = &loops.yet_to_unroll[0];
+        let pre_header =
+            loop_.get_pre_header(function, &loops.cfg).expect("Should have a pre_header");
+
+        // The upper bound should be None because the lt instruction in the header
+        // is not connected to the jmpif condition. If this returns Some(100),
+        // the function is incorrectly assuming the header instruction feeds the jmpif.
+        let upper = loop_.get_const_upper_bound(&function.dfg, pre_header, |v| v);
+        assert!(
+            upper.is_none(),
+            "get_const_upper_bound should return None when the header's Lt instruction \
+             does not feed the jmpif condition, but got: {upper:?}"
+        );
+    }
+
+    /// Regression test: `get_const_upper_bound` must verify the header instruction
+    /// references the induction variable. Without this check, a loop header with a
+    /// single instruction like `not v0` (on a function parameter, not the induction
+    /// variable) is misidentified as a bound check, producing bogus bounds that cause
+    /// LICM to replace induction-variable-dependent expressions with constants.
+    ///
+    /// In this test, the loop header b1 has `not v0` (where v0 is a u1 parameter)
+    /// and the actual loop exit is `eq v1, u32 1` in b2 (where v1 is the induction
+    /// variable). Without the fix, `get_const_upper_bound` returns upper=1 (bit_size 1),
+    /// and LICM's `simplify_induction_variable_in_binary` replaces `eq v1, u32 1` with
+    /// constant `false`, creating an infinite loop.
+    #[test]
+    fn get_const_upper_bound_checks_induction_variable() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v2 = not v0
+            jmpif v2 then: b2(), else: b3()
+          b2():
+            v3 = eq v1, u32 1
+            jmpif v3 then: b3(), else: b4()
+          b3():
+            return
+          b4():
+            v4 = add v1, u32 1
+            jmp b1(v4)
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        // The loop header's `not v0` does NOT reference the induction variable v1,
+        // so get_const_upper_bound must return None (no known bounds).
+        let function = ssa.main();
+        let cfg = ControlFlowGraph::with_function(function);
+        let loops = Loops::find_all(function, LoopOrder::InsideOut);
+        assert_eq!(loops.yet_to_unroll.len(), 1, "should find exactly one loop");
+        let the_loop = &loops.yet_to_unroll[0];
+        let pre_header = the_loop.get_pre_header(function, &cfg).unwrap();
+        let upper = the_loop.get_const_upper_bound(&function.dfg, pre_header, |v| v);
+        assert!(
+            upper.is_none(),
+            "upper bound should be None when header instruction doesn't reference the induction variable, got {upper:?}"
+        );
+
+        // Verify semantics are preserved: interpret before and after LICM.
+        let before = ssa.interpret(vec![InterpreterValue::bool(false)]);
+        let mut ssa_after = ssa;
+        ssa_after = ssa_after.loop_invariant_code_motion();
+        let after = ssa_after.interpret(vec![InterpreterValue::bool(false)]);
+        assert_eq!(before, after, "LICM should preserve semantics");
     }
 }

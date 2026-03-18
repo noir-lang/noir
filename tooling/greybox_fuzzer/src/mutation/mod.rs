@@ -9,6 +9,7 @@ use configurations::{
 use dictionary::FullDictionary;
 use field::mutate_field_input_value;
 use int::mutate_int_input_value;
+use itertools::Itertools;
 use noirc_abi::{Abi, AbiType, InputMap, input_parser::InputValue};
 use rand::Rng;
 use rand_xorshift::XorShiftRng;
@@ -215,7 +216,7 @@ impl InputMutator {
                 let arrays_hit = arrays_hit + usize::from(length > 1);
                 let mut structural_mutation_directive = None;
                 let mut element_vector_with_value_mutation: Vec<InputValue> = (0..length)
-                    .zip(weight_tree_node.subnodes.as_ref().unwrap())
+                    .zip_eq(weight_tree_node.subnodes.as_ref().unwrap())
                     .map(|(idx, weight_node)| {
                         if mutation_weight >= weight_node.start && mutation_weight < weight_node.end
                         {
@@ -256,7 +257,7 @@ impl InputMutator {
                 let mut structural_mutation_directive = None;
                 let fields: Vec<(String, InputValue)> = fields
                     .iter()
-                    .zip(weight_tree_node.subnodes.as_ref().unwrap())
+                    .zip_eq(weight_tree_node.subnodes.as_ref().unwrap())
                     .map(|((name, typ), weight_node)| {
                         (
                             name.clone(),
@@ -290,7 +291,7 @@ impl InputMutator {
                 };
                 let mut structural_mutation_directive = None;
                 let fields: Vec<_> = zip(fields, input_vector)
-                    .zip(weight_tree_node.subnodes.as_ref().unwrap())
+                    .zip_eq(weight_tree_node.subnodes.as_ref().unwrap())
                     .map(|((typ, previous_tuple_input), weight_node)| {
                         if mutation_weight >= weight_node.start && mutation_weight < weight_node.end
                         {
@@ -449,7 +450,7 @@ impl InputMutator {
                     panic!("Mismatch of AbiType and InputValue should not happen");
                 };
                 let fields: Vec<_> = zip(fields, first_input_vector)
-                    .zip(second_input_vector)
+                    .zip_eq(second_input_vector)
                     .map(|((typ, first_tuple_input), second_tuple_input)| {
                         Self::splice_unbalanced(typ, first_tuple_input, second_tuple_input, prng)
                     })
@@ -485,7 +486,7 @@ impl InputMutator {
                 assert!(!length.is_zero());
                 InputValue::Vec(
                     (0..length)
-                        .zip(weight_tree_node.subnodes.as_ref().unwrap())
+                        .zip_eq(weight_tree_node.subnodes.as_ref().unwrap())
                         .map(|(idx, weight_node)| {
                             if mutation_weight >= weight_node.start
                                 && mutation_weight < weight_node.end
@@ -514,7 +515,7 @@ impl InputMutator {
                 };
                 let fields: Vec<(String, InputValue)> = fields
                     .iter()
-                    .zip(weight_tree_node.subnodes.as_ref().unwrap())
+                    .zip_eq(weight_tree_node.subnodes.as_ref().unwrap())
                     .map(|((name, typ), weight_node)| {
                         (
                             name.clone(),
@@ -547,8 +548,8 @@ impl InputMutator {
                     panic!("Mismatch of AbiType and InputValue should not happen");
                 };
                 let fields: Vec<_> = zip(fields, first_input_vector)
-                    .zip(second_input_vector)
-                    .zip(weight_tree_node.subnodes.as_ref().unwrap())
+                    .zip_eq(second_input_vector)
+                    .zip_eq(weight_tree_node.subnodes.as_ref().unwrap())
                     .map(|(((typ, first_tuple_input), second_tuple_input), weight_node)| {
                         if mutation_weight >= weight_node.start && mutation_weight < weight_node.end
                         {
