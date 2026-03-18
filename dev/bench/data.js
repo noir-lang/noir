@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773859745019,
+  "lastUpdate": 1773860073355,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23091,48 +23091,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "d100770fdd0fa4dc7292d19aadfcb33b5451651a",
-          "message": "fix(parser): Handle member access in `Parser::parse_statement_or_expression_or_lvalue`  (#11822)",
-          "timestamp": "2026-03-12T15:52:26Z",
-          "tree_id": "fe51dad6aa67efd3961c17dbe255bfe80c11e4ff",
-          "url": "https://github.com/noir-lang/noir/commit/d100770fdd0fa4dc7292d19aadfcb33b5451651a"
-        },
-        "date": 1773332664186,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252615,
-            "range": "± 892",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 223158,
-            "range": "± 7419",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2733598,
-            "range": "± 1380",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25184,6 +25142,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2730864,
             "range": "± 1506",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e5dcb16959737464fd52bf8448ced8abe2243ca4",
+          "message": "chore: simplify dereferencing (#11897)",
+          "timestamp": "2026-03-18T18:31:17Z",
+          "tree_id": "e35fd6bdc17e2ec9c57443339e8eba0de788863e",
+          "url": "https://github.com/noir-lang/noir/commit/e5dcb16959737464fd52bf8448ced8abe2243ca4"
+        },
+        "date": 1773860024533,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 251161,
+            "range": "± 367",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 221249,
+            "range": "± 4988",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2730781,
+            "range": "± 2224",
             "unit": "ns/iter"
           }
         ]
