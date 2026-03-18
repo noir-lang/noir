@@ -1,6 +1,6 @@
 //! Type resolution, unification, and method resolution (for both types and traits).
 
-use std::{borrow::Cow, rc::Rc};
+use std::{borrow::Cow, collections::BTreeSet, rc::Rc};
 
 use im::HashSet;
 use iter_extended::vecmap;
@@ -343,18 +343,25 @@ impl Elaborator<'_> {
         name: &str,
     ) -> Vec<(TraitId, Type)> {
         let mut found = Vec::new();
-        self.collect_associated_type_in_parent_traits(trait_id, name, &mut found);
+        let mut visited = BTreeSet::new();
+        self.collect_associated_type_in_parent_traits(trait_id, name, &mut found, &mut visited);
         found
     }
 
     /// Recursively collect all (trait_id, type) pairs for a named associated type
-    /// across a trait and its parent hierarchy.
+    /// across a trait and its parent hierarchy. Skip traits already
+    /// visited in `visited`.
     fn collect_associated_type_in_parent_traits(
         &self,
         trait_id: TraitId,
         name: &str,
         found: &mut Vec<(TraitId, Type)>,
+        visited: &mut BTreeSet<TraitId>,
     ) {
+        if !visited.insert(trait_id) {
+            return;
+        }
+
         let the_trait = self.interner.get_trait(trait_id);
         if let Some(typ) = the_trait.get_associated_type(name) {
             let typ =
@@ -365,7 +372,7 @@ impl Elaborator<'_> {
         let parent_trait_ids: Vec<_> =
             the_trait.trait_bounds.iter().map(|bound| bound.trait_id).collect();
         for parent_id in parent_trait_ids {
-            self.collect_associated_type_in_parent_traits(parent_id, name, found);
+            self.collect_associated_type_in_parent_traits(parent_id, name, found, visited);
         }
     }
 
@@ -454,6 +461,7 @@ impl Elaborator<'_> {
         // Parent associated types are expected to be in `self.trait_bounds` already,
         // added during function elaboration.
         let mut found_types = Vec::new();
+        let mut seen_traits = BTreeSet::new();
 
         for constraint in &self.trait_bounds {
             if let Type::NamedGeneric(generic) = &constraint.typ
@@ -462,7 +470,10 @@ impl Elaborator<'_> {
                 for named_generic in &constraint.trait_bound.trait_generics.named {
                     if named_generic.name.as_str() == assoc_name {
                         let trait_id = constraint.trait_bound.trait_id;
-                        found_types.push((trait_id, named_generic.typ.clone()));
+                        // Skip duplicates.
+                        if seen_traits.insert(trait_id) {
+                            found_types.push((trait_id, named_generic.typ.clone()));
+                        }
                     }
                 }
             }
@@ -1287,6 +1298,7 @@ impl Elaborator<'_> {
         let method_name = path.last_name();
 
         let mut matches = Vec::new();
+        let mut visited = BTreeSet::new();
 
         for constraint in self.trait_bounds.clone() {
             if let Type::NamedGeneric(NamedGeneric { name, .. }) = &constraint.typ {
@@ -1302,6 +1314,7 @@ impl Elaborator<'_> {
                     the_trait,
                     the_trait.id,
                     &mut matches,
+                    &mut visited,
                 );
             }
         }
@@ -1345,7 +1358,13 @@ impl Elaborator<'_> {
         the_trait: &Trait,
         starting_trait_id: TraitId,
         matches: &mut Vec<(TraitPathResolutionMethod, TraitId)>,
+        visited: &mut BTreeSet<TraitId>,
     ) {
+        // Skip if we've already visited this trait.
+        if !visited.insert(the_trait.id) {
+            return;
+        }
+
         if let Some(definition) = the_trait.find_method_or_constant(path.last_name(), self.interner)
         {
             let trait_item =
@@ -1369,6 +1388,7 @@ impl Elaborator<'_> {
                 parent_trait,
                 starting_trait_id,
                 matches,
+                visited,
             );
         }
     }
@@ -2719,6 +2739,31 @@ impl Elaborator<'_> {
         starting_trait_id: TraitId,
     ) -> Vec<HirTraitMethodReference> {
         let mut matches = Vec::new();
+        let mut visited = BTreeSet::new();
+        self.lookup_methods_in_trait_inner(
+            the_trait,
+            method_name,
+            trait_bound,
+            starting_trait_id,
+            &mut matches,
+            &mut visited,
+        );
+        matches
+    }
+
+    fn lookup_methods_in_trait_inner(
+        &self,
+        the_trait: &Trait,
+        method_name: &str,
+        trait_bound: &ResolvedTraitBound,
+        starting_trait_id: TraitId,
+        matches: &mut Vec<HirTraitMethodReference>,
+        visited: &mut BTreeSet<TraitId>,
+    ) {
+        // Skip if we've already visited this trait.
+        if !visited.insert(the_trait.id) {
+            return;
+        }
 
         if let Some(trait_method) = the_trait.find_method(method_name, self.interner) {
             let trait_generics = trait_bound.trait_generics.clone();
@@ -2744,17 +2789,16 @@ impl Elaborator<'_> {
 
                 let parent_trait_bound =
                     self.instantiate_parent_trait_bound(trait_bound, parent_trait_bound);
-                let parent_matches = self.lookup_methods_in_trait(
+                self.lookup_methods_in_trait_inner(
                     the_trait,
                     method_name,
                     &parent_trait_bound,
                     starting_trait_id,
+                    matches,
+                    visited,
                 );
-                matches.extend(parent_matches);
             }
         }
-
-        matches
     }
 
     pub(super) fn type_check_call(
