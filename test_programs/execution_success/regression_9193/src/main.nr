@@ -1,3 +1,3 @@
-fn main(a: bool) {
-    if a { 1 / [][0]; };
+fn main(a: bool, x: u32) {
+    if a { 1 / [][x]; };
 }
