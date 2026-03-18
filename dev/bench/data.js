@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773830916982,
+  "lastUpdate": 1773830967849,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23091,48 +23091,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "a47c3815fd9847b530c789a67a905cdd75b25007",
-          "message": "fix(frontend): Resolve turbofish in numeric type aliases (#11840)",
-          "timestamp": "2026-03-12T14:17:36Z",
-          "tree_id": "ed20cb604d4c5232046c90d831e1b479750b50f8",
-          "url": "https://github.com/noir-lang/noir/commit/a47c3815fd9847b530c789a67a905cdd75b25007"
-        },
-        "date": 1773326785472,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 240912,
-            "range": "± 778",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 213599,
-            "range": "± 2861",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2207377,
-            "range": "± 3924",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25184,6 +25142,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2730882,
             "range": "± 1957",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8e5ac8ab537a670660870e42c2f6cff85d428ec3",
+          "message": "chore(deps): bump the hardhat group with 3 updates (#11884)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-03-18T10:26:27Z",
+          "tree_id": "c2ee2857ef6bcedfcb7dfbc2e8c91e43d8e8e21d",
+          "url": "https://github.com/noir-lang/noir/commit/8e5ac8ab537a670660870e42c2f6cff85d428ec3"
+        },
+        "date": 1773830919689,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 252352,
+            "range": "± 461",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 222318,
+            "range": "± 4803",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2731985,
+            "range": "± 1966",
             "unit": "ns/iter"
           }
         ]
