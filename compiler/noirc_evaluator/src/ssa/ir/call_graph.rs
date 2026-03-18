@@ -258,8 +258,8 @@ impl CallGraph {
     /// The algorithm proceeds in two phases:
     /// 1. Forward BFS from every recursive function through its callees to build the "tainted"
     ///    set. Every tainted function receives `None`.
-    /// 2. The remaining functions form a DAG (all cycles involve tainted nodes). Kahn's
-    ///    topological BFS computes the longest caller-to-callee path, giving each function its
+    /// 2. The remaining functions form a DAG (all cycles involve tainted nodes). Traversing nodes
+    ///    in topological order, we compute the longest caller-to-callee path, giving each function its
     ///    worst-case depth.
     pub(crate) fn max_call_depths(
         &self,
