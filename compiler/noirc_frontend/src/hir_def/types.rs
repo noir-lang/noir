@@ -1450,6 +1450,10 @@ impl Type {
         }
     }
 
+    pub fn is_constant(&self) -> bool {
+        matches!(self.follow_bindings_shallow().as_ref(), Type::Constant(..))
+    }
+
     pub fn is_primitive(&self) -> bool {
         match self.follow_bindings() {
             Type::FieldElement

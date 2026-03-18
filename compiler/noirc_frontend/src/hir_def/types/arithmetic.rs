@@ -64,14 +64,20 @@ impl Type {
     fn canonicalize_helper(&self, found_checked_cast: bool, run_simplifications: bool) -> Type {
         match self {
             Type::InfixExpr(lhs, op, rhs, inversion) => {
-                let kind = lhs.infix_kind(rhs);
+                let kind = lhs.infix_kind(&rhs);
                 let dummy_location = Location::dummy();
 
-                let evaluate = |typ: &Type| {
-                    typ.evaluate_to_integer_helper(&kind, dummy_location, run_simplifications)
-                };
-                let lhs_evaluated = evaluate(lhs);
-                let rhs_evaluated = evaluate(rhs);
+                let (mut lhs, mut rhs) = (lhs, rhs);
+
+                // Move the constant to the rhs to simplify the checks below
+                if op.is_commutative() && lhs.is_constant() && !rhs.is_constant() {
+                    std::mem::swap(&mut lhs, &mut rhs);
+                }
+
+                let lhs_evaluated =
+                    lhs.evaluate_to_integer_helper(&kind, dummy_location, run_simplifications);
+                let rhs_evaluated =
+                    rhs.evaluate_to_integer_helper(&kind, dummy_location, run_simplifications);
 
                 // evaluate_to_field_element also calls canonicalize so if we just called
                 // `self.evaluate_to_field_element(..)` we'd get infinite recursion.
