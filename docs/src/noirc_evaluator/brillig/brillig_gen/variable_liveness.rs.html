@@ -852,222 +852,216 @@
 <a href=#852 id=852 data-nosnippet>852</a>
 <a href=#853 id=853 data-nosnippet>853</a>        <span class="macro">assert_artifact_snapshot!</span>(main, @<span class="string">r"
 <a href=#854 id=854 data-nosnippet>854</a>        fn main
-<a href=#855 id=855 data-nosnippet>855</a>        0: call 0 // -&gt; CheckMaxStackDepth
-<a href=#856 id=856 data-nosnippet>856</a>        1: sp[3] = const field 10
-<a href=#857 id=857 data-nosnippet>857</a>        2: sp[4] = field add sp[2], sp[3]
-<a href=#858 id=858 data-nosnippet>858</a>        3: sp[2] = sp[4]
-<a href=#859 id=859 data-nosnippet>859</a>        4: return
-<a href=#860 id=860 data-nosnippet>860</a>        "</span>);
-<a href=#861 id=861 data-nosnippet>861</a>    }
-<a href=#862 id=862 data-nosnippet>862</a>
-<a href=#863 id=863 data-nosnippet>863</a>    <span class="attr">#[test]
-<a href=#864 id=864 data-nosnippet>864</a>    </span><span class="kw">fn </span>test_last_use_deallocation() {
-<a href=#865 id=865 data-nosnippet>865</a>        <span class="comment">// When a variable reaches its last use, its register is deallocated
-<a href=#866 id=866 data-nosnippet>866</a>        // and can be reused for subsequent variables. This is tracked per-instruction
-<a href=#867 id=867 data-nosnippet>867</a>        // via get_last_uses().
-<a href=#868 id=868 data-nosnippet>868</a>        //
-<a href=#869 id=869 data-nosnippet>869</a>        // SSA v0 (entry parameter) → Brillig sp[1]
-<a href=#870 id=870 data-nosnippet>870</a>        // SSA v1 (v0 + 1) → Brillig sp[3] (line 2: result). v0 dies after this, sp[1] freed
-<a href=#871 id=871 data-nosnippet>871</a>        // SSA v2 (v1 + 2) → Brillig sp[2] (line 4: result, reuses sp[1]). v1 dies, sp[3] freed
-<a href=#872 id=872 data-nosnippet>872</a>        // SSA v3 (v2 + 3) → Brillig sp[3] (line 6: result, reuses freed sp[3]). v2 dies
-<a href=#873 id=873 data-nosnippet>873</a>        // Line 7: sp[1] = sp[3] moves v3 to return position
-<a href=#874 id=874 data-nosnippet>874</a>        // Register reuse: sp[1] freed after v0, reused for v2; sp[3] freed after v1, reused for v3
-<a href=#875 id=875 data-nosnippet>875</a>        </span><span class="kw">let </span>src = <span class="string">"
-<a href=#876 id=876 data-nosnippet>876</a>        brillig(inline) fn main f0 {
-<a href=#877 id=877 data-nosnippet>877</a>        b0(v0: Field):
-<a href=#878 id=878 data-nosnippet>878</a>            v1 = add v0, Field 1
-<a href=#879 id=879 data-nosnippet>879</a>            v2 = add v1, Field 2
-<a href=#880 id=880 data-nosnippet>880</a>            v3 = add v2, Field 3
-<a href=#881 id=881 data-nosnippet>881</a>            return v3
-<a href=#882 id=882 data-nosnippet>882</a>        }
-<a href=#883 id=883 data-nosnippet>883</a>        "</span>;
-<a href=#884 id=884 data-nosnippet>884</a>        <span class="kw">let </span>brillig = ssa_to_brillig_artifacts(src);
-<a href=#885 id=885 data-nosnippet>885</a>        <span class="kw">let </span>main = <span class="kw-2">&amp;</span>brillig.ssa_function_to_brillig[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)];
-<a href=#886 id=886 data-nosnippet>886</a>
-<a href=#887 id=887 data-nosnippet>887</a>        <span class="macro">assert_artifact_snapshot!</span>(main, @<span class="string">r"
-<a href=#888 id=888 data-nosnippet>888</a>        fn main
-<a href=#889 id=889 data-nosnippet>889</a>        0: call 0 // -&gt; CheckMaxStackDepth
-<a href=#890 id=890 data-nosnippet>890</a>        1: sp[3] = const field 1
-<a href=#891 id=891 data-nosnippet>891</a>        2: sp[4] = field add sp[2], sp[3]
-<a href=#892 id=892 data-nosnippet>892</a>        3: sp[2] = const field 2
-<a href=#893 id=893 data-nosnippet>893</a>        4: sp[3] = field add sp[4], sp[2]
-<a href=#894 id=894 data-nosnippet>894</a>        5: sp[2] = const field 3
-<a href=#895 id=895 data-nosnippet>895</a>        6: sp[4] = field add sp[3], sp[2]
-<a href=#896 id=896 data-nosnippet>896</a>        7: sp[2] = sp[4]
-<a href=#897 id=897 data-nosnippet>897</a>        8: return
-<a href=#898 id=898 data-nosnippet>898</a>        "</span>);
-<a href=#899 id=899 data-nosnippet>899</a>    }
-<a href=#900 id=900 data-nosnippet>900</a>
-<a href=#901 id=901 data-nosnippet>901</a>    <span class="attr">#[test]
-<a href=#902 id=902 data-nosnippet>902</a>    </span><span class="kw">fn </span>test_loop_liveness() {
-<a href=#903 id=903 data-nosnippet>903</a>        <span class="comment">// Variables live in the loop header must remain alive throughout the loop body
-<a href=#904 id=904 data-nosnippet>904</a>        // because the back edge jumps back to the header.
-<a href=#905 id=905 data-nosnippet>905</a>        //
-<a href=#906 id=906 data-nosnippet>906</a>        // SSA v0 (loop bound) → Brillig sp[1]
-<a href=#907 id=907 data-nosnippet>907</a>        // SSA v1 (loop variable, b1's parameter) → Brillig sp[2] (allocated in b0)
-<a href=#908 id=908 data-nosnippet>908</a>        // Line 3: sp[2] = sp[3] initializes v1 to 0
-<a href=#909 id=909 data-nosnippet>909</a>        // Line 5 (b1 header): sp[3] = lt sp[2], sp[1] tests v1 &lt; v0
-<a href=#910 id=910 data-nosnippet>910</a>        // Line 10 (b2 body): sp[3] = add sp[2], sp[4] computes v1 + 1
-<a href=#911 id=911 data-nosnippet>911</a>        // Line 14: sp[2] = sp[3] updates v1 for next iteration
-<a href=#912 id=912 data-nosnippet>912</a>        // Line 15: jump back to b1
-<a href=#913 id=913 data-nosnippet>913</a>        // v0 (sp[1]) stays alive throughout loop (used at line 5 each iteration)
-<a href=#914 id=914 data-nosnippet>914</a>        // Back edge at line 15 ensures b1's live-in includes both v0 and v1
-<a href=#915 id=915 data-nosnippet>915</a>        </span><span class="kw">let </span>src = <span class="string">"
-<a href=#916 id=916 data-nosnippet>916</a>        brillig(inline) fn main f0 {
-<a href=#917 id=917 data-nosnippet>917</a>        b0(v0: u32):
-<a href=#918 id=918 data-nosnippet>918</a>            jmp b1(u32 0)
-<a href=#919 id=919 data-nosnippet>919</a>        b1(v1: u32):
-<a href=#920 id=920 data-nosnippet>920</a>            v2 = lt v1, v0
-<a href=#921 id=921 data-nosnippet>921</a>            jmpif v2 then: b2(), else: b3()
-<a href=#922 id=922 data-nosnippet>922</a>        b2():
-<a href=#923 id=923 data-nosnippet>923</a>            v3 = add v1, u32 1
-<a href=#924 id=924 data-nosnippet>924</a>            jmp b1(v3)
-<a href=#925 id=925 data-nosnippet>925</a>        b3():
-<a href=#926 id=926 data-nosnippet>926</a>            return v1
-<a href=#927 id=927 data-nosnippet>927</a>        }
-<a href=#928 id=928 data-nosnippet>928</a>        "</span>;
-<a href=#929 id=929 data-nosnippet>929</a>        <span class="kw">let </span>brillig = ssa_to_brillig_artifacts(src);
-<a href=#930 id=930 data-nosnippet>930</a>        <span class="kw">let </span>main = <span class="kw-2">&amp;</span>brillig.ssa_function_to_brillig[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)];
-<a href=#931 id=931 data-nosnippet>931</a>        <span class="macro">assert_artifact_snapshot!</span>(main, @<span class="string">r"
-<a href=#932 id=932 data-nosnippet>932</a>        fn main
-<a href=#933 id=933 data-nosnippet>933</a>         0: call 0 // -&gt; CheckMaxStackDepth
-<a href=#934 id=934 data-nosnippet>934</a>         1: sp[4] = const u32 0
-<a href=#935 id=935 data-nosnippet>935</a>         2: sp[5] = const u32 1
-<a href=#936 id=936 data-nosnippet>936</a>         3: sp[3] = sp[4]
-<a href=#937 id=937 data-nosnippet>937</a>         4: jump to 0 // -&gt; 5: f0/b1
-<a href=#938 id=938 data-nosnippet>938</a>         5: sp[4] = u32 lt sp[3], sp[2] // f0/b1
-<a href=#939 id=939 data-nosnippet>939</a>         6: jump if sp[4] to 0 // -&gt; 10: f0/b2
-<a href=#940 id=940 data-nosnippet>940</a>         7: jump to 0 // -&gt; 8: f0/b3
-<a href=#941 id=941 data-nosnippet>941</a>         8: sp[2] = sp[3] // f0/b3
-<a href=#942 id=942 data-nosnippet>942</a>         9: return
-<a href=#943 id=943 data-nosnippet>943</a>        10: sp[4] = u32 add sp[3], sp[5] // f0/b2
-<a href=#944 id=944 data-nosnippet>944</a>        11: sp[6] = u32 lt_eq sp[3], sp[4]
-<a href=#945 id=945 data-nosnippet>945</a>        12: jump if sp[6] to 0 // -&gt; 14: f0/b2/1
-<a href=#946 id=946 data-nosnippet>946</a>        13: call 0 // -&gt; ErrorWithString
-<a href=#947 id=947 data-nosnippet>947</a>        14: sp[3] = sp[4] // f0/b2/1
-<a href=#948 id=948 data-nosnippet>948</a>        15: jump to 0 // -&gt; 5: f0/b1
-<a href=#949 id=949 data-nosnippet>949</a>        "</span>);
-<a href=#950 id=950 data-nosnippet>950</a>    }
-<a href=#951 id=951 data-nosnippet>951</a>
-<a href=#952 id=952 data-nosnippet>952</a>    <span class="attr">#[test]
-<a href=#953 id=953 data-nosnippet>953</a>    </span><span class="kw">fn </span>test_block_parameters() {
-<a href=#954 id=954 data-nosnippet>954</a>        <span class="comment">// Multiple predecessors pass different values (42 and v2) to the same parameter.
-<a href=#955 id=955 data-nosnippet>955</a>        // The parameter must be allocated in the immediate dominator (v1: allocated to sp[2] in b0),
-<a href=#956 id=956 data-nosnippet>956</a>        // and each predecessor generates a mov to that register.
-<a href=#957 id=957 data-nosnippet>957</a>        //
-<a href=#958 id=958 data-nosnippet>958</a>        // SSA v0 (condition) → Brillig sp[1]
-<a href=#959 id=959 data-nosnippet>959</a>        // SSA v1 (b3's parameter) → Brillig sp[2] (allocated in b0, dominator of b3)
-<a href=#960 id=960 data-nosnippet>960</a>        // SSA v2 (27 + 42) → coalesced with v1 → writes directly to sp[2] (line 7)
-<a href=#961 id=961 data-nosnippet>961</a>        // Field 42 constant → sp[3] (line 1)
-<a href=#962 id=962 data-nosnippet>962</a>        // Line 2: jmpif sp[1] branches to b1 or b2
-<a href=#963 id=963 data-nosnippet>963</a>        // Line 4 (b2 path): sp[2] = sp[3] moves constant 42 into v1's register
-<a href=#964 id=964 data-nosnippet>964</a>        // Line 7 (b1 path): sp[2] = add sp[1], sp[3] writes directly to v1's register (coalesced)
-<a href=#965 id=965 data-nosnippet>965</a>        // Line 9 (b3): sp[1] = sp[2] prepares return
-<a href=#966 id=966 data-nosnippet>966</a>        </span><span class="kw">let </span>src = <span class="string">"
-<a href=#967 id=967 data-nosnippet>967</a>        brillig(inline) fn main f0 {
-<a href=#968 id=968 data-nosnippet>968</a>        b0(v0: u1):
-<a href=#969 id=969 data-nosnippet>969</a>            jmpif v0 then: b1(), else: b2()
-<a href=#970 id=970 data-nosnippet>970</a>        b1():
-<a href=#971 id=971 data-nosnippet>971</a>            v2 = add Field 27, Field 42
-<a href=#972 id=972 data-nosnippet>972</a>            jmp b3(v2)
-<a href=#973 id=973 data-nosnippet>973</a>        b2():
-<a href=#974 id=974 data-nosnippet>974</a>            jmp b3(Field 42)
-<a href=#975 id=975 data-nosnippet>975</a>        b3(v1: Field):
-<a href=#976 id=976 data-nosnippet>976</a>            return v1
-<a href=#977 id=977 data-nosnippet>977</a>        }
-<a href=#978 id=978 data-nosnippet>978</a>        "</span>;
-<a href=#979 id=979 data-nosnippet>979</a>        <span class="kw">let </span>brillig = ssa_to_brillig_artifacts(src);
-<a href=#980 id=980 data-nosnippet>980</a>        <span class="kw">let </span>main = <span class="kw-2">&amp;</span>brillig.ssa_function_to_brillig[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)];
-<a href=#981 id=981 data-nosnippet>981</a>        <span class="macro">assert_artifact_snapshot!</span>(main, @<span class="string">r"
-<a href=#982 id=982 data-nosnippet>982</a>        fn main
-<a href=#983 id=983 data-nosnippet>983</a>         0: call 0 // -&gt; CheckMaxStackDepth
-<a href=#984 id=984 data-nosnippet>984</a>         1: sp[4] = const field 42
-<a href=#985 id=985 data-nosnippet>985</a>         2: jump if sp[2] to 0 // -&gt; 6: f0/b1
-<a href=#986 id=986 data-nosnippet>986</a>         3: jump to 0 // -&gt; 4: f0/b2
-<a href=#987 id=987 data-nosnippet>987</a>         4: sp[3] = sp[4] // f0/b2
-<a href=#988 id=988 data-nosnippet>988</a>         5: jump to 0 // -&gt; 9: f0/b3
-<a href=#989 id=989 data-nosnippet>989</a>         6: sp[2] = const field 27 // f0/b1
-<a href=#990 id=990 data-nosnippet>990</a>         7: sp[3] = field add sp[2], sp[4]
-<a href=#991 id=991 data-nosnippet>991</a>         8: jump to 0 // -&gt; 9: f0/b3
-<a href=#992 id=992 data-nosnippet>992</a>         9: sp[2] = sp[3] // f0/b3
-<a href=#993 id=993 data-nosnippet>993</a>        10: return
-<a href=#994 id=994 data-nosnippet>994</a>        "</span>);
-<a href=#995 id=995 data-nosnippet>995</a>    }
-<a href=#996 id=996 data-nosnippet>996</a>
-<a href=#997 id=997 data-nosnippet>997</a>    <span class="attr">#[test]
-<a href=#998 id=998 data-nosnippet>998</a>    </span><span class="kw">fn </span>test_constants_liveness() {
-<a href=#999 id=999 data-nosnippet>999</a>        <span class="comment">// Constant SSA values are also included in liveness analysis
-<a href=#1000 id=1000 data-nosnippet>1000</a>        // Only hoisted global constants are filtered out.
-<a href=#1001 id=1001 data-nosnippet>1001</a>        //
-<a href=#1002 id=1002 data-nosnippet>1002</a>        // SSA v0 (entry parameter) → Brillig sp[1]
-<a href=#1003 id=1003 data-nosnippet>1003</a>        // SSA Field 100 constant → Brillig sp[2] (line 1: allocated on-demand via constant_allocation)
-<a href=#1004 id=1004 data-nosnippet>1004</a>        // SSA v1 (v0 + 100) → Brillig sp[3] (line 2: result)
-<a href=#1005 id=1005 data-nosnippet>1005</a>        // After line 2: Field 100 reaches its LAST USE, sp[2] is deallocated
-<a href=#1006 id=1006 data-nosnippet>1006</a>        // SSA Field 200 constant → Brillig sp[2] (line 3: REUSES sp[2])
-<a href=#1007 id=1007 data-nosnippet>1007</a>        // SSA v2 (v0 * 200) → Brillig sp[4] (line 4: result)
-<a href=#1008 id=1008 data-nosnippet>1008</a>        // SSA v3 (v1 + v2) → Brillig sp[1] (line 5: result, reuses sp[1] after v0 dies)
-<a href=#1009 id=1009 data-nosnippet>1009</a>        //
-<a href=#1010 id=1010 data-nosnippet>1010</a>        </span><span class="kw">let </span>src = <span class="string">"
-<a href=#1011 id=1011 data-nosnippet>1011</a>        brillig(inline) fn main f0 {
-<a href=#1012 id=1012 data-nosnippet>1012</a>        b0(v0: Field):
-<a href=#1013 id=1013 data-nosnippet>1013</a>            v1 = add v0, Field 100
-<a href=#1014 id=1014 data-nosnippet>1014</a>            v2 = mul v0, Field 200
-<a href=#1015 id=1015 data-nosnippet>1015</a>            v3 = add v1, v2
-<a href=#1016 id=1016 data-nosnippet>1016</a>            return v3
-<a href=#1017 id=1017 data-nosnippet>1017</a>        }
-<a href=#1018 id=1018 data-nosnippet>1018</a>        "</span>;
-<a href=#1019 id=1019 data-nosnippet>1019</a>        <span class="kw">let </span>brillig = ssa_to_brillig_artifacts(src);
-<a href=#1020 id=1020 data-nosnippet>1020</a>        <span class="kw">let </span>main = <span class="kw-2">&amp;</span>brillig.ssa_function_to_brillig[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)];
-<a href=#1021 id=1021 data-nosnippet>1021</a>        <span class="macro">assert_artifact_snapshot!</span>(main, @<span class="string">r"
-<a href=#1022 id=1022 data-nosnippet>1022</a>        fn main
-<a href=#1023 id=1023 data-nosnippet>1023</a>        0: call 0 // -&gt; CheckMaxStackDepth
-<a href=#1024 id=1024 data-nosnippet>1024</a>        1: sp[3] = const field 100
-<a href=#1025 id=1025 data-nosnippet>1025</a>        2: sp[4] = field add sp[2], sp[3]
-<a href=#1026 id=1026 data-nosnippet>1026</a>        3: sp[3] = const field 200
-<a href=#1027 id=1027 data-nosnippet>1027</a>        4: sp[5] = field mul sp[2], sp[3]
-<a href=#1028 id=1028 data-nosnippet>1028</a>        5: sp[2] = field add sp[4], sp[5]
-<a href=#1029 id=1029 data-nosnippet>1029</a>        6: return
-<a href=#1030 id=1030 data-nosnippet>1030</a>        "</span>);
-<a href=#1031 id=1031 data-nosnippet>1031</a>    }
-<a href=#1032 id=1032 data-nosnippet>1032</a>
-<a href=#1033 id=1033 data-nosnippet>1033</a>    <span class="attr">#[test]
-<a href=#1034 id=1034 data-nosnippet>1034</a>    </span><span class="kw">fn </span>test_terminator_arguments_stay_alive() {
-<a href=#1035 id=1035 data-nosnippet>1035</a>        <span class="comment">// Arguments to terminator instructions must remain alive until the terminator executes.
-<a href=#1036 id=1036 data-nosnippet>1036</a>        // They cannot be deallocated in the last instruction of the block.
-<a href=#1037 id=1037 data-nosnippet>1037</a>        //
-<a href=#1038 id=1038 data-nosnippet>1038</a>        // SSA v0 (entry parameter) → Brillig sp[1]
-<a href=#1039 id=1039 data-nosnippet>1039</a>        // SSA v1 (v0 + 1) → Brillig sp[4] (line 2: result)
-<a href=#1040 id=1040 data-nosnippet>1040</a>        // SSA v2 (v1 + 2) → Brillig sp[3] (line 4: result)
-<a href=#1041 id=1041 data-nosnippet>1041</a>        // SSA v3 (v2 * 3) → coalesced with v4 → writes directly to sp[2] (line 6)
-<a href=#1042 id=1042 data-nosnippet>1042</a>        // SSA v4 (b1's parameter) → Brillig sp[2] (allocated in b0)
-<a href=#1043 id=1043 data-nosnippet>1043</a>        // Line 6: sp[2] = mul sp[3], sp[1] writes directly to v4's register (coalesced)
-<a href=#1044 id=1044 data-nosnippet>1044</a>        // Line 7: jump to b1 (no mov needed — v3 already in sp[2])
-<a href=#1045 id=1045 data-nosnippet>1045</a>        // Line 8 (b1): sp[1] = sp[2] prepares return
-<a href=#1046 id=1046 data-nosnippet>1046</a>        </span><span class="kw">let </span>src = <span class="string">"
-<a href=#1047 id=1047 data-nosnippet>1047</a>        brillig(inline) fn main f0 {
-<a href=#1048 id=1048 data-nosnippet>1048</a>        b0(v0: Field):
-<a href=#1049 id=1049 data-nosnippet>1049</a>            v1 = add v0, Field 1
-<a href=#1050 id=1050 data-nosnippet>1050</a>            v2 = add v1, Field 2
-<a href=#1051 id=1051 data-nosnippet>1051</a>            v3 = mul v2, Field 3
-<a href=#1052 id=1052 data-nosnippet>1052</a>            jmp b1(v3)
-<a href=#1053 id=1053 data-nosnippet>1053</a>        b1(v4: Field):
-<a href=#1054 id=1054 data-nosnippet>1054</a>            return v4
-<a href=#1055 id=1055 data-nosnippet>1055</a>        }
-<a href=#1056 id=1056 data-nosnippet>1056</a>        "</span>;
-<a href=#1057 id=1057 data-nosnippet>1057</a>        <span class="kw">let </span>brillig = ssa_to_brillig_artifacts(src);
-<a href=#1058 id=1058 data-nosnippet>1058</a>        <span class="kw">let </span>main = <span class="kw-2">&amp;</span>brillig.ssa_function_to_brillig[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)];
-<a href=#1059 id=1059 data-nosnippet>1059</a>        <span class="macro">assert_artifact_snapshot!</span>(main, @<span class="string">r"
-<a href=#1060 id=1060 data-nosnippet>1060</a>        fn main
-<a href=#1061 id=1061 data-nosnippet>1061</a>         0: call 0 // -&gt; CheckMaxStackDepth
-<a href=#1062 id=1062 data-nosnippet>1062</a>         1: sp[4] = const field 1
-<a href=#1063 id=1063 data-nosnippet>1063</a>         2: sp[5] = field add sp[2], sp[4]
-<a href=#1064 id=1064 data-nosnippet>1064</a>         3: sp[2] = const field 2
-<a href=#1065 id=1065 data-nosnippet>1065</a>         4: sp[4] = field add sp[5], sp[2]
-<a href=#1066 id=1066 data-nosnippet>1066</a>         5: sp[2] = const field 3
-<a href=#1067 id=1067 data-nosnippet>1067</a>         6: sp[3] = field mul sp[4], sp[2]
-<a href=#1068 id=1068 data-nosnippet>1068</a>         7: jump to 0 // -&gt; 8: f0/b1
-<a href=#1069 id=1069 data-nosnippet>1069</a>         8: sp[2] = sp[3] // f0/b1
-<a href=#1070 id=1070 data-nosnippet>1070</a>         9: return
-<a href=#1071 id=1071 data-nosnippet>1071</a>        "</span>);
-<a href=#1072 id=1072 data-nosnippet>1072</a>    }
-<a href=#1073 id=1073 data-nosnippet>1073</a>}</code></pre></div></section></main></body></html>
+<a href=#855 id=855 data-nosnippet>855</a>        0: sp[3] = const field 10
+<a href=#856 id=856 data-nosnippet>856</a>        1: sp[4] = field add sp[2], sp[3]
+<a href=#857 id=857 data-nosnippet>857</a>        2: sp[2] = sp[4]
+<a href=#858 id=858 data-nosnippet>858</a>        3: return
+<a href=#859 id=859 data-nosnippet>859</a>        "</span>);
+<a href=#860 id=860 data-nosnippet>860</a>    }
+<a href=#861 id=861 data-nosnippet>861</a>
+<a href=#862 id=862 data-nosnippet>862</a>    <span class="attr">#[test]
+<a href=#863 id=863 data-nosnippet>863</a>    </span><span class="kw">fn </span>test_last_use_deallocation() {
+<a href=#864 id=864 data-nosnippet>864</a>        <span class="comment">// When a variable reaches its last use, its register is deallocated
+<a href=#865 id=865 data-nosnippet>865</a>        // and can be reused for subsequent variables. This is tracked per-instruction
+<a href=#866 id=866 data-nosnippet>866</a>        // via get_last_uses().
+<a href=#867 id=867 data-nosnippet>867</a>        //
+<a href=#868 id=868 data-nosnippet>868</a>        // SSA v0 (entry parameter) → Brillig sp[1]
+<a href=#869 id=869 data-nosnippet>869</a>        // SSA v1 (v0 + 1) → Brillig sp[3] (line 2: result). v0 dies after this, sp[1] freed
+<a href=#870 id=870 data-nosnippet>870</a>        // SSA v2 (v1 + 2) → Brillig sp[2] (line 4: result, reuses sp[1]). v1 dies, sp[3] freed
+<a href=#871 id=871 data-nosnippet>871</a>        // SSA v3 (v2 + 3) → Brillig sp[3] (line 6: result, reuses freed sp[3]). v2 dies
+<a href=#872 id=872 data-nosnippet>872</a>        // Line 7: sp[1] = sp[3] moves v3 to return position
+<a href=#873 id=873 data-nosnippet>873</a>        // Register reuse: sp[1] freed after v0, reused for v2; sp[3] freed after v1, reused for v3
+<a href=#874 id=874 data-nosnippet>874</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#875 id=875 data-nosnippet>875</a>        brillig(inline) fn main f0 {
+<a href=#876 id=876 data-nosnippet>876</a>        b0(v0: Field):
+<a href=#877 id=877 data-nosnippet>877</a>            v1 = add v0, Field 1
+<a href=#878 id=878 data-nosnippet>878</a>            v2 = add v1, Field 2
+<a href=#879 id=879 data-nosnippet>879</a>            v3 = add v2, Field 3
+<a href=#880 id=880 data-nosnippet>880</a>            return v3
+<a href=#881 id=881 data-nosnippet>881</a>        }
+<a href=#882 id=882 data-nosnippet>882</a>        "</span>;
+<a href=#883 id=883 data-nosnippet>883</a>        <span class="kw">let </span>brillig = ssa_to_brillig_artifacts(src);
+<a href=#884 id=884 data-nosnippet>884</a>        <span class="kw">let </span>main = <span class="kw-2">&amp;</span>brillig.ssa_function_to_brillig[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)];
+<a href=#885 id=885 data-nosnippet>885</a>
+<a href=#886 id=886 data-nosnippet>886</a>        <span class="macro">assert_artifact_snapshot!</span>(main, @<span class="string">r"
+<a href=#887 id=887 data-nosnippet>887</a>        fn main
+<a href=#888 id=888 data-nosnippet>888</a>        0: sp[3] = const field 1
+<a href=#889 id=889 data-nosnippet>889</a>        1: sp[4] = field add sp[2], sp[3]
+<a href=#890 id=890 data-nosnippet>890</a>        2: sp[2] = const field 2
+<a href=#891 id=891 data-nosnippet>891</a>        3: sp[3] = field add sp[4], sp[2]
+<a href=#892 id=892 data-nosnippet>892</a>        4: sp[2] = const field 3
+<a href=#893 id=893 data-nosnippet>893</a>        5: sp[4] = field add sp[3], sp[2]
+<a href=#894 id=894 data-nosnippet>894</a>        6: sp[2] = sp[4]
+<a href=#895 id=895 data-nosnippet>895</a>        7: return
+<a href=#896 id=896 data-nosnippet>896</a>        "</span>);
+<a href=#897 id=897 data-nosnippet>897</a>    }
+<a href=#898 id=898 data-nosnippet>898</a>
+<a href=#899 id=899 data-nosnippet>899</a>    <span class="attr">#[test]
+<a href=#900 id=900 data-nosnippet>900</a>    </span><span class="kw">fn </span>test_loop_liveness() {
+<a href=#901 id=901 data-nosnippet>901</a>        <span class="comment">// Variables live in the loop header must remain alive throughout the loop body
+<a href=#902 id=902 data-nosnippet>902</a>        // because the back edge jumps back to the header.
+<a href=#903 id=903 data-nosnippet>903</a>        //
+<a href=#904 id=904 data-nosnippet>904</a>        // SSA v0 (loop bound) → Brillig sp[1]
+<a href=#905 id=905 data-nosnippet>905</a>        // SSA v1 (loop variable, b1's parameter) → Brillig sp[2] (allocated in b0)
+<a href=#906 id=906 data-nosnippet>906</a>        // Line 3: sp[2] = sp[3] initializes v1 to 0
+<a href=#907 id=907 data-nosnippet>907</a>        // Line 5 (b1 header): sp[3] = lt sp[2], sp[1] tests v1 &lt; v0
+<a href=#908 id=908 data-nosnippet>908</a>        // Line 10 (b2 body): sp[3] = add sp[2], sp[4] computes v1 + 1
+<a href=#909 id=909 data-nosnippet>909</a>        // Line 14: sp[2] = sp[3] updates v1 for next iteration
+<a href=#910 id=910 data-nosnippet>910</a>        // Line 15: jump back to b1
+<a href=#911 id=911 data-nosnippet>911</a>        // v0 (sp[1]) stays alive throughout loop (used at line 5 each iteration)
+<a href=#912 id=912 data-nosnippet>912</a>        // Back edge at line 15 ensures b1's live-in includes both v0 and v1
+<a href=#913 id=913 data-nosnippet>913</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#914 id=914 data-nosnippet>914</a>        brillig(inline) fn main f0 {
+<a href=#915 id=915 data-nosnippet>915</a>        b0(v0: u32):
+<a href=#916 id=916 data-nosnippet>916</a>            jmp b1(u32 0)
+<a href=#917 id=917 data-nosnippet>917</a>        b1(v1: u32):
+<a href=#918 id=918 data-nosnippet>918</a>            v2 = lt v1, v0
+<a href=#919 id=919 data-nosnippet>919</a>            jmpif v2 then: b2(), else: b3()
+<a href=#920 id=920 data-nosnippet>920</a>        b2():
+<a href=#921 id=921 data-nosnippet>921</a>            v3 = add v1, u32 1
+<a href=#922 id=922 data-nosnippet>922</a>            jmp b1(v3)
+<a href=#923 id=923 data-nosnippet>923</a>        b3():
+<a href=#924 id=924 data-nosnippet>924</a>            return v1
+<a href=#925 id=925 data-nosnippet>925</a>        }
+<a href=#926 id=926 data-nosnippet>926</a>        "</span>;
+<a href=#927 id=927 data-nosnippet>927</a>        <span class="kw">let </span>brillig = ssa_to_brillig_artifacts(src);
+<a href=#928 id=928 data-nosnippet>928</a>        <span class="kw">let </span>main = <span class="kw-2">&amp;</span>brillig.ssa_function_to_brillig[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)];
+<a href=#929 id=929 data-nosnippet>929</a>        <span class="macro">assert_artifact_snapshot!</span>(main, @<span class="string">r"
+<a href=#930 id=930 data-nosnippet>930</a>        fn main
+<a href=#931 id=931 data-nosnippet>931</a>         0: sp[4] = const u32 0
+<a href=#932 id=932 data-nosnippet>932</a>         1: sp[5] = const u32 1
+<a href=#933 id=933 data-nosnippet>933</a>         2: sp[3] = sp[4]
+<a href=#934 id=934 data-nosnippet>934</a>         3: jump to 0 // -&gt; 4: f0/b1
+<a href=#935 id=935 data-nosnippet>935</a>         4: sp[4] = u32 lt sp[3], sp[2] // f0/b1
+<a href=#936 id=936 data-nosnippet>936</a>         5: jump if sp[4] to 0 // -&gt; 9: f0/b2
+<a href=#937 id=937 data-nosnippet>937</a>         6: jump to 0 // -&gt; 7: f0/b3
+<a href=#938 id=938 data-nosnippet>938</a>         7: sp[2] = sp[3] // f0/b3
+<a href=#939 id=939 data-nosnippet>939</a>         8: return
+<a href=#940 id=940 data-nosnippet>940</a>         9: sp[4] = u32 add sp[3], sp[5] // f0/b2
+<a href=#941 id=941 data-nosnippet>941</a>        10: sp[6] = u32 lt_eq sp[3], sp[4]
+<a href=#942 id=942 data-nosnippet>942</a>        11: jump if sp[6] to 0 // -&gt; 13: f0/b2/1
+<a href=#943 id=943 data-nosnippet>943</a>        12: call 0 // -&gt; ErrorWithString
+<a href=#944 id=944 data-nosnippet>944</a>        13: sp[3] = sp[4] // f0/b2/1
+<a href=#945 id=945 data-nosnippet>945</a>        14: jump to 0 // -&gt; 4: f0/b1
+<a href=#946 id=946 data-nosnippet>946</a>        "</span>);
+<a href=#947 id=947 data-nosnippet>947</a>    }
+<a href=#948 id=948 data-nosnippet>948</a>
+<a href=#949 id=949 data-nosnippet>949</a>    <span class="attr">#[test]
+<a href=#950 id=950 data-nosnippet>950</a>    </span><span class="kw">fn </span>test_block_parameters() {
+<a href=#951 id=951 data-nosnippet>951</a>        <span class="comment">// Multiple predecessors pass different values (42 and v2) to the same parameter.
+<a href=#952 id=952 data-nosnippet>952</a>        // The parameter must be allocated in the immediate dominator (v1: allocated to sp[2] in b0),
+<a href=#953 id=953 data-nosnippet>953</a>        // and each predecessor generates a mov to that register.
+<a href=#954 id=954 data-nosnippet>954</a>        //
+<a href=#955 id=955 data-nosnippet>955</a>        // SSA v0 (condition) → Brillig sp[1]
+<a href=#956 id=956 data-nosnippet>956</a>        // SSA v1 (b3's parameter) → Brillig sp[2] (allocated in b0, dominator of b3)
+<a href=#957 id=957 data-nosnippet>957</a>        // SSA v2 (27 + 42) → coalesced with v1 → writes directly to sp[2] (line 7)
+<a href=#958 id=958 data-nosnippet>958</a>        // Field 42 constant → sp[3] (line 1)
+<a href=#959 id=959 data-nosnippet>959</a>        // Line 2: jmpif sp[1] branches to b1 or b2
+<a href=#960 id=960 data-nosnippet>960</a>        // Line 4 (b2 path): sp[2] = sp[3] moves constant 42 into v1's register
+<a href=#961 id=961 data-nosnippet>961</a>        // Line 7 (b1 path): sp[2] = add sp[1], sp[3] writes directly to v1's register (coalesced)
+<a href=#962 id=962 data-nosnippet>962</a>        // Line 9 (b3): sp[1] = sp[2] prepares return
+<a href=#963 id=963 data-nosnippet>963</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#964 id=964 data-nosnippet>964</a>        brillig(inline) fn main f0 {
+<a href=#965 id=965 data-nosnippet>965</a>        b0(v0: u1):
+<a href=#966 id=966 data-nosnippet>966</a>            jmpif v0 then: b1(), else: b2()
+<a href=#967 id=967 data-nosnippet>967</a>        b1():
+<a href=#968 id=968 data-nosnippet>968</a>            v2 = add Field 27, Field 42
+<a href=#969 id=969 data-nosnippet>969</a>            jmp b3(v2)
+<a href=#970 id=970 data-nosnippet>970</a>        b2():
+<a href=#971 id=971 data-nosnippet>971</a>            jmp b3(Field 42)
+<a href=#972 id=972 data-nosnippet>972</a>        b3(v1: Field):
+<a href=#973 id=973 data-nosnippet>973</a>            return v1
+<a href=#974 id=974 data-nosnippet>974</a>        }
+<a href=#975 id=975 data-nosnippet>975</a>        "</span>;
+<a href=#976 id=976 data-nosnippet>976</a>        <span class="kw">let </span>brillig = ssa_to_brillig_artifacts(src);
+<a href=#977 id=977 data-nosnippet>977</a>        <span class="kw">let </span>main = <span class="kw-2">&amp;</span>brillig.ssa_function_to_brillig[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)];
+<a href=#978 id=978 data-nosnippet>978</a>        <span class="macro">assert_artifact_snapshot!</span>(main, @<span class="string">r"
+<a href=#979 id=979 data-nosnippet>979</a>        fn main
+<a href=#980 id=980 data-nosnippet>980</a>         0: sp[4] = const field 42
+<a href=#981 id=981 data-nosnippet>981</a>         1: jump if sp[2] to 0 // -&gt; 5: f0/b1
+<a href=#982 id=982 data-nosnippet>982</a>         2: jump to 0 // -&gt; 3: f0/b2
+<a href=#983 id=983 data-nosnippet>983</a>         3: sp[3] = sp[4] // f0/b2
+<a href=#984 id=984 data-nosnippet>984</a>         4: jump to 0 // -&gt; 8: f0/b3
+<a href=#985 id=985 data-nosnippet>985</a>         5: sp[2] = const field 27 // f0/b1
+<a href=#986 id=986 data-nosnippet>986</a>         6: sp[3] = field add sp[2], sp[4]
+<a href=#987 id=987 data-nosnippet>987</a>         7: jump to 0 // -&gt; 8: f0/b3
+<a href=#988 id=988 data-nosnippet>988</a>         8: sp[2] = sp[3] // f0/b3
+<a href=#989 id=989 data-nosnippet>989</a>         9: return
+<a href=#990 id=990 data-nosnippet>990</a>        "</span>);
+<a href=#991 id=991 data-nosnippet>991</a>    }
+<a href=#992 id=992 data-nosnippet>992</a>
+<a href=#993 id=993 data-nosnippet>993</a>    <span class="attr">#[test]
+<a href=#994 id=994 data-nosnippet>994</a>    </span><span class="kw">fn </span>test_constants_liveness() {
+<a href=#995 id=995 data-nosnippet>995</a>        <span class="comment">// Constant SSA values are also included in liveness analysis
+<a href=#996 id=996 data-nosnippet>996</a>        // Only hoisted global constants are filtered out.
+<a href=#997 id=997 data-nosnippet>997</a>        //
+<a href=#998 id=998 data-nosnippet>998</a>        // SSA v0 (entry parameter) → Brillig sp[1]
+<a href=#999 id=999 data-nosnippet>999</a>        // SSA Field 100 constant → Brillig sp[2] (line 1: allocated on-demand via constant_allocation)
+<a href=#1000 id=1000 data-nosnippet>1000</a>        // SSA v1 (v0 + 100) → Brillig sp[3] (line 2: result)
+<a href=#1001 id=1001 data-nosnippet>1001</a>        // After line 2: Field 100 reaches its LAST USE, sp[2] is deallocated
+<a href=#1002 id=1002 data-nosnippet>1002</a>        // SSA Field 200 constant → Brillig sp[2] (line 3: REUSES sp[2])
+<a href=#1003 id=1003 data-nosnippet>1003</a>        // SSA v2 (v0 * 200) → Brillig sp[4] (line 4: result)
+<a href=#1004 id=1004 data-nosnippet>1004</a>        // SSA v3 (v1 + v2) → Brillig sp[1] (line 5: result, reuses sp[1] after v0 dies)
+<a href=#1005 id=1005 data-nosnippet>1005</a>        //
+<a href=#1006 id=1006 data-nosnippet>1006</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#1007 id=1007 data-nosnippet>1007</a>        brillig(inline) fn main f0 {
+<a href=#1008 id=1008 data-nosnippet>1008</a>        b0(v0: Field):
+<a href=#1009 id=1009 data-nosnippet>1009</a>            v1 = add v0, Field 100
+<a href=#1010 id=1010 data-nosnippet>1010</a>            v2 = mul v0, Field 200
+<a href=#1011 id=1011 data-nosnippet>1011</a>            v3 = add v1, v2
+<a href=#1012 id=1012 data-nosnippet>1012</a>            return v3
+<a href=#1013 id=1013 data-nosnippet>1013</a>        }
+<a href=#1014 id=1014 data-nosnippet>1014</a>        "</span>;
+<a href=#1015 id=1015 data-nosnippet>1015</a>        <span class="kw">let </span>brillig = ssa_to_brillig_artifacts(src);
+<a href=#1016 id=1016 data-nosnippet>1016</a>        <span class="kw">let </span>main = <span class="kw-2">&amp;</span>brillig.ssa_function_to_brillig[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)];
+<a href=#1017 id=1017 data-nosnippet>1017</a>        <span class="macro">assert_artifact_snapshot!</span>(main, @<span class="string">r"
+<a href=#1018 id=1018 data-nosnippet>1018</a>        fn main
+<a href=#1019 id=1019 data-nosnippet>1019</a>        0: sp[3] = const field 100
+<a href=#1020 id=1020 data-nosnippet>1020</a>        1: sp[4] = field add sp[2], sp[3]
+<a href=#1021 id=1021 data-nosnippet>1021</a>        2: sp[3] = const field 200
+<a href=#1022 id=1022 data-nosnippet>1022</a>        3: sp[5] = field mul sp[2], sp[3]
+<a href=#1023 id=1023 data-nosnippet>1023</a>        4: sp[2] = field add sp[4], sp[5]
+<a href=#1024 id=1024 data-nosnippet>1024</a>        5: return
+<a href=#1025 id=1025 data-nosnippet>1025</a>        "</span>);
+<a href=#1026 id=1026 data-nosnippet>1026</a>    }
+<a href=#1027 id=1027 data-nosnippet>1027</a>
+<a href=#1028 id=1028 data-nosnippet>1028</a>    <span class="attr">#[test]
+<a href=#1029 id=1029 data-nosnippet>1029</a>    </span><span class="kw">fn </span>test_terminator_arguments_stay_alive() {
+<a href=#1030 id=1030 data-nosnippet>1030</a>        <span class="comment">// Arguments to terminator instructions must remain alive until the terminator executes.
+<a href=#1031 id=1031 data-nosnippet>1031</a>        // They cannot be deallocated in the last instruction of the block.
+<a href=#1032 id=1032 data-nosnippet>1032</a>        //
+<a href=#1033 id=1033 data-nosnippet>1033</a>        // SSA v0 (entry parameter) → Brillig sp[1]
+<a href=#1034 id=1034 data-nosnippet>1034</a>        // SSA v1 (v0 + 1) → Brillig sp[4] (line 2: result)
+<a href=#1035 id=1035 data-nosnippet>1035</a>        // SSA v2 (v1 + 2) → Brillig sp[3] (line 4: result)
+<a href=#1036 id=1036 data-nosnippet>1036</a>        // SSA v3 (v2 * 3) → coalesced with v4 → writes directly to sp[2] (line 6)
+<a href=#1037 id=1037 data-nosnippet>1037</a>        // SSA v4 (b1's parameter) → Brillig sp[2] (allocated in b0)
+<a href=#1038 id=1038 data-nosnippet>1038</a>        // Line 6: sp[2] = mul sp[3], sp[1] writes directly to v4's register (coalesced)
+<a href=#1039 id=1039 data-nosnippet>1039</a>        // Line 7: jump to b1 (no mov needed — v3 already in sp[2])
+<a href=#1040 id=1040 data-nosnippet>1040</a>        // Line 8 (b1): sp[1] = sp[2] prepares return
+<a href=#1041 id=1041 data-nosnippet>1041</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#1042 id=1042 data-nosnippet>1042</a>        brillig(inline) fn main f0 {
+<a href=#1043 id=1043 data-nosnippet>1043</a>        b0(v0: Field):
+<a href=#1044 id=1044 data-nosnippet>1044</a>            v1 = add v0, Field 1
+<a href=#1045 id=1045 data-nosnippet>1045</a>            v2 = add v1, Field 2
+<a href=#1046 id=1046 data-nosnippet>1046</a>            v3 = mul v2, Field 3
+<a href=#1047 id=1047 data-nosnippet>1047</a>            jmp b1(v3)
+<a href=#1048 id=1048 data-nosnippet>1048</a>        b1(v4: Field):
+<a href=#1049 id=1049 data-nosnippet>1049</a>            return v4
+<a href=#1050 id=1050 data-nosnippet>1050</a>        }
+<a href=#1051 id=1051 data-nosnippet>1051</a>        "</span>;
+<a href=#1052 id=1052 data-nosnippet>1052</a>        <span class="kw">let </span>brillig = ssa_to_brillig_artifacts(src);
+<a href=#1053 id=1053 data-nosnippet>1053</a>        <span class="kw">let </span>main = <span class="kw-2">&amp;</span>brillig.ssa_function_to_brillig[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)];
+<a href=#1054 id=1054 data-nosnippet>1054</a>        <span class="macro">assert_artifact_snapshot!</span>(main, @<span class="string">r"
+<a href=#1055 id=1055 data-nosnippet>1055</a>        fn main
+<a href=#1056 id=1056 data-nosnippet>1056</a>        0: sp[4] = const field 1
+<a href=#1057 id=1057 data-nosnippet>1057</a>        1: sp[5] = field add sp[2], sp[4]
+<a href=#1058 id=1058 data-nosnippet>1058</a>        2: sp[2] = const field 2
+<a href=#1059 id=1059 data-nosnippet>1059</a>        3: sp[4] = field add sp[5], sp[2]
+<a href=#1060 id=1060 data-nosnippet>1060</a>        4: sp[2] = const field 3
+<a href=#1061 id=1061 data-nosnippet>1061</a>        5: sp[3] = field mul sp[4], sp[2]
+<a href=#1062 id=1062 data-nosnippet>1062</a>        6: jump to 0 // -&gt; 7: f0/b1
+<a href=#1063 id=1063 data-nosnippet>1063</a>        7: sp[2] = sp[3] // f0/b1
+<a href=#1064 id=1064 data-nosnippet>1064</a>        8: return
+<a href=#1065 id=1065 data-nosnippet>1065</a>        "</span>);
+<a href=#1066 id=1066 data-nosnippet>1066</a>    }
+<a href=#1067 id=1067 data-nosnippet>1067</a>}</code></pre></div></section></main></body></html>

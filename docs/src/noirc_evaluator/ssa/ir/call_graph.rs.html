@@ -154,10 +154,10 @@
 <a href=#154 id=154 data-nosnippet>154</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.indices_to_ids
 <a href=#155 id=155 data-nosnippet>155</a>    }
 <a href=#156 id=156 data-nosnippet>156</a>
-<a href=#157 id=157 data-nosnippet>157</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>build_acyclic_subgraph(
-<a href=#158 id=158 data-nosnippet>158</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#159 id=159 data-nosnippet>159</a>        recursive_functions: <span class="kw-2">&amp;</span>HashSet&lt;FunctionId&gt;,
-<a href=#160 id=160 data-nosnippet>160</a>    ) -&gt; CallGraph {
+<a href=#157 id=157 data-nosnippet>157</a>    <span class="doccomment">/// Build a sub-graph from node that aren't contained in `recursive_functions`.
+<a href=#158 id=158 data-nosnippet>158</a>    ///
+<a href=#159 id=159 data-nosnippet>159</a>    /// The indices returned will be different than the ones in this graph.
+<a href=#160 id=160 data-nosnippet>160</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>build_acyclic_subgraph(<span class="kw-2">&amp;</span><span class="self">self</span>, recursive_functions: <span class="kw-2">&amp;</span>HashSet&lt;FunctionId&gt;) -&gt; <span class="self">Self </span>{
 <a href=#161 id=161 data-nosnippet>161</a>        <span class="kw">let </span><span class="kw-2">mut </span>graph = DiGraph::new();
 <a href=#162 id=162 data-nosnippet>162</a>        <span class="kw">let </span><span class="kw-2">mut </span>ids_to_indices = HashMap::default();
 <a href=#163 id=163 data-nosnippet>163</a>        <span class="kw">let </span><span class="kw-2">mut </span>indices_to_ids = HashMap::default();
@@ -247,440 +247,707 @@
 <a href=#247 id=247 data-nosnippet>247</a>        counts
 <a href=#248 id=248 data-nosnippet>248</a>    }
 <a href=#249 id=249 data-nosnippet>249</a>
-<a href=#250 id=250 data-nosnippet>250</a>    <span class="doccomment">/// Returns all functions reachable from the provided root(s).
+<a href=#250 id=250 data-nosnippet>250</a>    <span class="doccomment">/// Compute the maximum call-stack depth at which each function in `reachable` can be invoked.
 <a href=#251 id=251 data-nosnippet>251</a>    ///
-<a href=#252 id=252 data-nosnippet>252</a>    /// This function uses DFS internally to find all nodes reachable from the provided root(s).
-<a href=#253 id=253 data-nosnippet>253</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>reachable_from(
-<a href=#254 id=254 data-nosnippet>254</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#255 id=255 data-nosnippet>255</a>        roots: <span class="kw">impl </span>IntoIterator&lt;Item = FunctionId&gt;,
-<a href=#256 id=256 data-nosnippet>256</a>    ) -&gt; HashSet&lt;FunctionId&gt; {
-<a href=#257 id=257 data-nosnippet>257</a>        <span class="kw">let </span><span class="kw-2">mut </span>reachable = HashSet::default();
-<a href=#258 id=258 data-nosnippet>258</a>
-<a href=#259 id=259 data-nosnippet>259</a>        <span class="kw">for </span>root <span class="kw">in </span>roots {
-<a href=#260 id=260 data-nosnippet>260</a>            <span class="comment">// If the root does not exist, skip it.
-<a href=#261 id=261 data-nosnippet>261</a>            </span><span class="kw">let </span><span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>start_index) = <span class="self">self</span>.ids_to_indices.get(<span class="kw-2">&amp;</span>root) <span class="kw">else </span>{
-<a href=#262 id=262 data-nosnippet>262</a>                <span class="kw">continue</span>;
-<a href=#263 id=263 data-nosnippet>263</a>            };
-<a href=#264 id=264 data-nosnippet>264</a>            <span class="comment">// Use DFS to determine all reachable nodes from the root
-<a href=#265 id=265 data-nosnippet>265</a>            </span><span class="kw">let </span>dfs = Dfs::new(<span class="kw-2">&amp;</span><span class="self">self</span>.graph, start_index);
-<a href=#266 id=266 data-nosnippet>266</a>            reachable.extend(dfs.iter(<span class="kw-2">&amp;</span><span class="self">self</span>.graph).map(|index| <span class="self">self</span>.indices_to_ids[<span class="kw-2">&amp;</span>index]));
-<a href=#267 id=267 data-nosnippet>267</a>        }
-<a href=#268 id=268 data-nosnippet>268</a>
-<a href=#269 id=269 data-nosnippet>269</a>        reachable
-<a href=#270 id=270 data-nosnippet>270</a>    }
-<a href=#271 id=271 data-nosnippet>271</a>}
-<a href=#272 id=272 data-nosnippet>272</a>
-<a href=#273 id=273 data-nosnippet>273</a><span class="doccomment">/// Utility function to find out the direct calls of a function.
-<a href=#274 id=274 data-nosnippet>274</a>///
-<a href=#275 id=275 data-nosnippet>275</a>/// Returns the function IDs from all `Call` instructions without deduplication.
-<a href=#276 id=276 data-nosnippet>276</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>called_functions_vec(func: <span class="kw-2">&amp;</span>Function) -&gt; Vec&lt;FunctionId&gt; {
-<a href=#277 id=277 data-nosnippet>277</a>    <span class="kw">let </span><span class="kw-2">mut </span>called_function_ids = Vec::new();
-<a href=#278 id=278 data-nosnippet>278</a>    <span class="kw">for </span>block_id <span class="kw">in </span>func.reachable_blocks() {
-<a href=#279 id=279 data-nosnippet>279</a>        <span class="kw">for </span>instruction_id <span class="kw">in </span>func.dfg[block_id].instructions() {
-<a href=#280 id=280 data-nosnippet>280</a>            <span class="kw">let </span>Instruction::Call { func: called_value_id, .. } = <span class="kw-2">&amp;</span>func.dfg[<span class="kw-2">*</span>instruction_id] <span class="kw">else </span>{
-<a href=#281 id=281 data-nosnippet>281</a>                <span class="kw">continue</span>;
-<a href=#282 id=282 data-nosnippet>282</a>            };
-<a href=#283 id=283 data-nosnippet>283</a>
-<a href=#284 id=284 data-nosnippet>284</a>            <span class="kw">if let </span>Value::Function(function_id) = func.dfg[<span class="kw-2">*</span>called_value_id] {
-<a href=#285 id=285 data-nosnippet>285</a>                called_function_ids.push(function_id);
-<a href=#286 id=286 data-nosnippet>286</a>            }
-<a href=#287 id=287 data-nosnippet>287</a>        }
-<a href=#288 id=288 data-nosnippet>288</a>    }
-<a href=#289 id=289 data-nosnippet>289</a>
-<a href=#290 id=290 data-nosnippet>290</a>    called_function_ids
-<a href=#291 id=291 data-nosnippet>291</a>}
-<a href=#292 id=292 data-nosnippet>292</a>
-<a href=#293 id=293 data-nosnippet>293</a><span class="doccomment">/// Utility function to find out the deduplicated direct calls made from a function.
-<a href=#294 id=294 data-nosnippet>294</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>called_functions(func: <span class="kw-2">&amp;</span>Function) -&gt; BTreeSet&lt;FunctionId&gt; {
-<a href=#295 id=295 data-nosnippet>295</a>    called_functions_vec(func).into_iter().collect()
-<a href=#296 id=296 data-nosnippet>296</a>}
-<a href=#297 id=297 data-nosnippet>297</a>
-<a href=#298 id=298 data-nosnippet>298</a><span class="doccomment">/// Compute for each function the set of functions called by it, and how many times it does so.
-<a href=#299 id=299 data-nosnippet>299</a></span><span class="kw">fn </span>compute_callees(ssa: <span class="kw-2">&amp;</span>Ssa) -&gt; BTreeMap&lt;FunctionId, BTreeMap&lt;FunctionId, usize&gt;&gt; {
-<a href=#300 id=300 data-nosnippet>300</a>    ssa.functions
-<a href=#301 id=301 data-nosnippet>301</a>        .iter()
-<a href=#302 id=302 data-nosnippet>302</a>        .flat_map(|(caller_id, function)| {
-<a href=#303 id=303 data-nosnippet>303</a>            <span class="kw">let </span>called_functions = called_functions_vec(function);
-<a href=#304 id=304 data-nosnippet>304</a>            called_functions.into_iter().map(|callee_id| (<span class="kw-2">*</span>caller_id, callee_id))
-<a href=#305 id=305 data-nosnippet>305</a>        })
-<a href=#306 id=306 data-nosnippet>306</a>        .fold(
-<a href=#307 id=307 data-nosnippet>307</a>            <span class="comment">// Make sure an entry exists even for ones that don't call anything.
-<a href=#308 id=308 data-nosnippet>308</a>            </span>ssa.functions.keys().map(|id| (<span class="kw-2">*</span>id, BTreeMap::new())).collect(),
-<a href=#309 id=309 data-nosnippet>309</a>            |<span class="kw-2">mut </span>acc, (caller_id, callee_id)| {
-<a href=#310 id=310 data-nosnippet>310</a>                <span class="kw">let </span>callees = acc.entry(caller_id).or_default();
-<a href=#311 id=311 data-nosnippet>311</a>                <span class="kw-2">*</span>callees.entry(callee_id).or_default() += <span class="number">1</span>;
-<a href=#312 id=312 data-nosnippet>312</a>                acc
-<a href=#313 id=313 data-nosnippet>313</a>            },
-<a href=#314 id=314 data-nosnippet>314</a>        )
-<a href=#315 id=315 data-nosnippet>315</a>}
-<a href=#316 id=316 data-nosnippet>316</a>
-<a href=#317 id=317 data-nosnippet>317</a><span class="attr">#[cfg(test)]
-<a href=#318 id=318 data-nosnippet>318</a></span><span class="kw">mod </span>tests {
-<a href=#319 id=319 data-nosnippet>319</a>    <span class="kw">use </span><span class="kw">crate</span>::ssa::{
-<a href=#320 id=320 data-nosnippet>320</a>        ir::{call_graph::CallGraph, map::Id},
-<a href=#321 id=321 data-nosnippet>321</a>        ssa_gen::Ssa,
-<a href=#322 id=322 data-nosnippet>322</a>    };
-<a href=#323 id=323 data-nosnippet>323</a>
-<a href=#324 id=324 data-nosnippet>324</a>    <span class="attr">#[test]
-<a href=#325 id=325 data-nosnippet>325</a>    </span><span class="kw">fn </span>mark_mutually_recursive_functions() {
-<a href=#326 id=326 data-nosnippet>326</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#327 id=327 data-nosnippet>327</a>        acir(inline) fn main f0 {
-<a href=#328 id=328 data-nosnippet>328</a>          b0():
-<a href=#329 id=329 data-nosnippet>329</a>            call f1()
-<a href=#330 id=330 data-nosnippet>330</a>            return
-<a href=#331 id=331 data-nosnippet>331</a>        }
-<a href=#332 id=332 data-nosnippet>332</a>        brillig(inline) fn starter f1 {
-<a href=#333 id=333 data-nosnippet>333</a>          b0():
-<a href=#334 id=334 data-nosnippet>334</a>            call f2()
-<a href=#335 id=335 data-nosnippet>335</a>            return
-<a href=#336 id=336 data-nosnippet>336</a>        }
-<a href=#337 id=337 data-nosnippet>337</a>        brillig(inline) fn ping f2 {
-<a href=#338 id=338 data-nosnippet>338</a>          b0():
-<a href=#339 id=339 data-nosnippet>339</a>            call f3()
-<a href=#340 id=340 data-nosnippet>340</a>            return
-<a href=#341 id=341 data-nosnippet>341</a>        }
-<a href=#342 id=342 data-nosnippet>342</a>        brillig(inline) fn pong f3 {
-<a href=#343 id=343 data-nosnippet>343</a>          b0():
-<a href=#344 id=344 data-nosnippet>344</a>            call f2()
-<a href=#345 id=345 data-nosnippet>345</a>            return
-<a href=#346 id=346 data-nosnippet>346</a>        }
-<a href=#347 id=347 data-nosnippet>347</a>        "</span>;
-<a href=#348 id=348 data-nosnippet>348</a>
-<a href=#349 id=349 data-nosnippet>349</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-<a href=#350 id=350 data-nosnippet>350</a>        <span class="kw">let </span>call_graph = CallGraph::from_ssa_weighted(<span class="kw-2">&amp;</span>ssa);
-<a href=#351 id=351 data-nosnippet>351</a>        <span class="kw">let </span>recursive_functions = call_graph.get_recursive_functions();
-<a href=#352 id=352 data-nosnippet>352</a>
-<a href=#353 id=353 data-nosnippet>353</a>        <span class="macro">assert_eq!</span>(recursive_functions.len(), <span class="number">2</span>);
-<a href=#354 id=354 data-nosnippet>354</a>        <span class="macro">assert!</span>(recursive_functions.contains(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">2</span>)));
-<a href=#355 id=355 data-nosnippet>355</a>        <span class="macro">assert!</span>(recursive_functions.contains(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">3</span>)));
-<a href=#356 id=356 data-nosnippet>356</a>    }
-<a href=#357 id=357 data-nosnippet>357</a>
-<a href=#358 id=358 data-nosnippet>358</a>    <span class="attr">#[test]
-<a href=#359 id=359 data-nosnippet>359</a>    </span><span class="kw">fn </span>mark_multiple_independent_recursion_cycles() {
-<a href=#360 id=360 data-nosnippet>360</a>        <span class="comment">// This test is an expanded version of `mark_mutually_recursive_functions` where we have multiple recursive cycles.
-<a href=#361 id=361 data-nosnippet>361</a>        </span><span class="kw">let </span>src = <span class="string">"
-<a href=#362 id=362 data-nosnippet>362</a>        acir(inline) fn main f0 {
-<a href=#363 id=363 data-nosnippet>363</a>          b0():
-<a href=#364 id=364 data-nosnippet>364</a>            call f1()
-<a href=#365 id=365 data-nosnippet>365</a>            call f4()
-<a href=#366 id=366 data-nosnippet>366</a>            return
-<a href=#367 id=367 data-nosnippet>367</a>        }
-<a href=#368 id=368 data-nosnippet>368</a>        // First recursive cycle: f1 -&gt; f2 -&gt; f3 -&gt; f1
-<a href=#369 id=369 data-nosnippet>369</a>        brillig(inline) fn starter f1 {
-<a href=#370 id=370 data-nosnippet>370</a>          b0():
-<a href=#371 id=371 data-nosnippet>371</a>            call f2()
-<a href=#372 id=372 data-nosnippet>372</a>            return
-<a href=#373 id=373 data-nosnippet>373</a>        }
-<a href=#374 id=374 data-nosnippet>374</a>        brillig(inline) fn ping f2 {
-<a href=#375 id=375 data-nosnippet>375</a>          b0():
-<a href=#376 id=376 data-nosnippet>376</a>            call f3()
-<a href=#377 id=377 data-nosnippet>377</a>            return
-<a href=#378 id=378 data-nosnippet>378</a>        }
-<a href=#379 id=379 data-nosnippet>379</a>        brillig(inline) fn pong f3 {
-<a href=#380 id=380 data-nosnippet>380</a>          b0():
-<a href=#381 id=381 data-nosnippet>381</a>            call f1()
-<a href=#382 id=382 data-nosnippet>382</a>            return
-<a href=#383 id=383 data-nosnippet>383</a>        }
-<a href=#384 id=384 data-nosnippet>384</a>        // Second recursive cycle: f4 &lt;-&gt; f5
-<a href=#385 id=385 data-nosnippet>385</a>        brillig(inline) fn foo f4 {
-<a href=#386 id=386 data-nosnippet>386</a>          b0():
-<a href=#387 id=387 data-nosnippet>387</a>            call f5()
-<a href=#388 id=388 data-nosnippet>388</a>            return
-<a href=#389 id=389 data-nosnippet>389</a>        }
-<a href=#390 id=390 data-nosnippet>390</a>        brillig(inline) fn bar f5 {
-<a href=#391 id=391 data-nosnippet>391</a>          b0():
-<a href=#392 id=392 data-nosnippet>392</a>            call f4()
-<a href=#393 id=393 data-nosnippet>393</a>            return
-<a href=#394 id=394 data-nosnippet>394</a>        }
-<a href=#395 id=395 data-nosnippet>395</a>        // Non-recursive leaf function
-<a href=#396 id=396 data-nosnippet>396</a>        brillig(inline) fn baz f6 {
-<a href=#397 id=397 data-nosnippet>397</a>          b0(): 
-<a href=#398 id=398 data-nosnippet>398</a>            return
-<a href=#399 id=399 data-nosnippet>399</a>        }
-<a href=#400 id=400 data-nosnippet>400</a>        "</span>;
-<a href=#401 id=401 data-nosnippet>401</a>
-<a href=#402 id=402 data-nosnippet>402</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-<a href=#403 id=403 data-nosnippet>403</a>        <span class="kw">let </span>call_graph = CallGraph::from_ssa_weighted(<span class="kw-2">&amp;</span>ssa);
-<a href=#404 id=404 data-nosnippet>404</a>        <span class="kw">let </span>recursive_functions = call_graph.get_recursive_functions();
-<a href=#405 id=405 data-nosnippet>405</a>
-<a href=#406 id=406 data-nosnippet>406</a>        <span class="comment">// There should be 5 recursive functions: f1, f2, f3 (cycle 1), and f4, f5 (cycle 2)
-<a href=#407 id=407 data-nosnippet>407</a>        </span><span class="kw">let </span>expected_recursive_ids = [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>, <span class="number">5</span>].map(Id::test_new).to_vec();
-<a href=#408 id=408 data-nosnippet>408</a>
-<a href=#409 id=409 data-nosnippet>409</a>        <span class="macro">assert_eq!</span>(
-<a href=#410 id=410 data-nosnippet>410</a>            recursive_functions.len(),
-<a href=#411 id=411 data-nosnippet>411</a>            expected_recursive_ids.len(),
-<a href=#412 id=412 data-nosnippet>412</a>            <span class="string">"Expected {} recursive functions"</span>,
-<a href=#413 id=413 data-nosnippet>413</a>            expected_recursive_ids.len()
-<a href=#414 id=414 data-nosnippet>414</a>        );
-<a href=#415 id=415 data-nosnippet>415</a>
-<a href=#416 id=416 data-nosnippet>416</a>        <span class="kw">for </span>func_id <span class="kw">in </span>expected_recursive_ids {
-<a href=#417 id=417 data-nosnippet>417</a>            <span class="macro">assert!</span>(
-<a href=#418 id=418 data-nosnippet>418</a>                recursive_functions.contains(<span class="kw-2">&amp;</span>func_id),
-<a href=#419 id=419 data-nosnippet>419</a>                <span class="string">"Function {func_id} should be marked recursive"</span>,
-<a href=#420 id=420 data-nosnippet>420</a>            );
-<a href=#421 id=421 data-nosnippet>421</a>        }
+<a href=#252 id=252 data-nosnippet>252</a>    /// Returns a map with one entry per function in `reachable`:
+<a href=#253 id=253 data-nosnippet>253</a>    /// - `None` — the function is recursive or reachable from a recursive function, so its
+<a href=#254 id=254 data-nosnippet>254</a>    ///   call depth is unbounded.
+<a href=#255 id=255 data-nosnippet>255</a>    /// - `Some(d)` — the deepest position in the call stack where this function can appear,
+<a href=#256 id=256 data-nosnippet>256</a>    ///   counting from 1 for entry-point functions (those with no callers inside `reachable`).
+<a href=#257 id=257 data-nosnippet>257</a>    ///
+<a href=#258 id=258 data-nosnippet>258</a>    /// The algorithm proceeds in two phases:
+<a href=#259 id=259 data-nosnippet>259</a>    /// 1. Forward BFS from every recursive function through its callees to build the "tainted"
+<a href=#260 id=260 data-nosnippet>260</a>    ///    set. Every tainted function receives `None`.
+<a href=#261 id=261 data-nosnippet>261</a>    /// 2. The remaining functions form a DAG (all cycles involve tainted nodes). Traversing nodes
+<a href=#262 id=262 data-nosnippet>262</a>    ///    in topological order, we compute the longest caller-to-callee path, giving each function its
+<a href=#263 id=263 data-nosnippet>263</a>    ///    worst-case depth.
+<a href=#264 id=264 data-nosnippet>264</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>max_call_depths(
+<a href=#265 id=265 data-nosnippet>265</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#266 id=266 data-nosnippet>266</a>        reachable: <span class="kw-2">&amp;</span>BTreeSet&lt;FunctionId&gt;,
+<a href=#267 id=267 data-nosnippet>267</a>    ) -&gt; BTreeMap&lt;FunctionId, <span class="prelude-ty">Option</span>&lt;usize&gt;&gt; {
+<a href=#268 id=268 data-nosnippet>268</a>        <span class="kw">let </span>recursive = <span class="self">self</span>.get_recursive_functions();
+<a href=#269 id=269 data-nosnippet>269</a>
+<a href=#270 id=270 data-nosnippet>270</a>        <span class="comment">// Phase 1: forward-propagate "unbounded" through callees.
+<a href=#271 id=271 data-nosnippet>271</a>        // Any function reachable (via calls) from a recursive function is also unbounded.
+<a href=#272 id=272 data-nosnippet>272</a>        </span><span class="kw">let </span>tainted = <span class="self">self</span>.reachable_from(recursive);
+<a href=#273 id=273 data-nosnippet>273</a>
+<a href=#274 id=274 data-nosnippet>274</a>        <span class="comment">// Phase 2: compute max depth for non-tainted functions using topological BFS.
+<a href=#275 id=275 data-nosnippet>275</a>        // We only count callers that are themselves inside `reachable` and not tainted.
+<a href=#276 id=276 data-nosnippet>276</a>
+<a href=#277 id=277 data-nosnippet>277</a>        // Select only the nodes which are not reachable from recursive functions.
+<a href=#278 id=278 data-nosnippet>278</a>        </span><span class="kw">let </span>non_tainted = <span class="self">self</span>.build_acyclic_subgraph(<span class="kw-2">&amp;</span>tainted);
+<a href=#279 id=279 data-nosnippet>279</a>
+<a href=#280 id=280 data-nosnippet>280</a>        <span class="comment">// Sort them topologically, so we can propagate the call depth from entries to leaves.
+<a href=#281 id=281 data-nosnippet>281</a>        </span><span class="kw">let </span>topological_order = petgraph::algo::toposort(non_tainted.graph(), <span class="prelude-val">None</span>).unwrap();
+<a href=#282 id=282 data-nosnippet>282</a>
+<a href=#283 id=283 data-nosnippet>283</a>        <span class="comment">// The call depth of each function, to be filled out in the order we encounter them.
+<a href=#284 id=284 data-nosnippet>284</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>depths: HashMap&lt;FunctionId, usize&gt; = HashMap::default();
+<a href=#285 id=285 data-nosnippet>285</a>
+<a href=#286 id=286 data-nosnippet>286</a>        <span class="kw">for </span>f_index <span class="kw">in </span>topological_order {
+<a href=#287 id=287 data-nosnippet>287</a>            <span class="kw">let </span>f_id = non_tainted.indices_to_ids[<span class="kw-2">&amp;</span>f_index];
+<a href=#288 id=288 data-nosnippet>288</a>            <span class="kw">if </span>!reachable.contains(<span class="kw-2">&amp;</span>f_id) {
+<a href=#289 id=289 data-nosnippet>289</a>                <span class="kw">continue</span>;
+<a href=#290 id=290 data-nosnippet>290</a>            }
+<a href=#291 id=291 data-nosnippet>291</a>            <span class="comment">// If this is the first time we reach a function, treat as a top level one with a depth of 1.
+<a href=#292 id=292 data-nosnippet>292</a>            </span><span class="kw">let </span>f_depth = <span class="kw-2">*</span>depths.entry(f_id).or_insert(<span class="number">1</span>);
+<a href=#293 id=293 data-nosnippet>293</a>            <span class="comment">// Propagate the depth to each callee before visiting them.
+<a href=#294 id=294 data-nosnippet>294</a>            </span><span class="kw">for </span>edge <span class="kw">in </span>non_tainted.graph.edges(f_index) {
+<a href=#295 id=295 data-nosnippet>295</a>                <span class="kw">let </span>callee_id = non_tainted.indices_to_ids[<span class="kw-2">&amp;</span>edge.target()];
+<a href=#296 id=296 data-nosnippet>296</a>                <span class="kw">if </span>!reachable.contains(<span class="kw-2">&amp;</span>callee_id) {
+<a href=#297 id=297 data-nosnippet>297</a>                    <span class="kw">continue</span>;
+<a href=#298 id=298 data-nosnippet>298</a>                }
+<a href=#299 id=299 data-nosnippet>299</a>                <span class="comment">// Keep the maximum depth seen so far for this callee.
+<a href=#300 id=300 data-nosnippet>300</a>                </span><span class="kw">let </span>callee_depth = depths.entry(callee_id).or_insert(<span class="number">0</span>);
+<a href=#301 id=301 data-nosnippet>301</a>                <span class="kw-2">*</span>callee_depth = (<span class="kw-2">*</span>callee_depth).max(f_depth + <span class="number">1</span>);
+<a href=#302 id=302 data-nosnippet>302</a>            }
+<a href=#303 id=303 data-nosnippet>303</a>        }
+<a href=#304 id=304 data-nosnippet>304</a>
+<a href=#305 id=305 data-nosnippet>305</a>        <span class="comment">// Assemble the final result.
+<a href=#306 id=306 data-nosnippet>306</a>        </span>reachable
+<a href=#307 id=307 data-nosnippet>307</a>            .iter()
+<a href=#308 id=308 data-nosnippet>308</a>            .map(|f| {
+<a href=#309 id=309 data-nosnippet>309</a>                <span class="kw">if </span>tainted.contains(f) {
+<a href=#310 id=310 data-nosnippet>310</a>                    (<span class="kw-2">*</span>f, <span class="prelude-val">None</span>)
+<a href=#311 id=311 data-nosnippet>311</a>                } <span class="kw">else if let </span><span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>d) = depths.get(f) {
+<a href=#312 id=312 data-nosnippet>312</a>                    (<span class="kw-2">*</span>f, <span class="prelude-val">Some</span>(d))
+<a href=#313 id=313 data-nosnippet>313</a>                } <span class="kw">else </span>{
+<a href=#314 id=314 data-nosnippet>314</a>                    <span class="comment">// If a non-tainted function has no entry in `depths` it was unreachable within
+<a href=#315 id=315 data-nosnippet>315</a>                    // the non-tainted subgraph (e.g. dead code); treat it as depth 1.
+<a href=#316 id=316 data-nosnippet>316</a>                    </span>(<span class="kw-2">*</span>f, <span class="prelude-val">Some</span>(<span class="number">1</span>))
+<a href=#317 id=317 data-nosnippet>317</a>                }
+<a href=#318 id=318 data-nosnippet>318</a>            })
+<a href=#319 id=319 data-nosnippet>319</a>            .collect()
+<a href=#320 id=320 data-nosnippet>320</a>    }
+<a href=#321 id=321 data-nosnippet>321</a>
+<a href=#322 id=322 data-nosnippet>322</a>    <span class="doccomment">/// Returns all functions reachable from the provided root(s).
+<a href=#323 id=323 data-nosnippet>323</a>    ///
+<a href=#324 id=324 data-nosnippet>324</a>    /// This function uses DFS internally to find all nodes reachable from the provided root(s).
+<a href=#325 id=325 data-nosnippet>325</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>reachable_from(
+<a href=#326 id=326 data-nosnippet>326</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#327 id=327 data-nosnippet>327</a>        roots: <span class="kw">impl </span>IntoIterator&lt;Item = FunctionId&gt;,
+<a href=#328 id=328 data-nosnippet>328</a>    ) -&gt; HashSet&lt;FunctionId&gt; {
+<a href=#329 id=329 data-nosnippet>329</a>        <span class="kw">let </span><span class="kw-2">mut </span>reachable = HashSet::default();
+<a href=#330 id=330 data-nosnippet>330</a>
+<a href=#331 id=331 data-nosnippet>331</a>        <span class="kw">for </span>root <span class="kw">in </span>roots {
+<a href=#332 id=332 data-nosnippet>332</a>            <span class="comment">// If the root does not exist, skip it.
+<a href=#333 id=333 data-nosnippet>333</a>            </span><span class="kw">let </span><span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>start_index) = <span class="self">self</span>.ids_to_indices.get(<span class="kw-2">&amp;</span>root) <span class="kw">else </span>{
+<a href=#334 id=334 data-nosnippet>334</a>                <span class="kw">continue</span>;
+<a href=#335 id=335 data-nosnippet>335</a>            };
+<a href=#336 id=336 data-nosnippet>336</a>            <span class="comment">// Use DFS to determine all reachable nodes from the root
+<a href=#337 id=337 data-nosnippet>337</a>            </span><span class="kw">let </span>dfs = Dfs::new(<span class="kw-2">&amp;</span><span class="self">self</span>.graph, start_index);
+<a href=#338 id=338 data-nosnippet>338</a>            reachable.extend(dfs.iter(<span class="kw-2">&amp;</span><span class="self">self</span>.graph).map(|index| <span class="self">self</span>.indices_to_ids[<span class="kw-2">&amp;</span>index]));
+<a href=#339 id=339 data-nosnippet>339</a>        }
+<a href=#340 id=340 data-nosnippet>340</a>
+<a href=#341 id=341 data-nosnippet>341</a>        reachable
+<a href=#342 id=342 data-nosnippet>342</a>    }
+<a href=#343 id=343 data-nosnippet>343</a>}
+<a href=#344 id=344 data-nosnippet>344</a>
+<a href=#345 id=345 data-nosnippet>345</a><span class="doccomment">/// Utility function to find out the direct calls of a function.
+<a href=#346 id=346 data-nosnippet>346</a>///
+<a href=#347 id=347 data-nosnippet>347</a>/// Returns the function IDs from all `Call` instructions without deduplication.
+<a href=#348 id=348 data-nosnippet>348</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>called_functions_vec(func: <span class="kw-2">&amp;</span>Function) -&gt; Vec&lt;FunctionId&gt; {
+<a href=#349 id=349 data-nosnippet>349</a>    <span class="kw">let </span><span class="kw-2">mut </span>called_function_ids = Vec::new();
+<a href=#350 id=350 data-nosnippet>350</a>    <span class="kw">for </span>block_id <span class="kw">in </span>func.reachable_blocks() {
+<a href=#351 id=351 data-nosnippet>351</a>        <span class="kw">for </span>instruction_id <span class="kw">in </span>func.dfg[block_id].instructions() {
+<a href=#352 id=352 data-nosnippet>352</a>            <span class="kw">let </span>Instruction::Call { func: called_value_id, .. } = <span class="kw-2">&amp;</span>func.dfg[<span class="kw-2">*</span>instruction_id] <span class="kw">else </span>{
+<a href=#353 id=353 data-nosnippet>353</a>                <span class="kw">continue</span>;
+<a href=#354 id=354 data-nosnippet>354</a>            };
+<a href=#355 id=355 data-nosnippet>355</a>
+<a href=#356 id=356 data-nosnippet>356</a>            <span class="kw">if let </span>Value::Function(function_id) = func.dfg[<span class="kw-2">*</span>called_value_id] {
+<a href=#357 id=357 data-nosnippet>357</a>                called_function_ids.push(function_id);
+<a href=#358 id=358 data-nosnippet>358</a>            }
+<a href=#359 id=359 data-nosnippet>359</a>        }
+<a href=#360 id=360 data-nosnippet>360</a>    }
+<a href=#361 id=361 data-nosnippet>361</a>
+<a href=#362 id=362 data-nosnippet>362</a>    called_function_ids
+<a href=#363 id=363 data-nosnippet>363</a>}
+<a href=#364 id=364 data-nosnippet>364</a>
+<a href=#365 id=365 data-nosnippet>365</a><span class="doccomment">/// Utility function to find out the deduplicated direct calls made from a function.
+<a href=#366 id=366 data-nosnippet>366</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>called_functions(func: <span class="kw-2">&amp;</span>Function) -&gt; BTreeSet&lt;FunctionId&gt; {
+<a href=#367 id=367 data-nosnippet>367</a>    called_functions_vec(func).into_iter().collect()
+<a href=#368 id=368 data-nosnippet>368</a>}
+<a href=#369 id=369 data-nosnippet>369</a>
+<a href=#370 id=370 data-nosnippet>370</a><span class="doccomment">/// Compute for each function the set of functions called by it, and how many times it does so.
+<a href=#371 id=371 data-nosnippet>371</a></span><span class="kw">fn </span>compute_callees(ssa: <span class="kw-2">&amp;</span>Ssa) -&gt; BTreeMap&lt;FunctionId, BTreeMap&lt;FunctionId, usize&gt;&gt; {
+<a href=#372 id=372 data-nosnippet>372</a>    ssa.functions
+<a href=#373 id=373 data-nosnippet>373</a>        .iter()
+<a href=#374 id=374 data-nosnippet>374</a>        .flat_map(|(caller_id, function)| {
+<a href=#375 id=375 data-nosnippet>375</a>            <span class="kw">let </span>called_functions = called_functions_vec(function);
+<a href=#376 id=376 data-nosnippet>376</a>            called_functions.into_iter().map(|callee_id| (<span class="kw-2">*</span>caller_id, callee_id))
+<a href=#377 id=377 data-nosnippet>377</a>        })
+<a href=#378 id=378 data-nosnippet>378</a>        .fold(
+<a href=#379 id=379 data-nosnippet>379</a>            <span class="comment">// Make sure an entry exists even for ones that don't call anything.
+<a href=#380 id=380 data-nosnippet>380</a>            </span>ssa.functions.keys().map(|id| (<span class="kw-2">*</span>id, BTreeMap::new())).collect(),
+<a href=#381 id=381 data-nosnippet>381</a>            |<span class="kw-2">mut </span>acc, (caller_id, callee_id)| {
+<a href=#382 id=382 data-nosnippet>382</a>                <span class="kw">let </span>callees = acc.entry(caller_id).or_default();
+<a href=#383 id=383 data-nosnippet>383</a>                <span class="kw-2">*</span>callees.entry(callee_id).or_default() += <span class="number">1</span>;
+<a href=#384 id=384 data-nosnippet>384</a>                acc
+<a href=#385 id=385 data-nosnippet>385</a>            },
+<a href=#386 id=386 data-nosnippet>386</a>        )
+<a href=#387 id=387 data-nosnippet>387</a>}
+<a href=#388 id=388 data-nosnippet>388</a>
+<a href=#389 id=389 data-nosnippet>389</a><span class="attr">#[cfg(test)]
+<a href=#390 id=390 data-nosnippet>390</a></span><span class="kw">mod </span>tests {
+<a href=#391 id=391 data-nosnippet>391</a>    <span class="kw">use </span>std::collections::BTreeSet;
+<a href=#392 id=392 data-nosnippet>392</a>
+<a href=#393 id=393 data-nosnippet>393</a>    <span class="kw">use </span><span class="kw">crate</span>::ssa::{
+<a href=#394 id=394 data-nosnippet>394</a>        ir::{call_graph::CallGraph, map::Id},
+<a href=#395 id=395 data-nosnippet>395</a>        ssa_gen::Ssa,
+<a href=#396 id=396 data-nosnippet>396</a>    };
+<a href=#397 id=397 data-nosnippet>397</a>
+<a href=#398 id=398 data-nosnippet>398</a>    <span class="attr">#[test]
+<a href=#399 id=399 data-nosnippet>399</a>    </span><span class="kw">fn </span>mark_mutually_recursive_functions() {
+<a href=#400 id=400 data-nosnippet>400</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#401 id=401 data-nosnippet>401</a>        acir(inline) fn main f0 {
+<a href=#402 id=402 data-nosnippet>402</a>          b0():
+<a href=#403 id=403 data-nosnippet>403</a>            call f1()
+<a href=#404 id=404 data-nosnippet>404</a>            return
+<a href=#405 id=405 data-nosnippet>405</a>        }
+<a href=#406 id=406 data-nosnippet>406</a>        brillig(inline) fn starter f1 {
+<a href=#407 id=407 data-nosnippet>407</a>          b0():
+<a href=#408 id=408 data-nosnippet>408</a>            call f2()
+<a href=#409 id=409 data-nosnippet>409</a>            return
+<a href=#410 id=410 data-nosnippet>410</a>        }
+<a href=#411 id=411 data-nosnippet>411</a>        brillig(inline) fn ping f2 {
+<a href=#412 id=412 data-nosnippet>412</a>          b0():
+<a href=#413 id=413 data-nosnippet>413</a>            call f3()
+<a href=#414 id=414 data-nosnippet>414</a>            return
+<a href=#415 id=415 data-nosnippet>415</a>        }
+<a href=#416 id=416 data-nosnippet>416</a>        brillig(inline) fn pong f3 {
+<a href=#417 id=417 data-nosnippet>417</a>          b0():
+<a href=#418 id=418 data-nosnippet>418</a>            call f2()
+<a href=#419 id=419 data-nosnippet>419</a>            return
+<a href=#420 id=420 data-nosnippet>420</a>        }
+<a href=#421 id=421 data-nosnippet>421</a>        "</span>;
 <a href=#422 id=422 data-nosnippet>422</a>
-<a href=#423 id=423 data-nosnippet>423</a>        <span class="comment">// f6 should not be marked recursive
-<a href=#424 id=424 data-nosnippet>424</a>        </span><span class="macro">assert!</span>(!recursive_functions.contains(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">6</span>)));
-<a href=#425 id=425 data-nosnippet>425</a>    }
+<a href=#423 id=423 data-nosnippet>423</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#424 id=424 data-nosnippet>424</a>        <span class="kw">let </span>call_graph = CallGraph::from_ssa_weighted(<span class="kw-2">&amp;</span>ssa);
+<a href=#425 id=425 data-nosnippet>425</a>        <span class="kw">let </span>recursive_functions = call_graph.get_recursive_functions();
 <a href=#426 id=426 data-nosnippet>426</a>
-<a href=#427 id=427 data-nosnippet>427</a>    <span class="attr">#[test]
-<a href=#428 id=428 data-nosnippet>428</a>    </span><span class="kw">fn </span>mark_self_recursive_function() {
-<a href=#429 id=429 data-nosnippet>429</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#430 id=430 data-nosnippet>430</a>        acir(inline) fn main f0 {
-<a href=#431 id=431 data-nosnippet>431</a>          b0():
-<a href=#432 id=432 data-nosnippet>432</a>            call f1()
-<a href=#433 id=433 data-nosnippet>433</a>            return
-<a href=#434 id=434 data-nosnippet>434</a>        }
-<a href=#435 id=435 data-nosnippet>435</a>        brillig(inline) fn self_recur f1 {
-<a href=#436 id=436 data-nosnippet>436</a>          b0():
-<a href=#437 id=437 data-nosnippet>437</a>            call f1()
-<a href=#438 id=438 data-nosnippet>438</a>            return
-<a href=#439 id=439 data-nosnippet>439</a>        }
-<a href=#440 id=440 data-nosnippet>440</a>        "</span>;
-<a href=#441 id=441 data-nosnippet>441</a>
-<a href=#442 id=442 data-nosnippet>442</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-<a href=#443 id=443 data-nosnippet>443</a>        <span class="kw">let </span>call_graph = CallGraph::from_ssa_weighted(<span class="kw-2">&amp;</span>ssa);
-<a href=#444 id=444 data-nosnippet>444</a>        <span class="kw">let </span>recursive_functions = call_graph.get_recursive_functions();
-<a href=#445 id=445 data-nosnippet>445</a>
-<a href=#446 id=446 data-nosnippet>446</a>        <span class="macro">assert_eq!</span>(recursive_functions.len(), <span class="number">1</span>);
-<a href=#447 id=447 data-nosnippet>447</a>        <span class="macro">assert!</span>(recursive_functions.contains(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">1</span>)));
-<a href=#448 id=448 data-nosnippet>448</a>    }
-<a href=#449 id=449 data-nosnippet>449</a>
-<a href=#450 id=450 data-nosnippet>450</a>    <span class="attr">#[test]
-<a href=#451 id=451 data-nosnippet>451</a>    </span><span class="kw">fn </span>self_recursive_and_calls_others() {
-<a href=#452 id=452 data-nosnippet>452</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#453 id=453 data-nosnippet>453</a>        acir(inline) fn main f0 {
-<a href=#454 id=454 data-nosnippet>454</a>          b0(): 
+<a href=#427 id=427 data-nosnippet>427</a>        <span class="macro">assert_eq!</span>(recursive_functions.len(), <span class="number">2</span>);
+<a href=#428 id=428 data-nosnippet>428</a>        <span class="macro">assert!</span>(recursive_functions.contains(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">2</span>)));
+<a href=#429 id=429 data-nosnippet>429</a>        <span class="macro">assert!</span>(recursive_functions.contains(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">3</span>)));
+<a href=#430 id=430 data-nosnippet>430</a>    }
+<a href=#431 id=431 data-nosnippet>431</a>
+<a href=#432 id=432 data-nosnippet>432</a>    <span class="attr">#[test]
+<a href=#433 id=433 data-nosnippet>433</a>    </span><span class="kw">fn </span>mark_multiple_independent_recursion_cycles() {
+<a href=#434 id=434 data-nosnippet>434</a>        <span class="comment">// This test is an expanded version of `mark_mutually_recursive_functions` where we have multiple recursive cycles.
+<a href=#435 id=435 data-nosnippet>435</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#436 id=436 data-nosnippet>436</a>        acir(inline) fn main f0 {
+<a href=#437 id=437 data-nosnippet>437</a>          b0():
+<a href=#438 id=438 data-nosnippet>438</a>            call f1()
+<a href=#439 id=439 data-nosnippet>439</a>            call f4()
+<a href=#440 id=440 data-nosnippet>440</a>            return
+<a href=#441 id=441 data-nosnippet>441</a>        }
+<a href=#442 id=442 data-nosnippet>442</a>        // First recursive cycle: f1 -&gt; f2 -&gt; f3 -&gt; f1
+<a href=#443 id=443 data-nosnippet>443</a>        brillig(inline) fn starter f1 {
+<a href=#444 id=444 data-nosnippet>444</a>          b0():
+<a href=#445 id=445 data-nosnippet>445</a>            call f2()
+<a href=#446 id=446 data-nosnippet>446</a>            return
+<a href=#447 id=447 data-nosnippet>447</a>        }
+<a href=#448 id=448 data-nosnippet>448</a>        brillig(inline) fn ping f2 {
+<a href=#449 id=449 data-nosnippet>449</a>          b0():
+<a href=#450 id=450 data-nosnippet>450</a>            call f3()
+<a href=#451 id=451 data-nosnippet>451</a>            return
+<a href=#452 id=452 data-nosnippet>452</a>        }
+<a href=#453 id=453 data-nosnippet>453</a>        brillig(inline) fn pong f3 {
+<a href=#454 id=454 data-nosnippet>454</a>          b0():
 <a href=#455 id=455 data-nosnippet>455</a>            call f1()
 <a href=#456 id=456 data-nosnippet>456</a>            return
 <a href=#457 id=457 data-nosnippet>457</a>        }
-<a href=#458 id=458 data-nosnippet>458</a>        brillig(inline) fn self_recur f1 {
-<a href=#459 id=459 data-nosnippet>459</a>          b0():
-<a href=#460 id=460 data-nosnippet>460</a>            call f1()
-<a href=#461 id=461 data-nosnippet>461</a>            call f2()
+<a href=#458 id=458 data-nosnippet>458</a>        // Second recursive cycle: f4 &lt;-&gt; f5
+<a href=#459 id=459 data-nosnippet>459</a>        brillig(inline) fn foo f4 {
+<a href=#460 id=460 data-nosnippet>460</a>          b0():
+<a href=#461 id=461 data-nosnippet>461</a>            call f5()
 <a href=#462 id=462 data-nosnippet>462</a>            return
 <a href=#463 id=463 data-nosnippet>463</a>        }
-<a href=#464 id=464 data-nosnippet>464</a>        brillig(inline) fn foo f2 {
-<a href=#465 id=465 data-nosnippet>465</a>          b0(): 
-<a href=#466 id=466 data-nosnippet>466</a>            return
-<a href=#467 id=467 data-nosnippet>467</a>        }
-<a href=#468 id=468 data-nosnippet>468</a>        "</span>;
-<a href=#469 id=469 data-nosnippet>469</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-<a href=#470 id=470 data-nosnippet>470</a>        <span class="kw">let </span>call_graph = CallGraph::from_ssa_weighted(<span class="kw-2">&amp;</span>ssa);
-<a href=#471 id=471 data-nosnippet>471</a>
-<a href=#472 id=472 data-nosnippet>472</a>        <span class="kw">let </span>f0 = Id::test_new(<span class="number">0</span>);
-<a href=#473 id=473 data-nosnippet>473</a>        <span class="kw">let </span>f1 = Id::test_new(<span class="number">1</span>);
-<a href=#474 id=474 data-nosnippet>474</a>        <span class="kw">let </span>f2 = Id::test_new(<span class="number">2</span>);
+<a href=#464 id=464 data-nosnippet>464</a>        brillig(inline) fn bar f5 {
+<a href=#465 id=465 data-nosnippet>465</a>          b0():
+<a href=#466 id=466 data-nosnippet>466</a>            call f4()
+<a href=#467 id=467 data-nosnippet>467</a>            return
+<a href=#468 id=468 data-nosnippet>468</a>        }
+<a href=#469 id=469 data-nosnippet>469</a>        // Non-recursive leaf function
+<a href=#470 id=470 data-nosnippet>470</a>        brillig(inline) fn baz f6 {
+<a href=#471 id=471 data-nosnippet>471</a>          b0():
+<a href=#472 id=472 data-nosnippet>472</a>            return
+<a href=#473 id=473 data-nosnippet>473</a>        }
+<a href=#474 id=474 data-nosnippet>474</a>        "</span>;
 <a href=#475 id=475 data-nosnippet>475</a>
-<a href=#476 id=476 data-nosnippet>476</a>        <span class="kw">let </span>recursive = call_graph.get_recursive_functions();
-<a href=#477 id=477 data-nosnippet>477</a>        <span class="macro">assert!</span>(recursive.contains(<span class="kw-2">&amp;</span>f1));
-<a href=#478 id=478 data-nosnippet>478</a>        <span class="macro">assert!</span>(!recursive.contains(<span class="kw-2">&amp;</span>f0));
-<a href=#479 id=479 data-nosnippet>479</a>        <span class="macro">assert!</span>(!recursive.contains(<span class="kw-2">&amp;</span>f2));
-<a href=#480 id=480 data-nosnippet>480</a>
-<a href=#481 id=481 data-nosnippet>481</a>        <span class="kw">let </span>callees = call_graph.callees();
-<a href=#482 id=482 data-nosnippet>482</a>        <span class="kw">let </span>f1_callees = callees.get(<span class="kw-2">&amp;</span>f1).unwrap();
-<a href=#483 id=483 data-nosnippet>483</a>        <span class="macro">assert_eq!</span>(f1_callees.len(), <span class="number">2</span>);
-<a href=#484 id=484 data-nosnippet>484</a>        <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>f1_callees.get(<span class="kw-2">&amp;</span>f1).unwrap(), <span class="number">1</span>, <span class="string">"f1 should call itself once"</span>);
-<a href=#485 id=485 data-nosnippet>485</a>        <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>f1_callees.get(<span class="kw-2">&amp;</span>f2).unwrap(), <span class="number">1</span>, <span class="string">"f1 should call f2 once"</span>);
-<a href=#486 id=486 data-nosnippet>486</a>
-<a href=#487 id=487 data-nosnippet>487</a>        <span class="kw">let </span>callers = call_graph.callers();
-<a href=#488 id=488 data-nosnippet>488</a>        <span class="kw">let </span>f1_callers = callers.get(<span class="kw-2">&amp;</span>f1).unwrap();
-<a href=#489 id=489 data-nosnippet>489</a>        <span class="macro">assert_eq!</span>(f1_callers.len(), <span class="number">2</span>);
-<a href=#490 id=490 data-nosnippet>490</a>        <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>f1_callers.get(<span class="kw-2">&amp;</span>f0).unwrap(), <span class="number">1</span>, <span class="string">"f0 calls f1 once"</span>);
-<a href=#491 id=491 data-nosnippet>491</a>        <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>f1_callers.get(<span class="kw-2">&amp;</span>f1).unwrap(), <span class="number">1</span>, <span class="string">"f1 calls itself once"</span>);
-<a href=#492 id=492 data-nosnippet>492</a>
-<a href=#493 id=493 data-nosnippet>493</a>        <span class="kw">let </span>f2_callers = callers.get(<span class="kw-2">&amp;</span>f2).unwrap();
-<a href=#494 id=494 data-nosnippet>494</a>        <span class="macro">assert_eq!</span>(f2_callers.len(), <span class="number">1</span>);
-<a href=#495 id=495 data-nosnippet>495</a>        <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>f2_callers.get(<span class="kw-2">&amp;</span>f1).unwrap(), <span class="number">1</span>, <span class="string">"f1 calls f2 once"</span>);
+<a href=#476 id=476 data-nosnippet>476</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#477 id=477 data-nosnippet>477</a>        <span class="kw">let </span>call_graph = CallGraph::from_ssa_weighted(<span class="kw-2">&amp;</span>ssa);
+<a href=#478 id=478 data-nosnippet>478</a>        <span class="kw">let </span>recursive_functions = call_graph.get_recursive_functions();
+<a href=#479 id=479 data-nosnippet>479</a>
+<a href=#480 id=480 data-nosnippet>480</a>        <span class="comment">// There should be 5 recursive functions: f1, f2, f3 (cycle 1), and f4, f5 (cycle 2)
+<a href=#481 id=481 data-nosnippet>481</a>        </span><span class="kw">let </span>expected_recursive_ids = [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>, <span class="number">5</span>].map(Id::test_new).to_vec();
+<a href=#482 id=482 data-nosnippet>482</a>
+<a href=#483 id=483 data-nosnippet>483</a>        <span class="macro">assert_eq!</span>(
+<a href=#484 id=484 data-nosnippet>484</a>            recursive_functions.len(),
+<a href=#485 id=485 data-nosnippet>485</a>            expected_recursive_ids.len(),
+<a href=#486 id=486 data-nosnippet>486</a>            <span class="string">"Expected {} recursive functions"</span>,
+<a href=#487 id=487 data-nosnippet>487</a>            expected_recursive_ids.len()
+<a href=#488 id=488 data-nosnippet>488</a>        );
+<a href=#489 id=489 data-nosnippet>489</a>
+<a href=#490 id=490 data-nosnippet>490</a>        <span class="kw">for </span>func_id <span class="kw">in </span>expected_recursive_ids {
+<a href=#491 id=491 data-nosnippet>491</a>            <span class="macro">assert!</span>(
+<a href=#492 id=492 data-nosnippet>492</a>                recursive_functions.contains(<span class="kw-2">&amp;</span>func_id),
+<a href=#493 id=493 data-nosnippet>493</a>                <span class="string">"Function {func_id} should be marked recursive"</span>,
+<a href=#494 id=494 data-nosnippet>494</a>            );
+<a href=#495 id=495 data-nosnippet>495</a>        }
 <a href=#496 id=496 data-nosnippet>496</a>
-<a href=#497 id=497 data-nosnippet>497</a>        <span class="kw">let </span>f2_callees = callees.get(<span class="kw-2">&amp;</span>f2).unwrap();
-<a href=#498 id=498 data-nosnippet>498</a>        <span class="macro">assert!</span>(f2_callees.is_empty(), <span class="string">"f2 should not call any functions"</span>);
-<a href=#499 id=499 data-nosnippet>499</a>
-<a href=#500 id=500 data-nosnippet>500</a>        <span class="kw">let </span>f0_callees = callees.get(<span class="kw-2">&amp;</span>f0).unwrap();
-<a href=#501 id=501 data-nosnippet>501</a>        <span class="macro">assert_eq!</span>(f0_callees.len(), <span class="number">1</span>);
-<a href=#502 id=502 data-nosnippet>502</a>        <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>f0_callees.get(<span class="kw-2">&amp;</span>f1).unwrap(), <span class="number">1</span>);
-<a href=#503 id=503 data-nosnippet>503</a>    }
-<a href=#504 id=504 data-nosnippet>504</a>
-<a href=#505 id=505 data-nosnippet>505</a>    <span class="attr">#[test]
-<a href=#506 id=506 data-nosnippet>506</a>    </span><span class="kw">fn </span>pure_self_recursive_function() {
-<a href=#507 id=507 data-nosnippet>507</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#508 id=508 data-nosnippet>508</a>        brillig(inline) fn self_recur f0 {
-<a href=#509 id=509 data-nosnippet>509</a>          b0(): 
-<a href=#510 id=510 data-nosnippet>510</a>            call f0()
-<a href=#511 id=511 data-nosnippet>511</a>            return
-<a href=#512 id=512 data-nosnippet>512</a>        }
-<a href=#513 id=513 data-nosnippet>513</a>        "</span>;
-<a href=#514 id=514 data-nosnippet>514</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-<a href=#515 id=515 data-nosnippet>515</a>        <span class="kw">let </span>call_graph = CallGraph::from_ssa_weighted(<span class="kw-2">&amp;</span>ssa);
-<a href=#516 id=516 data-nosnippet>516</a>
-<a href=#517 id=517 data-nosnippet>517</a>        <span class="kw">let </span>recursive = call_graph.get_recursive_functions();
-<a href=#518 id=518 data-nosnippet>518</a>        <span class="macro">assert!</span>(recursive.contains(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)));
+<a href=#497 id=497 data-nosnippet>497</a>        <span class="comment">// f6 should not be marked recursive
+<a href=#498 id=498 data-nosnippet>498</a>        </span><span class="macro">assert!</span>(!recursive_functions.contains(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">6</span>)));
+<a href=#499 id=499 data-nosnippet>499</a>    }
+<a href=#500 id=500 data-nosnippet>500</a>
+<a href=#501 id=501 data-nosnippet>501</a>    <span class="attr">#[test]
+<a href=#502 id=502 data-nosnippet>502</a>    </span><span class="kw">fn </span>mark_self_recursive_function() {
+<a href=#503 id=503 data-nosnippet>503</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#504 id=504 data-nosnippet>504</a>        acir(inline) fn main f0 {
+<a href=#505 id=505 data-nosnippet>505</a>          b0():
+<a href=#506 id=506 data-nosnippet>506</a>            call f1()
+<a href=#507 id=507 data-nosnippet>507</a>            return
+<a href=#508 id=508 data-nosnippet>508</a>        }
+<a href=#509 id=509 data-nosnippet>509</a>        brillig(inline) fn self_recur f1 {
+<a href=#510 id=510 data-nosnippet>510</a>          b0():
+<a href=#511 id=511 data-nosnippet>511</a>            call f1()
+<a href=#512 id=512 data-nosnippet>512</a>            return
+<a href=#513 id=513 data-nosnippet>513</a>        }
+<a href=#514 id=514 data-nosnippet>514</a>        "</span>;
+<a href=#515 id=515 data-nosnippet>515</a>
+<a href=#516 id=516 data-nosnippet>516</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#517 id=517 data-nosnippet>517</a>        <span class="kw">let </span>call_graph = CallGraph::from_ssa_weighted(<span class="kw-2">&amp;</span>ssa);
+<a href=#518 id=518 data-nosnippet>518</a>        <span class="kw">let </span>recursive_functions = call_graph.get_recursive_functions();
 <a href=#519 id=519 data-nosnippet>519</a>
-<a href=#520 id=520 data-nosnippet>520</a>        <span class="kw">let </span>callers = call_graph.callers();
-<a href=#521 id=521 data-nosnippet>521</a>        <span class="kw">let </span>f0_callers = callers.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)).unwrap();
-<a href=#522 id=522 data-nosnippet>522</a>        <span class="macro">assert_eq!</span>(f0_callers.len(), <span class="number">1</span>);
-<a href=#523 id=523 data-nosnippet>523</a>        <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>f0_callers.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)).unwrap(), <span class="number">1</span>);
-<a href=#524 id=524 data-nosnippet>524</a>    }
-<a href=#525 id=525 data-nosnippet>525</a>
-<a href=#526 id=526 data-nosnippet>526</a>    <span class="kw">fn </span>callers_and_callees_src() -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str {
-<a href=#527 id=527 data-nosnippet>527</a>        <span class="string">r#"
-<a href=#528 id=528 data-nosnippet>528</a>        acir(inline) fn main f0 {
-<a href=#529 id=529 data-nosnippet>529</a>          b0():
-<a href=#530 id=530 data-nosnippet>530</a>            call f1()
-<a href=#531 id=531 data-nosnippet>531</a>            call f1()
-<a href=#532 id=532 data-nosnippet>532</a>            call f2()
-<a href=#533 id=533 data-nosnippet>533</a>            return
-<a href=#534 id=534 data-nosnippet>534</a>        }
-<a href=#535 id=535 data-nosnippet>535</a>        acir(inline) fn foo f1 {
-<a href=#536 id=536 data-nosnippet>536</a>          b0():
-<a href=#537 id=537 data-nosnippet>537</a>            call f3()
-<a href=#538 id=538 data-nosnippet>538</a>            return
-<a href=#539 id=539 data-nosnippet>539</a>        }
-<a href=#540 id=540 data-nosnippet>540</a>        brillig(inline) fn bar f2 {
-<a href=#541 id=541 data-nosnippet>541</a>          b0():
-<a href=#542 id=542 data-nosnippet>542</a>            call f3()
-<a href=#543 id=543 data-nosnippet>543</a>            call f4()
-<a href=#544 id=544 data-nosnippet>544</a>            call f4()
-<a href=#545 id=545 data-nosnippet>545</a>            return
-<a href=#546 id=546 data-nosnippet>546</a>        }
-<a href=#547 id=547 data-nosnippet>547</a>        brillig(inline) fn baz f3 {
-<a href=#548 id=548 data-nosnippet>548</a>          b0():
-<a href=#549 id=549 data-nosnippet>549</a>            return
-<a href=#550 id=550 data-nosnippet>550</a>        }
-<a href=#551 id=551 data-nosnippet>551</a>        brillig(inline) fn qux f4 {
-<a href=#552 id=552 data-nosnippet>552</a>          b0():
-<a href=#553 id=553 data-nosnippet>553</a>            call f3()
-<a href=#554 id=554 data-nosnippet>554</a>            return
-<a href=#555 id=555 data-nosnippet>555</a>        }
-<a href=#556 id=556 data-nosnippet>556</a>        "#
-<a href=#557 id=557 data-nosnippet>557</a>    </span>}
-<a href=#558 id=558 data-nosnippet>558</a>
-<a href=#559 id=559 data-nosnippet>559</a>    <span class="attr">#[test]
-<a href=#560 id=560 data-nosnippet>560</a>    </span><span class="kw">fn </span>callers() {
-<a href=#561 id=561 data-nosnippet>561</a>        <span class="kw">let </span>ssa = Ssa::from_str(callers_and_callees_src()).unwrap();
-<a href=#562 id=562 data-nosnippet>562</a>        <span class="kw">let </span>call_graph = CallGraph::from_ssa_weighted(<span class="kw-2">&amp;</span>ssa);
-<a href=#563 id=563 data-nosnippet>563</a>        <span class="kw">let </span>callers = call_graph.callers();
-<a href=#564 id=564 data-nosnippet>564</a>
-<a href=#565 id=565 data-nosnippet>565</a>        <span class="kw">let </span>f0_callers = callers.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)).expect(<span class="string">"Should have callers"</span>);
-<a href=#566 id=566 data-nosnippet>566</a>        <span class="macro">assert!</span>(f0_callers.is_empty());
-<a href=#567 id=567 data-nosnippet>567</a>
-<a href=#568 id=568 data-nosnippet>568</a>        <span class="kw">let </span>f1_callers = callers.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">1</span>)).expect(<span class="string">"Should have callers"</span>);
-<a href=#569 id=569 data-nosnippet>569</a>        <span class="macro">assert_eq!</span>(f1_callers.len(), <span class="number">1</span>);
-<a href=#570 id=570 data-nosnippet>570</a>        <span class="kw">let </span>times_f1_called_by_f0 =
-<a href=#571 id=571 data-nosnippet>571</a>            <span class="kw-2">*</span>f1_callers.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)).expect(<span class="string">"Should have times called"</span>);
-<a href=#572 id=572 data-nosnippet>572</a>        <span class="macro">assert_eq!</span>(times_f1_called_by_f0, <span class="number">2</span>);
+<a href=#520 id=520 data-nosnippet>520</a>        <span class="macro">assert_eq!</span>(recursive_functions.len(), <span class="number">1</span>);
+<a href=#521 id=521 data-nosnippet>521</a>        <span class="macro">assert!</span>(recursive_functions.contains(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">1</span>)));
+<a href=#522 id=522 data-nosnippet>522</a>    }
+<a href=#523 id=523 data-nosnippet>523</a>
+<a href=#524 id=524 data-nosnippet>524</a>    <span class="attr">#[test]
+<a href=#525 id=525 data-nosnippet>525</a>    </span><span class="kw">fn </span>self_recursive_and_calls_others() {
+<a href=#526 id=526 data-nosnippet>526</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#527 id=527 data-nosnippet>527</a>        acir(inline) fn main f0 {
+<a href=#528 id=528 data-nosnippet>528</a>          b0():
+<a href=#529 id=529 data-nosnippet>529</a>            call f1()
+<a href=#530 id=530 data-nosnippet>530</a>            return
+<a href=#531 id=531 data-nosnippet>531</a>        }
+<a href=#532 id=532 data-nosnippet>532</a>        brillig(inline) fn self_recur f1 {
+<a href=#533 id=533 data-nosnippet>533</a>          b0():
+<a href=#534 id=534 data-nosnippet>534</a>            call f1()
+<a href=#535 id=535 data-nosnippet>535</a>            call f2()
+<a href=#536 id=536 data-nosnippet>536</a>            return
+<a href=#537 id=537 data-nosnippet>537</a>        }
+<a href=#538 id=538 data-nosnippet>538</a>        brillig(inline) fn foo f2 {
+<a href=#539 id=539 data-nosnippet>539</a>          b0():
+<a href=#540 id=540 data-nosnippet>540</a>            return
+<a href=#541 id=541 data-nosnippet>541</a>        }
+<a href=#542 id=542 data-nosnippet>542</a>        "</span>;
+<a href=#543 id=543 data-nosnippet>543</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#544 id=544 data-nosnippet>544</a>        <span class="kw">let </span>call_graph = CallGraph::from_ssa_weighted(<span class="kw-2">&amp;</span>ssa);
+<a href=#545 id=545 data-nosnippet>545</a>
+<a href=#546 id=546 data-nosnippet>546</a>        <span class="kw">let </span>f0 = Id::test_new(<span class="number">0</span>);
+<a href=#547 id=547 data-nosnippet>547</a>        <span class="kw">let </span>f1 = Id::test_new(<span class="number">1</span>);
+<a href=#548 id=548 data-nosnippet>548</a>        <span class="kw">let </span>f2 = Id::test_new(<span class="number">2</span>);
+<a href=#549 id=549 data-nosnippet>549</a>
+<a href=#550 id=550 data-nosnippet>550</a>        <span class="kw">let </span>recursive = call_graph.get_recursive_functions();
+<a href=#551 id=551 data-nosnippet>551</a>        <span class="macro">assert!</span>(recursive.contains(<span class="kw-2">&amp;</span>f1));
+<a href=#552 id=552 data-nosnippet>552</a>        <span class="macro">assert!</span>(!recursive.contains(<span class="kw-2">&amp;</span>f0));
+<a href=#553 id=553 data-nosnippet>553</a>        <span class="macro">assert!</span>(!recursive.contains(<span class="kw-2">&amp;</span>f2));
+<a href=#554 id=554 data-nosnippet>554</a>
+<a href=#555 id=555 data-nosnippet>555</a>        <span class="kw">let </span>callees = call_graph.callees();
+<a href=#556 id=556 data-nosnippet>556</a>        <span class="kw">let </span>f1_callees = callees.get(<span class="kw-2">&amp;</span>f1).unwrap();
+<a href=#557 id=557 data-nosnippet>557</a>        <span class="macro">assert_eq!</span>(f1_callees.len(), <span class="number">2</span>);
+<a href=#558 id=558 data-nosnippet>558</a>        <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>f1_callees.get(<span class="kw-2">&amp;</span>f1).unwrap(), <span class="number">1</span>, <span class="string">"f1 should call itself once"</span>);
+<a href=#559 id=559 data-nosnippet>559</a>        <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>f1_callees.get(<span class="kw-2">&amp;</span>f2).unwrap(), <span class="number">1</span>, <span class="string">"f1 should call f2 once"</span>);
+<a href=#560 id=560 data-nosnippet>560</a>
+<a href=#561 id=561 data-nosnippet>561</a>        <span class="kw">let </span>callers = call_graph.callers();
+<a href=#562 id=562 data-nosnippet>562</a>        <span class="kw">let </span>f1_callers = callers.get(<span class="kw-2">&amp;</span>f1).unwrap();
+<a href=#563 id=563 data-nosnippet>563</a>        <span class="macro">assert_eq!</span>(f1_callers.len(), <span class="number">2</span>);
+<a href=#564 id=564 data-nosnippet>564</a>        <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>f1_callers.get(<span class="kw-2">&amp;</span>f0).unwrap(), <span class="number">1</span>, <span class="string">"f0 calls f1 once"</span>);
+<a href=#565 id=565 data-nosnippet>565</a>        <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>f1_callers.get(<span class="kw-2">&amp;</span>f1).unwrap(), <span class="number">1</span>, <span class="string">"f1 calls itself once"</span>);
+<a href=#566 id=566 data-nosnippet>566</a>
+<a href=#567 id=567 data-nosnippet>567</a>        <span class="kw">let </span>f2_callers = callers.get(<span class="kw-2">&amp;</span>f2).unwrap();
+<a href=#568 id=568 data-nosnippet>568</a>        <span class="macro">assert_eq!</span>(f2_callers.len(), <span class="number">1</span>);
+<a href=#569 id=569 data-nosnippet>569</a>        <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>f2_callers.get(<span class="kw-2">&amp;</span>f1).unwrap(), <span class="number">1</span>, <span class="string">"f1 calls f2 once"</span>);
+<a href=#570 id=570 data-nosnippet>570</a>
+<a href=#571 id=571 data-nosnippet>571</a>        <span class="kw">let </span>f2_callees = callees.get(<span class="kw-2">&amp;</span>f2).unwrap();
+<a href=#572 id=572 data-nosnippet>572</a>        <span class="macro">assert!</span>(f2_callees.is_empty(), <span class="string">"f2 should not call any functions"</span>);
 <a href=#573 id=573 data-nosnippet>573</a>
-<a href=#574 id=574 data-nosnippet>574</a>        <span class="kw">let </span>f2_callers = callers.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">2</span>)).expect(<span class="string">"Should have callers"</span>);
-<a href=#575 id=575 data-nosnippet>575</a>        <span class="macro">assert_eq!</span>(f2_callers.len(), <span class="number">1</span>);
-<a href=#576 id=576 data-nosnippet>576</a>        <span class="kw">let </span>times_f2_called_by_f0 =
-<a href=#577 id=577 data-nosnippet>577</a>            <span class="kw-2">*</span>f2_callers.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)).expect(<span class="string">"Should have times called"</span>);
-<a href=#578 id=578 data-nosnippet>578</a>        <span class="macro">assert_eq!</span>(times_f2_called_by_f0, <span class="number">1</span>);
-<a href=#579 id=579 data-nosnippet>579</a>
-<a href=#580 id=580 data-nosnippet>580</a>        <span class="kw">let </span>f3_callers = callers.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">3</span>)).expect(<span class="string">"Should have callers"</span>);
-<a href=#581 id=581 data-nosnippet>581</a>        <span class="macro">assert_eq!</span>(f3_callers.len(), <span class="number">3</span>);
-<a href=#582 id=582 data-nosnippet>582</a>        <span class="kw">let </span>times_f3_called_by_f1 =
-<a href=#583 id=583 data-nosnippet>583</a>            <span class="kw-2">*</span>f3_callers.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">1</span>)).expect(<span class="string">"Should have times called"</span>);
-<a href=#584 id=584 data-nosnippet>584</a>        <span class="macro">assert_eq!</span>(times_f3_called_by_f1, <span class="number">1</span>);
-<a href=#585 id=585 data-nosnippet>585</a>        <span class="kw">let </span>times_f3_called_by_f2 =
-<a href=#586 id=586 data-nosnippet>586</a>            <span class="kw-2">*</span>f3_callers.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">2</span>)).expect(<span class="string">"Should have times called"</span>);
-<a href=#587 id=587 data-nosnippet>587</a>        <span class="macro">assert_eq!</span>(times_f3_called_by_f2, <span class="number">1</span>);
-<a href=#588 id=588 data-nosnippet>588</a>        <span class="kw">let </span>times_f3_called_by_f4 =
-<a href=#589 id=589 data-nosnippet>589</a>            <span class="kw-2">*</span>f3_callers.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">4</span>)).expect(<span class="string">"Should have times called"</span>);
-<a href=#590 id=590 data-nosnippet>590</a>        <span class="macro">assert_eq!</span>(times_f3_called_by_f4, <span class="number">1</span>);
-<a href=#591 id=591 data-nosnippet>591</a>
-<a href=#592 id=592 data-nosnippet>592</a>        <span class="kw">let </span>f4_callers = callers.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">4</span>)).expect(<span class="string">"Should have callers"</span>);
-<a href=#593 id=593 data-nosnippet>593</a>        <span class="macro">assert_eq!</span>(f4_callers.len(), <span class="number">1</span>);
-<a href=#594 id=594 data-nosnippet>594</a>        <span class="kw">let </span>times_f4_called_by_f2 =
-<a href=#595 id=595 data-nosnippet>595</a>            <span class="kw-2">*</span>f4_callers.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">2</span>)).expect(<span class="string">"Should have times called"</span>);
-<a href=#596 id=596 data-nosnippet>596</a>        <span class="macro">assert_eq!</span>(times_f4_called_by_f2, <span class="number">2</span>);
-<a href=#597 id=597 data-nosnippet>597</a>    }
-<a href=#598 id=598 data-nosnippet>598</a>
-<a href=#599 id=599 data-nosnippet>599</a>    <span class="attr">#[test]
-<a href=#600 id=600 data-nosnippet>600</a>    </span><span class="kw">fn </span>callees() {
-<a href=#601 id=601 data-nosnippet>601</a>        <span class="kw">let </span>ssa = Ssa::from_str(callers_and_callees_src()).unwrap();
-<a href=#602 id=602 data-nosnippet>602</a>        <span class="kw">let </span>call_graph = CallGraph::from_ssa_weighted(<span class="kw-2">&amp;</span>ssa);
-<a href=#603 id=603 data-nosnippet>603</a>        <span class="kw">let </span>callees = call_graph.callees();
-<a href=#604 id=604 data-nosnippet>604</a>
-<a href=#605 id=605 data-nosnippet>605</a>        <span class="kw">let </span>f0_callees = callees.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)).expect(<span class="string">"Should have callees"</span>);
-<a href=#606 id=606 data-nosnippet>606</a>        <span class="macro">assert_eq!</span>(f0_callees.len(), <span class="number">2</span>);
-<a href=#607 id=607 data-nosnippet>607</a>        <span class="kw">let </span>times_f0_calls_f1 =
-<a href=#608 id=608 data-nosnippet>608</a>            <span class="kw-2">*</span>f0_callees.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">1</span>)).expect(<span class="string">"Should have times called"</span>);
-<a href=#609 id=609 data-nosnippet>609</a>        <span class="macro">assert_eq!</span>(times_f0_calls_f1, <span class="number">2</span>);
-<a href=#610 id=610 data-nosnippet>610</a>        <span class="kw">let </span>times_f0_calls_f2 =
-<a href=#611 id=611 data-nosnippet>611</a>            <span class="kw-2">*</span>f0_callees.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">2</span>)).expect(<span class="string">"Should have times called"</span>);
-<a href=#612 id=612 data-nosnippet>612</a>        <span class="macro">assert_eq!</span>(times_f0_calls_f2, <span class="number">1</span>);
-<a href=#613 id=613 data-nosnippet>613</a>
-<a href=#614 id=614 data-nosnippet>614</a>        <span class="kw">let </span>f1_callees = callees.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">1</span>)).expect(<span class="string">"Should have callees"</span>);
-<a href=#615 id=615 data-nosnippet>615</a>        <span class="macro">assert_eq!</span>(f1_callees.len(), <span class="number">1</span>);
-<a href=#616 id=616 data-nosnippet>616</a>        <span class="kw">let </span>times_f1_calls_f3 =
-<a href=#617 id=617 data-nosnippet>617</a>            <span class="kw-2">*</span>f1_callees.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">3</span>)).expect(<span class="string">"Should have times called"</span>);
-<a href=#618 id=618 data-nosnippet>618</a>        <span class="macro">assert_eq!</span>(times_f1_calls_f3, <span class="number">1</span>);
-<a href=#619 id=619 data-nosnippet>619</a>
-<a href=#620 id=620 data-nosnippet>620</a>        <span class="kw">let </span>f2_callees = callees.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">2</span>)).expect(<span class="string">"Should have callees"</span>);
-<a href=#621 id=621 data-nosnippet>621</a>        <span class="macro">assert_eq!</span>(f2_callees.len(), <span class="number">2</span>);
-<a href=#622 id=622 data-nosnippet>622</a>        <span class="kw">let </span>times_f2_calls_f3 =
-<a href=#623 id=623 data-nosnippet>623</a>            <span class="kw-2">*</span>f2_callees.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">3</span>)).expect(<span class="string">"Should have times called"</span>);
-<a href=#624 id=624 data-nosnippet>624</a>        <span class="macro">assert_eq!</span>(times_f2_calls_f3, <span class="number">1</span>);
-<a href=#625 id=625 data-nosnippet>625</a>        <span class="kw">let </span>times_f2_calls_f4 =
-<a href=#626 id=626 data-nosnippet>626</a>            <span class="kw-2">*</span>f2_callees.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">4</span>)).expect(<span class="string">"Should have times called"</span>);
-<a href=#627 id=627 data-nosnippet>627</a>        <span class="macro">assert_eq!</span>(times_f2_calls_f4, <span class="number">2</span>);
-<a href=#628 id=628 data-nosnippet>628</a>
-<a href=#629 id=629 data-nosnippet>629</a>        <span class="kw">let </span>f3_callees = callees.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">3</span>)).expect(<span class="string">"Should have callees"</span>);
-<a href=#630 id=630 data-nosnippet>630</a>        <span class="macro">assert!</span>(f3_callees.is_empty());
-<a href=#631 id=631 data-nosnippet>631</a>
-<a href=#632 id=632 data-nosnippet>632</a>        <span class="kw">let </span>f4_callees = callees.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">4</span>)).expect(<span class="string">"Should have callees"</span>);
-<a href=#633 id=633 data-nosnippet>633</a>        <span class="kw">let </span>times_f4_calls_f3 =
-<a href=#634 id=634 data-nosnippet>634</a>            <span class="kw-2">*</span>f4_callees.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">3</span>)).expect(<span class="string">"Should have times called"</span>);
-<a href=#635 id=635 data-nosnippet>635</a>        <span class="macro">assert_eq!</span>(times_f4_calls_f3, <span class="number">1</span>);
-<a href=#636 id=636 data-nosnippet>636</a>    }
-<a href=#637 id=637 data-nosnippet>637</a>
-<a href=#638 id=638 data-nosnippet>638</a>    <span class="attr">#[test]
-<a href=#639 id=639 data-nosnippet>639</a>    </span><span class="kw">fn </span>times_called() {
-<a href=#640 id=640 data-nosnippet>640</a>        <span class="kw">let </span>ssa = Ssa::from_str(callers_and_callees_src()).unwrap();
-<a href=#641 id=641 data-nosnippet>641</a>        <span class="kw">let </span>call_graph = CallGraph::from_ssa_weighted(<span class="kw-2">&amp;</span>ssa);
-<a href=#642 id=642 data-nosnippet>642</a>        <span class="kw">let </span>times_called = call_graph.times_called();
-<a href=#643 id=643 data-nosnippet>643</a>
-<a href=#644 id=644 data-nosnippet>644</a>        <span class="kw">let </span>times_f0_called =
-<a href=#645 id=645 data-nosnippet>645</a>            <span class="kw-2">*</span>times_called.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)).expect(<span class="string">" Should have times called"</span>);
-<a href=#646 id=646 data-nosnippet>646</a>        <span class="macro">assert_eq!</span>(times_f0_called, <span class="number">0</span>);
+<a href=#574 id=574 data-nosnippet>574</a>        <span class="kw">let </span>f0_callees = callees.get(<span class="kw-2">&amp;</span>f0).unwrap();
+<a href=#575 id=575 data-nosnippet>575</a>        <span class="macro">assert_eq!</span>(f0_callees.len(), <span class="number">1</span>);
+<a href=#576 id=576 data-nosnippet>576</a>        <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>f0_callees.get(<span class="kw-2">&amp;</span>f1).unwrap(), <span class="number">1</span>);
+<a href=#577 id=577 data-nosnippet>577</a>    }
+<a href=#578 id=578 data-nosnippet>578</a>
+<a href=#579 id=579 data-nosnippet>579</a>    <span class="attr">#[test]
+<a href=#580 id=580 data-nosnippet>580</a>    </span><span class="kw">fn </span>pure_self_recursive_function() {
+<a href=#581 id=581 data-nosnippet>581</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#582 id=582 data-nosnippet>582</a>        brillig(inline) fn self_recur f0 {
+<a href=#583 id=583 data-nosnippet>583</a>          b0():
+<a href=#584 id=584 data-nosnippet>584</a>            call f0()
+<a href=#585 id=585 data-nosnippet>585</a>            return
+<a href=#586 id=586 data-nosnippet>586</a>        }
+<a href=#587 id=587 data-nosnippet>587</a>        "</span>;
+<a href=#588 id=588 data-nosnippet>588</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#589 id=589 data-nosnippet>589</a>        <span class="kw">let </span>call_graph = CallGraph::from_ssa_weighted(<span class="kw-2">&amp;</span>ssa);
+<a href=#590 id=590 data-nosnippet>590</a>
+<a href=#591 id=591 data-nosnippet>591</a>        <span class="kw">let </span>recursive = call_graph.get_recursive_functions();
+<a href=#592 id=592 data-nosnippet>592</a>        <span class="macro">assert!</span>(recursive.contains(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)));
+<a href=#593 id=593 data-nosnippet>593</a>
+<a href=#594 id=594 data-nosnippet>594</a>        <span class="kw">let </span>callers = call_graph.callers();
+<a href=#595 id=595 data-nosnippet>595</a>        <span class="kw">let </span>f0_callers = callers.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)).unwrap();
+<a href=#596 id=596 data-nosnippet>596</a>        <span class="macro">assert_eq!</span>(f0_callers.len(), <span class="number">1</span>);
+<a href=#597 id=597 data-nosnippet>597</a>        <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>f0_callers.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)).unwrap(), <span class="number">1</span>);
+<a href=#598 id=598 data-nosnippet>598</a>    }
+<a href=#599 id=599 data-nosnippet>599</a>
+<a href=#600 id=600 data-nosnippet>600</a>    <span class="kw">fn </span>callers_and_callees_src() -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str {
+<a href=#601 id=601 data-nosnippet>601</a>        <span class="string">r#"
+<a href=#602 id=602 data-nosnippet>602</a>        acir(inline) fn main f0 {
+<a href=#603 id=603 data-nosnippet>603</a>          b0():
+<a href=#604 id=604 data-nosnippet>604</a>            call f1()
+<a href=#605 id=605 data-nosnippet>605</a>            call f1()
+<a href=#606 id=606 data-nosnippet>606</a>            call f2()
+<a href=#607 id=607 data-nosnippet>607</a>            return
+<a href=#608 id=608 data-nosnippet>608</a>        }
+<a href=#609 id=609 data-nosnippet>609</a>        acir(inline) fn foo f1 {
+<a href=#610 id=610 data-nosnippet>610</a>          b0():
+<a href=#611 id=611 data-nosnippet>611</a>            call f3()
+<a href=#612 id=612 data-nosnippet>612</a>            return
+<a href=#613 id=613 data-nosnippet>613</a>        }
+<a href=#614 id=614 data-nosnippet>614</a>        brillig(inline) fn bar f2 {
+<a href=#615 id=615 data-nosnippet>615</a>          b0():
+<a href=#616 id=616 data-nosnippet>616</a>            call f3()
+<a href=#617 id=617 data-nosnippet>617</a>            call f4()
+<a href=#618 id=618 data-nosnippet>618</a>            call f4()
+<a href=#619 id=619 data-nosnippet>619</a>            return
+<a href=#620 id=620 data-nosnippet>620</a>        }
+<a href=#621 id=621 data-nosnippet>621</a>        brillig(inline) fn baz f3 {
+<a href=#622 id=622 data-nosnippet>622</a>          b0():
+<a href=#623 id=623 data-nosnippet>623</a>            return
+<a href=#624 id=624 data-nosnippet>624</a>        }
+<a href=#625 id=625 data-nosnippet>625</a>        brillig(inline) fn qux f4 {
+<a href=#626 id=626 data-nosnippet>626</a>          b0():
+<a href=#627 id=627 data-nosnippet>627</a>            call f3()
+<a href=#628 id=628 data-nosnippet>628</a>            return
+<a href=#629 id=629 data-nosnippet>629</a>        }
+<a href=#630 id=630 data-nosnippet>630</a>        "#
+<a href=#631 id=631 data-nosnippet>631</a>    </span>}
+<a href=#632 id=632 data-nosnippet>632</a>
+<a href=#633 id=633 data-nosnippet>633</a>    <span class="attr">#[test]
+<a href=#634 id=634 data-nosnippet>634</a>    </span><span class="kw">fn </span>callers() {
+<a href=#635 id=635 data-nosnippet>635</a>        <span class="kw">let </span>ssa = Ssa::from_str(callers_and_callees_src()).unwrap();
+<a href=#636 id=636 data-nosnippet>636</a>        <span class="kw">let </span>call_graph = CallGraph::from_ssa_weighted(<span class="kw-2">&amp;</span>ssa);
+<a href=#637 id=637 data-nosnippet>637</a>        <span class="kw">let </span>callers = call_graph.callers();
+<a href=#638 id=638 data-nosnippet>638</a>
+<a href=#639 id=639 data-nosnippet>639</a>        <span class="kw">let </span>f0_callers = callers.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)).expect(<span class="string">"Should have callers"</span>);
+<a href=#640 id=640 data-nosnippet>640</a>        <span class="macro">assert!</span>(f0_callers.is_empty());
+<a href=#641 id=641 data-nosnippet>641</a>
+<a href=#642 id=642 data-nosnippet>642</a>        <span class="kw">let </span>f1_callers = callers.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">1</span>)).expect(<span class="string">"Should have callers"</span>);
+<a href=#643 id=643 data-nosnippet>643</a>        <span class="macro">assert_eq!</span>(f1_callers.len(), <span class="number">1</span>);
+<a href=#644 id=644 data-nosnippet>644</a>        <span class="kw">let </span>times_f1_called_by_f0 =
+<a href=#645 id=645 data-nosnippet>645</a>            <span class="kw-2">*</span>f1_callers.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)).expect(<span class="string">"Should have times called"</span>);
+<a href=#646 id=646 data-nosnippet>646</a>        <span class="macro">assert_eq!</span>(times_f1_called_by_f0, <span class="number">2</span>);
 <a href=#647 id=647 data-nosnippet>647</a>
-<a href=#648 id=648 data-nosnippet>648</a>        <span class="kw">let </span>times_f1_called =
-<a href=#649 id=649 data-nosnippet>649</a>            <span class="kw-2">*</span>times_called.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">1</span>)).expect(<span class="string">" Should have times called"</span>);
-<a href=#650 id=650 data-nosnippet>650</a>        <span class="macro">assert_eq!</span>(times_f1_called, <span class="number">2</span>);
-<a href=#651 id=651 data-nosnippet>651</a>
-<a href=#652 id=652 data-nosnippet>652</a>        <span class="kw">let </span>times_f2_called =
-<a href=#653 id=653 data-nosnippet>653</a>            <span class="kw-2">*</span>times_called.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">2</span>)).expect(<span class="string">" Should have times called"</span>);
-<a href=#654 id=654 data-nosnippet>654</a>        <span class="macro">assert_eq!</span>(times_f2_called, <span class="number">1</span>);
-<a href=#655 id=655 data-nosnippet>655</a>
-<a href=#656 id=656 data-nosnippet>656</a>        <span class="kw">let </span>times_f3_called =
-<a href=#657 id=657 data-nosnippet>657</a>            <span class="kw-2">*</span>times_called.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">3</span>)).expect(<span class="string">" Should have times called"</span>);
-<a href=#658 id=658 data-nosnippet>658</a>        <span class="macro">assert_eq!</span>(times_f3_called, <span class="number">3</span>);
-<a href=#659 id=659 data-nosnippet>659</a>
-<a href=#660 id=660 data-nosnippet>660</a>        <span class="kw">let </span>times_f4_called =
-<a href=#661 id=661 data-nosnippet>661</a>            <span class="kw-2">*</span>times_called.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">4</span>)).expect(<span class="string">" Should have times called"</span>);
-<a href=#662 id=662 data-nosnippet>662</a>        <span class="macro">assert_eq!</span>(times_f4_called, <span class="number">2</span>);
-<a href=#663 id=663 data-nosnippet>663</a>    }
-<a href=#664 id=664 data-nosnippet>664</a>
-<a href=#665 id=665 data-nosnippet>665</a>    <span class="attr">#[test]
-<a href=#666 id=666 data-nosnippet>666</a>    </span><span class="kw">fn </span>dead_function_not_called() {
-<a href=#667 id=667 data-nosnippet>667</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#668 id=668 data-nosnippet>668</a>        acir(inline) fn main f0 {
-<a href=#669 id=669 data-nosnippet>669</a>          b0(): 
-<a href=#670 id=670 data-nosnippet>670</a>            return
-<a href=#671 id=671 data-nosnippet>671</a>        }
-<a href=#672 id=672 data-nosnippet>672</a>        brillig(inline) fn dead_code f1 {
-<a href=#673 id=673 data-nosnippet>673</a>          b0(): 
-<a href=#674 id=674 data-nosnippet>674</a>            return
-<a href=#675 id=675 data-nosnippet>675</a>        }
-<a href=#676 id=676 data-nosnippet>676</a>        "</span>;
-<a href=#677 id=677 data-nosnippet>677</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-<a href=#678 id=678 data-nosnippet>678</a>        <span class="kw">let </span>call_graph = CallGraph::from_ssa_weighted(<span class="kw-2">&amp;</span>ssa);
-<a href=#679 id=679 data-nosnippet>679</a>
-<a href=#680 id=680 data-nosnippet>680</a>        <span class="comment">// f1 is never called, but it should still be tracked.
-<a href=#681 id=681 data-nosnippet>681</a>        </span><span class="kw">let </span>times_called = call_graph.times_called();
-<a href=#682 id=682 data-nosnippet>682</a>        <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>times_called.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">1</span>)).unwrap(), <span class="number">0</span>);
-<a href=#683 id=683 data-nosnippet>683</a>        <span class="macro">assert!</span>(call_graph.callers().get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">1</span>)).unwrap().is_empty());
-<a href=#684 id=684 data-nosnippet>684</a>        <span class="macro">assert!</span>(call_graph.callees().get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">1</span>)).unwrap().is_empty());
-<a href=#685 id=685 data-nosnippet>685</a>    }
-<a href=#686 id=686 data-nosnippet>686</a>}</code></pre></div></section></main></body></html>
+<a href=#648 id=648 data-nosnippet>648</a>        <span class="kw">let </span>f2_callers = callers.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">2</span>)).expect(<span class="string">"Should have callers"</span>);
+<a href=#649 id=649 data-nosnippet>649</a>        <span class="macro">assert_eq!</span>(f2_callers.len(), <span class="number">1</span>);
+<a href=#650 id=650 data-nosnippet>650</a>        <span class="kw">let </span>times_f2_called_by_f0 =
+<a href=#651 id=651 data-nosnippet>651</a>            <span class="kw-2">*</span>f2_callers.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)).expect(<span class="string">"Should have times called"</span>);
+<a href=#652 id=652 data-nosnippet>652</a>        <span class="macro">assert_eq!</span>(times_f2_called_by_f0, <span class="number">1</span>);
+<a href=#653 id=653 data-nosnippet>653</a>
+<a href=#654 id=654 data-nosnippet>654</a>        <span class="kw">let </span>f3_callers = callers.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">3</span>)).expect(<span class="string">"Should have callers"</span>);
+<a href=#655 id=655 data-nosnippet>655</a>        <span class="macro">assert_eq!</span>(f3_callers.len(), <span class="number">3</span>);
+<a href=#656 id=656 data-nosnippet>656</a>        <span class="kw">let </span>times_f3_called_by_f1 =
+<a href=#657 id=657 data-nosnippet>657</a>            <span class="kw-2">*</span>f3_callers.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">1</span>)).expect(<span class="string">"Should have times called"</span>);
+<a href=#658 id=658 data-nosnippet>658</a>        <span class="macro">assert_eq!</span>(times_f3_called_by_f1, <span class="number">1</span>);
+<a href=#659 id=659 data-nosnippet>659</a>        <span class="kw">let </span>times_f3_called_by_f2 =
+<a href=#660 id=660 data-nosnippet>660</a>            <span class="kw-2">*</span>f3_callers.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">2</span>)).expect(<span class="string">"Should have times called"</span>);
+<a href=#661 id=661 data-nosnippet>661</a>        <span class="macro">assert_eq!</span>(times_f3_called_by_f2, <span class="number">1</span>);
+<a href=#662 id=662 data-nosnippet>662</a>        <span class="kw">let </span>times_f3_called_by_f4 =
+<a href=#663 id=663 data-nosnippet>663</a>            <span class="kw-2">*</span>f3_callers.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">4</span>)).expect(<span class="string">"Should have times called"</span>);
+<a href=#664 id=664 data-nosnippet>664</a>        <span class="macro">assert_eq!</span>(times_f3_called_by_f4, <span class="number">1</span>);
+<a href=#665 id=665 data-nosnippet>665</a>
+<a href=#666 id=666 data-nosnippet>666</a>        <span class="kw">let </span>f4_callers = callers.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">4</span>)).expect(<span class="string">"Should have callers"</span>);
+<a href=#667 id=667 data-nosnippet>667</a>        <span class="macro">assert_eq!</span>(f4_callers.len(), <span class="number">1</span>);
+<a href=#668 id=668 data-nosnippet>668</a>        <span class="kw">let </span>times_f4_called_by_f2 =
+<a href=#669 id=669 data-nosnippet>669</a>            <span class="kw-2">*</span>f4_callers.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">2</span>)).expect(<span class="string">"Should have times called"</span>);
+<a href=#670 id=670 data-nosnippet>670</a>        <span class="macro">assert_eq!</span>(times_f4_called_by_f2, <span class="number">2</span>);
+<a href=#671 id=671 data-nosnippet>671</a>    }
+<a href=#672 id=672 data-nosnippet>672</a>
+<a href=#673 id=673 data-nosnippet>673</a>    <span class="attr">#[test]
+<a href=#674 id=674 data-nosnippet>674</a>    </span><span class="kw">fn </span>callees() {
+<a href=#675 id=675 data-nosnippet>675</a>        <span class="kw">let </span>ssa = Ssa::from_str(callers_and_callees_src()).unwrap();
+<a href=#676 id=676 data-nosnippet>676</a>        <span class="kw">let </span>call_graph = CallGraph::from_ssa_weighted(<span class="kw-2">&amp;</span>ssa);
+<a href=#677 id=677 data-nosnippet>677</a>        <span class="kw">let </span>callees = call_graph.callees();
+<a href=#678 id=678 data-nosnippet>678</a>
+<a href=#679 id=679 data-nosnippet>679</a>        <span class="kw">let </span>f0_callees = callees.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)).expect(<span class="string">"Should have callees"</span>);
+<a href=#680 id=680 data-nosnippet>680</a>        <span class="macro">assert_eq!</span>(f0_callees.len(), <span class="number">2</span>);
+<a href=#681 id=681 data-nosnippet>681</a>        <span class="kw">let </span>times_f0_calls_f1 =
+<a href=#682 id=682 data-nosnippet>682</a>            <span class="kw-2">*</span>f0_callees.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">1</span>)).expect(<span class="string">"Should have times called"</span>);
+<a href=#683 id=683 data-nosnippet>683</a>        <span class="macro">assert_eq!</span>(times_f0_calls_f1, <span class="number">2</span>);
+<a href=#684 id=684 data-nosnippet>684</a>        <span class="kw">let </span>times_f0_calls_f2 =
+<a href=#685 id=685 data-nosnippet>685</a>            <span class="kw-2">*</span>f0_callees.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">2</span>)).expect(<span class="string">"Should have times called"</span>);
+<a href=#686 id=686 data-nosnippet>686</a>        <span class="macro">assert_eq!</span>(times_f0_calls_f2, <span class="number">1</span>);
+<a href=#687 id=687 data-nosnippet>687</a>
+<a href=#688 id=688 data-nosnippet>688</a>        <span class="kw">let </span>f1_callees = callees.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">1</span>)).expect(<span class="string">"Should have callees"</span>);
+<a href=#689 id=689 data-nosnippet>689</a>        <span class="macro">assert_eq!</span>(f1_callees.len(), <span class="number">1</span>);
+<a href=#690 id=690 data-nosnippet>690</a>        <span class="kw">let </span>times_f1_calls_f3 =
+<a href=#691 id=691 data-nosnippet>691</a>            <span class="kw-2">*</span>f1_callees.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">3</span>)).expect(<span class="string">"Should have times called"</span>);
+<a href=#692 id=692 data-nosnippet>692</a>        <span class="macro">assert_eq!</span>(times_f1_calls_f3, <span class="number">1</span>);
+<a href=#693 id=693 data-nosnippet>693</a>
+<a href=#694 id=694 data-nosnippet>694</a>        <span class="kw">let </span>f2_callees = callees.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">2</span>)).expect(<span class="string">"Should have callees"</span>);
+<a href=#695 id=695 data-nosnippet>695</a>        <span class="macro">assert_eq!</span>(f2_callees.len(), <span class="number">2</span>);
+<a href=#696 id=696 data-nosnippet>696</a>        <span class="kw">let </span>times_f2_calls_f3 =
+<a href=#697 id=697 data-nosnippet>697</a>            <span class="kw-2">*</span>f2_callees.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">3</span>)).expect(<span class="string">"Should have times called"</span>);
+<a href=#698 id=698 data-nosnippet>698</a>        <span class="macro">assert_eq!</span>(times_f2_calls_f3, <span class="number">1</span>);
+<a href=#699 id=699 data-nosnippet>699</a>        <span class="kw">let </span>times_f2_calls_f4 =
+<a href=#700 id=700 data-nosnippet>700</a>            <span class="kw-2">*</span>f2_callees.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">4</span>)).expect(<span class="string">"Should have times called"</span>);
+<a href=#701 id=701 data-nosnippet>701</a>        <span class="macro">assert_eq!</span>(times_f2_calls_f4, <span class="number">2</span>);
+<a href=#702 id=702 data-nosnippet>702</a>
+<a href=#703 id=703 data-nosnippet>703</a>        <span class="kw">let </span>f3_callees = callees.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">3</span>)).expect(<span class="string">"Should have callees"</span>);
+<a href=#704 id=704 data-nosnippet>704</a>        <span class="macro">assert!</span>(f3_callees.is_empty());
+<a href=#705 id=705 data-nosnippet>705</a>
+<a href=#706 id=706 data-nosnippet>706</a>        <span class="kw">let </span>f4_callees = callees.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">4</span>)).expect(<span class="string">"Should have callees"</span>);
+<a href=#707 id=707 data-nosnippet>707</a>        <span class="kw">let </span>times_f4_calls_f3 =
+<a href=#708 id=708 data-nosnippet>708</a>            <span class="kw-2">*</span>f4_callees.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">3</span>)).expect(<span class="string">"Should have times called"</span>);
+<a href=#709 id=709 data-nosnippet>709</a>        <span class="macro">assert_eq!</span>(times_f4_calls_f3, <span class="number">1</span>);
+<a href=#710 id=710 data-nosnippet>710</a>    }
+<a href=#711 id=711 data-nosnippet>711</a>
+<a href=#712 id=712 data-nosnippet>712</a>    <span class="attr">#[test]
+<a href=#713 id=713 data-nosnippet>713</a>    </span><span class="kw">fn </span>times_called() {
+<a href=#714 id=714 data-nosnippet>714</a>        <span class="kw">let </span>ssa = Ssa::from_str(callers_and_callees_src()).unwrap();
+<a href=#715 id=715 data-nosnippet>715</a>        <span class="kw">let </span>call_graph = CallGraph::from_ssa_weighted(<span class="kw-2">&amp;</span>ssa);
+<a href=#716 id=716 data-nosnippet>716</a>        <span class="kw">let </span>times_called = call_graph.times_called();
+<a href=#717 id=717 data-nosnippet>717</a>
+<a href=#718 id=718 data-nosnippet>718</a>        <span class="kw">let </span>times_f0_called =
+<a href=#719 id=719 data-nosnippet>719</a>            <span class="kw-2">*</span>times_called.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)).expect(<span class="string">" Should have times called"</span>);
+<a href=#720 id=720 data-nosnippet>720</a>        <span class="macro">assert_eq!</span>(times_f0_called, <span class="number">0</span>);
+<a href=#721 id=721 data-nosnippet>721</a>
+<a href=#722 id=722 data-nosnippet>722</a>        <span class="kw">let </span>times_f1_called =
+<a href=#723 id=723 data-nosnippet>723</a>            <span class="kw-2">*</span>times_called.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">1</span>)).expect(<span class="string">" Should have times called"</span>);
+<a href=#724 id=724 data-nosnippet>724</a>        <span class="macro">assert_eq!</span>(times_f1_called, <span class="number">2</span>);
+<a href=#725 id=725 data-nosnippet>725</a>
+<a href=#726 id=726 data-nosnippet>726</a>        <span class="kw">let </span>times_f2_called =
+<a href=#727 id=727 data-nosnippet>727</a>            <span class="kw-2">*</span>times_called.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">2</span>)).expect(<span class="string">" Should have times called"</span>);
+<a href=#728 id=728 data-nosnippet>728</a>        <span class="macro">assert_eq!</span>(times_f2_called, <span class="number">1</span>);
+<a href=#729 id=729 data-nosnippet>729</a>
+<a href=#730 id=730 data-nosnippet>730</a>        <span class="kw">let </span>times_f3_called =
+<a href=#731 id=731 data-nosnippet>731</a>            <span class="kw-2">*</span>times_called.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">3</span>)).expect(<span class="string">" Should have times called"</span>);
+<a href=#732 id=732 data-nosnippet>732</a>        <span class="macro">assert_eq!</span>(times_f3_called, <span class="number">3</span>);
+<a href=#733 id=733 data-nosnippet>733</a>
+<a href=#734 id=734 data-nosnippet>734</a>        <span class="kw">let </span>times_f4_called =
+<a href=#735 id=735 data-nosnippet>735</a>            <span class="kw-2">*</span>times_called.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">4</span>)).expect(<span class="string">" Should have times called"</span>);
+<a href=#736 id=736 data-nosnippet>736</a>        <span class="macro">assert_eq!</span>(times_f4_called, <span class="number">2</span>);
+<a href=#737 id=737 data-nosnippet>737</a>    }
+<a href=#738 id=738 data-nosnippet>738</a>
+<a href=#739 id=739 data-nosnippet>739</a>    <span class="attr">#[test]
+<a href=#740 id=740 data-nosnippet>740</a>    </span><span class="kw">fn </span>dead_function_not_called() {
+<a href=#741 id=741 data-nosnippet>741</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#742 id=742 data-nosnippet>742</a>        acir(inline) fn main f0 {
+<a href=#743 id=743 data-nosnippet>743</a>          b0():
+<a href=#744 id=744 data-nosnippet>744</a>            return
+<a href=#745 id=745 data-nosnippet>745</a>        }
+<a href=#746 id=746 data-nosnippet>746</a>        brillig(inline) fn dead_code f1 {
+<a href=#747 id=747 data-nosnippet>747</a>          b0():
+<a href=#748 id=748 data-nosnippet>748</a>            return
+<a href=#749 id=749 data-nosnippet>749</a>        }
+<a href=#750 id=750 data-nosnippet>750</a>        "</span>;
+<a href=#751 id=751 data-nosnippet>751</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#752 id=752 data-nosnippet>752</a>        <span class="kw">let </span>call_graph = CallGraph::from_ssa_weighted(<span class="kw-2">&amp;</span>ssa);
+<a href=#753 id=753 data-nosnippet>753</a>
+<a href=#754 id=754 data-nosnippet>754</a>        <span class="comment">// f1 is never called, but it should still be tracked.
+<a href=#755 id=755 data-nosnippet>755</a>        </span><span class="kw">let </span>times_called = call_graph.times_called();
+<a href=#756 id=756 data-nosnippet>756</a>        <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>times_called.get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">1</span>)).unwrap(), <span class="number">0</span>);
+<a href=#757 id=757 data-nosnippet>757</a>        <span class="macro">assert!</span>(call_graph.callers().get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">1</span>)).unwrap().is_empty());
+<a href=#758 id=758 data-nosnippet>758</a>        <span class="macro">assert!</span>(call_graph.callees().get(<span class="kw-2">&amp;</span>Id::test_new(<span class="number">1</span>)).unwrap().is_empty());
+<a href=#759 id=759 data-nosnippet>759</a>    }
+<a href=#760 id=760 data-nosnippet>760</a>
+<a href=#761 id=761 data-nosnippet>761</a>    <span class="comment">// -----------------------------------------------------------------------
+<a href=#762 id=762 data-nosnippet>762</a>    // max_call_depths tests
+<a href=#763 id=763 data-nosnippet>763</a>    // -----------------------------------------------------------------------
+<a href=#764 id=764 data-nosnippet>764</a>
+<a href=#765 id=765 data-nosnippet>765</a>    </span><span class="doccomment">/// Linear chain: f0 -&gt; f1 -&gt; f2 -&gt; f3
+<a href=#766 id=766 data-nosnippet>766</a>    /// f0 is the entry point (depth 1), so expected depths are 1, 2, 3, 4.
+<a href=#767 id=767 data-nosnippet>767</a>    </span><span class="attr">#[test]
+<a href=#768 id=768 data-nosnippet>768</a>    </span><span class="kw">fn </span>max_call_depths_linear_chain() {
+<a href=#769 id=769 data-nosnippet>769</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#770 id=770 data-nosnippet>770</a>        brillig(inline) fn f0 f0 {
+<a href=#771 id=771 data-nosnippet>771</a>          b0():
+<a href=#772 id=772 data-nosnippet>772</a>            call f1()
+<a href=#773 id=773 data-nosnippet>773</a>            return
+<a href=#774 id=774 data-nosnippet>774</a>        }
+<a href=#775 id=775 data-nosnippet>775</a>        brillig(inline) fn f1 f1 {
+<a href=#776 id=776 data-nosnippet>776</a>          b0():
+<a href=#777 id=777 data-nosnippet>777</a>            call f2()
+<a href=#778 id=778 data-nosnippet>778</a>            return
+<a href=#779 id=779 data-nosnippet>779</a>        }
+<a href=#780 id=780 data-nosnippet>780</a>        brillig(inline) fn f2 f2 {
+<a href=#781 id=781 data-nosnippet>781</a>          b0():
+<a href=#782 id=782 data-nosnippet>782</a>            call f3()
+<a href=#783 id=783 data-nosnippet>783</a>            return
+<a href=#784 id=784 data-nosnippet>784</a>        }
+<a href=#785 id=785 data-nosnippet>785</a>        brillig(inline) fn f3 f3 {
+<a href=#786 id=786 data-nosnippet>786</a>          b0():
+<a href=#787 id=787 data-nosnippet>787</a>            return
+<a href=#788 id=788 data-nosnippet>788</a>        }
+<a href=#789 id=789 data-nosnippet>789</a>        "</span>;
+<a href=#790 id=790 data-nosnippet>790</a>
+<a href=#791 id=791 data-nosnippet>791</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#792 id=792 data-nosnippet>792</a>        <span class="kw">let </span>call_graph = CallGraph::from_ssa(<span class="kw-2">&amp;</span>ssa);
+<a href=#793 id=793 data-nosnippet>793</a>        <span class="kw">let </span>reachable: BTreeSet&lt;<span class="kw">_</span>&gt; = [<span class="number">0</span>, <span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>].map(Id::test_new).into_iter().collect();
+<a href=#794 id=794 data-nosnippet>794</a>        <span class="kw">let </span>depths = call_graph.max_call_depths(<span class="kw-2">&amp;</span>reachable);
+<a href=#795 id=795 data-nosnippet>795</a>
+<a href=#796 id=796 data-nosnippet>796</a>        <span class="macro">assert_eq!</span>(depths[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)], <span class="prelude-val">Some</span>(<span class="number">1</span>));
+<a href=#797 id=797 data-nosnippet>797</a>        <span class="macro">assert_eq!</span>(depths[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">1</span>)], <span class="prelude-val">Some</span>(<span class="number">2</span>));
+<a href=#798 id=798 data-nosnippet>798</a>        <span class="macro">assert_eq!</span>(depths[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">2</span>)], <span class="prelude-val">Some</span>(<span class="number">3</span>));
+<a href=#799 id=799 data-nosnippet>799</a>        <span class="macro">assert_eq!</span>(depths[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">3</span>)], <span class="prelude-val">Some</span>(<span class="number">4</span>));
+<a href=#800 id=800 data-nosnippet>800</a>    }
+<a href=#801 id=801 data-nosnippet>801</a>
+<a href=#802 id=802 data-nosnippet>802</a>    <span class="doccomment">/// Diamond: f0 -&gt; {f1, f2}, f1 -&gt; f3, f2 -&gt; f3.
+<a href=#803 id=803 data-nosnippet>803</a>    /// f3 is reachable via two paths of equal length, max depth = 3.
+<a href=#804 id=804 data-nosnippet>804</a>    </span><span class="attr">#[test]
+<a href=#805 id=805 data-nosnippet>805</a>    </span><span class="kw">fn </span>max_call_depths_diamond() {
+<a href=#806 id=806 data-nosnippet>806</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#807 id=807 data-nosnippet>807</a>        brillig(inline) fn f0 f0 {
+<a href=#808 id=808 data-nosnippet>808</a>          b0():
+<a href=#809 id=809 data-nosnippet>809</a>            call f1()
+<a href=#810 id=810 data-nosnippet>810</a>            call f2()
+<a href=#811 id=811 data-nosnippet>811</a>            return
+<a href=#812 id=812 data-nosnippet>812</a>        }
+<a href=#813 id=813 data-nosnippet>813</a>        brillig(inline) fn f1 f1 {
+<a href=#814 id=814 data-nosnippet>814</a>          b0():
+<a href=#815 id=815 data-nosnippet>815</a>            call f3()
+<a href=#816 id=816 data-nosnippet>816</a>            return
+<a href=#817 id=817 data-nosnippet>817</a>        }
+<a href=#818 id=818 data-nosnippet>818</a>        brillig(inline) fn f2 f2 {
+<a href=#819 id=819 data-nosnippet>819</a>          b0():
+<a href=#820 id=820 data-nosnippet>820</a>            call f3()
+<a href=#821 id=821 data-nosnippet>821</a>            return
+<a href=#822 id=822 data-nosnippet>822</a>        }
+<a href=#823 id=823 data-nosnippet>823</a>        brillig(inline) fn f3 f3 {
+<a href=#824 id=824 data-nosnippet>824</a>          b0():
+<a href=#825 id=825 data-nosnippet>825</a>            return
+<a href=#826 id=826 data-nosnippet>826</a>        }
+<a href=#827 id=827 data-nosnippet>827</a>        "</span>;
+<a href=#828 id=828 data-nosnippet>828</a>
+<a href=#829 id=829 data-nosnippet>829</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#830 id=830 data-nosnippet>830</a>        <span class="kw">let </span>call_graph = CallGraph::from_ssa(<span class="kw-2">&amp;</span>ssa);
+<a href=#831 id=831 data-nosnippet>831</a>        <span class="kw">let </span>reachable: BTreeSet&lt;<span class="kw">_</span>&gt; = [<span class="number">0</span>, <span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>].map(Id::test_new).into_iter().collect();
+<a href=#832 id=832 data-nosnippet>832</a>        <span class="kw">let </span>depths = call_graph.max_call_depths(<span class="kw-2">&amp;</span>reachable);
+<a href=#833 id=833 data-nosnippet>833</a>
+<a href=#834 id=834 data-nosnippet>834</a>        <span class="macro">assert_eq!</span>(depths[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)], <span class="prelude-val">Some</span>(<span class="number">1</span>));
+<a href=#835 id=835 data-nosnippet>835</a>        <span class="macro">assert_eq!</span>(depths[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">1</span>)], <span class="prelude-val">Some</span>(<span class="number">2</span>));
+<a href=#836 id=836 data-nosnippet>836</a>        <span class="macro">assert_eq!</span>(depths[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">2</span>)], <span class="prelude-val">Some</span>(<span class="number">2</span>));
+<a href=#837 id=837 data-nosnippet>837</a>        <span class="macro">assert_eq!</span>(depths[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">3</span>)], <span class="prelude-val">Some</span>(<span class="number">3</span>)); <span class="comment">// longest path wins
+<a href=#838 id=838 data-nosnippet>838</a>    </span>}
+<a href=#839 id=839 data-nosnippet>839</a>
+<a href=#840 id=840 data-nosnippet>840</a>    <span class="doccomment">/// Self-recursive f1 and its callee f2: both should be None.
+<a href=#841 id=841 data-nosnippet>841</a>    </span><span class="attr">#[test]
+<a href=#842 id=842 data-nosnippet>842</a>    </span><span class="kw">fn </span>max_call_depths_recursive_and_callee() {
+<a href=#843 id=843 data-nosnippet>843</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#844 id=844 data-nosnippet>844</a>        brillig(inline) fn f0 f0 {
+<a href=#845 id=845 data-nosnippet>845</a>          b0():
+<a href=#846 id=846 data-nosnippet>846</a>            call f1()
+<a href=#847 id=847 data-nosnippet>847</a>            return
+<a href=#848 id=848 data-nosnippet>848</a>        }
+<a href=#849 id=849 data-nosnippet>849</a>        brillig(inline) fn f1 f1 {
+<a href=#850 id=850 data-nosnippet>850</a>          b0():
+<a href=#851 id=851 data-nosnippet>851</a>            call f1()
+<a href=#852 id=852 data-nosnippet>852</a>            call f2()
+<a href=#853 id=853 data-nosnippet>853</a>            return
+<a href=#854 id=854 data-nosnippet>854</a>        }
+<a href=#855 id=855 data-nosnippet>855</a>        brillig(inline) fn f2 f2 {
+<a href=#856 id=856 data-nosnippet>856</a>          b0():
+<a href=#857 id=857 data-nosnippet>857</a>            return
+<a href=#858 id=858 data-nosnippet>858</a>        }
+<a href=#859 id=859 data-nosnippet>859</a>        "</span>;
+<a href=#860 id=860 data-nosnippet>860</a>
+<a href=#861 id=861 data-nosnippet>861</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#862 id=862 data-nosnippet>862</a>        <span class="kw">let </span>call_graph = CallGraph::from_ssa(<span class="kw-2">&amp;</span>ssa);
+<a href=#863 id=863 data-nosnippet>863</a>        <span class="kw">let </span>reachable: BTreeSet&lt;<span class="kw">_</span>&gt; = [<span class="number">0</span>, <span class="number">1</span>, <span class="number">2</span>].map(Id::test_new).into_iter().collect();
+<a href=#864 id=864 data-nosnippet>864</a>        <span class="kw">let </span>depths = call_graph.max_call_depths(<span class="kw-2">&amp;</span>reachable);
+<a href=#865 id=865 data-nosnippet>865</a>
+<a href=#866 id=866 data-nosnippet>866</a>        <span class="comment">// f0 is not recursive and has no recursive callers -&gt; bounded
+<a href=#867 id=867 data-nosnippet>867</a>        </span><span class="macro">assert_eq!</span>(depths[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)], <span class="prelude-val">Some</span>(<span class="number">1</span>));
+<a href=#868 id=868 data-nosnippet>868</a>        <span class="comment">// f1 is self-recursive -&gt; unbounded
+<a href=#869 id=869 data-nosnippet>869</a>        </span><span class="macro">assert_eq!</span>(depths[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">1</span>)], <span class="prelude-val">None</span>);
+<a href=#870 id=870 data-nosnippet>870</a>        <span class="comment">// f2 is called by recursive f1 -&gt; unbounded
+<a href=#871 id=871 data-nosnippet>871</a>        </span><span class="macro">assert_eq!</span>(depths[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">2</span>)], <span class="prelude-val">None</span>);
+<a href=#872 id=872 data-nosnippet>872</a>    }
+<a href=#873 id=873 data-nosnippet>873</a>
+<a href=#874 id=874 data-nosnippet>874</a>    <span class="doccomment">/// f0 -&gt; f1 (recursive cycle) -&gt; f3 (leaf)
+<a href=#875 id=875 data-nosnippet>875</a>    /// f0 -&gt; f2 (non-recursive) -&gt; f3
+<a href=#876 id=876 data-nosnippet>876</a>    /// f3 is reachable from the recursive f1, so it must be None even though
+<a href=#877 id=877 data-nosnippet>877</a>    /// it is also reachable via the non-recursive path f0 -&gt; f2 -&gt; f3.
+<a href=#878 id=878 data-nosnippet>878</a>    </span><span class="attr">#[test]
+<a href=#879 id=879 data-nosnippet>879</a>    </span><span class="kw">fn </span>max_call_depths_shared_callee_of_recursive_and_non_recursive() {
+<a href=#880 id=880 data-nosnippet>880</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#881 id=881 data-nosnippet>881</a>        brillig(inline) fn f0 f0 {
+<a href=#882 id=882 data-nosnippet>882</a>          b0():
+<a href=#883 id=883 data-nosnippet>883</a>            call f1()
+<a href=#884 id=884 data-nosnippet>884</a>            call f2()
+<a href=#885 id=885 data-nosnippet>885</a>            return
+<a href=#886 id=886 data-nosnippet>886</a>        }
+<a href=#887 id=887 data-nosnippet>887</a>        brillig(inline) fn f1 f1 {
+<a href=#888 id=888 data-nosnippet>888</a>          b0():
+<a href=#889 id=889 data-nosnippet>889</a>            call f1()
+<a href=#890 id=890 data-nosnippet>890</a>            call f3()
+<a href=#891 id=891 data-nosnippet>891</a>            return
+<a href=#892 id=892 data-nosnippet>892</a>        }
+<a href=#893 id=893 data-nosnippet>893</a>        brillig(inline) fn f2 f2 {
+<a href=#894 id=894 data-nosnippet>894</a>          b0():
+<a href=#895 id=895 data-nosnippet>895</a>            call f3()
+<a href=#896 id=896 data-nosnippet>896</a>            return
+<a href=#897 id=897 data-nosnippet>897</a>        }
+<a href=#898 id=898 data-nosnippet>898</a>        brillig(inline) fn f3 f3 {
+<a href=#899 id=899 data-nosnippet>899</a>          b0():
+<a href=#900 id=900 data-nosnippet>900</a>            return
+<a href=#901 id=901 data-nosnippet>901</a>        }
+<a href=#902 id=902 data-nosnippet>902</a>        "</span>;
+<a href=#903 id=903 data-nosnippet>903</a>
+<a href=#904 id=904 data-nosnippet>904</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#905 id=905 data-nosnippet>905</a>        <span class="kw">let </span>call_graph = CallGraph::from_ssa(<span class="kw-2">&amp;</span>ssa);
+<a href=#906 id=906 data-nosnippet>906</a>        <span class="kw">let </span>reachable: BTreeSet&lt;<span class="kw">_</span>&gt; = [<span class="number">0</span>, <span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>].map(Id::test_new).into_iter().collect();
+<a href=#907 id=907 data-nosnippet>907</a>        <span class="kw">let </span>depths = call_graph.max_call_depths(<span class="kw-2">&amp;</span>reachable);
+<a href=#908 id=908 data-nosnippet>908</a>
+<a href=#909 id=909 data-nosnippet>909</a>        <span class="macro">assert_eq!</span>(depths[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)], <span class="prelude-val">Some</span>(<span class="number">1</span>));
+<a href=#910 id=910 data-nosnippet>910</a>        <span class="macro">assert_eq!</span>(depths[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">1</span>)], <span class="prelude-val">None</span>); <span class="comment">// recursive
+<a href=#911 id=911 data-nosnippet>911</a>        </span><span class="macro">assert_eq!</span>(depths[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">2</span>)], <span class="prelude-val">Some</span>(<span class="number">2</span>));
+<a href=#912 id=912 data-nosnippet>912</a>        <span class="macro">assert_eq!</span>(depths[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">3</span>)], <span class="prelude-val">None</span>); <span class="comment">// tainted by f1
+<a href=#913 id=913 data-nosnippet>913</a>    </span>}
+<a href=#914 id=914 data-nosnippet>914</a>
+<a href=#915 id=915 data-nosnippet>915</a>    <span class="doccomment">/// Two independent entry points calling a shared leaf:
+<a href=#916 id=916 data-nosnippet>916</a>    /// f0 (depth 1) -&gt; f2 -&gt; f3
+<a href=#917 id=917 data-nosnippet>917</a>    /// f1 (depth 1) -&gt; f3
+<a href=#918 id=918 data-nosnippet>918</a>    /// Max depth of f2 = 2, f3 = 3.
+<a href=#919 id=919 data-nosnippet>919</a>    </span><span class="attr">#[test]
+<a href=#920 id=920 data-nosnippet>920</a>    </span><span class="kw">fn </span>max_call_depths_two_entry_points() {
+<a href=#921 id=921 data-nosnippet>921</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#922 id=922 data-nosnippet>922</a>        brillig(inline) fn f0 f0 {
+<a href=#923 id=923 data-nosnippet>923</a>          b0():
+<a href=#924 id=924 data-nosnippet>924</a>            call f2()
+<a href=#925 id=925 data-nosnippet>925</a>            return
+<a href=#926 id=926 data-nosnippet>926</a>        }
+<a href=#927 id=927 data-nosnippet>927</a>        brillig(inline) fn f1 f1 {
+<a href=#928 id=928 data-nosnippet>928</a>          b0():
+<a href=#929 id=929 data-nosnippet>929</a>            call f3()
+<a href=#930 id=930 data-nosnippet>930</a>            return
+<a href=#931 id=931 data-nosnippet>931</a>        }
+<a href=#932 id=932 data-nosnippet>932</a>        brillig(inline) fn f2 f2 {
+<a href=#933 id=933 data-nosnippet>933</a>          b0():
+<a href=#934 id=934 data-nosnippet>934</a>            call f3()
+<a href=#935 id=935 data-nosnippet>935</a>            return
+<a href=#936 id=936 data-nosnippet>936</a>        }
+<a href=#937 id=937 data-nosnippet>937</a>        brillig(inline) fn f3 f3 {
+<a href=#938 id=938 data-nosnippet>938</a>          b0():
+<a href=#939 id=939 data-nosnippet>939</a>            return
+<a href=#940 id=940 data-nosnippet>940</a>        }
+<a href=#941 id=941 data-nosnippet>941</a>        "</span>;
+<a href=#942 id=942 data-nosnippet>942</a>
+<a href=#943 id=943 data-nosnippet>943</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#944 id=944 data-nosnippet>944</a>        <span class="kw">let </span>call_graph = CallGraph::from_ssa(<span class="kw-2">&amp;</span>ssa);
+<a href=#945 id=945 data-nosnippet>945</a>        <span class="kw">let </span>reachable: BTreeSet&lt;<span class="kw">_</span>&gt; = [<span class="number">0</span>, <span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>].map(Id::test_new).into_iter().collect();
+<a href=#946 id=946 data-nosnippet>946</a>        <span class="kw">let </span>depths = call_graph.max_call_depths(<span class="kw-2">&amp;</span>reachable);
+<a href=#947 id=947 data-nosnippet>947</a>
+<a href=#948 id=948 data-nosnippet>948</a>        <span class="macro">assert_eq!</span>(depths[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">0</span>)], <span class="prelude-val">Some</span>(<span class="number">1</span>));
+<a href=#949 id=949 data-nosnippet>949</a>        <span class="macro">assert_eq!</span>(depths[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">1</span>)], <span class="prelude-val">Some</span>(<span class="number">1</span>));
+<a href=#950 id=950 data-nosnippet>950</a>        <span class="macro">assert_eq!</span>(depths[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">2</span>)], <span class="prelude-val">Some</span>(<span class="number">2</span>));
+<a href=#951 id=951 data-nosnippet>951</a>        <span class="macro">assert_eq!</span>(depths[<span class="kw-2">&amp;</span>Id::test_new(<span class="number">3</span>)], <span class="prelude-val">Some</span>(<span class="number">3</span>));
+<a href=#952 id=952 data-nosnippet>952</a>    }
+<a href=#953 id=953 data-nosnippet>953</a>}</code></pre></div></section></main></body></html>
