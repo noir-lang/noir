@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773858098043,
+  "lastUpdate": 1773859745019,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23091,48 +23091,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "e3904eb99585e7f67648890bae4f290b1cd2dfb4",
-          "message": "fix: look for associated types on parent traits and impls (#11745)",
-          "timestamp": "2026-03-12T15:32:10Z",
-          "tree_id": "1945ffef496cd15b1151675f63071851612e9764",
-          "url": "https://github.com/noir-lang/noir/commit/e3904eb99585e7f67648890bae4f290b1cd2dfb4"
-        },
-        "date": 1773331417350,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 251786,
-            "range": "± 900",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 220849,
-            "range": "± 6012",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2730729,
-            "range": "± 1875",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -25184,6 +25142,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2730961,
             "range": "± 1987",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "56050d9100706c3c6f760ea4ecd96838fd93fd0c",
+          "message": "chore(ssa): Apply array set window opt to vectors (#11902)",
+          "timestamp": "2026-03-18T18:24:32Z",
+          "tree_id": "d06d3af81fa277d00fa4490141f7bb8abe31584b",
+          "url": "https://github.com/noir-lang/noir/commit/56050d9100706c3c6f760ea4ecd96838fd93fd0c"
+        },
+        "date": 1773859696351,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 252364,
+            "range": "± 743",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 221413,
+            "range": "± 6936",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2730864,
+            "range": "± 1506",
             "unit": "ns/iter"
           }
         ]
