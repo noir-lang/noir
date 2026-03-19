@@ -132,9 +132,20 @@ pub(super) fn simplify_call(
                     dfg.get_integer_constant(arguments[0])
                 {
                     // This simplification, which push back directly on the vector, only works if the real vector_len is the
-                    // the length of the vector. With flat nested arrays, vector.len() is already the correct flat count.
-                    if vector_len as usize == vector.len() {
-                        let is_acir = dfg.runtime().is_acir();
+                    // the length of the vector. For complex element types (tuples, nested arrays), each semantic
+                    // element maps to multiple SSA values, so we must compute the expected flat length.
+                    let is_acir = dfg.runtime().is_acir();
+                    let expected_len = if is_acir {
+                        let flat_stride: usize = vector_type
+                            .element_types()
+                            .iter()
+                            .map(|t| t.flattened_size().0 as usize)
+                            .sum();
+                        vector_len as usize * flat_stride
+                    } else {
+                        vector_len as usize * vector_type.element_size().0 as usize
+                    };
+                    if expected_len == vector.len() {
                         // Old code before implementing multiple vector mergers
                         for elem in &arguments[2..] {
                             let typ = dfg.type_of_value(*elem);
@@ -689,6 +700,11 @@ fn simplify_vector_push_back(
     // index can't correctly update them. For ACIR flat arrays the semantic index doesn't
     // match the flat index either, making the merge incorrect.
     if element_type.element_size() != ElementTypesLength(1) {
+        return SimplifyResult::None;
+    }
+    // For ACIR flat arrays with nested array elements, the ArraySet at the semantic
+    // index is incorrect (needs flat offset). Bail for safety.
+    if is_acir && element_type.element_types().iter().any(|t| t.contains_an_array()) {
         return SimplifyResult::None;
     }
 
@@ -1312,8 +1328,34 @@ mod tests {
         acir(inline) fn main f0 {
           b0():
             v4 = make_array [Field 1, Field 2, Field 3, Field 4] : [(Field, Field)]
-            v9, v10 = call vector_push_back(u32 2, v4, Field 5, Field 6) -> (u32, [(Field, Field)])
-            return v9, v10
+            v7 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [(Field, Field)]
+            return u32 3, v7
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_vector_push_back_nested_array_acir() {
+        // Pushing a [Field; 3] element to a flat [[Field; 3]] vector at capacity.
+        // The fast path should fire and flatten the element into the vector.
+        let src = r#"
+        acir(inline) fn main func {
+          b0():
+            v0 = make_array [Field 10, Field 20, Field 30] : [Field; 3]
+            v1 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [[Field; 3]]
+            v2, v3 = call vector_push_back(u32 2, v1, v0) -> (u32, [[Field; 3]])
+            return v2, v3
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v3 = make_array [Field 10, Field 20, Field 30] : [Field; 3]
+            v10 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [[Field; 3]]
+            v11 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6, Field 10, Field 20, Field 30] : [[Field; 3]]
+            return u32 3, v11
         }
         ");
     }
