@@ -769,6 +769,7 @@ impl<'context> Elaborator<'context> {
         self.interner.set_type_alias(alias_id, typ, generics, num_expr);
         self.generics.clear();
 
+        self.current_item = None;
         self.in_comptime_context = previous_in_comptime_context;
     }
 

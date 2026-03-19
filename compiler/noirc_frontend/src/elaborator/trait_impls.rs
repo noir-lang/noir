@@ -561,7 +561,6 @@ impl Elaborator<'_> {
                     trait_bound.location,
                     &trait_constrain.typ,
                     trait_bound,
-                    trait_bound.trait_id,
                 );
             }
         }
@@ -957,7 +956,7 @@ impl Elaborator<'_> {
             for bound in bounds {
                 let typ = Type::TypeVariable(new_generic.type_var.clone());
                 let location = new_generic.location;
-                self.add_trait_bound_to_scope(location, &typ, &bound, bound.trait_id);
+                self.add_trait_bound_to_scope(location, &typ, &bound);
                 new_generics_trait_constraints
                     .push((TraitConstraint { typ, trait_bound: bound }, location));
             }
