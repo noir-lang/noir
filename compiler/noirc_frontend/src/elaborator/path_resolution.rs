@@ -633,7 +633,7 @@ impl Elaborator<'_> {
                         Some(TypeAliasTarget::Primitive(typ)) => {
                             // The alias points to a primitive type. Look up the method
                             // directly via the interner rather than through a module.
-                            let result = self.resolve_primitive_type_alias_method(
+                            return self.resolve_primitive_type_alias_method(
                                 typ,
                                 id,
                                 prev_segment.turbofish(),
@@ -641,7 +641,6 @@ impl Elaborator<'_> {
                                 importing_module,
                                 &mut errors,
                             );
-                            return result;
                         }
                         None => {
                             return Err(PathResolutionError::Unresolved(prev_ident.clone()));
@@ -954,7 +953,7 @@ impl Elaborator<'_> {
     ///
     /// This handles paths like `MyAlias::method()` where `MyAlias` aliases
     /// a primitive type. Because they do not have module, we look up the method directly
-    /// like what is done in `resolve_primitive_type_or_function`.
+    /// like what is done in [Self::resolve_primitive_type_or_function].
     fn resolve_primitive_type_alias_method(
         &mut self,
         typ: Type,
