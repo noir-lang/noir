@@ -8,7 +8,6 @@ use crate::ops::arith::{Add, Neg, Sub};
 pub struct EmbeddedCurvePoint {
     pub x: Field,
     pub y: Field,
-    pub is_infinite: bool,
 }
 
 impl EmbeddedCurvePoint {
@@ -20,7 +19,7 @@ impl EmbeddedCurvePoint {
 
     /// Returns the null element of the curve; 'the point at infinity'
     pub fn point_at_infinity() -> EmbeddedCurvePoint {
-        EmbeddedCurvePoint { x: 0, y: 0, is_infinite: true }
+        EmbeddedCurvePoint { x: 0, y: 0 }
     }
 
     /// Returns the curve's generator point.
@@ -29,8 +28,12 @@ impl EmbeddedCurvePoint {
         EmbeddedCurvePoint {
             x: 1,
             y: 17631683881184975370165255887551781615748388533673675138860, // sqrt(-16)
-            is_infinite: false,
         }
+    }
+
+    /// True if this point is the zero point which is indistinguishable from the point at infinity
+    pub fn is_infinite_or_zero(self) -> bool {
+        (self.x == 0) & (self.y == 0)
     }
 }
 
@@ -52,15 +55,14 @@ impl Neg for EmbeddedCurvePoint {
     /// Negates a point P, i.e returns -P, by negating the y coordinate.
     /// If the point is at infinity, then the result is also at infinity.
     fn neg(self) -> EmbeddedCurvePoint {
-        EmbeddedCurvePoint { x: self.x, y: -self.y, is_infinite: self.is_infinite }
+        EmbeddedCurvePoint { x: self.x, y: -self.y }
     }
 }
 
 impl Eq for EmbeddedCurvePoint {
     /// Checks whether two points are equal
     fn eq(self: Self, b: EmbeddedCurvePoint) -> bool {
-        (self.is_infinite & b.is_infinite)
-            | ((self.is_infinite == b.is_infinite) & (self.x == b.x) & (self.y == b.y))
+        (self.x == b.x) & (self.y == b.y)
     }
 }
 
@@ -69,12 +71,8 @@ impl Hash for EmbeddedCurvePoint {
     where
         H: crate::hash::Hasher,
     {
-        if self.is_infinite {
-            self.is_infinite.hash(state);
-        } else {
-            self.x.hash(state);
-            self.y.hash(state);
-        }
+        self.x.hash(state);
+        self.y.hash(state);
     }
 }
 
@@ -177,9 +175,9 @@ pub fn embedded_curve_add(
     // docs:end:embedded_curve_add
     if crate::runtime::is_unconstrained() {
         // avoid calling the black box function for trivial cases
-        if point1.is_infinite {
+        if point1.is_infinite_or_zero() {
             point2
-        } else if point2.is_infinite {
+        } else if point2.is_infinite_or_zero() {
             point1
         } else {
             embedded_curve_add_inner(point1, point2)
