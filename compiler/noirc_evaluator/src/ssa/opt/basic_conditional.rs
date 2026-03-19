@@ -382,59 +382,17 @@ impl Context<'_> {
         no_predicates: &HashMap<FunctionId, bool>,
     ) {
         // Manually inline 'then', 'else' and 'exit' into the entry block
-        //0. initialize the context for flattening a 'single conditional'
         let old_target = self.target_block;
         let old_no_predicate = self.no_predicate;
         self.target_block = conditional.block_entry;
         self.no_predicate = true;
-        //1. process 'then' branch
+
+        // Process 'then' branch
         self.inline_block(conditional.block_entry, no_predicates);
         let mut work_list = WorkList::new();
 
-        // Handle the entry block's terminator. If it's a JmpIf with then/else arguments
-        // (added by mem2reg_simple to carry promoted variables into the branches), we must
-        // prepare them as block arguments before inlining each branch. We call if_start
-        // directly to bypass the assertion in handle_terminator which guards the ACIR path.
-        let entry_else_args = {
-            let terminator =
-                self.inserter.function.dfg[conditional.block_entry].unwrap_terminator().clone();
-            match terminator {
-                TerminatorInstruction::JmpIf {
-                    condition,
-                    then_destination,
-                    then_arguments,
-                    else_destination,
-                    else_arguments,
-                    call_stack,
-                } => {
-                    // Prepare then-arguments now; inline_block(block_then) will consume them.
-                    if !then_arguments.is_empty() {
-                        let resolved = vecmap(&then_arguments, |v| self.inserter.resolve(*v));
-                        self.prepare_args(resolved);
-                    }
-                    // Save else-arguments to prepare just before inline_block(block_else).
-                    let entry_else_args = if !else_arguments.is_empty() {
-                        Some(vecmap(&else_arguments, |v| self.inserter.resolve(*v)))
-                    } else {
-                        None
-                    };
-                    let to_process = self.if_start(
-                        &condition,
-                        &then_destination,
-                        &else_destination,
-                        &conditional.block_entry,
-                        call_stack,
-                    );
-                    work_list.extend(to_process);
-                    entry_else_args
-                }
-                _ => {
-                    let to_process = self.handle_terminator(conditional.block_entry, &work_list);
-                    work_list.extend(to_process);
-                    None
-                }
-            }
-        };
+        let to_process = self.handle_terminator(conditional.block_entry, &work_list);
+        work_list.extend(to_process);
 
         if let Some(then) = conditional.block_then {
             assert_eq!(work_list.pop(), conditional.block_then);
@@ -443,14 +401,21 @@ impl Context<'_> {
             work_list.extend(to_process);
         }
 
-        //2. process 'else' branch, in case there is no 'then'
+        // Process 'else' branch
         let next = work_list.pop();
         if next == conditional.block_else {
             let next = next.unwrap();
+
             // Prepare else-arguments so inline_block(block_else) can consume them.
-            if let Some(else_args) = entry_else_args {
+            let terminator =
+                self.inserter.function.dfg[conditional.block_entry].unwrap_terminator();
+
+            if let TerminatorInstruction::JmpIf { else_arguments, .. } = terminator {
+                // Save else-arguments to prepare just before inline_block(block_else).
+                let else_args = vecmap(else_arguments, |v| self.inserter.resolve(*v));
                 self.prepare_args(else_args);
             }
+
             self.inline_block(next, no_predicates);
             let _ = self.handle_terminator(next, &work_list);
         } else {
