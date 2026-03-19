@@ -369,7 +369,7 @@ fn handle_reference_expression_cases() {
         let _$l1 = {
             a$l0
         }[0];
-        let _$l2 = (*(&mut a$l0))[0];
+        let _$l2 = a$l0[0];
         let tuple$l3 = (a$l0.clone(), a$l0.clone());
         let _$l4 = tuple$l3.0[0];
         let nested$l5 = [a$l0.clone(), a$l0.clone()];

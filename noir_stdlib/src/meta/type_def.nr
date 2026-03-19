@@ -1,7 +1,6 @@
 use crate::option::Option;
 
 impl TypeDefinition {
-    #[deprecated]
     #[builtin(type_def_add_attribute)]
     // docs:start:add_attribute
     pub comptime fn add_attribute<let N: u32>(self, attribute: str<N>) {}

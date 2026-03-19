@@ -65,8 +65,15 @@ pub(crate) fn get_program_errors(src: &str) -> Vec<CompilationError> {
     get_program_with_options(src, Default::default()).2
 }
 
-pub(crate) fn assert_no_errors(src: &str) -> Context<'_, '_> {
-    let (_, context, errors) = get_program(src);
+pub(crate) fn assert_no_errors(src: &str) -> Context<'static, 'static> {
+    assert_no_errors_using_features(src, FrontendOptions::test_default().enabled_unstable_features)
+}
+
+pub(crate) fn assert_no_errors_using_features(
+    src: &str,
+    features: &[UnstableFeature],
+) -> Context<'static, 'static> {
+    let (_, context, errors) = get_program_using_features(src, features);
     if !errors.is_empty() {
         let errors = errors.iter().map(CustomDiagnostic::from).collect::<Vec<_>>();
         report_all(&context, &errors, false, false);
