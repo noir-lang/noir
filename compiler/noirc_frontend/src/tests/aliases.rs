@@ -1,6 +1,3 @@
-use crate::tests::{
-    UnstableFeature, assert_no_errors, check_errors, check_errors_using_features,
-    get_program_errors,
 use crate::tests::{UnstableFeature, assert_no_errors, check_errors, check_errors_using_features};
 
 #[test]
@@ -1100,7 +1097,7 @@ fn no_false_cycle_from_stale_current_item_after_type_alias() {
         trait Dummy<T> {}
         trait Foo: Dummy<A> {}
 
-        fn main(x: A) {}
+        fn main(_x: A) where A: Foo {}
     "#;
     assert_no_errors(src);
 }
