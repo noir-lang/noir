@@ -11,11 +11,9 @@ use builtin_helpers::{
     block_expression_to_value, byte_array_type, check_argument_count,
     check_function_not_yet_resolved, check_one_argument, check_three_arguments,
     check_two_arguments, get_bool, get_expr, get_field, get_format_string, get_function_def,
-    get_module, get_quoted, get_trait_constraint, get_trait_def, get_trait_impl, get_tuple,
-    get_type, get_type_id, get_typed_expr, get_u32, get_unresolved_type, get_vector,
-    has_named_attribute, hir_pattern_to_tokens, mutate_func_meta_type, new_binary_op, new_unary_op,
-    parse, quote_ident, replace_func_meta_parameters, replace_func_meta_return_type,
-    visibility_to_quoted,
+    get_module, get_quoted, get_trait_constraint, get_trait_def, get_trait_impl, get_type,
+    get_type_id, get_typed_expr, get_u32, get_unresolved_type, get_vector, has_named_attribute,
+    hir_pattern_to_tokens, new_binary_op, new_unary_op, parse, quote_ident, visibility_to_quoted,
 };
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
@@ -24,11 +22,11 @@ use num_bigint::BigUint;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
-    Kind, QuotedType, ResolvedGeneric, Shared, StructField, Type, TypeBindings, TypeVariable,
+    Kind, QuotedType, Shared, Type, TypeBindings,
     ast::{
         ArrayLiteral, BlockExpression, ConstrainKind, Expression, ExpressionKind, ForRange,
-        FunctionKind, FunctionReturnType, Ident, IntegerBitSize, LValue, Literal, Pattern,
-        Statement, StatementKind, UnresolvedType, UnresolvedTypeData, UnsafeExpression,
+        FunctionKind, IntegerBitSize, LValue, Literal, Pattern, Statement, StatementKind,
+        UnresolvedTypeData, UnsafeExpression,
     },
     elaborator::{
         ElaborateReason, Elaborator, PrimitiveType,
@@ -41,11 +39,13 @@ use crate::{
             errors::IResult,
             interpreter::{
                 builtin::builtin_helpers::fragments_to_string,
-                builtin_helpers::check_item_crate_matches_current_crate,
+                builtin_helpers::{
+                    check_item_crate_matches_current_crate, get_tuple, mutate_func_meta_type,
+                    replace_func_meta_parameters,
+                },
             },
             value::{ExprValue, FormatStringFragment, TypedExpr},
         },
-        def_collector::dc_crate::CollectedItems,
         def_map::{ModuleDefId, ModuleId},
     },
     hir_def::{
@@ -57,7 +57,7 @@ use crate::{
     parser::{Parser, StatementOrExpressionOrLValue},
     shared::{Signedness, Visibility},
     signed_field::SignedField,
-    token::{Attribute, LocatedToken, Token},
+    token::{Attribute, LocatedToken, SecondaryAttribute, SecondaryAttributeKind, Token},
 };
 
 use self::builtin_helpers::{eq_item, get_array, get_ctstring, get_str, get_u8, hash_item, lex};
@@ -138,6 +138,7 @@ impl Interpreter<'_, '_> {
             "function_def_add_attribute" => function_def_add_attribute(self, arguments, location),
             "function_def_as_typed_expr" => function_def_as_typed_expr(self, arguments, location),
             "function_def_body" => function_def_body(interner, arguments, location),
+            "function_def_disable" => function_def_disable(self, arguments, location),
             "function_def_eq" => function_def_eq(arguments, location),
             "function_def_has_named_attribute" => {
                 function_def_has_named_attribute(interner, arguments, location)
@@ -152,20 +153,10 @@ impl Interpreter<'_, '_> {
             "function_def_return_type" => function_def_return_type(interner, arguments, location),
             "function_def_set_body" => function_def_set_body(self, arguments, location),
             "function_def_set_parameters" => function_def_set_parameters(self, arguments, location),
-            "function_def_set_return_type" => {
-                function_def_set_return_type(self, arguments, location)
-            }
             "function_def_set_return_public" => {
                 function_def_set_return_public(self, arguments, location)
             }
-            "function_def_set_return_data" => {
-                function_def_set_return_data(self, arguments, location)
-            }
-            "function_def_set_unconstrained" => {
-                function_def_set_unconstrained(self, arguments, location)
-            }
             "function_def_visibility" => function_def_visibility(interner, arguments, location),
-            "module_add_item" => module_add_item(self, arguments, location),
             "module_child_modules" => module_child_modules(self, arguments, location),
             "module_eq" => module_eq(arguments, location),
             "module_functions" => module_functions(self, arguments, location),
@@ -223,7 +214,7 @@ impl Interpreter<'_, '_> {
             "type_as_data_type" => type_as_data_type(arguments, return_type, location),
             "type_as_tuple" => type_as_tuple(arguments, return_type, location),
             "type_def_add_attribute" => type_def_add_attribute(self, arguments, location),
-            "type_def_add_generic" => type_def_add_generic(self, arguments, location),
+            "type_def_add_abi" => type_def_add_abi(self, arguments, location),
             "type_def_as_type" => type_def_as_type(interner, arguments, location),
             "type_def_as_type_with_generics" => {
                 type_def_as_type_with_generics(interner, arguments, return_type, location)
@@ -240,7 +231,6 @@ impl Interpreter<'_, '_> {
             "type_def_hash" => type_def_hash(arguments, location),
             "type_def_module" => type_def_module(self, arguments, location),
             "type_def_name" => type_def_name(interner, arguments, location),
-            "type_def_set_fields" => type_def_set_fields(self, arguments, location),
             "type_eq" => type_eq(arguments, location),
             "type_get_trait_impl" => {
                 type_get_trait_impl(interner, arguments, return_type, location)
@@ -445,60 +435,31 @@ fn type_def_add_attribute(
     Ok(Value::Unit)
 }
 
-// fn add_generic<let N: u32>(self, generic_name: str<N>)
-fn type_def_add_generic(
-    interpreter: &Interpreter,
+// fn add_abi(self, abi_argument: CtString)
+fn type_def_add_abi(
+    interpreter: &mut Interpreter,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    let (self_argument, generic) = check_two_arguments(arguments, location)?;
-    let generic_location = generic.1;
-    let generic = get_str(generic)?;
-    let generic = String::from_utf8_lossy(&generic);
+    let (self_argument, attribute) = check_two_arguments(arguments, location)?;
+    let attribute_location = attribute.1;
+    let attribute = get_ctstring(attribute)?;
+    let attribute = String::from_utf8_lossy(&attribute);
 
-    let mut tokens = lex(&generic, location);
-    if tokens.len() != 1 {
-        return Err(InterpreterError::GenericNameShouldBeAnIdent {
-            name: generic.to_string(),
-            location: generic_location,
-        });
-    }
-
-    let Token::Ident(generic_name) = tokens.remove(0).into_token() else {
-        return Err(InterpreterError::GenericNameShouldBeAnIdent {
-            name: generic.to_string(),
-            location: generic_location,
-        });
+    let attribute = SecondaryAttribute {
+        kind: SecondaryAttributeKind::Abi(attribute.into_owned()),
+        location: attribute_location,
     };
 
     let self_arg = self_argument.0.clone();
-    let struct_id = get_type_id(self_argument)?;
-    let struct_module = struct_id.module_id();
+    let type_id = get_type_id(self_argument)?;
+    check_item_crate_matches_current_crate(interpreter, &self_arg, type_id.module_id(), location)?;
 
-    check_item_crate_matches_current_crate(interpreter, &self_arg, struct_module, location)?;
+    interpreter.elaborator.interner.update_type_attributes(type_id, |attributes| {
+        attributes.push(attribute);
+    });
 
-    let the_struct = interpreter.elaborator.interner.get_type(struct_id);
-    let mut the_struct = the_struct.borrow_mut();
-    let name = Rc::new(generic_name);
-
-    for generic in &the_struct.generics {
-        if generic.name == name {
-            return Err(InterpreterError::DuplicateGeneric {
-                name,
-                struct_name: the_struct.name.to_string(),
-                existing_location: generic.location,
-                duplicate_location: generic_location,
-            });
-        }
-    }
-
-    let type_var_id = interpreter.elaborator.interner.next_type_variable_id();
-    let type_var = TypeVariable::unbound(type_var_id, Kind::Normal);
-    let typ = type_var.clone().into_named_generic(&name, None);
-    let new_generic = ResolvedGeneric { name, type_var, location: generic_location };
-    the_struct.generics.push(new_generic);
-
-    Ok(Value::Type(typ))
+    Ok(Value::Unit)
 }
 
 /// fn as_type(self) -> Type
@@ -727,88 +688,6 @@ fn type_def_name(
     let name = Token::Ident(the_struct.borrow().name.to_string());
     let token = LocatedToken::new(name, location);
     Ok(Value::Quoted(Rc::new(vec![token])))
-}
-
-/// fn set_fields(self, new_fields: [(Quoted, Type, Quoted)]) {}
-/// Returns (name, type) pairs of each field of this TypeDefinition
-fn type_def_set_fields(
-    interpreter: &mut Interpreter,
-    arguments: Vec<(Value, Location)>,
-    location: Location,
-) -> IResult<Value> {
-    let (the_struct, fields) = check_two_arguments(arguments, location)?;
-    let self_arg = the_struct.0.clone();
-    let struct_id = get_type_id(the_struct)?;
-    let struct_module = struct_id.module_id();
-
-    check_item_crate_matches_current_crate(interpreter, &self_arg, struct_module, location)?;
-
-    let struct_def = interpreter.elaborator.interner.get_type(struct_id);
-    let mut struct_def = struct_def.borrow_mut();
-
-    let field_location = fields.1;
-    let fields = get_vector(fields)?.0;
-    let fields = fields
-        .into_iter()
-        .flat_map(|field_pair| get_tuple((field_pair, field_location)))
-        .enumerate()
-        .collect::<Vec<_>>();
-
-    let mut new_fields = Vec::<StructField>::new();
-
-    for (index, mut field_pair) in fields {
-        if field_pair.len() != 3 {
-            let expected = "tuple".to_string();
-
-            let actual =
-                Type::Tuple(vecmap(&field_pair, |value| value.borrow().get_type().into_owned()));
-
-            return Err(InterpreterError::TypeMismatch { expected, actual, location });
-        }
-
-        let visibility = field_pair.pop().unwrap().unwrap_or_clone();
-        let typ = field_pair.pop().unwrap().unwrap_or_clone();
-        let name_value = field_pair.pop().unwrap().unwrap_or_clone();
-
-        let name_tokens = get_quoted((name_value.clone(), field_location))?;
-        let typ = get_type((typ, field_location))?;
-
-        match name_tokens.first().map(|t| t.token()) {
-            Some(Token::Ident(name)) if name_tokens.len() == 1 => {
-                let visibility = parse(
-                    interpreter.elaborator,
-                    (visibility, field_location),
-                    Parser::parse_item_visibility,
-                    "a visibility",
-                )?;
-
-                let name = Ident::new(name.clone(), field_location);
-                let previous_index = new_fields.iter().position(|field| field.name == name);
-
-                if let Some(previous_index) = previous_index {
-                    return Err(InterpreterError::DuplicateStructFieldInSetFields {
-                        name,
-                        index,
-                        previous_index,
-                    });
-                }
-
-                new_fields.push(StructField { visibility, name, typ });
-            }
-            _ => {
-                let value = name_value.display(interpreter.elaborator.interner).to_string();
-                let location = field_location;
-                return Err(InterpreterError::ExpectedIdentForStructField {
-                    value,
-                    index,
-                    location,
-                });
-            }
-        }
-    }
-
-    struct_def.set_fields(new_fields);
-    Ok(Value::Unit)
 }
 
 fn vector_remove(
@@ -1057,7 +936,7 @@ fn to_le_radix(
     let radix = get_u32(radix)?;
     let (limb_count, element_type) = if let Type::Array(length, element_type) = return_type {
         if let Type::Constant(limb_count, kind) = *length {
-            if kind.unifies(&Kind::u32()) {
+            if kind.unify(&Type::u32()).is_ok() {
                 (limb_count.to_field_element(), element_type)
             } else {
                 return Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location });
@@ -2658,6 +2537,40 @@ fn function_def_body(
     }
 }
 
+// fn disable(self, error_message: CtString)
+fn function_def_disable(
+    interpreter: &mut Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (self_argument, error_message) = check_two_arguments(arguments, location)?;
+    let error_message = get_ctstring(error_message)?;
+    let error_message = String::from_utf8_lossy(&error_message).into_owned();
+
+    let func_id = get_function_def(self_argument)?;
+    check_function_not_yet_resolved(interpreter, func_id, location)?;
+
+    let function_modifiers = interpreter.elaborator.interner.function_modifiers_mut(&func_id);
+
+    function_modifiers.attributes.secondary.push(SecondaryAttribute {
+        kind: SecondaryAttributeKind::Deprecated(true, Some(error_message)),
+        location,
+    });
+
+    function_modifiers
+        .attributes
+        .secondary
+        .push(SecondaryAttribute { kind: SecondaryAttributeKind::ContractLibraryMethod, location });
+
+    let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
+
+    // Lie and say that the body of this function is resolved in order to avoid any
+    // errors from resolving it since it is now disabled. The addition of `deprecated(deny, _)`
+    // above should ensure it is never called.
+    func_meta.function_body = FunctionBody::Resolved;
+    Ok(Value::Unit)
+}
+
 // fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
 fn function_def_has_named_attribute(
     interner: &NodeInterner,
@@ -2870,31 +2783,6 @@ fn function_def_set_parameters(
     Ok(Value::Unit)
 }
 
-// fn set_return_type(self, return_type: Type)
-fn function_def_set_return_type(
-    interpreter: &mut Interpreter,
-    arguments: Vec<(Value, Location)>,
-    location: Location,
-) -> IResult<Value> {
-    let (self_argument, return_type_argument) = check_two_arguments(arguments, location)?;
-    let return_type = get_type(return_type_argument)?;
-
-    let func_id = get_function_def(self_argument)?;
-    check_function_not_yet_resolved(interpreter, func_id, location)?;
-
-    let quoted_type_id = interpreter.elaborator.interner.push_quoted_type(return_type.clone());
-
-    mutate_func_meta_type(interpreter.elaborator.interner, func_id, |func_meta| {
-        func_meta.return_type = FunctionReturnType::Ty(UnresolvedType {
-            typ: UnresolvedTypeData::Resolved(quoted_type_id),
-            location,
-        });
-        replace_func_meta_return_type(&mut func_meta.typ, return_type);
-    });
-
-    Ok(Value::Unit)
-}
-
 // fn set_return_public(self, public: bool)
 fn function_def_set_return_public(
     interpreter: &mut Interpreter,
@@ -2915,44 +2803,6 @@ fn function_def_set_return_public(
     Ok(Value::Unit)
 }
 
-// fn set_return_data(self)
-fn function_def_set_return_data(
-    interpreter: &mut Interpreter,
-    arguments: Vec<(Value, Location)>,
-    location: Location,
-) -> IResult<Value> {
-    let self_argument = check_one_argument(arguments, location)?;
-
-    let func_id = get_function_def(self_argument)?;
-    check_function_not_yet_resolved(interpreter, func_id, location)?;
-
-    let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
-    func_meta.return_visibility = Visibility::ReturnData;
-    func_meta.return_visibility_location = location;
-
-    Ok(Value::Unit)
-}
-
-// fn set_unconstrained(self, value: bool)
-fn function_def_set_unconstrained(
-    interpreter: &mut Interpreter,
-    arguments: Vec<(Value, Location)>,
-    location: Location,
-) -> IResult<Value> {
-    let (self_argument, unconstrained) = check_two_arguments(arguments, location)?;
-
-    let func_id = get_function_def(self_argument)?;
-    check_function_not_yet_resolved(interpreter, func_id, location)?;
-
-    let unconstrained = get_bool(unconstrained)?;
-
-    mutate_func_meta_type(interpreter.elaborator.interner, func_id, |func_meta| {
-        func_meta.set_unconstrained(unconstrained);
-    });
-
-    Ok(Value::Unit)
-}
-
 // fn visibility(self) -> Quoted
 fn function_def_visibility(
     interner: &NodeInterner,
@@ -2963,35 +2813,6 @@ fn function_def_visibility(
     let func_id = get_function_def(self_argument)?;
     let visibility = interner.function_visibility(func_id);
     Ok(visibility_to_quoted(visibility, location))
-}
-
-// fn add_item(self, item: Quoted)
-fn module_add_item(
-    interpreter: &mut Interpreter,
-    arguments: Vec<(Value, Location)>,
-    location: Location,
-) -> IResult<Value> {
-    let (self_argument, item) = check_two_arguments(arguments, location)?;
-    let module_value = self_argument.0.clone();
-    let module_id = get_module(self_argument)?;
-
-    check_item_crate_matches_current_crate(interpreter, &module_value, module_id, location)?;
-
-    let parser = Parser::parse_top_level_items;
-    let top_level_statements = parse(interpreter.elaborator, item, parser, "a top-level item")?;
-
-    let reason = Some(ElaborateReason::EvaluatingComptimeCall("Module::add_item", location));
-    interpreter.elaborate_in_module(module_id, reason, |elaborator| {
-        let mut generated_items = CollectedItems::default();
-
-        elaborator.add_items(top_level_statements, &mut generated_items, location);
-
-        if !generated_items.is_empty() {
-            elaborator.elaborate_items(generated_items);
-        }
-    });
-
-    Ok(Value::Unit)
 }
 
 // fn child_modules(self) -> [Module]

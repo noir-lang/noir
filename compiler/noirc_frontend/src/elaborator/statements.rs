@@ -615,7 +615,10 @@ impl Elaborator<'_> {
                 }
 
                 let typ = match lvalue_type.follow_bindings() {
-                    Type::Array(_, elem_type) => *elem_type,
+                    Type::Array(ref size, ref elem_type) => {
+                        self.check_array_index_out_of_bounds(size, &index, location);
+                        *elem_type.clone()
+                    }
                     Type::Vector(elem_type) => *elem_type,
                     Type::Error => Type::Error,
                     Type::String(_) => {
