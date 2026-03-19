@@ -190,6 +190,10 @@ pub enum InterpreterError {
     NoImpl {
         location: Location,
     },
+    NoTraitItemInImpl {
+        item_name: String,
+        location: Location,
+    },
     NoMatchingImplFound {
         error: NoMatchingImplFoundError,
     },
@@ -390,6 +394,7 @@ impl InterpreterError {
             | InterpreterError::Unimplemented { location, .. }
             | InterpreterError::InvalidInComptimeContext { location, .. }
             | InterpreterError::NoImpl { location, .. }
+            | InterpreterError::NoTraitItemInImpl { location, .. }
             | InterpreterError::ImplMethodTypeMismatch { location, .. }
             | InterpreterError::DebugEvaluateComptime { location, .. }
             | InterpreterError::BlackBoxError(_, location)
@@ -715,6 +720,10 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             }
             InterpreterError::NoImpl { location } => {
                 let msg = "No impl found due to prior type error".into();
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
+            }
+            InterpreterError::NoTraitItemInImpl { item_name, location } => {
+                let msg = format!("No method or constant named `{item_name}` found in impl due to prior type error");
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::ImplMethodTypeMismatch { expected, actual, location } => {
