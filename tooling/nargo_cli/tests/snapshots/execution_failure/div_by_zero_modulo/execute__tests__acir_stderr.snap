@@ -1,0 +1,25 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+bug: Assertion is always false: attempt to calculate the remainder with a divisor of zero
+  ┌─ src/main.nr:5:15
+  │
+5 │     let res = (a * b) % c;
+  │               ----------- As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution
+  │
+  = Call stack:
+    1: main
+            at src/main.nr:5:15
+
+error: Assertion failed: attempt to calculate the remainder with a divisor of zero
+  ┌─ src/main.nr:5:15
+  │
+5 │     let res = (a * b) % c;
+  │               -----------
+  │
+  = Call stack:
+    1: main
+            at src/main.nr:5:15
+
+Failed assertion

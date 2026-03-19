@@ -115,6 +115,22 @@ impl Parser<'_> {
     fn parse_unary(&mut self, allow_constructors: bool) -> Option<Expression> {
         let start_location = self.current_token_location;
 
+        // `&&` (LogicalAnd) in unary context is two nested references: `&&x` is `&(&x)`,
+        // `&&mut x` is `&(&mut x)`. Same approach as `parse_reference_type` for `&&Type`.
+        if self.eat(Token::LogicalAnd) {
+            let mutable = self.eat_keyword(Keyword::Mut);
+            let Some(rhs) = self.parse_unary(allow_constructors) else {
+                self.expected_label(ParsingRuleLabel::Expression);
+                return None;
+            };
+            let inner_kind = ExpressionKind::prefix(UnaryOp::Reference { mutable }, rhs);
+            let inner_location = self.location_since(start_location);
+            let inner = Expression { kind: inner_kind, location: inner_location };
+            let kind = ExpressionKind::prefix(UnaryOp::Reference { mutable: false }, inner);
+            let location = self.location_since(start_location);
+            return Some(Expression { kind, location });
+        }
+
         if let Some(operator) = self.parse_unary_op() {
             let Some(rhs) = self.parse_unary(allow_constructors) else {
                 self.expected_label(ParsingRuleLabel::Expression);
@@ -592,10 +608,62 @@ impl Parser<'_> {
             return None;
         }
 
-        let condition = self.parse_expression_except_constructor_or_error();
+        let mut condition = self.parse_expression_except_constructor_or_error();
 
         let start_location = self.current_token_location;
-        let Some(consequence) = self.parse_block() else {
+        let consequence = if self.eat_left_brace() {
+            let errors_before_consequence = self.errors.len();
+            let looks_like_struct_literal = matches!(condition.kind, ExpressionKind::Variable(_))
+                && matches!(self.token.token(), Token::Ident(..))
+                && self.next_is(Token::Colon);
+
+            let mut consequence = self.parse_block_after_left_brace();
+
+            if looks_like_struct_literal {
+                self.errors.truncate(errors_before_consequence);
+                let location = self.location_since(condition.location);
+                self.push_error(ParserErrorReason::StructLiteralInIfCondition, location);
+                condition = Expression { kind: ExpressionKind::Error, location };
+
+                // Skip the condition tail and stop only at a top-level consequence `{`.
+                let mut closing_delimiters = Vec::new();
+                while !self.at_eof() {
+                    let token = self.token.token().clone();
+
+                    if closing_delimiters.is_empty() {
+                        if token == Token::LeftBrace {
+                            break;
+                        }
+
+                        if token == Token::Semicolon || token == Token::RightBrace {
+                            break;
+                        }
+                    }
+
+                    match token {
+                        Token::LeftParen => closing_delimiters.push(Token::RightParen),
+                        Token::LeftBracket => closing_delimiters.push(Token::RightBracket),
+                        Token::LeftBrace => closing_delimiters.push(Token::RightBrace),
+                        Token::RightParen | Token::RightBracket | Token::RightBrace => {
+                            if closing_delimiters.last() == Some(&token) {
+                                closing_delimiters.pop();
+                            }
+                        }
+                        _ => {}
+                    }
+
+                    self.bump();
+                }
+
+                if self.eat_left_brace() {
+                    consequence = self.parse_block_after_left_brace();
+                } else {
+                    self.expected_token(Token::LeftBrace);
+                }
+            }
+
+            consequence
+        } else {
             // If it's `if { ... }` and a block doesn't come next, the user likely forgot
             // to include a condition.
             if matches!(condition.kind, ExpressionKind::Block(..)) {
@@ -1054,6 +1122,10 @@ impl Parser<'_> {
             return None;
         }
 
+        Some(self.parse_block_after_left_brace())
+    }
+
+    fn parse_block_after_left_brace(&mut self) -> BlockExpression {
         let statements = self.parse_many(
             "statements",
             without_separator().until(Token::RightBrace),
@@ -1062,7 +1134,7 @@ impl Parser<'_> {
 
         let statements = self.check_statements_require_semicolon(statements);
 
-        Some(BlockExpression { statements })
+        BlockExpression { statements }
     }
 
     fn parse_statement_in_block(&mut self) -> Option<(Statement, (Option<Token>, Location))> {
@@ -1519,6 +1591,81 @@ mod tests {
             panic!("Expected variable");
         };
         assert_eq!(path.to_string(), "foo");
+    }
+
+    #[test]
+    fn parses_double_ref() {
+        let src = "&&foo";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::Prefix(outer) = expr.kind else {
+            panic!("Expected prefix expression");
+        };
+        assert!(matches!(outer.operator, UnaryOp::Reference { mutable: false }));
+
+        let ExpressionKind::Prefix(inner) = outer.rhs.kind else {
+            panic!("Expected inner prefix expression");
+        };
+        assert!(matches!(inner.operator, UnaryOp::Reference { mutable: false }));
+
+        let ExpressionKind::Variable(path) = inner.rhs.kind else {
+            panic!("Expected variable");
+        };
+        assert_eq!(path.to_string(), "foo");
+    }
+
+    #[test]
+    fn parses_double_ref_mut() {
+        let src = "&&mut foo";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::Prefix(outer) = expr.kind else {
+            panic!("Expected prefix expression");
+        };
+        assert!(matches!(outer.operator, UnaryOp::Reference { mutable: false }));
+
+        let ExpressionKind::Prefix(inner) = outer.rhs.kind else {
+            panic!("Expected inner prefix expression");
+        };
+        assert!(matches!(inner.operator, UnaryOp::Reference { mutable: true }));
+
+        let ExpressionKind::Variable(path) = inner.rhs.kind else {
+            panic!("Expected variable");
+        };
+        assert_eq!(path.to_string(), "foo");
+    }
+
+    #[test]
+    fn parses_triple_ref() {
+        // `&&&foo` is lexed as `& && foo` (Ampersand, LogicalAnd, Ident)
+        let src = "&&&foo";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::Prefix(a) = expr.kind else { panic!("Expected prefix") };
+        assert!(matches!(a.operator, UnaryOp::Reference { mutable: false }));
+        let ExpressionKind::Prefix(b) = a.rhs.kind else { panic!("Expected prefix") };
+        assert!(matches!(b.operator, UnaryOp::Reference { mutable: false }));
+        let ExpressionKind::Prefix(c) = b.rhs.kind else { panic!("Expected prefix") };
+        assert!(matches!(c.operator, UnaryOp::Reference { mutable: false }));
+        assert!(matches!(c.rhs.kind, ExpressionKind::Variable(..)));
+    }
+
+    #[test]
+    fn parses_ref_and_ref() {
+        // `&x & &y` must parse as `(&x) & (&y)`, not as `(&x) && y`
+        let src = "&x & &y";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::Infix(infix) = expr.kind else {
+            panic!("Expected infix expression");
+        };
+        assert!(matches!(infix.operator.contents, BinaryOpKind::And));
+
+        let ExpressionKind::Prefix(lhs) = infix.lhs.kind else {
+            panic!("Expected prefix on lhs");
+        };
+        assert!(matches!(lhs.operator, UnaryOp::Reference { mutable: false }));
+
+        let ExpressionKind::Prefix(rhs) = infix.rhs.kind else {
+            panic!("Expected prefix on rhs");
+        };
+        assert!(matches!(rhs.operator, UnaryOp::Reference { mutable: false }));
     }
 
     #[test]
@@ -2311,6 +2458,34 @@ mod tests {
 
         let reason = get_single_error_reason(&parser.errors, span);
         assert!(matches!(reason, ParserErrorReason::MissingIfCondition));
+    }
+
+    #[test]
+    fn errors_on_struct_literal_used_in_if_condition() {
+        let src = "if MyStruct { field: true }.field {}";
+        let mut parser = Parser::for_str_with_dummy_file(src);
+        let expression = parser.parse_expression_or_error();
+        assert_eq!(expression.location.span.end() as usize, src.len());
+
+        assert_eq!(parser.errors.len(), 1);
+        assert!(matches!(
+            parser.errors[0].reason(),
+            Some(ParserErrorReason::StructLiteralInIfCondition)
+        ));
+    }
+
+    #[test]
+    fn errors_on_struct_literal_used_in_if_condition_with_block_argument() {
+        let src = "if MyStruct { field: true }.foo({ 1 }) {}";
+        let mut parser = Parser::for_str_with_dummy_file(src);
+        let expression = parser.parse_expression_or_error();
+        assert_eq!(expression.location.span.end() as usize, src.len());
+
+        assert_eq!(parser.errors.len(), 1);
+        assert!(matches!(
+            parser.errors[0].reason(),
+            Some(ParserErrorReason::StructLiteralInIfCondition)
+        ));
     }
 
     /// When an integer is too large, the lexer will issue an error instead of an integer token.

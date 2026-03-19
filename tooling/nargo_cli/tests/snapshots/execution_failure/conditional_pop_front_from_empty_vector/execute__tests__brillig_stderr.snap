@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Assertion failed: Index out of bounds
+   ┌─ src/main.nr:11:20
+   │
+11 │     let (ret, _) = s.pop_front();
+   │                    -----------
+   │
+   = Call stack:
+     1: main
+             at src/main.nr:11:20
+
+Failed assertion

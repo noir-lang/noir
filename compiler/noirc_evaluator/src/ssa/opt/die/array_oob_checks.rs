@@ -70,10 +70,10 @@ impl Context {
             }
 
             // This is an instruction that might be out of bounds: let's add a constrain.
-            let (array, index) = match instruction {
-                Instruction::ArrayGet { array, index, .. }
-                | Instruction::ArraySet { array, index, .. } => (array, index),
-                _ => panic!("Expected an ArrayGet or ArraySet instruction here"),
+            let (Instruction::ArrayGet { array, index, .. }
+            | Instruction::ArraySet { array, index, .. }) = instruction
+            else {
+                panic!("Expected an ArrayGet or ArraySet instruction here");
             };
 
             let call_stack = function.dfg.get_instruction_call_stack_id(instruction_id);

@@ -1,11 +1,7 @@
 use crate::elaborator::UnstableFeature;
 
-use crate::{
-    parser::ParserErrorReason,
-    tests::{
-        CompilationError, assert_no_errors, check_errors, check_errors_using_features,
-        get_program_using_features,
-    },
+use crate::tests::{
+    assert_no_errors, check_errors, check_errors_using_features, get_program_using_features,
 };
 
 #[test]
@@ -14,9 +10,12 @@ fn error_with_duplicate_enum_variant() {
     pub enum Foo {
         Bar(i32),
         ~~~ First enum variant found here
+        ~~~ Previous impl defined here
         Bar(u8),
         ^^^ Duplicate definitions of enum variant with name Bar found
         ~~~ Second enum variant found here
+        ^^^ Impl for type `Foo` overlaps with existing impl
+        ~~~ Overlapping impl
     }
     "#;
     check_errors(src);
@@ -380,26 +379,6 @@ fn cannot_determine_type_of_generic_argument_in_enum_constructor() {
 }
 
 #[test]
-fn errors_on_comptime_enum() {
-    let src = r#"
-    comptime enum Foo {
-        Bar,
-    }
-    fn main() { }
-    "#;
-
-    let features = vec![UnstableFeature::Enums];
-    let errors = get_program_using_features(src, &features).2;
-    assert_eq!(errors.len(), 1);
-
-    let CompilationError::ParseError(error) = &errors[0] else {
-        panic!("Expected a ParseError experimental feature error: {errors:?}");
-    };
-
-    assert!(matches!(error.reason(), Some(ParserErrorReason::ComptimeNotApplicable)));
-}
-
-#[test]
 fn impl_on_enum() {
     let src = r#"
     enum Foo { Bar }
@@ -459,4 +438,82 @@ fn regression_7651() {
 
     let features = vec![UnstableFeature::Enums];
     check_errors_using_features(src, &features);
+}
+
+#[test]
+fn errors_if_using_comptime_type_in_non_comptime_enum() {
+    let src = r#"
+    pub enum Foo {
+        Quoted(Quoted),
+               ^^^^^^ Comptime-only type `Quoted` cannot be used in non-comptime enum
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn mutually_recursive_types_error() {
+    // cSpell:disable
+    let src = "
+    fn main() {
+        let _zero = Even::Zero;
+    }
+
+    enum Even {
+        Zero,
+        Succ(Odd),
+    }
+
+    enum Odd {
+         ^^^ Dependency cycle found
+         ~~~ 'Odd' recursively depends on itself: Odd -> Even -> Odd
+        One,
+        Succ(Even),
+    }
+    ";
+    // cSpell:enable
+    check_errors_using_features(src, &[UnstableFeature::Enums]);
+}
+
+#[test]
+fn mutually_recursive_types_with_structs_error() {
+    // cSpell:disable
+    let src = "
+    fn main() {
+        let _zero = Even::Zero;
+    }
+
+    enum Even {
+         ^^^^ Dependency cycle found
+         ~~~~ 'Even' recursively depends on itself: Even -> EvenSucc -> Odd -> OddSucc -> Even
+        Zero,
+        Succ(EvenSucc),
+    }
+
+    pub struct EvenSucc { inner: Odd }
+
+    enum Odd {
+        One,
+        Succ(OddSucc),
+    }
+
+    pub struct OddSucc { inner: Even }
+    ";
+    // cSpell:enable
+    check_errors_using_features(src, &[UnstableFeature::Enums]);
+}
+
+#[test]
+fn match_constructor_pattern_on_integer_gives_type_error() {
+    let src = "
+    struct S {}
+
+    fn main(x: u32, _b: S) {
+        match x {
+            S {} => (),
+            ^^^^ Expected type u32, found type S
+        }
+    }
+    ";
+    check_errors_using_features(src, &[UnstableFeature::Enums]);
 }

@@ -41,9 +41,8 @@ impl Function {
             let instruction_id = context.instruction_id;
             let instruction = context.instruction();
 
-            let (target_func, arguments) = match &instruction {
-                Instruction::Call { func, arguments } => (func, arguments),
-                _ => return,
+            let Instruction::Call { func: target_func, arguments } = &instruction else {
+                return;
             };
 
             if *target_func != as_vector {

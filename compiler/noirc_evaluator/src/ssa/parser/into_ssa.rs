@@ -5,6 +5,7 @@ use std::{
 };
 
 use acvm::acir::circuit::ErrorSelector;
+use itertools::Itertools;
 use noirc_errors::{Location, call_stack::CallStackId};
 
 use crate::ssa::{
@@ -295,11 +296,25 @@ impl Translator {
                 let arguments = self.translate_values(arguments)?;
                 self.builder.terminate_with_jmp(block_id, arguments);
             }
-            ParsedTerminator::Jmpif { condition, then_block, else_block } => {
+            ParsedTerminator::Jmpif {
+                condition,
+                then_block,
+                then_arguments,
+                else_block,
+                else_arguments,
+            } => {
                 let condition = self.translate_value(condition)?;
                 let then_destination = self.lookup_block(&then_block)?;
+                let then_arguments = self.translate_values(then_arguments)?;
                 let else_destination = self.lookup_block(&else_block)?;
-                self.builder.terminate_with_jmpif(condition, then_destination, else_destination);
+                let else_arguments = self.translate_values(else_arguments)?;
+                self.builder.terminate_with_jmpif(
+                    condition,
+                    then_destination,
+                    then_arguments,
+                    else_destination,
+                    else_arguments,
+                );
             }
             ParsedTerminator::Return(values) => {
                 let return_values = self.translate_values(values)?;
@@ -352,7 +367,7 @@ impl Translator {
                     });
                 }
 
-                for (target, value_id) in targets.into_iter().zip(value_ids.into_iter()) {
+                for (target, value_id) in targets.into_iter().zip_eq(value_ids.into_iter()) {
                     self.define_variable(target, value_id)?;
                 }
             }
@@ -511,7 +526,7 @@ impl Translator {
                     elements.push_back(element_id);
                 }
 
-                let instruction = Instruction::MakeArray { elements, typ: make_array.typ.clone() };
+                let instruction = Instruction::MakeArray { elements, typ: make_array.typ };
                 let block = self.globals_function.entry_block();
                 let call_stack = CallStackId::root();
                 self.globals_function

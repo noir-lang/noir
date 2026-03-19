@@ -145,6 +145,7 @@ use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use acvm::{FieldElement, acir::AcirField, acir::BlackBoxFunc};
 use indexmap::set::IndexSet;
 use iter_extended::vecmap;
+use itertools::Itertools;
 use noirc_errors::call_stack::CallStackId;
 
 use crate::ssa::{
@@ -417,10 +418,11 @@ impl<'f> Context<'f> {
     /// Prepare the arguments for the next block to consume.
     ///
     /// Panics if we already have something prepared.
-    fn prepare_args(&mut self, args: Vec<ValueId>) {
+    pub(crate) fn prepare_args(&mut self, args: Vec<ValueId>) {
         assert!(self.next_arguments.is_none(), "already prepared the arguments");
-        assert!(!args.is_empty(), "only prepare args for non-empty parameter list");
-        self.next_arguments = Some(args);
+        if !args.is_empty() {
+            self.next_arguments = Some(args);
+        }
     }
 
     /// Consume the arguments prepared by the previous block.
@@ -498,10 +500,15 @@ impl<'f> Context<'f> {
             TerminatorInstruction::JmpIf {
                 condition,
                 then_destination,
+                then_arguments,
                 else_destination,
+                else_arguments: _,
                 call_stack,
             } => {
-                // The 'then' and 'else' blocks have no arguments, so we have nothing to prepare.
+                // The `then` branch is next and we can prepare its args now, but the `else`
+                // branch's args need to be prepared only when the branch is later started.
+                let resolved = vecmap(then_arguments, |v| self.inserter.resolve(*v));
+                self.prepare_args(resolved);
                 self.if_start(condition, then_destination, else_destination, &block, *call_stack)
             }
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
@@ -702,7 +709,7 @@ impl<'f> Context<'f> {
             return;
         }
 
-        let args = vecmap(then_args.iter().zip(else_args), |(then_arg, else_arg)| {
+        let args = vecmap(then_args.iter().zip_eq(else_args), |(then_arg, else_arg)| {
             (self.inserter.resolve(*then_arg), self.inserter.resolve(else_arg))
         });
         let Some(else_branch) = cond_context.else_branch else {
@@ -1285,7 +1292,7 @@ mod tests {
         let src = "
             acir(inline) fn main f0 {
               b0(v0: u1):
-                jmpif v0 then: b1, else: b2
+                jmpif v0 then: b1(), else: b2()
               b1():
                 jmp b3(Field 3)
               b3(v1: Field):
@@ -1319,7 +1326,7 @@ mod tests {
         let src = "
             acir(inline) fn main f0 {
               b0(v0: u1, v1: u1):
-                jmpif v0 then: b1, else: b2
+                jmpif v0 then: b1(), else: b2()
               b1():
                 constrain v1 == u1 1
                 jmp b2()
@@ -1350,7 +1357,7 @@ mod tests {
         let src = "
             acir(inline) fn main f0 {
               b0(v0: u1, v1: &mut Field):
-                jmpif v0 then: b1, else: b2
+                jmpif v0 then: b1(), else: b2()
               b1():
                 store Field 5 at v1
                 jmp b2()
@@ -1384,7 +1391,7 @@ mod tests {
         let src = "
             acir(inline) fn main f0 {
               b0(v0: u1, v1: &mut Field):
-                jmpif v0 then: b1, else: b2
+                jmpif v0 then: b1(), else: b2()
               b1():
                 store Field 5 at v1
                 jmp b3()
@@ -1445,11 +1452,11 @@ mod tests {
         let src = "
             acir(inline) fn main f0 {
               b0(v0: u1, v1: u1):
-                jmpif v0 then: b1, else: b2
+                jmpif v0 then: b1(), else: b2()
               b1():
                 v2 = allocate -> &mut Field
                 store Field 1 at v2
-                jmpif v1 then: b3, else: b4
+                jmpif v1 then: b3(), else: b4()
               b2():
                 jmp b7(Field 2)
               b3():
@@ -1534,7 +1541,7 @@ mod tests {
             store Field 1 at v2
             v6 = load v2 -> Field
             // call v1(Field 1, v6)
-            jmpif v0 then: b2, else: b3
+            jmpif v0 then: b2(), else: b3()
           b2():
             store Field 2 at v2
             v8 = load v2 -> Field
@@ -1543,7 +1550,7 @@ mod tests {
           b4():
             v12 = load v2 -> Field
             // call v1(Field 4, v12)
-            jmpif v1 then: b5, else: b6
+            jmpif v1 then: b5(), else: b6()
           b5():
             store Field 5 at v2
             v14 = load v2 -> Field
@@ -1651,11 +1658,11 @@ mod tests {
           b0(v0: u1, v1: u1):
             jmp b1(u32 0)
           b1(v2: u32):
-            jmpif v0 then: b2, else: b3
+            jmpif v0 then: b2(), else: b3()
           b2():
             jmp b4(u32 2)
           b4(v3: u32):
-            jmpif v1 then: b5, else: b6
+            jmpif v1 then: b5(), else: b6()
           b5():
             jmp b7(u32 5)
           b7(v4: u32):
@@ -1724,7 +1731,7 @@ mod tests {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: u1):
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             v1 = allocate -> &mut Field
             store Field 0 at v1
@@ -1808,7 +1815,7 @@ mod tests {
         let src = "
             acir(inline) fn main f1 {
               b0():
-                jmpif u1 0 then: b1, else: b2
+                jmpif u1 0 then: b1(), else: b2()
               b1():
                 jmp b2()
               b2():
@@ -1843,7 +1850,7 @@ mod tests {
             v5 = cast v4 as u1
             v6 = allocate -> &mut u8
             store u8 0 at v6
-            jmpif v5 then: b2, else: b1
+            jmpif v5 then: b2(), else: b1()
           b2():
             v7 = cast v2 as Field
             v9 = add v7, Field 1
@@ -1927,11 +1934,11 @@ mod tests {
             store u32 2 at v2
             v4 = load v2 -> u32
             v5 = lt v4, u32 2
-            jmpif v5 then: b4, else: b1
+            jmpif v5 then: b4(), else: b1()
           b1():
             v6 = load v2 -> u32
             v8 = lt v6, u32 4
-            jmpif v8 then: b2, else: b3
+            jmpif v8 then: b2(), else: b3()
           b2():
             v9 = load v0 -> u32
             v10 = load v2 -> u32
@@ -1998,7 +2005,7 @@ mod tests {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: u1):
-            jmpif v0 then: b2, else: b1
+            jmpif v0 then: b2(), else: b1()
           b2():
             return
           b1():
@@ -2016,7 +2023,7 @@ mod tests {
           b0(v0: bool):
             v1 = allocate -> &mut Field
             store Field 0 at v1
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             store Field 1 at v1
             store Field 2 at v1
@@ -2055,7 +2062,7 @@ mod tests {
             v2 = make_array [Field 0] : [Field; 1]
             v3 = allocate -> &mut [Field; 1]
             store v2 at v3
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             v4 = make_array [Field 1] : [Field; 1]
             store v4 at v3
@@ -2110,10 +2117,10 @@ mod tests {
         acir(inline) pure fn main f0 {
           b0(v0: u1, v1: [[u1; 2]; 3]):
             v4 = not v0
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             v7 = not v0
-            jmpif v0 then: b3, else: b4
+            jmpif v0 then: b3(), else: b4()
           b2():
             v6 = array_get v1, index u32 0 -> [u1; 2]
             jmp b5(v6)
@@ -2168,7 +2175,7 @@ mod tests {
         acir(inline) fn main f0 {
           b0(v0: bool, v1: u32):
             v3 = add u32 42, v1
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             range_check v3 to 16 bits
             jmp b3(v3)
@@ -2211,7 +2218,7 @@ mod tests {
         let src = "
             acir(inline) fn main f0 {
               b0(v0: u1):
-                jmpif v0 then: b1, else: b2
+                jmpif v0 then: b1(), else: b2()
               b1():
                 jmp b3(u1 0)
               b2():
@@ -2246,7 +2253,7 @@ mod tests {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: u1, v1: [Field; 4]):
-            jmpif v0 then: b1, else: b2
+            jmpif v0 then: b1(), else: b2()
           b1():
             v2 = array_set v1, index u32 2, value Field 42
             jmp b3(v2)
@@ -2303,7 +2310,7 @@ mod tests {
 
             acir(inline) fn main f0 {
               b0(v0: u1):
-                jmpif v0 then: b1, else: b2
+                jmpif v0 then: b1(), else: b2()
               b1():
                 jmp b3(g3)
               b2():

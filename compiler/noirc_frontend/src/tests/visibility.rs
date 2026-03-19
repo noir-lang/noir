@@ -794,3 +794,219 @@ fn unnecessary_pub_on_argument() {
     ";
     check_errors(src);
 }
+
+#[test]
+fn errors_if_calling_private_inherent_impl_method_from_outside_impl_module() {
+    // Regression test: inherent impl methods defined in a submodule on a type from the parent
+    // module should not be callable from outside the impl's defining module.
+    let src = r#"
+    struct S {}
+
+    mod private {
+        struct R { pub x: u32 }
+
+        impl super::S {
+            fn get_r() -> R {
+                R { x: 1 }
+            }
+        }
+    }
+
+    fn main() {
+        let _ = S::get_r();
+                   ^^^^^ get_r is private and not visible from the current module
+                   ~~~~~ get_r is private
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_if_calling_private_inherent_impl_method_via_dot_notation_from_outside_impl_module() {
+    let src = r#"
+    struct S { x: u32 }
+
+    mod private {
+        impl super::S {
+            fn secret(self) -> u32 {
+                self.x
+            }
+        }
+    }
+
+    fn main() {
+        let s = S { x: 1 };
+        let _ = s.secret();
+                  ^^^^^^ secret is private and not visible from the current module
+                  ~~~~~~ secret is private
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn allows_pub_inherent_impl_method_from_outside_impl_module() {
+    // Public methods on inherent impls in submodules should remain callable.
+    let src = r#"
+    struct S {}
+
+    mod private {
+        impl super::S {
+            pub fn public_method() -> u32 {
+                42
+            }
+        }
+    }
+
+    fn main() {
+        let _ = S::public_method();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn allows_private_inherent_impl_method_via_dot_from_within_impl_block() {
+    // Private methods should still be callable via dot notation from within the same impl block.
+    let src = r#"
+    struct S {}
+
+    mod private {
+        impl super::S {
+            fn secret(self) -> u32 {
+                let _ = self;
+                42
+            }
+
+            pub fn public_wrapper(self) -> u32 {
+                self.secret()
+            }
+        }
+    }
+
+    fn main() {
+        let s = S {};
+        let _ = s.public_wrapper();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn errors_once_not_twice_for_private_inherent_impl_method_in_separate_modules() {
+    // Regression test: when the struct and impl are in different modules (neither is the
+    // caller's module), we should only get ONE "private" error, not two.
+    let src = r#"
+    mod types {
+        pub struct S {}
+    }
+
+    mod impls {
+        impl super::types::S {
+            fn secret() -> u32 {
+                42
+            }
+        }
+    }
+
+    fn main() {
+        let _ = types::S::secret();
+                          ^^^^^^ secret is private and not visible from the current module
+                          ~~~~~~ secret is private
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn private_inherent_impl_method_accessible_via_dot_notation_from_impl_module() {
+    let src = r#"
+    mod types {
+        pub struct S {
+            pub x: u32,
+        }
+    }
+
+    mod impls {
+        impl super::types::S {
+            fn secret(self) -> u32 {
+                self.x
+            }
+        }
+
+        pub fn caller() -> u32 {
+            let s = super::types::S { x: 1 };
+            s.secret()
+        }
+    }
+
+    fn main() {
+        let _ = impls::caller();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn private_inherent_impl_method_accessible_via_qualified_path_from_impl_module() {
+    let src = r#"
+    mod types {
+        pub struct S {}
+    }
+
+    mod impls {
+        impl super::types::S {
+            fn secret() -> u32 {
+                42
+            }
+        }
+
+        pub fn caller() -> u32 {
+            super::types::S::secret()
+        }
+    }
+
+    fn main() {
+        let _ = impls::caller();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn private_inherent_impl_method_accessible_from_nested_child_of_impl_module() {
+    let src = r#"
+    mod moo {
+        pub struct S {
+            pub x: u32,
+        }
+    }
+
+    mod private {
+        impl crate::moo::S {
+            fn one() -> u32 {
+                1
+            }
+            fn two(self) -> u32 {
+                self.x
+            }
+        }
+
+        mod nested {
+            pub fn foo() -> u32 {
+                let s = crate::moo::S { x: 1 };
+                crate::moo::S::one() + s.two()
+            }
+        }
+
+        pub fn caller() -> u32 {
+            nested::foo()
+        }
+    }
+
+    fn main() {
+        let _ = private::caller();
+    }
+    "#;
+    assert_no_errors(src);
+}

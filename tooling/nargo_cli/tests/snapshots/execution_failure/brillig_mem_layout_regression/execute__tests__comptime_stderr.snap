@@ -1,0 +1,26 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Comptime Evaluation Depth Overflow
+   ┌─ src/main.nr:42:5
+   │  
+42 │ ╭     if ((*ctx_limit) == 0_u32) {
+43 │ │         true
+44 │ │     } else if func_1(b, ctx_limit) {
+45 │ │         0 >= 0
+46 │ │     } else {
+47 │ │         false
+48 │ │     }
+   │ ╰─────' Exceeded the limit on the combined depth of expressions and recursion
+   │  
+   = Call stack:
+        1: ?
+                at src/main.nr:5:18
+        2: main
+                at src/main.nr:9:16
+     ┌─ 3: func_1
+     │          at src/main.nr:44:15
+     └─ (repeated 73 times)
+
+Error interpreting main function

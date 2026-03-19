@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Assertion failed: attempt to multiply with overflow
+  ┌─ src/main.nr:4:10
+  │
+4 │         (input * G_B) as u64
+  │          -----------
+  │
+  = Call stack:
+    1: main
+            at src/main.nr:4:10
+
+Failed assertion

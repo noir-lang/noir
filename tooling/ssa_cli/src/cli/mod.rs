@@ -135,11 +135,14 @@ fn parse_ssa(src: &str, validate: bool) -> eyre::Result<Ssa> {
 /// List of the SSA passes in the primary pipeline, enriched with their "step"
 /// count so we can use unambiguous naming in filtering.
 fn ssa_passes(options: &SsaEvaluatorOptions) -> Vec<(String, SsaPass<'_>)> {
-    primary_passes(options)
-        .into_iter()
+    let passes = primary_passes(options).into_iter();
+    let length = passes.len();
+    passes
         .enumerate()
         .map(|(i, pass)| {
-            let msg = format!("{} (step {})", pass.msg(), i + 1);
+            let last_step = i == length - 1;
+            let last_step_msg = if last_step { " (last step)" } else { "" };
+            let msg = format!("{} (step {}){last_step_msg}", pass.msg(), i + 1);
             (msg, pass)
         })
         .collect()

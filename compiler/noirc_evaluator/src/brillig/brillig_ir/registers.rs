@@ -57,7 +57,7 @@ use super::{BrilligContext, ReservedRegisters, brillig_variable::SingleAddrVaria
 #[derive(Clone, Copy, Debug)]
 pub struct LayoutConfig {
     max_stack_frame_size: usize,
-    max_stack_size: usize,
+    num_stack_frames: usize,
     max_scratch_space: usize,
 }
 
@@ -67,8 +67,7 @@ impl LayoutConfig {
         num_stack_frames: usize,
         max_scratch_space: usize,
     ) -> Self {
-        let max_stack_size = num_stack_frames * max_stack_frame_size;
-        Self { max_stack_frame_size, max_stack_size, max_scratch_space }
+        Self { max_stack_frame_size, num_stack_frames, max_scratch_space }
     }
 
     /// The maximum size of an individual stack frame.
@@ -78,7 +77,15 @@ impl LayoutConfig {
 
     /// The overall maximum stack size is the maximum number of frames times the maximum size of an individual stack frame.
     pub(crate) fn max_stack_size(&self) -> usize {
-        self.max_stack_size
+        self.num_stack_frames * self.max_stack_frame_size
+    }
+
+    /// The maximum number of stack frames that should be active simultaneously.
+    ///
+    /// Note that currently this isn't strictly enforced: as long as the memory fits into [LayoutConfig::max_stack_size]
+    /// we allow more frames to be created during recursive calls.
+    pub(crate) fn num_stack_frames(&self) -> usize {
+        self.num_stack_frames
     }
 
     pub(crate) fn max_scratch_space(&self) -> usize {
@@ -133,18 +140,36 @@ pub(crate) trait RegisterAllocator {
     fn empty_registers_start(&self) -> MemoryAddress;
     /// Return the memory layout used by this allocator.
     fn layout(&self) -> LayoutConfig;
+    /// Number of registers that can be allocated before exceeding bounds.
+    /// Accounts for deallocated registers that can be reused.
+    fn available_registers(&self) -> usize;
 }
 
 /// Every brillig stack frame/call context has its own view of register space.
 /// This is maintained by copying these registers to the stack during calls and reading them back.
+///
+/// The first two slots of every frame are reserved:
+/// - `sp[0]`: previous stack pointer
+/// - `sp[1]`: per-frame spill base pointer
+///
+/// User-addressable registers start at [`Self::START_OFFSET`] (2). This offset
+/// is uniform across all functions because `codegen_call` places arguments at
+/// `sp[stack_size + self.start()]` using the *caller's* start, while
+/// `codegen_return` writes returns at `sp[self.start()]` using the *callee's*.
+/// A mismatch would silently misalign arguments.
 pub(crate) struct Stack {
     storage: DeallocationListAllocator,
     layout: LayoutConfig,
 }
 
 impl Stack {
+    /// Number of reserved slots at the start of each stack frame:
+    /// - `sp[0]`: previous stack pointer
+    /// - `sp[1]`: per-frame spill base pointer
+    const START_OFFSET: usize = 2;
+
     pub(crate) fn new(layout: LayoutConfig) -> Self {
-        Self { storage: DeallocationListAllocator::new(Self::start()), layout }
+        Self { storage: DeallocationListAllocator::new(Self::START_OFFSET), layout }
     }
 
     /// Check if a `Relative` address is within the bounds of the stack.
@@ -152,20 +177,13 @@ impl Stack {
     /// Panics if the address is `Direct`.
     fn is_within_bounds(&self, register: MemoryAddress) -> bool {
         let offset = assert_usize(register.unwrap_relative());
-        offset >= self.start() && offset < self.end()
-    }
-
-    /// Static start address.
-    ///
-    /// The addressable space starts at offset 1; at offset 0 is the previous stack pointer.
-    pub(super) fn start() -> usize {
-        1
+        offset >= Self::START_OFFSET && offset < self.end()
     }
 }
 
 impl RegisterAllocator for Stack {
     fn start(&self) -> usize {
-        Self::start()
+        Self::START_OFFSET
     }
 
     fn end(&self) -> usize {
@@ -191,14 +209,14 @@ impl RegisterAllocator for Stack {
         preallocated_registers: Vec<MemoryAddress>,
         layout: LayoutConfig,
     ) -> Self {
-        let empty = Stack::new(layout);
+        let empty = Self { storage: DeallocationListAllocator::new(Self::START_OFFSET), layout };
         for register in &preallocated_registers {
             assert!(empty.is_within_bounds(*register), "Register out of stack bounds: {register}");
         }
 
         Self {
             storage: DeallocationListAllocator::from_preallocated_registers(
-                empty.start(),
+                Self::START_OFFSET,
                 vecmap(preallocated_registers, |r| assert_usize(r.unwrap_relative())),
             ),
             layout,
@@ -211,6 +229,10 @@ impl RegisterAllocator for Stack {
 
     fn layout(&self) -> LayoutConfig {
         self.layout
+    }
+
+    fn available_registers(&self) -> usize {
+        self.storage.available_registers(self.end())
     }
 }
 
@@ -295,6 +317,10 @@ impl RegisterAllocator for ScratchSpace {
     fn layout(&self) -> LayoutConfig {
         self.layout
     }
+
+    fn available_registers(&self) -> usize {
+        self.storage.available_registers(self.end())
+    }
 }
 
 /// Globals have a separate memory space
@@ -310,7 +336,12 @@ pub(crate) struct GlobalSpace {
 impl GlobalSpace {
     pub(crate) fn new(layout: LayoutConfig) -> Self {
         let start = Self::start_with_layout(&layout);
-        Self { storage: DeallocationListAllocator::new(start), max_memory_address: start, layout }
+        assert!(start > 0, "global space does not start at 0");
+        Self {
+            storage: DeallocationListAllocator::new(start),
+            max_memory_address: start - 1,
+            layout,
+        }
     }
 
     /// Expand the global space to fit a new register if necessary.
@@ -330,7 +361,7 @@ impl GlobalSpace {
         if index == self.max_memory_address {
             let empty_start = assert_usize(self.empty_registers_start().unwrap_direct());
             self.max_memory_address =
-                empty_start.saturating_sub(1).max(self.storage.start_register_index);
+                empty_start.saturating_sub(1).max(self.storage.start_register_index - 1);
         }
     }
 
@@ -389,6 +420,11 @@ impl RegisterAllocator for GlobalSpace {
 
     fn layout(&self) -> LayoutConfig {
         self.layout
+    }
+
+    fn available_registers(&self) -> usize {
+        // Global space is unbounded; report max to avoid spilling.
+        usize::MAX
     }
 }
 
@@ -480,6 +516,13 @@ impl DeallocationListAllocator {
         Self { deallocated_registers, next_free_register_index, start_register_index: start }
     }
 
+    /// Number of registers that can be allocated without exceeding the `max` register index.
+    fn available_registers(&self, max: usize) -> usize {
+        let reusable = self.deallocated_registers.len();
+        let remaining = max.saturating_sub(self.next_free_register_index);
+        reusable + remaining
+    }
+
     /// Find the first free register after which there are only free registers.
     fn empty_registers_start(&self) -> usize {
         let mut first_free = self.next_free_register_index;
@@ -513,18 +556,17 @@ impl<F, Registers: RegisterAllocator> BrilligContext<F, Registers> {
         self.registers_mut().deallocate_register(register);
     }
 
+    /// Resets the registers to a new list of allocated ones, preserving the current layout.
+    pub(crate) fn set_allocated_registers(&mut self, allocated_registers: Vec<MemoryAddress>) {
+        let layout = self.registers().layout();
+        let new_registers = Registers::from_preallocated_registers(allocated_registers, layout);
+        self.registers = Rc::new(RefCell::new(new_registers));
+    }
+
     /// Allocates an unused register.
     pub(crate) fn allocate_register(&self) -> Allocated<MemoryAddress, Registers> {
         let addr = self.registers_mut().allocate_register();
         Allocated::new_addr(addr, self.registers.clone())
-    }
-
-    /// Resets the registers to a new list of allocated ones.
-    pub(crate) fn set_allocated_registers(&mut self, allocated_registers: Vec<MemoryAddress>) {
-        self.registers = Rc::new(RefCell::new(Registers::from_preallocated_registers(
-            allocated_registers,
-            self.layout(),
-        )));
     }
 
     /// Allocate a [SingleAddrVariable].
@@ -783,7 +825,7 @@ mod tests {
     fn global_space_max_addr_expands_and_shrinks() {
         let mut global = GlobalSpace::new(LayoutConfig::default());
         let start = global.storage.start_register_index;
-        assert_eq!(global.max_memory_address(), start, "max initialized to start");
+        assert_eq!(global.max_memory_address(), start - 1, "max initialized to start - 1 (empty)");
 
         let reg1 = global.allocate_register();
         let reg2 = global.allocate_register();
@@ -816,8 +858,8 @@ mod tests {
         global.deallocate_register(reg1);
         assert_eq!(
             global.max_memory_address(),
-            start,
-            "max shrinks to start when we have no registers"
+            start - 1,
+            "max shrinks to start - 1 when we have no registers (empty)"
         );
 
         let reg5 = global.allocate_register();

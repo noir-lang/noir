@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: 14 is out of bounds for the array of length 5
+  ┌─ src/main.nr:6:12
+  │
+6 │     assert(x[idx] != 0);
+  │            ------
+  │
+
+Error interpreting main function

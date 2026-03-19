@@ -971,7 +971,7 @@ mod tests {
 
         let mut lexer = Lexer::new_with_dummy_file(input);
 
-        for token in expected.into_iter() {
+        for token in expected {
             let got = lexer.next_token().unwrap();
             assert_eq!(got, token);
         }
@@ -1053,7 +1053,7 @@ mod tests {
         ];
 
         let mut lexer = Lexer::new_with_dummy_file(input);
-        for token in expected.into_iter() {
+        for token in expected {
             let got = lexer.next_token().unwrap();
             assert_eq!(got, token);
         }
@@ -1083,7 +1083,7 @@ mod tests {
         ];
 
         let mut lexer = Lexer::new_with_dummy_file(input);
-        for token in expected.into_iter() {
+        for token in expected {
             let first_lexer_output = lexer.next_token().unwrap();
             assert_eq!(first_lexer_output, token);
         }
@@ -1105,7 +1105,7 @@ mod tests {
         ];
 
         let mut lexer = Lexer::new_with_dummy_file(input);
-        for token in expected.into_iter() {
+        for token in expected {
             let first_lexer_output = lexer.next_token().unwrap();
             assert_eq!(first_lexer_output, token);
         }
@@ -1153,7 +1153,7 @@ mod tests {
         ];
 
         let mut lexer = Lexer::new_with_dummy_file(input);
-        for token in expected.into_iter() {
+        for token in expected {
             let first_lexer_output = lexer.next_token().unwrap();
             assert_eq!(first_lexer_output, token);
         }
@@ -1170,7 +1170,7 @@ mod tests {
         ];
         let mut lexer = Lexer::new_with_dummy_file(input);
 
-        for token in expected.into_iter() {
+        for token in expected {
             let got = lexer.next_token().unwrap();
             assert_eq!(got, token);
         }
@@ -1188,7 +1188,7 @@ mod tests {
         ];
         let mut lexer = Lexer::new_with_dummy_file(input);
 
-        for token in expected.into_iter() {
+        for token in expected {
             let got = lexer.next_token().unwrap();
             assert_eq!(got, token);
         }
@@ -1216,7 +1216,7 @@ mod tests {
         ];
         let mut lexer = Lexer::new_with_dummy_file(input);
 
-        for token in expected.into_iter() {
+        for token in expected {
             let got = lexer.next_token().unwrap();
             assert_eq!(got, token);
         }
@@ -1234,7 +1234,7 @@ mod tests {
         ];
         let mut lexer = Lexer::new_with_dummy_file(input);
 
-        for token in expected.into_iter() {
+        for token in expected {
             let got = lexer.next_token().unwrap();
             assert_eq!(got, token);
         }
@@ -1272,7 +1272,7 @@ mod tests {
         ];
         let mut lexer = Lexer::new_with_dummy_file(input);
 
-        for token in expected.into_iter() {
+        for token in expected {
             let got = lexer.next_token().unwrap().into_token();
             assert_eq!(got, token);
         }
@@ -1389,7 +1389,7 @@ mod tests {
         let expected = vec![let_token, ident_token, assign_token, int_token];
         let mut lexer = Lexer::new_with_dummy_file(input);
 
-        for spanned_token in expected.into_iter() {
+        for spanned_token in expected {
             let got = lexer.next_token().unwrap();
             assert_eq!(got.span(), spanned_token.span());
             assert_eq!(got.into_spanned_token(), spanned_token);
@@ -1460,7 +1460,7 @@ mod tests {
         ];
         let mut lexer = Lexer::new_with_dummy_file(input);
 
-        for token in expected.into_iter() {
+        for token in expected {
             let got = lexer.next_token().unwrap();
             assert_eq!(got, token);
         }
@@ -1544,11 +1544,10 @@ mod tests {
                                 result_tokens.push(next_token.clone());
                                 expected_token_found |= token_discriminator_opt
                                     .as_ref()
-                                    .map(|token_discriminator| {
+                                    .is_none_or(|token_discriminator| {
                                         discriminant(token_discriminator)
                                             == discriminant(next_token.token())
-                                    })
-                                    .unwrap_or(true);
+                                    });
 
                                 if next_token == Token::EOF {
                                     assert!(lexer.done, "lexer not done when EOF emitted!");

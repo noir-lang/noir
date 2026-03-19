@@ -81,7 +81,7 @@ fn mutable_reference_to_array_element_as_func_arg() {
         *x += 1;
     }
     fn main() {
-        let mut state: [u32; 4] = [1, 2, 3, 4];
+        let state: [u32; 4] = [1, 2, 3, 4];
         foo(&mut state[0]);
                  ^^^^^^^^ Mutable references to array elements are currently unsupported
                  ~~~~~~~~ Try storing the element in a fresh variable first
@@ -126,6 +126,30 @@ fn array_length_overflow_during_monomorphization() {
     }
     "#;
     check_monomorphization_error(src);
+}
+
+#[test]
+fn constant_index_out_of_bounds() {
+    let src = r#"
+    fn main(a: u32, mut c: [u32; 2]) {
+        if (a == c[0]) {
+            assert((c[0] == 12));
+        } else if (a == c[1]) {
+            assert((c[1] == 0));
+        } else if (a == c[2]) {
+                          ^ Index 2 is out of bounds for this array of length 2
+            assert((c[2] == 0));
+                      ^ Index 2 is out of bounds for this array of length 2
+        } else if (a == c[3]) {
+                          ^ Index 3 is out of bounds for this array of length 2
+            assert((c[3] == 0));
+                      ^ Index 3 is out of bounds for this array of length 2
+        } else {
+            assert((c[0] == 10));
+        }
+    }
+    "#;
+    check_errors(src);
 }
 
 #[test]

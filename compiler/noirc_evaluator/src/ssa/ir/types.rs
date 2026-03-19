@@ -278,11 +278,13 @@ impl Type {
         }
     }
 
-    /// Returns the flattened size of a Type.
+    /// Returns the flattened size of a [Type].
     ///
-    /// The flattened type is mostly useful in ACIR, where nested arrays are also flattened,
+    /// The flattened size is mostly useful in ACIR, where nested arrays are also flattened,
     /// as opposed to SSA, where only tuples get flattened into the array they are in,
     /// but nested arrays appear as a value ID.
+    ///
+    /// Panics if called on a [Type::Vector], since its value cannot be known based on its type.
     pub(crate) fn flattened_size(&self) -> FlattenedLength {
         match self {
             Type::Array(elements, len) => {
@@ -381,6 +383,14 @@ impl Type {
             Type::Array(elements, _) | Type::Vector(elements) => {
                 elements.iter().any(|elem| elem.contains_function())
             }
+        }
+    }
+
+    /// If this is a reference type, return the type it references.
+    pub(crate) fn reference_element_type(&self) -> Option<&Type> {
+        match self {
+            Type::Reference(element_type) => Some(element_type.as_ref()),
+            _ => None,
         }
     }
 }

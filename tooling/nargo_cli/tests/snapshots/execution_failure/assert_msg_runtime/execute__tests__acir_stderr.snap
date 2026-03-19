@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Assertion failed: Expected x == y, but x is 0x05 and y is 0x0a
+  ┌─ src/main.nr:6:15
+  │
+6 │     assert_eq(x, y, f"Expected x == y, but x is {x} and y is {y}");
+  │               ----
+  │
+  = Call stack:
+    1: main
+            at src/main.nr:6:15
+
+Failed assertion

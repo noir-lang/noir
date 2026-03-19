@@ -1,0 +1,20 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: the input length must equal the state size in the Poseidon2 config; expected 4, got 16
+    ┌─ std/hash/mod.nr:145:5
+    │  
+145 │ ╭     static_assert(
+146 │ │         N == POSEIDON2_CONFIG_STATE_SIZE,
+147 │ │         f"the input length must equal the state size in the Poseidon2 config; expected {POSEIDON2_CONFIG_STATE_SIZE}, got {N}",
+148 │ │     );
+    │ ╰─────'
+    │  
+    = Call stack:
+      1: main
+              at src/main.nr:6:9
+      2: poseidon2_permutation
+              at std/hash/mod.nr:145:5
+
+Aborting due to 1 previous error

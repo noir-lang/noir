@@ -105,6 +105,21 @@ impl BrilligVariable {
             BrilligVariable::BrilligVector(vector) => vector.pointer,
         }
     }
+
+    /// Return a copy with the register replaced (used after reload into a new register).
+    pub(crate) fn with_register(self, new_reg: MemoryAddress) -> Self {
+        match self {
+            BrilligVariable::SingleAddr(s) => {
+                BrilligVariable::SingleAddr(SingleAddrVariable::new(new_reg, s.bit_size))
+            }
+            BrilligVariable::BrilligArray(a) => {
+                BrilligVariable::BrilligArray(BrilligArray { pointer: new_reg, size: a.size })
+            }
+            BrilligVariable::BrilligVector(_) => {
+                BrilligVariable::BrilligVector(BrilligVector { pointer: new_reg })
+            }
+        }
+    }
 }
 
 impl From<SingleAddrVariable> for BrilligVariable {
@@ -169,8 +184,9 @@ pub(crate) fn get_bit_size_from_ssa_type(typ: &Type) -> u32 {
         Type::Reference(_) => BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
         // NB. function references are converted to a constant when
         // translating from SSA to Brillig (to allow for debugger
-        // instrumentation to work properly)
-        Type::Function => 32,
+        // instrumentation to work properly).
+        // They are passed to foreign functions as a Field, carrying their ID.
+        Type::Function => Type::field().bit_size(),
         typ => typ.bit_size(),
     }
 }

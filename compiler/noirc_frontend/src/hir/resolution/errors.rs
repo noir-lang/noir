@@ -28,6 +28,8 @@ pub enum ResolverError {
     DuplicateDefinition { name: String, first_location: Location, second_location: Location },
     #[error("Unused variable")]
     UnusedVariable { ident: Ident },
+    #[error("Variable does not need to be mutable")]
+    VariableDoesNotNeedToBeMutable { ident: Ident },
     #[error("Unused {}", item.item_type())]
     UnusedItem { ident: Ident, item: UnusedItem },
     #[error("Unconditional recursion")]
@@ -144,10 +146,8 @@ pub enum ResolverError {
     },
     #[error("`quote` cannot be used in runtime code")]
     QuoteInRuntimeCode { location: Location },
-    #[error("Comptime-only type `{typ}` cannot be used in runtime code")]
-    ComptimeTypeInRuntimeCode { typ: String, location: Location },
-    #[error("Comptime-only type `{typ}` cannot be used in non-comptime global")]
-    ComptimeTypeInNonComptimeGlobal { typ: String, location: Location },
+    #[error("Comptime-only type `{typ}` cannot be used in non-comptime {item}")]
+    ComptimeTypeInNonComptimeItem { typ: String, location: Location, item: &'static str },
     #[error("Comptime variable `{name}` cannot be mutated in a non-comptime context")]
     MutatingComptimeInNonComptimeContext { name: String, location: Location },
     #[error("Failed to parse `{statement}` as an expression")]
@@ -184,8 +184,8 @@ pub enum ResolverError {
     UnexpectedItemInPattern { location: Location, item: String },
     #[error("Trait `{trait_name}` doesn't have a method named `{method_name}`")]
     NoSuchMethodInTrait { trait_name: String, method_name: String, location: Location },
-    #[error("Cannot use a type alias inside a type alias")]
-    RecursiveTypeAlias { location: Location },
+    #[error("Numeric type alias expression must only reference generic parameters and constants")]
+    InvalidNumericAliasExpression { location: Location },
     #[error("expected numeric expressions, got {typ}")]
     ExpectedNumericExpression { typ: String, location: Location },
     #[error(
@@ -224,6 +224,8 @@ pub enum ResolverError {
     VarargsOnFunctionWithNoParameters { location: Location },
     #[error("The last parameter of a #[varargs] function must be a vector")]
     VarargsLastParameterIsNotAVector { location: Location },
+    #[error("`comptime` global used in non-comptime code")]
+    ComptimeGlobalInNonComptimeCode { location: Location, name: String },
 }
 
 impl ResolverError {
@@ -267,8 +269,7 @@ impl ResolverError {
             | ResolverError::AssociatedConstantsMustBeNumeric { location }
             | ResolverError::BinaryOpError { location, .. }
             | ResolverError::QuoteInRuntimeCode { location }
-            | ResolverError::ComptimeTypeInRuntimeCode { location, .. }
-            | ResolverError::ComptimeTypeInNonComptimeGlobal { location, .. }
+            | ResolverError::ComptimeTypeInNonComptimeItem { location, .. }
             | ResolverError::MutatingComptimeInNonComptimeContext { location, .. }
             | ResolverError::InvalidInternedStatementInExpr { location, .. }
             | ResolverError::InvalidSyntaxInPattern { location }
@@ -280,7 +281,7 @@ impl ResolverError {
             | ResolverError::NoSuchMethodInTrait { location, .. }
             | ResolverError::VariableAlreadyDefinedInPattern { new_location: location, .. }
             | ResolverError::ExpectedNumericExpression { location, .. }
-            | ResolverError::RecursiveTypeAlias { location } => *location,
+            | ResolverError::InvalidNumericAliasExpression { location } => *location,
             ResolverError::NonU32Index { location }
             | ResolverError::NoPredicatesAttributeOnUnconstrained { location, .. }
             | ResolverError::NoPredicatesAttributeOnEntryPoint { location, .. }
@@ -302,11 +303,13 @@ impl ResolverError {
             | ResolverError::BuiltinWithBody { location }
             | ResolverError::VarargsOnNonComptimeFunction { location }
             | ResolverError::VarargsOnFunctionWithNoParameters { location }
+            | ResolverError::ComptimeGlobalInNonComptimeCode { location, .. }
             | ResolverError::VarargsLastParameterIsNotAVector { location }
             | ResolverError::UnnecessaryPub { location, .. }
             | ResolverError::NecessaryPub { location, .. }
             | ResolverError::DataBusOnNonEntryPoint { location, .. } => *location,
             ResolverError::UnusedVariable { ident }
+            | ResolverError::VariableDoesNotNeedToBeMutable { ident }
             | ResolverError::UnusedItem { ident, .. }
             | ResolverError::DuplicateField { field: ident }
             | ResolverError::NoSuchField { field: ident, .. }
@@ -348,6 +351,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 );
                 diagnostic.unnecessary = true;
                 diagnostic
+            }
+            ResolverError::VariableDoesNotNeedToBeMutable { ident } => {
+                Diagnostic::simple_warning(
+                    "variable does not need to be mutable".to_string(),
+                    String::new(),
+                    ident.location(),
+                )
             }
             ResolverError::UnusedItem { ident, item} => {
                 let item_type = item.item_type();
@@ -738,17 +748,10 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             },
-            ResolverError::ComptimeTypeInRuntimeCode { typ, location } => {
+            ResolverError::ComptimeTypeInNonComptimeItem { typ, location, item } => {
                 Diagnostic::simple_error(
-                    format!("Comptime-only type `{typ}` cannot be used in runtime code"),
-                    "Comptime-only type used here".to_string(),
-                    *location,
-                )
-            },
-            ResolverError::ComptimeTypeInNonComptimeGlobal { typ, location } => {
-                Diagnostic::simple_error(
-                    format!("Comptime-only type `{typ}` cannot be used in non-comptime global"),
-                    "Comptime-only type used here".to_string(),
+                    format!("Comptime-only type `{typ}` cannot be used in non-comptime {item}"),
+                    String::new(),
                     *location,
                 )
             },
@@ -850,9 +853,9 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             },
-            ResolverError::RecursiveTypeAlias { location } => {
+            ResolverError::InvalidNumericAliasExpression { location } => {
                 Diagnostic::simple_error(
-                    "Cannot use a type alias inside a type alias".to_string(),
+                    "Numeric type alias expression must only reference generic parameters and constants".to_string(),
                     String::new(),
                     *location,
                 )
@@ -995,6 +998,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     "The last parameter of a #[varargs] function must be a vector".to_string(),
                     String::new(),
+                    *location,
+                )
+            },
+            ResolverError::ComptimeGlobalInNonComptimeCode { location, name } => {
+                Diagnostic::simple_error(
+                    format!("Comptime global `{name}` used in non-comptime code"),
+                    "Consider using a comptime function or block".to_string(),
                     *location,
                 )
             },

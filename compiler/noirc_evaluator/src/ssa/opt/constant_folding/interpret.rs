@@ -20,9 +20,9 @@ pub(super) fn try_interpret_call(
     instruction: &Instruction,
     block: BasicBlockId,
     dfg: &mut DataFlowGraph,
-    interpreter: Option<&mut Interpreter<Empty>>,
+    interpreter: &mut Interpreter<Empty>,
 ) -> Option<Vec<ValueId>> {
-    let evaluation_result = evaluate_const_argument_call(instruction, interpreter?, dfg);
+    let evaluation_result = evaluate_const_argument_call(instruction, interpreter, dfg);
 
     match evaluation_result {
         EvaluationResult::NotABrilligCall | EvaluationResult::CannotEvaluate => None,
@@ -148,9 +148,8 @@ fn interpreter_value_to_ir_value(
             dfg.make_constant(constant, numeric_type)
         }
         Type::Array(element_types, length) => {
-            let array = match value {
-                InterpreterValue::ArrayOrVector(array) => array,
-                _ => unreachable!("Expected an ArrayOrVector"),
+            let InterpreterValue::ArrayOrVector(array) = value else {
+                unreachable!("Expected an ArrayOrVector");
             };
 
             let mut elements = Vector::new();
@@ -166,9 +165,8 @@ fn interpreter_value_to_ir_value(
             dfg.instruction_result::<1>(instruction_id)[0]
         }
         Type::Vector(element_types) => {
-            let array = match value {
-                InterpreterValue::ArrayOrVector(array) => array,
-                _ => unreachable!("Expected an ArrayOrVector"),
+            let InterpreterValue::ArrayOrVector(array) = value else {
+                unreachable!("Expected an ArrayOrVector");
             };
 
             let mut elements = Vector::new();

@@ -108,6 +108,7 @@ use crate::errors::RtResult;
 
 use crate::ssa::ir::dfg::simplify::value_merger::ValueMerger;
 use crate::ssa::ir::types::NumericType;
+use crate::ssa::opt::ArrayGetOptimizationSideEffects;
 use crate::ssa::opt::simple_optimization::SimpleOptimizationContext;
 use crate::ssa::{
     Ssa,
@@ -188,6 +189,9 @@ impl Context {
             return Ok(());
         }
 
+        // Keeps track of side effect vars associated to each `array_set` instruction.
+        let mut array_set_predicates = std::collections::HashMap::new();
+
         function.simple_optimization_result(|context| {
             let instruction_id = context.instruction_id;
             let instruction = context.instruction();
@@ -222,8 +226,17 @@ impl Context {
                     }
 
                     let call_stack = context.dfg.get_instruction_call_stack_id(instruction_id);
-                    let mut value_merger =
-                        ValueMerger::new(context.dfg, block, &self.vector_sizes, call_stack);
+                    let array_get_optimization_data = Some(ArrayGetOptimizationSideEffects {
+                        side_effects_var: context.enable_side_effects,
+                        array_set_predicates: &array_set_predicates,
+                    });
+                    let mut value_merger = ValueMerger::new(
+                        context.dfg,
+                        block,
+                        &self.vector_sizes,
+                        call_stack,
+                        array_get_optimization_data,
+                    );
 
                     let value = value_merger.merge_values(
                         then_condition,
@@ -260,6 +273,8 @@ impl Context {
                 }
                 // Track vector sizes through array set instructions
                 Instruction::ArraySet { array, .. } => {
+                    array_set_predicates.insert(instruction_id, context.enable_side_effects);
+
                     let [result] = context.dfg.instruction_result(instruction_id);
                     self.set_capacity(context.dfg, *array, result, |c| c);
                 }
@@ -504,6 +519,7 @@ impl Context {
     }
 }
 
+#[derive(Debug)]
 enum SizeChange {
     None,
     /// Make the size of the new vector equal to the old array.
@@ -608,24 +624,26 @@ mod tests {
             v8 = array_set v5, index u32 1, value u32 3
             v9 = not v0
             enable_side_effects u1 1
-            v11 = array_get v1, index u32 0 -> u32
-            v12 = cast v0 as u32
-            v13 = cast v9 as u32
-            v14 = unchecked_mul v12, u32 2
+            v11 = array_get v8, index u32 0 -> u32
+            v12 = array_get v1, index u32 0 -> u32
+            v13 = cast v0 as u32
+            v14 = cast v9 as u32
             v15 = unchecked_mul v13, v11
-            v16 = unchecked_add v14, v15
-            v17 = array_get v1, index u32 1 -> u32
-            v18 = cast v0 as u32
-            v19 = cast v9 as u32
-            v20 = unchecked_mul v18, u32 3
-            v21 = unchecked_mul v19, v17
-            v22 = unchecked_add v20, v21
-            v23 = make_array [v16, v22] : [u32; 2]
+            v16 = unchecked_mul v14, v12
+            v17 = unchecked_add v15, v16
+            v18 = array_get v8, index u32 1 -> u32
+            v19 = array_get v1, index u32 1 -> u32
+            v20 = cast v0 as u32
+            v21 = cast v9 as u32
+            v22 = unchecked_mul v20, v18
+            v23 = unchecked_mul v21, v19
+            v24 = unchecked_add v22, v23
+            v25 = make_array [v17, v24] : [u32; 2]
             enable_side_effects v0
             enable_side_effects u1 1
-            v24 = add v16, v22
-            v26 = eq v24, u32 5
-            constrain v24 == u32 5
+            v26 = add v17, v24
+            v28 = eq v26, u32 5
+            constrain v26 == u32 5
             return
         }
         ");
@@ -677,25 +695,26 @@ mod tests {
             v5 = array_set v1, index u32 0, value u32 2
             v6 = not v0
             enable_side_effects u1 1
-            v8 = array_get v1, index u32 0 -> u32
-            v9 = cast v0 as u32
-            v10 = cast v6 as u32
-            v11 = unchecked_mul v9, u32 2
+            v8 = array_get v5, index u32 0 -> u32
+            v9 = array_get v1, index u32 0 -> u32
+            v10 = cast v0 as u32
+            v11 = cast v6 as u32
             v12 = unchecked_mul v10, v8
-            v13 = unchecked_add v11, v12
-            v15 = array_get v1, index u32 1 -> u32
+            v13 = unchecked_mul v11, v9
+            v14 = unchecked_add v12, v13
             v16 = array_get v1, index u32 1 -> u32
-            v17 = cast v0 as u32
-            v18 = cast v6 as u32
-            v19 = unchecked_mul v17, v15
+            v17 = array_get v1, index u32 1 -> u32
+            v18 = cast v0 as u32
+            v19 = cast v6 as u32
             v20 = unchecked_mul v18, v16
-            v21 = unchecked_add v19, v20
-            v22 = make_array [v13, v21] : [u32; 2]
+            v21 = unchecked_mul v19, v17
+            v22 = unchecked_add v20, v21
+            v23 = make_array [v14, v22] : [u32; 2]
             enable_side_effects v0
             enable_side_effects u1 1
-            v23 = add v13, v21
-            v25 = eq v23, u32 3
-            constrain v23 == u32 3
+            v24 = add v14, v22
+            v26 = eq v24, u32 3
+            constrain v24 == u32 3
             return
         }
         ");
@@ -1097,7 +1116,7 @@ mod tests {
                 v3 = make_array [] : [()]
                 v4 = make_array [] : [()]
                 v6 = eq v0, u32 4
-                jmpif v6 then: b1, else: b2
+                jmpif v6 then: b1(), else: b2()
             b1():
                 jmp b3(u32 1, v3)
             b2():

@@ -5,6 +5,7 @@ use crate::{
     ast::{Ident, NoirFunction},
     graph::CrateId,
     hir::{
+        def_collector::dc_crate::CompilationError,
         resolution::errors::{PubPosition, ResolverError},
         type_check::TypeCheckError,
     },
@@ -33,10 +34,9 @@ pub(super) fn deprecated_function(interner: &NodeInterner, expr: ExprId) -> Opti
     };
 
     let attributes = interner.function_attributes(&func_id);
-    attributes.get_deprecated_note().map(|note| TypeCheckError::CallDeprecated {
-        name: interner.definition_name(id).to_string(),
-        note,
-        location,
+    attributes.get_deprecated().map(|(deny, note)| {
+        let name = interner.definition_name(id).to_string();
+        TypeCheckError::CallDeprecated { name, deny, note, location }
     })
 }
 
@@ -264,7 +264,7 @@ pub(super) fn oracle_returns_vector_with_nested_array(
         return None;
     }
 
-    if func.return_type().is_vector_with_nested_array() {
+    if func.return_type().contains_vector_with_nested_array() {
         let ident = func_meta_name_ident(func, modifiers);
         Some(ResolverError::OracleReturnsVectorWithNestedArray { location: ident.location() })
     } else {
@@ -325,9 +325,13 @@ pub(super) fn unconstrained_function_return(
 pub(super) fn error_if_verify_proof_with_type(
     interner: &NodeInterner,
     func_expr_id: ExprId,
-) -> Option<TypeCheckError> {
+    location: Location,
+) -> Option<CompilationError> {
     // Called function
-    let func_id = interner.lookup_function_from_expr(&func_expr_id)?;
+    let func_id = match interner.lookup_function_from_expr(&func_expr_id, location) {
+        Ok(func_id) => func_id?,
+        Err(error) => return Some(error.into()),
+    };
     let func_name = interner.function_name(&func_id);
 
     // Check if it is verify_proof_with_type and is from the standard library
@@ -336,7 +340,7 @@ pub(super) fn error_if_verify_proof_with_type(
         if module_id.krate.is_stdlib() {
             // Get the function location for the error
             let location = interner.expr_location(&func_expr_id);
-            return Some(TypeCheckError::VerifyProofWithTypeInBrillig { location });
+            return Some(TypeCheckError::VerifyProofWithTypeInBrillig { location }.into());
         }
     }
 
@@ -458,7 +462,7 @@ pub(crate) fn check_integer_literal_fits_its_type(
                 if value.absolute_value() > max.into() || value.is_negative() {
                     return Some(TypeCheckError::IntegerLiteralDoesNotFitItsType {
                         expr: value,
-                        ty: typ.clone(),
+                        ty: typ,
                         range: format!("0..={max}"),
                         location,
                     });
@@ -475,7 +479,7 @@ pub(crate) fn check_integer_literal_fits_its_type(
                 if (is_negative && abs > min.into()) || (!is_negative && abs > max.into()) {
                     return Some(TypeCheckError::IntegerLiteralDoesNotFitItsType {
                         expr: value,
-                        ty: typ.clone(),
+                        ty: typ,
                         range: format!("-{min}..={max}"),
                         location,
                     });
@@ -542,14 +546,14 @@ fn can_return_without_recursing(interner: &NodeInterner, func_id: FuncId, expr_i
         HirExpression::Infix(e) => check(e.lhs) && check(e.rhs),
         HirExpression::Index(e) => check(e.collection) && check(e.index),
         HirExpression::MemberAccess(e) => check(e.lhs),
-        HirExpression::Call(e) => check(e.func) && e.arguments.iter().cloned().all(check),
-        HirExpression::Constrain(e) => check(e.0) && e.2.map(check).unwrap_or(true),
+        HirExpression::Call(e) => check(e.func) && e.arguments.iter().copied().all(check),
+        HirExpression::Constrain(e) => check(e.0) && e.2.is_none_or(check),
         HirExpression::Cast(e) => check(e.lhs),
         HirExpression::If(e) => {
-            check(e.condition) && (check(e.consequence) || e.alternative.map(check).unwrap_or(true))
+            check(e.condition) && (check(e.consequence) || e.alternative.is_none_or(check))
         }
         HirExpression::Match(e) => can_return_without_recursing_match(interner, func_id, &e),
-        HirExpression::Tuple(e) => e.iter().cloned().all(check),
+        HirExpression::Tuple(e) => e.iter().copied().all(check),
         HirExpression::Unsafe(b) => check_block(b),
         // Rust doesn't check the lambda body (it might not be called).
         HirExpression::Lambda(_)

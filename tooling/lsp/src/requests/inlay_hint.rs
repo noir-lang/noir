@@ -7,6 +7,7 @@ use async_lsp::lsp_types::{
     TextDocumentPositionParams, TextEdit,
 };
 use fm::{FileId, FileMap};
+use itertools::Itertools;
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
     self, Kind, Type, TypeBinding, TypeVariable,
@@ -187,7 +188,7 @@ impl<'a> InlayHintCollector<'a> {
                 parameters_count -= 1;
             }
 
-            for (call_argument, (pattern, _, _)) in arguments.iter().zip(parameters) {
+            for (call_argument, (pattern, _, _)) in arguments.iter().zip_eq(parameters) {
                 let Some(lsp_location) =
                     to_lsp_location(self.files, self.file_id, call_argument.location.span)
                 else {
@@ -541,7 +542,7 @@ fn push_type_parts(typ: &Type, parts: &mut Vec<InlayHintLabelPart>, files: &File
                 Kind::Integer => push_type_parts(&Type::default_int_type(), parts, files),
                 Kind::IntegerOrField => parts.push(string_part("Field")),
             },
-            _ => {
+            TypeBinding::Bound(_) => {
                 push_type_variable_parts(binding, parts, files);
             }
         },

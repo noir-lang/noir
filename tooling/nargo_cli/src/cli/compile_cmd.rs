@@ -150,6 +150,7 @@ pub fn compile_workspace_full(
     report_errors(
         compiled_workspace,
         &workspace_file_manager,
+        &parsed_files,
         compile_options.deny_warnings,
         compile_options.silence_warnings,
     )?;

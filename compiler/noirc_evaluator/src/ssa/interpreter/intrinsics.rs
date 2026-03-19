@@ -47,7 +47,7 @@ impl<W: Write> Interpreter<'_, W> {
                 let vector = Value::ArrayOrVector(ArrayValue {
                     elements: Shared::new(elements),
                     rc: Shared::new(1),
-                    element_types: array.element_types.clone(),
+                    element_types: array.element_types,
                     is_vector: true,
                     is_flat,
                 });
@@ -458,7 +458,7 @@ impl<W: Write> Interpreter<'_, W> {
 
                 let generators = derive_generators(&inputs, n.0, index);
                 let mut result = Vec::with_capacity(inputs.len());
-                for generator in generators.iter() {
+                for generator in &generators {
                     let x_big: BigUint = generator.x.into();
                     let x = FieldElement::from_le_bytes_reduce(&x_big.to_bytes_le());
                     let y_big: BigUint = generator.y.into();
@@ -550,19 +550,31 @@ impl<W: Write> Interpreter<'_, W> {
         // The resulting vector should be cloned - should we check RC here to try mutating it?
         // It'd need to be brillig-only if so since RC is always 1 in acir.
         let mut new_elements = vector.elements.borrow().to_vec();
-        let element_types = vector.element_types.clone();
         let stride = vector.element_stride();
         let is_flat = vector.is_flat;
+        let element_types = vector.element_types;
 
         // The vector might contain more elements than its length.
         // We need to either insert before the extras, overwrite, or remove them.
-        new_elements.truncate(stride * length as usize);
-        for arg in args.iter().skip(2) {
-            let val = self.lookup(*arg)?;
-            if is_flat {
+        if is_flat {
+            // For flat arrays, truncate and then flatten-push the new elements.
+            new_elements.truncate(stride * length as usize);
+            for arg in args.iter().skip(2) {
+                let val = self.lookup(*arg)?;
                 flatten_value_into(&val, &mut new_elements);
-            } else {
-                new_elements.push(val);
+            }
+        } else {
+            // For non-flat arrays, the way some SSA passes work is that they assume
+            // we *always* grow the vector capacity, so instead of truncating,
+            // we append as well as overwrite.
+            let end_index = stride * (length as usize);
+            let push_only = end_index == new_elements.len();
+            for (i, arg) in args.iter().skip(2).enumerate() {
+                let value = self.lookup(*arg)?;
+                if !push_only {
+                    new_elements[end_index + i] = value.clone();
+                }
+                new_elements.push(value);
             }
         }
 
@@ -582,8 +594,8 @@ impl<W: Write> Interpreter<'_, W> {
         let length = self.lookup_u32(args[0], "call to vector_push_front")?;
         let vector = self.lookup_array_or_vector(args[1], "call to vector_push_front")?;
         let vector_elements = vector.elements.clone();
-        let element_types = vector.element_types.clone();
         let is_flat = vector.is_flat;
+        let element_types = vector.element_types;
 
         let mut new_elements = if is_flat {
             let mut flat = Vec::new();
@@ -688,8 +700,8 @@ impl<W: Write> Interpreter<'_, W> {
         let index = self.lookup_u32(args[2], "call to vector_insert")?;
 
         let mut vector_elements = vector.elements.borrow().to_vec();
-        let element_types = vector.element_types.clone();
         let stride = vector.element_stride();
+        let element_types = vector.element_types;
 
         let mut insert_index = index as usize * stride;
         if vector.is_flat {

@@ -49,24 +49,10 @@ comptime fn outer_attribute_separate_module(m: Module) {
 
 pub struct Foo {}
 
-#[add_function]
-mod add_to_me {
-    fn add_to_me_function() {}
-}
-
-comptime fn add_function(m: Module) {
-    m.add_item(
-        quote { pub fn added_function() -> super::Foo {
-            add_to_me_function();
-            super::Foo {}
-    } },
-    );
-}
-
 fn main() {
     let _ = foo::Struct1 {};
 
-    comptime {
+    let final_counter_value = comptime {
         // Check Module::is_contract
         let foo = quote { foo }.as_module().unwrap();
         assert(!foo.is_contract());
@@ -102,14 +88,13 @@ fn main() {
         assert(foo.has_named_attribute("outer_attribute"));
         assert(!bar.has_named_attribute("some_attribute"));
         assert(another_module.has_named_attribute("some_attribute"));
-    }
+        counter
+    };
 
-    assert_eq(counter, 4);
+    assert_eq(final_counter_value, 4);
 
     yet_another_module::generated_outer_function();
     yet_another_module::generated_inner_function();
-
-    let _ = add_to_me::added_function();
 }
 
 // docs:start:as_module_example
@@ -184,7 +169,6 @@ fn child_modules_test2() {
             quote [bar],
             quote [another_module],
             quote [yet_another_module],
-            quote [add_to_me],
             quote [baz],
             quote [module1],
             quote [my_module],

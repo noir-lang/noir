@@ -186,6 +186,13 @@ impl FuzzerBuilder {
         let init_bit_length = value.bit_length();
 
         let mut value_id = value.value_id;
+
+        // If we cast Field -> u1 we should cast to u8 first
+        if value.is_field() && cast_type == Type::Numeric(NumericType::Boolean) {
+            let casted_to_u8 = self.insert_cast(value, Type::Numeric(NumericType::U8));
+            return self.insert_cast(casted_to_u8, cast_type);
+        }
+
         // if not field, truncate
         if cast_type.bit_length() != 254 {
             value_id = self.builder.insert_truncate(
@@ -318,7 +325,7 @@ impl FuzzerBuilder {
         then_destination: BasicBlockId,
         else_destination: BasicBlockId,
     ) {
-        self.builder.terminate_with_jmpif(condition, then_destination, else_destination);
+        self.builder.terminate_with_jmpif_no_args(condition, then_destination, else_destination);
     }
 
     pub fn insert_add_to_memory(&mut self, lhs: TypedValue) -> TypedValue {
@@ -372,7 +379,7 @@ impl FuzzerBuilder {
             .insert_call(
                 function,
                 arguments.iter().map(|i| i.value_id).collect(),
-                vec![result_type.clone().into()],
+                vec![result_type.into()],
             )
             .first()
             .unwrap()
@@ -431,7 +438,7 @@ impl FuzzerBuilder {
             .import_intrinsic("to_le_radix")
             .expect("to_le_radix intrinsic should be available");
         let element_type = Type::Numeric(NumericType::U8);
-        let result_type = Type::Array(Arc::new(vec![element_type.clone()]), u32::from(limb_count));
+        let result_type = Type::Array(Arc::new(vec![element_type]), u32::from(limb_count));
         let result = self.builder.insert_call(
             intrinsic,
             vec![field_value.value_id, radix],
@@ -670,7 +677,7 @@ impl FuzzerBuilder {
         index: TypedValue,
         array: TypedValue,
     ) -> TypedValue {
-        match array.type_of_variable.clone() {
+        match array.type_of_variable {
             Type::Array(_, array_length) => {
                 let array_length_id =
                     self.builder.numeric_constant(array_length, NumericType::U32.into());
@@ -695,7 +702,7 @@ impl FuzzerBuilder {
     ) -> TypedValue {
         assert!(index.type_of_variable == Type::Numeric(NumericType::U32));
         let index = if safe_index {
-            self.insert_index_mod_array_length(index.clone(), array.clone())
+            self.insert_index_mod_array_length(index, array.clone())
         } else {
             index
         };
@@ -718,20 +725,26 @@ impl FuzzerBuilder {
         value: TypedValue,
         safe_index: bool,
     ) -> TypedValue {
-        let (array_type, array_length) = match array.type_of_variable.clone() {
-            Type::Array(array_type, array_length) => (array_type, array_length),
-            _ => unreachable!("Array type expected"),
+        let Type::Array(array_type, array_length) = array.type_of_variable.clone() else {
+            unreachable!("Array type expected")
         };
 
         assert!(index.type_of_variable == Type::Numeric(NumericType::U32));
         let index = if safe_index {
-            self.insert_index_mod_array_length(index.clone(), array.clone())
+            self.insert_index_mod_array_length(index, array.clone())
         } else {
             index
         };
+        // In Brillig, arrays use reference counting for copy-on-write.
+        // We must increment the RC before array_set so the original array is preserved
+        // if it's used again later, then decrement after (during ssa passes).
+        // In ACIR, IncrementRc/DecrementRc are not supported (they hit unreachable!).
+        if matches!(self.runtime, RuntimeType::Brillig(_)) {
+            self.builder.insert_inc_rc(array.value_id);
+        }
         let res =
             self.builder.insert_array_set(array.value_id, index.value_id, value.value_id, false);
-        TypedValue::new(res, Type::Array(array_type.clone(), array_length))
+        TypedValue::new(res, Type::Array(array_type, array_length))
     }
 
     /// Performs a curve point multiplication with a scalar
@@ -781,15 +794,13 @@ impl FuzzerBuilder {
                 SemanticLength(1),
             ),
         );
-        let return_type = Type::Array(
-            Arc::new(vec![field_type.clone(), field_type.clone(), boolean_type.clone()]),
-            1,
-        );
+        let return_type =
+            Type::Array(Arc::new(vec![field_type.clone(), field_type.clone(), boolean_type]), 1);
         let predicate = self.builder.numeric_constant(1_u32, NumericType::Boolean.into());
         let result = self.builder.insert_call(
             intrinsic,
             vec![basic_point, scalar_id, predicate],
-            vec![return_type.clone().into()],
+            vec![return_type.into()],
         );
         assert_eq!(result.len(), 1);
         let result = result[0];
@@ -865,7 +876,7 @@ impl FuzzerBuilder {
         let result = self.builder.insert_call(
             intrinsic,
             vec![point_ids_array, scalar_ids_array, predicate],
-            vec![return_type.clone().into()],
+            vec![return_type.into()],
         );
         assert_eq!(result.len(), 1);
         let result = result[0];
@@ -900,8 +911,7 @@ impl FuzzerBuilder {
             Arc::new(vec![field_type.clone(), field_type.clone(), boolean_type.clone()]),
             1,
         );
-        let result =
-            self.builder.insert_call(intrinsic, arguments, vec![return_type.clone().into()]);
+        let result = self.builder.insert_call(intrinsic, arguments, vec![return_type.into()]);
         assert_eq!(result.len(), 1);
         let result = result[0];
         let x_idx = self.builder.numeric_constant(0_u32, NumericType::U32.into());

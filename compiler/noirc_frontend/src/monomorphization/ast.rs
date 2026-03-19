@@ -1,3 +1,4 @@
+use std::rc::Rc;
 use std::{borrow::Cow, collections::BTreeMap, fmt::Display};
 
 use iter_extended::vecmap;
@@ -77,7 +78,7 @@ impl Expression {
                 Literal::Str(s) => owned(Type::String(s.len() as u32)),
                 Literal::FmtStr(_, size, expr) => {
                     let typ = expr.return_type()?;
-                    owned(Type::FmtString(*size as u32, Box::new(typ.into_owned())))
+                    owned(Type::FmtString(*size as u32, Rc::new(typ.into_owned())))
                 }
             },
             Expression::Block(xs) => {
@@ -150,10 +151,9 @@ impl Expression {
         match self {
             Expression::Literal(_) => true,
 
-            Expression::Block(expressions) => expressions
-                .last()
-                .map(|x| x.needs_type_inference_from_literal())
-                .unwrap_or_default(),
+            Expression::Block(expressions) => {
+                expressions.last().is_some_and(|x| x.needs_type_inference_from_literal())
+            }
 
             Expression::Unary(unary) => unary.rhs.needs_type_inference_from_literal(),
 
@@ -169,8 +169,7 @@ impl Expression {
                     && if_
                         .alternative
                         .as_ref()
-                        .map(|x| x.needs_type_inference_from_literal())
-                        .unwrap_or_default()
+                        .is_some_and(|x| x.needs_type_inference_from_literal())
             }
             Expression::Match(m) => {
                 m.cases.iter().all(|c| c.branch.needs_type_inference_from_literal())
@@ -245,7 +244,7 @@ pub struct Ident {
     pub definition: Definition,
     pub mutable: bool,
     pub name: String,
-    pub typ: Type,
+    pub typ: Rc<Type>,
     pub id: IdentId,
 }
 
@@ -424,7 +423,7 @@ pub enum LValue {
 }
 
 pub type Parameters =
-    Vec<(LocalId, /*mutable:*/ bool, /*name:*/ String, Type, Visibility)>;
+    Vec<(LocalId, /*mutable:*/ bool, /*name:*/ String, Rc<Type>, Visibility)>;
 
 /// Represents how an Acir function should be inlined.
 /// This type is only relevant for ACIR functions as we do not inline any Brillig functions
@@ -541,20 +540,20 @@ pub struct Function {
 #[derive(Debug, PartialEq, Eq, Clone, Hash, PartialOrd, Ord)]
 pub enum Type {
     Field,
-    Array(/*len:*/ u32, Box<Type>), // Array(4, Field) = [Field; 4]
+    Array(/*len:*/ u32, Rc<Type>), // Array(4, Field) = [Field; 4]
     Integer(Signedness, /*bits:*/ IntegerBitSize), // u32 = Integer(unsigned, ThirtyTwo)
     Bool,
     String(/*len:*/ u32), // String(4) = str[4]
-    FmtString(/*len:*/ u32, Box<Type>),
+    FmtString(/*len:*/ u32, Rc<Type>),
     Unit,
     Tuple(Vec<Type>),
-    Vector(Box<Type>),
-    Reference(Box<Type>, /*mutable:*/ bool),
+    Vector(Rc<Type>),
+    Reference(Rc<Type>, /*mutable:*/ bool),
     /// `(args, ret, env, unconstrained)`
     Function(
         /*args:*/ Vec<Type>,
-        /*ret:*/ Box<Type>,
-        /*env:*/ Box<Type>,
+        /*ret:*/ Rc<Type>,
+        /*env:*/ Rc<Type>,
         /*unconstrained:*/ bool,
     ),
 }
@@ -586,14 +585,14 @@ impl Type {
     pub fn element_types(self) -> Vec<Type> {
         match self {
             Type::Array(_, elements) => {
-                vec![*elements]
+                vec![elements.as_ref().clone()]
             }
             Type::Vector(elements) => {
-                vec![*elements]
+                vec![elements.as_ref().clone()]
             }
             Type::Tuple(elements) => elements,
             Type::Reference(element, _) => {
-                vec![*element]
+                vec![element.as_ref().clone()]
             }
             _ => {
                 panic!("expected array slice or tuple type but got {self}")

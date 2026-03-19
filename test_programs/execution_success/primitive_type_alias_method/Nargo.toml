@@ -1,0 +1,6 @@
+[package]
+name = "primitive_type_alias_method"
+type = "bin"
+authors = [""]
+
+[dependencies]

@@ -12,6 +12,7 @@
 use std::collections::HashSet;
 
 use iter_extended::vecmap;
+use itertools::Itertools;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::ssa::{
@@ -84,7 +85,9 @@ fn is_conditional(
     let Some(TerminatorInstruction::JmpIf {
         condition: _,
         then_destination,
+        then_arguments,
         else_destination,
+        else_arguments,
         call_stack: _,
     }) = function.dfg[block].terminator()
     else {
@@ -146,6 +149,12 @@ fn is_conditional(
         //     \    |
         //      -> else
         // This case may not happen (i.e not generated), but it is safer to handle it (e.g in case it happens due to some optimizations)
+        //
+        // JmpIf arguments going directly to block_exit (the else_destination) are not yet
+        // supported because inline_branch_end does not handle args on the direct else path.
+        if !then_arguments.is_empty() || !else_arguments.is_empty() {
+            return None;
+        }
         let cost = block_flatten_cost(*then_destination, &function.dfg)?;
         // Flattening eliminates: JmpIf + then's Jmp; adds IfElse per exit param
         let then_term_cost = function.dfg[*then_destination].unwrap_terminator().cost();
@@ -169,6 +178,12 @@ fn is_conditional(
         //   |      |
         //    \    /
         //     then
+        //
+        // JmpIf arguments going directly to block_exit (the then_destination) are not yet
+        // supported because inline_branch_end does not handle args on the direct then path.
+        if !then_arguments.is_empty() || !else_arguments.is_empty() {
+            return None;
+        }
         let cost = block_flatten_cost(*else_destination, &function.dfg)?;
         // Flattening eliminates: JmpIf + else's Jmp; adds IfElse per exit param
         let else_term_cost = function.dfg[*else_destination].unwrap_terminator().cost();
@@ -215,7 +230,7 @@ fn differing_merge_cost(
     };
     let exit_params = dfg.block_parameters(exit_block);
     let mut cost = 0;
-    for ((a, b), param) in then_args.iter().zip(else_args.iter()).zip(exit_params.iter()) {
+    for ((a, b), param) in then_args.iter().zip_eq(else_args.iter()).zip_eq(exit_params.iter()) {
         if a != b {
             let typ = dfg.type_of_value(*param);
             if typ.is_numeric() || matches!(typ, Type::Reference(_)) {
@@ -367,14 +382,15 @@ impl Context<'_> {
         no_predicates: &HashMap<FunctionId, bool>,
     ) {
         // Manually inline 'then', 'else' and 'exit' into the entry block
-        //0. initialize the context for flattening a 'single conditional'
         let old_target = self.target_block;
         let old_no_predicate = self.no_predicate;
         self.target_block = conditional.block_entry;
         self.no_predicate = true;
-        //1. process 'then' branch
+
+        // Process 'then' branch
         self.inline_block(conditional.block_entry, no_predicates);
         let mut work_list = WorkList::new();
+
         let to_process = self.handle_terminator(conditional.block_entry, &work_list);
         work_list.extend(to_process);
 
@@ -385,10 +401,21 @@ impl Context<'_> {
             work_list.extend(to_process);
         }
 
-        //2. process 'else' branch, in case there is no 'then'
+        // Process 'else' branch
         let next = work_list.pop();
         if next == conditional.block_else {
             let next = next.unwrap();
+
+            // Prepare else-arguments so inline_block(block_else) can consume them.
+            let terminator =
+                self.inserter.function.dfg[conditional.block_entry].unwrap_terminator();
+
+            if let TerminatorInstruction::JmpIf { else_arguments, .. } = terminator {
+                // Save else-arguments to prepare just before inline_block(block_else).
+                let else_args = vecmap(else_arguments, |v| self.inserter.resolve(*v));
+                self.prepare_args(else_args);
+            }
+
             self.inline_block(next, no_predicates);
             let _ = self.handle_terminator(next, &work_list);
         } else {
@@ -404,14 +431,18 @@ impl Context<'_> {
             TerminatorInstruction::JmpIf {
                 condition,
                 then_destination,
+                then_arguments,
                 else_destination,
+                else_arguments,
                 call_stack,
             } => {
                 let condition = self.inserter.resolve(condition);
                 TerminatorInstruction::JmpIf {
                     condition,
                     then_destination,
+                    then_arguments,
                     else_destination,
+                    else_arguments,
                     call_stack,
                 }
             }
@@ -473,7 +504,7 @@ mod tests {
               brillig(inline) fn foo f0 {
                 b0(v0: u32):
                   v3 = eq v0, u32 0
-                  jmpif v3 then: b2, else: b1
+                  jmpif v3 then: b2(), else: b1()
                 b1():
                   jmp b3(u32 5)
                 b2():
@@ -510,7 +541,7 @@ mod tests {
               brillig(inline) fn foo f0 {
                 b0(v0: u32):
                   v3 = eq v0, u32 5
-                  jmpif v3 then: b2, else: b1
+                  jmpif v3 then: b2(), else: b1()
                 b1():
                   v10 = make_array b"foo"
                   jmp b3(v10)
@@ -532,7 +563,7 @@ mod tests {
               brillig(inline) fn foo f0 {
                 b0(v0: u32):
                   v3 = eq v0, u32 5
-                  jmpif v3 then: b2, else: b1
+                  jmpif v3 then: b2(), else: b1()
                 b1():
                   v10 = make_array b"0123456789a"
                   jmp b3(v10)
@@ -553,10 +584,10 @@ mod tests {
               b0(v0: u32):
                 v5 = eq v0, u32 5
                 v6 = not v5
-                jmpif v5 then: b5, else: b1
+                jmpif v5 then: b5(), else: b1()
               b1():
                 v8 = lt v0, u32 3
-                jmpif v8 then: b3, else: b2
+                jmpif v8 then: b3(), else: b2()
               b2():
                 v9 = truncate v0 to 2 bits, max_bit_size: 32
                 jmp b4(v9)
@@ -567,7 +598,7 @@ mod tests {
                 jmp b9(v1)
               b5():
                 v12 = lt u32 2, v0
-                jmpif v12 then: b7, else: b6
+                jmpif v12 then: b7(), else: b6()
               b6():
                 v13 = truncate v0 to 3 bits, max_bit_size: 32
                 jmp b8(v13)
@@ -589,10 +620,10 @@ mod tests {
           b0(v0: u32):
             v4 = eq v0, u32 5
             v5 = not v4
-            jmpif v4 then: b5, else: b1
+            jmpif v4 then: b5(), else: b1()
           b1():
             v17 = lt v0, u32 3
-            jmpif v17 then: b3, else: b2
+            jmpif v17 then: b3(), else: b2()
           b2():
             v19 = truncate v0 to 2 bits, max_bit_size: 32
             jmp b4(v19)
@@ -628,10 +659,10 @@ mod tests {
               b0(v0: u32):
                 v5 = eq v0, u32 5
                 v6 = not v5
-                jmpif v5 then: b5, else: b1
+                jmpif v5 then: b5(), else: b1()
               b1():
                 v8 = lt v0, u32 3
-                jmpif v8 then: b3, else: b2
+                jmpif v8 then: b3(), else: b2()
               b2():
                 v9 = truncate v0 to 2 bits, max_bit_size: 32
                 jmp b4(v9)
@@ -642,7 +673,7 @@ mod tests {
                 jmp b9(v1)
               b5():
                 v12 = lt u32 2, v0
-                jmpif v12 then: b7, else: b6
+                jmpif v12 then: b7(), else: b6()
               b6():
                 v13 = truncate v0 to 3 bits, max_bit_size: 32
                 jmp b8(v13)
@@ -653,6 +684,99 @@ mod tests {
                 jmp b9(v2)
               b9(v3: u32):
                 return v3
+            }
+            ";
+        assert_ssa_does_not_change(src, Ssa::flatten_basic_conditionals);
+    }
+
+    /// Diamond-shaped conditional where the entry JmpIf carries then/else arguments
+    /// (as emitted by mem2reg_simple). Both branches receive a promoted variable value
+    /// as a block parameter. The optimization should still fire and produce merged output.
+    #[test]
+    fn jmpif_with_then_and_else_args_diamond() {
+        let src = "
+            brillig(inline) fn foo f0 {
+              b0(v0: u1):
+                jmpif v0 then: b1(u32 10), else: b2(u32 20)
+              b1(v1: u32):
+                v3 = unchecked_add v1, u32 1
+                jmp b3(v3)
+              b2(v2: u32):
+                v4 = unchecked_add v2, u32 2
+                jmp b3(v4)
+              b3(v5: u32):
+                return v5
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+        assert_eq!(ssa.main().reachable_blocks().len(), 4);
+
+        let ssa = ssa.flatten_basic_conditionals();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn foo f0 {
+          b0(v0: u1):
+            v1 = not v0
+            v2 = cast v0 as u32
+            v3 = cast v1 as u32
+            v5 = unchecked_mul v2, u32 11
+            v7 = unchecked_mul v3, u32 22
+            v8 = unchecked_add v5, v7
+            return v8
+        }
+        ");
+    }
+
+    /// Diamond-shaped conditional where only the then-branch receives a JmpIf argument.
+    /// The optimization should fire; the else branch value is folded through unchanged.
+    #[test]
+    fn jmpif_with_only_then_args_diamond() {
+        let src = "
+            brillig(inline) fn foo f0 {
+              b0(v0: u1):
+                jmpif v0 then: b1(u32 10), else: b2()
+              b1(v1: u32):
+                v3 = unchecked_add v1, u32 1
+                jmp b3(v3)
+              b2():
+                jmp b3(u32 5)
+              b3(v4: u32):
+                return v4
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+        assert_eq!(ssa.main().reachable_blocks().len(), 4);
+
+        let ssa = ssa.flatten_basic_conditionals();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn foo f0 {
+          b0(v0: u1):
+            v1 = not v0
+            v2 = cast v0 as u32
+            v3 = cast v1 as u32
+            v5 = unchecked_mul v2, u32 11
+            v7 = unchecked_mul v3, u32 5
+            v8 = unchecked_add v5, v7
+            return v8
+        }
+        ");
+    }
+
+    /// Non-diamond (then-only) case with JmpIf arguments: the optimization must be
+    /// skipped because the else_arguments go directly to the exit block, which
+    /// `inline_branch_end` cannot handle correctly yet.
+    #[test]
+    fn jmpif_with_args_then_only_not_flattened() {
+        // then-only shape: jmpif c then: b1(v_arg), else: b2(v_arg2)
+        // where b2 is the exit block reached directly from the JmpIf.
+        let src = "
+            brillig(inline) fn foo f0 {
+              b0(v0: u1):
+                jmpif v0 then: b1(u32 10), else: b2(u32 20)
+              b1(v1: u32):
+                v3 = unchecked_add v1, u32 1
+                jmp b2(v3)
+              b2(v2: u32):
+                return v2
             }
             ";
         assert_ssa_does_not_change(src, Ssa::flatten_basic_conditionals);

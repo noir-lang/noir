@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Comptime evaluation for oracle functions like 'create_mock' is currently unimplemented
+   ┌─ std/test.nr:28:20
+   │
+28 │         Self { id: create_mock_oracle(name) }
+   │                    ------------------------
+   │
+
+Error interpreting main function

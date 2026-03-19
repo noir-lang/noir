@@ -1,6 +1,6 @@
 use acvm::assert_circuit_snapshot;
 
-use crate::acir::tests::{ssa_to_acir_program, ssa_to_acir_program_no_validation};
+use crate::acir::tests::{ssa_to_acir_program, ssa_to_acir_program_no_validation, try_ssa_to_acir};
 
 #[test]
 fn vector_push_back_known_length() {
@@ -272,8 +272,22 @@ fn vector_pop_back_unknown_length() {
     BLACKBOX::RANGE input: w1, bits: 1
     ASSERT w2 = 1
     INIT b0 = [w2]
-    ASSERT w3 = w1*w1 - w1
-    READ w4 = b0[w3]
+    BRILLIG CALL func: 0, predicate: w1, inputs: [w1], outputs: [w3]
+    ASSERT w4 = w1*w3
+    ASSERT w1 = w1*w4
+    ASSERT w5 = w1*w1 - w1
+    READ w6 = b0[w5]
+
+    unconstrained func 0: directive_invert
+    0: @21 = const u32 1
+    1: @20 = const u32 0
+    2: @0 = calldata copy [@20; @21]
+    3: @2 = const field 0
+    4: @3 = field eq @0, @2
+    5: jump if @3 to 8
+    6: @1 = const field 1
+    7: @0 = field field_div @1, @0
+    8: stop @[@20; @21]
     ");
 }
 
@@ -983,4 +997,28 @@ fn as_vector_for_vector_with_nested_array() {
     ASSERT w15 = w19
     ASSERT w20 = w63
     ");
+}
+
+#[test]
+fn recursive_aggregation_proof_type_truncation_poc() {
+    // A `proof_type` value that overflows u32 (2^32) must produce an InternalError
+    // rather than silently truncating to 0.
+    let src = "
+    acir(inline) fn main f0 {
+      b0():
+        v0 = make_array [Field 0] : [Field; 1]
+        v1 = make_array [Field 1] : [Field; 1]
+        v2 = make_array [Field 2] : [Field; 1]
+        v3 = unchecked_add u32 4294967295, u32 1
+        call recursive_aggregation(v0, v1, v2, Field 3, v3)
+        return
+    }
+    ";
+
+    let err = try_ssa_to_acir(src).expect_err("expected an error when proof_type overflows u32");
+    let message = err.to_string();
+    assert!(
+        message.contains("proof_type") && message.contains("does not fit into a u32"),
+        "unexpected error message: {message}"
+    );
 }

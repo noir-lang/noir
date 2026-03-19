@@ -2,6 +2,7 @@ use acvm::acir::BlackBoxFunc;
 use acvm::acir::brillig::ValueOrArray;
 use acvm::{AcirField, FieldElement};
 use iter_extended::vecmap;
+use itertools::Itertools;
 
 use crate::brillig::BrilligBlock;
 use crate::brillig::brillig_ir::registers::Allocated;
@@ -14,7 +15,9 @@ use crate::ssa::ir::{
 };
 
 use super::brillig_black_box::convert_black_box_call;
-use crate::brillig::brillig_ir::brillig_variable::{BrilligVariable, type_to_heap_value_type};
+use crate::brillig::brillig_ir::brillig_variable::{
+    BrilligVariable, SingleAddrVariable, type_to_heap_value_type,
+};
 
 impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     /// Converts a foreign function call into Brillig bytecode.
@@ -64,7 +67,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         // Pair up the heap typed output values of the call with the Brillig variables created for the results,
         // so that we can do some post processing for vectors.
         for (i, (output_value, output_variable)) in
-            output_values.iter().zip(output_variables).enumerate()
+            output_values.iter().zip_eq(output_variables).enumerate()
         {
             // We need to emit some bytecode to format the output as a BrilligVector
             let BrilligVariable::BrilligVector(vector) = output_variable else {
@@ -83,17 +86,80 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 .brillig_context
                 .codegen_initialize_externally_returned_vector(vector, &heap_vector);
 
-            // Update the dynamic vector length maintained in SSA, a.k.a semantic length,
+            // Update or validate the dynamic vector length maintained in SSA, a.k.a semantic length,
             // which is the parameter preceding the vector.
             if let ValueOrArray::MemoryAddress(length_addr) = *output_values[i - 1] {
-                // Calculate the semantic length as flattened_size / element_size.
+                // Get the number of fields in a vector element.
                 let element_size = dfg[result_ids[i]].get_type().element_size();
-                self.brillig_context.mov_instruction(length_addr, flattened_size_var.address);
-                self.brillig_context.codegen_usize_op_in_place(
-                    length_addr,
-                    BrilligBinaryOp::UnsignedDiv,
-                    element_size.to_usize(),
-                );
+
+                let zero = self.brillig_context.allocate_single_addr(32);
+                self.brillig_context.const_instruction(*zero, FieldElement::zero());
+
+                if element_size.0 == 0 {
+                    // If the element size is 0, then the contents will be zero as well;
+                    // this is verified by the Brillig VM, but to make sure the AVM also rejects such a circuit,
+                    // we lay down an opcode to check. This is such an edge case that it wouldn't affect normal circuit size.
+                    // In this case we have to accept the returned semantic length as is.
+                    let is_length_zero = self.brillig_context.allocate_single_addr_bool();
+                    self.brillig_context.binary_instruction(
+                        flattened_size_var,
+                        *zero,
+                        *is_length_zero,
+                        BrilligBinaryOp::Equals,
+                    );
+                    self.brillig_context.codegen_constrain(
+                        *is_length_zero,
+                        Some("Returned non-empty data for zero vector element size".to_string()),
+                    );
+                } else {
+                    // If the element size is not 0, then we can divide the flattened content length with it
+                    // to calculate the semantic length of the vector.
+                    let calculated_semantic_length = self.brillig_context.allocate_single_addr(32);
+                    self.brillig_context.mov_instruction(
+                        calculated_semantic_length.address,
+                        flattened_size_var.address,
+                    );
+                    self.brillig_context.codegen_usize_op_in_place(
+                        calculated_semantic_length.address,
+                        BrilligBinaryOp::UnsignedDiv,
+                        element_size.to_usize(),
+                    );
+
+                    // We use the calculated semantic length in one of two ways:
+                    // * if the returned semantic length is not zero, then we assert that it matches the data
+                    // * if the returned semantic length is 0, we assume the foreign call handler just wasn't updated to set it,
+                    //   and we update it to the calculated length
+                    let length = SingleAddrVariable::new(length_addr, 32);
+
+                    let is_length_zero = self.brillig_context.allocate_single_addr_bool();
+                    self.brillig_context.binary_instruction(
+                        length,
+                        *zero,
+                        *is_length_zero,
+                        BrilligBinaryOp::Equals,
+                    );
+
+                    self.brillig_context.codegen_branch(is_length_zero.address, |ctx, is_zero| {
+                        if is_zero {
+                            ctx.mov_instruction(length_addr, calculated_semantic_length.address);
+                        } else {
+                            let length_equals = ctx.allocate_single_addr_bool();
+                            ctx.binary_instruction(
+                                length,
+                                *calculated_semantic_length,
+                                *length_equals,
+                                BrilligBinaryOp::Equals,
+                            );
+                            ctx.codegen_constrain(
+                                *length_equals,
+                                Some(
+                                    "semantic length returned from oracle does not match data"
+                                        .to_string(),
+                                ),
+                            );
+                        }
+                    });
+                }
             } else {
                 unreachable!("ICE: a vector must be preceded by a register containing its length");
             }
@@ -125,10 +191,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         assert!(rhs.bit_size == FieldElement::max_num_bits());
 
         let [result] = dfg.instruction_result(instruction_id);
-        let destination = self
-            .variables
-            .define_variable(self.function_context, self.brillig_context, result, dfg)
-            .extract_single_addr();
+        let destination = self.define_variable(result, dfg).extract_single_addr();
         assert!(destination.bit_size == 1);
 
         self.brillig_context.binary_instruction(lhs, rhs, destination, BrilligBinaryOp::LessThan);
@@ -195,18 +258,8 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         let source_id = arguments[0];
         let source_variable = self.convert_ssa_value(source_id, dfg);
         let [length_id, destination_id] = dfg.instruction_result(instruction_id);
-        let destination_len_variable = self.variables.define_single_addr_variable(
-            self.function_context,
-            self.brillig_context,
-            length_id,
-            dfg,
-        );
-        let destination_variable = self.variables.define_variable(
-            self.function_context,
-            self.brillig_context,
-            destination_id,
-            dfg,
-        );
+        let destination_len_variable = self.define_single_addr_variable(length_id, dfg);
+        let destination_variable = self.define_variable(destination_id, dfg);
         let destination_vector = destination_variable.extract_vector();
         let source_array = source_variable.extract_array();
         let element_size = dfg.type_of_value(source_id).element_size();
@@ -282,15 +335,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
 
                         let source = self.convert_ssa_single_addr_value(arguments[0], dfg);
 
-                        let target_array = self
-                            .variables
-                            .define_variable(
-                                self.function_context,
-                                self.brillig_context,
-                                result,
-                                dfg,
-                            )
-                            .extract_array();
+                        let target_array = self.define_variable(result, dfg).extract_array();
 
                         let two =
                             self.brillig_context.make_usize_constant_instruction(2_usize.into());
@@ -310,15 +355,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                         let source = self.convert_ssa_single_addr_value(arguments[0], dfg);
                         let radix = self.convert_ssa_single_addr_value(arguments[1], dfg);
 
-                        let target_array = self
-                            .variables
-                            .define_variable(
-                                self.function_context,
-                                self.brillig_context,
-                                result,
-                                dfg,
-                            )
-                            .extract_array();
+                        let target_array = self.define_variable(result, dfg).extract_array();
 
                         self.brillig_context.codegen_to_radix(
                             source,
@@ -345,12 +382,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                         let array = self.convert_ssa_value(arguments[0], dfg);
                         let [result] = dfg.instruction_result(instruction_id);
 
-                        let destination = self.variables.define_variable(
-                            self.function_context,
-                            self.brillig_context,
-                            result,
-                            dfg,
-                        );
+                        let destination = self.define_variable(result, dfg);
                         let destination = destination.extract_register();
                         let array = array.extract_register();
                         self.brillig_context.load_instruction(destination, array);
@@ -359,12 +391,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                         let array = self.convert_ssa_value(arguments[1], dfg);
                         let [result] = dfg.instruction_result(instruction_id);
 
-                        let destination = self.variables.define_variable(
-                            self.function_context,
-                            self.brillig_context,
-                            result,
-                            dfg,
-                        );
+                        let destination = self.define_variable(result, dfg);
                         let destination = destination.extract_register();
                         let array = array.extract_register();
                         self.brillig_context.load_instruction(destination, array);

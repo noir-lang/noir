@@ -1,0 +1,27 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+bug: Input to Brillig function is in a separate subgraph to output
+  ┌─ src/main.nr:6:26
+  │
+6 │     assert(1 == unsafe { conditional(x != 0) });
+  │                          ------------------- There is no path from the output of this Brillig call to either return values or inputs of the circuit, which creates an independent subgraph. This is quite likely a soundness vulnerability
+  │
+  = Call stack:
+    1: main
+            at src/main.nr:6:26
+
+error: Failed to solve program: 'Failed to solve brillig function'
+   ┌─ src/main.nr:10:12
+   │
+10 │     assert(x);
+   │            -
+   │
+   = Call stack:
+     1: main
+             at src/main.nr:6:26
+     2: conditional
+             at src/main.nr:10:12
+
+Failed to solve program: 'Failed to solve brillig function'

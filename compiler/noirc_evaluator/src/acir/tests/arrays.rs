@@ -1,6 +1,16 @@
-use acvm::{acir::circuit::Opcode, assert_circuit_snapshot};
+use acvm::{
+    acir::circuit::{Opcode, opcodes::BlockId},
+    assert_circuit_snapshot,
+};
 
-use crate::acir::tests::ssa_to_acir_program;
+use crate::{
+    acir::{
+        AcirDynamicArray, Context, SharedContext, acir_context::BrilligStdLib,
+        tests::ssa_to_acir_program, types::AcirValue,
+    },
+    brillig::{Brillig, BrilligOptions},
+    ssa::{ir::value::ValueId, ssa_gen::Ssa},
+};
 
 #[test]
 fn array_set_not_mutable() {
@@ -379,4 +389,49 @@ fn non_homogenous_array_dynamic_access() {
     ASSERT w30 = w34
     ASSERT w31 = w36
     ");
+}
+
+#[test]
+fn make_dynamic_array_value_types() {
+    let src = r#"
+    acir(inline) pure fn main f0 {
+      b0(v0: [[([Field; 2], u8); 3]; 4], v1: u32, v2: [([Field; 2], u8); 3]):
+        v3, v4 = call as_vector(v0) -> (u32, [[([Field; 2], u8); 3]])
+        v5 = array_set v4, index v1, value v2
+        return
+    }
+    "#;
+    let ssa = Ssa::from_str(src).unwrap();
+    let (_, main) = ssa.functions.iter().next().unwrap();
+
+    // Create an empty context we can test.
+    let mut shared_context = SharedContext::default();
+    let brillig = Brillig::default();
+    let brillig_options = BrilligOptions::default();
+    let mut context =
+        Context::new(&mut shared_context, &brillig, BrilligStdLib::default(), &brillig_options);
+
+    // Make sure all the values are cached, following a bit of how `convert_acir_main` would do it.
+    let entry_block = &main.dfg[main.entry_block()];
+    context.convert_ssa_block_params(entry_block.parameters(), &main.dfg).unwrap();
+    for instruction_id in entry_block.instructions() {
+        context.convert_ssa_instruction(*instruction_id, &main.dfg, &ssa).unwrap();
+    }
+
+    // Now repeat the step that generates the ACIR for the result of an array set.
+    let array_id = ValueId::new(5);
+    let array = context.make_array_set_result_value(array_id, BlockId(0), &main.dfg).unwrap();
+    let AcirValue::DynamicArray(AcirDynamicArray { len, value_types, .. }) = array else {
+        panic!("expected DynamicArray, got {array:?}");
+    };
+    assert_eq!(
+        len.to_usize(),
+        (2 + 1) * 3 * 4,
+        "a vector should have all the nested arrays flattened into it, up to its capacity"
+    );
+    assert_eq!(
+        value_types.len(),
+        (2 + 1) * 3,
+        "a vector should have all the types of its first element flattened"
+    );
 }

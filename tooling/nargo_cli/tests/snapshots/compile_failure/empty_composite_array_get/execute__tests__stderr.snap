@@ -1,0 +1,27 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Invalid type found in the entry point to a program
+  ┌─ src/main.nr:1:22
+  │
+1 │ fn main(empty_input: [(Field, Field); 0]) {
+  │                      ------------------- Invalid entry point type: [(Field, Field); 0]
+  │
+  = Note: vectors, references, empty arrays, empty strings, or any type containing them may not be used in main, contract functions, test functions, fuzz functions or foldable functions.
+
+error: Index 0 is out of bounds for this array of length 0
+  ┌─ src/main.nr:3:25
+  │
+3 │     let _ = empty_input[0];
+  │                         -
+  │
+
+error: Index 0 is out of bounds for this array of length 0
+  ┌─ src/main.nr:4:25
+  │
+4 │     let _ = empty_array[0];
+  │                         -
+  │
+
+Aborting due to 3 previous errors

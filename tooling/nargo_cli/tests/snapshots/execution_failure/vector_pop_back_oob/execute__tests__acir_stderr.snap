@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Assertion failed: cannot pop from a vector with length 0
+  ┌─ src/main.nr:9:23
+  │
+9 │         let (s2, x) = vector.pop_back();
+  │                       ---------------
+  │
+  = Call stack:
+    1: main
+            at src/main.nr:9:23
+
+Failed assertion
