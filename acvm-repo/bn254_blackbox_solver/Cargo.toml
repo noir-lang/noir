@@ -27,7 +27,6 @@ ark-ec.workspace = true
 ark-ff.workspace = true
 
 [dev-dependencies]
-ark-std.workspace = true
 num-bigint.workspace = true
 criterion.workspace = true
 pprof = { version = "^0.15.0", features = [
