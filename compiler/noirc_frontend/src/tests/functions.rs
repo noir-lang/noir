@@ -382,7 +382,7 @@ fn error_on_taking_string_with_non_eval_length() {
     fn main(_s: str<-1>) {
                 ^^^^^^^ Invalid type found in the entry point to a program
                 ~~~~~~~ Empty string is not a valid entry point type. Found: str<error>
-                    ^^ Computing `0 - 1` failed with error The value `-1` cannot fit into `u32` which has a minimum size of `0`
+                    ^^ Cannot apply unary operator `-` to type `u32`
     }
     "#;
     check_errors(src);
@@ -394,13 +394,13 @@ fn error_on_returning_string_with_non_eval_length() {
     unconstrained fn main() -> pub str<-1> {
                                    ^^^^^^^ Invalid type found in the entry point to a program
                                    ~~~~~~~ Empty string is not a valid entry point type. Found: str<error>
-                                       ^^ Computing `0 - 1` failed with error The value `-1` cannot fit into `u32` which has a minimum size of `0`
+                                       ^^ Cannot apply unary operator `-` to type `u32`
         negative_str()
     }
 
     #[oracle(negative_str)]
     unconstrained fn negative_str() -> str<-1> {}
-                                           ^^ Computing `0 - 1` failed with error The value `-1` cannot fit into `u32` which has a minimum size of `0`
+                                           ^^ Cannot apply unary operator `-` to type `u32`
     "#;
     check_errors(src);
 }
@@ -418,4 +418,37 @@ fn invalid_generic_fold_entry_point_input_type() {
               ~ Vector is not a valid entry point type. Found: [Field]
     "#;
     check_monomorphization_error(src);
+}
+
+#[test]
+fn errors_if_using_comptime_type_alias_in_fn() {
+    let src = r#"
+    pub comptime type Alias = Quoted;
+
+    pub fn foo(_: Alias) {}
+                  ^^^^^ Comptime-only type `Alias` cannot be used in non-comptime function
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_if_using_comptime_struct_in_fn() {
+    let src = r#"
+    pub comptime struct Foo {}
+
+    pub fn foo(_: Foo) {}
+                  ^^^ Comptime-only type `Foo` cannot be used in non-comptime function
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_if_using_comptime_enum_in_fn() {
+    let src = r#"
+    pub comptime enum Foo {}
+
+    pub fn foo(_: Foo) {}
+                  ^^^ Comptime-only type `Foo` cannot be used in non-comptime function
+    "#;
+    check_errors(src);
 }

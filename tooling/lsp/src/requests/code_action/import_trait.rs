@@ -83,7 +83,7 @@ impl CodeActionFinder<'_> {
                     module_id: reexport.module_id,
                     name: trait_.name.clone(),
                 });
-                intermediate_name = Some(reexport.name.clone());
+                intermediate_name = Some(reexport.name);
             } else {
                 return;
             }

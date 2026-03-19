@@ -1,9 +1,12 @@
+use itertools::Itertools;
+
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         dfg::DataFlowGraph,
         dom::DominatorTree,
         instruction::{Instruction, InstructionId},
+        types::Type,
         value::{Value, ValueId},
     },
     opt::pure::Purity,
@@ -52,7 +55,7 @@ impl InstructionResultCache {
                 results.len() == old_results.len()
                     && old_results
                         .iter()
-                        .zip(results.iter())
+                        .zip_eq(results.iter())
                         .all(|(old, new)| dfg.type_of_value(*old) == dfg.type_of_value(*new))
             } else {
                 true
@@ -83,6 +86,16 @@ impl InstructionResultCache {
         self.0.remove(instruction)
     }
 
+    /// Remove all cached MakeArray instructions that produce the given type.
+    /// Used when we encounter a mutation of an array value that we can't trace back
+    /// to a specific instruction (e.g. block parameters), so we must conservatively
+    /// invalidate all cached MakeArrays that could be the source.
+    fn remove_make_arrays_of_type(&mut self, typ: &Type) {
+        self.0.retain(|instruction, _| {
+            !matches!(instruction, Instruction::MakeArray { typ: make_array_typ, .. } if make_array_typ == typ)
+        });
+    }
+
     /// Remove previously cached instructions that created arrays,
     /// if the current instruction is such that it could modify that array.
     pub(super) fn remove_possibly_mutated_cached_make_arrays(
@@ -103,15 +116,23 @@ impl InstructionResultCache {
                 return;
             }
 
+            let value_type = dfg.type_of_value(*value);
+
             // We only care about arrays and vectors. (`Store` can act on non-array values as well)
-            if !dfg.type_of_value(*value).is_array() {
+            if !value_type.is_array() {
                 return;
             }
 
             // Look up the original instruction that created the value, which is the cache key.
             let instruction = match &dfg[*value] {
                 Value::Instruction { instruction, .. } => &dfg[*instruction],
-                _ => return,
+                _ => {
+                    // If we can't trace back to a creating instruction (e.g. block parameters),
+                    // conservatively remove all cached MakeArrays of the same type since any
+                    // of them could be the source of this value.
+                    cached_instruction_results.remove_make_arrays_of_type(&value_type);
+                    return;
+                }
             };
 
             // Remove the creator instruction from the cache.

@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Attempt to calculate the remainder with a divisor of zero
+  ┌─ src/main.nr:5:15
+  │
+5 │     let res = (a * b) % c;
+  │               -----------
+  │
+
+Error interpreting main function

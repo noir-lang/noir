@@ -142,6 +142,7 @@ fn type_alias_with_file(type_alias: TypeAlias, file: FileId) -> TypeAlias {
         generics: unresolved_generics_with_file(type_alias.generics, file),
         typ: unresolved_type_with_file(type_alias.typ, file),
         visibility: type_alias.visibility,
+        comptime: type_alias.comptime,
         location: location_with_file(type_alias.location, file),
         numeric_type: type_alias
             .numeric_type
@@ -313,6 +314,7 @@ fn noir_struct_with_file(noir_struct: NoirStruct, file: FileId) -> NoirStruct {
         name: ident_with_file(noir_struct.name, file),
         attributes: secondary_attributes_with_file(noir_struct.attributes, file),
         visibility: noir_struct.visibility,
+        comptime: noir_struct.comptime,
         generics: unresolved_generics_with_file(noir_struct.generics, file),
         fields: documented_struct_fields_with_file(noir_struct.fields, file),
         location: location_with_file(noir_struct.location, file),
@@ -346,6 +348,7 @@ fn noir_enumeration_with_file(noir_enumeration: NoirEnumeration, file: FileId) -
         name: ident_with_file(noir_enumeration.name, file),
         attributes: secondary_attributes_with_file(noir_enumeration.attributes, file),
         visibility: noir_enumeration.visibility,
+        comptime: noir_enumeration.comptime,
         generics: unresolved_generics_with_file(noir_enumeration.generics, file),
         variants: documented_enum_variants_with_file(noir_enumeration.variants, file),
         location: location_with_file(noir_enumeration.location, file),
@@ -545,6 +548,10 @@ fn unresolved_type_expression_with_file(
                 location_with_file(location, file),
             )
         }
+        UnresolvedTypeExpression::Negation(rhs, location) => UnresolvedTypeExpression::Negation(
+            Box::new(unresolved_type_expression_with_file(*rhs, file)),
+            location_with_file(location, file),
+        ),
         UnresolvedTypeExpression::AsTraitPath(as_trait_path) => {
             UnresolvedTypeExpression::AsTraitPath(Box::new(as_trait_path_with_file(
                 *as_trait_path,
@@ -593,7 +600,7 @@ fn secondary_attribute_with_file(
         SecondaryAttributeKind::Meta(meta_attribute) => {
             SecondaryAttributeKind::Meta(meta_attribute_with_file(meta_attribute, file))
         }
-        SecondaryAttributeKind::Deprecated(_)
+        SecondaryAttributeKind::Deprecated(..)
         | SecondaryAttributeKind::ContractLibraryMethod
         | SecondaryAttributeKind::Export
         | SecondaryAttributeKind::Field(_)

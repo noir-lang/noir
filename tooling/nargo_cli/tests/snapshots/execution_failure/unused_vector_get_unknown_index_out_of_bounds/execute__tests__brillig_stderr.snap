@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Assertion failed: Index out of bounds
+  ┌─ src/main.nr:3:13
+  │
+3 │     let _ = vector[x]; // Index out of bounds
+  │             ---------
+  │
+  = Call stack:
+    1: main
+            at src/main.nr:3:13
+
+Failed assertion

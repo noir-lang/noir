@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use acir::circuit::OpcodeLocation;
 use clap::Args;
 use color_eyre::eyre::{self, Context};
+use itertools::Itertools;
 
 use noir_artifact_cli::fs::artifact::read_program_from_file;
 use noirc_artifacts::debug::DebugArtifact;
@@ -71,14 +72,14 @@ fn run_with_provider<Provider: GatesProvider, Generator: FlamegraphGenerator>(
 
     let num_functions = bytecode.functions.len();
     for (func_idx, (func_gates, circuit)) in
-        backend_gates_response.functions.into_iter().zip(bytecode.functions).enumerate()
+        backend_gates_response.functions.into_iter().zip_eq(bytecode.functions).enumerate()
     {
         // We can have repeated names if there are functions with the same name in different
         // modules or functions that use generics. Thus, add the unique function index as a suffix.
         let function_name = if num_functions > 1 {
             format!("{}_{}", circuit.function_name.as_str(), func_idx)
         } else {
-            circuit.function_name.to_owned()
+            circuit.function_name.clone()
         };
 
         println!(
@@ -91,7 +92,7 @@ fn run_with_provider<Provider: GatesProvider, Generator: FlamegraphGenerator>(
         let samples = func_gates
             .gates_per_opcode
             .into_iter()
-            .zip(circuit.opcodes)
+            .zip_eq(circuit.opcodes)
             .enumerate()
             .map(|(index, (gates, opcode))| CompilationSample {
                 opcode: Some(format_acir_opcode(&opcode)),

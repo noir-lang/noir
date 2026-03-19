@@ -91,6 +91,20 @@ non_std_lazy_statics = "warn"
 return_and_then = "warn"
 unnecessary_unwrap = "warn"
 unnecessary_debug_formatting = "warn"
+redundant_clone = "warn"
+clone_on_copy = "warn"
+unnecessary_to_owned = "warn"
+cloned_instead_of_copied = "warn"
+explicit_iter_loop = "warn"
+explicit_into_iter_loop = "warn"
+flat_map_option = "warn"
+manual_is_variant_and = "warn"
+match_wildcard_for_single_variants = "warn"
+manual_let_else = "warn"
+implicit_clone = "warn"
+map_unwrap_or = "warn"
+needless_borrows_for_generic_args = "warn"
+redundant_field_names = "warn"
 
 [workspace.dependencies]
 
@@ -140,7 +154,6 @@ ark-bls12-381 = { version = "^0.5.0", default-features = false, features = [
 ark-grumpkin = { version = "^0.5.0", default-features = false }
 ark-ec = { version = "^0.5.0", default-features = false }
 ark-ff = { version = "^0.5.0", default-features = false, features = ["asm"] }
-ark-std = { version = "^0.5.0", default-features = false }
 
 # Misc utils crates
 iter-extended = { path = "utils/iter-extended" }
@@ -150,12 +163,13 @@ async-lsp = { version = "0.2.2", default-features = false }
 tower = "0.5"
 
 # Wasm
-wasm-bindgen = { version = "=0.2.100", features = ["serde-serialize"] }
-wasm-bindgen-test = "0.3.50"
-wasm-bindgen-futures = "0.4.50"
+# NOTE: when bumping wasm-bindgen, also update wasm-bindgen-cli in justfile and .github/workflows/release.yml
+wasm-bindgen = { version = "=0.2.113", features = ["serde-serialize"] }
+wasm-bindgen-test = "0.3.63"
+wasm-bindgen-futures = "0.4.63"
 console_error_panic_hook = "0.1.7"
-gloo-utils = { version = "0.1", features = ["serde"] }
-js-sys = "0.3.62"
+gloo-utils = { version = "0.2", features = ["serde"] }
+js-sys = "0.3.90"
 getrandom = "^0.3.3"
 
 # Debugger
@@ -185,8 +199,8 @@ log = "0.4"
 serde = { version = "1.0.136", features = ["derive"] }
 serde_json = "1.0"
 smol_str = { version = "0.3.2", features = ["serde"] }
-thiserror = "1.0.21"
-toml = "0.7.2"
+thiserror = "2.0.18"
+toml = "0.8"
 url = "2.5.4"
 base64 = "^0.22.1"
 rustc-hash = "2.1.1"
@@ -195,6 +209,7 @@ bincode = { version = "^2.0.1", features = ["serde"] }
 hex = "0.4.2"
 const_format = "0.2.30"
 indexmap = "^2.10.0"
+itertools = "0.14"
 libfuzzer-sys = "0.4"
 num-bigint = "0.4"
 num-traits = "0.2"
@@ -205,10 +220,11 @@ similar = "2.7.0"
 similar-asserts = "1.5.0"
 tempfile = "3.6.0"
 test-case = "3.3.1"
-jsonrpsee = { version = "0.25.1", features = ["client-core"] }
+jsonrpsee = { version = "0.26", features = ["client-core"] }
 flate2 = "1.0.24"
 color-eyre = "0.6.2"
 rand = "^0.9.2"
+rangemap = "1.7.1"
 # The `fork` and `timeout` feature doesn't compile with Wasm (wait-timeout doesn't find the `imp` module).
 proptest = { version = "1.6.0", default-features = false, features = [
     "std",
@@ -216,12 +232,11 @@ proptest = { version = "1.6.0", default-features = false, features = [
 ] }
 proptest-derive = "^0.6.0"
 rayon = "1.8.0"
-sha2 = "0.11.0-rc.3"
-sha3 = "0.11.0-rc.7"
-k256 = "0.14.0-rc.4"
-p256 = "0.14.0-rc.4"
-strum = "0.24"
-strum_macros = "0.24"
+sha2 = "0.11.0-rc.5"
+k256 = "0.14.0-rc.7"
+p256 = "0.14.0-rc.7"
+strum = "0.26"
+strum_macros = "0.26"
 tokio = "1.42"
 im = { version = "15.1", features = ["serde"] }
 tracing = "0.1.40"

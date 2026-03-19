@@ -1,18 +1,19 @@
 //! Large file containing implementations of all the various built-in functions
 //! which can be called in the interpreter. This notably includes the entire comptime-API
 //! defined in `noir_stdlib/src/meta/*`
-use std::rc::Rc;
+use std::{
+    hash::{Hash as _, Hasher as _},
+    rc::Rc,
+};
 
 use acvm::{AcirField, FieldElement};
 use builtin_helpers::{
     block_expression_to_value, byte_array_type, check_argument_count,
     check_function_not_yet_resolved, check_one_argument, check_three_arguments,
     check_two_arguments, get_bool, get_expr, get_field, get_format_string, get_function_def,
-    get_module, get_quoted, get_trait_constraint, get_trait_def, get_trait_impl, get_tuple,
-    get_type, get_type_id, get_typed_expr, get_u32, get_unresolved_type, get_vector,
-    has_named_attribute, hir_pattern_to_tokens, mutate_func_meta_type, new_binary_op, new_unary_op,
-    parse, quote_ident, replace_func_meta_parameters, replace_func_meta_return_type,
-    visibility_to_quoted,
+    get_module, get_quoted, get_trait_constraint, get_trait_def, get_trait_impl, get_type,
+    get_type_id, get_typed_expr, get_u32, get_unresolved_type, get_vector, has_named_attribute,
+    hir_pattern_to_tokens, new_binary_op, new_unary_op, parse, quote_ident, visibility_to_quoted,
 };
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
@@ -21,11 +22,11 @@ use num_bigint::BigUint;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
-    Kind, QuotedType, ResolvedGeneric, Shared, StructField, Type, TypeBindings, TypeVariable,
+    Kind, QuotedType, Shared, Type, TypeBindings,
     ast::{
         ArrayLiteral, BlockExpression, ConstrainKind, Expression, ExpressionKind, ForRange,
-        FunctionKind, FunctionReturnType, Ident, IntegerBitSize, LValue, Literal, Pattern,
-        Statement, StatementKind, UnresolvedType, UnresolvedTypeData, UnsafeExpression,
+        FunctionKind, IntegerBitSize, LValue, Literal, Pattern, Statement, StatementKind,
+        UnresolvedTypeData, UnsafeExpression,
     },
     elaborator::{
         ElaborateReason, Elaborator, PrimitiveType,
@@ -38,11 +39,13 @@ use crate::{
             errors::IResult,
             interpreter::{
                 builtin::builtin_helpers::fragments_to_string,
-                builtin_helpers::check_item_crate_matches_current_crate,
+                builtin_helpers::{
+                    check_item_crate_matches_current_crate, get_tuple, mutate_func_meta_type,
+                    replace_func_meta_parameters,
+                },
             },
             value::{ExprValue, FormatStringFragment, TypedExpr},
         },
-        def_collector::dc_crate::CollectedItems,
         def_map::{ModuleDefId, ModuleId},
     },
     hir_def::{
@@ -54,7 +57,7 @@ use crate::{
     parser::{Parser, StatementOrExpressionOrLValue},
     shared::{Signedness, Visibility},
     signed_field::SignedField,
-    token::{Attribute, LocatedToken, Token},
+    token::{Attribute, LocatedToken, SecondaryAttribute, SecondaryAttributeKind, Token},
 };
 
 use self::builtin_helpers::{eq_item, get_array, get_ctstring, get_str, get_u8, hash_item, lex};
@@ -76,7 +79,7 @@ impl Interpreter<'_, '_> {
             "apply_range_constraint" => apply_range_constraint(arguments, location, call_stack),
             "array_as_str_unchecked" => array_as_str_unchecked(arguments, location),
             "array_len" => array_len(arguments, location),
-            "array_refcount" => Ok(Value::U32(0)),
+            "array_refcount" => Ok(Value::u32(0)),
             "assert_constant" => Ok(Value::Unit),
             "as_vector" => as_vector(arguments, location),
             "as_witness" => as_witness(arguments, location),
@@ -135,6 +138,7 @@ impl Interpreter<'_, '_> {
             "function_def_add_attribute" => function_def_add_attribute(self, arguments, location),
             "function_def_as_typed_expr" => function_def_as_typed_expr(self, arguments, location),
             "function_def_body" => function_def_body(interner, arguments, location),
+            "function_def_disable" => function_def_disable(self, arguments, location),
             "function_def_eq" => function_def_eq(arguments, location),
             "function_def_has_named_attribute" => {
                 function_def_has_named_attribute(interner, arguments, location)
@@ -149,20 +153,10 @@ impl Interpreter<'_, '_> {
             "function_def_return_type" => function_def_return_type(interner, arguments, location),
             "function_def_set_body" => function_def_set_body(self, arguments, location),
             "function_def_set_parameters" => function_def_set_parameters(self, arguments, location),
-            "function_def_set_return_type" => {
-                function_def_set_return_type(self, arguments, location)
-            }
             "function_def_set_return_public" => {
                 function_def_set_return_public(self, arguments, location)
             }
-            "function_def_set_return_data" => {
-                function_def_set_return_data(self, arguments, location)
-            }
-            "function_def_set_unconstrained" => {
-                function_def_set_unconstrained(self, arguments, location)
-            }
             "function_def_visibility" => function_def_visibility(interner, arguments, location),
-            "module_add_item" => module_add_item(self, arguments, location),
             "module_child_modules" => module_child_modules(self, arguments, location),
             "module_eq" => module_eq(arguments, location),
             "module_functions" => module_functions(self, arguments, location),
@@ -182,14 +176,14 @@ impl Interpreter<'_, '_> {
             "quoted_as_trait_constraint" => quoted_as_trait_constraint(self, arguments, location),
             "quoted_as_type" => quoted_as_type(self, arguments, location),
             "quoted_eq" => quoted_eq(self.elaborator.interner, arguments, location),
-            "quoted_hash" => quoted_hash(arguments, location),
+            "quoted_hash" => quoted_hash(self.elaborator.interner, arguments, location),
             "quoted_tokens" => quoted_tokens(arguments, location),
             "vector_insert" => vector_insert(arguments, location, call_stack),
             "vector_pop_back" => vector_pop_back(arguments, location, call_stack),
             "vector_pop_front" => vector_pop_front(arguments, location, call_stack),
             "vector_push_back" => vector_push_back(arguments, location),
             "vector_push_front" => vector_push_front(arguments, location),
-            "vector_refcount" => Ok(Value::U32(0)),
+            "vector_refcount" => Ok(Value::u32(0)),
             "vector_remove" => vector_remove(arguments, location, call_stack),
             "static_assert" => static_assert(interner, arguments, location, call_stack),
             "str_as_bytes" => str_as_bytes(arguments, location),
@@ -220,7 +214,7 @@ impl Interpreter<'_, '_> {
             "type_as_data_type" => type_as_data_type(arguments, return_type, location),
             "type_as_tuple" => type_as_tuple(arguments, return_type, location),
             "type_def_add_attribute" => type_def_add_attribute(self, arguments, location),
-            "type_def_add_generic" => type_def_add_generic(self, arguments, location),
+            "type_def_add_abi" => type_def_add_abi(self, arguments, location),
             "type_def_as_type" => type_def_as_type(interner, arguments, location),
             "type_def_as_type_with_generics" => {
                 type_def_as_type_with_generics(interner, arguments, return_type, location)
@@ -237,7 +231,6 @@ impl Interpreter<'_, '_> {
             "type_def_hash" => type_def_hash(arguments, location),
             "type_def_module" => type_def_module(self, arguments, location),
             "type_def_name" => type_def_name(interner, arguments, location),
-            "type_def_set_fields" => type_def_set_fields(self, arguments, location),
             "type_eq" => type_eq(arguments, location),
             "type_get_trait_impl" => {
                 type_get_trait_impl(interner, arguments, return_type, location)
@@ -288,7 +281,7 @@ fn array_len(arguments: Vec<(Value, Location)>, location: Location) -> IResult<V
     let (argument, argument_location) = check_one_argument(arguments, location)?;
 
     match argument {
-        Value::Array(values, _) | Value::Vector(values, _) => Ok(Value::U32(values.len() as u32)),
+        Value::Array(values, _) | Value::Vector(values, _) => Ok(Value::u32(values.len() as u32)),
         value => {
             let expected = "array".to_string();
             let actual = value.get_type().into_owned();
@@ -329,8 +322,7 @@ fn array_as_str_unchecked(arguments: Vec<(Value, Location)>, location: Location)
 
     let array = get_array(argument)?.0;
     let string_bytes = try_vecmap(array, |byte| get_u8((byte, location)))?;
-    let string = String::from_utf8_lossy(&string_bytes).into_owned();
-    Ok(Value::String(Rc::new(string)))
+    Ok(Value::String(Rc::new(string_bytes)))
 }
 
 fn as_vector(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
@@ -394,15 +386,14 @@ fn static_assert(
     if predicate {
         Ok(Value::Unit)
     } else {
-        failing_constraint(format!("static_assert failed: {message}").clone(), location, call_stack)
+        failing_constraint(format!("static_assert failed: {message}"), location, call_stack)
     }
 }
 
 fn str_as_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     let string = check_one_argument(arguments, location)?;
-    let string = get_str(string)?;
-
-    let bytes: Vector<Value> = string.bytes().map(Value::U8).collect();
+    let string_bytes = get_str(string)?;
+    let bytes: Vector<Value> = string_bytes.iter().copied().map(Value::u8).collect();
     let byte_array_type = byte_array_type(bytes.len());
     Ok(Value::Array(bytes, byte_array_type))
 }
@@ -410,8 +401,8 @@ fn str_as_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IResul
 // fn str_as_ctstring(self) -> CtString
 fn str_as_ctstring(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
-    let string = get_str(self_argument)?;
-    Ok(Value::CtString(string))
+    let string_bytes = get_str(self_argument)?;
+    Ok(Value::CtString(string_bytes))
 }
 
 // fn add_attribute<let N: u32>(self, attribute: str<N>)
@@ -423,11 +414,12 @@ fn type_def_add_attribute(
     let (self_argument, attribute) = check_two_arguments(arguments, location)?;
     let attribute_location = attribute.1;
     let attribute = get_str(attribute)?;
+    let attribute = String::from_utf8_lossy(&attribute);
     let attribute = format!("#[{attribute}]");
     let mut parser = Parser::for_str(&attribute, attribute_location.file);
     let Some((Attribute::Secondary(attribute), _span)) = parser.parse_attribute() else {
         return Err(InterpreterError::InvalidAttribute {
-            attribute: attribute.to_string(),
+            attribute: attribute.clone(),
             location: attribute_location,
         });
     };
@@ -443,59 +435,31 @@ fn type_def_add_attribute(
     Ok(Value::Unit)
 }
 
-// fn add_generic<let N: u32>(self, generic_name: str<N>)
-fn type_def_add_generic(
-    interpreter: &Interpreter,
+// fn add_abi(self, abi_argument: CtString)
+fn type_def_add_abi(
+    interpreter: &mut Interpreter,
     arguments: Vec<(Value, Location)>,
     location: Location,
 ) -> IResult<Value> {
-    let (self_argument, generic) = check_two_arguments(arguments, location)?;
-    let generic_location = generic.1;
-    let generic = get_str(generic)?;
+    let (self_argument, attribute) = check_two_arguments(arguments, location)?;
+    let attribute_location = attribute.1;
+    let attribute = get_ctstring(attribute)?;
+    let attribute = String::from_utf8_lossy(&attribute);
 
-    let mut tokens = lex(&generic, location);
-    if tokens.len() != 1 {
-        return Err(InterpreterError::GenericNameShouldBeAnIdent {
-            name: generic,
-            location: generic_location,
-        });
-    }
-
-    let Token::Ident(generic_name) = tokens.remove(0).into_token() else {
-        return Err(InterpreterError::GenericNameShouldBeAnIdent {
-            name: generic,
-            location: generic_location,
-        });
+    let attribute = SecondaryAttribute {
+        kind: SecondaryAttributeKind::Abi(attribute.into_owned()),
+        location: attribute_location,
     };
 
     let self_arg = self_argument.0.clone();
-    let struct_id = get_type_id(self_argument)?;
-    let struct_module = struct_id.module_id();
+    let type_id = get_type_id(self_argument)?;
+    check_item_crate_matches_current_crate(interpreter, &self_arg, type_id.module_id(), location)?;
 
-    check_item_crate_matches_current_crate(interpreter, &self_arg, struct_module, location)?;
+    interpreter.elaborator.interner.update_type_attributes(type_id, |attributes| {
+        attributes.push(attribute);
+    });
 
-    let the_struct = interpreter.elaborator.interner.get_type(struct_id);
-    let mut the_struct = the_struct.borrow_mut();
-    let name = Rc::new(generic_name);
-
-    for generic in &the_struct.generics {
-        if generic.name == name {
-            return Err(InterpreterError::DuplicateGeneric {
-                name,
-                struct_name: the_struct.name.to_string(),
-                existing_location: generic.location,
-                duplicate_location: generic_location,
-            });
-        }
-    }
-
-    let type_var_id = interpreter.elaborator.interner.next_type_variable_id();
-    let type_var = TypeVariable::unbound(type_var_id, Kind::Normal);
-    let typ = type_var.clone().into_named_generic(&name, None);
-    let new_generic = ResolvedGeneric { name, type_var, location: generic_location };
-    the_struct.generics.push(new_generic);
-
-    Ok(Value::Type(typ))
+    Ok(Value::Unit)
 }
 
 /// fn as_type(self) -> Type
@@ -607,6 +571,7 @@ fn type_def_has_named_attribute(
     let type_id = get_type_id(self_argument)?;
 
     let name = get_str(name)?;
+    let name = String::from_utf8_lossy(&name);
 
     Ok(Value::Bool(has_named_attribute(&name, interner.type_attributes(&type_id), interner)))
 }
@@ -723,88 +688,6 @@ fn type_def_name(
     let name = Token::Ident(the_struct.borrow().name.to_string());
     let token = LocatedToken::new(name, location);
     Ok(Value::Quoted(Rc::new(vec![token])))
-}
-
-/// fn set_fields(self, new_fields: [(Quoted, Type, Quoted)]) {}
-/// Returns (name, type) pairs of each field of this TypeDefinition
-fn type_def_set_fields(
-    interpreter: &mut Interpreter,
-    arguments: Vec<(Value, Location)>,
-    location: Location,
-) -> IResult<Value> {
-    let (the_struct, fields) = check_two_arguments(arguments, location)?;
-    let self_arg = the_struct.0.clone();
-    let struct_id = get_type_id(the_struct)?;
-    let struct_module = struct_id.module_id();
-
-    check_item_crate_matches_current_crate(interpreter, &self_arg, struct_module, location)?;
-
-    let struct_def = interpreter.elaborator.interner.get_type(struct_id);
-    let mut struct_def = struct_def.borrow_mut();
-
-    let field_location = fields.1;
-    let fields = get_vector(fields)?.0;
-    let fields = fields
-        .into_iter()
-        .flat_map(|field_pair| get_tuple((field_pair, field_location)))
-        .enumerate()
-        .collect::<Vec<_>>();
-
-    let mut new_fields = Vec::<StructField>::new();
-
-    for (index, mut field_pair) in fields {
-        if field_pair.len() != 3 {
-            let expected = "tuple".to_string();
-
-            let actual =
-                Type::Tuple(vecmap(&field_pair, |value| value.borrow().get_type().into_owned()));
-
-            return Err(InterpreterError::TypeMismatch { expected, actual, location });
-        }
-
-        let visibility = field_pair.pop().unwrap().unwrap_or_clone();
-        let typ = field_pair.pop().unwrap().unwrap_or_clone();
-        let name_value = field_pair.pop().unwrap().unwrap_or_clone();
-
-        let name_tokens = get_quoted((name_value.clone(), field_location))?;
-        let typ = get_type((typ, field_location))?;
-
-        match name_tokens.first().map(|t| t.token()) {
-            Some(Token::Ident(name)) if name_tokens.len() == 1 => {
-                let visibility = parse(
-                    interpreter.elaborator,
-                    (visibility, field_location),
-                    Parser::parse_item_visibility,
-                    "a visibility",
-                )?;
-
-                let name = Ident::new(name.clone(), field_location);
-                let previous_index = new_fields.iter().position(|field| field.name == name);
-
-                if let Some(previous_index) = previous_index {
-                    return Err(InterpreterError::DuplicateStructFieldInSetFields {
-                        name,
-                        index,
-                        previous_index,
-                    });
-                }
-
-                new_fields.push(StructField { visibility, name, typ });
-            }
-            _ => {
-                let value = name_value.display(interpreter.elaborator.interner).to_string();
-                let location = field_location;
-                return Err(InterpreterError::ExpectedIdentForStructField {
-                    value,
-                    index,
-                    location,
-                });
-            }
-        }
-    }
-
-    struct_def.set_fields(new_fields);
-    Ok(Value::Unit)
 }
 
 fn vector_remove(
@@ -1010,7 +893,7 @@ fn to_be_bits(
     call_stack: &Vector<Location>,
 ) -> IResult<Value> {
     let value = check_one_argument(arguments, location)?;
-    let radix = (Value::U32(2), value.1);
+    let radix = (Value::u32(2), value.1);
     to_be_radix(vec![value, radix], return_type, location, call_stack)
 }
 
@@ -1021,7 +904,7 @@ fn to_le_bits(
     call_stack: &Vector<Location>,
 ) -> IResult<Value> {
     let value = check_one_argument(arguments, location)?;
-    let radix = (Value::U32(2), value.1);
+    let radix = (Value::u32(2), value.1);
     to_le_radix(vec![value, radix], return_type, location, call_stack)
 }
 
@@ -1053,7 +936,7 @@ fn to_le_radix(
     let radix = get_u32(radix)?;
     let (limb_count, element_type) = if let Type::Array(length, element_type) = return_type {
         if let Type::Constant(limb_count, kind) = *length {
-            if kind.unifies(&Kind::u32()) {
+            if kind.unify(&Type::u32()).is_ok() {
                 (limb_count.to_field_element(), element_type)
             } else {
                 return Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location });
@@ -1085,7 +968,7 @@ fn to_le_radix(
             None => 0,
         };
         // The only built-ins that use these either return `[u1; N]` or `[u8; N]`
-        if return_type_is_bits { Value::U1(digit != 0) } else { Value::U8(digit) }
+        if return_type_is_bits { Value::u1(digit != 0) } else { Value::u8(digit) }
     });
 
     let len: u32 = decomposed_integer
@@ -1136,7 +1019,7 @@ fn type_as_constant(
         // since arithmetic generics may be `Type::InfixExpr`s which evaluate to
         // constants but are not actually the `Type::Constant` variant.
         match typ.evaluate_to_u32(location) {
-            Ok(constant) => Ok(Some(Value::U32(constant))),
+            Ok(constant) => Ok(Some(Value::u32(constant))),
             Err(err) => {
                 // Evaluating to a non-constant returns 'None' in user code
                 if err.is_non_constant_evaluated() {
@@ -1159,7 +1042,7 @@ fn type_as_integer(
     type_as(arguments, return_type, location, |typ| {
         if let Type::Integer(sign, bits) = typ {
             let sign = Shared::new(Value::Bool(sign.is_signed()));
-            let bit_size = Shared::new(Value::U8(bits.bit_size()));
+            let bit_size = Shared::new(Value::u8(bits.bit_size()));
             Some(Value::Tuple(vec![sign, bit_size]))
         } else {
             None
@@ -1419,7 +1302,7 @@ fn typed_expr_as_function_definition(
     let self_argument = check_one_argument(arguments, location)?;
     let typed_expr = get_typed_expr(self_argument)?;
     let option_value = if let TypedExpr::ExprId(expr_id) = typed_expr {
-        let func_id = interner.lookup_function_from_expr(&expr_id);
+        let func_id = interner.lookup_function_from_expr(&expr_id, location)?;
         func_id.map(Value::FunctionDefinition)
     } else {
         None
@@ -1561,7 +1444,7 @@ where
 // fn zeroed<T>() -> T
 fn zeroed(return_type: Type, location: Location) -> Value {
     match return_type {
-        Type::FieldElement => Value::Field(SignedField::zero()),
+        Type::FieldElement => Value::field(SignedField::zero()),
         Type::Array(length_type, elem) => {
             if let Ok(length) = length_type.evaluate_to_u32(location) {
                 let element = zeroed(elem.as_ref().clone(), location);
@@ -1574,17 +1457,17 @@ fn zeroed(return_type: Type, location: Location) -> Value {
         }
         Type::Vector(_) => Value::Vector(Vector::new(), return_type),
         Type::Integer(sign, bits) => match (sign, bits) {
-            (Signedness::Unsigned, IntegerBitSize::One) => Value::U1(false),
-            (Signedness::Unsigned, IntegerBitSize::Eight) => Value::U8(0),
-            (Signedness::Unsigned, IntegerBitSize::Sixteen) => Value::U16(0),
-            (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => Value::U32(0),
-            (Signedness::Unsigned, IntegerBitSize::SixtyFour) => Value::U64(0),
-            (Signedness::Unsigned, IntegerBitSize::HundredTwentyEight) => Value::U128(0),
+            (Signedness::Unsigned, IntegerBitSize::One) => Value::u1(false),
+            (Signedness::Unsigned, IntegerBitSize::Eight) => Value::u8(0),
+            (Signedness::Unsigned, IntegerBitSize::Sixteen) => Value::u16(0),
+            (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => Value::u32(0),
+            (Signedness::Unsigned, IntegerBitSize::SixtyFour) => Value::u64(0),
+            (Signedness::Unsigned, IntegerBitSize::HundredTwentyEight) => Value::u128(0),
             (Signedness::Signed, IntegerBitSize::One) => unreachable!("invalid type: i1"),
-            (Signedness::Signed, IntegerBitSize::Eight) => Value::I8(0),
-            (Signedness::Signed, IntegerBitSize::Sixteen) => Value::I16(0),
-            (Signedness::Signed, IntegerBitSize::ThirtyTwo) => Value::I32(0),
-            (Signedness::Signed, IntegerBitSize::SixtyFour) => Value::I64(0),
+            (Signedness::Signed, IntegerBitSize::Eight) => Value::i8(0),
+            (Signedness::Signed, IntegerBitSize::Sixteen) => Value::i16(0),
+            (Signedness::Signed, IntegerBitSize::ThirtyTwo) => Value::i32(0),
+            (Signedness::Signed, IntegerBitSize::SixtyFour) => Value::i64(0),
             (Signedness::Signed, IntegerBitSize::HundredTwentyEight) => {
                 unreachable!("invalid type: i128")
             }
@@ -1592,7 +1475,7 @@ fn zeroed(return_type: Type, location: Location) -> Value {
         Type::Bool => Value::Bool(false),
         Type::String(length_type) => {
             if let Ok(length) = length_type.evaluate_to_u32(location) {
-                Value::String(Rc::new("\0".repeat(length as usize)))
+                Value::String(Rc::new(vec![0; length as usize]))
             } else {
                 // Assume we can resolve the length later
                 Value::Zeroed(Type::String(length_type))
@@ -2070,17 +1953,17 @@ fn expr_as_integer(
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    expr_as(interner, arguments, return_type.clone(), location, |expr| match expr {
+    expr_as(interner, arguments, return_type, location, |expr| match expr {
         ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field, _suffix))) => {
             Some(Value::Tuple(vec![
-                Shared::new(Value::Field(SignedField::positive(field.absolute_value()))),
+                Shared::new(Value::field(SignedField::positive(field.absolute_value()))),
                 Shared::new(Value::Bool(field.is_negative())),
             ]))
         }
         ExprValue::Expression(ExpressionKind::Resolved(id)) => {
             if let HirExpression::Literal(HirLiteral::Integer(field)) = interner.expression(&id) {
                 Some(Value::Tuple(vec![
-                    Shared::new(Value::Field(SignedField::positive(field.absolute_value()))),
+                    Shared::new(Value::field(SignedField::positive(field.absolute_value()))),
                     Shared::new(Value::Bool(field.is_negative())),
                 ]))
             } else {
@@ -2366,6 +2249,7 @@ fn expr_has_semicolon(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let expr_value = get_expr(interner, self_argument)?;
+    let expr_value = unwrap_expr_value_except_semi(interner, expr_value);
     Ok(Value::Bool(matches!(expr_value, ExprValue::Statement(StatementKind::Semi(..)))))
 }
 
@@ -2377,6 +2261,7 @@ fn expr_is_break(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let expr_value = get_expr(interner, self_argument)?;
+    let expr_value = unwrap_expr_value(interner, expr_value);
     Ok(Value::Bool(matches!(expr_value, ExprValue::Statement(StatementKind::Break))))
 }
 
@@ -2388,6 +2273,7 @@ fn expr_is_continue(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let expr_value = get_expr(interner, self_argument)?;
+    let expr_value = unwrap_expr_value(interner, expr_value);
     Ok(Value::Bool(matches!(expr_value, ExprValue::Statement(StatementKind::Continue))))
 }
 
@@ -2472,15 +2358,36 @@ fn expr_resolve(
     })
 }
 
-fn unwrap_expr_value(interner: &NodeInterner, mut expr_value: ExprValue) -> ExprValue {
+fn unwrap_expr_value(interner: &NodeInterner, expr_value: ExprValue) -> ExprValue {
+    let unwrap_semi = true;
+    unwrap_expr_value_helper(interner, expr_value, unwrap_semi)
+}
+
+fn unwrap_expr_value_except_semi(interner: &NodeInterner, expr_value: ExprValue) -> ExprValue {
+    let unwrap_semi = false;
+    unwrap_expr_value_helper(interner, expr_value, unwrap_semi)
+}
+
+fn unwrap_expr_value_helper(
+    interner: &NodeInterner,
+    mut expr_value: ExprValue,
+    unwrap_semi: bool,
+) -> ExprValue {
     loop {
         match expr_value {
             ExprValue::Expression(ExpressionKind::Parenthesized(expression)) => {
                 expr_value = ExprValue::Expression(expression.kind);
             }
-            ExprValue::Statement(StatementKind::Expression(expression))
-            | ExprValue::Statement(StatementKind::Semi(expression)) => {
+            ExprValue::Statement(StatementKind::Expression(expression)) => {
                 expr_value = ExprValue::Expression(expression.kind);
+            }
+            ExprValue::Statement(StatementKind::Semi(expression)) => {
+                if unwrap_semi {
+                    expr_value = ExprValue::Expression(expression.kind);
+                } else {
+                    expr_value = ExprValue::Statement(StatementKind::Semi(expression));
+                    break;
+                }
             }
             ExprValue::Expression(ExpressionKind::Interned(id)) => {
                 expr_value = ExprValue::Expression(interner.get_expression_kind(id).clone());
@@ -2509,7 +2416,8 @@ fn fmtstr_as_ctstring(
     let self_argument = check_one_argument(arguments, location)?;
     let (fragments, _, _) = get_format_string(self_argument)?;
     let string = fragments_to_string(&fragments, interner);
-    Ok(Value::CtString(Rc::new(string)))
+    let bytes = string.bytes().collect();
+    Ok(Value::CtString(Rc::new(bytes)))
 }
 
 // fn quoted_contents(self) -> Quoted
@@ -2539,11 +2447,12 @@ fn function_def_add_attribute(
     let (self_argument, attribute) = check_two_arguments(arguments, location)?;
     let attribute_location = attribute.1;
     let attribute = get_str(attribute)?;
+    let attribute = String::from_utf8_lossy(&attribute);
     let attribute = format!("#[{attribute}]");
     let mut parser = Parser::for_str(&attribute, attribute_location.file);
     let Some((attribute, _span)) = parser.parse_attribute() else {
         return Err(InterpreterError::InvalidAttribute {
-            attribute: attribute.to_string(),
+            attribute: attribute.clone(),
             location: attribute_location,
         });
     };
@@ -2628,6 +2537,40 @@ fn function_def_body(
     }
 }
 
+// fn disable(self, error_message: CtString)
+fn function_def_disable(
+    interpreter: &mut Interpreter,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let (self_argument, error_message) = check_two_arguments(arguments, location)?;
+    let error_message = get_ctstring(error_message)?;
+    let error_message = String::from_utf8_lossy(&error_message).into_owned();
+
+    let func_id = get_function_def(self_argument)?;
+    check_function_not_yet_resolved(interpreter, func_id, location)?;
+
+    let function_modifiers = interpreter.elaborator.interner.function_modifiers_mut(&func_id);
+
+    function_modifiers.attributes.secondary.push(SecondaryAttribute {
+        kind: SecondaryAttributeKind::Deprecated(true, Some(error_message)),
+        location,
+    });
+
+    function_modifiers
+        .attributes
+        .secondary
+        .push(SecondaryAttribute { kind: SecondaryAttributeKind::ContractLibraryMethod, location });
+
+    let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
+
+    // Lie and say that the body of this function is resolved in order to avoid any
+    // errors from resolving it since it is now disabled. The addition of `deprecated(deny, _)`
+    // above should ensure it is never called.
+    func_meta.function_body = FunctionBody::Resolved;
+    Ok(Value::Unit)
+}
+
 // fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
 fn function_def_has_named_attribute(
     interner: &NodeInterner,
@@ -2638,6 +2581,7 @@ fn function_def_has_named_attribute(
     let func_id = get_function_def(self_argument)?;
 
     let name = &*get_str(name)?;
+    let name = String::from_utf8_lossy(name);
 
     let modifiers = interner.function_modifiers(&func_id);
     if let Some(attribute) = modifiers.attributes.function()
@@ -2646,7 +2590,7 @@ fn function_def_has_named_attribute(
         return Ok(Value::Bool(true));
     }
 
-    Ok(Value::Bool(has_named_attribute(name, &modifiers.attributes.secondary, interner)))
+    Ok(Value::Bool(has_named_attribute(&name, &modifiers.attributes.secondary, interner)))
 }
 
 fn function_def_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
@@ -2821,6 +2765,7 @@ fn function_def_set_parameters(
                 DefinitionKind::Local(None),
                 &mut parameter_idents,
                 true, // warn_if_unused
+                true, // warn_if_not_mutated
                 &mut parameter_names_in_list,
             )
         });
@@ -2833,31 +2778,6 @@ fn function_def_set_parameters(
         func_meta.parameters = parameters.into();
         func_meta.parameter_idents = parameter_idents;
         replace_func_meta_parameters(&mut func_meta.typ, parameter_types);
-    });
-
-    Ok(Value::Unit)
-}
-
-// fn set_return_type(self, return_type: Type)
-fn function_def_set_return_type(
-    interpreter: &mut Interpreter,
-    arguments: Vec<(Value, Location)>,
-    location: Location,
-) -> IResult<Value> {
-    let (self_argument, return_type_argument) = check_two_arguments(arguments, location)?;
-    let return_type = get_type(return_type_argument)?;
-
-    let func_id = get_function_def(self_argument)?;
-    check_function_not_yet_resolved(interpreter, func_id, location)?;
-
-    let quoted_type_id = interpreter.elaborator.interner.push_quoted_type(return_type.clone());
-
-    mutate_func_meta_type(interpreter.elaborator.interner, func_id, |func_meta| {
-        func_meta.return_type = FunctionReturnType::Ty(UnresolvedType {
-            typ: UnresolvedTypeData::Resolved(quoted_type_id),
-            location,
-        });
-        replace_func_meta_return_type(&mut func_meta.typ, return_type);
     });
 
     Ok(Value::Unit)
@@ -2883,44 +2803,6 @@ fn function_def_set_return_public(
     Ok(Value::Unit)
 }
 
-// fn set_return_data(self)
-fn function_def_set_return_data(
-    interpreter: &mut Interpreter,
-    arguments: Vec<(Value, Location)>,
-    location: Location,
-) -> IResult<Value> {
-    let self_argument = check_one_argument(arguments, location)?;
-
-    let func_id = get_function_def(self_argument)?;
-    check_function_not_yet_resolved(interpreter, func_id, location)?;
-
-    let func_meta = interpreter.elaborator.interner.function_meta_mut(&func_id);
-    func_meta.return_visibility = Visibility::ReturnData;
-    func_meta.return_visibility_location = location;
-
-    Ok(Value::Unit)
-}
-
-// fn set_unconstrained(self, value: bool)
-fn function_def_set_unconstrained(
-    interpreter: &mut Interpreter,
-    arguments: Vec<(Value, Location)>,
-    location: Location,
-) -> IResult<Value> {
-    let (self_argument, unconstrained) = check_two_arguments(arguments, location)?;
-
-    let func_id = get_function_def(self_argument)?;
-    check_function_not_yet_resolved(interpreter, func_id, location)?;
-
-    let unconstrained = get_bool(unconstrained)?;
-
-    mutate_func_meta_type(interpreter.elaborator.interner, func_id, |func_meta| {
-        func_meta.set_unconstrained(unconstrained);
-    });
-
-    Ok(Value::Unit)
-}
-
 // fn visibility(self) -> Quoted
 fn function_def_visibility(
     interner: &NodeInterner,
@@ -2931,35 +2813,6 @@ fn function_def_visibility(
     let func_id = get_function_def(self_argument)?;
     let visibility = interner.function_visibility(func_id);
     Ok(visibility_to_quoted(visibility, location))
-}
-
-// fn add_item(self, item: Quoted)
-fn module_add_item(
-    interpreter: &mut Interpreter,
-    arguments: Vec<(Value, Location)>,
-    location: Location,
-) -> IResult<Value> {
-    let (self_argument, item) = check_two_arguments(arguments, location)?;
-    let module_value = self_argument.0.clone();
-    let module_id = get_module(self_argument)?;
-
-    check_item_crate_matches_current_crate(interpreter, &module_value, module_id, location)?;
-
-    let parser = Parser::parse_top_level_items;
-    let top_level_statements = parse(interpreter.elaborator, item, parser, "a top-level item")?;
-
-    let reason = Some(ElaborateReason::EvaluatingComptimeCall("Module::add_item", location));
-    interpreter.elaborate_in_module(module_id, reason, |elaborator| {
-        let mut generated_items = CollectedItems::default();
-
-        elaborator.add_items(top_level_statements, &mut generated_items, location);
-
-        if !generated_items.is_empty() {
-            elaborator.elaborate_items(generated_items);
-        }
-    });
-
-    Ok(Value::Unit)
 }
 
 // fn child_modules(self) -> [Module]
@@ -3072,6 +2925,7 @@ fn module_has_named_attribute(
     let module_data = interpreter.elaborator.get_module(module_id);
 
     let name = get_str(name)?;
+    let name = String::from_utf8_lossy(&name);
 
     Ok(Value::Bool(has_named_attribute(
         &name,
@@ -3110,7 +2964,7 @@ fn modulus_be_bits(arguments: Vec<(Value, Location)>, location: Location) -> IRe
     check_argument_count(0, &arguments, location)?;
 
     let bits = FieldElement::modulus().to_radix_be(2);
-    let bits_vector = bits.into_iter().map(|bit| Value::U1(bit != 0)).collect();
+    let bits_vector = bits.into_iter().map(|bit| Value::u1(bit != 0)).collect();
 
     let int_type = Type::Integer(Signedness::Unsigned, IntegerBitSize::One);
     let typ = Type::Vector(Box::new(int_type));
@@ -3121,7 +2975,7 @@ fn modulus_be_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IR
     check_argument_count(0, &arguments, location)?;
 
     let bytes = FieldElement::modulus().to_bytes_be();
-    let bytes_vector = bytes.into_iter().map(Value::U8).collect();
+    let bytes_vector = bytes.into_iter().map(Value::u8).collect();
 
     let int_type = Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight);
     let typ = Type::Vector(Box::new(int_type));
@@ -3147,7 +3001,7 @@ fn modulus_le_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IR
 fn modulus_num_bits(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     check_argument_count(0, &arguments, location)?;
     let bits = FieldElement::max_num_bits().into();
-    Ok(Value::U64(bits))
+    Ok(Value::u64(bits))
 }
 
 // fn quoted_eq(_first: Quoted, _second: Quoted) -> bool
@@ -3169,8 +3023,22 @@ fn quoted_eq(
 
     Ok(Value::Bool(self_string == other_string))
 }
-fn quoted_hash(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    hash_item(arguments, location, get_quoted)
+
+fn quoted_hash(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let argument = check_one_argument(arguments, location)?;
+    let tokens = get_quoted(argument)?;
+
+    // For consistency with quoted_eq, we compute the hash of the Quoted string representation.
+    let tokens_string = tokens_to_string(&tokens, interner);
+
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    tokens_string.hash(&mut hasher);
+    let hash = hasher.finish();
+    Ok(Value::field(SignedField::positive(u128::from(hash))))
 }
 
 fn trait_def_as_trait_constraint(
@@ -3236,9 +3104,8 @@ fn derive_generators(
     let domain_separator_string =
         try_vecmap(domain_separator_string, |byte| get_u8((byte, domain_separator_location)))?;
 
-    let (size, elements) = match return_type.clone() {
-        Type::Array(size, elements) => (size, elements),
-        _ => panic!("ICE: Should only have an array return type"),
+    let Type::Array(size, elements) = return_type.clone() else {
+        panic!("ICE: Should only have an array return type");
     };
 
     let num_generators = size.evaluate_to_u32(location).map_err(|err| {
@@ -3264,9 +3131,9 @@ fn derive_generators(
         let y = FieldElement::from_be_bytes_reduce(&y_big.to_bytes_be());
         let mut embedded_curve_point_fields = HashMap::default();
         embedded_curve_point_fields
-            .insert(x_field_name.clone(), Shared::new(Value::Field(SignedField::positive(x))));
+            .insert(x_field_name.clone(), Shared::new(Value::field(SignedField::positive(x))));
         embedded_curve_point_fields
-            .insert(y_field_name.clone(), Shared::new(Value::Field(SignedField::positive(y))));
+            .insert(y_field_name.clone(), Shared::new(Value::field(SignedField::positive(y))));
         embedded_curve_point_fields
             .insert(is_infinite_field_name.clone(), Shared::new(Value::Bool(is_infinite)));
         let embedded_curve_point_struct =
@@ -3280,8 +3147,51 @@ fn derive_generators(
 fn field_less_than(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     let (lhs, rhs) = check_two_arguments(arguments, location)?;
 
-    let lhs = get_field(lhs)?;
-    let rhs = get_field(rhs)?;
+    let lhs = get_field(lhs)?.to_field_element();
+    let rhs = get_field(rhs)?.to_field_element();
 
     Ok(Value::Bool(lhs < rhs))
+}
+
+#[cfg(test)]
+mod tests {
+    use noirc_errors::Location;
+
+    use crate::hir::comptime::value::Value;
+    use crate::signed_field::SignedField;
+
+    use super::field_less_than;
+
+    fn args(a: Value, b: Value) -> Vec<(Value, Location)> {
+        vec![(a, Location::dummy()), (b, Location::dummy())]
+    }
+
+    fn pos(v: u128) -> Value {
+        Value::field(SignedField::positive(v))
+    }
+
+    fn neg(v: u128) -> Value {
+        Value::field(SignedField::negative(v))
+    }
+
+    #[test]
+    fn test_field_less_than() {
+        let loc = Location::dummy();
+
+        // positive comparisons
+        assert_eq!(field_less_than(args(pos(0), pos(1)), loc).unwrap(), Value::Bool(true));
+        assert_eq!(field_less_than(args(pos(1), pos(0)), loc).unwrap(), Value::Bool(false));
+        assert_eq!(field_less_than(args(pos(42), pos(42)), loc).unwrap(), Value::Bool(false));
+        assert_eq!(field_less_than(args(pos(0x100), pos(0x200)), loc).unwrap(), Value::Bool(true));
+        assert_eq!(field_less_than(args(pos(0x200), pos(0x100)), loc).unwrap(), Value::Bool(false));
+
+        // negative values wrap around
+        assert_eq!(field_less_than(args(pos(1), neg(1)), loc).unwrap(), Value::Bool(true));
+        assert_eq!(field_less_than(args(neg(1), pos(1)), loc).unwrap(), Value::Bool(false));
+        // -2 < -1
+        assert_eq!(field_less_than(args(neg(2), neg(1)), loc).unwrap(), Value::Bool(true));
+        assert_eq!(field_less_than(args(neg(1), neg(2)), loc).unwrap(), Value::Bool(false));
+        // -1 < -1 is false
+        assert_eq!(field_less_than(args(neg(1), neg(1)), loc).unwrap(), Value::Bool(false));
+    }
 }

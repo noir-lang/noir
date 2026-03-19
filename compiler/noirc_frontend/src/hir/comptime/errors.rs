@@ -6,7 +6,7 @@ use crate::{
     ast::{Ident, TraitBound},
     hir::{
         def_collector::dc_crate::CompilationError,
-        type_check::{NoMatchingImplFoundError, TypeCheckError},
+        type_check::{ExpectingOtherError, NoMatchingImplFoundError, TypeCheckError},
     },
     parser::ParserError,
     signed_field::SignedField,
@@ -190,6 +190,10 @@ pub enum InterpreterError {
     NoImpl {
         location: Location,
     },
+    NoTraitItemInImpl {
+        item_name: String,
+        location: Location,
+    },
     NoMatchingImplFound {
         error: NoMatchingImplFoundError,
     },
@@ -245,7 +249,7 @@ pub enum InterpreterError {
         location: Location,
     },
     GenericNameShouldBeAnIdent {
-        name: Rc<String>,
+        name: String,
         location: Location,
     },
     DuplicateGeneric {
@@ -307,6 +311,7 @@ pub enum InterpreterError {
     TraitImplResolutionRecursionLimitReached {
         location: Location,
     },
+    ExpectingOtherError(ExpectingOtherError),
     CannotModifyExternalItem {
         item: String,
         module: String,
@@ -389,6 +394,7 @@ impl InterpreterError {
             | InterpreterError::Unimplemented { location, .. }
             | InterpreterError::InvalidInComptimeContext { location, .. }
             | InterpreterError::NoImpl { location, .. }
+            | InterpreterError::NoTraitItemInImpl { location, .. }
             | InterpreterError::ImplMethodTypeMismatch { location, .. }
             | InterpreterError::DebugEvaluateComptime { location, .. }
             | InterpreterError::BlackBoxError(_, location)
@@ -419,6 +425,7 @@ impl InterpreterError {
             | InterpreterError::AttributeRecursionLimitExceeded { location }
             | InterpreterError::CannotCastNumericToBool { location, .. }
             | InterpreterError::CannotModifyExternalItem { location, .. } => *location,
+            InterpreterError::ExpectingOtherError(error) => error.location,
             InterpreterError::FailedToParseMacro { error, .. } => error.location(),
             InterpreterError::NoMatchingImplFound { error } => error.location,
             InterpreterError::DuplicateStructFieldInSetFields { name, .. } => name.location(),
@@ -442,6 +449,17 @@ impl InterpreterError {
             location,
         );
         InterpreterError::DebugEvaluateComptime { diagnostic, location }
+    }
+
+    /// An error which is only shown to the user if there are no other errors emitted.
+    pub(crate) fn expecting_other_error<S: Into<String>>(
+        message: S,
+        location: Location,
+    ) -> InterpreterError {
+        InterpreterError::ExpectingOtherError(ExpectingOtherError {
+            message: message.into(),
+            location,
+        })
     }
 }
 
@@ -704,6 +722,10 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let msg = "No impl found due to prior type error".into();
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
+            InterpreterError::NoTraitItemInImpl { item_name, location } => {
+                let msg = format!("No method or constant named `{item_name}` found in impl due to prior type error");
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
+            }
             InterpreterError::ImplMethodTypeMismatch { expected, actual, location } => {
                 let msg = format!(
                     "Impl method type {actual} does not unify with trait method type {expected}"
@@ -880,6 +902,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let secondary = String::new();
                 CustomDiagnostic::simple_warning(primary, secondary, *location)
             }
+            InterpreterError::ExpectingOtherError(error) => error.into(),
             InterpreterError::CannotModifyExternalItem { item, module, location } => {
                 let primary = "Cannot mutate something from an external crate".to_string();
                 let secondary = format!("`{item}` was declared in `{module}`");

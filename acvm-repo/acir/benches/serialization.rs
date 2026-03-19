@@ -33,7 +33,7 @@ fn sample_program(num_opcodes: usize) -> Program<FieldElement> {
         functions: vec![Circuit {
             function_name: "main".to_string(),
             current_witness_index: 4000,
-            opcodes: assert_zero_opcodes.to_vec(),
+            opcodes: assert_zero_opcodes,
             private_parameters: BTreeSet::from([Witness(1), Witness(2), Witness(3), Witness(4)]),
             public_parameters: PublicInputs(BTreeSet::from([Witness(5)])),
             return_values: PublicInputs(BTreeSet::from([Witness(6)])),
@@ -45,7 +45,7 @@ fn sample_program(num_opcodes: usize) -> Program<FieldElement> {
 
 fn bench_serialization(c: &mut Criterion) {
     let mut group = c.benchmark_group("serialize_program");
-    for size in SIZES.iter() {
+    for size in &SIZES {
         let program = sample_program(*size);
 
         group.throughput(Throughput::Elements(*size as u64));
@@ -56,7 +56,7 @@ fn bench_serialization(c: &mut Criterion) {
     group.finish();
 
     let mut group = c.benchmark_group("serialize_program_json");
-    for size in SIZES.iter() {
+    for size in &SIZES {
         let program = sample_program(*size);
 
         group.throughput(Throughput::Elements(*size as u64));
@@ -73,7 +73,7 @@ fn bench_serialization(c: &mut Criterion) {
 
 fn bench_deserialization(c: &mut Criterion) {
     let mut group = c.benchmark_group("deserialize_program");
-    for size in SIZES.iter() {
+    for size in &SIZES {
         let program = sample_program(*size);
         let serialized_program = Program::serialize_program(&program);
 
@@ -89,7 +89,7 @@ fn bench_deserialization(c: &mut Criterion) {
     group.finish();
 
     let mut group = c.benchmark_group("deserialize_program_json");
-    for size in SIZES.iter() {
+    for size in &SIZES {
         let program = sample_program(*size);
 
         let serialized_program = {

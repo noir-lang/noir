@@ -1,0 +1,43 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+warning: Return variable contains a constant value
+  ┌─ src/main.nr:9:5
+  │
+9 │     vec[0]
+  │     ------ This variable contains a value which is constrained to be a constant. Consider removing this value as additional return values increase proving/verification time
+  │
+  = Call stack:
+    1: main
+            at src/main.nr:9:5
+
+bug: Assertion is always false: Index out of bounds
+  ┌─ src/main.nr:7:9
+  │
+7 │     vec[1] = 10;
+  │         - As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution
+  │
+  = Call stack:
+    1: main
+            at src/main.nr:7:9
+
+bug: Assertion is always false: Index out of bounds, array has size 0
+  ┌─ src/main.nr:7:5
+  │
+7 │     vec[1] = 10;
+  │     ------ As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution
+  │
+  = Call stack:
+    1: main
+            at src/main.nr:7:5
+
+bug: Assertion is always false
+  ┌─ src/main.nr:9:5
+  │
+9 │     vec[0]
+  │     ------ As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution
+  │
+  = Call stack:
+    1: main
+            at src/main.nr:9:5

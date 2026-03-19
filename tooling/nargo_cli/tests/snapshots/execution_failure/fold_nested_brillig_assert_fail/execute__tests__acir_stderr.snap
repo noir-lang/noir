@@ -1,0 +1,33 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+bug: Brillig function call isn't properly covered by a manual constraint
+   ┌─ src/main.nr:19:9
+   │
+19 │         conditional_wrapper(x)
+   │         ---------------------- This Brillig call's inputs and its return values haven't been sufficiently constrained. This should be done to prevent potential soundness vulnerabilities
+   │
+   = Call stack:
+     1: fold_conditional
+             at src/main.nr:19:9
+
+error: Failed to solve program: 'Failed to solve brillig function'
+   ┌─ src/main.nr:28:12
+   │
+28 │     assert(x);
+   │            -
+   │
+   = Call stack:
+     1: main
+             at src/main.nr:7:17
+     2: fold_conditional_wrapper
+             at src/main.nr:12:5
+     3: fold_conditional
+             at src/main.nr:19:9
+     4: conditional_wrapper
+             at src/main.nr:24:5
+     5: conditional
+             at src/main.nr:28:12
+
+Failed to solve program: 'Failed to solve brillig function'

@@ -650,9 +650,8 @@ impl<'a> IntMutator<'a> {
 
     /// Mutate an input value depending on the sign and width
     pub fn mutate(&mut self, input: &InputValue, sign: &Sign, width: u32) -> InputValue {
-        let initial_field_value = match input {
-            InputValue::Field(inner_field) => inner_field,
-            _ => panic!("Shouldn't be used with other input value types"),
+        let InputValue::Field(initial_field_value) = input else {
+            panic!("Shouldn't be used with other input value types");
         };
         assert!(
             width == 1 || width == 8 || width == 16 || width == 32 || width == 64 || width == 128

@@ -72,6 +72,7 @@
 //! ```text
 //! v0 = call f1() -> Field
 //! ```
+use itertools::Itertools;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
@@ -147,7 +148,7 @@ impl Ssa {
                         // Filter the arguments using keep_list
                         let new_args: Vec<ValueId> = arguments
                             .iter()
-                            .zip(keep_list.iter())
+                            .zip_eq(keep_list.iter())
                             .filter_map(|(arg, &keep)| if keep { Some(*arg) } else { None })
                             .collect();
 
@@ -233,22 +234,36 @@ impl Function {
         keep_list: &[bool],
     ) {
         let predecessors = cfg.predecessors(target_block);
+        let remove_args = |args: &mut Vec<ValueId>| {
+            let mut i = 0;
+            args.retain(|_| {
+                i += 1;
+                keep_list[i - 1]
+            });
+        };
+
         for pred in predecessors {
             let terminator = self.dfg[pred].unwrap_terminator_mut();
 
             match terminator {
-                TerminatorInstruction::JmpIf { .. } => {
-                    // No terminator arguments in a JmpIf
+                TerminatorInstruction::JmpIf {
+                    then_destination,
+                    then_arguments,
+                    else_destination,
+                    else_arguments,
+                    ..
+                } => {
+                    if *then_destination == target_block {
+                        remove_args(then_arguments);
+                    }
+                    if *else_destination == target_block {
+                        remove_args(else_arguments);
+                    }
                 }
                 TerminatorInstruction::Jmp { destination, arguments, .. } => {
                     // Predecessor must jump to its successor
                     assert_eq!(*destination, target_block);
-                    let new_args = arguments
-                        .iter()
-                        .zip(keep_list.iter())
-                        .filter_map(|(arg, &keep)| if keep { Some(*arg) } else { None })
-                        .collect();
-                    *arguments = new_args;
+                    remove_args(arguments);
                 }
                 TerminatorInstruction::Return { .. } => {
                     unreachable!("ICE: A return block should not be a predecessor");
@@ -319,7 +334,7 @@ mod tests {
             v4 = array_get v1, index u32 0 -> [u1; 4]
             inc_rc v4
             v6 = array_get v4, index u32 3 -> u1
-            jmpif v6 then: b1, else: b2
+            jmpif v6 then: b1(), else: b2()
           b1():
             v9 = mul u32 601072115, u32 2825334515
             v10 = cast v9 as u64
@@ -367,7 +382,7 @@ mod tests {
             v3 = array_get v1, index u32 0 -> [u1; 4]
             inc_rc v3
             v5 = array_get v3, index u32 3 -> u1
-            jmpif v5 then: b1, else: b2
+            jmpif v5 then: b1(), else: b2()
           b1():
             v7 = mul u32 601072115, u32 2825334515
             jmp b3()
@@ -572,10 +587,10 @@ mod tests {
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: i16):
             v5 = lt i16 3, v0
-            jmpif v5 then: b1, else: b2
+            jmpif v5 then: b1(), else: b2()
           b1():
             v8 = lt i16 4, v0
-            jmpif v8 then: b3, else: b4
+            jmpif v8 then: b3(), else: b4()
           b2():
             jmp b5(Field 3)
           b3():
@@ -584,7 +599,7 @@ mod tests {
             jmp b6(Field 2)
           b5(v1: Field):
             v12 = lt i16 5, v0
-            jmpif v12 then: b7, else: b8
+            jmpif v12 then: b7(), else: b8()
           b6(v2: Field):
             jmp b5(v2)
           b7():
@@ -638,10 +653,10 @@ mod tests {
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: i16):
             v2 = lt i16 3, v0
-            jmpif v2 then: b1, else: b2
+            jmpif v2 then: b1(), else: b2()
           b1():
             v4 = lt i16 4, v0
-            jmpif v4 then: b3, else: b4
+            jmpif v4 then: b3(), else: b4()
           b2():
             jmp b5()
           b3():
@@ -650,7 +665,7 @@ mod tests {
             jmp b6()
           b5():
             v6 = lt i16 5, v0
-            jmpif v6 then: b7, else: b8
+            jmpif v6 then: b7(), else: b8()
           b6():
             jmp b5()
           b7():
@@ -669,10 +684,10 @@ mod tests {
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: i16):
             v2 = lt i16 3, v0
-            jmpif v2 then: b1, else: b2
+            jmpif v2 then: b1(), else: b2()
           b1():
             v4 = lt i16 4, v0
-            jmpif v4 then: b3, else: b4
+            jmpif v4 then: b3(), else: b4()
           b2():
             jmp b5()
           b3():
@@ -681,7 +696,7 @@ mod tests {
             jmp b6()
           b5():
             v6 = lt i16 5, v0
-            jmpif v6 then: b7, else: b8
+            jmpif v6 then: b7(), else: b8()
           b6():
             jmp b5()
           b7():
@@ -690,6 +705,43 @@ mod tests {
             jmp b9()
           b9():
             return
+        }
+        "#);
+    }
+
+    #[test]
+    fn prune_dead_jmpif_args() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0():
+            v0 = call f1(Field 5, Field 10) -> Field
+            return v0
+        }
+        brillig(inline) fn test f1 {
+          b0(v0: Field, v1: Field):
+            jmpif u1 0 then: b1(Field 1, Field 2), else: b1(Field 3, Field 4)
+          b1(v2: Field, v3: Field):
+            return v2
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        // DIE is necessary to fetch the block parameters liveness information
+        let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false);
+        let ssa = ssa.prune_dead_parameters(&die_result.unused_parameters);
+
+        // Of b1's params, expect only `v2` above to get removed
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) fn main f0 {
+          b0():
+            v1 = call f1() -> Field
+            return v1
+        }
+        brillig(inline) fn test f1 {
+          b0():
+            jmpif u1 0 then: b1(Field 1), else: b1(Field 3)
+          b1(v0: Field):
+            return v0
         }
         "#);
     }

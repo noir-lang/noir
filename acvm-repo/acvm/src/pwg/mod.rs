@@ -80,6 +80,7 @@ use acir::{
 };
 use acvm_blackbox_solver::BlackBoxResolutionError;
 use brillig_vm::fuzzing::BranchToFeatureMap;
+use itertools::Itertools;
 
 use self::{arithmetic::ExpressionSolver, memory_op::MemoryOpSolver};
 use crate::BlackBoxFunctionSolver;
@@ -580,7 +581,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         let (_, assertion_descriptor) =
             self.assertion_payloads.iter().find(|(loc, _)| location == *loc)?;
         let mut fields = Vec::new();
-        for expr in assertion_descriptor.payload.iter() {
+        for expr in &assertion_descriptor.payload {
             match expr {
                 ExpressionOrMemory::Expression(expr) => {
                     let value = get_value(expr, &self.witness_map).ok()?;
@@ -770,7 +771,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             });
         }
 
-        for (output_witness, result_value) in outputs.iter().zip(result_values) {
+        for (output_witness, result_value) in outputs.iter().zip_eq(result_values) {
             insert_value(output_witness, *result_value, &mut self.witness_map)?;
         }
 

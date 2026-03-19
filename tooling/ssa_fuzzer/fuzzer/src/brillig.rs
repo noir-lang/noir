@@ -244,7 +244,7 @@ impl SimulatorProcess {
         {
             Ok(response_line) => response_line,
             Err(e) => {
-                if e.to_string().contains("unexpected end of file") {
+                if e.contains("unexpected end of file") {
                     log::warn!("Unexpected end of file, recreating simulator");
                     recreate_simulator().expect("Failed to recreate simulator");
                     return self.execute(bytecode, inputs);
@@ -263,7 +263,7 @@ impl SimulatorProcess {
         {
             Ok(_) => (),
             Err(e) => {
-                if e.to_string().contains("unexpected end of file") {
+                if e.contains("unexpected end of file") {
                     log::warn!("Unexpected end of file, recreating simulator");
                     recreate_simulator().expect("Failed to recreate simulator");
                     return self.execute(bytecode, inputs);
