@@ -622,386 +622,386 @@
 <a href=#622 id=622 data-nosnippet>622</a>                }
 <a href=#623 id=623 data-nosnippet>623</a>                ModuleDefId::TypeAliasId(id) =&gt; {
 <a href=#624 id=624 data-nosnippet>624</a>                    <span class="kw">let </span>type_alias = <span class="self">self</span>.interner.get_type_alias(id);
-<a href=#625 id=625 data-nosnippet>625</a>                    <span class="kw">let </span><span class="prelude-val">Some</span>(module_id) = get_type_alias_module_def_id(<span class="kw-2">&amp;</span>type_alias) <span class="kw">else </span>{
-<a href=#626 id=626 data-nosnippet>626</a>                        <span class="kw">return </span><span class="prelude-val">Err</span>(PathResolutionError::Unresolved(prev_ident.clone()));
-<a href=#627 id=627 data-nosnippet>627</a>                    };
-<a href=#628 id=628 data-nosnippet>628</a>
-<a href=#629 id=629 data-nosnippet>629</a>                    <span class="kw">let </span>item =
-<a href=#630 id=630 data-nosnippet>630</a>                        IntermediatePathResolutionItem::TypeAlias(id, prev_segment.turbofish());
-<a href=#631 id=631 data-nosnippet>631</a>                    (module_id, <span class="bool-val">true</span>, item)
-<a href=#632 id=632 data-nosnippet>632</a>                }
-<a href=#633 id=633 data-nosnippet>633</a>                ModuleDefId::TraitAssociatedTypeId(..) =&gt; {
-<a href=#634 id=634 data-nosnippet>634</a>                    <span class="comment">// There are no items inside an associated type so we return earlier
-<a href=#635 id=635 data-nosnippet>635</a>                    </span><span class="kw">return </span><span class="prelude-val">Err</span>(PathResolutionError::Unresolved(current_ident.clone()));
-<a href=#636 id=636 data-nosnippet>636</a>                }
-<a href=#637 id=637 data-nosnippet>637</a>                ModuleDefId::TraitId(id) =&gt; {
-<a href=#638 id=638 data-nosnippet>638</a>                    <span class="kw">let </span>item = IntermediatePathResolutionItem::Trait(id, prev_segment.turbofish());
-<a href=#639 id=639 data-nosnippet>639</a>                    (id.<span class="number">0</span>, <span class="bool-val">false</span>, item)
-<a href=#640 id=640 data-nosnippet>640</a>                }
-<a href=#641 id=641 data-nosnippet>641</a>                ModuleDefId::FunctionId(<span class="kw">_</span>) =&gt; <span class="macro">panic!</span>(<span class="string">"functions cannot be in the type namespace"</span>),
-<a href=#642 id=642 data-nosnippet>642</a>                ModuleDefId::GlobalId(<span class="kw">_</span>) =&gt; <span class="macro">panic!</span>(<span class="string">"globals cannot be in the type namespace"</span>),
-<a href=#643 id=643 data-nosnippet>643</a>            };
-<a href=#644 id=644 data-nosnippet>644</a>
-<a href=#645 id=645 data-nosnippet>645</a>            <span class="comment">// If the path is plain or crate, the first segment will always refer to
-<a href=#646 id=646 data-nosnippet>646</a>            // something that's visible from the current module.
-<a href=#647 id=647 data-nosnippet>647</a>            </span><span class="kw">if </span>!((first_segment_is_always_visible &amp;&amp; index == <span class="number">0</span>)
-<a href=#648 id=648 data-nosnippet>648</a>                || item_in_module_is_visible(
-<a href=#649 id=649 data-nosnippet>649</a>                    <span class="self">self</span>.def_maps,
-<a href=#650 id=650 data-nosnippet>650</a>                    importing_module,
-<a href=#651 id=651 data-nosnippet>651</a>                    current_module_id,
-<a href=#652 id=652 data-nosnippet>652</a>                    visibility,
-<a href=#653 id=653 data-nosnippet>653</a>                ))
-<a href=#654 id=654 data-nosnippet>654</a>            {
-<a href=#655 id=655 data-nosnippet>655</a>                errors.push(PathResolutionError::Private(prev_ident.clone()));
-<a href=#656 id=656 data-nosnippet>656</a>            }
-<a href=#657 id=657 data-nosnippet>657</a>
-<a href=#658 id=658 data-nosnippet>658</a>            <span class="comment">// Switch to the module the current segment is defined in.
-<a href=#659 id=659 data-nosnippet>659</a>            </span>current_module = <span class="self">self</span>.get_module(current_module_id);
-<a href=#660 id=660 data-nosnippet>660</a>
-<a href=#661 id=661 data-nosnippet>661</a>            <span class="comment">// Check if namespace
-<a href=#662 id=662 data-nosnippet>662</a>            </span><span class="kw">let </span>found_ns = <span class="kw">if </span>current_module_id_is_type {
-<a href=#663 id=663 data-nosnippet>663</a>                <span class="kw">match </span><span class="self">self</span>.resolve_method(importing_module, current_module, current_ident) {
-<a href=#664 id=664 data-nosnippet>664</a>                    MethodLookupResult::NotFound(method_traits) =&gt; {
-<a href=#665 id=665 data-nosnippet>665</a>                        <span class="comment">// Before returning an error, try to look up as an associated constant
-<a href=#666 id=666 data-nosnippet>666</a>                        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(result) = <span class="self">self</span>.try_resolve_trait_constant(
-<a href=#667 id=667 data-nosnippet>667</a>                            <span class="kw-2">&amp;</span>intermediate_item,
-<a href=#668 id=668 data-nosnippet>668</a>                            current_ident,
-<a href=#669 id=669 data-nosnippet>669</a>                            importing_module,
-<a href=#670 id=670 data-nosnippet>670</a>                        ) {
-<a href=#671 id=671 data-nosnippet>671</a>                            <span class="kw">return </span>result.map(|item| PathResolution { item, errors });
-<a href=#672 id=672 data-nosnippet>672</a>                        }
-<a href=#673 id=673 data-nosnippet>673</a>
-<a href=#674 id=674 data-nosnippet>674</a>                        <span class="comment">// Fall back to the original error handling
-<a href=#675 id=675 data-nosnippet>675</a>                        </span><span class="kw">if </span>method_traits.is_empty() {
-<a href=#676 id=676 data-nosnippet>676</a>                            <span class="kw">return </span><span class="prelude-val">Err</span>(PathResolutionError::Unresolved(current_ident.clone()));
-<a href=#677 id=677 data-nosnippet>677</a>                        } <span class="kw">else </span>{
-<a href=#678 id=678 data-nosnippet>678</a>                            <span class="kw">let </span>traits = vecmap(method_traits, |trait_id| {
-<a href=#679 id=679 data-nosnippet>679</a>                                <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(trait_id);
-<a href=#680 id=680 data-nosnippet>680</a>                                <span class="self">self</span>.fully_qualified_trait_path(trait_)
-<a href=#681 id=681 data-nosnippet>681</a>                            });
-<a href=#682 id=682 data-nosnippet>682</a>                            <span class="kw">return </span><span class="prelude-val">Err</span>(
-<a href=#683 id=683 data-nosnippet>683</a>                                PathResolutionError::UnresolvedWithPossibleTraitsToImport {
-<a href=#684 id=684 data-nosnippet>684</a>                                    ident: current_ident.clone(),
-<a href=#685 id=685 data-nosnippet>685</a>                                    traits,
-<a href=#686 id=686 data-nosnippet>686</a>                                },
-<a href=#687 id=687 data-nosnippet>687</a>                            );
-<a href=#688 id=688 data-nosnippet>688</a>                        }
-<a href=#689 id=689 data-nosnippet>689</a>                    }
-<a href=#690 id=690 data-nosnippet>690</a>                    MethodLookupResult::FoundMethod(per_ns) =&gt; per_ns,
-<a href=#691 id=691 data-nosnippet>691</a>                    MethodLookupResult::FoundTraitMethod(per_ns, name) =&gt; {
-<a href=#692 id=692 data-nosnippet>692</a>                        <span class="self">self</span>.usage_tracker.mark_as_used(importing_module, <span class="kw-2">&amp;</span>name);
-<a href=#693 id=693 data-nosnippet>693</a>                        per_ns
-<a href=#694 id=694 data-nosnippet>694</a>                    }
-<a href=#695 id=695 data-nosnippet>695</a>                    MethodLookupResult::FoundOneTraitMethodButNotInScope(per_ns, trait_id) =&gt; {
-<a href=#696 id=696 data-nosnippet>696</a>                        <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(trait_id);
-<a href=#697 id=697 data-nosnippet>697</a>                        <span class="kw">let </span>trait_name = <span class="self">self</span>.fully_qualified_trait_path(trait_);
-<a href=#698 id=698 data-nosnippet>698</a>                        errors.push(PathResolutionError::TraitMethodNotInScope {
-<a href=#699 id=699 data-nosnippet>699</a>                            ident: current_ident.clone(),
-<a href=#700 id=700 data-nosnippet>700</a>                            trait_name,
-<a href=#701 id=701 data-nosnippet>701</a>                        });
-<a href=#702 id=702 data-nosnippet>702</a>                        per_ns
-<a href=#703 id=703 data-nosnippet>703</a>                    }
-<a href=#704 id=704 data-nosnippet>704</a>                    MethodLookupResult::FoundMultipleTraitMethods(vec) =&gt; {
-<a href=#705 id=705 data-nosnippet>705</a>                        <span class="kw">let </span>traits = vecmap(vec, |(trait_id, name)| {
-<a href=#706 id=706 data-nosnippet>706</a>                            <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(trait_id);
-<a href=#707 id=707 data-nosnippet>707</a>                            <span class="self">self</span>.usage_tracker.mark_as_used(importing_module, <span class="kw-2">&amp;</span>name);
-<a href=#708 id=708 data-nosnippet>708</a>                            <span class="self">self</span>.fully_qualified_trait_path(trait_)
-<a href=#709 id=709 data-nosnippet>709</a>                        });
-<a href=#710 id=710 data-nosnippet>710</a>                        <span class="kw">return </span><span class="prelude-val">Err</span>(PathResolutionError::MultipleTraitsInScope {
-<a href=#711 id=711 data-nosnippet>711</a>                            ident: current_ident.clone(),
-<a href=#712 id=712 data-nosnippet>712</a>                            traits,
-<a href=#713 id=713 data-nosnippet>713</a>                        });
-<a href=#714 id=714 data-nosnippet>714</a>                    }
-<a href=#715 id=715 data-nosnippet>715</a>                }
-<a href=#716 id=716 data-nosnippet>716</a>            } <span class="kw">else </span>{
-<a href=#717 id=717 data-nosnippet>717</a>                current_module.find_name(current_ident)
-<a href=#718 id=718 data-nosnippet>718</a>            };
-<a href=#719 id=719 data-nosnippet>719</a>
-<a href=#720 id=720 data-nosnippet>720</a>            <span class="kw">if </span>found_ns.is_none() {
-<a href=#721 id=721 data-nosnippet>721</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(PathResolutionError::Unresolved(current_ident.clone()));
-<a href=#722 id=722 data-nosnippet>722</a>            }
-<a href=#723 id=723 data-nosnippet>723</a>
-<a href=#724 id=724 data-nosnippet>724</a>            <span class="kw">match </span>mode {
-<a href=#725 id=725 data-nosnippet>725</a>                PathResolutionMode::MarkAsReferenced =&gt; {
-<a href=#726 id=726 data-nosnippet>726</a>                    <span class="self">self</span>.usage_tracker.mark_as_referenced(current_module_id, current_ident);
-<a href=#727 id=727 data-nosnippet>727</a>                }
-<a href=#728 id=728 data-nosnippet>728</a>                PathResolutionMode::MarkAsUsed =&gt; {
-<a href=#729 id=729 data-nosnippet>729</a>                    <span class="self">self</span>.usage_tracker.mark_as_used(current_module_id, current_ident);
-<a href=#730 id=730 data-nosnippet>730</a>                }
-<a href=#731 id=731 data-nosnippet>731</a>            }
-<a href=#732 id=732 data-nosnippet>732</a>
-<a href=#733 id=733 data-nosnippet>733</a>            current_ns = found_ns;
-<a href=#734 id=734 data-nosnippet>734</a>        }
-<a href=#735 id=735 data-nosnippet>735</a>
-<a href=#736 id=736 data-nosnippet>736</a>        <span class="kw">let </span>(target_ns, fallback_ns) = <span class="kw">match </span>target {
-<a href=#737 id=737 data-nosnippet>737</a>            PathResolutionTarget::Type =&gt; (current_ns.types, current_ns.values),
-<a href=#738 id=738 data-nosnippet>738</a>            PathResolutionTarget::Value =&gt; (current_ns.values, current_ns.types),
-<a href=#739 id=739 data-nosnippet>739</a>        };
+<a href=#625 id=625 data-nosnippet>625</a>                    <span class="kw">match </span>get_type_alias_target(<span class="kw-2">&amp;</span>type_alias) {
+<a href=#626 id=626 data-nosnippet>626</a>                        <span class="prelude-val">Some</span>(TypeAliasTarget::Module(module_id)) =&gt; {
+<a href=#627 id=627 data-nosnippet>627</a>                            <span class="kw">let </span>item = IntermediatePathResolutionItem::TypeAlias(
+<a href=#628 id=628 data-nosnippet>628</a>                                id,
+<a href=#629 id=629 data-nosnippet>629</a>                                prev_segment.turbofish(),
+<a href=#630 id=630 data-nosnippet>630</a>                            );
+<a href=#631 id=631 data-nosnippet>631</a>                            (module_id, <span class="bool-val">true</span>, item)
+<a href=#632 id=632 data-nosnippet>632</a>                        }
+<a href=#633 id=633 data-nosnippet>633</a>                        <span class="prelude-val">Some</span>(TypeAliasTarget::Primitive(typ)) =&gt; {
+<a href=#634 id=634 data-nosnippet>634</a>                            <span class="comment">// The alias points to a primitive type. Look up the method
+<a href=#635 id=635 data-nosnippet>635</a>                            // directly via the interner rather than through a module.
+<a href=#636 id=636 data-nosnippet>636</a>                            </span><span class="kw">return </span><span class="self">self</span>.resolve_primitive_type_alias_method(
+<a href=#637 id=637 data-nosnippet>637</a>                                typ,
+<a href=#638 id=638 data-nosnippet>638</a>                                id,
+<a href=#639 id=639 data-nosnippet>639</a>                                prev_segment.turbofish(),
+<a href=#640 id=640 data-nosnippet>640</a>                                current_ident,
+<a href=#641 id=641 data-nosnippet>641</a>                                importing_module,
+<a href=#642 id=642 data-nosnippet>642</a>                                <span class="kw-2">&amp;mut </span>errors,
+<a href=#643 id=643 data-nosnippet>643</a>                            );
+<a href=#644 id=644 data-nosnippet>644</a>                        }
+<a href=#645 id=645 data-nosnippet>645</a>                        <span class="prelude-val">None </span>=&gt; {
+<a href=#646 id=646 data-nosnippet>646</a>                            <span class="kw">return </span><span class="prelude-val">Err</span>(PathResolutionError::Unresolved(prev_ident.clone()));
+<a href=#647 id=647 data-nosnippet>647</a>                        }
+<a href=#648 id=648 data-nosnippet>648</a>                    }
+<a href=#649 id=649 data-nosnippet>649</a>                }
+<a href=#650 id=650 data-nosnippet>650</a>                ModuleDefId::TraitAssociatedTypeId(..) =&gt; {
+<a href=#651 id=651 data-nosnippet>651</a>                    <span class="comment">// There are no items inside an associated type so we return earlier
+<a href=#652 id=652 data-nosnippet>652</a>                    </span><span class="kw">return </span><span class="prelude-val">Err</span>(PathResolutionError::Unresolved(current_ident.clone()));
+<a href=#653 id=653 data-nosnippet>653</a>                }
+<a href=#654 id=654 data-nosnippet>654</a>                ModuleDefId::TraitId(id) =&gt; {
+<a href=#655 id=655 data-nosnippet>655</a>                    <span class="kw">let </span>item = IntermediatePathResolutionItem::Trait(id, prev_segment.turbofish());
+<a href=#656 id=656 data-nosnippet>656</a>                    (id.<span class="number">0</span>, <span class="bool-val">false</span>, item)
+<a href=#657 id=657 data-nosnippet>657</a>                }
+<a href=#658 id=658 data-nosnippet>658</a>                ModuleDefId::FunctionId(<span class="kw">_</span>) =&gt; <span class="macro">panic!</span>(<span class="string">"functions cannot be in the type namespace"</span>),
+<a href=#659 id=659 data-nosnippet>659</a>                ModuleDefId::GlobalId(<span class="kw">_</span>) =&gt; <span class="macro">panic!</span>(<span class="string">"globals cannot be in the type namespace"</span>),
+<a href=#660 id=660 data-nosnippet>660</a>            };
+<a href=#661 id=661 data-nosnippet>661</a>
+<a href=#662 id=662 data-nosnippet>662</a>            <span class="comment">// If the path is plain or crate, the first segment will always refer to
+<a href=#663 id=663 data-nosnippet>663</a>            // something that's visible from the current module.
+<a href=#664 id=664 data-nosnippet>664</a>            </span><span class="kw">if </span>!((first_segment_is_always_visible &amp;&amp; index == <span class="number">0</span>)
+<a href=#665 id=665 data-nosnippet>665</a>                || item_in_module_is_visible(
+<a href=#666 id=666 data-nosnippet>666</a>                    <span class="self">self</span>.def_maps,
+<a href=#667 id=667 data-nosnippet>667</a>                    importing_module,
+<a href=#668 id=668 data-nosnippet>668</a>                    current_module_id,
+<a href=#669 id=669 data-nosnippet>669</a>                    visibility,
+<a href=#670 id=670 data-nosnippet>670</a>                ))
+<a href=#671 id=671 data-nosnippet>671</a>            {
+<a href=#672 id=672 data-nosnippet>672</a>                errors.push(PathResolutionError::Private(prev_ident.clone()));
+<a href=#673 id=673 data-nosnippet>673</a>            }
+<a href=#674 id=674 data-nosnippet>674</a>
+<a href=#675 id=675 data-nosnippet>675</a>            <span class="comment">// Switch to the module the current segment is defined in.
+<a href=#676 id=676 data-nosnippet>676</a>            </span>current_module = <span class="self">self</span>.get_module(current_module_id);
+<a href=#677 id=677 data-nosnippet>677</a>
+<a href=#678 id=678 data-nosnippet>678</a>            <span class="comment">// Check if namespace
+<a href=#679 id=679 data-nosnippet>679</a>            </span><span class="kw">let </span>found_ns = <span class="kw">if </span>current_module_id_is_type {
+<a href=#680 id=680 data-nosnippet>680</a>                <span class="kw">match </span><span class="self">self</span>.resolve_method(importing_module, current_module, current_ident) {
+<a href=#681 id=681 data-nosnippet>681</a>                    MethodLookupResult::NotFound(method_traits) =&gt; {
+<a href=#682 id=682 data-nosnippet>682</a>                        <span class="comment">// Before returning an error, try to look up as an associated constant
+<a href=#683 id=683 data-nosnippet>683</a>                        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(result) = <span class="self">self</span>.try_resolve_trait_constant(
+<a href=#684 id=684 data-nosnippet>684</a>                            <span class="kw-2">&amp;</span>intermediate_item,
+<a href=#685 id=685 data-nosnippet>685</a>                            current_ident,
+<a href=#686 id=686 data-nosnippet>686</a>                            importing_module,
+<a href=#687 id=687 data-nosnippet>687</a>                        ) {
+<a href=#688 id=688 data-nosnippet>688</a>                            <span class="kw">return </span>result.map(|item| PathResolution { item, errors });
+<a href=#689 id=689 data-nosnippet>689</a>                        }
+<a href=#690 id=690 data-nosnippet>690</a>
+<a href=#691 id=691 data-nosnippet>691</a>                        <span class="comment">// Fall back to the original error handling
+<a href=#692 id=692 data-nosnippet>692</a>                        </span><span class="kw">if </span>method_traits.is_empty() {
+<a href=#693 id=693 data-nosnippet>693</a>                            <span class="kw">return </span><span class="prelude-val">Err</span>(PathResolutionError::Unresolved(current_ident.clone()));
+<a href=#694 id=694 data-nosnippet>694</a>                        } <span class="kw">else </span>{
+<a href=#695 id=695 data-nosnippet>695</a>                            <span class="kw">let </span>traits = vecmap(method_traits, |trait_id| {
+<a href=#696 id=696 data-nosnippet>696</a>                                <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(trait_id);
+<a href=#697 id=697 data-nosnippet>697</a>                                <span class="self">self</span>.fully_qualified_trait_path(trait_)
+<a href=#698 id=698 data-nosnippet>698</a>                            });
+<a href=#699 id=699 data-nosnippet>699</a>                            <span class="kw">return </span><span class="prelude-val">Err</span>(
+<a href=#700 id=700 data-nosnippet>700</a>                                PathResolutionError::UnresolvedWithPossibleTraitsToImport {
+<a href=#701 id=701 data-nosnippet>701</a>                                    ident: current_ident.clone(),
+<a href=#702 id=702 data-nosnippet>702</a>                                    traits,
+<a href=#703 id=703 data-nosnippet>703</a>                                },
+<a href=#704 id=704 data-nosnippet>704</a>                            );
+<a href=#705 id=705 data-nosnippet>705</a>                        }
+<a href=#706 id=706 data-nosnippet>706</a>                    }
+<a href=#707 id=707 data-nosnippet>707</a>                    MethodLookupResult::FoundMethod(per_ns) =&gt; per_ns,
+<a href=#708 id=708 data-nosnippet>708</a>                    MethodLookupResult::FoundTraitMethod(per_ns, name) =&gt; {
+<a href=#709 id=709 data-nosnippet>709</a>                        <span class="self">self</span>.usage_tracker.mark_as_used(importing_module, <span class="kw-2">&amp;</span>name);
+<a href=#710 id=710 data-nosnippet>710</a>                        per_ns
+<a href=#711 id=711 data-nosnippet>711</a>                    }
+<a href=#712 id=712 data-nosnippet>712</a>                    MethodLookupResult::FoundOneTraitMethodButNotInScope(per_ns, trait_id) =&gt; {
+<a href=#713 id=713 data-nosnippet>713</a>                        <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(trait_id);
+<a href=#714 id=714 data-nosnippet>714</a>                        <span class="kw">let </span>trait_name = <span class="self">self</span>.fully_qualified_trait_path(trait_);
+<a href=#715 id=715 data-nosnippet>715</a>                        errors.push(PathResolutionError::TraitMethodNotInScope {
+<a href=#716 id=716 data-nosnippet>716</a>                            ident: current_ident.clone(),
+<a href=#717 id=717 data-nosnippet>717</a>                            trait_name,
+<a href=#718 id=718 data-nosnippet>718</a>                        });
+<a href=#719 id=719 data-nosnippet>719</a>                        per_ns
+<a href=#720 id=720 data-nosnippet>720</a>                    }
+<a href=#721 id=721 data-nosnippet>721</a>                    MethodLookupResult::FoundMultipleTraitMethods(vec) =&gt; {
+<a href=#722 id=722 data-nosnippet>722</a>                        <span class="kw">let </span>traits = vecmap(vec, |(trait_id, name)| {
+<a href=#723 id=723 data-nosnippet>723</a>                            <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(trait_id);
+<a href=#724 id=724 data-nosnippet>724</a>                            <span class="self">self</span>.usage_tracker.mark_as_used(importing_module, <span class="kw-2">&amp;</span>name);
+<a href=#725 id=725 data-nosnippet>725</a>                            <span class="self">self</span>.fully_qualified_trait_path(trait_)
+<a href=#726 id=726 data-nosnippet>726</a>                        });
+<a href=#727 id=727 data-nosnippet>727</a>                        <span class="kw">return </span><span class="prelude-val">Err</span>(PathResolutionError::MultipleTraitsInScope {
+<a href=#728 id=728 data-nosnippet>728</a>                            ident: current_ident.clone(),
+<a href=#729 id=729 data-nosnippet>729</a>                            traits,
+<a href=#730 id=730 data-nosnippet>730</a>                        });
+<a href=#731 id=731 data-nosnippet>731</a>                    }
+<a href=#732 id=732 data-nosnippet>732</a>                }
+<a href=#733 id=733 data-nosnippet>733</a>            } <span class="kw">else </span>{
+<a href=#734 id=734 data-nosnippet>734</a>                current_module.find_name(current_ident)
+<a href=#735 id=735 data-nosnippet>735</a>            };
+<a href=#736 id=736 data-nosnippet>736</a>
+<a href=#737 id=737 data-nosnippet>737</a>            <span class="kw">if </span>found_ns.is_none() {
+<a href=#738 id=738 data-nosnippet>738</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(PathResolutionError::Unresolved(current_ident.clone()));
+<a href=#739 id=739 data-nosnippet>739</a>            }
 <a href=#740 id=740 data-nosnippet>740</a>
-<a href=#741 id=741 data-nosnippet>741</a>        <span class="kw">let </span>(module_def_id, visibility, <span class="kw">_</span>) =
-<a href=#742 id=742 data-nosnippet>742</a>            target_ns.or(fallback_ns).expect(<span class="string">"A namespace should never be empty"</span>);
-<a href=#743 id=743 data-nosnippet>743</a>
-<a href=#744 id=744 data-nosnippet>744</a>        <span class="kw">let </span>item = <span class="self">self</span>.per_ns_item_to_path_resolution_item(
-<a href=#745 id=745 data-nosnippet>745</a>            path,
-<a href=#746 id=746 data-nosnippet>746</a>            importing_module,
-<a href=#747 id=747 data-nosnippet>747</a>            intermediate_item,
-<a href=#748 id=748 data-nosnippet>748</a>            current_module_id,
-<a href=#749 id=749 data-nosnippet>749</a>            <span class="kw-2">&amp;mut </span>errors,
-<a href=#750 id=750 data-nosnippet>750</a>            module_def_id,
-<a href=#751 id=751 data-nosnippet>751</a>            visibility,
-<a href=#752 id=752 data-nosnippet>752</a>        );
-<a href=#753 id=753 data-nosnippet>753</a>
-<a href=#754 id=754 data-nosnippet>754</a>        <span class="prelude-val">Ok</span>(PathResolution { item, errors })
-<a href=#755 id=755 data-nosnippet>755</a>    }
-<a href=#756 id=756 data-nosnippet>756</a>
-<a href=#757 id=757 data-nosnippet>757</a>    <span class="doccomment">/// Transform a result from [PerNs] into a [PathResolutionItem],
-<a href=#758 id=758 data-nosnippet>758</a>    /// pushing any visibility errors.
-<a href=#759 id=759 data-nosnippet>759</a>    </span><span class="attr">#[allow(clippy::too_many_arguments)]
-<a href=#760 id=760 data-nosnippet>760</a>    </span><span class="kw">fn </span>per_ns_item_to_path_resolution_item(
-<a href=#761 id=761 data-nosnippet>761</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#762 id=762 data-nosnippet>762</a>        path: TypedPath,
-<a href=#763 id=763 data-nosnippet>763</a>        importing_module: ModuleId,
-<a href=#764 id=764 data-nosnippet>764</a>        intermediate_item: IntermediatePathResolutionItem,
-<a href=#765 id=765 data-nosnippet>765</a>        current_module_id: ModuleId,
-<a href=#766 id=766 data-nosnippet>766</a>        errors: <span class="kw-2">&amp;mut </span>Vec&lt;PathResolutionError&gt;,
-<a href=#767 id=767 data-nosnippet>767</a>        module_def_id: ModuleDefId,
-<a href=#768 id=768 data-nosnippet>768</a>        visibility: <span class="kw">crate</span>::ast::ItemVisibility,
-<a href=#769 id=769 data-nosnippet>769</a>    ) -&gt; PathResolutionItem {
-<a href=#770 id=770 data-nosnippet>770</a>        <span class="kw">let </span>name = path.last_ident();
-<a href=#771 id=771 data-nosnippet>771</a>        <span class="kw">let </span>is_self_type = name.is_self_type_name();
-<a href=#772 id=772 data-nosnippet>772</a>        <span class="kw">let </span>location = name.location();
-<a href=#773 id=773 data-nosnippet>773</a>        <span class="self">self</span>.interner.add_module_def_id_reference(module_def_id, location, is_self_type);
-<a href=#774 id=774 data-nosnippet>774</a>
-<a href=#775 id=775 data-nosnippet>775</a>        <span class="kw">let </span>item = merge_intermediate_path_resolution_item_with_module_def_id(
-<a href=#776 id=776 data-nosnippet>776</a>            intermediate_item,
-<a href=#777 id=777 data-nosnippet>777</a>            module_def_id,
-<a href=#778 id=778 data-nosnippet>778</a>        );
-<a href=#779 id=779 data-nosnippet>779</a>
-<a href=#780 id=780 data-nosnippet>780</a>        <span class="comment">// For inherent impl methods, check visibility against the impl's defining module
-<a href=#781 id=781 data-nosnippet>781</a>        // (source_module), not just the type's module where the method was declared for lookup.
-<a href=#782 id=782 data-nosnippet>782</a>        // This prevents private methods defined in `impl super::S` inside `mod private` from
-<a href=#783 id=783 data-nosnippet>783</a>        // being accessible outside `mod private` via `S::method()`.
-<a href=#784 id=784 data-nosnippet>784</a>        </span><span class="kw">if let </span>ModuleDefId::FunctionId(func_id) = module_def_id
-<a href=#785 id=785 data-nosnippet>785</a>            &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(func_meta) = <span class="self">self</span>.interner.try_function_meta(<span class="kw-2">&amp;</span>func_id)
-<a href=#786 id=786 data-nosnippet>786</a>            &amp;&amp; func_meta.type_id.is_some()
-<a href=#787 id=787 data-nosnippet>787</a>            &amp;&amp; func_meta.trait_impl.is_none()
-<a href=#788 id=788 data-nosnippet>788</a>        {
-<a href=#789 id=789 data-nosnippet>789</a>            <span class="kw">let </span>source_module =
-<a href=#790 id=790 data-nosnippet>790</a>                ModuleId { krate: func_meta.source_crate, local_id: func_meta.source_module };
-<a href=#791 id=791 data-nosnippet>791</a>            <span class="kw">if </span>!item_in_module_is_visible(
-<a href=#792 id=792 data-nosnippet>792</a>                <span class="self">self</span>.def_maps,
-<a href=#793 id=793 data-nosnippet>793</a>                importing_module,
-<a href=#794 id=794 data-nosnippet>794</a>                source_module,
-<a href=#795 id=795 data-nosnippet>795</a>                visibility,
-<a href=#796 id=796 data-nosnippet>796</a>            ) {
-<a href=#797 id=797 data-nosnippet>797</a>                errors.push(PathResolutionError::Private(name));
-<a href=#798 id=798 data-nosnippet>798</a>            }
-<a href=#799 id=799 data-nosnippet>799</a>        } <span class="kw">else if </span>!item_in_module_is_visible(
-<a href=#800 id=800 data-nosnippet>800</a>            <span class="self">self</span>.def_maps,
-<a href=#801 id=801 data-nosnippet>801</a>            importing_module,
-<a href=#802 id=802 data-nosnippet>802</a>            current_module_id,
-<a href=#803 id=803 data-nosnippet>803</a>            visibility,
-<a href=#804 id=804 data-nosnippet>804</a>        ) {
-<a href=#805 id=805 data-nosnippet>805</a>            errors.push(PathResolutionError::Private(name));
-<a href=#806 id=806 data-nosnippet>806</a>        }
-<a href=#807 id=807 data-nosnippet>807</a>
-<a href=#808 id=808 data-nosnippet>808</a>        item
-<a href=#809 id=809 data-nosnippet>809</a>    }
-<a href=#810 id=810 data-nosnippet>810</a>
-<a href=#811 id=811 data-nosnippet>811</a>    <span class="doccomment">/// Assuming that the current path segment is a type or type alias defined in the `current_module`,
-<a href=#812 id=812 data-nosnippet>812</a>    /// resolve the `ident` as a method on that type.
-<a href=#813 id=813 data-nosnippet>813</a>    </span><span class="kw">fn </span>resolve_method(
-<a href=#814 id=814 data-nosnippet>814</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#815 id=815 data-nosnippet>815</a>        importing_module_id: ModuleId,
-<a href=#816 id=816 data-nosnippet>816</a>        current_module: <span class="kw-2">&amp;</span>ModuleData,
-<a href=#817 id=817 data-nosnippet>817</a>        ident: <span class="kw-2">&amp;</span>Ident,
-<a href=#818 id=818 data-nosnippet>818</a>    ) -&gt; MethodLookupResult {
-<a href=#819 id=819 data-nosnippet>819</a>        <span class="comment">// If the current module is a type, next we need to find a function for it.
-<a href=#820 id=820 data-nosnippet>820</a>        // The function could be in the type itself, or it could be defined in traits.
-<a href=#821 id=821 data-nosnippet>821</a>        </span><span class="kw">let </span>item_scope = current_module.scope();
-<a href=#822 id=822 data-nosnippet>822</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(values) = item_scope.values().get(ident) <span class="kw">else </span>{
-<a href=#823 id=823 data-nosnippet>823</a>            <span class="kw">return </span>MethodLookupResult::NotFound(<span class="macro">vec!</span>[]);
-<a href=#824 id=824 data-nosnippet>824</a>        };
-<a href=#825 id=825 data-nosnippet>825</a>
-<a href=#826 id=826 data-nosnippet>826</a>        <span class="comment">// First search if the function is defined in the type itself
-<a href=#827 id=827 data-nosnippet>827</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(item) = values.get(<span class="kw-2">&amp;</span><span class="prelude-val">None</span>) {
-<a href=#828 id=828 data-nosnippet>828</a>            <span class="kw">return </span>MethodLookupResult::FoundMethod(PerNs { types: <span class="prelude-val">None</span>, values: <span class="prelude-val">Some</span>(<span class="kw-2">*</span>item) });
-<a href=#829 id=829 data-nosnippet>829</a>        }
-<a href=#830 id=830 data-nosnippet>830</a>
-<a href=#831 id=831 data-nosnippet>831</a>        <span class="comment">// Otherwise, the function could be defined in zero, one or more traits.
-<a href=#832 id=832 data-nosnippet>832</a>        </span><span class="kw">let </span>starting_module = <span class="self">self</span>.get_module(importing_module_id);
-<a href=#833 id=833 data-nosnippet>833</a>
-<a href=#834 id=834 data-nosnippet>834</a>        <span class="comment">// Gather a list of items for which their trait is in scope.
-<a href=#835 id=835 data-nosnippet>835</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>results = Vec::new();
-<a href=#836 id=836 data-nosnippet>836</a>
-<a href=#837 id=837 data-nosnippet>837</a>        <span class="kw">for </span>(trait_id, item) <span class="kw">in </span>values {
-<a href=#838 id=838 data-nosnippet>838</a>            <span class="kw">let </span>trait_id = trait_id.expect(<span class="string">"The None option was already considered before"</span>);
-<a href=#839 id=839 data-nosnippet>839</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(name) = starting_module.find_trait_in_scope(trait_id) {
-<a href=#840 id=840 data-nosnippet>840</a>                results.push((trait_id, name, item));
-<a href=#841 id=841 data-nosnippet>841</a>            }
-<a href=#842 id=842 data-nosnippet>842</a>        }
-<a href=#843 id=843 data-nosnippet>843</a>
-<a href=#844 id=844 data-nosnippet>844</a>        <span class="kw">if </span>results.is_empty() {
-<a href=#845 id=845 data-nosnippet>845</a>            <span class="kw">if </span>values.len() == <span class="number">1 </span>{
-<a href=#846 id=846 data-nosnippet>846</a>                <span class="comment">// This is the backwards-compatible case where there's a single trait method but it's not in scope
-<a href=#847 id=847 data-nosnippet>847</a>                </span><span class="kw">let </span>(trait_id, item) = values.iter().next().expect(<span class="string">"Expected an item"</span>);
-<a href=#848 id=848 data-nosnippet>848</a>                <span class="kw">let </span>trait_id = trait_id.expect(<span class="string">"The None option was already considered before"</span>);
-<a href=#849 id=849 data-nosnippet>849</a>                <span class="kw">let </span>per_ns = PerNs { types: <span class="prelude-val">None</span>, values: <span class="prelude-val">Some</span>(<span class="kw-2">*</span>item) };
-<a href=#850 id=850 data-nosnippet>850</a>                <span class="kw">return </span>MethodLookupResult::FoundOneTraitMethodButNotInScope(per_ns, trait_id);
-<a href=#851 id=851 data-nosnippet>851</a>            } <span class="kw">else </span>{
-<a href=#852 id=852 data-nosnippet>852</a>                <span class="kw">let </span>trait_ids = vecmap(values, |(trait_id, <span class="kw">_</span>)| {
-<a href=#853 id=853 data-nosnippet>853</a>                    trait_id.expect(<span class="string">"The none option was already considered before"</span>)
-<a href=#854 id=854 data-nosnippet>854</a>                });
-<a href=#855 id=855 data-nosnippet>855</a>                <span class="kw">return </span>MethodLookupResult::NotFound(trait_ids);
-<a href=#856 id=856 data-nosnippet>856</a>            }
-<a href=#857 id=857 data-nosnippet>857</a>        }
-<a href=#858 id=858 data-nosnippet>858</a>
-<a href=#859 id=859 data-nosnippet>859</a>        <span class="kw">if </span>results.len() &gt; <span class="number">1 </span>{
-<a href=#860 id=860 data-nosnippet>860</a>            <span class="kw">let </span>trait_ids = vecmap(results, |(trait_id, name, <span class="kw">_</span>)| (trait_id, name.clone()));
-<a href=#861 id=861 data-nosnippet>861</a>            <span class="kw">return </span>MethodLookupResult::FoundMultipleTraitMethods(trait_ids);
-<a href=#862 id=862 data-nosnippet>862</a>        }
-<a href=#863 id=863 data-nosnippet>863</a>
-<a href=#864 id=864 data-nosnippet>864</a>        <span class="kw">let </span>(<span class="kw">_</span>, name, item) = results.remove(<span class="number">0</span>);
-<a href=#865 id=865 data-nosnippet>865</a>        <span class="kw">let </span>per_ns = PerNs { types: <span class="prelude-val">None</span>, values: <span class="prelude-val">Some</span>(<span class="kw-2">*</span>item) };
-<a href=#866 id=866 data-nosnippet>866</a>        MethodLookupResult::FoundTraitMethod(per_ns, name.clone())
-<a href=#867 id=867 data-nosnippet>867</a>    }
-<a href=#868 id=868 data-nosnippet>868</a>
-<a href=#869 id=869 data-nosnippet>869</a>    <span class="doccomment">/// Try to resolve an identifier as a trait associated constant (e.g., `Foo::N`).
-<a href=#870 id=870 data-nosnippet>870</a>    ///
-<a href=#871 id=871 data-nosnippet>871</a>    /// Returns `Some(Ok(PathResolutionItem))` if the constant was found,
-<a href=#872 id=872 data-nosnippet>872</a>    /// `Some(Err(PathResolutionError))` if there's an ambiguity error,
-<a href=#873 id=873 data-nosnippet>873</a>    /// or `None` if no matching constant was found.
-<a href=#874 id=874 data-nosnippet>874</a>    </span><span class="kw">fn </span>try_resolve_trait_constant(
-<a href=#875 id=875 data-nosnippet>875</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#876 id=876 data-nosnippet>876</a>        intermediate_item: <span class="kw-2">&amp;</span>IntermediatePathResolutionItem,
-<a href=#877 id=877 data-nosnippet>877</a>        ident: <span class="kw-2">&amp;</span>Ident,
-<a href=#878 id=878 data-nosnippet>878</a>        importing_module: ModuleId,
-<a href=#879 id=879 data-nosnippet>879</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="prelude-ty">Result</span>&lt;PathResolutionItem, PathResolutionError&gt;&gt; {
-<a href=#880 id=880 data-nosnippet>880</a>        <span class="comment">// Extract type info
-<a href=#881 id=881 data-nosnippet>881</a>        </span><span class="kw">let </span>(type_id, turbofish) = <span class="kw">match </span>intermediate_item {
-<a href=#882 id=882 data-nosnippet>882</a>            IntermediatePathResolutionItem::Type(id, turbofish) =&gt; (<span class="kw-2">*</span>id, turbofish),
-<a href=#883 id=883 data-nosnippet>883</a>            <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">None</span>,
-<a href=#884 id=884 data-nosnippet>884</a>        };
-<a href=#885 id=885 data-nosnippet>885</a>        <span class="kw">let </span>datatype = <span class="self">self</span>.interner.get_type(type_id);
-<a href=#886 id=886 data-nosnippet>886</a>        <span class="comment">// Use concrete types from turbofish if present, otherwise fresh type variables
-<a href=#887 id=887 data-nosnippet>887</a>        </span><span class="kw">let </span>generics = <span class="kw">if let </span><span class="prelude-val">Some</span>(turbofish) = turbofish {
-<a href=#888 id=888 data-nosnippet>888</a>            turbofish.generics.iter().map(|t| t.contents.clone()).collect()
-<a href=#889 id=889 data-nosnippet>889</a>        } <span class="kw">else </span>{
-<a href=#890 id=890 data-nosnippet>890</a>            datatype.borrow().generic_types()
-<a href=#891 id=891 data-nosnippet>891</a>        };
-<a href=#892 id=892 data-nosnippet>892</a>        <span class="kw">let </span>self_type = Type::DataType(datatype, generics);
-<a href=#893 id=893 data-nosnippet>893</a>
-<a href=#894 id=894 data-nosnippet>894</a>        <span class="comment">// Look up constants matching the identifier
-<a href=#895 id=895 data-nosnippet>895</a>        </span><span class="kw">let </span>constants =
-<a href=#896 id=896 data-nosnippet>896</a>            <span class="self">self</span>.interner.lookup_trait_impl_constants_for_type(<span class="kw-2">&amp;</span>self_type, ident.as_str());
-<a href=#897 id=897 data-nosnippet>897</a>
-<a href=#898 id=898 data-nosnippet>898</a>        <span class="kw">if </span>constants.is_empty() {
-<a href=#899 id=899 data-nosnippet>899</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#900 id=900 data-nosnippet>900</a>        }
-<a href=#901 id=901 data-nosnippet>901</a>
-<a href=#902 id=902 data-nosnippet>902</a>        <span class="comment">// Filter to traits that are in scope
-<a href=#903 id=903 data-nosnippet>903</a>        </span><span class="kw">let </span>starting_module = <span class="self">self</span>.get_module(importing_module);
-<a href=#904 id=904 data-nosnippet>904</a>        <span class="kw">let </span>in_scope: Vec&lt;<span class="kw">_</span>&gt; = constants
-<a href=#905 id=905 data-nosnippet>905</a>            .iter()
-<a href=#906 id=906 data-nosnippet>906</a>            .filter(|(<span class="kw">_</span>, trait_id, <span class="kw">_</span>)| starting_module.find_trait_in_scope(<span class="kw-2">*</span>trait_id).is_some())
-<a href=#907 id=907 data-nosnippet>907</a>            .collect();
-<a href=#908 id=908 data-nosnippet>908</a>
-<a href=#909 id=909 data-nosnippet>909</a>        <span class="kw">match </span>in_scope.len() {
-<a href=#910 id=910 data-nosnippet>910</a>            <span class="number">0 </span>=&gt; {
-<a href=#911 id=911 data-nosnippet>911</a>                <span class="comment">// Constants exist but none of their traits are in scope
-<a href=#912 id=912 data-nosnippet>912</a>                // Return None to fall through to the method error handling,
-<a href=#913 id=913 data-nosnippet>913</a>                // which will suggest importing the traits
-<a href=#914 id=914 data-nosnippet>914</a>                </span><span class="prelude-val">None
-<a href=#915 id=915 data-nosnippet>915</a>            </span>}
-<a href=#916 id=916 data-nosnippet>916</a>            <span class="number">1 </span>=&gt; {
-<a href=#917 id=917 data-nosnippet>917</a>                <span class="comment">// Exactly one matching constant with trait in scope
-<a href=#918 id=918 data-nosnippet>918</a>                </span><span class="kw">let </span>(def_id, trait_id, _impl_id) = in_scope[<span class="number">0</span>];
-<a href=#919 id=919 data-nosnippet>919</a>                <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(PathResolutionItem::TraitConstant(type_id, <span class="kw-2">*</span>trait_id, <span class="kw-2">*</span>def_id)))
-<a href=#920 id=920 data-nosnippet>920</a>            }
-<a href=#921 id=921 data-nosnippet>921</a>            <span class="kw">_ </span>=&gt; {
-<a href=#922 id=922 data-nosnippet>922</a>                <span class="comment">// Multiple traits in scope have the same constant - ambiguous
-<a href=#923 id=923 data-nosnippet>923</a>                </span><span class="kw">let </span>traits = vecmap(<span class="kw-2">&amp;</span>in_scope, |(<span class="kw">_</span>, trait_id, <span class="kw">_</span>)| {
-<a href=#924 id=924 data-nosnippet>924</a>                    <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(<span class="kw-2">*</span>trait_id);
-<a href=#925 id=925 data-nosnippet>925</a>                    <span class="self">self</span>.fully_qualified_trait_path(trait_)
-<a href=#926 id=926 data-nosnippet>926</a>                });
-<a href=#927 id=927 data-nosnippet>927</a>                <span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(PathResolutionError::MultipleTraitsInScope {
-<a href=#928 id=928 data-nosnippet>928</a>                    ident: ident.clone(),
-<a href=#929 id=929 data-nosnippet>929</a>                    traits,
-<a href=#930 id=930 data-nosnippet>930</a>                }))
-<a href=#931 id=931 data-nosnippet>931</a>            }
-<a href=#932 id=932 data-nosnippet>932</a>        }
-<a href=#933 id=933 data-nosnippet>933</a>    }
-<a href=#934 id=934 data-nosnippet>934</a>
-<a href=#935 id=935 data-nosnippet>935</a>    <span class="doccomment">/// Try to resolve a path with 1 or 2 segments as a [PathResolutionItem::PrimitiveType] or [PathResolutionItem::PrimitiveFunction].
-<a href=#936 id=936 data-nosnippet>936</a>    ///
-<a href=#937 id=937 data-nosnippet>937</a>    /// If the path consists of 2 segments, use the 2nd segment as the method name and look up a direct method implementation,
-<a href=#938 id=938 data-nosnippet>938</a>    /// or an unambiguous trait method among the traits which are in scope.
-<a href=#939 id=939 data-nosnippet>939</a>    </span><span class="kw">fn </span>resolve_primitive_type_or_function(
-<a href=#940 id=940 data-nosnippet>940</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#941 id=941 data-nosnippet>941</a>        path: TypedPath,
-<a href=#942 id=942 data-nosnippet>942</a>        importing_module_id: ModuleId,
-<a href=#943 id=943 data-nosnippet>943</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;PathResolutionResult&gt; {
-<a href=#944 id=944 data-nosnippet>944</a>        <span class="kw">if </span>path.segments.len() != <span class="number">1 </span>&amp;&amp; path.segments.len() != <span class="number">2 </span>{
-<a href=#945 id=945 data-nosnippet>945</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#946 id=946 data-nosnippet>946</a>        }
-<a href=#947 id=947 data-nosnippet>947</a>
-<a href=#948 id=948 data-nosnippet>948</a>        <span class="kw">let </span>object_name = path.segments[<span class="number">0</span>].ident.as_str();
-<a href=#949 id=949 data-nosnippet>949</a>        <span class="kw">let </span>turbofish = path.segments[<span class="number">0</span>].turbofish();
-<a href=#950 id=950 data-nosnippet>950</a>        <span class="kw">let </span>primitive_type = PrimitiveType::lookup_by_name(object_name)<span class="question-mark">?</span>;
-<a href=#951 id=951 data-nosnippet>951</a>        <span class="kw">let </span>typ = primitive_type.to_type();
-<a href=#952 id=952 data-nosnippet>952</a>        <span class="kw">let </span><span class="kw-2">mut </span>errors = Vec::new();
-<a href=#953 id=953 data-nosnippet>953</a>
-<a href=#954 id=954 data-nosnippet>954</a>        <span class="kw">if </span>path.segments.len() == <span class="number">1 </span>{
-<a href=#955 id=955 data-nosnippet>955</a>            <span class="kw">let </span>item = PathResolutionItem::PrimitiveType(primitive_type);
-<a href=#956 id=956 data-nosnippet>956</a>            <span class="kw">return </span><span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(PathResolution { item, errors }));
-<a href=#957 id=957 data-nosnippet>957</a>        }
-<a href=#958 id=958 data-nosnippet>958</a>
-<a href=#959 id=959 data-nosnippet>959</a>        <span class="kw">let </span>method_name_ident = <span class="kw-2">&amp;</span>path.segments[<span class="number">1</span>].ident;
-<a href=#960 id=960 data-nosnippet>960</a>        <span class="kw">let </span>method_name = method_name_ident.as_str();
-<a href=#961 id=961 data-nosnippet>961</a>
-<a href=#962 id=962 data-nosnippet>962</a>        <span class="comment">// Note: the logic here is similar to that of resolve_method, except that that one works by
-<a href=#963 id=963 data-nosnippet>963</a>        // searching through modules, and this one works by searching through primitive types.
-<a href=#964 id=964 data-nosnippet>964</a>        // It would be nice to refactor this to a common logic though it's a bit hard.
-<a href=#965 id=965 data-nosnippet>965</a>        // That said, the logic is "just" searching through direct methods, then through trait methods
-<a href=#966 id=966 data-nosnippet>966</a>        // checking which ones are in scope, and is unlikely to change.
+<a href=#741 id=741 data-nosnippet>741</a>            <span class="kw">match </span>mode {
+<a href=#742 id=742 data-nosnippet>742</a>                PathResolutionMode::MarkAsReferenced =&gt; {
+<a href=#743 id=743 data-nosnippet>743</a>                    <span class="self">self</span>.usage_tracker.mark_as_referenced(current_module_id, current_ident);
+<a href=#744 id=744 data-nosnippet>744</a>                }
+<a href=#745 id=745 data-nosnippet>745</a>                PathResolutionMode::MarkAsUsed =&gt; {
+<a href=#746 id=746 data-nosnippet>746</a>                    <span class="self">self</span>.usage_tracker.mark_as_used(current_module_id, current_ident);
+<a href=#747 id=747 data-nosnippet>747</a>                }
+<a href=#748 id=748 data-nosnippet>748</a>            }
+<a href=#749 id=749 data-nosnippet>749</a>
+<a href=#750 id=750 data-nosnippet>750</a>            current_ns = found_ns;
+<a href=#751 id=751 data-nosnippet>751</a>        }
+<a href=#752 id=752 data-nosnippet>752</a>
+<a href=#753 id=753 data-nosnippet>753</a>        <span class="kw">let </span>(target_ns, fallback_ns) = <span class="kw">match </span>target {
+<a href=#754 id=754 data-nosnippet>754</a>            PathResolutionTarget::Type =&gt; (current_ns.types, current_ns.values),
+<a href=#755 id=755 data-nosnippet>755</a>            PathResolutionTarget::Value =&gt; (current_ns.values, current_ns.types),
+<a href=#756 id=756 data-nosnippet>756</a>        };
+<a href=#757 id=757 data-nosnippet>757</a>
+<a href=#758 id=758 data-nosnippet>758</a>        <span class="kw">let </span>(module_def_id, visibility, <span class="kw">_</span>) =
+<a href=#759 id=759 data-nosnippet>759</a>            target_ns.or(fallback_ns).expect(<span class="string">"A namespace should never be empty"</span>);
+<a href=#760 id=760 data-nosnippet>760</a>
+<a href=#761 id=761 data-nosnippet>761</a>        <span class="kw">let </span>item = <span class="self">self</span>.per_ns_item_to_path_resolution_item(
+<a href=#762 id=762 data-nosnippet>762</a>            path,
+<a href=#763 id=763 data-nosnippet>763</a>            importing_module,
+<a href=#764 id=764 data-nosnippet>764</a>            intermediate_item,
+<a href=#765 id=765 data-nosnippet>765</a>            current_module_id,
+<a href=#766 id=766 data-nosnippet>766</a>            <span class="kw-2">&amp;mut </span>errors,
+<a href=#767 id=767 data-nosnippet>767</a>            module_def_id,
+<a href=#768 id=768 data-nosnippet>768</a>            visibility,
+<a href=#769 id=769 data-nosnippet>769</a>        );
+<a href=#770 id=770 data-nosnippet>770</a>
+<a href=#771 id=771 data-nosnippet>771</a>        <span class="prelude-val">Ok</span>(PathResolution { item, errors })
+<a href=#772 id=772 data-nosnippet>772</a>    }
+<a href=#773 id=773 data-nosnippet>773</a>
+<a href=#774 id=774 data-nosnippet>774</a>    <span class="doccomment">/// Transform a result from [PerNs] into a [PathResolutionItem],
+<a href=#775 id=775 data-nosnippet>775</a>    /// pushing any visibility errors.
+<a href=#776 id=776 data-nosnippet>776</a>    </span><span class="attr">#[allow(clippy::too_many_arguments)]
+<a href=#777 id=777 data-nosnippet>777</a>    </span><span class="kw">fn </span>per_ns_item_to_path_resolution_item(
+<a href=#778 id=778 data-nosnippet>778</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#779 id=779 data-nosnippet>779</a>        path: TypedPath,
+<a href=#780 id=780 data-nosnippet>780</a>        importing_module: ModuleId,
+<a href=#781 id=781 data-nosnippet>781</a>        intermediate_item: IntermediatePathResolutionItem,
+<a href=#782 id=782 data-nosnippet>782</a>        current_module_id: ModuleId,
+<a href=#783 id=783 data-nosnippet>783</a>        errors: <span class="kw-2">&amp;mut </span>Vec&lt;PathResolutionError&gt;,
+<a href=#784 id=784 data-nosnippet>784</a>        module_def_id: ModuleDefId,
+<a href=#785 id=785 data-nosnippet>785</a>        visibility: <span class="kw">crate</span>::ast::ItemVisibility,
+<a href=#786 id=786 data-nosnippet>786</a>    ) -&gt; PathResolutionItem {
+<a href=#787 id=787 data-nosnippet>787</a>        <span class="kw">let </span>name = path.last_ident();
+<a href=#788 id=788 data-nosnippet>788</a>        <span class="kw">let </span>is_self_type = name.is_self_type_name();
+<a href=#789 id=789 data-nosnippet>789</a>        <span class="kw">let </span>location = name.location();
+<a href=#790 id=790 data-nosnippet>790</a>        <span class="self">self</span>.interner.add_module_def_id_reference(module_def_id, location, is_self_type);
+<a href=#791 id=791 data-nosnippet>791</a>
+<a href=#792 id=792 data-nosnippet>792</a>        <span class="kw">let </span>item = merge_intermediate_path_resolution_item_with_module_def_id(
+<a href=#793 id=793 data-nosnippet>793</a>            intermediate_item,
+<a href=#794 id=794 data-nosnippet>794</a>            module_def_id,
+<a href=#795 id=795 data-nosnippet>795</a>        );
+<a href=#796 id=796 data-nosnippet>796</a>
+<a href=#797 id=797 data-nosnippet>797</a>        <span class="comment">// For inherent impl methods, check visibility against the impl's defining module
+<a href=#798 id=798 data-nosnippet>798</a>        // (source_module), not just the type's module where the method was declared for lookup.
+<a href=#799 id=799 data-nosnippet>799</a>        // This prevents private methods defined in `impl super::S` inside `mod private` from
+<a href=#800 id=800 data-nosnippet>800</a>        // being accessible outside `mod private` via `S::method()`.
+<a href=#801 id=801 data-nosnippet>801</a>        </span><span class="kw">if let </span>ModuleDefId::FunctionId(func_id) = module_def_id
+<a href=#802 id=802 data-nosnippet>802</a>            &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(func_meta) = <span class="self">self</span>.interner.try_function_meta(<span class="kw-2">&amp;</span>func_id)
+<a href=#803 id=803 data-nosnippet>803</a>            &amp;&amp; func_meta.type_id.is_some()
+<a href=#804 id=804 data-nosnippet>804</a>            &amp;&amp; func_meta.trait_impl.is_none()
+<a href=#805 id=805 data-nosnippet>805</a>        {
+<a href=#806 id=806 data-nosnippet>806</a>            <span class="kw">let </span>source_module =
+<a href=#807 id=807 data-nosnippet>807</a>                ModuleId { krate: func_meta.source_crate, local_id: func_meta.source_module };
+<a href=#808 id=808 data-nosnippet>808</a>            <span class="kw">if </span>!item_in_module_is_visible(
+<a href=#809 id=809 data-nosnippet>809</a>                <span class="self">self</span>.def_maps,
+<a href=#810 id=810 data-nosnippet>810</a>                importing_module,
+<a href=#811 id=811 data-nosnippet>811</a>                source_module,
+<a href=#812 id=812 data-nosnippet>812</a>                visibility,
+<a href=#813 id=813 data-nosnippet>813</a>            ) {
+<a href=#814 id=814 data-nosnippet>814</a>                errors.push(PathResolutionError::Private(name));
+<a href=#815 id=815 data-nosnippet>815</a>            }
+<a href=#816 id=816 data-nosnippet>816</a>        } <span class="kw">else if </span>!item_in_module_is_visible(
+<a href=#817 id=817 data-nosnippet>817</a>            <span class="self">self</span>.def_maps,
+<a href=#818 id=818 data-nosnippet>818</a>            importing_module,
+<a href=#819 id=819 data-nosnippet>819</a>            current_module_id,
+<a href=#820 id=820 data-nosnippet>820</a>            visibility,
+<a href=#821 id=821 data-nosnippet>821</a>        ) {
+<a href=#822 id=822 data-nosnippet>822</a>            errors.push(PathResolutionError::Private(name));
+<a href=#823 id=823 data-nosnippet>823</a>        }
+<a href=#824 id=824 data-nosnippet>824</a>
+<a href=#825 id=825 data-nosnippet>825</a>        item
+<a href=#826 id=826 data-nosnippet>826</a>    }
+<a href=#827 id=827 data-nosnippet>827</a>
+<a href=#828 id=828 data-nosnippet>828</a>    <span class="doccomment">/// Assuming that the current path segment is a type or type alias defined in the `current_module`,
+<a href=#829 id=829 data-nosnippet>829</a>    /// resolve the `ident` as a method on that type.
+<a href=#830 id=830 data-nosnippet>830</a>    </span><span class="kw">fn </span>resolve_method(
+<a href=#831 id=831 data-nosnippet>831</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#832 id=832 data-nosnippet>832</a>        importing_module_id: ModuleId,
+<a href=#833 id=833 data-nosnippet>833</a>        current_module: <span class="kw-2">&amp;</span>ModuleData,
+<a href=#834 id=834 data-nosnippet>834</a>        ident: <span class="kw-2">&amp;</span>Ident,
+<a href=#835 id=835 data-nosnippet>835</a>    ) -&gt; MethodLookupResult {
+<a href=#836 id=836 data-nosnippet>836</a>        <span class="comment">// If the current module is a type, next we need to find a function for it.
+<a href=#837 id=837 data-nosnippet>837</a>        // The function could be in the type itself, or it could be defined in traits.
+<a href=#838 id=838 data-nosnippet>838</a>        </span><span class="kw">let </span>item_scope = current_module.scope();
+<a href=#839 id=839 data-nosnippet>839</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(values) = item_scope.values().get(ident) <span class="kw">else </span>{
+<a href=#840 id=840 data-nosnippet>840</a>            <span class="kw">return </span>MethodLookupResult::NotFound(<span class="macro">vec!</span>[]);
+<a href=#841 id=841 data-nosnippet>841</a>        };
+<a href=#842 id=842 data-nosnippet>842</a>
+<a href=#843 id=843 data-nosnippet>843</a>        <span class="comment">// First search if the function is defined in the type itself
+<a href=#844 id=844 data-nosnippet>844</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(item) = values.get(<span class="kw-2">&amp;</span><span class="prelude-val">None</span>) {
+<a href=#845 id=845 data-nosnippet>845</a>            <span class="kw">return </span>MethodLookupResult::FoundMethod(PerNs { types: <span class="prelude-val">None</span>, values: <span class="prelude-val">Some</span>(<span class="kw-2">*</span>item) });
+<a href=#846 id=846 data-nosnippet>846</a>        }
+<a href=#847 id=847 data-nosnippet>847</a>
+<a href=#848 id=848 data-nosnippet>848</a>        <span class="comment">// Otherwise, the function could be defined in zero, one or more traits.
+<a href=#849 id=849 data-nosnippet>849</a>        </span><span class="kw">let </span>starting_module = <span class="self">self</span>.get_module(importing_module_id);
+<a href=#850 id=850 data-nosnippet>850</a>
+<a href=#851 id=851 data-nosnippet>851</a>        <span class="comment">// Gather a list of items for which their trait is in scope.
+<a href=#852 id=852 data-nosnippet>852</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>results = Vec::new();
+<a href=#853 id=853 data-nosnippet>853</a>
+<a href=#854 id=854 data-nosnippet>854</a>        <span class="kw">for </span>(trait_id, item) <span class="kw">in </span>values {
+<a href=#855 id=855 data-nosnippet>855</a>            <span class="kw">let </span>trait_id = trait_id.expect(<span class="string">"The None option was already considered before"</span>);
+<a href=#856 id=856 data-nosnippet>856</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(name) = starting_module.find_trait_in_scope(trait_id) {
+<a href=#857 id=857 data-nosnippet>857</a>                results.push((trait_id, name, item));
+<a href=#858 id=858 data-nosnippet>858</a>            }
+<a href=#859 id=859 data-nosnippet>859</a>        }
+<a href=#860 id=860 data-nosnippet>860</a>
+<a href=#861 id=861 data-nosnippet>861</a>        <span class="kw">if </span>results.is_empty() {
+<a href=#862 id=862 data-nosnippet>862</a>            <span class="kw">if </span>values.len() == <span class="number">1 </span>{
+<a href=#863 id=863 data-nosnippet>863</a>                <span class="comment">// This is the backwards-compatible case where there's a single trait method but it's not in scope
+<a href=#864 id=864 data-nosnippet>864</a>                </span><span class="kw">let </span>(trait_id, item) = values.iter().next().expect(<span class="string">"Expected an item"</span>);
+<a href=#865 id=865 data-nosnippet>865</a>                <span class="kw">let </span>trait_id = trait_id.expect(<span class="string">"The None option was already considered before"</span>);
+<a href=#866 id=866 data-nosnippet>866</a>                <span class="kw">let </span>per_ns = PerNs { types: <span class="prelude-val">None</span>, values: <span class="prelude-val">Some</span>(<span class="kw-2">*</span>item) };
+<a href=#867 id=867 data-nosnippet>867</a>                <span class="kw">return </span>MethodLookupResult::FoundOneTraitMethodButNotInScope(per_ns, trait_id);
+<a href=#868 id=868 data-nosnippet>868</a>            } <span class="kw">else </span>{
+<a href=#869 id=869 data-nosnippet>869</a>                <span class="kw">let </span>trait_ids = vecmap(values, |(trait_id, <span class="kw">_</span>)| {
+<a href=#870 id=870 data-nosnippet>870</a>                    trait_id.expect(<span class="string">"The none option was already considered before"</span>)
+<a href=#871 id=871 data-nosnippet>871</a>                });
+<a href=#872 id=872 data-nosnippet>872</a>                <span class="kw">return </span>MethodLookupResult::NotFound(trait_ids);
+<a href=#873 id=873 data-nosnippet>873</a>            }
+<a href=#874 id=874 data-nosnippet>874</a>        }
+<a href=#875 id=875 data-nosnippet>875</a>
+<a href=#876 id=876 data-nosnippet>876</a>        <span class="kw">if </span>results.len() &gt; <span class="number">1 </span>{
+<a href=#877 id=877 data-nosnippet>877</a>            <span class="kw">let </span>trait_ids = vecmap(results, |(trait_id, name, <span class="kw">_</span>)| (trait_id, name.clone()));
+<a href=#878 id=878 data-nosnippet>878</a>            <span class="kw">return </span>MethodLookupResult::FoundMultipleTraitMethods(trait_ids);
+<a href=#879 id=879 data-nosnippet>879</a>        }
+<a href=#880 id=880 data-nosnippet>880</a>
+<a href=#881 id=881 data-nosnippet>881</a>        <span class="kw">let </span>(<span class="kw">_</span>, name, item) = results.remove(<span class="number">0</span>);
+<a href=#882 id=882 data-nosnippet>882</a>        <span class="kw">let </span>per_ns = PerNs { types: <span class="prelude-val">None</span>, values: <span class="prelude-val">Some</span>(<span class="kw-2">*</span>item) };
+<a href=#883 id=883 data-nosnippet>883</a>        MethodLookupResult::FoundTraitMethod(per_ns, name.clone())
+<a href=#884 id=884 data-nosnippet>884</a>    }
+<a href=#885 id=885 data-nosnippet>885</a>
+<a href=#886 id=886 data-nosnippet>886</a>    <span class="doccomment">/// Try to resolve an identifier as a trait associated constant (e.g., `Foo::N`).
+<a href=#887 id=887 data-nosnippet>887</a>    ///
+<a href=#888 id=888 data-nosnippet>888</a>    /// Returns `Some(Ok(PathResolutionItem))` if the constant was found,
+<a href=#889 id=889 data-nosnippet>889</a>    /// `Some(Err(PathResolutionError))` if there's an ambiguity error,
+<a href=#890 id=890 data-nosnippet>890</a>    /// or `None` if no matching constant was found.
+<a href=#891 id=891 data-nosnippet>891</a>    </span><span class="kw">fn </span>try_resolve_trait_constant(
+<a href=#892 id=892 data-nosnippet>892</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#893 id=893 data-nosnippet>893</a>        intermediate_item: <span class="kw-2">&amp;</span>IntermediatePathResolutionItem,
+<a href=#894 id=894 data-nosnippet>894</a>        ident: <span class="kw-2">&amp;</span>Ident,
+<a href=#895 id=895 data-nosnippet>895</a>        importing_module: ModuleId,
+<a href=#896 id=896 data-nosnippet>896</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="prelude-ty">Result</span>&lt;PathResolutionItem, PathResolutionError&gt;&gt; {
+<a href=#897 id=897 data-nosnippet>897</a>        <span class="comment">// Extract type info
+<a href=#898 id=898 data-nosnippet>898</a>        </span><span class="kw">let </span>(type_id, turbofish) = <span class="kw">match </span>intermediate_item {
+<a href=#899 id=899 data-nosnippet>899</a>            IntermediatePathResolutionItem::Type(id, turbofish) =&gt; (<span class="kw-2">*</span>id, turbofish),
+<a href=#900 id=900 data-nosnippet>900</a>            <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">None</span>,
+<a href=#901 id=901 data-nosnippet>901</a>        };
+<a href=#902 id=902 data-nosnippet>902</a>        <span class="kw">let </span>datatype = <span class="self">self</span>.interner.get_type(type_id);
+<a href=#903 id=903 data-nosnippet>903</a>        <span class="comment">// Use concrete types from turbofish if present, otherwise fresh type variables
+<a href=#904 id=904 data-nosnippet>904</a>        </span><span class="kw">let </span>generics = <span class="kw">if let </span><span class="prelude-val">Some</span>(turbofish) = turbofish {
+<a href=#905 id=905 data-nosnippet>905</a>            turbofish.generics.iter().map(|t| t.contents.clone()).collect()
+<a href=#906 id=906 data-nosnippet>906</a>        } <span class="kw">else </span>{
+<a href=#907 id=907 data-nosnippet>907</a>            datatype.borrow().generic_types()
+<a href=#908 id=908 data-nosnippet>908</a>        };
+<a href=#909 id=909 data-nosnippet>909</a>        <span class="kw">let </span>self_type = Type::DataType(datatype, generics);
+<a href=#910 id=910 data-nosnippet>910</a>
+<a href=#911 id=911 data-nosnippet>911</a>        <span class="comment">// Look up constants matching the identifier
+<a href=#912 id=912 data-nosnippet>912</a>        </span><span class="kw">let </span>constants =
+<a href=#913 id=913 data-nosnippet>913</a>            <span class="self">self</span>.interner.lookup_trait_impl_constants_for_type(<span class="kw-2">&amp;</span>self_type, ident.as_str());
+<a href=#914 id=914 data-nosnippet>914</a>
+<a href=#915 id=915 data-nosnippet>915</a>        <span class="kw">if </span>constants.is_empty() {
+<a href=#916 id=916 data-nosnippet>916</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#917 id=917 data-nosnippet>917</a>        }
+<a href=#918 id=918 data-nosnippet>918</a>
+<a href=#919 id=919 data-nosnippet>919</a>        <span class="comment">// Filter to traits that are in scope
+<a href=#920 id=920 data-nosnippet>920</a>        </span><span class="kw">let </span>starting_module = <span class="self">self</span>.get_module(importing_module);
+<a href=#921 id=921 data-nosnippet>921</a>        <span class="kw">let </span>in_scope: Vec&lt;<span class="kw">_</span>&gt; = constants
+<a href=#922 id=922 data-nosnippet>922</a>            .iter()
+<a href=#923 id=923 data-nosnippet>923</a>            .filter(|(<span class="kw">_</span>, trait_id, <span class="kw">_</span>)| starting_module.find_trait_in_scope(<span class="kw-2">*</span>trait_id).is_some())
+<a href=#924 id=924 data-nosnippet>924</a>            .collect();
+<a href=#925 id=925 data-nosnippet>925</a>
+<a href=#926 id=926 data-nosnippet>926</a>        <span class="kw">match </span>in_scope.len() {
+<a href=#927 id=927 data-nosnippet>927</a>            <span class="number">0 </span>=&gt; {
+<a href=#928 id=928 data-nosnippet>928</a>                <span class="comment">// Constants exist but none of their traits are in scope
+<a href=#929 id=929 data-nosnippet>929</a>                // Return None to fall through to the method error handling,
+<a href=#930 id=930 data-nosnippet>930</a>                // which will suggest importing the traits
+<a href=#931 id=931 data-nosnippet>931</a>                </span><span class="prelude-val">None
+<a href=#932 id=932 data-nosnippet>932</a>            </span>}
+<a href=#933 id=933 data-nosnippet>933</a>            <span class="number">1 </span>=&gt; {
+<a href=#934 id=934 data-nosnippet>934</a>                <span class="comment">// Exactly one matching constant with trait in scope
+<a href=#935 id=935 data-nosnippet>935</a>                </span><span class="kw">let </span>(def_id, trait_id, _impl_id) = in_scope[<span class="number">0</span>];
+<a href=#936 id=936 data-nosnippet>936</a>                <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(PathResolutionItem::TraitConstant(type_id, <span class="kw-2">*</span>trait_id, <span class="kw-2">*</span>def_id)))
+<a href=#937 id=937 data-nosnippet>937</a>            }
+<a href=#938 id=938 data-nosnippet>938</a>            <span class="kw">_ </span>=&gt; {
+<a href=#939 id=939 data-nosnippet>939</a>                <span class="comment">// Multiple traits in scope have the same constant - ambiguous
+<a href=#940 id=940 data-nosnippet>940</a>                </span><span class="kw">let </span>traits = vecmap(<span class="kw-2">&amp;</span>in_scope, |(<span class="kw">_</span>, trait_id, <span class="kw">_</span>)| {
+<a href=#941 id=941 data-nosnippet>941</a>                    <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(<span class="kw-2">*</span>trait_id);
+<a href=#942 id=942 data-nosnippet>942</a>                    <span class="self">self</span>.fully_qualified_trait_path(trait_)
+<a href=#943 id=943 data-nosnippet>943</a>                });
+<a href=#944 id=944 data-nosnippet>944</a>                <span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(PathResolutionError::MultipleTraitsInScope {
+<a href=#945 id=945 data-nosnippet>945</a>                    ident: ident.clone(),
+<a href=#946 id=946 data-nosnippet>946</a>                    traits,
+<a href=#947 id=947 data-nosnippet>947</a>                }))
+<a href=#948 id=948 data-nosnippet>948</a>            }
+<a href=#949 id=949 data-nosnippet>949</a>        }
+<a href=#950 id=950 data-nosnippet>950</a>    }
+<a href=#951 id=951 data-nosnippet>951</a>
+<a href=#952 id=952 data-nosnippet>952</a>    <span class="doccomment">/// Resolve a method on a type alias that points to a primitive type.
+<a href=#953 id=953 data-nosnippet>953</a>    ///
+<a href=#954 id=954 data-nosnippet>954</a>    /// This handles paths like `MyAlias::method()` where `MyAlias` aliases
+<a href=#955 id=955 data-nosnippet>955</a>    /// a primitive type. Because they do not have module, we look up the method directly
+<a href=#956 id=956 data-nosnippet>956</a>    /// like what is done in [Self::resolve_primitive_type_or_function].
+<a href=#957 id=957 data-nosnippet>957</a>    </span><span class="kw">fn </span>resolve_primitive_type_alias_method(
+<a href=#958 id=958 data-nosnippet>958</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#959 id=959 data-nosnippet>959</a>        typ: Type,
+<a href=#960 id=960 data-nosnippet>960</a>        alias_id: TypeAliasId,
+<a href=#961 id=961 data-nosnippet>961</a>        turbofish: <span class="prelude-ty">Option</span>&lt;Turbofish&gt;,
+<a href=#962 id=962 data-nosnippet>962</a>        method_name_ident: <span class="kw-2">&amp;</span>Ident,
+<a href=#963 id=963 data-nosnippet>963</a>        importing_module_id: ModuleId,
+<a href=#964 id=964 data-nosnippet>964</a>        errors: <span class="kw-2">&amp;mut </span>Vec&lt;PathResolutionError&gt;,
+<a href=#965 id=965 data-nosnippet>965</a>    ) -&gt; PathResolutionResult {
+<a href=#966 id=966 data-nosnippet>966</a>        <span class="kw">let </span>method_name = method_name_ident.as_str();
 <a href=#967 id=967 data-nosnippet>967</a>
-<a href=#968 id=968 data-nosnippet>968</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(func_id) = <span class="self">self</span>.interner.lookup_direct_method(<span class="kw-2">&amp;</span>typ, method_name, <span class="bool-val">false</span>) {
-<a href=#969 id=969 data-nosnippet>969</a>            <span class="kw">let </span>item = PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, func_id);
-<a href=#970 id=970 data-nosnippet>970</a>            <span class="kw">return </span><span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(PathResolution { item, errors }));
-<a href=#971 id=971 data-nosnippet>971</a>        }
-<a href=#972 id=972 data-nosnippet>972</a>
-<a href=#973 id=973 data-nosnippet>973</a>        <span class="kw">let </span>starting_module = <span class="self">self</span>.get_module(importing_module_id);
-<a href=#974 id=974 data-nosnippet>974</a>
-<a href=#975 id=975 data-nosnippet>975</a>        <span class="kw">let </span>trait_methods = <span class="self">self</span>.interner.lookup_trait_methods(<span class="kw-2">&amp;</span>typ, method_name, <span class="bool-val">false</span>);
-<a href=#976 id=976 data-nosnippet>976</a>
-<a href=#977 id=977 data-nosnippet>977</a>        <span class="kw">let </span><span class="kw-2">mut </span>results = Vec::new();
-<a href=#978 id=978 data-nosnippet>978</a>        <span class="kw">for </span>(func_id, trait_id) <span class="kw">in </span><span class="kw-2">&amp;</span>trait_methods {
-<a href=#979 id=979 data-nosnippet>979</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(name) = starting_module.find_trait_in_scope(<span class="kw-2">*</span>trait_id) {
-<a href=#980 id=980 data-nosnippet>980</a>                results.push((<span class="kw-2">*</span>trait_id, <span class="kw-2">*</span>func_id, name));
-<a href=#981 id=981 data-nosnippet>981</a>            }
-<a href=#982 id=982 data-nosnippet>982</a>        }
-<a href=#983 id=983 data-nosnippet>983</a>
-<a href=#984 id=984 data-nosnippet>984</a>        <span class="kw">if </span>results.is_empty() {
-<a href=#985 id=985 data-nosnippet>985</a>            <span class="kw">if </span>trait_methods.len() == <span class="number">1 </span>{
-<a href=#986 id=986 data-nosnippet>986</a>                <span class="comment">// This is the backwards-compatible case where there's a single trait method but it's not in scope
-<a href=#987 id=987 data-nosnippet>987</a>                </span><span class="kw">let </span>(func_id, trait_id) = trait_methods.first().expect(<span class="string">"Expected an item"</span>);
+<a href=#968 id=968 data-nosnippet>968</a>        <span class="comment">// First check for a direct (inherent) method
+<a href=#969 id=969 data-nosnippet>969</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(func_id) = <span class="self">self</span>.interner.lookup_direct_method(<span class="kw-2">&amp;</span>typ, method_name, <span class="bool-val">false</span>) {
+<a href=#970 id=970 data-nosnippet>970</a>            <span class="kw">let </span>item = PathResolutionItem::TypeAliasFunction(alias_id, turbofish, func_id);
+<a href=#971 id=971 data-nosnippet>971</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(PathResolution { item, errors: std::mem::take(errors) });
+<a href=#972 id=972 data-nosnippet>972</a>        }
+<a href=#973 id=973 data-nosnippet>973</a>
+<a href=#974 id=974 data-nosnippet>974</a>        <span class="comment">// Otherwise look through trait methods
+<a href=#975 id=975 data-nosnippet>975</a>        </span><span class="kw">let </span>starting_module = <span class="self">self</span>.get_module(importing_module_id);
+<a href=#976 id=976 data-nosnippet>976</a>        <span class="kw">let </span>trait_methods = <span class="self">self</span>.interner.lookup_trait_methods(<span class="kw-2">&amp;</span>typ, method_name, <span class="bool-val">false</span>);
+<a href=#977 id=977 data-nosnippet>977</a>
+<a href=#978 id=978 data-nosnippet>978</a>        <span class="kw">let </span><span class="kw-2">mut </span>results = Vec::new();
+<a href=#979 id=979 data-nosnippet>979</a>        <span class="kw">for </span>(func_id, trait_id) <span class="kw">in </span><span class="kw-2">&amp;</span>trait_methods {
+<a href=#980 id=980 data-nosnippet>980</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(name) = starting_module.find_trait_in_scope(<span class="kw-2">*</span>trait_id) {
+<a href=#981 id=981 data-nosnippet>981</a>                results.push((<span class="kw-2">*</span>trait_id, <span class="kw-2">*</span>func_id, name));
+<a href=#982 id=982 data-nosnippet>982</a>            }
+<a href=#983 id=983 data-nosnippet>983</a>        }
+<a href=#984 id=984 data-nosnippet>984</a>
+<a href=#985 id=985 data-nosnippet>985</a>        <span class="kw">if </span>results.is_empty() {
+<a href=#986 id=986 data-nosnippet>986</a>            <span class="kw">if </span>trait_methods.len() == <span class="number">1 </span>{
+<a href=#987 id=987 data-nosnippet>987</a>                <span class="kw">let </span>(func_id, trait_id) = trait_methods.first().expect(<span class="string">"Expected an item"</span>);
 <a href=#988 id=988 data-nosnippet>988</a>                <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(<span class="kw-2">*</span>trait_id);
 <a href=#989 id=989 data-nosnippet>989</a>                <span class="kw">let </span>trait_name = <span class="self">self</span>.fully_qualified_trait_path(trait_);
 <a href=#990 id=990 data-nosnippet>990</a>                <span class="kw">let </span>ident = method_name_ident.clone();
 <a href=#991 id=991 data-nosnippet>991</a>                errors.push(PathResolutionError::TraitMethodNotInScope { ident, trait_name });
-<a href=#992 id=992 data-nosnippet>992</a>                <span class="kw">let </span>item =
-<a href=#993 id=993 data-nosnippet>993</a>                    PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, <span class="kw-2">*</span>func_id);
-<a href=#994 id=994 data-nosnippet>994</a>                <span class="kw">return </span><span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(PathResolution { item, errors }));
-<a href=#995 id=995 data-nosnippet>995</a>            } <span class="kw">else if </span>trait_methods.is_empty() {
-<a href=#996 id=996 data-nosnippet>996</a>                <span class="kw">return </span><span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(PathResolutionError::Unresolved(method_name_ident.clone())));
-<a href=#997 id=997 data-nosnippet>997</a>            } <span class="kw">else </span>{
-<a href=#998 id=998 data-nosnippet>998</a>                <span class="kw">let </span>traits = vecmap(trait_methods, |(<span class="kw">_</span>, trait_id)| {
-<a href=#999 id=999 data-nosnippet>999</a>                    <span class="self">self</span>.fully_qualified_trait_path(<span class="self">self</span>.interner.get_trait(trait_id))
-<a href=#1000 id=1000 data-nosnippet>1000</a>                });
-<a href=#1001 id=1001 data-nosnippet>1001</a>                <span class="kw">let </span>ident = method_name_ident.clone();
-<a href=#1002 id=1002 data-nosnippet>1002</a>                <span class="kw">let </span>error =
-<a href=#1003 id=1003 data-nosnippet>1003</a>                    PathResolutionError::UnresolvedWithPossibleTraitsToImport { ident, traits };
-<a href=#1004 id=1004 data-nosnippet>1004</a>                <span class="kw">return </span><span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(error));
+<a href=#992 id=992 data-nosnippet>992</a>                <span class="kw">let </span>item = PathResolutionItem::TypeAliasFunction(alias_id, turbofish, <span class="kw-2">*</span>func_id);
+<a href=#993 id=993 data-nosnippet>993</a>                <span class="kw">return </span><span class="prelude-val">Ok</span>(PathResolution { item, errors: std::mem::take(errors) });
+<a href=#994 id=994 data-nosnippet>994</a>            } <span class="kw">else if </span>trait_methods.is_empty() {
+<a href=#995 id=995 data-nosnippet>995</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(PathResolutionError::Unresolved(method_name_ident.clone()));
+<a href=#996 id=996 data-nosnippet>996</a>            } <span class="kw">else </span>{
+<a href=#997 id=997 data-nosnippet>997</a>                <span class="kw">let </span>traits = vecmap(trait_methods, |(<span class="kw">_</span>, trait_id)| {
+<a href=#998 id=998 data-nosnippet>998</a>                    <span class="self">self</span>.fully_qualified_trait_path(<span class="self">self</span>.interner.get_trait(trait_id))
+<a href=#999 id=999 data-nosnippet>999</a>                });
+<a href=#1000 id=1000 data-nosnippet>1000</a>                <span class="kw">let </span>ident = method_name_ident.clone();
+<a href=#1001 id=1001 data-nosnippet>1001</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(PathResolutionError::UnresolvedWithPossibleTraitsToImport {
+<a href=#1002 id=1002 data-nosnippet>1002</a>                    ident,
+<a href=#1003 id=1003 data-nosnippet>1003</a>                    traits,
+<a href=#1004 id=1004 data-nosnippet>1004</a>                });
 <a href=#1005 id=1005 data-nosnippet>1005</a>            }
 <a href=#1006 id=1006 data-nosnippet>1006</a>        }
 <a href=#1007 id=1007 data-nosnippet>1007</a>
@@ -1013,60 +1013,163 @@
 <a href=#1013 id=1013 data-nosnippet>1013</a>                <span class="self">self</span>.fully_qualified_trait_path(trait_)
 <a href=#1014 id=1014 data-nosnippet>1014</a>            });
 <a href=#1015 id=1015 data-nosnippet>1015</a>            <span class="kw">let </span>ident = method_name_ident.clone();
-<a href=#1016 id=1016 data-nosnippet>1016</a>            <span class="kw">let </span>error = PathResolutionError::MultipleTraitsInScope { ident, traits };
-<a href=#1017 id=1017 data-nosnippet>1017</a>            <span class="kw">return </span><span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(error));
-<a href=#1018 id=1018 data-nosnippet>1018</a>        }
-<a href=#1019 id=1019 data-nosnippet>1019</a>
-<a href=#1020 id=1020 data-nosnippet>1020</a>        <span class="kw">let </span>(<span class="kw">_</span>, func_id, <span class="kw">_</span>) = results.remove(<span class="number">0</span>);
-<a href=#1021 id=1021 data-nosnippet>1021</a>        <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(PathResolution {
-<a href=#1022 id=1022 data-nosnippet>1022</a>            item: PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, func_id),
-<a href=#1023 id=1023 data-nosnippet>1023</a>            errors,
-<a href=#1024 id=1024 data-nosnippet>1024</a>        }))
-<a href=#1025 id=1025 data-nosnippet>1025</a>    }
-<a href=#1026 id=1026 data-nosnippet>1026</a>}
-<a href=#1027 id=1027 data-nosnippet>1027</a>
-<a href=#1028 id=1028 data-nosnippet>1028</a><span class="doccomment">/// Transform a [ModuleDefId] into a [PathResolutionItem].
-<a href=#1029 id=1029 data-nosnippet>1029</a>///
-<a href=#1030 id=1030 data-nosnippet>1030</a>/// If it's a [ModuleDefId::FunctionId], merge it with the [IntermediatePathResolutionItem]
-<a href=#1031 id=1031 data-nosnippet>1031</a>/// representing the item it was found in, such as a module, type, trait, alias, or Self.
-<a href=#1032 id=1032 data-nosnippet>1032</a></span><span class="kw">fn </span>merge_intermediate_path_resolution_item_with_module_def_id(
-<a href=#1033 id=1033 data-nosnippet>1033</a>    intermediate_item: IntermediatePathResolutionItem,
-<a href=#1034 id=1034 data-nosnippet>1034</a>    module_def_id: ModuleDefId,
-<a href=#1035 id=1035 data-nosnippet>1035</a>) -&gt; PathResolutionItem {
-<a href=#1036 id=1036 data-nosnippet>1036</a>    <span class="kw">match </span>module_def_id {
-<a href=#1037 id=1037 data-nosnippet>1037</a>        ModuleDefId::ModuleId(module_id) =&gt; PathResolutionItem::Module(module_id),
-<a href=#1038 id=1038 data-nosnippet>1038</a>        ModuleDefId::TypeId(type_id) =&gt; PathResolutionItem::Type(type_id),
-<a href=#1039 id=1039 data-nosnippet>1039</a>        ModuleDefId::TypeAliasId(type_alias_id) =&gt; PathResolutionItem::TypeAlias(type_alias_id),
-<a href=#1040 id=1040 data-nosnippet>1040</a>        ModuleDefId::TraitId(trait_id) =&gt; PathResolutionItem::Trait(trait_id),
-<a href=#1041 id=1041 data-nosnippet>1041</a>        ModuleDefId::TraitAssociatedTypeId(id) =&gt; PathResolutionItem::TraitAssociatedType(id),
-<a href=#1042 id=1042 data-nosnippet>1042</a>        ModuleDefId::GlobalId(global_id) =&gt; PathResolutionItem::Global(global_id),
-<a href=#1043 id=1043 data-nosnippet>1043</a>        ModuleDefId::FunctionId(func_id) =&gt; <span class="kw">match </span>intermediate_item {
-<a href=#1044 id=1044 data-nosnippet>1044</a>            IntermediatePathResolutionItem::SelfType =&gt; PathResolutionItem::SelfMethod(func_id),
-<a href=#1045 id=1045 data-nosnippet>1045</a>            IntermediatePathResolutionItem::Module =&gt; PathResolutionItem::ModuleFunction(func_id),
-<a href=#1046 id=1046 data-nosnippet>1046</a>            IntermediatePathResolutionItem::Type(type_id, generics) =&gt; {
-<a href=#1047 id=1047 data-nosnippet>1047</a>                PathResolutionItem::Method(type_id, generics, func_id)
-<a href=#1048 id=1048 data-nosnippet>1048</a>            }
-<a href=#1049 id=1049 data-nosnippet>1049</a>            IntermediatePathResolutionItem::TypeAlias(alias_id, generics) =&gt; {
-<a href=#1050 id=1050 data-nosnippet>1050</a>                PathResolutionItem::TypeAliasFunction(alias_id, generics, func_id)
-<a href=#1051 id=1051 data-nosnippet>1051</a>            }
-<a href=#1052 id=1052 data-nosnippet>1052</a>            IntermediatePathResolutionItem::Trait(trait_id, generics) =&gt; {
-<a href=#1053 id=1053 data-nosnippet>1053</a>                PathResolutionItem::TraitFunction(trait_id, generics, func_id)
-<a href=#1054 id=1054 data-nosnippet>1054</a>            }
-<a href=#1055 id=1055 data-nosnippet>1055</a>        },
-<a href=#1056 id=1056 data-nosnippet>1056</a>    }
-<a href=#1057 id=1057 data-nosnippet>1057</a>}
-<a href=#1058 id=1058 data-nosnippet>1058</a>
-<a href=#1059 id=1059 data-nosnippet>1059</a><span class="kw">fn </span>get_type_alias_module_def_id(type_alias: <span class="kw-2">&amp;</span>Shared&lt;TypeAlias&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;ModuleId&gt; {
-<a href=#1060 id=1060 data-nosnippet>1060</a>    <span class="kw">let </span>type_alias = type_alias.borrow();
+<a href=#1016 id=1016 data-nosnippet>1016</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(PathResolutionError::MultipleTraitsInScope { ident, traits });
+<a href=#1017 id=1017 data-nosnippet>1017</a>        }
+<a href=#1018 id=1018 data-nosnippet>1018</a>
+<a href=#1019 id=1019 data-nosnippet>1019</a>        <span class="kw">let </span>(<span class="kw">_</span>, func_id, <span class="kw">_</span>) = results.remove(<span class="number">0</span>);
+<a href=#1020 id=1020 data-nosnippet>1020</a>        <span class="kw">let </span>item = PathResolutionItem::TypeAliasFunction(alias_id, turbofish, func_id);
+<a href=#1021 id=1021 data-nosnippet>1021</a>        <span class="prelude-val">Ok</span>(PathResolution { item, errors: std::mem::take(errors) })
+<a href=#1022 id=1022 data-nosnippet>1022</a>    }
+<a href=#1023 id=1023 data-nosnippet>1023</a>
+<a href=#1024 id=1024 data-nosnippet>1024</a>    <span class="doccomment">/// Try to resolve a path with 1 or 2 segments as a [PathResolutionItem::PrimitiveType] or [PathResolutionItem::PrimitiveFunction].
+<a href=#1025 id=1025 data-nosnippet>1025</a>    ///
+<a href=#1026 id=1026 data-nosnippet>1026</a>    /// If the path consists of 2 segments, use the 2nd segment as the method name and look up a direct method implementation,
+<a href=#1027 id=1027 data-nosnippet>1027</a>    /// or an unambiguous trait method among the traits which are in scope.
+<a href=#1028 id=1028 data-nosnippet>1028</a>    </span><span class="kw">fn </span>resolve_primitive_type_or_function(
+<a href=#1029 id=1029 data-nosnippet>1029</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#1030 id=1030 data-nosnippet>1030</a>        path: TypedPath,
+<a href=#1031 id=1031 data-nosnippet>1031</a>        importing_module_id: ModuleId,
+<a href=#1032 id=1032 data-nosnippet>1032</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;PathResolutionResult&gt; {
+<a href=#1033 id=1033 data-nosnippet>1033</a>        <span class="kw">if </span>path.segments.len() != <span class="number">1 </span>&amp;&amp; path.segments.len() != <span class="number">2 </span>{
+<a href=#1034 id=1034 data-nosnippet>1034</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#1035 id=1035 data-nosnippet>1035</a>        }
+<a href=#1036 id=1036 data-nosnippet>1036</a>
+<a href=#1037 id=1037 data-nosnippet>1037</a>        <span class="kw">let </span>object_name = path.segments[<span class="number">0</span>].ident.as_str();
+<a href=#1038 id=1038 data-nosnippet>1038</a>        <span class="kw">let </span>turbofish = path.segments[<span class="number">0</span>].turbofish();
+<a href=#1039 id=1039 data-nosnippet>1039</a>        <span class="kw">let </span>primitive_type = PrimitiveType::lookup_by_name(object_name)<span class="question-mark">?</span>;
+<a href=#1040 id=1040 data-nosnippet>1040</a>        <span class="kw">let </span>typ = primitive_type.to_type();
+<a href=#1041 id=1041 data-nosnippet>1041</a>        <span class="kw">let </span><span class="kw-2">mut </span>errors = Vec::new();
+<a href=#1042 id=1042 data-nosnippet>1042</a>
+<a href=#1043 id=1043 data-nosnippet>1043</a>        <span class="kw">if </span>path.segments.len() == <span class="number">1 </span>{
+<a href=#1044 id=1044 data-nosnippet>1044</a>            <span class="kw">let </span>item = PathResolutionItem::PrimitiveType(primitive_type);
+<a href=#1045 id=1045 data-nosnippet>1045</a>            <span class="kw">return </span><span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(PathResolution { item, errors }));
+<a href=#1046 id=1046 data-nosnippet>1046</a>        }
+<a href=#1047 id=1047 data-nosnippet>1047</a>
+<a href=#1048 id=1048 data-nosnippet>1048</a>        <span class="kw">let </span>method_name_ident = <span class="kw-2">&amp;</span>path.segments[<span class="number">1</span>].ident;
+<a href=#1049 id=1049 data-nosnippet>1049</a>        <span class="kw">let </span>method_name = method_name_ident.as_str();
+<a href=#1050 id=1050 data-nosnippet>1050</a>
+<a href=#1051 id=1051 data-nosnippet>1051</a>        <span class="comment">// Note: the logic here is similar to that of resolve_method, except that that one works by
+<a href=#1052 id=1052 data-nosnippet>1052</a>        // searching through modules, and this one works by searching through primitive types.
+<a href=#1053 id=1053 data-nosnippet>1053</a>        // It would be nice to refactor this to a common logic though it's a bit hard.
+<a href=#1054 id=1054 data-nosnippet>1054</a>        // That said, the logic is "just" searching through direct methods, then through trait methods
+<a href=#1055 id=1055 data-nosnippet>1055</a>        // checking which ones are in scope, and is unlikely to change.
+<a href=#1056 id=1056 data-nosnippet>1056</a>
+<a href=#1057 id=1057 data-nosnippet>1057</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(func_id) = <span class="self">self</span>.interner.lookup_direct_method(<span class="kw-2">&amp;</span>typ, method_name, <span class="bool-val">false</span>) {
+<a href=#1058 id=1058 data-nosnippet>1058</a>            <span class="kw">let </span>item = PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, func_id);
+<a href=#1059 id=1059 data-nosnippet>1059</a>            <span class="kw">return </span><span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(PathResolution { item, errors }));
+<a href=#1060 id=1060 data-nosnippet>1060</a>        }
 <a href=#1061 id=1061 data-nosnippet>1061</a>
-<a href=#1062 id=1062 data-nosnippet>1062</a>    <span class="kw">match </span><span class="kw-2">&amp;</span>type_alias.typ {
-<a href=#1063 id=1063 data-nosnippet>1063</a>        Type::DataType(type_id, _generics) =&gt; <span class="prelude-val">Some</span>(type_id.borrow().id.module_id()),
-<a href=#1064 id=1064 data-nosnippet>1064</a>        Type::Alias(type_alias, _generics) =&gt; get_type_alias_module_def_id(type_alias),
-<a href=#1065 id=1065 data-nosnippet>1065</a>        Type::Error =&gt; <span class="prelude-val">None</span>,
-<a href=#1066 id=1066 data-nosnippet>1066</a>        <span class="kw">_ </span>=&gt; {
-<a href=#1067 id=1067 data-nosnippet>1067</a>            <span class="comment">// For now we only allow type aliases that point to data types.
-<a href=#1068 id=1068 data-nosnippet>1068</a>            // The more general case is captured here: https://github.com/noir-lang/noir/issues/6398
-<a href=#1069 id=1069 data-nosnippet>1069</a>            </span><span class="macro">panic!</span>(<span class="string">"Type alias in path not pointing to a data type is not yet supported"</span>)
-<a href=#1070 id=1070 data-nosnippet>1070</a>        }
-<a href=#1071 id=1071 data-nosnippet>1071</a>    }
-<a href=#1072 id=1072 data-nosnippet>1072</a>}</code></pre></div></section></main></body></html>
+<a href=#1062 id=1062 data-nosnippet>1062</a>        <span class="kw">let </span>starting_module = <span class="self">self</span>.get_module(importing_module_id);
+<a href=#1063 id=1063 data-nosnippet>1063</a>
+<a href=#1064 id=1064 data-nosnippet>1064</a>        <span class="kw">let </span>trait_methods = <span class="self">self</span>.interner.lookup_trait_methods(<span class="kw-2">&amp;</span>typ, method_name, <span class="bool-val">false</span>);
+<a href=#1065 id=1065 data-nosnippet>1065</a>
+<a href=#1066 id=1066 data-nosnippet>1066</a>        <span class="kw">let </span><span class="kw-2">mut </span>results = Vec::new();
+<a href=#1067 id=1067 data-nosnippet>1067</a>        <span class="kw">for </span>(func_id, trait_id) <span class="kw">in </span><span class="kw-2">&amp;</span>trait_methods {
+<a href=#1068 id=1068 data-nosnippet>1068</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(name) = starting_module.find_trait_in_scope(<span class="kw-2">*</span>trait_id) {
+<a href=#1069 id=1069 data-nosnippet>1069</a>                results.push((<span class="kw-2">*</span>trait_id, <span class="kw-2">*</span>func_id, name));
+<a href=#1070 id=1070 data-nosnippet>1070</a>            }
+<a href=#1071 id=1071 data-nosnippet>1071</a>        }
+<a href=#1072 id=1072 data-nosnippet>1072</a>
+<a href=#1073 id=1073 data-nosnippet>1073</a>        <span class="kw">if </span>results.is_empty() {
+<a href=#1074 id=1074 data-nosnippet>1074</a>            <span class="kw">if </span>trait_methods.len() == <span class="number">1 </span>{
+<a href=#1075 id=1075 data-nosnippet>1075</a>                <span class="comment">// This is the backwards-compatible case where there's a single trait method but it's not in scope
+<a href=#1076 id=1076 data-nosnippet>1076</a>                </span><span class="kw">let </span>(func_id, trait_id) = trait_methods.first().expect(<span class="string">"Expected an item"</span>);
+<a href=#1077 id=1077 data-nosnippet>1077</a>                <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(<span class="kw-2">*</span>trait_id);
+<a href=#1078 id=1078 data-nosnippet>1078</a>                <span class="kw">let </span>trait_name = <span class="self">self</span>.fully_qualified_trait_path(trait_);
+<a href=#1079 id=1079 data-nosnippet>1079</a>                <span class="kw">let </span>ident = method_name_ident.clone();
+<a href=#1080 id=1080 data-nosnippet>1080</a>                errors.push(PathResolutionError::TraitMethodNotInScope { ident, trait_name });
+<a href=#1081 id=1081 data-nosnippet>1081</a>                <span class="kw">let </span>item =
+<a href=#1082 id=1082 data-nosnippet>1082</a>                    PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, <span class="kw-2">*</span>func_id);
+<a href=#1083 id=1083 data-nosnippet>1083</a>                <span class="kw">return </span><span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(PathResolution { item, errors }));
+<a href=#1084 id=1084 data-nosnippet>1084</a>            } <span class="kw">else if </span>trait_methods.is_empty() {
+<a href=#1085 id=1085 data-nosnippet>1085</a>                <span class="kw">return </span><span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(PathResolutionError::Unresolved(method_name_ident.clone())));
+<a href=#1086 id=1086 data-nosnippet>1086</a>            } <span class="kw">else </span>{
+<a href=#1087 id=1087 data-nosnippet>1087</a>                <span class="kw">let </span>traits = vecmap(trait_methods, |(<span class="kw">_</span>, trait_id)| {
+<a href=#1088 id=1088 data-nosnippet>1088</a>                    <span class="self">self</span>.fully_qualified_trait_path(<span class="self">self</span>.interner.get_trait(trait_id))
+<a href=#1089 id=1089 data-nosnippet>1089</a>                });
+<a href=#1090 id=1090 data-nosnippet>1090</a>                <span class="kw">let </span>ident = method_name_ident.clone();
+<a href=#1091 id=1091 data-nosnippet>1091</a>                <span class="kw">let </span>error =
+<a href=#1092 id=1092 data-nosnippet>1092</a>                    PathResolutionError::UnresolvedWithPossibleTraitsToImport { ident, traits };
+<a href=#1093 id=1093 data-nosnippet>1093</a>                <span class="kw">return </span><span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(error));
+<a href=#1094 id=1094 data-nosnippet>1094</a>            }
+<a href=#1095 id=1095 data-nosnippet>1095</a>        }
+<a href=#1096 id=1096 data-nosnippet>1096</a>
+<a href=#1097 id=1097 data-nosnippet>1097</a>        <span class="kw">if </span>results.len() &gt; <span class="number">1 </span>{
+<a href=#1098 id=1098 data-nosnippet>1098</a>            <span class="kw">let </span>traits = vecmap(results, |(trait_id, <span class="kw">_</span>, name)| (trait_id, name.clone()));
+<a href=#1099 id=1099 data-nosnippet>1099</a>            <span class="kw">let </span>traits = vecmap(traits, |(trait_id, name)| {
+<a href=#1100 id=1100 data-nosnippet>1100</a>                <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(trait_id);
+<a href=#1101 id=1101 data-nosnippet>1101</a>                <span class="self">self</span>.usage_tracker.mark_as_used(importing_module_id, <span class="kw-2">&amp;</span>name);
+<a href=#1102 id=1102 data-nosnippet>1102</a>                <span class="self">self</span>.fully_qualified_trait_path(trait_)
+<a href=#1103 id=1103 data-nosnippet>1103</a>            });
+<a href=#1104 id=1104 data-nosnippet>1104</a>            <span class="kw">let </span>ident = method_name_ident.clone();
+<a href=#1105 id=1105 data-nosnippet>1105</a>            <span class="kw">let </span>error = PathResolutionError::MultipleTraitsInScope { ident, traits };
+<a href=#1106 id=1106 data-nosnippet>1106</a>            <span class="kw">return </span><span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(error));
+<a href=#1107 id=1107 data-nosnippet>1107</a>        }
+<a href=#1108 id=1108 data-nosnippet>1108</a>
+<a href=#1109 id=1109 data-nosnippet>1109</a>        <span class="kw">let </span>(<span class="kw">_</span>, func_id, <span class="kw">_</span>) = results.remove(<span class="number">0</span>);
+<a href=#1110 id=1110 data-nosnippet>1110</a>        <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(PathResolution {
+<a href=#1111 id=1111 data-nosnippet>1111</a>            item: PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, func_id),
+<a href=#1112 id=1112 data-nosnippet>1112</a>            errors,
+<a href=#1113 id=1113 data-nosnippet>1113</a>        }))
+<a href=#1114 id=1114 data-nosnippet>1114</a>    }
+<a href=#1115 id=1115 data-nosnippet>1115</a>}
+<a href=#1116 id=1116 data-nosnippet>1116</a>
+<a href=#1117 id=1117 data-nosnippet>1117</a><span class="doccomment">/// Transform a [ModuleDefId] into a [PathResolutionItem].
+<a href=#1118 id=1118 data-nosnippet>1118</a>///
+<a href=#1119 id=1119 data-nosnippet>1119</a>/// If it's a [ModuleDefId::FunctionId], merge it with the [IntermediatePathResolutionItem]
+<a href=#1120 id=1120 data-nosnippet>1120</a>/// representing the item it was found in, such as a module, type, trait, alias, or Self.
+<a href=#1121 id=1121 data-nosnippet>1121</a></span><span class="kw">fn </span>merge_intermediate_path_resolution_item_with_module_def_id(
+<a href=#1122 id=1122 data-nosnippet>1122</a>    intermediate_item: IntermediatePathResolutionItem,
+<a href=#1123 id=1123 data-nosnippet>1123</a>    module_def_id: ModuleDefId,
+<a href=#1124 id=1124 data-nosnippet>1124</a>) -&gt; PathResolutionItem {
+<a href=#1125 id=1125 data-nosnippet>1125</a>    <span class="kw">match </span>module_def_id {
+<a href=#1126 id=1126 data-nosnippet>1126</a>        ModuleDefId::ModuleId(module_id) =&gt; PathResolutionItem::Module(module_id),
+<a href=#1127 id=1127 data-nosnippet>1127</a>        ModuleDefId::TypeId(type_id) =&gt; PathResolutionItem::Type(type_id),
+<a href=#1128 id=1128 data-nosnippet>1128</a>        ModuleDefId::TypeAliasId(type_alias_id) =&gt; PathResolutionItem::TypeAlias(type_alias_id),
+<a href=#1129 id=1129 data-nosnippet>1129</a>        ModuleDefId::TraitId(trait_id) =&gt; PathResolutionItem::Trait(trait_id),
+<a href=#1130 id=1130 data-nosnippet>1130</a>        ModuleDefId::TraitAssociatedTypeId(id) =&gt; PathResolutionItem::TraitAssociatedType(id),
+<a href=#1131 id=1131 data-nosnippet>1131</a>        ModuleDefId::GlobalId(global_id) =&gt; PathResolutionItem::Global(global_id),
+<a href=#1132 id=1132 data-nosnippet>1132</a>        ModuleDefId::FunctionId(func_id) =&gt; <span class="kw">match </span>intermediate_item {
+<a href=#1133 id=1133 data-nosnippet>1133</a>            IntermediatePathResolutionItem::SelfType =&gt; PathResolutionItem::SelfMethod(func_id),
+<a href=#1134 id=1134 data-nosnippet>1134</a>            IntermediatePathResolutionItem::Module =&gt; PathResolutionItem::ModuleFunction(func_id),
+<a href=#1135 id=1135 data-nosnippet>1135</a>            IntermediatePathResolutionItem::Type(type_id, generics) =&gt; {
+<a href=#1136 id=1136 data-nosnippet>1136</a>                PathResolutionItem::Method(type_id, generics, func_id)
+<a href=#1137 id=1137 data-nosnippet>1137</a>            }
+<a href=#1138 id=1138 data-nosnippet>1138</a>            IntermediatePathResolutionItem::TypeAlias(alias_id, generics) =&gt; {
+<a href=#1139 id=1139 data-nosnippet>1139</a>                PathResolutionItem::TypeAliasFunction(alias_id, generics, func_id)
+<a href=#1140 id=1140 data-nosnippet>1140</a>            }
+<a href=#1141 id=1141 data-nosnippet>1141</a>            IntermediatePathResolutionItem::Trait(trait_id, generics) =&gt; {
+<a href=#1142 id=1142 data-nosnippet>1142</a>                PathResolutionItem::TraitFunction(trait_id, generics, func_id)
+<a href=#1143 id=1143 data-nosnippet>1143</a>            }
+<a href=#1144 id=1144 data-nosnippet>1144</a>        },
+<a href=#1145 id=1145 data-nosnippet>1145</a>    }
+<a href=#1146 id=1146 data-nosnippet>1146</a>}
+<a href=#1147 id=1147 data-nosnippet>1147</a>
+<a href=#1148 id=1148 data-nosnippet>1148</a><span class="doccomment">/// The target that a type alias ultimately resolves to for path resolution purposes.
+<a href=#1149 id=1149 data-nosnippet>1149</a>/// Indicate directly the primitive type in case of an alias to a primitive type, because
+<a href=#1150 id=1150 data-nosnippet>1150</a>/// they do not have module.
+<a href=#1151 id=1151 data-nosnippet>1151</a></span><span class="kw">enum </span>TypeAliasTarget {
+<a href=#1152 id=1152 data-nosnippet>1152</a>    <span class="doccomment">/// The alias points to a data type (struct/enum) with this module.
+<a href=#1153 id=1153 data-nosnippet>1153</a>    </span>Module(ModuleId),
+<a href=#1154 id=1154 data-nosnippet>1154</a>    <span class="doccomment">/// The alias points to a primitive type.
+<a href=#1155 id=1155 data-nosnippet>1155</a>    </span>Primitive(Type),
+<a href=#1156 id=1156 data-nosnippet>1156</a>}
+<a href=#1157 id=1157 data-nosnippet>1157</a>
+<a href=#1158 id=1158 data-nosnippet>1158</a><span class="kw">fn </span>get_type_alias_target(type_alias: <span class="kw-2">&amp;</span>Shared&lt;TypeAlias&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;TypeAliasTarget&gt; {
+<a href=#1159 id=1159 data-nosnippet>1159</a>    <span class="kw">let </span>type_alias = type_alias.borrow();
+<a href=#1160 id=1160 data-nosnippet>1160</a>
+<a href=#1161 id=1161 data-nosnippet>1161</a>    <span class="kw">match </span><span class="kw-2">&amp;</span>type_alias.typ {
+<a href=#1162 id=1162 data-nosnippet>1162</a>        Type::DataType(type_id, _generics) =&gt; {
+<a href=#1163 id=1163 data-nosnippet>1163</a>            <span class="prelude-val">Some</span>(TypeAliasTarget::Module(type_id.borrow().id.module_id()))
+<a href=#1164 id=1164 data-nosnippet>1164</a>        }
+<a href=#1165 id=1165 data-nosnippet>1165</a>        Type::Alias(type_alias, _generics) =&gt; get_type_alias_target(type_alias),
+<a href=#1166 id=1166 data-nosnippet>1166</a>        Type::Error =&gt; <span class="prelude-val">None</span>,
+<a href=#1167 id=1167 data-nosnippet>1167</a>        other =&gt; {
+<a href=#1168 id=1168 data-nosnippet>1168</a>            <span class="kw">if </span>PrimitiveType::from_type(other).is_some() {
+<a href=#1169 id=1169 data-nosnippet>1169</a>                <span class="prelude-val">Some</span>(TypeAliasTarget::Primitive(other.clone()))
+<a href=#1170 id=1170 data-nosnippet>1170</a>            } <span class="kw">else </span>{
+<a href=#1171 id=1171 data-nosnippet>1171</a>                <span class="prelude-val">None
+<a href=#1172 id=1172 data-nosnippet>1172</a>            </span>}
+<a href=#1173 id=1173 data-nosnippet>1173</a>        }
+<a href=#1174 id=1174 data-nosnippet>1174</a>    }
+<a href=#1175 id=1175 data-nosnippet>1175</a>}</code></pre></div></section></main></body></html>

@@ -917,6 +917,7 @@
 <a href=#917 id=917 data-nosnippet>917</a>        Type::Alias(type_alias, generics) =&gt; {
 <a href=#918 id=918 data-nosnippet>918</a>            get_type_alias_generics(<span class="kw-2">&amp;</span>type_alias.borrow(), <span class="kw-2">&amp;</span>generics)
 <a href=#919 id=919 data-nosnippet>919</a>        }
-<a href=#920 id=920 data-nosnippet>920</a>        <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"Expected type alias to point to struct or alias"</span>),
-<a href=#921 id=921 data-nosnippet>921</a>    }
-<a href=#922 id=922 data-nosnippet>922</a>}</code></pre></div></section></main></body></html>
+<a href=#920 id=920 data-nosnippet>920</a>        <span class="comment">// Primitive types have no generics
+<a href=#921 id=921 data-nosnippet>921</a>        </span><span class="kw">_ </span>=&gt; Vec::new(),
+<a href=#922 id=922 data-nosnippet>922</a>    }
+<a href=#923 id=923 data-nosnippet>923</a>}</code></pre></div></section></main></body></html>
