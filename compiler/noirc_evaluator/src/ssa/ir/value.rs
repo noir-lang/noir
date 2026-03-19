@@ -107,6 +107,12 @@ impl ValueMapping {
         self.map.is_empty()
     }
 
+    pub(crate) fn extend(&mut self, other: ValueMapping) {
+        for (from, to) in other.map {
+            self.insert(from, to);
+        }
+    }
+
     /// Returns true if all [`ValueId`]s are mapped to a [`ValueId`] of the same type.
     ///
     /// Mapping a [`ValueId`] to one of a different type implies a compilation error.
