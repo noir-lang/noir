@@ -115,6 +115,22 @@ impl Parser<'_> {
     fn parse_unary(&mut self, allow_constructors: bool) -> Option<Expression> {
         let start_location = self.current_token_location;
 
+        // `&&` (LogicalAnd) in unary context is two nested references: `&&x` is `&(&x)`,
+        // `&&mut x` is `&(&mut x)`. Same approach as `parse_reference_type` for `&&Type`.
+        if self.eat(Token::LogicalAnd) {
+            let mutable = self.eat_keyword(Keyword::Mut);
+            let Some(rhs) = self.parse_unary(allow_constructors) else {
+                self.expected_label(ParsingRuleLabel::Expression);
+                return None;
+            };
+            let inner_kind = ExpressionKind::prefix(UnaryOp::Reference { mutable }, rhs);
+            let inner_location = self.location_since(start_location);
+            let inner = Expression { kind: inner_kind, location: inner_location };
+            let kind = ExpressionKind::prefix(UnaryOp::Reference { mutable: false }, inner);
+            let location = self.location_since(start_location);
+            return Some(Expression { kind, location });
+        }
+
         if let Some(operator) = self.parse_unary_op() {
             let Some(rhs) = self.parse_unary(allow_constructors) else {
                 self.expected_label(ParsingRuleLabel::Expression);
@@ -130,14 +146,6 @@ impl Parser<'_> {
 
     /// UnaryOp = '&' 'mut' | '-' | '!' | '*'
     fn parse_unary_op(&mut self) -> Option<UnaryOp> {
-        // A `&&` (LogicalAnd) token was previously split: the first `&` was already returned,
-        // now return the second `&` (optionally followed by `mut`) without consuming a token.
-        if self.pending_reference {
-            self.pending_reference = false;
-            let mutable = self.eat_keyword(Keyword::Mut);
-            return Some(UnaryOp::Reference { mutable });
-        }
-
         if self.at(Token::Ampersand) {
             let mut mutable = false;
             if self.next_is(Token::Keyword(Keyword::Mut)) {
@@ -146,12 +154,6 @@ impl Parser<'_> {
             }
             self.bump();
             Some(UnaryOp::Reference { mutable })
-        } else if self.at(Token::LogicalAnd) {
-            // `&&` in unary context is two nested references. Consume the token, return the
-            // outer (immutable) reference, and set pending_reference for the inner one.
-            self.bump();
-            self.pending_reference = true;
-            Some(UnaryOp::Reference { mutable: false })
         } else if self.eat(Token::Minus) {
             Some(UnaryOp::Minus)
         } else if self.eat(Token::Bang) {
@@ -1629,6 +1631,20 @@ mod tests {
             panic!("Expected variable");
         };
         assert_eq!(path.to_string(), "foo");
+    }
+
+    #[test]
+    fn parses_triple_ref() {
+        // `&&&foo` is lexed as `& && foo` (Ampersand, LogicalAnd, Ident)
+        let src = "&&&foo";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::Prefix(a) = expr.kind else { panic!("Expected prefix") };
+        assert!(matches!(a.operator, UnaryOp::Reference { mutable: false }));
+        let ExpressionKind::Prefix(b) = a.rhs.kind else { panic!("Expected prefix") };
+        assert!(matches!(b.operator, UnaryOp::Reference { mutable: false }));
+        let ExpressionKind::Prefix(c) = b.rhs.kind else { panic!("Expected prefix") };
+        assert!(matches!(c.operator, UnaryOp::Reference { mutable: false }));
+        assert!(matches!(c.rhs.kind, ExpressionKind::Variable(..)));
     }
 
     #[test]
