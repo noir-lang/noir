@@ -917,6 +917,7 @@ fn get_type_alias_generics(type_alias: &TypeAlias, generics: &[Type]) -> Vec<Typ
         Type::Alias(type_alias, generics) => {
             get_type_alias_generics(&type_alias.borrow(), &generics)
         }
-        _ => panic!("Expected type alias to point to struct or alias"),
+        // Primitive types have no generics
+        _ => Vec::new(),
     }
 }

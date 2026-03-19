@@ -622,13 +622,30 @@ impl Elaborator<'_> {
                 }
                 ModuleDefId::TypeAliasId(id) => {
                     let type_alias = self.interner.get_type_alias(id);
-                    let Some(module_id) = get_type_alias_module_def_id(&type_alias) else {
-                        return Err(PathResolutionError::Unresolved(prev_ident.clone()));
-                    };
-
-                    let item =
-                        IntermediatePathResolutionItem::TypeAlias(id, prev_segment.turbofish());
-                    (module_id, true, item)
+                    match get_type_alias_target(&type_alias) {
+                        Some(TypeAliasTarget::Module(module_id)) => {
+                            let item = IntermediatePathResolutionItem::TypeAlias(
+                                id,
+                                prev_segment.turbofish(),
+                            );
+                            (module_id, true, item)
+                        }
+                        Some(TypeAliasTarget::Primitive(typ)) => {
+                            // The alias points to a primitive type. Look up the method
+                            // directly via the interner rather than through a module.
+                            return self.resolve_primitive_type_alias_method(
+                                typ,
+                                id,
+                                prev_segment.turbofish(),
+                                current_ident,
+                                importing_module,
+                                &mut errors,
+                            );
+                        }
+                        None => {
+                            return Err(PathResolutionError::Unresolved(prev_ident.clone()));
+                        }
+                    }
                 }
                 ModuleDefId::TraitAssociatedTypeId(..) => {
                     // There are no items inside an associated type so we return earlier
@@ -932,6 +949,78 @@ impl Elaborator<'_> {
         }
     }
 
+    /// Resolve a method on a type alias that points to a primitive type.
+    ///
+    /// This handles paths like `MyAlias::method()` where `MyAlias` aliases
+    /// a primitive type. Because they do not have module, we look up the method directly
+    /// like what is done in [Self::resolve_primitive_type_or_function].
+    fn resolve_primitive_type_alias_method(
+        &mut self,
+        typ: Type,
+        alias_id: TypeAliasId,
+        turbofish: Option<Turbofish>,
+        method_name_ident: &Ident,
+        importing_module_id: ModuleId,
+        errors: &mut Vec<PathResolutionError>,
+    ) -> PathResolutionResult {
+        let method_name = method_name_ident.as_str();
+
+        // First check for a direct (inherent) method
+        if let Some(func_id) = self.interner.lookup_direct_method(&typ, method_name, false) {
+            let item = PathResolutionItem::TypeAliasFunction(alias_id, turbofish, func_id);
+            return Ok(PathResolution { item, errors: std::mem::take(errors) });
+        }
+
+        // Otherwise look through trait methods
+        let starting_module = self.get_module(importing_module_id);
+        let trait_methods = self.interner.lookup_trait_methods(&typ, method_name, false);
+
+        let mut results = Vec::new();
+        for (func_id, trait_id) in &trait_methods {
+            if let Some(name) = starting_module.find_trait_in_scope(*trait_id) {
+                results.push((*trait_id, *func_id, name));
+            }
+        }
+
+        if results.is_empty() {
+            if trait_methods.len() == 1 {
+                let (func_id, trait_id) = trait_methods.first().expect("Expected an item");
+                let trait_ = self.interner.get_trait(*trait_id);
+                let trait_name = self.fully_qualified_trait_path(trait_);
+                let ident = method_name_ident.clone();
+                errors.push(PathResolutionError::TraitMethodNotInScope { ident, trait_name });
+                let item = PathResolutionItem::TypeAliasFunction(alias_id, turbofish, *func_id);
+                return Ok(PathResolution { item, errors: std::mem::take(errors) });
+            } else if trait_methods.is_empty() {
+                return Err(PathResolutionError::Unresolved(method_name_ident.clone()));
+            } else {
+                let traits = vecmap(trait_methods, |(_, trait_id)| {
+                    self.fully_qualified_trait_path(self.interner.get_trait(trait_id))
+                });
+                let ident = method_name_ident.clone();
+                return Err(PathResolutionError::UnresolvedWithPossibleTraitsToImport {
+                    ident,
+                    traits,
+                });
+            }
+        }
+
+        if results.len() > 1 {
+            let traits = vecmap(results, |(trait_id, _, name)| (trait_id, name.clone()));
+            let traits = vecmap(traits, |(trait_id, name)| {
+                let trait_ = self.interner.get_trait(trait_id);
+                self.usage_tracker.mark_as_used(importing_module_id, &name);
+                self.fully_qualified_trait_path(trait_)
+            });
+            let ident = method_name_ident.clone();
+            return Err(PathResolutionError::MultipleTraitsInScope { ident, traits });
+        }
+
+        let (_, func_id, _) = results.remove(0);
+        let item = PathResolutionItem::TypeAliasFunction(alias_id, turbofish, func_id);
+        Ok(PathResolution { item, errors: std::mem::take(errors) })
+    }
+
     /// Try to resolve a path with 1 or 2 segments as a [PathResolutionItem::PrimitiveType] or [PathResolutionItem::PrimitiveFunction].
     ///
     /// If the path consists of 2 segments, use the 2nd segment as the method name and look up a direct method implementation,
@@ -1056,17 +1145,31 @@ fn merge_intermediate_path_resolution_item_with_module_def_id(
     }
 }
 
-fn get_type_alias_module_def_id(type_alias: &Shared<TypeAlias>) -> Option<ModuleId> {
+/// The target that a type alias ultimately resolves to for path resolution purposes.
+/// Indicate directly the primitive type in case of an alias to a primitive type, because
+/// they do not have module.
+enum TypeAliasTarget {
+    /// The alias points to a data type (struct/enum) with this module.
+    Module(ModuleId),
+    /// The alias points to a primitive type.
+    Primitive(Type),
+}
+
+fn get_type_alias_target(type_alias: &Shared<TypeAlias>) -> Option<TypeAliasTarget> {
     let type_alias = type_alias.borrow();
 
     match &type_alias.typ {
-        Type::DataType(type_id, _generics) => Some(type_id.borrow().id.module_id()),
-        Type::Alias(type_alias, _generics) => get_type_alias_module_def_id(type_alias),
+        Type::DataType(type_id, _generics) => {
+            Some(TypeAliasTarget::Module(type_id.borrow().id.module_id()))
+        }
+        Type::Alias(type_alias, _generics) => get_type_alias_target(type_alias),
         Type::Error => None,
-        _ => {
-            // For now we only allow type aliases that point to data types.
-            // The more general case is captured here: https://github.com/noir-lang/noir/issues/6398
-            panic!("Type alias in path not pointing to a data type is not yet supported")
+        other => {
+            if PrimitiveType::from_type(other).is_some() {
+                Some(TypeAliasTarget::Primitive(other.clone()))
+            } else {
+                None
+            }
         }
     }
 }
