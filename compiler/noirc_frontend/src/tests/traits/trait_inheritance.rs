@@ -484,7 +484,7 @@ fn trait_inheritance_chain_with_associated_types() {
 ///    / \
 ///   A   B     (both inherit C)
 ///    \ /
-///      D      (inherits A + B)
+///     D      (inherits A + B)
 #[test]
 fn diamond_trait_inheritance_method_call() {
     let src = r#"
