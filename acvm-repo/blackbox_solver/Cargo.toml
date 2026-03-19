@@ -17,7 +17,6 @@ workspace = true
 
 [dependencies]
 acir.workspace = true
-itertools.workspace = true
 thiserror.workspace = true
 log.workspace = true
 
