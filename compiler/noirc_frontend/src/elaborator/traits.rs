@@ -164,7 +164,10 @@
 //!     which is trivially solved by finding the corresponding impl.
 //!   - If a single impl candidate is found, it is used. Otherwise, an error is issued.
 
-use std::{collections::BTreeMap, rc::Rc};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    rc::Rc,
+};
 
 use iter_extended::vecmap;
 use itertools::Itertools;
@@ -507,12 +510,7 @@ impl Elaborator<'_> {
         location: Location,
     ) {
         for constraint in constraints {
-            self.add_trait_bound_to_scope(
-                location,
-                &constraint.typ,
-                &constraint.trait_bound,
-                constraint.trait_bound.trait_id,
-            );
+            self.add_trait_bound_to_scope(location, &constraint.typ, &constraint.trait_bound);
         }
 
         // Also assume `self` implements the current trait if we are inside a trait definition
@@ -522,12 +520,7 @@ impl Elaborator<'_> {
             let self_type =
                 self.self_type.clone().expect("Expected a self type if there's a current trait");
 
-            self.add_trait_bound_to_scope(
-                location,
-                &self_type,
-                &constraint.trait_bound,
-                constraint.trait_bound.trait_id,
-            );
+            self.add_trait_bound_to_scope(location, &self_type, &constraint.trait_bound);
         }
     }
 
@@ -582,7 +575,7 @@ impl Elaborator<'_> {
         let trait_bound = self.resolve_trait_bound(&constraint.trait_bound)?;
         let location = constraint.trait_bound.trait_path.location;
 
-        self.add_trait_bound_to_scope(location, &typ, &trait_bound, trait_bound.trait_id);
+        self.add_trait_bound_to_scope(location, &typ, &trait_bound);
 
         let constraint = TraitConstraint { typ, trait_bound };
         // Also add to trait_bounds so that T::AssocType syntax can be resolved
@@ -718,9 +711,8 @@ impl Elaborator<'_> {
 
     /// Adds an assumed trait implementation for the given object type and trait bound.
     ///
-    /// This also recursively adds assumed implementations for any parent traits.
-    /// The `starting_trait_id` parameter is used to detect cycles in the trait hierarchy
-    /// and prevent infinite recursion.
+    /// This also recursively adds assumed implementations for any parent traits,
+    /// with cycle detection to prevent infinite recursion.
     ///
     /// If the trait bound is already satisfied, an `UnneededTraitConstraint` error is pushed.
     pub(super) fn add_trait_bound_to_scope(
@@ -728,7 +720,17 @@ impl Elaborator<'_> {
         location: Location,
         object: &Type,
         trait_bound: &ResolvedTraitBound,
-        starting_trait_id: TraitId,
+    ) {
+        let mut visited = BTreeSet::from([trait_bound.trait_id]);
+        self.add_trait_bound_to_scope_inner(location, object, trait_bound, &mut visited);
+    }
+
+    fn add_trait_bound_to_scope_inner(
+        &mut self,
+        location: Location,
+        object: &Type,
+        trait_bound: &ResolvedTraitBound,
+        visited: &mut BTreeSet<TraitId>,
     ) {
         let trait_id = trait_bound.trait_id;
         let generics = trait_bound.trait_generics.clone();
@@ -779,18 +781,13 @@ impl Elaborator<'_> {
         {
             for parent_trait_bound in trait_bounds {
                 // Avoid looping forever in case there are cycles
-                if parent_trait_bound.trait_id == starting_trait_id {
+                if !visited.insert(parent_trait_bound.trait_id) {
                     continue;
                 }
 
                 let parent_trait_bound =
                     self.instantiate_parent_trait_bound(trait_bound, &parent_trait_bound);
-                self.add_trait_bound_to_scope(
-                    location,
-                    object,
-                    &parent_trait_bound,
-                    starting_trait_id,
-                );
+                self.add_trait_bound_to_scope_inner(location, object, &parent_trait_bound, visited);
             }
         }
     }

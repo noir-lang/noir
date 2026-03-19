@@ -1298,7 +1298,6 @@ impl Elaborator<'_> {
         let method_name = path.last_name();
 
         let mut matches = Vec::new();
-        let mut visited = BTreeSet::new();
 
         for constraint in self.trait_bounds.clone() {
             if let Type::NamedGeneric(NamedGeneric { name, .. }) = &constraint.typ {
@@ -1308,14 +1307,7 @@ impl Elaborator<'_> {
                 }
 
                 let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
-                self.find_methods_or_constants_in_trait(
-                    path,
-                    constraint,
-                    the_trait,
-                    the_trait.id,
-                    &mut matches,
-                    &mut visited,
-                );
+                self.find_methods_or_constants_in_trait(path, constraint, the_trait, &mut matches);
             }
         }
 
@@ -1356,7 +1348,23 @@ impl Elaborator<'_> {
         path: &TypedPath,
         constraint: TraitConstraint,
         the_trait: &Trait,
-        starting_trait_id: TraitId,
+        matches: &mut Vec<(TraitPathResolutionMethod, TraitId)>,
+    ) {
+        let mut visited = BTreeSet::new();
+        self.find_methods_or_constants_in_trait_inner(
+            path,
+            constraint,
+            the_trait,
+            matches,
+            &mut visited,
+        );
+    }
+
+    fn find_methods_or_constants_in_trait_inner(
+        &self,
+        path: &TypedPath,
+        constraint: TraitConstraint,
+        the_trait: &Trait,
         matches: &mut Vec<(TraitPathResolutionMethod, TraitId)>,
         visited: &mut BTreeSet<TraitId>,
     ) {
@@ -1375,18 +1383,12 @@ impl Elaborator<'_> {
 
         for trait_bound in &the_trait.trait_bounds {
             let parent_trait = self.interner.get_trait(trait_bound.trait_id);
-            if parent_trait.id == starting_trait_id {
-                // Avoid infinite recursion in case of cyclic trait bounds
-                continue;
-            }
-
             let constraint =
                 TraitConstraint { typ: constraint.typ.clone(), trait_bound: trait_bound.clone() };
-            self.find_methods_or_constants_in_trait(
+            self.find_methods_or_constants_in_trait_inner(
                 path,
                 constraint,
                 parent_trait,
-                starting_trait_id,
                 matches,
                 visited,
             );
@@ -2617,12 +2619,8 @@ impl Elaborator<'_> {
         {
             let the_trait = self.interner.get_trait(trait_id);
             let constraint = the_trait.as_constraint(the_trait.name.location());
-            let mut matches = self.lookup_methods_in_trait(
-                the_trait,
-                method_name,
-                &constraint.trait_bound,
-                the_trait.id,
-            );
+            let mut matches =
+                self.lookup_methods_in_trait(the_trait, method_name, &constraint.trait_bound);
             if matches.len() == 1 {
                 let method = matches.remove(0);
                 let assumed = true;
@@ -2652,12 +2650,8 @@ impl Elaborator<'_> {
                 && let Some(the_trait) =
                     self.interner.try_get_trait(constraint.trait_bound.trait_id)
             {
-                let trait_matches = self.lookup_methods_in_trait(
-                    the_trait,
-                    method_name,
-                    &constraint.trait_bound,
-                    the_trait.id,
-                );
+                let trait_matches =
+                    self.lookup_methods_in_trait(the_trait, method_name, &constraint.trait_bound);
                 matches.extend(trait_matches);
             }
         }
@@ -2736,7 +2730,6 @@ impl Elaborator<'_> {
         the_trait: &Trait,
         method_name: &str,
         trait_bound: &ResolvedTraitBound,
-        starting_trait_id: TraitId,
     ) -> Vec<HirTraitMethodReference> {
         let mut matches = Vec::new();
         let mut visited = BTreeSet::new();
@@ -2744,7 +2737,6 @@ impl Elaborator<'_> {
             the_trait,
             method_name,
             trait_bound,
-            starting_trait_id,
             &mut matches,
             &mut visited,
         );
@@ -2756,7 +2748,6 @@ impl Elaborator<'_> {
         the_trait: &Trait,
         method_name: &str,
         trait_bound: &ResolvedTraitBound,
-        starting_trait_id: TraitId,
         matches: &mut Vec<HirTraitMethodReference>,
         visited: &mut BTreeSet<TraitId>,
     ) {
@@ -2782,18 +2773,12 @@ impl Elaborator<'_> {
         // but `Foo where Self: Bar + Baz` appears in `trait_constraints` instead.
         for parent_trait_bound in &the_trait.trait_bounds {
             if let Some(the_trait) = self.interner.try_get_trait(parent_trait_bound.trait_id) {
-                // Avoid looping forever in case there are cycles
-                if the_trait.id == starting_trait_id {
-                    continue;
-                }
-
                 let parent_trait_bound =
                     self.instantiate_parent_trait_bound(trait_bound, parent_trait_bound);
                 self.lookup_methods_in_trait_inner(
                     the_trait,
                     method_name,
                     &parent_trait_bound,
-                    starting_trait_id,
                     matches,
                     visited,
                 );
@@ -2909,7 +2894,9 @@ impl Elaborator<'_> {
             if let Type::Reference(_, mutable) = expected_object_type.follow_bindings() {
                 if !matches!(actual_type, Type::Reference(..)) {
                     let location = self.interner.id_location(*object);
-                    self.check_can_mutate(*object, location);
+                    if mutable {
+                        self.check_can_mutate(*object, location);
+                    }
 
                     let new_type = Type::Reference(Box::new(actual_type), mutable);
                     *object_type = new_type.clone();
