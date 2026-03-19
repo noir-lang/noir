@@ -103,6 +103,67 @@ fn trait_inheritance_dependency_cycle() {
     check_errors(src);
 }
 
+// Regression test for add_trait_bound_to_scope() cyclic recursion
+#[test]
+fn add_trait_bound_to_scope_dependency_cycle() {
+    let src = r#"
+        trait A: B {}
+        trait B: C {}
+        trait C: B {
+              ^ Dependency cycle found
+              ~ 'C' recursively depends on itself: C -> B -> C
+            fn ping() -> u32;
+        }
+
+        pub fn foo<T: A>(_x: T) {}
+
+        fn main() {}
+    "#;
+    check_errors(src);
+}
+
+// Regression test for find_methods_or_constants_in_trait() cyclic recursion
+#[test]
+fn find_methods_or_constants_in_trait_dependency_cycle() {
+    let src = r#"
+        trait A: B {}
+        trait B: C {}
+        trait C: B {
+              ^ Dependency cycle found
+              ~ 'C' recursively depends on itself: C -> B -> C
+            fn ping() -> u32;
+        }
+
+        pub fn foo<T: A>() -> u32 {
+            T::ping()
+        }
+
+        fn main() {}
+    "#;
+    check_errors(src);
+}
+
+// Regression test for lookup_methods_in_trait() cyclic recursion
+#[test]
+fn lookup_methods_in_trait_dependency_cycle() {
+    let src = r#"
+        trait A: B {}
+        trait B: C {}
+        trait C: B {
+              ^ Dependency cycle found
+              ~ 'C' recursively depends on itself: C -> B -> C
+            fn ping(self) -> u32;
+        }
+
+        pub fn foo<T: A>(x: T) -> u32 {
+            x.ping()
+        }
+
+        fn main() {}
+    "#;
+    check_errors(src);
+}
+
 #[test]
 fn removes_assumed_parent_traits_after_function_ends() {
     let src = r#"
