@@ -107,11 +107,10 @@ impl<'a> Lexer<'a> {
     }
 
     fn ampersand(&mut self) -> SpannedTokenResult {
-        if self.peek_char_is('&') {
-            let start = self.position;
-            self.next_char();
-            Ok(Token::LogicalAnd.into_span(start, start + 1))
-        } else if self.peek_char_is('[') {
+        // `&&` is issued as two separate `&` tokens by the lexer as this makes it easier
+        // to parse nested references like `&&x`. For binary AND expressions however, it means
+        // we have to manually parse two ampersand tokens as a single logical AND in the parser.
+        if self.peek_char_is('[') {
             self.single_char_token(Token::DeprecatedVectorStart)
         } else {
             self.single_char_token(Token::Ampersand)

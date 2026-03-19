@@ -286,8 +286,7 @@ impl<'interner> TokenPrettyPrinter<'interner> {
             | Token::Ampersand
             | Token::DeprecatedVectorStart
             | Token::ShiftLeft
-            | Token::ShiftRight
-            | Token::LogicalAnd => {
+            | Token::ShiftRight => {
                 self.last_was_op = true;
                 write!(f, " {token}")
             }

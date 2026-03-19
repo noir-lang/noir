@@ -1578,6 +1578,46 @@ mod tests {
     }
 
     #[test]
+    fn parses_double_ref() {
+        let src = "&&foo";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::Prefix(outer) = expr.kind else {
+            panic!("Expected prefix expression");
+        };
+        assert!(matches!(outer.operator, UnaryOp::Reference { mutable: false }));
+
+        let ExpressionKind::Prefix(inner) = outer.rhs.kind else {
+            panic!("Expected inner prefix expression");
+        };
+        assert!(matches!(inner.operator, UnaryOp::Reference { mutable: false }));
+
+        let ExpressionKind::Variable(path) = inner.rhs.kind else {
+            panic!("Expected variable");
+        };
+        assert_eq!(path.to_string(), "foo");
+    }
+
+    #[test]
+    fn parses_double_ref_mut() {
+        let src = "&&mut foo";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::Prefix(outer) = expr.kind else {
+            panic!("Expected prefix expression");
+        };
+        assert!(matches!(outer.operator, UnaryOp::Reference { mutable: false }));
+
+        let ExpressionKind::Prefix(inner) = outer.rhs.kind else {
+            panic!("Expected inner prefix expression");
+        };
+        assert!(matches!(inner.operator, UnaryOp::Reference { mutable: true }));
+
+        let ExpressionKind::Variable(path) = inner.rhs.kind else {
+            panic!("Expected variable");
+        };
+        assert_eq!(path.to_string(), "foo");
+    }
+
+    #[test]
     fn parses_minus() {
         let src = "-foo";
         let expr = parse_expression_no_errors(src);
