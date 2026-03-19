@@ -4,18 +4,20 @@ pub fn bit_and<F: AcirField>(lhs: F, rhs: F, num_bits: u32) -> F {
     // Fast path: use native u128 operations when the bit width fits,
     // avoiding all heap allocations from field-to-byte conversions.
     if let Some(result) = try_bitwise_u128(lhs, rhs, num_bits, |l, r| l & r) {
-        return result;
+        result
+    } else {
+        bitwise_op(lhs, rhs, num_bits, |lhs_byte, rhs_byte| lhs_byte & rhs_byte)
     }
-    bitwise_op(lhs, rhs, num_bits, |lhs_byte, rhs_byte| lhs_byte & rhs_byte)
 }
 
 pub fn bit_xor<F: AcirField>(lhs: F, rhs: F, num_bits: u32) -> F {
     // Fast path: use native u128 operations when the bit width fits,
     // avoiding all heap allocations from field-to-byte conversions.
     if let Some(result) = try_bitwise_u128(lhs, rhs, num_bits, |l, r| l ^ r) {
-        return result;
+        result
+    } else {
+        bitwise_op(lhs, rhs, num_bits, |lhs_byte, rhs_byte| lhs_byte ^ rhs_byte)
     }
-    bitwise_op(lhs, rhs, num_bits, |lhs_byte, rhs_byte| lhs_byte ^ rhs_byte)
 }
 
 /// Attempt to perform a bitwise operation using native u128 arithmetic.
