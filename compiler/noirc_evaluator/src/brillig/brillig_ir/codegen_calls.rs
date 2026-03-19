@@ -1,3 +1,5 @@
+use std::cmp;
+
 use acvm::{AcirField, acir::brillig::MemoryAddress};
 
 use crate::{brillig::brillig_ir::assert_u32, ssa::ir::function::FunctionId};
@@ -29,7 +31,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         // The first few slots in each stack frame are reserved.
         let reserved_len = self.registers().start() as u32;
 
-        // Ensure that writing call arguments won't overflow into heap memory.
+        // Ensure that writing call arguments and return values won't overflow into heap memory.
         //
         // At compile time, we don't know the runtime stack_pointer position. The worst case
         // is when we're in the last viable stack frame (last possible stack start in the `CheckMaxStackDepth` procedure).
@@ -39,24 +41,26 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         //   `stack_pointer <= stack_start + max_stack_size - max_frame_size`
         //
         // Heap corruption occurs when:
-        //   `stack_pointer + stack_size + reserved_len + arguments_len > stack_start + max_stack_size`
+        //   `stack_pointer + stack_size + reserved_len + max(arguments_len, returns_len) > stack_start + max_stack_size`
         //
         // (Note that it's okay for the LHS to equal the RHS because initially the stack_pointer equals the stack_start).
         //
         // Substituting worst case (`stack_pointer = stack_start + max_stack_size - max_frame_size`, ie. the last viable frame):
-        //   `(stack_start + max_stack_size - max_frame_size) + stack_size + reserved_len + arguments_len > stack_start + max_stack_size`
-        //   `max_stack_size - max_frame_size + stack_size + reserved_len + arguments_len > max_stack_size`
-        //   `stack_size + reserved_len + arguments_len > max_frame_size`
+        //   `(stack_start + max_stack_size - max_frame_size) + stack_size + reserved_len + max(arguments_len, returns_len) > stack_start + max_stack_size`
+        //   `max_stack_size - max_frame_size + stack_size + reserved_len + max(arguments_len, returns_len) > max_stack_size`
+        //   `stack_size + reserved_len + max(arguments_len, returns_len) > max_frame_size`
         //
-        // Therefore, to prevent heap corruption: `stack_size + reserved_len + arguments_len <= max_frame_size`
+        // Therefore, to prevent heap corruption: `stack_size + reserved_len + max(arguments_len, returns_len) <= max_frame_size`
         //
         // This is conservative (may reject programs that would work in the non-last viable frames),
         // but is the only safe compile-time check without runtime pointers.
         let max_frame_size = self.registers().layout().max_stack_frame_size();
         let arguments_len = arguments.len();
+        let returns_len = returns.len();
         assert!(
-            ((stack_size + reserved_len) as usize) + arguments_len <= max_frame_size,
-            "Call arguments would exceed stack frame bounds: frame_size={stack_size}, arguments={arguments_len}, max={max_frame_size}",
+            ((stack_size + reserved_len) as usize) + cmp::max(arguments_len, returns_len)
+                <= max_frame_size,
+            "Call arguments would exceed stack frame bounds: frame_size={stack_size}, arguments={arguments_len}, returns={returns_len}, max={max_frame_size}",
         );
 
         // Write the current stack size to a register, so we can add it to the stack pointer.
