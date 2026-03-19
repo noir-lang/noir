@@ -508,9 +508,8 @@ impl Elaborator<'_> {
         mode: PathResolutionMode,
         wildcard_allowed: WildcardAllowed,
     ) -> Type {
-        if args.is_empty()
-            && let Some(typ) = self.lookup_generic_or_global_type(&path, mode)
-        {
+        // Check generics and associated types first.
+        if let Some(typ) = self.lookup_generic_or_associated_type(&path) {
             return typ;
         }
 
@@ -523,6 +522,8 @@ impl Elaborator<'_> {
             return typ;
         }
 
+        // Check type aliases before globals: a type alias in the types namespace should
+        // take priority over a global with the same name in the values namespace.
         if let Some(type_alias) = self.lookup_type_alias(path.clone(), mode) {
             let id = type_alias.borrow().id;
             let (args, _) =
@@ -542,6 +543,14 @@ impl Elaborator<'_> {
             // of definition ordering, but for now we have an explicit check here so that we at
             // least issue an error that the type was not found instead of silently passing.
             return Type::Alias(type_alias, args);
+        }
+
+        // Check if the name refers to a global used as a numeric type. This is checked after type aliases so that a type alias
+        // in the types namespace takes priority over a same-named global in the values namespace.
+        if args.is_empty()
+            && let Some(typ) = self.lookup_global_type(&path, mode)
+        {
+            return typ;
         }
 
         match self.resolve_path_or_error_inner(path.clone(), PathResolutionTarget::Type, mode) {
@@ -851,11 +860,9 @@ impl Elaborator<'_> {
         resolved
     }
 
-    fn lookup_generic_or_global_type(
-        &mut self,
-        path: &TypedPath,
-        mode: PathResolutionMode,
-    ) -> Option<Type> {
+    /// Look up a path as a generic type parameter or an associated type
+    /// Returns `None` if the path doesn't match any of these.
+    fn lookup_generic_or_associated_type(&mut self, path: &TypedPath) -> Option<Type> {
         if path.segments.len() == 1 {
             let name = path.last_name();
             if let Some(generic) = self.find_generic(name) {
@@ -882,7 +889,11 @@ impl Elaborator<'_> {
             return Some(typ);
         }
 
-        // If we cannot find a local generic of the same name, try to look up a global
+        None
+    }
+
+    /// Look up a path as a global used as a numeric type (e.g. `global N: u32 = 5;`
+    fn lookup_global_type(&mut self, path: &TypedPath, mode: PathResolutionMode) -> Option<Type> {
         match self.resolve_path_inner(path.clone(), PathResolutionTarget::Value, mode) {
             Ok(PathResolution { item: PathResolutionItem::Global(id), errors }) => {
                 self.push_errors(errors);
@@ -900,7 +911,7 @@ impl Elaborator<'_> {
 
                 let Some(stmt) = opt_global_let_statement else {
                     if self.elaborate_global_if_unresolved(&id) {
-                        return self.lookup_generic_or_global_type(path, mode);
+                        return self.lookup_global_type(path, mode);
                     } else {
                         let path = path.clone();
                         self.push_err(ResolverError::NoSuchNumericTypeVariable { path });
@@ -1188,7 +1199,7 @@ impl Elaborator<'_> {
         // Resolved as a named type, which is what `Self::{ident}` would be.
         let typ = self.resolve_named_type(
             self_and_impl,
-            // The call to `lookup_generic_or_global_type` which calls `lookup_associated_type_on_self`
+            // The call to `lookup_generic_or_associated_type` which calls `lookup_associated_type_on_self`
             // will only be made if the args are empty, and that's what we tried to ascertain before
             // by checking that none of them are bound to a concrete type.
             GenericTypeArgs::default(),
