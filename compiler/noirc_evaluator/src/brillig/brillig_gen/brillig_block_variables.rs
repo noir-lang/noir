@@ -112,7 +112,7 @@ impl BlockVariables {
             // Alternatively we could fall back to allocating a new register.
             assert!(
                 self.available_variables.contains(&param),
-                "ICE: Coalesced parameters not currently available"
+                "ICE: Coalesced parameter not currently available"
             );
             function_context.ssa_value_allocations.insert(value_id, variable);
             self.available_variables.insert(value_id);
