@@ -926,12 +926,16 @@ impl<'a> Parser<'a> {
                 IntType::Signed(bit_size) => Type::signed(bit_size),
             };
 
-            let bit_size = typ.bit_size();
-            let max_signed = 2u128.pow(bit_size - 1) - 1;
-
-            let value = if typ.is_signed() && value > max_signed.into() {
-                // 2-complement representation:
-                FieldElement::from(2u128.pow(typ.bit_size())) - value
+            let value = if typ.is_signed() {
+                let bit_size = typ.bit_size();
+                let max_bit_pattern = FieldElement::from(2u128.pow(bit_size) - 1);
+                if value > max_bit_pattern {
+                    // Negative literal: eat_int() returned p - magnitude (field negation).
+                    // Convert to two's complement bit pattern: 2^bit_size + (p - magnitude) mod p
+                    FieldElement::from(2u128.pow(bit_size)) + value
+                } else {
+                    value
+                }
             } else {
                 value
             };
