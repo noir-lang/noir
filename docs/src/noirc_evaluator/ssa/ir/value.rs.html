@@ -107,12 +107,18 @@
 <a href=#107 id=107 data-nosnippet>107</a>        <span class="self">self</span>.map.is_empty()
 <a href=#108 id=108 data-nosnippet>108</a>    }
 <a href=#109 id=109 data-nosnippet>109</a>
-<a href=#110 id=110 data-nosnippet>110</a>    <span class="doccomment">/// Returns true if all [`ValueId`]s are mapped to a [`ValueId`] of the same type.
-<a href=#111 id=111 data-nosnippet>111</a>    ///
-<a href=#112 id=112 data-nosnippet>112</a>    /// Mapping a [`ValueId`] to one of a different type implies a compilation error.
-<a href=#113 id=113 data-nosnippet>113</a>    </span><span class="attr">#[must_use]
-<a href=#114 id=114 data-nosnippet>114</a>    #[cfg(debug_assertions)]
-<a href=#115 id=115 data-nosnippet>115</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>value_types_are_consistent(<span class="kw-2">&amp;</span><span class="self">self</span>, dfg: <span class="kw-2">&amp;</span><span class="kw">super</span>::dfg::DataFlowGraph) -&gt; bool {
-<a href=#116 id=116 data-nosnippet>116</a>        <span class="self">self</span>.map.iter().all(|(from, to)| dfg.type_of_value(<span class="kw-2">*</span>from) == dfg.type_of_value(<span class="kw-2">*</span>to))
-<a href=#117 id=117 data-nosnippet>117</a>    }
-<a href=#118 id=118 data-nosnippet>118</a>}</code></pre></div></section></main></body></html>
+<a href=#110 id=110 data-nosnippet>110</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>extend(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: ValueMapping) {
+<a href=#111 id=111 data-nosnippet>111</a>        <span class="kw">for </span>(from, to) <span class="kw">in </span>other.map {
+<a href=#112 id=112 data-nosnippet>112</a>            <span class="self">self</span>.insert(from, to);
+<a href=#113 id=113 data-nosnippet>113</a>        }
+<a href=#114 id=114 data-nosnippet>114</a>    }
+<a href=#115 id=115 data-nosnippet>115</a>
+<a href=#116 id=116 data-nosnippet>116</a>    <span class="doccomment">/// Returns true if all [`ValueId`]s are mapped to a [`ValueId`] of the same type.
+<a href=#117 id=117 data-nosnippet>117</a>    ///
+<a href=#118 id=118 data-nosnippet>118</a>    /// Mapping a [`ValueId`] to one of a different type implies a compilation error.
+<a href=#119 id=119 data-nosnippet>119</a>    </span><span class="attr">#[must_use]
+<a href=#120 id=120 data-nosnippet>120</a>    #[cfg(debug_assertions)]
+<a href=#121 id=121 data-nosnippet>121</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>value_types_are_consistent(<span class="kw-2">&amp;</span><span class="self">self</span>, dfg: <span class="kw-2">&amp;</span><span class="kw">super</span>::dfg::DataFlowGraph) -&gt; bool {
+<a href=#122 id=122 data-nosnippet>122</a>        <span class="self">self</span>.map.iter().all(|(from, to)| dfg.type_of_value(<span class="kw-2">*</span>from) == dfg.type_of_value(<span class="kw-2">*</span>to))
+<a href=#123 id=123 data-nosnippet>123</a>    }
+<a href=#124 id=124 data-nosnippet>124</a>}</code></pre></div></section></main></body></html>
