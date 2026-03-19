@@ -41,7 +41,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         // Heap corruption occurs when:
         //   `stack_pointer + stack_size + reserved_len + arguments_len > stack_start + max_stack_size`
         //
-        // (Note that it's okay for the LHS to equal the RHS because a 1 element stack size is basically just the stack_pointer).
+        // (Note that it's okay for the LHS to equal the RHS because initially the stack_pointer equals the stack_start).
         //
         // Substituting worst case (`stack_pointer = stack_start + max_stack_size - max_frame_size`, ie. the last viable frame):
         //   `(stack_start + max_stack_size - max_frame_size) + stack_size + reserved_len + arguments_len > stack_start + max_stack_size`
