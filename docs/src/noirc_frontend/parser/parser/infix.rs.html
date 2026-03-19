@@ -77,7 +77,7 @@
 <a href=#77 id=77 data-nosnippet>77</a>        <span class="macro">parse_infix!</span>(
 <a href=#78 id=78 data-nosnippet>78</a>            <span class="self">self</span>,
 <a href=#79 id=79 data-nosnippet>79</a>            Parser::parse_xor,
-<a href=#80 id=80 data-nosnippet>80</a>            <span class="comment">// Don't parse `x |= ...`, etc.
+<a href=#80 id=80 data-nosnippet>80</a>            <span class="comment">// Don't parse `x &amp;= ...`, etc.
 <a href=#81 id=81 data-nosnippet>81</a>            </span><span class="kw">if </span><span class="self">self</span>.next_is(Token::Assign) {
 <a href=#82 id=82 data-nosnippet>82</a>                <span class="kw">break</span>;
 <a href=#83 id=83 data-nosnippet>83</a>            } <span class="kw">else if </span><span class="self">self</span>.eat(Token::Ampersand) {
