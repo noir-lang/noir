@@ -179,6 +179,7 @@ fn colorize_token(token: &LocatedToken, line: &str, result: &mut String) {
         | Token::Bang
         | Token::Assign
         | Token::DollarSign
+        | Token::LogicalAnd
         | Token::EOF
         | Token::Whitespace(_)
         | Token::UnquoteMarker(_)

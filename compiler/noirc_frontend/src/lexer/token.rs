@@ -162,6 +162,8 @@ pub enum Token {
     Assign,
     /// $
     DollarSign,
+    /// &&
+    LogicalAnd,
     #[allow(clippy::upper_case_acronyms)]
     EOF,
 
@@ -413,6 +415,7 @@ impl Display for Token {
             Token::Assign => write!(f, "="),
             Token::Bang => write!(f, "!"),
             Token::DollarSign => write!(f, "$"),
+            Token::LogicalAnd => write!(f, "&&"),
             Token::EOF => write!(f, "end of input"),
             Token::Invalid(c) => write!(f, "{c}"),
             Token::Whitespace(ref s) => write!(f, "{s}"),

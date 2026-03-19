@@ -370,6 +370,7 @@ impl<'args> SemanticTokenCollector<'args> {
             | Token::Assign
             | Token::Arrow
             | Token::FatArrow
+            | Token::LogicalAnd
             | Token::Comma
             | Token::AttributeStart { .. }
             | Token::Semicolon => SemanticTokenType::OPERATOR,
