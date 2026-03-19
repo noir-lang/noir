@@ -1096,3 +1096,23 @@ fn errors_if_using_comptime_type_in_non_comptime_type_alias() {
     "#;
     check_errors(src);
 }
+
+/// Regression test: define_type_alias did not reset `current_item` after finishing,
+/// which can leak into subsequent elaboration phases.
+#[test]
+fn no_false_cycle_from_stale_current_item_after_type_alias() {
+    // `A` depends on `B` (real dependency).
+    // After the type-alias loop, `current_item` is left as `Alias(B)`.
+    // When `collect_traits` resolves the supertrait `Dummy<A>`, it should not
+    // record a dependency from `B` to `A` (which would create a false A↔B cycle).
+    let src = r#"
+        type A = B;
+        type B = Field;
+
+        trait Dummy<T> {}
+        trait Foo: Dummy<A> {}
+
+        fn main(_x: A) where A: Foo {}
+    "#;
+    assert_no_errors(src);
+}

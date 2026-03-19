@@ -1,6 +1,6 @@
 //! Type resolution, unification, and method resolution (for both types and traits).
 
-use std::{borrow::Cow, rc::Rc};
+use std::{borrow::Cow, collections::BTreeSet, rc::Rc};
 
 use im::HashSet;
 use iter_extended::vecmap;
@@ -1296,13 +1296,7 @@ impl Elaborator<'_> {
                 }
 
                 let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
-                self.find_methods_or_constants_in_trait(
-                    path,
-                    constraint,
-                    the_trait,
-                    the_trait.id,
-                    &mut matches,
-                );
+                self.find_methods_or_constants_in_trait(path, constraint, the_trait, &mut matches);
             }
         }
 
@@ -1343,7 +1337,24 @@ impl Elaborator<'_> {
         path: &TypedPath,
         constraint: TraitConstraint,
         the_trait: &Trait,
-        starting_trait_id: TraitId,
+        matches: &mut Vec<(TraitPathResolutionMethod, TraitId)>,
+    ) {
+        let mut visited = BTreeSet::from([the_trait.id]);
+        self.find_methods_or_constants_in_trait_inner(
+            path,
+            constraint,
+            the_trait,
+            &mut visited,
+            matches,
+        );
+    }
+
+    fn find_methods_or_constants_in_trait_inner(
+        &self,
+        path: &TypedPath,
+        constraint: TraitConstraint,
+        the_trait: &Trait,
+        visited: &mut BTreeSet<TraitId>,
         matches: &mut Vec<(TraitPathResolutionMethod, TraitId)>,
     ) {
         if let Some(definition) = the_trait.find_method_or_constant(path.last_name(), self.interner)
@@ -1355,19 +1366,19 @@ impl Elaborator<'_> {
         }
 
         for trait_bound in &the_trait.trait_bounds {
-            let parent_trait = self.interner.get_trait(trait_bound.trait_id);
-            if parent_trait.id == starting_trait_id {
-                // Avoid infinite recursion in case of cyclic trait bounds
+            // Avoid infinite recursion in case of cyclic trait bounds
+            if !visited.insert(trait_bound.trait_id) {
                 continue;
             }
 
+            let parent_trait = self.interner.get_trait(trait_bound.trait_id);
             let constraint =
                 TraitConstraint { typ: constraint.typ.clone(), trait_bound: trait_bound.clone() };
-            self.find_methods_or_constants_in_trait(
+            self.find_methods_or_constants_in_trait_inner(
                 path,
                 constraint,
                 parent_trait,
-                starting_trait_id,
+                visited,
                 matches,
             );
         }
@@ -2597,12 +2608,8 @@ impl Elaborator<'_> {
         {
             let the_trait = self.interner.get_trait(trait_id);
             let constraint = the_trait.as_constraint(the_trait.name.location());
-            let mut matches = self.lookup_methods_in_trait(
-                the_trait,
-                method_name,
-                &constraint.trait_bound,
-                the_trait.id,
-            );
+            let mut matches =
+                self.lookup_methods_in_trait(the_trait, method_name, &constraint.trait_bound);
             if matches.len() == 1 {
                 let method = matches.remove(0);
                 let assumed = true;
@@ -2632,12 +2639,8 @@ impl Elaborator<'_> {
                 && let Some(the_trait) =
                     self.interner.try_get_trait(constraint.trait_bound.trait_id)
             {
-                let trait_matches = self.lookup_methods_in_trait(
-                    the_trait,
-                    method_name,
-                    &constraint.trait_bound,
-                    the_trait.id,
-                );
+                let trait_matches =
+                    self.lookup_methods_in_trait(the_trait, method_name, &constraint.trait_bound);
                 matches.extend(trait_matches);
             }
         }
@@ -2716,7 +2719,17 @@ impl Elaborator<'_> {
         the_trait: &Trait,
         method_name: &str,
         trait_bound: &ResolvedTraitBound,
-        starting_trait_id: TraitId,
+    ) -> Vec<HirTraitMethodReference> {
+        let mut visited = BTreeSet::from([the_trait.id]);
+        self.lookup_methods_in_trait_inner(the_trait, method_name, trait_bound, &mut visited)
+    }
+
+    fn lookup_methods_in_trait_inner(
+        &self,
+        the_trait: &Trait,
+        method_name: &str,
+        trait_bound: &ResolvedTraitBound,
+        visited: &mut BTreeSet<TraitId>,
     ) -> Vec<HirTraitMethodReference> {
         let mut matches = Vec::new();
 
@@ -2738,17 +2751,17 @@ impl Elaborator<'_> {
         for parent_trait_bound in &the_trait.trait_bounds {
             if let Some(the_trait) = self.interner.try_get_trait(parent_trait_bound.trait_id) {
                 // Avoid looping forever in case there are cycles
-                if the_trait.id == starting_trait_id {
+                if !visited.insert(the_trait.id) {
                     continue;
                 }
 
                 let parent_trait_bound =
                     self.instantiate_parent_trait_bound(trait_bound, parent_trait_bound);
-                let parent_matches = self.lookup_methods_in_trait(
+                let parent_matches = self.lookup_methods_in_trait_inner(
                     the_trait,
                     method_name,
                     &parent_trait_bound,
-                    starting_trait_id,
+                    visited,
                 );
                 matches.extend(parent_matches);
             }
@@ -2865,7 +2878,9 @@ impl Elaborator<'_> {
             if let Type::Reference(_, mutable) = expected_object_type.follow_bindings() {
                 if !matches!(actual_type, Type::Reference(..)) {
                     let location = self.interner.id_location(*object);
-                    self.check_can_mutate(*object, location);
+                    if mutable {
+                        self.check_can_mutate(*object, location);
+                    }
 
                     let new_type = Type::Reference(Box::new(actual_type), mutable);
                     *object_type = new_type.clone();

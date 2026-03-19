@@ -152,9 +152,9 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// 2. The loop exit condition `source_pointer < source_start` becomes `true` immediately
     /// 3. The loop exits without any iterations, which is correct for 0 elements
     ///
-    /// This relies on the **value** at `source_start` being > 0. Current callers satisfy this                                                             
-    /// invariant because they pass heap pointers (from vector metadata), and heap allocations                                                             
-    /// always produce pointers > 0 since the heap starts after reserved registers and the stack.   
+    /// This relies on the **value** at `source_start` being > 0. Current callers satisfy this
+    /// invariant because they pass heap pointers (from vector metadata), and heap allocations
+    /// always produce pointers > 0 since the heap starts after reserved registers and the stack.
     pub(crate) fn codegen_mem_copy_from_the_end(
         &mut self,
         source_start: MemoryAddress,
@@ -678,7 +678,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     ///
     /// Here we are adjusting the rest of the meta-data required by the vector structure: basically the RC and the capacity.
     ///
-    /// Returns the size variable, which we can use to set the semantic length.
+    /// Returns the size variable, which we can use to set the semantic length, if it wasn't set to a non-zero value.
     pub(crate) fn codegen_initialize_externally_returned_vector(
         &mut self,
         vector: BrilligVector,
