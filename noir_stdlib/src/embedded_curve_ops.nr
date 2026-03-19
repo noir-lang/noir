@@ -150,11 +150,21 @@ pub fn multi_scalar_mul<let N: u32>(
 }
 
 #[foreign(multi_scalar_mul)]
-pub(crate) fn multi_scalar_mul_array_return<let N: u32>(
+fn multi_scalar_mul_array_return_blackbox<let N: u32>(
     points: [EmbeddedCurvePoint; N],
     scalars: [EmbeddedCurveScalar; N],
     predicate: bool,
 ) -> [EmbeddedCurvePoint; 1] {}
+
+pub(crate) fn multi_scalar_mul_array_return<let N: u32>(
+    points: [EmbeddedCurvePoint; N],
+    scalars: [EmbeddedCurveScalar; N],
+    predicate: bool,
+) -> [EmbeddedCurvePoint; 1] {
+    let result = multi_scalar_mul_array_return_blackbox(points, scalars, predicate);
+    assert_eq(result[0].is_infinite, (result[0].x == 0) & (result[0].y == 0));
+    result
+}
 
 // docs:start:fixed_base_scalar_mul
 pub fn fixed_base_scalar_mul(scalar: EmbeddedCurveScalar) -> EmbeddedCurvePoint
