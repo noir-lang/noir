@@ -224,7 +224,7 @@ impl Context<'_> {
                                     (flat_size / element_flat_size.0 as usize) as u32,
                                 )
                             }
-                            _ => unreachable!("ICE: Vector value is not an array"),
+                            AcirValue::Var(_) => unreachable!("ICE: Vector value is not an array"),
                         }
                     };
 

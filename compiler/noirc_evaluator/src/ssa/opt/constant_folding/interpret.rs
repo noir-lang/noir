@@ -29,7 +29,7 @@ pub(super) fn try_interpret_call(
         EvaluationResult::Evaluated(mut const_results) => {
             // Brillig returns non-flat arrays; ACIR expects flat.
             if !dfg.runtime().is_brillig() {
-                for result in const_results.iter_mut() {
+                for result in &mut const_results {
                     *result = InterpreterValue::flatten_for_acir(result);
                 }
             }
@@ -85,7 +85,7 @@ fn evaluate_const_argument_call(
     // ACIR stores arrays flat; Brillig expects nested.
     // Mark ACIR flat arrays and unflatten them for the Brillig interpreter.
     if !dfg.runtime().is_brillig() {
-        for arg in interpreter_args.iter_mut() {
+        for arg in &mut interpreter_args {
             if let InterpreterValue::ArrayOrVector(array) = arg
                 && array.element_types.iter().any(|t| t.contains_an_array())
             {

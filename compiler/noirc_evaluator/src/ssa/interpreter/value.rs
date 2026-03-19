@@ -479,7 +479,7 @@ impl Value {
     ) -> Vec<Value> {
         let mut elements = Vec::new();
         for _ in 0..semantic_length {
-            for typ in element_types.iter() {
+            for typ in element_types {
                 elements.push(Value::uninitialized(typ, id));
             }
         }

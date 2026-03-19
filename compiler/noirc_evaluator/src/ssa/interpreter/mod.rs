@@ -372,7 +372,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         // add_to_data_bus) is handled dynamically in interpret_array_get/set via
         // flat navigation through nested structures.
         if !function.runtime().is_brillig() {
-            for argument in arguments.iter_mut() {
+            for argument in &mut arguments {
                 *argument = Value::flatten_for_acir(argument);
             }
         }
@@ -1032,7 +1032,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                     // When crossing Brillig→ACIR boundary, flatten return values
                     // since ACIR code uses flat array indexing.
                     if crossing_to_brillig {
-                        for result in call_results.iter_mut() {
+                        for result in &mut call_results {
                             *result = Value::flatten_for_acir(result);
                         }
                     }
@@ -1060,7 +1060,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             let mut uninit_results =
                 self.uninitialized_call_results(&function, argument_ids, results)?;
             if in_acir_context {
-                for value in uninit_results.iter_mut() {
+                for value in &mut uninit_results {
                     // In ACIR context, arrays must be flat (scalars only).
                     // Value::uninitialized creates nested arrays, so flatten them.
                     *value = Value::flatten_for_acir(value);

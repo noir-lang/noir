@@ -356,12 +356,7 @@ impl<'a> ValueMerger<'a> {
                 let get = Instruction::ArrayGet { array, index };
                 let res = self
                     .dfg
-                    .insert_instruction_and_results(
-                        get,
-                        self.block,
-                        typevars.clone(),
-                        self.call_stack,
-                    )
+                    .insert_instruction_and_results(get, self.block, typevars, self.call_stack)
                     .first();
 
                 let res_typ = self.dfg.type_of_value(res);

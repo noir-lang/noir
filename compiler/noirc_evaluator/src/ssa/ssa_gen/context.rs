@@ -1119,7 +1119,7 @@ impl<'a> FunctionContext<'a> {
                 // TODO: test setting a struct with array and primitive fields where primitives come after
                 // the array fields. This test should help us check whether we are updating the index appropriately
                 // TODO: Move this logic to a helper
-                let flat_typ = value_typ.clone().flatten();
+                let flat_typ = value_typ.flatten();
                 for (my_index, typ) in flat_typ.into_iter().enumerate() {
                     let read_index = self
                         .builder
@@ -1274,7 +1274,7 @@ impl SharedContext {
             GlobalsGraph::default(),
         );
         let mut brillig_globals = BTreeMap::default();
-        for (id, (_, _, global)) in program.globals.iter() {
+        for (id, (_, _, global)) in &program.globals {
             let values = brillig_ctx.codegen_expression(global).unwrap();
             brillig_globals.insert(*id, values);
         }
