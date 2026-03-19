@@ -118,6 +118,10 @@ pub struct Parser<'a> {
     /// Set to true when recovering from a recursion depth overflow.
     /// Used to suppress cascading errors during stack unwinding.
     recovering_from_depth_overflow: bool,
+
+    /// When `&&` (LogicalAnd) is consumed by `parse_unary_op` as a reference operator,
+    /// this flag is set so the next call returns the second `&` without consuming a token.
+    pending_reference: bool,
 }
 
 impl<'a> Parser<'a> {
@@ -151,6 +155,7 @@ impl<'a> Parser<'a> {
             statement_comments: None,
             recursion_depth: 0,
             recovering_from_depth_overflow: false,
+            pending_reference: false,
         };
         parser.read_two_first_tokens();
         parser

@@ -130,6 +130,14 @@ impl Parser<'_> {
 
     /// UnaryOp = '&' 'mut' | '-' | '!' | '*'
     fn parse_unary_op(&mut self) -> Option<UnaryOp> {
+        // A `&&` (LogicalAnd) token was previously split: the first `&` was already returned,
+        // now return the second `&` (optionally followed by `mut`) without consuming a token.
+        if self.pending_reference {
+            self.pending_reference = false;
+            let mutable = self.eat_keyword(Keyword::Mut);
+            return Some(UnaryOp::Reference { mutable });
+        }
+
         if self.at(Token::Ampersand) {
             let mut mutable = false;
             if self.next_is(Token::Keyword(Keyword::Mut)) {
@@ -138,6 +146,12 @@ impl Parser<'_> {
             }
             self.bump();
             Some(UnaryOp::Reference { mutable })
+        } else if self.at(Token::LogicalAnd) {
+            // `&&` in unary context is two nested references. Consume the token, return the
+            // outer (immutable) reference, and set pending_reference for the inner one.
+            self.bump();
+            self.pending_reference = true;
+            Some(UnaryOp::Reference { mutable: false })
         } else if self.eat(Token::Minus) {
             Some(UnaryOp::Minus)
         } else if self.eat(Token::Bang) {

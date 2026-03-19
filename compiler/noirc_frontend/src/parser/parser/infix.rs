@@ -80,16 +80,10 @@ impl Parser<'_> {
             // Don't parse `x &= ...`, etc.
             if self.next_is(Token::Assign) {
                 break;
-            } else if self.at(Token::Ampersand) && self.next_is(Token::Ampersand) {
-                // `&&` is issued as two separate `&` tokens by the lexer as this makes it easier
-                // to parse nested references. For binary AND expressions however, it means we have
-                // to manually parse two ampersand tokens as a single logical AND here.
-                let start = self.current_token_location;
-                self.bump();
-                self.bump();
-                self.push_error(ParserErrorReason::LogicalAnd, self.location_since(start));
-                BinaryOpKind::And
             } else if self.eat(Token::Ampersand) {
+                BinaryOpKind::And
+            } else if self.eat(Token::LogicalAnd) {
+                self.push_error(ParserErrorReason::LogicalAnd, self.previous_token_location);
                 BinaryOpKind::And
             } else {
                 break;
