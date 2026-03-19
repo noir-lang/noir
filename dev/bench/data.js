@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773944077063,
+  "lastUpdate": 1773952459374,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23096,48 +23096,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "02e54ece642f45f67ab3745ee1ad957de10cd834",
-          "message": "chore!: remove deprecated `StructDefinition` (#11859)",
-          "timestamp": "2026-03-13T14:05:25Z",
-          "tree_id": "acb8a6712f2c49a5ab06f75e490a9d3eb9cd3adb",
-          "url": "https://github.com/noir-lang/noir/commit/02e54ece642f45f67ab3745ee1ad957de10cd834"
-        },
-        "date": 1773412417929,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 253383,
-            "range": "± 1275",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 224225,
-            "range": "± 7618",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2741994,
-            "range": "± 29349",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -25189,6 +25147,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2731349,
             "range": "± 894",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f7a7e6c16143080d09892ee730c0c8a4bb7877d5",
+          "message": "fix: Error when missing trait items (#11922)",
+          "timestamp": "2026-03-19T20:04:32Z",
+          "tree_id": "490b5c46dc3abe92aabd5d123238ba261f0c04a5",
+          "url": "https://github.com/noir-lang/noir/commit/f7a7e6c16143080d09892ee730c0c8a4bb7877d5"
+        },
+        "date": 1773952409315,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 255931,
+            "range": "± 670",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 224562,
+            "range": "± 4981",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2733607,
+            "range": "± 5281",
             "unit": "ns/iter"
           }
         ]
