@@ -621,32 +621,22 @@ impl Type {
             }
             // A reference wraps each SSA leaf of the inner type individually.
             // For compound inner types (tuples), each field becomes its own reference,
-            // so we count SSA leaves rather than using inner.flattened_size() which
-            // counts ACIR field elements (e.g. String(0) has 0 field elements but
-            // is still 1 SSA value, so &mut str<0> must count as 1, not 0).
-            Type::Reference(inner, _) => inner.num_ssa_values(),
-            _ => 1,
-        }
-    }
-
-    /// Returns the number of SSA values (leaves) this type produces in SSA generation.
-    ///
-    /// This differs from `flattened_size` in that non-tuple atomic types (Array, String,
-    /// Field, etc.) always produce exactly 1 SSA value, whereas `flattened_size` counts
-    /// the individual field elements they contain (e.g. `String(5)` has flattened_size 5
-    /// but is 1 SSA value).
-    fn num_ssa_values(&self) -> u32 {
-        match self {
-            Type::Tuple(fields) => fields.iter().map(|f| f.num_ssa_values()).sum(),
+            // so we recurse. For atomic types (Field, Integer, Array, String, etc.),
+            // a reference is always 1 SSA value regardless of the inner type's ACIR
+            // flat size (e.g. &mut str<0> must count as 1, not 0).
+            Type::Reference(inner, mutability) => match inner.as_ref() {
+                Type::Tuple(fields) => fields.iter().fold(0, |sum, f| {
+                    sum + Type::Reference(Rc::new(f.clone()), *mutability).flattened_size()
+                }),
+                // Nested references: Reference(Reference(X)) has the same leaf count
+                // as Reference(X) since references distribute over leaves.
+                Type::Reference(deeper, _) => {
+                    Type::Reference(deeper.clone(), *mutability).flattened_size()
+                }
+                Type::Unit => 0,
+                _ => 1,
+            },
             Type::Unit => 0,
-            Type::Reference(inner, _) => inner.num_ssa_values(),
-            Type::FmtString(_, fields) => {
-                // FmtString is expanded to (String(len), Field, fields) in SSA gen
-                1 + 1 + fields.num_ssa_values()
-            }
-            Type::Vector(_) => 2, // (length, data)
-            // All other types (Field, Integer, Bool, String, Array, Function)
-            // are single SSA values regardless of their inner size.
             _ => 1,
         }
     }

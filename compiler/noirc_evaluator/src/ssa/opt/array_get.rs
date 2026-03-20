@@ -203,7 +203,7 @@ pub(crate) fn try_optimize_array_get_from_previous_instructions(
     let target_index_u32 = target_index.try_to_u32()?;
 
     // Arbitrary number of maximum tries just to prevent this optimization from taking too long.
-    let max_tries = 5;
+    let max_tries = 50;
     for _ in 0..max_tries {
         if let Some((instruction, other_instruction_id)) =
             dfg.get_local_or_global_instruction_with_id(array_id)

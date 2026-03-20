@@ -841,42 +841,59 @@ impl<'f> Context<'f> {
         condition: ValueId,
         call_stack: CallStackId,
     ) -> Option<ValueId> {
-        // Global values have their instructions in the global DFG, not the function's DFG.
-        if self.inserter.function.dfg.is_global(value) {
-            return None;
+        const MAX_CHAIN_DEPTH: usize = 100;
+
+        // Walk backwards through a chain of ArraySet instructions from value,
+        // collecting (index, value, mutable) at each step, until we find an ArraySet
+        // whose base was loaded from the same address.
+        let mut chain = Vec::new();
+        let mut current = value;
+
+        for _ in 0..MAX_CHAIN_DEPTH {
+            if self.inserter.function.dfg.is_global(current) {
+                return None;
+            }
+
+            let Value::Instruction { instruction, .. } = &self.inserter.function.dfg[current]
+            else {
+                return None;
+            };
+
+            let Instruction::ArraySet { array, index, value: new_val, mutable } =
+                self.inserter.function.dfg[*instruction].clone()
+            else {
+                return None;
+            };
+
+            let array = self.inserter.resolve(array);
+            let index = self.inserter.resolve(index);
+            let new_val = self.inserter.resolve(new_val);
+
+            chain.push((index, new_val, mutable));
+
+            if self.was_loaded_from_address(array, address) {
+                // Found the base - emit merged array_sets in forward order (innermost first)
+                chain.reverse();
+                let else_condition = self.not_instruction(condition, call_stack);
+                let mut result = previous_value;
+                for (idx, val, mutable) in chain {
+                    result = self.create_merged_array_set(
+                        result,
+                        idx,
+                        val,
+                        condition,
+                        else_condition,
+                        mutable,
+                        call_stack,
+                    );
+                }
+                return Some(result);
+            }
+
+            current = array;
         }
-        // Check if value is an ArraySet instruction
-        let Value::Instruction { instruction, .. } = &self.inserter.function.dfg[value] else {
-            return None;
-        };
 
-        let Instruction::ArraySet { array, index, value: new_val, mutable } =
-            self.inserter.function.dfg[*instruction].clone()
-        else {
-            return None;
-        };
-
-        // Resolve values
-        let array = self.inserter.resolve(array);
-        let index = self.inserter.resolve(index);
-        let new_val = self.inserter.resolve(new_val);
-
-        // Check if the ArraySet's base array was loaded from the same address.
-        // This means `array` and `previous_value` are semantically equivalent.
-        if !self.was_loaded_from_address(array, address) {
-            return None;
-        }
-
-        let else_condition = self.not_instruction(condition, call_stack);
-        Some(self.create_merged_array_set(
-            previous_value,
-            index,
-            new_val,
-            condition,
-            else_condition,
-            mutable,
-            call_stack,
-        ))
+        None
     }
 
     /// Check if a value was the result of loading from a specific address.
@@ -915,41 +932,67 @@ impl<'f> Context<'f> {
         else_condition: ValueId,
         call_stack: CallStackId,
     ) -> Option<ValueId> {
-        // Global values have their instructions in the global DFG, not the function's DFG.
-        // They are always MakeArray, never ArraySet, so skip them.
-        if self.inserter.function.dfg.is_global(then_value) {
-            return None;
+        const MAX_CHAIN_DEPTH: usize = 100;
+
+        // Walk backwards through a chain of ArraySet instructions from then_value,
+        // collecting (index, value, mutable) at each step, until we find else_value
+        // as the base array.
+        //
+        // This handles the pattern where a conditional modifies multiple fields:
+        //   arr1 = array_set arr0, idx1, val1
+        //   arr2 = array_set arr1, idx2, val2
+        //   arr3 = array_set arr2, idx3, val3
+        // where arr0 == else_value. Instead of an O(array_size) IfElse merge,
+        // we emit O(chain_length) merged array_sets.
+        let mut chain = Vec::new();
+        let mut current = then_value;
+
+        for _ in 0..MAX_CHAIN_DEPTH {
+            // Global values have their instructions in the global DFG, not the function's DFG.
+            // They are always MakeArray, never ArraySet, so skip them.
+            if self.inserter.function.dfg.is_global(current) {
+                return None;
+            }
+
+            let Value::Instruction { instruction, .. } = &self.inserter.function.dfg[current]
+            else {
+                return None;
+            };
+
+            let Instruction::ArraySet { array, index, value, mutable } =
+                self.inserter.function.dfg[*instruction].clone()
+            else {
+                return None;
+            };
+
+            let array = self.inserter.resolve(array);
+            let index = self.inserter.resolve(index);
+            let value = self.inserter.resolve(value);
+
+            chain.push((index, value, mutable));
+
+            if array == else_value {
+                // Found the base - emit merged array_sets in forward order (innermost first)
+                chain.reverse();
+                let mut result = else_value;
+                for (idx, val, mutable) in chain {
+                    result = self.create_merged_array_set(
+                        result,
+                        idx,
+                        val,
+                        then_condition,
+                        else_condition,
+                        mutable,
+                        call_stack,
+                    );
+                }
+                return Some(result);
+            }
+
+            current = array;
         }
-        // Check if then_value is an ArraySet instruction
-        let Value::Instruction { instruction, .. } = &self.inserter.function.dfg[then_value] else {
-            return None;
-        };
 
-        let Instruction::ArraySet { array, index, value, mutable } =
-            self.inserter.function.dfg[*instruction].clone()
-        else {
-            return None;
-        };
-
-        // Resolve the array and index values since the instruction might have unresolved references
-        let array = self.inserter.resolve(array);
-        let index = self.inserter.resolve(index);
-        let value = self.inserter.resolve(value);
-
-        // Check if the base array of the ArraySet is the else_value
-        if array != else_value {
-            return None;
-        }
-
-        Some(self.create_merged_array_set(
-            else_value,
-            index,
-            value,
-            then_condition,
-            else_condition,
-            mutable,
-            call_stack,
-        ))
+        None
     }
 
     /// Insert a new instruction into the target block.
