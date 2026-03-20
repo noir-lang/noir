@@ -34,26 +34,22 @@ use crate::ssa::{
 const MAX_VARIABLES_OPTIMIZED: u32 = 10;
 
 impl Ssa {
+    /// Run mem2reg_simple on all functions (both ACIR and Brillig).
+    ///
+    /// ACIR functions have no variable limit since they benefit more from full promotion.
+    /// Brillig keeps the limit to avoid regressions in loop-heavy code.
     pub(crate) fn mem2reg_simple(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            // This pass can work in ACIR but is currently very slow for fully inlined + unrolled
-            // programs which can be hundreds of thousands of blocks with many mutable variables.
-            // For a reasonable runtime, we currently only run this on brillig programs which tend
-            // to have more reasonable function sizes.
-            //
-            // It'd be advantageous to run this pass earlier in the SSA pipeline in the future (and
-            // for ACIR too) but this requires changes to flattening & unrolling to handle jmpif
-            // arguments which has been excluded for simplicity.
-            if function.runtime().is_brillig() {
-                function.mem2reg_simple();
-            }
+            let max_vars =
+                if function.runtime().is_brillig() { Some(MAX_VARIABLES_OPTIMIZED) } else { None };
+            function.mem2reg_simple(max_vars);
         }
         self
     }
 }
 
 impl Function {
-    fn mem2reg_simple(&mut self) {
+    fn mem2reg_simple(&mut self, max_variables: Option<u32>) {
         let cfg = ControlFlowGraph::with_function(self);
         let post_order = PostOrder::with_cfg(&cfg);
         let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
@@ -68,11 +64,13 @@ impl Function {
         let mut variables = collect_all_eligible_variables(inserter.function, &blocks);
 
         // Limit increase in memory usage and brillig regressions by arbitrarily limiting this pass to some variables
-        let mut i = 0;
-        variables.retain(|_, _| {
-            i += 1;
-            i <= MAX_VARIABLES_OPTIMIZED
-        });
+        if let Some(max) = max_variables {
+            let mut i = 0;
+            variables.retain(|_, _| {
+                i += 1;
+                i <= max
+            });
+        }
         if variables.is_empty() {
             return;
         }
