@@ -1,6 +1,7 @@
 use crate::cmp::Eq;
 use crate::hash::Hash;
 use crate::ops::arith::{Add, Neg, Sub};
+use super::convert::Into;
 
 /// A point on the embedded elliptic curve
 /// By definition, the base field of the embedded curve is the scalar field of the proof system curve, i.e the Noir Field.
@@ -11,6 +12,21 @@ pub struct EmbeddedCurvePoint {
 }
 
 impl EmbeddedCurvePoint {
+    pub fn new(x: Field, y: Field) -> EmbeddedCurvePoint {
+        let point = EmbeddedCurvePoint {x, y};
+        assert(point.is_on_curve(), "Point is not on curve");
+        point
+    }
+
+    pub fn new_unchecked(x: Field, y: Field) -> EmbeddedCurvePoint {
+        assert_eq(y * y, x * x* x - 17, "Point is not on curve");
+        EmbeddedCurvePoint {x, y}
+    }
+
+    pub fn is_on_curve(self) -> bool {
+        self.y * self.y == (self.x * self.x * self.x) - 17
+    }
+
     /// Elliptic curve point doubling operation
     /// returns the doubled point of a point P, i.e P+P
     pub fn double(self) -> EmbeddedCurvePoint {
@@ -128,11 +144,7 @@ impl Hash for EmbeddedCurveScalar {
 }
 
 // Computes a multi scalar multiplication over the embedded curve.
-// For bn254, We have Grumpkin and Baby JubJub.
-// For bls12-381, we have JubJub and Bandersnatch.
-//
-// The embedded curve being used is decided by the
-// underlying proof system.
+// For bn254, it is Grumpkin.
 //
 // IMPORTANT: Prefer `multi_scalar_mul()` over repeated `embedded_curve_add()`
 // for adding multiple points. This is significantly more efficient.
@@ -144,23 +156,7 @@ pub fn multi_scalar_mul<let N: u32>(
 ) -> EmbeddedCurvePoint
 // docs:end:multi_scalar_mul
 {
-    multi_scalar_mul_array_return(points, scalars)[0]
-}
-
-#[foreign(multi_scalar_mul)]
-fn multi_scalar_mul_array_return_blackbox<let N: u32>(
-    points: [EmbeddedCurvePoint; N],
-    scalars: [EmbeddedCurveScalar; N],
-    predicate: bool,
-) -> [EmbeddedCurvePoint; 1] {}
-
-pub(crate) fn multi_scalar_mul_array_return<let N: u32>(
-    points: [EmbeddedCurvePoint; N],
-    scalars: [EmbeddedCurveScalar; N],
-) -> [EmbeddedCurvePoint; 1] {
-    let mut result = multi_scalar_mul_array_return_blackbox(points, scalars, true);
-    result[0].is_infinite = (result[0].x == 0) & (result[0].y == 0);
-    result
+    multi_scalar_mul_array_return(points.map(Into::into), scalars, true)[0].into()
 }
 
 // docs:start:fixed_base_scalar_mul
@@ -169,6 +165,32 @@ pub fn fixed_base_scalar_mul(scalar: EmbeddedCurveScalar) -> EmbeddedCurvePoint
 {
     multi_scalar_mul([EmbeddedCurvePoint::generator()], [scalar])
 }
+
+// Compatibility layer between the `EmbeddedCurvePoint` as used in user code and that which is passed to the backend.
+struct InternalEmbeddedCurvePoint {
+    x: Field,
+    y: Field,
+    is_infinite: bool
+}
+
+impl crate::convert::From<InternalEmbeddedCurvePoint> for EmbeddedCurvePoint {
+    fn from(point: InternalEmbeddedCurvePoint) -> EmbeddedCurvePoint {
+        EmbeddedCurvePoint {x: point.x, y: point.y}
+    }
+}
+
+impl crate::convert::From<EmbeddedCurvePoint> for InternalEmbeddedCurvePoint {
+    fn from(point: EmbeddedCurvePoint) -> InternalEmbeddedCurvePoint {
+        InternalEmbeddedCurvePoint {x: point.x, y: point.y, is_infinite: point.is_infinite_or_zero()}
+    }
+}
+
+#[foreign(multi_scalar_mul)]
+fn multi_scalar_mul_array_return<let N: u32>(
+    points: [InternalEmbeddedCurvePoint; N],
+    scalars: [EmbeddedCurveScalar; N],
+    predicate: bool,
+) -> [InternalEmbeddedCurvePoint; 1] {}
 
 /// Elliptic curve addition
 /// IMPORTANT: this function is expected to perform a full addition in order to handle all corner cases:
@@ -182,33 +204,20 @@ pub fn embedded_curve_add(
     point2: EmbeddedCurvePoint,
 ) -> EmbeddedCurvePoint {
     // docs:end:embedded_curve_add
-    if crate::runtime::is_unconstrained() {
-        // avoid calling the black box function for trivial cases
-        if point1.is_infinite_or_zero() {
-            point2
-        } else if point2.is_infinite_or_zero() {
-            point1
-        } else {
-            embedded_curve_add_inner(point1, point2)
-        }
-    } else {
-        embedded_curve_add_inner(point1, point2)
-    }
+    embedded_curve_add_inner(point1, point2)
 }
 
 #[foreign(embedded_curve_add)]
 fn embedded_curve_add_array_return(
-    _point1: EmbeddedCurvePoint,
-    _point2: EmbeddedCurvePoint,
+    _point1: InternalEmbeddedCurvePoint,
+    _point2: InternalEmbeddedCurvePoint,
     _predicate: bool,
-) -> [EmbeddedCurvePoint; 1] {}
+) -> [InternalEmbeddedCurvePoint; 1] {}
 
 /// EC addition wrapper for the foreign function
 fn embedded_curve_add_inner(
     point1: EmbeddedCurvePoint,
     point2: EmbeddedCurvePoint,
 ) -> EmbeddedCurvePoint {
-    let mut result = embedded_curve_add_array_return(point1, point2, true)[0];
-    result.is_infinite = (result.x == 0) & (result.y == 0);
-    result
+    embedded_curve_add_array_return(point1.into(), point2.into(), true)[0].into()
 }
