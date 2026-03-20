@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774034291445,
+  "lastUpdate": 1774034331694,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23151,48 +23151,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "363fc8a34dda533bd136ef61161b7faa6f117209",
-          "message": "fix(comptime): follow bindings when interpreting format string (#11853)",
-          "timestamp": "2026-03-13T20:25:02Z",
-          "tree_id": "2f4b8bee1a37d5e373fe23fadcf3feba06f6760a",
-          "url": "https://github.com/noir-lang/noir/commit/363fc8a34dda533bd136ef61161b7faa6f117209"
-        },
-        "date": 1773435141911,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 210301,
-            "range": "± 719",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 196250,
-            "range": "± 1449",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3126705,
-            "range": "± 2210",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "fe37187322c34ded12e74aabd1b49bf43f6ad947",
           "message": "chore: align call stack frame numbers/names (#11873)",
           "timestamp": "2026-03-14T04:35:34Z",
@@ -25234,6 +25192,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2214324,
             "range": "± 1938",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "44a6dd208232c597a8f34c06973361a113d7fc0c",
+          "message": "fix(brillig): Use `reserved_len` and `returns_len` in the stack frame bounds assertion in `codegen_call` (#11918)",
+          "timestamp": "2026-03-20T18:55:36Z",
+          "tree_id": "6cd5d672a71d11928324c359b9e2ea5a40dcdfc5",
+          "url": "https://github.com/noir-lang/noir/commit/44a6dd208232c597a8f34c06973361a113d7fc0c"
+        },
+        "date": 1774034278971,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 215997,
+            "range": "± 808",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 200468,
+            "range": "± 2145",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3129781,
+            "range": "± 29816",
             "unit": "ns/iter"
           }
         ]
