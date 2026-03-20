@@ -832,6 +832,9 @@ pub fn get_value<F: AcirField>(
     expr: &Expression<F>,
     initial_witness: &WitnessMap<F>,
 ) -> Result<F, OpcodeResolutionError<F>> {
+    if let Some(&c) = expr.to_const() {
+        return Ok(c);
+    }
     let expr = ExpressionSolver::evaluate(expr, initial_witness);
     match expr.to_const() {
         Some(value) => Ok(*value),
@@ -888,12 +891,7 @@ pub(crate) fn is_predicate_false<F: AcirField>(
     predicate: &Expression<F>,
     opcode_location: &ErrorLocation,
 ) -> Result<bool, OpcodeResolutionError<F>> {
-    // Fast path: if the predicate is already a constant, avoid the full expression evaluation.
-    let pred_value = if let Some(&constant) = predicate.to_const() {
-        constant
-    } else {
-        get_value(predicate, witness)?
-    };
+    let pred_value = get_value(predicate, witness)?;
     let predicate_is_false = pred_value.is_zero();
 
     // We expect that the predicate should resolve to either 0 or 1.
