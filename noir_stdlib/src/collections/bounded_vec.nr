@@ -1126,28 +1126,12 @@ mod bounded_vec_tests {
             let vec: BoundedVec<u32, 4> = BoundedVec::from_parts([1, 2, 3, 0], 3);
             assert_eq(vec.len(), 3);
 
-            // Any elements past the given length are zeroed out, so these
+            // Any elements past the given length are ignored, so these
             // two BoundedVecs will be completely equal
             let vec1: BoundedVec<u32, 4> = BoundedVec::from_parts([1, 2, 3, 1], 3);
             let vec2: BoundedVec<u32, 4> = BoundedVec::from_parts([1, 2, 3, 2], 3);
             assert_eq(vec1, vec2);
             // docs:end:from-parts
-        }
-
-        #[test]
-        fn from_parts_unchecked() {
-            // docs:start:from-parts-unchecked
-            let vec: BoundedVec<u32, 4> = BoundedVec::from_parts_unchecked([1, 2, 3, 0], 3);
-            assert_eq(vec.len(), 3);
-
-            // invalid use!
-            let vec1: BoundedVec<u32, 4> = BoundedVec::from_parts_unchecked([1, 2, 3, 1], 3);
-            let vec2: BoundedVec<u32, 4> = BoundedVec::from_parts_unchecked([1, 2, 3, 2], 3);
-
-            // both vecs have length 3 so we'd expect them to be equal, regardless
-            // of the elements past their length
-            assert_eq(vec1, vec2);
-            // docs:end:from-parts-unchecked
         }
     }
 
