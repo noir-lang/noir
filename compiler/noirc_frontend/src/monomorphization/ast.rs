@@ -619,7 +619,34 @@ impl Type {
             Type::Vector(_) => {
                 unimplemented!("ICE: cannot fetch flattened slice size");
             }
-            Type::Reference(inner, _) => inner.flattened_size(),
+            // A reference wraps each SSA leaf of the inner type individually.
+            // For compound inner types (tuples), each field becomes its own reference,
+            // so we count SSA leaves rather than using inner.flattened_size() which
+            // counts ACIR field elements (e.g. String(0) has 0 field elements but
+            // is still 1 SSA value, so &mut str<0> must count as 1, not 0).
+            Type::Reference(inner, _) => inner.num_ssa_values(),
+            _ => 1,
+        }
+    }
+
+    /// Returns the number of SSA values (leaves) this type produces in SSA generation.
+    ///
+    /// This differs from `flattened_size` in that non-tuple atomic types (Array, String,
+    /// Field, etc.) always produce exactly 1 SSA value, whereas `flattened_size` counts
+    /// the individual field elements they contain (e.g. `String(5)` has flattened_size 5
+    /// but is 1 SSA value).
+    fn num_ssa_values(&self) -> u32 {
+        match self {
+            Type::Tuple(fields) => fields.iter().map(|f| f.num_ssa_values()).sum(),
+            Type::Unit => 0,
+            Type::Reference(inner, _) => inner.num_ssa_values(),
+            Type::FmtString(_, fields) => {
+                // FmtString is expanded to (String(len), Field, fields) in SSA gen
+                1 + 1 + fields.num_ssa_values()
+            }
+            Type::Vector(_) => 2, // (length, data)
+            // All other types (Field, Integer, Bool, String, Array, Function)
+            // are single SSA values regardless of their inner size.
             _ => 1,
         }
     }
