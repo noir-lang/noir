@@ -142,14 +142,17 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
         SsaPass::new(Ssa::expand_signed_checks, "expand signed checks"),
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
-        // Use brillig-only mem2reg before flattening: promoting ACIR references to block
-        // params here creates extra blocks that cascade through flattening into redundant
-        // predicate operations, causing opcode regressions.
-        SsaPass::new(Ssa::mem2reg_simple_brillig, "Mem2Reg Simple"),
+        // Use brillig-only mem2reg at positions 1 and 2 (before inlining).
+        // Running ACIR mem2reg this early creates block parameters that cascade through
+        // inlining and unrolling, causing regressions in unrolled-loop-heavy programs.
+        // LSF is safe here — it forwards same-block store→load without block parameters.
+        SsaPass::new(Ssa::mem2reg_simple_brillig, "Mem2Reg Simple")
+            .and_then(Ssa::load_store_forwarding),
         SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
         SsaPass::new_try(Ssa::inline_simple_functions, "Inlining simple functions")
             .and_then(Ssa::remove_unreachable_functions),
-        SsaPass::new(Ssa::mem2reg_simple_brillig, "Mem2Reg Simple"),
+        SsaPass::new(Ssa::mem2reg_simple_brillig, "Mem2Reg Simple")
+            .and_then(Ssa::load_store_forwarding),
         SsaPass::new(Ssa::array_set_optimization, "ArraySet optimization"),
         SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
         SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
@@ -172,8 +175,10 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             },
             "Inlining",
         ),
-        // Run mem2reg with the CFG separated into blocks (Brillig only before flattening)
-        SsaPass::new(Ssa::mem2reg_simple_brillig, "Mem2Reg Simple"),
+        // Run mem2reg with block span limit for ACIR, then load_store_forwarding to handle
+        // same-block store->load patterns without creating block parameters.
+        SsaPass::new(Ssa::mem2reg_simple_pre_flattening, "Mem2Reg Simple")
+            .and_then(Ssa::load_store_forwarding),
         SsaPass::new(Ssa::array_set_optimization, "ArraySet optimization"),
         SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
         // Running DIE here might remove some unused instructions mem2reg could not eliminate.
@@ -202,7 +207,10 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             "Unrolling",
         ),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
-        SsaPass::new(Ssa::mem2reg_simple_brillig, "Mem2Reg Simple"),
+        // After unrolling, all loop blocks are gone so load_store_forwarding can process
+        // every block. This is the most impactful position for ACIR store->load forwarding.
+        SsaPass::new(Ssa::mem2reg_simple_pre_flattening, "Mem2Reg Simple")
+            .and_then(Ssa::load_store_forwarding),
         SsaPass::new(Ssa::remove_bit_shifts, "Removing Bit Shifts"),
         SsaPass::new(Ssa::array_set_optimization, "ArraySet optimization"),
         SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
