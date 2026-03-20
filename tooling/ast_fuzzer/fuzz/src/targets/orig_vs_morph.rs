@@ -305,7 +305,9 @@ mod rules {
     use arbitrary::Unstructured;
     use noir_ast_fuzzer::{Config, expr, types};
     use noirc_frontend::{
+        Type as HirType,
         ast::BinaryOpKind,
+        hir::comptime::Integer,
         monomorphization::ast::{Binary, Definition, Expression, Ident, Literal, Type},
     };
 
@@ -431,24 +433,34 @@ mod rules {
                     unreachable!("generated a literal of the same type");
                 };
 
-                // Make them have the same sign, so they are on the same side of 0 and a single number
-                // can add up to them without overflow. (e.g. there is no x such that `i32::MIN + x == i32::MAX`)
-                // if a.is_negative() && !b.is_negative() {
-                //     *b = -*b;
-                // } else if !a.is_negative() && b.is_negative() {
-                //     *b = b.absolute_value() - FieldElement::one(); // -1 just to avoid the potential of going from e.g. i8 -128 to 128 where the maximum is 127.
-                // }
+                let Type::Integer(sign, bits) = typ else {
+                    return Ok(());
+                };
+                let hir_type = HirType::Integer(*sign, *bits);
 
-                let (op, c) = if *a >= *b {
-                    (BinaryOpKind::Add, (*a - *b))
-                } else {
-                    (BinaryOpKind::Subtract, (*b - *a))
+                // Convert to Integer for correct signed/unsigned comparison.
+                // FieldElement ordering does not match signed integer ordering.
+                let Some(a_int) = Integer::try_from_type(*a, &hir_type) else {
+                    return Ok(());
+                };
+                let Some(b_int) = Integer::try_from_type(*b, &hir_type) else {
+                    return Ok(());
                 };
 
+                let (op, c) = if a_int >= b_int {
+                    (BinaryOpKind::Add, *a - *b)
+                } else {
+                    (BinaryOpKind::Subtract, *b - *a)
+                };
+
+                // Verify c fits in the type (modular subtraction can yield out-of-range values
+                // for signed integers, e.g. 100_i8 - (-28_i8) = 128 which overflows i8).
+                if Integer::try_from_type(c, &hir_type).is_none() {
+                    return Ok(());
+                }
+
                 let c_expr = Expression::Literal(Literal::Integer(c, typ.clone(), *loc));
-
                 *expr = expr::binary(b_expr, op, c_expr);
-
                 Ok(())
             },
         )
