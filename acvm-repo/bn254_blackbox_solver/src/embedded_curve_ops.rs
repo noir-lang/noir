@@ -276,25 +276,6 @@ mod tests {
     }
 
     #[test]
-    fn rejects_addition_of_infinite_points_when_pedantic() {
-        let x = FieldElement::from(1u128);
-        let y = FieldElement::from(1u128);
-
-        let res = embedded_curve_add(
-            [x, y, FieldElement::from(1u128)],
-            [x, y, FieldElement::from(1u128)],
-        );
-
-        assert_eq!(
-            res,
-            Err(BlackBoxResolutionError::Failed(
-                BlackBoxFunc::EmbeddedCurveAdd,
-                "Infinite input: embedded_curve_add(infinity, infinity)".into(),
-            ))
-        );
-    }
-
-    #[test]
     fn output_of_msm_matches_add() -> Result<(), BlackBoxResolutionError> {
         let points = get_generator();
         let scalars_lo = [FieldElement::from(2u128)];

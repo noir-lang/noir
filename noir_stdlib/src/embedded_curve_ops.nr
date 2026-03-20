@@ -13,17 +13,22 @@ pub struct EmbeddedCurvePoint {
 
 impl EmbeddedCurvePoint {
     pub fn new(x: Field, y: Field) -> EmbeddedCurvePoint {
-        let point = EmbeddedCurvePoint {x, y};
+        let point = EmbeddedCurvePoint { x, y };
         assert(point.is_on_curve(), "Point is not on curve");
         point
     }
 
     pub fn new_unchecked(x: Field, y: Field) -> EmbeddedCurvePoint {
-        assert_eq(y * y, x * x* x - 17, "Point is not on curve");
-        EmbeddedCurvePoint {x, y}
+        EmbeddedCurvePoint { x, y }
+    }
+
+    /// Returns the null element of the curve; 'the point at infinity'
+    pub fn point_at_infinity() -> EmbeddedCurvePoint {
+        EmbeddedCurvePoint { x: 0, y: 0 }
     }
 
     pub fn is_on_curve(self) -> bool {
+        // Grumpkin curve
         self.y * self.y == (self.x * self.x * self.x) - 17
     }
 
@@ -31,11 +36,6 @@ impl EmbeddedCurvePoint {
     /// returns the doubled point of a point P, i.e P+P
     pub fn double(self) -> EmbeddedCurvePoint {
         embedded_curve_add(self, self)
-    }
-
-    /// Returns the null element of the curve; 'the point at infinity'
-    pub fn point_at_infinity() -> EmbeddedCurvePoint {
-        EmbeddedCurvePoint { x: 0, y: 0 }
     }
 
     /// Returns the curve's generator point.
@@ -167,26 +167,30 @@ pub fn fixed_base_scalar_mul(scalar: EmbeddedCurveScalar) -> EmbeddedCurvePoint
 }
 
 // Compatibility layer between the `EmbeddedCurvePoint` as used in user code and that which is passed to the backend.
-struct InternalEmbeddedCurvePoint {
-    x: Field,
-    y: Field,
-    is_infinite: bool
+pub(crate) struct InternalEmbeddedCurvePoint {
+    pub(crate) x: Field,
+    pub(crate) y: Field,
+    pub(crate) is_infinite: bool,
 }
 
 impl crate::convert::From<InternalEmbeddedCurvePoint> for EmbeddedCurvePoint {
     fn from(point: InternalEmbeddedCurvePoint) -> EmbeddedCurvePoint {
-        EmbeddedCurvePoint {x: point.x, y: point.y}
+        EmbeddedCurvePoint { x: point.x, y: point.y }
     }
 }
 
 impl crate::convert::From<EmbeddedCurvePoint> for InternalEmbeddedCurvePoint {
     fn from(point: EmbeddedCurvePoint) -> InternalEmbeddedCurvePoint {
-        InternalEmbeddedCurvePoint {x: point.x, y: point.y, is_infinite: point.is_infinite_or_zero()}
+        InternalEmbeddedCurvePoint {
+            x: point.x,
+            y: point.y,
+            is_infinite: point.is_infinite_or_zero(),
+        }
     }
 }
 
 #[foreign(multi_scalar_mul)]
-fn multi_scalar_mul_array_return<let N: u32>(
+pub(crate) fn multi_scalar_mul_array_return<let N: u32>(
     points: [InternalEmbeddedCurvePoint; N],
     scalars: [EmbeddedCurveScalar; N],
     predicate: bool,
