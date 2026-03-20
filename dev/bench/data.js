@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774025401133,
+  "lastUpdate": 1774029681176,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23096,48 +23096,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "7861de2f6c6535f6a7739e9f9d3bf0943493eca7",
-          "message": "fix(frontend): avoid spurious errors on turbofish generic count mismatch (#11861)",
-          "timestamp": "2026-03-13T17:03:00Z",
-          "tree_id": "8a8baa1707ff82c15a3fbb2ecbe1a8bc642a95b4",
-          "url": "https://github.com/noir-lang/noir/commit/7861de2f6c6535f6a7739e9f9d3bf0943493eca7"
-        },
-        "date": 1773422837920,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 257029,
-            "range": "± 1881",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 228003,
-            "range": "± 4764",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2734073,
-            "range": "± 2041",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25189,6 +25147,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3140993,
             "range": "± 10697",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "cb7a44307594d2af8b08468a3f9e3abc66105c48",
+          "message": "chore: Errors on  match expressions in comptime code (#11928)",
+          "timestamp": "2026-03-20T17:37:17Z",
+          "tree_id": "b74cab2d6f3903903b0a52c97d7c99c9a8ade185",
+          "url": "https://github.com/noir-lang/noir/commit/cb7a44307594d2af8b08468a3f9e3abc66105c48"
+        },
+        "date": 1774029632484,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 253951,
+            "range": "± 949",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 223117,
+            "range": "± 3296",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2733655,
+            "range": "± 7664",
             "unit": "ns/iter"
           }
         ]
