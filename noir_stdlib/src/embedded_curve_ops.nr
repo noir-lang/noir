@@ -146,7 +146,7 @@ pub fn multi_scalar_mul<let N: u32>(
 ) -> EmbeddedCurvePoint
 // docs:end:multi_scalar_mul
 {
-    multi_scalar_mul_array_return(points, scalars, true)[0]
+    multi_scalar_mul_array_return(points, scalars)[0]
 }
 
 #[foreign(multi_scalar_mul)]
@@ -159,10 +159,9 @@ fn multi_scalar_mul_array_return_blackbox<let N: u32>(
 pub(crate) fn multi_scalar_mul_array_return<let N: u32>(
     points: [EmbeddedCurvePoint; N],
     scalars: [EmbeddedCurveScalar; N],
-    predicate: bool,
 ) -> [EmbeddedCurvePoint; 1] {
-    let result = multi_scalar_mul_array_return_blackbox(points, scalars, predicate);
-    assert_eq(result[0].is_infinite, (result[0].x == 0) & (result[0].y == 0));
+    let mut result = multi_scalar_mul_array_return_blackbox(points, scalars, true);
+    result[0].is_infinite = (result[0].x == 0) & (result[0].y == 0);
     result
 }
 
@@ -211,5 +210,7 @@ fn embedded_curve_add_inner(
     point1: EmbeddedCurvePoint,
     point2: EmbeddedCurvePoint,
 ) -> EmbeddedCurvePoint {
-    embedded_curve_add_array_return(point1, point2, true)[0]
+    let mut result = embedded_curve_add_array_return(point1, point2, true)[0];
+    result.is_infinite = (result.x == 0) & (result.y == 0);
+    result
 }
