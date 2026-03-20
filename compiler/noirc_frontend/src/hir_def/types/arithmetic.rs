@@ -417,11 +417,11 @@ mod tests {
             implicit: false,
             original_type_var_id: None,
         });
-        let n_minus_one: Type = n.clone() - Type::constant_u32(1);
+        let n_minus_one: Type = n.clone() - u32t(1);
         let checked_cast_n_minus_one =
             Type::CheckedCast { from: Box::new(n_minus_one.clone()), to: Box::new(n_minus_one) };
 
-        let n_minus_one_plus_one = checked_cast_n_minus_one.clone() + Type::constant_u32(1);
+        let n_minus_one_plus_one = checked_cast_n_minus_one.clone() + u32t(1);
 
         let canonicalized_typ = n_minus_one_plus_one.canonicalize();
 
@@ -429,7 +429,7 @@ mod tests {
 
         // We also want to check that if the `CheckedCast` is on the RHS then we'll still be able to canonicalize
         // the expression `1 + (N - 1)` to `N`.
-        let one_plus_n_minus_one = Type::constant_u32(1u32) + checked_cast_n_minus_one;
+        let one_plus_n_minus_one = u32t(1u32) + checked_cast_n_minus_one;
 
         let canonicalized_typ = one_plus_n_minus_one.canonicalize();
 
@@ -470,23 +470,23 @@ mod tests {
         assert_eq!(lhs, rhs);
     }
 
+    /// Helper to create a u32 numeric constant type
+    fn u32t(x: u32) -> Type {
+        Type::constant_u32(x)
+    }
+
     #[test]
     fn negative_u32_difference() {
-        let infix = Type::constant_u32(0) - Type::constant_u32(1);
+        let infix = u32t(0) - u32t(1);
         let infix_canonicalized = infix.canonicalize();
         assert_eq!(infix_canonicalized, infix);
     }
 
     #[test]
     fn zero_divided_by_zero() {
-        let infix = Type::constant_u32(0) / Type::constant_u32(0);
+        let infix = u32t(0) / u32t(0);
         let infix_canonicalized = infix.canonicalize();
         assert_eq!(infix_canonicalized, infix);
-    }
-
-    /// Helper to create a u32 numeric constant type
-    fn u32t(x: u32) -> Type {
-        Type::constant_u32(x)
     }
 
     #[should_panic(expected = "`left == right` failed")]

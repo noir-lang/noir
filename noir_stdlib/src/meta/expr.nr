@@ -110,7 +110,8 @@ impl Expr {
 
     /// If this expression is an integer literal, return the integer as a field.
     /// Note that negative integers of signed integer types will be encoded
-    /// as the equivalent negative field value.
+    /// as the equivalent negative field value such that e.g. `-1i8` will
+    /// return the `-1` field value rather than the two's complement encoding of `255`.
     #[builtin(expr_as_integer)]
     // docs:start:as_integer
     pub comptime fn as_integer(self) -> Option<Field> {}

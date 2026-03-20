@@ -225,7 +225,8 @@ array and the index.</p>
 <div class="padded-description"><div class="comments">
 <p>If this expression is an integer literal, return the integer as a field.
 Note that negative integers of signed integer types will be encoded
-as the equivalent negative field value.</p>
+as the equivalent negative field value such that e.g. <code>-1i8</code> will
+return the <code>-1</code> field value rather than the two's complement encoding of <code>255</code>.</p>
 </div>
 </div><code id="as_lambda" class="code-header">pub comptime fn <a href="#as_lambda"><span class="fn">as_lambda</span></a>(
     self,
