@@ -1564,3 +1564,19 @@ fn function_value_macro_call_in_comptime_block() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn match_in_comptime_errors_instead_of_panicking() {
+    let src = r#"
+    enum Foo { Bar }
+
+    fn main() {
+        comptime {
+            let foo = Foo::Bar;
+            match foo { Foo::Bar => {} }
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Match expressions in comptime code is currently unimplemented
+        };
+    }
+    "#;
+    check_errors(src);
+}

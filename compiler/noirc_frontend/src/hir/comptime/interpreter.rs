@@ -647,7 +647,13 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirExpression::Constrain(constrain) => self.evaluate_constrain(constrain),
             HirExpression::Cast(cast) => self.evaluate_cast(&cast, id),
             HirExpression::If(if_) => self.evaluate_if(if_),
-            HirExpression::Match(_) => todo!("Evaluate match in comptime code"),
+            HirExpression::Match(_) => {
+                let location = self.elaborator.interner.expr_location(&id);
+                Err(InterpreterError::Unimplemented {
+                    item: "Match expressions in comptime code".to_string(),
+                    location,
+                })
+            }
             HirExpression::Tuple(tuple) => self.evaluate_tuple(tuple),
             HirExpression::Lambda(lambda) => self.evaluate_lambda(lambda, id),
             HirExpression::Quote(tokens) => self.evaluate_quote(tokens),
