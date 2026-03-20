@@ -697,7 +697,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         // We need to resolve the type, but it has already been done by the elaborator
                         if let Value::Enum(tag, fields, _) = value {
                             let typ = self.elaborator.interner.id_type(id).follow_bindings();
-                            Ok(Value::Enum(tag.clone(), fields.clone(), typ))
+                            Ok(Value::Enum(*tag, fields.clone(), typ))
                         } else {
                             Ok(value.clone())
                         }
