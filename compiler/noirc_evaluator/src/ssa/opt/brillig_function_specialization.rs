@@ -1,22 +1,51 @@
-//! Brillig Function Specialization Pass
+//! # Brillig Function Specialization
+//!
+//! ## Problem
 //!
 //! When a Brillig function is called with constant arguments but is too large to inline,
-//! those constants don't propagate into the function body. This pass fills that gap by
-//! cloning the function with constants substituted, running existing SSA passes on the clone
-//! to measure actual benefit, and keeping it only if savings exceed the threshold.
+//! those constants don't propagate into the function body. For example, `main` calls
+//! `foo(1, x)` — the body of `foo` sees generic parameters `v0, v1` and can't fold
+//! `eq v0, 1` into `true`, leaving a dead branch in the compiled Brillig bytecode.
+//!
+//! ## Solution
+//!
+//! This pass creates specialized clones with constants substituted, runs optimization
+//! passes on each clone, and keeps only those that shrink enough to justify the code-size
+//! cost. Continuing the example above: we clone `foo`, replace `v0` with `1`, run constant
+//! folding — `eq v0, 1` folds to `true`, the false branch is eliminated, and the clone is
+//! measurably smaller. If savings exceed the threshold, the clone is kept.
+//!
+//! ## Process
+//!
+//! 1. **Scan** — find candidate call sites: Brillig callee, not recursive, at least one
+//!    numeric constant argument.
+//! 2. **Clone & measure** — for each candidate, clone the callee, substitute constants,
+//!    run optimization passes, and compare instruction counts. Keep only clones whose
+//!    savings exceed the threshold (capped at N clones per original function).
+//! 3. **Rewrite callers** — rewrite call sites in the original callers to point at the
+//!    specialized clones.
+//! 4. **Rewrite clones** — rewrite call sites *inside* surviving clones that match other
+//!    specializations (nested specialization).
+//!
+//! ## Post-conditions
+//!
+//! Specialized clones are added to the SSA. Original functions are left untouched — dead
+//! function elimination cleans them up later if all call sites were rewritten.
 //!
 //! This is Brillig-only — ACIR functions get fully inlined anyway.
 
 use std::collections::BTreeMap;
 
 use acvm::FieldElement;
+use indexmap::IndexMap;
+use itertools::Itertools;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
     ir::{
         call_graph::CallGraph,
         function::{Function, FunctionId},
-        instruction::Instruction,
+        instruction::{Instruction, InstructionId},
         types::NumericType,
         value::{Value, ValueId, ValueMapping},
     },
@@ -48,7 +77,7 @@ struct CallSite {
     /// The function containing this call instruction.
     caller: FunctionId,
     /// The instruction ID of the call.
-    instruction_id: crate::ssa::ir::instruction::InstructionId,
+    instruction_id: InstructionId,
 }
 
 impl Ssa {
@@ -70,83 +99,29 @@ impl Ssa {
         let recursive_functions = call_graph.get_recursive_functions();
 
         // Collect all call sites grouped by specialization key.
-        let (key_to_callsites, key_order) =
-            collect_specialization_candidates(&self, &recursive_functions);
+        let key_to_callsites = collect_specialization_candidates(&self, &recursive_functions);
 
         if key_to_callsites.is_empty() {
             return self;
         }
 
-        // Phase 2: Speculatively optimize and measure.
-        // Group keys by callee to enforce the per-function cap.
-        let mut keys_per_callee: BTreeMap<FunctionId, Vec<SpecializationKey>> = BTreeMap::new();
-        for key in &key_order {
-            keys_per_callee.entry(key.callee).or_default().push(key.clone());
-        }
-
-        // Track which keys survived the threshold check and their new function IDs.
-        let mut surviving: HashMap<SpecializationKey, FunctionId> = HashMap::default();
-
-        for keys in keys_per_callee.values() {
-            let mut specializations_for_callee = 0;
-
-            for key in keys {
-                if specializations_for_callee >= max_specializations_per_fn {
-                    break;
-                }
-
-                let original_function = &self.functions[&key.callee];
-                let original_cost = original_function.cost();
-                if original_cost == 0 {
-                    continue;
-                }
-
-                // Clone and substitute constants.
-                let mut clone = original_function.clone();
-                substitute_constants(&mut clone, &key.constants);
-
-                // Run per-function optimization passes on the clone.
-                optimize_clone(&mut clone, constant_folding_max_iter, &self.functions);
-
-                let specialized_cost = clone.cost();
-                let savings_percent = if original_cost > specialized_cost {
-                    ((original_cost - specialized_cost) * 100) / original_cost
-                } else {
-                    0
-                };
-
-                if savings_percent >= specialization_threshold {
-                    // Phase 3 (partial): Add the surviving clone to the SSA.
-                    let new_id = self.add_fn(|id| Function::clone_with_id(id, &clone));
-                    surviving.insert(key.clone(), new_id);
-                    specializations_for_callee += 1;
-                }
-            }
-        }
-
+        // Phase 2: Clone candidates, optimize, keep survivors.
+        let surviving = create_specialized_clones(
+            &mut self,
+            &key_to_callsites,
+            specialization_threshold,
+            max_specializations_per_fn,
+            constant_folding_max_iter,
+        );
         if surviving.is_empty() {
             return self;
         }
 
-        // Phase 3 (continued): Rewrite matching call sites.
-        for (key, new_fn_id) in &surviving {
-            let callsites = &key_to_callsites[key];
-            for callsite in callsites {
-                let caller_fn = self
-                    .functions
-                    .get_mut(&callsite.caller)
-                    .expect("ICE: caller function not found");
-                let new_func_value = caller_fn.dfg.import_function(*new_fn_id);
+        // Phase 3: Rewrite call sites in original callers.
+        rewrite_call_sites(&mut self.functions, &key_to_callsites, &surviving);
 
-                let instruction = &caller_fn.dfg[callsite.instruction_id];
-                let Instruction::Call { arguments, .. } = instruction else {
-                    unreachable!("ICE: expected Call instruction");
-                };
-                let arguments = arguments.clone();
-                caller_fn.dfg[callsite.instruction_id] =
-                    Instruction::Call { func: new_func_value, arguments };
-            }
-        }
+        // Phase 4: Rewrite call sites inside surviving clones.
+        rewrite_calls_in_clones(&mut self.functions, &surviving);
 
         self
     }
@@ -160,14 +135,13 @@ impl Ssa {
 /// Array arguments are not considered constant even if all elements are constant, because
 /// substituting them would create a new array object with independent reference counting.
 ///
-/// Returns a map from specialization key to call sites, plus a deterministic ordering of keys
-/// (by first occurrence) for stable iteration.
+/// Returns an `IndexMap` from specialization key to call sites, preserving insertion order
+/// (first occurrence) for deterministic iteration.
 fn collect_specialization_candidates(
     ssa: &Ssa,
     recursive_functions: &HashSet<FunctionId>,
-) -> (HashMap<SpecializationKey, Vec<CallSite>>, Vec<SpecializationKey>) {
-    let mut key_to_callsites: HashMap<SpecializationKey, Vec<CallSite>> = HashMap::default();
-    let mut key_order: Vec<SpecializationKey> = Vec::new();
+) -> IndexMap<SpecializationKey, Vec<CallSite>> {
+    let mut key_to_callsites: IndexMap<SpecializationKey, Vec<CallSite>> = IndexMap::new();
 
     for (caller_id, caller_fn) in &ssa.functions {
         for block_id in caller_fn.reachable_blocks() {
@@ -194,22 +168,10 @@ fn collect_specialization_candidates(
                     continue;
                 }
 
-                // Build the constant pattern for this call site.
-                let constants: Vec<Option<(FieldElement, NumericType)>> = arguments
-                    .iter()
-                    .map(|arg| caller_fn.dfg.get_numeric_constant_with_type(*arg))
-                    .collect();
-
-                // At least one argument must be constant.
-                if !constants.iter().any(|c| c.is_some()) {
+                let Some(key) = try_build_specialization_key(caller_fn, *callee_id, arguments)
+                else {
                     continue;
-                }
-
-                let key = SpecializationKey { callee: *callee_id, constants };
-
-                if !key_to_callsites.contains_key(&key) {
-                    key_order.push(key.clone());
-                }
+                };
 
                 key_to_callsites
                     .entry(key)
@@ -219,7 +181,24 @@ fn collect_specialization_candidates(
         }
     }
 
-    (key_to_callsites, key_order)
+    key_to_callsites
+}
+
+/// Try to build a `SpecializationKey` for a call instruction.
+/// Returns `None` if no argument is a numeric constant.
+fn try_build_specialization_key(
+    caller_fn: &Function,
+    callee_id: FunctionId,
+    arguments: &[ValueId],
+) -> Option<SpecializationKey> {
+    let constants: Vec<Option<(FieldElement, NumericType)>> =
+        arguments.iter().map(|arg| caller_fn.dfg.get_numeric_constant_with_type(*arg)).collect();
+
+    if !constants.iter().any(|c| c.is_some()) {
+        return None;
+    }
+
+    Some(SpecializationKey { callee: callee_id, constants })
 }
 
 /// Substitute constant values into the clone's entry block parameters.
@@ -233,7 +212,7 @@ fn substitute_constants(
     let params: Vec<ValueId> = function.dfg.block_parameters(entry_block).to_vec();
 
     let mut mapping = ValueMapping::default();
-    for (param, constant) in params.iter().zip(constants.iter()) {
+    for (param, constant) in params.iter().zip_eq(constants.iter()) {
         if let Some((field, typ)) = constant {
             let const_value = function.dfg.make_constant(*field, *typ);
             mapping.insert(*param, const_value);
@@ -284,8 +263,140 @@ fn optimize_clone(
     function.simplify_function();
 }
 
+/// For each candidate key, clone the callee, substitute constants, run optimization passes,
+/// and keep the clone only if savings exceed the threshold. Returns a map from surviving
+/// keys to their new function IDs.
+fn create_specialized_clones(
+    ssa: &mut Ssa,
+    key_to_callsites: &IndexMap<SpecializationKey, Vec<CallSite>>,
+    specialization_threshold: usize,
+    max_specializations_per_fn: usize,
+    constant_folding_max_iter: usize,
+) -> HashMap<SpecializationKey, FunctionId> {
+    // Group keys by callee to enforce the per-function cap.
+    let mut keys_per_callee: BTreeMap<FunctionId, Vec<SpecializationKey>> = BTreeMap::new();
+    for key in key_to_callsites.keys() {
+        keys_per_callee.entry(key.callee).or_default().push(key.clone());
+    }
+
+    let mut surviving: HashMap<SpecializationKey, FunctionId> = HashMap::default();
+
+    for keys in keys_per_callee.values() {
+        let mut specializations_for_callee = 0;
+
+        let callee_id = keys[0].callee;
+        let original_cost = ssa.functions[&callee_id].cost();
+        if original_cost == 0 {
+            continue;
+        }
+
+        for key in keys {
+            if specializations_for_callee >= max_specializations_per_fn {
+                break;
+            }
+
+            // Clone and substitute constants.
+            let mut clone = ssa.functions[&callee_id].clone();
+            substitute_constants(&mut clone, &key.constants);
+
+            // Run per-function optimization passes on the clone.
+            optimize_clone(&mut clone, constant_folding_max_iter, &ssa.functions);
+
+            let specialized_cost = clone.cost();
+            let savings_percent = if original_cost > specialized_cost {
+                ((original_cost - specialized_cost) * 100) / original_cost
+            } else {
+                0
+            };
+
+            if savings_percent >= specialization_threshold {
+                let new_id = ssa.add_fn(|id| Function::clone_with_id(id, &clone));
+                surviving.insert(key.clone(), new_id);
+                specializations_for_callee += 1;
+            }
+        }
+    }
+
+    surviving
+}
+
+/// Rewrite call instructions in original callers to point at the specialized clone
+/// instead of the original callee.
+fn rewrite_call_sites(
+    functions: &mut BTreeMap<FunctionId, Function>,
+    key_to_callsites: &IndexMap<SpecializationKey, Vec<CallSite>>,
+    surviving: &HashMap<SpecializationKey, FunctionId>,
+) {
+    for (key, new_fn_id) in surviving {
+        let callsites = &key_to_callsites[key];
+        for callsite in callsites {
+            let caller_fn =
+                functions.get_mut(&callsite.caller).expect("ICE: caller function not found");
+            let new_func_value = caller_fn.dfg.import_function(*new_fn_id);
+
+            let instruction = &mut caller_fn.dfg[callsite.instruction_id];
+            let Instruction::Call { func, .. } = instruction else {
+                unreachable!("ICE: expected Call instruction");
+            };
+            *func = new_func_value;
+        }
+    }
+}
+
+/// Phase 4: Rewrite call sites inside surviving clones that match other specializations.
+///
+/// When `foo` calls `bar(3, y)` and we create specialized clones for both `foo` and `bar`,
+/// the clone of `foo` still calls the original `bar`. This function scans each clone and
+/// rewrites any call that matches a surviving specialization key to point at the specialized
+/// clone instead.
+fn rewrite_calls_in_clones(
+    functions: &mut BTreeMap<FunctionId, Function>,
+    surviving: &HashMap<SpecializationKey, FunctionId>,
+) {
+    let clone_ids: Vec<FunctionId> = surviving.values().copied().collect();
+
+    for clone_id in clone_ids {
+        let clone_fn = &functions[&clone_id];
+
+        // Collect rewrites: (instruction_id, new_function_id)
+        let mut rewrites: Vec<(InstructionId, FunctionId)> = Vec::new();
+
+        for block_id in clone_fn.reachable_blocks() {
+            for instruction_id in clone_fn.dfg[block_id].instructions() {
+                let Instruction::Call { func: func_value_id, arguments } =
+                    &clone_fn.dfg[*instruction_id]
+                else {
+                    continue;
+                };
+                let Value::Function(callee_id) = &clone_fn.dfg[*func_value_id] else {
+                    continue;
+                };
+
+                if let Some(key) = try_build_specialization_key(clone_fn, *callee_id, arguments)
+                    && let Some(specialized_fn_id) = surviving.get(&key)
+                {
+                    rewrites.push((*instruction_id, *specialized_fn_id));
+                }
+            }
+        }
+
+        if !rewrites.is_empty() {
+            let clone_fn = functions.get_mut(&clone_id).unwrap();
+            for (instr_id, specialized_fn_id) in rewrites {
+                let new_func_value = clone_fn.dfg.import_function(specialized_fn_id);
+                let instruction = &mut clone_fn.dfg[instr_id];
+                let Instruction::Call { func, .. } = instruction else {
+                    unreachable!("ICE: expected Call instruction");
+                };
+                *func = new_func_value;
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use crate::assert_ssa_snapshot;
     use crate::ssa::{
         ir::{instruction::Instruction, value::Value},
         ssa_gen::Ssa,
@@ -593,5 +704,111 @@ mod tests {
         let ssa = run_specialization_with_options(src, 99, 3);
 
         assert_eq!(ssa.functions.len(), 2, "Expected no specialization below threshold");
+    }
+
+    #[test]
+    fn nested_calls_rewritten_in_clones() {
+        // When `foo` calls `bar` with constants, clones of `foo` should call the
+        // specialized `bar` clone, not the original `bar`.
+        //
+        // main calls foo(1, v0) and foo(v0, 2)
+        // foo calls bar(3, v1) and bar(v1, 4)
+        // -> clones of foo should call the specialized bar, not original bar
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            call f1(u32 1, v0)
+            call f1(v0, u32 2)
+            return
+        }
+        brillig(inline) fn foo f1 {
+          b0(v0: u32, v1: u32):
+            v2 = eq v0, u32 1
+            jmpif v2 then: b1(), else: b2()
+          b1():
+            call f2(u32 3, v1)
+            jmp b3()
+          b2():
+            call f2(v1, u32 4)
+            jmp b3()
+          b3():
+            return
+        }
+        brillig(inline) fn bar f2 {
+          b0(v0: u32, v1: u32):
+            v2 = eq v0, u32 3
+            jmpif v2 then: b1(), else: b2()
+          b1():
+            v3 = add v1, u32 10
+            jmp b3(v3)
+          b2():
+            v4 = sub v1, u32 10
+            jmp b3(v4)
+          b3(v5: u32):
+            constrain v5 == u32 0
+            return
+        }
+        ";
+
+        let ssa = run_specialization_with_options(src, 1, 5);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            call f3(u32 1, v0)
+            call f1(v0, u32 2)
+            return
+        }
+        brillig(inline) fn foo f1 {
+          b0(v0: u32, v1: u32):
+            v3 = eq v0, u32 1
+            jmpif v3 then: b1(), else: b2()
+          b1():
+            call f4(u32 3, v1)
+            jmp b3()
+          b2():
+            call f5(v1, u32 4)
+            jmp b3()
+          b3():
+            return
+        }
+        brillig(inline) fn bar f2 {
+          b0(v0: u32, v1: u32):
+            v4 = eq v0, u32 3
+            jmpif v4 then: b1(), else: b2()
+          b1():
+            v7 = add v1, u32 10
+            jmp b3(v7)
+          b2():
+            v6 = sub v1, u32 10
+            jmp b3(v6)
+          b3(v2: u32):
+            constrain v2 == u32 0
+            return
+        }
+        brillig(inline) fn foo f3 {
+          b0(v0: u32, v1: u32):
+            call f4(u32 3, v1)
+            return
+        }
+        brillig(inline) fn bar f4 {
+          b0(v0: u32, v1: u32):
+            v3 = add v1, u32 10
+            constrain v3 == u32 0
+            return
+        }
+        brillig(inline) fn bar f5 {
+          b0(v0: u32, v1: u32):
+            v4 = eq v0, u32 3
+            jmpif v4 then: b1(), else: b2()
+          b1():
+            jmp b3(u32 14)
+          b2():
+            v7 = sub u32 4, u32 10
+            jmp b3(v7)
+          b3(v2: u32):
+            constrain v2 == u32 0
+            return
+        }
+        ");
     }
 }
