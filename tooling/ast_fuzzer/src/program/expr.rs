@@ -155,29 +155,29 @@ pub fn gen_range(
                 Eight => {
                     let s = i8::arbitrary(u)?;
                     let e = s.saturating_add_unsigned(u.choose_index(max_size)? as u8);
-                    let s = Field::from(u32::from(s.unsigned_abs()));
-                    let e = Field::from(u32::from(e.unsigned_abs()));
+                    let s = Field::from(s);
+                    let e = Field::from(e);
                     (s, e)
                 }
                 Sixteen => {
                     let s = i16::arbitrary(u)?;
                     let e = s.saturating_add_unsigned(u.choose_index(max_size)? as u16);
-                    let s = Field::from(u32::from(s.unsigned_abs()));
-                    let e = Field::from(u32::from(e.unsigned_abs()));
+                    let s = Field::from(s);
+                    let e = Field::from(e);
                     (s, e)
                 }
                 ThirtyTwo => {
                     let s = i32::arbitrary(u)?;
                     let e = s.saturating_add_unsigned(u.choose_index(max_size)? as u32);
-                    let s = Field::from(s.unsigned_abs());
-                    let e = Field::from(e.unsigned_abs());
+                    let s = Field::from(s);
+                    let e = Field::from(e);
                     (s, e)
                 }
                 SixtyFour => {
                     let s = i64::arbitrary(u)?;
                     let e = s.saturating_add_unsigned(u.choose_index(max_size)? as u64);
-                    let s = Field::from(s.unsigned_abs());
-                    let e = Field::from(e.unsigned_abs());
+                    let s = Field::from(s);
+                    let e = Field::from(e);
                     (s, e)
                 }
                 _ => unreachable!("invalid bit size for range: {integer_bit_size} (signed)"),
