@@ -7,10 +7,10 @@
 <a href=#7 id=7 data-nosnippet>7</a>//! An Error of the former is a user Error
 <a href=#8 id=8 data-nosnippet>8</a>//!
 <a href=#9 id=9 data-nosnippet>9</a>//! An Error of the latter is an error in the implementation of the compiler
-<a href=#10 id=10 data-nosnippet>10</a></span><span class="kw">use </span>iter_extended::vecmap;
-<a href=#11 id=11 data-nosnippet>11</a><span class="kw">use </span>noirc_errors::{CustomDiagnostic, Location, call_stack::CallStack};
-<a href=#12 id=12 data-nosnippet>12</a>
-<a href=#13 id=13 data-nosnippet>13</a><span class="kw">use </span>noirc_frontend::signed_field::SignedField;
+<a href=#10 id=10 data-nosnippet>10</a></span><span class="kw">use </span>acvm::FieldElement;
+<a href=#11 id=11 data-nosnippet>11</a><span class="kw">use </span>iter_extended::vecmap;
+<a href=#12 id=12 data-nosnippet>12</a><span class="kw">use </span>noirc_errors::{CustomDiagnostic, Location, call_stack::CallStack};
+<a href=#13 id=13 data-nosnippet>13</a>
 <a href=#14 id=14 data-nosnippet>14</a><span class="kw">use </span>thiserror::Error;
 <a href=#15 id=15 data-nosnippet>15</a>
 <a href=#16 id=16 data-nosnippet>16</a><span class="kw">use </span><span class="kw">crate</span>::ssa::{ir::types::NumericType, ssa_gen::SHOW_INVALID_SSA_ENV_KEY};
@@ -25,7 +25,7 @@
 <a href=#25 id=25 data-nosnippet>25</a>    </span>InvalidRangeConstraint { num_bits: u32, call_stack: CallStack },
 <a href=#26 id=26 data-nosnippet>26</a>    <span class="attr">#[error(<span class="string">"The value `{value}` cannot fit into `{typ}` which has range `{range}`"</span>)]
 <a href=#27 id=27 data-nosnippet>27</a>    </span>IntegerOutOfBounds {
-<a href=#28 id=28 data-nosnippet>28</a>        value: SignedField,
+<a href=#28 id=28 data-nosnippet>28</a>        value: FieldElement,
 <a href=#29 id=29 data-nosnippet>29</a>        typ: NumericType,
 <a href=#30 id=30 data-nosnippet>30</a>        range: String,
 <a href=#31 id=31 data-nosnippet>31</a>        call_stack: CallStack,

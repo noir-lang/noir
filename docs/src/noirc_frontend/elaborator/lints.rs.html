@@ -211,7 +211,7 @@
 <a href=#211 id=211 data-nosnippet>211</a>                }
 <a href=#212 id=212 data-nosnippet>212</a>            }
 <a href=#213 id=213 data-nosnippet>213</a>            Type::Forall(<span class="kw">_</span>, <span class="kw">_</span>)
-<a href=#214 id=214 data-nosnippet>214</a>            | Type::Constant(<span class="kw">_</span>, <span class="kw">_</span>)
+<a href=#214 id=214 data-nosnippet>214</a>            | Type::Constant(<span class="kw">_</span>)
 <a href=#215 id=215 data-nosnippet>215</a>            | Type::Quoted(<span class="kw">_</span>)
 <a href=#216 id=216 data-nosnippet>216</a>            | Type::InfixExpr(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>)
 <a href=#217 id=217 data-nosnippet>217</a>            | Type::Reference(<span class="kw">_</span>, <span class="kw">_</span>)
@@ -459,7 +459,7 @@
 <a href=#459 id=459 data-nosnippet>459</a>            Type::Integer(Signedness::Unsigned, bit_size) =&gt; {
 <a href=#460 id=460 data-nosnippet>460</a>                <span class="kw">let </span>bit_size: u32 = bit_size.into();
 <a href=#461 id=461 data-nosnippet>461</a>                <span class="kw">let </span>max = <span class="kw">if </span>bit_size == <span class="number">128 </span>{ u128::MAX } <span class="kw">else </span>{ <span class="number">2u128</span>.pow(bit_size) - <span class="number">1 </span>};
-<a href=#462 id=462 data-nosnippet>462</a>                <span class="kw">if </span>value.absolute_value() &gt; max.into() || value.is_negative() {
+<a href=#462 id=462 data-nosnippet>462</a>                <span class="kw">if </span>value &gt; max.into() {
 <a href=#463 id=463 data-nosnippet>463</a>                    <span class="kw">return </span><span class="prelude-val">Some</span>(TypeCheckError::IntegerLiteralDoesNotFitItsType {
 <a href=#464 id=464 data-nosnippet>464</a>                        expr: value,
 <a href=#465 id=465 data-nosnippet>465</a>                        ty: typ,
@@ -470,117 +470,120 @@
 <a href=#470 id=470 data-nosnippet>470</a>            }
 <a href=#471 id=471 data-nosnippet>471</a>            Type::Integer(Signedness::Signed, bit_count) =&gt; {
 <a href=#472 id=472 data-nosnippet>472</a>                <span class="kw">let </span>bit_count: u32 = bit_count.into();
-<a href=#473 id=473 data-nosnippet>473</a>                <span class="kw">let </span>min = <span class="number">2u128</span>.pow(bit_count - <span class="number">1</span>);
-<a href=#474 id=474 data-nosnippet>474</a>                <span class="kw">let </span>max = <span class="number">2u128</span>.pow(bit_count - <span class="number">1</span>) - <span class="number">1</span>;
+<a href=#473 id=473 data-nosnippet>473</a>                <span class="kw">let </span>modulus = <span class="number">2u128</span>.pow(bit_count - <span class="number">1</span>);
+<a href=#474 id=474 data-nosnippet>474</a>                <span class="kw">let </span>max = modulus - <span class="number">1</span>;
 <a href=#475 id=475 data-nosnippet>475</a>
-<a href=#476 id=476 data-nosnippet>476</a>                <span class="kw">let </span>is_negative = value.is_negative();
-<a href=#477 id=477 data-nosnippet>477</a>                <span class="kw">let </span>abs = value.absolute_value();
-<a href=#478 id=478 data-nosnippet>478</a>
-<a href=#479 id=479 data-nosnippet>479</a>                <span class="kw">if </span>(is_negative &amp;&amp; abs &gt; min.into()) || (!is_negative &amp;&amp; abs &gt; max.into()) {
-<a href=#480 id=480 data-nosnippet>480</a>                    <span class="kw">return </span><span class="prelude-val">Some</span>(TypeCheckError::IntegerLiteralDoesNotFitItsType {
-<a href=#481 id=481 data-nosnippet>481</a>                        expr: value,
-<a href=#482 id=482 data-nosnippet>482</a>                        ty: typ,
-<a href=#483 id=483 data-nosnippet>483</a>                        range: <span class="macro">format!</span>(<span class="string">"-{min}..={max}"</span>),
-<a href=#484 id=484 data-nosnippet>484</a>                        location,
-<a href=#485 id=485 data-nosnippet>485</a>                    });
-<a href=#486 id=486 data-nosnippet>486</a>                }
-<a href=#487 id=487 data-nosnippet>487</a>            }
-<a href=#488 id=488 data-nosnippet>488</a>            <span class="kw">_ </span>=&gt; (),
-<a href=#489 id=489 data-nosnippet>489</a>        },
-<a href=#490 id=490 data-nosnippet>490</a>        <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"Expected an integer literal"</span>),
-<a href=#491 id=491 data-nosnippet>491</a>    }
-<a href=#492 id=492 data-nosnippet>492</a>
-<a href=#493 id=493 data-nosnippet>493</a>    <span class="prelude-val">None
-<a href=#494 id=494 data-nosnippet>494</a></span>}
+<a href=#476 id=476 data-nosnippet>476</a>                <span class="kw">if </span>value &gt; max.into() {
+<a href=#477 id=477 data-nosnippet>477</a>                    <span class="comment">// FieldElement negatives are very large values, to test if this is a negative
+<a href=#478 id=478 data-nosnippet>478</a>                    // within range, add the bit modulus back to it and check if it is within range
+<a href=#479 id=479 data-nosnippet>479</a>                    // now or not.
+<a href=#480 id=480 data-nosnippet>480</a>                    </span><span class="kw">let </span>wrapped = value + modulus.into();
+<a href=#481 id=481 data-nosnippet>481</a>                    <span class="kw">if </span>wrapped &gt; max.into() {
+<a href=#482 id=482 data-nosnippet>482</a>                        <span class="kw">return </span><span class="prelude-val">Some</span>(TypeCheckError::IntegerLiteralDoesNotFitItsType {
+<a href=#483 id=483 data-nosnippet>483</a>                            expr: value,
+<a href=#484 id=484 data-nosnippet>484</a>                            ty: typ,
+<a href=#485 id=485 data-nosnippet>485</a>                            range: <span class="macro">format!</span>(<span class="string">"-{modulus}..={max}"</span>),
+<a href=#486 id=486 data-nosnippet>486</a>                            location,
+<a href=#487 id=487 data-nosnippet>487</a>                        });
+<a href=#488 id=488 data-nosnippet>488</a>                    }
+<a href=#489 id=489 data-nosnippet>489</a>                }
+<a href=#490 id=490 data-nosnippet>490</a>            }
+<a href=#491 id=491 data-nosnippet>491</a>            <span class="kw">_ </span>=&gt; (),
+<a href=#492 id=492 data-nosnippet>492</a>        },
+<a href=#493 id=493 data-nosnippet>493</a>        <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"Expected an integer literal"</span>),
+<a href=#494 id=494 data-nosnippet>494</a>    }
 <a href=#495 id=495 data-nosnippet>495</a>
-<a href=#496 id=496 data-nosnippet>496</a><span class="kw">fn </span>func_meta_name_ident(func: <span class="kw-2">&amp;</span>FuncMeta, modifiers: <span class="kw-2">&amp;</span>FunctionModifiers) -&gt; Ident {
-<a href=#497 id=497 data-nosnippet>497</a>    Ident::new(modifiers.name.clone(), func.name.location)
-<a href=#498 id=498 data-nosnippet>498</a>}
-<a href=#499 id=499 data-nosnippet>499</a>
-<a href=#500 id=500 data-nosnippet>500</a><span class="doccomment">/// Check that a recursive function *can* return without endlessly calling itself.
-<a href=#501 id=501 data-nosnippet>501</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>unbounded_recursion&lt;<span class="lifetime">'a</span>&gt;(
-<a href=#502 id=502 data-nosnippet>502</a>    interner: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>NodeInterner,
-<a href=#503 id=503 data-nosnippet>503</a>    func_id: FuncId,
-<a href=#504 id=504 data-nosnippet>504</a>    func_name: <span class="kw">impl </span>FnOnce() -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'a </span>str,
-<a href=#505 id=505 data-nosnippet>505</a>    func_location: Location,
-<a href=#506 id=506 data-nosnippet>506</a>    body_id: ExprId,
-<a href=#507 id=507 data-nosnippet>507</a>) -&gt; <span class="prelude-ty">Option</span>&lt;ResolverError&gt; {
-<a href=#508 id=508 data-nosnippet>508</a>    <span class="kw">if </span>!can_return_without_recursing(interner, func_id, body_id) {
-<a href=#509 id=509 data-nosnippet>509</a>        <span class="prelude-val">Some</span>(ResolverError::UnconditionalRecursion {
-<a href=#510 id=510 data-nosnippet>510</a>            name: func_name().to_string(),
-<a href=#511 id=511 data-nosnippet>511</a>            location: func_location,
-<a href=#512 id=512 data-nosnippet>512</a>        })
-<a href=#513 id=513 data-nosnippet>513</a>    } <span class="kw">else </span>{
-<a href=#514 id=514 data-nosnippet>514</a>        <span class="prelude-val">None
-<a href=#515 id=515 data-nosnippet>515</a>    </span>}
-<a href=#516 id=516 data-nosnippet>516</a>}
-<a href=#517 id=517 data-nosnippet>517</a>
-<a href=#518 id=518 data-nosnippet>518</a><span class="doccomment">/// Check if an expression will end up calling a specific function.
-<a href=#519 id=519 data-nosnippet>519</a></span><span class="kw">fn </span>can_return_without_recursing(interner: <span class="kw-2">&amp;</span>NodeInterner, func_id: FuncId, expr_id: ExprId) -&gt; bool {
-<a href=#520 id=520 data-nosnippet>520</a>    <span class="kw">let </span>check = |e| can_return_without_recursing(interner, func_id, e);
-<a href=#521 id=521 data-nosnippet>521</a>
-<a href=#522 id=522 data-nosnippet>522</a>    <span class="kw">let </span>check_block = |block: HirBlockExpression| {
-<a href=#523 id=523 data-nosnippet>523</a>        block.statements.iter().all(|stmt_id| <span class="kw">match </span>interner.statement(stmt_id) {
-<a href=#524 id=524 data-nosnippet>524</a>            HirStatement::Let(s) =&gt; check(s.expression),
-<a href=#525 id=525 data-nosnippet>525</a>            HirStatement::Assign(s) =&gt; check(s.expression),
-<a href=#526 id=526 data-nosnippet>526</a>            HirStatement::Expression(e) =&gt; check(e),
-<a href=#527 id=527 data-nosnippet>527</a>            HirStatement::Semi(e) =&gt; check(e),
-<a href=#528 id=528 data-nosnippet>528</a>            <span class="comment">// Rust doesn't seem to check the for loop body (it's bounds might mean it's never called).
-<a href=#529 id=529 data-nosnippet>529</a>            </span>HirStatement::For(e) =&gt; check(e.start_range) &amp;&amp; check(e.end_range),
-<a href=#530 id=530 data-nosnippet>530</a>            HirStatement::Loop(e) =&gt; check(e),
-<a href=#531 id=531 data-nosnippet>531</a>            HirStatement::While(condition, block) =&gt; check(condition) &amp;&amp; check(block),
-<a href=#532 id=532 data-nosnippet>532</a>            HirStatement::Comptime(<span class="kw">_</span>)
-<a href=#533 id=533 data-nosnippet>533</a>            | HirStatement::Break
-<a href=#534 id=534 data-nosnippet>534</a>            | HirStatement::Continue
-<a href=#535 id=535 data-nosnippet>535</a>            | HirStatement::Error =&gt; <span class="bool-val">true</span>,
-<a href=#536 id=536 data-nosnippet>536</a>        })
-<a href=#537 id=537 data-nosnippet>537</a>    };
-<a href=#538 id=538 data-nosnippet>538</a>
-<a href=#539 id=539 data-nosnippet>539</a>    <span class="kw">match </span>interner.expression(<span class="kw-2">&amp;</span>expr_id) {
-<a href=#540 id=540 data-nosnippet>540</a>        HirExpression::Ident(ident, <span class="kw">_</span>) =&gt; {
-<a href=#541 id=541 data-nosnippet>541</a>            <span class="kw">let </span>definition = interner.definition(ident.id);
-<a href=#542 id=542 data-nosnippet>542</a>            <span class="kw">if let </span>DefinitionKind::Function(id) = definition.kind { func_id != id } <span class="kw">else </span>{ <span class="bool-val">true </span>}
-<a href=#543 id=543 data-nosnippet>543</a>        }
-<a href=#544 id=544 data-nosnippet>544</a>        HirExpression::Block(b) =&gt; check_block(b),
-<a href=#545 id=545 data-nosnippet>545</a>        HirExpression::Prefix(e) =&gt; check(e.rhs),
-<a href=#546 id=546 data-nosnippet>546</a>        HirExpression::Infix(e) =&gt; check(e.lhs) &amp;&amp; check(e.rhs),
-<a href=#547 id=547 data-nosnippet>547</a>        HirExpression::Index(e) =&gt; check(e.collection) &amp;&amp; check(e.index),
-<a href=#548 id=548 data-nosnippet>548</a>        HirExpression::MemberAccess(e) =&gt; check(e.lhs),
-<a href=#549 id=549 data-nosnippet>549</a>        HirExpression::Call(e) =&gt; check(e.func) &amp;&amp; e.arguments.iter().copied().all(check),
-<a href=#550 id=550 data-nosnippet>550</a>        HirExpression::Constrain(e) =&gt; check(e.<span class="number">0</span>) &amp;&amp; e.<span class="number">2</span>.is_none_or(check),
-<a href=#551 id=551 data-nosnippet>551</a>        HirExpression::Cast(e) =&gt; check(e.lhs),
-<a href=#552 id=552 data-nosnippet>552</a>        HirExpression::If(e) =&gt; {
-<a href=#553 id=553 data-nosnippet>553</a>            check(e.condition) &amp;&amp; (check(e.consequence) || e.alternative.is_none_or(check))
-<a href=#554 id=554 data-nosnippet>554</a>        }
-<a href=#555 id=555 data-nosnippet>555</a>        HirExpression::Match(e) =&gt; can_return_without_recursing_match(interner, func_id, <span class="kw-2">&amp;</span>e),
-<a href=#556 id=556 data-nosnippet>556</a>        HirExpression::Tuple(e) =&gt; e.iter().copied().all(check),
-<a href=#557 id=557 data-nosnippet>557</a>        HirExpression::Unsafe(b) =&gt; check_block(b),
-<a href=#558 id=558 data-nosnippet>558</a>        <span class="comment">// Rust doesn't check the lambda body (it might not be called).
-<a href=#559 id=559 data-nosnippet>559</a>        </span>HirExpression::Lambda(<span class="kw">_</span>)
-<a href=#560 id=560 data-nosnippet>560</a>        | HirExpression::Literal(<span class="kw">_</span>)
-<a href=#561 id=561 data-nosnippet>561</a>        | HirExpression::Constructor(<span class="kw">_</span>)
-<a href=#562 id=562 data-nosnippet>562</a>        | HirExpression::EnumConstructor(<span class="kw">_</span>)
-<a href=#563 id=563 data-nosnippet>563</a>        | HirExpression::Quote(<span class="kw">_</span>)
-<a href=#564 id=564 data-nosnippet>564</a>        | HirExpression::Unquote(<span class="kw">_</span>)
-<a href=#565 id=565 data-nosnippet>565</a>        | HirExpression::Error =&gt; <span class="bool-val">true</span>,
-<a href=#566 id=566 data-nosnippet>566</a>    }
-<a href=#567 id=567 data-nosnippet>567</a>}
-<a href=#568 id=568 data-nosnippet>568</a>
-<a href=#569 id=569 data-nosnippet>569</a><span class="kw">fn </span>can_return_without_recursing_match(
-<a href=#570 id=570 data-nosnippet>570</a>    interner: <span class="kw-2">&amp;</span>NodeInterner,
-<a href=#571 id=571 data-nosnippet>571</a>    func_id: FuncId,
-<a href=#572 id=572 data-nosnippet>572</a>    match_expr: <span class="kw-2">&amp;</span>HirMatch,
-<a href=#573 id=573 data-nosnippet>573</a>) -&gt; bool {
-<a href=#574 id=574 data-nosnippet>574</a>    <span class="kw">let </span>check_match = |e| can_return_without_recursing_match(interner, func_id, e);
-<a href=#575 id=575 data-nosnippet>575</a>    <span class="kw">let </span>check = |e| can_return_without_recursing(interner, func_id, e);
-<a href=#576 id=576 data-nosnippet>576</a>
-<a href=#577 id=577 data-nosnippet>577</a>    <span class="kw">match </span>match_expr {
-<a href=#578 id=578 data-nosnippet>578</a>        HirMatch::Success(expr) =&gt; check(<span class="kw-2">*</span>expr),
-<a href=#579 id=579 data-nosnippet>579</a>        HirMatch::Failure { .. } =&gt; <span class="bool-val">true</span>,
-<a href=#580 id=580 data-nosnippet>580</a>        HirMatch::Guard { cond: <span class="kw">_</span>, body, otherwise } =&gt; check(<span class="kw-2">*</span>body) &amp;&amp; check_match(otherwise),
-<a href=#581 id=581 data-nosnippet>581</a>        HirMatch::Switch(<span class="kw">_</span>, cases, otherwise) =&gt; {
-<a href=#582 id=582 data-nosnippet>582</a>            cases.iter().all(|case| check_match(<span class="kw-2">&amp;</span>case.body))
-<a href=#583 id=583 data-nosnippet>583</a>                &amp;&amp; otherwise.as_ref().is_none_or(|case| check_match(case))
-<a href=#584 id=584 data-nosnippet>584</a>        }
-<a href=#585 id=585 data-nosnippet>585</a>    }
-<a href=#586 id=586 data-nosnippet>586</a>}</code></pre></div></section></main></body></html>
+<a href=#496 id=496 data-nosnippet>496</a>    <span class="prelude-val">None
+<a href=#497 id=497 data-nosnippet>497</a></span>}
+<a href=#498 id=498 data-nosnippet>498</a>
+<a href=#499 id=499 data-nosnippet>499</a><span class="kw">fn </span>func_meta_name_ident(func: <span class="kw-2">&amp;</span>FuncMeta, modifiers: <span class="kw-2">&amp;</span>FunctionModifiers) -&gt; Ident {
+<a href=#500 id=500 data-nosnippet>500</a>    Ident::new(modifiers.name.clone(), func.name.location)
+<a href=#501 id=501 data-nosnippet>501</a>}
+<a href=#502 id=502 data-nosnippet>502</a>
+<a href=#503 id=503 data-nosnippet>503</a><span class="doccomment">/// Check that a recursive function *can* return without endlessly calling itself.
+<a href=#504 id=504 data-nosnippet>504</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>unbounded_recursion&lt;<span class="lifetime">'a</span>&gt;(
+<a href=#505 id=505 data-nosnippet>505</a>    interner: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>NodeInterner,
+<a href=#506 id=506 data-nosnippet>506</a>    func_id: FuncId,
+<a href=#507 id=507 data-nosnippet>507</a>    func_name: <span class="kw">impl </span>FnOnce() -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'a </span>str,
+<a href=#508 id=508 data-nosnippet>508</a>    func_location: Location,
+<a href=#509 id=509 data-nosnippet>509</a>    body_id: ExprId,
+<a href=#510 id=510 data-nosnippet>510</a>) -&gt; <span class="prelude-ty">Option</span>&lt;ResolverError&gt; {
+<a href=#511 id=511 data-nosnippet>511</a>    <span class="kw">if </span>!can_return_without_recursing(interner, func_id, body_id) {
+<a href=#512 id=512 data-nosnippet>512</a>        <span class="prelude-val">Some</span>(ResolverError::UnconditionalRecursion {
+<a href=#513 id=513 data-nosnippet>513</a>            name: func_name().to_string(),
+<a href=#514 id=514 data-nosnippet>514</a>            location: func_location,
+<a href=#515 id=515 data-nosnippet>515</a>        })
+<a href=#516 id=516 data-nosnippet>516</a>    } <span class="kw">else </span>{
+<a href=#517 id=517 data-nosnippet>517</a>        <span class="prelude-val">None
+<a href=#518 id=518 data-nosnippet>518</a>    </span>}
+<a href=#519 id=519 data-nosnippet>519</a>}
+<a href=#520 id=520 data-nosnippet>520</a>
+<a href=#521 id=521 data-nosnippet>521</a><span class="doccomment">/// Check if an expression will end up calling a specific function.
+<a href=#522 id=522 data-nosnippet>522</a></span><span class="kw">fn </span>can_return_without_recursing(interner: <span class="kw-2">&amp;</span>NodeInterner, func_id: FuncId, expr_id: ExprId) -&gt; bool {
+<a href=#523 id=523 data-nosnippet>523</a>    <span class="kw">let </span>check = |e| can_return_without_recursing(interner, func_id, e);
+<a href=#524 id=524 data-nosnippet>524</a>
+<a href=#525 id=525 data-nosnippet>525</a>    <span class="kw">let </span>check_block = |block: HirBlockExpression| {
+<a href=#526 id=526 data-nosnippet>526</a>        block.statements.iter().all(|stmt_id| <span class="kw">match </span>interner.statement(stmt_id) {
+<a href=#527 id=527 data-nosnippet>527</a>            HirStatement::Let(s) =&gt; check(s.expression),
+<a href=#528 id=528 data-nosnippet>528</a>            HirStatement::Assign(s) =&gt; check(s.expression),
+<a href=#529 id=529 data-nosnippet>529</a>            HirStatement::Expression(e) =&gt; check(e),
+<a href=#530 id=530 data-nosnippet>530</a>            HirStatement::Semi(e) =&gt; check(e),
+<a href=#531 id=531 data-nosnippet>531</a>            <span class="comment">// Rust doesn't seem to check the for loop body (it's bounds might mean it's never called).
+<a href=#532 id=532 data-nosnippet>532</a>            </span>HirStatement::For(e) =&gt; check(e.start_range) &amp;&amp; check(e.end_range),
+<a href=#533 id=533 data-nosnippet>533</a>            HirStatement::Loop(e) =&gt; check(e),
+<a href=#534 id=534 data-nosnippet>534</a>            HirStatement::While(condition, block) =&gt; check(condition) &amp;&amp; check(block),
+<a href=#535 id=535 data-nosnippet>535</a>            HirStatement::Comptime(<span class="kw">_</span>)
+<a href=#536 id=536 data-nosnippet>536</a>            | HirStatement::Break
+<a href=#537 id=537 data-nosnippet>537</a>            | HirStatement::Continue
+<a href=#538 id=538 data-nosnippet>538</a>            | HirStatement::Error =&gt; <span class="bool-val">true</span>,
+<a href=#539 id=539 data-nosnippet>539</a>        })
+<a href=#540 id=540 data-nosnippet>540</a>    };
+<a href=#541 id=541 data-nosnippet>541</a>
+<a href=#542 id=542 data-nosnippet>542</a>    <span class="kw">match </span>interner.expression(<span class="kw-2">&amp;</span>expr_id) {
+<a href=#543 id=543 data-nosnippet>543</a>        HirExpression::Ident(ident, <span class="kw">_</span>) =&gt; {
+<a href=#544 id=544 data-nosnippet>544</a>            <span class="kw">let </span>definition = interner.definition(ident.id);
+<a href=#545 id=545 data-nosnippet>545</a>            <span class="kw">if let </span>DefinitionKind::Function(id) = definition.kind { func_id != id } <span class="kw">else </span>{ <span class="bool-val">true </span>}
+<a href=#546 id=546 data-nosnippet>546</a>        }
+<a href=#547 id=547 data-nosnippet>547</a>        HirExpression::Block(b) =&gt; check_block(b),
+<a href=#548 id=548 data-nosnippet>548</a>        HirExpression::Prefix(e) =&gt; check(e.rhs),
+<a href=#549 id=549 data-nosnippet>549</a>        HirExpression::Infix(e) =&gt; check(e.lhs) &amp;&amp; check(e.rhs),
+<a href=#550 id=550 data-nosnippet>550</a>        HirExpression::Index(e) =&gt; check(e.collection) &amp;&amp; check(e.index),
+<a href=#551 id=551 data-nosnippet>551</a>        HirExpression::MemberAccess(e) =&gt; check(e.lhs),
+<a href=#552 id=552 data-nosnippet>552</a>        HirExpression::Call(e) =&gt; check(e.func) &amp;&amp; e.arguments.iter().copied().all(check),
+<a href=#553 id=553 data-nosnippet>553</a>        HirExpression::Constrain(e) =&gt; check(e.<span class="number">0</span>) &amp;&amp; e.<span class="number">2</span>.is_none_or(check),
+<a href=#554 id=554 data-nosnippet>554</a>        HirExpression::Cast(e) =&gt; check(e.lhs),
+<a href=#555 id=555 data-nosnippet>555</a>        HirExpression::If(e) =&gt; {
+<a href=#556 id=556 data-nosnippet>556</a>            check(e.condition) &amp;&amp; (check(e.consequence) || e.alternative.is_none_or(check))
+<a href=#557 id=557 data-nosnippet>557</a>        }
+<a href=#558 id=558 data-nosnippet>558</a>        HirExpression::Match(e) =&gt; can_return_without_recursing_match(interner, func_id, <span class="kw-2">&amp;</span>e),
+<a href=#559 id=559 data-nosnippet>559</a>        HirExpression::Tuple(e) =&gt; e.iter().copied().all(check),
+<a href=#560 id=560 data-nosnippet>560</a>        HirExpression::Unsafe(b) =&gt; check_block(b),
+<a href=#561 id=561 data-nosnippet>561</a>        <span class="comment">// Rust doesn't check the lambda body (it might not be called).
+<a href=#562 id=562 data-nosnippet>562</a>        </span>HirExpression::Lambda(<span class="kw">_</span>)
+<a href=#563 id=563 data-nosnippet>563</a>        | HirExpression::Literal(<span class="kw">_</span>)
+<a href=#564 id=564 data-nosnippet>564</a>        | HirExpression::Constructor(<span class="kw">_</span>)
+<a href=#565 id=565 data-nosnippet>565</a>        | HirExpression::EnumConstructor(<span class="kw">_</span>)
+<a href=#566 id=566 data-nosnippet>566</a>        | HirExpression::Quote(<span class="kw">_</span>)
+<a href=#567 id=567 data-nosnippet>567</a>        | HirExpression::Unquote(<span class="kw">_</span>)
+<a href=#568 id=568 data-nosnippet>568</a>        | HirExpression::Error =&gt; <span class="bool-val">true</span>,
+<a href=#569 id=569 data-nosnippet>569</a>    }
+<a href=#570 id=570 data-nosnippet>570</a>}
+<a href=#571 id=571 data-nosnippet>571</a>
+<a href=#572 id=572 data-nosnippet>572</a><span class="kw">fn </span>can_return_without_recursing_match(
+<a href=#573 id=573 data-nosnippet>573</a>    interner: <span class="kw-2">&amp;</span>NodeInterner,
+<a href=#574 id=574 data-nosnippet>574</a>    func_id: FuncId,
+<a href=#575 id=575 data-nosnippet>575</a>    match_expr: <span class="kw-2">&amp;</span>HirMatch,
+<a href=#576 id=576 data-nosnippet>576</a>) -&gt; bool {
+<a href=#577 id=577 data-nosnippet>577</a>    <span class="kw">let </span>check_match = |e| can_return_without_recursing_match(interner, func_id, e);
+<a href=#578 id=578 data-nosnippet>578</a>    <span class="kw">let </span>check = |e| can_return_without_recursing(interner, func_id, e);
+<a href=#579 id=579 data-nosnippet>579</a>
+<a href=#580 id=580 data-nosnippet>580</a>    <span class="kw">match </span>match_expr {
+<a href=#581 id=581 data-nosnippet>581</a>        HirMatch::Success(expr) =&gt; check(<span class="kw-2">*</span>expr),
+<a href=#582 id=582 data-nosnippet>582</a>        HirMatch::Failure { .. } =&gt; <span class="bool-val">true</span>,
+<a href=#583 id=583 data-nosnippet>583</a>        HirMatch::Guard { cond: <span class="kw">_</span>, body, otherwise } =&gt; check(<span class="kw-2">*</span>body) &amp;&amp; check_match(otherwise),
+<a href=#584 id=584 data-nosnippet>584</a>        HirMatch::Switch(<span class="kw">_</span>, cases, otherwise) =&gt; {
+<a href=#585 id=585 data-nosnippet>585</a>            cases.iter().all(|case| check_match(<span class="kw-2">&amp;</span>case.body))
+<a href=#586 id=586 data-nosnippet>586</a>                &amp;&amp; otherwise.as_ref().is_none_or(|case| check_match(case))
+<a href=#587 id=587 data-nosnippet>587</a>        }
+<a href=#588 id=588 data-nosnippet>588</a>    }
+<a href=#589 id=589 data-nosnippet>589</a>}</code></pre></div></section></main></body></html>

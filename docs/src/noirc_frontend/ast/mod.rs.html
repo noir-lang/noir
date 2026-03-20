@@ -14,27 +14,27 @@
 <a href=#14 id=14 data-nosnippet>14</a><span class="kw">mod </span>type_alias;
 <a href=#15 id=15 data-nosnippet>15</a><span class="kw">mod </span>visitor;
 <a href=#16 id=16 data-nosnippet>16</a>
-<a href=#17 id=17 data-nosnippet>17</a><span class="kw">use </span>noirc_errors::Located;
-<a href=#18 id=18 data-nosnippet>18</a><span class="kw">use </span>noirc_errors::Location;
-<a href=#19 id=19 data-nosnippet>19</a><span class="kw">pub use </span>visitor::AttributeTarget;
-<a href=#20 id=20 data-nosnippet>20</a><span class="kw">pub use </span>visitor::Visitor;
-<a href=#21 id=21 data-nosnippet>21</a>
-<a href=#22 id=22 data-nosnippet>22</a><span class="kw">pub use </span>expression::<span class="kw-2">*</span>;
-<a href=#23 id=23 data-nosnippet>23</a><span class="kw">pub use </span>function::<span class="kw-2">*</span>;
-<a href=#24 id=24 data-nosnippet>24</a>
-<a href=#25 id=25 data-nosnippet>25</a><span class="attr">#[cfg(test)]
-<a href=#26 id=26 data-nosnippet>26</a></span><span class="kw">use </span>proptest_derive::Arbitrary;
-<a href=#27 id=27 data-nosnippet>27</a>
-<a href=#28 id=28 data-nosnippet>28</a><span class="kw">pub use </span>docs::<span class="kw-2">*</span>;
-<a href=#29 id=29 data-nosnippet>29</a><span class="kw">pub use </span>enumeration::<span class="kw-2">*</span>;
-<a href=#30 id=30 data-nosnippet>30</a><span class="kw">use </span>noirc_errors::Span;
-<a href=#31 id=31 data-nosnippet>31</a><span class="kw">pub use </span>statement::<span class="kw-2">*</span>;
-<a href=#32 id=32 data-nosnippet>32</a><span class="kw">pub use </span>structure::<span class="kw-2">*</span>;
-<a href=#33 id=33 data-nosnippet>33</a><span class="kw">pub use </span>traits::<span class="kw-2">*</span>;
-<a href=#34 id=34 data-nosnippet>34</a><span class="kw">pub use </span>type_alias::<span class="kw-2">*</span>;
-<a href=#35 id=35 data-nosnippet>35</a>
-<a href=#36 id=36 data-nosnippet>36</a><span class="kw">use </span><span class="kw">crate</span>::QuotedType;
-<a href=#37 id=37 data-nosnippet>37</a><span class="kw">use </span><span class="kw">crate</span>::signed_field::SignedField;
+<a href=#17 id=17 data-nosnippet>17</a><span class="kw">use </span>acvm::FieldElement;
+<a href=#18 id=18 data-nosnippet>18</a><span class="kw">use </span>noirc_errors::Located;
+<a href=#19 id=19 data-nosnippet>19</a><span class="kw">use </span>noirc_errors::Location;
+<a href=#20 id=20 data-nosnippet>20</a><span class="kw">pub use </span>visitor::AttributeTarget;
+<a href=#21 id=21 data-nosnippet>21</a><span class="kw">pub use </span>visitor::Visitor;
+<a href=#22 id=22 data-nosnippet>22</a>
+<a href=#23 id=23 data-nosnippet>23</a><span class="kw">pub use </span>expression::<span class="kw-2">*</span>;
+<a href=#24 id=24 data-nosnippet>24</a><span class="kw">pub use </span>function::<span class="kw-2">*</span>;
+<a href=#25 id=25 data-nosnippet>25</a>
+<a href=#26 id=26 data-nosnippet>26</a><span class="attr">#[cfg(test)]
+<a href=#27 id=27 data-nosnippet>27</a></span><span class="kw">use </span>proptest_derive::Arbitrary;
+<a href=#28 id=28 data-nosnippet>28</a>
+<a href=#29 id=29 data-nosnippet>29</a><span class="kw">pub use </span>docs::<span class="kw-2">*</span>;
+<a href=#30 id=30 data-nosnippet>30</a><span class="kw">pub use </span>enumeration::<span class="kw-2">*</span>;
+<a href=#31 id=31 data-nosnippet>31</a><span class="kw">use </span>noirc_errors::Span;
+<a href=#32 id=32 data-nosnippet>32</a><span class="kw">pub use </span>statement::<span class="kw-2">*</span>;
+<a href=#33 id=33 data-nosnippet>33</a><span class="kw">pub use </span>structure::<span class="kw-2">*</span>;
+<a href=#34 id=34 data-nosnippet>34</a><span class="kw">pub use </span>traits::<span class="kw-2">*</span>;
+<a href=#35 id=35 data-nosnippet>35</a><span class="kw">pub use </span>type_alias::<span class="kw-2">*</span>;
+<a href=#36 id=36 data-nosnippet>36</a>
+<a href=#37 id=37 data-nosnippet>37</a><span class="kw">use </span><span class="kw">crate</span>::QuotedType;
 <a href=#38 id=38 data-nosnippet>38</a><span class="kw">use </span><span class="kw">crate</span>::token::IntegerTypeSuffix;
 <a href=#39 id=39 data-nosnippet>39</a><span class="kw">use crate</span>::{
 <a href=#40 id=40 data-nosnippet>40</a>    BinaryTypeOperator,
@@ -225,7 +225,7 @@
 <a href=#225 id=225 data-nosnippet>225</a></span><span class="attr">#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 <a href=#226 id=226 data-nosnippet>226</a></span><span class="kw">pub enum </span>UnresolvedTypeExpression {
 <a href=#227 id=227 data-nosnippet>227</a>    Variable(Path),
-<a href=#228 id=228 data-nosnippet>228</a>    Constant(SignedField, <span class="prelude-ty">Option</span>&lt;IntegerTypeSuffix&gt;, Location),
+<a href=#228 id=228 data-nosnippet>228</a>    Constant(FieldElement, <span class="prelude-ty">Option</span>&lt;IntegerTypeSuffix&gt;, Location),
 <a href=#229 id=229 data-nosnippet>229</a>    BinaryOperation(
 <a href=#230 id=230 data-nosnippet>230</a>        Box&lt;UnresolvedTypeExpression&gt;,
 <a href=#231 id=231 data-nosnippet>231</a>        BinaryTypeOperator,
@@ -490,8 +490,8 @@
 <a href=#490 id=490 data-nosnippet>490</a>
 <a href=#491 id=491 data-nosnippet>491</a>    <span class="kw">fn </span>from_expr_helper(expr: Expression) -&gt; <span class="prelude-ty">Result</span>&lt;UnresolvedTypeExpression, Expression&gt; {
 <a href=#492 id=492 data-nosnippet>492</a>        <span class="kw">match </span>expr.kind {
-<a href=#493 id=493 data-nosnippet>493</a>            ExpressionKind::Literal(Literal::Integer(int, suffix)) =&gt; {
-<a href=#494 id=494 data-nosnippet>494</a>                <span class="prelude-val">Ok</span>(UnresolvedTypeExpression::Constant(int, suffix, expr.location))
+<a href=#493 id=493 data-nosnippet>493</a>            ExpressionKind::Literal(Literal::Integer(field, suffix)) =&gt; {
+<a href=#494 id=494 data-nosnippet>494</a>                <span class="prelude-val">Ok</span>(UnresolvedTypeExpression::Constant(field, suffix, expr.location))
 <a href=#495 id=495 data-nosnippet>495</a>            }
 <a href=#496 id=496 data-nosnippet>496</a>            ExpressionKind::Variable(path) =&gt; <span class="prelude-val">Ok</span>(UnresolvedTypeExpression::Variable(path)),
 <a href=#497 id=497 data-nosnippet>497</a>            ExpressionKind::Prefix(prefix) <span class="kw">if </span>prefix.operator == UnaryOp::Minus =&gt; {

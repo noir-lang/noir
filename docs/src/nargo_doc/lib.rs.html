@@ -573,7 +573,7 @@
 <a href=#573 id=573 data-nosnippet>573</a>            noirc_frontend::Type::Reference(typ, mutable) =&gt; {
 <a href=#574 id=574 data-nosnippet>574</a>                Type::Reference { r#type: Box::new(<span class="self">self</span>.convert_type(typ)), mutable: <span class="kw-2">*</span>mutable }
 <a href=#575 id=575 data-nosnippet>575</a>            }
-<a href=#576 id=576 data-nosnippet>576</a>            noirc_frontend::Type::Constant(signed_field, _kind) =&gt; {
+<a href=#576 id=576 data-nosnippet>576</a>            noirc_frontend::Type::Constant(signed_field) =&gt; {
 <a href=#577 id=577 data-nosnippet>577</a>                Type::Constant(signed_field.to_string())
 <a href=#578 id=578 data-nosnippet>578</a>            }
 <a href=#579 id=579 data-nosnippet>579</a>            noirc_frontend::Type::InfixExpr(lhs, operator, rhs, <span class="kw">_</span>) =&gt; Type::InfixExpr {

@@ -170,7 +170,7 @@
 <a href=#170 id=170 data-nosnippet>170</a>        },
 <a href=#171 id=171 data-nosnippet>171</a>        BinaryOpKind::Divide =&gt; <span class="macro">match_arithmetic!</span> {
 <a href=#172 id=172 data-nosnippet>172</a>            (lhs_value <span class="kw">as </span>lhs <span class="string">"/" </span>rhs_value <span class="kw">as </span>rhs) {
-<a href=#173 id=173 data-nosnippet>173</a>                field: <span class="kw">if </span>rhs.absolute_value().is_zero() {
+<a href=#173 id=173 data-nosnippet>173</a>                field: <span class="kw">if </span>rhs.is_zero() {
 <a href=#174 id=174 data-nosnippet>174</a>                   <span class="kw">return </span><span class="prelude-val">Err</span>( InterpreterError::InvalidValuesForBinary { lhs: lhs_type, rhs: rhs_type, location, operator: <span class="string">"/" </span>});
 <a href=#175 id=175 data-nosnippet>175</a>                } <span class="kw">else </span>{
 <a href=#176 id=176 data-nosnippet>176</a>                    lhs / rhs
