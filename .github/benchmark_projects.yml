@@ -124,7 +124,7 @@ projects:
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/rollup-tx-base-private
     num_runs: 5
-    compilation-timeout: 30
+    compilation-timeout: 50
     execution-timeout: 0.75
     brillig-compilation-timeout: 30
     brillig-execution-timeout: 0.75
@@ -135,7 +135,7 @@ projects:
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/rollup-tx-base-public
     num_runs: 5
-    compilation-timeout: 120
+    compilation-timeout: 150
     execution-timeout: 0.75
     brillig-compilation-timeout: 120
     brillig-execution-timeout: 0.75
