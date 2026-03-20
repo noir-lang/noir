@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773953695938,
+  "lastUpdate": 1774002987918,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23096,48 +23096,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "3a5091b66870360469277eaf440a34e56dd8453a",
-          "message": "fix(brillig): Protect against memory address overflows (#11864)",
-          "timestamp": "2026-03-13T15:03:41Z",
-          "tree_id": "970eadf5fa453ea029f3afe8068f13cc900fadf5",
-          "url": "https://github.com/noir-lang/noir/commit/3a5091b66870360469277eaf440a34e56dd8453a"
-        },
-        "date": 1773416000789,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252956,
-            "range": "± 2590",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 224066,
-            "range": "± 1630",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2728771,
-            "range": "± 4447",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25189,6 +25147,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2733607,
             "range": "± 5281",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "679b42949596671e29aef5e95099c845ee87e2fe",
+          "message": "fix: check types before globals when resolving named types (#11919)",
+          "timestamp": "2026-03-20T10:07:25Z",
+          "tree_id": "b7a0140b2cba98ccc73dac7cae27b9c8e5ed4653",
+          "url": "https://github.com/noir-lang/noir/commit/679b42949596671e29aef5e95099c845ee87e2fe"
+        },
+        "date": 1774002939641,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 257521,
+            "range": "± 965",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 227733,
+            "range": "± 3956",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2730796,
+            "range": "± 5919",
             "unit": "ns/iter"
           }
         ]
