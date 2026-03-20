@@ -3174,7 +3174,7 @@ fn bind_trait_impl_func_generics_to_trait_func_generics(
 /// Look up a specific member of a trait, then look through the trait methods
 /// and associated constants until an item with a matching name is found.
 ///
-/// Panics if the name cannot be matched to anything.
+/// Error if the name cannot be matched to anything.
 pub(crate) fn resolve_trait_item(
     interner: &mut NodeInterner,
     method_id: TraitItemId,
@@ -3213,7 +3213,8 @@ pub(crate) fn resolve_trait_item(
         }
     }
 
-    unreachable!("No method or constant named `{name}` in impl")
+    let location = interner.expr_location(&expr_id);
+    Err(InterpreterError::NoTraitItemInImpl { item_name: name.to_string(), location })
 }
 
 pub(crate) enum TraitItem {

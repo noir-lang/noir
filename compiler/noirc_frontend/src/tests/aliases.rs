@@ -1082,6 +1082,22 @@ fn errors_if_using_comptime_type_in_non_comptime_type_alias() {
     check_errors(src);
 }
 
+/// Regression test: a type alias and a global with the same name
+#[test]
+fn type_alias_takes_priority_over_global_with_same_name() {
+    let src = r#"
+        global Foo: u32 = 10;
+
+        type Foo = u32;
+
+        fn main() {
+            let x: Foo = 20;
+            assert(x == 20);
+        }
+    "#;
+    assert_no_errors(src);
+}
+
 /// Regression test: define_type_alias did not reset `current_item` after finishing,
 /// which can leak into subsequent elaboration phases.
 #[test]

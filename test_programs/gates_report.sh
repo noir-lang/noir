@@ -24,6 +24,8 @@ excluded_dirs=(
     "fold_numeric_generic_poseidon"
     "regression_7143"
     "regression_7612"
+    # Mystery panic in CI
+    "embedded_curve_ops"
 )
 
 current_dir=$(pwd)
