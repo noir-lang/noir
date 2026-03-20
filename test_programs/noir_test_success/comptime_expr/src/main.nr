@@ -635,10 +635,7 @@ mod tests {
             assert_eq(params.len(), 1);
             assert(params[0].1.is_none());
             assert(return_type.is_none());
-            assert_eq(
-                body.as_block().unwrap()[0].as_block().unwrap()[0].as_integer().unwrap(),
-                2,
-            );
+            assert_eq(body.as_block().unwrap()[0].as_block().unwrap()[0].as_integer().unwrap(), 2);
         }
     }
 
@@ -693,10 +690,7 @@ mod tests {
             let (index, array, body) = expr.as_for().unwrap();
             assert_eq(index, quote { x });
             assert_eq(array.as_integer().unwrap(), 4);
-            assert_eq(
-                body.as_block().unwrap()[0].as_block().unwrap()[0].as_integer().unwrap(),
-                6,
-            );
+            assert_eq(body.as_block().unwrap()[0].as_block().unwrap()[0].as_integer().unwrap(), 6);
         }
     }
 
@@ -731,10 +725,7 @@ mod tests {
             assert_eq(from.as_integer().unwrap(), 4);
             assert_eq(to.as_integer().unwrap(), 6);
             assert(!inclusive);
-            assert_eq(
-                body.as_block().unwrap()[0].as_block().unwrap()[0].as_integer().unwrap(),
-                8,
-            );
+            assert_eq(body.as_block().unwrap()[0].as_block().unwrap()[0].as_integer().unwrap(), 8);
         }
     }
 
