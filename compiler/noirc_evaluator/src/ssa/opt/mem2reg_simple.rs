@@ -38,11 +38,32 @@ impl Ssa {
     ///
     /// ACIR functions have no variable limit since they benefit more from full promotion.
     /// Brillig keeps the limit to avoid regressions in loop-heavy code.
+    ///
+    /// **Important:** This should only be used after flattening for ACIR functions.
+    /// Before flattening, use `mem2reg_simple_brillig` instead. Promoting references
+    /// to block parameters in ACIR functions before flattening creates extra blocks
+    /// that cascade through the flattener into redundant predicate operations,
+    /// causing significant opcode regressions.
     pub(crate) fn mem2reg_simple(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             let max_vars =
                 if function.runtime().is_brillig() { Some(MAX_VARIABLES_OPTIMIZED) } else { None };
             function.mem2reg_simple(max_vars);
+        }
+        self
+    }
+
+    /// Run mem2reg_simple only on Brillig functions.
+    ///
+    /// Before flattening, running mem2reg_simple on ACIR functions promotes
+    /// references to block parameters, which creates extra conditional blocks.
+    /// The flattener converts each conditional into predicate operations (not, mul,
+    /// enable_side_effects), so more blocks means more predicates and more ACIR opcodes.
+    pub(crate) fn mem2reg_simple_brillig(mut self) -> Ssa {
+        for function in self.functions.values_mut() {
+            if function.runtime().is_brillig() {
+                function.mem2reg_simple(Some(MAX_VARIABLES_OPTIMIZED));
+            }
         }
         self
     }

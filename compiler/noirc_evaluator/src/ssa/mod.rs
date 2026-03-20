@@ -142,11 +142,14 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
         SsaPass::new(Ssa::expand_signed_checks, "expand signed checks"),
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
-        SsaPass::new(Ssa::mem2reg_simple, "Mem2Reg Simple"),
+        // Use brillig-only mem2reg before flattening: promoting ACIR references to block
+        // params here creates extra blocks that cascade through flattening into redundant
+        // predicate operations, causing opcode regressions.
+        SsaPass::new(Ssa::mem2reg_simple_brillig, "Mem2Reg Simple"),
         SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
         SsaPass::new_try(Ssa::inline_simple_functions, "Inlining simple functions")
             .and_then(Ssa::remove_unreachable_functions),
-        SsaPass::new(Ssa::mem2reg_simple, "Mem2Reg Simple"),
+        SsaPass::new(Ssa::mem2reg_simple_brillig, "Mem2Reg Simple"),
         SsaPass::new(Ssa::array_set_optimization, "ArraySet optimization"),
         SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
         SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
@@ -169,8 +172,8 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             },
             "Inlining",
         ),
-        // Run mem2reg with the CFG separated into blocks
-        SsaPass::new(Ssa::mem2reg_simple, "Mem2Reg Simple"),
+        // Run mem2reg with the CFG separated into blocks (Brillig only before flattening)
+        SsaPass::new(Ssa::mem2reg_simple_brillig, "Mem2Reg Simple"),
         SsaPass::new(Ssa::array_set_optimization, "ArraySet optimization"),
         SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
         // Running DIE here might remove some unused instructions mem2reg could not eliminate.
@@ -199,7 +202,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             "Unrolling",
         ),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
-        SsaPass::new(Ssa::mem2reg_simple, "Mem2Reg Simple"),
+        SsaPass::new(Ssa::mem2reg_simple_brillig, "Mem2Reg Simple"),
         SsaPass::new(Ssa::remove_bit_shifts, "Removing Bit Shifts"),
         SsaPass::new(Ssa::array_set_optimization, "ArraySet optimization"),
         SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
