@@ -130,7 +130,11 @@ fn format_integer(typ: &Type, value: FieldElement) -> String {
     // because `FieldElement::to_hex` will include many leading zeros.
     let value_big_int = BigInt::from_str(&value_base_10).unwrap();
 
-    format!("    {typ}\n---\nvalue of literal: `{value_base_10} (0x{value_big_int:02x})`")
+    if value_big_int < BigInt::ZERO {
+        format!("    {typ}\n---\nvalue of literal: `{value_base_10} (-0x{:02x})`", -value_big_int)
+    } else {
+        format!("    {typ}\n---\nvalue of literal: `{value_base_10} (0x{value_big_int:02x})`")
+    }
 }
 
 /// Returns the MarkupContent for the given primitive type name, if the name denotes
