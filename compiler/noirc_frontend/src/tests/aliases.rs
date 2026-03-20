@@ -754,6 +754,7 @@ fn regression_10971() {
     let src = r#"
     pub type X: u8 = 257u8;
     ^^^^^^^^^^^^^^^^^^^^^^ The value `257` cannot fit into `u8` which has range `0..=255`
+                     ^^^^^ The value `257` cannot fit into `u8` which has range `0..=255`
 
     fn main() {
         let _ = X;
