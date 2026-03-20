@@ -7,6 +7,8 @@ use crate::brillig::{
     BrilligOptions,
     brillig_ir::{LayoutConfig, registers::MAX_SCRATCH_SPACE},
 };
+use crate::ssa::ir::value::ValueId;
+use crate::ssa::ssa_gen::Ssa;
 
 /// Regression test from fuzzer: arg-side coalesced value (v1) outlives the block
 /// param (v4) it shares a register with. When v4 dies in b1, the register was
@@ -173,4 +175,107 @@ fn coalescing_spill_arg_register_aliased_by_subsequent_allocation() {
         &options,
     );
     assert_eq!(result, vec![FieldElement::from(10u64)]);
+}
+
+/// This test is here to protect against the following scenario:
+///
+/// > In the `get_coalesced` fast path, `define_variable` reuses the partner’s cached register,
+/// > records the new SSA value in `ssa_value_allocations`, marks it as available, and returns immediately.
+///
+/// > However, this path does not notify the active register allocator that the reused register is live again.
+/// > If the partner value died earlier in the same block, its register may already have been deallocated and placed back into the allocator’s free pool.
+/// > In that case, the allocator still considers the register available for reuse even though the coalesced value now relies on it.
+///
+/// > A later allocation can therefore hand out the same register to a different live value, causing register aliasing.
+///
+/// If the parameter was allowed to die and its register deallocated, the register could have already been allocated to something else,
+/// before the coalescing partner is defined. `BrilligBlock` avoids deallocating registers prematurely by calling `CoalescingMap::has_live_partner`,
+/// but this assumes that there *is* a live partner at the time. If the parameter died when none of its partners were defined yet,
+/// it could happen, but we assume that if we define an `arg` which we want to pass to a `param`, then `param` should still be available at that point.
+///
+/// The `does_not_coalesce_param_side_when_arg_live_in_dest` verifies that we don't coalesce an `arg->param` if the
+/// `arg` has been defined earlier than the `param`, which means `arg` is live where the `param` is defined. This is
+/// why `define_variable` panics if `param` hasn't been defined yet.
+///
+/// In this test we artificially remove the `param`, and check that this causes a panic, so that if in the future
+/// these assumptions would no longer hold, the fact that this test fails should mean the a regression should be
+/// caught as well.
+#[test]
+#[should_panic(expected = "Coalesced parameter not currently available")]
+fn coalescing_arg_to_deallocated_parameter_panics() {
+    use crate::brillig::brillig_gen::brillig_block_variables::BlockVariables;
+    use crate::brillig::{BrilligContext, FunctionContext};
+    use crate::ssa::ir::instruction::TerminatorInstruction;
+
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u32):
+        jmp b1(u32 0)
+      b1(v1: u32):
+        v2 = lt v1, u32 3
+        jmpif v2 then: b2(), else: b3()
+      b2():
+        v3 = add v1, u32 1
+        v4 = mul v3, u32 2
+        jmp b1(v4)
+      b3():
+        return v1
+    }
+    ";
+
+    let ssa = Ssa::from_str(src).unwrap();
+    let func = ssa.main();
+
+    let blocks: Vec<_> = func.reachable_blocks().into_iter().collect();
+    assert_eq!(blocks[2].to_u32(), 2, "should be b2");
+
+    let block = &func.dfg[blocks[2]];
+    let Some(TerminatorInstruction::Jmp { destination, arguments, .. }) = block.terminator() else {
+        unreachable!("b2 ends in a jump to b1");
+    };
+    let arg = arguments[0]; // v4
+    let param = func.dfg[*destination].parameters()[0]; // v1
+
+    let options = BrilligOptions::default();
+    let mut function_context =
+        FunctionContext::new(func, true, options.layout.max_stack_frame_size());
+
+    assert_eq!(
+        function_context.coalescing.get_coalesced(&arg),
+        Some(param),
+        "v4 should coalesce to v1"
+    );
+
+    let brillig_context = BrilligContext::new("test", &options);
+    let mut variables = BlockVariables::default();
+
+    // Define the param SSA variable.
+    let param_var =
+        variables.define_variable(&mut function_context, &brillig_context, param, &func.dfg);
+
+    // Remove the param SSA variable.
+    // This should *not* happen before the arg is defined, under normal circumstances, but this test forces it!
+    variables.remove_variable(&param, &function_context, &brillig_context);
+
+    // Now define some other SSA variable, and see that it gets the same memory.
+    let other = ValueId::new(3);
+    let other_var =
+        variables.define_variable(&mut function_context, &brillig_context, other, &func.dfg);
+    assert_eq!(
+        other_var.extract_register(),
+        param_var.extract_register(),
+        "freed register should be reallocated to new variable"
+    );
+
+    // Finally define the arg.
+    // This should either fail, or allocate a different register.
+    let arg_var =
+        variables.define_variable(&mut function_context, &brillig_context, arg, &func.dfg);
+
+    // If we allocated the same register than this should cause the test to fail.
+    assert_ne!(
+        arg_var.extract_register(),
+        other_var.extract_register(),
+        "the arg->param register is aliased with the other variable"
+    );
 }

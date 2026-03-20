@@ -106,6 +106,14 @@ impl BlockVariables {
                 .ssa_value_allocations
                 .get(&param)
                 .expect("ICE: Coalesced parameter not yet allocated");
+            // The param must be available at this point: it must have been declared earlier,
+            // and should not have been removed as dead, nor spilled. Otherwise the register
+            // could have been allocated to something else in the meantime.
+            // Alternatively we could fall back to allocating a new register.
+            assert!(
+                self.available_variables.contains(&param),
+                "ICE: Coalesced parameter not currently available"
+            );
             function_context.ssa_value_allocations.insert(value_id, variable);
             self.available_variables.insert(value_id);
             return variable;
