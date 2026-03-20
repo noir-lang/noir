@@ -888,7 +888,12 @@ pub(crate) fn is_predicate_false<F: AcirField>(
     predicate: &Expression<F>,
     opcode_location: &ErrorLocation,
 ) -> Result<bool, OpcodeResolutionError<F>> {
-    let pred_value = get_value(predicate, witness)?;
+    // Fast path: if the predicate is already a constant, avoid the full expression evaluation.
+    let pred_value = if let Some(&constant) = predicate.to_const() {
+        constant
+    } else {
+        get_value(predicate, witness)?
+    };
     let predicate_is_false = pred_value.is_zero();
 
     // We expect that the predicate should resolve to either 0 or 1.
