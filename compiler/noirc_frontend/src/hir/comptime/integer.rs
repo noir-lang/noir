@@ -47,7 +47,7 @@ impl Integer {
 
     /// Converts this [Integer] to a [FieldElement]. Any negative values are
     /// encoded in two's complement such that `-x_iN == 2^N - x`.
-    /// In other words, the resulting field is not in two's complement form.
+    /// In other words, the resulting field is in two's complement form.
     pub(crate) fn as_field_twos_complement(self) -> FieldElement {
         match self {
             Integer::Field(value) => value,
