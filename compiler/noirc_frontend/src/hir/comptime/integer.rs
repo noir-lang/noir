@@ -236,27 +236,7 @@ impl Integer {
     /// Create an [Integer] from the given [IntegerTypeSuffix]. Returns `None` if the
     /// given field does not fit in the desired integer type.
     pub fn try_from_type_suffix(value: FieldElement, suffix: IntegerTypeSuffix) -> Option<Integer> {
-        match suffix {
-            IntegerTypeSuffix::I8 => value.try_into().ok().map(Integer::I8),
-            IntegerTypeSuffix::I16 => value.try_into().ok().map(Integer::I16),
-            IntegerTypeSuffix::I32 => value.try_into().ok().map(Integer::I32),
-            IntegerTypeSuffix::I64 => value.try_into().ok().map(Integer::I64),
-            IntegerTypeSuffix::U1 => {
-                if value.is_zero() {
-                    Some(Integer::U1(false))
-                } else if value.is_one() {
-                    Some(Integer::U1(true))
-                } else {
-                    None
-                }
-            }
-            IntegerTypeSuffix::U8 => value.try_into().ok().map(Integer::U8),
-            IntegerTypeSuffix::U16 => value.try_into().ok().map(Integer::U16),
-            IntegerTypeSuffix::U32 => value.try_into().ok().map(Integer::U32),
-            IntegerTypeSuffix::U64 => value.try_into().ok().map(Integer::U64),
-            IntegerTypeSuffix::U128 => value.try_into().ok().map(Integer::U128),
-            IntegerTypeSuffix::Field => Some(Integer::Field(value)),
-        }
+        Self::try_from_type(value, &suffix.as_type())
     }
 
     pub fn integer_type_suffix(&self) -> IntegerTypeSuffix {

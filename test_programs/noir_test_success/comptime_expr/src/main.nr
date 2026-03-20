@@ -192,6 +192,10 @@ mod tests {
 
             let expr = quote { -2 }.as_expr().unwrap();
             assert_eq(-2, expr.as_integer().unwrap());
+
+            // The type suffix shouldn't affect the result
+            let expr = quote { -2i8 }.as_expr().unwrap();
+            assert_eq(-2, expr.as_integer().unwrap());
         }
     }
 
