@@ -38,7 +38,7 @@
 <a href=#38 id=38 data-nosnippet>38</a>///   writes directly to the parameter's register.
 <a href=#39 id=39 data-nosnippet>39</a>/// - Param-side (`param -&gt; arg`): a block parameter reuses the register of an already-allocated
 <a href=#40 id=40 data-nosnippet>40</a>///   value (block param passthrough, cross-block instruction result).
-<a href=#41 id=41 data-nosnippet>41</a></span><span class="attr">#[derive(Default)]
+<a href=#41 id=41 data-nosnippet>41</a></span><span class="attr">#[derive(Default, Debug)]
 <a href=#42 id=42 data-nosnippet>42</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>CoalescingMap {
 <a href=#43 id=43 data-nosnippet>43</a>    coalesced: HashMap&lt;ValueId, ValueId&gt;,
 <a href=#44 id=44 data-nosnippet>44</a>    <span class="doccomment">/// Reverse mapping: values that are targets of coalescing.
