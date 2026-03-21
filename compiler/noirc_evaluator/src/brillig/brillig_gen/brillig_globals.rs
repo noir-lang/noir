@@ -455,12 +455,12 @@ mod tests {
 
     #[test]
     fn entry_point_nested_globals() {
+        // Globals are fully flat: no nested arrays.
+        // g0 is a scalar Field constant used by f1 (via the constant hoisting mechanism).
+        // g1 is a flat [Field; 4] array used by f2 (replaces the old nested [[Field; 2]; 2]).
         let src = "
         g0 = Field 1
-        g1 = make_array [Field 1, Field 1] : [Field; 2]
-        g2 = Field 0
-        g3 = make_array [Field 0, Field 0] : [Field; 2]
-        g4 = make_array [g1, g3] : [[Field; 2]; 2]
+        g1 = make_array [Field 1, Field 1, Field 0, Field 0] : [Field; 4]
 
         acir(inline) fn main f0 {
           b0(v5: Field, v6: Field):
@@ -499,11 +499,12 @@ mod tests {
               constrain v17 == Field 2
               return
           b3():
-              v19 = array_get g4, index v7 -> [Field; 2]
+              v18 = mul v7, u32 2
+              v19 = array_get g1, index v18 -> Field
               v20 = load v8 -> Field
-              v21 = array_get v19, index u32 0 -> Field
-              v22 = add v20, v21
-              v24 = array_get v19, index u32 1 -> Field
+              v22 = add v20, v19
+              v23 = unchecked_add v18, u32 1
+              v24 = array_get g1, index v23 -> Field
               v25 = add v22, v24
               store v25 at v8
               v26 = unchecked_add v7, u32 1
@@ -562,17 +563,23 @@ mod tests {
             } else if func_id.to_u32() == 2 || func_id.to_u32() == 3 {
                 // We want the entry point which uses globals (f2) and the entry point which calls f2 function internally (f3 through f4)
                 // to have the same globals initialized.
-                assert_eq!(
-                    artifact.byte_code.len(),
-                    30,
-                    "Expected enough opcodes to initialize the globals"
-                );
+                // With flat arrays, the globals are simpler (no nested structure), so fewer opcodes and less memory.
                 let globals_max_memory = brillig
                     .globals_memory_size
                     .get(&func_id)
                     .copied()
                     .expect("Should have globals memory size");
-                assert_eq!(globals_max_memory, 7 - 2, "maximum minus temporary");
+                // We want the entry point which uses globals (f2) and the entry point which calls f2 function internally (f3 through f4)
+                // to have the same globals initialized.
+                assert_eq!(
+                    artifact.byte_code.len(),
+                    16,
+                    "Expected enough opcodes to initialize the flat array global"
+                );
+                assert_eq!(
+                    globals_max_memory, 3,
+                    "global space for Field constant + flat array pointer"
+                );
             } else {
                 panic!("Unexpected function id: {func_id}");
             }

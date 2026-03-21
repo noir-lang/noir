@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use acvm::acir::brillig::MemoryAddress;
 use acvm::acir::brillig::lengths::SemiFlattenedLength;
 use acvm::{AcirField, FieldElement};
@@ -48,12 +46,21 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         }
         let item_types = typ.element_types();
 
+        // With flat arrays, the stride per element cycle is the sum of flattened sizes
+        // of all item types, not item_types.len() (which is the semi-flat count).
+        let flat_stride: usize = item_types.iter().map(|t| t.flattened_size().0 as usize).sum();
+
+        // Guard against zero-stride (zero-sized inner types)
+        if flat_stride == 0 {
+            return;
+        }
+
         // Find out if we are repeating the same item over and over
-        let first_item = data.iter().take(item_types.len()).copied().collect::<Vec<_>>();
+        let first_item = data.iter().take(flat_stride).copied().collect::<Vec<_>>();
 
         let mut is_repeating = true;
-        'check_loop: for item_index in (item_types.len()..data.len()).step_by(item_types.len()) {
-            for i in 0..item_types.len() {
+        'check_loop: for item_index in (flat_stride..data.len()).step_by(flat_stride) {
+            for i in 0..flat_stride {
                 if first_item[i] != data[item_index + i] {
                     is_repeating = false;
                     break 'check_loop;
@@ -63,14 +70,16 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
 
         // If all the items are single address, and all have the same initial value, we can initialize the array in a runtime loop.
         // Since the cost in instructions for a runtime loop is in the order of magnitude of 10, we only do this if the item_count is bigger than that.
-        let item_count = data.len() / item_types.len();
+        let item_count = data.len() / flat_stride;
 
-        if item_count > 10
-            && is_repeating
-            && item_types.iter().all(|typ| matches!(typ, Type::Numeric(_)))
-        {
+        // With flat data, all elements are scalars (numeric) regardless of element_types.
+        if item_count > 10 && is_repeating {
             self.initialize_constant_array_runtime(
-                item_types, first_item, item_count, pointer, dfg,
+                flat_stride,
+                first_item,
+                item_count,
+                pointer,
+                dfg,
             );
         } else {
             self.initialize_constant_array_comptime(data, dfg, pointer);
@@ -94,21 +103,20 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     /// 3. Therefore: `pointer`, `end_pointer`, and all intermediate loop values are < 2^32     
     fn initialize_constant_array_runtime(
         &mut self,
-        item_types: Arc<Vec<Type>>,
+        flat_stride: usize,
         item_to_repeat: Vec<ValueId>,
         item_count: usize,
         pointer: MemoryAddress,
         dfg: &DataFlowGraph,
     ) {
-        let mut subitem_to_repeat_variables = Vec::with_capacity(item_types.len());
+        let mut subitem_to_repeat_variables = Vec::with_capacity(flat_stride);
         for subitem_id in item_to_repeat {
             subitem_to_repeat_variables.push(self.convert_ssa_value(subitem_id, dfg));
         }
 
         // Initialize loop bound with the array length
-        let end_pointer_variable = self
-            .brillig_context
-            .make_usize_constant_instruction((item_count * item_types.len()).into());
+        let end_pointer_variable =
+            self.brillig_context.make_usize_constant_instruction((item_count * flat_stride).into());
 
         // Add the pointer to the array length
         self.brillig_context.memory_op_instruction(
@@ -118,14 +126,14 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             BrilligBinaryOp::Add,
         );
 
-        // If this is an array with complex subitems, we need a custom step in the loop to write all the subitems while iterating.
-        if item_types.len() > 1 {
+        // If the flat stride is > 1, we need a custom step in the loop to write all the subitems while iterating.
+        if flat_stride > 1 {
             let step_variable =
-                self.brillig_context.make_usize_constant_instruction(item_types.len().into());
+                self.brillig_context.make_usize_constant_instruction(flat_stride.into());
 
             let subitem_pointer = self.brillig_context.allocate_single_addr_usize();
 
-            // Generate code to initializes a single subitem
+            // Generate code to initialize a single element cycle
             let initializer_fn =
                 |ctx: &mut BrilligContext<_, _>, subitem_start_pointer: SingleAddrVariable| {
                     // Copy the destination pointer according to the loop state.
@@ -135,13 +143,12 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                     {
                         ctx.store_instruction(subitem_pointer.address, subitem.extract_register());
                         // Increment the destination pointer for all but the last item.
-                        if subitem_index != item_types.len() - 1 {
+                        if subitem_index != flat_stride - 1 {
                             ctx.memory_op_inc_by_usize_one(subitem_pointer.address);
                         }
                     }
                 };
 
-            // for (let subitem_start_pointer = pointer; subitem_start_pointer < pointer + data_length; subitem_start_pointer += step) { initializer_fn(iterator) }
             self.brillig_context.codegen_for_loop(
                 Some(pointer),
                 end_pointer_variable.address,
@@ -156,7 +163,6 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                     ctx.store_instruction(item_pointer.address, subitem.extract_register());
                 };
 
-            // for (let item_pointer = pointer; item_pointer < pointer + data_length; item_pointer += 1) { initializer_fn(iterator) }
             self.brillig_context.codegen_for_loop(
                 Some(pointer),
                 end_pointer_variable.address,

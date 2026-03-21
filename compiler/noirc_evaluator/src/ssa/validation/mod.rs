@@ -15,13 +15,7 @@
 use core::panic;
 use std::sync::Arc;
 
-use acvm::{
-    AcirField, FieldElement,
-    acir::{
-        BlackBoxFunc,
-        brillig::lengths::{ElementTypesLength, SemiFlattenedLength},
-    },
-};
+use acvm::{AcirField, FieldElement, acir::BlackBoxFunc};
 use itertools::Itertools;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
@@ -214,88 +208,31 @@ impl<'f> Validator<'f> {
             Instruction::MakeArray { elements, typ: _ } => {
                 let result_type = self.assert_one_result(instruction, "MakeArray");
 
-                // ACIR functions use fully flattened arrays, so the element count
-                // equals the total flattened size rather than the semi-flattened size.
-                if self.function.runtime().is_acir() {
-                    match &result_type {
-                        Type::Array(_, _) => {
-                            let flattened_length = result_type.flattened_size();
-                            let elements_length = crate::brillig::assert_u32(elements.len());
-                            if elements_length != flattened_length.0 {
-                                panic!(
-                                    "MakeArray returns an array of flattened length {}, but it has {} elements",
-                                    flattened_length, elements_length
-                                );
-                            }
-                        }
-                        Type::Vector(composite_type) => {
-                            if composite_type.is_empty() && !elements.is_empty() {
-                                panic!(
-                                    "MakeArray vector has non-zero {} elements but composite type is empty",
-                                    elements.len(),
-                                );
-                            }
-                            // For ACIR vectors, elements are fully flattened so
-                            // we can't check divisibility by composite_type.len().
-                        }
-                        _ => {
-                            panic!(
-                                "MakeArray must return an array or vector type, not {result_type}"
-                            );
-                        }
-                    }
-                    // Elements are fully flattened in ACIR, so we skip the
-                    // per-element type check against composite_type.
-                    return;
-                }
-
-                // Brillig: arrays are semi-flattened (tuples flattened, nested arrays kept).
-                let composite_type = match result_type {
-                    Type::Array(composite_type, length) => {
-                        let types_length =
-                            ElementTypesLength(crate::brillig::assert_u32(composite_type.len()));
-                        let array_semi_flattened_length = types_length * length;
-                        let elements_length =
-                            SemiFlattenedLength(crate::brillig::assert_u32(elements.len()));
-                        if elements_length != array_semi_flattened_length {
+                // All arrays are fully flattened, so the element count
+                // equals the total flattened size.
+                match &result_type {
+                    Type::Array(_, _) => {
+                        let flattened_length = result_type.flattened_size();
+                        let elements_length = crate::brillig::assert_u32(elements.len());
+                        if elements_length != flattened_length.0 {
                             panic!(
                                 "MakeArray returns an array of flattened length {}, but it has {} elements",
-                                array_semi_flattened_length, elements_length
+                                flattened_length, elements_length
                             );
                         }
-                        composite_type
                     }
                     Type::Vector(composite_type) => {
-                        if composite_type.is_empty() {
-                            if !elements.is_empty() {
-                                panic!(
-                                    "MakeArray vector has non-zero {} elements but composite type is empty",
-                                    elements.len(),
-                                );
-                            }
-                        } else if elements.len() % composite_type.len() != 0 {
+                        if composite_type.is_empty() && !elements.is_empty() {
                             panic!(
-                                "MakeArray vector has {} elements but composite type has {} types which don't divide the number of elements",
+                                "MakeArray vector has non-zero {} elements but composite type is empty",
                                 elements.len(),
-                                composite_type.len()
                             );
                         }
-                        composite_type
+                        // Vectors are fully flattened so
+                        // we can't check divisibility by composite_type.len().
                     }
                     _ => {
                         panic!("MakeArray must return an array or vector type, not {result_type}");
-                    }
-                };
-
-                let composite_type_len = composite_type.len();
-                for (index, element) in elements.iter().enumerate() {
-                    let element_type = dfg.type_of_value(*element);
-                    let expected_type = &composite_type[index % composite_type_len];
-                    if &element_type != expected_type {
-                        panic!(
-                            "MakeArray has incorrect element type at index {index}: expected {}, got {}",
-                            expected_type, element_type
-                        );
                     }
                 }
             }
@@ -1697,13 +1634,13 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "MakeArray vector has 3 elements but composite type has 2 types which don't divide the number of elements"
+        expected = "MakeArray vector has non-zero 3 elements but composite type is empty"
     )]
     fn make_array_vector_returns_incorrect_length() {
         let src = "
         brillig(inline) fn main f0 {
           b0():
-            v0 = make_array [u8 1, u8 2, u8 3] : [(u8, u8)]
+            v0 = make_array [u8 1, u8 2, u8 3] : [()]
             return v0
         }
         ";
@@ -1724,13 +1661,13 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "MakeArray has incorrect element type at index 1: expected u8, got Field"
+        expected = "MakeArray returns an array of flattened length 6, but it has 4 elements"
     )]
     fn make_array_has_incorrect_element_type() {
         let src = "
         brillig(inline) fn main f0 {
           b0():
-            v0 = make_array [u8 1, Field 2, u8 3, u8 4] : [(u8, u8); 2]
+            v0 = make_array [u8 1, u8 2, u8 3, u8 4] : [[u8; 3]; 2]
             return v0
         }
         ";

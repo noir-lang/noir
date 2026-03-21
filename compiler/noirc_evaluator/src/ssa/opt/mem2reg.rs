@@ -3217,8 +3217,7 @@ mod tests {
             // arrays which are then placed in an outer array that is returned.
             // - v7 and v9 are allocated and stored to in b0
             // - Control flow branches (jmpif) to b1 or b2
-            // - Inner arrays containing [v7] and [v9] are created
-            // - Outer array containing the inner arrays is created and returned in b3
+            // - A flat outer array containing [v7, v9, v6, v17] is created and returned in b3
             // - Mem2Reg must NOT remove the stores to v7 and v9
             let src = r#"
             brillig(inline) fn func_1 f0 {
@@ -3239,9 +3238,7 @@ mod tests {
               b3(v6: &mut u1):
                 v17 = allocate -> &mut u1
                 store u1 1 at v17
-                v20 = make_array [v7, v9] : [&mut u1; 2]
-                v21 = make_array [v6, v17] : [&mut u1; 2]
-                v22 = make_array [v20, v21] : [[&mut u1; 2]; 2]
+                v22 = make_array [v7, v9, v6, v17] : [[&mut u1; 2]; 2]
                 return v22
             }
             "#;

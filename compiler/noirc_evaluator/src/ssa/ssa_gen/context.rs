@@ -79,17 +79,15 @@ pub(super) struct SharedContext {
     /// Shared counter used to assign the ID of the next function
     function_counter: AtomicCounter<Function>,
 
-    /// Pseudo functions that represent global values, one per runtime.
+    /// Pseudo function that represents global values.
     /// Globals are only concerned with the values and instructions (due to Instruction::MakeArray)
     /// in a function's DataFlowGraph. However, in order to re-use various codegen methods
     /// we need to use the same `Function` type.
     ///
-    /// ACIR globals produce flat arrays, Brillig globals produce non-flat arrays.
-    pub(super) acir_globals_context: Function,
-    pub(super) brillig_globals_context: Function,
+    /// All globals produce flat arrays (both ACIR and Brillig use the same representation).
+    pub(super) globals_context: Function,
 
-    pub(super) acir_globals: BTreeMap<GlobalId, Values>,
-    pub(super) brillig_globals: BTreeMap<GlobalId, Values>,
+    pub(super) globals: BTreeMap<GlobalId, Values>,
 
     /// The entire monomorphized source program
     pub(super) program: Program,
@@ -133,8 +131,7 @@ impl<'a> FunctionContext<'a> {
         parameters: &Parameters,
         runtime: RuntimeType,
         shared_context: &'a SharedContext,
-        acir_globals: GlobalsGraph,
-        brillig_globals: GlobalsGraph,
+        globals: GlobalsGraph,
     ) -> Self {
         let function_id = shared_context
             .pop_next_function_in_queue()
@@ -143,7 +140,7 @@ impl<'a> FunctionContext<'a> {
 
         let mut builder = FunctionBuilder::new(function_name, function_id);
         builder.set_runtime(runtime);
-        builder.set_globals(Arc::new(acir_globals), Arc::new(brillig_globals));
+        builder.set_globals(Arc::new(globals));
 
         let definitions = HashMap::default();
         let mut this = Self {
@@ -644,12 +641,8 @@ impl<'a> FunctionContext<'a> {
     }
 
     pub(super) fn lookup_global(&self, id: GlobalId) -> Values {
-        let globals = if self.builder.current_function.runtime().is_acir() {
-            &self.shared_context.acir_globals
-        } else {
-            &self.shared_context.brillig_globals
-        };
-        globals
+        self.shared_context
+            .globals
             .get(&id)
             .unwrap_or_else(|| panic!("lookup_global: variable {id:?} not defined"))
             .clone()
@@ -666,31 +659,6 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
-    /// Extract the given field of the tuple by reference. Panics if the given Values is not
-    /// a Tree::Branch or does not have enough fields.
-    pub(super) fn get_field_ref(tuple: &Values, field_index: usize) -> &Values {
-        match tuple {
-            Tree::Branch(trees) => &trees[field_index],
-            Tree::Leaf(value) => {
-                unreachable!("Tried to extract tuple index {field_index} from non-tuple {value:?}")
-            }
-        }
-    }
-
-    /// Replace the given field of the tuple with a new one. Panics if the given Values is not
-    /// a Tree::Branch or does not have enough fields.
-    pub(super) fn replace_field(tuple: Values, field_index: usize, new_value: Values) -> Values {
-        match tuple {
-            Tree::Branch(mut trees) => {
-                trees[field_index] = new_value;
-                Tree::Branch(trees)
-            }
-            Tree::Leaf(value) => {
-                unreachable!("Tried to extract tuple index {field_index} from non-tuple {value:?}")
-            }
-        }
-    }
-
     /// Retrieves the given function, adding it to the function queue
     /// if it is not yet compiled.
     pub(super) fn get_or_queue_function(&mut self, id: FuncId) -> Values {
@@ -698,69 +666,7 @@ impl<'a> FunctionContext<'a> {
         self.builder.import_function(function).into()
     }
 
-    /// Extracts the current value out of an LValue.
-    ///
-    /// Goal: Handle the case of assigning to nested expressions such as `foo.bar[i1].baz[i2] = e`
-    ///       while also noting that assigning to arrays will create a new array rather than mutate
-    ///       the original.
-    ///
-    /// Method: First `extract_current_value` must recurse on the lvalue to extract the current
-    ///         value contained:
-    ///
-    /// ```text
-    /// v0 = foo.bar                 ; allocate instruction for bar
-    /// v1 = load v0                 ; loading the bar array
-    /// v2 = add i1, baz_index       ; field offset for index i1, field baz
-    /// v3 = array_get v1, index v2  ; foo.bar[i1].baz
-    /// ```
-    ///
-    /// Method (part 2): Then, `assign_new_value` will recurse in the opposite direction to
-    ///                  construct the larger value as needed until we can `store` to the nearest
-    ///                  allocation.
-    ///
-    /// ```text
-    /// v4 = array_set v3, index i2, e   ; finally create a new array setting the desired value
-    /// v5 = array_set v1, index v2, v4  ; now must also create the new bar array
-    /// store v5 in v0                   ; and store the result in the only mutable reference
-    /// ```
-    ///
-    /// The returned `LValueRef` tracks the current value at each step of the lvalue.
-    /// This is later used by `assign_new_value` to construct a new updated value that
-    /// can be assigned to an allocation within the LValueRef::Ident.
-    ///
-    /// This is operationally equivalent to extract_current_value_recursive, but splitting these
-    /// into two separate functions avoids cloning the outermost `Values` returned by the recursive
-    /// version, as it is only needed for recursion.
-    pub(super) fn extract_current_value(
-        &mut self,
-        lvalue: &ast::LValue,
-    ) -> Result<LValue, RuntimeError> {
-        Ok(match lvalue {
-            ast::LValue::Ident(ident) => {
-                let (reference, should_auto_deref) = self.ident_lvalue(ident);
-                if should_auto_deref { LValue::Dereference { reference } } else { LValue::Ident }
-            }
-            ast::LValue::Index { array, index, location, .. } => {
-                self.index_lvalue(array, index, location)?.2
-            }
-            ast::LValue::MemberAccess { object, field_index } => {
-                let (old_object, object_lvalue) = self.extract_current_value_recursive(object)?;
-                let object_lvalue = Box::new(object_lvalue);
-                LValue::MemberAccess {
-                    old_object,
-                    index: *field_index,
-                    object_lvalue,
-                    skip_extraction: false,
-                }
-            }
-            ast::LValue::Dereference { reference, .. } => {
-                let (reference, _) = self.extract_current_value_recursive(reference)?;
-                LValue::Dereference { reference }
-            }
-            ast::LValue::Clone(lvalue) => self.extract_current_value(lvalue)?,
-        })
-    }
-
+    /// Dereferences the given lvalue by inserting load instructions for each reference value.
     pub(super) fn dereference_lvalue(
         &mut self,
         values: &Values,
@@ -784,97 +690,7 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
-    /// Compile the given `array[index]` expression as a reference.
-    /// This will return a triple of (array, index, lvalue_ref, `Option<length>`) where the lvalue_ref records the
-    /// structure of the lvalue expression for use by `assign_new_value`.
-    /// The optional length is for indexing vectors rather than arrays since vectors
-    /// are represented as a tuple in the form: (length, vector contents).
-    fn index_lvalue(
-        &mut self,
-        array: &ast::LValue,
-        index: &ast::Expression,
-        location: &Location,
-    ) -> Result<(ValueId, ValueId, LValue, Option<ValueId>), RuntimeError> {
-        let (old_array, array_lvalue) = self.extract_current_value_recursive(array)?;
-        let index = self.codegen_non_tuple_expression(index)?;
-        let array_lvalue = Box::new(array_lvalue);
-        let array_values = old_array.clone().into_value_list(self);
-
-        let location = *location;
-        // A vector is represented as a tuple (length, vector contents).
-        // We need to fetch the second value.
-        Ok(if array_values.len() > 1 {
-            let vector_lvalue = LValue::VectorIndex {
-                old_vector: old_array,
-                index,
-                vector_lvalue: array_lvalue,
-                location,
-            };
-            (array_values[1], index, vector_lvalue, Some(array_values[0]))
-        } else {
-            let array_lvalue =
-                LValue::Index { old_array: array_values[0], index, array_lvalue, location };
-            (array_values[0], index, array_lvalue, None)
-        })
-    }
-
-    fn extract_current_value_recursive(
-        &mut self,
-        lvalue: &ast::LValue,
-    ) -> Result<(Values, LValue), RuntimeError> {
-        match lvalue {
-            ast::LValue::Ident(ident) => {
-                let (variable, should_auto_deref) = self.ident_lvalue(ident);
-                if should_auto_deref {
-                    let dereferenced = self.dereference_lvalue(&variable, &ident.typ);
-                    Ok((dereferenced, LValue::Dereference { reference: variable }))
-                } else {
-                    Ok((variable.clone(), LValue::Ident))
-                }
-            }
-            ast::LValue::Index { array, index, element_type, location } => {
-                let (old_array, index, index_lvalue, max_length) =
-                    self.index_lvalue(array, index, location)?;
-                let element = self.codegen_array_index(
-                    old_array,
-                    index,
-                    element_type,
-                    *location,
-                    max_length,
-                )?;
-                Ok((element, index_lvalue))
-            }
-            ast::LValue::MemberAccess { object, field_index: index } => {
-                let (old_object, object_lvalue) = self.extract_current_value_recursive(object)?;
-                let object_lvalue = Box::new(object_lvalue);
-                let element = Self::get_field_ref(&old_object, *index).clone();
-                Ok((
-                    element,
-                    LValue::MemberAccess {
-                        old_object,
-                        object_lvalue,
-                        index: *index,
-                        skip_extraction: false,
-                    },
-                ))
-            }
-            ast::LValue::Dereference { reference, element_type } => {
-                let (reference, _) = self.extract_current_value_recursive(reference)?;
-                let dereferenced = self.dereference_lvalue(&reference, element_type);
-                Ok((dereferenced, LValue::Dereference { reference }))
-            }
-            ast::LValue::Clone(lvalue) => {
-                let (values, lvalue) = self.extract_current_value_recursive(lvalue)?;
-                values.clone().for_each(|value| {
-                    let value = value.eval(self);
-                    self.builder.increment_array_reference_count(value);
-                });
-                Ok((values, lvalue))
-            }
-        }
-    }
-
-    /// Extract a flat lvalue for ACIR assignment.
+    /// Extract a flat lvalue for assignment.
     ///
     /// Walks the lvalue tree and computes a flat offset into the underlying
     /// array, tracking whether the base has been materialized (e.g. after a
@@ -977,7 +793,14 @@ impl<'a> FunctionContext<'a> {
                     base_is_materialized: true,
                 })
             }
-            ast::LValue::Clone(_) => unreachable!("Clone should only be for Brillig runtimes"),
+            ast::LValue::Clone(lvalue) => {
+                let flat_lvalue = self.extract_flat_lvalue(lvalue)?;
+                flat_lvalue.base.clone().for_each(|value| {
+                    let value = value.eval(self);
+                    self.builder.increment_array_reference_count(value);
+                });
+                Ok(flat_lvalue)
+            }
         }
     }
 
@@ -1001,103 +824,6 @@ impl<'a> FunctionContext<'a> {
             updated_array.into()
         };
         self.assign(flat.original_alloc, new_value);
-    }
-
-    /// Assigns a new value to the given LValue.
-    /// The LValue can be created via a previous call to extract_current_value.
-    /// This method recurs on the given LValue to create a new value to assign an allocation
-    /// instruction within an LValue::Ident or LValue::Dereference - see the comment on
-    /// `extract_current_value` for more details.
-    pub(super) fn assign_new_value(&mut self, lvalue: LValue, new_value: Values) {
-        match lvalue {
-            LValue::Ident => unreachable!("Cannot assign to a variable without a reference"),
-            LValue::Index { old_array: mut array, index, array_lvalue, location } => {
-                let array_type = &self.builder.type_of_value(array);
-
-                // Checks for index Out-of-bounds
-                match array_type {
-                    Type::Array(_, len) => {
-                        // Out of bounds array accesses are guaranteed to fail in ACIR so this check is performed implicitly.
-                        // We then only need to inject it for brillig functions.
-                        if self.builder.current_function.runtime().is_brillig() {
-                            let len = self
-                                .builder
-                                .numeric_constant(u128::from(len.0), NumericType::length_type());
-                            self.codegen_access_check(index, len);
-                        }
-                    }
-                    _ => unreachable!("must have array or vector but got {array_type}"),
-                }
-
-                array = self.assign_lvalue_index(new_value, array, index, location);
-                self.assign_new_value(*array_lvalue, array.into());
-            }
-            LValue::VectorIndex { old_vector: vector, index, vector_lvalue, location } => {
-                let mut vector_values = vector.into_value_list(self);
-
-                let array_type = &self.builder.type_of_value(vector_values[1]);
-
-                // Checks for index Out-of-bounds
-                match array_type {
-                    Type::Vector(_) => {
-                        self.codegen_access_check(index, vector_values[0]);
-                    }
-                    _ => unreachable!("must have array or vector but got {array_type}"),
-                }
-
-                vector_values[1] =
-                    self.assign_lvalue_index(new_value, vector_values[1], index, location);
-
-                // The size of the vector does not change in a vector index assignment so we can reuse the same length value
-                let new_vector =
-                    Tree::Branch(vec![vector_values[0].into(), vector_values[1].into()]);
-                self.assign_new_value(*vector_lvalue, new_vector);
-            }
-            LValue::MemberAccess { old_object, index, object_lvalue, skip_extraction } => {
-                // Having this if block commented is necessary for lvalue assignment that starts with a member access.
-                if skip_extraction {
-                    self.assign_new_value(*object_lvalue, new_value);
-                    return;
-                }
-
-                let new_object = Self::replace_field(old_object, index, new_value);
-                self.assign_new_value(*object_lvalue, new_object);
-            }
-            LValue::Dereference { reference } => {
-                self.assign(reference, new_value);
-            }
-        }
-    }
-
-    fn assign_lvalue_index(
-        &mut self,
-        new_value: Values,
-        mut array: ValueId,
-        index: ValueId,
-        location: Location,
-    ) -> ValueId {
-        let index = self.make_array_index(index);
-        let element_size =
-            self.builder.numeric_constant(self.element_size(array), NumericType::length_type());
-
-        // The actual base index is the user's index * the array element type's size
-        // Unchecked mul because we are reaching for an array element: if it overflows here
-        // it would have overflowed when creating the array.
-        let mut index = self.builder.set_location(location).insert_binary(
-            index,
-            BinaryOp::Mul { unchecked: true },
-            element_size,
-        );
-        let one = self.builder.numeric_constant(FieldElement::one(), NumericType::length_type());
-
-        new_value.for_each(|value| {
-            let value = value.eval(self);
-
-            array = self.builder.insert_array_set(array, index, value, false);
-            // Unchecked add because this can't overflow (it would have overflowed when creating the array)
-            index = self.builder.insert_binary(index, BinaryOp::Add { unchecked: true }, one);
-        });
-        array
     }
 
     pub(super) fn assign_lvalue_index_no_offset(
@@ -1138,11 +864,6 @@ impl<'a> FunctionContext<'a> {
         });
 
         array
-    }
-
-    fn element_size(&self, array: ValueId) -> FieldElement {
-        let size = self.builder.type_of_value(array).element_size();
-        FieldElement::from(size.0)
     }
 
     /// Given an lhs containing only references, create a store instruction to store each value of
@@ -1262,38 +983,20 @@ impl SharedContext {
     pub(super) fn new(program: Program) -> Self {
         let globals_id = Program::global_space_id();
 
-        // Codegen globals in Brillig context (non-flat arrays)
-        let brillig_globals_shared = SharedContext::new_for_globals();
-        brillig_globals_shared.get_or_queue_function(globals_id);
-        let mut brillig_ctx = FunctionContext::new(
-            "globals".to_owned(),
-            &vec![],
-            RuntimeType::Brillig(InlineType::default()),
-            &brillig_globals_shared,
-            GlobalsGraph::default(),
-            GlobalsGraph::default(),
-        );
-        let mut brillig_globals = BTreeMap::default();
-        for (id, (_, _, global)) in &program.globals {
-            let values = brillig_ctx.codegen_expression(global).unwrap();
-            brillig_globals.insert(*id, values);
-        }
-
-        // Codegen globals in ACIR context (flat arrays)
-        let acir_globals_shared = SharedContext::new_for_globals();
-        acir_globals_shared.get_or_queue_function(globals_id);
-        let mut acir_ctx = FunctionContext::new(
+        // Codegen globals with flat arrays (used by both ACIR and Brillig).
+        let globals_shared = SharedContext::new_for_globals();
+        globals_shared.get_or_queue_function(globals_id);
+        let mut globals_ctx = FunctionContext::new(
             "globals".to_owned(),
             &vec![],
             RuntimeType::Acir(InlineType::default()),
-            &acir_globals_shared,
-            GlobalsGraph::default(),
+            &globals_shared,
             GlobalsGraph::default(),
         );
-        let mut acir_globals = BTreeMap::default();
+        let mut globals = BTreeMap::default();
         for (id, (_, _, global)) in &program.globals {
-            let values = acir_ctx.codegen_expression(global).unwrap();
-            acir_globals.insert(*id, values);
+            let values = globals_ctx.codegen_expression(global).unwrap();
+            globals.insert(*id, values);
         }
 
         Self {
@@ -1301,10 +1004,8 @@ impl SharedContext {
             function_queue: Default::default(),
             function_counter: Default::default(),
             program,
-            brillig_globals_context: brillig_ctx.builder.current_function,
-            acir_globals_context: acir_ctx.builder.current_function,
-            brillig_globals,
-            acir_globals,
+            globals_context: globals_ctx.builder.current_function,
+            globals,
         }
     }
 
@@ -1314,10 +1015,8 @@ impl SharedContext {
             function_queue: Default::default(),
             function_counter: Default::default(),
             program: Default::default(),
-            acir_globals_context: Function::new_for_globals(),
-            brillig_globals_context: Function::new_for_globals(),
-            acir_globals: Default::default(),
-            brillig_globals: Default::default(),
+            globals_context: Function::new_for_globals(),
+            globals: Default::default(),
         }
     }
 
@@ -1348,33 +1047,6 @@ impl SharedContext {
 
         next_id
     }
-}
-
-/// Used to remember the results of each step of extracting a value from an ast::LValue
-#[derive(Debug, Clone)]
-pub(super) enum LValue {
-    Ident,
-    Index {
-        old_array: ValueId,
-        index: ValueId,
-        array_lvalue: Box<LValue>,
-        location: Location,
-    },
-    VectorIndex {
-        old_vector: Values,
-        index: ValueId,
-        vector_lvalue: Box<LValue>,
-        location: Location,
-    },
-    MemberAccess {
-        old_object: Values,
-        index: usize,
-        object_lvalue: Box<LValue>,
-        skip_extraction: bool,
-    },
-    Dereference {
-        reference: Values,
-    },
 }
 
 /// Tracks the base SSA value and current flat offset while flattening.

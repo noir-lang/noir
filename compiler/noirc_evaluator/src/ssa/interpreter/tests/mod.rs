@@ -305,32 +305,28 @@ fn run_flattened_function() {
 }
 
 #[test]
-fn brillig_semi_flat_nested_array() {
-    // In Brillig, nested arrays are stored semi-flat: the outer array contains
-    // nested ArrayValues as elements. array_get returns inner arrays at semi-flat
-    // indices. This verifies that Brillig nested arrays work correctly without
-    // flat indexing (regression_7612: call_data arrays in force-brillig were broken
-    // because add_to_data_bus emitted dead flat array_get instructions).
+fn brillig_flat_nested_array() {
+    // Both ACIR and Brillig now use fully-flat nested arrays. A [[Field; 2]; 3]
+    // is stored as 6 contiguous scalars. Flat indexing is used to access elements.
     let src = "
         brillig(inline) fn main f0 {
           b0(v0: [[Field; 2]; 3]):
-            v1 = array_get v0, index u32 0 -> [Field; 2]
-            v2 = array_get v1, index u32 0 -> Field
-            v3 = array_get v1, index u32 1 -> Field
-            v4 = array_get v0, index u32 2 -> [Field; 2]
-            v5 = array_get v4, index u32 0 -> Field
-            v6 = add v2, v5
-            return v6
+            v1 = array_get v0, index u32 0 -> Field
+            v2 = array_get v0, index u32 4 -> Field
+            v3 = add v1, v2
+            return v3
         }";
 
+    // Build nested then flatten to get a flat array: [10, 20, 30, 40, 50, 60]
     let inner = |a: u128, b: u128| {
         Value::array(vec![Value::field(a.into()), Value::field(b.into())], vec![Type::field()])
     };
     let element_types = vec![Type::Array(Arc::new(vec![Type::field()]), SemanticLength(2))];
-    let v0 = Value::array(vec![inner(10, 20), inner(30, 40), inner(50, 60)], element_types);
+    let nested = Value::array(vec![inner(10, 20), inner(30, 40), inner(50, 60)], element_types);
+    let v0 = Value::flatten_for_acir(&nested);
 
     let result = expect_value_with_args(src, vec![v0]);
-    // v2 = 10 (inner[0][0]), v5 = 50 (inner[2][0]), result = 60
+    // v1 = flat[0] = 10, v2 = flat[4] = 50, result = 60
     assert_eq!(result, Value::field(60_u128.into()));
 }
 

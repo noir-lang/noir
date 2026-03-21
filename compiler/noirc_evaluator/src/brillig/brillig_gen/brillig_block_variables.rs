@@ -17,18 +17,15 @@
 //! - Deallocated explicitly when no longer needed (as determined by SSA liveness).
 use acvm::{
     FieldElement,
-    acir::brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength},
+    acir::brillig::lengths::{SemanticLength, SemiFlattenedLength},
 };
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
-    brillig::{
-        assert_u32,
-        brillig_ir::{
-            BrilligContext,
-            brillig_variable::{BrilligVariable, get_bit_size_from_ssa_type},
-            registers::{Allocated, RegisterAllocator},
-        },
+    brillig::brillig_ir::{
+        BrilligContext,
+        brillig_variable::{BrilligVariable, get_bit_size_from_ssa_type},
+        registers::{Allocated, RegisterAllocator},
     },
     ssa::ir::{
         dfg::DataFlowGraph,
@@ -197,12 +194,14 @@ impl BlockVariables {
     }
 }
 
-/// Computes the length of an array. This will match with the indexes that SSA will issue
+/// Computes the fully-flattened length of an array. This will match with the indexes that SSA
+/// will issue. All nested arrays are flattened to scalars.
 pub(crate) fn compute_array_length(
     item_typ: &CompositeType,
     elem_count: SemanticLength,
 ) -> SemiFlattenedLength {
-    ElementTypesLength(assert_u32(item_typ.len())) * elem_count
+    let flat_per_element: u32 = item_typ.iter().map(|t| t.flattened_size().0).sum();
+    SemiFlattenedLength(flat_per_element * elem_count.0)
 }
 
 /// For a given [ValueId], allocates the necessary registers to hold it.

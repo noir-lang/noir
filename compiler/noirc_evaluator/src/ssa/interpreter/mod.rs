@@ -42,21 +42,11 @@ pub(crate) struct Interpreter<'ssa, W> {
 
     functions: &'ssa BTreeMap<FunctionId, Function>,
 
-    /// ACIR (flat) globals graph, used to evaluate globals for ACIR functions.
-    acir_globals: Option<&'ssa GlobalsGraph>,
+    /// Flat globals graph, used to evaluate globals for all functions.
+    globals: Option<&'ssa GlobalsGraph>,
 
-    /// Brillig (non-flat) globals graph, used to evaluate globals for Brillig functions.
-    brillig_globals: Option<&'ssa GlobalsGraph>,
-
-    /// Evaluated ACIR global values (flat arrays), used by ACIR functions.
-    acir_global_scope: HashMap<ValueId, Value>,
-
-    /// Evaluated Brillig global values (non-flat arrays), used by Brillig functions.
-    brillig_global_scope: HashMap<ValueId, Value>,
-
-    /// True when evaluating ACIR globals in `interpret_globals()`.
-    /// Used by `interpret_make_array` to produce flat arrays during ACIR global evaluation.
-    evaluating_acir_globals: bool,
+    /// Evaluated global values (flat arrays), used by all functions.
+    global_scope: HashMap<ValueId, Value>,
 
     /// The options the interpreter was created with.
     options: InterpreterOptions,
@@ -140,8 +130,7 @@ impl Ssa {
 impl<'ssa, W: Write> Interpreter<'ssa, W> {
     fn new(ssa: &'ssa Ssa, options: InterpreterOptions, output: W) -> Self {
         let mut interpreter = Self::new_from_functions(&ssa.functions, options, output);
-        interpreter.acir_globals = Some(ssa.acir_globals.as_ref());
-        interpreter.brillig_globals = Some(ssa.brillig_globals.as_ref());
+        interpreter.globals = Some(ssa.globals.as_ref());
         interpreter
     }
 
@@ -153,11 +142,8 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         let call_stack = vec![CallContext::global_context()];
         Self {
             functions,
-            acir_globals: None,
-            brillig_globals: None,
-            acir_global_scope: HashMap::default(),
-            brillig_global_scope: HashMap::default(),
-            evaluating_acir_globals: false,
+            globals: None,
+            global_scope: HashMap::default(),
             call_stack,
             options,
             output,
@@ -194,8 +180,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
     fn global_scope(&self) -> &HashMap<ValueId, Value> {
         match self.try_current_function() {
-            Some(f) if f.runtime().is_brillig() => &self.brillig_global_scope,
-            Some(_) => &self.acir_global_scope,
+            Some(_) => &self.global_scope,
             // During global evaluation, use the working scope in call_stack[0]
             None => &self.call_stack.first().expect("call_stack should always be non-empty").scope,
         }
@@ -270,28 +255,18 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     pub(crate) fn interpret_globals(&mut self) -> IResult<()> {
         assert_eq!(self.call_stack.len(), 1, "should be in the global context");
 
-        if let (Some(brillig_globals), Some(acir_globals)) =
-            (self.brillig_globals, self.acir_globals)
-        {
-            // Evaluate Brillig globals (non-flat arrays)
-            self.evaluating_acir_globals = false;
-            self.evaluate_globals_graph(brillig_globals)?;
-            self.brillig_global_scope = std::mem::take(&mut self.call_stack[0].scope);
-
-            // Evaluate ACIR globals (flat arrays)
-            self.evaluating_acir_globals = true;
-            self.evaluate_globals_graph(acir_globals)?;
-            self.acir_global_scope = std::mem::take(&mut self.call_stack[0].scope);
-            self.evaluating_acir_globals = false;
+        if let Some(globals) = self.globals {
+            // Evaluate globals with flat arrays (shared by all functions).
+            self.evaluate_globals_graph(globals)?;
+            self.global_scope = std::mem::take(&mut self.call_stack[0].scope);
         } else {
-            // Fallback: use first function's globals for both scopes
+            // Fallback: use first function's globals
             let Some((_, function)) = self.functions.first_key_value() else {
                 return Ok(());
             };
             let globals = &function.dfg.globals;
             self.evaluate_globals_graph(globals)?;
-            self.brillig_global_scope = self.call_stack[0].scope.clone();
-            self.acir_global_scope = std::mem::take(&mut self.call_stack[0].scope);
+            self.global_scope = std::mem::take(&mut self.call_stack[0].scope);
         }
 
         Ok(())
@@ -367,14 +342,9 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         }
 
         // Flatten nested array arguments to match the flat indexing SSA gen produces.
-        // For ACIR functions: always flatten nested arrays (SSA gen uses codegen_flat_index).
-        // For Brillig functions: arrays are kept semi-flat. Flat indexing (e.g., from
-        // add_to_data_bus) is handled dynamically in interpret_array_get/set via
-        // flat navigation through nested structures.
-        if !function.runtime().is_brillig() {
-            for argument in &mut arguments {
-                *argument = Value::flatten_for_acir(argument);
-            }
+        // Both ACIR and Brillig now use flat arrays.
+        for argument in &mut arguments {
+            *argument = Value::flatten_for_acir(argument);
         }
 
         let mut block_id = function.entry_block();
@@ -1024,19 +994,9 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                     if crossing_to_brillig {
                         for argument in &mut arguments {
                             Self::reset_array_state(argument)?;
-                            // Unflatten flat ACIR arrays back to nested form for Brillig
-                            *argument = Value::unflatten_for_brillig(argument);
                         }
                     }
-                    let mut call_results = self.call_function(id, arguments)?;
-                    // When crossing Brillig→ACIR boundary, flatten return values
-                    // since ACIR code uses flat array indexing.
-                    if crossing_to_brillig {
-                        for result in &mut call_results {
-                            *result = Value::flatten_for_acir(result);
-                        }
-                    }
-                    call_results
+                    self.call_function(id, arguments)?
                 }
                 Value::Intrinsic(intrinsic) => {
                     self.call_intrinsic(intrinsic, argument_ids, results)?
@@ -1056,15 +1016,12 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 }
             }
         } else {
-            let in_acir_context = !self.in_unconstrained_context();
             let mut uninit_results =
                 self.uninitialized_call_results(&function, argument_ids, results)?;
-            if in_acir_context {
-                for value in &mut uninit_results {
-                    // In ACIR context, arrays must be flat (scalars only).
-                    // Value::uninitialized creates nested arrays, so flatten them.
-                    *value = Value::flatten_for_acir(value);
-                }
+            for value in &mut uninit_results {
+                // Arrays must be flat (scalars only).
+                // Value::uninitialized creates nested arrays, so flatten them.
+                *value = Value::flatten_for_acir(value);
             }
             uninit_results
         };
@@ -1418,8 +1375,8 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             // the decomposition of `cond * then_value + !cond * else_value` for numeric values.
             let typ = self.dfg().type_of_value(result);
             let value = Value::uninitialized(&typ, result);
-            // In ACIR context, arrays must be flat (scalars only).
-            if !self.in_unconstrained_context() { Value::flatten_for_acir(&value) } else { value }
+            // Arrays must be flat (scalars only).
+            Value::flatten_for_acir(&value)
         } else if then_condition {
             then_value
         } else {
@@ -1441,11 +1398,6 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         // The number of elements in the array must be a multiple of the number of element types
         let element_types = result_type.element_types();
 
-        // Check if SSA gen has produced flat scalar elements but element_types describe
-        // nested structure (contains arrays). This happens in ACIR context.
-        let in_acir_context =
-            self.try_current_function().is_some_and(|f| !f.runtime().is_brillig())
-                || self.evaluating_acir_globals;
         let has_nested = element_types.iter().any(|t| t.contains_an_array());
         let all_scalars =
             has_nested && elements.iter().all(|e| !matches!(e, Value::ArrayOrVector(_)));
@@ -1459,22 +1411,20 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             0
         };
 
-        // Mark as flat when we have scalar elements with nested element_types in ACIR context,
-        // but only when the flat stride is non-zero (otherwise we lose length info).
-        let is_flat = in_acir_context && all_scalars && flat_per_cycle > 0;
+        // All arrays are flat now (both ACIR and Brillig).
+        let is_flat = all_scalars && flat_per_cycle > 0;
 
-        // For ACIR arrays with zero-size nested types (e.g., make_array [] : [[u128; 0]; 2]),
+        // For arrays with zero-size nested types (e.g., make_array [] : [[u128; 0]; 2]),
         // construct empty inner arrays to preserve the semantic length.
-        let elements =
-            if in_acir_context && has_nested && flat_per_cycle == 0 && elements.is_empty() {
-                let semantic_length = match result_type {
-                    Type::Array(_, len) => len.to_usize(),
-                    _ => 0,
-                };
-                Value::create_zero_size_inner_arrays(&element_types, semantic_length, result)
-            } else {
-                elements
+        let elements = if has_nested && flat_per_cycle == 0 && elements.is_empty() {
+            let semantic_length = match result_type {
+                Type::Array(_, len) => len.to_usize(),
+                _ => 0,
             };
+            Value::create_zero_size_inner_arrays(&element_types, semantic_length, result)
+        } else {
+            elements
+        };
         if !is_flat {
             if element_types.is_empty() {
                 if !elements.is_empty() {

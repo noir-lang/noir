@@ -144,9 +144,8 @@ pub(crate) fn simplify(
 
                 if index_const < array.len() {
                     let typ = dfg.type_of_value(*value);
-                    let is_acir = dfg.runtime().is_acir();
-                    match (&typ, is_acir) {
-                        (Type::Array(_, _), true) => {
+                    match &typ {
+                        Type::Array(_, _) => {
                             let flat_typ = typ.clone().flatten();
                             for (my_index, typ) in flat_typ.into_iter().enumerate() {
                                 let index =

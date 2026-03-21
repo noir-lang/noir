@@ -2,14 +2,12 @@ pub(super) mod brillig_black_box;
 pub(super) mod brillig_vector_ops;
 pub(super) mod code_gen_call;
 
-use acvm::acir::brillig::lengths::{ElementTypesLength, SemiFlattenedLength};
-use acvm::brillig_vm::offsets;
 use acvm::{AcirField, FieldElement};
 use iter_extended::vecmap;
 use itertools::Itertools;
 
+use crate::brillig::BrilligBlock;
 use crate::brillig::brillig_ir::{BrilligBinaryOp, registers::RegisterAllocator};
-use crate::brillig::{BrilligBlock, assert_u32};
 use crate::ssa::ir::function::FunctionId;
 use crate::ssa::ir::instruction::{InstructionId, Intrinsic};
 use crate::ssa::ir::{
@@ -64,7 +62,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                     let variable = self.define_variable(result, dfg);
                     let array = variable.extract_array();
 
-                    self.allocate_foreign_call_result_array(typ.as_ref(), array);
+                    self.allocate_foreign_call_result_array(array);
 
                     variable
                 }
@@ -114,59 +112,11 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         variables
     }
 
-    /// Recursively allocates memory on the heap for a nested array returned from a foreign function call.
-    ///
-    /// # Panics
-    /// - If the provided `typ` is not an array.
-    /// - If any vector types are encountered within the nested structure, since vectors
-    ///   require runtime size information and cannot be allocated statically here.
-    fn allocate_foreign_call_result_array(&mut self, typ: &Type, array: BrilligArray) {
-        let Type::Array(types, size) = typ else {
-            unreachable!("ICE: allocate_foreign_call_array() expects an array, got {typ:?}")
-        };
-
+    /// Allocates memory on the heap for a flat array returned from a foreign function call.
+    /// With fully-flat arrays, no recursive nesting is needed — just initialize the array.
+    fn allocate_foreign_call_result_array(&mut self, array: BrilligArray) {
         // Reserve free memory on the heap and set the initial ref-count.
         self.brillig_context.codegen_initialize_array(array);
-
-        // Go through each slot in the array: if it's a simple type then we don't need to do anything,
-        // but if it's a nested one we have to recursively allocate memory for it, and store the variable in the array.
-        // We add one since array.pointer points to [RC, ...items]
-        let mut index = offsets::ARRAY_ITEMS;
-        for _ in 0..size.0 {
-            for element_type in types.iter() {
-                match element_type {
-                    Type::Array(items, nested_size) => {
-                        // Allocate a pointer for an array on the stack.
-                        let size: SemiFlattenedLength =
-                            ElementTypesLength(assert_u32(items.len())) * *nested_size;
-                        let inner_array = self.brillig_context.allocate_brillig_array(size);
-
-                        // Recursively allocate memory for the inner array on the heap.
-                        // This sets the pointer on the stack to point at the heap.
-                        self.allocate_foreign_call_result_array(element_type, *inner_array);
-
-                        // Set the index in the outer array to be the total offset accounting for complex types.
-                        let idx =
-                            self.brillig_context.make_usize_constant_instruction(index.into());
-
-                        // Copy the inner array pointer, which points at the heap, into the outer array cell.
-                        // After this, it is okay for the `inner_array` to be deallocated from the stack,
-                        // and for its address to be reused, ie. we don't need to `.detach()` it.
-                        // What matters is that we stored the pointer to the heap.
-                        self.brillig_context.codegen_store_with_offset(
-                            array.pointer,
-                            *idx,
-                            inner_array.pointer,
-                        );
-                    }
-                    Type::Vector(_) => unreachable!(
-                        "ICE: unsupported vector type in allocate_nested_array(), expects an array or a numeric type"
-                    ),
-                    _ => (),
-                }
-                index += 1;
-            }
-        }
     }
 
     /// Internal method to codegen an [crate::ssa::ir::instruction::Instruction::Call] to a [Value::Function]
