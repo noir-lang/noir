@@ -1,0 +1,4 @@
+[package]
+name = "vector_pop_back_array_element"
+type = "bin"
+authors = [""]

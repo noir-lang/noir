@@ -1,0 +1,25 @@
+[1mdiff --git a/compiler/noirc_evaluator/src/ssa/opt/constant_folding/mod.rs b/compiler/noirc_evaluator/src/ssa/opt/constant_folding/mod.rs[m
+[1mindex 8967442bc6..8a67cffea7 100644[m
+[1m--- a/compiler/noirc_evaluator/src/ssa/opt/constant_folding/mod.rs[m
+[1m+++ b/compiler/noirc_evaluator/src/ssa/opt/constant_folding/mod.rs[m
+[36m@@ -2665,7 +2665,7 @@[m [mmod tests {[m
+         }[m
+         ");[m
+     }[m
+[31m-    [m
+[32m+[m
+     /// Regression test: constant folding's instruction hoisting can orphan values when[m
+     /// a hoisted instruction self-deduplicates during a revisit.[m
+     ///[m
+[1mdiff --git a/compiler/noirc_frontend/src/monomorphization/ast.rs b/compiler/noirc_frontend/src/monomorphization/ast.rs[m
+[1mindex aaf6bb6c47..aa207df2a3 100644[m
+[1m--- a/compiler/noirc_frontend/src/monomorphization/ast.rs[m
+[1m+++ b/compiler/noirc_frontend/src/monomorphization/ast.rs[m
+[36m@@ -620,6 +620,7 @@[m [mimpl Type {[m
+             Type::Vector(_) => {[m
+                 unimplemented!("ICE: cannot fetch flattened slice size");[m
+             }[m
+[32m+[m[32m            Type::Reference(inner, _) => inner.flattened_size(),[m
+             _ => 1,[m
+         }[m
+     }[m

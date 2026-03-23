@@ -120,15 +120,31 @@ impl Function {
             };
 
             let typ = context.dfg.type_of_value(array);
-            let element_types = typ.element_types();
-            let len = context
-                .dfg
-                .try_get_vector_capacity(array)
-                .expect("candidate ArraySet must have a known capacity");
-
             let array_constant = context.dfg.get_array_constant(array);
-            let element_count = ElementTypesLength(element_types.len() as u32);
-            let total_elements = len * element_count;
+
+            // In ACIR after flattening, arrays are stored fully flat (all numeric elements)
+            // even though their type annotation may still show nested structure.
+            // We must use the flat types here to match the actual in-memory layout.
+            // For vectors (which don't go through flattening), we use the semi-flat types.
+            let (flat_element_types, total_elements) = match &typ {
+                Type::Array(..) => {
+                    let flat = typ.clone().flatten();
+                    let count = flat.len() as u32;
+                    (flat, count)
+                }
+                Type::Vector(elements) => {
+                    let capacity = context
+                        .dfg
+                        .try_get_vector_capacity(array)
+                        .expect("candidate ArraySet must have a known capacity");
+                    let element_count = elements.len() as u32;
+                    let total = capacity.0 * element_count;
+                    let flat: Vec<Type> =
+                        (0..capacity.0).flat_map(|_| elements.iter().cloned()).collect();
+                    (flat, total)
+                }
+                _ => unreachable!("candidate must be an array or vector"),
+            };
 
             // Remove the array_set; we will emit replacement instructions instead.
             context.remove_current_instruction();
@@ -136,16 +152,15 @@ impl Function {
 
             // Build the element list for the make_array.
             let mut elements = Vector::new();
-            for semi_flattened_index in 0..total_elements.0 {
-                if semi_flattened_index == const_index {
+            for flat_index in 0..total_elements {
+                if flat_index == const_index {
                     elements.push_back(value);
                 } else if let Some((array_element, _)) = &array_constant {
-                    elements.push_back(array_element[semi_flattened_index as usize]);
+                    elements.push_back(array_element[flat_index as usize]);
                 } else {
-                    let element_index = (semi_flattened_index % element_count.0) as usize;
-                    let element_type = element_types[element_index].clone();
+                    let element_type = flat_element_types[flat_index as usize].clone();
                     let index = context.dfg.make_constant(
-                        FieldElement::from(u128::from(semi_flattened_index)),
+                        FieldElement::from(u128::from(flat_index)),
                         NumericType::length_type(),
                     );
                     let get = Instruction::ArrayGet { array, index };
@@ -303,24 +318,23 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
 
                     // array_set with a constant in-bound index on a small array or vector
                     if let Some(index) = dfg.get_numeric_constant(*index) {
-                        let semi_flattened_length = match dfg.type_of_value(*array) {
-                            Type::Array(elements, len) => {
-                                let elements_length =
-                                    ElementTypesLength(assert_u32(elements.len()));
-                                Some(len * elements_length)
-                            }
+                        // In ACIR after flattening, arrays are stored fully flat, so we
+                        // must use the flattened size to correctly check index bounds.
+                        // For vectors (which don't go through flattening), use semi-flat.
+                        let flat_length = match dfg.type_of_value(*array) {
+                            typ @ Type::Array(..) => Some(typ.flattened_size().0),
                             Type::Vector(elements) => {
                                 dfg.try_get_vector_capacity(*array).map(|capacity| {
                                     let elements_length =
                                         ElementTypesLength(assert_u32(elements.len()));
-                                    capacity * elements_length
+                                    (capacity * elements_length).0
                                 })
                             }
                             _ => None,
                         };
-                        if let Some(semi_flattened_length) = semi_flattened_length
-                            && index.to_u128() < u128::from(semi_flattened_length.0)
-                            && semi_flattened_length.0 <= MAX_ARRAY_SEMI_FLATTENED_LENGTH
+                        if let Some(flat_length) = flat_length
+                            && index.to_u128() < u128::from(flat_length)
+                            && flat_length <= MAX_ARRAY_SEMI_FLATTENED_LENGTH
                         {
                             candidates.insert(result, instruction_id);
                         }
@@ -903,6 +917,46 @@ mod tests {
             enable_side_effects u1 1
             v13 = if v0 then v11 else (if v2) v8
             return v13
+        }
+        ");
+    }
+
+    /// Regression test: after flattening, an array with nested type annotation
+    /// `[([u8; 2], Field); 2]` is stored flat (6 numeric elements: u8, u8, Field, u8, u8, Field)
+    /// but element_types() returns the nested types `[[u8; 2], Field]`.
+    /// The optimization must use flat types for ArrayGet, not nested types.
+    #[test]
+    fn correctly_handles_nested_array_types_after_flattening() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0(v0: [([u8; 2], Field); 2], v1: u1):
+            v2 = not v1
+            enable_side_effects v1
+            v3 = array_set v0, index u32 2, value Field 99
+            enable_side_effects u1 1
+            v4 = if v1 then v3 else (if v2) v0
+            return v4
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.array_set_window_optimization();
+        // The flattened layout is: [u8, u8, Field, u8, u8, Field]
+        // Index 2 is Field (being set to Field 99).
+        // Indices 0, 1 should be u8; indices 3, 4 should be u8; index 5 should be Field.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: [([u8; 2], Field); 2], v1: u1):
+            v2 = not v1
+            enable_side_effects v1
+            v4 = array_get v0, index u32 0 -> u8
+            v6 = array_get v0, index u32 1 -> u8
+            v8 = array_get v0, index u32 3 -> u8
+            v10 = array_get v0, index u32 4 -> u8
+            v12 = array_get v0, index u32 5 -> Field
+            v14 = make_array [v4, v6, Field 99, v8, v10, v12] : [([u8; 2], Field); 2]
+            enable_side_effects u1 1
+            v16 = if v1 then v14 else (if v2) v0
+            return v16
         }
         ");
     }

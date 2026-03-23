@@ -2663,19 +2663,22 @@ mod tests {
         brillig(inline) predicate_pure fn main f0 {
           b0():
             v1 = allocate -> &mut u1
-            v2 = make_array [v1] : [&mut u1]
-            v3 = allocate -> &mut u1
-            v4 = make_array [v1, v3] : [&mut u1]
-            v6 = array_set v4, index u32 2, value v3
+            store u1 0 at v1
+            v3 = make_array [v1] : [&mut u1]
+            v4 = allocate -> &mut u1
+            store u1 0 at v4
+            v5 = make_array [v1, v4] : [&mut u1]
+            v7 = array_set v5, index u32 2, value v4
+            v8 = make_array [v1, v4] : [&mut u1]
             jmpif u1 0 then: b1(), else: b2()
           b1():
-            jmp b3(v6)
+            jmp b3(v8)
           b2():
-            jmp b3(v6)
+            jmp b3(v8)
           b3(v0: [&mut u1]):
-            v9 = array_get v0, index u32 0 -> &mut u1
-            v10 = load v9 -> u1
-            return v10
+            v10 = array_get v0, index u32 0 -> &mut u1
+            v11 = load v10 -> u1
+            return v11
         }
         "
         );

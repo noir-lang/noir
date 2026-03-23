@@ -1,6 +1,6 @@
 use itertools::Itertools;
 
-use crate::acir::arrays::ElementTypeSizesArrayShift;
+use crate::acir::arrays::{ElementTypeSizesArrayShift, flattened_value_size};
 use crate::acir::types::flat_element_types;
 use crate::acir::{AcirDynamicArray, AcirValue, AcirVar};
 use crate::brillig::assert_u32;
@@ -47,12 +47,12 @@ impl Context<'_> {
         let new_vector_val = if let Some(len_const) = dfg.get_numeric_constant(arguments[0]) {
             // Length is known at compile time - we can precisely determine where to write
             let mut new_vector = self.read_array_with_type(vector, &vector_typ)?;
+            let value_types = flat_element_types(&vector_typ);
             // length of Acir Values vector
-            let len = len_const.to_u128() as usize * elements_to_push.len();
+            let len = len_const.to_u128() as usize * value_types.len();
             for (i, elem) in elements_to_push.iter().enumerate() {
                 let element = self.convert_value(*elem, dfg);
                 let write_index = len + i;
-
                 // If the array is already large enough, replace the element at the write position.
                 // Otherwise, append to the end.
                 if write_index < new_vector.len() {
@@ -103,23 +103,11 @@ impl Context<'_> {
 
             // The actual flattened size of new_vector after the dummy push_back
             let new_vector_array = AcirValue::Array(new_vector);
-            let len = super::arrays::flattened_value_size(&new_vector_array);
+            let len = flattened_value_size(&new_vector_array);
 
             // 2. Copy the vector into an AcirDynamicArray
             // Generates the element_type_sizes array
-            let element_type_sizes =
-                if super::arrays::array_has_constant_element_size(&vector_typ).is_none() {
-                    Some(self.init_element_type_sizes_array(
-                        &vector_typ,
-                        result_ids[1],
-                        Some(new_vector_array.clone()),
-                        dfg,
-                        // We do not need extra capacity here as `new_vector_array` has already pushed back new elements
-                        ElementTypeSizesArrayShift::None,
-                    )?)
-                } else {
-                    None
-                };
+            let element_type_sizes = None;
 
             // The block ID for the new vector is the one for the resulting vector
             let block_id = self.block_id(result_ids[1]);
@@ -129,21 +117,19 @@ impl Context<'_> {
 
             // 3. Write to the dynamic array
 
-            // 3.1 Computes the flatten_idx where to write into the dynamic array.
-            // `get_flattened_index` handles both homogeneous (constant element size) and
-            // heterogeneous (element_type_sizes memory lookup with predicate guard) cases.
-            // The `is_safe_index: false` ensures the index is multiplied by the side-effects
-            // predicate to prevent out-of-bounds memory reads when side effects are disabled.
-            let acir_element_size = self.acir_context.add_constant(elements_to_push.len());
-            let acir_value_index = self.acir_context.mul_var(vector_length, acir_element_size)?;
-            let mut flatten_idx = self.get_flattened_index(
-                &vector_typ,
-                result_ids[1],
-                acir_value_index,
-                dfg,
-                false,
-                ElementTypeSizesArrayShift::None,
-            )?;
+            // 3.1 Compute the flat index where to write into the dynamic array.
+            // Nested arrays are already flattened in memory, so we multiply the
+            // semantic vector length by the total flat element size (sum of all
+            // element type flat sizes) to get the correct write offset.
+            let flat_element_size: u32 =
+                vector_types.iter().map(|typ| typ.flattened_size().0).sum();
+            let acir_flat_element_size = self.acir_context.add_constant(flat_element_size);
+            let mut flatten_idx =
+                self.acir_context.mul_var(vector_length, acir_flat_element_size)?;
+            // Guard the index with the side-effects predicate to prevent OOB
+            // memory reads when side effects are disabled.
+            flatten_idx =
+                self.acir_context.mul_var(flatten_idx, self.current_side_effects_enabled_var)?;
             // Write the elements to the dynamic array
             for element in &elements_var {
                 self.acir_context.write_to_memory(block_id, &flatten_idx, element)?;
@@ -290,7 +276,12 @@ impl Context<'_> {
 
         let mut new_vector_value =
             self.read_array_with_type(vector_contents_value, &vector_type)?;
-        for _ in 0..popped_elements.len() {
+        // Pop the flat element count, not the nested result count.
+        // E.g. for `foo { a: u32, b: u32, c: [Field; 3] }`, popped_elements has 3 entries
+        // (a, b, Array(c)) but the flat size is 5 (a, b, c[0], c[1], c[2]).
+        let flat_elements_popped: usize =
+            popped_elements.iter().map(|elem| flattened_value_size(elem).to_usize()).sum();
+        for _ in 0..flat_elements_popped {
             new_vector_value.pop_back();
         }
 
@@ -437,8 +428,8 @@ impl Context<'_> {
             popped_elements.push(element);
         }
 
-        let popped_elements_size = popped_elements.len();
-
+        let popped_elements_size: usize =
+            popped_elements.iter().map(|elem| flattened_value_size(elem).to_usize()).sum();
         new_vector = new_vector.slice(popped_elements_size..);
         popped_elements.push(AcirValue::Var(new_vector_length_var, NumericType::length_type()));
         popped_elements.push(AcirValue::Array(new_vector));
@@ -499,26 +490,9 @@ impl Context<'_> {
         let one = self.acir_context.add_constant(FieldElement::one());
         let new_vector_length = self.acir_context.add_var(vector_length, one)?;
 
-        let mut vector_size: FlattenedLength = super::arrays::flattened_value_size(&vector);
+        let mut vector_size = flattened_value_size(&vector);
 
         let elements_to_insert = &arguments[3..];
-
-        // Fetch the flattened index from the user provided index argument.
-        let item_size = self.acir_context.add_constant(elements_to_insert.len());
-        let is_safe_index = Self::is_index_safe(arguments[2], dfg, &vector_typ, vector_size);
-        let insert_index = self.acir_context.mul_var(insert_index, item_size)?;
-
-        // Because the insert index might be at the end of the slice, the element type sizes we
-        // index here need to have room for this extra element.
-        let shift = ElementTypeSizesArrayShift::Increase;
-        let flat_user_index = self.get_flattened_index(
-            &vector_typ,
-            vector_contents,
-            insert_index,
-            dfg,
-            is_safe_index,
-            shift,
-        )?;
 
         // Determine the elements we need to write into our resulting dynamic array.
         // We need to a fully flat list of AcirVar's as a dynamic array is represented with flat memory.
@@ -533,8 +507,8 @@ impl Context<'_> {
             vector_size += elem_size;
             flattened_elements.extend(flat_element);
         }
-
         let inner_elem_size_var = self.acir_context.add_constant(inner_elem_size.0);
+        let flat_user_index = self.acir_context.mul_var(insert_index, inner_elem_size_var)?;
         // Set the maximum flattened index at which a new element should be inserted.
         let max_flat_user_index =
             self.acir_context.add_var(flat_user_index, inner_elem_size_var)?;
@@ -635,20 +609,7 @@ impl Context<'_> {
             }
         }
 
-        let element_type_sizes =
-            if super::arrays::array_has_constant_element_size(&vector_typ).is_none() {
-                // Note that here we pass `Some(vector)` as the supplied acir value. This is
-                // the input vector before insertion, so we still need an increase shift here.
-                Some(self.init_element_type_sizes_array(
-                    &vector_typ,
-                    result_ids[1],
-                    Some(vector),
-                    dfg,
-                    shift,
-                )?)
-            } else {
-                None
-            };
+        let element_type_sizes = None;
 
         let value_types = flat_element_types(&vector_typ);
         assert_eq!(vector_size.to_usize() % value_types.len(), 0);
@@ -753,7 +714,7 @@ impl Context<'_> {
         let one = self.acir_context.add_constant(FieldElement::one());
         let new_vector_length = self.acir_context.sub_var(vector_length, one)?;
 
-        let vector_size = super::arrays::flattened_value_size(&vector);
+        let vector_size = flattened_value_size(&vector);
 
         let flat_vector = self.flatten(&vector)?;
         // Compiler sanity check
@@ -769,7 +730,7 @@ impl Context<'_> {
         let is_safe_index = Self::is_index_safe(arguments[2], dfg, &vector_typ, vector_size);
 
         // Fetch the flattened index from the user provided index argument.
-        let flat_user_index = self.get_flattened_index(
+        let flat_user_index: AcirVar = self.get_flattened_index(
             &vector_typ,
             vector_contents,
             remove_index,
@@ -790,7 +751,7 @@ impl Context<'_> {
         for res in &result_ids[2..(2 + element_size)] {
             let element =
                 self.array_get_value(&dfg.type_of_value(*res), block_id, &mut temp_index)?;
-            let elem_size = super::arrays::flattened_value_size(&element);
+            let elem_size = flattened_value_size(&element);
             popped_elements_size += elem_size;
             popped_elements.push(element);
         }

@@ -48,7 +48,12 @@ pub struct FunctionBuilder {
     /// This is true by default unless changed to false after constructing a builder.
     pub simplify: bool,
 
+    /// The active globals for the current function (selected based on runtime).
     globals: Arc<GlobalsGraph>,
+    /// ACIR globals (flat arrays).
+    acir_globals: Arc<GlobalsGraph>,
+    /// Brillig globals (non-flat arrays).
+    brillig_globals: Arc<GlobalsGraph>,
     purities: Arc<FunctionPurities>,
 }
 
@@ -67,6 +72,8 @@ impl FunctionBuilder {
             error_types: BTreeMap::default(),
             simplify: true,
             globals: Default::default(),
+            acir_globals: Default::default(),
+            brillig_globals: Default::default(),
             purities: Default::default(),
         }
     }
@@ -75,9 +82,12 @@ impl FunctionBuilder {
     /// name, globals, and function purities taken from an existing function.
     pub fn from_existing(function: &Function, function_id: FunctionId) -> Self {
         let mut this = Self::new(function.name().to_owned(), function_id);
-        this.set_globals(function.dfg.globals.clone());
-        this.purities = function.dfg.function_purities.clone();
         this.current_function.set_runtime(function.runtime());
+        // Post-SSA-gen, the source function already has the correct globals for its runtime.
+        // Pass its globals for both slots (safe because the rebuilt function keeps the same runtime).
+        let globals = function.dfg.globals.clone();
+        this.set_globals(globals.clone(), globals);
+        this.purities = function.dfg.function_purities.clone();
         this.current_function.dfg.set_function_purities(this.purities.clone());
         this
     }
@@ -95,8 +105,18 @@ impl FunctionBuilder {
         self.current_function.set_runtime(runtime);
     }
 
-    pub fn set_globals(&mut self, globals: Arc<GlobalsGraph>) {
-        self.globals = globals;
+    pub fn set_globals(
+        &mut self,
+        acir_globals: Arc<GlobalsGraph>,
+        brillig_globals: Arc<GlobalsGraph>,
+    ) {
+        self.acir_globals = acir_globals;
+        self.brillig_globals = brillig_globals;
+        self.globals = if self.current_function.runtime().is_acir() {
+            self.acir_globals.clone()
+        } else {
+            self.brillig_globals.clone()
+        };
         self.apply_globals();
     }
 
@@ -135,6 +155,12 @@ impl FunctionBuilder {
         self.finished_functions.push(old_function);
 
         self.current_function.dfg.set_function_purities(self.purities.clone());
+        // Select the correct globals for the new function's runtime
+        self.globals = if runtime_type.is_acir() {
+            self.acir_globals.clone()
+        } else {
+            self.brillig_globals.clone()
+        };
         self.apply_globals();
     }
 
@@ -157,7 +183,7 @@ impl FunctionBuilder {
     pub fn finish(mut self) -> Ssa {
         self.finished_functions.push(self.current_function);
 
-        Ssa::new(self.finished_functions, self.error_types)
+        Ssa::new(self.finished_functions, self.error_types, self.acir_globals, self.brillig_globals)
     }
 
     /// Add a parameter to the current function with the given parameter type.

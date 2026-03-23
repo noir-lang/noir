@@ -351,9 +351,7 @@ mod tests {
             acir(inline) fn main f0 {
               b0(v0: u1, v4: u1):
                 enable_side_effects v0
-                v1 = make_array [Field 1, Field 2] : [Field; 2]
-                v2 = make_array [Field 3, Field 4] : [Field; 2]
-                v3 = make_array [v1, v2] : [[Field; 2]; 2]
+                v3 = make_array [Field 1, Field 2, Field 3, Field 4] : [[Field; 2]; 2]
                 enable_side_effects v4
                 v5 = make_array [Field 5, Field 6] : [Field; 2]
                 v6 = array_set v3, index u32 0, value v5

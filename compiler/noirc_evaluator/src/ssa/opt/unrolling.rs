@@ -3164,44 +3164,44 @@ mod tests {
             inc_rc v11
             jmp b2(v11)
           b1():
-            v33 = array_get v32, index u32 6 -> Field
-            constrain v33 == Field 27
-            v34 = array_get v9, index u32 6 -> Field
-            v35 = eq v34, Field 27
-            constrain v35 == u1 0
+            v24 = array_get v22, index u32 6 -> Field
+            constrain v24 == Field 27
+            v25 = array_get v9, index u32 6 -> Field
+            v26 = eq v25, Field 27
+            constrain v26 == u1 0
             return
           b2(v0: [Field; 10]):
-            v14 = array_set v11, index u32 0, value Field 27
+            v13 = make_array [Field 27, Field 0, Field 0, Field 0, Field 0, Field 0, Field 0, Field 0, Field 0, Field 0] : [Field; 10]
             jmp b3(v0)
           b3(v1: [Field; 10]):
-            v16 = array_set v14, index u32 1, value Field 27
+            v14 = make_array [Field 27, Field 27, Field 0, Field 0, Field 0, Field 0, Field 0, Field 0, Field 0, Field 0] : [Field; 10]
             jmp b4(v1)
           b4(v2: [Field; 10]):
-            v18 = array_set v16, index u32 2, value Field 27
+            v15 = make_array [Field 27, Field 27, Field 27, Field 0, Field 0, Field 0, Field 0, Field 0, Field 0, Field 0] : [Field; 10]
             jmp b5(v2)
           b5(v3: [Field; 10]):
-            v20 = array_set v18, index u32 3, value Field 27
+            v16 = make_array [Field 27, Field 27, Field 27, Field 27, Field 0, Field 0, Field 0, Field 0, Field 0, Field 0] : [Field; 10]
             jmp b6(v3)
           b6(v4: [Field; 10]):
-            v22 = array_set v20, index u32 4, value Field 27
+            v17 = make_array [Field 27, Field 27, Field 27, Field 27, Field 27, Field 0, Field 0, Field 0, Field 0, Field 0] : [Field; 10]
             jmp b7()
           b7():
-            inc_rc v22
-            jmp b8(v22)
+            inc_rc v17
+            jmp b8(v17)
           b8(v5: [Field; 10]):
-            v24 = array_set v22, index u32 5, value Field 27
+            v18 = make_array [Field 27, Field 27, Field 27, Field 27, Field 27, Field 27, Field 0, Field 0, Field 0, Field 0] : [Field; 10]
             jmp b9(v5)
           b9(v6: [Field; 10]):
-            v26 = array_set v24, index u32 6, value Field 27
+            v19 = make_array [Field 27, Field 27, Field 27, Field 27, Field 27, Field 27, Field 27, Field 0, Field 0, Field 0] : [Field; 10]
             jmp b10(v6)
           b10(v7: [Field; 10]):
-            v28 = array_set v26, index u32 7, value Field 27
+            v20 = make_array [Field 27, Field 27, Field 27, Field 27, Field 27, Field 27, Field 27, Field 27, Field 0, Field 0] : [Field; 10]
             jmp b11(v7)
           b11(v8: [Field; 10]):
-            v30 = array_set v28, index u32 8, value Field 27
+            v21 = make_array [Field 27, Field 27, Field 27, Field 27, Field 27, Field 27, Field 27, Field 27, Field 27, Field 0] : [Field; 10]
             jmp b12(v8)
           b12(v9: [Field; 10]):
-            v32 = array_set v30, index u32 9, value Field 27
+            v22 = make_array [Field 27, Field 27, Field 27, Field 27, Field 27, Field 27, Field 27, Field 27, Field 27, Field 27] : [Field; 10]
             jmp b1()
         }
         ");

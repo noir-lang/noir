@@ -1,0 +1,8 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(input: [[u64; 3]; 1024], condition: bool) {
+    let arr: [[u64; 3]; 1024] = if condition { input } else { input };
+    assert(arr[0_u32][0_u32] >= 0_u64);
+}

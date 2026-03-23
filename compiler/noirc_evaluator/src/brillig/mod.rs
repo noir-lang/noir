@@ -200,10 +200,9 @@ impl Ssa {
         let call_graph = CallGraph::from_ssa(self);
         let max_call_depths = call_graph.max_call_depths(&brillig_reachable_function_ids);
 
-        // SSA Globals are computed once at compile time and shared across all functions,
-        // thus we can just fetch globals from the main function.
-        // This same globals graph will then be used to declare Brillig globals for the respective entry points.
-        let globals = (*self.functions[&self.main_id].dfg.globals).clone();
+        // Brillig functions use the semi-flat globals graph (nested arrays kept as sub-arrays),
+        // not the ACIR globals graph (fully flattened).
+        let globals = (*self.brillig_globals).clone();
         let globals_dfg = DataFlowGraph::from(globals);
 
         // Produce the globals Brillig bytecode and variable allocation for each entry point.
