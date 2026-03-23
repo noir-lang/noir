@@ -115,10 +115,24 @@ impl Function {
         // Each promoted variable adds a block parameter to every dominated block, and the
         // flattener converts each conditional into predicate opcodes, so the cost is
         // O(promoted_variables × dominated_blocks).
+        //
+        // We approximate this count by precomputing dominator-tree subtree
+        // sizes in O(blocks): `blocks` is in RPO order, so iterating in reverse guarantees
+        // each block is visited before its immediate dominator (dominators always have a
+        // lower RPO index). One reverse pass accumulates subtree sizes bottom-up.
         if let Some(max_span) = max_block_span {
-            variables.retain(|_var, decl_block| {
-                blocks.iter().filter(|&&b| dom_tree.dominates(*decl_block, b)).count() <= max_span
-            });
+            if blocks.len() > max_span {
+                let mut subtree_size = BTreeMap::new();
+                for &block in blocks.iter().rev() {
+                    if let Some(idom) = dom_tree.immediate_dominator(block) {
+                        let size = subtree_size.get(&block).copied().unwrap_or(1);
+                        *subtree_size.entry(idom).or_insert(1) += size;
+                    }
+                }
+                variables.retain(|_var, decl_block| {
+                    subtree_size.get(decl_block).copied().unwrap_or(1) <= max_span
+                });
+            }
         }
 
         // Limit increase in memory usage and brillig regressions by arbitrarily limiting this pass to some variables
