@@ -24,6 +24,7 @@ use crate::ssa::{
         function::Function,
         function_inserter::FunctionInserter,
         instruction::{Instruction, InstructionId},
+        post_order::PostOrder,
         value::ValueId,
     },
     opt::Loops,
@@ -42,14 +43,17 @@ impl Ssa {
 
 impl Function {
     fn load_store_forwarding(&mut self) {
-        // Collect all blocks that are part of loops — we skip these because
-        // loop-carried aliases can invalidate per-block forwarding assumptions.
         let loop_blocks = collect_loop_blocks(self);
 
         let mut inserter = FunctionInserter::new(self);
-        let blocks: Vec<_> = inserter.function.reachable_blocks().into_iter().collect();
+        let blocks = PostOrder::with_function(inserter.function).into_vec_reverse();
 
-        for block in blocks {
+        // Single pass in RPO: forward loads/stores and remap instructions.
+        // RPO guarantees predecessors are visited before successors (in acyclic
+        // graphs), so value mappings from forwarded loads are always available
+        // before blocks that use those values.
+        for block in &blocks {
+            let block = *block;
             if !loop_blocks.contains(&block) {
                 let instructions_to_remove =
                     forward_loads_and_stores_in_block(&mut inserter, block);
@@ -61,17 +65,14 @@ impl Function {
                 }
             }
 
-            // Map values in remaining instructions (even for loop blocks, since
-            // earlier non-loop blocks may have created value mappings).
+            // Remap instructions and terminator immediately — all predecessor
+            // mappings are already in the inserter thanks to RPO ordering.
             for instruction_id in inserter.function.dfg[block].instructions().to_vec() {
                 inserter.map_instruction_in_place(instruction_id);
             }
-
-            // Map values in the terminator
-            let mut terminator = inserter.function.dfg[block].take_terminator();
-            terminator.map_values_mut(|value| inserter.resolve(value));
-            inserter.function.dfg[block].set_terminator(terminator);
+            inserter.map_terminator_in_place(block);
         }
+        inserter.map_data_bus_in_place();
     }
 }
 
@@ -478,6 +479,49 @@ mod tests {
             v3 = make_array [Field 1, Field 2] : [Field; 2]
             store v3 at v0
             return v3
+        }
+        ");
+    }
+
+    #[test]
+    fn forwarding_in_later_block_remaps_earlier_block() {
+        // Regression test: the SSA text format assigns block IDs in declaration
+        // order, but RPO iteration follows the CFG. The block that creates the
+        // forwarding mapping (b2) must be visited before the block that uses
+        // the forwarded value (b1). RPO guarantees this since b2 is a
+        // predecessor of b1 in the CFG: b0 -> b2 -> b1.
+        //
+        // b2 has allocate+store+load in the same block, so per-block forwarding
+        // maps v2 -> u32 10. b1 uses v2 in an add.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b2()
+          b1():
+            v3 = add v2, u32 1
+            return v3
+          b2():
+            v0 = allocate -> &mut u32
+            store u32 10 at v0
+            v2 = load v0 -> u32
+            jmp b1()
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.load_store_forwarding();
+
+        // v2 (load result from b2) must be forwarded to u32 10 in b1's add.
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            jmp b2()
+          b1():
+            v3 = add u32 10, u32 1
+            return v3
+          b2():
+            v0 = allocate -> &mut u32
+            store u32 10 at v0
+            jmp b1()
         }
         ");
     }
