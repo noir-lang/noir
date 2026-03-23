@@ -16,7 +16,6 @@ fn main() -> pub Field {
     let point: EmbeddedCurvePoint = EmbeddedCurvePoint {
         x: 7721365207469689951757300880340056666751408554323047984441392991478714371870_Field,
         y: -4142472734945281170909704725710727431818425750402703416563327378104690426220_Field,
-        is_infinite: false,
     };
     let address_point: EmbeddedCurvePoint = key.add(point);
     address_point.x
