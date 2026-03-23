@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `compiler/noirc_frontend/src/elaborator/variable.rs`."><title>variable.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-84e720fa.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noirc_frontend" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0 (29483883e 2025-08-04)" data-channel="1.89.0" data-search-js="search-92309212.js" data-settings-js="settings-5514c975.js" ><script src="../../../static.files/storage-4e99c027.js"></script><script defer src="../../../static.files/src-script-813739b1.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-fd3af306.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noirc_frontend/elaborator/</div>variable.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! Everything to do with elaboration of variables.
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `compiler/noirc_frontend/src/elaborator/variable.rs`."><title>variable.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-84e720fa.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noirc_frontend" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0 (29483883e 2025-08-04)" data-channel="1.89.0" data-search-js="search-92309212.js" data-settings-js="settings-5514c975.js" ><script src="../../../static.files/storage-4e99c027.js"></script><script defer src="../../../static.files/src-script-813739b1.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-fd3af306.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noirc_frontend/elaborator/</div>variable.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-4"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! Everything to do with elaboration of variables.
 <a href=#2 id=2 data-nosnippet>2</a>//! Notably, variables may require trait constraints to be solved later on.
 <a href=#3 id=3 data-nosnippet>3</a>
 <a href=#4 id=4 data-nosnippet>4</a></span><span class="kw">use </span>itertools::Itertools;
@@ -942,47 +942,61 @@
 <a href=#942 id=942 data-nosnippet>942</a>    ) -&gt; (Type, TypeBindings) {
 <a href=#943 id=943 data-nosnippet>943</a>        <span class="kw">match </span>turbofish_generics {
 <a href=#944 id=944 data-nosnippet>944</a>            <span class="prelude-val">Some</span>(turbofish_generics) =&gt; {
-<a href=#945 id=945 data-nosnippet>945</a>                <span class="kw">if </span>turbofish_generics.len() != function_generic_count {
-<a href=#946 id=946 data-nosnippet>946</a>                    <span class="kw">let </span>type_check_err = TypeCheckError::IncorrectTurbofishGenericCount {
-<a href=#947 id=947 data-nosnippet>947</a>                        expected_count: function_generic_count,
-<a href=#948 id=948 data-nosnippet>948</a>                        actual_count: turbofish_generics.len(),
-<a href=#949 id=949 data-nosnippet>949</a>                        location,
-<a href=#950 id=950 data-nosnippet>950</a>                    };
-<a href=#951 id=951 data-nosnippet>951</a>                    <span class="self">self</span>.push_err(CompilationError::TypeError(type_check_err));
-<a href=#952 id=952 data-nosnippet>952</a>                    typ.instantiate_with_bindings(bindings, <span class="self">self</span>.interner)
-<a href=#953 id=953 data-nosnippet>953</a>                } <span class="kw">else </span>{
-<a href=#954 id=954 data-nosnippet>954</a>                    <span class="comment">// Fetch the count of any implicit generics on the function, such as
-<a href=#955 id=955 data-nosnippet>955</a>                    // for a method within a generic impl.
-<a href=#956 id=956 data-nosnippet>956</a>                    </span><span class="kw">let </span>implicit_generic_count = <span class="kw">match </span><span class="kw-2">&amp;</span>typ {
-<a href=#957 id=957 data-nosnippet>957</a>                        Type::Forall(generics, <span class="kw">_</span>) =&gt; generics.len() - function_generic_count,
-<a href=#958 id=958 data-nosnippet>958</a>                        <span class="kw">_ </span>=&gt; <span class="number">0</span>,
-<a href=#959 id=959 data-nosnippet>959</a>                    };
-<a href=#960 id=960 data-nosnippet>960</a>                    typ.instantiate_with_bindings_and_turbofish(
-<a href=#961 id=961 data-nosnippet>961</a>                        bindings,
-<a href=#962 id=962 data-nosnippet>962</a>                        turbofish_generics,
-<a href=#963 id=963 data-nosnippet>963</a>                        <span class="self">self</span>.interner,
-<a href=#964 id=964 data-nosnippet>964</a>                        implicit_generic_count,
-<a href=#965 id=965 data-nosnippet>965</a>                    )
-<a href=#966 id=966 data-nosnippet>966</a>                }
-<a href=#967 id=967 data-nosnippet>967</a>            }
-<a href=#968 id=968 data-nosnippet>968</a>            <span class="prelude-val">None </span>=&gt; typ.instantiate_with_bindings(bindings, <span class="self">self</span>.interner),
-<a href=#969 id=969 data-nosnippet>969</a>        }
-<a href=#970 id=970 data-nosnippet>970</a>    }
-<a href=#971 id=971 data-nosnippet>971</a>}
-<a href=#972 id=972 data-nosnippet>972</a>
-<a href=#973 id=973 data-nosnippet>973</a><span class="doccomment">/// Bind the generics of the [Type] aliased by the [TypeAlias] to a list of generic arguments,
-<a href=#974 id=974 data-nosnippet>974</a>/// recursively expanding the generics aliased aliases, finally returning the generics of the
-<a href=#975 id=975 data-nosnippet>975</a>/// innermost aliased struct.
-<a href=#976 id=976 data-nosnippet>976</a>///
-<a href=#977 id=977 data-nosnippet>977</a>/// Panics if it encounters a type other than alias or struct.
-<a href=#978 id=978 data-nosnippet>978</a></span><span class="kw">fn </span>get_type_alias_generics(type_alias: <span class="kw-2">&amp;</span>TypeAlias, generics: <span class="kw-2">&amp;</span>[Type]) -&gt; Vec&lt;Type&gt; {
-<a href=#979 id=979 data-nosnippet>979</a>    <span class="kw">let </span>typ = type_alias.get_type(generics);
-<a href=#980 id=980 data-nosnippet>980</a>    <span class="kw">match </span>typ {
-<a href=#981 id=981 data-nosnippet>981</a>        Type::DataType(<span class="kw">_</span>, generics) =&gt; generics,
-<a href=#982 id=982 data-nosnippet>982</a>        Type::Alias(type_alias, generics) =&gt; {
-<a href=#983 id=983 data-nosnippet>983</a>            get_type_alias_generics(<span class="kw-2">&amp;</span>type_alias.borrow(), <span class="kw-2">&amp;</span>generics)
-<a href=#984 id=984 data-nosnippet>984</a>        }
-<a href=#985 id=985 data-nosnippet>985</a>        <span class="comment">// Primitive types have no generics
-<a href=#986 id=986 data-nosnippet>986</a>        </span><span class="kw">_ </span>=&gt; Vec::new(),
-<a href=#987 id=987 data-nosnippet>987</a>    }
-<a href=#988 id=988 data-nosnippet>988</a>}</code></pre></div></section></main></body></html>
+<a href=#945 id=945 data-nosnippet>945</a>                <span class="kw">let </span>forall_generic_count =
+<a href=#946 id=946 data-nosnippet>946</a>                    <span class="kw">if let </span>Type::Forall(generics, <span class="kw">_</span>) = <span class="kw-2">&amp;</span>typ { generics.len() } <span class="kw">else </span>{ <span class="number">0 </span>};
+<a href=#947 id=947 data-nosnippet>947</a>
+<a href=#948 id=948 data-nosnippet>948</a>                <span class="kw">if </span>turbofish_generics.len() != function_generic_count {
+<a href=#949 id=949 data-nosnippet>949</a>                    <span class="kw">let </span>type_check_err = TypeCheckError::IncorrectTurbofishGenericCount {
+<a href=#950 id=950 data-nosnippet>950</a>                        expected_count: function_generic_count,
+<a href=#951 id=951 data-nosnippet>951</a>                        actual_count: turbofish_generics.len(),
+<a href=#952 id=952 data-nosnippet>952</a>                        location,
+<a href=#953 id=953 data-nosnippet>953</a>                    };
+<a href=#954 id=954 data-nosnippet>954</a>                    <span class="self">self</span>.push_err(CompilationError::TypeError(type_check_err));
+<a href=#955 id=955 data-nosnippet>955</a>                    typ.instantiate_with_bindings(bindings, <span class="self">self</span>.interner)
+<a href=#956 id=956 data-nosnippet>956</a>                } <span class="kw">else if </span>forall_generic_count &lt; function_generic_count {
+<a href=#957 id=957 data-nosnippet>957</a>                    <span class="comment">// In the next branch, calling instantiate_with_bindings_and_turbofish asserts that
+<a href=#958 id=958 data-nosnippet>958</a>                    // turbofish_generics.len() + implicit_generic_count == forall_generic_count,
+<a href=#959 id=959 data-nosnippet>959</a>                    // but if we have less generics in forall than the the turbo fish than this will never hold.
+<a href=#960 id=960 data-nosnippet>960</a>                    // This is the case when the function generics have duplicates, which are filtered out.
+<a href=#961 id=961 data-nosnippet>961</a>                    // This means some duplicate error has already been reported, so there is no point trying.
+<a href=#962 id=962 data-nosnippet>962</a>                    </span><span class="self">self</span>.push_err(TypeCheckError::expecting_other_error(
+<a href=#963 id=963 data-nosnippet>963</a>                        <span class="string">"forall has fewer generics than function"</span>,
+<a href=#964 id=964 data-nosnippet>964</a>                        location,
+<a href=#965 id=965 data-nosnippet>965</a>                    ));
+<a href=#966 id=966 data-nosnippet>966</a>                    (Type::Error, bindings)
+<a href=#967 id=967 data-nosnippet>967</a>                } <span class="kw">else </span>{
+<a href=#968 id=968 data-nosnippet>968</a>                    <span class="comment">// Fetch the count of any implicit generics on the function, such as
+<a href=#969 id=969 data-nosnippet>969</a>                    // for a method within a generic impl.
+<a href=#970 id=970 data-nosnippet>970</a>                    </span><span class="kw">let </span>implicit_generic_count = forall_generic_count
+<a href=#971 id=971 data-nosnippet>971</a>                        .checked_sub(function_generic_count)
+<a href=#972 id=972 data-nosnippet>972</a>                        .expect(<span class="string">"forall should have at least as many generics as the function"</span>);
+<a href=#973 id=973 data-nosnippet>973</a>
+<a href=#974 id=974 data-nosnippet>974</a>                    typ.instantiate_with_bindings_and_turbofish(
+<a href=#975 id=975 data-nosnippet>975</a>                        bindings,
+<a href=#976 id=976 data-nosnippet>976</a>                        turbofish_generics,
+<a href=#977 id=977 data-nosnippet>977</a>                        <span class="self">self</span>.interner,
+<a href=#978 id=978 data-nosnippet>978</a>                        implicit_generic_count,
+<a href=#979 id=979 data-nosnippet>979</a>                    )
+<a href=#980 id=980 data-nosnippet>980</a>                }
+<a href=#981 id=981 data-nosnippet>981</a>            }
+<a href=#982 id=982 data-nosnippet>982</a>            <span class="prelude-val">None </span>=&gt; typ.instantiate_with_bindings(bindings, <span class="self">self</span>.interner),
+<a href=#983 id=983 data-nosnippet>983</a>        }
+<a href=#984 id=984 data-nosnippet>984</a>    }
+<a href=#985 id=985 data-nosnippet>985</a>}
+<a href=#986 id=986 data-nosnippet>986</a>
+<a href=#987 id=987 data-nosnippet>987</a><span class="doccomment">/// Bind the generics of the [Type] aliased by the [TypeAlias] to a list of generic arguments,
+<a href=#988 id=988 data-nosnippet>988</a>/// recursively expanding the generics aliased aliases, finally returning the generics of the
+<a href=#989 id=989 data-nosnippet>989</a>/// innermost aliased struct.
+<a href=#990 id=990 data-nosnippet>990</a>///
+<a href=#991 id=991 data-nosnippet>991</a>/// Panics if it encounters a type other than alias or struct.
+<a href=#992 id=992 data-nosnippet>992</a></span><span class="kw">fn </span>get_type_alias_generics(type_alias: <span class="kw-2">&amp;</span>TypeAlias, generics: <span class="kw-2">&amp;</span>[Type]) -&gt; Vec&lt;Type&gt; {
+<a href=#993 id=993 data-nosnippet>993</a>    <span class="kw">let </span>typ = type_alias.get_type(generics);
+<a href=#994 id=994 data-nosnippet>994</a>    <span class="kw">match </span>typ {
+<a href=#995 id=995 data-nosnippet>995</a>        Type::DataType(<span class="kw">_</span>, generics) =&gt; generics,
+<a href=#996 id=996 data-nosnippet>996</a>        Type::Alias(type_alias, generics) =&gt; {
+<a href=#997 id=997 data-nosnippet>997</a>            get_type_alias_generics(<span class="kw-2">&amp;</span>type_alias.borrow(), <span class="kw-2">&amp;</span>generics)
+<a href=#998 id=998 data-nosnippet>998</a>        }
+<a href=#999 id=999 data-nosnippet>999</a>        <span class="comment">// Primitive types have no generics
+<a href=#1000 id=1000 data-nosnippet>1000</a>        </span><span class="kw">_ </span>=&gt; Vec::new(),
+<a href=#1001 id=1001 data-nosnippet>1001</a>    }
+<a href=#1002 id=1002 data-nosnippet>1002</a>}</code></pre></div></section></main></body></html>
