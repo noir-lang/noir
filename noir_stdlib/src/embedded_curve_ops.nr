@@ -12,30 +12,15 @@ pub struct EmbeddedCurvePoint {
 }
 
 impl EmbeddedCurvePoint {
-    pub fn new(x: Field, y: Field) -> EmbeddedCurvePoint {
-        let point = EmbeddedCurvePoint { x, y };
-        assert(point.is_on_curve(), "Point is not on curve");
-        point
-    }
-
-    pub fn new_unchecked(x: Field, y: Field) -> EmbeddedCurvePoint {
-        EmbeddedCurvePoint { x, y }
+    /// Elliptic curve point doubling operation
+    /// returns the doubled point of a point P, i.e P+P
+    pub fn double(self) -> EmbeddedCurvePoint {
+        embedded_curve_add(self, self)
     }
 
     /// Returns the null element of the curve; 'the point at infinity'
     pub fn point_at_infinity() -> EmbeddedCurvePoint {
         EmbeddedCurvePoint { x: 0, y: 0 }
-    }
-
-    pub fn is_on_curve(self) -> bool {
-        // Grumpkin curve
-        self.y * self.y == (self.x * self.x * self.x) - 17
-    }
-
-    /// Elliptic curve point doubling operation
-    /// returns the doubled point of a point P, i.e P+P
-    pub fn double(self) -> EmbeddedCurvePoint {
-        embedded_curve_add(self, self)
     }
 
     /// Returns the curve's generator point.
