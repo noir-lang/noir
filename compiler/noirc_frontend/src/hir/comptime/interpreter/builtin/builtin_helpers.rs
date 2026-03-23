@@ -5,6 +5,7 @@
 use std::hash::Hash;
 use std::{hash::Hasher, rc::Rc};
 
+use acvm::FieldElement;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 
@@ -20,7 +21,6 @@ use crate::hir::def_map::fully_qualified_module_path;
 use crate::hir_def::function::FuncMeta;
 use crate::lexer::Lexer;
 use crate::parser::{Parser, ParserError};
-use crate::signed_field::SignedField;
 use crate::token::{Keyword, LocatedToken, SecondaryAttributeKind};
 use crate::{
     QuotedType, Type,
@@ -185,7 +185,7 @@ pub(crate) fn get_fixed_array_map<T, const N: usize>(
         };
         let len: u32 =
             N.try_into().expect("ICE: get_fixed_array_map: N is expected to fit into a u32");
-        let expected = Type::Array(Box::new(len.into()), elem.clone()).to_string();
+        let expected = Type::Array(Box::new(Type::constant_u32(len)), elem.clone()).to_string();
         InterpreterError::TypeMismatch { expected, actual: typ, location }
     })
 }
@@ -207,7 +207,7 @@ pub(crate) fn get_ctstring((value, location): (Value, Location)) -> IResult<Rc<V
     }
 }
 
-pub(crate) fn get_field((value, location): (Value, Location)) -> IResult<SignedField> {
+pub(crate) fn get_field((value, location): (Value, Location)) -> IResult<FieldElement> {
     match value {
         Value::Integer(Integer::Field(value)) => Ok(value),
         value => type_mismatch(value, Type::FieldElement, location),
@@ -670,7 +670,7 @@ pub(super) fn hash_item<T: Hash>(
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     item.hash(&mut hasher);
     let hash = hasher.finish();
-    Ok(Value::field(SignedField::positive(u128::from(hash))))
+    Ok(Value::field(u128::from(hash).into()))
 }
 
 pub(super) fn eq_item<T: Eq>(
@@ -688,7 +688,7 @@ pub(super) fn eq_item<T: Eq>(
 pub(crate) fn byte_array_type(len: usize) -> Type {
     let len: u32 = len.try_into().expect("ICE: byte_array_type: N is expected to fit into a u32");
     Type::Array(
-        Box::new(len.into()),
+        Box::new(Type::constant_u32(len)),
         Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)),
     )
 }
@@ -722,10 +722,7 @@ pub(crate) fn new_unary_op(operator: UnaryOp, typ: Type) -> Option<Value> {
     };
 
     let mut fields = HashMap::default();
-    fields.insert(
-        Rc::new("op".to_string()),
-        Shared::new(Value::field(SignedField::positive(unary_op_value))),
-    );
+    fields.insert(Rc::new("op".to_string()), Shared::new(Value::field(unary_op_value.into())));
 
     Some(Value::Struct(fields, typ))
 }
@@ -735,10 +732,7 @@ pub(crate) fn new_binary_op(operator: BinaryOp, typ: Type) -> Value {
     let binary_op_value = operator.contents as u128;
 
     let mut fields = HashMap::default();
-    fields.insert(
-        Rc::new("op".to_string()),
-        Shared::new(Value::field(SignedField::positive(binary_op_value))),
-    );
+    fields.insert(Rc::new("op".to_string()), Shared::new(Value::field(binary_op_value.into())));
 
     Value::Struct(fields, typ)
 }
