@@ -12,9 +12,70 @@ use im::HashMap;
 use noirc_artifacts::ssa::{InternalBug, SsaReport};
 use noirc_errors::Location;
 use rayon::prelude::*;
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use rustc_hash::FxHashMap;
+use std::collections::{BTreeMap, HashSet};
 use std::hash::Hash;
 use tracing::trace;
+
+/// Union-Find (disjoint set) data structure for efficiently computing connected components.
+/// Uses path compression and union by rank for near-O(1) amortized operations.
+struct UnionFind {
+    parent: FxHashMap<ValueId, ValueId>,
+    rank: FxHashMap<ValueId, u32>,
+}
+
+impl UnionFind {
+    fn new() -> Self {
+        Self { parent: FxHashMap::default(), rank: FxHashMap::default() }
+    }
+
+    /// Ensure a value exists in the union-find.
+    fn make_set(&mut self, v: ValueId) {
+        self.parent.entry(v).or_insert(v);
+    }
+
+    /// Find the root representative of the set containing `v`, with path compression.
+    fn find(&mut self, v: ValueId) -> ValueId {
+        let p = self.parent[&v];
+        if p == v {
+            return v;
+        }
+        let root = self.find(p);
+        self.parent.insert(v, root);
+        root
+    }
+
+    /// Union the sets containing `a` and `b`. Uses union by rank.
+    fn union(&mut self, a: ValueId, b: ValueId) {
+        let ra = self.find(a);
+        let rb = self.find(b);
+        if ra == rb {
+            return;
+        }
+        let rank_a = *self.rank.entry(ra).or_insert(0);
+        let rank_b = *self.rank.entry(rb).or_insert(0);
+        if rank_a < rank_b {
+            self.parent.insert(ra, rb);
+        } else {
+            self.parent.insert(rb, ra);
+            if rank_a == rank_b {
+                *self.rank.entry(ra).or_insert(0) += 1;
+            }
+        }
+    }
+
+    /// Union all values in the iterator into one set.
+    fn union_all(&mut self, values: impl IntoIterator<Item = ValueId>) {
+        let mut first = None;
+        for v in values {
+            self.make_set(v);
+            match first {
+                None => first = Some(v),
+                Some(f) => self.union(f, v),
+            }
+        }
+    }
+}
 
 impl Ssa {
     /// This function provides an SSA pass that detects if the final function has any subgraphs independent from inputs and outputs.
@@ -78,26 +139,41 @@ fn check_for_underconstrained_values_within_function(
     all_functions: &BTreeMap<FunctionId, Function>,
 ) -> Vec<SsaReport> {
     let mut context = Context::default();
-    let mut warnings: Vec<SsaReport> = Vec::new();
 
     context.compute_sets_of_connected_value_ids(function, all_functions);
 
-    let all_brillig_generated_values: BTreeSet<ValueId> =
-        context.brillig_return_to_argument.keys().copied().collect();
+    // Find roots connected to function inputs/outputs
+    let connected_roots = context.find_roots_connected_to_function_inputs_or_outputs(function);
 
-    let connected_sets_indices =
-        context.find_sets_connected_to_function_inputs_or_outputs(function);
-
-    // Go through each disconnected set, find Brillig calls that caused it and form warnings
-    for set_index in
-        BTreeSet::from_iter(0..(context.value_sets.len())).difference(&connected_sets_indices)
-    {
-        let current_set = &context.value_sets[*set_index];
-        warnings.append(&mut context.find_disconnecting_brillig_calls_with_results_in_set(
-            current_set,
-            &all_brillig_generated_values,
-            function,
-        ));
+    // Check each brillig return value: if it's in a disconnected component
+    // and any of its corresponding inputs are in a different component, report a bug
+    let mut warnings: Vec<SsaReport> = Vec::new();
+    for (brillig_output, argument_ids) in &context.brillig_return_to_argument {
+        // If the output isn't in the union-find, it was never used by any subsequent
+        // instruction. The brillig constraints check handles that case.
+        if !context.uf.parent.contains_key(brillig_output) {
+            continue;
+        }
+        let output_root = context.uf.find(*brillig_output);
+        // Skip outputs that are connected to function inputs/outputs
+        if connected_roots.contains(&output_root) {
+            continue;
+        }
+        // Check if any input is in a different component (or absent from the UF entirely)
+        let has_disconnected_input = argument_ids.iter().any(|inp| {
+            if context.uf.parent.contains_key(inp) {
+                context.uf.find(*inp) != output_root
+            } else {
+                true
+            }
+        });
+        if has_disconnected_input {
+            warnings.push(SsaReport::Bug(InternalBug::IndependentSubgraph {
+                call_stack: function.dfg.get_instruction_call_stack(
+                    context.brillig_return_to_instruction_id[brillig_output],
+                ),
+            }));
+        }
     }
     warnings
 }
@@ -674,12 +750,22 @@ impl DependencyContext {
     }
 }
 
-#[derive(Default)]
 struct Context {
     block_queue: VisitOnceDeque,
-    value_sets: Vec<BTreeSet<ValueId>>,
+    uf: UnionFind,
     brillig_return_to_argument: HashMap<ValueId, Vec<ValueId>>,
     brillig_return_to_instruction_id: HashMap<ValueId, InstructionId>,
+}
+
+impl Default for Context {
+    fn default() -> Self {
+        Self {
+            block_queue: VisitOnceDeque::default(),
+            uf: UnionFind::new(),
+            brillig_return_to_argument: HashMap::default(),
+            brillig_return_to_instruction_id: HashMap::default(),
+        }
+    }
 }
 
 impl Context {
@@ -691,75 +777,30 @@ impl Context {
         function: &Function,
         all_functions: &BTreeMap<FunctionId, Function>,
     ) {
-        // Go through each block in the function and create a list of sets of ValueIds connected by instructions
         self.block_queue.push_back(function.entry_block());
         while let Some(block) = self.block_queue.pop_back() {
             self.connect_value_ids_in_block(function, block, all_functions);
         }
-        // Merge ValueIds into sets, where each original small set of ValueIds is merged with another set if they intersect
-        self.value_sets = Self::merge_sets_par(&self.value_sets);
     }
 
-    /// Find sets that contain input or output value of the function
-    ///
-    /// Goes through each set of connected ValueIds and see if function arguments or return values are in the set
-    fn find_sets_connected_to_function_inputs_or_outputs(
-        &self,
+    /// Find roots of components that contain function inputs or outputs
+    fn find_roots_connected_to_function_inputs_or_outputs(
+        &mut self,
         function: &Function,
-    ) -> BTreeSet<usize> {
+    ) -> HashSet<ValueId> {
         let returns = function.returns().unwrap_or_default();
-        let variable_parameters_and_return_values = function
+        let io_values: Vec<ValueId> = function
             .parameters()
             .iter()
             .chain(returns)
-            .filter(|id| !is_numeric_constant(function, **id));
-
-        let mut connected_sets_indices: BTreeSet<usize> = BTreeSet::default();
-
-        // Go through each parameter and each set and check if the set contains the parameter
-        // If it's the case, then that set doesn't present an issue
-        for parameter_or_return_value in variable_parameters_and_return_values {
-            for (set_index, final_set) in self.value_sets.iter().enumerate() {
-                if final_set.contains(parameter_or_return_value) {
-                    connected_sets_indices.insert(set_index);
-                }
-            }
-        }
-        connected_sets_indices
+            .copied()
+            .filter(|id| !is_numeric_constant(function, *id))
+            .filter(|id| self.uf.parent.contains_key(id))
+            .collect();
+        io_values.into_iter().map(|id| self.uf.find(id)).collect()
     }
 
-    /// Find which Brillig calls separate this set from others and return bug warnings about them
-    fn find_disconnecting_brillig_calls_with_results_in_set(
-        &self,
-        current_set: &BTreeSet<ValueId>,
-        all_brillig_generated_values: &BTreeSet<ValueId>,
-        function: &Function,
-    ) -> Vec<SsaReport> {
-        let mut warnings = Vec::new();
-        // Find Brillig-generated values in the set
-        let intersection = all_brillig_generated_values.intersection(current_set).copied();
-
-        // Go through all Brillig outputs in the set
-        for brillig_output_in_set in intersection {
-            // Get the inputs that correspond to the output
-            let inputs: BTreeSet<ValueId> =
-                self.brillig_return_to_argument[&brillig_output_in_set].iter().copied().collect();
-
-            // Check if any of them are not in the set
-            let unused_inputs = inputs.difference(current_set).next().is_some();
-
-            // There is a value not in the set, which means that the inputs/outputs of this call have not been properly constrained
-            if unused_inputs {
-                warnings.push(SsaReport::Bug(InternalBug::IndependentSubgraph {
-                    call_stack: function.dfg.get_instruction_call_stack(
-                        self.brillig_return_to_instruction_id[&brillig_output_in_set],
-                    ),
-                }));
-            }
-        }
-        warnings
-    }
-    /// Go through each instruction in the block and add a set of ValueIds connected through that instruction
+    /// Go through each instruction in the block and union ValueIds connected through that instruction
     ///
     /// Additionally, this function adds mappings of Brillig return values to call arguments and instruction ids from calls to Brillig functions in the block
     fn connect_value_ids_in_block(
@@ -771,18 +812,18 @@ impl Context {
         let instructions = function.dfg[block].instructions();
 
         for instruction in instructions {
-            let mut instruction_arguments_and_results = BTreeSet::new();
+            let mut instruction_values: Vec<ValueId> = Vec::new();
 
-            // Insert non-constant instruction arguments
+            // Collect non-constant instruction arguments
             function.dfg[*instruction].for_each_value(|value_id| {
                 if !is_numeric_constant(function, value_id) {
-                    instruction_arguments_and_results.insert(value_id);
+                    instruction_values.push(value_id);
                 }
             });
             // And non-constant results
             for value_id in function.dfg.instruction_results(*instruction) {
                 if !is_numeric_constant(function, *value_id) {
-                    instruction_arguments_and_results.insert(*value_id);
+                    instruction_values.push(*value_id);
                 }
             }
 
@@ -800,7 +841,7 @@ impl Context {
                 | Instruction::Store { .. }
                 | Instruction::Truncate { .. }
                 | Instruction::MakeArray { .. } => {
-                    self.value_sets.push(instruction_arguments_and_results);
+                    self.uf.union_all(instruction_values);
                 }
 
                 Instruction::Call { func: func_id, arguments: argument_ids } => {
@@ -829,7 +870,7 @@ impl Context {
                             | Intrinsic::ToBits(..)
                             | Intrinsic::ToRadix(..)
                             | Intrinsic::FieldLessThan => {
-                                self.value_sets.push(instruction_arguments_and_results);
+                                self.uf.union_all(instruction_values);
                             }
                         },
                         Value::Function(callee) => match all_functions[callee].runtime() {
@@ -848,7 +889,7 @@ impl Context {
                                 }
                             }
                             RuntimeType::Acir(..) => {
-                                self.value_sets.push(instruction_arguments_and_results);
+                                self.uf.union_all(instruction_values);
                             }
                         },
                         Value::ForeignFunction(..) => {
@@ -877,90 +918,6 @@ impl Context {
         }
 
         self.block_queue.extend(function.dfg[block].successors());
-    }
-
-    /// Merge all small sets into larger ones based on whether the sets intersect or not
-    ///
-    /// If two small sets have a common ValueId, we merge them into one
-    fn merge_sets(current: &[BTreeSet<ValueId>]) -> Vec<BTreeSet<ValueId>> {
-        let mut new_set_id: usize = 0;
-        let mut updated_sets: BTreeMap<usize, BTreeSet<ValueId>> = BTreeMap::default();
-        let mut value_dictionary: HashMap<ValueId, usize> = HashMap::default();
-        let mut parsed_value_set: BTreeSet<ValueId> = BTreeSet::default();
-
-        for set in current {
-            // Check if the set has any of the ValueIds we've encountered at previous iterations
-            let intersection: BTreeSet<ValueId> =
-                set.intersection(&parsed_value_set).copied().collect();
-            parsed_value_set.extend(set.iter());
-
-            // If there is no intersection, add the new set to updated sets
-            if intersection.is_empty() {
-                updated_sets.insert(new_set_id, set.clone());
-
-                // Add each entry to a dictionary for quick lookups of which ValueId is in which updated set
-                for entry in set {
-                    value_dictionary.insert(*entry, new_set_id);
-                }
-                new_set_id += 1;
-                continue;
-            }
-
-            // If there is an intersection, we have to join the sets
-            let mut joining_sets_ids: BTreeSet<usize> =
-                intersection.iter().map(|x| value_dictionary[x]).collect();
-            let mut largest_set_size = usize::MIN;
-            let mut largest_set_index = usize::MAX;
-
-            // We need to find the largest set to move as few elements as possible
-            for set_id in &joining_sets_ids {
-                if updated_sets[set_id].len() > largest_set_size {
-                    (largest_set_index, largest_set_size) = (*set_id, updated_sets[set_id].len());
-                }
-            }
-            joining_sets_ids.remove(&largest_set_index);
-
-            let mut largest_set =
-                updated_sets.remove(&largest_set_index).expect("Set should be in the hashmap");
-
-            // For each of other sets that need to be joined
-            for set_id in &joining_sets_ids {
-                // Map each element to the largest set and insert it
-                for element in &updated_sets[set_id] {
-                    value_dictionary[element] = largest_set_index;
-                    largest_set.insert(*element);
-                }
-                // Remove the old set
-                updated_sets.remove(set_id);
-            }
-
-            // Join the new set with the largest sets
-            for element in set {
-                value_dictionary.insert(*element, largest_set_index);
-                largest_set.insert(*element);
-            }
-            updated_sets.insert(largest_set_index, largest_set);
-        }
-        updated_sets.values().cloned().collect()
-    }
-
-    /// Parallel version of merge_sets
-    /// The sets are merged by chunks, and then the chunks are merged together
-    fn merge_sets_par(sets: &[BTreeSet<ValueId>]) -> Vec<BTreeSet<ValueId>> {
-        let mut sets = sets.to_owned();
-        let mut len = sets.len();
-        let mut prev_len = len + 1;
-
-        while len > 1000 && len < prev_len {
-            sets = sets.par_chunks(1000).flat_map(Self::merge_sets).collect();
-
-            prev_len = len;
-            len = sets.len();
-        }
-        // TODO: if prev_len >= len, this means we cannot effectively merge the sets anymore
-        // We should instead partition the sets into disjoint chunks and work on those chunks,
-        // but for now we fallback to the non-parallel implementation
-        Self::merge_sets(&sets)
     }
 }
 
