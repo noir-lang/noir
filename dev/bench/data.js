@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774272341458,
+  "lastUpdate": 1774272764551,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23176,48 +23176,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "26d42743678ff35b65203cfac5abd62352186b8e",
-          "message": "chore: add suboptimal cloning test module for ownership pass (#11866)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
-          "timestamp": "2026-03-16T16:30:26Z",
-          "tree_id": "98e409d43d8252724500befede4f3653d949636f",
-          "url": "https://github.com/noir-lang/noir/commit/26d42743678ff35b65203cfac5abd62352186b8e"
-        },
-        "date": 1773680301435,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 250008,
-            "range": "± 701",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 221209,
-            "range": "± 3736",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2730327,
-            "range": "± 4027",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -25269,6 +25227,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2732373,
             "range": "± 2375",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "97dec7544c985df2405c5fdd1116f3ce6f4239d5",
+          "message": "fix: all or nothing for ECAdd (#11939)",
+          "timestamp": "2026-03-23T12:46:02Z",
+          "tree_id": "8a67c19fd22053e79d9d1889a54349b1f077cc21",
+          "url": "https://github.com/noir-lang/noir/commit/97dec7544c985df2405c5fdd1116f3ce6f4239d5"
+        },
+        "date": 1774272714011,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 215543,
+            "range": "± 1160",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 200560,
+            "range": "± 6057",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3129361,
+            "range": "± 20575",
             "unit": "ns/iter"
           }
         ]
