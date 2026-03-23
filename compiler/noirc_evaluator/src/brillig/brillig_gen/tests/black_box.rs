@@ -140,27 +140,82 @@ fn brillig_ecdsa_secp256r1() {
 fn brillig_multi_scalar_mul() {
     let src = "
     brillig(inline) fn foo f0 {
-      b0(v0: [(Field, Field, u1); 2], v1: [(Field, Field); 2]):
-        v2 = call multi_scalar_mul(v0, v1, u1 1) -> [(Field, Field, u1); 1]
+      b0(v0: [(Field, Field); 2], v1: [(Field, Field); 2]):
+        v2 = call multi_scalar_mul(v0, v1, u1 1) -> [(Field, Field); 1]
         return v2
     }
     ";
 
     let brillig = ssa_to_brillig_artifacts(src);
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
+    // Points are now expanded from 2N to 3N elements with is_infinite computation
+    // Output is trimmed from 3 to 2 elements
     assert_artifact_snapshot!(foo, @r"
     fn foo
      0: sp[4] = const bool 1
      1: sp[5] = @1
-     2: sp[6] = const u32 4
+     2: sp[6] = const u32 3
      3: @1 = u32 add @1, sp[6]
      4: sp[5] = indirect const u32 1
      5: sp[6] = u32 add sp[2], @2
      6: sp[7] = u32 add sp[3], @2
-     7: sp[8] = u32 add sp[5], @2
-     8: multi_scalar_mul(points: [sp[6]; 6], scalars: [sp[7]; 4], outputs: [sp[8]; 3])
-     9: sp[2] = sp[5]
-    10: return
+     7: sp[9] = const u32 6
+     8: sp[8] = @1
+     9: @1 = u32 add @1, sp[9]
+    10: sp[10] = const field 0
+    11: sp[16] = const u32 0
+    12: sp[17] = const u32 0
+    13: sp[11] = u32 add sp[6], sp[16]
+    14: sp[11] = load sp[11]
+    15: sp[18] = u32 add sp[8], sp[17]
+    16: store sp[11] at sp[18]
+    17: sp[18] = const u32 1
+    18: sp[12] = u32 add sp[6], sp[18]
+    19: sp[12] = load sp[12]
+    20: sp[19] = const u32 1
+    21: sp[20] = u32 add sp[8], sp[19]
+    22: store sp[12] at sp[20]
+    23: sp[13] = field eq sp[11], sp[10]
+    24: sp[14] = field eq sp[12], sp[10]
+    25: sp[15] = bool and sp[13], sp[14]
+    26: sp[20] = const u32 2
+    27: sp[21] = u32 add sp[8], sp[20]
+    28: store sp[15] at sp[21]
+    29: sp[16] = const u32 2
+    30: sp[17] = const u32 3
+    31: sp[11] = u32 add sp[6], sp[16]
+    32: sp[11] = load sp[11]
+    33: sp[18] = u32 add sp[8], sp[17]
+    34: store sp[11] at sp[18]
+    35: sp[18] = const u32 3
+    36: sp[12] = u32 add sp[6], sp[18]
+    37: sp[12] = load sp[12]
+    38: sp[19] = const u32 4
+    39: sp[20] = u32 add sp[8], sp[19]
+    40: store sp[12] at sp[20]
+    41: sp[13] = field eq sp[11], sp[10]
+    42: sp[14] = field eq sp[12], sp[10]
+    43: sp[15] = bool and sp[13], sp[14]
+    44: sp[20] = const u32 5
+    45: sp[21] = u32 add sp[8], sp[20]
+    46: store sp[15] at sp[21]
+    47: sp[17] = const u32 3
+    48: sp[16] = @1
+    49: @1 = u32 add @1, sp[17]
+    50: multi_scalar_mul(points: [sp[8]; 6], scalars: [sp[7]; 4], outputs: [sp[16]; 3])
+    51: sp[18] = u32 add sp[5], @2
+    52: sp[19] = const u32 0
+    53: sp[20] = const u32 1
+    54: sp[21] = u32 add sp[16], sp[19]
+    55: sp[21] = load sp[21]
+    56: sp[22] = u32 add sp[18], sp[19]
+    57: store sp[21] at sp[22]
+    58: sp[21] = u32 add sp[16], sp[20]
+    59: sp[21] = load sp[21]
+    60: sp[22] = u32 add sp[18], sp[20]
+    61: store sp[21] at sp[22]
+    62: sp[2] = sp[5]
+    63: return
     ");
 }
 
@@ -169,25 +224,47 @@ fn brillig_multi_scalar_mul() {
 fn brillig_embedded_curve_add() {
     let src = "
     brillig(inline) fn foo f0 {
-      b0(v0: Field, v1: Field, v2: u1, v3: Field, v4: Field, v5: u1):
-        v6 = call embedded_curve_add(v0, v1, v2, v3, v4, v5, u1 1) -> [(Field, Field, u1); 1]
+      b0(v0: Field, v1: Field, v3: Field, v4: Field):
+        v6 = call embedded_curve_add(v0, v1, v3, v4, u1 1) -> [(Field, Field); 1]
         return v6
     }
     ";
 
     let brillig = ssa_to_brillig_artifacts(src);
     let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
+    // is_infinite is computed from (x == 0) & (y == 0) for each point
+    // Output is trimmed from 3 to 2 elements
     assert_artifact_snapshot!(foo, @r"
     fn foo
-    0: sp[8] = const bool 1
-    1: sp[9] = @1
-    2: sp[10] = const u32 4
-    3: @1 = u32 add @1, sp[10]
-    4: sp[9] = indirect const u32 1
-    5: sp[10] = u32 add sp[9], @2
-    6: embedded_curve_add(input1_x: sp[2], input1_y: sp[3], input1_infinite: sp[4], input2_x: sp[5], input2_y: sp[6], input2_infinite: sp[7], result: [sp[10]; 3])
-    7: sp[2] = sp[9]
-    8: return
+     0: sp[6] = const bool 1
+     1: sp[7] = @1
+     2: sp[8] = const u32 3
+     3: @1 = u32 add @1, sp[8]
+     4: sp[7] = indirect const u32 1
+     5: sp[8] = const field 0
+     6: sp[9] = field eq sp[2], sp[8]
+     7: sp[10] = field eq sp[3], sp[8]
+     8: sp[11] = bool and sp[9], sp[10]
+     9: sp[12] = field eq sp[4], sp[8]
+    10: sp[13] = field eq sp[5], sp[8]
+    11: sp[14] = bool and sp[12], sp[13]
+    12: sp[16] = const u32 3
+    13: sp[15] = @1
+    14: @1 = u32 add @1, sp[16]
+    15: embedded_curve_add(input1_x: sp[2], input1_y: sp[3], input1_infinite: sp[11], input2_x: sp[4], input2_y: sp[5], input2_infinite: sp[14], result: [sp[15]; 3])
+    16: sp[17] = u32 add sp[7], @2
+    17: sp[18] = const u32 0
+    18: sp[19] = const u32 1
+    19: sp[20] = u32 add sp[15], sp[18]
+    20: sp[20] = load sp[20]
+    21: sp[21] = u32 add sp[17], sp[18]
+    22: store sp[20] at sp[21]
+    23: sp[20] = u32 add sp[15], sp[19]
+    24: sp[20] = load sp[20]
+    25: sp[21] = u32 add sp[17], sp[19]
+    26: store sp[20] at sp[21]
+    27: sp[2] = sp[7]
+    28: return
     ");
 }
 

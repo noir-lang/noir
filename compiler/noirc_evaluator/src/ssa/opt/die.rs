@@ -1250,10 +1250,10 @@ mod tests {
         let src = r#"
         acir(inline) fn main f0 {
             b0(v0: Field, v1: Field, v2: Field):
-            v6 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860, u1 0] : [(Field, Field, u1); 1]
+            v6 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860] : [(Field, Field); 1]
             v8 = make_array [v0, Field 0] : [(Field, Field); 1]
-            v11 = call multi_scalar_mul(v6, v8, u1 1) -> [(Field, Field, u1); 1]
-            v12 = call embedded_curve_add(v0, v1, u1 0, v2, Field 3, u1 0, u1 0) -> [(Field, Field, u1); 1]
+            v11 = call multi_scalar_mul(v6, v8, u1 1) -> [(Field, Field); 1]
+            v12 = call embedded_curve_add(v0, v1, v2, Field 3, u1 0) -> [(Field, Field); 1]
             return v12
         }
         "#;

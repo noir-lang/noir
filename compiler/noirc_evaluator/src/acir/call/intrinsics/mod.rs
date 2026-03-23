@@ -1,3 +1,5 @@
+use acvm::AcirField;
+use acvm::acir::BlackBoxFunc;
 use acvm::acir::brillig::lengths::FlattenedLength;
 use iter_extended::vecmap;
 
@@ -53,15 +55,49 @@ impl Context<'_> {
                     .map(|result_id| dfg.type_of_value(*result_id).flattened_size())
                     .sum();
 
-                let vars = self.acir_context.black_box_function(
-                    black_box,
-                    inputs,
-                    None,
-                    output_count,
-                    Some(self.current_side_effects_enabled_var),
-                )?;
-
-                Ok(self.convert_vars_to_values(vars, dfg, result_ids))
+                match black_box {
+                    BlackBoxFunc::MultiScalarMul => {
+                        // SSA points are [(Field, Field); N] (2N vars), but the blackbox expects
+                        // [(Field, Field, u1); N] (3N vars). Expand inputs and strip output.
+                        let inputs = self.expand_ec_points_for_blackbox(inputs, black_box)?;
+                        // Blackbox returns 3 vars (x, y, is_infinite), SSA expects 2
+                        let vars = self.acir_context.black_box_function(
+                            black_box,
+                            inputs,
+                            None,
+                            FlattenedLength(3),
+                            Some(self.current_side_effects_enabled_var),
+                        )?;
+                        // Strip is_infinite from output
+                        let vars = vars.into_iter().take(output_count.0 as usize).collect();
+                        Ok(self.convert_vars_to_values(vars, dfg, result_ids))
+                    }
+                    BlackBoxFunc::EmbeddedCurveAdd => {
+                        // SSA args are [x1, y1, x2, y2, predicate] (5 vars), but the blackbox
+                        // expects [x1, y1, is_inf1, x2, y2, is_inf2, predicate] (7 vars).
+                        let inputs = self.expand_ec_points_for_blackbox(inputs, black_box)?;
+                        // Blackbox returns 3 vars, SSA expects 2
+                        let vars = self.acir_context.black_box_function(
+                            black_box,
+                            inputs,
+                            None,
+                            FlattenedLength(3),
+                            Some(self.current_side_effects_enabled_var),
+                        )?;
+                        let vars = vars.into_iter().take(output_count.0 as usize).collect();
+                        Ok(self.convert_vars_to_values(vars, dfg, result_ids))
+                    }
+                    _ => {
+                        let vars = self.acir_context.black_box_function(
+                            black_box,
+                            inputs,
+                            None,
+                            output_count,
+                            Some(self.current_side_effects_enabled_var),
+                        )?;
+                        Ok(self.convert_vars_to_values(vars, dfg, result_ids))
+                    }
+                }
             }
             Intrinsic::ToRadix(endian) => {
                 let field = self.convert_value(arguments[0], dfg).into_var()?;
@@ -158,5 +194,81 @@ impl Context<'_> {
                 unreachable!("Expected {intrinsic} to have been removing during SSA optimizations")
             }
         }
+    }
+
+    /// Expands 2-field EC points to 3-field EC points for blackbox functions.
+    ///
+    /// SSA represents points as (x, y) but the blackbox backend expects (x, y, is_infinite).
+    /// For each (x, y) pair, computes is_infinite = (x == 0) & (y == 0) and inserts it.
+    fn expand_ec_points_for_blackbox(
+        &mut self,
+        inputs: Vec<AcirValue>,
+        bb_func: BlackBoxFunc,
+    ) -> Result<Vec<AcirValue>, RuntimeError> {
+        match bb_func {
+            BlackBoxFunc::MultiScalarMul => {
+                // inputs[0] = points array [(Field, Field); N], inputs[1] = scalars, inputs[2] = predicate
+                let mut result = Vec::with_capacity(inputs.len());
+                let points = inputs[0].clone();
+                match points {
+                    AcirValue::Array(elements) => {
+                        let mut expanded = im::Vector::new();
+                        // elements are flattened: x0, y0, x1, y1, ...
+                        let mut i = 0;
+                        while i < elements.len() {
+                            let x = elements[i].clone();
+                            let y = elements[i + 1].clone();
+                            let x_var = x.clone().into_var()?;
+                            let y_var = y.clone().into_var()?;
+                            let is_infinite = self.compute_is_infinite(x_var, y_var)?;
+                            expanded.push_back(x);
+                            expanded.push_back(y);
+                            expanded.push_back(AcirValue::Var(is_infinite, NumericType::bool()));
+                            i += 2;
+                        }
+                        result.push(AcirValue::Array(expanded));
+                    }
+                    _ => unreachable!("ICE: MSM points argument should be an array"),
+                }
+                // Push scalars and predicate unchanged
+                for input in inputs.into_iter().skip(1) {
+                    result.push(input);
+                }
+                Ok(result)
+            }
+            BlackBoxFunc::EmbeddedCurveAdd => {
+                // inputs are [x1, y1, x2, y2, predicate] as individual Vars
+                let x1 = inputs[0].clone().into_var()?;
+                let y1 = inputs[1].clone().into_var()?;
+                let is_inf1 = self.compute_is_infinite(x1, y1)?;
+
+                let x2 = inputs[2].clone().into_var()?;
+                let y2 = inputs[3].clone().into_var()?;
+                let is_inf2 = self.compute_is_infinite(x2, y2)?;
+
+                Ok(vec![
+                    inputs[0].clone(),
+                    inputs[1].clone(),
+                    AcirValue::Var(is_inf1, NumericType::bool()),
+                    inputs[2].clone(),
+                    inputs[3].clone(),
+                    AcirValue::Var(is_inf2, NumericType::bool()),
+                    inputs[4].clone(),
+                ])
+            }
+            _ => Ok(inputs),
+        }
+    }
+
+    /// Computes is_infinite = (x == 0) & (y == 0) as an AcirVar.
+    fn compute_is_infinite(
+        &mut self,
+        x: crate::acir::types::AcirVar,
+        y: crate::acir::types::AcirVar,
+    ) -> Result<crate::acir::types::AcirVar, RuntimeError> {
+        let zero = self.acir_context.add_constant(acvm::FieldElement::zero());
+        let x_is_zero = self.acir_context.eq_var(x, zero)?;
+        let y_is_zero = self.acir_context.eq_var(y, zero)?;
+        self.acir_context.mul_var(x_is_zero, y_is_zero)
     }
 }
