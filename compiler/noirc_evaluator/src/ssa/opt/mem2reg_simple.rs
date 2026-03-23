@@ -6,7 +6,7 @@
 //! other pass has a larger surface area for bugs though and this one is simpler so the goal is to
 //! replace the old pass with this one plus any other, separate passes needed for the features
 //! unhandled here (such as alias analysis).
-use iter_extended::vecmap;
+use iter_extended::{btree_map, vecmap};
 use rustc_hash::FxHashSet as HashSet;
 use std::collections::BTreeMap;
 
@@ -115,11 +115,25 @@ impl Function {
         // Each promoted variable adds a block parameter to every dominated block, and the
         // flattener converts each conditional into predicate opcodes, so the cost is
         // O(promoted_variables × dominated_blocks).
-        // if let Some(max_span) = max_block_span {
-        //     variables.retain(|_var, decl_block| {
-        //         blocks.iter().filter(|&&b| dom_tree.dominates(*decl_block, b)).count() <= max_span
-        //     });
-        // }
+        //
+        // We approximate this count by precomputing dominator-tree subtree
+        // sizes in O(blocks): `blocks` is in RPO order, so iterating in reverse guarantees
+        // each block is visited before its immediate dominator (dominators always have a
+        // lower RPO index). One reverse pass accumulates subtree sizes bottom-up.
+        if let Some(max_span) = max_block_span
+            && blocks.len() > max_span
+        {
+            // Initialize each block's dom count to 1
+            let mut subtree_size = btree_map(&blocks, |block| (*block, 1));
+
+            for &block in blocks.iter().rev() {
+                if let Some(idom) = dom_tree.immediate_dominator(block) {
+                    let size = subtree_size[&block];
+                    *subtree_size.entry(idom).or_insert(1) += size;
+                }
+            }
+            variables.retain(|_var, decl_block| subtree_size[decl_block] <= max_span);
+        }
 
         // Limit increase in memory usage and brillig regressions by arbitrarily limiting this pass to some variables
         if let Some(max) = max_variables {
