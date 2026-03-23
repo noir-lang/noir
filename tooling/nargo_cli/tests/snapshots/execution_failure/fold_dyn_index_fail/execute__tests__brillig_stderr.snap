@@ -3,15 +3,14 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
 error: Assertion failed: Index out of bounds
-  ┌─ src/main.nr:9:12
+  ┌─ src/main.nr:3:5
   │
-9 │     assert(x[idx] != 0);
-  │            ------
+3 │     dynamic_index_check(x, z + 10);
+  │     ------------------------------
   │
   = Call stack:
-    1: main
-            at src/main.nr:3:5
-    2: dynamic_index_check
-            at src/main.nr:9:12
+    ┌─ 1: main
+    │          at src/main.nr:3:5
+    └─ (repeated 2 times)
 
 Failed assertion

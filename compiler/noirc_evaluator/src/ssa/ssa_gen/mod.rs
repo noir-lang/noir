@@ -605,7 +605,7 @@ impl FunctionContext<'_> {
         let is_brillig = self.builder.current_function.runtime().is_brillig();
         if is_brillig {
             let array_type = &self.builder.type_of_value(array);
-            if let Type::Array(_, _) = array_type {
+            if let Type::Array(_, len) = array_type {
                 // Check using the flat array size so the flat index can be validated directly.
                 let flat_size = array_type.flattened_size();
                 if flat_size.0 > 0 {
@@ -615,6 +615,14 @@ impl FunctionContext<'_> {
                     let index_as_len =
                         self.builder.insert_cast(flattened_index, NumericType::length_type());
                     self.codegen_access_check(index_as_len, flat_len);
+                } else {
+                    // Flat size is zero (empty array or zero-sized elements).
+                    // Still need a semantic bounds check so constant folding can
+                    // eliminate dead code for empty-array accesses.
+                    let len = self
+                        .builder
+                        .numeric_constant(u128::from(len.0), NumericType::length_type());
+                    self.codegen_access_check(index_value, len);
                 }
             }
         } else if element_flat_size == 0 {

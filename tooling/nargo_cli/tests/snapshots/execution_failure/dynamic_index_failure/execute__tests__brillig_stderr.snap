@@ -3,13 +3,13 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
 error: Assertion failed: Index out of bounds
-  ┌─ src/main.nr:6:12
+  ┌─ src/main.nr:4:12
   │
-6 │     assert(x[idx] != 0);
-  │            ------
+4 │     x[z] = 4;
+  │            -
   │
   = Call stack:
     1: main
-            at src/main.nr:6:12
+            at src/main.nr:4:12
 
 Failed assertion

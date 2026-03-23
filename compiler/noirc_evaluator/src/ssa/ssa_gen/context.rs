@@ -722,6 +722,17 @@ impl<'a> FunctionContext<'a> {
                 let mut flat_lvalue = self.extract_flat_lvalue(array)?;
                 let index = self.codegen_non_tuple_expression(index)?;
 
+                // Brillig needs explicit runtime bounds checks for array writes,
+                // matching what codegen_flat_index does for reads.
+                if self.builder.current_function.runtime().is_brillig() {
+                    if let ast::Type::Array(len, _) = &flat_lvalue.elem_type {
+                        let len = self
+                            .builder
+                            .numeric_constant(u128::from(*len), NumericType::length_type());
+                        self.codegen_access_check(index, len);
+                    }
+                }
+
                 let stride = element_type.flattened_size();
                 let stride = self.builder.numeric_constant(stride, NumericType::length_type());
                 let new_index =
