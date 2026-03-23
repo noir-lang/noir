@@ -145,13 +145,13 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         // Use brillig-only mem2reg at positions 1 and 2 (before inlining).
         // Running ACIR mem2reg this early creates block parameters that cascade through
         // inlining and unrolling, causing regressions in unrolled-loop-heavy programs.
-        // LSF is safe here — it forwards same-block store→load without block parameters.
-        SsaPass::new(Ssa::mem2reg_simple_brillig, "Mem2Reg Simple")
+        // LSF is safe here — it forwards same-block store->load without block parameters.
+        SsaPass::new(Ssa::mem2reg_simple_pre_flattening, "Mem2Reg Simple")
             .and_then(Ssa::load_store_forwarding),
         SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
         SsaPass::new_try(Ssa::inline_simple_functions, "Inlining simple functions")
             .and_then(Ssa::remove_unreachable_functions),
-        SsaPass::new(Ssa::mem2reg_simple_brillig, "Mem2Reg Simple")
+        SsaPass::new(Ssa::mem2reg_simple_pre_flattening, "Mem2Reg Simple")
             .and_then(Ssa::load_store_forwarding),
         SsaPass::new(Ssa::array_set_optimization, "ArraySet optimization"),
         SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
