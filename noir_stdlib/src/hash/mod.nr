@@ -4,7 +4,7 @@ pub(crate) mod poseidon2;
 use crate::convert::Into;
 use crate::default::Default;
 use crate::embedded_curve_ops::{
-    EmbeddedCurvePoint, EmbeddedCurveScalar, InternalEmbeddedCurvePoint, multi_scalar_mul,
+    EmbeddedCurvePoint, EmbeddedCurveScalar, multi_scalar_mul,
     multi_scalar_mul_array_return,
 };
 use crate::meta::derive_via;
@@ -110,7 +110,7 @@ pub fn derive_generators<let N: u32, let M: u32>(
 ) -> [EmbeddedCurvePoint; N] {
     crate::assert_constant(domain_separator_bytes);
     crate::assert_constant(starting_index);
-    __derive_generators(domain_separator_bytes, starting_index).map(Into::into)
+    __derive_generators(domain_separator_bytes, starting_index)
 }
 
 #[builtin(derive_pedersen_generators)]
@@ -118,7 +118,7 @@ pub fn derive_generators<let N: u32, let M: u32>(
 fn __derive_generators<let N: u32, let M: u32>(
     domain_separator_bytes: [u8; M],
     starting_index: u32,
-) -> [InternalEmbeddedCurvePoint; N] {}
+) -> [EmbeddedCurvePoint; N] {}
 
 #[field(bn254)]
 // Decompose the input 'bn254 scalar' into two 128 bits limbs.

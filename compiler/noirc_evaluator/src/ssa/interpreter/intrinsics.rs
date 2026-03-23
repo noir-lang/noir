@@ -455,17 +455,12 @@ impl<W: Write> Interpreter<'_, W> {
                     let y = FieldElement::from_le_bytes_reduce(&y_big.to_bytes_le());
                     result.push(Value::from_constant(x, NumericType::NativeField)?);
                     result.push(Value::from_constant(y, NumericType::NativeField)?);
-                    result.push(Value::from_constant(
-                        generator.infinity.into(),
-                        NumericType::bool(),
-                    )?);
                 }
                 let results = Value::array(
                     result,
                     vec![
                         Type::Numeric(NumericType::NativeField),
                         Type::Numeric(NumericType::NativeField),
-                        Type::Numeric(NumericType::bool()),
                     ],
                 );
                 Ok(vec![results])
