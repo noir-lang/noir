@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774264767851,
+  "lastUpdate": 1774265136962,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23141,48 +23141,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "70dcc2f507c53ec4708c936c13eb4358abd05044",
-          "message": "fix(ssa): Make `get_bit_size_from_ssa_type` match `ssa_type_to_parameter` for `Function` (#11860)",
-          "timestamp": "2026-03-16T14:43:31Z",
-          "tree_id": "1ce3c5593781f7e90f8aaa48e8d47338cc82414e",
-          "url": "https://github.com/noir-lang/noir/commit/70dcc2f507c53ec4708c936c13eb4358abd05044"
-        },
-        "date": 1773673873206,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252559,
-            "range": "± 660",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 221921,
-            "range": "± 4054",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2731869,
-            "range": "± 19061",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -25234,6 +25192,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2730816,
             "range": "± 2729",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "80d344908051aab7145f4b046c274622b6bc6e9d",
+          "message": "chore(frontend): Add `CompilationErrors` wrapper to collect errors (#11931)",
+          "timestamp": "2026-03-23T11:01:54Z",
+          "tree_id": "3258cdc7ec9e4c9886976ce7cb5eba5ecca2eb6c",
+          "url": "https://github.com/noir-lang/noir/commit/80d344908051aab7145f4b046c274622b6bc6e9d"
+        },
+        "date": 1774265087906,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 252737,
+            "range": "± 5572",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 222828,
+            "range": "± 5240",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2732640,
+            "range": "± 8736",
             "unit": "ns/iter"
           }
         ]
