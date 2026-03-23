@@ -21,7 +21,6 @@ use noirc_frontend::hir_def::function::FuncMeta;
 use noirc_frontend::hir_def::stmt::HirPattern;
 use noirc_frontend::node_interner::NodeInterner;
 use noirc_frontend::shared::Signedness;
-use noirc_frontend::signed_field::SignedField;
 use noirc_frontend::{Shared, Type};
 
 use crate::cli::compile_cmd::parse_workspace;
@@ -213,7 +212,7 @@ fn input_value_to_comptime_value(input: &InputValue, typ: &Type, location: Locat
             let InputValue::Field(value) = input else {
                 panic!("expected field input for field element type");
             };
-            Value::field(SignedField::positive(*value))
+            Value::field(*value)
         }
         Type::Array(length, element_typ) => {
             let length =

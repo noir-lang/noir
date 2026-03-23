@@ -14,6 +14,7 @@ mod traits;
 mod type_alias;
 mod visitor;
 
+use acvm::FieldElement;
 use noirc_errors::Located;
 use noirc_errors::Location;
 pub use visitor::AttributeTarget;
@@ -34,7 +35,6 @@ pub use traits::*;
 pub use type_alias::*;
 
 use crate::QuotedType;
-use crate::signed_field::SignedField;
 use crate::token::IntegerTypeSuffix;
 use crate::{
     BinaryTypeOperator,
@@ -225,7 +225,7 @@ impl From<Vec<GenericTypeArg>> for GenericTypeArgs {
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum UnresolvedTypeExpression {
     Variable(Path),
-    Constant(SignedField, Option<IntegerTypeSuffix>, Location),
+    Constant(FieldElement, Option<IntegerTypeSuffix>, Location),
     BinaryOperation(
         Box<UnresolvedTypeExpression>,
         BinaryTypeOperator,
@@ -490,8 +490,8 @@ impl UnresolvedTypeExpression {
 
     fn from_expr_helper(expr: Expression) -> Result<UnresolvedTypeExpression, Expression> {
         match expr.kind {
-            ExpressionKind::Literal(Literal::Integer(int, suffix)) => {
-                Ok(UnresolvedTypeExpression::Constant(int, suffix, expr.location))
+            ExpressionKind::Literal(Literal::Integer(field, suffix)) => {
+                Ok(UnresolvedTypeExpression::Constant(field, suffix, expr.location))
             }
             ExpressionKind::Variable(path) => Ok(UnresolvedTypeExpression::Variable(path)),
             ExpressionKind::Prefix(prefix) if prefix.operator == UnaryOp::Minus => {

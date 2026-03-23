@@ -38,7 +38,7 @@ fn can_coalesce_param_side(
 ///   writes directly to the parameter's register.
 /// - Param-side (`param -> arg`): a block parameter reuses the register of an already-allocated
 ///   value (block param passthrough, cross-block instruction result).
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub(crate) struct CoalescingMap {
     coalesced: HashMap<ValueId, ValueId>,
     /// Reverse mapping: values that are targets of coalescing.
