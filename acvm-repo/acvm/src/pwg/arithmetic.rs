@@ -38,19 +38,18 @@ impl ExpressionSolver {
         let (mul_constant, mut unknown) = match opcode.mul_terms.len() {
             0 => (F::zero(), None),
             1 => {
-                let (c, _, _) = opcode.mul_terms[0];
-                if c.is_zero() {
-                    // Zero-coefficient mul term contributes nothing.
-                    (F::zero(), None)
-                } else {
-                    match Self::solve_mul_term_helper(&opcode.mul_terms[0], initial_witness) {
-                        MulTerm::Solved(val) => (val, None),
-                        MulTerm::OneUnknown(coeff, witness) => {
-                            let unknown =
-                                if coeff.is_zero() { None } else { Some((coeff, witness)) };
-                            (F::zero(), unknown)
-                        }
-                        MulTerm::TooManyUnknowns => {
+                match Self::solve_mul_term_helper(&opcode.mul_terms[0], initial_witness) {
+                    MulTerm::Solved(val) => (val, None),
+                    MulTerm::OneUnknown(coeff, witness) => {
+                        let unknown = if coeff.is_zero() { None } else { Some((coeff, witness)) };
+                        (F::zero(), unknown)
+                    }
+                    MulTerm::TooManyUnknowns => {
+                        let (c, _, _) = opcode.mul_terms[0];
+                        if c.is_zero() {
+                            // Zero-coefficient mul term contributes nothing.
+                            (F::zero(), None)
+                        } else {
                             // Both witnesses unknown — always unsolvable for a single mul term.
                             return Err(OpcodeResolutionError::OpcodeNotSolvable(
                                 OpcodeNotSolvable::ExpressionHasTooManyUnknowns(opcode.clone()),
