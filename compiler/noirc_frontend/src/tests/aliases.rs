@@ -1098,6 +1098,18 @@ fn type_alias_takes_priority_over_global_with_same_name() {
     assert_no_errors(src);
 }
 
+#[test]
+fn type_alias_as_closure_environment() {
+    let src = r#"
+    type Env = (u32,);
+
+    pub fn foo(_x: fn[Env](Field) -> Field) {}
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
 /// Regression test: define_type_alias did not reset `current_item` after finishing,
 /// which can leak into subsequent elaboration phases.
 #[test]
