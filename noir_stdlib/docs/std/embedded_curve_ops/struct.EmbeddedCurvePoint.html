@@ -20,7 +20,6 @@
 <h2><a href="#struct">Struct EmbeddedCurvePoint</a></h2>
 <h3>Fields</h3>
 <ul class="sidebar-list">
-<li><a href="#structfield.is_infinite">is_infinite</a></li>
 <li><a href="#structfield.x">x</a></li>
 <li><a href="#structfield.y">y</a></li>
 </ul>
@@ -28,12 +27,14 @@
 <ul class="sidebar-list">
 <li><a href="#double">double</a></li>
 <li><a href="#generator">generator</a></li>
+<li><a href="#is_infinite_or_zero">is_infinite_or_zero</a></li>
 <li><a href="#point_at_infinity">point_at_infinity</a></li>
 </ul>
 <h3>Trait implementations</h3>
 <ul class="sidebar-list">
 <li><a href="#impl-Add-for-EmbeddedCurvePoint">Add</a></li>
 <li><a href="#impl-Eq-for-EmbeddedCurvePoint">Eq</a></li>
+<li><a href="#impl-From&lt;InternalEmbeddedCurvePoint&gt;-for-EmbeddedCurvePoint">From&lt;InternalEmbeddedCurvePoint&gt;</a></li>
 <li><a href="#impl-Hash-for-EmbeddedCurvePoint">Hash</a></li>
 <li><a href="#impl-Neg-for-EmbeddedCurvePoint">Neg</a></li>
 <li><a href="#impl-Sub-for-EmbeddedCurvePoint">Sub</a></li>
@@ -55,7 +56,6 @@
 <pre><code>pub struct EmbeddedCurvePoint {
     pub x: <a href="../../std/primitive.Field.html" class="primitive">Field</a>,
     pub y: <a href="../../std/primitive.Field.html" class="primitive">Field</a>,
-    pub is_infinite: <a href="../../std/primitive.bool.html" class="primitive">bool</a>,
 }
 </code></pre>
 <div class="comments">
@@ -66,7 +66,6 @@ x and y denotes the Weierstrass coordinates of the point, if is_infinite is fals
 <h2>Fields</h2>
 <div id="structfield.x" class="struct-field"><code class="code-header">x: <a href="../../std/primitive.Field.html" class="primitive">Field</a></code></div>
 <div class="padded-description"></div><div id="structfield.y" class="struct-field"><code class="code-header">y: <a href="../../std/primitive.Field.html" class="primitive">Field</a></code></div>
-<div class="padded-description"></div><div id="structfield.is_infinite" class="struct-field"><code class="code-header">is_infinite: <a href="../../std/primitive.bool.html" class="primitive">bool</a></code></div>
 <div class="padded-description"></div><h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../../std/embedded_curve_ops/struct.EmbeddedCurvePoint.html" class="struct">EmbeddedCurvePoint</a></code></h3>
 
@@ -86,6 +85,11 @@ returns the doubled point of a point P, i.e P+P</p>
 <div class="padded-description"><div class="comments">
 <p>Returns the curve's generator point.</p>
 </div>
+</div><code id="is_infinite_or_zero" class="code-header">pub fn <a href="#is_infinite_or_zero"><span class="fn">is_infinite_or_zero</span></a>(self) -> <a href="../../std/primitive.bool.html" class="primitive">bool</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>True if this point is the zero point which is indistinguishable from the point at infinity</p>
+</div>
 </div></div><h2>Trait implementations</h2>
 <h3 id="impl-Add-for-EmbeddedCurvePoint"><code class="code-header">impl <a href="../../std/ops/trait.Add.html" class="trait">Add</a> for <a href="../../std/embedded_curve_ops/struct.EmbeddedCurvePoint.html" class="struct">EmbeddedCurvePoint</a></code></h3>
 
@@ -101,7 +105,11 @@ returns the doubled point of a point P, i.e P+P</p>
 <div class="padded-description"><div class="comments">
 <p>Checks whether two points are equal</p>
 </div>
-</div></div><h3 id="impl-Hash-for-EmbeddedCurvePoint"><code class="code-header">impl <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a> for <a href="../../std/embedded_curve_ops/struct.EmbeddedCurvePoint.html" class="struct">EmbeddedCurvePoint</a></code></h3>
+</div></div><h3 id="impl-From&lt;InternalEmbeddedCurvePoint&gt;-for-EmbeddedCurvePoint"><code class="code-header">impl <a href="../../std/convert/trait.From.html" class="trait">From</a>&lt;InternalEmbeddedCurvePoint&gt; for <a href="../../std/embedded_curve_ops/struct.EmbeddedCurvePoint.html" class="struct">EmbeddedCurvePoint</a></code></h3>
+
+<div class="padded-methods"><code class="code-header">pub fn <span class="fn">from</span>(point: InternalEmbeddedCurvePoint) -> Self</code>
+
+</div><h3 id="impl-Hash-for-EmbeddedCurvePoint"><code class="code-header">impl <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a> for <a href="../../std/embedded_curve_ops/struct.EmbeddedCurvePoint.html" class="struct">EmbeddedCurvePoint</a></code></h3>
 
 <div class="padded-methods"><code class="code-header">pub fn <span class="fn">hash</span>&lt;H&gt;(self, state: &mut H)
 <div class="where-clause">where
