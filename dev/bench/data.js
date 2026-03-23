@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774283725494,
+  "lastUpdate": 1774284054653,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23176,48 +23176,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "3d8d3aa9eff10fe0cfbadb79bb0d0ac2af567792",
-          "message": "fix(brillig): Mark `ConditionalMov::destination` as `write` in `brillig_check` (#11891)",
-          "timestamp": "2026-03-17T14:10:58Z",
-          "tree_id": "d3c39a764bf92aa43809eddcbba9e0836e69514a",
-          "url": "https://github.com/noir-lang/noir/commit/3d8d3aa9eff10fe0cfbadb79bb0d0ac2af567792"
-        },
-        "date": 1773758092783,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 242296,
-            "range": "± 309",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 221424,
-            "range": "± 2688",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2213788,
-            "range": "± 2538",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "4f7a709422fb6fc7e7af5aec38ce04235cbd6708",
           "message": "fix(acir): Just refer to `pop` in error message when the vector is empty (#11890)",
           "timestamp": "2026-03-17T14:11:37Z",
@@ -25259,6 +25217,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2729795,
             "range": "± 2853",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8e1d046f59907c4dd78668bdfdf468b27b6d160d",
+          "message": "chore(acvm): Optimize Expression evaluate by avoiding unnecessary lookups and avoid temp allocs (#11936)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-03-23T16:37:34Z",
+          "tree_id": "609fdfeb0cbf74c6df18dbed220f00668a6c1834",
+          "url": "https://github.com/noir-lang/noir/commit/8e1d046f59907c4dd78668bdfdf468b27b6d160d"
+        },
+        "date": 1774284004928,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 169934,
+            "range": "± 336",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 139375,
+            "range": "± 5200",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2643146,
+            "range": "± 7110",
             "unit": "ns/iter"
           }
         ]
