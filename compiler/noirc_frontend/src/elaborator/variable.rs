@@ -877,6 +877,9 @@ impl Elaborator<'_> {
     ) -> (Type, TypeBindings) {
         match turbofish_generics {
             Some(turbofish_generics) => {
+                let forall_generic_count =
+                    if let Type::Forall(generics, _) = &typ { generics.len() } else { 0 };
+
                 if turbofish_generics.len() != function_generic_count {
                     let type_check_err = TypeCheckError::IncorrectTurbofishGenericCount {
                         expected_count: function_generic_count,
@@ -885,13 +888,24 @@ impl Elaborator<'_> {
                     };
                     self.push_err(CompilationError::TypeError(type_check_err));
                     typ.instantiate_with_bindings(bindings, self.interner)
+                } else if forall_generic_count < function_generic_count {
+                    // In the next branch, calling instantiate_with_bindings_and_turbofish asserts that
+                    // turbofish_generics.len() + implicit_generic_count == forall_generic_count,
+                    // but if we have less generics in forall than the the turbo fish than this will never hold.
+                    // This is the case when the function generics have duplicates, which are filtered out.
+                    // This means some duplicate error has already been reported, so there is no point trying.
+                    self.push_err(TypeCheckError::expecting_other_error(
+                        "forall has fewer generics than function",
+                        location,
+                    ));
+                    (Type::Error, bindings)
                 } else {
                     // Fetch the count of any implicit generics on the function, such as
                     // for a method within a generic impl.
-                    let implicit_generic_count = match &typ {
-                        Type::Forall(generics, _) => generics.len() - function_generic_count,
-                        _ => 0,
-                    };
+                    let implicit_generic_count = forall_generic_count
+                        .checked_sub(function_generic_count)
+                        .expect("forall should have at least as many generics as the function");
+
                     typ.instantiate_with_bindings_and_turbofish(
                         bindings,
                         turbofish_generics,
