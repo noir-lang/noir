@@ -3,12 +3,14 @@ use noirc_errors::{CustomDiagnostic as Diagnostic, Location};
 use thiserror::Error;
 
 use crate::{
-    Kind, Type,
+    Type,
     ast::{Ident, UnsupportedNumericGenericType},
     elaborator::{TypedPath, types::WildcardDisallowedContext},
-    hir::{comptime::Value, type_check::TypeCheckError},
+    hir::{
+        comptime::{Integer, Value},
+        type_check::TypeCheckError,
+    },
     parser::ParserError,
-    signed_field::SignedField,
     usage_tracker::UnusedItem,
 };
 
@@ -110,8 +112,8 @@ pub enum ResolverError {
     NegativeGlobalType { location: Location, global_value: Value },
     #[error("Globals used in a type position must be integers")]
     NonIntegralGlobalType { location: Location, global_value: Value },
-    #[error("Global value `{global_value}` does not fit its kind's range")]
-    GlobalDoesNotFitItsType { location: Location, global_value: SignedField, kind: Kind },
+    #[error("Global value `{global_value}` does not fit its types's range")]
+    GlobalDoesNotFitItsType { location: Location, global_value: Integer, typ: Type },
     #[error("Self-referential types are not supported")]
     SelfReferentialType { location: Location },
     #[error("#[no_predicates] attribute is only allowed on constrained functions")]
@@ -138,9 +140,9 @@ pub enum ResolverError {
     AssociatedConstantsMustBeNumeric { location: Location },
     #[error("Computing `{lhs} {op} {rhs}` failed with error {err}")]
     BinaryOpError {
-        lhs: SignedField,
+        lhs: Integer,
         op: crate::BinaryTypeOperator,
-        rhs: SignedField,
+        rhs: Integer,
         err: Box<TypeCheckError>,
         location: Location,
     },
@@ -631,10 +633,10 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             }
-            ResolverError::GlobalDoesNotFitItsType { location, global_value, kind } => {
+            ResolverError::GlobalDoesNotFitItsType { location, global_value, typ } => {
                 Diagnostic::simple_error(
-                    format!("Global value `{global_value}` is larger than its kind's maximum value"),
-                    format!("Global's kind inferred to be `{kind}`"),
+                    format!("Global value `{global_value}` is larger than its type's maximum value"),
+                    format!("Global's type is `{typ}`"),
                     *location,
                 )
             }

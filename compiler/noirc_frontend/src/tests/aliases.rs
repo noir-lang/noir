@@ -102,6 +102,21 @@ fn deny_cyclic_type_aliases() {
 }
 
 #[test]
+fn cyclic_type_alias_usage_does_not_stack_overflow() {
+    let src = r#"
+        type A = B;
+        type B = A;
+             ^ Dependency cycle found
+             ~ 'B' recursively depends on itself: B -> A -> B
+        fn main() {
+            let _ = A::foo();
+                    ^ Could not resolve 'A' in path
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn ensure_nested_type_aliases_type_check() {
     let src = r#"
         type A = B;
@@ -739,6 +754,7 @@ fn regression_10971() {
     let src = r#"
     pub type X: u8 = 257u8;
     ^^^^^^^^^^^^^^^^^^^^^^ The value `257` cannot fit into `u8` which has range `0..=255`
+                     ^^^^^ The value `257` cannot fit into `u8` which has range `0..=255`
 
     fn main() {
         let _ = X;

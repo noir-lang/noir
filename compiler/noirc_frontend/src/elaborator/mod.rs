@@ -482,6 +482,11 @@ impl<'context> Elaborator<'context> {
             &items.module_attributes,
         );
 
+        // Check for dependency cycles before elaborating function bodies.
+        // This breaks cyclic type aliases (replacing them with Type::Error) so that
+        // later phases like path resolution don't infinite-loop following alias chains.
+        self.push_errors(self.interner.check_for_dependency_cycles());
+
         for functions in items.functions {
             self.elaborate_functions(functions);
         }
@@ -495,8 +500,6 @@ impl<'context> Elaborator<'context> {
         for trait_impl in items.trait_impls {
             self.elaborate_trait_impl(trait_impl);
         }
-
-        self.push_errors(self.interner.check_for_dependency_cycles());
     }
 
     fn elaborate_functions(&mut self, functions: UnresolvedFunctions) {
