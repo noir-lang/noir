@@ -34,7 +34,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     fn write_variables(&mut self, write_pointer: MemoryAddress, variables: &[BrilligVariable]) {
         let flat_count = Self::flat_variable_count(variables);
         let mut written = 0usize;
-        for variable in variables.iter() {
+        for variable in variables {
             match variable {
                 BrilligVariable::SingleAddr(single) => {
                     self.brillig_context.store_instruction(write_pointer, single.address);
@@ -122,7 +122,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     fn read_variables(&mut self, read_pointer: MemoryAddress, variables: &[BrilligVariable]) {
         let flat_count = Self::flat_variable_count(variables);
         let mut read = 0usize;
-        for variable in variables.iter() {
+        for variable in variables {
             match variable {
                 BrilligVariable::SingleAddr(single) => {
                     self.brillig_context.load_instruction(single.address, read_pointer);
