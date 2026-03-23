@@ -20,7 +20,7 @@
 <a href=#20 id=20 data-nosnippet>20</a><span class="kw">use </span>noirc_errors::{CustomDiagnostic, DiagnosticKind, Location};
 <a href=#21 id=21 data-nosnippet>21</a><span class="kw">use </span>noirc_frontend::elaborator::{FrontendOptions, UnstableFeature};
 <a href=#22 id=22 data-nosnippet>22</a><span class="kw">use </span>noirc_frontend::hir::Context;
-<a href=#23 id=23 data-nosnippet>23</a><span class="kw">use </span>noirc_frontend::hir::def_collector::dc_crate::DefCollector;
+<a href=#23 id=23 data-nosnippet>23</a><span class="kw">use </span>noirc_frontend::hir::def_collector::dc_crate::{CompilationErrors, DefCollector};
 <a href=#24 id=24 data-nosnippet>24</a><span class="kw">use </span>noirc_frontend::hir::def_map::{CrateDefMap, LocalModuleId};
 <a href=#25 id=25 data-nosnippet>25</a><span class="kw">use </span>noirc_frontend::parse_program;
 <a href=#26 id=26 data-nosnippet>26</a>
@@ -304,7 +304,7 @@
 <a href=#304 id=304 data-nosnippet>304</a>
 <a href=#305 id=305 data-nosnippet>305</a>    <span class="comment">// This is when the type-checking of this single file happens
 <a href=#306 id=306 data-nosnippet>306</a>    </span><span class="kw">let </span>reuse_existing_module_declarations = <span class="bool-val">true</span>;
-<a href=#307 id=307 data-nosnippet>307</a>    <span class="kw">let </span><span class="kw-2">mut </span>errors = Vec::new();
+<a href=#307 id=307 data-nosnippet>307</a>    <span class="kw">let </span><span class="kw-2">mut </span>errors = CompilationErrors::default();
 <a href=#308 id=308 data-nosnippet>308</a>    DefCollector::collect_defs_and_elaborate(
 <a href=#309 id=309 data-nosnippet>309</a>        sorted_module,
 <a href=#310 id=310 data-nosnippet>310</a>        file_id,

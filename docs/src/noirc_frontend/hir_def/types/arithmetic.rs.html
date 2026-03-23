@@ -853,7 +853,7 @@
 <a href=#853 id=853 data-nosnippet>853</a>            );
 <a href=#854 id=854 data-nosnippet>854</a>            <span class="kw">let </span>(expr_id, expr_type) = elaborator.elaborate_expression(expr);
 <a href=#855 id=855 data-nosnippet>855</a>
-<a href=#856 id=856 data-nosnippet>856</a>            <span class="macro">assert_eq!</span>(elaborator.errors, <span class="macro">vec!</span>[]);
+<a href=#856 id=856 data-nosnippet>856</a>            <span class="macro">assert_eq!</span>(elaborator.errors.as_ref(), <span class="macro">vec!</span>[]);
 <a href=#857 id=857 data-nosnippet>857</a>            <span class="macro">assert_eq!</span>(typ, expr_type);
 <a href=#858 id=858 data-nosnippet>858</a>
 <a href=#859 id=859 data-nosnippet>859</a>            <span class="kw">let </span>current_function = <span class="prelude-val">None</span>;
@@ -863,7 +863,7 @@
 <a href=#863 id=863 data-nosnippet>863</a>            );
 <a href=#864 id=864 data-nosnippet>864</a>
 <a href=#865 id=865 data-nosnippet>865</a>            <span class="kw">let </span>result_value = interpreter.evaluate(expr_id);
-<a href=#866 id=866 data-nosnippet>866</a>            <span class="macro">assert_eq!</span>(elaborator.errors, <span class="macro">vec!</span>[]);
+<a href=#866 id=866 data-nosnippet>866</a>            <span class="macro">assert_eq!</span>(elaborator.errors.as_ref(), <span class="macro">vec!</span>[]);
 <a href=#867 id=867 data-nosnippet>867</a>
 <a href=#868 id=868 data-nosnippet>868</a>            <span class="kw">let </span>result_type = <span class="kw">match </span>result_value {
 <a href=#869 id=869 data-nosnippet>869</a>                <span class="prelude-val">Ok</span>(result_value) =&gt; numeric_value_to_type(result_value),
