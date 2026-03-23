@@ -443,7 +443,6 @@ impl FunctionContext<'_> {
                             .current_function
                             .dfg
                             .make_constant(my_index.into(), NumericType::length_type());
-                        assert!(matches!(typ, Type::Numeric(_)));
                         let res = self.builder.insert_array_get(element, index, typ);
                         flat_elements.push_back(res);
                     }
@@ -606,13 +605,17 @@ impl FunctionContext<'_> {
         let is_brillig = self.builder.current_function.runtime().is_brillig();
         if is_brillig {
             let array_type = &self.builder.type_of_value(array);
-            if let Type::Array(_, len) = array_type {
+            if let Type::Array(_, _) = array_type {
                 // Check using the flat array size so the flat index can be validated directly.
                 let flat_size = array_type.flattened_size();
-                let flat_len = self
-                    .builder
-                    .numeric_constant(u128::from(flat_size.0), NumericType::length_type());
-                self.codegen_access_check(flattened_index, flat_len);
+                if flat_size.0 > 0 {
+                    let flat_len = self
+                        .builder
+                        .numeric_constant(u128::from(flat_size.0), NumericType::length_type());
+                    let index_as_len =
+                        self.builder.insert_cast(flattened_index, NumericType::length_type());
+                    self.codegen_access_check(index_as_len, flat_len);
+                }
             }
         } else if element_flat_size == 0 {
             let array_type = &self.builder.type_of_value(array);
@@ -652,8 +655,6 @@ impl FunctionContext<'_> {
                 let flat_typ = typ.clone().flatten();
                 for (my_index, typ) in flat_typ.into_iter().enumerate() {
                     let index = self.make_offset(index, my_index as u128, true);
-
-                    assert!(matches!(typ, Type::Numeric(_)));
                     let res = self.builder.insert_array_get(array, index, typ);
                     flat_elements.push_back(res);
                 }

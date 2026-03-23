@@ -10,16 +10,60 @@ use crate::brillig::brillig_ir::{
 use super::super::brillig_block::BrilligBlock;
 
 impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
-    /// Take a list of [BrilligVariable] and copy the memory they point at to the `write_pointer`,
-    /// increasing the address by 1 between each variable.
+    /// Compute the total flat (inline) size of a slice of [BrilligVariable]s.
+    ///
+    /// - [BrilligVariable::SingleAddr] counts as 1 slot.
+    /// - [BrilligVariable::BrilligArray] counts as `size` slots (its flattened element count).
+    pub(super) fn flat_variable_count(variables: &[BrilligVariable]) -> usize {
+        variables
+            .iter()
+            .map(|v| match v {
+                BrilligVariable::SingleAddr(_) => 1,
+                BrilligVariable::BrilligArray(arr) => arr.size.0 as usize,
+                BrilligVariable::BrilligVector(_) => {
+                    unreachable!("ICE: vectors inside vectors are not supported")
+                }
+            })
+            .sum()
+    }
+
+    /// Take a list of [BrilligVariable] and copy their contents **flat** to the `write_pointer`.
+    ///
+    /// Scalars are written directly. Arrays have their items copied inline so that the
+    /// resulting memory region is a contiguous flat sequence of scalar values.
     fn write_variables(&mut self, write_pointer: MemoryAddress, variables: &[BrilligVariable]) {
-        for (index, variable) in variables.iter().enumerate() {
-            self.brillig_context.store_instruction(write_pointer, variable.extract_register());
-            if index != variables.len() - 1 {
+        let flat_count = Self::flat_variable_count(variables);
+        let mut written = 0usize;
+        for variable in variables.iter() {
+            match variable {
+                BrilligVariable::SingleAddr(single) => {
+                    self.brillig_context.store_instruction(write_pointer, single.address);
+                    written += 1;
+                }
+                BrilligVariable::BrilligArray(array) => {
+                    let items_pointer =
+                        self.brillig_context.codegen_make_array_items_pointer(*array);
+                    let size = SingleAddrVariable::new_usize(
+                        self.brillig_context
+                            .make_usize_constant_instruction(array.size.0.into())
+                            .address,
+                    );
+                    self.brillig_context.codegen_mem_copy(*items_pointer, write_pointer, size);
+                    written += array.size.0 as usize;
+                }
+                BrilligVariable::BrilligVector(_) => {
+                    unreachable!("ICE: vectors inside vectors are not supported")
+                }
+            }
+            if written < flat_count {
                 self.brillig_context.codegen_usize_op_in_place(
                     write_pointer,
                     BrilligBinaryOp::Add,
-                    1,
+                    match variable {
+                        BrilligVariable::SingleAddr(_) => 1,
+                        BrilligVariable::BrilligArray(arr) => arr.size.0 as usize,
+                        BrilligVariable::BrilligVector(_) => unreachable!(),
+                    },
                 );
             }
         }
@@ -34,13 +78,14 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         source_vector: BrilligVector,
         variables_to_insert: &[BrilligVariable],
     ) {
+        let flat_count = Self::flat_variable_count(variables_to_insert);
         let write_pointer = self.brillig_context.allocate_register();
         self.brillig_context.call_prepare_vector_push_procedure(
             source_len,
             source_vector,
             target_vector,
             *write_pointer,
-            variables_to_insert.len(),
+            flat_count,
             true,
         );
 
@@ -56,28 +101,59 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         source_vector: BrilligVector,
         variables_to_insert: &[BrilligVariable],
     ) {
+        let flat_count = Self::flat_variable_count(variables_to_insert);
         let write_pointer = self.brillig_context.allocate_register();
         self.brillig_context.call_prepare_vector_push_procedure(
             source_len,
             source_vector,
             target_vector,
             *write_pointer,
-            variables_to_insert.len(),
+            flat_count,
             false,
         );
 
         self.write_variables(*write_pointer, variables_to_insert);
     }
 
-    /// Read the memory starting at the pointer into successive variables.
+    /// Read flat memory starting at the pointer into successive variables.
+    ///
+    /// Scalars are loaded directly. For arrays, the flat values are copied into a
+    /// freshly allocated array so the caller gets a proper [BrilligVariable::BrilligArray].
     fn read_variables(&mut self, read_pointer: MemoryAddress, variables: &[BrilligVariable]) {
-        for (index, variable) in variables.iter().enumerate() {
-            self.brillig_context.load_instruction(variable.extract_register(), read_pointer);
-            if index != variables.len() - 1 {
+        let flat_count = Self::flat_variable_count(variables);
+        let mut read = 0usize;
+        for variable in variables.iter() {
+            match variable {
+                BrilligVariable::SingleAddr(single) => {
+                    self.brillig_context.load_instruction(single.address, read_pointer);
+                    read += 1;
+                }
+                BrilligVariable::BrilligArray(array) => {
+                    // Allocate the array on the heap before copying data into it.
+                    self.brillig_context.codegen_initialize_array(*array);
+                    let items_pointer =
+                        self.brillig_context.codegen_make_array_items_pointer(*array);
+                    let size = SingleAddrVariable::new_usize(
+                        self.brillig_context
+                            .make_usize_constant_instruction(array.size.0.into())
+                            .address,
+                    );
+                    self.brillig_context.codegen_mem_copy(read_pointer, *items_pointer, size);
+                    read += array.size.0 as usize;
+                }
+                BrilligVariable::BrilligVector(_) => {
+                    unreachable!("ICE: vectors inside vectors are not supported")
+                }
+            }
+            if read < flat_count {
                 self.brillig_context.codegen_usize_op_in_place(
                     read_pointer,
                     BrilligBinaryOp::Add,
-                    1,
+                    match variable {
+                        BrilligVariable::SingleAddr(_) => 1,
+                        BrilligVariable::BrilligArray(arr) => arr.size.0 as usize,
+                        BrilligVariable::BrilligVector(_) => unreachable!(),
+                    },
                 );
             }
         }
@@ -95,11 +171,12 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         let read_pointer = self.brillig_context.codegen_make_vector_items_pointer(source_vector);
         self.read_variables(*read_pointer, removed_items);
 
+        let flat_count = Self::flat_variable_count(removed_items);
         self.brillig_context.call_vector_pop_front_procedure(
             source_len,
             source_vector,
             target_vector,
-            removed_items.len(),
+            flat_count,
         );
     }
 
@@ -112,13 +189,14 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         source_vector: BrilligVector,
         removed_items: &[BrilligVariable],
     ) {
+        let flat_count = Self::flat_variable_count(removed_items);
         let read_pointer = self.brillig_context.allocate_register();
         self.brillig_context.call_vector_pop_back_procedure(
             source_len,
             source_vector,
             target_vector,
             *read_pointer,
-            removed_items.len(),
+            flat_count,
         );
 
         self.read_variables(*read_pointer, removed_items);
@@ -135,12 +213,13 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     ) {
         let write_pointer = self.brillig_context.allocate_register();
 
+        let flat_count = Self::flat_variable_count(items);
         self.brillig_context.call_prepare_vector_insert_procedure(
             source_vector,
             target_vector,
             index,
             *write_pointer,
-            items.len(),
+            flat_count,
         );
 
         self.write_variables(*write_pointer, items);
@@ -163,6 +242,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         index: SingleAddrVariable,
         removed_items: &[BrilligVariable],
     ) {
+        let flat_count = Self::flat_variable_count(removed_items);
         let read_pointer = self.brillig_context.codegen_make_vector_items_pointer(source_vector);
         self.brillig_context.memory_op_instruction(
             *read_pointer,
@@ -176,7 +256,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             source_vector,
             target_vector,
             index,
-            removed_items.len(),
+            flat_count,
         );
     }
 }

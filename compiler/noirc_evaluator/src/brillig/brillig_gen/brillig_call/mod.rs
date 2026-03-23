@@ -282,23 +282,24 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 // https://github.com/noir-lang/noir/issues/1889#issuecomment-1668048587
                 let user_index = self.convert_ssa_single_addr_value(arguments[2], dfg);
 
+                let items = vecmap(&arguments[3..element_size + 3], |arg| {
+                    self.convert_ssa_value(*arg, dfg)
+                });
+
+                let flat_element_size = Self::flat_variable_count(&items);
                 let converted_index =
-                    self.brillig_context.make_usize_constant_instruction(element_size.into());
+                    self.brillig_context.make_usize_constant_instruction(flat_element_size.into());
 
                 // Safety: This multiplication cannot overflow because:
                 // 1. SSA generates bounds checks ensuring `user_index <= length`
                 // 2. The vector allocation is protected by FMP's checked addition
-                // 3. Therefore `element_size * user_index <= element_size * length <= allocation_size < 2^32`
+                // 3. Therefore `flat_element_size * user_index <= flat_element_size * length <= allocation_size < 2^32`
                 self.brillig_context.memory_op_instruction(
                     converted_index.address,
                     user_index.address,
                     converted_index.address,
                     BrilligBinaryOp::Mul,
                 );
-
-                let items = vecmap(&arguments[3..element_size + 3], |arg| {
-                    self.convert_ssa_value(*arg, dfg)
-                });
 
                 self.update_vector_length(target_len, source_len, BrilligBinaryOp::Add);
 
@@ -317,23 +318,24 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 // https://github.com/noir-lang/noir/issues/1889#issuecomment-1668048587
                 let user_index = self.convert_ssa_single_addr_value(arguments[2], dfg);
 
+                let removed_items = vecmap(&results[2..element_size + 2], |result| {
+                    self.define_variable(*result, dfg)
+                });
+
+                let flat_element_size = Self::flat_variable_count(&removed_items);
                 let converted_index =
-                    self.brillig_context.make_usize_constant_instruction(element_size.into());
+                    self.brillig_context.make_usize_constant_instruction(flat_element_size.into());
 
                 // Safety: This multiplication cannot overflow because:
                 // 1. SSA generates bounds checks ensuring `user_index < length`
                 // 2. The vector allocation is protected by FMP's checked addition
-                // 3. Therefore `element_size * user_index < element_size * length <= allocation_size < 2^32`
+                // 3. Therefore `flat_element_size * user_index < flat_element_size * length <= allocation_size < 2^32`
                 self.brillig_context.memory_op_instruction(
                     converted_index.address,
                     user_index.address,
                     converted_index.address,
                     BrilligBinaryOp::Mul,
                 );
-
-                let removed_items = vecmap(&results[2..element_size + 2], |result| {
-                    self.define_variable(*result, dfg)
-                });
 
                 self.update_vector_length(target_len, source_len, BrilligBinaryOp::Sub);
 

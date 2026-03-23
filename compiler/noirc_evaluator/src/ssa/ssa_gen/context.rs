@@ -15,7 +15,6 @@ use noirc_frontend::signed_field::SignedField;
 
 use crate::errors::RuntimeError;
 use crate::ssa::function_builder::FunctionBuilder;
-use crate::ssa::ir;
 use crate::ssa::ir::basic_block::BasicBlockId;
 use crate::ssa::ir::function::FunctionId as IrFunctionId;
 use crate::ssa::ir::function::{Function, RuntimeType};
@@ -732,21 +731,12 @@ impl<'a> FunctionContext<'a> {
                     new_index,
                 );
 
-                if element_type.is_reference() {
-                    // Must materialize the slot as an SSA handle
-                    let array_values = flat_lvalue.base.clone().into_value_list(self);
-                    let array: ir::map::Id<ir::value::Value> =
-                        if array_values.len() > 1 { array_values[1] } else { array_values[0] };
-                    let elem_ref = self.codegen_flat_array_get(array, new_offset, element_type);
-                    flat_lvalue.base = elem_ref;
-                    flat_lvalue.offset =
-                        self.builder.numeric_constant(0_u32, NumericType::length_type());
-                    flat_lvalue.base_is_materialized = true;
-                } else {
-                    // Inline types -> just do stride/offset math
-                    flat_lvalue.offset = new_offset;
-                    flat_lvalue.base_is_materialized = false;
-                }
+                // Always use flat offset math for indexed access.
+                // Reference elements are handled correctly by this path:
+                // - For `b[0] = ref`: assign_flat_lvalue does array_set
+                // - For `*b[0] = val`: the Dereference case reads the element first
+                flat_lvalue.offset = new_offset;
+                flat_lvalue.base_is_materialized = false;
 
                 flat_lvalue.elem_type = element_type.clone();
                 Ok(flat_lvalue)
@@ -780,7 +770,22 @@ impl<'a> FunctionContext<'a> {
                 Ok(flat_lvalue)
             }
             ast::LValue::Dereference { reference, element_type } => {
-                let flat_lvalue = self.extract_flat_lvalue(reference)?;
+                let mut flat_lvalue = self.extract_flat_lvalue(reference)?;
+
+                // If the base is not materialized (e.g. b[0] where b is an array of refs),
+                // we must read the reference element from the array before dereferencing.
+                if !flat_lvalue.base_is_materialized {
+                    let array_values = flat_lvalue.base.clone().into_value_list(self);
+                    let array =
+                        if array_values.len() > 1 { array_values[1] } else { array_values[0] };
+                    let elem_ref = self.codegen_flat_array_get(
+                        array,
+                        flat_lvalue.offset,
+                        &flat_lvalue.elem_type,
+                    );
+                    flat_lvalue.base = elem_ref;
+                }
+
                 let deref_value = self.dereference_lvalue(&flat_lvalue.base, element_type);
                 let zero = self.builder.numeric_constant(0_u32, NumericType::length_type());
 
@@ -852,7 +857,6 @@ impl<'a> FunctionContext<'a> {
                         .current_function
                         .dfg
                         .make_constant(my_index.into(), NumericType::length_type());
-                    assert!(matches!(typ, Type::Numeric(_)));
                     let res = self.builder.insert_array_get(value, read_index, typ);
                     let write_index = self.make_offset(index, my_index as u128, true);
                     array = self.builder.insert_array_set(array, write_index, res, false);

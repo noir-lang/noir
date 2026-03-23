@@ -164,18 +164,44 @@ where
 }
 
 /// Convert an SSA [Type] to [HeapValueType] for passing values to foreign calls.
+///
+/// Arrays are stored flat in memory (no nested pointers), so nested array types
+/// are recursively flattened into a sequence of [HeapValueType::Simple] values.
 pub(crate) fn type_to_heap_value_type(typ: &Type) -> HeapValueType {
     match typ {
         Type::Numeric(_) | Type::Reference(_) | Type::Function => HeapValueType::Simple(
             BitSize::try_from_u32::<FieldElement>(get_bit_size_from_ssa_type(typ)).unwrap(),
         ),
         Type::Array(elem_type, size) => HeapValueType::Array {
-            value_types: elem_type.as_ref().iter().map(type_to_heap_value_type).collect(),
+            value_types: elem_type.as_ref().iter().flat_map(flatten_type_to_heap_values).collect(),
             size: *size,
         },
         Type::Vector(elem_type) => HeapValueType::Vector {
-            value_types: elem_type.as_ref().iter().map(type_to_heap_value_type).collect(),
+            value_types: elem_type.as_ref().iter().flat_map(flatten_type_to_heap_values).collect(),
         },
+    }
+}
+
+/// Recursively flatten an SSA type into a sequence of [HeapValueType::Simple] values.
+///
+/// Scalar types produce a single `Simple`. Array types are expanded inline by repeating
+/// their flattened element types `size` times. This matches the flat memory layout where
+/// nested arrays are stored contiguously rather than via pointers.
+fn flatten_type_to_heap_values(typ: &Type) -> Vec<HeapValueType> {
+    match typ {
+        Type::Numeric(_) | Type::Reference(_) | Type::Function => {
+            vec![HeapValueType::Simple(
+                BitSize::try_from_u32::<FieldElement>(get_bit_size_from_ssa_type(typ)).unwrap(),
+            )]
+        }
+        Type::Array(elem_type, size) => {
+            let flat_elem: Vec<_> =
+                elem_type.as_ref().iter().flat_map(flatten_type_to_heap_values).collect();
+            (0..size.0).flat_map(|_| flat_elem.iter().cloned()).collect()
+        }
+        Type::Vector(_) => {
+            unreachable!("ICE: nested vectors are not supported in flat representation")
+        }
     }
 }
 
