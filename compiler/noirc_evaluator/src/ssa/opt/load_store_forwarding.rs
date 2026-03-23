@@ -104,9 +104,9 @@ fn forward_loads_and_stores_in_block(
     inserter: &mut FunctionInserter,
     block: BasicBlockId,
 ) -> HashSet<InstructionId> {
-    // Maps address → last stored value (after resolving through the inserter)
+    // Maps address -> last stored value (after resolving through the inserter)
     let mut known_values: HashMap<ValueId, ValueId> = HashMap::default();
-    // Maps address → last store instruction (candidate for dead store elimination)
+    // Maps address -> last store instruction (candidate for dead store elimination)
     let mut last_stores: HashMap<ValueId, InstructionId> = HashMap::default();
     let mut instructions_to_remove: HashSet<InstructionId> = HashSet::default();
     // Track addresses from Allocate instructions in this block.
