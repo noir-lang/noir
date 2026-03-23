@@ -156,12 +156,13 @@ fn forward_loads_and_stores_in_block(
                 last_stores.remove(&address);
             }
             Instruction::Call { .. } => {
-                // A call could dereference and modify any reference argument.
+                // A call could dereference and modify any reference argument,
+                // including references nested inside arrays or tuples.
                 instruction.for_each_value(|value| {
                     let value = inserter.resolve(value);
-                    if inserter.function.dfg.value_is_reference(value) {
-                        known_values.remove(&value);
-                        last_stores.remove(&value);
+                    if inserter.function.dfg.type_of_value(value).contains_reference() {
+                        known_values.clear();
+                        last_stores.clear();
                     }
                 });
             }
@@ -481,6 +482,31 @@ mod tests {
             return v3
         }
         ");
+    }
+
+    #[test]
+    fn call_with_array_of_references_clears_known_values() {
+        // A call that receives an array containing a reference should invalidate
+        // known values. The callee can extract the reference via array_get and
+        // modify the pointed-to memory. Regression test for regression_9398.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v1 = make_array [v0] : [&mut Field; 1]
+            call f1(v1)
+            v2 = load v0 -> Field
+            return v2
+        }
+        acir(inline) fn f1 f1 {
+          b0(v0: [&mut Field; 1]):
+            return
+        }
+        ";
+        // The load should NOT be forwarded because the call receives an array
+        // containing a reference, so the callee could modify the pointed-to memory.
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
     }
 
     #[test]
