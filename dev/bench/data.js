@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774281849940,
+  "lastUpdate": 1774281851526,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -45085,95 +45085,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "f115dcc39663b8a20d63fa0d6ecdf0fd91941ad9",
-          "message": "fix: check a capture was inserted when computing the capture index (#11868)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
-          "timestamp": "2026-03-17T10:47:08Z",
-          "tree_id": "bd004e6dd19d417de23692c38d4334281342bdba",
-          "url": "https://github.com/noir-lang/noir/commit/f115dcc39663b8a20d63fa0d6ecdf0fd91941ad9"
-        },
-        "date": 1773746495391,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.028,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.042,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.005,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 0.003,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 0.002,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 0.003,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 0.001,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.002,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 0.029,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 0.034,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 0.002,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.008,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.017,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "77624e9a10817fadb47e040a1c9e8c6d0ce57614",
           "message": "chore: Error on constant out-of-bound (#11852)",
@@ -49504,6 +49415,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-tx-base-public",
             "value": 0.035,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 0.001,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.007,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.015,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "66086a0e9aa2fb16850b0b1ccb4bc06e40e5ec0c",
+          "message": "fix: update rustls-webpki to 0.103.10 (RUSTSEC-2026-0049) (#11942)",
+          "timestamp": "2026-03-23T15:48:25Z",
+          "tree_id": "7fb7800126be69e30f0f414f7457aa09c7fb3eef",
+          "url": "https://github.com/noir-lang/noir/commit/66086a0e9aa2fb16850b0b1ccb4bc06e40e5ec0c"
+        },
+        "date": 1774281786045,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.035,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.06,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.005,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 0.002,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 0.003,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 0.001,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.002,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 0.028,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 0.033,
             "unit": "s"
           },
           {
