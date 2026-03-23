@@ -77,11 +77,10 @@ impl ExpressionSolver {
             }
         }
 
-        match unknown {
-            Some((coeff, witness)) => {
-                Self::solve_single_unknown(sum, coeff, witness, initial_witness)
-            }
-            None => Self::verify_satisfied(sum),
+        if let Some((coeff, witness)) = unknown {
+            Self::solve_single_unknown(sum, coeff, witness, initial_witness)
+        } else {
+            Self::verify_satisfied(sum)
         }
     }
 
