@@ -13,7 +13,7 @@ use super::{
     opt::pure::Purity,
 };
 
-use acvm::{FieldElement, acir::brillig::lengths::SemanticLength};
+use acvm::{AcirField, FieldElement, acir::brillig::lengths::SemanticLength};
 use ast::{
     AssertMessage, Identifier, ParsedBlock, ParsedFunction, ParsedGlobal, ParsedGlobalValue,
     ParsedInstruction, ParsedMakeArray, ParsedNumericConstant, ParsedParameter, ParsedSsa,
@@ -21,9 +21,7 @@ use ast::{
 };
 use lexer::{Lexer, LexerError};
 use noirc_errors::Span;
-use noirc_frontend::{
-    monomorphization::ast::InlineType, signed_field::SignedField, token::IntType,
-};
+use noirc_frontend::{monomorphization::ast::InlineType, token::IntType};
 use thiserror::Error;
 use token::{Keyword, SpannedToken, Token};
 
@@ -305,7 +303,7 @@ impl<'a> Parser<'a> {
         self.eat_or_error(Token::LeftParen)?;
         let call_data_id_span = self.token.span();
         let call_data_id = self.eat_int_or_error()?;
-        let Some(call_data_id) = call_data_id.try_to_unsigned::<u32>() else {
+        let Some(call_data_id) = call_data_id.try_to_u32() else {
             return Err(ParserError::ExpectedU32 { found: call_data_id, span: call_data_id_span });
         };
         self.eat_or_error(Token::RightParen)?;
@@ -330,7 +328,8 @@ impl<'a> Parser<'a> {
                 self.eat_or_error(Token::Colon)?;
                 let index_span = self.token.span();
                 let index = self.eat_int_or_error()?;
-                let Some(index) = index.try_to_unsigned::<usize>() else {
+                let Some(index) = index.try_into_u128().and_then(|x| usize::try_from(x).ok())
+                else {
                     return Err(ParserError::ExpectedUSize { found: index, span: index_span });
                 };
                 index_map.push((value, index));
@@ -541,12 +540,11 @@ impl<'a> Parser<'a> {
 
         let value = self.parse_value_or_error()?;
         self.eat_or_error(Token::Keyword(Keyword::To))?;
-        let max_bit_size = self.eat_int_or_error()?.try_to_unsigned::<u32>().ok_or(
-            ParserError::InvalidInteger {
+        let max_bit_size =
+            self.eat_int_or_error()?.try_to_u32().ok_or(ParserError::InvalidInteger {
                 found: self.token.token().clone(),
                 span: self.token.span(),
-            },
-        )?;
+            })?;
         self.eat_or_error(Token::Keyword(Keyword::Bits))?;
 
         let assert_message =
@@ -667,22 +665,20 @@ impl<'a> Parser<'a> {
         if self.eat_keyword(Keyword::Truncate)? {
             let value = self.parse_value_or_error()?;
             self.eat_or_error(Token::Keyword(Keyword::To))?;
-            let bit_size = self.eat_int_or_error()?.try_to_unsigned::<u32>().ok_or(
-                ParserError::InvalidInteger {
+            let bit_size =
+                self.eat_int_or_error()?.try_to_u32().ok_or(ParserError::InvalidInteger {
                     found: self.token.token().clone(),
                     span: self.token.span(),
-                },
-            )?;
+                })?;
             self.eat_or_error(Token::Keyword(Keyword::Bits))?;
             self.eat_or_error(Token::Comma)?;
             self.eat_or_error(Token::Keyword(Keyword::MaxBitSize))?;
             self.eat_or_error(Token::Colon)?;
-            let max_bit_size = self.eat_int_or_error()?.try_to_unsigned::<u32>().ok_or(
-                ParserError::InvalidInteger {
+            let max_bit_size =
+                self.eat_int_or_error()?.try_to_u32().ok_or(ParserError::InvalidInteger {
                     found: self.token.token().clone(),
                     span: self.token.span(),
-                },
-            )?;
+                })?;
             return Ok(ParsedInstruction::Truncate { target, value, bit_size, max_bit_size });
         }
 
@@ -720,7 +716,7 @@ impl<'a> Parser<'a> {
             let token = self.token.token().clone();
             let span = self.token.span();
             let field = self.eat_int_or_error()?;
-            if let Some(offset) = field.try_to_unsigned::<u32>().and_then(ArrayOffset::from_u32) {
+            if let Some(offset) = field.try_to_u32().and_then(ArrayOffset::from_u32) {
                 if offset == ArrayOffset::None {
                     self.unexpected_offset(token, span)
                 } else {
@@ -915,7 +911,7 @@ impl<'a> Parser<'a> {
 
     fn parse_field_value(&mut self) -> ParseResult<Option<ParsedNumericConstant>> {
         if self.eat_keyword(Keyword::Field)? {
-            let value = self.eat_int_or_error()?.to_field_element();
+            let value = self.eat_int_or_error()?;
             Ok(Some(ParsedNumericConstant { value, typ: Type::field() }))
         } else {
             Ok(None)
@@ -929,11 +925,19 @@ impl<'a> Parser<'a> {
                 IntType::Unsigned(bit_size) => Type::unsigned(bit_size),
                 IntType::Signed(bit_size) => Type::signed(bit_size),
             };
-            let value = if typ.is_signed() && value.is_negative() {
-                // 2-complement representation:
-                FieldElement::from(2u128.pow(typ.bit_size())) - value.absolute_value()
+
+            let value = if typ.is_signed() {
+                let bit_size = typ.bit_size();
+                let max_bit_pattern = FieldElement::from(2u128.pow(bit_size) - 1);
+                if value > max_bit_pattern {
+                    // Negative literal: eat_int() returned p - magnitude (field negation).
+                    // Convert to two's complement bit pattern: 2^bit_size + (p - magnitude) mod p
+                    FieldElement::from(2u128.pow(bit_size)) + value
+                } else {
+                    value
+                }
             } else {
-                value.absolute_value()
+                value
             };
             Ok(Some(ParsedNumericConstant { value, typ }))
         } else {
@@ -991,7 +995,7 @@ impl<'a> Parser<'a> {
                 self.eat_or_error(Token::RightBracket)?;
                 return Ok(Type::Array(
                     Arc::new(element_types),
-                    SemanticLength(length.try_to_unsigned().unwrap()),
+                    SemanticLength(length.try_to_u32().unwrap()),
                 ));
             } else {
                 self.eat_or_error(Token::RightBracket)?;
@@ -1096,13 +1100,14 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn eat_int(&mut self) -> ParseResult<Option<SignedField>> {
+    fn eat_int(&mut self) -> ParseResult<Option<FieldElement>> {
         let negative = self.eat(Token::Dash)?;
 
         if matches!(self.token.token(), Token::Int(..)) {
             let token = self.bump()?;
             match token.into_token() {
-                Token::Int(int) => Ok(Some(SignedField::new(int, negative))),
+                Token::Int(int) if negative => Ok(Some(-int)),
+                Token::Int(int) => Ok(Some(int)),
                 _ => unreachable!(),
             }
         } else {
@@ -1110,7 +1115,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn eat_int_or_error(&mut self) -> ParseResult<SignedField> {
+    fn eat_int_or_error(&mut self) -> ParseResult<FieldElement> {
         if let Some(int) = self.eat_int()? { Ok(int) } else { self.expected_int() }
     }
 
@@ -1295,9 +1300,9 @@ pub(crate) enum ParserError {
     )]
     ExpectedGlobalValue { found: Token, span: Span },
     #[error("Expected a u32, found '{found}'")]
-    ExpectedU32 { found: SignedField, span: Span },
+    ExpectedU32 { found: FieldElement, span: Span },
     #[error("Expected a usize, found '{found}'")]
-    ExpectedUSize { found: SignedField, span: Span },
+    ExpectedUSize { found: FieldElement, span: Span },
     #[error("Multiple return values only allowed for call")]
     MultipleReturnValuesOnlyAllowedForCall { second_target: Identifier },
     #[error("Unexpected integer value for array_get offset")]

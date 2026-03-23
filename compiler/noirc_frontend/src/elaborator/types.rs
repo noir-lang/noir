@@ -2,6 +2,7 @@
 
 use std::{borrow::Cow, collections::BTreeSet, rc::Rc};
 
+use acvm::{AcirField, FieldElement};
 use im::HashSet;
 use iter_extended::vecmap;
 use itertools::Itertools;
@@ -17,6 +18,7 @@ use crate::{
     },
     elaborator::{UnstableFeature, path_resolution::PathResolution},
     hir::{
+        comptime::Integer,
         def_collector::dc_crate::CompilationError,
         def_map::{ModuleDefId, fully_qualified_module_path},
         resolution::{errors::ResolverError, import::PathResolutionError},
@@ -40,7 +42,6 @@ use crate::{
         TraitLookupMode,
     },
     shared::Signedness,
-    signed_field::SignedField,
 };
 
 use super::{
@@ -223,13 +224,13 @@ impl Elaborator<'_> {
                 let env =
                     Box::new(self.resolve_type_with_kind_inner(*env, kind, mode, wildcard_allowed));
 
-                match *env {
+                match env.follow_bindings_shallow().into_owned() {
                     Type::Unit | Type::Tuple(_) | Type::NamedGeneric(_) => {
                         Type::Function(args, ret, env, unconstrained)
                     }
-                    _ => {
+                    typ => {
                         self.push_err(ResolverError::InvalidClosureEnvironment {
-                            typ: *env,
+                            typ,
                             location: env_location,
                         });
                         Type::Error
@@ -519,9 +520,8 @@ impl Elaborator<'_> {
         mode: PathResolutionMode,
         wildcard_allowed: WildcardAllowed,
     ) -> Type {
-        if args.is_empty()
-            && let Some(typ) = self.lookup_generic_or_global_type(&path, mode)
-        {
+        // Check generics and associated types first.
+        if let Some(typ) = self.lookup_generic_or_associated_type(&path) {
             return typ;
         }
 
@@ -534,6 +534,8 @@ impl Elaborator<'_> {
             return typ;
         }
 
+        // Check type aliases before globals: a type alias in the types namespace should
+        // take priority over a global with the same name in the values namespace.
         if let Some(type_alias) = self.lookup_type_alias(path.clone(), mode) {
             let id = type_alias.borrow().id;
             let (args, _) =
@@ -553,6 +555,14 @@ impl Elaborator<'_> {
             // of definition ordering, but for now we have an explicit check here so that we at
             // least issue an error that the type was not found instead of silently passing.
             return Type::Alias(type_alias, args);
+        }
+
+        // Check if the name refers to a global used as a numeric type. This is checked after type aliases so that a type alias
+        // in the types namespace takes priority over a same-named global in the values namespace.
+        if args.is_empty()
+            && let Some(typ) = self.lookup_global_type(&path, mode)
+        {
+            return typ;
         }
 
         match self.resolve_path_or_error_inner(path.clone(), PathResolutionTarget::Type, mode) {
@@ -862,11 +872,9 @@ impl Elaborator<'_> {
         resolved
     }
 
-    fn lookup_generic_or_global_type(
-        &mut self,
-        path: &TypedPath,
-        mode: PathResolutionMode,
-    ) -> Option<Type> {
+    /// Look up a path as a generic type parameter or an associated type
+    /// Returns `None` if the path doesn't match any of these.
+    fn lookup_generic_or_associated_type(&mut self, path: &TypedPath) -> Option<Type> {
         if path.segments.len() == 1 {
             let name = path.last_name();
             if let Some(generic) = self.find_generic(name) {
@@ -893,7 +901,11 @@ impl Elaborator<'_> {
             return Some(typ);
         }
 
-        // If we cannot find a local generic of the same name, try to look up a global
+        None
+    }
+
+    /// Look up a path as a global used as a numeric type (e.g. `global N: u32 = 5;`
+    fn lookup_global_type(&mut self, path: &TypedPath, mode: PathResolutionMode) -> Option<Type> {
         match self.resolve_path_inner(path.clone(), PathResolutionTarget::Value, mode) {
             Ok(PathResolution { item: PathResolutionItem::Global(id), errors }) => {
                 self.push_errors(errors);
@@ -911,7 +923,7 @@ impl Elaborator<'_> {
 
                 let Some(stmt) = opt_global_let_statement else {
                     if self.elaborate_global_if_unresolved(&id) {
-                        return self.lookup_generic_or_global_type(path, mode);
+                        return self.lookup_global_type(path, mode);
                     } else {
                         let path = path.clone();
                         self.push_err(ResolverError::NoSuchNumericTypeVariable { path });
@@ -928,30 +940,23 @@ impl Elaborator<'_> {
                     return None;
                 };
 
-                let Some(global_value) = global_value.as_non_negative_signed_field() else {
+                let Some(global_value) = global_value.as_integer() else {
                     let global_value = global_value.clone();
-                    if global_value.is_integral() {
-                        self.push_err(ResolverError::NegativeGlobalType { location, global_value });
-                    } else {
-                        self.push_err(ResolverError::NonIntegralGlobalType {
-                            location,
-                            global_value,
-                        });
-                    }
+                    self.push_err(ResolverError::NonIntegralGlobalType { location, global_value });
                     return None;
                 };
 
-                let kind = Kind::numeric(typ.clone());
-                let Ok(global_value) = kind.ensure_value_fits(global_value, location) else {
+                if global_value.get_type().unify(&typ).is_err() {
+                    let global_value = *global_value;
                     self.push_err(ResolverError::GlobalDoesNotFitItsType {
                         location,
                         global_value,
-                        kind,
+                        typ,
                     });
                     return None;
-                };
+                }
 
-                Some(Type::Constant(global_value, Box::new(typ)))
+                Some(Type::Constant(*global_value))
             }
             _ => None,
         }
@@ -987,16 +992,26 @@ impl Elaborator<'_> {
             }
             UnresolvedTypeExpression::Constant(int, suffix, _span) => {
                 // Default type constants to u32 if not specified
-                let kind = suffix.unwrap_or(crate::token::IntegerTypeSuffix::U32).as_type();
+                let suffix = suffix.unwrap_or(crate::token::IntegerTypeSuffix::U32);
+                let typ = suffix.as_type();
 
-                if !Kind::numeric(kind.clone()).unifies(expected_kind) {
-                    self.push_err(TypeCheckError::expecting_other_error(
-                        format!("convert_expression_type: {kind} does not unify with expected {expected_kind}"),
-                        location,
-                    ));
+                if !self.check_kind(Kind::numeric(typ.clone()), expected_kind, location) {
+                    return Type::Error;
                 }
 
-                Type::Constant(int, Box::new(kind))
+                let Some(int) = Integer::try_from_type_suffix(int, suffix) else {
+                    let min = typ.integral_minimum_size().unwrap();
+                    let max = typ.integral_maximum_size().unwrap();
+                    self.push_err(TypeCheckError::IntegerLiteralDoesNotFitItsType {
+                        expr: int,
+                        ty: typ,
+                        range: format!("{min}..={max}"),
+                        location,
+                    });
+                    return Type::Error;
+                };
+
+                Type::Constant(int)
             }
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, location) => {
                 let (lhs_location, rhs_location) = (lhs.location(), rhs.location());
@@ -1014,17 +1029,17 @@ impl Elaborator<'_> {
                 );
 
                 match (lhs, rhs) {
-                    (Type::Constant(lhs, lhs_kind), Type::Constant(rhs, rhs_kind)) => {
-                        if lhs_kind.unify(&rhs_kind).is_err() {
+                    (Type::Constant(lhs), Type::Constant(rhs)) => {
+                        if lhs.get_type().unify(&rhs.get_type()).is_err() {
                             self.push_err(TypeCheckError::TypeKindMismatch {
-                                expected_kind: Kind::Numeric(lhs_kind),
-                                expr_kind: Kind::Numeric(rhs_kind),
+                                expected_kind: lhs.numeric_kind(),
+                                expr_kind: rhs.numeric_kind(),
                                 expr_location: location,
                             });
                             return Type::Error;
                         }
-                        match op.function(lhs, rhs, &Kind::Numeric(lhs_kind.clone()), location) {
-                            Ok(result) => Type::Constant(result, lhs_kind),
+                        match op.function(lhs, rhs, location) {
+                            Ok(result) => Type::Constant(result),
                             Err(err) => {
                                 let err = Box::new(err);
                                 let error =
@@ -1051,12 +1066,12 @@ impl Elaborator<'_> {
                 );
 
                 match rhs {
-                    Type::Constant(rhs, rhs_kind) => {
-                        if rhs_kind.is_signed() {
-                            Type::Constant(-rhs, rhs_kind)
+                    Type::Constant(rhs) => {
+                        if let Some(result) = -rhs {
+                            Type::Constant(result)
                         } else {
                             self.push_err(TypeCheckError::InvalidUnaryOp {
-                                typ: rhs_kind.to_string(),
+                                typ: rhs.get_type().to_string(),
                                 operator: "-",
                                 location,
                             });
@@ -1065,7 +1080,9 @@ impl Elaborator<'_> {
                     }
                     rhs => {
                         let kind = rhs.kind().into_numeric_type_or_error();
-                        let zero = Type::Constant(SignedField::zero(), kind);
+                        let int = Integer::try_from_type(FieldElement::zero(), &kind)
+                            .unwrap_or_else(|| Integer::Field(FieldElement::zero()));
+                        let zero = Type::Constant(int);
                         let sub = BinaryTypeOperator::Subtraction;
                         let infix = Box::new(Type::infix_expr(Box::new(zero), sub, Box::new(rhs)));
                         Type::CheckedCast { from: infix.clone(), to: infix }.canonicalize()
@@ -1199,7 +1216,7 @@ impl Elaborator<'_> {
         // Resolved as a named type, which is what `Self::{ident}` would be.
         let typ = self.resolve_named_type(
             self_and_impl,
-            // The call to `lookup_generic_or_global_type` which calls `lookup_associated_type_on_self`
+            // The call to `lookup_generic_or_associated_type` which calls `lookup_associated_type_on_self`
             // will only be made if the args are empty, and that's what we tried to ascertain before
             // by checking that none of them are bound to a concrete type.
             GenericTypeArgs::default(),
@@ -1737,12 +1754,7 @@ impl Elaborator<'_> {
 
         use HirExpression::Literal;
         let from_value_opt = match self.interner.expression(from_expr_id) {
-            Literal(HirLiteral::Integer(field)) if !field.is_negative() => {
-                Some(field.absolute_value())
-            }
-
-            // TODO(https://github.com/noir-lang/noir/issues/6247):
-            // handle negative literals
+            Literal(HirLiteral::Integer(field)) => Some(field),
             _ => None,
         };
 
@@ -1776,7 +1788,8 @@ impl Elaborator<'_> {
         if let (Some(from_value), Some(to_maximum_size)) =
             (from_value_opt, to.integral_maximum_size())
             && from_is_polymorphic
-            && from_value > to_maximum_size
+            && from_value.fits_in_u128()
+            && from_value > to_maximum_size.into()
         {
             let from = from.clone();
             let to = to.clone();

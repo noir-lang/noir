@@ -11,6 +11,8 @@ on:
     # Run a check at 9 AM UTC
     - cron: "0 9 * * *"
 
+permissions: {}
+
 jobs:
   build-test-artifacts:
     name: Build test artifacts
@@ -99,6 +101,7 @@ jobs:
       - run-tests
     permissions:
       contents: read
+      issues: write
 
     steps:
       - name: Report overall success

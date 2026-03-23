@@ -1,3 +1,4 @@
+use acvm::FieldElement;
 use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::Location;
@@ -8,7 +9,6 @@ use crate::node_interner::pusher::{HasLocation, PushedExpr};
 use crate::node_interner::{
     DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, TraitId, TraitItemId,
 };
-use crate::signed_field::SignedField;
 use crate::token::{FmtStrFragment, Tokens};
 use crate::{Shared, TypeBindings};
 
@@ -128,7 +128,7 @@ pub enum HirLiteral {
     Array(HirArrayLiteral),
     Vector(HirArrayLiteral),
     Bool(bool),
-    Integer(SignedField),
+    Integer(FieldElement),
     Str(String),
     FmtStr(Vec<FmtStrFragment>, Vec<ExprId>, u32 /* length */),
     Unit,
@@ -478,10 +478,10 @@ pub enum Constructor {
     True,
     False,
     Unit,
-    Int(SignedField),
+    Int(FieldElement),
     Tuple(Vec<Type>),
     Variant(Type, usize),
-    Range(SignedField, SignedField),
+    Range(FieldElement, FieldElement),
 }
 
 impl Constructor {
