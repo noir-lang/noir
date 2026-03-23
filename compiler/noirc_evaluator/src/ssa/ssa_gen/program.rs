@@ -37,9 +37,7 @@ pub struct Ssa {
     #[serde(skip)]
     pub error_selector_to_type: BTreeMap<ErrorSelector, HirType>,
     #[serde(skip)]
-    pub acir_globals: Arc<GlobalsGraph>,
-    #[serde(skip)]
-    pub brillig_globals: Arc<GlobalsGraph>,
+    pub globals: Arc<GlobalsGraph>,
 }
 
 impl Ssa {
@@ -48,8 +46,7 @@ impl Ssa {
     pub fn new(
         functions: Vec<Function>,
         error_types: BTreeMap<ErrorSelector, HirType>,
-        acir_globals: Arc<GlobalsGraph>,
-        brillig_globals: Arc<GlobalsGraph>,
+        globals: Arc<GlobalsGraph>,
     ) -> Self {
         let main_id = functions.first().expect("Expected at least 1 SSA function").id();
         let mut max_id = main_id;
@@ -65,8 +62,7 @@ impl Ssa {
             next_id: AtomicCounter::starting_after(max_id),
             entry_point_to_generated_index: BTreeMap::new(),
             error_selector_to_type: error_types,
-            acir_globals,
-            brillig_globals,
+            globals,
         }
     }
 

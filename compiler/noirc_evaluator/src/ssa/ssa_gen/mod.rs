@@ -60,10 +60,8 @@ pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     let return_location = program.return_location;
     let mut context = SharedContext::new(program);
 
-    let acir_globals_dfg = std::mem::take(&mut context.acir_globals_context.dfg);
-    let acir_globals = GlobalsGraph::from_dfg(acir_globals_dfg);
-    let brillig_globals_dfg = std::mem::take(&mut context.brillig_globals_context.dfg);
-    let brillig_globals = GlobalsGraph::from_dfg(brillig_globals_dfg);
+    let globals_dfg = std::mem::take(&mut context.globals_context.dfg);
+    let globals = GlobalsGraph::from_dfg(globals_dfg);
 
     let main_id = Program::main_id();
     let main = context.program.main();
@@ -75,14 +73,8 @@ pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     } else {
         RuntimeType::Acir(main.inline_type)
     };
-    let mut function_context = FunctionContext::new(
-        main.name.clone(),
-        &main.parameters,
-        main_runtime,
-        &context,
-        acir_globals,
-        brillig_globals,
-    );
+    let mut function_context =
+        FunctionContext::new(main.name.clone(), &main.parameters, main_runtime, &context, globals);
 
     // Generate the call_data bus from the relevant parameters. We create it *before* processing the function body
     let call_data = function_context.builder.call_data_bus(is_databus);
@@ -203,13 +195,7 @@ impl FunctionContext<'_> {
             Expression::Block(block) => self.codegen_block(block),
             Expression::Unary(unary) => self.codegen_unary(unary),
             Expression::Binary(binary) => self.codegen_binary(binary),
-            Expression::Index(index) => {
-                if self.builder.current_function.runtime().is_acir() {
-                    self.codegen_flat_index(index)
-                } else {
-                    self.codegen_index(index)
-                }
-            }
+            Expression::Index(index) => self.codegen_flat_index(index),
             Expression::Cast(cast) => self.codegen_cast(cast),
             Expression::For(for_expr) => self.codegen_for(for_expr),
             Expression::Loop(block) => self.codegen_loop(block),
@@ -225,13 +211,7 @@ impl FunctionContext<'_> {
             Expression::Constrain(expr, location, assert_payload) => {
                 self.codegen_constrain(expr, *location, assert_payload)
             }
-            Expression::Assign(assign) => {
-                if self.builder.current_function.runtime().is_acir() {
-                    self.codegen_flat_assign(assign)
-                } else {
-                    self.codegen_assign(assign)
-                }
-            }
+            Expression::Assign(assign) => self.codegen_flat_assign(assign),
             Expression::Semi(semi) => self.codegen_semi(semi),
             Expression::Break => self.codegen_break(),
             Expression::Continue => self.codegen_continue(),
@@ -417,10 +397,9 @@ impl FunctionContext<'_> {
     /// The value returned from this function is always that of the allocate instruction.
     fn codegen_array(&mut self, elements: Vec<Values>, typ: Type) -> ValueId {
         let mut array = im::Vector::new();
-        let is_acir = self.builder.current_function.runtime().is_acir();
         let is_vector = matches!(&typ, Type::Vector(_));
 
-        // Track original (pre-flattened) element values for vectors in ACIR context.
+        // Track original (pre-flattened) element values for vectors.
         // Needed to preserve semantic length when elements are zero-sized.
         let mut original_values: Vec<ValueId> = Vec::new();
 
@@ -428,22 +407,18 @@ impl FunctionContext<'_> {
             element.for_each(|element| {
                 let element = element.eval(self);
 
-                if is_acir {
-                    if is_vector {
-                        original_values.push(element);
-                    }
-                    array.extend(self.codegen_array_helper(element));
-                } else {
-                    array.push_back(element);
+                if is_vector {
+                    original_values.push(element);
                 }
+                array.extend(self.codegen_array_helper(element));
             });
         }
 
-        // For vectors in ACIR context, if flattening eliminated all elements
+        // For vectors, if flattening eliminated all elements
         // (zero-sized inner types), use the original element references instead.
         // This preserves the vector's semantic length which cannot be recovered
         // from the type (unlike arrays which encode length in Type::Array(_, len)).
-        if is_vector && is_acir && array.is_empty() && !original_values.is_empty() {
+        if is_vector && array.is_empty() && !original_values.is_empty() {
             array = original_values.into_iter().collect();
         }
 
@@ -468,7 +443,6 @@ impl FunctionContext<'_> {
                             .current_function
                             .dfg
                             .make_constant(my_index.into(), NumericType::length_type());
-                        assert!(matches!(typ, Type::Numeric(_)));
                         let res = self.builder.insert_array_get(element, index, typ);
                         flat_elements.push_back(res);
                     }
@@ -622,11 +596,28 @@ impl FunctionContext<'_> {
         let array = new_array.into_value_list(self);
         let array = array[0];
 
-        // When the element type is zero-sized (e.g. `()`), codegen_flat_array_get
-        // produces no instructions, so there is no implicit OOB failure from ACIR.
-        // Emit an explicit bounds check in that case, matching codegen_array_index.
+        // Brillig needs explicit runtime bounds checks for all array accesses.
+        // We check the computed flat index against the flat array size.
+        // For ACIR, bounds checks are implicit in circuit constraints for non-zero-sized
+        // elements, but zero-sized elements (e.g. `()`) produce no instructions so we
+        // need explicit checks too.
         let element_flat_size = Self::convert_type(&index.element_type).size_of_type();
-        if element_flat_size == 0 {
+        let is_brillig = self.builder.current_function.runtime().is_brillig();
+        if is_brillig {
+            let array_type = &self.builder.type_of_value(array);
+            if let Type::Array(_, _) = array_type {
+                // Check using the flat array size so the flat index can be validated directly.
+                let flat_size = array_type.flattened_size();
+                if flat_size.0 > 0 {
+                    let flat_len = self
+                        .builder
+                        .numeric_constant(u128::from(flat_size.0), NumericType::length_type());
+                    let index_as_len =
+                        self.builder.insert_cast(flattened_index, NumericType::length_type());
+                    self.codegen_access_check(index_as_len, flat_len);
+                }
+            }
+        } else if element_flat_size == 0 {
             let array_type = &self.builder.type_of_value(array);
             if let Type::Array(_, len) = array_type {
                 let len =
@@ -664,8 +655,6 @@ impl FunctionContext<'_> {
                 let flat_typ = typ.clone().flatten();
                 for (my_index, typ) in flat_typ.into_iter().enumerate() {
                     let index = self.make_offset(index, my_index as u128, true);
-
-                    assert!(matches!(typ, Type::Numeric(_)));
                     let res = self.builder.insert_array_get(array, index, typ);
                     flat_elements.push_back(res);
                 }
@@ -675,101 +664,6 @@ impl FunctionContext<'_> {
             };
             result.into()
         })
-    }
-
-    fn codegen_index(&mut self, index: &ast::Index) -> Result<Values, RuntimeError> {
-        // Generate the index value first, it might modify the collection itself.
-        let index_value = self.codegen_non_tuple_expression(&index.index)?;
-        // The code for the collection will load it if it's mutable. It must be after the index to see any modifications.
-        let array_or_vector = self.codegen_expression(&index.collection)?.into_value_list(self);
-        // Vectors are represented as a tuple in the form: (length, vector contents).
-        // Thus, vectors require two value ids for their representation.
-        let (array, vector_length) = if array_or_vector.len() > 1 {
-            (array_or_vector[1], Some(array_or_vector[0]))
-        } else {
-            (array_or_vector[0], None)
-        };
-
-        self.codegen_array_index(
-            array,
-            index_value,
-            &index.element_type,
-            index.location,
-            vector_length,
-        )
-    }
-
-    /// This is broken off from codegen_index so that it can also be
-    /// used to codegen a LValue::Index.
-    ///
-    /// Set load_result to true to load from each relevant index of the array
-    /// (it may be multiple in the case of tuples). Set it to false to instead
-    /// return a reference to each element, for use with the store instruction.
-    fn codegen_array_index(
-        &mut self,
-        array: ValueId,
-        index: ValueId,
-        element_type: &ast::Type,
-        location: Location,
-        length: Option<ValueId>,
-    ) -> Result<Values, RuntimeError> {
-        self.builder.set_location(location);
-
-        // base_index = index * type_size
-        let index = self.make_array_index(index);
-        let type_size_usize = Self::convert_type(element_type).size_of_type();
-        let type_size =
-            self.builder.numeric_constant(type_size_usize as u128, NumericType::length_type());
-
-        let array_type = &self.builder.type_of_value(array);
-        let runtime = self.builder.current_function.runtime();
-
-        // Checks for index Out-of-bounds
-        match array_type {
-            Type::Array(_, len) => {
-                // Out of bounds array accesses are guaranteed to fail in ACIR so this check is performed implicitly,
-                // except when the inner elements have no size, because the array access can be optimized out in that case.
-                // We then only need to inject it for brillig functions or for 'unit' elements.
-                if runtime.is_brillig() || type_size_usize == 0 {
-                    let len = self
-                        .builder
-                        .numeric_constant(u128::from(len.0), NumericType::length_type());
-                    self.codegen_access_check(index, len);
-                }
-            }
-            Type::Vector(_) => {
-                // The vector length is dynamic however so we can't rely on it being equal to the underlying memory
-                // block as we can do for array types. We then inject a access check for both ACIR and brillig.
-                self.codegen_access_check(
-                    index,
-                    length.expect("ICE: a length must be supplied for checking index"),
-                );
-            }
-
-            _ => unreachable!("must have array or vector but got {array_type}"),
-        }
-
-        // This can overflow if the original index is already not in the bounds of the array
-        // and we skipped inserting constraints. To stay on the conservative side, start with
-        // a checked operation, and simplify to unchecked if it can be evaluated.
-        // In Brillig we will be protected from overflows by constraints, so we can go unchecked.
-        // In ACIR the values are represented as Fields, so they don't wrap around, but ACIR has built-in OOB checks,
-        // so it's okay to use unchecked operations. The SSA interpreter has been updated to have similar semantics.
-        let unchecked = true;
-
-        let base_index = self.builder.insert_binary(index, BinaryOp::Mul { unchecked }, type_size);
-
-        let mut field_index = 0u128;
-        Ok(Self::map_type_with_ast_type(element_type, |_ast_typ, typ| {
-            let index = self.make_offset(base_index, field_index, unchecked);
-            field_index += 1;
-
-            // Reference counting in brillig relies on us incrementing reference
-            // counts when nested arrays/vectors are constructed or indexed. This
-            // has no effect in ACIR code.
-            let result = self.builder.insert_array_get(array, index, typ);
-            result.into()
-        }))
     }
 
     /// Prepare an array or vector access.
@@ -1576,18 +1470,7 @@ impl FunctionContext<'_> {
         }
     }
 
-    fn codegen_assign(&mut self, assign: &ast::Assign) -> Result<Values, RuntimeError> {
-        // Evaluate the rhs first - when we load the expression in the lvalue we want that
-        // to reflect any mutations from evaluating the rhs.
-        let rhs = self.codegen_expression(&assign.expression)?;
-        let lhs = self.extract_current_value(&assign.lvalue)?;
-
-        self.assign_new_value(lhs, rhs);
-
-        Ok(Self::unit_value())
-    }
-
-    /// Codegen an assignment for ACIR functions using flat array indexing.
+    /// Codegen an assignment using flat array indexing.
     ///
     /// Uses `extract_flat_lvalue` to compute the flat offset for the lvalue,
     /// then writes the new value at that offset.
