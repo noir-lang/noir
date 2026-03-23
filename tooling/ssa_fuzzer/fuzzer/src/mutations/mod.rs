@@ -1,3 +1,13 @@
+//! Custom mutator for structured [`FuzzerData`] inputs.
+//!
+//! Once libFuzzer input is decoded, we mutate the structured program description instead of raw
+//! bytes. This lets us perturb functions, instruction blocks, and initial witnesses independently
+//! while still round-tripping through the serialized corpus format. The result is a custom mutator
+//! that makes schema-aware changes instead of only byte-level ones.
+//!
+//! We sanitize only the places that introduce fresh `Type` metadata, because nested vectors are
+//! forbidden in Noir, but doing it here still lets the corpus keep poisoned inputs that already
+//! contain them.
 mod basic_types;
 mod configuration;
 mod functions;
@@ -30,6 +40,7 @@ fn sanitize_function(function: &mut FunctionData) {
 
 fn sanitize_instruction(instruction: &mut Instruction) {
     match instruction {
+        // Only instructions that introduce fresh `Type` metadata need sanitizing here.
         Instruction::AddToMemory { lhs } | Instruction::LoadFromMemory { memory_addr: lhs } => {
             sanitize_type(&mut lhs.value_type);
         }

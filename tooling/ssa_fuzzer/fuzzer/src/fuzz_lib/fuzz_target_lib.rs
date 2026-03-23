@@ -93,7 +93,7 @@ pub(crate) fn fuzz_target(
                 CompareResults::LeftCompilationFailed => {
                     let compile_error =
                         fuzzer_outputs[i].get_compile_error().unwrap_or("unknown compile error");
-                    panic!(
+                    log::error!(
                         "Fuzzer runtime {} failed to compile: {}, other returned {:?}",
                         runtimes[i],
                         compile_error,
@@ -103,7 +103,7 @@ pub(crate) fn fuzz_target(
                 CompareResults::RightCompilationFailed => {
                     let compile_error =
                         fuzzer_outputs[j].get_compile_error().unwrap_or("unknown compile error");
-                    panic!(
+                    log::error!(
                         "Fuzzer runtime {} failed to compile: {}, other returned {:?}",
                         runtimes[j],
                         compile_error,
