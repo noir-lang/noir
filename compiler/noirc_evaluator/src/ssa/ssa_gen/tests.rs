@@ -191,9 +191,11 @@ fn brillig_access_check_on_array_assignment() {
         v3 = allocate -> &mut [Field; 3]
         store v0 at v3
         v4 = load v3 -> [Field; 3]
-        v5 = array_set v4, index v1, value v2
-        v7 = unchecked_add v1, u32 1
-        store v5 at v3
+        v6 = lt v1, u32 3
+        constrain v6 == u1 1, "Index out of bounds"
+        v8 = array_set v4, index v1, value v2
+        v10 = unchecked_add v1, u32 1
+        store v8 at v3
         return
     }
     "#;
