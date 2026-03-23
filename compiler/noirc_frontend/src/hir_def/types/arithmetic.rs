@@ -853,7 +853,7 @@ mod proptests {
             );
             let (expr_id, expr_type) = elaborator.elaborate_expression(expr);
 
-            assert_eq!(elaborator.errors, vec![]);
+            assert_eq!(elaborator.errors.as_ref(), vec![]);
             assert_eq!(typ, expr_type);
 
             let current_function = None;
@@ -863,7 +863,7 @@ mod proptests {
             );
 
             let result_value = interpreter.evaluate(expr_id);
-            assert_eq!(elaborator.errors, vec![]);
+            assert_eq!(elaborator.errors.as_ref(), vec![]);
 
             let result_type = match result_value {
                 Ok(result_value) => numeric_value_to_type(result_value),

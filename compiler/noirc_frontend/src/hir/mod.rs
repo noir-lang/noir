@@ -10,7 +10,7 @@ use crate::ast::{IdentOrQuotedType, UnresolvedGenerics};
 use crate::debug::DebugInstrumenter;
 use crate::elaborator::UnstableFeature;
 use crate::graph::{CrateGraph, CrateId};
-use crate::hir::def_collector::dc_crate::UnresolvedGlobal;
+use crate::hir::def_collector::dc_crate::{CompilationErrors, UnresolvedGlobal};
 use crate::hir::def_map::DefMaps;
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::function::FuncMeta;
@@ -18,7 +18,6 @@ use crate::node_interner::{FuncId, GlobalId, NodeInterner, TypeId};
 use crate::parser::ParserError;
 use crate::usage_tracker::UsageTracker;
 use crate::{Kind, ParsedModule, ResolvedGeneric, ResolvedGenerics, Type, TypeVariable};
-use def_collector::dc_crate::CompilationError;
 use def_map::{CrateDefMap, FuzzingHarness, fully_qualified_module_path};
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
@@ -274,14 +273,14 @@ impl Context<'_, '_> {
     pub(crate) fn resolve_generics(
         interner: &NodeInterner,
         generics: &UnresolvedGenerics,
-        errors: &mut Vec<CompilationError>,
+        errors: &mut CompilationErrors,
     ) -> ResolvedGenerics {
         vecmap(generics, |generic| {
             // Map the generic to a fresh type variable
             let id = interner.next_type_variable_id();
 
             let type_var_kind = generic.kind().unwrap_or_else(|err| {
-                errors.push(err.into());
+                errors.push(err);
                 // When there's an error, unify with any other kinds
                 Kind::Any
             });
@@ -292,10 +291,10 @@ impl Context<'_, '_> {
             if let IdentOrQuotedType::Quoted(quoted_type_id, _) = ident {
                 let typ = interner.get_quoted_type(*quoted_type_id).follow_bindings();
                 if !matches!(typ, Type::NamedGeneric(..)) {
-                    errors.push(
-                        ResolverError::MacroResultInGenericsListNotAGeneric { location, typ }
-                            .into(),
-                    );
+                    errors.push(ResolverError::MacroResultInGenericsListNotAGeneric {
+                        location,
+                        typ,
+                    });
                 }
             }
 
