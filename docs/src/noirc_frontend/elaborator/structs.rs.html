@@ -97,42 +97,46 @@
 <a href=#97 id=97 data-nosnippet>97</a>            this.add_existing_generics(<span class="kw-2">&amp;</span>unresolved.generics, <span class="kw-2">&amp;</span>struct_def.borrow().generics);
 <a href=#98 id=98 data-nosnippet>98</a>
 <a href=#99 id=99 data-nosnippet>99</a>            <span class="kw">let </span>wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::StructField);
-<a href=#100 id=100 data-nosnippet>100</a>            <span class="kw">let </span>fields = vecmap(<span class="kw-2">&amp;</span>unresolved.fields, |field| {
-<a href=#101 id=101 data-nosnippet>101</a>                <span class="kw">let </span>visibility = field.item.visibility;
-<a href=#102 id=102 data-nosnippet>102</a>                <span class="kw">let </span>name = field.item.name.clone();
-<a href=#103 id=103 data-nosnippet>103</a>                <span class="kw">let </span>typ = this.resolve_type(field.item.typ.clone(), wildcard_allowed);
-<a href=#104 id=104 data-nosnippet>104</a>                StructField { visibility, name, typ }
-<a href=#105 id=105 data-nosnippet>105</a>            });
-<a href=#106 id=106 data-nosnippet>106</a>
-<a href=#107 id=107 data-nosnippet>107</a>            this.resolving_ids.remove(<span class="kw-2">&amp;</span>struct_id);
-<a href=#108 id=108 data-nosnippet>108</a>
-<a href=#109 id=109 data-nosnippet>109</a>            this.current_item = previous_item;
+<a href=#100 id=100 data-nosnippet>100</a>            <span class="kw">let </span>previous_impl_trait_context = this
+<a href=#101 id=101 data-nosnippet>101</a>                .impl_trait_is_disallowed
+<a href=#102 id=102 data-nosnippet>102</a>                .replace(<span class="kw">super</span>::types::ImplTraitDisallowedContext::StructField);
+<a href=#103 id=103 data-nosnippet>103</a>            <span class="kw">let </span>fields = vecmap(<span class="kw-2">&amp;</span>unresolved.fields, |field| {
+<a href=#104 id=104 data-nosnippet>104</a>                <span class="kw">let </span>visibility = field.item.visibility;
+<a href=#105 id=105 data-nosnippet>105</a>                <span class="kw">let </span>name = field.item.name.clone();
+<a href=#106 id=106 data-nosnippet>106</a>                <span class="kw">let </span>typ = this.resolve_type(field.item.typ.clone(), wildcard_allowed);
+<a href=#107 id=107 data-nosnippet>107</a>                StructField { visibility, name, typ }
+<a href=#108 id=108 data-nosnippet>108</a>            });
+<a href=#109 id=109 data-nosnippet>109</a>            this.impl_trait_is_disallowed = previous_impl_trait_context;
 <a href=#110 id=110 data-nosnippet>110</a>
-<a href=#111 id=111 data-nosnippet>111</a>            fields
-<a href=#112 id=112 data-nosnippet>112</a>        })
-<a href=#113 id=113 data-nosnippet>113</a>    }
+<a href=#111 id=111 data-nosnippet>111</a>            this.resolving_ids.remove(<span class="kw-2">&amp;</span>struct_id);
+<a href=#112 id=112 data-nosnippet>112</a>
+<a href=#113 id=113 data-nosnippet>113</a>            this.current_item = previous_item;
 <a href=#114 id=114 data-nosnippet>114</a>
-<a href=#115 id=115 data-nosnippet>115</a>    <span class="doccomment">/// Checks all resolved structs for nested vector types, which are not allowed.
-<a href=#116 id=116 data-nosnippet>116</a>    ///
-<a href=#117 id=117 data-nosnippet>117</a>    /// This check must happen after all struct fields are resolved to ensure we have
-<a href=#118 id=118 data-nosnippet>118</a>    /// complete type information. We only check structs without generics here, as
-<a href=#119 id=119 data-nosnippet>119</a>    /// generic structs are validated during monomorphization and after monomorphization
-<a href=#120 id=120 data-nosnippet>120</a>    /// during SSA codegen.
-<a href=#121 id=121 data-nosnippet>121</a>    </span><span class="kw">fn </span>check_for_nested_vectors(<span class="kw-2">&amp;mut </span><span class="self">self</span>, struct_ids: <span class="kw-2">&amp;</span>[TypeId]) {
-<a href=#122 id=122 data-nosnippet>122</a>        <span class="kw">for </span>id <span class="kw">in </span>struct_ids {
-<a href=#123 id=123 data-nosnippet>123</a>            <span class="kw">let </span>struct_type = <span class="self">self</span>.interner.get_type(<span class="kw-2">*</span>id);
-<a href=#124 id=124 data-nosnippet>124</a>
-<a href=#125 id=125 data-nosnippet>125</a>            <span class="comment">// Only handle structs without generics as any generics args will be checked
-<a href=#126 id=126 data-nosnippet>126</a>            // after monomorphization when performing SSA codegen
-<a href=#127 id=127 data-nosnippet>127</a>            </span><span class="kw">if </span>struct_type.borrow().generics.is_empty() {
-<a href=#128 id=128 data-nosnippet>128</a>                <span class="kw">let </span>fields = struct_type.borrow().get_fields(<span class="kw-2">&amp;</span>[]).unwrap();
-<a href=#129 id=129 data-nosnippet>129</a>                <span class="kw">for </span>(<span class="kw">_</span>, field_type, <span class="kw">_</span>) <span class="kw">in </span><span class="kw-2">&amp;</span>fields {
-<a href=#130 id=130 data-nosnippet>130</a>                    <span class="kw">if </span>field_type.is_nested_vector() {
-<a href=#131 id=131 data-nosnippet>131</a>                        <span class="kw">let </span>location = struct_type.borrow().location;
-<a href=#132 id=132 data-nosnippet>132</a>                        <span class="self">self</span>.push_err(ResolverError::NestedVectors { location });
-<a href=#133 id=133 data-nosnippet>133</a>                    }
-<a href=#134 id=134 data-nosnippet>134</a>                }
-<a href=#135 id=135 data-nosnippet>135</a>            }
-<a href=#136 id=136 data-nosnippet>136</a>        }
-<a href=#137 id=137 data-nosnippet>137</a>    }
-<a href=#138 id=138 data-nosnippet>138</a>}</code></pre></div></section></main></body></html>
+<a href=#115 id=115 data-nosnippet>115</a>            fields
+<a href=#116 id=116 data-nosnippet>116</a>        })
+<a href=#117 id=117 data-nosnippet>117</a>    }
+<a href=#118 id=118 data-nosnippet>118</a>
+<a href=#119 id=119 data-nosnippet>119</a>    <span class="doccomment">/// Checks all resolved structs for nested vector types, which are not allowed.
+<a href=#120 id=120 data-nosnippet>120</a>    ///
+<a href=#121 id=121 data-nosnippet>121</a>    /// This check must happen after all struct fields are resolved to ensure we have
+<a href=#122 id=122 data-nosnippet>122</a>    /// complete type information. We only check structs without generics here, as
+<a href=#123 id=123 data-nosnippet>123</a>    /// generic structs are validated during monomorphization and after monomorphization
+<a href=#124 id=124 data-nosnippet>124</a>    /// during SSA codegen.
+<a href=#125 id=125 data-nosnippet>125</a>    </span><span class="kw">fn </span>check_for_nested_vectors(<span class="kw-2">&amp;mut </span><span class="self">self</span>, struct_ids: <span class="kw-2">&amp;</span>[TypeId]) {
+<a href=#126 id=126 data-nosnippet>126</a>        <span class="kw">for </span>id <span class="kw">in </span>struct_ids {
+<a href=#127 id=127 data-nosnippet>127</a>            <span class="kw">let </span>struct_type = <span class="self">self</span>.interner.get_type(<span class="kw-2">*</span>id);
+<a href=#128 id=128 data-nosnippet>128</a>
+<a href=#129 id=129 data-nosnippet>129</a>            <span class="comment">// Only handle structs without generics as any generics args will be checked
+<a href=#130 id=130 data-nosnippet>130</a>            // after monomorphization when performing SSA codegen
+<a href=#131 id=131 data-nosnippet>131</a>            </span><span class="kw">if </span>struct_type.borrow().generics.is_empty() {
+<a href=#132 id=132 data-nosnippet>132</a>                <span class="kw">let </span>fields = struct_type.borrow().get_fields(<span class="kw-2">&amp;</span>[]).unwrap();
+<a href=#133 id=133 data-nosnippet>133</a>                <span class="kw">for </span>(<span class="kw">_</span>, field_type, <span class="kw">_</span>) <span class="kw">in </span><span class="kw-2">&amp;</span>fields {
+<a href=#134 id=134 data-nosnippet>134</a>                    <span class="kw">if </span>field_type.is_nested_vector() {
+<a href=#135 id=135 data-nosnippet>135</a>                        <span class="kw">let </span>location = struct_type.borrow().location;
+<a href=#136 id=136 data-nosnippet>136</a>                        <span class="self">self</span>.push_err(ResolverError::NestedVectors { location });
+<a href=#137 id=137 data-nosnippet>137</a>                    }
+<a href=#138 id=138 data-nosnippet>138</a>                }
+<a href=#139 id=139 data-nosnippet>139</a>            }
+<a href=#140 id=140 data-nosnippet>140</a>        }
+<a href=#141 id=141 data-nosnippet>141</a>    }
+<a href=#142 id=142 data-nosnippet>142</a>}</code></pre></div></section></main></body></html>
