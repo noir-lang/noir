@@ -156,10 +156,6 @@ impl ExpressionSolver {
         };
 
         match (mul_result, opcode_status) {
-            // Everything solved — just verify the constraint holds.
-            (MulTerm::Solved(a), OpcodeStatus::OpcodeSatisfied(b)) => {
-                Self::verify_satisfied(a + b + opcode.q_c)
-            }
             // Mul terms solved, one unknown in linear terms.
             (
                 MulTerm::Solved(total_prod),
@@ -170,6 +166,10 @@ impl ExpressionSolver {
                 witness,
                 initial_witness,
             ),
+            // Everything solved — just verify the constraint holds.
+            (MulTerm::Solved(a), OpcodeStatus::OpcodeSatisfied(b)) => {
+                Self::verify_satisfied(a + b + opcode.q_c)
+            }
             // One unknown in the mul term, linear terms fully solved.
             (MulTerm::OneUnknown(coeff, witness), OpcodeStatus::OpcodeSatisfied(sum)) => {
                 Self::solve_single_unknown(sum + opcode.q_c, coeff, witness, initial_witness)
