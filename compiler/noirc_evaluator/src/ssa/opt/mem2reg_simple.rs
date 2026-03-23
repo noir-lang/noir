@@ -6,7 +6,7 @@
 //! other pass has a larger surface area for bugs though and this one is simpler so the goal is to
 //! replace the old pass with this one plus any other, separate passes needed for the features
 //! unhandled here (such as alias analysis).
-use iter_extended::vecmap;
+use iter_extended::{btree_map, vecmap};
 use rustc_hash::FxHashSet as HashSet;
 use std::collections::BTreeMap;
 
@@ -122,16 +122,16 @@ impl Function {
         // lower RPO index). One reverse pass accumulates subtree sizes bottom-up.
         if let Some(max_span) = max_block_span {
             if blocks.len() > max_span {
-                let mut subtree_size = BTreeMap::new();
+                // Initialize each block's dom count to 1
+                let mut subtree_size = btree_map(&blocks, |block| (*block, 1));
+
                 for &block in blocks.iter().rev() {
                     if let Some(idom) = dom_tree.immediate_dominator(block) {
-                        let size = subtree_size.get(&block).copied().unwrap_or(1);
+                        let size = subtree_size[&block];
                         *subtree_size.entry(idom).or_insert(1) += size;
                     }
                 }
-                variables.retain(|_var, decl_block| {
-                    subtree_size.get(decl_block).copied().unwrap_or(1) <= max_span
-                });
+                variables.retain(|_var, decl_block| subtree_size[decl_block] <= max_span);
             }
         }
 
