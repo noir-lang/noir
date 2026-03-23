@@ -589,3 +589,20 @@ fn lambda_refers_to_numeric_generic() {
     "#;
     check_monomorphization_error(src);
 }
+
+#[test]
+fn nested_lambda_does_not_underflow_on_comptime_local_capture() {
+    let src = r#"
+    fn main() {
+        comptime let x = 1;
+
+        let f = || {
+            let g = || x;
+            g()
+        };
+
+        let _ = f();
+    }
+    "#;
+    assert_no_errors(src);
+}

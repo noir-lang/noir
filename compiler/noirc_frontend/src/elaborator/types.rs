@@ -1,7 +1,8 @@
 //! Type resolution, unification, and method resolution (for both types and traits).
 
-use std::{borrow::Cow, rc::Rc};
+use std::{borrow::Cow, collections::BTreeSet, rc::Rc};
 
+use acvm::{AcirField, FieldElement};
 use im::HashSet;
 use iter_extended::vecmap;
 use itertools::Itertools;
@@ -9,13 +10,15 @@ use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
-    Kind, NamedGeneric, ResolvedGeneric, Type, TypeBinding, TypeBindings, UnificationError,
+    BinaryTypeOperator, Kind, NamedGeneric, ResolvedGeneric, Type, TypeBinding, TypeBindings,
+    UnificationError,
     ast::{
         AsTraitPath, BinaryOpKind, GenericTypeArgs, Ident, PathKind, UnaryOp, UnresolvedType,
         UnresolvedTypeData, UnresolvedTypeExpression, WILDCARD_TYPE,
     },
     elaborator::{UnstableFeature, path_resolution::PathResolution},
     hir::{
+        comptime::Integer,
         def_collector::dc_crate::CompilationError,
         def_map::{ModuleDefId, fully_qualified_module_path},
         resolution::{errors::ResolverError, import::PathResolutionError},
@@ -221,13 +224,13 @@ impl Elaborator<'_> {
                 let env =
                     Box::new(self.resolve_type_with_kind_inner(*env, kind, mode, wildcard_allowed));
 
-                match *env {
+                match env.follow_bindings_shallow().into_owned() {
                     Type::Unit | Type::Tuple(_) | Type::NamedGeneric(_) => {
                         Type::Function(args, ret, env, unconstrained)
                     }
-                    _ => {
+                    typ => {
                         self.push_err(ResolverError::InvalidClosureEnvironment {
-                            typ: *env,
+                            typ,
                             location: env_location,
                         });
                         Type::Error
@@ -341,18 +344,25 @@ impl Elaborator<'_> {
         name: &str,
     ) -> Vec<(TraitId, Type)> {
         let mut found = Vec::new();
-        self.collect_associated_type_in_parent_traits(trait_id, name, &mut found);
+        let mut visited = BTreeSet::new();
+        self.collect_associated_type_in_parent_traits(trait_id, name, &mut found, &mut visited);
         found
     }
 
     /// Recursively collect all (trait_id, type) pairs for a named associated type
-    /// across a trait and its parent hierarchy.
+    /// across a trait and its parent hierarchy. Skip traits already
+    /// visited in `visited`.
     fn collect_associated_type_in_parent_traits(
         &self,
         trait_id: TraitId,
         name: &str,
         found: &mut Vec<(TraitId, Type)>,
+        visited: &mut BTreeSet<TraitId>,
     ) {
+        if !visited.insert(trait_id) {
+            return;
+        }
+
         let the_trait = self.interner.get_trait(trait_id);
         if let Some(typ) = the_trait.get_associated_type(name) {
             let typ =
@@ -363,7 +373,7 @@ impl Elaborator<'_> {
         let parent_trait_ids: Vec<_> =
             the_trait.trait_bounds.iter().map(|bound| bound.trait_id).collect();
         for parent_id in parent_trait_ids {
-            self.collect_associated_type_in_parent_traits(parent_id, name, found);
+            self.collect_associated_type_in_parent_traits(parent_id, name, found, visited);
         }
     }
 
@@ -452,6 +462,7 @@ impl Elaborator<'_> {
         // Parent associated types are expected to be in `self.trait_bounds` already,
         // added during function elaboration.
         let mut found_types = Vec::new();
+        let mut seen_traits = BTreeSet::new();
 
         for constraint in &self.trait_bounds {
             if let Type::NamedGeneric(generic) = &constraint.typ
@@ -460,7 +471,10 @@ impl Elaborator<'_> {
                 for named_generic in &constraint.trait_bound.trait_generics.named {
                     if named_generic.name.as_str() == assoc_name {
                         let trait_id = constraint.trait_bound.trait_id;
-                        found_types.push((trait_id, named_generic.typ.clone()));
+                        // Skip duplicates.
+                        if seen_traits.insert(trait_id) {
+                            found_types.push((trait_id, named_generic.typ.clone()));
+                        }
                     }
                 }
             }
@@ -506,9 +520,8 @@ impl Elaborator<'_> {
         mode: PathResolutionMode,
         wildcard_allowed: WildcardAllowed,
     ) -> Type {
-        if args.is_empty()
-            && let Some(typ) = self.lookup_generic_or_global_type(&path, mode)
-        {
+        // Check generics and associated types first.
+        if let Some(typ) = self.lookup_generic_or_associated_type(&path) {
             return typ;
         }
 
@@ -521,6 +534,8 @@ impl Elaborator<'_> {
             return typ;
         }
 
+        // Check type aliases before globals: a type alias in the types namespace should
+        // take priority over a global with the same name in the values namespace.
         if let Some(type_alias) = self.lookup_type_alias(path.clone(), mode) {
             let id = type_alias.borrow().id;
             let (args, _) =
@@ -540,6 +555,14 @@ impl Elaborator<'_> {
             // of definition ordering, but for now we have an explicit check here so that we at
             // least issue an error that the type was not found instead of silently passing.
             return Type::Alias(type_alias, args);
+        }
+
+        // Check if the name refers to a global used as a numeric type. This is checked after type aliases so that a type alias
+        // in the types namespace takes priority over a same-named global in the values namespace.
+        if args.is_empty()
+            && let Some(typ) = self.lookup_global_type(&path, mode)
+        {
+            return typ;
         }
 
         match self.resolve_path_or_error_inner(path.clone(), PathResolutionTarget::Type, mode) {
@@ -849,11 +872,9 @@ impl Elaborator<'_> {
         resolved
     }
 
-    fn lookup_generic_or_global_type(
-        &mut self,
-        path: &TypedPath,
-        mode: PathResolutionMode,
-    ) -> Option<Type> {
+    /// Look up a path as a generic type parameter or an associated type
+    /// Returns `None` if the path doesn't match any of these.
+    fn lookup_generic_or_associated_type(&mut self, path: &TypedPath) -> Option<Type> {
         if path.segments.len() == 1 {
             let name = path.last_name();
             if let Some(generic) = self.find_generic(name) {
@@ -880,7 +901,11 @@ impl Elaborator<'_> {
             return Some(typ);
         }
 
-        // If we cannot find a local generic of the same name, try to look up a global
+        None
+    }
+
+    /// Look up a path as a global used as a numeric type (e.g. `global N: u32 = 5;`
+    fn lookup_global_type(&mut self, path: &TypedPath, mode: PathResolutionMode) -> Option<Type> {
         match self.resolve_path_inner(path.clone(), PathResolutionTarget::Value, mode) {
             Ok(PathResolution { item: PathResolutionItem::Global(id), errors }) => {
                 self.push_errors(errors);
@@ -892,13 +917,13 @@ impl Elaborator<'_> {
                 let reference_location = path.location;
                 self.interner.add_global_reference(id, reference_location);
                 let opt_global_let_statement = self.interner.get_global_let_statement(id);
-                let kind = opt_global_let_statement.as_ref().map_or(Kind::u32(), |let_statement| {
-                    Kind::numeric(let_statement.r#type.clone())
-                });
+                let typ = opt_global_let_statement
+                    .as_ref()
+                    .map_or(Type::u32(), |let_statement| let_statement.r#type.clone());
 
                 let Some(stmt) = opt_global_let_statement else {
                     if self.elaborate_global_if_unresolved(&id) {
-                        return self.lookup_generic_or_global_type(path, mode);
+                        return self.lookup_global_type(path, mode);
                     } else {
                         let path = path.clone();
                         self.push_err(ResolverError::NoSuchNumericTypeVariable { path });
@@ -915,29 +940,23 @@ impl Elaborator<'_> {
                     return None;
                 };
 
-                let Some(global_value) = global_value.as_non_negative_signed_field() else {
+                let Some(global_value) = global_value.as_integer() else {
                     let global_value = global_value.clone();
-                    if global_value.is_integral() {
-                        self.push_err(ResolverError::NegativeGlobalType { location, global_value });
-                    } else {
-                        self.push_err(ResolverError::NonIntegralGlobalType {
-                            location,
-                            global_value,
-                        });
-                    }
+                    self.push_err(ResolverError::NonIntegralGlobalType { location, global_value });
                     return None;
                 };
 
-                let Ok(global_value) = kind.ensure_value_fits(global_value, location) else {
+                if global_value.get_type().unify(&typ).is_err() {
+                    let global_value = *global_value;
                     self.push_err(ResolverError::GlobalDoesNotFitItsType {
                         location,
                         global_value,
-                        kind,
+                        typ,
                     });
                     return None;
-                };
+                }
 
-                Some(Type::Constant(global_value, kind))
+                Some(Type::Constant(*global_value))
             }
             _ => None,
         }
@@ -972,22 +991,27 @@ impl Elaborator<'_> {
                 self.check_type_kind(typ, expected_kind, location)
             }
             UnresolvedTypeExpression::Constant(int, suffix, _span) => {
-                let suffix_kind = if let Some(suffix) = suffix {
-                    suffix.as_kind()
-                } else {
-                    let integer_or_field_var =
-                        self.interner.next_type_variable_with_kind(Kind::IntegerOrField);
-                    Kind::Numeric(Box::new(integer_or_field_var))
-                };
+                // Default type constants to u32 if not specified
+                let suffix = suffix.unwrap_or(crate::token::IntegerTypeSuffix::U32);
+                let typ = suffix.as_type();
 
-                if !suffix_kind.unifies(expected_kind) {
-                    self.push_err(TypeCheckError::expecting_other_error(
-                        format!("convert_expression_type: {suffix_kind} does not unify with expected {expected_kind}"),
-                        location,
-                    ));
+                if !self.check_kind(Kind::numeric(typ.clone()), expected_kind, location) {
+                    return Type::Error;
                 }
 
-                Type::Constant(int, suffix_kind)
+                let Some(int) = Integer::try_from_type_suffix(int, suffix) else {
+                    let min = typ.integral_minimum_size().unwrap();
+                    let max = typ.integral_maximum_size().unwrap();
+                    self.push_err(TypeCheckError::IntegerLiteralDoesNotFitItsType {
+                        expr: int,
+                        ty: typ,
+                        range: format!("{min}..={max}"),
+                        location,
+                    });
+                    return Type::Error;
+                };
+
+                Type::Constant(int)
             }
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, location) => {
                 let (lhs_location, rhs_location) = (lhs.location(), rhs.location());
@@ -1005,17 +1029,17 @@ impl Elaborator<'_> {
                 );
 
                 match (lhs, rhs) {
-                    (Type::Constant(lhs, lhs_kind), Type::Constant(rhs, rhs_kind)) => {
-                        if !lhs_kind.unifies(&rhs_kind) {
+                    (Type::Constant(lhs), Type::Constant(rhs)) => {
+                        if lhs.get_type().unify(&rhs.get_type()).is_err() {
                             self.push_err(TypeCheckError::TypeKindMismatch {
-                                expected_kind: lhs_kind,
-                                expr_kind: rhs_kind,
+                                expected_kind: lhs.numeric_kind(),
+                                expr_kind: rhs.numeric_kind(),
                                 expr_location: location,
                             });
                             return Type::Error;
                         }
-                        match op.function(lhs, rhs, &lhs_kind, location) {
-                            Ok(result) => Type::Constant(result, lhs_kind),
+                        match op.function(lhs, rhs, location) {
+                            Ok(result) => Type::Constant(result),
                             Err(err) => {
                                 let err = Box::new(err);
                                 let error =
@@ -1029,6 +1053,39 @@ impl Elaborator<'_> {
                         let infix = Type::infix_expr(Box::new(lhs), op, Box::new(rhs));
                         Type::CheckedCast { from: Box::new(infix.clone()), to: Box::new(infix) }
                             .canonicalize()
+                    }
+                }
+            }
+            UnresolvedTypeExpression::Negation(rhs, location) => {
+                let rhs_location = rhs.location();
+                let rhs = self.convert_expression_type(
+                    *rhs,
+                    expected_kind,
+                    rhs_location,
+                    wildcard_allowed,
+                );
+
+                match rhs {
+                    Type::Constant(rhs) => {
+                        if let Some(result) = -rhs {
+                            Type::Constant(result)
+                        } else {
+                            self.push_err(TypeCheckError::InvalidUnaryOp {
+                                typ: rhs.get_type().to_string(),
+                                operator: "-",
+                                location,
+                            });
+                            Type::Error
+                        }
+                    }
+                    rhs => {
+                        let kind = rhs.kind().into_numeric_type_or_error();
+                        let int = Integer::try_from_type(FieldElement::zero(), &kind)
+                            .unwrap_or_else(|| Integer::Field(FieldElement::zero()));
+                        let zero = Type::Constant(int);
+                        let sub = BinaryTypeOperator::Subtraction;
+                        let infix = Box::new(Type::infix_expr(Box::new(zero), sub, Box::new(rhs)));
+                        Type::CheckedCast { from: infix.clone(), to: infix }.canonicalize()
                     }
                 }
             }
@@ -1159,7 +1216,7 @@ impl Elaborator<'_> {
         // Resolved as a named type, which is what `Self::{ident}` would be.
         let typ = self.resolve_named_type(
             self_and_impl,
-            // The call to `lookup_generic_or_global_type` which calls `lookup_associated_type_on_self`
+            // The call to `lookup_generic_or_associated_type` which calls `lookup_associated_type_on_self`
             // will only be made if the args are empty, and that's what we tried to ascertain before
             // by checking that none of them are bound to a concrete type.
             GenericTypeArgs::default(),
@@ -1258,6 +1315,7 @@ impl Elaborator<'_> {
         let method_name = path.last_name();
 
         let mut matches = Vec::new();
+        let mut visited = BTreeSet::new();
 
         for constraint in self.trait_bounds.clone() {
             if let Type::NamedGeneric(NamedGeneric { name, .. }) = &constraint.typ {
@@ -1267,13 +1325,12 @@ impl Elaborator<'_> {
                 }
 
                 let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
-                self.find_methods_or_constants_in_trait(
+                matches.extend(self.find_methods_or_constants_in_trait(
                     path,
                     constraint,
                     the_trait,
-                    the_trait.id,
-                    &mut matches,
-                );
+                    &mut visited,
+                ));
             }
         }
 
@@ -1314,9 +1371,15 @@ impl Elaborator<'_> {
         path: &TypedPath,
         constraint: TraitConstraint,
         the_trait: &Trait,
-        starting_trait_id: TraitId,
-        matches: &mut Vec<(TraitPathResolutionMethod, TraitId)>,
-    ) {
+        visited: &mut BTreeSet<TraitId>,
+    ) -> Vec<(TraitPathResolutionMethod, TraitId)> {
+        // Skip if we've already visited this trait.
+        if !visited.insert(the_trait.id) {
+            return Vec::new();
+        }
+
+        let mut matches = Vec::new();
+
         if let Some(definition) = the_trait.find_method_or_constant(path.last_name(), self.interner)
         {
             let trait_item =
@@ -1327,21 +1390,17 @@ impl Elaborator<'_> {
 
         for trait_bound in &the_trait.trait_bounds {
             let parent_trait = self.interner.get_trait(trait_bound.trait_id);
-            if parent_trait.id == starting_trait_id {
-                // Avoid infinite recursion in case of cyclic trait bounds
-                continue;
-            }
-
             let constraint =
                 TraitConstraint { typ: constraint.typ.clone(), trait_bound: trait_bound.clone() };
-            self.find_methods_or_constants_in_trait(
+            matches.extend(self.find_methods_or_constants_in_trait(
                 path,
                 constraint,
                 parent_trait,
-                starting_trait_id,
-                matches,
-            );
+                visited,
+            ));
         }
+
+        matches
     }
 
     /// This resolves a method in the form `Type::method` where `method` is a trait method
@@ -1695,12 +1754,7 @@ impl Elaborator<'_> {
 
         use HirExpression::Literal;
         let from_value_opt = match self.interner.expression(from_expr_id) {
-            Literal(HirLiteral::Integer(field)) if !field.is_negative() => {
-                Some(field.absolute_value())
-            }
-
-            // TODO(https://github.com/noir-lang/noir/issues/6247):
-            // handle negative literals
+            Literal(HirLiteral::Integer(field)) => Some(field),
             _ => None,
         };
 
@@ -1734,7 +1788,8 @@ impl Elaborator<'_> {
         if let (Some(from_value), Some(to_maximum_size)) =
             (from_value_opt, to.integral_maximum_size())
             && from_is_polymorphic
-            && from_value > to_maximum_size
+            && from_value.fits_in_u128()
+            && from_value > to_maximum_size.into()
         {
             let from = from.clone();
             let to = to.clone();
@@ -2568,11 +2623,12 @@ impl Elaborator<'_> {
         {
             let the_trait = self.interner.get_trait(trait_id);
             let constraint = the_trait.as_constraint(the_trait.name.location());
+            let mut visited = BTreeSet::new();
             let mut matches = self.lookup_methods_in_trait(
                 the_trait,
                 method_name,
                 &constraint.trait_bound,
-                the_trait.id,
+                &mut visited,
             );
             if matches.len() == 1 {
                 let method = matches.remove(0);
@@ -2597,19 +2653,19 @@ impl Elaborator<'_> {
         }
 
         let mut matches = Vec::new();
+        let mut visited = BTreeSet::new();
 
         for constraint in func_meta.all_trait_constraints() {
             if *object_type == constraint.typ
                 && let Some(the_trait) =
                     self.interner.try_get_trait(constraint.trait_bound.trait_id)
             {
-                let trait_matches = self.lookup_methods_in_trait(
+                matches.extend(self.lookup_methods_in_trait(
                     the_trait,
                     method_name,
                     &constraint.trait_bound,
-                    the_trait.id,
-                );
-                matches.extend(trait_matches);
+                    &mut visited,
+                ));
             }
         }
 
@@ -2687,8 +2743,13 @@ impl Elaborator<'_> {
         the_trait: &Trait,
         method_name: &str,
         trait_bound: &ResolvedTraitBound,
-        starting_trait_id: TraitId,
+        visited: &mut BTreeSet<TraitId>,
     ) -> Vec<HirTraitMethodReference> {
+        // Skip if we've already visited this trait.
+        if !visited.insert(the_trait.id) {
+            return Vec::new();
+        }
+
         let mut matches = Vec::new();
 
         if let Some(trait_method) = the_trait.find_method(method_name, self.interner) {
@@ -2708,20 +2769,14 @@ impl Elaborator<'_> {
         // but `Foo where Self: Bar + Baz` appears in `trait_constraints` instead.
         for parent_trait_bound in &the_trait.trait_bounds {
             if let Some(the_trait) = self.interner.try_get_trait(parent_trait_bound.trait_id) {
-                // Avoid looping forever in case there are cycles
-                if the_trait.id == starting_trait_id {
-                    continue;
-                }
-
                 let parent_trait_bound =
                     self.instantiate_parent_trait_bound(trait_bound, parent_trait_bound);
-                let parent_matches = self.lookup_methods_in_trait(
+                matches.extend(self.lookup_methods_in_trait(
                     the_trait,
                     method_name,
                     &parent_trait_bound,
-                    starting_trait_id,
-                );
-                matches.extend(parent_matches);
+                    visited,
+                ));
             }
         }
 
@@ -2836,7 +2891,9 @@ impl Elaborator<'_> {
             if let Type::Reference(_, mutable) = expected_object_type.follow_bindings() {
                 if !matches!(actual_type, Type::Reference(..)) {
                     let location = self.interner.id_location(*object);
-                    self.check_can_mutate(*object, location);
+                    if mutable {
+                        self.check_can_mutate(*object, location);
+                    }
 
                     let new_type = Type::Reference(Box::new(actual_type), mutable);
                     *object_type = new_type.clone();

@@ -398,7 +398,7 @@ fn trait_impl_with_where_clause_with_trait_with_associated_numeric() {
     }
 
     impl Bar for Field {
-        let N: Field = 42;
+        let N: Field = 42_Field;
     }
 
     trait Foo {
@@ -2054,6 +2054,32 @@ fn associated_type_diamond_ambiguity_on_generic() {
                               ^^^^^^ Multiple applicable items in scope
                               ~~~~~~ Multiple traits which provide `Key` are implemented and in scope: `A`, `B`
     fn main() {}
+    "#;
+    check_errors(src);
+}
+
+/// Regression test: associated constant with mismatched type between trait and impl
+/// used to crash the compiler with `unreachable!` in `resolve_trait_item` when
+/// accessed from a comptime block.
+#[test]
+fn associated_constant_type_mismatch_does_not_crash() {
+    let src = r#"
+    trait Serialize {
+        let N: Field;
+    }
+
+    impl Serialize for Field {
+        let N: u32 = 1;
+            ^ The numeric generic is not of type `Field`
+            ~ expected `Field`, found `u32`
+    }
+
+    fn main() {
+        comptime {
+            let _x = <Field as Serialize>::N;
+                      ^^^^^^^^^^^^^^^^^^ No method or constant named `N` found in impl due to prior type error
+        }
+    }
     "#;
     check_errors(src);
 }

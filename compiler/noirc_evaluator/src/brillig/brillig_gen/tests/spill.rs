@@ -49,25 +49,24 @@ fn brillig_spill_and_reload() {
     //   18:    Return
     assert_artifact_snapshot!(main, @r"
     fn main
-     0: call 0 // -> CheckMaxStackDepth
-     1: sp[1] = @1
-     2: @3 = const u32 1
-     3: @1 = u32 add @1, @3
-     4: sp[4] = u32 add sp[2], sp[3]
-     5: sp[5] = const u32 2
-     6: @4 = const u32 0
-     7: @3 = u32 add sp[1], @4
-     8: store sp[4] at @3
-     9: sp[4] = u32 add sp[2], sp[5]
-    10: sp[2] = const u32 3
-    11: sp[5] = u32 add sp[3], sp[2]
-    12: @4 = const u32 0
-    13: @3 = u32 add sp[1], @4
-    14: sp[3] = load @3
-    15: sp[2] = u32 add sp[3], sp[4]
-    16: sp[3] = u32 add sp[2], sp[5]
-    17: sp[2] = sp[3]
-    18: return
+     0: sp[1] = @1
+     1: @3 = const u32 1
+     2: @1 = u32 add @1, @3
+     3: sp[4] = u32 add sp[2], sp[3]
+     4: sp[5] = const u32 2
+     5: @4 = const u32 0
+     6: @3 = u32 add sp[1], @4
+     7: store sp[4] at @3
+     8: sp[4] = u32 add sp[2], sp[5]
+     9: sp[2] = const u32 3
+    10: sp[5] = u32 add sp[3], sp[2]
+    11: @4 = const u32 0
+    12: @3 = u32 add sp[1], @4
+    13: sp[3] = load @3
+    14: sp[2] = u32 add sp[3], sp[4]
+    15: sp[3] = u32 add sp[2], sp[5]
+    16: sp[2] = sp[3]
+    17: return
     ");
 }
 
@@ -114,33 +113,32 @@ fn brillig_spill_successor_params() {
     //   26:    Return
     assert_artifact_snapshot!(main, @r"
     fn main
-     0: call 0 // -> CheckMaxStackDepth
-     1: sp[1] = @1
-     2: @3 = const u32 3
-     3: @1 = u32 add @1, @3
-     4: @4 = const u32 0
-     5: @3 = u32 add sp[1], @4
-     6: store sp[2] at @3
-     7: @4 = const u32 1
-     8: @3 = u32 add sp[1], @4
-     9: store sp[2] at @3
-    10: @4 = const u32 2
-    11: @3 = u32 add sp[1], @4
-    12: store sp[2] at @3
-    13: jump to 0 // -> 14: f0/b1
-    14: @4 = const u32 0 // f0/b1
-    15: @3 = u32 add sp[1], @4
-    16: sp[3] = load @3
-    17: @4 = const u32 1
-    18: @3 = u32 add sp[1], @4
-    19: sp[4] = load @3
-    20: sp[2] = u32 add sp[3], sp[4]
-    21: @4 = const u32 2
-    22: @3 = u32 add sp[1], @4
-    23: sp[4] = load @3
-    24: sp[3] = u32 add sp[2], sp[4]
-    25: sp[2] = sp[3]
-    26: return
+     0: sp[1] = @1
+     1: @3 = const u32 3
+     2: @1 = u32 add @1, @3
+     3: @4 = const u32 0
+     4: @3 = u32 add sp[1], @4
+     5: store sp[2] at @3
+     6: @4 = const u32 1
+     7: @3 = u32 add sp[1], @4
+     8: store sp[2] at @3
+     9: @4 = const u32 2
+    10: @3 = u32 add sp[1], @4
+    11: store sp[2] at @3
+    12: jump to 0 // -> 13: f0/b1
+    13: @4 = const u32 0 // f0/b1
+    14: @3 = u32 add sp[1], @4
+    15: sp[3] = load @3
+    16: @4 = const u32 1
+    17: @3 = u32 add sp[1], @4
+    18: sp[4] = load @3
+    19: sp[2] = u32 add sp[3], sp[4]
+    20: @4 = const u32 2
+    21: @3 = u32 add sp[1], @4
+    22: sp[4] = load @3
+    23: sp[3] = u32 add sp[2], sp[4]
+    24: sp[2] = sp[3]
+    25: return
     ");
 }
 

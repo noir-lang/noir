@@ -361,7 +361,12 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                             return Err("Foreign call returned a single value for an vector type"
                                 .to_string());
                         };
-                        if values.len() % value_types.len() != 0 {
+                        if value_types.is_empty() {
+                            if !values.is_empty() {
+                                return Err("Returned non-empty data for zero vector element size"
+                                    .to_string());
+                            }
+                        } else if values.len() % value_types.len() != 0 {
                             return Err(
                                 "Returned data does not match vector element size".to_string()
                             );
@@ -372,6 +377,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
                         self.memory.write(*size_addr, assert_u32(values.len()).into());
                         self.write_values_to_memory(*pointer, values, value_types)?;
                     } else {
+                        // This should have been rejected by the frontend.
                         unreachable!("deflattening heap vectors from foreign calls");
                     }
                 }

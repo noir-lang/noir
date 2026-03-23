@@ -6,6 +6,8 @@ on:
       - master
   pull_request:
 
+permissions: {}
+
 jobs:
   rust_benchmarks:
     name: Rust Benchmarks
@@ -59,6 +61,8 @@ jobs:
     name: Load benchmark projects list
     runs-on: ubuntu-22.04
     timeout-minutes: 5
+    permissions:
+      contents: read
     outputs:
       projects: ${{ steps.get_bench_projects.outputs.projects }}
 
@@ -76,6 +80,8 @@ jobs:
   build-nargo:
     runs-on: ubuntu-22.04
     timeout-minutes: 15
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout Noir repo
@@ -110,6 +116,8 @@ jobs:
   build-noir-inspector:
     runs-on: ubuntu-22.04
     timeout-minutes: 15
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout Noir repo
@@ -182,7 +190,7 @@ jobs:
       - name: Add gates diff to sticky comment
         # We don't run this step on external PRs
         if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@v3
         with:
           # delete the comment in case changes no longer impact circuit sizes
           delete: ${{ !steps.gates_diff.outputs.markdown }}
@@ -235,7 +243,7 @@ jobs:
 
       - name: Add bytecode size diff to sticky comment
         if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@v3
         with:
           header: brillig
           # delete the comment in case changes no longer impact brillig bytecode sizes
@@ -289,7 +297,7 @@ jobs:
 
       - name: Add bytecode size diff to sticky comment
         if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@v3
         with:
           header: brillig_execution
           # delete the comment in case changes no longer impact brillig bytecode sizes
@@ -344,6 +352,8 @@ jobs:
     needs: [build-nargo, build-noir-inspector, benchmark-projects-list]
     runs-on: ubuntu-22.04
     timeout-minutes: 20
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -466,6 +476,8 @@ jobs:
     needs: [build-nargo, benchmark-projects-list]
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -1049,6 +1061,8 @@ jobs:
     name: End
     runs-on: ubuntu-22.04
     timeout-minutes: 5
+    permissions:
+      contents: read
     # We want this job to always run (even if the dependant jobs fail) as we want this job to fail rather than skipping.
     if: ${{ always() }}
     needs:

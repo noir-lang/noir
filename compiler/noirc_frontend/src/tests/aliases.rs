@@ -102,6 +102,21 @@ fn deny_cyclic_type_aliases() {
 }
 
 #[test]
+fn cyclic_type_alias_usage_does_not_stack_overflow() {
+    let src = r#"
+        type A = B;
+        type B = A;
+             ^ Dependency cycle found
+             ~ 'B' recursively depends on itself: B -> A -> B
+        fn main() {
+            let _ = A::foo();
+                    ^ Could not resolve 'A' in path
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn ensure_nested_type_aliases_type_check() {
     let src = r#"
         type A = B;
@@ -724,7 +739,7 @@ fn signed_numeric_type_alias_with_negative_operand() {
     // The expression `0 % (-1)` must be elaborated as a i32.
     // An unsigned type would cause an "attempt to subtract with overflow" errors.
     let src = r#"
-    pub type X: i32 = 0 % (-1);
+    pub type X: i32 = 0i32 % -1i32;
 
     fn main() {
         let _: i32 = X;
@@ -737,8 +752,9 @@ fn signed_numeric_type_alias_with_negative_operand() {
 fn regression_10971() {
     // Regression test for https://github.com/noir-lang/noir/issues/10971
     let src = r#"
-    pub type X: u8 = 257;
-    ^^^^^^^^^^^^^^^^^^^^ The value `257` cannot fit into `u8` which has range `0..=255`
+    pub type X: u8 = 257u8;
+    ^^^^^^^^^^^^^^^^^^^^^^ The value `257` cannot fit into `u8` which has range `0..=255`
+                     ^^^^^ The value `257` cannot fit into `u8` which has range `0..=255`
 
     fn main() {
         let _ = X;
@@ -1080,4 +1096,52 @@ fn errors_if_using_comptime_type_in_non_comptime_type_alias() {
                      ^^^^^^ Comptime-only type `Quoted` cannot be used in non-comptime type alias
     "#;
     check_errors(src);
+}
+
+/// Regression test: a type alias and a global with the same name
+#[test]
+fn type_alias_takes_priority_over_global_with_same_name() {
+    let src = r#"
+        global Foo: u32 = 10;
+
+        type Foo = u32;
+
+        fn main() {
+            let x: Foo = 20;
+            assert(x == 20);
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn type_alias_as_closure_environment() {
+    let src = r#"
+    type Env = (u32,);
+
+    pub fn foo(_x: fn[Env](Field) -> Field) {}
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test: define_type_alias did not reset `current_item` after finishing,
+/// which can leak into subsequent elaboration phases.
+#[test]
+fn no_false_cycle_from_stale_current_item_after_type_alias() {
+    // `A` depends on `B` (real dependency).
+    // After the type-alias loop, `current_item` is left as `Alias(B)`.
+    // When `collect_traits` resolves the supertrait `Dummy<A>`, it should not
+    // record a dependency from `B` to `A` (which would create a false A↔B cycle).
+    let src = r#"
+        type A = B;
+        type B = Field;
+
+        trait Dummy<T> {}
+        trait Foo: Dummy<A> {}
+
+        fn main(_x: A) where A: Foo {}
+    "#;
+    assert_no_errors(src);
 }

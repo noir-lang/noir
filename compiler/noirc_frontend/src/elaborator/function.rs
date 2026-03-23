@@ -14,8 +14,9 @@ use noirc_errors::Location;
 use crate::{
     Kind, ResolvedGeneric, Type, TypeVariable,
     ast::{
-        BlockExpression, FunctionKind, Ident, NoirFunction, Param, UnresolvedGenerics,
-        UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
+        BlockExpression, FunctionKind, Ident, IdentOrQuotedType, NoirFunction, Param,
+        UnresolvedGeneric, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
+        UnresolvedTypeData,
     },
     elaborator::{
         UnstableFeature, lints,
@@ -174,7 +175,7 @@ impl Elaborator<'_> {
         // Setup trait constraints
         for (extra_constraint, location) in extra_trait_constraints {
             let bound = &extra_constraint.trait_bound;
-            self.add_trait_bound_to_scope(*location, &extra_constraint.typ, bound, bound.trait_id);
+            self.add_trait_bound_to_scope(*location, &extra_constraint.typ, bound);
         }
 
         let mut trait_constraints =
@@ -304,7 +305,7 @@ impl Elaborator<'_> {
             for bound in bounds {
                 let typ = Type::TypeVariable(associated_generic.type_var.clone());
                 let location = associated_generic.location;
-                self.add_trait_bound_to_scope(location, &typ, &bound, bound.trait_id);
+                self.add_trait_bound_to_scope(location, &typ, &bound);
                 associated_generics_trait_constraints
                     .push(TraitConstraint { typ, trait_bound: bound });
             }
@@ -357,6 +358,16 @@ impl Elaborator<'_> {
         let mut parameter_idents = Vec::new();
         let mut parameter_names_in_list = rustc_hash::FxHashMap::default();
         let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::FunctionParameter);
+
+        // Seed the parameter names with those from the constant generic parameter list, so that any function parameter
+        // that has the same name is reported as a duplicate. This is because their precedence is not obvious.
+        for generic in &func.def.generics {
+            let UnresolvedGeneric::Numeric { ident: IdentOrQuotedType::Ident(ident), .. } = generic
+            else {
+                continue;
+            };
+            parameter_names_in_list.insert(ident.as_string().clone(), ident.location());
+        }
 
         for Param { visibility, visibility_location, pattern, typ, location: _ } in
             func.parameters().iter().cloned()

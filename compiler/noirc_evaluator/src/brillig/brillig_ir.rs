@@ -406,6 +406,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 #[cfg(test)]
 pub(crate) mod tests {
     use std::vec;
+    use test_case::test_case;
 
     use acvm::acir::brillig::{
         BinaryIntOp, BitSize, ForeignCallParam, ForeignCallResult, HeapVector, IntegerBitSize,
@@ -926,14 +927,13 @@ pub(crate) mod tests {
         assert!(message.contains("Out of memory"), "Expected 'Out of memory', got: {message}");
     }
 
-    /// Test that `codegen_call` panics when call arguments would exceed stack frame bounds.
+    /// Helper method for the `codegen_call_panics_when_arguments_exceed_frame_bound*` tests.
     ///
-    /// This test demonstrates the defensive check that prevents heap corruption.
-    /// Without this check, call arguments could be written beyond the stack frame boundary
-    /// before CheckMaxStackDepth runs in the called function.
-    #[test]
-    #[should_panic(expected = "Call arguments would exceed stack frame bounds")]
-    fn codegen_call_panics_when_arguments_exceed_frame_bounds() {
+    /// Uses a max stack frame size of 10, and pre-allocates 3 registers before the call.
+    fn codegen_call_panics_when_arguments_exceed_frame_bounds_helper(
+        num_args: usize,
+        num_rets: usize,
+    ) {
         use super::brillig_variable::BrilligVariable;
         use super::registers::LayoutConfig;
 
@@ -953,23 +953,65 @@ pub(crate) mod tests {
         context.enter_context(Label::function(FunctionId::test_new(0)));
 
         // Allocate registers to fill up most of the frame.
-        // Stack starts at offset 1, so with max_stack_frame_size=10:
-        // - Allocating 7 registers uses offsets 1-7
-        // - empty_registers_start() will return 8
-        // - stack_size = 8
+        // Stack starts at offset 2, so with max_stack_frame_size=10:
+        // - Allocating 3 registers uses offsets 2-4 (inclusive)
+        // - codegen_call allocates another temporary register 5
+        // - empty_registers_start() will return 6
+        // - stack_size = 6
         // NOTE: We must keep the allocated registers alive to prevent deallocation.
-        let _allocated_registers: Vec<_> = (0..7).map(|_| context.allocate_register()).collect();
+        let _allocated_registers: Vec<_> = (0..3).map(|_| context.allocate_register()).collect();
 
-        // Create 5 dummy arguments.
-        // With stack_size=8 and 5 arguments:
-        // stack_size + arguments.len() + 1 = 8 + 5 = 14 > 10 (max stack frame size)
-        // This should trigger the assertion.
+        // Create N dummy arguments.
+        // With stack_size=6 and N arguments, the first argument will be written into slot 6+2=8, the 2nd into slot 9; nothing should write into slot 10.
+        // stack_size + reserved_len + arguments.len() = 6 + 2 + N must be <= 10 (max stack frame size)
+        // This should trigger the assertion if N > 2
         let dummy_addr = MemoryAddress::relative(1);
         let dummy_var = BrilligVariable::SingleAddr(SingleAddrVariable::new(dummy_addr, 32));
-        let arguments: Vec<BrilligVariable> = vec![dummy_var; 5];
+        let arguments: Vec<BrilligVariable> = vec![dummy_var; num_args];
+        let returns: Vec<BrilligVariable> = vec![dummy_var; num_rets];
 
         // This call should panic with "Call arguments would exceed stack frame bounds"
-        context.codegen_call(FunctionId::test_new(1), &arguments, &[]);
+        context.codegen_call(FunctionId::test_new(1), &arguments, &returns);
+
+        // Unless codegen_call itself panics, this should fail the test if we wrote beyond what is provably safe.
+        for opcode in context.obj.byte_code {
+            if let BrilligOpcode::Mov { destination: MemoryAddress::Relative(offset), .. } = opcode
+            {
+                assert!(
+                    offset < small_layout.max_stack_frame_size() as u32,
+                    "allocated beyond the frame size"
+                );
+            }
+        }
+    }
+
+    /// Test that `codegen_call` panics when call arguments or returns would exceed stack frame bounds.
+    ///
+    /// This test demonstrates the defensive check that prevents heap corruption.
+    /// Without this check, call arguments could be written beyond the stack frame boundary
+    /// before CheckMaxStackDepth runs in the called function.
+    #[test_case(7, 0; "arguments alone exceed bounds")]
+    #[test_case(3, 0; "arguments together with reserved slots exceed bounds")]
+    #[test_case(1, 5; "arguments are okay but returns exceed bounds")]
+    #[should_panic(expected = "Call arguments would exceed stack frame bounds")]
+    fn codegen_call_panics_when_arguments_exceed_frame_bounds(num_args: usize, num_rets: usize) {
+        codegen_call_panics_when_arguments_exceed_frame_bounds_helper(num_args, num_rets);
+    }
+
+    /// Test that `codegen_call` does not panic when there is enough space for the arguments.
+    ///
+    /// This is just to show that there is a number of arguments that still works with the setup.
+    #[test]
+    fn codegen_call_does_not_panic_when_reserved_and_arguments_fit_within_frame_bounds() {
+        // With 2 arguments, the 10 element stack frame should look like this:
+        // 0: current stack frame return pointer
+        // 1: current stack frame spill pointer
+        // 2-4: 3 variables
+        // 5: temp register in codegen
+        // 6: next stack frame return pointer
+        // 7: next stack frame spill pointer
+        // 8-9: 2 arguments
+        codegen_call_panics_when_arguments_exceed_frame_bounds_helper(2, 1);
     }
 
     /// Test that jmp block parameter passing handles the parallel-move problem correctly.

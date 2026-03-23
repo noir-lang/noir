@@ -11,7 +11,6 @@ use noirc_frontend::monomorphization::ast::{
     self, FuncId, GlobalId, InlineType, LocalId, Parameters, Program,
 };
 use noirc_frontend::shared::Signedness;
-use noirc_frontend::signed_field::SignedField;
 
 use crate::errors::RuntimeError;
 use crate::ssa::function_builder::FunctionBuilder;
@@ -239,7 +238,7 @@ impl<'a> FunctionContext<'a> {
                 // The message string, the number of fields to be formatted, and
                 // then the encapsulated fields themselves
                 let final_fmt_str_fields =
-                    vec![ast::Type::String(*len), ast::Type::Field, *fields.clone()];
+                    vec![ast::Type::String(*len), ast::Type::Field, fields.as_ref().clone()];
                 let fmt_str_tuple = ast::Type::Tuple(final_fmt_str_fields);
                 Self::map_type_helper(&fmt_str_tuple, f)
             }
@@ -302,9 +301,12 @@ impl<'a> FunctionContext<'a> {
     /// Unlike FunctionBuilder::numeric_constant, this version checks the given constant
     /// is within the range of the given type. This is needed for user provided values where
     /// otherwise values like 2^128 can be assigned to a u8 without error or wrapping.
+    ///
+    /// Expects a [FieldElement] in normal form (-6 is `-FieldElement::from(6)`) and converts
+    /// into two's complement form as necessary for negative signed types.
     pub(super) fn checked_numeric_constant(
         &mut self,
-        value: SignedField,
+        mut value: FieldElement,
         numeric_type: NumericType,
     ) -> Result<ValueId, RuntimeError> {
         if let Some(range) = numeric_type.value_is_outside_limits(value) {
@@ -317,18 +319,17 @@ impl<'a> FunctionContext<'a> {
             });
         }
 
-        let value = if value.is_negative() {
-            match numeric_type {
-                NumericType::NativeField => -value.absolute_value(),
-                NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
-                    assert!(bit_size < 128);
-                    let base = 1_u128 << bit_size;
-                    FieldElement::from(base) - value.absolute_value()
-                }
-            }
-        } else {
-            value.absolute_value()
-        };
+        // If `value` is greater than `max` despite passing the `value_is_outside_limits`
+        // check, it means this is a negative number, which is encoded as a large field value.
+        // Convert it to two's complement instead.
+        if let Ok(max) = numeric_type.max_value()
+            && value > max
+        {
+            assert!(numeric_type.is_signed());
+            let bit_size = numeric_type.bit_size::<FieldElement>();
+            assert!(bit_size < 128);
+            value = FieldElement::from(1u128 << bit_size) + value;
+        }
 
         Ok(self.builder.numeric_constant(value, numeric_type))
     }

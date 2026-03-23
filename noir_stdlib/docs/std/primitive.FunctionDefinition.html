@@ -23,6 +23,7 @@
 <li><a href="#add_attribute">add_attribute</a></li>
 <li><a href="#as_typed_expr">as_typed_expr</a></li>
 <li><a href="#body">body</a></li>
+<li><a href="#disable">disable</a></li>
 <li><a href="#has_named_attribute">has_named_attribute</a></li>
 <li><a href="#is_unconstrained">is_unconstrained</a></li>
 <li><a href="#module">module</a></li>
@@ -31,10 +32,7 @@
 <li><a href="#return_type">return_type</a></li>
 <li><a href="#set_body">set_body</a></li>
 <li><a href="#set_parameters">set_parameters</a></li>
-<li><a href="#set_return_data">set_return_data</a></li>
 <li><a href="#set_return_public">set_return_public</a></li>
-<li><a href="#set_return_type">set_return_type</a></li>
-<li><a href="#set_unconstrained">set_unconstrained</a></li>
 <li><a href="#visibility">visibility</a></li>
 </ul>
 <h3>Trait implementations</h3>
@@ -127,6 +125,8 @@ top of a function:</p>
 
 <code id="body" class="code-header">pub comptime fn <a href="#body"><span class="fn">body</span></a>(self) -> <a href="../std/primitive.Expr.html" class="primitive">Expr</a></code>
 
+<code id="disable" class="code-header">pub comptime fn <a href="#disable"><span class="fn">disable</span></a>(self, error_message: <a href="../std/primitive.CtString.html" class="primitive">CtString</a>)</code>
+
 <code id="has_named_attribute" class="code-header">pub comptime fn <a href="#has_named_attribute"><span class="fn">has_named_attribute</span></a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, name: <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <code id="is_unconstrained" class="code-header">pub comptime fn <a href="#is_unconstrained"><span class="fn">is_unconstrained</span></a>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
@@ -143,13 +143,7 @@ top of a function:</p>
 
 <code id="set_parameters" class="code-header">pub comptime fn <a href="#set_parameters"><span class="fn">set_parameters</span></a>(self, parameters: [(<a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>, <a href="../std/primitive.Type.html" class="primitive">Type</a>)])</code>
 
-<code id="set_return_type" class="code-header">pub comptime fn <a href="#set_return_type"><span class="fn">set_return_type</span></a>(self, return_type: <a href="../std/primitive.Type.html" class="primitive">Type</a>)</code>
-
 <code id="set_return_public" class="code-header">pub comptime fn <a href="#set_return_public"><span class="fn">set_return_public</span></a>(self, public: <a href="../std/primitive.bool.html" class="primitive">bool</a>)</code>
-
-<code id="set_return_data" class="code-header">pub comptime fn <a href="#set_return_data"><span class="fn">set_return_data</span></a>(self)</code>
-
-<code id="set_unconstrained" class="code-header">pub comptime fn <a href="#set_unconstrained"><span class="fn">set_unconstrained</span></a>(self, value: <a href="../std/primitive.bool.html" class="primitive">bool</a>)</code>
 
 <code id="visibility" class="code-header">pub comptime fn <a href="#visibility"><span class="fn">visibility</span></a>(self) -> <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
 

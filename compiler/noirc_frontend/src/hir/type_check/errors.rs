@@ -4,17 +4,19 @@ use std::rc::Rc;
 use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::CustomDiagnostic as Diagnostic;
+use noirc_errors::DiagnosticKind;
 use noirc_errors::Location;
 use thiserror::Error;
 
+use crate::Kind;
 use crate::ast::BinaryOpKind;
 use crate::ast::{ConstrainKind, FunctionReturnType, Ident, IntegerBitSize};
+use crate::hir::comptime::Integer;
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::traits::TraitConstraint;
-use crate::hir_def::types::{BinaryTypeOperator, Kind, Type};
+use crate::hir_def::types::{BinaryTypeOperator, Type};
 use crate::node_interner::NodeInterner;
 use crate::shared::Signedness;
-use crate::signed_field::SignedField;
 use crate::validity::InvalidType;
 
 /// Rust also only shows 3 maximum, even for short patterns.
@@ -35,36 +37,28 @@ pub enum Source {
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum TypeCheckError {
     #[error("Division by zero: {lhs} / {rhs}")]
-    DivisionByZero { lhs: SignedField, rhs: SignedField, location: Location },
+    DivisionByZero { lhs: Integer, rhs: Integer, location: Location },
     #[error("Modulo on Field elements: {lhs} % {rhs}")]
-    ModuloOnFields { lhs: SignedField, rhs: SignedField, location: Location },
+    ModuloOnFields { lhs: FieldElement, rhs: FieldElement, location: Location },
     #[error("The value `{expr}` cannot fit into `{ty}` which has range `{range}`")]
     IntegerLiteralDoesNotFitItsType {
-        expr: SignedField,
+        expr: FieldElement,
         ty: Type,
         range: String,
         location: Location,
     },
     #[error(
-        "The value `{value}` cannot fit into `{kind}` which has a maximum size of `{maximum_size}`"
+        "The value `{value}` cannot fit into `{kind}` which has a range of {minimum_size}..={maximum_size}"
     )]
     OverflowingConstant {
-        value: SignedField,
+        value: Integer,
         kind: Kind,
-        maximum_size: FieldElement,
+        minimum_size: i128,
+        maximum_size: u128,
         location: Location,
     },
-    #[error(
-        "The value `{value}` cannot fit into `{kind}` which has a minimum size of `{minimum_size}`"
-    )]
-    UnderflowingConstant {
-        value: SignedField,
-        kind: Kind,
-        minimum_size: SignedField,
-        location: Location,
-    },
-    #[error("Evaluating `{op}` on `{lhs}`, `{rhs}` failed")]
-    FailingBinaryOp { op: BinaryTypeOperator, lhs: String, rhs: String, location: Location },
+    #[error("`{lhs} {op} {rhs}` in the arithmetic generics here would overflow the bounds of a(n) `{}`", lhs.get_type())]
+    OverflowingBinaryOp { op: BinaryTypeOperator, lhs: Integer, rhs: Integer, location: Location },
     #[error("Type {typ:?} cannot be used in a {place:?}")]
     TypeCannotBeUsed { typ: Type, place: &'static str, location: Location },
     #[error("Expected type {expected_typ:?} is not the same as {expr_typ:?}")]
@@ -77,8 +71,8 @@ pub enum TypeCheckError {
     TypeCanonicalizationMismatch {
         to: Type,
         from: Type,
-        to_value: SignedField,
-        from_value: SignedField,
+        to_value: Integer,
+        from_value: Integer,
         location: Location,
     },
     #[error("Expected {expected:?} found {found:?}")]
@@ -107,6 +101,8 @@ pub enum TypeCheckError {
     UnsupportedFieldCast { location: Location },
     #[error("Index {index} is out of bounds for this tuple {lhs_type} of length {length}")]
     TupleIndexOutOfBounds { index: usize, lhs_type: Type, length: usize, location: Location },
+    #[error("Index {index} is out of bounds for this array of length {array_length}")]
+    ArrayIndexOutOfBounds { index: u32, array_length: u32, location: Location },
     #[error("Variable `{name}` must be mutable to be assigned to")]
     VariableMustBeMutable { name: String, location: Location },
     #[error("`{name}` is a `&` reference, so it cannot be written to")]
@@ -166,8 +162,8 @@ pub enum TypeCheckError {
     TypeAnnotationsNeededForFieldAccess { location: Location },
     #[error("Multiple trait impls may apply to this object type")]
     MultipleMatchingImpls { object_type: Type, candidates: Vec<String>, location: Location },
-    #[error("use of deprecated function {name}")]
-    CallDeprecated { name: String, note: Option<String>, location: Location },
+    #[error("Use of deprecated function {name}")]
+    CallDeprecated { name: String, note: Option<String>, deny: bool, location: Location },
     #[error("{0}")]
     ResolverError(ResolverError),
     #[error("Unused expression result of type {expr_type}")]
@@ -306,8 +302,7 @@ impl TypeCheckError {
             | TypeCheckError::ModuloOnFields { location, .. }
             | TypeCheckError::IntegerLiteralDoesNotFitItsType { location, .. }
             | TypeCheckError::OverflowingConstant { location, .. }
-            | TypeCheckError::UnderflowingConstant { location, .. }
-            | TypeCheckError::FailingBinaryOp { location, .. }
+            | TypeCheckError::OverflowingBinaryOp { location, .. }
             | TypeCheckError::TypeCannotBeUsed { location, .. }
             | TypeCheckError::TypeMismatch { expr_location: location, .. }
             | TypeCheckError::TypeMismatchWithSource { location, .. }
@@ -326,6 +321,7 @@ impl TypeCheckError {
             | TypeCheckError::UnsupportedCast { location }
             | TypeCheckError::UnsupportedFieldCast { location }
             | TypeCheckError::TupleIndexOutOfBounds { location, .. }
+            | TypeCheckError::ArrayIndexOutOfBounds { location, .. }
             | TypeCheckError::VariableMustBeMutable { location, .. }
             | TypeCheckError::CannotAssignToReference { location, .. }
             | TypeCheckError::CannotAssignToLValueBehindReference { location, .. }
@@ -547,6 +543,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::UnsupportedCast { location }
             | TypeCheckError::UnsupportedFieldCast { location }
             | TypeCheckError::TupleIndexOutOfBounds { location, .. }
+            | TypeCheckError::ArrayIndexOutOfBounds { location, .. }
             | TypeCheckError::VariableMustBeMutable { location, .. }
             | TypeCheckError::CannotAssignToReference { location, .. }
             | TypeCheckError::CannotAssignToLValueBehindReference { location, .. }
@@ -559,8 +556,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::FieldComparison { location, .. }
             | TypeCheckError::IntegerLiteralDoesNotFitItsType { location, .. }
             | TypeCheckError::OverflowingConstant { location, .. }
-            | TypeCheckError::UnderflowingConstant { location, .. }
-            | TypeCheckError::FailingBinaryOp { location, .. }
+            | TypeCheckError::OverflowingBinaryOp { location, .. }
             | TypeCheckError::FieldModulo { location }
             | TypeCheckError::FieldNot { location }
             | TypeCheckError::ConstrainedReferenceToUnconstrained { location }
@@ -657,11 +653,16 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
 
                 Diagnostic::simple_error(message, String::new(), *location)
             }
-            TypeCheckError::CallDeprecated { location,  note, .. } => {
-                let primary_message = error.to_string();
-                let secondary_message = note.clone().unwrap_or_default();
+            TypeCheckError::CallDeprecated { location, note, deny, name } => {
+                let default_primary = format!("`{name}` has been deprecated");
 
-                let mut diagnostic = Diagnostic::simple_warning(primary_message, secondary_message, *location);
+                let (primary, secondary) = match note {
+                    Some(note) => (note.clone(), default_primary),
+                    None => (default_primary, String::new()),
+                };
+
+                let kind = if *deny { DiagnosticKind::Error } else { DiagnosticKind::Warning };
+                let mut diagnostic = Diagnostic::simple_with_kind(primary, secondary, *location, kind);
                 diagnostic.deprecated = true;
                 diagnostic
             }

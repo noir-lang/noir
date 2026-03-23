@@ -4,6 +4,8 @@ on:
   pull_request:
   merge_group:
 
+permissions: {}
+
 jobs:
   add_label:
     runs-on: ubuntu-22.04
@@ -67,6 +69,8 @@ jobs:
 
   build_preview:
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -147,7 +151,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Tag dev rel in comment
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@v3
         with:
           message: |
             FYI @noir-lang/developerrelations on Noir doc changes.

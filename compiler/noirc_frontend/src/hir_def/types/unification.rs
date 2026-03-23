@@ -28,6 +28,8 @@ enum UnificationFlags {
     None,
     /// If the right-hand side is `expr op constant`, don't try to move the constant to the left-hand side.
     DoNotMoveConstantsOnTheRight,
+    /// Don't try to move constants on either side.
+    DoNotMoveConstants,
 }
 
 impl Kind {
@@ -271,10 +273,12 @@ impl Type {
                 })
             }
 
-            (Constant(value, kind), other) | (other, Constant(value, kind)) => {
+            (Constant(value), other) | (other, Constant(value)) => {
                 let dummy_location = Location::dummy();
                 let other = other.substitute(bindings);
-                if let Ok(other_value) = other.evaluate_to_signed_field(kind, dummy_location) {
+
+                let kind = value.numeric_kind();
+                if let Ok(other_value) = other.evaluate_to_integer(&kind, dummy_location) {
                     if *value == other_value && kind.unifies(&other.kind()) {
                         Ok(())
                     } else {
@@ -283,13 +287,14 @@ impl Type {
                 } else if let InfixExpr(lhs, op, rhs, _) = other {
                     if let Some(inverse) = op.approx_inverse() {
                         // Handle cases like `4 = a + b` by trying to solve to `a = 4 - b`
-                        let new_type = Type::inverted_infix_expr(
-                            Box::new(Constant(*value, kind.clone())),
-                            inverse,
-                            rhs,
-                        );
+                        let new_type =
+                            Type::inverted_infix_expr(Box::new(Constant(*value)), inverse, rhs);
 
-                        new_type.try_unify(&lhs, bindings)?;
+                        // Use DoNotMoveConstants to prevent try_unify_by_moving_single_constant_term
+                        // from undoing this rewrite, which would cause infinite recursion when
+                        // constant folding fails (e.g. `0 - 2` underflows u32).
+                        let flags = UnificationFlags::DoNotMoveConstants;
+                        new_type.try_unify_with_flags(&lhs, flags, bindings)?;
                         Ok(())
                     } else {
                         Err(UnificationError)
@@ -433,7 +438,7 @@ impl Type {
         Err(UnificationError)
     }
 
-    /// Try to unify the following equations:
+    /// Try to unify the following equations, unless prohibited by DoNotMoveConstants flag:
     /// - `(..a..) + 1 = (..b..)` -> `(..a..) = (..b..) - 1`
     /// - `(..a..) - 1 = (..b..)` -> `(..a..) = (..b..) + 1`
     /// - `(..a..) = (..b..) + 1` -> `(..b..) = (..a..) - 1`
@@ -444,12 +449,20 @@ impl Type {
         flags: UnificationFlags,
         bindings: &mut TypeBindings,
     ) -> Result<(), UnificationError> {
-        let result = self.try_unify_by_moving_single_constant_term_in_self(other, bindings);
-        if result.is_ok() {
-            return Ok(());
+        let (try_left, try_right) = match flags {
+            UnificationFlags::DoNotMoveConstants => (false, false),
+            UnificationFlags::DoNotMoveConstantsOnTheRight => (true, false),
+            UnificationFlags::None => (true, true),
+        };
+
+        if try_left {
+            let result = self.try_unify_by_moving_single_constant_term_in_self(other, bindings);
+            if result.is_ok() {
+                return Ok(());
+            }
         }
 
-        if flags != UnificationFlags::DoNotMoveConstantsOnTheRight {
+        if try_right {
             let result = other.try_unify_by_moving_single_constant_term_in_self(self, bindings);
             if result.is_ok() {
                 return Ok(());
@@ -473,8 +486,8 @@ impl Type {
             let kind = lhs_lhs.infix_kind(lhs_rhs);
             let dummy_location = Location::dummy();
             let lhs_rhs = lhs_rhs.substitute(bindings);
-            if let Ok(value) = lhs_rhs.evaluate_to_signed_field(&kind, dummy_location) {
-                let lhs_rhs = Box::new(Type::Constant(value, kind));
+            if let Ok(value) = lhs_rhs.evaluate_to_integer(&kind, dummy_location) {
+                let lhs_rhs = Box::new(Type::Constant(value));
                 let new_rhs =
                     Type::inverted_infix_expr(Box::new(other.clone()), lhs_op_inverse, lhs_rhs);
 
@@ -682,7 +695,10 @@ fn invoke_function_on_expression(
 
 #[cfg(test)]
 mod tests {
-    use crate::{BinaryTypeOperator, Kind, Type, TypeBindings, TypeVariable, TypeVariableId};
+    use crate::{
+        BinaryTypeOperator, Kind, Type, TypeBindings, TypeVariable, TypeVariableId,
+        hir::comptime::Integer,
+    };
 
     struct Types {
         next_type_variable_id: usize,
@@ -705,7 +721,7 @@ mod tests {
     }
 
     fn constant(value: u128) -> Type {
-        Type::Constant(value.into(), Kind::Any)
+        Type::Constant(Integer::Field(value.into()))
     }
 
     fn add(a: &Type, b: &Type) -> Type {
@@ -819,8 +835,8 @@ mod tests {
         let mut bindings = TypeBindings::default();
 
         // A + 1 = B + 3
-        let (a, id_a) = types.type_variable();
-        let (b, _) = types.type_variable();
+        let (a, id_a) = types.type_variable_with_kind(Kind::Numeric(Box::new(Type::FieldElement)));
+        let (b, _) = types.type_variable_with_kind(Kind::Numeric(Box::new(Type::FieldElement)));
         let one = constant(1);
         let two = constant(2);
         let three = constant(3);
@@ -839,9 +855,9 @@ mod tests {
         let mut bindings = TypeBindings::default();
 
         // (3 - A) - 1 = B * C
-        let (a, id_a) = types.type_variable();
-        let (b, _) = types.type_variable();
-        let (c, _) = types.type_variable();
+        let (a, id_a) = types.type_variable_with_kind(Kind::Numeric(Box::new(Type::FieldElement)));
+        let (b, _) = types.type_variable_with_kind(Kind::Numeric(Box::new(Type::FieldElement)));
+        let (c, _) = types.type_variable_with_kind(Kind::Numeric(Box::new(Type::FieldElement)));
         let one = constant(1);
         let three = constant(3);
 

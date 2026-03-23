@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use arbitrary::Unstructured;
 use nargo::errors::Location;
 use noirc_evaluator::{assert_ssa_snapshot, ssa::ssa_gen};
@@ -61,9 +63,9 @@ fn test_modulo_of_negative_literals_in_range() {
         Type::Integer(noirc_frontend::shared::Signedness::Signed, IntegerBitSize::SixtyFour);
 
     let start_range =
-        range_modulo(int_literal(9u64, true, index_type.clone()), index_type.clone(), max_size);
+        range_modulo(int_literal(-9i64, index_type.clone()), index_type.clone(), max_size);
     let end_range =
-        range_modulo(int_literal(1u64, true, index_type.clone()), index_type.clone(), max_size);
+        range_modulo(int_literal(-1i64, index_type.clone()), index_type.clone(), max_size);
 
     let body = Expression::For(For {
         index_variable: LocalId(0),
@@ -122,12 +124,12 @@ fn test_recursion_limit_rewrite() {
                         definition: Definition::Function(*callee_id),
                         mutable: false,
                         name: callee_name,
-                        typ: Type::Function(
+                        typ: Rc::new(Type::Function(
                             vec![],
-                            Box::new(Type::Unit),
-                            Box::new(Type::Unit),
+                            Rc::new(Type::Unit),
+                            Rc::new(Type::Unit),
                             callee_unconstrained,
-                        ),
+                        )),
                         id: ident_id,
                     })),
                     arguments: vec![],
