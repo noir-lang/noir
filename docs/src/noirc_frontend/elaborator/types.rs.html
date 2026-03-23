@@ -224,13 +224,13 @@
 <a href=#224 id=224 data-nosnippet>224</a>                <span class="kw">let </span>env =
 <a href=#225 id=225 data-nosnippet>225</a>                    Box::new(<span class="self">self</span>.resolve_type_with_kind_inner(<span class="kw-2">*</span>env, kind, mode, wildcard_allowed));
 <a href=#226 id=226 data-nosnippet>226</a>
-<a href=#227 id=227 data-nosnippet>227</a>                <span class="kw">match </span><span class="kw-2">*</span>env {
+<a href=#227 id=227 data-nosnippet>227</a>                <span class="kw">match </span>env.follow_bindings_shallow().into_owned() {
 <a href=#228 id=228 data-nosnippet>228</a>                    Type::Unit | Type::Tuple(<span class="kw">_</span>) | Type::NamedGeneric(<span class="kw">_</span>) =&gt; {
 <a href=#229 id=229 data-nosnippet>229</a>                        Type::Function(args, ret, env, unconstrained)
 <a href=#230 id=230 data-nosnippet>230</a>                    }
-<a href=#231 id=231 data-nosnippet>231</a>                    <span class="kw">_ </span>=&gt; {
+<a href=#231 id=231 data-nosnippet>231</a>                    typ =&gt; {
 <a href=#232 id=232 data-nosnippet>232</a>                        <span class="self">self</span>.push_err(ResolverError::InvalidClosureEnvironment {
-<a href=#233 id=233 data-nosnippet>233</a>                            typ: <span class="kw-2">*</span>env,
+<a href=#233 id=233 data-nosnippet>233</a>                            typ,
 <a href=#234 id=234 data-nosnippet>234</a>                            location: env_location,
 <a href=#235 id=235 data-nosnippet>235</a>                        });
 <a href=#236 id=236 data-nosnippet>236</a>                        Type::Error
