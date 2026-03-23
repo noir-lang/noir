@@ -2,32 +2,29 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-use std::{embedded_curve_ops::embedded_curve_add, ops::Add};
+use std::{
+    embedded_curve_ops::{
+        embedded_curve_add, EmbeddedCurvePoint, EmbeddedCurveScalar, multi_scalar_mul,
+    },
+    ops::Add,
+};
 
 fn main(priv_key: Field, pub_x: pub Field, pub_y: pub Field) {
-    let g1: std::embedded_curve_ops::EmbeddedCurvePoint =
-        std::embedded_curve_ops::EmbeddedCurvePoint::generator();
-    let scalar: std::embedded_curve_ops::EmbeddedCurveScalar =
-        std::embedded_curve_ops::EmbeddedCurveScalar { lo: priv_key, hi: 0_Field };
-    let res: std::embedded_curve_ops::EmbeddedCurvePoint =
-        std::embedded_curve_ops::multi_scalar_mul([g1], [scalar]);
+    let g1: EmbeddedCurvePoint = EmbeddedCurvePoint::generator();
+    let scalar: EmbeddedCurveScalar = EmbeddedCurveScalar { lo: priv_key, hi: 0_Field };
+    let res: EmbeddedCurvePoint = multi_scalar_mul([g1], [scalar]);
     assert(res.x == pub_x);
     assert(res.y == pub_y);
-    let pub_point: std::embedded_curve_ops::EmbeddedCurvePoint =
-        std::embedded_curve_ops::EmbeddedCurvePoint { x: pub_x, y: pub_y, is_infinite: false };
-    let res: std::embedded_curve_ops::EmbeddedCurvePoint = pub_point.double();
-    let double: std::embedded_curve_ops::EmbeddedCurvePoint = g1.add(g1);
+    let pub_point: EmbeddedCurvePoint = EmbeddedCurvePoint { x: pub_x, y: pub_y };
+    let res: EmbeddedCurvePoint = pub_point.double();
+    let double: EmbeddedCurvePoint = g1.add(g1);
     assert(double.x == res.x);
-    let res: std::embedded_curve_ops::EmbeddedCurvePoint =
-        std::embedded_curve_ops::multi_scalar_mul([g1, g1], [scalar, scalar]);
+    let res: EmbeddedCurvePoint = multi_scalar_mul([g1, g1], [scalar, scalar]);
     assert(double.x == res.x);
-    let const_scalar1: std::embedded_curve_ops::EmbeddedCurveScalar =
-        std::embedded_curve_ops::EmbeddedCurveScalar { lo: 23_Field, hi: 0_Field };
-    let const_scalar2: std::embedded_curve_ops::EmbeddedCurveScalar =
-        std::embedded_curve_ops::EmbeddedCurveScalar { lo: 0_Field, hi: 23_Field };
-    let const_scalar3: std::embedded_curve_ops::EmbeddedCurveScalar =
-        std::embedded_curve_ops::EmbeddedCurveScalar { lo: 13_Field, hi: 4_Field };
-    let partial_mul: std::embedded_curve_ops::EmbeddedCurvePoint = std::embedded_curve_ops::multi_scalar_mul(
+    let const_scalar1: EmbeddedCurveScalar = EmbeddedCurveScalar { lo: 23_Field, hi: 0_Field };
+    let const_scalar2: EmbeddedCurveScalar = EmbeddedCurveScalar { lo: 0_Field, hi: 23_Field };
+    let const_scalar3: EmbeddedCurveScalar = EmbeddedCurveScalar { lo: 13_Field, hi: 4_Field };
+    let partial_mul: EmbeddedCurvePoint = multi_scalar_mul(
         [g1, double, pub_point, g1, g1],
         [scalar, const_scalar1, scalar, const_scalar2, const_scalar3],
     );
@@ -35,103 +32,43 @@ fn main(priv_key: Field, pub_x: pub Field, pub_y: pub Field) {
         partial_mul.x
             == -7349266043899242844836273743257843180744506495159104166319746739537754653274_Field,
     );
-    let zero_point: std::embedded_curve_ops::EmbeddedCurvePoint =
-        std::embedded_curve_ops::EmbeddedCurvePoint { x: 0_Field, y: 0_Field, is_infinite: true };
-    let const_zero: std::embedded_curve_ops::EmbeddedCurveScalar =
-        std::embedded_curve_ops::EmbeddedCurveScalar { lo: 0_Field, hi: 0_Field };
-    let partial_mul: std::embedded_curve_ops::EmbeddedCurvePoint = std::embedded_curve_ops::multi_scalar_mul(
-        [zero_point, double, g1],
-        [scalar, const_zero, scalar],
-    );
+    let zero_point: EmbeddedCurvePoint = EmbeddedCurvePoint { x: 0_Field, y: 0_Field };
+    let const_zero: EmbeddedCurveScalar = EmbeddedCurveScalar { lo: 0_Field, hi: 0_Field };
+    let partial_mul: EmbeddedCurvePoint =
+        multi_scalar_mul([zero_point, double, g1], [scalar, const_zero, scalar]);
     assert(partial_mul == g1);
     if pub_x == pub_y {
-        let a1: std::embedded_curve_ops::EmbeddedCurvePoint = std::embedded_curve_ops::EmbeddedCurvePoint {
-            x: 1_Field,
-            y: 2_Field,
-            is_infinite: false,
-        };
-        let a2: std::embedded_curve_ops::EmbeddedCurvePoint = std::embedded_curve_ops::EmbeddedCurvePoint {
-            x: 1_Field,
-            y: 3_Field,
-            is_infinite: false,
-        };
-        let doubling: std::embedded_curve_ops::EmbeddedCurvePoint = a1.double();
+        let a1: EmbeddedCurvePoint = EmbeddedCurvePoint { x: 1_Field, y: 2_Field };
+        let a2: EmbeddedCurvePoint = EmbeddedCurvePoint { x: 1_Field, y: 3_Field };
+        let doubling: EmbeddedCurvePoint = a1.double();
         assert(doubling.x == 1_Field);
-        let res: std::embedded_curve_ops::EmbeddedCurvePoint = embedded_curve_add(a1, a2);
+        let res: EmbeddedCurvePoint = embedded_curve_add(a1, a2);
         assert(res.x == 1_Field);
-        let a1: std::embedded_curve_ops::EmbeddedCurvePoint = std::embedded_curve_ops::EmbeddedCurvePoint {
-            x: pub_x + 1_Field,
-            y: pub_y,
-            is_infinite: false,
-        };
-        let a2: std::embedded_curve_ops::EmbeddedCurvePoint = std::embedded_curve_ops::EmbeddedCurvePoint {
-            x: pub_x + 1_Field,
-            y: pub_y + 1_Field,
-            is_infinite: false,
-        };
-        let doubling: std::embedded_curve_ops::EmbeddedCurvePoint = a1.double();
+        let a1: EmbeddedCurvePoint = EmbeddedCurvePoint { x: pub_x + 1_Field, y: pub_y };
+        let a2: EmbeddedCurvePoint = EmbeddedCurvePoint { x: pub_x + 1_Field, y: pub_y + 1_Field };
+        let doubling: EmbeddedCurvePoint = a1.double();
         assert(doubling.x == 1_Field);
-        let res: std::embedded_curve_ops::EmbeddedCurvePoint = embedded_curve_add(a1, a2);
+        let res: EmbeddedCurvePoint = embedded_curve_add(a1, a2);
         assert(res.x == 1_Field);
-        let a1: std::embedded_curve_ops::EmbeddedCurvePoint = std::embedded_curve_ops::EmbeddedCurvePoint {
-            x: 2_Field,
-            y: 3_Field,
-            is_infinite: false,
-        };
-        let a2: std::embedded_curve_ops::EmbeddedCurvePoint = std::embedded_curve_ops::EmbeddedCurvePoint {
-            x: pub_x,
-            y: pub_y + (1_Field as Field),
-            is_infinite: false,
-        };
-        let res: std::embedded_curve_ops::EmbeddedCurvePoint = embedded_curve_add(a1, a2);
+        let a1: EmbeddedCurvePoint = EmbeddedCurvePoint { x: 2_Field, y: 3_Field };
+        let a2: EmbeddedCurvePoint = EmbeddedCurvePoint { x: pub_x, y: pub_y + (1_Field as Field) };
+        let res: EmbeddedCurvePoint = embedded_curve_add(a1, a2);
         assert(res.x == 1_Field);
-        let a1: std::embedded_curve_ops::EmbeddedCurvePoint = std::embedded_curve_ops::EmbeddedCurvePoint {
-            x: 2_Field,
-            y: 3_Field,
-            is_infinite: false,
-        };
-        let a2: std::embedded_curve_ops::EmbeddedCurvePoint = std::embedded_curve_ops::EmbeddedCurvePoint {
-            x: 2_Field,
-            y: 4_Field,
-            is_infinite: false,
-        };
-        let res: std::embedded_curve_ops::EmbeddedCurvePoint = embedded_curve_add(a1, a2);
+        let a1: EmbeddedCurvePoint = EmbeddedCurvePoint { x: 2_Field, y: 3_Field };
+        let a2: EmbeddedCurvePoint = EmbeddedCurvePoint { x: 2_Field, y: 4_Field };
+        let res: EmbeddedCurvePoint = embedded_curve_add(a1, a2);
         assert(res.x == 1_Field);
-        let a1: std::embedded_curve_ops::EmbeddedCurvePoint = std::embedded_curve_ops::EmbeddedCurvePoint {
-            x: 2_Field,
-            y: 3_Field,
-            is_infinite: false,
-        };
-        let a2: std::embedded_curve_ops::EmbeddedCurvePoint = std::embedded_curve_ops::EmbeddedCurvePoint {
-            x: 2_Field,
-            y: 3_Field,
-            is_infinite: false,
-        };
-        let res: std::embedded_curve_ops::EmbeddedCurvePoint = embedded_curve_add(a1, a2);
+        let a1: EmbeddedCurvePoint = EmbeddedCurvePoint { x: 2_Field, y: 3_Field };
+        let a2: EmbeddedCurvePoint = EmbeddedCurvePoint { x: 2_Field, y: 3_Field };
+        let res: EmbeddedCurvePoint = embedded_curve_add(a1, a2);
         assert(res.x == 1_Field);
-        let a1: std::embedded_curve_ops::EmbeddedCurvePoint = std::embedded_curve_ops::EmbeddedCurvePoint {
-            x: 1_Field,
-            y: 3_Field,
-            is_infinite: false,
-        };
-        let a2: std::embedded_curve_ops::EmbeddedCurvePoint = std::embedded_curve_ops::EmbeddedCurvePoint {
-            x: 1_Field,
-            y: 3_Field,
-            is_infinite: false,
-        };
-        let res: std::embedded_curve_ops::EmbeddedCurvePoint = embedded_curve_add(a1, a2);
+        let a1: EmbeddedCurvePoint = EmbeddedCurvePoint { x: 1_Field, y: 3_Field };
+        let a2: EmbeddedCurvePoint = EmbeddedCurvePoint { x: 1_Field, y: 3_Field };
+        let res: EmbeddedCurvePoint = embedded_curve_add(a1, a2);
         assert(res.x == 1_Field);
-        let a1: std::embedded_curve_ops::EmbeddedCurvePoint = std::embedded_curve_ops::EmbeddedCurvePoint {
-            x: pub_x,
-            y: 3_Field,
-            is_infinite: false,
-        };
-        let a2: std::embedded_curve_ops::EmbeddedCurvePoint = std::embedded_curve_ops::EmbeddedCurvePoint {
-            x: pub_x,
-            y: 2_Field,
-            is_infinite: false,
-        };
-        let res: std::embedded_curve_ops::EmbeddedCurvePoint = embedded_curve_add(a1, a2);
+        let a1: EmbeddedCurvePoint = EmbeddedCurvePoint { x: pub_x, y: 3_Field };
+        let a2: EmbeddedCurvePoint = EmbeddedCurvePoint { x: pub_x, y: 2_Field };
+        let res: EmbeddedCurvePoint = embedded_curve_add(a1, a2);
         assert(res.x == 1_Field);
     }
 }
