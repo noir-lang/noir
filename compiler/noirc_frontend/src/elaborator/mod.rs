@@ -84,6 +84,7 @@ use crate::{
     },
     parser::{ParserError, ParserErrorReason},
     recursion::TypeRecursionContext,
+    stack::StackLimiter,
 };
 use crate::{
     graph::CrateGraph, hir::def_collector::dc_crate::UnresolvedTrait, usage_tracker::UsageTracker,
@@ -311,6 +312,8 @@ pub struct Elaborator<'context> {
     /// array[i_0] = 10;
     /// ```
     lvalue_index_counter: usize,
+
+    stack_limiter: StackLimiter,
 }
 
 #[derive(Copy, Clone)]
@@ -382,6 +385,7 @@ impl<'context> Elaborator<'context> {
             comptime_evaluation_halted: false,
             macro_expansion_depth: 0,
             lvalue_index_counter: 0,
+            stack_limiter: StackLimiter::new(),
         }
     }
 
@@ -870,6 +874,16 @@ impl<'context> Elaborator<'context> {
         let lvalue_index_counter = self.lvalue_index_counter;
         self.lvalue_index_counter += 1;
         lvalue_index_counter
+    }
+
+    /// Check the current recursion depth; if the limit has been reached,
+    /// emit an error and return `true`, otherwise return `false`.
+    fn max_recursion_depth_exceeded(&mut self, location: Location) -> bool {
+        if self.stack_limiter.can_recur() {
+            return false;
+        }
+        self.push_err(ResolverError::MaximumRecursionDepthExceeded { location });
+        true
     }
 }
 

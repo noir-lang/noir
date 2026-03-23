@@ -356,7 +356,7 @@ impl DefCollector {
             errors.extend(CrateDefMap::collect_defs(dep.crate_id, context, options));
 
             let dep_def_map =
-                context.def_map(&dep.crate_id).expect("ice: def map was just created");
+                context.def_map(&dep.crate_id).expect("ICE: def map was just created");
 
             let dep_def_root = dep_def_map.root();
             let module_id = ModuleId { krate: dep.crate_id, local_id: dep_def_root };

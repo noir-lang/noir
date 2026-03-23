@@ -33,6 +33,7 @@ cfg-if.workspace = true
 tracing.workspace = true
 petgraph.workspace = true
 rangemap.workspace = true
+stacker.workspace = true
 strum.workspace = true
 strum_macros.workspace = true
 rustc-hash.workspace = true

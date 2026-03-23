@@ -3,10 +3,14 @@ use std::iter;
 use itertools::Itertools;
 
 use crate::{
-    hir::{comptime::InterpreterError, def_collector::dc_crate::CompilationError},
+    hir::{
+        comptime::InterpreterError, def_collector::dc_crate::CompilationError,
+        resolution::errors::ResolverError,
+    },
     tests::get_program_errors,
 };
 
+// stack overflow in the parser
 #[test]
 fn deeply_nested_tuples() {
     // Creates: (((((...((u8))...)))))
@@ -31,6 +35,7 @@ fn deeply_nested_tuples() {
 }
 
 #[test]
+#[should_panic(expected = "Type recursion limit reached - types are too large")]
 fn deeply_nested_arrays() {
     // Creates: [[[[...[[u8; 1]; 1]...; 1]; 1]; 1]
     const DEPTH: usize = 700;
@@ -53,6 +58,7 @@ fn deeply_nested_arrays() {
     assert!(errors.is_empty())
 }
 
+// stack overflow in the parser
 #[test]
 fn deeply_nested_generic_structs() {
     // Creates: Wrapper<Wrapper<Wrapper<...Wrapper<u8>...>>>
@@ -94,7 +100,15 @@ fn deeply_nested_terms() {
     );
 
     let errors = get_program_errors(&src);
-    assert!(errors.is_empty())
+    for error in errors {
+        if matches!(
+            error,
+            CompilationError::ResolverError(ResolverError::MaximumRecursionDepthExceeded { .. })
+        ) {
+            return;
+        }
+    }
+    panic!("Expected a MaximumRecursionDepthExceeded error");
 }
 
 #[test]

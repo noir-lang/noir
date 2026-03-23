@@ -64,6 +64,11 @@ impl Elaborator<'_> {
         expr: Expression,
         target_type: Option<&Type>,
     ) -> (ExprId, Type) {
+        if self.max_recursion_depth_exceeded(expr.location) {
+            let id = self.interner.push_expr_full(HirExpression::Error, expr.location, Type::Error);
+            return (id, Type::Error);
+        }
+
         let ((id, typ), has_errors) =
             self.with_error_guard(|this| this.elaborate_expression_inner(expr, target_type));
 
