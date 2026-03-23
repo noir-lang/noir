@@ -2,10 +2,12 @@
 
 use core::panic;
 
+use acvm::{AcirField, FieldElement};
+
+use crate::hir::comptime::Integer;
 use crate::hir::type_check::TypeCheckError;
 use crate::hir_def::types::BinaryTypeOperator;
 use crate::monomorphization::errors::MonomorphizationError;
-use crate::signed_field::SignedField;
 use crate::test_utils::get_monomorphized;
 use crate::tests::{assert_no_errors, check_errors, get_program_errors};
 
@@ -83,12 +85,12 @@ fn arithmetic_generics_checked_cast_zeros() {
     if let MonomorphizationError::UnknownArrayLength { ref err, location: _ } =
         monomorphization_error
     {
-        let TypeCheckError::FailingBinaryOp { op, lhs, rhs, .. } = err else {
+        let TypeCheckError::OverflowingBinaryOp { op, lhs, rhs, .. } = err else {
             panic!("Expected FailingBinaryOp, but found: {err:?}");
         };
         assert_eq!(op, &BinaryTypeOperator::Modulo);
-        assert_eq!(lhs, "0");
-        assert_eq!(rhs, "0");
+        assert_eq!(*lhs, Integer::U1(false));
+        assert_eq!(*rhs, Integer::U1(false));
     } else {
         panic!("unexpected error: {monomorphization_error:?}");
     }
@@ -122,8 +124,8 @@ fn arithmetic_generics_checked_cast_indirect_zeros() {
     {
         match err {
             TypeCheckError::ModuloOnFields { lhs, rhs, .. } => {
-                assert_eq!(lhs.clone(), SignedField::zero());
-                assert_eq!(rhs.clone(), SignedField::zero());
+                assert_eq!(lhs.clone(), FieldElement::zero());
+                assert_eq!(rhs.clone(), FieldElement::zero());
             }
             _ => panic!("expected ModuloOnFields, but found: {err:?}"),
         }
