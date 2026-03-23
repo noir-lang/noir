@@ -120,19 +120,19 @@ impl Function {
         // sizes in O(blocks): `blocks` is in RPO order, so iterating in reverse guarantees
         // each block is visited before its immediate dominator (dominators always have a
         // lower RPO index). One reverse pass accumulates subtree sizes bottom-up.
-        if let Some(max_span) = max_block_span {
-            if blocks.len() > max_span {
-                // Initialize each block's dom count to 1
-                let mut subtree_size = btree_map(&blocks, |block| (*block, 1));
+        if let Some(max_span) = max_block_span
+            && blocks.len() > max_span
+        {
+            // Initialize each block's dom count to 1
+            let mut subtree_size = btree_map(&blocks, |block| (*block, 1));
 
-                for &block in blocks.iter().rev() {
-                    if let Some(idom) = dom_tree.immediate_dominator(block) {
-                        let size = subtree_size[&block];
-                        *subtree_size.entry(idom).or_insert(1) += size;
-                    }
+            for &block in blocks.iter().rev() {
+                if let Some(idom) = dom_tree.immediate_dominator(block) {
+                    let size = subtree_size[&block];
+                    *subtree_size.entry(idom).or_insert(1) += size;
                 }
-                variables.retain(|_var, decl_block| subtree_size[decl_block] <= max_span);
             }
+            variables.retain(|_var, decl_block| subtree_size[decl_block] <= max_span);
         }
 
         // Limit increase in memory usage and brillig regressions by arbitrarily limiting this pass to some variables
