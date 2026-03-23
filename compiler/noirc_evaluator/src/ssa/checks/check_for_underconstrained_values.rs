@@ -8,11 +8,10 @@ use crate::ssa::ir::instruction::{Hint, Instruction, InstructionId, Intrinsic};
 use crate::ssa::ir::value::{Value, ValueId};
 use crate::ssa::ssa_gen::Ssa;
 use crate::ssa::visit_once_deque::VisitOnceDeque;
-use im::HashMap;
 use noirc_artifacts::ssa::{InternalBug, SsaReport};
 use noirc_errors::Location;
 use rayon::prelude::*;
-use rustc_hash::FxHashMap;
+use rustc_hash::FxHashMap as HashMap;
 use std::collections::{BTreeMap, HashSet};
 use std::hash::Hash;
 use tracing::trace;
@@ -20,13 +19,13 @@ use tracing::trace;
 /// Union-Find (disjoint set) data structure for efficiently computing connected components.
 /// Uses path compression and union by rank for near-O(1) amortized operations.
 struct UnionFind {
-    parent: FxHashMap<ValueId, ValueId>,
-    rank: FxHashMap<ValueId, u32>,
+    parent: HashMap<ValueId, ValueId>,
+    rank: HashMap<ValueId, u32>,
 }
 
 impl UnionFind {
     fn new() -> Self {
-        Self { parent: FxHashMap::default(), rank: FxHashMap::default() }
+        Self { parent: HashMap::default(), rank: HashMap::default() }
     }
 
     /// Ensure a value exists in the union-find.
@@ -183,7 +182,7 @@ struct DependencyContext {
     visited_blocks: HashSet<BasicBlockId>,
     block_queue: Vec<BasicBlockId>,
     /// Map keeping track of values stored at memory locations
-    memory_slots: HashMap<ValueId, ValueId>,
+    memory_slots: im::HashMap<ValueId, ValueId>,
     /// Value currently affecting every instruction (i.e. being
     /// considered a parent of every value id met) because
     /// of its involvement in an EnableSideEffectsIf condition
@@ -192,7 +191,7 @@ struct DependencyContext {
     /// from their arguments and results
     tainted: BTreeMap<InstructionId, BrilligTaintedIds>,
     /// Map of argument value IDs to the Brillig call IDs employing them
-    call_arguments: HashMap<ValueId, Vec<InstructionId>>,
+    call_arguments: im::HashMap<ValueId, Vec<InstructionId>>,
     /// The set of calls currently being tracked
     tracking: HashSet<InstructionId>,
     /// Opt-in to use the lookback feature (tracking the argument values
@@ -215,7 +214,7 @@ struct BrilligTaintedIds {
     /// Results status
     results: Vec<ResultStatus>,
     /// Indices of the array elements in the results vector
-    array_elements: HashMap<ValueId, Vec<usize>>,
+    array_elements: im::HashMap<ValueId, Vec<usize>>,
     /// Initial result value ids, along with element IDs for arrays
     root_results: HashSet<ValueId>,
 }
@@ -244,7 +243,7 @@ impl BrilligTaintedIds {
             .collect();
 
         let mut results_status: Vec<ResultStatus> = vec![];
-        let mut array_elements: HashMap<ValueId, Vec<usize>> = HashMap::new();
+        let mut array_elements: im::HashMap<ValueId, Vec<usize>> = im::HashMap::new();
 
         for result in &results {
             match function.dfg.try_get_array_length(*result) {
@@ -753,8 +752,8 @@ impl DependencyContext {
 struct Context {
     block_queue: VisitOnceDeque,
     uf: UnionFind,
-    brillig_return_to_argument: HashMap<ValueId, Vec<ValueId>>,
-    brillig_return_to_instruction_id: HashMap<ValueId, InstructionId>,
+    brillig_return_to_argument: im::HashMap<ValueId, Vec<ValueId>>,
+    brillig_return_to_instruction_id: im::HashMap<ValueId, InstructionId>,
 }
 
 impl Default for Context {
@@ -762,8 +761,8 @@ impl Default for Context {
         Self {
             block_queue: VisitOnceDeque::default(),
             uf: UnionFind::new(),
-            brillig_return_to_argument: HashMap::default(),
-            brillig_return_to_instruction_id: HashMap::default(),
+            brillig_return_to_argument: im::HashMap::default(),
+            brillig_return_to_instruction_id: im::HashMap::default(),
         }
     }
 }
@@ -789,7 +788,7 @@ impl Context {
         function: &Function,
     ) -> HashSet<ValueId> {
         let returns = function.returns().unwrap_or_default();
-        let io_values: Vec<ValueId> = function
+        let input_output_values: Vec<_> = function
             .parameters()
             .iter()
             .chain(returns)
@@ -797,7 +796,7 @@ impl Context {
             .filter(|id| !is_numeric_constant(function, *id))
             .filter(|id| self.uf.parent.contains_key(id))
             .collect();
-        io_values.into_iter().map(|id| self.uf.find(id)).collect()
+        input_output_values.into_iter().map(|id| self.uf.find(id)).collect()
     }
 
     /// Go through each instruction in the block and union ValueIds connected through that instruction
