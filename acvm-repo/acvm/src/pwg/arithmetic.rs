@@ -62,14 +62,12 @@ impl ExpressionSolver {
         // Single pass over all linear terms (original + extra from partially-evaluated mul).
         let mut sum = opcode.q_c + mul_constant;
         let mut unknown: Option<(F, Witness)> = None;
-        let mut num_unknowns = 0u32;
 
         // Process the extra linear term from the mul first (if any).
         // Its witness is guaranteed unknown (came from OneUnknown).
         if let Some((coeff, witness)) = extra_linear
             && !coeff.is_zero()
         {
-            num_unknowns = 1;
             unknown = Some((coeff, witness));
         }
 
@@ -77,8 +75,7 @@ impl ExpressionSolver {
             if let Some(value) = initial_witness.get(&witness) {
                 sum += coeff * *value;
             } else if !coeff.is_zero() {
-                num_unknowns += 1;
-                if num_unknowns > 1 {
+                if unknown.is_some() {
                     // Multiple unknowns — need to try combining duplicate witnesses.
                     return Self::solve_via_evaluate(initial_witness, opcode);
                 }
