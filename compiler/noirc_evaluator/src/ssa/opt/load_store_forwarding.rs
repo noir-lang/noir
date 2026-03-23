@@ -156,11 +156,16 @@ fn forward_loads_and_stores_in_block(
                 last_stores.remove(&address);
             }
             Instruction::Call { .. } => {
-                // A call could dereference and modify any reference argument,
-                // including references nested inside arrays or tuples.
+                // A call could dereference and modify any reference argument.
+                // For direct references we only invalidate that specific address.
+                // For containers (arrays/tuples) holding references, we can't know
+                // which addresses they hold, so we conservatively clear everything.
                 instruction.for_each_value(|value| {
                     let value = inserter.resolve(value);
-                    if inserter.function.dfg.type_of_value(value).contains_reference() {
+                    if inserter.function.dfg.value_is_reference(value) {
+                        known_values.remove(&value);
+                        last_stores.remove(&value);
+                    } else if inserter.function.dfg.type_of_value(value).contains_reference() {
                         known_values.clear();
                         last_stores.clear();
                     }
