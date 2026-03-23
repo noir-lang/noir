@@ -80,9 +80,9 @@ impl TokenStream<'_> {
     }
 }
 
-/// Maximum recursion depth for parsing nested expressions.
+/// Maximum recursion depth for parsing nested expressions and types.
 /// This limit prevents stack overflow when parsing deeply nested expressions.
-pub(super) const MAX_PARSER_RECURSION_DEPTH: u32 = 100;
+const MAX_PARSER_RECURSION_DEPTH: u32 = 100;
 
 pub struct Parser<'a> {
     pub(crate) errors: Vec<ParserError>,
@@ -549,6 +549,51 @@ impl<'a> Parser<'a> {
 
     fn at_eof(&self) -> bool {
         self.current_is(Token::EOF)
+    }
+
+    /// Check if we reached the maximum recursion depth.
+    ///
+    /// If so, emit an error with the current token location,
+    /// skip to a recovery point, set `recovering_from_depth_overflow`
+    /// and return `true`; otherwise return `false`.
+    fn reached_max_recursion_depth(&mut self) -> bool {
+        // Check recursion depth to prevent stack overflow
+        if self.recursion_depth >= MAX_PARSER_RECURSION_DEPTH {
+            self.push_error(
+                ParserErrorReason::MaximumRecursionDepthExceeded,
+                self.current_token_location,
+            );
+            // Skip to a recovery point to avoid cascading errors
+            self.skip_to_recovery_point();
+            // Set flag to suppress cascading errors during stack unwinding
+            self.recovering_from_depth_overflow = true;
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Check that we haven't reached the recursion limit before running a
+    /// lambda to perform the recursion.
+    fn with_max_recursion_depth_guard<T, F>(&mut self, mut f: F) -> Option<T>
+    where
+        F: FnMut(&mut Parser<'a>) -> Option<T>,
+    {
+        // Check recursion depth to prevent stack overflow
+        if self.reached_max_recursion_depth() {
+            return None;
+        }
+
+        self.recursion_depth += 1;
+        let result = f(self);
+        self.recursion_depth -= 1;
+
+        // Clear recovery flag when we've fully unwound (back at top level)
+        if self.recursion_depth == 0 {
+            self.recovering_from_depth_overflow = false;
+        }
+
+        result
     }
 
     /// Skips tokens until we reach a recovery point (`;`, `}`, or EOF).

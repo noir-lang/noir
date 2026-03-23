@@ -191,32 +191,35 @@ impl Parser<'_> {
 
     /// TypeOrTypeExpression = Type | TypeExpression
     pub(crate) fn parse_type_or_type_expression(&mut self) -> Option<UnresolvedType> {
-        let typ = self.parse_add_or_subtract_type_or_type_expression()?;
-        let span = typ.location;
+        self.with_max_recursion_depth_guard(|this| {
+            let typ = this.parse_add_or_subtract_type_or_type_expression()?;
+            let span = typ.location;
 
-        // If we end up with a Variable type expression, make it a Named type (they are equivalent),
-        // but for testing purposes and simplicity we default to types instead of type expressions.
-        Some(
-            if let UnresolvedTypeData::Expression(UnresolvedTypeExpression::Variable(mut path)) =
-                typ.typ
-            {
-                let generics = std::mem::take(&mut path.segments.last_mut().unwrap().generics);
-                let mut generic_type_args = GenericTypeArgs::default();
-                if let Some(generics) = generics {
-                    generic_type_args.ordered_args = generics;
-                    for _ in 0..generic_type_args.ordered_args.len() {
-                        generic_type_args.kinds.push(GenericTypeArgKind::Ordered);
+            // If we end up with a Variable type expression, make it a Named type (they are equivalent),
+            // but for testing purposes and simplicity we default to types instead of type expressions.
+            Some(
+                if let UnresolvedTypeData::Expression(UnresolvedTypeExpression::Variable(
+                    mut path,
+                )) = typ.typ
+                {
+                    let generics = std::mem::take(&mut path.segments.last_mut().unwrap().generics);
+                    let mut generic_type_args = GenericTypeArgs::default();
+                    if let Some(generics) = generics {
+                        generic_type_args.ordered_args = generics;
+                        for _ in 0..generic_type_args.ordered_args.len() {
+                            generic_type_args.kinds.push(GenericTypeArgKind::Ordered);
+                        }
                     }
-                }
 
-                UnresolvedType {
-                    typ: UnresolvedTypeData::Named(path, generic_type_args, false),
-                    location: span,
-                }
-            } else {
-                typ
-            },
-        )
+                    UnresolvedType {
+                        typ: UnresolvedTypeData::Named(path, generic_type_args, false),
+                        location: span,
+                    }
+                } else {
+                    typ
+                },
+            )
+        })
     }
 
     fn parse_add_or_subtract_type_or_type_expression(&mut self) -> Option<UnresolvedType> {

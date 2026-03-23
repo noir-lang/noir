@@ -7,8 +7,29 @@ use crate::{
         comptime::InterpreterError, def_collector::dc_crate::CompilationError,
         resolution::errors::ResolverError,
     },
+    parser::ParserErrorReason,
     tests::get_program_errors,
 };
+
+fn assert_parser_max_recursion_depth(src: &str, expected_error_count: Option<usize>) {
+    let errors = get_program_errors(&src);
+
+    if let Some(expected_error_count) = expected_error_count {
+        // We should get exactly one MaximumRecursionDepthExceeded error
+        assert_eq!(errors.len(), expected_error_count, "Expected exactly one error");
+    }
+
+    for error in errors {
+        if matches!(
+            error,
+            CompilationError::ParseError(parser_error)
+                if parser_error.reason() == Some(&ParserErrorReason::MaximumRecursionDepthExceeded)
+        ) {
+            return;
+        }
+    }
+    panic!("Expected a MaximumRecursionDepthExceeded error");
+}
 
 // stack overflow in the parser
 #[test]
@@ -30,12 +51,10 @@ fn deeply_nested_tuples() {
         type_str
     );
 
-    let errors = get_program_errors(&src);
-    assert!(errors.is_empty())
+    assert_parser_max_recursion_depth(&src, None);
 }
 
 #[test]
-#[should_panic(expected = "Type recursion limit reached - types are too large")]
 fn deeply_nested_arrays() {
     // Creates: [[[[...[[u8; 1]; 1]...; 1]; 1]; 1]
     const DEPTH: usize = 700;
@@ -54,13 +73,12 @@ fn deeply_nested_arrays() {
         type_str
     );
 
-    let errors = get_program_errors(&src);
-    assert!(errors.is_empty())
+    assert_parser_max_recursion_depth(&src, None);
 }
 
 // stack overflow in the parser
 #[test]
-fn deeply_nested_generic_structs() {
+fn deeply_nested_generic_struct_parameter() {
     // Creates: Wrapper<Wrapper<Wrapper<...Wrapper<u8>...>>>
     const DEPTH: usize = 700;
     let mut type_str = String::from("u8");
@@ -73,15 +91,35 @@ fn deeply_nested_generic_structs() {
         r#"
     struct Wrapper<T> {{ inner: T }}
 
-    pub fn main(x: {}) -> pub u8 {{
+    pub fn main(x: {type_str}) -> pub u8 {{
         0
     }}
-    "#,
-        type_str
+    "#
     );
 
-    let errors = get_program_errors(&src);
-    assert!(errors.is_empty())
+    assert_parser_max_recursion_depth(&src, None);
+}
+
+#[test]
+fn deeply_nested_generic_struct_field() {
+    // Creates: Wrapper<Wrapper<Wrapper<...Wrapper<u8>...>>>
+    const DEPTH: usize = 700;
+    let mut type_str = String::from("u8");
+
+    for _ in 0..DEPTH {
+        type_str = format!("Wrapper<{}>", type_str);
+    }
+
+    let src = format!(
+        r#"
+    pub struct Wrapper<T> {{ inner: T }}
+    pub struct Root {{ inner: {type_str} }}
+
+    pub fn main() {{ }}
+    "#
+    );
+
+    assert_parser_max_recursion_depth(&src, None);
 }
 
 #[test]
@@ -157,8 +195,6 @@ fn deeply_nested_expression_evaluation_overflow() {
 
 #[test]
 fn deeply_nested_expression_parser_overflow() {
-    use crate::parser::ParserErrorReason;
-
     // Build expression: (((1 + 2) + 3) + 4) ... + 200
     // This should hit the parser's maximum recursion depth limit
     let mut expr = String::from("1");
@@ -176,15 +212,5 @@ fn deeply_nested_expression_parser_overflow() {
       "
     );
 
-    let errors = get_program_errors(&src);
-
-    // We should get exactly one MaximumRecursionDepthExceeded error
-    assert_eq!(errors.len(), 1, "Expected exactly one error");
-
-    let has_depth_error = matches!(
-        &errors[0],
-        CompilationError::ParseError(parser_error)
-            if parser_error.reason() == Some(&ParserErrorReason::MaximumRecursionDepthExceeded)
-    );
-    assert!(has_depth_error, "Expected a MaximumRecursionDepthExceeded error");
+    assert_parser_max_recursion_depth(&src, Some(1));
 }
