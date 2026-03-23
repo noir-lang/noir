@@ -35,7 +35,7 @@ impl ExpressionSolver {
     ) -> Result<(), OpcodeResolutionError<F>> {
         // Evaluate the multiplication term contribution.
         // Most expressions have 0 mul terms; at most 1 is solvable without combining.
-        let (mul_constant, extra_linear) = match opcode.mul_terms.len() {
+        let (mul_constant, mut unknown) = match opcode.mul_terms.len() {
             0 => (F::zero(), None),
             1 => {
                 let (c, _, _) = opcode.mul_terms[0];
@@ -46,9 +46,9 @@ impl ExpressionSolver {
                     match Self::solve_mul_term_helper(&opcode.mul_terms[0], initial_witness) {
                         MulTerm::Solved(val) => (val, None),
                         MulTerm::OneUnknown(coeff, witness) => {
-                            let extra_linear =
+                            let unknown =
                                 if coeff.is_zero() { None } else { Some((coeff, witness)) };
-                            (F::zero(), extra_linear)
+                            (F::zero(), unknown)
                         }
                         MulTerm::TooManyUnknowns => {
                             // Both witnesses unknown — always unsolvable for a single mul term.
@@ -65,7 +65,6 @@ impl ExpressionSolver {
 
         // Single pass over all linear terms (original + extra from partially-evaluated mul).
         let mut sum = opcode.q_c + mul_constant;
-        let mut unknown = None;
 
         for &(coeff, witness) in &opcode.linear_combinations {
             if let Some(value) = initial_witness.get(&witness) {
