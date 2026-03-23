@@ -115,11 +115,11 @@ impl Function {
         // Each promoted variable adds a block parameter to every dominated block, and the
         // flattener converts each conditional into predicate opcodes, so the cost is
         // O(promoted_variables × dominated_blocks).
-        if let Some(max_span) = max_block_span {
-            variables.retain(|_var, decl_block| {
-                blocks.iter().filter(|&&b| dom_tree.dominates(*decl_block, b)).count() <= max_span
-            });
-        }
+        // if let Some(max_span) = max_block_span {
+        //     variables.retain(|_var, decl_block| {
+        //         blocks.iter().filter(|&&b| dom_tree.dominates(*decl_block, b)).count() <= max_span
+        //     });
+        // }
 
         // Limit increase in memory usage and brillig regressions by arbitrarily limiting this pass to some variables
         if let Some(max) = max_variables {
