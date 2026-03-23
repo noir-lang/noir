@@ -224,13 +224,13 @@ impl Elaborator<'_> {
                 let env =
                     Box::new(self.resolve_type_with_kind_inner(*env, kind, mode, wildcard_allowed));
 
-                match *env {
+                match env.follow_bindings_shallow().into_owned() {
                     Type::Unit | Type::Tuple(_) | Type::NamedGeneric(_) => {
                         Type::Function(args, ret, env, unconstrained)
                     }
-                    _ => {
+                    typ => {
                         self.push_err(ResolverError::InvalidClosureEnvironment {
-                            typ: *env,
+                            typ,
                             location: env_location,
                         });
                         Type::Error
