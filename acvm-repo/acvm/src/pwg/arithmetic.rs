@@ -45,7 +45,11 @@ impl ExpressionSolver {
                 } else {
                     match Self::solve_mul_term_helper(&opcode.mul_terms[0], initial_witness) {
                         MulTerm::Solved(val) => (val, None),
-                        MulTerm::OneUnknown(coeff, witness) => (F::zero(), Some((coeff, witness))),
+                        MulTerm::OneUnknown(coeff, witness) => {
+                            let extra_linear =
+                                if coeff.is_zero() { None } else { Some((coeff, witness)) };
+                            (F::zero(), extra_linear)
+                        }
                         MulTerm::TooManyUnknowns => {
                             // Both witnesses unknown — always unsolvable for a single mul term.
                             return Err(OpcodeResolutionError::OpcodeNotSolvable(
@@ -61,15 +65,7 @@ impl ExpressionSolver {
 
         // Single pass over all linear terms (original + extra from partially-evaluated mul).
         let mut sum = opcode.q_c + mul_constant;
-        let mut unknown: Option<(F, Witness)> = None;
-
-        // Process the extra linear term from the mul first (if any).
-        // Its witness is guaranteed unknown (came from OneUnknown).
-        if let Some((coeff, witness)) = extra_linear
-            && !coeff.is_zero()
-        {
-            unknown = Some((coeff, witness));
-        }
+        let mut unknown = None;
 
         for &(coeff, witness) in &opcode.linear_combinations {
             if let Some(value) = initial_witness.get(&witness) {
