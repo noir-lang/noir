@@ -68,6 +68,18 @@ pub(super) fn variables_used_in_instruction(
     used
 }
 
+/// Collect all [ValueId]s returned by an [Instruction] which refer to variables (not functions).
+fn variables_returned_by_instruction(
+    instruction_id: InstructionId,
+    dfg: &DataFlowGraph,
+) -> Variables {
+    dfg.instruction_results(instruction_id)
+        .iter()
+        .copied()
+        .filter(|result_id| is_variable(*result_id, dfg))
+        .collect()
+}
+
 /// Collect all [ValueId]s used in an [BasicBlock] which refer to [Variables].
 ///
 /// Includes all the variables in the parameters, instructions and the terminator.
@@ -386,12 +398,27 @@ impl VariableLiveness {
             for instruction_id in block.instructions().iter().rev() {
                 let instruction = &func.dfg[*instruction_id];
                 // Collect the variables which will be dead after this instruction.
-                let instruction_last_uses = variables_used_in_instruction(instruction, &func.dfg)
-                    .into_iter()
-                    .filter(|id| !used_after.contains(id) && !live_out.contains(id))
-                    .collect();
-                // Remember that we have already handled these.
+                let mut instruction_last_uses: HashSet<ValueId> =
+                    variables_used_in_instruction(instruction, &func.dfg)
+                        .into_iter()
+                        .filter(|id| !used_after.contains(id) && !live_out.contains(id))
+                        .collect();
+
+                // Remember that we are using these variables.
                 used_after.extend(&instruction_last_uses);
+
+                // Check results as well: if they are not used by anything after,
+                // they can be deallocated. DIE should remove these, but in isolated
+                // unit tests they can be expected to be removed.
+                let unused_instruction_results =
+                    variables_returned_by_instruction(*instruction_id, &func.dfg)
+                        .into_iter()
+                        .filter(|id| !used_after.contains(id) && !live_out.contains(id));
+
+                // We can immediately free unused results.
+                // If we don't, then they will only be removed by DIE, as they don't have an actual last use.
+                instruction_last_uses.extend(unused_instruction_results);
+
                 // Remember that we can deallocate these after this instruction.
                 block_last_uses.insert(*instruction_id, instruction_last_uses);
             }
@@ -891,6 +918,34 @@ mod tests {
         3: sp[3] = field add sp[4], sp[2]
         4: sp[2] = const field 3
         5: sp[4] = field add sp[3], sp[2]
+        6: sp[2] = sp[4]
+        7: return
+        ");
+    }
+
+    #[test]
+    fn test_never_use_deallocation() {
+        // When an instruction result is never used, its register can be reused ASAP.
+        let src = "
+        brillig(inline) fn main f0 {
+        b0(v0: Field):
+            v1 = add v0, Field 1
+            v2 = add v0, Field 2
+            v3 = add v0, Field 3
+            return v3
+        }
+        ";
+        let brillig = ssa_to_brillig_artifacts(src);
+        let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
+
+        assert_artifact_snapshot!(main, @r"
+        fn main
+        0: sp[3] = const field 1
+        1: sp[4] = field add sp[2], sp[3]
+        2: sp[3] = const field 2
+        3: sp[4] = field add sp[2], sp[3]
+        4: sp[3] = const field 3
+        5: sp[4] = field add sp[2], sp[3]
         6: sp[2] = sp[4]
         7: return
         ");

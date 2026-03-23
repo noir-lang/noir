@@ -3,7 +3,7 @@
 
 use crate::{
     test_utils::stdlib_src,
-    tests::{assert_no_errors, check_errors, check_errors_with_stdlib},
+    tests::{assert_no_errors, check_errors, check_errors_with_stdlib, get_program_errors},
 };
 
 #[test]
@@ -537,4 +537,44 @@ fn trait_inheritance_chain_with_associated_types() {
     }
     "#;
     assert_no_errors(src);
+}
+
+/// Diamond trait inheritance should not report "Multiple traits in scope"
+/// when the same trait method is reachable through multiple parent paths.
+///     C       (defines foo)
+///    / \
+///   A   B     (both inherit C)
+///    \ /
+///     D      (inherits A + B)
+#[test]
+fn diamond_trait_inheritance_method_call() {
+    let src = r#"
+    trait C {
+        fn foo(self) -> Field;
+    }
+
+    trait A: C {}
+    trait B: C {}
+    trait D: A + B {}
+
+    fn call_foo<T: D>(x: T) -> Field {
+        x.foo()
+    }
+
+    struct S {}
+
+    impl C for S {
+        fn foo(self) -> Field { 42 }
+    }
+    impl A for S {}
+    impl B for S {}
+    impl D for S {}
+
+    fn main() {
+        assert(call_foo(S {}) == 42);
+    }
+    "#;
+    let errors = get_program_errors(src);
+    let actual_errors: Vec<_> = errors.iter().filter(|e| e.is_error()).collect();
+    assert!(actual_errors.is_empty(), "Expected no errors, got: {actual_errors:?}");
 }

@@ -65,8 +65,8 @@ use crate::{
         comptime::{ComptimeError, InterpreterError},
         def_collector::{
             dc_crate::{
-                CollectedItems, CompilationError, UnresolvedFunctions, UnresolvedGlobal,
-                UnresolvedTraitImpl, UnresolvedTypeAlias,
+                CollectedItems, CompilationError, CompilationErrors, UnresolvedFunctions,
+                UnresolvedGlobal, UnresolvedTraitImpl, UnresolvedTypeAlias,
             },
             errors::DefCollectorErrorKind,
         },
@@ -186,7 +186,7 @@ pub struct Loop {
 pub struct Elaborator<'context> {
     scopes: ScopeForest,
 
-    pub(crate) errors: Vec<CompilationError>,
+    pub(crate) errors: CompilationErrors,
 
     pub(crate) interner: &'context mut NodeInterner,
     pub(crate) def_maps: &'context mut DefMaps,
@@ -352,7 +352,7 @@ impl<'context> Elaborator<'context> {
     ) -> Self {
         Self {
             scopes: ScopeForest::default(),
-            errors: Vec::new(),
+            errors: CompilationErrors::default(),
             interner,
             def_maps,
             usage_tracker,
@@ -423,7 +423,7 @@ impl<'context> Elaborator<'context> {
         crate_id: CrateId,
         items: CollectedItems,
         options: ElaboratorOptions<'context>,
-    ) -> Vec<CompilationError> {
+    ) -> CompilationErrors {
         Self::elaborate_and_return_self(context, crate_id, items, options).errors
     }
 
@@ -482,6 +482,11 @@ impl<'context> Elaborator<'context> {
             &items.module_attributes,
         );
 
+        // Check for dependency cycles before elaborating function bodies.
+        // This breaks cyclic type aliases (replacing them with Type::Error) so that
+        // later phases like path resolution don't infinite-loop following alias chains.
+        self.push_errors(self.interner.check_for_dependency_cycles());
+
         for functions in items.functions {
             self.elaborate_functions(functions);
         }
@@ -495,8 +500,6 @@ impl<'context> Elaborator<'context> {
         for trait_impl in items.trait_impls {
             self.elaborate_trait_impl(trait_impl);
         }
-
-        self.push_errors(self.interner.check_for_dependency_cycles());
     }
 
     fn elaborate_functions(&mut self, functions: UnresolvedFunctions) {
@@ -509,20 +512,14 @@ impl<'context> Elaborator<'context> {
     }
 
     pub(crate) fn push_err(&mut self, error: impl Into<CompilationError>) {
-        let error: CompilationError = error.into();
-        // Filter out internal control flow errors that should not be displayed
-        if !error.should_be_filtered() {
-            self.errors.push(error);
-        }
+        self.errors.push(error);
     }
 
     pub(crate) fn push_errors<E: Into<CompilationError>>(
         &mut self,
         errors: impl IntoIterator<Item = E>,
     ) {
-        for error in errors {
-            self.push_err(error);
-        }
+        self.errors.extend(errors);
     }
 
     /// Run a given function while also tracking whether any new errors were generated as a result.
@@ -530,7 +527,7 @@ impl<'context> Elaborator<'context> {
         // Count actual errors (ignore warnings)
         let initial_error_count = self.errors.len();
         let result = f(self);
-        let has_new_errors = self.errors[initial_error_count..].iter().any(|e| e.is_error());
+        let has_new_errors = self.errors.iter().skip(initial_error_count).any(|e| e.is_error());
         (result, has_new_errors)
     }
 
@@ -738,7 +735,7 @@ impl<'context> Elaborator<'context> {
                     self.resolve_type_with_kind(alias.type_alias_def.typ, &kind, wildcard_allowed);
                 if let Type::Alias(ref alias_ref, _) = typ {
                     if alias_ref.borrow().numeric_expr.is_none() {
-                        self.errors.push(CompilationError::ResolverError(
+                        self.push_err(CompilationError::ResolverError(
                             ResolverError::InvalidNumericAliasExpression {
                                 location: alias.type_alias_def.numeric_location,
                             },
@@ -751,7 +748,7 @@ impl<'context> Elaborator<'context> {
                     (typ, Some(num_expr))
                 }
             } else {
-                self.errors.push(CompilationError::ResolverError(
+                self.push_err(CompilationError::ResolverError(
                     ResolverError::ExpectedNumericExpression {
                         typ: alias.type_alias_def.typ.typ.to_string(),
                         location: alias.type_alias_def.numeric_location,
@@ -769,6 +766,7 @@ impl<'context> Elaborator<'context> {
         self.interner.set_type_alias(alias_id, typ, generics, num_expr);
         self.generics.clear();
 
+        self.current_item = None;
         self.in_comptime_context = previous_in_comptime_context;
     }
 

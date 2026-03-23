@@ -53,7 +53,6 @@ use crate::hir::comptime::InterpreterError;
 use crate::hir::type_check::NoMatchingImplFoundError;
 use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind, TraitItemId};
 use crate::shared::{ForeignCall, Visibility};
-use crate::signed_field::SignedField;
 use crate::token::FunctionAttributeKind;
 use crate::{
     Kind, Type, TypeBinding, TypeBindings,
@@ -1141,7 +1140,6 @@ impl<'interner> Monomorphizer<'interner> {
         let variants = unwrap_enum_type(typ, location)?;
 
         let tag_value = FieldElement::from(constructor.variant_index);
-        let tag_value = SignedField::positive(tag_value);
         let tag = ast::Literal::Integer(tag_value, ast::Type::Field, location);
         let mut fields = vec![ast::Expression::Literal(tag)];
 
@@ -1392,13 +1390,15 @@ impl<'interner> Monomorphizer<'interner> {
                 let Kind::Numeric(numeric_type) = associated_type.typ.kind() else {
                     unreachable!("Expected associated type to be numeric");
                 };
-                match associated_type
-                    .typ
-                    .evaluate_to_signed_field(&associated_type.typ.kind(), location)
+                match associated_type.typ.evaluate_to_integer(&associated_type.typ.kind(), location)
                 {
                     Ok(value) => {
                         let typ = Self::convert_type(&numeric_type, location)?;
-                        Ok(ast::Expression::Literal(ast::Literal::Integer(value, typ, location)))
+                        Ok(ast::Expression::Literal(ast::Literal::Integer(
+                            value.as_field(),
+                            typ,
+                            location,
+                        )))
                     }
                     Err(err) => Err(MonomorphizationError::CannotComputeAssociatedConstant {
                         name: name.clone(),
@@ -1462,7 +1462,7 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<ast::Expression, MonomorphizationError> {
         let expected_kind = Kind::Numeric(Box::new(expected_type.clone()));
         let value = value
-            .evaluate_to_signed_field(&expected_kind, location)
+            .evaluate_to_integer(&expected_kind, location)
             .map_err(|err| MonomorphizationError::UnknownArrayLength { err, location })?;
 
         let expr_kind = Kind::Numeric(Box::new(expr_type));
@@ -1472,7 +1472,7 @@ impl<'interner> Monomorphizer<'interner> {
         }
 
         let typ = Self::convert_type(&expected_type, location)?;
-        Ok(ast::Expression::Literal(ast::Literal::Integer(value, typ, location)))
+        Ok(ast::Expression::Literal(ast::Literal::Integer(value.as_field(), typ, location)))
     }
 
     fn global_ident(
@@ -1850,15 +1850,8 @@ impl<'interner> Monomorphizer<'interner> {
             | HirType::TraitAsType(..)
             | HirType::Forall(_, _)
             | HirType::Error
+            | HirType::Constant(_)
             | HirType::Quoted(_) => Ok(()),
-            HirType::Constant(_value, kind) => {
-                let kind = kind.follow_bindings_shallow();
-                if matches!(kind.as_ref(), Type::Error) {
-                    Err(MonomorphizationError::UnknownConstant { location })
-                } else {
-                    Ok(())
-                }
-            }
             HirType::CheckedCast { from, to } => {
                 Self::check_checked_cast(from, to, location)?;
                 Self::check_type(to, location)
@@ -1958,11 +1951,11 @@ impl<'interner> Monomorphizer<'interner> {
                 location,
             });
         }
-        let to_value = to.evaluate_to_signed_field(&to.kind(), location);
+        let to_value = to.evaluate_to_integer(&to.kind(), location);
         if let Ok(to_value) = to_value {
             let skip_simplifications = false;
             let from_value =
-                from.evaluate_to_signed_field_helper(&to.kind(), location, skip_simplifications);
+                from.evaluate_to_integer_helper(&to.kind(), location, skip_simplifications);
             if from_value.is_err() || from_value.unwrap() != to_value {
                 return Err(MonomorphizationError::CheckedCastFailed {
                     actual: to_value.to_string(),
@@ -2717,8 +2710,7 @@ impl<'interner> Monomorphizer<'interner> {
                 let length: u32 = msg.len().try_into().expect(
                     "ICE: Monomorphizer::match_expr: msg.len() is expected to fit into a u32",
                 );
-                let length = length.into();
-                let msg_type = HirType::String(Box::new(length));
+                let msg_type = HirType::String(Box::new(Type::constant_u32(length)));
 
                 let msg = Some(Box::new((msg_expr, msg_type)));
                 Ok(ast::Expression::Constrain(false_, location, msg))
@@ -2817,7 +2809,6 @@ impl<'interner> Monomorphizer<'interner> {
                 let operator =
                     if matches!(operator.kind, Less | Greater) { Equal } else { NotEqual };
 
-                let ordering_value = SignedField::positive(ordering_value);
                 let int_value = ast::Literal::Integer(ordering_value, ast::Type::Field, location);
                 let rhs = Box::new(ast::Expression::Literal(int_value));
                 let lhs = Box::new(ast::Expression::ExtractTupleField(Box::new(result), 0));
@@ -3174,7 +3165,7 @@ fn bind_trait_impl_func_generics_to_trait_func_generics(
 /// Look up a specific member of a trait, then look through the trait methods
 /// and associated constants until an item with a matching name is found.
 ///
-/// Panics if the name cannot be matched to anything.
+/// Error if the name cannot be matched to anything.
 pub(crate) fn resolve_trait_item(
     interner: &mut NodeInterner,
     method_id: TraitItemId,
@@ -3213,7 +3204,8 @@ pub(crate) fn resolve_trait_item(
         }
     }
 
-    unreachable!("No method or constant named `{name}` in impl")
+    let location = interner.expr_location(&expr_id);
+    Err(InterpreterError::NoTraitItemInImpl { item_name: name.to_string(), location })
 }
 
 pub(crate) enum TraitItem {
