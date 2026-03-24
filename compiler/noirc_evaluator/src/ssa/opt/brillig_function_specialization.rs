@@ -99,7 +99,7 @@ impl Ssa {
         let recursive_functions = call_graph.get_recursive_functions();
 
         // Collect all call sites grouped by specialization key.
-        let key_to_callsites = collect_specialization_candidates(&self, &recursive_functions);
+        let mut key_to_callsites = collect_specialization_candidates(&self, &recursive_functions);
 
         if key_to_callsites.is_empty() {
             return self;
@@ -117,11 +117,13 @@ impl Ssa {
             return self;
         }
 
-        // Phase 3: Rewrite call sites in original callers.
-        rewrite_call_sites(&mut self.functions, &key_to_callsites, &surviving);
+        // Phase 3: Extend key_to_callsites with call sites inside surviving clones
+        // that match other specializations (nested specialization).
+        let clone_ids: Vec<FunctionId> = surviving.values().copied().collect();
+        collect_matching_callsites(&self.functions, &clone_ids, &surviving, &mut key_to_callsites);
 
-        // Phase 4: Rewrite call sites inside surviving clones.
-        rewrite_calls_in_clones(&mut self.functions, &surviving);
+        // Phase 4: Rewrite all call sites (original callers + clones) in one pass.
+        rewrite_call_sites(&mut self.functions, &key_to_callsites, &surviving);
 
         self
     }
@@ -184,7 +186,7 @@ fn collect_specialization_candidates(
     key_to_callsites
 }
 
-/// Try to build a `SpecializationKey` for a call instruction.
+/// Try to build a [SpecializationKey] for a call instruction.
 /// Returns `None` if no argument is a numeric constant.
 fn try_build_specialization_key(
     caller_fn: &Function,
@@ -343,52 +345,36 @@ fn rewrite_call_sites(
     }
 }
 
-/// Phase 4: Rewrite call sites inside surviving clones that match other specializations.
-///
-/// When `foo` calls `bar(3, y)` and we create specialized clones for both `foo` and `bar`,
-/// the clone of `foo` still calls the original `bar`. This function scans each clone and
-/// rewrites any call that matches a surviving specialization key to point at the specialized
-/// clone instead.
-fn rewrite_calls_in_clones(
-    functions: &mut BTreeMap<FunctionId, Function>,
+/// Scan the given functions for call sites that match a surviving specialization key
+/// and append them to `key_to_callsites`. This lets [rewrite_call_sites] handle both
+/// original callers and clones in one pass.
+fn collect_matching_callsites(
+    functions: &BTreeMap<FunctionId, Function>,
+    function_ids: &[FunctionId],
     surviving: &HashMap<SpecializationKey, FunctionId>,
+    key_to_callsites: &mut IndexMap<SpecializationKey, Vec<CallSite>>,
 ) {
-    let clone_ids: Vec<FunctionId> = surviving.values().copied().collect();
-
-    for clone_id in clone_ids {
-        let clone_fn = &functions[&clone_id];
-
-        // Collect rewrites: (instruction_id, new_function_id)
-        let mut rewrites: Vec<(InstructionId, FunctionId)> = Vec::new();
-
-        for block_id in clone_fn.reachable_blocks() {
-            for instruction_id in clone_fn.dfg[block_id].instructions() {
+    for &fn_id in function_ids {
+        let function = &functions[&fn_id];
+        for block_id in function.reachable_blocks() {
+            for instruction_id in function.dfg[block_id].instructions() {
                 let Instruction::Call { func: func_value_id, arguments } =
-                    &clone_fn.dfg[*instruction_id]
+                    &function.dfg[*instruction_id]
                 else {
                     continue;
                 };
-                let Value::Function(callee_id) = &clone_fn.dfg[*func_value_id] else {
+                let Value::Function(callee_id) = &function.dfg[*func_value_id] else {
                     continue;
                 };
 
-                if let Some(key) = try_build_specialization_key(clone_fn, *callee_id, arguments)
-                    && let Some(specialized_fn_id) = surviving.get(&key)
+                if let Some(key) = try_build_specialization_key(function, *callee_id, arguments)
+                    && surviving.contains_key(&key)
                 {
-                    rewrites.push((*instruction_id, *specialized_fn_id));
+                    key_to_callsites
+                        .entry(key)
+                        .or_default()
+                        .push(CallSite { caller: fn_id, instruction_id: *instruction_id });
                 }
-            }
-        }
-
-        if !rewrites.is_empty() {
-            let clone_fn = functions.get_mut(&clone_id).unwrap();
-            for (instr_id, specialized_fn_id) in rewrites {
-                let new_func_value = clone_fn.dfg.import_function(specialized_fn_id);
-                let instruction = &mut clone_fn.dfg[instr_id];
-                let Instruction::Call { func, .. } = instruction else {
-                    unreachable!("ICE: expected Call instruction");
-                };
-                *func = new_func_value;
             }
         }
     }
