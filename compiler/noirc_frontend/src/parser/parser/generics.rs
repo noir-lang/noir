@@ -314,6 +314,21 @@ mod tests {
     }
 
     #[test]
+    fn parse_braced_expression_in_generic() {
+        let src = "<{ 1 + 2 }>";
+        let generics = parse_generic_type_args_no_errors(src);
+        assert_eq!(generics.ordered_args.len(), 1);
+        assert_eq!(generics.ordered_args[0].to_string(), "(1 + 2)");
+    }
+
+    #[test]
+    fn parse_braced_as_trait_path_in_generic() {
+        let src = "<{ <Foo as MyTrait>::N + <Bar as MyTrait>::N }>";
+        let generics = parse_generic_type_args_no_errors(src);
+        assert_eq!(generics.ordered_args.len(), 1);
+    }
+
+    #[test]
     fn parse_generic_trait_bound_not_allowed() {
         let src = "
         N: Trait

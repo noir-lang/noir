@@ -136,6 +136,7 @@ impl Parser<'_> {
     ///     | VariableTypeExpression
     ///     | AsTraitPathTypeExpression
     ///     | ParenthesizedTypeExpression
+    ///     | BracedTypeExpression
     fn parse_atom_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
         if let Some(type_expr) = self.parse_constant_type_expression() {
             return Some(type_expr);
@@ -150,6 +151,10 @@ impl Parser<'_> {
         }
 
         if let Some(type_expr) = self.parse_parenthesized_type_expression() {
+            return Some(type_expr);
+        }
+
+        if let Some(type_expr) = self.parse_braced_type_expression() {
             return Some(type_expr);
         }
 
@@ -186,6 +191,29 @@ impl Parser<'_> {
             }
         } else {
             None
+        }
+    }
+
+    /// BracedTypeExpression = '{' Expression '}'
+    ///
+    /// Allows using a full expression as a numeric generic argument by wrapping it in braces,
+    /// For example: `foo::<{ <Foo as MyTrait>::N + <Bar as MyTrait>::N }>()`
+    fn parse_braced_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
+        if !self.eat_left_brace() {
+            return None;
+        }
+
+        let start_location = self.previous_token_location;
+        let expr = self.parse_expression_or_error();
+        self.eat_or_error(Token::RightBrace);
+        let location = self.location_since(start_location);
+
+        match UnresolvedTypeExpression::from_expr(expr, location) {
+            Ok(type_expr) => Some(type_expr),
+            Err(error) => {
+                self.errors.push(error);
+                None
+            }
         }
     }
 
@@ -289,6 +317,12 @@ impl Parser<'_> {
 
         if let Some(typ) = self.parse_parenthesized_type_or_type_expression() {
             return Some(typ);
+        }
+
+        if let Some(type_expr) = self.parse_braced_type_expression() {
+            let typ = UnresolvedTypeData::Expression(type_expr);
+            let location = self.location_since(start_location);
+            return Some(UnresolvedType { typ, location });
         }
 
         self.parse_type()
