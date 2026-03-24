@@ -12,7 +12,7 @@ use crate::{
 };
 
 fn assert_parser_max_recursion_depth(src: &str, expected_error_count: Option<usize>) {
-    let errors = get_program_errors(&src);
+    let errors = get_program_errors(src);
 
     if let Some(expected_error_count) = expected_error_count {
         // We should get exactly one MaximumRecursionDepthExceeded error
@@ -41,7 +41,7 @@ fn deeply_nested_tuples() {
     let mut type_str = String::from("u8");
 
     for _ in 0..DEPTH {
-        type_str = format!("({})", type_str);
+        type_str = format!("({type_str})");
     }
 
     let src = format!(
@@ -62,7 +62,7 @@ fn deeply_nested_arrays() {
     let mut type_str = String::from("u8");
 
     for _ in 0..DEPTH {
-        type_str = format!("[{}; 1]", type_str);
+        type_str = format!("[{type_str}; 1]");
     }
 
     let src = format!(
@@ -84,7 +84,7 @@ fn deeply_nested_generic_struct_parameter() {
     let mut type_str = String::from("u8");
 
     for _ in 0..DEPTH {
-        type_str = format!("Wrapper<{}>", type_str);
+        type_str = format!("Wrapper<{type_str}>");
     }
 
     let src = format!(
@@ -107,7 +107,7 @@ fn deeply_nested_generic_struct_field() {
     let mut type_str = String::from("u8");
 
     for _ in 0..DEPTH {
-        type_str = format!("Wrapper<{}>", type_str);
+        type_str = format!("Wrapper<{type_str}>");
     }
 
     let src = format!(
