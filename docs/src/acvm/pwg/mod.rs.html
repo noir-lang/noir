@@ -832,155 +832,158 @@
 <a href=#832 id=832 data-nosnippet>832</a>    expr: <span class="kw-2">&amp;</span>Expression&lt;F&gt;,
 <a href=#833 id=833 data-nosnippet>833</a>    initial_witness: <span class="kw-2">&amp;</span>WitnessMap&lt;F&gt;,
 <a href=#834 id=834 data-nosnippet>834</a>) -&gt; <span class="prelude-ty">Result</span>&lt;F, OpcodeResolutionError&lt;F&gt;&gt; {
-<a href=#835 id=835 data-nosnippet>835</a>    <span class="kw">let </span>expr = ExpressionSolver::evaluate(expr, initial_witness);
-<a href=#836 id=836 data-nosnippet>836</a>    <span class="kw">match </span>expr.to_const() {
-<a href=#837 id=837 data-nosnippet>837</a>        <span class="prelude-val">Some</span>(value) =&gt; <span class="prelude-val">Ok</span>(<span class="kw-2">*</span>value),
-<a href=#838 id=838 data-nosnippet>838</a>        <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Err</span>(OpcodeResolutionError::OpcodeNotSolvable(
-<a href=#839 id=839 data-nosnippet>839</a>            OpcodeNotSolvable::MissingAssignment(any_witness_from_expression(<span class="kw-2">&amp;</span>expr).unwrap().<span class="number">0</span>),
-<a href=#840 id=840 data-nosnippet>840</a>        )),
-<a href=#841 id=841 data-nosnippet>841</a>    }
-<a href=#842 id=842 data-nosnippet>842</a>}
-<a href=#843 id=843 data-nosnippet>843</a>
-<a href=#844 id=844 data-nosnippet>844</a><span class="doccomment">/// Inserts `value` into the initial witness map under the index `witness`.
-<a href=#845 id=845 data-nosnippet>845</a>///
-<a href=#846 id=846 data-nosnippet>846</a>/// Returns an error if there was already a value in the map
-<a href=#847 id=847 data-nosnippet>847</a>/// which does not match the value that one is about to insert
-<a href=#848 id=848 data-nosnippet>848</a></span><span class="kw">pub fn </span>insert_value&lt;F: AcirField&gt;(
-<a href=#849 id=849 data-nosnippet>849</a>    witness: <span class="kw-2">&amp;</span>Witness,
-<a href=#850 id=850 data-nosnippet>850</a>    value_to_insert: F,
-<a href=#851 id=851 data-nosnippet>851</a>    initial_witness: <span class="kw-2">&amp;mut </span>WitnessMap&lt;F&gt;,
-<a href=#852 id=852 data-nosnippet>852</a>) -&gt; <span class="prelude-ty">Result</span>&lt;(), OpcodeResolutionError&lt;F&gt;&gt; {
-<a href=#853 id=853 data-nosnippet>853</a>    <span class="kw">use </span>std::collections::btree_map::Entry;
-<a href=#854 id=854 data-nosnippet>854</a>    <span class="kw">match </span>initial_witness.entry(<span class="kw-2">*</span>witness) {
-<a href=#855 id=855 data-nosnippet>855</a>        Entry::Vacant(e) =&gt; {
-<a href=#856 id=856 data-nosnippet>856</a>            e.insert(value_to_insert);
-<a href=#857 id=857 data-nosnippet>857</a>            <span class="prelude-val">Ok</span>(())
-<a href=#858 id=858 data-nosnippet>858</a>        }
-<a href=#859 id=859 data-nosnippet>859</a>        Entry::Occupied(e) =&gt; {
-<a href=#860 id=860 data-nosnippet>860</a>            <span class="kw">if </span><span class="kw-2">*</span>e.get() != value_to_insert {
-<a href=#861 id=861 data-nosnippet>861</a>                <span class="prelude-val">Err</span>(OpcodeResolutionError::UnsatisfiedConstrain {
-<a href=#862 id=862 data-nosnippet>862</a>                    opcode_location: ErrorLocation::Unresolved,
-<a href=#863 id=863 data-nosnippet>863</a>                    payload: <span class="prelude-val">None</span>,
-<a href=#864 id=864 data-nosnippet>864</a>                })
-<a href=#865 id=865 data-nosnippet>865</a>            } <span class="kw">else </span>{
-<a href=#866 id=866 data-nosnippet>866</a>                <span class="prelude-val">Ok</span>(())
-<a href=#867 id=867 data-nosnippet>867</a>            }
-<a href=#868 id=868 data-nosnippet>868</a>        }
-<a href=#869 id=869 data-nosnippet>869</a>    }
-<a href=#870 id=870 data-nosnippet>870</a>}
-<a href=#871 id=871 data-nosnippet>871</a>
-<a href=#872 id=872 data-nosnippet>872</a><span class="comment">// Returns one witness belonging to an expression, in no relevant order
-<a href=#873 id=873 data-nosnippet>873</a>// Returns None if the expression is const
-<a href=#874 id=874 data-nosnippet>874</a>// The function is used during partial witness generation to report unsolved witness
-<a href=#875 id=875 data-nosnippet>875</a></span><span class="kw">fn </span>any_witness_from_expression&lt;F&gt;(expr: <span class="kw-2">&amp;</span>Expression&lt;F&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;Witness&gt; {
-<a href=#876 id=876 data-nosnippet>876</a>    <span class="kw">if </span>expr.linear_combinations.is_empty() {
-<a href=#877 id=877 data-nosnippet>877</a>        <span class="kw">if </span>expr.mul_terms.is_empty() { <span class="prelude-val">None </span>} <span class="kw">else </span>{ <span class="prelude-val">Some</span>(expr.mul_terms[<span class="number">0</span>].<span class="number">1</span>) }
-<a href=#878 id=878 data-nosnippet>878</a>    } <span class="kw">else </span>{
-<a href=#879 id=879 data-nosnippet>879</a>        <span class="prelude-val">Some</span>(expr.linear_combinations[<span class="number">0</span>].<span class="number">1</span>)
-<a href=#880 id=880 data-nosnippet>880</a>    }
-<a href=#881 id=881 data-nosnippet>881</a>}
-<a href=#882 id=882 data-nosnippet>882</a>
-<a href=#883 id=883 data-nosnippet>883</a><span class="doccomment">/// Returns `Ok(true)` if the predicate is zero
-<a href=#884 id=884 data-nosnippet>884</a>/// A predicate is used to indicate whether we should skip a certain operation.
-<a href=#885 id=885 data-nosnippet>885</a>/// If we have a zero predicate it means the operation should be skipped.
-<a href=#886 id=886 data-nosnippet>886</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_predicate_false&lt;F: AcirField&gt;(
-<a href=#887 id=887 data-nosnippet>887</a>    witness: <span class="kw-2">&amp;</span>WitnessMap&lt;F&gt;,
-<a href=#888 id=888 data-nosnippet>888</a>    predicate: <span class="kw-2">&amp;</span>Expression&lt;F&gt;,
-<a href=#889 id=889 data-nosnippet>889</a>    opcode_location: <span class="kw-2">&amp;</span>ErrorLocation,
-<a href=#890 id=890 data-nosnippet>890</a>) -&gt; <span class="prelude-ty">Result</span>&lt;bool, OpcodeResolutionError&lt;F&gt;&gt; {
-<a href=#891 id=891 data-nosnippet>891</a>    <span class="kw">let </span>pred_value = get_value(predicate, witness)<span class="question-mark">?</span>;
-<a href=#892 id=892 data-nosnippet>892</a>    <span class="kw">let </span>predicate_is_false = pred_value.is_zero();
-<a href=#893 id=893 data-nosnippet>893</a>
-<a href=#894 id=894 data-nosnippet>894</a>    <span class="comment">// We expect that the predicate should resolve to either 0 or 1.
-<a href=#895 id=895 data-nosnippet>895</a>    </span><span class="kw">if </span>!predicate_is_false &amp;&amp; !pred_value.is_one() {
-<a href=#896 id=896 data-nosnippet>896</a>        <span class="kw">let </span>opcode_location = <span class="kw-2">*</span>opcode_location;
-<a href=#897 id=897 data-nosnippet>897</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(OpcodeResolutionError::PredicateLargerThanOne { opcode_location, pred_value });
-<a href=#898 id=898 data-nosnippet>898</a>    }
-<a href=#899 id=899 data-nosnippet>899</a>
-<a href=#900 id=900 data-nosnippet>900</a>    <span class="prelude-val">Ok</span>(predicate_is_false)
-<a href=#901 id=901 data-nosnippet>901</a>}
+<a href=#835 id=835 data-nosnippet>835</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>c) = expr.to_const() {
+<a href=#836 id=836 data-nosnippet>836</a>        <span class="kw">return </span><span class="prelude-val">Ok</span>(c);
+<a href=#837 id=837 data-nosnippet>837</a>    }
+<a href=#838 id=838 data-nosnippet>838</a>    <span class="kw">let </span>expr = ExpressionSolver::evaluate(expr, initial_witness);
+<a href=#839 id=839 data-nosnippet>839</a>    <span class="kw">match </span>expr.to_const() {
+<a href=#840 id=840 data-nosnippet>840</a>        <span class="prelude-val">Some</span>(value) =&gt; <span class="prelude-val">Ok</span>(<span class="kw-2">*</span>value),
+<a href=#841 id=841 data-nosnippet>841</a>        <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Err</span>(OpcodeResolutionError::OpcodeNotSolvable(
+<a href=#842 id=842 data-nosnippet>842</a>            OpcodeNotSolvable::MissingAssignment(any_witness_from_expression(<span class="kw-2">&amp;</span>expr).unwrap().<span class="number">0</span>),
+<a href=#843 id=843 data-nosnippet>843</a>        )),
+<a href=#844 id=844 data-nosnippet>844</a>    }
+<a href=#845 id=845 data-nosnippet>845</a>}
+<a href=#846 id=846 data-nosnippet>846</a>
+<a href=#847 id=847 data-nosnippet>847</a><span class="doccomment">/// Inserts `value` into the initial witness map under the index `witness`.
+<a href=#848 id=848 data-nosnippet>848</a>///
+<a href=#849 id=849 data-nosnippet>849</a>/// Returns an error if there was already a value in the map
+<a href=#850 id=850 data-nosnippet>850</a>/// which does not match the value that one is about to insert
+<a href=#851 id=851 data-nosnippet>851</a></span><span class="kw">pub fn </span>insert_value&lt;F: AcirField&gt;(
+<a href=#852 id=852 data-nosnippet>852</a>    witness: <span class="kw-2">&amp;</span>Witness,
+<a href=#853 id=853 data-nosnippet>853</a>    value_to_insert: F,
+<a href=#854 id=854 data-nosnippet>854</a>    initial_witness: <span class="kw-2">&amp;mut </span>WitnessMap&lt;F&gt;,
+<a href=#855 id=855 data-nosnippet>855</a>) -&gt; <span class="prelude-ty">Result</span>&lt;(), OpcodeResolutionError&lt;F&gt;&gt; {
+<a href=#856 id=856 data-nosnippet>856</a>    <span class="kw">use </span>std::collections::btree_map::Entry;
+<a href=#857 id=857 data-nosnippet>857</a>    <span class="kw">match </span>initial_witness.entry(<span class="kw-2">*</span>witness) {
+<a href=#858 id=858 data-nosnippet>858</a>        Entry::Vacant(e) =&gt; {
+<a href=#859 id=859 data-nosnippet>859</a>            e.insert(value_to_insert);
+<a href=#860 id=860 data-nosnippet>860</a>            <span class="prelude-val">Ok</span>(())
+<a href=#861 id=861 data-nosnippet>861</a>        }
+<a href=#862 id=862 data-nosnippet>862</a>        Entry::Occupied(e) =&gt; {
+<a href=#863 id=863 data-nosnippet>863</a>            <span class="kw">if </span><span class="kw-2">*</span>e.get() != value_to_insert {
+<a href=#864 id=864 data-nosnippet>864</a>                <span class="prelude-val">Err</span>(OpcodeResolutionError::UnsatisfiedConstrain {
+<a href=#865 id=865 data-nosnippet>865</a>                    opcode_location: ErrorLocation::Unresolved,
+<a href=#866 id=866 data-nosnippet>866</a>                    payload: <span class="prelude-val">None</span>,
+<a href=#867 id=867 data-nosnippet>867</a>                })
+<a href=#868 id=868 data-nosnippet>868</a>            } <span class="kw">else </span>{
+<a href=#869 id=869 data-nosnippet>869</a>                <span class="prelude-val">Ok</span>(())
+<a href=#870 id=870 data-nosnippet>870</a>            }
+<a href=#871 id=871 data-nosnippet>871</a>        }
+<a href=#872 id=872 data-nosnippet>872</a>    }
+<a href=#873 id=873 data-nosnippet>873</a>}
+<a href=#874 id=874 data-nosnippet>874</a>
+<a href=#875 id=875 data-nosnippet>875</a><span class="comment">// Returns one witness belonging to an expression, in no relevant order
+<a href=#876 id=876 data-nosnippet>876</a>// Returns None if the expression is const
+<a href=#877 id=877 data-nosnippet>877</a>// The function is used during partial witness generation to report unsolved witness
+<a href=#878 id=878 data-nosnippet>878</a></span><span class="kw">fn </span>any_witness_from_expression&lt;F&gt;(expr: <span class="kw-2">&amp;</span>Expression&lt;F&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;Witness&gt; {
+<a href=#879 id=879 data-nosnippet>879</a>    <span class="kw">if </span>expr.linear_combinations.is_empty() {
+<a href=#880 id=880 data-nosnippet>880</a>        <span class="kw">if </span>expr.mul_terms.is_empty() { <span class="prelude-val">None </span>} <span class="kw">else </span>{ <span class="prelude-val">Some</span>(expr.mul_terms[<span class="number">0</span>].<span class="number">1</span>) }
+<a href=#881 id=881 data-nosnippet>881</a>    } <span class="kw">else </span>{
+<a href=#882 id=882 data-nosnippet>882</a>        <span class="prelude-val">Some</span>(expr.linear_combinations[<span class="number">0</span>].<span class="number">1</span>)
+<a href=#883 id=883 data-nosnippet>883</a>    }
+<a href=#884 id=884 data-nosnippet>884</a>}
+<a href=#885 id=885 data-nosnippet>885</a>
+<a href=#886 id=886 data-nosnippet>886</a><span class="doccomment">/// Returns `Ok(true)` if the predicate is zero
+<a href=#887 id=887 data-nosnippet>887</a>/// A predicate is used to indicate whether we should skip a certain operation.
+<a href=#888 id=888 data-nosnippet>888</a>/// If we have a zero predicate it means the operation should be skipped.
+<a href=#889 id=889 data-nosnippet>889</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_predicate_false&lt;F: AcirField&gt;(
+<a href=#890 id=890 data-nosnippet>890</a>    witness: <span class="kw-2">&amp;</span>WitnessMap&lt;F&gt;,
+<a href=#891 id=891 data-nosnippet>891</a>    predicate: <span class="kw-2">&amp;</span>Expression&lt;F&gt;,
+<a href=#892 id=892 data-nosnippet>892</a>    opcode_location: <span class="kw-2">&amp;</span>ErrorLocation,
+<a href=#893 id=893 data-nosnippet>893</a>) -&gt; <span class="prelude-ty">Result</span>&lt;bool, OpcodeResolutionError&lt;F&gt;&gt; {
+<a href=#894 id=894 data-nosnippet>894</a>    <span class="kw">let </span>pred_value = get_value(predicate, witness)<span class="question-mark">?</span>;
+<a href=#895 id=895 data-nosnippet>895</a>    <span class="kw">let </span>predicate_is_false = pred_value.is_zero();
+<a href=#896 id=896 data-nosnippet>896</a>
+<a href=#897 id=897 data-nosnippet>897</a>    <span class="comment">// We expect that the predicate should resolve to either 0 or 1.
+<a href=#898 id=898 data-nosnippet>898</a>    </span><span class="kw">if </span>!predicate_is_false &amp;&amp; !pred_value.is_one() {
+<a href=#899 id=899 data-nosnippet>899</a>        <span class="kw">let </span>opcode_location = <span class="kw-2">*</span>opcode_location;
+<a href=#900 id=900 data-nosnippet>900</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(OpcodeResolutionError::PredicateLargerThanOne { opcode_location, pred_value });
+<a href=#901 id=901 data-nosnippet>901</a>    }
 <a href=#902 id=902 data-nosnippet>902</a>
-<a href=#903 id=903 data-nosnippet>903</a><span class="doccomment">/// Encapsulates a request from the ACVM that encounters an [ACIR call opcode][brillig_vm::brillig::Opcode::Call]
-<a href=#904 id=904 data-nosnippet>904</a>/// where the result of the circuit execution has not yet been provided.
-<a href=#905 id=905 data-nosnippet>905</a>///
-<a href=#906 id=906 data-nosnippet>906</a>/// The caller must resolve this opcode externally based upon the information in the request.
-<a href=#907 id=907 data-nosnippet>907</a></span><span class="attr">#[derive(Debug, Clone, PartialEq)]
-<a href=#908 id=908 data-nosnippet>908</a></span><span class="kw">pub struct </span>AcirCallWaitInfo&lt;F&gt; {
-<a href=#909 id=909 data-nosnippet>909</a>    <span class="doccomment">/// Index in the list of ACIR function's that should be called
-<a href=#910 id=910 data-nosnippet>910</a>    </span><span class="kw">pub </span>id: AcirFunctionId,
-<a href=#911 id=911 data-nosnippet>911</a>    <span class="doccomment">/// Initial witness for the given circuit to be called
-<a href=#912 id=912 data-nosnippet>912</a>    </span><span class="kw">pub </span>initial_witness: WitnessMap&lt;F&gt;,
-<a href=#913 id=913 data-nosnippet>913</a>}
-<a href=#914 id=914 data-nosnippet>914</a>
-<a href=#915 id=915 data-nosnippet>915</a><span class="attr">#[cfg(test)]
-<a href=#916 id=916 data-nosnippet>916</a></span><span class="kw">mod </span>tests {
-<a href=#917 id=917 data-nosnippet>917</a>    <span class="kw">use </span>std::collections::BTreeMap;
-<a href=#918 id=918 data-nosnippet>918</a>
-<a href=#919 id=919 data-nosnippet>919</a>    <span class="kw">use </span>acir::{
-<a href=#920 id=920 data-nosnippet>920</a>        FieldElement,
-<a href=#921 id=921 data-nosnippet>921</a>        native_types::{Witness, WitnessMap},
-<a href=#922 id=922 data-nosnippet>922</a>        parse_opcodes,
-<a href=#923 id=923 data-nosnippet>923</a>    };
-<a href=#924 id=924 data-nosnippet>924</a>
-<a href=#925 id=925 data-nosnippet>925</a>    <span class="kw">use </span><span class="kw">crate</span>::pwg::{ACVM, ACVMStatus, OpcodeResolutionError};
-<a href=#926 id=926 data-nosnippet>926</a>
-<a href=#927 id=927 data-nosnippet>927</a>    <span class="attr">#[test]
-<a href=#928 id=928 data-nosnippet>928</a>    </span><span class="kw">fn </span>solve_simple_circuit() {
-<a href=#929 id=929 data-nosnippet>929</a>        <span class="kw">let </span>initial_witness = WitnessMap::from(BTreeMap::from_iter([
-<a href=#930 id=930 data-nosnippet>930</a>            (Witness(<span class="number">1</span>), FieldElement::from(<span class="number">1u128</span>)),
-<a href=#931 id=931 data-nosnippet>931</a>            (Witness(<span class="number">2</span>), FieldElement::from(<span class="number">1u128</span>)),
-<a href=#932 id=932 data-nosnippet>932</a>            (Witness(<span class="number">3</span>), FieldElement::from(<span class="number">2u128</span>)),
-<a href=#933 id=933 data-nosnippet>933</a>        ]));
-<a href=#934 id=934 data-nosnippet>934</a>        <span class="kw">let </span>backend = acvm_blackbox_solver::StubbedBlackBoxSolver;
-<a href=#935 id=935 data-nosnippet>935</a>
-<a href=#936 id=936 data-nosnippet>936</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#937 id=937 data-nosnippet>937</a>        BLACKBOX::RANGE input: w1, bits: 32
-<a href=#938 id=938 data-nosnippet>938</a>        BLACKBOX::RANGE input: w2, bits: 32
-<a href=#939 id=939 data-nosnippet>939</a>        BLACKBOX::RANGE input: w3, bits: 32
-<a href=#940 id=940 data-nosnippet>940</a>        ASSERT w4 = 2*w1 - w2
-<a href=#941 id=941 data-nosnippet>941</a>        ASSERT w5 = -w2*w4 + 1
-<a href=#942 id=942 data-nosnippet>942</a>        "</span>;
-<a href=#943 id=943 data-nosnippet>943</a>        <span class="kw">let </span>opcodes = parse_opcodes(src).unwrap();
-<a href=#944 id=944 data-nosnippet>944</a>
-<a href=#945 id=945 data-nosnippet>945</a>        <span class="kw">let </span><span class="kw-2">mut </span>acvm = ACVM::new(<span class="kw-2">&amp;</span>backend, <span class="kw-2">&amp;</span>opcodes, initial_witness, <span class="kw-2">&amp;</span>[], <span class="kw-2">&amp;</span>[]);
-<a href=#946 id=946 data-nosnippet>946</a>        <span class="macro">assert_eq!</span>(acvm.solve(), ACVMStatus::Solved);
-<a href=#947 id=947 data-nosnippet>947</a>        <span class="macro">assert_eq!</span>(acvm.witness_map()[<span class="kw-2">&amp;</span>Witness(<span class="number">5</span>)], FieldElement::from(<span class="number">0u128</span>));
-<a href=#948 id=948 data-nosnippet>948</a>    }
-<a href=#949 id=949 data-nosnippet>949</a>
-<a href=#950 id=950 data-nosnippet>950</a>    <span class="attr">#[test]
-<a href=#951 id=951 data-nosnippet>951</a>    </span><span class="kw">fn </span>insert_value_does_not_overwrite_on_conflict() {
-<a href=#952 id=952 data-nosnippet>952</a>        <span class="kw">use </span><span class="kw">crate</span>::pwg::insert_value;
-<a href=#953 id=953 data-nosnippet>953</a>
-<a href=#954 id=954 data-nosnippet>954</a>        <span class="kw">let </span>old_value = FieldElement::from(<span class="number">1u128</span>);
-<a href=#955 id=955 data-nosnippet>955</a>        <span class="kw">let </span>new_value = FieldElement::from(<span class="number">2u128</span>);
-<a href=#956 id=956 data-nosnippet>956</a>        <span class="kw">let </span>witness = Witness(<span class="number">0</span>);
-<a href=#957 id=957 data-nosnippet>957</a>
-<a href=#958 id=958 data-nosnippet>958</a>        <span class="kw">let </span><span class="kw-2">mut </span>witness_map = WitnessMap::new();
-<a href=#959 id=959 data-nosnippet>959</a>        insert_value(<span class="kw-2">&amp;</span>witness, old_value, <span class="kw-2">&amp;mut </span>witness_map).expect(<span class="string">"first insert should succeed"</span>);
+<a href=#903 id=903 data-nosnippet>903</a>    <span class="prelude-val">Ok</span>(predicate_is_false)
+<a href=#904 id=904 data-nosnippet>904</a>}
+<a href=#905 id=905 data-nosnippet>905</a>
+<a href=#906 id=906 data-nosnippet>906</a><span class="doccomment">/// Encapsulates a request from the ACVM that encounters an [ACIR call opcode][brillig_vm::brillig::Opcode::Call]
+<a href=#907 id=907 data-nosnippet>907</a>/// where the result of the circuit execution has not yet been provided.
+<a href=#908 id=908 data-nosnippet>908</a>///
+<a href=#909 id=909 data-nosnippet>909</a>/// The caller must resolve this opcode externally based upon the information in the request.
+<a href=#910 id=910 data-nosnippet>910</a></span><span class="attr">#[derive(Debug, Clone, PartialEq)]
+<a href=#911 id=911 data-nosnippet>911</a></span><span class="kw">pub struct </span>AcirCallWaitInfo&lt;F&gt; {
+<a href=#912 id=912 data-nosnippet>912</a>    <span class="doccomment">/// Index in the list of ACIR function's that should be called
+<a href=#913 id=913 data-nosnippet>913</a>    </span><span class="kw">pub </span>id: AcirFunctionId,
+<a href=#914 id=914 data-nosnippet>914</a>    <span class="doccomment">/// Initial witness for the given circuit to be called
+<a href=#915 id=915 data-nosnippet>915</a>    </span><span class="kw">pub </span>initial_witness: WitnessMap&lt;F&gt;,
+<a href=#916 id=916 data-nosnippet>916</a>}
+<a href=#917 id=917 data-nosnippet>917</a>
+<a href=#918 id=918 data-nosnippet>918</a><span class="attr">#[cfg(test)]
+<a href=#919 id=919 data-nosnippet>919</a></span><span class="kw">mod </span>tests {
+<a href=#920 id=920 data-nosnippet>920</a>    <span class="kw">use </span>std::collections::BTreeMap;
+<a href=#921 id=921 data-nosnippet>921</a>
+<a href=#922 id=922 data-nosnippet>922</a>    <span class="kw">use </span>acir::{
+<a href=#923 id=923 data-nosnippet>923</a>        FieldElement,
+<a href=#924 id=924 data-nosnippet>924</a>        native_types::{Witness, WitnessMap},
+<a href=#925 id=925 data-nosnippet>925</a>        parse_opcodes,
+<a href=#926 id=926 data-nosnippet>926</a>    };
+<a href=#927 id=927 data-nosnippet>927</a>
+<a href=#928 id=928 data-nosnippet>928</a>    <span class="kw">use </span><span class="kw">crate</span>::pwg::{ACVM, ACVMStatus, OpcodeResolutionError};
+<a href=#929 id=929 data-nosnippet>929</a>
+<a href=#930 id=930 data-nosnippet>930</a>    <span class="attr">#[test]
+<a href=#931 id=931 data-nosnippet>931</a>    </span><span class="kw">fn </span>solve_simple_circuit() {
+<a href=#932 id=932 data-nosnippet>932</a>        <span class="kw">let </span>initial_witness = WitnessMap::from(BTreeMap::from_iter([
+<a href=#933 id=933 data-nosnippet>933</a>            (Witness(<span class="number">1</span>), FieldElement::from(<span class="number">1u128</span>)),
+<a href=#934 id=934 data-nosnippet>934</a>            (Witness(<span class="number">2</span>), FieldElement::from(<span class="number">1u128</span>)),
+<a href=#935 id=935 data-nosnippet>935</a>            (Witness(<span class="number">3</span>), FieldElement::from(<span class="number">2u128</span>)),
+<a href=#936 id=936 data-nosnippet>936</a>        ]));
+<a href=#937 id=937 data-nosnippet>937</a>        <span class="kw">let </span>backend = acvm_blackbox_solver::StubbedBlackBoxSolver;
+<a href=#938 id=938 data-nosnippet>938</a>
+<a href=#939 id=939 data-nosnippet>939</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#940 id=940 data-nosnippet>940</a>        BLACKBOX::RANGE input: w1, bits: 32
+<a href=#941 id=941 data-nosnippet>941</a>        BLACKBOX::RANGE input: w2, bits: 32
+<a href=#942 id=942 data-nosnippet>942</a>        BLACKBOX::RANGE input: w3, bits: 32
+<a href=#943 id=943 data-nosnippet>943</a>        ASSERT w4 = 2*w1 - w2
+<a href=#944 id=944 data-nosnippet>944</a>        ASSERT w5 = -w2*w4 + 1
+<a href=#945 id=945 data-nosnippet>945</a>        "</span>;
+<a href=#946 id=946 data-nosnippet>946</a>        <span class="kw">let </span>opcodes = parse_opcodes(src).unwrap();
+<a href=#947 id=947 data-nosnippet>947</a>
+<a href=#948 id=948 data-nosnippet>948</a>        <span class="kw">let </span><span class="kw-2">mut </span>acvm = ACVM::new(<span class="kw-2">&amp;</span>backend, <span class="kw-2">&amp;</span>opcodes, initial_witness, <span class="kw-2">&amp;</span>[], <span class="kw-2">&amp;</span>[]);
+<a href=#949 id=949 data-nosnippet>949</a>        <span class="macro">assert_eq!</span>(acvm.solve(), ACVMStatus::Solved);
+<a href=#950 id=950 data-nosnippet>950</a>        <span class="macro">assert_eq!</span>(acvm.witness_map()[<span class="kw-2">&amp;</span>Witness(<span class="number">5</span>)], FieldElement::from(<span class="number">0u128</span>));
+<a href=#951 id=951 data-nosnippet>951</a>    }
+<a href=#952 id=952 data-nosnippet>952</a>
+<a href=#953 id=953 data-nosnippet>953</a>    <span class="attr">#[test]
+<a href=#954 id=954 data-nosnippet>954</a>    </span><span class="kw">fn </span>insert_value_does_not_overwrite_on_conflict() {
+<a href=#955 id=955 data-nosnippet>955</a>        <span class="kw">use </span><span class="kw">crate</span>::pwg::insert_value;
+<a href=#956 id=956 data-nosnippet>956</a>
+<a href=#957 id=957 data-nosnippet>957</a>        <span class="kw">let </span>old_value = FieldElement::from(<span class="number">1u128</span>);
+<a href=#958 id=958 data-nosnippet>958</a>        <span class="kw">let </span>new_value = FieldElement::from(<span class="number">2u128</span>);
+<a href=#959 id=959 data-nosnippet>959</a>        <span class="kw">let </span>witness = Witness(<span class="number">0</span>);
 <a href=#960 id=960 data-nosnippet>960</a>
-<a href=#961 id=961 data-nosnippet>961</a>        <span class="kw">let </span>result = insert_value(<span class="kw-2">&amp;</span>witness, new_value, <span class="kw-2">&amp;mut </span>witness_map);
-<a href=#962 id=962 data-nosnippet>962</a>        <span class="macro">assert!</span>(
-<a href=#963 id=963 data-nosnippet>963</a>            <span class="macro">matches!</span>(result, <span class="prelude-val">Err</span>(OpcodeResolutionError::UnsatisfiedConstrain { .. })),
-<a href=#964 id=964 data-nosnippet>964</a>            <span class="string">"expected UnsatisfiedConstrain error on conflicting insert"
-<a href=#965 id=965 data-nosnippet>965</a>        </span>);
-<a href=#966 id=966 data-nosnippet>966</a>        <span class="macro">assert_eq!</span>(witness_map[<span class="kw-2">&amp;</span>witness], old_value, <span class="string">"map should still hold the original value"</span>);
-<a href=#967 id=967 data-nosnippet>967</a>    }
-<a href=#968 id=968 data-nosnippet>968</a>
-<a href=#969 id=969 data-nosnippet>969</a>    <span class="attr">#[test]
-<a href=#970 id=970 data-nosnippet>970</a>    </span><span class="kw">fn </span>errors_when_calling_function_zero() {
-<a href=#971 id=971 data-nosnippet>971</a>        <span class="kw">let </span>initial_witness =
-<a href=#972 id=972 data-nosnippet>972</a>            WitnessMap::from(BTreeMap::from_iter([(Witness(<span class="number">1</span>), FieldElement::from(<span class="number">1u128</span>))]));
-<a href=#973 id=973 data-nosnippet>973</a>        <span class="kw">let </span>backend = acvm_blackbox_solver::StubbedBlackBoxSolver;
-<a href=#974 id=974 data-nosnippet>974</a>
-<a href=#975 id=975 data-nosnippet>975</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#976 id=976 data-nosnippet>976</a>        CALL func: 0, predicate: 1, inputs: [w1], outputs: [w2]
-<a href=#977 id=977 data-nosnippet>977</a>        "</span>;
-<a href=#978 id=978 data-nosnippet>978</a>        <span class="kw">let </span>opcodes = parse_opcodes(src).unwrap();
-<a href=#979 id=979 data-nosnippet>979</a>
-<a href=#980 id=980 data-nosnippet>980</a>        <span class="kw">let </span><span class="kw-2">mut </span>acvm = ACVM::new(<span class="kw-2">&amp;</span>backend, <span class="kw-2">&amp;</span>opcodes, initial_witness, <span class="kw-2">&amp;</span>[], <span class="kw-2">&amp;</span>[]);
-<a href=#981 id=981 data-nosnippet>981</a>        <span class="macro">assert!</span>(<span class="macro">matches!</span>(
-<a href=#982 id=982 data-nosnippet>982</a>            acvm.solve(),
-<a href=#983 id=983 data-nosnippet>983</a>            ACVMStatus::Failure(OpcodeResolutionError::AcirMainCallAttempted { .. })
-<a href=#984 id=984 data-nosnippet>984</a>        ));
-<a href=#985 id=985 data-nosnippet>985</a>    }
-<a href=#986 id=986 data-nosnippet>986</a>}</code></pre></div></section></main></body></html>
+<a href=#961 id=961 data-nosnippet>961</a>        <span class="kw">let </span><span class="kw-2">mut </span>witness_map = WitnessMap::new();
+<a href=#962 id=962 data-nosnippet>962</a>        insert_value(<span class="kw-2">&amp;</span>witness, old_value, <span class="kw-2">&amp;mut </span>witness_map).expect(<span class="string">"first insert should succeed"</span>);
+<a href=#963 id=963 data-nosnippet>963</a>
+<a href=#964 id=964 data-nosnippet>964</a>        <span class="kw">let </span>result = insert_value(<span class="kw-2">&amp;</span>witness, new_value, <span class="kw-2">&amp;mut </span>witness_map);
+<a href=#965 id=965 data-nosnippet>965</a>        <span class="macro">assert!</span>(
+<a href=#966 id=966 data-nosnippet>966</a>            <span class="macro">matches!</span>(result, <span class="prelude-val">Err</span>(OpcodeResolutionError::UnsatisfiedConstrain { .. })),
+<a href=#967 id=967 data-nosnippet>967</a>            <span class="string">"expected UnsatisfiedConstrain error on conflicting insert"
+<a href=#968 id=968 data-nosnippet>968</a>        </span>);
+<a href=#969 id=969 data-nosnippet>969</a>        <span class="macro">assert_eq!</span>(witness_map[<span class="kw-2">&amp;</span>witness], old_value, <span class="string">"map should still hold the original value"</span>);
+<a href=#970 id=970 data-nosnippet>970</a>    }
+<a href=#971 id=971 data-nosnippet>971</a>
+<a href=#972 id=972 data-nosnippet>972</a>    <span class="attr">#[test]
+<a href=#973 id=973 data-nosnippet>973</a>    </span><span class="kw">fn </span>errors_when_calling_function_zero() {
+<a href=#974 id=974 data-nosnippet>974</a>        <span class="kw">let </span>initial_witness =
+<a href=#975 id=975 data-nosnippet>975</a>            WitnessMap::from(BTreeMap::from_iter([(Witness(<span class="number">1</span>), FieldElement::from(<span class="number">1u128</span>))]));
+<a href=#976 id=976 data-nosnippet>976</a>        <span class="kw">let </span>backend = acvm_blackbox_solver::StubbedBlackBoxSolver;
+<a href=#977 id=977 data-nosnippet>977</a>
+<a href=#978 id=978 data-nosnippet>978</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#979 id=979 data-nosnippet>979</a>        CALL func: 0, predicate: 1, inputs: [w1], outputs: [w2]
+<a href=#980 id=980 data-nosnippet>980</a>        "</span>;
+<a href=#981 id=981 data-nosnippet>981</a>        <span class="kw">let </span>opcodes = parse_opcodes(src).unwrap();
+<a href=#982 id=982 data-nosnippet>982</a>
+<a href=#983 id=983 data-nosnippet>983</a>        <span class="kw">let </span><span class="kw-2">mut </span>acvm = ACVM::new(<span class="kw-2">&amp;</span>backend, <span class="kw-2">&amp;</span>opcodes, initial_witness, <span class="kw-2">&amp;</span>[], <span class="kw-2">&amp;</span>[]);
+<a href=#984 id=984 data-nosnippet>984</a>        <span class="macro">assert!</span>(<span class="macro">matches!</span>(
+<a href=#985 id=985 data-nosnippet>985</a>            acvm.solve(),
+<a href=#986 id=986 data-nosnippet>986</a>            ACVMStatus::Failure(OpcodeResolutionError::AcirMainCallAttempted { .. })
+<a href=#987 id=987 data-nosnippet>987</a>        ));
+<a href=#988 id=988 data-nosnippet>988</a>    }
+<a href=#989 id=989 data-nosnippet>989</a>}</code></pre></div></section></main></body></html>
