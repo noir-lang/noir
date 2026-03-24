@@ -65,8 +65,8 @@ use crate::{
         comptime::{ComptimeError, InterpreterError},
         def_collector::{
             dc_crate::{
-                CollectedItems, CompilationError, UnresolvedFunctions, UnresolvedGlobal,
-                UnresolvedTraitImpl, UnresolvedTypeAlias,
+                CollectedItems, CompilationError, CompilationErrors, UnresolvedFunctions,
+                UnresolvedGlobal, UnresolvedTraitImpl, UnresolvedTypeAlias,
             },
             errors::DefCollectorErrorKind,
         },
@@ -186,7 +186,7 @@ pub struct Loop {
 pub struct Elaborator<'context> {
     scopes: ScopeForest,
 
-    pub(crate) errors: Vec<CompilationError>,
+    pub(crate) errors: CompilationErrors,
 
     pub(crate) interner: &'context mut NodeInterner,
     pub(crate) def_maps: &'context mut DefMaps,
@@ -311,6 +311,14 @@ pub struct Elaborator<'context> {
     /// array[i_0] = 10;
     /// ```
     lvalue_index_counter: usize,
+
+    /// Set when resolving types in positions where `impl Trait` is not allowed
+    /// (e.g., struct fields, globals, type aliases, enum variants).
+    /// `impl Trait` is only valid in function parameter and return type positions.
+    ///
+    /// This is stored as a field rather than checked at the call site so that it
+    /// propagates through recursive `resolve_type` calls.
+    pub(super) impl_trait_is_disallowed: Option<types::ImplTraitDisallowedContext>,
 }
 
 #[derive(Copy, Clone)]
@@ -352,7 +360,7 @@ impl<'context> Elaborator<'context> {
     ) -> Self {
         Self {
             scopes: ScopeForest::default(),
-            errors: Vec::new(),
+            errors: CompilationErrors::default(),
             interner,
             def_maps,
             usage_tracker,
@@ -382,6 +390,7 @@ impl<'context> Elaborator<'context> {
             comptime_evaluation_halted: false,
             macro_expansion_depth: 0,
             lvalue_index_counter: 0,
+            impl_trait_is_disallowed: None,
         }
     }
 
@@ -423,7 +432,7 @@ impl<'context> Elaborator<'context> {
         crate_id: CrateId,
         items: CollectedItems,
         options: ElaboratorOptions<'context>,
-    ) -> Vec<CompilationError> {
+    ) -> CompilationErrors {
         Self::elaborate_and_return_self(context, crate_id, items, options).errors
     }
 
@@ -512,20 +521,14 @@ impl<'context> Elaborator<'context> {
     }
 
     pub(crate) fn push_err(&mut self, error: impl Into<CompilationError>) {
-        let error: CompilationError = error.into();
-        // Filter out internal control flow errors that should not be displayed
-        if !error.should_be_filtered() {
-            self.errors.push(error);
-        }
+        self.errors.push(error);
     }
 
     pub(crate) fn push_errors<E: Into<CompilationError>>(
         &mut self,
         errors: impl IntoIterator<Item = E>,
     ) {
-        for error in errors {
-            self.push_err(error);
-        }
+        self.errors.extend(errors);
     }
 
     /// Run a given function while also tracking whether any new errors were generated as a result.
@@ -533,7 +536,7 @@ impl<'context> Elaborator<'context> {
         // Count actual errors (ignore warnings)
         let initial_error_count = self.errors.len();
         let result = f(self);
-        let has_new_errors = self.errors[initial_error_count..].iter().any(|e| e.is_error());
+        let has_new_errors = self.errors.iter().skip(initial_error_count).any(|e| e.is_error());
         (result, has_new_errors)
     }
 
@@ -731,6 +734,8 @@ impl<'context> Elaborator<'context> {
         let generics = self.add_generics(&alias.type_alias_def.generics);
         self.current_item = Some(DependencyId::Alias(alias_id));
         let wildcard_allowed = types::WildcardAllowed::No(WildcardDisallowedContext::TypeAlias);
+        let previous_impl_trait_context =
+            self.impl_trait_is_disallowed.replace(types::ImplTraitDisallowedContext::TypeAlias);
         let (typ, num_expr) = if let Some(num_type) = alias.type_alias_def.numeric_type {
             let num_type = self.resolve_type(num_type, wildcard_allowed);
             let kind = Kind::numeric(num_type);
@@ -741,7 +746,7 @@ impl<'context> Elaborator<'context> {
                     self.resolve_type_with_kind(alias.type_alias_def.typ, &kind, wildcard_allowed);
                 if let Type::Alias(ref alias_ref, _) = typ {
                     if alias_ref.borrow().numeric_expr.is_none() {
-                        self.errors.push(CompilationError::ResolverError(
+                        self.push_err(CompilationError::ResolverError(
                             ResolverError::InvalidNumericAliasExpression {
                                 location: alias.type_alias_def.numeric_location,
                             },
@@ -754,7 +759,7 @@ impl<'context> Elaborator<'context> {
                     (typ, Some(num_expr))
                 }
             } else {
-                self.errors.push(CompilationError::ResolverError(
+                self.push_err(CompilationError::ResolverError(
                     ResolverError::ExpectedNumericExpression {
                         typ: alias.type_alias_def.typ.typ.to_string(),
                         location: alias.type_alias_def.numeric_location,
@@ -765,6 +770,8 @@ impl<'context> Elaborator<'context> {
         } else {
             (self.use_type(alias.type_alias_def.typ, wildcard_allowed), None)
         };
+
+        self.impl_trait_is_disallowed = previous_impl_trait_context;
 
         if !visibility.is_private() {
             self.check_type_is_not_more_private_then_item(name, visibility, &typ, location);

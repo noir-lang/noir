@@ -148,6 +148,10 @@ fn generate_random_instruction(rng: &mut StdRng) -> Instruction {
                 GENERATE_BOOL_CONFIGURATION_MOST_FALSE,
             ),
         },
+        GenerateInstruction::Poseidon2Permutation => Instruction::Poseidon2Permutation {
+            field_indices: [rng.random_range(usize::MIN..usize::MAX); 4],
+            load_elements_of_array: rng.random_range(0..2) == 0,
+        },
         GenerateInstruction::Aes128Encrypt => Instruction::Aes128Encrypt {
             input_idx: rng.random_range(usize::MIN..usize::MAX),
             input_limbs_count: rng.random_range(u8::MIN..u8::MAX),
