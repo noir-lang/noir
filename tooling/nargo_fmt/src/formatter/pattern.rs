@@ -22,10 +22,12 @@ impl ChunkFormatter<'_, '_> {
         group.text(self.chunk(|formatter| {
             formatter.skip_comments_and_whitespace();
 
-            // Special case: `&mut self` (this is reflected in the param type, not the pattern)
+            // Special case: `&self` and `&mut self` (this is reflected in the param type, not the pattern)
             if formatter.is_at(Token::Ampersand) {
                 formatter.write_token(Token::Ampersand);
-                formatter.write_keyword(Keyword::Mut);
+                if formatter.is_at_keyword(Keyword::Mut) {
+                    formatter.write_keyword(Keyword::Mut);
+                }
                 formatter.write_space();
             }
         }));
