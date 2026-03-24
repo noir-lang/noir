@@ -2,6 +2,7 @@
 
 use std::{borrow::Cow, collections::BTreeSet, rc::Rc};
 
+use acvm::{AcirField, FieldElement};
 use im::HashSet;
 use iter_extended::vecmap;
 use itertools::Itertools;
@@ -17,6 +18,7 @@ use crate::{
     },
     elaborator::{UnstableFeature, path_resolution::PathResolution},
     hir::{
+        comptime::Integer,
         def_collector::dc_crate::CompilationError,
         def_map::{ModuleDefId, fully_qualified_module_path},
         resolution::{errors::ResolverError, import::PathResolutionError},
@@ -40,7 +42,6 @@ use crate::{
         TraitLookupMode,
     },
     shared::Signedness,
-    signed_field::SignedField,
 };
 
 use super::{
@@ -68,6 +69,19 @@ pub(super) enum TraitPathResolutionMethod {
 pub enum WildcardAllowed {
     Yes,
     No(WildcardDisallowedContext),
+}
+
+/// Context for positions where `impl Trait` is not allowed as a type.
+/// `impl Trait` is only meaningful in function signatures (parameters and return types).
+///
+/// This context is stored on the `Elaborator` and checked in the `TraitAsType` arm of
+/// type resolution. The variant is used to produce a position-specific error message.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ImplTraitDisallowedContext {
+    StructField,
+    EnumVariant,
+    Global,
+    TypeAlias,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -204,6 +218,13 @@ impl Elaborator<'_> {
                 self.resolve_named_type(path, args, mode, wildcard_allowed)
             }
             TraitAsType(path, args) => {
+                if let Some(context) = self.impl_trait_is_disallowed {
+                    self.push_err(ResolverError::ImplTraitTypeDisallowed {
+                        location: path.location,
+                        context,
+                    });
+                    return Type::Error;
+                }
                 self.use_unstable_feature(UnstableFeature::TraitAsType, path.location);
                 let path = self.validate_path(path);
                 self.resolve_trait_as_type(path, args, mode)
@@ -223,13 +244,13 @@ impl Elaborator<'_> {
                 let env =
                     Box::new(self.resolve_type_with_kind_inner(*env, kind, mode, wildcard_allowed));
 
-                match *env {
+                match env.follow_bindings_shallow().into_owned() {
                     Type::Unit | Type::Tuple(_) | Type::NamedGeneric(_) => {
                         Type::Function(args, ret, env, unconstrained)
                     }
-                    _ => {
+                    typ => {
                         self.push_err(ResolverError::InvalidClosureEnvironment {
-                            typ: *env,
+                            typ,
                             location: env_location,
                         });
                         Type::Error
@@ -939,30 +960,23 @@ impl Elaborator<'_> {
                     return None;
                 };
 
-                let Some(global_value) = global_value.as_non_negative_signed_field() else {
+                let Some(global_value) = global_value.as_integer() else {
                     let global_value = global_value.clone();
-                    if global_value.is_integral() {
-                        self.push_err(ResolverError::NegativeGlobalType { location, global_value });
-                    } else {
-                        self.push_err(ResolverError::NonIntegralGlobalType {
-                            location,
-                            global_value,
-                        });
-                    }
+                    self.push_err(ResolverError::NonIntegralGlobalType { location, global_value });
                     return None;
                 };
 
-                let kind = Kind::numeric(typ.clone());
-                let Ok(global_value) = kind.ensure_value_fits(global_value, location) else {
+                if global_value.get_type().unify(&typ).is_err() {
+                    let global_value = *global_value;
                     self.push_err(ResolverError::GlobalDoesNotFitItsType {
                         location,
                         global_value,
-                        kind,
+                        typ,
                     });
                     return None;
-                };
+                }
 
-                Some(Type::Constant(global_value, Box::new(typ)))
+                Some(Type::Constant(*global_value))
             }
             _ => None,
         }
@@ -998,16 +1012,26 @@ impl Elaborator<'_> {
             }
             UnresolvedTypeExpression::Constant(int, suffix, _span) => {
                 // Default type constants to u32 if not specified
-                let kind = suffix.unwrap_or(crate::token::IntegerTypeSuffix::U32).as_type();
+                let suffix = suffix.unwrap_or(crate::token::IntegerTypeSuffix::U32);
+                let typ = suffix.as_type();
 
-                if !Kind::numeric(kind.clone()).unifies(expected_kind) {
-                    self.push_err(TypeCheckError::expecting_other_error(
-                        format!("convert_expression_type: {kind} does not unify with expected {expected_kind}"),
-                        location,
-                    ));
+                if !self.check_kind(Kind::numeric(typ.clone()), expected_kind, location) {
+                    return Type::Error;
                 }
 
-                Type::Constant(int, Box::new(kind))
+                let Some(int) = Integer::try_from_type_suffix(int, suffix) else {
+                    let min = typ.integral_minimum_size().unwrap();
+                    let max = typ.integral_maximum_size().unwrap();
+                    self.push_err(TypeCheckError::IntegerLiteralDoesNotFitItsType {
+                        expr: int,
+                        ty: typ,
+                        range: format!("{min}..={max}"),
+                        location,
+                    });
+                    return Type::Error;
+                };
+
+                Type::Constant(int)
             }
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, location) => {
                 let (lhs_location, rhs_location) = (lhs.location(), rhs.location());
@@ -1025,17 +1049,17 @@ impl Elaborator<'_> {
                 );
 
                 match (lhs, rhs) {
-                    (Type::Constant(lhs, lhs_kind), Type::Constant(rhs, rhs_kind)) => {
-                        if lhs_kind.unify(&rhs_kind).is_err() {
+                    (Type::Constant(lhs), Type::Constant(rhs)) => {
+                        if lhs.get_type().unify(&rhs.get_type()).is_err() {
                             self.push_err(TypeCheckError::TypeKindMismatch {
-                                expected_kind: Kind::Numeric(lhs_kind),
-                                expr_kind: Kind::Numeric(rhs_kind),
+                                expected_kind: lhs.numeric_kind(),
+                                expr_kind: rhs.numeric_kind(),
                                 expr_location: location,
                             });
                             return Type::Error;
                         }
-                        match op.function(lhs, rhs, &Kind::Numeric(lhs_kind.clone()), location) {
-                            Ok(result) => Type::Constant(result, lhs_kind),
+                        match op.function(lhs, rhs, location) {
+                            Ok(result) => Type::Constant(result),
                             Err(err) => {
                                 let err = Box::new(err);
                                 let error =
@@ -1062,12 +1086,12 @@ impl Elaborator<'_> {
                 );
 
                 match rhs {
-                    Type::Constant(rhs, rhs_kind) => {
-                        if rhs_kind.is_signed() {
-                            Type::Constant(-rhs, rhs_kind)
+                    Type::Constant(rhs) => {
+                        if let Some(result) = -rhs {
+                            Type::Constant(result)
                         } else {
                             self.push_err(TypeCheckError::InvalidUnaryOp {
-                                typ: rhs_kind.to_string(),
+                                typ: rhs.get_type().to_string(),
                                 operator: "-",
                                 location,
                             });
@@ -1076,7 +1100,9 @@ impl Elaborator<'_> {
                     }
                     rhs => {
                         let kind = rhs.kind().into_numeric_type_or_error();
-                        let zero = Type::Constant(SignedField::zero(), kind);
+                        let int = Integer::try_from_type(FieldElement::zero(), &kind)
+                            .unwrap_or_else(|| Integer::Field(FieldElement::zero()));
+                        let zero = Type::Constant(int);
                         let sub = BinaryTypeOperator::Subtraction;
                         let infix = Box::new(Type::infix_expr(Box::new(zero), sub, Box::new(rhs)));
                         Type::CheckedCast { from: infix.clone(), to: infix }.canonicalize()
@@ -1748,12 +1774,7 @@ impl Elaborator<'_> {
 
         use HirExpression::Literal;
         let from_value_opt = match self.interner.expression(from_expr_id) {
-            Literal(HirLiteral::Integer(field)) if !field.is_negative() => {
-                Some(field.absolute_value())
-            }
-
-            // TODO(https://github.com/noir-lang/noir/issues/6247):
-            // handle negative literals
+            Literal(HirLiteral::Integer(field)) => Some(field),
             _ => None,
         };
 
@@ -1787,7 +1808,8 @@ impl Elaborator<'_> {
         if let (Some(from_value), Some(to_maximum_size)) =
             (from_value_opt, to.integral_maximum_size())
             && from_is_polymorphic
-            && from_value > to_maximum_size
+            && from_value.fits_in_u128()
+            && from_value > to_maximum_size.into()
         {
             let from = from.clone();
             let to = to.clone();

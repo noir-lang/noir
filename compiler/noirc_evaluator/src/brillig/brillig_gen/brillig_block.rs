@@ -253,6 +253,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
         // Free the victim's register so it can be reused
         self.brillig_context.deallocate_register(victim_reg);
+        self.variables.mark_unavailable(&victim_id);
 
         // Record the spill
         let sm = self.function_context.spill_manager.as_mut().unwrap();

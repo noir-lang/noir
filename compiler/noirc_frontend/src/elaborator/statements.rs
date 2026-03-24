@@ -136,7 +136,13 @@ impl Elaborator<'_> {
             WildcardAllowed::Yes
         };
 
+        let previous_impl_trait_context = if global_id.is_some() {
+            self.impl_trait_is_disallowed.replace(super::types::ImplTraitDisallowedContext::Global)
+        } else {
+            self.impl_trait_is_disallowed
+        };
         let annotated_type = self.resolve_inferred_type(let_stmt.r#type, wildcard_allowed);
+        self.impl_trait_is_disallowed = previous_impl_trait_context;
 
         // After resolving the type we'll elaborate the global's value. The value is interpreted
         // at compile time, so we need to switch to a comptime context. For example using `Quoted`
