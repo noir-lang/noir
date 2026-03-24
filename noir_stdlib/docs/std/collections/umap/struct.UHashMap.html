@@ -73,13 +73,13 @@
     K: <a href="../../../std/cmp/trait.Eq.html" class="trait">Eq</a>,
     B: <a href="../../../std/hash/trait.BuildHasher.html" class="trait">BuildHasher</a></div></code>
 
-<code id="is_empty" class="code-header">pub fn <a href="#is_empty"><span class="fn">is_empty</span></a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
+<code id="is_empty" class="code-header">pub fn <a href="#is_empty"><span class="fn">is_empty</span></a>(&mut self: &Self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
 
-<code id="entries" class="code-header">pub fn <a href="#entries"><span class="fn">entries</span></a>(self) -> [(K, V)]</code>
+<code id="entries" class="code-header">pub fn <a href="#entries"><span class="fn">entries</span></a>(&mut self: &Self) -> [(K, V)]</code>
 
-<code id="keys" class="code-header">pub fn <a href="#keys"><span class="fn">keys</span></a>(self) -> [K]</code>
+<code id="keys" class="code-header">pub fn <a href="#keys"><span class="fn">keys</span></a>(&mut self: &Self) -> [K]</code>
 
-<code id="values" class="code-header">pub fn <a href="#values"><span class="fn">values</span></a>(self) -> [V]</code>
+<code id="values" class="code-header">pub fn <a href="#values"><span class="fn">values</span></a>(&mut self: &Self) -> [V]</code>
 
 <code id="iter_mut" class="code-header">pub unconstrained fn <a href="#iter_mut"><span class="fn">iter_mut</span></a>(&mut self, f: fn(K, V) -> (K, V))
 <div class="where-clause">where
@@ -97,9 +97,9 @@
 
 <code id="retain" class="code-header">pub fn <a href="#retain"><span class="fn">retain</span></a>(&mut self, f: fn(K, V) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a>)</code>
 
-<code id="len" class="code-header">pub fn <a href="#len"><span class="fn">len</span></a>(self) -> <a href="../../../std/primitive.u32.html" class="primitive">u32</a></code>
+<code id="len" class="code-header">pub fn <a href="#len"><span class="fn">len</span></a>(&mut self: &Self) -> <a href="../../../std/primitive.u32.html" class="primitive">u32</a></code>
 
-<code id="capacity" class="code-header">pub fn <a href="#capacity"><span class="fn">capacity</span></a>(self) -> <a href="../../../std/primitive.u32.html" class="primitive">u32</a></code>
+<code id="capacity" class="code-header">pub fn <a href="#capacity"><span class="fn">capacity</span></a>(&mut self: &Self) -> <a href="../../../std/primitive.u32.html" class="primitive">u32</a></code>
 
 <code id="get" class="code-header">pub unconstrained fn <a href="#get"><span class="fn">get</span></a>(self, key: K) -> <a href="../../../std/option/struct.Option.html" class="struct">Option</a>&lt;V&gt;
 <div class="where-clause">where
