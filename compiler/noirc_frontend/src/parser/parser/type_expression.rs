@@ -213,7 +213,7 @@ impl Parser<'_> {
                 }
             }
             // Similarly, convert a standalone AsTraitPath expression back to the AsTraitPath type
-            // so it isn't mistakenly rejected as a type expression (e.g. in type aliases).
+            // so it isn't mistakenly rejected as a type expression in type aliases.
             UnresolvedTypeData::Expression(UnresolvedTypeExpression::AsTraitPath(
                 as_trait_path,
             )) => UnresolvedType {
