@@ -1,7 +1,6 @@
 // Exposed only for usage in `std::meta`
 pub(crate) mod poseidon2;
 
-use crate::convert::Into;
 use crate::default::Default;
 use crate::embedded_curve_ops::{
     EmbeddedCurvePoint, EmbeddedCurveScalar, multi_scalar_mul,
@@ -99,7 +98,7 @@ pub fn pedersen_hash_with_separator<let N: u32>(input: [Field; N], separator: u3
     let length_generator: [EmbeddedCurvePoint; 1] =
         derive_generators("pedersen_hash_length".as_bytes(), 0);
     generators[N] = length_generator[0];
-    multi_scalar_mul_array_return(generators.map(Into::into), scalars, true)[0].x
+    multi_scalar_mul_array_return(generators, scalars, true)[0].x
 }
 
 #[field(bn254)]
