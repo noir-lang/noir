@@ -273,13 +273,12 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.binary_instruction(*zero, num, *twos_complement, BrilligBinaryOp::Sub);
 
         // absolute_value = result_is_negative ? twos_complement : num
-        self.codegen_branch(result_is_negative.address, |ctx, is_negative| {
-            if is_negative {
-                ctx.mov_instruction(absolute_value.address, twos_complement.address);
-            } else {
-                ctx.mov_instruction(absolute_value.address, num.address);
-            }
-        });
+        self.conditional_move_instruction(
+            result_is_negative.address,
+            twos_complement.address,
+            num.address,
+            absolute_value.address,
+        );
     }
 
     pub(crate) fn convert_signed_division(
