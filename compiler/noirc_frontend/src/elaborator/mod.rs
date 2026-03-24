@@ -319,6 +319,13 @@ pub struct Elaborator<'context> {
     /// This is stored as a field rather than checked at the call site so that it
     /// propagates through recursive `resolve_type` calls.
     pub(super) impl_trait_is_disallowed: Option<types::ImplTraitDisallowedContext>,
+
+    /// Variable names from a parent runtime scope, used for error reporting only.
+    /// When a fresh elaborator is created for comptime evaluation, this is populated
+    /// with the names of variables from the parent elaborator's scope. If a variable
+    /// lookup fails and the name is in this set, we can report a more specific error
+    /// about runtime variables not being available in comptime code.
+    parent_runtime_variables: rustc_hash::FxHashSet<String>,
 }
 
 #[derive(Copy, Clone)]
@@ -391,6 +398,7 @@ impl<'context> Elaborator<'context> {
             macro_expansion_depth: 0,
             lvalue_index_counter: 0,
             impl_trait_is_disallowed: None,
+            parent_runtime_variables: rustc_hash::FxHashSet::default(),
         }
     }
 
