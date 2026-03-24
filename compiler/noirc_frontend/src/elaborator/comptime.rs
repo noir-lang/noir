@@ -116,13 +116,13 @@ impl<'context> Elaborator<'context> {
         f: impl FnOnce(&mut Elaborator<'a>) -> T,
         setup: impl FnOnce(&mut Elaborator<'a>),
     ) -> T {
-        // Collect (and update) variable names from the parent scope for better error messages
-        // when a runtime variable is referenced in comptime code.
-        let current_scope_tree = self.scopes.0.last();
-        let local_scopes = current_scope_tree.into_iter().flat_map(|tree| tree.0.iter());
-        let local_vars = local_scopes.flat_map(|scope| scope.0.keys()).cloned();
-        let parent_runtime_variables =
-            self.parent_runtime_variables.iter().cloned().chain(local_vars).collect();
+        // Create a fresh elaborator to ensure no state is changed from
+        // this elaborator
+        let mut elaborator = Elaborator::new(
+            self.interner,
+            self.def_maps,
+            self.usage_tracker,
+            self.crate_graph,
             self.interpreter_output,
             self.required_unstable_features,
             self.unresolved_globals,
@@ -131,6 +131,14 @@ impl<'context> Elaborator<'context> {
             self.options,
             self.elaborate_reasons.clone(),
         );
+
+        // Collect (and update) variable names from the parent scope for better error messages
+        // when a runtime variable is referenced in comptime code.
+        let current_scope_tree = self.scopes.0.last();
+        let local_scopes = current_scope_tree.into_iter().flat_map(|tree| tree.0.iter());
+        let local_vars = local_scopes.flat_map(|scope| scope.0.keys()).cloned();
+        let parent_runtime_variables =
+            self.parent_runtime_variables.iter().cloned().chain(local_vars).collect();
 
         elaborator.push_function_context();
         elaborator.scopes.start_function();
