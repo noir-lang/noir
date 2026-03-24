@@ -37,7 +37,7 @@ proptest-derive = { workspace = true, optional = true }
 
 [dev-dependencies]
 serde_json = "1.0"
-serde-reflection = "0.3.6"
+serde-reflection = "0.5.2"
 serde-generate = "0.25.1"
 rustc-hash.workspace = true
 criterion.workspace = true
