@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774356245211,
+  "lastUpdate": 1774356353710,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23181,48 +23181,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "83961104320879bb449521a8a202def7451d2e1e",
-          "message": "chore(brillig): Assert non-empty blocks in `decide_allocation_point` (#11893)",
-          "timestamp": "2026-03-17T22:23:15Z",
-          "tree_id": "924e6c24a1ece9b9712efbc6a156ebb3dce953ab",
-          "url": "https://github.com/noir-lang/noir/commit/83961104320879bb449521a8a202def7451d2e1e"
-        },
-        "date": 1773788212162,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 212268,
-            "range": "± 1034",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 198763,
-            "range": "± 4988",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3129490,
-            "range": "± 8417",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -25274,6 +25232,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2648874,
             "range": "± 1275",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "b11279d4bd4d6ab289cd510a1d6db37137b8ee34",
+          "message": "chore(deps): bump undici from 7.16.0 to 7.24.5 in /docs (#11965)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-03-24T12:22:19Z",
+          "tree_id": "c77b0423fa6fcad1441ddd5cf525ab4cc5dd9ad1",
+          "url": "https://github.com/noir-lang/noir/commit/b11279d4bd4d6ab289cd510a1d6db37137b8ee34"
+        },
+        "date": 1774356295989,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168613,
+            "range": "± 257",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 139930,
+            "range": "± 765",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2125570,
+            "range": "± 1490",
             "unit": "ns/iter"
           }
         ]
