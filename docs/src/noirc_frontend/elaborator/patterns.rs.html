@@ -536,330 +536,335 @@
 <a href=#536 id=536 data-nosnippet>536</a>            <span class="kw">let </span>ident = HirIdent::non_trait_method(id, location);
 <a href=#537 id=537 data-nosnippet>537</a>            <span class="kw">let </span>variable = Variable { ident, scope };
 <a href=#538 id=538 data-nosnippet>538</a>            <span class="prelude-val">Ok</span>(variable)
-<a href=#539 id=539 data-nosnippet>539</a>        } <span class="kw">else </span>{
-<a href=#540 id=540 data-nosnippet>540</a>            <span class="prelude-val">Err</span>(ResolverError::VariableNotDeclared {
+<a href=#539 id=539 data-nosnippet>539</a>        } <span class="kw">else if </span><span class="self">self</span>.parent_runtime_variables.contains(name.as_str()) {
+<a href=#540 id=540 data-nosnippet>540</a>            <span class="prelude-val">Err</span>(ResolverError::RuntimeVarReferencedInComptime {
 <a href=#541 id=541 data-nosnippet>541</a>                name: name.to_string(),
 <a href=#542 id=542 data-nosnippet>542</a>                location: name.location(),
 <a href=#543 id=543 data-nosnippet>543</a>            })
-<a href=#544 id=544 data-nosnippet>544</a>        }
-<a href=#545 id=545 data-nosnippet>545</a>    }
-<a href=#546 id=546 data-nosnippet>546</a>
-<a href=#547 id=547 data-nosnippet>547</a>    <span class="doccomment">/// Resolve generics using the expected kinds of the function we are calling.
-<a href=#548 id=548 data-nosnippet>548</a>    ///
-<a href=#549 id=549 data-nosnippet>549</a>    /// Looks up the generics of the function in [FuncMeta][crate::hir_def::function::FuncMeta].
-<a href=#550 id=550 data-nosnippet>550</a>    ///
-<a href=#551 id=551 data-nosnippet>551</a>    /// If there is no turbofish, it returns `None`.
-<a href=#552 id=552 data-nosnippet>552</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_function_turbofish_generics(
-<a href=#553 id=553 data-nosnippet>553</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#554 id=554 data-nosnippet>554</a>        func_id: <span class="kw-2">&amp;</span>FuncId,
-<a href=#555 id=555 data-nosnippet>555</a>        resolved_turbofish: <span class="prelude-ty">Option</span>&lt;Vec&lt;Located&lt;Type&gt;&gt;&gt;,
-<a href=#556 id=556 data-nosnippet>556</a>        location: Location,
-<a href=#557 id=557 data-nosnippet>557</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;Vec&lt;Type&gt;&gt; {
-<a href=#558 id=558 data-nosnippet>558</a>        resolved_turbofish.map(|<span class="kw-2">mut </span>resolved_turbofish| {
-<a href=#559 id=559 data-nosnippet>559</a>            <span class="kw">let </span>direct_generic_kinds =
-<a href=#560 id=560 data-nosnippet>560</a>                vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.interner.function_meta(func_id).direct_generics, |generic| {
-<a href=#561 id=561 data-nosnippet>561</a>                    generic.kind()
-<a href=#562 id=562 data-nosnippet>562</a>                });
-<a href=#563 id=563 data-nosnippet>563</a>            <span class="kw">let </span>expected = direct_generic_kinds.len();
-<a href=#564 id=564 data-nosnippet>564</a>            <span class="kw">let </span>actual = resolved_turbofish.len();
-<a href=#565 id=565 data-nosnippet>565</a>
-<a href=#566 id=566 data-nosnippet>566</a>            <span class="kw">if </span>actual != expected {
-<a href=#567 id=567 data-nosnippet>567</a>                <span class="self">self</span>.push_err(TypeCheckError::IncorrectTurbofishGenericCount {
-<a href=#568 id=568 data-nosnippet>568</a>                    expected_count: expected,
-<a href=#569 id=569 data-nosnippet>569</a>                    actual_count: actual,
-<a href=#570 id=570 data-nosnippet>570</a>                    location,
-<a href=#571 id=571 data-nosnippet>571</a>                });
-<a href=#572 id=572 data-nosnippet>572</a>
-<a href=#573 id=573 data-nosnippet>573</a>                <span class="comment">// Pad so the result has the expected length for future checks
-<a href=#574 id=574 data-nosnippet>574</a>                </span>resolved_turbofish.resize(expected, Located::from(location, Type::Error));
-<a href=#575 id=575 data-nosnippet>575</a>            }
-<a href=#576 id=576 data-nosnippet>576</a>
-<a href=#577 id=577 data-nosnippet>577</a>            <span class="self">self</span>.resolve_turbofish_generics(direct_generic_kinds, resolved_turbofish)
-<a href=#578 id=578 data-nosnippet>578</a>        })
-<a href=#579 id=579 data-nosnippet>579</a>    }
-<a href=#580 id=580 data-nosnippet>580</a>
-<a href=#581 id=581 data-nosnippet>581</a>    <span class="doccomment">/// Resolve generics using the generic kinds of a struct [DataType].
-<a href=#582 id=582 data-nosnippet>582</a>    ///
-<a href=#583 id=583 data-nosnippet>583</a>    /// If there are no turbofish, returns the generics of the struct itself, as constructed by the caller.
-<a href=#584 id=584 data-nosnippet>584</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_struct_turbofish_generics(
-<a href=#585 id=585 data-nosnippet>585</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#586 id=586 data-nosnippet>586</a>        struct_type: <span class="kw-2">&amp;</span>DataType,
-<a href=#587 id=587 data-nosnippet>587</a>        generics: Vec&lt;Type&gt;,
-<a href=#588 id=588 data-nosnippet>588</a>        resolved_turbofish: <span class="prelude-ty">Option</span>&lt;Vec&lt;Located&lt;Type&gt;&gt;&gt;,
-<a href=#589 id=589 data-nosnippet>589</a>        location: Location,
-<a href=#590 id=590 data-nosnippet>590</a>        errors: <span class="kw-2">&amp;mut </span>Vec&lt;CompilationError&gt;,
-<a href=#591 id=591 data-nosnippet>591</a>    ) -&gt; Vec&lt;Type&gt; {
-<a href=#592 id=592 data-nosnippet>592</a>        <span class="kw">let </span>kinds = vecmap(<span class="kw-2">&amp;</span>struct_type.generics, |generic| generic.kind());
-<a href=#593 id=593 data-nosnippet>593</a>        <span class="self">self</span>.resolve_item_turbofish_generics(
-<a href=#594 id=594 data-nosnippet>594</a>            <span class="string">"struct"</span>,
-<a href=#595 id=595 data-nosnippet>595</a>            struct_type.name.as_str(),
-<a href=#596 id=596 data-nosnippet>596</a>            kinds,
-<a href=#597 id=597 data-nosnippet>597</a>            generics,
-<a href=#598 id=598 data-nosnippet>598</a>            resolved_turbofish,
-<a href=#599 id=599 data-nosnippet>599</a>            location,
-<a href=#600 id=600 data-nosnippet>600</a>            errors,
-<a href=#601 id=601 data-nosnippet>601</a>        )
-<a href=#602 id=602 data-nosnippet>602</a>    }
-<a href=#603 id=603 data-nosnippet>603</a>
-<a href=#604 id=604 data-nosnippet>604</a>    <span class="doccomment">/// Resolve generics using the generics and generic kinds of a [Trait][crate::hir_def::traits::Trait].
-<a href=#605 id=605 data-nosnippet>605</a>    ///
-<a href=#606 id=606 data-nosnippet>606</a>    /// If there are no turbofish, returns the generics of the trait itself, as constructed by the caller.
-<a href=#607 id=607 data-nosnippet>607</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_trait_turbofish_generics(
-<a href=#608 id=608 data-nosnippet>608</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#609 id=609 data-nosnippet>609</a>        trait_name: <span class="kw-2">&amp;</span>str,
-<a href=#610 id=610 data-nosnippet>610</a>        trait_generic_kinds: Vec&lt;Kind&gt;,
-<a href=#611 id=611 data-nosnippet>611</a>        generics: Vec&lt;Type&gt;,
-<a href=#612 id=612 data-nosnippet>612</a>        resolved_turbofish: <span class="prelude-ty">Option</span>&lt;Vec&lt;Located&lt;Type&gt;&gt;&gt;,
-<a href=#613 id=613 data-nosnippet>613</a>        location: Location,
-<a href=#614 id=614 data-nosnippet>614</a>        errors: <span class="kw-2">&amp;mut </span>Vec&lt;CompilationError&gt;,
-<a href=#615 id=615 data-nosnippet>615</a>    ) -&gt; Vec&lt;Type&gt; {
-<a href=#616 id=616 data-nosnippet>616</a>        <span class="self">self</span>.resolve_item_turbofish_generics(
-<a href=#617 id=617 data-nosnippet>617</a>            <span class="string">"trait"</span>,
-<a href=#618 id=618 data-nosnippet>618</a>            trait_name,
-<a href=#619 id=619 data-nosnippet>619</a>            trait_generic_kinds,
-<a href=#620 id=620 data-nosnippet>620</a>            generics,
-<a href=#621 id=621 data-nosnippet>621</a>            resolved_turbofish,
-<a href=#622 id=622 data-nosnippet>622</a>            location,
-<a href=#623 id=623 data-nosnippet>623</a>            errors,
-<a href=#624 id=624 data-nosnippet>624</a>        )
-<a href=#625 id=625 data-nosnippet>625</a>    }
-<a href=#626 id=626 data-nosnippet>626</a>
-<a href=#627 id=627 data-nosnippet>627</a>    <span class="doccomment">/// Resolve generics using the generic and generic kinds of a [TypeAlias].
-<a href=#628 id=628 data-nosnippet>628</a>    ///
-<a href=#629 id=629 data-nosnippet>629</a>    /// If there are no turbofish, returns the generics of the trait itself, as constructed by the caller.
-<a href=#630 id=630 data-nosnippet>630</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_alias_turbofish_generics(
-<a href=#631 id=631 data-nosnippet>631</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#632 id=632 data-nosnippet>632</a>        type_alias: <span class="kw-2">&amp;</span>TypeAlias,
-<a href=#633 id=633 data-nosnippet>633</a>        generics: Vec&lt;Type&gt;,
-<a href=#634 id=634 data-nosnippet>634</a>        resolved_turbofish: <span class="prelude-ty">Option</span>&lt;Vec&lt;Located&lt;Type&gt;&gt;&gt;,
-<a href=#635 id=635 data-nosnippet>635</a>        location: Location,
-<a href=#636 id=636 data-nosnippet>636</a>        errors: <span class="kw-2">&amp;mut </span>Vec&lt;CompilationError&gt;,
-<a href=#637 id=637 data-nosnippet>637</a>    ) -&gt; Vec&lt;Type&gt; {
-<a href=#638 id=638 data-nosnippet>638</a>        <span class="kw">let </span>kinds = vecmap(<span class="kw-2">&amp;</span>type_alias.generics, |generic| generic.kind());
-<a href=#639 id=639 data-nosnippet>639</a>        <span class="self">self</span>.resolve_item_turbofish_generics(
-<a href=#640 id=640 data-nosnippet>640</a>            <span class="string">"alias"</span>,
-<a href=#641 id=641 data-nosnippet>641</a>            type_alias.name.as_str(),
-<a href=#642 id=642 data-nosnippet>642</a>            kinds,
-<a href=#643 id=643 data-nosnippet>643</a>            generics,
-<a href=#644 id=644 data-nosnippet>644</a>            resolved_turbofish,
-<a href=#645 id=645 data-nosnippet>645</a>            location,
-<a href=#646 id=646 data-nosnippet>646</a>            errors,
-<a href=#647 id=647 data-nosnippet>647</a>        )
-<a href=#648 id=648 data-nosnippet>648</a>    }
-<a href=#649 id=649 data-nosnippet>649</a>
-<a href=#650 id=650 data-nosnippet>650</a>    <span class="doccomment">/// Given the generic [Kind]s of a type and its own declared generic [Type]s,
-<a href=#651 id=651 data-nosnippet>651</a>    /// check if we have a non-empty turbofish with the expected number of generics,
-<a href=#652 id=652 data-nosnippet>652</a>    /// and if so try unify them with the expected kinds, otherwise return the default
-<a href=#653 id=653 data-nosnippet>653</a>    /// generics of the type.
-<a href=#654 id=654 data-nosnippet>654</a>    </span><span class="attr">#[allow(clippy::too_many_arguments)]
-<a href=#655 id=655 data-nosnippet>655</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_item_turbofish_generics(
-<a href=#656 id=656 data-nosnippet>656</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#657 id=657 data-nosnippet>657</a>        item_kind: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str,
-<a href=#658 id=658 data-nosnippet>658</a>        item_name: <span class="kw-2">&amp;</span>str,
-<a href=#659 id=659 data-nosnippet>659</a>        item_generic_kinds: Vec&lt;Kind&gt;,
-<a href=#660 id=660 data-nosnippet>660</a>        generics: Vec&lt;Type&gt;,
-<a href=#661 id=661 data-nosnippet>661</a>        resolved_turbofish: <span class="prelude-ty">Option</span>&lt;Vec&lt;Located&lt;Type&gt;&gt;&gt;,
-<a href=#662 id=662 data-nosnippet>662</a>        location: Location,
-<a href=#663 id=663 data-nosnippet>663</a>        errors: <span class="kw-2">&amp;mut </span>Vec&lt;CompilationError&gt;,
-<a href=#664 id=664 data-nosnippet>664</a>    ) -&gt; Vec&lt;Type&gt; {
-<a href=#665 id=665 data-nosnippet>665</a>        <span class="macro">assert_eq!</span>(
-<a href=#666 id=666 data-nosnippet>666</a>            generics.len(),
-<a href=#667 id=667 data-nosnippet>667</a>            item_generic_kinds.len(),
-<a href=#668 id=668 data-nosnippet>668</a>            <span class="string">"ICE: generics count should match the expected kinds"
-<a href=#669 id=669 data-nosnippet>669</a>        </span>);
-<a href=#670 id=670 data-nosnippet>670</a>
-<a href=#671 id=671 data-nosnippet>671</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(turbofish_generics) = resolved_turbofish <span class="kw">else </span>{
-<a href=#672 id=672 data-nosnippet>672</a>            <span class="kw">return </span>generics;
-<a href=#673 id=673 data-nosnippet>673</a>        };
-<a href=#674 id=674 data-nosnippet>674</a>
-<a href=#675 id=675 data-nosnippet>675</a>        <span class="kw">if </span>turbofish_generics.len() != generics.len() {
-<a href=#676 id=676 data-nosnippet>676</a>            errors.push(
-<a href=#677 id=677 data-nosnippet>677</a>                TypeCheckError::GenericCountMismatch {
-<a href=#678 id=678 data-nosnippet>678</a>                    item: <span class="macro">format!</span>(<span class="string">"{item_kind} {item_name}"</span>),
-<a href=#679 id=679 data-nosnippet>679</a>                    expected: generics.len(),
-<a href=#680 id=680 data-nosnippet>680</a>                    found: turbofish_generics.len(),
-<a href=#681 id=681 data-nosnippet>681</a>                    location,
-<a href=#682 id=682 data-nosnippet>682</a>                }
-<a href=#683 id=683 data-nosnippet>683</a>                .into(),
-<a href=#684 id=684 data-nosnippet>684</a>            );
-<a href=#685 id=685 data-nosnippet>685</a>            <span class="kw">return </span>generics;
-<a href=#686 id=686 data-nosnippet>686</a>        }
-<a href=#687 id=687 data-nosnippet>687</a>
-<a href=#688 id=688 data-nosnippet>688</a>        <span class="self">self</span>.resolve_turbofish_generics(item_generic_kinds, turbofish_generics)
-<a href=#689 id=689 data-nosnippet>689</a>    }
-<a href=#690 id=690 data-nosnippet>690</a>
-<a href=#691 id=691 data-nosnippet>691</a>    <span class="doccomment">/// Given the generic [Kind]s of a type, and the list of generic types in a non-empty turbofish,
-<a href=#692 id=692 data-nosnippet>692</a>    /// which have already been verified to match the expected number of generics, run type checking
-<a href=#693 id=693 data-nosnippet>693</a>    /// to ensure each turbofish generic matches the expected kind, and return the unified types.
-<a href=#694 id=694 data-nosnippet>694</a>    </span><span class="kw">fn </span>resolve_turbofish_generics(
-<a href=#695 id=695 data-nosnippet>695</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#696 id=696 data-nosnippet>696</a>        kinds: Vec&lt;Kind&gt;,
-<a href=#697 id=697 data-nosnippet>697</a>        turbofish_generics: Vec&lt;Located&lt;Type&gt;&gt;,
-<a href=#698 id=698 data-nosnippet>698</a>    ) -&gt; Vec&lt;Type&gt; {
-<a href=#699 id=699 data-nosnippet>699</a>        <span class="comment">// Use zip (not zip_eq) since callers like resolve_function_turbofish_generics
-<a href=#700 id=700 data-nosnippet>700</a>        // may push an error for mismatched counts but still call this function.
-<a href=#701 id=701 data-nosnippet>701</a>        </span><span class="kw">let </span>kinds_with_types = kinds.into_iter().zip(turbofish_generics);
-<a href=#702 id=702 data-nosnippet>702</a>
-<a href=#703 id=703 data-nosnippet>703</a>        vecmap(kinds_with_types, |(kind, located_type)| {
-<a href=#704 id=704 data-nosnippet>704</a>            <span class="kw">let </span>location = located_type.location();
-<a href=#705 id=705 data-nosnippet>705</a>            <span class="kw">let </span>typ = located_type.contents;
-<a href=#706 id=706 data-nosnippet>706</a>            <span class="self">self</span>.check_type_kind(typ, <span class="kw-2">&amp;</span>kind, location)
-<a href=#707 id=707 data-nosnippet>707</a>        })
-<a href=#708 id=708 data-nosnippet>708</a>    }
-<a href=#709 id=709 data-nosnippet>709</a>
-<a href=#710 id=710 data-nosnippet>710</a>    <span class="doccomment">/// Create a validated [TypedPath] from a [Path] by resolving all generics in every [PathSegment] in it.
-<a href=#711 id=711 data-nosnippet>711</a>    ///
-<a href=#712 id=712 data-nosnippet>712</a>    /// Pushes an error if the first segment is `Self` and it has turbofish generics.
-<a href=#713 id=713 data-nosnippet>713</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>validate_path(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: Path) -&gt; TypedPath {
-<a href=#714 id=714 data-nosnippet>714</a>        <span class="kw">let </span><span class="kw-2">mut </span>segments = vecmap(path.segments, |segment| <span class="self">self</span>.validate_path_segment(segment));
-<a href=#715 id=715 data-nosnippet>715</a>
-<a href=#716 id=716 data-nosnippet>716</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(first_segment) = segments.first_mut()
-<a href=#717 id=717 data-nosnippet>717</a>            &amp;&amp; first_segment.generics.is_some()
-<a href=#718 id=718 data-nosnippet>718</a>            &amp;&amp; first_segment.ident.is_self_type_name()
-<a href=#719 id=719 data-nosnippet>719</a>        {
-<a href=#720 id=720 data-nosnippet>720</a>            <span class="self">self</span>.push_err(PathResolutionError::TurbofishNotAllowedOnItem {
-<a href=#721 id=721 data-nosnippet>721</a>                item: <span class="string">"self type"</span>.to_string(),
-<a href=#722 id=722 data-nosnippet>722</a>                location: first_segment.turbofish_location(),
-<a href=#723 id=723 data-nosnippet>723</a>            });
-<a href=#724 id=724 data-nosnippet>724</a>            first_segment.generics = <span class="prelude-val">None</span>;
-<a href=#725 id=725 data-nosnippet>725</a>        }
-<a href=#726 id=726 data-nosnippet>726</a>
-<a href=#727 id=727 data-nosnippet>727</a>        TypedPath {
-<a href=#728 id=728 data-nosnippet>728</a>            segments,
-<a href=#729 id=729 data-nosnippet>729</a>            kind: path.kind,
-<a href=#730 id=730 data-nosnippet>730</a>            location: path.location,
-<a href=#731 id=731 data-nosnippet>731</a>            kind_location: path.kind_location,
-<a href=#732 id=732 data-nosnippet>732</a>        }
-<a href=#733 id=733 data-nosnippet>733</a>    }
-<a href=#734 id=734 data-nosnippet>734</a>
-<a href=#735 id=735 data-nosnippet>735</a>    <span class="doccomment">/// Create a validated [TypedPathSegment] from a [PathSegment] by resolving all turbofish generics
-<a href=#736 id=736 data-nosnippet>736</a>    /// in it with [Kind::Any], allowing wildcards, and marking them as _used_.
-<a href=#737 id=737 data-nosnippet>737</a>    </span><span class="kw">fn </span>validate_path_segment(<span class="kw-2">&amp;mut </span><span class="self">self</span>, segment: PathSegment) -&gt; TypedPathSegment {
-<a href=#738 id=738 data-nosnippet>738</a>        <span class="kw">let </span>generics = segment.generics.map(|generics| {
-<a href=#739 id=739 data-nosnippet>739</a>            vecmap(generics, |generic| {
-<a href=#740 id=740 data-nosnippet>740</a>                <span class="kw">let </span>location = generic.location;
-<a href=#741 id=741 data-nosnippet>741</a>                <span class="kw">let </span>wildcard_allowed = WildcardAllowed::Yes;
-<a href=#742 id=742 data-nosnippet>742</a>                <span class="kw">let </span>typ = <span class="self">self</span>.use_type_with_kind(generic, <span class="kw-2">&amp;</span>Kind::Any, wildcard_allowed);
-<a href=#743 id=743 data-nosnippet>743</a>                Located::from(location, typ)
-<a href=#744 id=744 data-nosnippet>744</a>            })
-<a href=#745 id=745 data-nosnippet>745</a>        });
-<a href=#746 id=746 data-nosnippet>746</a>        TypedPathSegment { ident: segment.ident, generics, location: segment.location }
-<a href=#747 id=747 data-nosnippet>747</a>    }
-<a href=#748 id=748 data-nosnippet>748</a>
-<a href=#749 id=749 data-nosnippet>749</a>    <span class="doccomment">/// Get the [DataType] of a [TypeId] and call [Elaborator::resolve_struct_turbofish_generics].
-<a href=#750 id=750 data-nosnippet>750</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_struct_id_turbofish_generics(
-<a href=#751 id=751 data-nosnippet>751</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#752 id=752 data-nosnippet>752</a>        struct_id: TypeId,
-<a href=#753 id=753 data-nosnippet>753</a>        <span class="kw-2">mut </span>turbofish: <span class="prelude-ty">Option</span>&lt;Turbofish&gt;,
-<a href=#754 id=754 data-nosnippet>754</a>        errors: <span class="kw-2">&amp;mut </span>Vec&lt;CompilationError&gt;,
-<a href=#755 id=755 data-nosnippet>755</a>    ) -&gt; Vec&lt;Type&gt; {
-<a href=#756 id=756 data-nosnippet>756</a>        <span class="kw">let </span>struct_type = <span class="self">self</span>.interner.get_type(struct_id);
-<a href=#757 id=757 data-nosnippet>757</a>        <span class="kw">let </span>struct_type = struct_type.borrow();
-<a href=#758 id=758 data-nosnippet>758</a>        <span class="kw">let </span>struct_generics = struct_type.instantiate(<span class="self">self</span>.interner);
-<a href=#759 id=759 data-nosnippet>759</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(turbofish) = turbofish.take() {
-<a href=#760 id=760 data-nosnippet>760</a>            <span class="self">self</span>.resolve_struct_turbofish_generics(
-<a href=#761 id=761 data-nosnippet>761</a>                <span class="kw-2">&amp;</span>struct_type,
-<a href=#762 id=762 data-nosnippet>762</a>                struct_generics,
-<a href=#763 id=763 data-nosnippet>763</a>                <span class="prelude-val">Some</span>(turbofish.generics),
-<a href=#764 id=764 data-nosnippet>764</a>                turbofish.location,
-<a href=#765 id=765 data-nosnippet>765</a>                errors,
-<a href=#766 id=766 data-nosnippet>766</a>            )
-<a href=#767 id=767 data-nosnippet>767</a>        } <span class="kw">else </span>{
-<a href=#768 id=768 data-nosnippet>768</a>            struct_generics
-<a href=#769 id=769 data-nosnippet>769</a>        }
-<a href=#770 id=770 data-nosnippet>770</a>    }
-<a href=#771 id=771 data-nosnippet>771</a>
-<a href=#772 id=772 data-nosnippet>772</a>    <span class="doccomment">/// Get the [TypeAlias] of a [TypeAliasId] and call [Elaborator::resolve_alias_turbofish_generics].
-<a href=#773 id=773 data-nosnippet>773</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_type_alias_id_turbofish_generics(
-<a href=#774 id=774 data-nosnippet>774</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#775 id=775 data-nosnippet>775</a>        type_alias_id: TypeAliasId,
-<a href=#776 id=776 data-nosnippet>776</a>        generics: <span class="prelude-ty">Option</span>&lt;Turbofish&gt;,
-<a href=#777 id=777 data-nosnippet>777</a>        errors: <span class="kw-2">&amp;mut </span>Vec&lt;CompilationError&gt;,
-<a href=#778 id=778 data-nosnippet>778</a>    ) -&gt; Vec&lt;Type&gt; {
-<a href=#779 id=779 data-nosnippet>779</a>        <span class="kw">let </span>type_alias = <span class="self">self</span>.interner.get_type_alias(type_alias_id);
-<a href=#780 id=780 data-nosnippet>780</a>        <span class="kw">let </span>type_alias = type_alias.borrow();
-<a href=#781 id=781 data-nosnippet>781</a>        <span class="kw">let </span>alias_generics = vecmap(<span class="kw-2">&amp;</span>type_alias.generics, |generic| {
-<a href=#782 id=782 data-nosnippet>782</a>            <span class="self">self</span>.interner.next_type_variable_with_kind(generic.kind())
-<a href=#783 id=783 data-nosnippet>783</a>        });
-<a href=#784 id=784 data-nosnippet>784</a>
-<a href=#785 id=785 data-nosnippet>785</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(generics) = generics {
-<a href=#786 id=786 data-nosnippet>786</a>            <span class="self">self</span>.resolve_alias_turbofish_generics(
-<a href=#787 id=787 data-nosnippet>787</a>                <span class="kw-2">&amp;</span>type_alias,
-<a href=#788 id=788 data-nosnippet>788</a>                alias_generics,
-<a href=#789 id=789 data-nosnippet>789</a>                <span class="prelude-val">Some</span>(generics.generics),
-<a href=#790 id=790 data-nosnippet>790</a>                generics.location,
-<a href=#791 id=791 data-nosnippet>791</a>                errors,
-<a href=#792 id=792 data-nosnippet>792</a>            )
-<a href=#793 id=793 data-nosnippet>793</a>        } <span class="kw">else </span>{
-<a href=#794 id=794 data-nosnippet>794</a>            alias_generics
-<a href=#795 id=795 data-nosnippet>795</a>        }
-<a href=#796 id=796 data-nosnippet>796</a>    }
-<a href=#797 id=797 data-nosnippet>797</a>
-<a href=#798 id=798 data-nosnippet>798</a>    <span class="doccomment">/// Resolve a [TypedPath] into a local or global [HirIdent].
-<a href=#799 id=799 data-nosnippet>799</a>    ///
-<a href=#800 id=800 data-nosnippet>800</a>    /// If it cannot be found, then it pushes the error and returns [None].
-<a href=#801 id=801 data-nosnippet>801</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_ident_from_path(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: TypedPath) -&gt; <span class="prelude-ty">Option</span>&lt;IdentFromPath&gt; {
-<a href=#802 id=802 data-nosnippet>802</a>        <span class="kw">match </span><span class="self">self</span>.get_ident_from_path_or_error(path) {
-<a href=#803 id=803 data-nosnippet>803</a>            <span class="prelude-val">Ok</span>(value) =&gt; <span class="prelude-val">Some</span>(value),
-<a href=#804 id=804 data-nosnippet>804</a>            <span class="prelude-val">Err</span>(error) =&gt; {
-<a href=#805 id=805 data-nosnippet>805</a>                <span class="self">self</span>.push_err(error);
-<a href=#806 id=806 data-nosnippet>806</a>                <span class="prelude-val">None
-<a href=#807 id=807 data-nosnippet>807</a>            </span>}
-<a href=#808 id=808 data-nosnippet>808</a>        }
-<a href=#809 id=809 data-nosnippet>809</a>    }
-<a href=#810 id=810 data-nosnippet>810</a>
-<a href=#811 id=811 data-nosnippet>811</a>    <span class="doccomment">/// Resolve a [TypedPath] into a local or global [HirIdent], or return `Err` if it could not be found.
-<a href=#812 id=812 data-nosnippet>812</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_ident_from_path_or_error(
-<a href=#813 id=813 data-nosnippet>813</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#814 id=814 data-nosnippet>814</a>        path: TypedPath,
-<a href=#815 id=815 data-nosnippet>815</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;IdentFromPath, ResolverError&gt; {
-<a href=#816 id=816 data-nosnippet>816</a>        <span class="comment">// If the path is a single segment, try to resolve it as a local variable first
-<a href=#817 id=817 data-nosnippet>817</a>        </span><span class="kw">let </span>use_variable_error = <span class="kw">match </span>path.as_single_segment() {
-<a href=#818 id=818 data-nosnippet>818</a>            <span class="prelude-val">Some</span>(segment) =&gt; <span class="kw">match </span><span class="self">self</span>.use_variable(<span class="kw-2">&amp;</span>segment.ident) {
-<a href=#819 id=819 data-nosnippet>819</a>                <span class="prelude-val">Ok</span>(variable) =&gt; {
-<a href=#820 id=820 data-nosnippet>820</a>                    <span class="comment">// Succeed even if the variable has turbofish on it, but report an error for that
-<a href=#821 id=821 data-nosnippet>821</a>                    </span><span class="kw">if </span>segment.generics.is_some() {
-<a href=#822 id=822 data-nosnippet>822</a>                        <span class="kw">let </span>item = <span class="string">"local variables"</span>.to_string();
-<a href=#823 id=823 data-nosnippet>823</a>                        <span class="kw">let </span>location = segment.turbofish_location();
-<a href=#824 id=824 data-nosnippet>824</a>                        <span class="kw">let </span>error =
-<a href=#825 id=825 data-nosnippet>825</a>                            PathResolutionError::TurbofishNotAllowedOnItem { item, location };
-<a href=#826 id=826 data-nosnippet>826</a>                        <span class="self">self</span>.push_err(error);
-<a href=#827 id=827 data-nosnippet>827</a>                    }
-<a href=#828 id=828 data-nosnippet>828</a>                    <span class="kw">return </span><span class="prelude-val">Ok</span>(IdentFromPath::Variable(variable));
-<a href=#829 id=829 data-nosnippet>829</a>                }
-<a href=#830 id=830 data-nosnippet>830</a>                <span class="prelude-val">Err</span>(error) =&gt; <span class="prelude-val">Some</span>(error),
-<a href=#831 id=831 data-nosnippet>831</a>            },
-<a href=#832 id=832 data-nosnippet>832</a>            <span class="prelude-val">None </span>=&gt; <span class="prelude-val">None</span>,
-<a href=#833 id=833 data-nosnippet>833</a>        };
-<a href=#834 id=834 data-nosnippet>834</a>
-<a href=#835 id=835 data-nosnippet>835</a>        <span class="kw">match </span><span class="self">self</span>.lookup_item_as_value(path) {
-<a href=#836 id=836 data-nosnippet>836</a>            <span class="prelude-val">Ok</span>(ItemAsValue::Definition { id, item }) =&gt; <span class="prelude-val">Ok</span>(IdentFromPath::Definition { id, item }),
-<a href=#837 id=837 data-nosnippet>837</a>            <span class="prelude-val">Ok</span>(ItemAsValue::TypeAlias(type_alias_id)) =&gt; {
-<a href=#838 id=838 data-nosnippet>838</a>                <span class="prelude-val">Ok</span>(IdentFromPath::TypeAlias(type_alias_id))
-<a href=#839 id=839 data-nosnippet>839</a>            }
-<a href=#840 id=840 data-nosnippet>840</a>            <span class="prelude-val">Err</span>(ResolverError::PathResolutionError(PathResolutionError::Unresolved(ident))) =&gt; {
-<a href=#841 id=841 data-nosnippet>841</a>                <span class="comment">// If we can't resolve a path, but we have an error from trying to resolve a variable
-<a href=#842 id=842 data-nosnippet>842</a>                // (in which case the path was a single segment), prefer saying "variable not found"
-<a href=#843 id=843 data-nosnippet>843</a>                // instead of "Cannot resolve '...' in path".
-<a href=#844 id=844 data-nosnippet>844</a>                </span><span class="kw">match </span>use_variable_error {
-<a href=#845 id=845 data-nosnippet>845</a>                    <span class="prelude-val">Some</span>(error) =&gt; <span class="prelude-val">Err</span>(error),
-<a href=#846 id=846 data-nosnippet>846</a>                    <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Err</span>(ResolverError::PathResolutionError(
-<a href=#847 id=847 data-nosnippet>847</a>                        PathResolutionError::Unresolved(ident),
-<a href=#848 id=848 data-nosnippet>848</a>                    )),
-<a href=#849 id=849 data-nosnippet>849</a>                }
-<a href=#850 id=850 data-nosnippet>850</a>            }
-<a href=#851 id=851 data-nosnippet>851</a>            <span class="prelude-val">Err</span>(item_as_value_error) =&gt; {
-<a href=#852 id=852 data-nosnippet>852</a>                <span class="kw">match </span>use_variable_error {
-<a href=#853 id=853 data-nosnippet>853</a>                    <span class="comment">// If the path was "_" then we want to preserve that error as it's clearer
-<a href=#854 id=854 data-nosnippet>854</a>                    // than the error of an item not being found (it will mention that "_" is
-<a href=#855 id=855 data-nosnippet>855</a>                    // not valid as an expression).
-<a href=#856 id=856 data-nosnippet>856</a>                    </span><span class="prelude-val">Some</span>(ResolverError::VariableNotDeclared { name, .. }) <span class="kw">if </span>name != <span class="string">"_" </span>=&gt; {
-<a href=#857 id=857 data-nosnippet>857</a>                        <span class="prelude-val">Err</span>(item_as_value_error)
-<a href=#858 id=858 data-nosnippet>858</a>                    }
-<a href=#859 id=859 data-nosnippet>859</a>                    <span class="prelude-val">Some</span>(use_variable_error) =&gt; <span class="prelude-val">Err</span>(use_variable_error),
-<a href=#860 id=860 data-nosnippet>860</a>                    <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Err</span>(item_as_value_error),
-<a href=#861 id=861 data-nosnippet>861</a>                }
-<a href=#862 id=862 data-nosnippet>862</a>            }
-<a href=#863 id=863 data-nosnippet>863</a>        }
-<a href=#864 id=864 data-nosnippet>864</a>    }
-<a href=#865 id=865 data-nosnippet>865</a>}</code></pre></div></section></main></body></html>
+<a href=#544 id=544 data-nosnippet>544</a>        } <span class="kw">else </span>{
+<a href=#545 id=545 data-nosnippet>545</a>            <span class="prelude-val">Err</span>(ResolverError::VariableNotDeclared {
+<a href=#546 id=546 data-nosnippet>546</a>                name: name.to_string(),
+<a href=#547 id=547 data-nosnippet>547</a>                location: name.location(),
+<a href=#548 id=548 data-nosnippet>548</a>            })
+<a href=#549 id=549 data-nosnippet>549</a>        }
+<a href=#550 id=550 data-nosnippet>550</a>    }
+<a href=#551 id=551 data-nosnippet>551</a>
+<a href=#552 id=552 data-nosnippet>552</a>    <span class="doccomment">/// Resolve generics using the expected kinds of the function we are calling.
+<a href=#553 id=553 data-nosnippet>553</a>    ///
+<a href=#554 id=554 data-nosnippet>554</a>    /// Looks up the generics of the function in [FuncMeta][crate::hir_def::function::FuncMeta].
+<a href=#555 id=555 data-nosnippet>555</a>    ///
+<a href=#556 id=556 data-nosnippet>556</a>    /// If there is no turbofish, it returns `None`.
+<a href=#557 id=557 data-nosnippet>557</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_function_turbofish_generics(
+<a href=#558 id=558 data-nosnippet>558</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#559 id=559 data-nosnippet>559</a>        func_id: <span class="kw-2">&amp;</span>FuncId,
+<a href=#560 id=560 data-nosnippet>560</a>        resolved_turbofish: <span class="prelude-ty">Option</span>&lt;Vec&lt;Located&lt;Type&gt;&gt;&gt;,
+<a href=#561 id=561 data-nosnippet>561</a>        location: Location,
+<a href=#562 id=562 data-nosnippet>562</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;Vec&lt;Type&gt;&gt; {
+<a href=#563 id=563 data-nosnippet>563</a>        resolved_turbofish.map(|<span class="kw-2">mut </span>resolved_turbofish| {
+<a href=#564 id=564 data-nosnippet>564</a>            <span class="kw">let </span>direct_generic_kinds =
+<a href=#565 id=565 data-nosnippet>565</a>                vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.interner.function_meta(func_id).direct_generics, |generic| {
+<a href=#566 id=566 data-nosnippet>566</a>                    generic.kind()
+<a href=#567 id=567 data-nosnippet>567</a>                });
+<a href=#568 id=568 data-nosnippet>568</a>            <span class="kw">let </span>expected = direct_generic_kinds.len();
+<a href=#569 id=569 data-nosnippet>569</a>            <span class="kw">let </span>actual = resolved_turbofish.len();
+<a href=#570 id=570 data-nosnippet>570</a>
+<a href=#571 id=571 data-nosnippet>571</a>            <span class="kw">if </span>actual != expected {
+<a href=#572 id=572 data-nosnippet>572</a>                <span class="self">self</span>.push_err(TypeCheckError::IncorrectTurbofishGenericCount {
+<a href=#573 id=573 data-nosnippet>573</a>                    expected_count: expected,
+<a href=#574 id=574 data-nosnippet>574</a>                    actual_count: actual,
+<a href=#575 id=575 data-nosnippet>575</a>                    location,
+<a href=#576 id=576 data-nosnippet>576</a>                });
+<a href=#577 id=577 data-nosnippet>577</a>
+<a href=#578 id=578 data-nosnippet>578</a>                <span class="comment">// Pad so the result has the expected length for future checks
+<a href=#579 id=579 data-nosnippet>579</a>                </span>resolved_turbofish.resize(expected, Located::from(location, Type::Error));
+<a href=#580 id=580 data-nosnippet>580</a>            }
+<a href=#581 id=581 data-nosnippet>581</a>
+<a href=#582 id=582 data-nosnippet>582</a>            <span class="self">self</span>.resolve_turbofish_generics(direct_generic_kinds, resolved_turbofish)
+<a href=#583 id=583 data-nosnippet>583</a>        })
+<a href=#584 id=584 data-nosnippet>584</a>    }
+<a href=#585 id=585 data-nosnippet>585</a>
+<a href=#586 id=586 data-nosnippet>586</a>    <span class="doccomment">/// Resolve generics using the generic kinds of a struct [DataType].
+<a href=#587 id=587 data-nosnippet>587</a>    ///
+<a href=#588 id=588 data-nosnippet>588</a>    /// If there are no turbofish, returns the generics of the struct itself, as constructed by the caller.
+<a href=#589 id=589 data-nosnippet>589</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_struct_turbofish_generics(
+<a href=#590 id=590 data-nosnippet>590</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#591 id=591 data-nosnippet>591</a>        struct_type: <span class="kw-2">&amp;</span>DataType,
+<a href=#592 id=592 data-nosnippet>592</a>        generics: Vec&lt;Type&gt;,
+<a href=#593 id=593 data-nosnippet>593</a>        resolved_turbofish: <span class="prelude-ty">Option</span>&lt;Vec&lt;Located&lt;Type&gt;&gt;&gt;,
+<a href=#594 id=594 data-nosnippet>594</a>        location: Location,
+<a href=#595 id=595 data-nosnippet>595</a>        errors: <span class="kw-2">&amp;mut </span>Vec&lt;CompilationError&gt;,
+<a href=#596 id=596 data-nosnippet>596</a>    ) -&gt; Vec&lt;Type&gt; {
+<a href=#597 id=597 data-nosnippet>597</a>        <span class="kw">let </span>kinds = vecmap(<span class="kw-2">&amp;</span>struct_type.generics, |generic| generic.kind());
+<a href=#598 id=598 data-nosnippet>598</a>        <span class="self">self</span>.resolve_item_turbofish_generics(
+<a href=#599 id=599 data-nosnippet>599</a>            <span class="string">"struct"</span>,
+<a href=#600 id=600 data-nosnippet>600</a>            struct_type.name.as_str(),
+<a href=#601 id=601 data-nosnippet>601</a>            kinds,
+<a href=#602 id=602 data-nosnippet>602</a>            generics,
+<a href=#603 id=603 data-nosnippet>603</a>            resolved_turbofish,
+<a href=#604 id=604 data-nosnippet>604</a>            location,
+<a href=#605 id=605 data-nosnippet>605</a>            errors,
+<a href=#606 id=606 data-nosnippet>606</a>        )
+<a href=#607 id=607 data-nosnippet>607</a>    }
+<a href=#608 id=608 data-nosnippet>608</a>
+<a href=#609 id=609 data-nosnippet>609</a>    <span class="doccomment">/// Resolve generics using the generics and generic kinds of a [Trait][crate::hir_def::traits::Trait].
+<a href=#610 id=610 data-nosnippet>610</a>    ///
+<a href=#611 id=611 data-nosnippet>611</a>    /// If there are no turbofish, returns the generics of the trait itself, as constructed by the caller.
+<a href=#612 id=612 data-nosnippet>612</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_trait_turbofish_generics(
+<a href=#613 id=613 data-nosnippet>613</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#614 id=614 data-nosnippet>614</a>        trait_name: <span class="kw-2">&amp;</span>str,
+<a href=#615 id=615 data-nosnippet>615</a>        trait_generic_kinds: Vec&lt;Kind&gt;,
+<a href=#616 id=616 data-nosnippet>616</a>        generics: Vec&lt;Type&gt;,
+<a href=#617 id=617 data-nosnippet>617</a>        resolved_turbofish: <span class="prelude-ty">Option</span>&lt;Vec&lt;Located&lt;Type&gt;&gt;&gt;,
+<a href=#618 id=618 data-nosnippet>618</a>        location: Location,
+<a href=#619 id=619 data-nosnippet>619</a>        errors: <span class="kw-2">&amp;mut </span>Vec&lt;CompilationError&gt;,
+<a href=#620 id=620 data-nosnippet>620</a>    ) -&gt; Vec&lt;Type&gt; {
+<a href=#621 id=621 data-nosnippet>621</a>        <span class="self">self</span>.resolve_item_turbofish_generics(
+<a href=#622 id=622 data-nosnippet>622</a>            <span class="string">"trait"</span>,
+<a href=#623 id=623 data-nosnippet>623</a>            trait_name,
+<a href=#624 id=624 data-nosnippet>624</a>            trait_generic_kinds,
+<a href=#625 id=625 data-nosnippet>625</a>            generics,
+<a href=#626 id=626 data-nosnippet>626</a>            resolved_turbofish,
+<a href=#627 id=627 data-nosnippet>627</a>            location,
+<a href=#628 id=628 data-nosnippet>628</a>            errors,
+<a href=#629 id=629 data-nosnippet>629</a>        )
+<a href=#630 id=630 data-nosnippet>630</a>    }
+<a href=#631 id=631 data-nosnippet>631</a>
+<a href=#632 id=632 data-nosnippet>632</a>    <span class="doccomment">/// Resolve generics using the generic and generic kinds of a [TypeAlias].
+<a href=#633 id=633 data-nosnippet>633</a>    ///
+<a href=#634 id=634 data-nosnippet>634</a>    /// If there are no turbofish, returns the generics of the trait itself, as constructed by the caller.
+<a href=#635 id=635 data-nosnippet>635</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_alias_turbofish_generics(
+<a href=#636 id=636 data-nosnippet>636</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#637 id=637 data-nosnippet>637</a>        type_alias: <span class="kw-2">&amp;</span>TypeAlias,
+<a href=#638 id=638 data-nosnippet>638</a>        generics: Vec&lt;Type&gt;,
+<a href=#639 id=639 data-nosnippet>639</a>        resolved_turbofish: <span class="prelude-ty">Option</span>&lt;Vec&lt;Located&lt;Type&gt;&gt;&gt;,
+<a href=#640 id=640 data-nosnippet>640</a>        location: Location,
+<a href=#641 id=641 data-nosnippet>641</a>        errors: <span class="kw-2">&amp;mut </span>Vec&lt;CompilationError&gt;,
+<a href=#642 id=642 data-nosnippet>642</a>    ) -&gt; Vec&lt;Type&gt; {
+<a href=#643 id=643 data-nosnippet>643</a>        <span class="kw">let </span>kinds = vecmap(<span class="kw-2">&amp;</span>type_alias.generics, |generic| generic.kind());
+<a href=#644 id=644 data-nosnippet>644</a>        <span class="self">self</span>.resolve_item_turbofish_generics(
+<a href=#645 id=645 data-nosnippet>645</a>            <span class="string">"alias"</span>,
+<a href=#646 id=646 data-nosnippet>646</a>            type_alias.name.as_str(),
+<a href=#647 id=647 data-nosnippet>647</a>            kinds,
+<a href=#648 id=648 data-nosnippet>648</a>            generics,
+<a href=#649 id=649 data-nosnippet>649</a>            resolved_turbofish,
+<a href=#650 id=650 data-nosnippet>650</a>            location,
+<a href=#651 id=651 data-nosnippet>651</a>            errors,
+<a href=#652 id=652 data-nosnippet>652</a>        )
+<a href=#653 id=653 data-nosnippet>653</a>    }
+<a href=#654 id=654 data-nosnippet>654</a>
+<a href=#655 id=655 data-nosnippet>655</a>    <span class="doccomment">/// Given the generic [Kind]s of a type and its own declared generic [Type]s,
+<a href=#656 id=656 data-nosnippet>656</a>    /// check if we have a non-empty turbofish with the expected number of generics,
+<a href=#657 id=657 data-nosnippet>657</a>    /// and if so try unify them with the expected kinds, otherwise return the default
+<a href=#658 id=658 data-nosnippet>658</a>    /// generics of the type.
+<a href=#659 id=659 data-nosnippet>659</a>    </span><span class="attr">#[allow(clippy::too_many_arguments)]
+<a href=#660 id=660 data-nosnippet>660</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_item_turbofish_generics(
+<a href=#661 id=661 data-nosnippet>661</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#662 id=662 data-nosnippet>662</a>        item_kind: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str,
+<a href=#663 id=663 data-nosnippet>663</a>        item_name: <span class="kw-2">&amp;</span>str,
+<a href=#664 id=664 data-nosnippet>664</a>        item_generic_kinds: Vec&lt;Kind&gt;,
+<a href=#665 id=665 data-nosnippet>665</a>        generics: Vec&lt;Type&gt;,
+<a href=#666 id=666 data-nosnippet>666</a>        resolved_turbofish: <span class="prelude-ty">Option</span>&lt;Vec&lt;Located&lt;Type&gt;&gt;&gt;,
+<a href=#667 id=667 data-nosnippet>667</a>        location: Location,
+<a href=#668 id=668 data-nosnippet>668</a>        errors: <span class="kw-2">&amp;mut </span>Vec&lt;CompilationError&gt;,
+<a href=#669 id=669 data-nosnippet>669</a>    ) -&gt; Vec&lt;Type&gt; {
+<a href=#670 id=670 data-nosnippet>670</a>        <span class="macro">assert_eq!</span>(
+<a href=#671 id=671 data-nosnippet>671</a>            generics.len(),
+<a href=#672 id=672 data-nosnippet>672</a>            item_generic_kinds.len(),
+<a href=#673 id=673 data-nosnippet>673</a>            <span class="string">"ICE: generics count should match the expected kinds"
+<a href=#674 id=674 data-nosnippet>674</a>        </span>);
+<a href=#675 id=675 data-nosnippet>675</a>
+<a href=#676 id=676 data-nosnippet>676</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(turbofish_generics) = resolved_turbofish <span class="kw">else </span>{
+<a href=#677 id=677 data-nosnippet>677</a>            <span class="kw">return </span>generics;
+<a href=#678 id=678 data-nosnippet>678</a>        };
+<a href=#679 id=679 data-nosnippet>679</a>
+<a href=#680 id=680 data-nosnippet>680</a>        <span class="kw">if </span>turbofish_generics.len() != generics.len() {
+<a href=#681 id=681 data-nosnippet>681</a>            errors.push(
+<a href=#682 id=682 data-nosnippet>682</a>                TypeCheckError::GenericCountMismatch {
+<a href=#683 id=683 data-nosnippet>683</a>                    item: <span class="macro">format!</span>(<span class="string">"{item_kind} {item_name}"</span>),
+<a href=#684 id=684 data-nosnippet>684</a>                    expected: generics.len(),
+<a href=#685 id=685 data-nosnippet>685</a>                    found: turbofish_generics.len(),
+<a href=#686 id=686 data-nosnippet>686</a>                    location,
+<a href=#687 id=687 data-nosnippet>687</a>                }
+<a href=#688 id=688 data-nosnippet>688</a>                .into(),
+<a href=#689 id=689 data-nosnippet>689</a>            );
+<a href=#690 id=690 data-nosnippet>690</a>            <span class="kw">return </span>generics;
+<a href=#691 id=691 data-nosnippet>691</a>        }
+<a href=#692 id=692 data-nosnippet>692</a>
+<a href=#693 id=693 data-nosnippet>693</a>        <span class="self">self</span>.resolve_turbofish_generics(item_generic_kinds, turbofish_generics)
+<a href=#694 id=694 data-nosnippet>694</a>    }
+<a href=#695 id=695 data-nosnippet>695</a>
+<a href=#696 id=696 data-nosnippet>696</a>    <span class="doccomment">/// Given the generic [Kind]s of a type, and the list of generic types in a non-empty turbofish,
+<a href=#697 id=697 data-nosnippet>697</a>    /// which have already been verified to match the expected number of generics, run type checking
+<a href=#698 id=698 data-nosnippet>698</a>    /// to ensure each turbofish generic matches the expected kind, and return the unified types.
+<a href=#699 id=699 data-nosnippet>699</a>    </span><span class="kw">fn </span>resolve_turbofish_generics(
+<a href=#700 id=700 data-nosnippet>700</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#701 id=701 data-nosnippet>701</a>        kinds: Vec&lt;Kind&gt;,
+<a href=#702 id=702 data-nosnippet>702</a>        turbofish_generics: Vec&lt;Located&lt;Type&gt;&gt;,
+<a href=#703 id=703 data-nosnippet>703</a>    ) -&gt; Vec&lt;Type&gt; {
+<a href=#704 id=704 data-nosnippet>704</a>        <span class="comment">// Use zip (not zip_eq) since callers like resolve_function_turbofish_generics
+<a href=#705 id=705 data-nosnippet>705</a>        // may push an error for mismatched counts but still call this function.
+<a href=#706 id=706 data-nosnippet>706</a>        </span><span class="kw">let </span>kinds_with_types = kinds.into_iter().zip(turbofish_generics);
+<a href=#707 id=707 data-nosnippet>707</a>
+<a href=#708 id=708 data-nosnippet>708</a>        vecmap(kinds_with_types, |(kind, located_type)| {
+<a href=#709 id=709 data-nosnippet>709</a>            <span class="kw">let </span>location = located_type.location();
+<a href=#710 id=710 data-nosnippet>710</a>            <span class="kw">let </span>typ = located_type.contents;
+<a href=#711 id=711 data-nosnippet>711</a>            <span class="self">self</span>.check_type_kind(typ, <span class="kw-2">&amp;</span>kind, location)
+<a href=#712 id=712 data-nosnippet>712</a>        })
+<a href=#713 id=713 data-nosnippet>713</a>    }
+<a href=#714 id=714 data-nosnippet>714</a>
+<a href=#715 id=715 data-nosnippet>715</a>    <span class="doccomment">/// Create a validated [TypedPath] from a [Path] by resolving all generics in every [PathSegment] in it.
+<a href=#716 id=716 data-nosnippet>716</a>    ///
+<a href=#717 id=717 data-nosnippet>717</a>    /// Pushes an error if the first segment is `Self` and it has turbofish generics.
+<a href=#718 id=718 data-nosnippet>718</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>validate_path(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: Path) -&gt; TypedPath {
+<a href=#719 id=719 data-nosnippet>719</a>        <span class="kw">let </span><span class="kw-2">mut </span>segments = vecmap(path.segments, |segment| <span class="self">self</span>.validate_path_segment(segment));
+<a href=#720 id=720 data-nosnippet>720</a>
+<a href=#721 id=721 data-nosnippet>721</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(first_segment) = segments.first_mut()
+<a href=#722 id=722 data-nosnippet>722</a>            &amp;&amp; first_segment.generics.is_some()
+<a href=#723 id=723 data-nosnippet>723</a>            &amp;&amp; first_segment.ident.is_self_type_name()
+<a href=#724 id=724 data-nosnippet>724</a>        {
+<a href=#725 id=725 data-nosnippet>725</a>            <span class="self">self</span>.push_err(PathResolutionError::TurbofishNotAllowedOnItem {
+<a href=#726 id=726 data-nosnippet>726</a>                item: <span class="string">"self type"</span>.to_string(),
+<a href=#727 id=727 data-nosnippet>727</a>                location: first_segment.turbofish_location(),
+<a href=#728 id=728 data-nosnippet>728</a>            });
+<a href=#729 id=729 data-nosnippet>729</a>            first_segment.generics = <span class="prelude-val">None</span>;
+<a href=#730 id=730 data-nosnippet>730</a>        }
+<a href=#731 id=731 data-nosnippet>731</a>
+<a href=#732 id=732 data-nosnippet>732</a>        TypedPath {
+<a href=#733 id=733 data-nosnippet>733</a>            segments,
+<a href=#734 id=734 data-nosnippet>734</a>            kind: path.kind,
+<a href=#735 id=735 data-nosnippet>735</a>            location: path.location,
+<a href=#736 id=736 data-nosnippet>736</a>            kind_location: path.kind_location,
+<a href=#737 id=737 data-nosnippet>737</a>        }
+<a href=#738 id=738 data-nosnippet>738</a>    }
+<a href=#739 id=739 data-nosnippet>739</a>
+<a href=#740 id=740 data-nosnippet>740</a>    <span class="doccomment">/// Create a validated [TypedPathSegment] from a [PathSegment] by resolving all turbofish generics
+<a href=#741 id=741 data-nosnippet>741</a>    /// in it with [Kind::Any], allowing wildcards, and marking them as _used_.
+<a href=#742 id=742 data-nosnippet>742</a>    </span><span class="kw">fn </span>validate_path_segment(<span class="kw-2">&amp;mut </span><span class="self">self</span>, segment: PathSegment) -&gt; TypedPathSegment {
+<a href=#743 id=743 data-nosnippet>743</a>        <span class="kw">let </span>generics = segment.generics.map(|generics| {
+<a href=#744 id=744 data-nosnippet>744</a>            vecmap(generics, |generic| {
+<a href=#745 id=745 data-nosnippet>745</a>                <span class="kw">let </span>location = generic.location;
+<a href=#746 id=746 data-nosnippet>746</a>                <span class="kw">let </span>wildcard_allowed = WildcardAllowed::Yes;
+<a href=#747 id=747 data-nosnippet>747</a>                <span class="kw">let </span>typ = <span class="self">self</span>.use_type_with_kind(generic, <span class="kw-2">&amp;</span>Kind::Any, wildcard_allowed);
+<a href=#748 id=748 data-nosnippet>748</a>                Located::from(location, typ)
+<a href=#749 id=749 data-nosnippet>749</a>            })
+<a href=#750 id=750 data-nosnippet>750</a>        });
+<a href=#751 id=751 data-nosnippet>751</a>        TypedPathSegment { ident: segment.ident, generics, location: segment.location }
+<a href=#752 id=752 data-nosnippet>752</a>    }
+<a href=#753 id=753 data-nosnippet>753</a>
+<a href=#754 id=754 data-nosnippet>754</a>    <span class="doccomment">/// Get the [DataType] of a [TypeId] and call [Elaborator::resolve_struct_turbofish_generics].
+<a href=#755 id=755 data-nosnippet>755</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_struct_id_turbofish_generics(
+<a href=#756 id=756 data-nosnippet>756</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#757 id=757 data-nosnippet>757</a>        struct_id: TypeId,
+<a href=#758 id=758 data-nosnippet>758</a>        <span class="kw-2">mut </span>turbofish: <span class="prelude-ty">Option</span>&lt;Turbofish&gt;,
+<a href=#759 id=759 data-nosnippet>759</a>        errors: <span class="kw-2">&amp;mut </span>Vec&lt;CompilationError&gt;,
+<a href=#760 id=760 data-nosnippet>760</a>    ) -&gt; Vec&lt;Type&gt; {
+<a href=#761 id=761 data-nosnippet>761</a>        <span class="kw">let </span>struct_type = <span class="self">self</span>.interner.get_type(struct_id);
+<a href=#762 id=762 data-nosnippet>762</a>        <span class="kw">let </span>struct_type = struct_type.borrow();
+<a href=#763 id=763 data-nosnippet>763</a>        <span class="kw">let </span>struct_generics = struct_type.instantiate(<span class="self">self</span>.interner);
+<a href=#764 id=764 data-nosnippet>764</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(turbofish) = turbofish.take() {
+<a href=#765 id=765 data-nosnippet>765</a>            <span class="self">self</span>.resolve_struct_turbofish_generics(
+<a href=#766 id=766 data-nosnippet>766</a>                <span class="kw-2">&amp;</span>struct_type,
+<a href=#767 id=767 data-nosnippet>767</a>                struct_generics,
+<a href=#768 id=768 data-nosnippet>768</a>                <span class="prelude-val">Some</span>(turbofish.generics),
+<a href=#769 id=769 data-nosnippet>769</a>                turbofish.location,
+<a href=#770 id=770 data-nosnippet>770</a>                errors,
+<a href=#771 id=771 data-nosnippet>771</a>            )
+<a href=#772 id=772 data-nosnippet>772</a>        } <span class="kw">else </span>{
+<a href=#773 id=773 data-nosnippet>773</a>            struct_generics
+<a href=#774 id=774 data-nosnippet>774</a>        }
+<a href=#775 id=775 data-nosnippet>775</a>    }
+<a href=#776 id=776 data-nosnippet>776</a>
+<a href=#777 id=777 data-nosnippet>777</a>    <span class="doccomment">/// Get the [TypeAlias] of a [TypeAliasId] and call [Elaborator::resolve_alias_turbofish_generics].
+<a href=#778 id=778 data-nosnippet>778</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_type_alias_id_turbofish_generics(
+<a href=#779 id=779 data-nosnippet>779</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#780 id=780 data-nosnippet>780</a>        type_alias_id: TypeAliasId,
+<a href=#781 id=781 data-nosnippet>781</a>        generics: <span class="prelude-ty">Option</span>&lt;Turbofish&gt;,
+<a href=#782 id=782 data-nosnippet>782</a>        errors: <span class="kw-2">&amp;mut </span>Vec&lt;CompilationError&gt;,
+<a href=#783 id=783 data-nosnippet>783</a>    ) -&gt; Vec&lt;Type&gt; {
+<a href=#784 id=784 data-nosnippet>784</a>        <span class="kw">let </span>type_alias = <span class="self">self</span>.interner.get_type_alias(type_alias_id);
+<a href=#785 id=785 data-nosnippet>785</a>        <span class="kw">let </span>type_alias = type_alias.borrow();
+<a href=#786 id=786 data-nosnippet>786</a>        <span class="kw">let </span>alias_generics = vecmap(<span class="kw-2">&amp;</span>type_alias.generics, |generic| {
+<a href=#787 id=787 data-nosnippet>787</a>            <span class="self">self</span>.interner.next_type_variable_with_kind(generic.kind())
+<a href=#788 id=788 data-nosnippet>788</a>        });
+<a href=#789 id=789 data-nosnippet>789</a>
+<a href=#790 id=790 data-nosnippet>790</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(generics) = generics {
+<a href=#791 id=791 data-nosnippet>791</a>            <span class="self">self</span>.resolve_alias_turbofish_generics(
+<a href=#792 id=792 data-nosnippet>792</a>                <span class="kw-2">&amp;</span>type_alias,
+<a href=#793 id=793 data-nosnippet>793</a>                alias_generics,
+<a href=#794 id=794 data-nosnippet>794</a>                <span class="prelude-val">Some</span>(generics.generics),
+<a href=#795 id=795 data-nosnippet>795</a>                generics.location,
+<a href=#796 id=796 data-nosnippet>796</a>                errors,
+<a href=#797 id=797 data-nosnippet>797</a>            )
+<a href=#798 id=798 data-nosnippet>798</a>        } <span class="kw">else </span>{
+<a href=#799 id=799 data-nosnippet>799</a>            alias_generics
+<a href=#800 id=800 data-nosnippet>800</a>        }
+<a href=#801 id=801 data-nosnippet>801</a>    }
+<a href=#802 id=802 data-nosnippet>802</a>
+<a href=#803 id=803 data-nosnippet>803</a>    <span class="doccomment">/// Resolve a [TypedPath] into a local or global [HirIdent].
+<a href=#804 id=804 data-nosnippet>804</a>    ///
+<a href=#805 id=805 data-nosnippet>805</a>    /// If it cannot be found, then it pushes the error and returns [None].
+<a href=#806 id=806 data-nosnippet>806</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_ident_from_path(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: TypedPath) -&gt; <span class="prelude-ty">Option</span>&lt;IdentFromPath&gt; {
+<a href=#807 id=807 data-nosnippet>807</a>        <span class="kw">match </span><span class="self">self</span>.get_ident_from_path_or_error(path) {
+<a href=#808 id=808 data-nosnippet>808</a>            <span class="prelude-val">Ok</span>(value) =&gt; <span class="prelude-val">Some</span>(value),
+<a href=#809 id=809 data-nosnippet>809</a>            <span class="prelude-val">Err</span>(error) =&gt; {
+<a href=#810 id=810 data-nosnippet>810</a>                <span class="self">self</span>.push_err(error);
+<a href=#811 id=811 data-nosnippet>811</a>                <span class="prelude-val">None
+<a href=#812 id=812 data-nosnippet>812</a>            </span>}
+<a href=#813 id=813 data-nosnippet>813</a>        }
+<a href=#814 id=814 data-nosnippet>814</a>    }
+<a href=#815 id=815 data-nosnippet>815</a>
+<a href=#816 id=816 data-nosnippet>816</a>    <span class="doccomment">/// Resolve a [TypedPath] into a local or global [HirIdent], or return `Err` if it could not be found.
+<a href=#817 id=817 data-nosnippet>817</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_ident_from_path_or_error(
+<a href=#818 id=818 data-nosnippet>818</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#819 id=819 data-nosnippet>819</a>        path: TypedPath,
+<a href=#820 id=820 data-nosnippet>820</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;IdentFromPath, ResolverError&gt; {
+<a href=#821 id=821 data-nosnippet>821</a>        <span class="comment">// If the path is a single segment, try to resolve it as a local variable first
+<a href=#822 id=822 data-nosnippet>822</a>        </span><span class="kw">let </span>use_variable_error = <span class="kw">match </span>path.as_single_segment() {
+<a href=#823 id=823 data-nosnippet>823</a>            <span class="prelude-val">Some</span>(segment) =&gt; <span class="kw">match </span><span class="self">self</span>.use_variable(<span class="kw-2">&amp;</span>segment.ident) {
+<a href=#824 id=824 data-nosnippet>824</a>                <span class="prelude-val">Ok</span>(variable) =&gt; {
+<a href=#825 id=825 data-nosnippet>825</a>                    <span class="comment">// Succeed even if the variable has turbofish on it, but report an error for that
+<a href=#826 id=826 data-nosnippet>826</a>                    </span><span class="kw">if </span>segment.generics.is_some() {
+<a href=#827 id=827 data-nosnippet>827</a>                        <span class="kw">let </span>item = <span class="string">"local variables"</span>.to_string();
+<a href=#828 id=828 data-nosnippet>828</a>                        <span class="kw">let </span>location = segment.turbofish_location();
+<a href=#829 id=829 data-nosnippet>829</a>                        <span class="kw">let </span>error =
+<a href=#830 id=830 data-nosnippet>830</a>                            PathResolutionError::TurbofishNotAllowedOnItem { item, location };
+<a href=#831 id=831 data-nosnippet>831</a>                        <span class="self">self</span>.push_err(error);
+<a href=#832 id=832 data-nosnippet>832</a>                    }
+<a href=#833 id=833 data-nosnippet>833</a>                    <span class="kw">return </span><span class="prelude-val">Ok</span>(IdentFromPath::Variable(variable));
+<a href=#834 id=834 data-nosnippet>834</a>                }
+<a href=#835 id=835 data-nosnippet>835</a>                <span class="prelude-val">Err</span>(error) =&gt; <span class="prelude-val">Some</span>(error),
+<a href=#836 id=836 data-nosnippet>836</a>            },
+<a href=#837 id=837 data-nosnippet>837</a>            <span class="prelude-val">None </span>=&gt; <span class="prelude-val">None</span>,
+<a href=#838 id=838 data-nosnippet>838</a>        };
+<a href=#839 id=839 data-nosnippet>839</a>
+<a href=#840 id=840 data-nosnippet>840</a>        <span class="kw">match </span><span class="self">self</span>.lookup_item_as_value(path) {
+<a href=#841 id=841 data-nosnippet>841</a>            <span class="prelude-val">Ok</span>(ItemAsValue::Definition { id, item }) =&gt; <span class="prelude-val">Ok</span>(IdentFromPath::Definition { id, item }),
+<a href=#842 id=842 data-nosnippet>842</a>            <span class="prelude-val">Ok</span>(ItemAsValue::TypeAlias(type_alias_id)) =&gt; {
+<a href=#843 id=843 data-nosnippet>843</a>                <span class="prelude-val">Ok</span>(IdentFromPath::TypeAlias(type_alias_id))
+<a href=#844 id=844 data-nosnippet>844</a>            }
+<a href=#845 id=845 data-nosnippet>845</a>            <span class="prelude-val">Err</span>(ResolverError::PathResolutionError(PathResolutionError::Unresolved(ident))) =&gt; {
+<a href=#846 id=846 data-nosnippet>846</a>                <span class="comment">// If we can't resolve a path, but we have an error from trying to resolve a variable
+<a href=#847 id=847 data-nosnippet>847</a>                // (in which case the path was a single segment), prefer saying "variable not found"
+<a href=#848 id=848 data-nosnippet>848</a>                // instead of "Cannot resolve '...' in path".
+<a href=#849 id=849 data-nosnippet>849</a>                </span><span class="kw">match </span>use_variable_error {
+<a href=#850 id=850 data-nosnippet>850</a>                    <span class="prelude-val">Some</span>(error) =&gt; <span class="prelude-val">Err</span>(error),
+<a href=#851 id=851 data-nosnippet>851</a>                    <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Err</span>(ResolverError::PathResolutionError(
+<a href=#852 id=852 data-nosnippet>852</a>                        PathResolutionError::Unresolved(ident),
+<a href=#853 id=853 data-nosnippet>853</a>                    )),
+<a href=#854 id=854 data-nosnippet>854</a>                }
+<a href=#855 id=855 data-nosnippet>855</a>            }
+<a href=#856 id=856 data-nosnippet>856</a>            <span class="prelude-val">Err</span>(item_as_value_error) =&gt; {
+<a href=#857 id=857 data-nosnippet>857</a>                <span class="kw">match </span>use_variable_error {
+<a href=#858 id=858 data-nosnippet>858</a>                    <span class="comment">// If the path was "_" then we want to preserve that error as it's clearer
+<a href=#859 id=859 data-nosnippet>859</a>                    // than the error of an item not being found (it will mention that "_" is
+<a href=#860 id=860 data-nosnippet>860</a>                    // not valid as an expression).
+<a href=#861 id=861 data-nosnippet>861</a>                    </span><span class="prelude-val">Some</span>(ResolverError::VariableNotDeclared { name, .. }) <span class="kw">if </span>name != <span class="string">"_" </span>=&gt; {
+<a href=#862 id=862 data-nosnippet>862</a>                        <span class="prelude-val">Err</span>(item_as_value_error)
+<a href=#863 id=863 data-nosnippet>863</a>                    }
+<a href=#864 id=864 data-nosnippet>864</a>                    <span class="prelude-val">Some</span>(use_variable_error) =&gt; <span class="prelude-val">Err</span>(use_variable_error),
+<a href=#865 id=865 data-nosnippet>865</a>                    <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Err</span>(item_as_value_error),
+<a href=#866 id=866 data-nosnippet>866</a>                }
+<a href=#867 id=867 data-nosnippet>867</a>            }
+<a href=#868 id=868 data-nosnippet>868</a>        }
+<a href=#869 id=869 data-nosnippet>869</a>    }
+<a href=#870 id=870 data-nosnippet>870</a>}</code></pre></div></section></main></body></html>
