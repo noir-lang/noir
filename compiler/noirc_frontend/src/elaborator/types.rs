@@ -71,6 +71,19 @@ pub enum WildcardAllowed {
     No(WildcardDisallowedContext),
 }
 
+/// Context for positions where `impl Trait` is not allowed as a type.
+/// `impl Trait` is only meaningful in function signatures (parameters and return types).
+///
+/// This context is stored on the `Elaborator` and checked in the `TraitAsType` arm of
+/// type resolution. The variant is used to produce a position-specific error message.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ImplTraitDisallowedContext {
+    StructField,
+    EnumVariant,
+    Global,
+    TypeAlias,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WildcardDisallowedContext {
     AssociatedType,
@@ -205,6 +218,13 @@ impl Elaborator<'_> {
                 self.resolve_named_type(path, args, mode, wildcard_allowed)
             }
             TraitAsType(path, args) => {
+                if let Some(context) = self.impl_trait_is_disallowed {
+                    self.push_err(ResolverError::ImplTraitTypeDisallowed {
+                        location: path.location,
+                        context,
+                    });
+                    return Type::Error;
+                }
                 self.use_unstable_feature(UnstableFeature::TraitAsType, path.location);
                 let path = self.validate_path(path);
                 self.resolve_trait_as_type(path, args, mode)
@@ -224,13 +244,13 @@ impl Elaborator<'_> {
                 let env =
                     Box::new(self.resolve_type_with_kind_inner(*env, kind, mode, wildcard_allowed));
 
-                match *env {
+                match env.follow_bindings_shallow().into_owned() {
                     Type::Unit | Type::Tuple(_) | Type::NamedGeneric(_) => {
                         Type::Function(args, ret, env, unconstrained)
                     }
-                    _ => {
+                    typ => {
                         self.push_err(ResolverError::InvalidClosureEnvironment {
-                            typ: *env,
+                            typ,
                             location: env_location,
                         });
                         Type::Error
