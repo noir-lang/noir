@@ -119,18 +119,10 @@ impl<'context> Elaborator<'context> {
         // Collect (and update) variable names from the parent scope for better error messages
         // when a runtime variable is referenced in comptime code.
         let current_scope_tree = self.scopes.0.last();
-        let parent_runtime_variables: rustc_hash::FxHashSet<String> = self
-            .parent_runtime_variables
-            .iter()
-            .cloned()
-            .chain(
-                current_scope_tree
-                    .into_iter()
-                    .flat_map(|tree| tree.0.iter())
-                    .flat_map(|scope| scope.0.keys())
-                    .cloned(),
-            )
-            .collect();
+        let local_scopes = current_scope_tree.into_iter().flat_map(|tree| tree.0.iter());
+        let local_vars = local_scopes.flat_map(|scope| scope.0.keys()).cloned();
+        let parent_runtime_variables =
+            self.parent_runtime_variables.iter().cloned().chain(local_vars).collect();
 
         // Create a fresh elaborator to ensure no state is changed from
         // this elaborator
