@@ -4,7 +4,7 @@ use crate::ops::arith::{Add, Neg, Sub};
 
 /// A point on the embedded elliptic curve
 /// By definition, the base field of the embedded curve is the scalar field of the proof system curve, i.e the Noir Field.
-/// x and y denotes the Weierstrass coordinates of the point, if is_infinite is false.
+/// x and y denotes the Weierstrass coordinates of the point.
 pub struct EmbeddedCurvePoint {
     pub x: Field,
     pub y: Field,
