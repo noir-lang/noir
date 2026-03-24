@@ -39,18 +39,4 @@ error: Maximum recursion depth exceeded while parsing expression
     │                                                                                                                                                                                                                                                                                                                                                                                                                    ---------
     │
 
-error: Expected an expression but found '}'
-    ┌─ src/main.nr:308:1
-    │
-308 │ }
-    │ -
-    │
-
-error: Expected a '{' but found '}'
-    ┌─ src/main.nr:308:1
-    │
-308 │ }
-    │ -
-    │
-
-Aborting due to 5 previous errors
+Aborting due to 3 previous errors
