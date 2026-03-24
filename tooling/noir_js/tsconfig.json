@@ -5,6 +5,7 @@
     "declaration": true,
     "module": "esnext",
     "moduleResolution": "node",
+    "rootDir": "./src",
     "outDir": "./lib",
     "esModuleInterop": true,
     "resolveJsonModule": true,
