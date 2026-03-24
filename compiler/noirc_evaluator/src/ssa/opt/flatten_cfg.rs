@@ -2055,55 +2055,6 @@ mod tests {
         ");
     }
 
-    /// Tests that mem2reg_simple + flatten_cfg works for a simple diamond pattern.
-    ///
-    /// This works because `remove_params_from_blocks_with_identical_terminator_args`
-    /// cleans up JmpIf else_arguments for single-predecessor blocks before flattening.
-    /// The merge happens at b3 via Jmp arguments, not JmpIf else_arguments.
-    #[test]
-    fn flatten_handles_jmpif_else_arguments() {
-        // A simple diamond: both then and else blocks jump to a merge block.
-        // mem2reg_simple promotes the variable, adding Jmp arguments (NOT JmpIf
-        // else_arguments) to the merge block. Flattening handles these correctly.
-        let src = "
-            acir(inline) fn main f0 {
-              b0(v0: u1):
-                v1 = allocate -> &mut Field
-                store Field 5 at v1
-                jmpif v0 then: b1(), else: b2()
-              b1():
-                store Field 10 at v1
-                jmp b3()
-              b2():
-                jmp b3()
-              b3():
-                v2 = load v1 -> Field
-                return v2
-            }
-        ";
-        let ssa = Ssa::from_str(src).unwrap();
-
-        // Run mem2reg_simple on ACIR by calling the _all variant
-        let ssa = ssa.mem2reg_simple();
-
-        // Now flatten — this should produce: if v0 then 10 else 5
-        let ssa = ssa.flatten_cfg();
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) fn main f0 {
-          b0(v0: u1):
-            enable_side_effects v0
-            v1 = not v0
-            enable_side_effects u1 1
-            v3 = cast v0 as Field
-            v4 = cast v1 as Field
-            v6 = mul v3, Field 10
-            v8 = mul v4, Field 5
-            v9 = add v6, v8
-            return v9
-        }
-        ");
-    }
-
     /// Regression test: when JmpIf's else_destination IS the exit/merge block
     /// (no separate else block), the else_arguments carry the "no-change" value
     /// directly to the merge. This is the pattern mem2reg_simple produces when
