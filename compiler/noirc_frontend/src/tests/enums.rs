@@ -379,6 +379,21 @@ fn cannot_determine_type_of_generic_argument_in_enum_constructor() {
 }
 
 #[test]
+fn turbofish_on_no_arg_enum_variant_binds_generic() {
+    let src = r#"
+    enum E<T> {
+        A,
+        B(T),
+    }
+
+    fn main() {
+        let _ = E::<u32>::A;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn impl_on_enum() {
     let src = r#"
     enum Foo { Bar }

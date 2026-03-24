@@ -927,7 +927,7 @@ impl Elaborator<'_> {
     /// Look up a path as a global used as a numeric type (e.g. `global N: u32 = 5;`
     fn lookup_global_type(&mut self, path: &TypedPath, mode: PathResolutionMode) -> Option<Type> {
         match self.resolve_path_inner(path.clone(), PathResolutionTarget::Value, mode) {
-            Ok(PathResolution { item: PathResolutionItem::Global(id), errors }) => {
+            Ok(PathResolution { item: PathResolutionItem::Global(id, _), errors }) => {
                 self.push_errors(errors);
 
                 if let Some(current_item) = self.current_item {
