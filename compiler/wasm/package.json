@@ -73,7 +73,7 @@
     "readable-stream": "^4.7.0",
     "sinon": "^21.0.3",
     "ts-loader": "^9.5.4",
-    "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
     "typescript": "^6.0.2",
     "unzipit": "^1.4.3",
     "url": "^0.11.4",
