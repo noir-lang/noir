@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774356353710,
+  "lastUpdate": 1774356414658,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23191,48 +23191,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "28f86dcb3ee01895321c72956a18030678e07137",
-          "message": "chore(deps-dev): bump webpack-cli from 6.0.1 to 7.0.1 (#11886)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-03-18T10:25:15Z",
-          "tree_id": "9f0f7d678299d894ed6200cd3b5299d817c3a641",
-          "url": "https://github.com/noir-lang/noir/commit/28f86dcb3ee01895321c72956a18030678e07137"
-        },
-        "date": 1773830850559,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 250555,
-            "range": "± 707",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 222649,
-            "range": "± 2033",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2732596,
-            "range": "± 2072",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "2652e4dc9be0ed6c937a6d39f912f5668ec27e89",
           "message": "chore(deps-dev): bump the linter group with 2 updates (#11883)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
           "timestamp": "2026-03-18T10:25:41Z",
@@ -25274,6 +25232,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2125570,
             "range": "± 1490",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "efffbcdb245294d2751e4040b30e220a63511a41",
+          "message": "chore: enable Dependabot for Rust crate updates (#11968)",
+          "timestamp": "2026-03-24T12:43:32Z",
+          "tree_id": "282a3c1db793617b3d18a1cde8bea3de8ce76d85",
+          "url": "https://github.com/noir-lang/noir/commit/efffbcdb245294d2751e4040b30e220a63511a41"
+        },
+        "date": 1774356363324,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 169341,
+            "range": "± 533",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 138757,
+            "range": "± 450",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2645888,
+            "range": "± 6845",
             "unit": "ns/iter"
           }
         ]
