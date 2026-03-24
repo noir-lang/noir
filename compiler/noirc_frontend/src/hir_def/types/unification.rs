@@ -273,12 +273,12 @@ impl Type {
                 })
             }
 
-            (Constant(value, constant_type), other) | (other, Constant(value, constant_type)) => {
+            (Constant(value), other) | (other, Constant(value)) => {
                 let dummy_location = Location::dummy();
                 let other = other.substitute(bindings);
-                let kind = Kind::Numeric(constant_type.clone());
 
-                if let Ok(other_value) = other.evaluate_to_signed_field(&kind, dummy_location) {
+                let kind = value.numeric_kind();
+                if let Ok(other_value) = other.evaluate_to_integer(&kind, dummy_location) {
                     if *value == other_value && kind.unifies(&other.kind()) {
                         Ok(())
                     } else {
@@ -287,11 +287,8 @@ impl Type {
                 } else if let InfixExpr(lhs, op, rhs, _) = other {
                     if let Some(inverse) = op.approx_inverse() {
                         // Handle cases like `4 = a + b` by trying to solve to `a = 4 - b`
-                        let new_type = Type::inverted_infix_expr(
-                            Box::new(Constant(*value, constant_type.clone())),
-                            inverse,
-                            rhs,
-                        );
+                        let new_type =
+                            Type::inverted_infix_expr(Box::new(Constant(*value)), inverse, rhs);
 
                         // Use DoNotMoveConstants to prevent try_unify_by_moving_single_constant_term
                         // from undoing this rewrite, which would cause infinite recursion when
@@ -489,8 +486,8 @@ impl Type {
             let kind = lhs_lhs.infix_kind(lhs_rhs);
             let dummy_location = Location::dummy();
             let lhs_rhs = lhs_rhs.substitute(bindings);
-            if let Ok(value) = lhs_rhs.evaluate_to_signed_field(&kind, dummy_location) {
-                let lhs_rhs = Box::new(Type::Constant(value, kind.into_numeric_type_or_error()));
+            if let Ok(value) = lhs_rhs.evaluate_to_integer(&kind, dummy_location) {
+                let lhs_rhs = Box::new(Type::Constant(value));
                 let new_rhs =
                     Type::inverted_infix_expr(Box::new(other.clone()), lhs_op_inverse, lhs_rhs);
 
@@ -698,7 +695,10 @@ fn invoke_function_on_expression(
 
 #[cfg(test)]
 mod tests {
-    use crate::{BinaryTypeOperator, Kind, Type, TypeBindings, TypeVariable, TypeVariableId};
+    use crate::{
+        BinaryTypeOperator, Kind, Type, TypeBindings, TypeVariable, TypeVariableId,
+        hir::comptime::Integer,
+    };
 
     struct Types {
         next_type_variable_id: usize,
@@ -721,7 +721,7 @@ mod tests {
     }
 
     fn constant(value: u128) -> Type {
-        Type::Constant(value.into(), Box::new(Type::FieldElement))
+        Type::Constant(Integer::Field(value.into()))
     }
 
     fn add(a: &Type, b: &Type) -> Type {

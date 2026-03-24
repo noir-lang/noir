@@ -2,10 +2,10 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use acvm::{AcirField, FieldElement};
 use iter_extended::{btree_map, try_vecmap, vecmap};
 use itertools::Itertools;
 use noirc_errors::Location;
-use rangemap::StepLite;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
@@ -39,7 +39,6 @@ use crate::{
         ReferenceId, TypeId,
     },
     shared::Visibility,
-    signed_field::SignedField,
     token::Attributes,
 };
 
@@ -61,7 +60,7 @@ enum Pattern {
     /// A pattern checking for a tag and possibly binding variables such as `Some(42)`
     Constructor(Constructor, Vec<Pattern>),
     /// An integer literal pattern such as `4`, `12345`, or `-56`
-    Int(SignedField),
+    Int(FieldElement),
     /// A pattern binding a variable such as `a` or `_`
     Binding(DefinitionId),
 
@@ -73,7 +72,7 @@ enum Pattern {
     /// An integer range pattern such as `1..20` which will match any integer n such that
     /// 1 <= n < 20.
     #[allow(unused)]
-    Range(SignedField, SignedField),
+    Range(FieldElement, FieldElement),
 
     /// An error occurred while translating this pattern. This Pattern kind always translates
     /// to a Fail branch in the decision tree, although the compiler is expected to halt
@@ -148,6 +147,9 @@ impl Elaborator<'_> {
             self.resolving_ids.insert(*type_id);
 
             let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::EnumVariant);
+            let previous_impl_trait_context = self
+                .impl_trait_is_disallowed
+                .replace(super::types::ImplTraitDisallowedContext::EnumVariant);
             for (i, variant) in typ.enum_def.variants.iter().enumerate() {
                 let parameters = variant.item.parameters.as_ref();
                 let types = parameters.map(|params| {
@@ -174,6 +176,8 @@ impl Elaborator<'_> {
                 let location = variant.item.name.location();
                 self.interner.add_definition_location(reference_id, location);
             }
+
+            self.impl_trait_is_disallowed = previous_impl_trait_context;
 
             self.resolving_ids.remove(type_id);
 
@@ -876,8 +880,8 @@ impl Elaborator<'_> {
 
         let value = match constant {
             Value::Bool(value) => value.into(),
-            Value::Integer(int) => int.as_signed_field(),
-            Value::Zeroed(_) => SignedField::zero(),
+            Value::Integer(int) => int.as_field(),
+            Value::Zeroed(_) => FieldElement::zero(),
             _ => {
                 self.push_err(ResolverError::NonIntegerGlobalUsedInPattern { location });
                 return Pattern::Error;
@@ -1049,7 +1053,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
             | Type::Quoted(_)
 
             // These seem unlikely to be able to be matched on:
-            | Type::Constant(_, _)
+            | Type::Constant(_)
             | Type::CheckedCast { .. }
             | Type::NamedGeneric(_)
 
@@ -1110,7 +1114,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
         // Elements of 'raw_cases' are of the form (Constructor, Variables, Rows)
         let mut raw_cases: Vec<(Constructor, Vec<DefinitionId>, Vec<Row>)> = Vec::new();
         let mut fallback_rows: Vec<Row> = Vec::new();
-        let mut tested: HashMap<(SignedField, SignedField), usize> = HashMap::default();
+        let mut tested: HashMap<(FieldElement, FieldElement), usize> = HashMap::default();
 
         for mut row in rows {
             if let Some(col) = row.remove_column(branch_var) {
@@ -1456,37 +1460,48 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
             return vec![(WILDCARD_PATTERN.to_string(), Vec::new())];
         }
 
-        let mut missing_cases = rangemap::RangeInclusiveSet::new();
+        /// There's no integer type which fits both `i128::MIN` and `u128::MAX`, and `BigInt`
+        /// requires dynamic allocations with Vecs for every int. So we instead run this same
+        /// snippet with `i128` for signed cases and `u128` for unsigned cases.
+        macro_rules! get_missing_cases {
+            ($typ: ty) => {{
+                let mut missing_cases = rangemap::RangeInclusiveSet::new();
 
-        let int_max = SignedField::positive(typ.integral_maximum_size().unwrap());
-        let int_min = typ.integral_minimum_size().unwrap();
-        missing_cases.insert(int_min..=int_max);
+                let int_max: $typ = typ.integral_maximum_size().unwrap().try_into().unwrap();
+                let int_min: $typ = typ.integral_minimum_size().unwrap().try_into().unwrap();
+                missing_cases.insert(int_min..=int_max);
 
-        for case in cases {
-            match &case.constructor {
-                Constructor::Int(signed_field) => {
-                    missing_cases.remove(*signed_field..=*signed_field);
+                for case in cases {
+                    match &case.constructor {
+                        Constructor::Int(field) => {
+                            let field: $typ = (*field).try_into().unwrap();
+                            missing_cases.remove(field..=field);
+                        }
+                        Constructor::Range(start, end) => {
+                            // Our ranges are exclusive, so adjust for that
+                            let start: $typ = (*start).try_into().unwrap();
+                            let end: $typ = (*end).try_into().unwrap();
+                            missing_cases.remove(start..= end - 1);
+                        }
+                        _ => unreachable!(
+                            "missing_integer_cases should only be called with Int or Range constructors"
+                        ),
+                    }
                 }
-                Constructor::Range(start, end) => {
-                    // Our ranges are exclusive, so adjust for that
-                    missing_cases.remove(*start..=end.sub_one());
-                }
-                _ => unreachable!(
-                    "missing_integer_cases should only be called with Int or Range constructors"
-                ),
-            }
+
+                vecmap(missing_cases, |range| {
+                    if range.start() == range.end() {
+                        (format!("{}", range.start()), Vec::new())
+                    } else {
+                        assert!(range.start() < range.end());
+                        (format!("{}..={}", range.start(), range.end()), Vec::new())
+                    }
+                })
+            }};
         }
 
-        vecmap(missing_cases, |range| {
-            if range.start() == range.end() {
-                (format!("{}", range.start()), Vec::new())
-            } else {
-                assert!(range.start() < range.end());
-                (format!("{}..={}", range.start(), range.end()), Vec::new())
-            }
-        })
+        if typ.is_signed() { get_missing_cases!(i128) } else { get_missing_cases!(u128) }
     }
-
     fn construct_missing_case(
         starting_id: Option<DefinitionId>,
         env: &HashMap<DefinitionId, (String, Vec<Option<DefinitionId>>)>,

@@ -7,12 +7,15 @@ on:
         description: The acvm reference to checkout
         required: true
 
+permissions: {}
+
 jobs:
   publish:
     name: Publish in order
     runs-on: ubuntu-22.04
     permissions:
       contents: read
+      issues: write
     steps:
       - name: Checkout sources
         uses: actions/checkout@v6
