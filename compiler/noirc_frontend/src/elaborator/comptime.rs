@@ -123,14 +123,6 @@ impl<'context> Elaborator<'context> {
         let local_vars = local_scopes.flat_map(|scope| scope.0.keys()).cloned();
         let parent_runtime_variables =
             self.parent_runtime_variables.iter().cloned().chain(local_vars).collect();
-
-        // Create a fresh elaborator to ensure no state is changed from
-        // this elaborator
-        let mut elaborator = Elaborator::new(
-            self.interner,
-            self.def_maps,
-            self.usage_tracker,
-            self.crate_graph,
             self.interpreter_output,
             self.required_unstable_features,
             self.unresolved_globals,
