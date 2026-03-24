@@ -74,7 +74,6 @@ fn main(x : [Field; 2]) // this is also fine: passing a Field with known size at
 fn main(x : (Field, bool)) // 👌: passing a (Field, bool) tuple means size 2
 fn main(x : str<5>) // this is fine, as long as you pass a string of size 5
 
-fn main(x : Vec<Field>) // can't compile, has variable size
 fn main(x : [Field]) // can't compile, has variable size
 fn main(....// i think you got it by now
 ```
