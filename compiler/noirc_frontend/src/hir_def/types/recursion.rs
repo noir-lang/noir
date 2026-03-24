@@ -12,9 +12,14 @@ pub(crate) struct TypeRecursionContext {
 }
 
 impl TypeRecursionContext {
+    // Check if the recursion depth can be increased.
+    pub(crate) fn can_recur(&self) -> bool {
+        self.depth < TYPE_RECURSION_LIMIT
+    }
+
     /// Increases the recursion depth.
     pub(crate) fn recur(mut self) -> Self {
-        if self.depth >= TYPE_RECURSION_LIMIT {
+        if !self.can_recur() {
             panic!("Type recursion limit reached - types are too large");
         }
         self.depth += 1;

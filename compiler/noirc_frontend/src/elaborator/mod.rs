@@ -663,6 +663,18 @@ impl<'context> Elaborator<'context> {
                 self.mark_type_as_used_helper(left, type_recursion_context.clone().recur());
                 self.mark_type_as_used_helper(right, type_recursion_context.recur());
             }
+            Type::Error if !type_recursion_context.can_recur() => {
+                // This can happen if we returned Type::Error due to being deeply nested with the same,
+                // exact limit as the type recursion limit, and now we are trying to mark such a type
+                // with a Type::Error nested deeply inside it as used.
+                // In this case we won't recurse further, because the type is just at the limit, not deeper,
+                // however we can still spend a lot of time processing it, if we run into some combinatorial
+                // explosion of generic types and fields, making it look like the compiler is frozen.
+                // This is just an edge case, the depth can be just slightly less and still result in
+                // exponential time marking things, but at least we should maintain awareness,
+                // in case we use popular hardcoded limits like 100.
+                panic!("encountered Type::Error at type recursion limit");
+            }
             Type::FieldElement
             | Type::Integer(..)
             | Type::Bool
