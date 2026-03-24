@@ -258,9 +258,6 @@ impl Elaborator<'_> {
                 }
             }
             Reference(element, mutable) => {
-                if !mutable {
-                    self.use_unstable_feature(UnstableFeature::Ownership, location);
-                }
                 Type::Reference(
                     Box::new(self.resolve_type_with_kind_inner(
                         *element,

@@ -540,8 +540,6 @@ impl Elaborator<'_> {
                 if !skip_op {
                     self.check_can_mutate(rhs, rhs_location);
                 }
-            } else {
-                self.use_unstable_feature(UnstableFeature::Ownership, location);
             }
         }
 

@@ -478,7 +478,7 @@ fn dereference_immutable_reference() {
     let options = GetProgramOptions {
         frontend_options: FrontendOptions {
             debug_comptime_in_file: None,
-            enabled_unstable_features: &[UnstableFeature::Ownership],
+            enabled_unstable_features: &[],
             disable_required_unstable_features: true,
         },
         ..Default::default()
