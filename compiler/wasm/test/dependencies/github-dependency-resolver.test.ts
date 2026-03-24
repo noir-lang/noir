@@ -70,7 +70,7 @@ describe('GithubDependencyResolver', () => {
       zip.addLocalFile(filePath, dirname(filePath.replace(testLibPath, 'lib-c')));
     }
 
-    fetchStub?.onCall(0).returns(new Response(zip.toBuffer(), { status: 200 }));
+    fetchStub?.onCall(0).returns(new Response(zip.toBuffer() as unknown as BodyInit, { status: 200 }));
 
     const lib = await resolver.resolveDependency(pkg, libDependency);
     expect(lib).not.to.be.undefined;
