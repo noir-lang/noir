@@ -517,3 +517,29 @@ fn match_constructor_pattern_on_integer_gives_type_error() {
     ";
     check_errors_using_features(src, &[UnstableFeature::Enums]);
 }
+
+#[test]
+fn struct_pattern_on_enum_variant_errors() {
+    let src = "
+    enum E {
+        A,
+        B(u32),
+    }
+
+    fn foo(e: E) -> u32 {
+        match e {
+            E::A { x } => x,
+            ^^^^^^^^^^ Cannot use `{ }` pattern syntax on enum variant `E::A`
+            ~~~~~~~~~~ Use parentheses `()` for enum variants with fields, or no arguments for fieldless variants
+                          ^ cannot find `x` in this scope
+                          ~ not found in this scope
+            _ => 0,
+        }
+    }
+
+    fn main() {
+        let _ = foo(E::A);
+    }
+    ";
+    check_errors_using_features(src, &[UnstableFeature::Enums]);
+}

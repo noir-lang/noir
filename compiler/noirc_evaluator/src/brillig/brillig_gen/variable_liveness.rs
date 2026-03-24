@@ -566,7 +566,7 @@ mod tests {
 
         let ssa = builder.finish();
         let func = ssa.main();
-        let constants = ConstantAllocation::from_function(func);
+        let constants = ConstantAllocation::from_function(func, &Default::default());
         let liveness = VariableLiveness::from_function(func, &constants);
 
         assert!(liveness.get_live_in(&func.entry_block()).is_empty());
@@ -718,7 +718,7 @@ mod tests {
         let ssa = builder.finish();
         let func = ssa.main();
 
-        let constants = ConstantAllocation::from_function(func);
+        let constants = ConstantAllocation::from_function(func, &Default::default());
         let liveness = VariableLiveness::from_function(func, &constants);
 
         assert!(liveness.get_live_in(&func.entry_block()).is_empty());
@@ -802,7 +802,7 @@ mod tests {
         let ssa = builder.finish();
         let func = ssa.main();
 
-        let constants = ConstantAllocation::from_function(func);
+        let constants = ConstantAllocation::from_function(func, &Default::default());
         let liveness = VariableLiveness::from_function(func, &constants);
 
         // Entry point defines its own params and also b3's params.
@@ -833,7 +833,7 @@ mod tests {
         ";
         let ssa = Ssa::from_str(src).unwrap();
         let func = ssa.main();
-        let constants = ConstantAllocation::from_function(func);
+        let constants = ConstantAllocation::from_function(func, &Default::default());
         let liveness = VariableLiveness::from_function(func, &constants);
 
         let [b0, b1, b2, b3] = block_ids();

@@ -232,7 +232,7 @@ mod tests {
     fn build_coalescing(src: &str) -> (CoalescingMap, Ssa) {
         let ssa = Ssa::from_str(src).unwrap();
         let func = ssa.main();
-        let constants = ConstantAllocation::from_function(func);
+        let constants = ConstantAllocation::from_function(func, &Default::default());
         let liveness = VariableLiveness::from_function(func, &constants);
         let coalescing = CoalescingMap::from_function(func, &liveness);
         (coalescing, ssa)
