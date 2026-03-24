@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774365457744,
+  "lastUpdate": 1774366591401,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23141,48 +23141,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "56050d9100706c3c6f760ea4ecd96838fd93fd0c",
-          "message": "chore(ssa): Apply array set window opt to vectors (#11902)",
-          "timestamp": "2026-03-18T18:24:32Z",
-          "tree_id": "d06d3af81fa277d00fa4490141f7bb8abe31584b",
-          "url": "https://github.com/noir-lang/noir/commit/56050d9100706c3c6f760ea4ecd96838fd93fd0c"
-        },
-        "date": 1773859696351,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252364,
-            "range": "± 743",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 221413,
-            "range": "± 6936",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2730864,
-            "range": "± 1506",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25234,6 +25192,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2643847,
             "range": "± 4255",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "a4b5833852b2b90beb415a8997d80f9fb1c28c69",
+          "message": "chore(deps): bump tar from 7.5.10 to 7.5.13 in /docs (#11978)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-03-24T15:09:05Z",
+          "tree_id": "28e1c98836a178560c3fbc1d08d132ccc6566a9d",
+          "url": "https://github.com/noir-lang/noir/commit/a4b5833852b2b90beb415a8997d80f9fb1c28c69"
+        },
+        "date": 1774366538318,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 173288,
+            "range": "± 728",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 141122,
+            "range": "± 3205",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2643655,
+            "range": "± 2899",
             "unit": "ns/iter"
           }
         ]
