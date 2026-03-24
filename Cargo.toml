@@ -174,7 +174,7 @@ getrandom = "^0.3.3"
 
 # Debugger
 dap = "0.4.1-alpha1"
-clap = { version = "4.3.19", features = ["derive", "env"] }
+clap = { version = "4.6.0", features = ["derive", "env"] }
 codespan = { version = "0.11.1", features = ["serialization"] }
 codespan-lsp = "0.11.1"
 codespan-reporting = "0.11.1"
@@ -226,7 +226,7 @@ color-eyre = "0.6.2"
 rand = "^0.9.2"
 rangemap = "1.7.1"
 # The `fork` and `timeout` feature doesn't compile with Wasm (wait-timeout doesn't find the `imp` module).
-proptest = { version = "1.6.0", default-features = false, features = [
+proptest = { version = "1.11.0", default-features = false, features = [
     "std",
     "bit-set",
 ] }
@@ -236,7 +236,7 @@ sha2 = "0.11.0-rc.5"
 k256 = "0.14.0-rc.7"
 p256 = "0.14.0-rc.7"
 strum = "0.26"
-strum_macros = "0.26"
+strum_macros = "0.28"
 tokio = "1.42"
 im = { version = "15.1", features = ["serde"] }
 tracing = "0.1.40"
