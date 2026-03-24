@@ -194,12 +194,10 @@ impl Parser<'_> {
         let typ = self.parse_add_or_subtract_type_or_type_expression()?;
         let span = typ.location;
 
-        // If we end up with a Variable type expression, make it a Named type (they are equivalent),
-        // but for testing purposes and simplicity we default to types instead of type expressions.
-        Some(
-            if let UnresolvedTypeData::Expression(UnresolvedTypeExpression::Variable(mut path)) =
-                typ.typ
-            {
+        Some(match typ.typ {
+            // If we end up with a Variable type expression, make it a Named type (they are equivalent),
+            // but for testing purposes and simplicity we default to types instead of type expressions.
+            UnresolvedTypeData::Expression(UnresolvedTypeExpression::Variable(mut path)) => {
                 let generics = std::mem::take(&mut path.segments.last_mut().unwrap().generics);
                 let mut generic_type_args = GenericTypeArgs::default();
                 if let Some(generics) = generics {
@@ -213,10 +211,17 @@ impl Parser<'_> {
                     typ: UnresolvedTypeData::Named(path, generic_type_args, false),
                     location: span,
                 }
-            } else {
-                typ
+            }
+            // Similarly, convert a standalone AsTraitPath expression back to the AsTraitPath type
+            // so it isn't mistakenly rejected as a type expression (e.g. in type aliases).
+            UnresolvedTypeData::Expression(UnresolvedTypeExpression::AsTraitPath(
+                as_trait_path,
+            )) => UnresolvedType {
+                typ: UnresolvedTypeData::AsTraitPath(as_trait_path),
+                location: span,
             },
-        )
+            _ => typ,
+        })
     }
 
     fn parse_add_or_subtract_type_or_type_expression(&mut self) -> Option<UnresolvedType> {
