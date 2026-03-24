@@ -443,6 +443,7 @@ impl<'context> Elaborator<'context> {
         )
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn elaborate(
         context: &'context mut Context,
         crate_id: CrateId,
@@ -452,6 +453,7 @@ impl<'context> Elaborator<'context> {
         Self::elaborate_and_return_self(context, crate_id, items, options).errors
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn elaborate_and_return_self(
         context: &'context mut Context,
         crate_id: CrateId,
@@ -464,6 +466,7 @@ impl<'context> Elaborator<'context> {
         this
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn elaborate_items(&mut self, mut items: CollectedItems) {
         self.set_unresolved_globals_ordering(items.globals);
 
@@ -527,6 +530,7 @@ impl<'context> Elaborator<'context> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_functions(&mut self, functions: UnresolvedFunctions) {
         for (_, id, _) in functions.functions {
             self.elaborate_function(id);
@@ -536,10 +540,12 @@ impl<'context> Elaborator<'context> {
         self.self_type = None;
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn push_err(&mut self, error: impl Into<CompilationError>) {
         self.errors.push(error);
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn push_errors<E: Into<CompilationError>>(
         &mut self,
         errors: impl IntoIterator<Item = E>,
@@ -548,6 +554,7 @@ impl<'context> Elaborator<'context> {
     }
 
     /// Run a given function while also tracking whether any new errors were generated as a result.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn with_error_guard<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> (T, bool) {
         // Count actual errors (ignore warnings)
         let initial_error_count = self.errors.len();
@@ -556,12 +563,14 @@ impl<'context> Elaborator<'context> {
         (result, has_new_errors)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn run_lint(&mut self, lint: impl Fn(&Elaborator) -> Option<CompilationError>) {
         if let Some(error) = lint(self) {
             self.push_err(error);
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn resolve_module_by_path(&mut self, path: TypedPath) -> Option<ModuleId> {
         match self.resolve_path_as_type(path) {
             Ok(PathResolution { item: PathResolutionItem::Module(module_id), errors }) => {
@@ -572,6 +581,7 @@ impl<'context> Elaborator<'context> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_trait_by_path(&mut self, path: TypedPath) -> Option<TraitId> {
         let error = match self.resolve_path_as_type(path.clone()) {
             Ok(PathResolution { item: PathResolutionItem::Trait(trait_id), errors }) => {
@@ -585,10 +595,12 @@ impl<'context> Elaborator<'context> {
         None
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn mark_type_as_used(&mut self, typ: &Type) {
         self.mark_type_as_used_helper(typ, TypeRecursionContext::default());
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn mark_type_as_used_helper(
         &mut self,
         typ: &Type,
@@ -679,10 +691,12 @@ impl<'context> Elaborator<'context> {
         self.module_is_contract(self.module_id())
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn module_is_contract(&self, module_id: ModuleId) -> bool {
         module_id.module(self.def_maps).is_contract
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_traits(&mut self, traits: BTreeMap<TraitId, UnresolvedTrait>) {
         for (trait_id, unresolved_trait) in traits {
             self.current_trait = Some(trait_id);
@@ -691,12 +705,14 @@ impl<'context> Elaborator<'context> {
         self.current_trait = None;
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_impls(&mut self, impls: Vec<(UnresolvedGenerics, Location, UnresolvedFunctions)>) {
         for (_, _, functions) in impls {
             self.recover_generics(|this| this.elaborate_functions(functions));
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_trait_impl(&mut self, trait_impl: UnresolvedTraitImpl) {
         self.local_module = Some(trait_impl.module_id);
 
@@ -732,11 +748,13 @@ impl<'context> Elaborator<'context> {
         &self.def_maps.get(&module.krate).expect(message)[module.local_id]
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn get_module_mut(def_maps: &mut DefMaps, module: ModuleId) -> &mut ModuleData {
         let message = "A crate should always be present for a given crate id";
         &mut def_maps.get_mut(&module.krate).expect(message)[module.local_id]
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn define_type_alias(&mut self, alias_id: TypeAliasId, alias: UnresolvedTypeAlias) {
         self.local_module = Some(alias.module_id);
 
@@ -821,6 +839,7 @@ impl<'context> Elaborator<'context> {
 
     /// Register a use of the given unstable feature. Errors if the feature has not
     /// been explicitly enabled in this package.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn use_unstable_feature(&mut self, feature: UnstableFeature, location: Location) {
         // Is the feature globally enabled via CLI options?
         if self.options.enabled_unstable_features.contains(&feature) {
@@ -847,6 +866,7 @@ impl<'context> Elaborator<'context> {
 
     /// Run the given function using the resolver and return true if any errors (not warnings)
     /// occurred while running it.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn errors_occurred_in<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> (bool, T) {
         let previous_errors = self.errors.len();
         let ret = f(self);
@@ -857,6 +877,7 @@ impl<'context> Elaborator<'context> {
     /// Push a new location to the interpreter call stack.
     ///
     /// Return [InterpreterError::StackOverflow] if the stack size exceeds `MAX_INTERPRETER_CALL_STACK_SIZE`.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn push_interpreter_call_stack(
         &mut self,
         location: Location,
@@ -874,6 +895,7 @@ impl<'context> Elaborator<'context> {
     /// Pops the last item from the interpreter call stack.
     ///
     /// Panics if the call stack is empty.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn pop_interpreter_call_stack(&mut self) {
         self.interpreter_call_stack
             .pop_back()
@@ -881,14 +903,17 @@ impl<'context> Elaborator<'context> {
     }
 
     /// The current interpreter call stack.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn interpreter_call_stack(&self) -> &im::Vector<Location> {
         &self.interpreter_call_stack
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn reset_lvalue_index_counter(&mut self) {
         self.lvalue_index_counter = 0;
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn next_lvalue_index_counter(&mut self) -> usize {
         let lvalue_index_counter = self.lvalue_index_counter;
         self.lvalue_index_counter += 1;
@@ -897,6 +922,7 @@ impl<'context> Elaborator<'context> {
 
     /// Check the current recursion depth. if the limit has been reached,
     /// emit an error and return `true`, otherwise return `false`.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn inc_recursion_depth(&mut self, location: Location) -> bool {
         if self.recursion_depth >= MAX_RECURSION_DEPTH {
             self.push_err(ResolverError::MaximumRecursionDepthExceeded { location });
@@ -908,6 +934,7 @@ impl<'context> Elaborator<'context> {
     }
 
     /// Decrease the recursion depth, assuming we called `inc_recursion_depth` before and it returned `true`.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn dec_recursion_depth(&mut self) {
         self.recursion_depth = self.recursion_depth.saturating_sub(1);
     }

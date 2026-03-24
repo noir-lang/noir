@@ -20,6 +20,7 @@ impl Elaborator<'_> {
     /// Checks whether calling the method `func_id` on an object of type `object_type` is allowed
     /// from the current location. If not, a visibility error is pushed to the error list.
     /// The passed `name` is used for error reporting.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn check_method_call_visibility(
         &mut self,
         func_id: FuncId,
@@ -44,6 +45,7 @@ impl Elaborator<'_> {
     ///
     /// For example, a public struct cannot have a public field of a private type,
     /// as this would allow external code to access the private type through the public struct.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn check_struct_field_type_visibility(
         &mut self,
         struct_def: &NoirStruct,
@@ -68,6 +70,7 @@ impl Elaborator<'_> {
     /// Checks whether accessing the struct field `field_name` of type `struct_type`, that has
     /// the given `visibility`, is allowed from the current location. If not, a visibility
     /// error is pushed to the error list.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn check_struct_field_visibility(
         &mut self,
         struct_type: &DataType,
@@ -96,6 +99,7 @@ impl Elaborator<'_> {
         visibility
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn check_function_visibility(
         &mut self,
         func_meta: &FuncMeta,
@@ -150,6 +154,7 @@ impl Elaborator<'_> {
     }
 
     /// Check that an item such as a struct field or type alias is not more visible than the type it refers to.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn check_type_is_not_more_private_then_item(
         &mut self,
         name: &Ident,

@@ -30,10 +30,12 @@ use crate::{
 use super::{Elaborator, Loop};
 
 impl Elaborator<'_> {
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_statement_value(&mut self, statement: Statement) -> (HirStatement, Type) {
         self.elaborate_statement_value_with_target_type(statement, None)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_statement_value_with_target_type(
         &mut self,
         statement: Statement,
@@ -74,10 +76,12 @@ impl Elaborator<'_> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn elaborate_statement(&mut self, statement: Statement) -> (StmtId, Type) {
         self.elaborate_statement_with_target_type(statement, None)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn elaborate_statement_with_target_type(
         &mut self,
         statement: Statement,
@@ -93,6 +97,7 @@ impl Elaborator<'_> {
         (id, typ)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_statement_inner(
         &mut self,
         statement: Statement,
@@ -105,6 +110,7 @@ impl Elaborator<'_> {
         (id, typ)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_local_let(&mut self, let_stmt: LetStatement) -> (HirStatement, Type) {
         let (let_statement, typ) = self.elaborate_let(let_stmt, None);
         (HirStatement::Let(let_statement), typ)
@@ -114,6 +120,7 @@ impl Elaborator<'_> {
     /// If this is a global let, the DefinitionId of the global is specified so that
     /// elaborate_pattern can create a Global definition kind with the correct ID
     /// instead of a local one with a fresh ID.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_let(
         &mut self,
         let_stmt: LetStatement,
@@ -227,6 +234,7 @@ impl Elaborator<'_> {
         (let_, Type::Unit)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_assign(&mut self, assign: AssignStatement) -> (HirStatement, Type) {
         let expr_location = assign.expression.location;
         let (expression, expr_type) = self.elaborate_expression(assign.expression);
@@ -267,6 +275,7 @@ impl Elaborator<'_> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn push_assign_to_immutable_lvalue_error(
         &mut self,
         lvalue: &HirLValue,
@@ -307,6 +316,7 @@ impl Elaborator<'_> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_for(&mut self, for_loop: ForLoopStatement) -> (HirStatement, Type) {
         let (start, end, inclusive) = match for_loop.range {
             ForRange::Range(bounds) => (bounds.start, bounds.end, bounds.inclusive),
@@ -379,6 +389,7 @@ impl Elaborator<'_> {
         (statement, Type::Unit)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_loop(&mut self, loop_: LoopStatement) -> (HirStatement, Type) {
         let LoopStatement { body: block, loop_keyword_location: location } = loop_;
         let in_constrained_function = self.in_constrained_function();
@@ -412,6 +423,7 @@ impl Elaborator<'_> {
         (statement, Type::Unit)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_while(&mut self, while_: WhileStatement) -> (HirStatement, Type) {
         let in_constrained_function = self.in_constrained_function();
         if in_constrained_function {
@@ -451,6 +463,7 @@ impl Elaborator<'_> {
         (statement, Type::Unit)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_jump(&mut self, is_break: bool, location: Location) -> (HirStatement, Type) {
         let in_constrained_function = self.in_constrained_function();
 
@@ -493,6 +506,7 @@ impl Elaborator<'_> {
     /// - Whether the underlying variable is mutable
     /// - A vector of new statements which need to prefix the resulting assign statement.
     ///   This hoists out any sub-expressions to simplify sequencing of side-effects.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_lvalue(&mut self, lvalue: LValue) -> (HirLValue, Type, bool, Vec<StmtId>) {
         match lvalue {
             LValue::Path(path) => {
@@ -689,6 +703,7 @@ impl Elaborator<'_> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_lvalue_ident(
         &mut self,
         ident: HirIdent,
@@ -712,6 +727,7 @@ impl Elaborator<'_> {
         (HirLValue::Ident(ident, typ.clone()), typ, mutable, Vec::new())
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn fresh_definition_for_lvalue_index(
         &mut self,
         expr: ExprId,
@@ -795,6 +811,7 @@ impl Elaborator<'_> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_comptime_statement(
         &mut self,
         statement: Statement,

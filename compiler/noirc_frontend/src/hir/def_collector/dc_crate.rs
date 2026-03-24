@@ -395,6 +395,7 @@ impl DefCollector {
     /// Modules which are not a part of the module hierarchy starting with
     /// the root module, will be ignored.
     #[allow(clippy::too_many_arguments)]
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn collect_crate_and_dependencies(
         mut def_map: CrateDefMap,
         context: &mut Context,
@@ -471,6 +472,7 @@ impl DefCollector {
     /// field. This is only `true` when re-checking a file in LSP, where nested modules don't
     /// need to be re-collected and re-type-checked.
     #[allow(clippy::too_many_arguments)]
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn collect_defs_and_elaborate(
         ast: SortedModule,
         file_id: FileId,
@@ -543,6 +545,7 @@ impl DefCollector {
         errors.extend(more_errors);
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn process_imports(
         mut collected_imports: Vec<ImportDirectiveBatch>,
         crate_id: CrateId,
@@ -787,6 +790,7 @@ fn add_import_reference(
     interner.add_module_def_id_reference(def_id, location, false);
 }
 
+#[tracing::instrument(level = "trace", skip_all)]
 fn inject_prelude(
     crate_id: CrateId,
     context: &mut Context,

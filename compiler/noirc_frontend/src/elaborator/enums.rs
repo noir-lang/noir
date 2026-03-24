@@ -110,6 +110,7 @@ impl Row {
 }
 
 impl Row {
+    #[tracing::instrument(level = "trace", skip_all)]
     fn remove_column(&mut self, variable: DefinitionId) -> Option<Column> {
         self.columns
             .iter()
@@ -119,6 +120,7 @@ impl Row {
 }
 
 impl Elaborator<'_> {
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn collect_enum_definitions(&mut self, enums: &BTreeMap<TypeId, UnresolvedEnum>) {
         for (type_id, typ) in enums {
             self.local_module = Some(typ.module_id);
@@ -193,6 +195,7 @@ impl Elaborator<'_> {
     /// If the variant requires arguments we should define a function,
     /// otherwise we define a polymorphic global containing the tag value.
     #[allow(clippy::too_many_arguments)]
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn define_enum_variant_constructor(
         &mut self,
         enum_: &NoirEnumeration,
@@ -227,6 +230,7 @@ impl Elaborator<'_> {
     }
 
     #[allow(clippy::too_many_arguments)]
+    #[tracing::instrument(level = "trace", skip_all)]
     fn define_enum_variant_global(
         &mut self,
         enum_: &NoirEnumeration,
@@ -276,6 +280,7 @@ impl Elaborator<'_> {
     }
 
     #[allow(clippy::too_many_arguments)]
+    #[tracing::instrument(level = "trace", skip_all)]
     fn define_enum_variant_function(
         &mut self,
         enum_: &NoirEnumeration,
@@ -375,6 +380,7 @@ impl Elaborator<'_> {
     ///     }
     /// }
     /// ```
+    #[tracing::instrument(level = "trace", skip_all)]
     fn make_enum_variant_constructor(
         &mut self,
         self_type: &Shared<DataType>,
@@ -404,6 +410,7 @@ impl Elaborator<'_> {
         self.interner.push_expr_full(constructor, location, typ)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn make_enum_variant_parameters(
         &mut self,
         parameter_types: Vec<Type>,
@@ -425,6 +432,7 @@ impl Elaborator<'_> {
     ///
     /// Returns (rows, result type) where rows is a pattern matrix used to compile the
     /// match into a decision tree.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_match_rules(
         &mut self,
         variable_to_match: DefinitionId,
@@ -457,6 +465,7 @@ impl Elaborator<'_> {
     }
 
     /// Convert an expression into a Pattern, defining any variables within.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn expression_to_pattern(
         &mut self,
         expression: Expression,
@@ -610,6 +619,7 @@ impl Elaborator<'_> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn define_pattern_variable(
         &mut self,
         name: Ident,
@@ -636,6 +646,7 @@ impl Elaborator<'_> {
         Pattern::Binding(id)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn constructor_to_pattern(
         &mut self,
         constructor: ConstructorExpression,
@@ -693,6 +704,7 @@ impl Elaborator<'_> {
         Pattern::Constructor(Constructor::Variant(typ, 0), args)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn expression_to_constructor(
         &mut self,
         name: Expression,
@@ -757,6 +769,7 @@ impl Elaborator<'_> {
     /// value such as a free function. Generally this is desired unless the variable was
     /// a path with multiple components such as `foo::bar` which should always be treated as
     /// a path to an existing item.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn path_resolution_to_constructor(
         &mut self,
         resolution: PathResolutionItem,
@@ -865,6 +878,7 @@ impl Elaborator<'_> {
         Pattern::Constructor(constructor, args)
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn global_constant_to_integer_constructor(
         &mut self,
         constant: Value,
@@ -892,6 +906,7 @@ impl Elaborator<'_> {
     }
 
     #[allow(clippy::type_complexity)]
+    #[tracing::instrument(level = "trace", skip_all)]
     fn struct_name_and_field_types(
         &mut self,
         typ: &Type,
@@ -912,6 +927,7 @@ impl Elaborator<'_> {
     ///
     /// This is an adaptation of <https://github.com/yorickpeterse/pattern-matching-in-rust/tree/main/jacobs2021>
     /// which is an implementation of <https://julesjacobs.com/notes/patternmatching/patternmatching.pdf>
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_match_rows(
         &mut self,
         rows: Vec<Row>,
@@ -951,6 +967,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
         hir_match
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn compile_rows(&mut self, mut rows: Vec<Row>) -> Result<HirMatch, ResolverError> {
         if rows.is_empty() {
             self.has_missing_cases = true;
@@ -1071,6 +1088,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn fresh_match_variables(
         &mut self,
         variable_types: Vec<Type>,
@@ -1081,6 +1099,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
         })
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn fresh_match_variable(
         &mut self,
         index: usize,
@@ -1106,6 +1125,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
     ///
     /// Integers have an infinite number of constructors, so we specialize the
     /// compilation of integer and range patterns.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn compile_int_cases(
         &mut self,
         rows: Vec<Row>,
@@ -1179,6 +1199,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
     /// Types with infinite constructors (e.g. int and string) are handled
     /// separately; they don't need most of this work anyway.
     #[allow(clippy::type_complexity)]
+    #[tracing::instrument(level = "trace", skip_all)]
     fn compile_constructor_cases(
         &mut self,
         rows: Vec<Row>,
@@ -1288,6 +1309,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
             .unwrap()
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn push_tests_against_bare_variables(&mut self, rows: &mut Vec<Row>) {
         for row in rows {
             row.columns.retain(|col| {
@@ -1303,6 +1325,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
 
     /// Creates:
     /// `{ let <variable> = <rhs>; <body> }`
+    #[tracing::instrument(level = "trace", skip_all)]
     fn let_binding(&mut self, variable: DefinitionId, rhs: DefinitionId, body: ExprId) -> ExprId {
         let location = self.elaborator.interner.definition(rhs).location;
 
@@ -1333,6 +1356,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
 
     /// Any case that isn't branched to when the match is finished must be covered by another
     /// case and is thus redundant.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn issue_unreachable_cases_warning(&mut self) {
         for location in self.unreachable_cases.values().copied() {
             self.elaborator.push_err(TypeCheckError::UnreachableCase { location });
@@ -1341,6 +1365,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
 
     /// Traverse the resulting HirMatch to build counter-examples of values which would
     /// not be covered by the match.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn issue_missing_cases_error(
         &mut self,
         tree: &HirMatch,
@@ -1364,6 +1389,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
     /// Issue a missing cases error if necessary for the given type, assuming that no
     /// case of the type is covered. This is the case for empty matches `match foo {}`.
     /// Note that this is expected not to error if the given type is an enum with zero variants.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn issue_missing_cases_error_for_type(&mut self, type_matched_on: &Type, location: Location) {
         let typ = type_matched_on.follow_bindings_shallow();
         if let Type::DataType(shared, generics) = typ.as_ref()

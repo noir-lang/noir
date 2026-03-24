@@ -105,6 +105,7 @@ impl Elaborator<'_> {
     /// # Panics
     /// If the self_type is not already resolved in each impl's function set.
     /// The self type should be resolved by [Self::define_function_metas] before this method is called.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn collect_impls(
         &mut self,
         module: LocalModuleId,
@@ -141,6 +142,7 @@ impl Elaborator<'_> {
     /// # Panics
     /// If the self_type is not already resolved in each impl's function set.
     /// The self type should be resolved by [Self::define_function_metas] before this method is called.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn declare_methods_on_data_type(
         &mut self,
         trait_id: Option<TraitId>,
@@ -235,6 +237,7 @@ impl Elaborator<'_> {
     /// impl Foo { fn bar(self) {} }
     /// impl Foo { fn bar(self) {} }  // Error: duplicate definition
     /// ```
+    #[tracing::instrument(level = "trace", skip_all)]
     fn declare_methods(&mut self, self_type: &Type, function_ids: &[FuncId]) {
         for method_id in function_ids {
             let method_name = self.interner.function_name(method_id).to_owned();
