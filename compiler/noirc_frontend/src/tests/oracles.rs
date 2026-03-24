@@ -1,4 +1,3 @@
-use crate::elaborator::UnstableFeature;
 use crate::tests::{
     assert_no_errors, check_errors, check_errors_using_features, check_monomorphization_error,
 };

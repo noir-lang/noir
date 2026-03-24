@@ -1,10 +1,7 @@
-use crate::{
-    elaborator::UnstableFeature,
-    tests::{
+use crate::tests::{
         assert_no_errors, assert_no_errors_using_features, check_errors,
         check_errors_using_features, check_monomorphization_error, get_program_using_features,
-    },
-};
+    };
 
 #[test]
 fn cannot_mutate_immutable_variable() {

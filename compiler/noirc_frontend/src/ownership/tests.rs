@@ -4,7 +4,7 @@
 //! Testing e.g. the last_use pass directly is difficult since it returns
 //! sets of IdentIds which can't be matched to the source code easily.
 
-use crate::elaborator::{FrontendOptions, UnstableFeature};
+use crate::elaborator::FrontendOptions;
 use crate::test_utils::{
     GetProgramOptions, get_monomorphized, get_monomorphized_with_options,
     get_monomorphized_with_stdlib, stdlib_src,

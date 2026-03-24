@@ -534,14 +534,13 @@ impl Elaborator<'_> {
 
         let trait_method_id = self.interner.get_prefix_operator_trait_method(&operator);
 
-        if let UnaryOp::Reference { mutable } = operator {
-            if mutable {
+        if let UnaryOp::Reference { mutable } = operator
+            && mutable {
                 // If skip_op is set we already know we have a mutable reference
                 if !skip_op {
                     self.check_can_mutate(rhs, rhs_location);
                 }
             }
-        }
 
         let expr = HirExpression::Prefix(HirPrefixExpression {
             operator,

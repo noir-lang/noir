@@ -283,7 +283,7 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                             let primary = "`impl Trait` as a type is experimental".to_string();
                             Diagnostic::simple_warning(primary, secondary, error.location())
                         }
-                        _ => Diagnostic::simple_error(
+                        UnstableFeature::Enums => Diagnostic::simple_error(
                             reason.to_string(),
                             secondary,
                             error.location(),
