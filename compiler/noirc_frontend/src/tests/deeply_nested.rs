@@ -17,6 +17,8 @@ fn assert_parser_max_recursion_depth(src: &str, expected_error_count: Option<usi
     if let Some(expected_error_count) = expected_error_count {
         // We should get exactly one MaximumRecursionDepthExceeded error
         assert_eq!(errors.len(), expected_error_count, "Expected exactly one error");
+    } else {
+        assert!(errors.len() < 10, "Not expecting cascading errors");
     }
 
     for error in errors {
@@ -44,11 +46,10 @@ fn deeply_nested_tuples() {
 
     let src = format!(
         r#"
-    pub fn main(x: {}) -> pub u8 {{
+    pub fn main(x: {type_str}) -> pub u8 {{
         x
     }}
-    "#,
-        type_str
+    "#
     );
 
     assert_parser_max_recursion_depth(&src, None);
@@ -66,11 +67,10 @@ fn deeply_nested_arrays() {
 
     let src = format!(
         r#"
-    pub fn main(x: {}) -> pub u8 {{
+    pub fn main(_x: {type_str}) -> pub u8 {{
         0
     }}
-    "#,
-        type_str
+    "#
     );
 
     assert_parser_max_recursion_depth(&src, None);

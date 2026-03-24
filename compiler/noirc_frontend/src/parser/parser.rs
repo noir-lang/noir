@@ -588,7 +588,9 @@ impl<'a> Parser<'a> {
         let result = f(self);
         self.recursion_depth -= 1;
 
-        // Clear recovery flag when we've fully unwound (back at top level)
+        // Clear recovery flag when we've fully unwound (back at top level).
+        // This assumes that `skip_to_recovery_point` skipped over tokens
+        // and we can resume parsing with meaningful errors from here.
         if self.recursion_depth == 0 {
             self.recovering_from_depth_overflow = false;
         }
@@ -608,6 +610,10 @@ impl<'a> Parser<'a> {
         loop {
             match self.token.token() {
                 Token::EOF => break,
+                Token::Semicolon if matches!(self.next_token.token(), Token::Int(_, _)) => {
+                    // Skip the semicolon if looks like array syntax.
+                    self.bump();
+                }
                 Token::Semicolon if brace_depth == 0 => {
                     // Don't consume the semicolon - let the caller handle it
                     break;
@@ -674,6 +680,9 @@ impl<'a> Parser<'a> {
     }
 
     fn expected_token(&mut self, token: Token) {
+        if self.recovering_from_depth_overflow {
+            return;
+        }
         self.errors.push(ParserError::expected_token(
             token,
             self.token.token().clone(),
@@ -682,6 +691,9 @@ impl<'a> Parser<'a> {
     }
 
     fn expected_one_of_tokens(&mut self, tokens: &[Token]) {
+        if self.recovering_from_depth_overflow {
+            return;
+        }
         self.errors.push(ParserError::expected_one_of_tokens(
             tokens,
             self.token.token().clone(),
@@ -690,6 +702,9 @@ impl<'a> Parser<'a> {
     }
 
     fn expected_label(&mut self, label: ParsingRuleLabel) {
+        if self.recovering_from_depth_overflow {
+            return;
+        }
         self.errors.push(ParserError::expected_label(
             label,
             self.token.token().clone(),
@@ -783,6 +798,9 @@ impl<'a> Parser<'a> {
     }
 
     fn push_error(&mut self, reason: ParserErrorReason, location: Location) {
+        if self.recovering_from_depth_overflow {
+            return;
+        }
         self.errors.push(ParserError::with_reason(reason, location));
     }
 }

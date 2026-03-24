@@ -23,9 +23,7 @@ impl Parser<'_> {
         if let Some(typ) = self.parse_type_allowing_generics(allow_generics) {
             typ
         } else {
-            if !self.recovering_from_depth_overflow {
-                self.expected_label(ParsingRuleLabel::Type);
-            }
+            self.expected_label(ParsingRuleLabel::Type);
             UnresolvedTypeData::Error.with_location(self.location_at_previous_token_end())
         }
     }
