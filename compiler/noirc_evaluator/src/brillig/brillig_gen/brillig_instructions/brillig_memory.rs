@@ -428,6 +428,34 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         let items_pointer =
             self.brillig_context.codegen_make_array_or_vector_items_pointer(new_variable);
 
+        // If this make_array was identified as a memcpy candidate, emit a bulk copy
+        // instead of per-element stores.
+        if let Some(info) = self.function_context.memcpy_opts.memcpy_groups.get(&instruction_id) {
+            // Extract values before borrowing self mutably.
+            let source_array = info.source_array;
+            let base_index_id = info.base_index;
+            let length = info.length;
+
+            let src_variable = self.convert_ssa_value(source_array, dfg);
+            let src_items =
+                self.brillig_context.codegen_make_array_or_vector_items_pointer(src_variable);
+
+            // src_start = src_items + base_index
+            let base_index = self.convert_ssa_single_addr_value(base_index_id, dfg);
+            let src_start = self.brillig_context.allocate_register();
+            self.brillig_context.memory_op_instruction(
+                *src_items,
+                base_index.address,
+                *src_start,
+                BrilligBinaryOp::Add,
+            );
+
+            // mem_copy(src_start, dst_items, length)
+            let size = self.brillig_context.make_usize_constant_instruction(length.into());
+            self.brillig_context.codegen_mem_copy(*src_start, *items_pointer, *size);
+            return;
+        }
+
         // Write the items.
         self.initialize_constant_array(array, typ, dfg, *items_pointer);
     }
