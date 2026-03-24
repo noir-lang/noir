@@ -116,6 +116,22 @@ impl<'context> Elaborator<'context> {
         f: impl FnOnce(&mut Elaborator<'a>) -> T,
         setup: impl FnOnce(&mut Elaborator<'a>),
     ) -> T {
+        // Collect (and update) variable names from the parent scope for better error messages
+        // when a runtime variable is referenced in comptime code.
+        let current_scope_tree = self.scopes.0.last();
+        let parent_runtime_variables: rustc_hash::FxHashSet<String> = self
+            .parent_runtime_variables
+            .iter()
+            .cloned()
+            .chain(
+                current_scope_tree
+                    .into_iter()
+                    .flat_map(|tree| tree.0.iter())
+                    .flat_map(|scope| scope.0.keys())
+                    .cloned(),
+            )
+            .collect();
+
         // Create a fresh elaborator to ensure no state is changed from
         // this elaborator
         let mut elaborator = Elaborator::new(
@@ -136,6 +152,7 @@ impl<'context> Elaborator<'context> {
         elaborator.scopes.start_function();
 
         elaborator.local_module = self.local_module;
+        elaborator.parent_runtime_variables = parent_runtime_variables;
 
         setup(&mut elaborator);
 
