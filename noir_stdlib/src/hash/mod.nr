@@ -3,8 +3,7 @@ pub(crate) mod poseidon2;
 
 use crate::default::Default;
 use crate::embedded_curve_ops::{
-    EmbeddedCurvePoint, EmbeddedCurveScalar, multi_scalar_mul,
-    multi_scalar_mul_array_return,
+    EmbeddedCurvePoint, EmbeddedCurveScalar, multi_scalar_mul, multi_scalar_mul_array_return,
 };
 use crate::meta::derive_via;
 use crate::static_assert;
