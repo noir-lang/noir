@@ -66,7 +66,6 @@ impl Ssa {
     }
 
     /// Run mem2reg_simple only on Brillig functions.
-    #[allow(dead_code)]
     pub(crate) fn mem2reg_simple_brillig(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             if function.runtime().is_brillig() {
