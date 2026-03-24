@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774368745442,
+  "lastUpdate": 1774368760729,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23150,48 +23150,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "c10d1eab1722d8f6c23250d5ac27bfbc1d34db56",
-          "message": "fix: add type checking for constructor patterns in match expressions (#11887)",
-          "timestamp": "2026-03-18T18:59:51Z",
-          "tree_id": "d315079cf479e063324f097337385191a0a4075a",
-          "url": "https://github.com/noir-lang/noir/commit/c10d1eab1722d8f6c23250d5ac27bfbc1d34db56"
-        },
-        "date": 1773861907072,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 251657,
-            "range": "± 1524",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 221101,
-            "range": "± 4179",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2734506,
-            "range": "± 6021",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "69abd3d88460ecfc5e14abdd859a9b6c49bb8ec2",
           "message": "fix: immutable references do not require mutability (#11908)",
@@ -25234,6 +25192,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2647222,
             "range": "± 4532",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "f95aed2317586e1594ad1e411c6aff067d72c24a",
+          "message": "chore(deps): cargo update compatible dependencies (#11969)",
+          "timestamp": "2026-03-24T15:44:48Z",
+          "tree_id": "227577962beae3a6c216e7f8eb17645ef6078588",
+          "url": "https://github.com/noir-lang/noir/commit/f95aed2317586e1594ad1e411c6aff067d72c24a"
+        },
+        "date": 1774368685914,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168186,
+            "range": "± 659",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 137277,
+            "range": "± 707",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2642950,
+            "range": "± 4434",
             "unit": "ns/iter"
           }
         ]
