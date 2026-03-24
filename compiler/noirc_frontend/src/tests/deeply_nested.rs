@@ -91,7 +91,7 @@ fn deeply_nested_generic_struct_parameter() {
         r#"
     struct Wrapper<T> {{ inner: T }}
 
-    pub fn main(x: {type_str}) -> pub u8 {{
+    pub fn main(_x: {type_str}) -> pub u8 {{
         0
     }}
     "#
