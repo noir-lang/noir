@@ -152,7 +152,7 @@ fn deeply_nested_terms() {
 #[test]
 fn deeply_nested_expression_evaluation_overflow() {
     // Build a deeply expression: (((1 + 2) + 3) + 4) ... + 50
-    // This tests the interpreter's evaluation depth limit.
+    // This tests the comptime interpreter's evaluation depth limit.
     // If we use an expression too deep (like 100), then we will reach the parser recursion limit.
     // We use fewer nesting levels (50) combined with recursive function calls
     // to trigger the interpreter's EvaluationDepthOverflow error.

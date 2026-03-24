@@ -44,5 +44,3 @@ pub use hir_def::types::*;
 pub mod tests;
 // Utility functions for easily compiling the frontend for tests in other crates
 pub mod test_utils;
-
-mod stack;

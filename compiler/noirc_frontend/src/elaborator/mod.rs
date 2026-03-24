@@ -84,7 +84,6 @@ use crate::{
     },
     parser::{ParserError, ParserErrorReason},
     recursion::TypeRecursionContext,
-    stack::StackLimiter,
 };
 use crate::{
     graph::CrateGraph, hir::def_collector::dc_crate::UnresolvedTrait, usage_tracker::UsageTracker,
@@ -137,6 +136,18 @@ pub use primitive_types::PrimitiveType;
 ///
 /// Note that if we increase this, currently we would hit the `MAX_EVALUATION_DEPTH`.
 const MAX_INTERPRETER_CALL_STACK_SIZE: usize = 100;
+
+/// Protect against stack overflows when elaborating deeply nested expressions.
+///
+/// We could use the `stacker` library to monitor the remaining stack depth,
+/// but in order to make tests repeatable across platforms with various stack
+/// size limits, we hard code a limit instead.
+///
+/// A similar measure exists in the parser.
+///
+/// Note that if we decrease this, it could be hit before `MAX_EVALUATION_DEPTH`
+/// while evaluating comptime expressions.
+const MAX_RECURSION_DEPTH: usize = 200;
 
 /// Maximum depth of macro expansion (attribute execution).
 ///
@@ -313,7 +324,8 @@ pub struct Elaborator<'context> {
     /// ```
     lvalue_index_counter: usize,
 
-    stack_limiter: StackLimiter,
+    /// Current recursion depth.
+    recursion_depth: usize,
 }
 
 #[derive(Copy, Clone)]
@@ -385,7 +397,7 @@ impl<'context> Elaborator<'context> {
             comptime_evaluation_halted: false,
             macro_expansion_depth: 0,
             lvalue_index_counter: 0,
-            stack_limiter: StackLimiter::new(),
+            recursion_depth: 0,
         }
     }
 
@@ -876,14 +888,21 @@ impl<'context> Elaborator<'context> {
         lvalue_index_counter
     }
 
-    /// Check the current recursion depth; if the limit has been reached,
+    /// Check the current recursion depth. if the limit has been reached,
     /// emit an error and return `true`, otherwise return `false`.
-    fn max_recursion_depth_exceeded(&mut self, location: Location) -> bool {
-        if self.stack_limiter.can_recur() {
-            return false;
+    fn inc_recursion_depth(&mut self, location: Location) -> bool {
+        if self.recursion_depth >= MAX_RECURSION_DEPTH {
+            self.push_err(ResolverError::MaximumRecursionDepthExceeded { location });
+            false
+        } else {
+            self.recursion_depth = self.recursion_depth.saturating_add(1);
+            true
         }
-        self.push_err(ResolverError::MaximumRecursionDepthExceeded { location });
-        true
+    }
+
+    /// Decrease the recursion depth, assuming we called `inc_recursion_depth` before and it returned `true`.
+    fn dec_recursion_depth(&mut self) {
+        self.recursion_depth = self.recursion_depth.saturating_sub(1);
     }
 }
 
