@@ -77,7 +77,7 @@ pub(crate) fn with_interpreter<T>(
 
     let mut interpreter = elaborator.setup_interpreter();
 
-    f(&mut interpreter, main, &errors)
+    f(&mut interpreter, main, errors.as_ref())
 }
 
 /// Evaluate a code snippet by calling the `main` function.

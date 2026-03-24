@@ -7,6 +7,8 @@ on:
     paths: [docs/**]
   workflow_dispatch:
 
+permissions: {}
+
 jobs:
   publish-docs:
     name: Publish docs

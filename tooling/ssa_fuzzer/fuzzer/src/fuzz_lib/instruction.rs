@@ -138,6 +138,12 @@ pub(crate) enum Instruction {
     /// If `load_elements_of_array` is true, loads all elements of the permuted array into defined variables
     Keccakf1600Hash { u64_indices: [usize; 25], load_elements_of_array: bool },
 
+    /// Poseidon2 permutation
+    /// Takes array of field values and permutes it with poseidon2
+    /// Stores the permuted array in the context
+    /// If `load_elements_of_array` is true, loads all elements of the permuted array into defined variables
+    Poseidon2Permutation { field_indices: [usize; 4], load_elements_of_array: bool },
+
     /// AES-128 encrypt
     /// Takes input key and iv as fields, converts them to u8 arrays
     /// Input is converted to u8 array of size `input_limbs_count`
