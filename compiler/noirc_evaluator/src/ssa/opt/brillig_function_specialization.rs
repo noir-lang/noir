@@ -183,6 +183,11 @@ fn collect_specialization_candidates(
         }
     }
 
+    // Sort by the number of call sites (descending) so we specialize the most frequently
+    // occurring keys before running into the per-callee limit.
+    key_to_callsites
+        .sort_by(|_, call_sites_a, _, call_sites_b| call_sites_b.len().cmp(&call_sites_a.len()));
+
     key_to_callsites
 }
 
