@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["DEFAULT_MAX_SPECIALIZATIONS_PER_FN","DEFAULT_SPECIALIZATION_THRESHOLD"],"fn":["collect_matching_callsites","collect_specialization_candidates","create_specialized_clones","optimize_clone","rewrite_call_sites","substitute_constants","try_build_specialization_key"],"struct":["CallSite","SpecializationKey"]};
