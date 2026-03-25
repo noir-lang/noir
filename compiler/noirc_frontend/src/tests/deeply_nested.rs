@@ -160,7 +160,7 @@ fn deeply_nested_generic_struct_parameter_elaboration() {
     let error_count =
         rx.recv_timeout(std::time::Duration::from_secs(1)).expect("elaboration should be fast");
 
-    assert_eq!(error_count, 0, "the program should not fail to compile")
+    assert_eq!(error_count, 0, "the program should to compile");
 }
 
 #[test]

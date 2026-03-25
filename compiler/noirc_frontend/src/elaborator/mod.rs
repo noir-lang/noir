@@ -657,7 +657,7 @@ impl<'context> Elaborator<'context> {
                 self.mark_type_as_used_helper(typ, type_recursion_context.recur(), visited);
             }
             Type::Vector(typ) => {
-                self.mark_type_as_used_helper(typ, type_recursion_context.recur(), visited)
+                self.mark_type_as_used_helper(typ, type_recursion_context.recur(), visited);
             }
             Type::Tuple(types) => {
                 for typ in types {
