@@ -9,7 +9,10 @@ mod tests {
         errors::RuntimeError,
         ssa::{
             Ssa, SsaBuilder, SsaEvaluatorOptions, SsaLogging,
-            opt::{FORCE_UNROLL_THRESHOLD, MAX_UNROLL_ITERATIONS, constant_folding, inlining},
+            opt::{
+                DEFAULT_MAX_SPECIALIZATIONS_PER_FN, DEFAULT_SPECIALIZATION_THRESHOLD,
+                FORCE_UNROLL_THRESHOLD, MAX_UNROLL_ITERATIONS, constant_folding, inlining,
+            },
             primary_passes,
         },
     };
@@ -29,6 +32,8 @@ mod tests {
             constant_folding_max_iter: constant_folding::DEFAULT_MAX_ITER,
             small_function_max_instruction: inlining::MAX_SIMPLE_FUNCTION_WEIGHT,
             force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
+            specialization_threshold: DEFAULT_SPECIALIZATION_THRESHOLD,
+            max_specializations_per_fn: DEFAULT_MAX_SPECIALIZATIONS_PER_FN,
             skip_passes: Default::default(),
             ssa_logging_hide_unchanged: false,
         };

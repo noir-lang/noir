@@ -102,6 +102,21 @@ fn deny_cyclic_type_aliases() {
 }
 
 #[test]
+fn cyclic_type_alias_usage_does_not_stack_overflow() {
+    let src = r#"
+        type A = B;
+        type B = A;
+             ^ Dependency cycle found
+             ~ 'B' recursively depends on itself: B -> A -> B
+        fn main() {
+            let _ = A::foo();
+                    ^ Could not resolve 'A' in path
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn ensure_nested_type_aliases_type_check() {
     let src = r#"
         type A = B;
@@ -500,13 +515,22 @@ fn regression_10352_slice() {
 #[test]
 fn regression_10352_trait_as_type() {
     let src = r#"
-    trait Foo<T> {}
+    struct Foo {
+        x: impl Bar,
+                ^^^ `impl Trait` is not allowed in struct field types
+                ~~~ Use a generic type parameter instead
+    }
 
-    type Alias = impl Foo<Alias>;
+    trait Bar {
+        fn bar(self);
+    }
+    impl Bar for Foo {
+        fn bar(self) {
+            self.x.bar();
+        }
+    }
 
-    fn main(_: Alias) {}
-               ^^^^^ Binding `Alias` here to the `_` inside would create a cyclic type
-               ~~~~~ Cyclic types have unlimited size and are prohibited in Noir
+    fn main(_a: Foo) {}
     "#;
     check_errors_using_features(src, &[UnstableFeature::TraitAsType]);
 }
@@ -739,6 +763,7 @@ fn regression_10971() {
     let src = r#"
     pub type X: u8 = 257u8;
     ^^^^^^^^^^^^^^^^^^^^^^ The value `257` cannot fit into `u8` which has range `0..=255`
+                     ^^^^^ The value `257` cannot fit into `u8` which has range `0..=255`
 
     fn main() {
         let _ = X;
@@ -753,6 +778,8 @@ fn regression_10764_trait_as_type_with_empty_trait() {
     trait Foo { }
 
     type Bar = impl Foo;
+                    ^^^ `impl Trait` is not allowed in type alias definitions
+                    ~~~ Use a generic type parameter instead
 
     impl Foo for Bar {
                  ^^^ Cannot define a trait impl on values of type `Bar`
@@ -799,6 +826,8 @@ fn regression_10764_trait_as_type() {
     }
 
     type Bar = impl Foo;
+                    ^^^ `impl Trait` is not allowed in type alias definitions
+                    ~~~ Use a generic type parameter instead
 
     impl Foo for Bar {
                  ^^^ Cannot define a trait impl on values of type `Bar`
@@ -851,10 +880,14 @@ fn regression_10764_underscore() {
 fn regression_10764_trait_as_type_impl() {
     let src = r#"
     trait Foo {
+          ^^^ unused trait Foo
+          ~~~ unused trait
         fn foo(self);
     }
 
     type Bar = impl Foo;
+                    ^^^ `impl Trait` is not allowed in type alias definitions
+                    ~~~ Use a generic type parameter instead
 
     impl Bar {
          ^^^ Non-enum, non-struct type used in impl
@@ -1080,4 +1113,52 @@ fn errors_if_using_comptime_type_in_non_comptime_type_alias() {
                      ^^^^^^ Comptime-only type `Quoted` cannot be used in non-comptime type alias
     "#;
     check_errors(src);
+}
+
+/// Regression test: a type alias and a global with the same name
+#[test]
+fn type_alias_takes_priority_over_global_with_same_name() {
+    let src = r#"
+        global Foo: u32 = 10;
+
+        type Foo = u32;
+
+        fn main() {
+            let x: Foo = 20;
+            assert(x == 20);
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn type_alias_as_closure_environment() {
+    let src = r#"
+    type Env = (u32,);
+
+    pub fn foo(_x: fn[Env](Field) -> Field) {}
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test: define_type_alias did not reset `current_item` after finishing,
+/// which can leak into subsequent elaboration phases.
+#[test]
+fn no_false_cycle_from_stale_current_item_after_type_alias() {
+    // `A` depends on `B` (real dependency).
+    // After the type-alias loop, `current_item` is left as `Alias(B)`.
+    // When `collect_traits` resolves the supertrait `Dummy<A>`, it should not
+    // record a dependency from `B` to `A` (which would create a false A↔B cycle).
+    let src = r#"
+        type A = B;
+        type B = Field;
+
+        trait Dummy<T> {}
+        trait Foo: Dummy<A> {}
+
+        fn main(_x: A) where A: Foo {}
+    "#;
+    assert_no_errors(src);
 }

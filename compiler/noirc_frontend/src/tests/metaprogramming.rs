@@ -1564,3 +1564,42 @@ fn function_value_macro_call_in_comptime_block() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn match_in_comptime_errors_instead_of_panicking() {
+    let src = r#"
+    enum Foo { Bar }
+
+    fn main() {
+        comptime {
+            let foo = Foo::Bar;
+            match foo { Foo::Bar => {} }
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Match expressions in comptime code is currently unimplemented
+        };
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn runtime_variable_in_macro_gives_specific_error() {
+    let src = r#"
+    comptime fn ident(val: Quoted) -> Quoted {
+        val
+    }
+
+    comptime fn wrap_with_add(x: Field) -> Quoted {
+        quote { $x + 41 }
+    }
+
+    fn main() {
+        let x = 1;
+            ^ unused variable x
+            ~ unused variable
+        let _y: Field = wrap_with_add!(ident!(quote { x }));
+                                                      ^ variable `x` is a runtime variable and cannot be used in comptime code
+                                                      ~ this variable is not available in comptime
+    }
+    "#;
+    check_errors(src);
+}

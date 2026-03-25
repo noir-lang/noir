@@ -1,0 +1,30 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: duplicate definitions of A found
+  ┌─ src/main.nr:1:8
+  │
+1 │ fn bar<A, A>(_x: A, _y: A) {}
+  │        -  - second definition found here
+  │        │   
+  │        first definition found here
+  │
+
+error: duplicate definitions of N found
+  ┌─ src/main.nr:2:12
+  │
+2 │ fn foo<let N: u32, let N: u32>() {}
+  │            ------      ------ second definition found here
+  │            │            
+  │            first definition found here
+  │
+
+error: Expected 2 generics from this function, but 1 was provided
+  ┌─ src/main.nr:5:5
+  │
+5 │     foo::<1>();
+  │     --------
+  │
+
+Aborting due to 3 previous errors

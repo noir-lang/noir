@@ -111,6 +111,41 @@ impl PrimitiveType {
         }
     }
 
+    /// Inverse of `to_type()`: converts a `Type` back to a `PrimitiveType` if possible.
+    pub fn from_type(typ: &Type) -> Option<Self> {
+        match typ {
+            Type::Bool => Some(Self::Bool),
+            Type::FieldElement => Some(Self::Field),
+            Type::Integer(Signedness::Signed, IntegerBitSize::Eight) => Some(Self::I8),
+            Type::Integer(Signedness::Signed, IntegerBitSize::Sixteen) => Some(Self::I16),
+            Type::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo) => Some(Self::I32),
+            Type::Integer(Signedness::Signed, IntegerBitSize::SixtyFour) => Some(Self::I64),
+            Type::Integer(Signedness::Unsigned, IntegerBitSize::One) => Some(Self::U1),
+            Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight) => Some(Self::U8),
+            Type::Integer(Signedness::Unsigned, IntegerBitSize::Sixteen) => Some(Self::U16),
+            Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => Some(Self::U32),
+            Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour) => Some(Self::U64),
+            Type::Integer(Signedness::Unsigned, IntegerBitSize::HundredTwentyEight) => {
+                Some(Self::U128)
+            }
+            Type::String(_) => Some(Self::Str),
+            Type::FmtString(_, _) => Some(Self::Fmtstr),
+            Type::Quoted(QuotedType::CtString) => Some(Self::CtString),
+            Type::Quoted(QuotedType::Expr) => Some(Self::Expr),
+            Type::Quoted(QuotedType::FunctionDefinition) => Some(Self::FunctionDefinition),
+            Type::Quoted(QuotedType::Module) => Some(Self::Module),
+            Type::Quoted(QuotedType::Quoted) => Some(Self::Quoted),
+            Type::Quoted(QuotedType::TraitConstraint) => Some(Self::TraitConstraint),
+            Type::Quoted(QuotedType::TraitDefinition) => Some(Self::TraitDefinition),
+            Type::Quoted(QuotedType::TraitImpl) => Some(Self::TraitImpl),
+            Type::Quoted(QuotedType::TypeDefinition) => Some(Self::TypeDefinition),
+            Type::Quoted(QuotedType::TypedExpr) => Some(Self::TypedExpr),
+            Type::Quoted(QuotedType::Type) => Some(Self::Type),
+            Type::Quoted(QuotedType::UnresolvedType) => Some(Self::UnresolvedType),
+            _ => None,
+        }
+    }
+
     pub fn to_integer_or_field(self) -> Option<Type> {
         match self {
             Self::I8 => Some(Type::Integer(Signedness::Signed, IntegerBitSize::Eight)),
@@ -349,6 +384,36 @@ impl Elaborator<'_> {
                 let length = args.pop().unwrap();
                 (Type::FmtString(Box::new(length), Box::new(element)), true)
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use strum::IntoEnumIterator;
+
+    use super::PrimitiveType;
+
+    #[test]
+    fn from_type_to_type() {
+        for primitive in PrimitiveType::iter() {
+            let typ = primitive.to_type();
+            let recovered = PrimitiveType::from_type(&typ);
+            assert_eq!(
+                recovered,
+                Some(primitive),
+                "from_type(to_type({primitive:?})) should roundtrip"
+            );
+        }
+    }
+
+    #[test]
+    fn to_type_from_type() {
+        for primitive in PrimitiveType::iter() {
+            let typ = primitive.to_type();
+            let recovered = PrimitiveType::from_type(&typ).unwrap();
+            let typ2 = recovered.to_type();
+            assert_eq!(typ, typ2, "to_type(from_type(to_type({primitive:?}))) should roundtrip");
         }
     }
 }

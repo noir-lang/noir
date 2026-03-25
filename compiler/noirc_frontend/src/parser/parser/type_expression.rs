@@ -5,7 +5,6 @@ use crate::{
         UnresolvedTypeExpression,
     },
     parser::{ParserError, labels::ParsingRuleLabel},
-    signed_field::SignedField,
     token::Token,
 };
 
@@ -160,8 +159,7 @@ impl Parser<'_> {
     /// ConstantTypeExpression = int
     fn parse_constant_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
         let (int, suffix) = self.eat_int()?;
-        let signed_field = SignedField::positive(int);
-        Some(UnresolvedTypeExpression::Constant(signed_field, suffix, self.previous_token_location))
+        Some(UnresolvedTypeExpression::Constant(int, suffix, self.previous_token_location))
     }
 
     /// VariableTypeExpression = Path
@@ -196,12 +194,10 @@ impl Parser<'_> {
         let typ = self.parse_add_or_subtract_type_or_type_expression()?;
         let span = typ.location;
 
-        // If we end up with a Variable type expression, make it a Named type (they are equivalent),
-        // but for testing purposes and simplicity we default to types instead of type expressions.
-        Some(
-            if let UnresolvedTypeData::Expression(UnresolvedTypeExpression::Variable(mut path)) =
-                typ.typ
-            {
+        Some(match typ.typ {
+            // If we end up with a Variable type expression, make it a Named type (they are equivalent),
+            // but for testing purposes and simplicity we default to types instead of type expressions.
+            UnresolvedTypeData::Expression(UnresolvedTypeExpression::Variable(mut path)) => {
                 let generics = std::mem::take(&mut path.segments.last_mut().unwrap().generics);
                 let mut generic_type_args = GenericTypeArgs::default();
                 if let Some(generics) = generics {
@@ -215,10 +211,17 @@ impl Parser<'_> {
                     typ: UnresolvedTypeData::Named(path, generic_type_args, false),
                     location: span,
                 }
-            } else {
-                typ
+            }
+            // Similarly, convert a standalone AsTraitPath expression back to the AsTraitPath type
+            // so it isn't mistakenly rejected as a type expression in type aliases.
+            UnresolvedTypeData::Expression(UnresolvedTypeExpression::AsTraitPath(
+                as_trait_path,
+            )) => UnresolvedType {
+                typ: UnresolvedTypeData::AsTraitPath(as_trait_path),
+                location: span,
             },
-        )
+            _ => typ,
+        })
     }
 
     fn parse_add_or_subtract_type_or_type_expression(&mut self) -> Option<UnresolvedType> {
@@ -375,6 +378,9 @@ fn type_to_type_expr(typ: UnresolvedType) -> Option<UnresolvedTypeExpression> {
                 None
             }
         }
+        UnresolvedTypeData::AsTraitPath(as_trait_path) => {
+            Some(UnresolvedTypeExpression::AsTraitPath(as_trait_path))
+        }
         UnresolvedTypeData::Expression(type_expr) => Some(type_expr),
         _ => None,
     }
@@ -383,6 +389,7 @@ fn type_to_type_expr(typ: UnresolvedType) -> Option<UnresolvedTypeExpression> {
 fn type_is_type_expr(typ: &UnresolvedType) -> bool {
     match &typ.typ {
         UnresolvedTypeData::Named(_, generics, _) => generics.named_args.is_empty(),
+        UnresolvedTypeData::AsTraitPath(..) => true,
         UnresolvedTypeData::Expression(..) => true,
         _ => false,
     }
@@ -619,5 +626,20 @@ mod tests {
             panic!("Expected expression type");
         };
         assert_eq!(expr.to_string(), "(N - 1)");
+    }
+
+    #[test]
+    fn parses_type_or_type_expression_as_trait_path_addition() {
+        let src = "<Foo as MyTrait>::N + <Bar as MyTrait>::N";
+        let typ = parse_type_or_type_expression_no_errors(src);
+        let UnresolvedTypeData::Expression(expr) = typ.typ else {
+            panic!("Expected expression type");
+        };
+        let UnresolvedTypeExpression::BinaryOperation(lhs, operator, rhs, _) = expr else {
+            panic!("Expected binary operation");
+        };
+        assert_eq!(operator, BinaryTypeOperator::Addition);
+        assert_eq!(lhs.to_string(), "<Foo as MyTrait>::N");
+        assert_eq!(rhs.to_string(), "<Bar as MyTrait>::N");
     }
 }

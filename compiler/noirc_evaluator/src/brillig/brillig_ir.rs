@@ -273,13 +273,12 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.binary_instruction(*zero, num, *twos_complement, BrilligBinaryOp::Sub);
 
         // absolute_value = result_is_negative ? twos_complement : num
-        self.codegen_branch(result_is_negative.address, |ctx, is_negative| {
-            if is_negative {
-                ctx.mov_instruction(absolute_value.address, twos_complement.address);
-            } else {
-                ctx.mov_instruction(absolute_value.address, num.address);
-            }
-        });
+        self.conditional_move_instruction(
+            result_is_negative.address,
+            twos_complement.address,
+            num.address,
+            absolute_value.address,
+        );
     }
 
     pub(crate) fn convert_signed_division(
@@ -406,6 +405,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 #[cfg(test)]
 pub(crate) mod tests {
     use std::vec;
+    use test_case::test_case;
 
     use acvm::acir::brillig::{
         BinaryIntOp, BitSize, ForeignCallParam, ForeignCallResult, HeapVector, IntegerBitSize,
@@ -712,7 +712,7 @@ pub(crate) mod tests {
     /// Test proving [BrilligContext::codegen_mem_copy_from_the_end] handles `num_elements=0`.
     ///
     /// See the function's `# Safety` documentation for why the underflow is safe.
-    /// This test directly verifies the loop exit condition is immediately `true`.
+    /// This test directly verifies the loop continue condition is immediately `false`.
     #[test]
     fn mem_copy_from_end_zero_elements_condition_is_immediately_true() {
         let options = BrilligOptions {
@@ -761,14 +761,16 @@ pub(crate) mod tests {
 
         let bytecode = context.into_artifact().finish().byte_code;
 
-        // Find the LessThan opcode (the loop exit condition check) and its destination register.
-        // There should be exactly one LessThan in codegen_mem_copy_from_the_end.
-        let (less_than_idx, condition_dest) = bytecode
+        // Find the LessThanEquals opcode (the loop continue condition check) and its destination register.
+        // There should be exactly one LessThanEquals in codegen_mem_copy_from_the_end.
+        let (less_than_eq_idx, condition_dest) = bytecode
             .iter()
             .enumerate()
             .find_map(|(idx, op)| {
                 if let BrilligOpcode::BinaryIntOp {
-                    op: BinaryIntOp::LessThan, destination, ..
+                    op: BinaryIntOp::LessThanEquals,
+                    destination,
+                    ..
                 } = op
                 {
                     Some((idx, *destination))
@@ -776,16 +778,16 @@ pub(crate) mod tests {
                     None
                 }
             })
-            .expect("Should find LessThan opcode in bytecode");
+            .expect("Should find LessThanEquals opcode in bytecode");
 
-        // Step through opcodes until we've executed the LessThan operation
+        // Step through opcodes until we've executed the LessThanEquals operation
         let mut vm = VM::new(vec![], &bytecode, &DummyBlackBoxSolver, false, None);
-        for _ in 0..=less_than_idx {
+        for _ in 0..=less_than_eq_idx {
             vm.process_opcode();
         }
 
         // Read the condition register value from memory.
-        // After the LessThan executes, this should be true (1) if the protection works.
+        // After the LessThanEquals executes, this should be false (0) so the loop doesn't continue.
         let memory = vm.get_memory();
         let condition_addr = match condition_dest {
             MemoryAddress::Relative(offset) => {
@@ -804,17 +806,18 @@ pub(crate) mod tests {
 
         let condition_value = &memory[condition_addr];
 
-        // The condition should be true (U1(true)) because:
+        // The condition should be false (U1(false)) because:
         // source_pointer = source_start + (2^32 - 1) = source_start - 1 (wrapping)
-        // source_start - 1 < source_start = true
+        // source_start <= source_start - 1 = false (for source_start > 0)
         assert_eq!(
             *condition_value,
-            MemoryValue::U1(true),
-            "Loop exit condition should be immediately true when num_elements=0"
+            MemoryValue::U1(false),
+            "Loop continue condition should be immediately false when num_elements=0"
         );
 
-        // We will process a JmpIf based upon the condition which will immediately jump us to a Stop
-        for _ in less_than_idx..(less_than_idx + 2) {
+        // We will process a JmpIf based upon the condition which will NOT jump (condition is false),
+        // falling through to a Stop
+        for _ in less_than_eq_idx..(less_than_eq_idx + 2) {
             let opcode = &bytecode[vm.program_counter()];
             match opcode {
                 BrilligOpcode::Load { .. } | BrilligOpcode::Store { .. } => {
@@ -926,14 +929,13 @@ pub(crate) mod tests {
         assert!(message.contains("Out of memory"), "Expected 'Out of memory', got: {message}");
     }
 
-    /// Test that `codegen_call` panics when call arguments would exceed stack frame bounds.
+    /// Helper method for the `codegen_call_panics_when_arguments_exceed_frame_bound*` tests.
     ///
-    /// This test demonstrates the defensive check that prevents heap corruption.
-    /// Without this check, call arguments could be written beyond the stack frame boundary
-    /// before CheckMaxStackDepth runs in the called function.
-    #[test]
-    #[should_panic(expected = "Call arguments would exceed stack frame bounds")]
-    fn codegen_call_panics_when_arguments_exceed_frame_bounds() {
+    /// Uses a max stack frame size of 10, and pre-allocates 3 registers before the call.
+    fn codegen_call_panics_when_arguments_exceed_frame_bounds_helper(
+        num_args: usize,
+        num_rets: usize,
+    ) {
         use super::brillig_variable::BrilligVariable;
         use super::registers::LayoutConfig;
 
@@ -953,23 +955,65 @@ pub(crate) mod tests {
         context.enter_context(Label::function(FunctionId::test_new(0)));
 
         // Allocate registers to fill up most of the frame.
-        // Stack starts at offset 1, so with max_stack_frame_size=10:
-        // - Allocating 7 registers uses offsets 1-7
-        // - empty_registers_start() will return 8
-        // - stack_size = 8
+        // Stack starts at offset 2, so with max_stack_frame_size=10:
+        // - Allocating 3 registers uses offsets 2-4 (inclusive)
+        // - codegen_call allocates another temporary register 5
+        // - empty_registers_start() will return 6
+        // - stack_size = 6
         // NOTE: We must keep the allocated registers alive to prevent deallocation.
-        let _allocated_registers: Vec<_> = (0..7).map(|_| context.allocate_register()).collect();
+        let _allocated_registers: Vec<_> = (0..3).map(|_| context.allocate_register()).collect();
 
-        // Create 5 dummy arguments.
-        // With stack_size=8 and 5 arguments:
-        // stack_size + arguments.len() + 1 = 8 + 5 = 14 > 10 (max stack frame size)
-        // This should trigger the assertion.
+        // Create N dummy arguments.
+        // With stack_size=6 and N arguments, the first argument will be written into slot 6+2=8, the 2nd into slot 9; nothing should write into slot 10.
+        // stack_size + reserved_len + arguments.len() = 6 + 2 + N must be <= 10 (max stack frame size)
+        // This should trigger the assertion if N > 2
         let dummy_addr = MemoryAddress::relative(1);
         let dummy_var = BrilligVariable::SingleAddr(SingleAddrVariable::new(dummy_addr, 32));
-        let arguments: Vec<BrilligVariable> = vec![dummy_var; 5];
+        let arguments: Vec<BrilligVariable> = vec![dummy_var; num_args];
+        let returns: Vec<BrilligVariable> = vec![dummy_var; num_rets];
 
         // This call should panic with "Call arguments would exceed stack frame bounds"
-        context.codegen_call(FunctionId::test_new(1), &arguments, &[]);
+        context.codegen_call(FunctionId::test_new(1), &arguments, &returns);
+
+        // Unless codegen_call itself panics, this should fail the test if we wrote beyond what is provably safe.
+        for opcode in context.obj.byte_code {
+            if let BrilligOpcode::Mov { destination: MemoryAddress::Relative(offset), .. } = opcode
+            {
+                assert!(
+                    offset < small_layout.max_stack_frame_size() as u32,
+                    "allocated beyond the frame size"
+                );
+            }
+        }
+    }
+
+    /// Test that `codegen_call` panics when call arguments or returns would exceed stack frame bounds.
+    ///
+    /// This test demonstrates the defensive check that prevents heap corruption.
+    /// Without this check, call arguments could be written beyond the stack frame boundary
+    /// before CheckMaxStackDepth runs in the called function.
+    #[test_case(7, 0; "arguments alone exceed bounds")]
+    #[test_case(3, 0; "arguments together with reserved slots exceed bounds")]
+    #[test_case(1, 5; "arguments are okay but returns exceed bounds")]
+    #[should_panic(expected = "Call arguments would exceed stack frame bounds")]
+    fn codegen_call_panics_when_arguments_exceed_frame_bounds(num_args: usize, num_rets: usize) {
+        codegen_call_panics_when_arguments_exceed_frame_bounds_helper(num_args, num_rets);
+    }
+
+    /// Test that `codegen_call` does not panic when there is enough space for the arguments.
+    ///
+    /// This is just to show that there is a number of arguments that still works with the setup.
+    #[test]
+    fn codegen_call_does_not_panic_when_reserved_and_arguments_fit_within_frame_bounds() {
+        // With 2 arguments, the 10 element stack frame should look like this:
+        // 0: current stack frame return pointer
+        // 1: current stack frame spill pointer
+        // 2-4: 3 variables
+        // 5: temp register in codegen
+        // 6: next stack frame return pointer
+        // 7: next stack frame spill pointer
+        // 8-9: 2 arguments
+        codegen_call_panics_when_arguments_exceed_frame_bounds_helper(2, 1);
     }
 
     /// Test that jmp block parameter passing handles the parallel-move problem correctly.
