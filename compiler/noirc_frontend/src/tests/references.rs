@@ -1,7 +1,7 @@
 use crate::tests::{
-        assert_no_errors, assert_no_errors_using_features, check_errors,
-        check_errors_using_features, check_monomorphization_error, get_program_using_features,
-    };
+    assert_no_errors, assert_no_errors_using_features, check_errors, check_errors_using_features,
+    check_monomorphization_error, get_program_using_features,
+};
 
 #[test]
 fn cannot_mutate_immutable_variable() {
@@ -120,20 +120,16 @@ fn immutable_references_with_ownership_feature() {
 }
 
 #[test]
-fn immutable_references_without_ownership_feature() {
+fn immutable_references_with_ownership_feature() {
     let src = r#"
         fn main() {
             let array = [1, 2, 3];
             borrow(&array);
-                   ^^^^^^ This requires the unstable feature 'ownership' which is not enabled
-                   ~~~~~~ Pass -Zownership to nargo to enable this feature at your own risk.
         }
 
         fn borrow(_array: &[Field; 3]) {}
-                          ^^^^^^^^^^^ This requires the unstable feature 'ownership' which is not enabled
-                          ~~~~~~~~~~~ Pass -Zownership to nargo to enable this feature at your own risk.
-    "#;
-    check_errors(src);
+     "#;
+    assert_no_errors(src);
 }
 
 #[test]
