@@ -300,7 +300,7 @@ mod hover_tests {
             "two/src/lib.nr",
             Position { line: 39, character: 17 },
             r#"    std::default
-    trait Default"#,
+    trait Default\n\n---\n\nReturn an implementation-defined default value for the given type.\nThis is most often a zeroed value or an empty container, but there\nare no actual restrictions on what an implementation could return.\n"#,
         )
         .await;
     }
