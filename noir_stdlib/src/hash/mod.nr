@@ -187,6 +187,13 @@ comptime fn derive_hash(s: TypeDefinition) -> Quoted {
 pub trait Hasher {
     fn finish(self) -> Field;
 
+    /// Returns the hash value without consuming the hasher.
+    /// Override this for more efficient implementations that avoid copying.
+    /// TODO: deprecate finish() and replace it
+    fn finish_ref(&self) -> Field {
+        (*self).finish()
+    }
+
     fn write(&mut self, input: Field);
 }
 
