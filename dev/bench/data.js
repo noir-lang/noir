@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774441388511,
+  "lastUpdate": 1774441586030,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23141,48 +23141,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "177eacd983021baf3e58010aadffc48252864076",
-          "message": "chore(acvm): Use existing big int methods for num_bits on a field element (#11921)",
-          "timestamp": "2026-03-19T16:16:32Z",
-          "tree_id": "5566a64bf6f41a452f8ae07f7e3a7bc74eaf6967",
-          "url": "https://github.com/noir-lang/noir/commit/177eacd983021baf3e58010aadffc48252864076"
-        },
-        "date": 1773938550934,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 251770,
-            "range": "± 865",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 223869,
-            "range": "± 8359",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2732271,
-            "range": "± 1474",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -25234,6 +25192,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2640930,
             "range": "± 2057",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "21e3f3258a4e540b5c578a930cc90c3b19fe8ece",
+          "message": "fix: resolve enum variant globals with generics in comptime interpreter (#11924)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-03-25T12:01:59Z",
+          "tree_id": "3a5324a3e8d6fc53715759cbc074d2d61a742e41",
+          "url": "https://github.com/noir-lang/noir/commit/21e3f3258a4e540b5c578a930cc90c3b19fe8ece"
+        },
+        "date": 1774441535637,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168860,
+            "range": "± 523",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 137147,
+            "range": "± 200",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2642453,
+            "range": "± 13615",
             "unit": "ns/iter"
           }
         ]
