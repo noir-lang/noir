@@ -11,8 +11,8 @@ impl Hasher for DummyHasher {
         0_Field
     }
 
-    fn finish_ref(&mut self) -> Field {
-        *self.finish()
+    fn finish_ref(&self) -> Field {
+        (*self).finish()
     }
 
     fn write(&mut self, _input: Field) {}
