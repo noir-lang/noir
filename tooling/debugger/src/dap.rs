@@ -116,9 +116,6 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>> DapSession<
             _ = self.context.next_into();
         }
 
-        self.server.send_event(Event::Initialized)?;
-        self.send_stopped_event(StoppedEventReason::Entry)?;
-
         while self.running {
             let Some(req) = self.server.poll_request()? else {
                 break;
@@ -137,10 +134,14 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>> DapSession<
                         SetExceptionBreakpointsResponse { breakpoints: None },
                     )))?;
                 }
+                Command::ConfigurationDone(_) => {
+                    self.server.respond(req.ack()?)?;
+                    self.send_stopped_event(StoppedEventReason::Entry)?;
+                }
                 Command::SetInstructionBreakpoints(_) => {
                     self.handle_set_instruction_breakpoints(req)?;
                 }
-                Command::Threads => {
+                Command::Threads(_) => {
                     self.server.respond(req.success(ResponseBody::Threads(ThreadsResponse {
                         threads: vec![Thread { id: 0, name: "main".to_string() }],
                     })))?;
