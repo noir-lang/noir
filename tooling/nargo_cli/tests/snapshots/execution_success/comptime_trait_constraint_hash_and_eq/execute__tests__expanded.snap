@@ -31,7 +31,7 @@ impl Hasher for TestHasher {
         self.result
     }
 
-    fn finish_ref(& self) -> Field {
+    fn finish_ref(&self) -> Field {
         (*self).finish()
     }
 
