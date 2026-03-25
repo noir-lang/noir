@@ -193,13 +193,13 @@
 <a href=#193 id=193 data-nosnippet>193</a>         5: @9 = u32 add @3, @4
 <a href=#194 id=194 data-nosnippet>194</a>         6: @10 = @3
 <a href=#195 id=195 data-nosnippet>195</a>         7: @11 = @5
-<a href=#196 id=196 data-nosnippet>196</a>         8: @12 = u32 eq @10, @9
-<a href=#197 id=197 data-nosnippet>197</a>         9: jump if @12 to 15
-<a href=#198 id=198 data-nosnippet>198</a>        10: @8 = load @10
-<a href=#199 id=199 data-nosnippet>199</a>        11: store @8 at @11
-<a href=#200 id=200 data-nosnippet>200</a>        12: @10 = u32 add @10, @2
-<a href=#201 id=201 data-nosnippet>201</a>        13: @11 = u32 add @11, @2
-<a href=#202 id=202 data-nosnippet>202</a>        14: jump to 8
+<a href=#196 id=196 data-nosnippet>196</a>         8: jump to 13
+<a href=#197 id=197 data-nosnippet>197</a>         9: @8 = load @10
+<a href=#198 id=198 data-nosnippet>198</a>        10: store @8 at @11
+<a href=#199 id=199 data-nosnippet>199</a>        11: @10 = u32 add @10, @2
+<a href=#200 id=200 data-nosnippet>200</a>        12: @11 = u32 add @11, @2
+<a href=#201 id=201 data-nosnippet>201</a>        13: @12 = u32 lt @10, @9
+<a href=#202 id=202 data-nosnippet>202</a>        14: jump if @12 to 9
 <a href=#203 id=203 data-nosnippet>203</a>        15: @5 = indirect const u32 1
 <a href=#204 id=204 data-nosnippet>204</a>        16: jump to 18
 <a href=#205 id=205 data-nosnippet>205</a>        17: @5 = @3
