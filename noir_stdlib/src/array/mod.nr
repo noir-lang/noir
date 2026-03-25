@@ -143,7 +143,7 @@ impl<T, let N: u32> [T; N] {
     /// assert_eq(a3.fold(10, f), 10 - 1 - 2 - 3);
     /// ```
     pub fn fold<U, Env>(& self, mut accumulator: U, f: fn[Env](U, T) -> U) -> U {
-        for elem in *self {
+        for elem in self {
             accumulator = f(accumulator, elem);
         }
         accumulator
@@ -183,7 +183,7 @@ impl<T, let N: u32> [T; N] {
     /// ```
     pub fn all<Env>(& self, predicate: fn[Env](T) -> bool) -> bool {
         let mut ret = true;
-        for elem in *self {
+        for elem in self {
             ret &= predicate(elem);
         }
         ret
@@ -202,7 +202,7 @@ impl<T, let N: u32> [T; N] {
     /// ```
     pub fn any<Env>(& self, predicate: fn[Env](T) -> bool) -> bool {
         let mut ret = false;
-        for elem in *self {
+        for elem in self {
             ret |= predicate(elem);
         }
         ret
