@@ -322,9 +322,12 @@ pub fn assign_ident(ident: Ident, expr: Expression) -> Expression {
 
 /// Assign a value to a mutable reference.
 pub fn assign_ref(ident: Ident, expr: Expression) -> Expression {
-    let typ = ident.typ.as_ref().clone();
+    let element_type = match ident.typ.as_ref() {
+        Type::Reference(inner, _) => inner.as_ref().clone(),
+        other => other.clone(),
+    };
     let lvalue = LValue::Ident(ident);
-    let lvalue = LValue::Dereference { reference: Box::new(lvalue), element_type: typ };
+    let lvalue = LValue::Dereference { reference: Box::new(lvalue), element_type };
     Expression::Assign(Assign { lvalue, expression: Box::new(expr) })
 }
 

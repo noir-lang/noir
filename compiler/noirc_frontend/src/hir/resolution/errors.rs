@@ -38,6 +38,8 @@ pub enum ResolverError {
     UnconditionalRecursion { name: String, location: Location },
     #[error("Could not find variable in this scope")]
     VariableNotDeclared { name: String, location: Location },
+    #[error("Runtime variable `{name}` cannot be accessed in comptime code")]
+    RuntimeVarReferencedInComptime { name: String, location: Location },
     #[error("could not resolve path")]
     PathResolutionError(#[from] PathResolutionError),
     #[error("Expected")]
@@ -208,6 +210,11 @@ pub enum ResolverError {
     TraitImplOnAssociatedType { location: Location },
     #[error("The placeholder `_` is not allowed within types on item signatures for functions")]
     WildcardTypeDisallowed { location: Location, context: WildcardDisallowedContext },
+    #[error("`impl Trait` is not allowed in this position")]
+    ImplTraitTypeDisallowed {
+        location: Location,
+        context: crate::elaborator::types::ImplTraitDisallowedContext,
+    },
     #[error("References are not allowed in globals")]
     ReferencesNotAllowedInGlobals { location: Location },
     #[error("Functions marked with #[oracle] must have no body")]
@@ -237,6 +244,7 @@ impl ResolverError {
             | ResolverError::UnconditionalRecursion { location, .. }
             | ResolverError::Expected { location, .. }
             | ResolverError::VariableNotDeclared { location, .. }
+            | ResolverError::RuntimeVarReferencedInComptime { location, .. }
             | ResolverError::MissingFields { location, .. }
             | ResolverError::UnnecessaryMut { second_mut: location, .. }
             | ResolverError::TypeIsMorePrivateThenItem { location, .. }
@@ -300,6 +308,7 @@ impl ResolverError {
             | ResolverError::AmbiguousAssociatedType { location, .. }
             | ResolverError::TraitImplOnAssociatedType { location }
             | ResolverError::WildcardTypeDisallowed { location, .. }
+            | ResolverError::ImplTraitTypeDisallowed { location, .. }
             | ResolverError::ReferencesNotAllowedInGlobals { location }
             | ResolverError::OracleWithBody { location }
             | ResolverError::BuiltinWithBody { location }
@@ -402,6 +411,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                         *location,
                     )
                 }
+            }
+            ResolverError::RuntimeVarReferencedInComptime { name, location } => {
+                Diagnostic::simple_error(
+                    format!("variable `{name}` is a runtime variable and cannot be used in comptime code"),
+                    "this variable is not available in comptime".to_string(),
+                    *location,
+                )
             }
             ResolverError::PathResolutionError(error) => error.into(),
             ResolverError::Expected { location, expected, found: got } => Diagnostic::simple_error(
@@ -934,6 +950,27 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     format!("The placeholder `_` is not allowed in {context}"),
                     String::new(),
+                    *location,
+                )
+            }
+            ResolverError::ImplTraitTypeDisallowed { location, context } => {
+                let context = match context {
+                    crate::elaborator::types::ImplTraitDisallowedContext::StructField => {
+                        "struct field types"
+                    }
+                    crate::elaborator::types::ImplTraitDisallowedContext::EnumVariant => {
+                        "enum variant types"
+                    }
+                    crate::elaborator::types::ImplTraitDisallowedContext::Global => {
+                        "global definitions"
+                    }
+                    crate::elaborator::types::ImplTraitDisallowedContext::TypeAlias => {
+                        "type alias definitions"
+                    }
+                };
+                Diagnostic::simple_error(
+                    format!("`impl Trait` is not allowed in {context}"),
+                    "Use a generic type parameter instead".to_string(),
                     *location,
                 )
             }

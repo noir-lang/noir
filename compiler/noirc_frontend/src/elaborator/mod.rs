@@ -311,6 +311,21 @@ pub struct Elaborator<'context> {
     /// array[i_0] = 10;
     /// ```
     lvalue_index_counter: usize,
+
+    /// Set when resolving types in positions where `impl Trait` is not allowed
+    /// (e.g., struct fields, globals, type aliases, enum variants).
+    /// `impl Trait` is only valid in function parameter and return type positions.
+    ///
+    /// This is stored as a field rather than checked at the call site so that it
+    /// propagates through recursive `resolve_type` calls.
+    pub(super) impl_trait_is_disallowed: Option<types::ImplTraitDisallowedContext>,
+
+    /// Variable names from a parent runtime scope, used for error reporting only.
+    /// When a fresh elaborator is created for comptime evaluation, this is populated
+    /// with the names of variables from the parent elaborator's scope. If a variable
+    /// lookup fails and the name is in this set, we can report a more specific error
+    /// about runtime variables not being available in comptime code.
+    parent_runtime_variables: rustc_hash::FxHashSet<String>,
 }
 
 #[derive(Copy, Clone)]
@@ -382,6 +397,8 @@ impl<'context> Elaborator<'context> {
             comptime_evaluation_halted: false,
             macro_expansion_depth: 0,
             lvalue_index_counter: 0,
+            impl_trait_is_disallowed: None,
+            parent_runtime_variables: rustc_hash::FxHashSet::default(),
         }
     }
 
@@ -725,6 +742,8 @@ impl<'context> Elaborator<'context> {
         let generics = self.add_generics(&alias.type_alias_def.generics);
         self.current_item = Some(DependencyId::Alias(alias_id));
         let wildcard_allowed = types::WildcardAllowed::No(WildcardDisallowedContext::TypeAlias);
+        let previous_impl_trait_context =
+            self.impl_trait_is_disallowed.replace(types::ImplTraitDisallowedContext::TypeAlias);
         let (typ, num_expr) = if let Some(num_type) = alias.type_alias_def.numeric_type {
             let num_type = self.resolve_type(num_type, wildcard_allowed);
             let kind = Kind::numeric(num_type);
@@ -759,6 +778,8 @@ impl<'context> Elaborator<'context> {
         } else {
             (self.use_type(alias.type_alias_def.typ, wildcard_allowed), None)
         };
+
+        self.impl_trait_is_disallowed = previous_impl_trait_context;
 
         if !visibility.is_private() {
             self.check_type_is_not_more_private_then_item(name, visibility, &typ, location);

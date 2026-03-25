@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "ignoreDeprecations": "6.0",
     "declaration": true,
     "declarationDir": "dist/types",
     "strict": true,
