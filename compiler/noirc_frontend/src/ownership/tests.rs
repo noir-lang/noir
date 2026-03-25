@@ -397,12 +397,12 @@ fn clone_nested_array_in_lvalue() {
     ";
 
     let program = get_monomorphized(src).unwrap();
-    // A clone is inserted in the lvalue position, because the array could be aliased somewhere else,
-    // and even if it was cloned, the RC was only increased for the outer array, not the nested one.
+    // No clone needed: SSA gen's extract_flat_lvalue computes a flat offset for nested
+    // indices, so no intermediate array is materialized.
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0(i$l0: u32, j$l1: u32) -> pub u32 {
         let mut a$l2 = [[1, 2], [3, 4]];
-        a$l2[i$l0].clone()[j$l1] = 5;
+        a$l2[i$l0][j$l1] = 5;
         a$l2[0][0]
     }
     ");
