@@ -4,8 +4,6 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use rustc_hash::FxHashSet as HashSet;
-
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
     dfg::DataFlowGraph,
@@ -44,14 +42,7 @@ pub(crate) struct ConstantAllocation {
 
 impl ConstantAllocation {
     /// Run the constant allocation algorithm for a [Function] and return the decisions.
-    ///
-    /// `skip_instructions` contains instruction IDs whose codegen will be skipped
-    /// (e.g., dead array_gets replaced by memcpy). Constants used only by skipped
-    /// instructions are excluded so they are never allocated.
-    pub(crate) fn from_function(
-        func: &Function,
-        skip_instructions: &HashSet<InstructionId>,
-    ) -> Self {
+    pub(crate) fn from_function(func: &Function) -> Self {
         let loops = Loops::find_all(func, LoopOrder::OutsideIn);
         let blocks_within_loops =
             loops.yet_to_unroll.into_iter().flat_map(|_loop| _loop.blocks).collect();
@@ -62,7 +53,7 @@ impl ConstantAllocation {
             dominator_tree: loops.dom,
             blocks_within_loops,
         };
-        instance.collect_constant_usage(func, skip_instructions);
+        instance.collect_constant_usage(func);
         instance.decide_allocation_points(func);
 
         instance
@@ -88,13 +79,8 @@ impl ConstantAllocation {
 
     /// Visit all constant variables in the function and record their locations.
     ///
-    /// Instructions in `skip_instructions` are excluded so that constants used
-    /// exclusively by them are never allocated.
-    fn collect_constant_usage(
-        &mut self,
-        func: &Function,
-        skip_instructions: &HashSet<InstructionId>,
-    ) {
+    /// Visit all constant variables in the function and record their locations.
+    fn collect_constant_usage(&mut self, func: &Function) {
         let mut record_if_constant =
             |block_id: BasicBlockId, value_id: ValueId, location: InstructionLocation| {
                 if is_numeric_constant(value_id, &func.dfg) {
@@ -109,9 +95,6 @@ impl ConstantAllocation {
         for block_id in func.reachable_blocks() {
             let block = &func.dfg[block_id];
             for &inst_id in block.instructions() {
-                if skip_instructions.contains(&inst_id) {
-                    continue;
-                }
                 let variables = variables_used_in_instruction(&func.dfg[inst_id], &func.dfg);
                 for variable in variables {
                     record_if_constant(

@@ -663,11 +663,14 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         let call_stack_new_id = call_stacks.get_or_insert_locations(&call_stack);
         self.brillig_context.set_call_stack(call_stack_new_id);
 
+        // Always initialize constants — they participate in liveness and must be materialized
+        // even if the consuming instruction is skipped by the memcpy optimization.
+        self.initialize_constants(dfg, InstructionLocation::Instruction(instruction_id));
+
         // Skip codegen for instructions eliminated by memcpy optimization
         // (dead ArrayGets and their single-use index computations).
         // Dead-variable cleanup still runs below so registers are freed.
         if !self.function_context.memcpy_opts.skip_instructions.contains(&instruction_id) {
-            self.initialize_constants(dfg, InstructionLocation::Instruction(instruction_id));
             self.codegen_instruction(instruction_id, instruction, dfg);
         }
 

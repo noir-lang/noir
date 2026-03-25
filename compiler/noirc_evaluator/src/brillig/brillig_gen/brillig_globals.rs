@@ -76,9 +76,7 @@ struct ConstantAllocationCache(HashMap<FunctionId, ConstantAllocation>);
 
 impl ConstantAllocationCache {
     fn get_constants(&mut self, func: &Function) -> &ConstantAllocation {
-        self.0
-            .entry(func.id())
-            .or_insert_with(|| ConstantAllocation::from_function(func, &Default::default()))
+        self.0.entry(func.id()).or_insert_with(|| ConstantAllocation::from_function(func))
     }
 }
 
@@ -615,8 +613,7 @@ mod tests {
 
         // Show that the constants in each function have different SSA value IDs
         for (func_id, function) in &ssa.functions {
-            let constant_allocation =
-                ConstantAllocation::from_function(function, &Default::default());
+            let constant_allocation = ConstantAllocation::from_function(function);
             let mut constants = constant_allocation.get_constants().into_iter().collect::<Vec<_>>();
             // We want to order the constants by ID
             constants.sort();
