@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774440159651,
+  "lastUpdate": 1774440212376,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23141,48 +23141,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "bff6227a03869d7436d2c228e63f2064fd8bc20c",
-          "message": "fix: parse `&&x` and `&&mut x` as nested references (#11920)",
-          "timestamp": "2026-03-19T16:10:31Z",
-          "tree_id": "8cb9990e1cc9df27ca631b4955118c2848904bd9",
-          "url": "https://github.com/noir-lang/noir/commit/bff6227a03869d7436d2c228e63f2064fd8bc20c"
-        },
-        "date": 1773938260278,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 250342,
-            "range": "± 1200",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 220304,
-            "range": "± 3735",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2728842,
-            "range": "± 4873",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -25234,6 +25192,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2642472,
             "range": "± 1640",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "81ddeeb7200859ff39dd942f6698200e1127f2db",
+          "message": "chore(brillig): do-while loop for generic iteration (#11990)",
+          "timestamp": "2026-03-25T11:38:52Z",
+          "tree_id": "859a67d108af27ec659d42584d3ec0109d972732",
+          "url": "https://github.com/noir-lang/noir/commit/81ddeeb7200859ff39dd942f6698200e1127f2db"
+        },
+        "date": 1774440161220,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168471,
+            "range": "± 304",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136196,
+            "range": "± 5060",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2640930,
+            "range": "± 2057",
             "unit": "ns/iter"
           }
         ]
