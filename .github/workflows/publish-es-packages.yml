@@ -14,9 +14,13 @@ on:
 
 run-name: Publish ES Packages from ${{ inputs.noir-ref }} under @${{ inputs.npm-tag }} tag.
 
+permissions: {}
+
 jobs:
   build-noirc_abi_wasm:
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     steps:
       - name: Checkout Noir repo
         uses: actions/checkout@v6
@@ -50,6 +54,8 @@ jobs:
 
   build-noir_wasm:
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     steps:
       - name: Checkout sources
         uses: actions/checkout@v6
@@ -86,6 +92,8 @@ jobs:
 
   build-acvm_js:
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     steps:
       - name: Checkout sources
         uses: actions/checkout@v6

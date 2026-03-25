@@ -6,6 +6,8 @@ on:
       - master
   pull_request:
 
+permissions: {}
+
 jobs:
   rust_benchmarks:
     name: Rust Benchmarks
@@ -59,6 +61,8 @@ jobs:
     name: Load benchmark projects list
     runs-on: ubuntu-22.04
     timeout-minutes: 5
+    permissions:
+      contents: read
     outputs:
       projects: ${{ steps.get_bench_projects.outputs.projects }}
 
@@ -76,6 +80,8 @@ jobs:
   build-nargo:
     runs-on: ubuntu-22.04
     timeout-minutes: 15
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout Noir repo
@@ -110,6 +116,8 @@ jobs:
   build-noir-inspector:
     runs-on: ubuntu-22.04
     timeout-minutes: 15
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout Noir repo
@@ -344,6 +352,8 @@ jobs:
     needs: [build-nargo, build-noir-inspector, benchmark-projects-list]
     runs-on: ubuntu-22.04
     timeout-minutes: 20
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -394,7 +404,8 @@ jobs:
           REPO_DIR: test-repo
           PROJECT_DIR: ${{ matrix.path }}
           OUTPUT_DIR: ${{ github.workspace }}/output
-          NUM_RUNS: ${{ matrix.num_runs }}
+          NUM_COMPILE_RUNS: ${{ matrix.num_compile_runs }}
+          NUM_EXECUTE_RUNS: ${{ matrix.num_execute_runs }}
           SKIP_BRILLIG_EXECUTION: ${{ matrix.cannot_execute_brillig }}
 
       - name: Process report data
@@ -466,6 +477,8 @@ jobs:
     needs: [build-nargo, benchmark-projects-list]
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -1049,6 +1062,8 @@ jobs:
     name: End
     runs-on: ubuntu-22.04
     timeout-minutes: 5
+    permissions:
+      contents: read
     # We want this job to always run (even if the dependant jobs fail) as we want this job to fail rather than skipping.
     if: ${{ always() }}
     needs:

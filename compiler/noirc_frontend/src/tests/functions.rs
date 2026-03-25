@@ -228,6 +228,18 @@ fn errors_on_duplicate_parameter_name() {
 }
 
 #[test]
+fn errors_on_clashing_const_generic_and_parameter_name() {
+    let src = r#"
+    pub fn foo<let N: u32>(N: u32) -> u32 { N }
+                           ^ duplicate definitions of N found
+                           ~ second definition found here
+                   ~ first definition found here
+
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn non_entry_point_main() {
     let src = r#"
     mod moo {

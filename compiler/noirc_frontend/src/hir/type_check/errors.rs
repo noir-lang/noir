@@ -11,12 +11,12 @@ use thiserror::Error;
 use crate::Kind;
 use crate::ast::BinaryOpKind;
 use crate::ast::{ConstrainKind, FunctionReturnType, Ident, IntegerBitSize};
+use crate::hir::comptime::Integer;
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::traits::TraitConstraint;
 use crate::hir_def::types::{BinaryTypeOperator, Type};
 use crate::node_interner::NodeInterner;
 use crate::shared::Signedness;
-use crate::signed_field::SignedField;
 use crate::validity::InvalidType;
 
 /// Rust also only shows 3 maximum, even for short patterns.
@@ -37,36 +37,28 @@ pub enum Source {
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum TypeCheckError {
     #[error("Division by zero: {lhs} / {rhs}")]
-    DivisionByZero { lhs: SignedField, rhs: SignedField, location: Location },
+    DivisionByZero { lhs: Integer, rhs: Integer, location: Location },
     #[error("Modulo on Field elements: {lhs} % {rhs}")]
-    ModuloOnFields { lhs: SignedField, rhs: SignedField, location: Location },
+    ModuloOnFields { lhs: FieldElement, rhs: FieldElement, location: Location },
     #[error("The value `{expr}` cannot fit into `{ty}` which has range `{range}`")]
     IntegerLiteralDoesNotFitItsType {
-        expr: SignedField,
+        expr: FieldElement,
         ty: Type,
         range: String,
         location: Location,
     },
     #[error(
-        "The value `{value}` cannot fit into `{kind}` which has a maximum size of `{maximum_size}`"
+        "The value `{value}` cannot fit into `{kind}` which has a range of {minimum_size}..={maximum_size}"
     )]
     OverflowingConstant {
-        value: SignedField,
+        value: Integer,
         kind: Kind,
-        maximum_size: FieldElement,
+        minimum_size: i128,
+        maximum_size: u128,
         location: Location,
     },
-    #[error(
-        "The value `{value}` cannot fit into `{kind}` which has a minimum size of `{minimum_size}`"
-    )]
-    UnderflowingConstant {
-        value: SignedField,
-        kind: Kind,
-        minimum_size: SignedField,
-        location: Location,
-    },
-    #[error("Evaluating `{op}` on `{lhs}`, `{rhs}` failed")]
-    FailingBinaryOp { op: BinaryTypeOperator, lhs: String, rhs: String, location: Location },
+    #[error("`{lhs} {op} {rhs}` in the arithmetic generics here would overflow the bounds of a(n) `{}`", lhs.get_type())]
+    OverflowingBinaryOp { op: BinaryTypeOperator, lhs: Integer, rhs: Integer, location: Location },
     #[error("Type {typ:?} cannot be used in a {place:?}")]
     TypeCannotBeUsed { typ: Type, place: &'static str, location: Location },
     #[error("Expected type {expected_typ:?} is not the same as {expr_typ:?}")]
@@ -79,8 +71,8 @@ pub enum TypeCheckError {
     TypeCanonicalizationMismatch {
         to: Type,
         from: Type,
-        to_value: SignedField,
-        from_value: SignedField,
+        to_value: Integer,
+        from_value: Integer,
         location: Location,
     },
     #[error("Expected {expected:?} found {found:?}")]
@@ -273,6 +265,8 @@ pub enum TypeCheckError {
     ExpectingOtherError(ExpectingOtherError),
     #[error("Cannot call `std::verify_proof_with_type` in unconstrained context")]
     VerifyProofWithTypeInBrillig { location: Location },
+    #[error("Cannot use struct pattern syntax `{{ }}` on enum variant `{path}`")]
+    StructPatternOnEnumVariant { path: String, location: Location },
 }
 
 /// An error which is only shown to the user if there are no other errors emitted.
@@ -310,8 +304,7 @@ impl TypeCheckError {
             | TypeCheckError::ModuloOnFields { location, .. }
             | TypeCheckError::IntegerLiteralDoesNotFitItsType { location, .. }
             | TypeCheckError::OverflowingConstant { location, .. }
-            | TypeCheckError::UnderflowingConstant { location, .. }
-            | TypeCheckError::FailingBinaryOp { location, .. }
+            | TypeCheckError::OverflowingBinaryOp { location, .. }
             | TypeCheckError::TypeCannotBeUsed { location, .. }
             | TypeCheckError::TypeMismatch { expr_location: location, .. }
             | TypeCheckError::TypeMismatchWithSource { location, .. }
@@ -384,7 +377,8 @@ impl TypeCheckError {
             | TypeCheckError::TupleMismatch { location, .. }
             | TypeCheckError::TypeAnnotationNeededOnItem { location, .. }
             | TypeCheckError::TypeAnnotationNeededOnArrayLiteral { location, .. }
-            | TypeCheckError::VerifyProofWithTypeInBrillig { location } => *location,
+            | TypeCheckError::VerifyProofWithTypeInBrillig { location }
+            | TypeCheckError::StructPatternOnEnumVariant { location, .. } => *location,
             TypeCheckError::ExpectingOtherError(error) => error.location,
             TypeCheckError::DuplicateNamedTypeArg { name: ident, .. }
             | TypeCheckError::NoSuchNamedTypeArg { name: ident, .. } => ident.location(),
@@ -565,8 +559,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::FieldComparison { location, .. }
             | TypeCheckError::IntegerLiteralDoesNotFitItsType { location, .. }
             | TypeCheckError::OverflowingConstant { location, .. }
-            | TypeCheckError::UnderflowingConstant { location, .. }
-            | TypeCheckError::FailingBinaryOp { location, .. }
+            | TypeCheckError::OverflowingBinaryOp { location, .. }
             | TypeCheckError::FieldModulo { location }
             | TypeCheckError::FieldNot { location }
             | TypeCheckError::ConstrainedReferenceToUnconstrained { location }
@@ -846,7 +839,14 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 let secondary = format!("Could not determine the type of the {array_or_vector}");
                 Diagnostic::simple_error(message, secondary, *location)
             }
-            TypeCheckError::ExpectingOtherError(error) => error.into()
+            TypeCheckError::ExpectingOtherError(error) => error.into(),
+            TypeCheckError::StructPatternOnEnumVariant { path, location } => {
+                Diagnostic::simple_error(
+                    format!("Cannot use `{{ }}` pattern syntax on enum variant `{path}`"),
+                    "Use parentheses `()` for enum variants with fields, or no arguments for fieldless variants".to_string(),
+                    *location,
+                )
+            }
         }
     }
 }

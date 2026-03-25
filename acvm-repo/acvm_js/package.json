@@ -29,7 +29,7 @@
   "packageManager": "yarn@4.5.2",
   "scripts": {
     "build": "bash ./build.sh",
-    "test": "env TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\" }' mocha",
+    "test": "mocha",
     "test:browser": "web-test-runner",
     "lint": "NODE_NO_WARNINGS=1 eslint . --max-warnings 0",
     "publish": "echo 📡 publishing `$npm_package_name` && yarn npm publish",
@@ -42,11 +42,11 @@
     "@web/test-runner": "^0.20.2",
     "@web/test-runner-playwright": "^0.11.1",
     "chai": "^6.2.2",
-    "eslint": "^10.0.3",
+    "eslint": "^10.1.0",
     "eslint-plugin-prettier": "^5.5.5",
     "mocha": "^11.7.5",
     "prettier": "3.8.1",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.8.3"
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.2"
   }
 }
