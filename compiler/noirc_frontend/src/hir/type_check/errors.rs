@@ -265,6 +265,8 @@ pub enum TypeCheckError {
     ExpectingOtherError(ExpectingOtherError),
     #[error("Cannot call `std::verify_proof_with_type` in unconstrained context")]
     VerifyProofWithTypeInBrillig { location: Location },
+    #[error("Cannot use struct pattern syntax `{{ }}` on enum variant `{path}`")]
+    StructPatternOnEnumVariant { path: String, location: Location },
 }
 
 /// An error which is only shown to the user if there are no other errors emitted.
@@ -375,7 +377,8 @@ impl TypeCheckError {
             | TypeCheckError::TupleMismatch { location, .. }
             | TypeCheckError::TypeAnnotationNeededOnItem { location, .. }
             | TypeCheckError::TypeAnnotationNeededOnArrayLiteral { location, .. }
-            | TypeCheckError::VerifyProofWithTypeInBrillig { location } => *location,
+            | TypeCheckError::VerifyProofWithTypeInBrillig { location }
+            | TypeCheckError::StructPatternOnEnumVariant { location, .. } => *location,
             TypeCheckError::ExpectingOtherError(error) => error.location,
             TypeCheckError::DuplicateNamedTypeArg { name: ident, .. }
             | TypeCheckError::NoSuchNamedTypeArg { name: ident, .. } => ident.location(),
@@ -836,7 +839,14 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 let secondary = format!("Could not determine the type of the {array_or_vector}");
                 Diagnostic::simple_error(message, secondary, *location)
             }
-            TypeCheckError::ExpectingOtherError(error) => error.into()
+            TypeCheckError::ExpectingOtherError(error) => error.into(),
+            TypeCheckError::StructPatternOnEnumVariant { path, location } => {
+                Diagnostic::simple_error(
+                    format!("Cannot use `{{ }}` pattern syntax on enum variant `{path}`"),
+                    "Use parentheses `()` for enum variants with fields, or no arguments for fieldless variants".to_string(),
+                    *location,
+                )
+            }
         }
     }
 }
