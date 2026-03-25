@@ -1,6 +1,6 @@
 use crate::tests::{
     assert_no_errors, assert_no_errors_using_features, check_errors, check_errors_using_features,
-    check_monomorphization_error, get_program_using_features,
+    check_monomorphization_error,
 };
 
 #[test]
@@ -105,7 +105,7 @@ fn constrained_reference_to_unconstrained() {
 }
 
 #[test]
-fn immutable_references_with_ownership_feature() {
+fn immutable_references_with_ownership_feature_brillig() {
     let src = r#"
         unconstrained fn main() {
             let array = [1, 2, 3];
@@ -114,9 +114,7 @@ fn immutable_references_with_ownership_feature() {
 
         fn borrow(_array: &[Field; 3]) {}
     "#;
-
-    let (_, _, errors) = get_program_using_features(src, &[]);
-    assert_eq!(errors.len(), 0);
+    assert_no_errors(src);
 }
 
 #[test]
