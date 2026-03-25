@@ -589,13 +589,11 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             let is_self = self.pattern_is_self(pattern);
 
             // `&mut self` and `& self` are represented as a reference type, not as a pattern
-            if is_self {
-                if let Type::Reference(_, mutable) = typ {
-                    if *mutable {
-                        self.push_str("&mut ");
-                    } else {
-                        self.push_str("&");
-                    }
+            if is_self && let Type::Reference(_, mutable) = typ {
+                if *mutable {
+                    self.push_str("&mut ");
+                } else {
+                    self.push_str("&");
                 }
             }
 

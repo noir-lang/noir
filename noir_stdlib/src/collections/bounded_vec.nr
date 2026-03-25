@@ -390,7 +390,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// let all_even = !v.any(|elem: u32| elem % 2 != 0);
     /// assert(all_even);
     /// ```
-    pub fn any<Env>(& self, predicate: fn[Env](T) -> bool) -> bool {
+    pub fn any<Env>(self, predicate: fn[Env](T) -> bool) -> bool {
         let mut ret = false;
         if is_unconstrained() {
             for i in 0..self.len {
