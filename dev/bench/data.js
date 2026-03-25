@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774442763900,
+  "lastUpdate": 1774448917155,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23141,48 +23141,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "2a53c8e6e5c8d21d94c69a153b033525d59ef116",
-          "message": "chore: Move mem2reg_simple earlier in SSA passes (#11749)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>\nCo-authored-by: Claude Opus 4.6 <noreply@anthropic.com>",
-          "timestamp": "2026-03-19T16:59:55Z",
-          "tree_id": "617d0da90f2d1e06c68b7b3294efcda13b50a001",
-          "url": "https://github.com/noir-lang/noir/commit/2a53c8e6e5c8d21d94c69a153b033525d59ef116"
-        },
-        "date": 1773940988701,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 216903,
-            "range": "± 3597",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 200349,
-            "range": "± 3139",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3133908,
-            "range": "± 2018",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -25234,6 +25192,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2642453,
             "range": "± 13615",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "20cd7b24700018248af5b6dcc81fafb29f32b415",
+          "message": "feat(brillig): Function specialization for constant arguments (#11872)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-03-25T14:04:37Z",
+          "tree_id": "05e6160c8c61a670589e351e1143373c60330c34",
+          "url": "https://github.com/noir-lang/noir/commit/20cd7b24700018248af5b6dcc81fafb29f32b415"
+        },
+        "date": 1774448837734,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168274,
+            "range": "± 284",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 135999,
+            "range": "± 9181",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2640364,
+            "range": "± 3819",
             "unit": "ns/iter"
           }
         ]
