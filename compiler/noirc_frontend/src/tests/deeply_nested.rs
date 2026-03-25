@@ -90,7 +90,7 @@ fn deeply_nested_generic_struct_parameter() {
 
     let src = format!(
         r#"
-    struct Wrapper<T> {{ inner: T }}
+    pub struct Wrapper<T> {{ inner: T }}
 
     pub fn main(_x: {type_str}) -> pub u8 {{
         0
@@ -137,7 +137,7 @@ fn deeply_nested_generic_struct_parameter_elaboration() {
 
     let src = format!(
         r#"
-    struct Wrapper<T> {{ inner: T }}
+    pub struct Wrapper<T> {{ inner: T }}
 
     pub fn main(_x: {type_str}) -> pub u8 {{
         0
@@ -145,10 +145,22 @@ fn deeply_nested_generic_struct_parameter_elaboration() {
     "#
     );
 
-    let _ = get_program_with_options(
-        &src,
-        GetProgramOptions { allow_parser_errors: true, ..Default::default() },
-    );
+    let (tx, rx) = std::sync::mpsc::channel();
+
+    std::thread::spawn(move || {
+        let errors = get_program_with_options(
+            &src,
+            GetProgramOptions { allow_parser_errors: true, ..Default::default() },
+        )
+        .2;
+        // Try to send, if the test is still waiting.
+        let _ = tx.send(errors.len());
+    });
+
+    let error_count =
+        rx.recv_timeout(std::time::Duration::from_secs(1)).expect("elaboration should be fast");
+
+    assert_eq!(error_count, 0, "the program should not fail to compile")
 }
 
 #[test]
