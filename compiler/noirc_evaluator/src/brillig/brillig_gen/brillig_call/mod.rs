@@ -132,6 +132,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
 
         let return_variables =
             vecmap(result_ids, |result_id| self.define_variable(*result_id, dfg));
+
         self.brillig_context.codegen_call(func_id, &argument_variables, &return_variables);
     }
 

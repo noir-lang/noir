@@ -24,8 +24,8 @@ use crate::{
         comptime::{Interpreter, InterpreterError, Value},
         def_collector::{
             dc_crate::{
-                CollectedItems, CompilationError, ModuleAttribute, UnresolvedFunctions,
-                UnresolvedStruct, UnresolvedTrait, UnresolvedTraitImpl,
+                CollectedItems, CompilationError, CompilationErrors, ModuleAttribute,
+                UnresolvedFunctions, UnresolvedStruct, UnresolvedTrait, UnresolvedTraitImpl,
             },
             dc_mod,
         },
@@ -132,10 +132,19 @@ impl<'context> Elaborator<'context> {
             self.elaborate_reasons.clone(),
         );
 
+        // Collect (and update) variable names from the parent scope for better error messages
+        // when a runtime variable is referenced in comptime code.
+        let current_scope_tree = self.scopes.0.last();
+        let local_scopes = current_scope_tree.into_iter().flat_map(|tree| tree.0.iter());
+        let local_vars = local_scopes.flat_map(|scope| scope.0.keys()).cloned();
+        let parent_runtime_variables =
+            self.parent_runtime_variables.iter().cloned().chain(local_vars).collect();
+
         elaborator.push_function_context();
         elaborator.scopes.start_function();
 
         elaborator.local_module = self.local_module;
+        elaborator.parent_runtime_variables = parent_runtime_variables;
 
         setup(&mut elaborator);
 
@@ -146,9 +155,8 @@ impl<'context> Elaborator<'context> {
 
         let mut errors = std::mem::take(&mut elaborator.errors);
         if let Some(reason) = reason {
-            errors = vecmap(errors, |error| {
-                CompilationError::ComptimeError(reason.to_macro_error(error))
-            });
+            errors =
+                errors.map(|error| CompilationError::ComptimeError(reason.to_macro_error(error)));
         }
 
         self.errors.extend(errors);
@@ -838,8 +846,8 @@ impl<'context> Elaborator<'context> {
         value
     }
 
-    fn wrap_errors_in_macro_error(&self, errors: Vec<CompilationError>) -> Vec<CompilationError> {
-        vecmap(errors, |error| self.wrap_error_in_macro_error(error))
+    fn wrap_errors_in_macro_error(&self, errors: CompilationErrors) -> CompilationErrors {
+        errors.map(|error| self.wrap_error_in_macro_error(error))
     }
 
     fn wrap_error_in_macro_error(&self, mut error: CompilationError) -> CompilationError {

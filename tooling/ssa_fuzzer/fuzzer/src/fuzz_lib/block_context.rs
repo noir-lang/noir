@@ -490,6 +490,32 @@ impl BlockContext {
                     }
                 }
             }
+            Instruction::Poseidon2Permutation { field_indices, load_elements_of_array } => {
+                if !self.options.instruction_options.poseidon2_permutation_enabled {
+                    return;
+                }
+                let Some(input) = self.insert_array(
+                    builder,
+                    field_indices.to_vec(),
+                    Type::Numeric(NumericType::Field),
+                ) else {
+                    return;
+                };
+                let permuted = builder.insert_poseidon2_permutation(input);
+                self.store_variable(&permuted);
+                if load_elements_of_array {
+                    for i in 0..4_u32 {
+                        let index = builder.insert_constant(i, NumericType::U32);
+                        let value = builder.insert_array_get(
+                            permuted.clone(),
+                            index.clone(),
+                            Type::Numeric(NumericType::Field),
+                            /*safe_index =*/ false,
+                        );
+                        self.store_variable(&value);
+                    }
+                }
+            }
             Instruction::Aes128Encrypt { input_idx, input_limbs_count, key_idx, iv_idx } => {
                 if !self.options.instruction_options.aes128_encrypt_enabled {
                     return;
