@@ -241,8 +241,8 @@ fn stop() {
     };
 
     let memory = vm.take_memory();
-    let returned: Vec<_> = (return_data_offset..return_data_size)
-        .map(|i| memory.read(MemoryAddress::direct(i)).to_field())
+    let returned: Vec<_> = (0..return_data_size)
+        .map(|i| memory.read(MemoryAddress::direct(return_data_offset + i)).to_field())
         .collect();
     assert_eq!(returned, calldata);
 }
