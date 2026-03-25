@@ -1063,13 +1063,11 @@ impl ItemPrinter<'_, '_> {
 
 fn hir_expression_needs_parentheses(hir_expr: &HirExpression) -> bool {
     match hir_expr {
-        HirExpression::Infix(..)
-        | HirExpression::Cast(..)
-        | HirExpression::Lambda(..)
-        | HirExpression::Prefix(..) => true,
+        HirExpression::Infix(..) | HirExpression::Cast(..) | HirExpression::Lambda(..) => true,
         HirExpression::Ident(..)
         | HirExpression::Literal(..)
         | HirExpression::Block(..)
+        | HirExpression::Prefix(..)
         | HirExpression::Index(..)
         | HirExpression::Constructor(..)
         | HirExpression::EnumConstructor(..)
