@@ -85,7 +85,7 @@ dependencies = [
  "cbc",
  "criterion",
  "k256",
- "keccak 0.2.0-rc.2",
+ "keccak 0.2.0",
  "log",
  "p256",
  "pprof",
@@ -3062,9 +3062,9 @@ dependencies = [
 
 [[package]]
 name = "k256"
-version = "0.14.0-rc.7"
+version = "0.14.0-rc.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "83da23da11f0b5db6f23d9280a84b3a33a746aa43ebb9270d6b445991da9cee3"
+checksum = "f7d2c6c227649d5ec80eaae541f1736232641a0bcdb3062a52b34edb42054158"
 dependencies = [
  "cpubits",
  "ecdsa",
@@ -3084,10 +3084,11 @@ dependencies = [
 
 [[package]]
 name = "keccak"
-version = "0.2.0-rc.2"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "882b69cb15b1f78b51342322a97ccd16f5123d1dc8a3da981a95244f488e8692"
+checksum = "9e24a010dd405bd7ed803e5253182815b41bf2e6a80cc3bfc066658e03a198aa"
 dependencies = [
+ "cfg-if",
  "cpufeatures 0.3.0",
 ]
 
@@ -4180,9 +4181,9 @@ checksum = "d211803b9b6b570f68772237e415a029d5a50c65d382910b879fb19d3271f94d"
 
 [[package]]
 name = "p256"
-version = "0.14.0-rc.7"
+version = "0.14.0-rc.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "018bfbb86e05fd70a83e985921241035ee09fcd369c4a2c3680b389a01d2ad28"
+checksum = "44f0a10fe314869359cb2901342b045f4e5a962ef9febc006f03d2a8c848fe4c"
 dependencies = [
  "ecdsa",
  "elliptic-curve",
