@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774449862332,
+  "lastUpdate": 1774449874977,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23146,48 +23146,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "f7a7e6c16143080d09892ee730c0c8a4bb7877d5",
-          "message": "fix: Error when missing trait items (#11922)",
-          "timestamp": "2026-03-19T20:04:32Z",
-          "tree_id": "490b5c46dc3abe92aabd5d123238ba261f0c04a5",
-          "url": "https://github.com/noir-lang/noir/commit/f7a7e6c16143080d09892ee730c0c8a4bb7877d5"
-        },
-        "date": 1773952409315,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255931,
-            "range": "± 670",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 224562,
-            "range": "± 4981",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2733607,
-            "range": "± 5281",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "679b42949596671e29aef5e95099c845ee87e2fe",
           "message": "fix: check types before globals when resolving named types (#11919)",
           "timestamp": "2026-03-20T10:07:25Z",
@@ -25229,6 +25187,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2645818,
             "range": "± 2634",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "24911f52bc529d8a13ecf41c4091ff8f61fc0ac3",
+          "message": "fix(brillig): Differentiate LHS and RHS bit size in SHL and SHR (#11997)",
+          "timestamp": "2026-03-25T14:18:19Z",
+          "tree_id": "2101de59ef067bd0ac3c4ef7929a26b477b876cd",
+          "url": "https://github.com/noir-lang/noir/commit/24911f52bc529d8a13ecf41c4091ff8f61fc0ac3"
+        },
+        "date": 1774449816356,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 166018,
+            "range": "± 426",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 134330,
+            "range": "± 419",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2121260,
+            "range": "± 1391",
             "unit": "ns/iter"
           }
         ]
