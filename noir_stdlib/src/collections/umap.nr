@@ -45,11 +45,11 @@ impl<K, V> Default for Slot<K, V> {
 }
 
 impl<K, V> Slot<K, V> {
-    fn is_valid(& self) -> bool {
+    fn is_valid(&self) -> bool {
         !self._is_deleted & self._is_present
     }
 
-    fn is_available(& self) -> bool {
+    fn is_available(&self) -> bool {
         self._is_deleted | !self._is_present
     }
 
@@ -119,7 +119,7 @@ impl<K, V, B> UHashMap<K, V, B> {
 
     /// Returns true if the map contains no elements.
     // docs:start:is_empty
-    pub fn is_empty(& self) -> bool {
+    pub fn is_empty(&self) -> bool {
         // docs:end:is_empty
         self._len == 0
     }
@@ -127,7 +127,7 @@ impl<K, V, B> UHashMap<K, V, B> {
     /// Returns a vector of all valid entries in this UHashMap.
     /// The length of the returned vector will always match the length of this UHashMap.
     // docs:start:entries
-    pub fn entries(& self) -> [(K, V)] {
+    pub fn entries(&self) -> [(K, V)] {
         // docs:end:entries
         let mut entries = [].as_vector();
 
@@ -150,7 +150,7 @@ impl<K, V, B> UHashMap<K, V, B> {
     /// Returns a vector containing all the keys within this UHashMap.
     /// The length of the returned vector will always match the length of this UHashMap.
     // docs:start:keys
-    pub fn keys(& self) -> [K] {
+    pub fn keys(&self) -> [K] {
         // docs:end:keys
         let mut keys = [].as_vector();
 
@@ -172,7 +172,7 @@ impl<K, V, B> UHashMap<K, V, B> {
     /// Returns a vector containing all the values within this UHashMap.
     /// The length of the returned vector will always match the length of this UHashMap.
     // docs:start:values
-    pub fn values(& self) -> [V] {
+    pub fn values(&self) -> [V] {
         // docs:end:values
         let mut values = [].as_vector();
 
@@ -262,14 +262,14 @@ impl<K, V, B> UHashMap<K, V, B> {
 
     /// Amount of active key-value entries.
     // docs:start:len
-    pub fn len(& self) -> u32 {
+    pub fn len(&self) -> u32 {
         // docs:end:len
         self._len
     }
 
     /// Get the current capacity of the inner table.
     // docs:start:capacity
-    pub fn capacity(& self) -> u32 {
+    pub fn capacity(&self) -> u32 {
         // docs:end:capacity
         self._table.len()
     }
