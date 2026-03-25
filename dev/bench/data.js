@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774456170094,
+  "lastUpdate": 1774456279419,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23111,48 +23111,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "02b119359416a8a0b0f34d9f73cb6cc8358fe9a3",
-          "message": "fix(mem2reg): Insert `make_array` elements into `aliased_references` if array aliases are unknown (#11854)",
-          "timestamp": "2026-03-20T14:47:27Z",
-          "tree_id": "e3143fcf60716ce5ade495edc329744d7454534b",
-          "url": "https://github.com/noir-lang/noir/commit/02b119359416a8a0b0f34d9f73cb6cc8358fe9a3"
-        },
-        "date": 1774019599903,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 246109,
-            "range": "± 1070",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 217235,
-            "range": "± 2795",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2212186,
-            "range": "± 8111",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -25204,6 +25162,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2641915,
             "range": "± 1487",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "87f2fc55e11b873ee5a351645336089d689cbacf",
+          "message": "fix: handle `&self` in formatter to avoid producing `& self` (#11996)",
+          "timestamp": "2026-03-25T16:05:38Z",
+          "tree_id": "b54f6983d2f3e7bfb0c7731fbdf00c67f8a8da27",
+          "url": "https://github.com/noir-lang/noir/commit/87f2fc55e11b873ee5a351645336089d689cbacf"
+        },
+        "date": 1774456228404,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168226,
+            "range": "± 700",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 140421,
+            "range": "± 3188",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2643672,
+            "range": "± 4163",
             "unit": "ns/iter"
           }
         ]
