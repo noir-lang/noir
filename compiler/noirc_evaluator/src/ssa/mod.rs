@@ -225,8 +225,8 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             "Unrolling",
         ),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
-        // After unrolling, all loop blocks are gone so load_store_forwarding can process
-        // every block. This is the most impactful position for ACIR store->load forwarding.
+        // After unrolling there are no loops left, so load_store_forwarding has no
+        // loop-alias overhead. This is the most impactful position for ACIR store->load forwarding.
         SsaPass::new(Ssa::mem2reg_simple_pre_flattening, "Mem2Reg Simple")
             .and_then(Ssa::load_store_forwarding),
         SsaPass::new(Ssa::remove_bit_shifts, "Removing Bit Shifts"),

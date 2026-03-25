@@ -11,11 +11,34 @@
 //! to be fast on large, single-block ACIR functions that result from inlining,
 //! unrolling, and flattening.
 //!
-//! Blocks that are part of loops are skipped, since loop-carried aliases can
-//! invalidate per-block assumptions about which addresses alias each other.
+//! ## Alias handling
 //!
-//! The pass conservatively clears known values when a reference is passed to a
-//! function call, since the callee could read or modify the referenced memory.
+//! This pass does not consume a standalone alias analysis. Instead it uses two
+//! conservative heuristics to stay sound:
+//!
+//! 1. **Clear-on-unknown-store**: When a store targets an address that is neither
+//!    a block-local allocation nor already tracked in `known_values`, it may be an
+//!    alias (e.g. a reference extracted via `array_get`). All known values are
+//!    conservatively cleared. See [`forward_loads_and_stores_in_block`].
+//!
+//! 2. **Call invalidation**: When a reference is passed to a call, its known value
+//!    is invalidated. When a container that holds references (array/tuple) is passed,
+//!    all known values are cleared since the callee could extract and write through
+//!    any contained reference.
+//!
+//! 3. **Loop-carried alias detection**: Before forwarding, `analyze_loop_aliases`
+//!    scans all loops for stores that write a reference value into a reference
+//!    address (`store ref_value at ref_address`). These create cross-iteration
+//!    aliases: the stored reference can alias a "local" variable that is
+//!    re-initialized in a later iteration, bypassing heuristic (1). When a store
+//!    targets an address in the loop-alias set, all known values are conservatively
+//!    cleared. This allows forwarding in loop blocks that lack such patterns while
+//!    staying sound for those that have them.
+//!
+//! Once this pass consumes a standalone alias analysis (see [#12005]), the ad-hoc
+//! loop-alias heuristic can be replaced with precise alias queries.
+//!
+//! [#12005]: https://github.com/noir-lang/noir/issues/12005
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
@@ -27,7 +50,7 @@ use crate::ssa::{
         post_order::PostOrder,
         value::ValueId,
     },
-    opt::Loops,
+    opt::{LoopOrder, Loops},
     ssa_gen::Ssa,
 };
 
@@ -43,7 +66,7 @@ impl Ssa {
 
 impl Function {
     fn load_store_forwarding(&mut self) {
-        let loop_blocks = collect_loop_blocks(self);
+        let loop_aliases = analyze_loop_aliases(self);
 
         let mut inserter = FunctionInserter::new(self);
         let blocks = PostOrder::with_function(inserter.function).into_vec_reverse();
@@ -54,15 +77,13 @@ impl Function {
         // before blocks that use those values.
         for block in &blocks {
             let block = *block;
-            if !loop_blocks.contains(&block) {
-                let instructions_to_remove =
-                    forward_loads_and_stores_in_block(&mut inserter, block);
+            let instructions_to_remove =
+                forward_loads_and_stores_in_block(&mut inserter, block, &loop_aliases);
 
-                if !instructions_to_remove.is_empty() {
-                    inserter.function.dfg[block]
-                        .instructions_mut()
-                        .retain(|id| !instructions_to_remove.contains(id));
-                }
+            if !instructions_to_remove.is_empty() {
+                inserter.function.dfg[block]
+                    .instructions_mut()
+                    .retain(|id| !instructions_to_remove.contains(id));
             }
 
             // Remap instructions and terminator immediately — all predecessor
@@ -76,15 +97,95 @@ impl Function {
     }
 }
 
-/// Collect all blocks that belong to any loop in the function.
-fn collect_loop_blocks(function: &Function) -> HashSet<BasicBlockId> {
-    use super::unrolling::LoopOrder;
-    let loops = Loops::find_all(function, LoopOrder::InsideOut);
-    let mut loop_blocks = HashSet::default();
-    for loop_ in &loops.yet_to_unroll {
-        loop_blocks.extend(&loop_.blocks);
+/// Identify addresses involved in loop-carried alias patterns.
+///
+/// A loop-carried alias occurs in two forms:
+///
+/// 1. **Store of a reference inside a loop** (`store ref_value at ref_address`):
+///    The stored reference can alias a local variable that gets re-initialized
+///    in a later iteration, making the per-block "clear-on-unknown-store"
+///    heuristic insufficient.
+///
+/// 2. **Reference-typed block parameters on loop headers**: If `mem2reg_simple`
+///    has already promoted a `store ref at ref` to a block parameter, the
+///    aliasing is implicit. A reference-typed loop header parameter and the
+///    corresponding jmp arguments from within the loop body create the same
+///    cross-iteration aliasing.
+fn analyze_loop_aliases(function: &Function) -> HashSet<ValueId> {
+    use crate::ssa::ir::instruction::TerminatorInstruction;
+
+    let loops = Loops::find_all(function, LoopOrder::OutsideIn);
+    let mut aliases: HashSet<ValueId> = HashSet::default();
+    for loop_info in &loops.yet_to_unroll {
+        // Form 1: store of a reference inside a loop block.
+        for block_id in &loop_info.blocks {
+            let block = &function.dfg[*block_id];
+            for instruction_id in block.instructions() {
+                if let Instruction::Store { address, value } = &function.dfg[*instruction_id]
+                    && function.dfg.value_is_reference(*value)
+                {
+                    aliases.insert(*address);
+                    aliases.insert(*value);
+                }
+            }
+        }
+
+        // Form 2: reference-typed block parameters on the loop header.
+        // If mem2reg_simple promoted `store ref at ref` to a block parameter,
+        // the corresponding jmp arguments from within the loop carry the alias.
+        let header = loop_info.header;
+        let header_params = function.dfg[header].parameters();
+        let ref_param_indices: Vec<usize> = header_params
+            .iter()
+            .enumerate()
+            .filter(|(_, param)| function.dfg.value_is_reference(**param))
+            .map(|(idx, param)| {
+                aliases.insert(*param);
+                idx
+            })
+            .collect();
+
+        if !ref_param_indices.is_empty() {
+            for block_id in &loop_info.blocks {
+                let block = &function.dfg[*block_id];
+                match block.terminator() {
+                    Some(TerminatorInstruction::Jmp { destination, arguments, .. })
+                        if *destination == header =>
+                    {
+                        for &idx in &ref_param_indices {
+                            if let Some(arg) = arguments.get(idx) {
+                                aliases.insert(*arg);
+                            }
+                        }
+                    }
+                    Some(TerminatorInstruction::JmpIf {
+                        then_destination,
+                        then_arguments,
+                        else_destination,
+                        else_arguments,
+                        ..
+                    }) => {
+                        if *then_destination == header {
+                            for &idx in &ref_param_indices {
+                                if let Some(arg) = then_arguments.get(idx) {
+                                    aliases.insert(*arg);
+                                }
+                            }
+                        }
+                        if *else_destination == header {
+                            for &idx in &ref_param_indices {
+                                if let Some(arg) = else_arguments.get(idx) {
+                                    aliases.insert(*arg);
+                                }
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
     }
-    loop_blocks
+    aliases
 }
 
 /// Perform load/store forwarding within a single block.
@@ -103,6 +204,7 @@ fn collect_loop_blocks(function: &Function) -> HashSet<BasicBlockId> {
 fn forward_loads_and_stores_in_block(
     inserter: &mut FunctionInserter,
     block: BasicBlockId,
+    loop_aliases: &HashSet<ValueId>,
 ) -> HashSet<InstructionId> {
     // Maps address -> last stored value (after resolving through the inserter)
     let mut known_values: HashMap<ValueId, ValueId> = HashMap::default();
@@ -123,10 +225,20 @@ fn forward_loads_and_stores_in_block(
                 local_allocations.insert(result);
             }
             Instruction::Store { address, value } => {
+                let is_loop_aliased = loop_aliases.contains(address);
                 let address = inserter.resolve(*address);
                 let value = inserter.resolve(*value);
 
-                if !known_values.contains_key(&address) && !local_allocations.contains(&address) {
+                if is_loop_aliased {
+                    // This address participates in a loop-carried alias pattern:
+                    // a reference stored here in one iteration may alias a "local"
+                    // variable in a subsequent iteration. Conservatively clear all
+                    // known values to prevent stale forwarding.
+                    known_values.clear();
+                    last_stores.clear();
+                } else if !known_values.contains_key(&address)
+                    && !local_allocations.contains(&address)
+                {
                     // This address wasn't allocated locally and wasn't seen in a prior
                     // store — it could be an alias of an existing known reference
                     // (e.g. extracted via array_get). Conservatively clear all known
@@ -555,5 +667,74 @@ mod tests {
             jmp b1()
         }
         ");
+    }
+
+    #[test]
+    fn forwarding_in_loop_block_without_aliases() {
+        // A loop block with store+load to a local allocation and no reference
+        // stores should benefit from forwarding (no loop-carried aliases).
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v100: u1):
+            jmp b1()
+          b1():
+            v0 = allocate -> &mut Field
+            store Field 42 at v0
+            v1 = load v0 -> Field
+            jmpif v100 then: b1(), else: b2()
+          b2():
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.load_store_forwarding();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            jmp b1()
+          b1():
+            v1 = allocate -> &mut Field
+            store Field 42 at v1
+            jmpif v0 then: b1(), else: b2()
+          b2():
+            return Field 42
+        }
+        ");
+    }
+
+    #[test]
+    fn loop_carried_alias_prevents_incorrect_dead_store() {
+        // Minimized from `test_programs/execution_success/loop_carried_aliases`.
+        //
+        // v2 holds a reference-to-reference; `store v3 at v2` inside the loop
+        // creates a loop-carried alias: on the next iteration `load v2` returns
+        // v3, so `load (load v2)` reads from v3 through the alias.
+        //
+        // Without loop-alias analysis, `store Field 0xdeadbeef at v3` looks like
+        // a dead store (overwritten by `store v5 at v3`), and the load through
+        // the alias incorrectly forwards a stale value.
+        let src = "
+        brillig(inline) fn bar f0 {
+          b0(v0: &mut Field, v1: Field):
+            v2 = allocate -> &mut &mut Field
+            store v0 at v2
+            v3 = allocate -> &mut Field
+            store v1 at v3
+            jmp b1()
+          b1():
+            store Field 3735928559 at v3
+            v5 = load v2 -> &mut Field
+            v6 = load v5 -> Field
+            store v6 at v3
+            store v3 at v2
+            jmp b1()
+        }
+        ";
+        // Verify the pass does not miscompile: the store of 0xdeadbeef at v3
+        // must NOT be eliminated as a dead store, because `load v5` (where v5
+        // is loaded from v2, which aliases v3 after `store v3 at v2`) reads
+        // through the alias in the next iteration.
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
     }
 }
