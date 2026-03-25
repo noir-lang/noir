@@ -8,6 +8,7 @@ use crate::{
         resolution::errors::ResolverError,
     },
     parser::ParserErrorReason,
+    test_utils::{GetProgramOptions, get_program_with_options},
     tests::get_program_errors,
 };
 
@@ -120,6 +121,34 @@ fn deeply_nested_generic_struct_field() {
     );
 
     assert_parser_max_recursion_depth(&src, None);
+}
+
+// Elaborator::mark_type_as_used was very slow on a deep struct like this.
+#[test]
+fn deeply_nested_generic_struct_parameter_elaboration() {
+    // Creates: Wrapper<Wrapper<Wrapper<...Wrapper<u8>...>>>
+    // Shouldn't run into parsing error due to recursion, but it is a big type.
+    const DEPTH: usize = 99;
+    let mut type_str = String::from("u8");
+
+    for _ in 0..DEPTH {
+        type_str = format!("Wrapper<{type_str}>");
+    }
+
+    let src = format!(
+        r#"
+    struct Wrapper<T> {{ inner: T }}
+
+    pub fn main(_x: {type_str}) -> pub u8 {{
+        0
+    }}
+    "#
+    );
+
+    let _ = get_program_with_options(
+        &src,
+        GetProgramOptions { allow_parser_errors: true, ..Default::default() },
+    );
 }
 
 #[test]

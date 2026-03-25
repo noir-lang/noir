@@ -4,6 +4,10 @@ use crate::{
 };
 
 /// A type to prevent infinite recursion while traversing types recursively.
+///
+/// Designed to be cloned at branching (e.g. when visiting fields of tuples, or recursing),
+/// so that types at the same level are counted separately. The only type recursion we want
+/// to prevent is cycles.
 #[derive(Clone, Default)]
 pub(crate) struct TypeRecursionContext {
     depth: u32,

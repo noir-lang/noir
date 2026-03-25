@@ -51,7 +51,8 @@
 
 use std::{
     cell::RefCell,
-    collections::{BTreeMap, BTreeSet},
+    collections::{BTreeMap, BTreeSet, HashSet},
+    hash::{Hash, Hasher},
     rc::Rc,
 };
 
@@ -123,6 +124,7 @@ use path_resolution::{
 };
 pub(crate) use path_resolution::{TypedPath, TypedPathSegment};
 pub use primitive_types::PrimitiveType;
+use rustc_hash::FxHasher;
 
 /// Maximum number of recursive calls allowed at comptime.
 ///
@@ -193,6 +195,34 @@ enum UnsafeBlockStatus {
 pub struct Loop {
     pub is_for: bool,
     pub has_break: bool,
+}
+
+/// Helper to keep track of visited items, without having to clone all of them.
+///
+/// It cannot be used to iterate visited items, only to detect the first visit.
+struct VisitedRefHashSet<T> {
+    /// Contains the hashes of every visited item (they might collide).
+    hashes: HashSet<u64>,
+    /// Contains the items which have collided in `hashes`.
+    values: HashSet<T>,
+}
+
+impl<T: Hash + Clone + Eq> VisitedRefHashSet<T> {
+    fn new() -> Self {
+        Self { hashes: HashSet::new(), values: HashSet::new() }
+    }
+    /// Insert a new value by reference.
+    ///
+    /// Returns `true` if this is the first time we visited this value, `false` otherwise.
+    fn insert(&mut self, value: &T) -> bool {
+        let mut hasher = FxHasher::default();
+        value.hash(&mut hasher);
+        let hash = hasher.finish();
+        if self.hashes.insert(hash) {
+            return true;
+        }
+        self.values.insert(value.clone())
+    }
 }
 
 pub struct Elaborator<'context> {
@@ -595,25 +625,47 @@ impl<'context> Elaborator<'context> {
         None
     }
 
+    /// Traverse the type and call `mark_struct_as_constructed` on any [Type::DataType].
     #[tracing::instrument(level = "trace", skip_all)]
     fn mark_type_as_used(&mut self, typ: &Type) {
-        self.mark_type_as_used_helper(typ, TypeRecursionContext::default());
+        self.mark_type_as_used_helper(
+            typ,
+            TypeRecursionContext::default(),
+            &mut VisitedRefHashSet::new(),
+        );
     }
 
+    /// Traverse the type and call `mark_struct_as_constructed` on any [Type::DataType].
+    ///
+    /// We use two helper contexts:
+    /// * `type_recursion_context` is used to prevent infinite recursion in cycles,
+    ///   and recursing over types too deep until we hit stack overflow
+    /// * `visited` is used to only visit each type once; we only need to mark them once,
+    ///   but deeply nested generics can cause a combinatorial explosion of visits
     #[tracing::instrument(level = "trace", skip_all)]
     fn mark_type_as_used_helper(
         &mut self,
         typ: &Type,
         mut type_recursion_context: TypeRecursionContext,
+        visited: &mut VisitedRefHashSet<Type>,
     ) {
+        if !visited.insert(typ) {
+            return;
+        }
         match typ {
             Type::Array(_n, typ) => {
-                self.mark_type_as_used_helper(typ, type_recursion_context.recur());
+                self.mark_type_as_used_helper(typ, type_recursion_context.recur(), visited);
             }
-            Type::Vector(typ) => self.mark_type_as_used_helper(typ, type_recursion_context.recur()),
+            Type::Vector(typ) => {
+                self.mark_type_as_used_helper(typ, type_recursion_context.recur(), visited)
+            }
             Type::Tuple(types) => {
                 for typ in types {
-                    self.mark_type_as_used_helper(typ, type_recursion_context.clone().recur());
+                    self.mark_type_as_used_helper(
+                        typ,
+                        type_recursion_context.clone().recur(),
+                        visited,
+                    );
                 }
             }
             Type::DataType(datatype, generics) => {
@@ -623,6 +675,7 @@ impl<'context> Elaborator<'context> {
                         self.mark_type_as_used_helper(
                             generic,
                             type_recursion_context.clone().recur(),
+                            visited,
                         );
                     }
                     if let Some(fields) = datatype.borrow().get_fields(generics) {
@@ -630,6 +683,7 @@ impl<'context> Elaborator<'context> {
                             self.mark_type_as_used_helper(
                                 &typ,
                                 type_recursion_context.clone().recur(),
+                                visited,
                             );
                         }
                     } else if let Some(variants) = datatype.borrow().get_variants(generics) {
@@ -638,6 +692,7 @@ impl<'context> Elaborator<'context> {
                                 self.mark_type_as_used_helper(
                                     &typ,
                                     type_recursion_context.clone().recur(),
+                                    visited,
                                 );
                             }
                         }
@@ -649,31 +704,28 @@ impl<'context> Elaborator<'context> {
                     self.mark_type_as_used_helper(
                         &alias_type.borrow().get_type(generics),
                         type_recursion_context.recur(),
+                        visited,
                     );
                 }
             }
             Type::CheckedCast { from, to } => {
-                self.mark_type_as_used_helper(from, type_recursion_context.clone().recur());
-                self.mark_type_as_used_helper(to, type_recursion_context.recur());
+                self.mark_type_as_used_helper(
+                    from,
+                    type_recursion_context.clone().recur(),
+                    visited,
+                );
+                self.mark_type_as_used_helper(to, type_recursion_context.recur(), visited);
             }
             Type::Reference(typ, _) => {
-                self.mark_type_as_used_helper(typ, type_recursion_context.recur());
+                self.mark_type_as_used_helper(typ, type_recursion_context.recur(), visited);
             }
             Type::InfixExpr(left, _op, right, _) => {
-                self.mark_type_as_used_helper(left, type_recursion_context.clone().recur());
-                self.mark_type_as_used_helper(right, type_recursion_context.recur());
-            }
-            Type::Error if !type_recursion_context.can_recur() => {
-                // This can happen if we returned Type::Error due to being deeply nested with the same,
-                // exact limit as the type recursion limit, and now we are trying to mark such a type
-                // with a Type::Error nested deeply inside it as used.
-                // In this case we won't recurse further, because the type is just at the limit, not deeper,
-                // however we can still spend a lot of time processing it, if we run into some combinatorial
-                // explosion of generic types and fields, making it look like the compiler is frozen.
-                // This is just an edge case, the depth can be just slightly less and still result in
-                // exponential time marking things, but at least we should maintain awareness,
-                // in case we use popular hardcoded limits like 100.
-                panic!("encountered Type::Error at type recursion limit");
+                self.mark_type_as_used_helper(
+                    left,
+                    type_recursion_context.clone().recur(),
+                    visited,
+                );
+                self.mark_type_as_used_helper(right, type_recursion_context.recur(), visited);
             }
             Type::FieldElement
             | Type::Integer(..)
