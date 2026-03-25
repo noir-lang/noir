@@ -66,7 +66,11 @@ pub(crate) fn fuzz_target(
         runtimes
     };
     if runtimes.is_empty() {
-        return FuzzerOutput { witness_stack: WitnessStack::from(witness_map), program: None };
+        return FuzzerOutput {
+            witness_stack: WitnessStack::from(witness_map),
+            program: None,
+            compile_error: None,
+        };
     }
 
     if type_contains_vector_or_reference(&data.functions[0].return_type) {
