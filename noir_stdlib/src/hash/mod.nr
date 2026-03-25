@@ -190,7 +190,7 @@ pub trait Hasher {
     /// Returns the hash value without consuming the hasher.
     /// Override this for more efficient implementations that avoid copying.
     /// TODO: deprecate finish() and replace it
-    fn finish_ref(&self) -> Field {
+    fn finish_ref(& self) -> Field {
         (*self).finish()
     }
 
