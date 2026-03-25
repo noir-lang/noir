@@ -293,10 +293,9 @@ impl Context {
         self.handle_reference_expression(&mut index.collection);
         self.handle_expression(&mut index.index);
 
-        // If the index collection is being borrowed we need to clone the result.
-        if contains_array_or_str_type(&index.element_type) {
-            clone_expr(index_expr);
-        }
+        // No clone needed on the result: codegen_flat_array_get extracts individual
+        // elements and reassembles via MakeArray — the result never shares memory
+        // with the original array.
     }
 
     fn handle_cast(&mut self, cast: &mut crate::monomorphization::ast::Cast) {
