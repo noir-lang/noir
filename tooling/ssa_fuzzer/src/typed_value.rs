@@ -105,6 +105,27 @@ impl Type {
         }
     }
 
+    pub fn contains_vector_element(&self) -> bool {
+        match self {
+            Type::Array(element_types, _) => {
+                element_types.iter().any(|element| element.contains_vector_element())
+            }
+            Type::Vector(_) => true,
+            Type::Reference(element) => element.contains_vector_element(),
+            Type::Numeric(_) => false,
+        }
+    }
+
+    pub fn is_nested_vector(&self) -> bool {
+        match self {
+            Type::Array(element_types, _) | Type::Vector(element_types) => {
+                element_types.iter().any(|element| element.contains_vector_element())
+            }
+            Type::Reference(element) => element.is_nested_vector(),
+            Type::Numeric(_) => false,
+        }
+    }
+
     pub fn is_array(&self) -> bool {
         matches!(self, Type::Array(_, _))
     }

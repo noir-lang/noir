@@ -398,7 +398,7 @@ fn trait_impl_with_where_clause_with_trait_with_associated_numeric() {
     }
 
     impl Bar for Field {
-        let N: Field = 42;
+        let N: Field = 42_Field;
     }
 
     trait Foo {
@@ -1561,11 +1561,9 @@ fn associated_type_shorthand_simple_identity() {
     assert_no_errors(src);
 }
 
-/// TODO(https://github.com/noir-lang/noir/issues/11562): remove should_panic once fixed
+/// Regression test for https://github.com/noir-lang/noir/issues/11562
 #[test]
-#[should_panic(expected = "Expected no errors")]
 fn associated_type_of_self_generic_in_param_position_for_parent() {
-    // Bug: Self::Key cannot be resolved
     let src = r#"
     trait KeyType {
         type Key;
@@ -1586,11 +1584,10 @@ fn associated_type_of_self_generic_in_param_position_for_parent() {
     assert_no_errors(src);
 }
 
-/// TODO(https://github.com/noir-lang/noir/issues/11562): remove should_panic once fixed
+/// Regression test for https://github.com/noir-lang/noir/issues/11562
 #[test]
-#[should_panic(expected = "Expected no errors")]
 fn associated_type_of_non_self_generic_in_param_position_for_parent() {
-    // Bug: Self::Key cannot be resolved
+    // M::Key should resolve when Key is defined on parent trait KeyType
     let src = r#"
     trait KeyType {
         type Key;
@@ -1598,7 +1595,15 @@ fn associated_type_of_non_self_generic_in_param_position_for_parent() {
 
     trait Lookup: KeyType {}
 
-    fn find<M: Lookup>(m: M, key: M::Key) {}
+    struct Map {}
+    impl KeyType for Map { type Key = Field; }
+    impl Lookup for Map {}
+
+    fn find<M: Lookup>(_m: M, _key: M::Key) {}
+
+    fn main() {
+        find(Map {}, 1);
+    }
     "#;
     assert_no_errors(src);
 }
@@ -1863,6 +1868,115 @@ fn associated_constant_in_return_type_with_generic_impl_forwarding() {
     assert_no_errors(src);
 }
 
+/// Regression test for https://github.com/noir-lang/noir/issues/11562
+/// M::Key resolves through a grandparent chain: A: B, B: C, type Key on C.
+#[test]
+fn associated_type_of_generic_resolves_through_grandparent() {
+    let src = r#"
+    trait Level1 {
+        type Key;
+    }
+
+    trait Level2: Level1 {}
+
+    trait Level3: Level2 {}
+
+    struct Data {}
+    impl Level1 for Data { type Key = Field; }
+    impl Level2 for Data {}
+    impl Level3 for Data {}
+
+    fn use_key<M: Level3>(_m: M, _k: M::Key) {}
+
+    fn main() {
+        use_key(Data {}, 42);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test for https://github.com/noir-lang/noir/issues/11562
+/// Diamond inheritance: both paths to the same associated type should not cause ambiguity.
+/// C inherits from A and B, both of which inherit from Base which defines Key.
+#[test]
+fn associated_type_of_generic_diamond_inheritance() {
+    let src = r#"
+    trait Base {
+        type Key;
+    }
+
+    trait Left: Base {}
+    trait Right: Base {}
+
+    trait Child: Left + Right {}
+
+    struct S {}
+    impl Base for S { type Key = Field; }
+    impl Left for S {}
+    impl Right for S {}
+    impl Child for S {}
+
+    fn use_key<M: Child>(_m: M, _k: M::Key) {}
+
+    fn main() {
+        use_key(S {}, 1);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test for https://github.com/noir-lang/noir/issues/11562
+/// M::Key from a parent trait used in an impl method signature and body.
+#[test]
+fn associated_type_of_generic_in_impl_method() {
+    let src = r#"
+    trait HasKey {
+        type Key;
+    }
+
+    trait Lookup: HasKey {}
+
+    struct Processor {}
+
+    impl Processor {
+        fn process<M: Lookup>(_m: M, key: M::Key) -> M::Key {
+            key
+        }
+    }
+
+    struct Map {}
+    impl HasKey for Map { type Key = Field; }
+    impl Lookup for Map {}
+
+    fn main() {
+        assert(Processor::process(Map {}, 42) == 42);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test for https://github.com/noir-lang/noir/issues/11562
+/// Ambiguous associated type: M has bounds on two unrelated traits that each define Key.
+/// This should produce a clear error.
+#[test]
+fn associated_type_of_generic_ambiguous_from_multiple_traits() {
+    let src = r#"
+    trait Foo {
+        type Key;
+    }
+
+    trait Bar {
+        type Key;
+    }
+
+    pub fn ambiguous<M>(_m: M, _k: M::Key) where M: Foo + Bar {}
+                                   ^^^^^^ Multiple applicable items in scope
+                                   ~~~~~~ Multiple traits which provide `Key` are implemented and in scope: `Bar`, `Foo`
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
 // Regression test for https://github.com/noir-lang/noir/issues/11655
 #[test]
 fn self_method_call_on_trait_impl_for_unknown_trait() {
@@ -1872,6 +1986,98 @@ fn self_method_call_on_trait_impl_for_unknown_trait() {
         fn unknown() {
             Self::method()
                   ^^^^^^ No method named 'method' found for type 'Field'
+        }
+    }
+    "#;
+    check_errors(src);
+}
+
+// Regression test for https://github.com/noir-lang/noir/issues/11562
+#[test]
+fn associated_type_on_parent_and_child() {
+    let src = r#"
+    trait KeyType {
+        type Key;
+    }
+
+    trait Lookup: KeyType {
+        type Key;
+    }
+
+    fn find<M: Lookup>(m: M, key: M::Key) {}
+       ^^^^ unused function find
+       ~~~~ unused function
+                       ^ unused variable m
+                       ~ unused variable
+                             ^^^ unused variable key
+                             ~~~ unused variable
+                                  ^^^^^^ Multiple applicable items in scope
+                                  ~~~~~~ Multiple traits which provide `Key` are implemented and in scope: `KeyType`, `Lookup`
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn associated_type_conflict_with_parent() {
+    let src = r#"
+    trait KeyType {
+        type Key;
+    }
+
+    pub trait Lookup: KeyType {
+        type Key;
+
+        fn find(_: Self::Key) {}
+                   ^^^^^^^^^ Multiple applicable items in scope
+                   ~~~~~~~~~ Multiple traits which provide `Key` are implemented and in scope: `KeyType`, `Lookup`
+    }
+    "#;
+    check_errors(src);
+}
+
+/// Diamond inheritance with a generic parameter: M: B + C where B shadows Key from A,
+/// and C inherits Key from A. M::Key is ambiguous.
+#[test]
+fn associated_type_diamond_ambiguity_on_generic() {
+    let src = r#"
+    trait A {
+        type Key;
+    }
+
+    trait B: A {
+        type Key;
+    }
+
+    trait C: A {}
+
+    pub fn find<M>(_m: M, _k: M::Key) where M: B + C {}
+                              ^^^^^^ Multiple applicable items in scope
+                              ~~~~~~ Multiple traits which provide `Key` are implemented and in scope: `A`, `B`
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+/// Regression test: associated constant with mismatched type between trait and impl
+/// used to crash the compiler with `unreachable!` in `resolve_trait_item` when
+/// accessed from a comptime block.
+#[test]
+fn associated_constant_type_mismatch_does_not_crash() {
+    let src = r#"
+    trait Serialize {
+        let N: Field;
+    }
+
+    impl Serialize for Field {
+        let N: u32 = 1;
+            ^ The numeric generic is not of type `Field`
+            ~ expected `Field`, found `u32`
+    }
+
+    fn main() {
+        comptime {
+            let _x = <Field as Serialize>::N;
+                      ^^^^^^^^^^^^^^^^^^ No method or constant named `N` found in impl due to prior type error
         }
     }
     "#;

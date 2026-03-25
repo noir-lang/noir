@@ -164,33 +164,49 @@ impl Loop {
     ///
     /// There is an example in the tests where a loop does not have an induction variable,
     /// but rather loads a reference in the header, in which case this will return `None`.
-    fn get_induction_variable(&self, function: &Function) -> Option<ValueId> {
+    ///
+    /// TODO(<https://github.com/noir-lang/noir/issues/11900>): Handle induction variable at any block parameter position
+    pub(super) fn get_induction_variable(&self, function: &Function) -> Option<ValueId> {
         function.dfg.block_parameters(self.header).iter().next().copied()
     }
 
     /// Check if the loop will be fully executed, that is, there is no early `break` in it.
-    ///
-    /// Our SSA code generation restricts loops to having one exit block.
-    /// If the exit block has only one predecessor, that means there is no `break` in the loop.
-    ///
-    /// If a loop can have several exit blocks, we would need to update this function.
     ///
     /// If the loop header doesn't lead to an exit block, then it must be a `loop` or `while`,
     /// rather than a `for` loop. Even if such blocks don't have a `break` (e.g. they are infinite),
     /// we don't consider them fully executed.
     pub(super) fn is_fully_executed(&self, cfg: &ControlFlowGraph) -> bool {
         // A typical for-loop header has 2 successors: the loop body and the exit block.
+        let mut has_header_exit = false;
         for block in cfg.successors(self.header) {
             // The exit block is not contained in the loop.
             if !self.blocks.contains(&block) {
                 // If the exit block can be reached from the header and somewhere else in the loop,
                 // then there must be a `break`.
-                return cfg.predecessors(block).len() == 1;
+                if cfg.predecessors(block).len() != 1 {
+                    return false;
+                }
+                has_header_exit = true;
             }
         }
-        // If we are here then we haven't found an exit block from the header,
-        // which means we must be dealing with a `loop` or `while`.
-        false
+        // If we haven't found an exit block from the header,
+        // we must be dealing with a `loop` or `while`.
+        if !has_header_exit {
+            return false;
+        }
+        // Check that no body block has a successor outside the loop,
+        // which would indicate a `break` from inside the loop body.
+        for block in &self.blocks {
+            if *block == self.header {
+                continue;
+            }
+            for successor in cfg.successors(*block) {
+                if !self.blocks.contains(&successor) {
+                    return false;
+                }
+            }
+        }
+        true
     }
 }
 
@@ -802,7 +818,8 @@ fn get_induction_var_bounds(
     loop_: &Loop,
     pre_header: BasicBlockId,
 ) -> Option<(ValueId, (IntegerConstant, IntegerConstant))> {
-    let bounds = loop_.get_const_bounds(&inserter.function.dfg, pre_header)?;
+    let bounds =
+        loop_.get_const_bounds(&inserter.function.dfg, pre_header, |v| inserter.resolve(v))?;
     let induction_variable = get_induction_variable(inserter, loop_)?;
     Some((induction_variable, bounds))
 }

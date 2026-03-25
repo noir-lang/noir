@@ -78,6 +78,8 @@ mod block;
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use itertools::Itertools;
+
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use vec_collections::VecSet;
 
@@ -826,6 +828,29 @@ impl<'f> PerFunctionContext<'f> {
                     let new_aliases = self.collect_array_aliases(elements, references);
                     let aliases = references.aliases.entry(expr).or_insert(AliasSet::known_empty());
                     aliases.unify(&new_aliases);
+
+                    // If any of the elements has AliasSet::unknown() as an alias set, then
+                    // now the whole array has an unknown set. If that's the case then when
+                    // we use this array, the references in it won't be marked as used,
+                    // since they are not aliases. In this case we have to eagerly mark
+                    // them as used in *this* instruction, so the stores to them are not
+                    // removed. Alternatively we could retrieve the array constant on
+                    // its first use, but if it's not used, DIE should at some point remove it.
+                    if aliases.is_unknown() {
+                        for elem in elements {
+                            Self::for_each_value_alias(
+                                *elem,
+                                references,
+                                &self.inserter.function.dfg,
+                                &mut |alias| {
+                                    self.aliased_references
+                                        .entry(alias)
+                                        .or_default()
+                                        .insert(instruction);
+                                },
+                            );
+                        }
+                    }
                 }
             }
             Instruction::IfElse { then_value, else_value, .. } => {
@@ -985,7 +1010,7 @@ impl<'f> PerFunctionContext<'f> {
                 let mut arg_set: HashMap<ValueId, VecSet<[ValueId; 1]>> = HashMap::default();
 
                 // Add an alias for each reference parameter
-                for (parameter, argument) in destination_parameters.iter().zip(arguments) {
+                for (parameter, argument) in destination_parameters.iter().zip_eq(arguments) {
                     match self.inserter.function.dfg.type_of_value(*parameter) {
                         // If the type indirectly contains a reference we have to assume all references
                         // are unknown since we don't have any ValueIds to use.
@@ -1628,6 +1653,39 @@ mod tests {
             return
         }
         ");
+    }
+
+    #[test]
+    fn keep_last_store_in_make_array_that_has_no_aliases() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut u1
+            store u1 1 at v0
+            v2 = make_array [v0] : [&mut u1; 1]
+            v4 = call f1(v2) -> u1
+            return v4
+        }
+        brillig(inline) fn bar f1 {
+          b0(v0: [&mut u1; 1]):                        // The input array has references, so it gets AliasSet::unknown()
+            v3 = array_get v0, index u32 0 -> &mut u1  // v3 inherits the unknown alias property
+            v4 = allocate -> &mut u1                   // v4 has AliasSet::known(v4)
+            store u1 1 at v4
+            v6 = make_array [v3, v4] : [&mut u1; 2]    // Because v3 is unknown, v6 becomes unknown as well
+            v7 = load v3 -> u1
+            jmpif v7 then: b1(), else: b2()
+          b1():
+            jmp b3(u32 1)
+          b2():
+            jmp b3(u32 0)
+          b3(v1: u32):
+            v11 = array_get v6, index v1 -> &mut u1    // We load from v6, but it has no aliases, so it doesn't keep the store to v4 alive
+            v12 = load v11 -> u1
+            return v12
+        }
+        ";
+
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     #[test]
@@ -3132,29 +3190,29 @@ mod tests {
 
     #[test]
     fn repeat_load_not_removed_across_call_indirect_mutation_deeply_nested() {
-        let src = r#"                                                                                  
-      brillig(inline) fn main f0 {                                                                       
-        b0():                                                                                            
-          v0 = allocate -> &mut Field                                                                    
-          store Field 0 at v0                                                                              
-          v1 = allocate -> &mut &mut Field                                                               
-          store v0 at v1                                                                                      
-          v2 = allocate -> &mut &mut &mut Field                                                          
-          store v1 at v2                                                                                                                                                                           
-          // Call mutates v0 indirectly via v2 -> v1 -> v0                                               
-          call f1(v2)                                                                                   
-          // This load should be preserved                                                               
-          v4 = load v0 -> Field                                                                          
-          constrain v4 == Field 1                                                                        
-          return                                                                                         
-      }                                                                                                                                                                                                 
-      brillig(inline) fn helper f1 {                                                                     
-        b0(v0: &mut &mut &mut Field):                                                                    
-          v1 = load v0 -> &mut &mut Field                                                                
-          v2 = load v1 -> &mut Field                                                                     
-          store Field 1 at v2                                                                            
-          return                                                                                         
-      }                                                                                                  
+        let src = r#"
+      brillig(inline) fn main f0 {
+        b0():
+          v0 = allocate -> &mut Field
+          store Field 0 at v0
+          v1 = allocate -> &mut &mut Field
+          store v0 at v1
+          v2 = allocate -> &mut &mut &mut Field
+          store v1 at v2
+          // Call mutates v0 indirectly via v2 -> v1 -> v0
+          call f1(v2)
+          // This load should be preserved
+          v4 = load v0 -> Field
+          constrain v4 == Field 1
+          return
+      }
+      brillig(inline) fn helper f1 {
+        b0(v0: &mut &mut &mut Field):
+          v1 = load v0 -> &mut &mut Field
+          v2 = load v1 -> &mut Field
+          store Field 1 at v2
+          return
+      }
       "#;
 
         assert_ssa_does_not_change(src, Ssa::mem2reg);

@@ -369,7 +369,7 @@ fn handle_reference_expression_cases() {
         let _$l1 = {
             a$l0
         }[0];
-        let _$l2 = (*(&mut a$l0))[0];
+        let _$l2 = a$l0[0];
         let tuple$l3 = (a$l0.clone(), a$l0.clone());
         let _$l4 = tuple$l3.0[0];
         let nested$l5 = [a$l0.clone(), a$l0.clone()];
@@ -931,6 +931,53 @@ fn loop_with_conditional_reassignment() {
         x$l3
     }
     unconstrained fn use_var$f2(_x$l4: [Field]) -> () {
+    }
+    ");
+}
+
+/// `x.0.0` and `x.0` overlap because `x.0` takes the entire sub-tuple that
+/// `x.0.0` also reaches into. A clone is genuinely required here.
+#[test]
+fn clone_needed_when_extract_paths_overlap() {
+    let src = "
+    unconstrained fn main() {
+        let x = (([1], [2]), [3]);
+        let _a = x.0.0;
+        let _b = x.0;
+    }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let x$l0 = (([1], [2]), [3]);
+        let _a$l1 = x$l0.0.0.clone();
+        let _b$l2 = x$l0.0
+    }
+    ");
+}
+
+/// Single-field struct: extracting the only field is a move — no clone needed
+/// since there are no other fields that could alias.
+#[test]
+fn single_field_struct_extraction_is_optimal() {
+    let src = "
+    struct Wrapper { inner: [Field; 3] }
+
+    unconstrained fn main() {
+        let w = Wrapper { inner: [1, 2, 3] };
+        let _x = w.inner;
+    }
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let w$l1 = {
+            let inner$l0 = [1, 2, 3];
+            (inner$l0)
+        };
+        let _x$l2 = w$l1.0
     }
     ");
 }

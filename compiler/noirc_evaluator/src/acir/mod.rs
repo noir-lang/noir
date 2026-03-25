@@ -17,6 +17,7 @@ use acvm::acir::{
 };
 use acvm::{FieldElement, acir::AcirField, acir::circuit::opcodes::BlockId};
 use iter_extended::{try_vecmap, vecmap};
+use itertools::Itertools;
 use noirc_frontend::monomorphization::ast::InlineType;
 
 mod acir_context;
@@ -25,7 +26,7 @@ mod call;
 mod shared_context;
 pub(crate) mod ssa;
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
 mod types;
 
 use crate::brillig::Brillig;
@@ -256,7 +257,7 @@ impl<'a> Context<'a> {
         // But an attempt at searching through the program and relabeling these witnesses so we could remove
         // this constraint was [closed](https://github.com/noir-lang/noir/pull/10112#event-20171150226)
         // but "the opcode count doesn't even change in real circuits."
-        for (witness_var, return_var) in return_witness_vars.iter().zip(return_vars) {
+        for (witness_var, return_var) in return_witness_vars.iter().zip_eq(return_vars) {
             self.acir_context.assert_eq_var(*witness_var, return_var, None)?;
         }
 
@@ -853,11 +854,14 @@ impl<'a> Context<'a> {
         let var = self.convert_numeric_value(value_id, dfg)?;
         match &dfg[value_id] {
             Value::Instruction { instruction, .. } => {
-                if matches!(
-                    &dfg[*instruction],
-                    Instruction::Binary(Binary { operator: BinaryOp::Sub { unchecked: true }, .. })
-                ) {
-                    unreachable!("Truncation of unchecked subtraction");
+                if let Instruction::Binary(Binary {
+                    lhs,
+                    operator: BinaryOp::Sub { unchecked: true },
+                    ..
+                }) = &dfg[*instruction]
+                    && matches!(dfg.type_of_value(*lhs), Type::Numeric(NumericType::Signed { .. }))
+                {
+                    unreachable!("Truncation of unchecked signed subtraction");
                 }
             }
             Value::Param { .. } => {

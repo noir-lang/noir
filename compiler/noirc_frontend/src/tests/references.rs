@@ -1,8 +1,8 @@
 use crate::{
     elaborator::UnstableFeature,
     tests::{
-        assert_no_errors, check_errors, check_errors_using_features, check_monomorphization_error,
-        get_program_using_features,
+        assert_no_errors, assert_no_errors_using_features, check_errors,
+        check_errors_using_features, check_monomorphization_error, get_program_using_features,
     },
 };
 
@@ -205,6 +205,25 @@ fn mutable_reference_behind_generics_returned_from_oracle() {
     ) -> fn[Env](Field) -> () {}
     "#;
     check_monomorphization_error(src);
+}
+
+#[test]
+fn method_with_immutable_self_reference_does_not_require_mutable_variable() {
+    let src = r#"
+    struct S { inner: Field }
+
+    impl S {
+        fn ping(self: &S) -> Field {
+            self.inner
+        }
+    }
+
+    fn main() {
+        let s = S { inner: 1 };
+        assert(s.ping() == 1);
+    }
+    "#;
+    assert_no_errors_using_features(src, &[UnstableFeature::Ownership]);
 }
 
 #[test]

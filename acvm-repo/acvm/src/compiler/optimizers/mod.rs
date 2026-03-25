@@ -4,6 +4,7 @@ use acir::{
     AcirField,
     circuit::{Circuit, Opcode, brillig::BrilligFunctionId},
 };
+use itertools::Itertools;
 
 mod common_subexpression;
 mod general;
@@ -67,7 +68,7 @@ pub(super) fn optimize_internal<F: AcirField>(
     let (opcodes, acir_opcode_positions): (Vec<_>, Vec<_>) = acir
         .opcodes
         .into_iter()
-        .zip(acir_opcode_positions)
+        .zip_eq(acir_opcode_positions)
         .filter_map(|(opcode, position)| {
             if let Opcode::AssertZero(arith_expr) = opcode {
                 let optimized = GeneralOptimizer::optimize(arith_expr);

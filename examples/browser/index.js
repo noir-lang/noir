@@ -23,8 +23,9 @@ document.getElementById('submit').addEventListener('click', async () => {
     // docs:start:init
     show('logs', 'Creating Noir...');
     const noir = new Noir(circuit);
-    show('logs', 'Creating Barretenberg...');
+    show('logs', 'Creating Barretenberg... ⏳');
     const barretenbergAPI = await Barretenberg.new();
+    show('logs', 'Created Barretenberg... ✅');
     show('logs', 'Creating UltraHonkBackend...');
     const backend = new UltraHonkBackend(circuit.bytecode, barretenbergAPI);
     // docs:end:init

@@ -5,6 +5,8 @@
 //! with a parameter, the instruction defining the argument writes directly to the
 //! parameter's register, eliminating the mov at the jmp site.
 
+use itertools::Itertools;
+
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
     cfg::ControlFlowGraph,
@@ -36,7 +38,7 @@ fn can_coalesce_param_side(
 ///   writes directly to the parameter's register.
 /// - Param-side (`param -> arg`): a block parameter reuses the register of an already-allocated
 ///   value (block param passthrough, cross-block instruction result).
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub(crate) struct CoalescingMap {
     coalesced: HashMap<ValueId, ValueId>,
     /// Reverse mapping: values that are targets of coalescing.
@@ -76,7 +78,7 @@ impl CoalescingMap {
             // two params of the same destination from reusing the same register.
             let mut param_side_targets = HashSet::default();
 
-            for (arg, param) in arguments.iter().zip(params.iter()) {
+            for (arg, param) in arguments.iter().zip_eq(params.iter()) {
                 if arg == param {
                     continue;
                 }
