@@ -151,7 +151,7 @@ impl Function {
         &mut self,
         insert_out_of_bounds_checks: bool,
     ) -> HashMap<BasicBlockId, Vec<ValueId>> {
-        let mut context = Context::default();
+        let mut context = Context::new(self.reachable_blocks().len() == 1);
 
         for call_data in &self.dfg.data_bus.call_data {
             context.mark_used_instruction_results(&self.dfg, call_data.array_id);
@@ -202,7 +202,6 @@ struct DIEResult {
     unused_parameters: HashMap<FunctionId, HashMap<BasicBlockId, Vec<ValueId>>>,
 }
 /// Per function context for tracking unused values and which instructions to remove.
-#[derive(Default)]
 struct Context {
     used_values: HashSet<ValueId>,
     instructions_to_remove: HashSet<InstructionId>,
@@ -211,6 +210,9 @@ struct Context {
     /// they technically contain side-effects but we still want to remove them if their
     /// `value` parameter is not used elsewhere.
     rc_instructions: Vec<(InstructionId, BasicBlockId)>,
+
+    /// Whether the function has exactly one reachable block.
+    is_single_block: bool,
 
     /// A per-block list indicating which block parameters are still considered alive.
     ///
@@ -225,6 +227,16 @@ struct Context {
 }
 
 impl Context {
+    fn new(is_single_block: bool) -> Self {
+        Self {
+            used_values: HashSet::default(),
+            instructions_to_remove: HashSet::default(),
+            rc_instructions: Vec::new(),
+            is_single_block,
+            parameter_keep_list: HashMap::default(),
+        }
+    }
+
     /// Steps backwards through the instruction of the given block, amassing a set of used values
     /// as it goes, and at the same time marking instructions for removal if they haven't appeared
     /// in the set thus far.
@@ -322,10 +334,11 @@ impl Context {
     fn is_unused(&self, instruction_id: InstructionId, function: &Function) -> bool {
         let instruction = &function.dfg[instruction_id];
 
-        can_be_eliminated_if_unused(instruction, function, &self.used_values) && {
-            let results = function.dfg.instruction_results(instruction_id);
-            results.iter().all(|result| !self.used_values.contains(result))
-        }
+        can_be_eliminated_if_unused(instruction, function, &self.used_values, self.is_single_block)
+            && {
+                let results = function.dfg.instruction_results(instruction_id);
+                results.iter().all(|result| !self.used_values.contains(result))
+            }
     }
 
     /// Adds values referenced by the terminator to the set of used values.
@@ -428,6 +441,7 @@ fn can_be_eliminated_if_unused(
     instruction: &Instruction,
     function: &Function,
     used_values: &HashSet<ValueId>,
+    is_single_block: bool,
 ) -> bool {
     use Instruction::*;
     match instruction {
@@ -480,7 +494,7 @@ fn can_be_eliminated_if_unused(
             //   `used_values` is complete — no back-edge ordering issues).
             // - The address is a local allocation (so no caller can observe it).
             // - The address has no remaining uses (no loads, no escapes).
-            function.reachable_blocks().len() == 1
+            is_single_block
                 && is_local_allocate(&function.dfg, *address)
                 && !used_values.contains(address)
         }
