@@ -6,73 +6,13 @@ use crate::ssa::ir::basic_block::BasicBlockId;
 use crate::ssa::ir::function::RuntimeType;
 use crate::ssa::ir::function::{Function, FunctionId};
 use crate::ssa::ir::instruction::{Hint, Instruction, InstructionId, Intrinsic};
+use crate::ssa::ir::union_find::UnionFind;
 use crate::ssa::ir::value::{Value, ValueId};
 use crate::ssa::ssa_gen::Ssa;
 use crate::ssa::visit_once_deque::VisitOnceDeque;
 use noirc_artifacts::ssa::{InternalBug, SsaReport};
 use rayon::prelude::*;
-use rustc_hash::FxHashMap as HashMap;
 use std::collections::{BTreeMap, HashSet};
-
-/// Union-Find (disjoint set) data structure for efficiently computing connected components.
-/// Uses path compression and union by rank for near-O(1) amortized operations.
-struct UnionFind {
-    parent: HashMap<ValueId, ValueId>,
-    rank: HashMap<ValueId, u32>,
-}
-
-impl UnionFind {
-    fn new() -> Self {
-        Self { parent: HashMap::default(), rank: HashMap::default() }
-    }
-
-    /// Ensure a value exists in the union-find.
-    fn make_set(&mut self, v: ValueId) {
-        self.parent.entry(v).or_insert(v);
-    }
-
-    /// Find the root representative of the set containing `v`, with path compression.
-    fn find(&mut self, v: ValueId) -> ValueId {
-        let p = self.parent[&v];
-        if p == v {
-            return v;
-        }
-        let root = self.find(p);
-        self.parent.insert(v, root);
-        root
-    }
-
-    /// Union the sets containing `a` and `b`. Uses union by rank.
-    fn union(&mut self, a: ValueId, b: ValueId) {
-        let ra = self.find(a);
-        let rb = self.find(b);
-        if ra == rb {
-            return;
-        }
-        let rank_a = *self.rank.entry(ra).or_insert(0);
-        let rank_b = *self.rank.entry(rb).or_insert(0);
-        if rank_a < rank_b {
-            self.parent.insert(ra, rb);
-        } else {
-            self.parent.insert(rb, ra);
-            if rank_a == rank_b {
-                *self.rank.entry(ra).or_insert(0) += 1;
-            }
-        }
-    }
-
-    /// Union all values in the iterator into one set.
-    fn union_all(&mut self, values: impl IntoIterator<Item = ValueId>) {
-        let mut first = None;
-        for v in values {
-            self.make_set(v);
-            match first {
-                None => first = Some(v),
-                Some(f) => self.union(f, v),
-            }
-        }
-    }
-}
 
 impl Ssa {
     /// This function provides an SSA pass that detects if the final function has any subgraphs independent from inputs and outputs.
@@ -119,7 +59,7 @@ fn check_for_underconstrained_values_within_function(
     for (brillig_output, argument_ids) in &context.brillig_return_to_argument {
         // If the output isn't in the union-find, it was never used by any subsequent
         // instruction. The brillig constraints check handles that case.
-        if !context.uf.parent.contains_key(brillig_output) {
+        if !context.uf.contains(brillig_output) {
             continue;
         }
         let output_root = context.uf.find(*brillig_output);
@@ -129,11 +69,7 @@ fn check_for_underconstrained_values_within_function(
         }
         // Check if any input is in a different component (or absent from the UF entirely)
         let has_disconnected_input = argument_ids.iter().any(|inp| {
-            if context.uf.parent.contains_key(inp) {
-                context.uf.find(*inp) != output_root
-            } else {
-                true
-            }
+            if context.uf.contains(inp) { context.uf.find(*inp) != output_root } else { true }
         });
         if has_disconnected_input {
             warnings.push(SsaReport::Bug(InternalBug::IndependentSubgraph {
@@ -191,7 +127,7 @@ impl Context {
             .chain(returns)
             .copied()
             .filter(|id| !is_numeric_constant(function, *id))
-            .filter(|id| self.uf.parent.contains_key(id))
+            .filter(|id| self.uf.contains(id))
             .collect();
         input_output_values.into_iter().map(|id| self.uf.find(id)).collect()
     }
