@@ -151,7 +151,7 @@ impl Function {
         &mut self,
         insert_out_of_bounds_checks: bool,
     ) -> HashMap<BasicBlockId, Vec<ValueId>> {
-        let mut context = Context::new();
+        let mut context = Context::default();
 
         // Forward pre-scan: count Load instructions per address so that the
         // reverse pass can determine when a store's address has no live loads.
@@ -212,6 +212,7 @@ struct DIEResult {
     unused_parameters: HashMap<FunctionId, HashMap<BasicBlockId, Vec<ValueId>>>,
 }
 /// Per function context for tracking unused values and which instructions to remove.
+#[derive(Default)]
 struct Context {
     used_values: HashSet<ValueId>,
     instructions_to_remove: HashSet<InstructionId>,
@@ -239,16 +240,6 @@ struct Context {
 }
 
 impl Context {
-    fn new() -> Self {
-        Self {
-            used_values: HashSet::default(),
-            instructions_to_remove: HashSet::default(),
-            rc_instructions: Vec::new(),
-            live_load_counts: HashMap::default(),
-            parameter_keep_list: HashMap::default(),
-        }
-    }
-
     /// Steps backwards through the instruction of the given block, amassing a set of used values
     /// as it goes, and at the same time marking instructions for removal if they haven't appeared
     /// in the set thus far.
