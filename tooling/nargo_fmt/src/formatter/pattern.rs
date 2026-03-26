@@ -25,10 +25,11 @@ impl ChunkFormatter<'_, '_> {
             // Special case: `&self` and `&mut self` (this is reflected in the param type, not the pattern)
             if formatter.is_at(Token::Ampersand) {
                 formatter.write_token(Token::Ampersand);
+                formatter.skip_comments_and_whitespace();
                 if formatter.is_at_keyword(Keyword::Mut) {
                     formatter.write_keyword(Keyword::Mut);
+                    formatter.write_space();
                 }
-                formatter.write_space();
             }
         }));
 
@@ -149,6 +150,26 @@ mod tests {
     fn format_identifier_pattern() {
         let src = "fn foo( x : i32) {}";
         let expected = "fn foo(x: i32) {}\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_ref_self_parameter() {
+        let src = "impl Foo { fn bar( &  self ) {} }";
+        let expected = "impl Foo {
+    fn bar(&self) {}
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_ref_mut_self_parameter() {
+        let src = "impl Foo { fn bar( & mut  self ) {} }";
+        let expected = "impl Foo {
+    fn bar(&mut self) {}
+}
+";
         assert_format(src, expected);
     }
 
