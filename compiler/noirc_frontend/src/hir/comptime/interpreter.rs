@@ -697,7 +697,16 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let global_id = *global_id;
                 let global_info = self.elaborator.interner.get_global(global_id);
                 match &global_info.value {
-                    GlobalValue::Resolved(value) => Ok(value.clone()),
+                    GlobalValue::Resolved(value) => {
+                        // Enum variant globals with generics are instantiated with a Type::Forall
+                        // We need to resolve the type, but it has already been done by the elaborator
+                        if let Value::Enum(tag, fields, _) = value {
+                            let typ = self.elaborator.interner.id_type(id).follow_bindings();
+                            Ok(Value::Enum(*tag, fields.clone(), typ))
+                        } else {
+                            Ok(value.clone())
+                        }
+                    }
                     GlobalValue::Resolving => {
                         // Note that the error we issue here isn't very informative (it doesn't include the actual cycle)
                         // but the general dependency cycle detector will give a better error later on during compilation.

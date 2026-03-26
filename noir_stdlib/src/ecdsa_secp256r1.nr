@@ -1,3 +1,4 @@
+/// Verifier for ECDSA Secp256r1 signatures.
 // docs:start:ecdsa_secp256r1
 /// Verifies a ECDSA signature over the secp256r1 curve.
 /// - inputs:
