@@ -7,6 +7,39 @@
 //! To do so, it tracks the ancestry of every expression, and checks that any
 //! variable which is an output of a Brillig call has a descendant which appears
 //! in an assertion, where the other side has an ancestor that is an input of the call.
+//!
+//! Essentially, to consider a particular Brillig call constrained, we are looking
+//! for a constraint where the ancestors of the constraint arguments intersect both of:
+//! * the descendants of the results of the call (outputs)
+//! * the ancestors of the arguments of the call (inputs)
+//!
+//! For example take the following graph of variables feeding into calls:
+//! ```text
+//!   v1     v2      v3
+//!    \   /  \    /
+//!     \ /    \  /
+//!      v4     v5 = call(v2, v3)
+//!      |\     |
+//!      | \    |
+//!      |  \   |
+//!      |   \  |
+//!      |    \ |
+//!      |      v6 = call(v5, v4)
+//!      |     /
+//!      |    /
+//!      |   /
+//!      |  /
+//! constrain(v4, v6)
+//! ```
+//!
+//! Both calls are considered constrained:
+//! * The output of the 2nd call (v6) is constrained directly against its input (v4)
+//! * The output of the 1st call (v5) has a descendant (v6) which is constrained against
+//!   a value (v4) that has an ancestor (v2) which is also an ancestor of an argument of
+//!   of the call itself.
+//!
+//! The goal isn't to verify that the constraint is correct, just that some (indirect)
+//! connection between inputs and outputs is made.
 use crate::ssa::checks::is_numeric_constant;
 use crate::ssa::ir::basic_block::BasicBlockId;
 use crate::ssa::ir::function::RuntimeType;
