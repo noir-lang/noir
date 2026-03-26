@@ -404,7 +404,8 @@ jobs:
           REPO_DIR: test-repo
           PROJECT_DIR: ${{ matrix.path }}
           OUTPUT_DIR: ${{ github.workspace }}/output
-          NUM_RUNS: ${{ matrix.num_runs }}
+          NUM_COMPILE_RUNS: ${{ matrix.num_compile_runs }}
+          NUM_EXECUTE_RUNS: ${{ matrix.num_execute_runs }}
           SKIP_BRILLIG_EXECUTION: ${{ matrix.cannot_execute_brillig }}
 
       - name: Process report data

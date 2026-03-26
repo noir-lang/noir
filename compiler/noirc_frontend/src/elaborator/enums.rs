@@ -12,7 +12,7 @@ use crate::{
     DataType, EnumVariant as HirEnumVariant, Kind, Shared, Type,
     ast::{
         ConstructorExpression, EnumVariant, Expression, ExpressionKind, FunctionKind, Ident,
-        ItemVisibility, Literal, NoirEnumeration, StatementKind, UnresolvedType,
+        ItemVisibility, Literal, NoirEnumeration, Path, StatementKind, UnresolvedType,
         UnresolvedTypeData,
     },
     elaborator::{
@@ -644,6 +644,19 @@ impl Elaborator<'_> {
         variables_defined: &mut Vec<Ident>,
     ) -> Pattern {
         let location = constructor.typ.location;
+
+        // Check if this path refers to an enum variant. Struct-like pattern syntax
+        // `E::A { x }` is not supported for enum variants; use `E::A(x)` instead.
+        if let UnresolvedTypeData::Named(ref path, _, _) = constructor.typ.typ
+            && self.is_enum_variant(path)
+        {
+            self.push_err(TypeCheckError::StructPatternOnEnumVariant {
+                path: path.to_string(),
+                location: expr_location,
+            });
+            return Pattern::Error;
+        }
+
         let wildcard_allowed = WildcardAllowed::Yes;
         let typ = self.resolve_type(constructor.typ, wildcard_allowed);
 
@@ -693,6 +706,30 @@ impl Elaborator<'_> {
         Pattern::Constructor(Constructor::Variant(typ, 0), args)
     }
 
+    fn is_enum_variant(&mut self, path: &Path) -> bool {
+        let typed_path = self.validate_path(path.clone());
+        if let Ok(resolution) = self.resolve_path_or_error(typed_path, PathResolutionTarget::Value)
+        {
+            return match &resolution {
+                PathResolutionItem::Global(id) => {
+                    let global = self.interner.get_global(*id);
+                    let typ = self.interner.definition_type(global.definition_id);
+                    let inner = match &typ {
+                        Type::Forall(_, inner) => inner.as_ref(),
+                        other => other,
+                    };
+                    matches!(inner, Type::DataType(dt, _) if dt.borrow().is_enum())
+                }
+                PathResolutionItem::Method(_, _, func_id)
+                | PathResolutionItem::SelfMethod(func_id) => {
+                    self.interner.function_meta(func_id).enum_variant_index.is_some()
+                }
+                _ => false,
+            };
+        }
+
+        false
+    }
     fn expression_to_constructor(
         &mut self,
         name: Expression,
