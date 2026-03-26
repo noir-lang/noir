@@ -151,7 +151,17 @@ impl Function {
         &mut self,
         insert_out_of_bounds_checks: bool,
     ) -> HashMap<BasicBlockId, Vec<ValueId>> {
-        let mut context = Context::new(self.reachable_blocks().len() == 1);
+        let mut context = Context::new();
+
+        // Forward pre-scan: count Load instructions per address so that the
+        // reverse pass can determine when a store's address has no live loads.
+        for block_id in self.reachable_blocks() {
+            for instruction_id in self.dfg[block_id].instructions() {
+                if let Instruction::Load { address } = &self.dfg[*instruction_id] {
+                    *context.live_load_counts.entry(*address).or_default() += 1;
+                }
+            }
+        }
 
         for call_data in &self.dfg.data_bus.call_data {
             context.mark_used_instruction_results(&self.dfg, call_data.array_id);
@@ -211,8 +221,10 @@ struct Context {
     /// `value` parameter is not used elsewhere.
     rc_instructions: Vec<(InstructionId, BasicBlockId)>,
 
-    /// Whether the function has exactly one reachable block.
-    is_single_block: bool,
+    /// Number of surviving Load instructions per address, populated by a forward pre-scan
+    /// and decremented as the reverse pass removes dead loads. A store to a local allocation
+    /// is dead when its address has zero live loads and is not in `used_values`.
+    live_load_counts: HashMap<ValueId, usize>,
 
     /// A per-block list indicating which block parameters are still considered alive.
     ///
@@ -227,12 +239,12 @@ struct Context {
 }
 
 impl Context {
-    fn new(is_single_block: bool) -> Self {
+    fn new() -> Self {
         Self {
             used_values: HashSet::default(),
             instructions_to_remove: HashSet::default(),
             rc_instructions: Vec::new(),
-            is_single_block,
+            live_load_counts: HashMap::default(),
             parameter_keep_list: HashMap::default(),
         }
     }
@@ -277,6 +289,13 @@ impl Context {
 
             if self.is_unused(*instruction_id, function) {
                 self.instructions_to_remove.insert(*instruction_id);
+
+                // A dead load no longer keeps its address alive for store removal.
+                if let Instruction::Load { address } = instruction
+                    && let Some(count) = self.live_load_counts.get_mut(address)
+                {
+                    *count = count.saturating_sub(1);
+                }
 
                 if insert_out_of_bounds_checks && should_insert_oob_check(function, instruction) {
                     possible_index_out_of_bounds_indices.push(instruction_index);
@@ -334,11 +353,15 @@ impl Context {
     fn is_unused(&self, instruction_id: InstructionId, function: &Function) -> bool {
         let instruction = &function.dfg[instruction_id];
 
-        can_be_eliminated_if_unused(instruction, function, &self.used_values, self.is_single_block)
-            && {
-                let results = function.dfg.instruction_results(instruction_id);
-                results.iter().all(|result| !self.used_values.contains(result))
-            }
+        can_be_eliminated_if_unused(
+            instruction,
+            function,
+            &self.used_values,
+            &self.live_load_counts,
+        ) && {
+            let results = function.dfg.instruction_results(instruction_id);
+            results.iter().all(|result| !self.used_values.contains(result))
+        }
     }
 
     /// Adds values referenced by the terminator to the set of used values.
@@ -441,7 +464,7 @@ fn can_be_eliminated_if_unused(
     instruction: &Instruction,
     function: &Function,
     used_values: &HashSet<ValueId>,
-    is_single_block: bool,
+    live_load_counts: &HashMap<ValueId, usize>,
 ) -> bool {
     use Instruction::*;
     match instruction {
@@ -490,13 +513,16 @@ fn can_be_eliminated_if_unused(
 
         Store { address, .. } => {
             // A store is dead when:
-            // - The function is single-block (so reverse traversal guarantees
-            //   `used_values` is complete — no back-edge ordering issues).
             // - The address is a local allocation (so no caller can observe it).
-            // - The address has no remaining uses (no loads, no escapes).
-            is_single_block
-                && is_local_allocate(&function.dfg, *address)
+            // - The address doesn't escape (not in `used_values`).
+            // - No live Load instruction references the address.
+            //
+            // `live_load_counts` is populated by a forward pre-scan and decremented
+            // as the reverse pass removes dead loads, so it accounts for loads in
+            // any block (including back-edge predecessors not yet visited).
+            is_local_allocate(&function.dfg, *address)
                 && !used_values.contains(address)
+                && live_load_counts.get(address).copied().unwrap_or(0) == 0
         }
 
         Constrain(..)
@@ -1409,5 +1435,88 @@ mod tests {
         "#;
 
         assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
+    }
+
+    /// Dead stores in multi-block functions are removed when no live load
+    /// references the address.
+    #[test]
+    fn dead_store_removed_in_multi_block_brillig() {
+        let src = "
+            brillig(inline) fn main f0 {
+              b0():
+                v0 = allocate -> &mut Field
+                store Field 0 at v0
+                jmp b1()
+              b1():
+                return
+            }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.dead_instruction_elimination();
+
+        assert_ssa_snapshot!(ssa, @r"
+            brillig(inline) fn main f0 {
+              b0():
+                jmp b1()
+              b1():
+                return
+            }
+        ");
+    }
+
+    /// A store must be kept in a multi-block function when a live load in
+    /// another block (including a back-edge predecessor) reads the address.
+    #[test]
+    fn keeps_store_when_load_in_back_edge_block() {
+        let src = r#"
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 0 at v0
+            jmp b1()
+          b1():
+            v1 = load v0 -> Field
+            v2 = eq v1, Field 10
+            jmpif v2 then: b2(), else: b3()
+          b2():
+            return v1
+          b3():
+            v3 = add v1, Field 1
+            store v3 at v0
+            jmp b1()
+        }
+        "#;
+
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
+    }
+
+    /// When a load's result is unused, DIE removes the load, which decrements
+    /// the live load count. If that was the last load for the address, the
+    /// store becomes dead too — cascading within a single pass.
+    #[test]
+    fn dead_load_makes_store_dead() {
+        let src = "
+            brillig(inline) fn main f0 {
+              b0():
+                v0 = allocate -> &mut Field
+                store Field 42 at v0
+                jmp b1()
+              b1():
+                v1 = load v0 -> Field
+                return
+            }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.dead_instruction_elimination();
+
+        // v1 is unused so the load is dead; that makes the store dead too.
+        assert_ssa_snapshot!(ssa, @r"
+            brillig(inline) fn main f0 {
+              b0():
+                jmp b1()
+              b1():
+                return
+            }
+        ");
     }
 }
