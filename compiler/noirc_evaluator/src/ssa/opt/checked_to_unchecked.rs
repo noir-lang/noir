@@ -88,15 +88,18 @@ impl Function {
                     let max_lhs_bits = get_max_num_bits(dfg, lhs, &mut value_max_num_bits);
                     let max_rhs_bits = get_max_num_bits(dfg, rhs, &mut value_max_num_bits);
 
-                    // `2^max_lhs_bits * 2^max_rhs_bits` is `2^(max_lhs_bits + max_rhs_bits)` so if that sum is
-                    // less than or equal to the bit size of the result then it cannot overflow.
+                    // The product of two values needs at most `max_lhs_bits + max_rhs_bits`
+                    // bits to represent: the maximum product `(2^a - 1) * (2^b - 1)` is less
+                    // than `2^(a+b)`. So if `max_lhs_bits + max_rhs_bits <= bit_size`, the
+                    // result is guaranteed to fit and the multiplication cannot overflow.
                     //
-                    // If either operand has max_bits == 1, its value is 0 or 1 (guaranteed by
-                    // `get_max_num_bits` — it only returns 1 for constants 0/1, booleans, or
-                    // the product of two 1-bit values). Multiplying any N-bit value by 0 or 1
-                    // yields at most the original value, which already fits in N bits, so no
-                    // overflow is possible. This is sound as long as `get_max_num_bits` never
-                    // returns 1 for a value that could actually exceed 1.
+                    // When either operand has `max_bits == 1` its value is at most 1
+                    // (guaranteed by `get_max_num_bits` — it only returns 1 for constants 0/1,
+                    // boolean-typed values, or the product of two 1-bit values). Multiplying
+                    // any N-bit value by 0 or 1 yields at most the original value, which
+                    // already fits in N bits, so no overflow is possible. This is sound as
+                    // long as `get_max_num_bits` never returns 1 for a value that could
+                    // actually exceed 1.
                     max_lhs_bits + max_rhs_bits <= bit_size
                         || max_lhs_bits == 1
                         || max_rhs_bits == 1
