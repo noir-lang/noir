@@ -65,7 +65,7 @@ impl Ssa {
 }
 
 impl Function {
-    fn load_store_forwarding(&mut self) {
+    pub(crate) fn load_store_forwarding(&mut self) {
         let loop_aliases = analyze_loop_aliases(self);
 
         let mut inserter = FunctionInserter::new(self);

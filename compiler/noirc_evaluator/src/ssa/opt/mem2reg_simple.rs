@@ -94,7 +94,7 @@ impl Function {
         if self.runtime().is_brillig() {
             self.mem2reg_simple(Some(MAX_VARIABLES_OPTIMIZED), None);
         } else {
-            self.mem2reg_simple(Some(MAX_VARIABLES_OPTIMIZED), Some(MAX_BLOCK_SPAN_PRE_FLATTENING));
+            self.mem2reg_simple(None, Some(MAX_BLOCK_SPAN_PRE_FLATTENING));
         }
     }
 

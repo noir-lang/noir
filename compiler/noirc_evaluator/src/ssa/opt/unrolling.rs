@@ -1902,9 +1902,11 @@ impl<'f> LoopIteration<'f> {
 fn simplify_between_unrolls(function: &mut Function) {
     // Do a mem2reg after the last unroll to aid simplify_cfg
     function.mem2reg_simple_pre_flattening();
+    function.load_store_forwarding();
     function.simplify_function();
     // Do another mem2reg after simplify_cfg to aid the next unroll
     function.mem2reg_simple_pre_flattening();
+    function.load_store_forwarding();
 }
 
 /// Decide if the new bytecode size is acceptable, compared to the original.
