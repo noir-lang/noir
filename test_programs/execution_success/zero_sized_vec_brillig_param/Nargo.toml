@@ -1,0 +1,6 @@
+[package]
+name = "zero_sized_vec_brillig_param"
+type = "bin"
+authors = [""]
+
+[dependencies]
