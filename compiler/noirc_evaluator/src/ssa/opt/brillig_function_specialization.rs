@@ -32,7 +32,10 @@
 //! Specialized clones are added to the SSA. Original functions are left untouched — dead
 //! function elimination cleans them up later if all call sites were rewritten.
 //!
-//! This is Brillig-only — ACIR functions get fully inlined anyway.
+//! For Brillig, clones are kept only if they shrink enough to justify code-size cost.
+//! For ACIR, clones are always kept — ACIR functions get inlined eventually, so the
+//! only benefit is constant propagation (e.g. making loop bounds constant for unrolling
+//! in `no_predicates` functions that are inlined after flattening).
 
 use std::collections::BTreeMap;
 
@@ -157,13 +160,10 @@ fn collect_specialization_candidates(
                     continue;
                 };
 
-                // Must be a Brillig function that exists in the SSA.
-                let Some(callee_fn) = ssa.functions.get(callee_id) else {
+                // Must be a function that exists in the SSA.
+                let Some(_callee_fn) = ssa.functions.get(callee_id) else {
                     continue;
                 };
-                if !callee_fn.runtime().is_brillig() {
-                    continue;
-                }
 
                 // Skip recursive functions.
                 if recursive_functions.contains(callee_id) {
@@ -309,6 +309,11 @@ fn create_specialized_clones(
             // Run per-function optimization passes on the clone.
             optimize_clone(&mut clone, constant_folding_max_iter, &ssa.functions);
 
+            // ACIR functions will be inlined eventually, so always keep specialized
+            // clones — the only benefit that matters is constant propagation (e.g. making
+            // loop bounds constant for unrolling). Dead function elimination removes the
+            // original if all call sites were rewritten.
+            let is_acir = ssa.functions[&callee_id].runtime().is_acir();
             let specialized_cost = clone.cost();
             let savings_percent = if original_cost > specialized_cost {
                 ((original_cost - specialized_cost) * 100) / original_cost
@@ -316,7 +321,7 @@ fn create_specialized_clones(
                 0
             };
 
-            if savings_percent >= specialization_threshold {
+            if is_acir || savings_percent >= specialization_threshold {
                 let new_id = ssa.add_fn(|id| Function::clone_with_id(id, &clone));
                 surviving.insert(key.clone(), new_id);
                 specializations_for_callee += 1;
