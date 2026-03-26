@@ -88,13 +88,15 @@ impl Function {
                     let max_lhs_bits = get_max_num_bits(dfg, lhs, &mut value_max_num_bits);
                     let max_rhs_bits = get_max_num_bits(dfg, rhs, &mut value_max_num_bits);
 
-                    // 1. Bool multiplication cannot overflow
-                    // 2. `2^max_lhs_bits * 2^max_rhs_bits` is `2^(max_lhs_bits + max_rhs_bits)` so if that sum is
-                    //    less than or equal to the bit size of the result then it cannot overflow.
-                    // 3. lhs was upcasted from a boolean
-                    // 4. rhs was upcasted from a boolean
-                    // So either performing boolean multiplication (which cannot overflow),
-                    // or `lhs` and `rhs` have both been casted up from smaller types and cannot overflow.
+                    // `2^max_lhs_bits * 2^max_rhs_bits` is `2^(max_lhs_bits + max_rhs_bits)` so if that sum is
+                    // less than or equal to the bit size of the result then it cannot overflow.
+                    //
+                    // If either operand has max_bits == 1, its value is 0 or 1 (guaranteed by
+                    // `get_max_num_bits` — it only returns 1 for constants 0/1, booleans, or
+                    // the product of two 1-bit values). Multiplying any N-bit value by 0 or 1
+                    // yields at most the original value, which already fits in N bits, so no
+                    // overflow is possible. This is sound as long as `get_max_num_bits` never
+                    // returns 1 for a value that could actually exceed 1.
                     max_lhs_bits + max_rhs_bits <= bit_size
                         || max_lhs_bits == 1
                         || max_rhs_bits == 1
