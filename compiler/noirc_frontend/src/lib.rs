@@ -15,6 +15,7 @@
 pub mod ast;
 pub mod debug;
 pub mod elaborator;
+pub mod error_reporting;
 pub mod graph;
 pub mod lexer;
 pub mod locations;
@@ -25,7 +26,6 @@ pub mod ownership;
 pub mod parser;
 pub mod resolve_locations;
 pub mod shared;
-pub mod signed_field;
 pub mod usage_tracker;
 
 pub mod hir;

@@ -30,6 +30,7 @@ toml.workspace = true
 [dependencies]
 clap.workspace = true
 fm.workspace = true
+itertools.workspace = true
 rustc-hash.workspace = true
 iter-extended.workspace = true
 # This is the only crate that really needs the RPC feature,
@@ -107,7 +108,6 @@ similar.workspace = true
 sha2.workspace = true
 iai = "0.1.1"
 test-case.workspace = true
-light-poseidon = "0.3.0"
 insta = { workspace = true, features = ["json", "redactions"] }
 base64.workspace = true
 

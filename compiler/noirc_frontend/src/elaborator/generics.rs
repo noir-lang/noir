@@ -3,6 +3,7 @@
 use std::rc::Rc;
 
 use iter_extended::vecmap;
+use itertools::Itertools;
 use noirc_errors::Location;
 use rustc_hash::FxHashSet as HashSet;
 
@@ -94,7 +95,7 @@ impl Elaborator<'_> {
     ) {
         assert_eq!(unresolved_generics.len(), generics.len());
 
-        for (unresolved_generic, generic) in unresolved_generics.iter().zip(generics) {
+        for (unresolved_generic, generic) in unresolved_generics.iter().zip_eq(generics) {
             self.add_existing_generic(unresolved_generic, unresolved_generic.location(), generic);
         }
     }

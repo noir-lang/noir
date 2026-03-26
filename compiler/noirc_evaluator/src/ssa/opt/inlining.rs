@@ -12,6 +12,7 @@ use crate::{
 use acvm::acir::AcirField;
 use im::HashMap;
 use iter_extended::vecmap;
+use itertools::Itertools;
 use noirc_errors::{Location, call_stack::CallStackId};
 
 use crate::ssa::{
@@ -270,8 +271,7 @@ impl InlineContext {
         let mut context = PerFunctionContext::new(self, entry_point, source_function);
 
         let parameters = source_function.parameters();
-        assert_eq!(parameters.len(), arguments.len());
-        context.values = parameters.iter().copied().zip(arguments.iter().copied()).collect();
+        context.values = parameters.iter().copied().zip_eq(arguments.iter().copied()).collect();
 
         let current_block = context.context.builder.current_block();
         context.blocks.insert(source_function.entry_block(), current_block);

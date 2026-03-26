@@ -12,7 +12,9 @@ error: the input length must equal the state size in the Poseidon2 config; expec
     │ ╰─────'
     │  
     = Call stack:
-      1. src/main.nr:6:9
-      2. std/hash/mod.nr:145:5
+      1: main
+              at src/main.nr:6:9
+      2: poseidon2_permutation
+              at std/hash/mod.nr:145:5
 
 Aborting due to 1 previous error

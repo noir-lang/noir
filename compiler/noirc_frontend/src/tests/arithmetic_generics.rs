@@ -2,12 +2,14 @@
 
 use core::panic;
 
+use acvm::{AcirField, FieldElement};
+
+use crate::hir::comptime::Integer;
 use crate::hir::type_check::TypeCheckError;
 use crate::hir_def::types::BinaryTypeOperator;
 use crate::monomorphization::errors::MonomorphizationError;
-use crate::signed_field::SignedField;
 use crate::test_utils::get_monomorphized;
-use crate::tests::{assert_no_errors, check_errors};
+use crate::tests::{assert_no_errors, check_errors, get_program_errors};
 
 #[test]
 fn arithmetic_generics_canonicalization_deduplication_regression() {
@@ -62,7 +64,7 @@ fn arithmetic_generics_checked_cast_zeros() {
     let source = r#"
         struct W<let N: u1> {}
         
-        fn foo<let N: u1>(_x: W<N>) -> W<(0 * N) / (N % N)> {
+        fn foo<let N: u1>(_x: W<N>) -> W<(0u1 * N) / (N % N)> {
             W {}
         }
         
@@ -71,7 +73,7 @@ fn arithmetic_generics_checked_cast_zeros() {
         }
         
         fn main() -> pub u1 {
-            let w_0: W<0> = W {};
+            let w_0: W<0u1> = W {};
             let w: W<_> = foo(w_0);
             bar(w)
         }
@@ -83,12 +85,12 @@ fn arithmetic_generics_checked_cast_zeros() {
     if let MonomorphizationError::UnknownArrayLength { ref err, location: _ } =
         monomorphization_error
     {
-        let TypeCheckError::FailingBinaryOp { op, lhs, rhs, .. } = err else {
+        let TypeCheckError::OverflowingBinaryOp { op, lhs, rhs, .. } = err else {
             panic!("Expected FailingBinaryOp, but found: {err:?}");
         };
         assert_eq!(op, &BinaryTypeOperator::Modulo);
-        assert_eq!(lhs, "0");
-        assert_eq!(rhs, "0");
+        assert_eq!(*lhs, Integer::U1(false));
+        assert_eq!(*rhs, Integer::U1(false));
     } else {
         panic!("unexpected error: {monomorphization_error:?}");
     }
@@ -108,7 +110,7 @@ fn arithmetic_generics_checked_cast_indirect_zeros() {
         }
         
         fn main() {
-            let w_0: W<0> = W {};
+            let w_0: W<0Field> = W {};
             let w = foo(w_0);
             let _ = bar(w);
         }
@@ -122,8 +124,8 @@ fn arithmetic_generics_checked_cast_indirect_zeros() {
     {
         match err {
             TypeCheckError::ModuloOnFields { lhs, rhs, .. } => {
-                assert_eq!(lhs.clone(), SignedField::zero());
-                assert_eq!(rhs.clone(), SignedField::zero());
+                assert_eq!(lhs.clone(), FieldElement::zero());
+                assert_eq!(rhs.clone(), FieldElement::zero());
             }
             _ => panic!("expected ModuloOnFields, but found: {err:?}"),
         }
@@ -286,4 +288,24 @@ fn numeric_generic_arithmetic_in_return_type_concat() {
     }
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn no_stack_overflow_from_unification_of_unfoldable_constant_exprs() {
+    // Regression test: `0 - N` with kind u32 can't be constant-folded (underflow),
+    // leaving `((0 - N) + 3)` as an InfixExpr. This caused infinite recursion
+    // with unification trying to move the constant term on every other sides
+    let src = r#"
+        fn foo<let N: u32>(y: [u8; ((0 - N) + 3)]) {
+            let x: [u8; (N + 0)] = y;
+            let _ = x;
+        }
+
+        fn main() {
+            let a: [u8; 1] = [0];
+            foo::<2>(a);
+        }
+    "#;
+    let errors = get_program_errors(src);
+    assert!(!errors.is_empty(), "Expected type errors but got none");
 }

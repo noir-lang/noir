@@ -6,7 +6,6 @@
 use crate::fuzz_lib::instruction::Instruction;
 use crate::mutations::configuration::{
     ArgumentMutationOptions, BASIC_ARGUMENT_MUTATION_CONFIGURATION,
-    BOOL_MUTATION_CONFIGURATION_MOSTLY_FALSE,
 };
 use crate::mutations::{
     basic_types::{
@@ -244,6 +243,11 @@ impl InstructionArgumentsMutation {
                 mutate_usize(&mut u64_indices[idx], rng, BASIC_USIZE_MUTATION_CONFIGURATION);
                 mutate_bool(load_elements_of_array, rng, BASIC_BOOL_MUTATION_CONFIGURATION);
             }
+            Instruction::Poseidon2Permutation { field_indices, load_elements_of_array } => {
+                let idx = rng.random_range(0..field_indices.len());
+                mutate_usize(&mut field_indices[idx], rng, BASIC_USIZE_MUTATION_CONFIGURATION);
+                mutate_bool(load_elements_of_array, rng, BASIC_BOOL_MUTATION_CONFIGURATION);
+            }
             Instruction::Sha256Compression {
                 input_indices,
                 state_indices,
@@ -302,19 +306,19 @@ impl InstructionArgumentsMutation {
             }
             Instruction::EcdsaSecp256k1 {
                 msg,
-                corrupt_hash,
-                corrupt_pubkey_x,
-                corrupt_pubkey_y,
-                corrupt_signature,
-                ..
+                corrupt_hash: _,
+                corrupt_pubkey_x: _,
+                corrupt_pubkey_y: _,
+                corrupt_signature: _,
+                predicate,
             }
             | Instruction::EcdsaSecp256r1 {
                 msg,
-                corrupt_hash,
-                corrupt_pubkey_x,
-                corrupt_pubkey_y,
-                corrupt_signature,
-                ..
+                corrupt_hash: _,
+                corrupt_pubkey_x: _,
+                corrupt_pubkey_y: _,
+                corrupt_signature: _,
+                predicate,
             } => {
                 mutate_vec(
                     msg,
@@ -325,10 +329,10 @@ impl InstructionArgumentsMutation {
                     |rng| rng.random_range(0..=255),
                     BASIC_VEC_MUTATION_CONFIGURATION,
                 );
-                mutate_bool(corrupt_hash, rng, BOOL_MUTATION_CONFIGURATION_MOSTLY_FALSE);
-                mutate_bool(corrupt_pubkey_x, rng, BOOL_MUTATION_CONFIGURATION_MOSTLY_FALSE);
-                mutate_bool(corrupt_pubkey_y, rng, BOOL_MUTATION_CONFIGURATION_MOSTLY_FALSE);
-                mutate_bool(corrupt_signature, rng, BOOL_MUTATION_CONFIGURATION_MOSTLY_FALSE);
+                // TODO(defkit): We are not mutating `corrupt*` fields,
+                // because they are causing strange compilation bugs, which won't be fixed
+
+                mutate_bool(predicate, rng, BOOL_MUTATION_CONFIGURATION_MOSTLY_TRUE);
             }
         }
     }

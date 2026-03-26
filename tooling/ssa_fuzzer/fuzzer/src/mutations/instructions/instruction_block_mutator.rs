@@ -148,6 +148,10 @@ fn generate_random_instruction(rng: &mut StdRng) -> Instruction {
                 GENERATE_BOOL_CONFIGURATION_MOST_FALSE,
             ),
         },
+        GenerateInstruction::Poseidon2Permutation => Instruction::Poseidon2Permutation {
+            field_indices: [rng.random_range(usize::MIN..usize::MAX); 4],
+            load_elements_of_array: rng.random_range(0..2) == 0,
+        },
         GenerateInstruction::Aes128Encrypt => Instruction::Aes128Encrypt {
             input_idx: rng.random_range(usize::MIN..usize::MAX),
             input_limbs_count: rng.random_range(u8::MIN..u8::MAX),
@@ -180,13 +184,10 @@ fn generate_random_instruction(rng: &mut StdRng) -> Instruction {
             rng.fill_bytes(&mut msg);
             Instruction::EcdsaSecp256r1 {
                 msg: msg.to_vec(),
-                corrupt_hash: generate_random_bool(rng, GENERATE_BOOL_CONFIGURATION_MOST_FALSE),
-                corrupt_pubkey_x: generate_random_bool(rng, GENERATE_BOOL_CONFIGURATION_MOST_FALSE),
-                corrupt_pubkey_y: generate_random_bool(rng, GENERATE_BOOL_CONFIGURATION_MOST_FALSE),
-                corrupt_signature: generate_random_bool(
-                    rng,
-                    GENERATE_BOOL_CONFIGURATION_MOST_FALSE,
-                ),
+                corrupt_hash: false,
+                corrupt_pubkey_x: false,
+                corrupt_pubkey_y: false,
+                corrupt_signature: false,
                 predicate: true,
             }
         }
@@ -195,13 +196,10 @@ fn generate_random_instruction(rng: &mut StdRng) -> Instruction {
             rng.fill_bytes(&mut msg);
             Instruction::EcdsaSecp256k1 {
                 msg: msg.to_vec(),
-                corrupt_hash: generate_random_bool(rng, GENERATE_BOOL_CONFIGURATION_MOST_FALSE),
-                corrupt_pubkey_x: generate_random_bool(rng, GENERATE_BOOL_CONFIGURATION_MOST_FALSE),
-                corrupt_pubkey_y: generate_random_bool(rng, GENERATE_BOOL_CONFIGURATION_MOST_FALSE),
-                corrupt_signature: generate_random_bool(
-                    rng,
-                    GENERATE_BOOL_CONFIGURATION_MOST_FALSE,
-                ),
+                corrupt_hash: false,
+                corrupt_pubkey_x: false,
+                corrupt_pubkey_y: false,
+                corrupt_signature: false,
                 predicate: true,
             }
         }

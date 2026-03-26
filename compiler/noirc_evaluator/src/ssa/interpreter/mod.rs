@@ -18,6 +18,7 @@ use crate::ssa::{
 use acvm::{AcirField, FieldElement};
 use errors::{InternalError, InterpreterError, MAX_UNSIGNED_BIT_SIZE};
 use iter_extended::{try_vecmap, vecmap};
+use itertools::Itertools;
 use noirc_frontend::Shared;
 use num_traits::{CheckedShl, CheckedShr};
 use rustc_hash::FxHashMap as HashMap;
@@ -318,7 +319,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 }));
             }
 
-            for (parameter, argument) in block.parameters().iter().zip(arguments) {
+            for (parameter, argument) in block.parameters().iter().zip_eq(arguments) {
                 self.define(*parameter, argument)?;
             }
 
@@ -982,7 +983,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             }));
         }
 
-        for (result, new_result) in results.iter().zip(new_results) {
+        for (result, new_result) in results.iter().zip_eq(new_results) {
             self.define(*result, new_result)?;
         }
         Ok(())
