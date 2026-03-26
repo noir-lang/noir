@@ -29,7 +29,8 @@
 //! - Brillig
 //!   - Array operations are explicit and thus it is expected separate OOB checks
 //!     have been laid down. Thus, no extra instructions are inserted for unused array accesses.
-//!   - [Store][Instruction::Store] instructions are never removed.
+//!   - [Store][Instruction::Store] instructions are removed only when the address is a
+//!     locally-allocated reference (from [Allocate][Instruction::Allocate]) with no remaining uses.
 //!   - The databus is never used to return values, so instructions to create a Field array to return are never generated.
 //!
 //! ## Preconditions
@@ -501,7 +502,14 @@ fn can_be_eliminated_if_unused(
         | MakeArray { .. } => true,
 
         Store { address, .. } => {
-            should_remove_store(function, flattened) && !used_values.contains(address)
+            // A store is dead when:
+            // - The function is single-block (so reverse traversal guarantees
+            //   `used_values` is complete — no back-edge ordering issues).
+            // - The address is a local allocation (so no caller can observe it).
+            // - The address has no remaining uses (no loads, no escapes).
+            function.reachable_blocks().len() == 1
+                && is_local_allocate(&function.dfg, *address)
+                && !used_values.contains(address)
         }
 
         Constrain(..)
@@ -535,15 +543,24 @@ fn can_be_eliminated_if_unused(
     }
 }
 
-/// Store instructions must be removed by DIE in acir code, any load
-/// instructions should already be unused by that point.
+/// Returns true if all stores in this function must be removed by DIE.
 ///
-/// Note that this check assumes that it is being performed after the flattening
-/// pass and after the last mem2reg pass. This is currently the case for the DIE
-/// pass where this check is done, but does mean that we cannot perform mem2reg
-/// after the DIE pass.
-fn should_remove_store(func: &Function, flattened: bool) -> bool {
+/// This is a post-condition for flattened single-block ACIR functions: after
+/// mem2reg and CFG flattening, every load should already be unused and every
+/// store to an unused address is dead.
+fn must_remove_all_stores(func: &Function, flattened: bool) -> bool {
     flattened && func.runtime().is_acir() && func.reachable_blocks().len() == 1
+}
+
+/// Returns true if `address` is the result of an `Allocate` instruction in this function.
+/// A store to a local allocation whose address has no remaining uses (loads, calls, arrays,
+/// returns) is provably dead and safe to remove even in Brillig.
+fn is_local_allocate(dfg: &DataFlowGraph, address: ValueId) -> bool {
+    if let Value::Instruction { instruction, .. } = &dfg[address] {
+        matches!(&dfg[*instruction], Instruction::Allocate)
+    } else {
+        false
+    }
 }
 
 /// Check pre-execution properties:
@@ -560,7 +577,7 @@ fn die_pre_check(func: &Function, flattened: bool) {
 /// * Store and Load instructions should be removed from ACIR after flattening.
 #[cfg(debug_assertions)]
 fn die_post_check(func: &Function, flattened: bool) {
-    if should_remove_store(func, flattened) {
+    if must_remove_all_stores(func, flattened) {
         // All Load/Store instructions should be removed
         super::checks::for_each_instruction(func, |instruction, _dfg| {
             super::checks::assert_not_load_or_store(instruction);
@@ -891,7 +908,8 @@ mod tests {
         let ssa = ssa.purity_analysis();
         let (ssa, _) = ssa.dead_instruction_elimination_inner(false);
 
-        // We expect the call to f1 in f0 to be removed
+        // We expect the call to f1 in f0 to be removed, and the dead
+        // allocate+store in f1 to be removed (local alloc with no loads).
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) pure fn main f0 {
           b0():
@@ -899,8 +917,6 @@ mod tests {
         }
         acir(inline) pure fn pure_basic f1 {
           b0():
-            v0 = allocate -> &mut Field
-            store Field 0 at v0
             return
         }
         "#);
@@ -1360,5 +1376,61 @@ mod tests {
         "#;
 
         assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination_pre_flattening);
+    }
+
+    /// Regression test for #12010.
+    /// A store to a locally-allocated reference with no remaining loads
+    /// should be removed as dead, even in Brillig.
+    #[test]
+    fn dead_brillig_stores_removed_when_no_loads_remain() {
+        let src = "
+            brillig(inline) fn main f0 {
+              b0():
+                v0 = allocate -> &mut Field
+                store Field 0 at v0
+                return
+            }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.dead_instruction_elimination();
+
+        assert_ssa_snapshot!(ssa, @r"
+            brillig(inline) fn main f0 {
+              b0():
+                return
+            }
+        ");
+    }
+
+    /// Stores to locally-allocated references must be kept if the address
+    /// escapes (e.g. passed to a call).
+    #[test]
+    fn does_not_remove_brillig_store_if_address_escapes() {
+        let src = r#"
+        brillig(inline) impure fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 42 at v0
+            v2 = call black_box(v0) -> &mut Field
+            return
+        }
+        "#;
+
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
+    }
+
+    /// Stores to non-local references (e.g. function parameters) must not
+    /// be removed, even when there are no loads in this function.
+    #[test]
+    fn does_not_remove_brillig_store_to_param_reference() {
+        let src = r#"
+        brillig(inline) impure fn main f0 {
+          b0(v0: &mut Field):
+            store Field 42 at v0
+            return
+        }
+        "#;
+
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
     }
 }
