@@ -36,8 +36,8 @@
     "globals": "^17.4.0",
     "mocha": "^11.7.5",
     "prettier": "3.8.1",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.8.3"
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.2"
   },
   "resolutions": {
     "@types/estree": "1.0.6",
