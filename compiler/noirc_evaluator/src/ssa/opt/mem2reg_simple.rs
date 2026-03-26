@@ -137,8 +137,8 @@ impl Function {
         }
 
         // Limit increase in memory usage and brillig regressions by arbitrarily limiting this pass to some variables
-        if let Some(max) = max_variables {                                                                                                                                                                                                                                                                            
-            variables = variables.into_iter().take(max).collect();                                                                                                                                                                                                                                                    
+        if let Some(max) = max_variables {
+            variables = variables.into_iter().take(max as usize).collect();
         }
         if variables.is_empty() {
             return;
