@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774525973828,
+  "lastUpdate": 1774526259320,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23111,48 +23111,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "0b609df6a007a0db695566bd43ff77694195044d",
-          "message": "chore(frontend): Error if the name of a const generic matches the name of a function parameter (#11933)",
-          "timestamp": "2026-03-20T17:41:29Z",
-          "tree_id": "500232f930b647824700e011657b583a8015428f",
-          "url": "https://github.com/noir-lang/noir/commit/0b609df6a007a0db695566bd43ff77694195044d"
-        },
-        "date": 1774029797633,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 253036,
-            "range": "± 471",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 224103,
-            "range": "± 8806",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2731856,
-            "range": "± 1674",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25204,6 +25162,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2642263,
             "range": "± 3236",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "667dd9badae81836d9cc90bc7a124f237e01acc0",
+          "message": "chore(ssa): Separate the two underconstrained checks (#12008)",
+          "timestamp": "2026-03-26T11:31:07Z",
+          "tree_id": "d59a0a292b0a40b2587bb3d19789e2f3d5f0d726",
+          "url": "https://github.com/noir-lang/noir/commit/667dd9badae81836d9cc90bc7a124f237e01acc0"
+        },
+        "date": 1774526207711,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 167716,
+            "range": "± 491",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 137088,
+            "range": "± 352",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2643947,
+            "range": "± 66009",
             "unit": "ns/iter"
           }
         ]
