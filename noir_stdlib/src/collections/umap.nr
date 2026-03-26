@@ -379,7 +379,7 @@ impl<K, V, B> UHashMap<K, V, B> {
         }
     }
 
-    // Apply UHashMap's hasher onto key to obtain pre-hash for probing.
+    /// Apply UHashMap's hasher onto key to obtain pre-hash for probing.
     fn hash(&self, key: K) -> u32
     where
         K: Hash,
@@ -390,10 +390,10 @@ impl<K, V, B> UHashMap<K, V, B> {
         hasher.finish_ref() as u32
     }
 
-    // Probing scheme: quadratic function.
-    // We use 0.5 constant near variadic attempt and attempt^2 monomials.
-    // This ensures good uniformity of distribution for table sizes
-    // equal to prime numbers or powers of two.
+    /// Probing scheme: quadratic function.
+    /// We use 0.5 constant near variadic attempt and attempt^2 monomials.
+    /// This ensures good uniformity of distribution for table sizes
+    /// equal to prime numbers or powers of two.
     fn linear_probe(&self, hash: u32, attempt: u32) -> u32 {
         (hash + attempt) % self._table.len()
     }
