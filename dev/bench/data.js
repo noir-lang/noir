@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774552355845,
+  "lastUpdate": 1774552358088,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4958,105 +4958,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "2a4483f5731e02bc34c4143c2fbaa5630f5d3387",
-          "message": "chore(brillig): Add assertion that the coalesced parameter is available (#11913)",
-          "timestamp": "2026-03-20T18:17:24Z",
-          "tree_id": "db09e2b7231f42f0c375ea01a1eebb222801a2fc",
-          "url": "https://github.com/noir-lang/noir/commit/2a4483f5731e02bc34c4143c2fbaa5630f5d3387"
-        },
-        "date": 1774032687036,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.676,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 8.5,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 2.338,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 1.858,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 1.76,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1.86,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 1.796,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 324,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 331,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.88,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 19.38,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 109.4,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 1.798,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 1.108,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.638,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -9901,6 +9802,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.68,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b8e8f0d3e7dfef3a1914e89b6673ea863ed10a43",
+          "message": "fix: correct ECDSA doc comments and add curve order edge case tests (#12016)",
+          "timestamp": "2026-03-26T18:36:25Z",
+          "tree_id": "e24407ed4aa52e11a5ce718d5dab5c26cdb4b813",
+          "url": "https://github.com/noir-lang/noir/commit/b8e8f0d3e7dfef3a1914e89b6673ea863ed10a43"
+        },
+        "date": 1774552293937,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.55,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.164,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 2.558,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 1.698,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 1.7,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1.79,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 1.798,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 313,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 329,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.738,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 20.36,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 119,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 1.76,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 1.105,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.53,
             "unit": "s"
           }
         ]
