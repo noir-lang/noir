@@ -6,7 +6,7 @@ libraries:
     critical: true
   ec:
     repo: noir-lang/ec
-    timeout: 2
+    timeout: 5
     critical: true
   eddsa:
     repo: noir-lang/eddsa
