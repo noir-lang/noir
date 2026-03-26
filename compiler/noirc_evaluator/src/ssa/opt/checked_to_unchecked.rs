@@ -88,18 +88,20 @@ impl Function {
                     let max_lhs_bits = get_max_num_bits(dfg, lhs, &mut value_max_num_bits);
                     let max_rhs_bits = get_max_num_bits(dfg, rhs, &mut value_max_num_bits);
 
-                    // The product of two values needs at most `max_lhs_bits + max_rhs_bits`
-                    // bits to represent: the maximum product `(2^a - 1) * (2^b - 1)` is less
-                    // than `2^(a+b)`. So if `max_lhs_bits + max_rhs_bits <= bit_size`, the
-                    // result is guaranteed to fit and the multiplication cannot overflow.
+                    // `get_max_num_bits` tracks the actual range of a value through casts,
+                    // truncations, and boolean multiplications — it may be smaller than the
+                    // type's bit_size (e.g. a u8 upcast to u64 still has max_bits == 8).
                     //
-                    // When either operand has `max_bits == 1` its value is at most 1
-                    // (guaranteed by `get_max_num_bits` — it only returns 1 for constants 0/1,
-                    // boolean-typed values, or the product of two 1-bit values). Multiplying
-                    // any N-bit value by 0 or 1 yields at most the original value, which
-                    // already fits in N bits, so no overflow is possible. This is sound as
-                    // long as `get_max_num_bits` never returns 1 for a value that could
-                    // actually exceed 1.
+                    // The product of an `a`-bit value and a `b`-bit value needs at most
+                    // `a + b` bits: `(2^a - 1) * (2^b - 1) < 2^(a+b)`. So if
+                    // `max_lhs_bits + max_rhs_bits <= bit_size`, the result is guaranteed
+                    // to fit and the multiplication cannot overflow. This covers the common
+                    // case where both operands were upcast from smaller types.
+                    //
+                    // As a special case, when either operand has `max_bits == 1` its value
+                    // is at most 1, so `x * 0 = 0` or `x * 1 = x` — neither can overflow.
+                    // This is sound as long as `get_max_num_bits` never returns 1 for a
+                    // value that could actually exceed 1.
                     max_lhs_bits + max_rhs_bits <= bit_size
                         || max_lhs_bits == 1
                         || max_rhs_bits == 1
