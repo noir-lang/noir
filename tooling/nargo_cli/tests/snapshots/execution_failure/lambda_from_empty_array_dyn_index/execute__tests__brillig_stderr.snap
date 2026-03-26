@@ -3,13 +3,13 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
 error: Assertion failed: Index out of bounds
-  ┌─ src/main.nr:5:13
+  ┌─ src/main.nr:5:5
   │
 5 │     lambdas[x - 1](());
-  │             -----
+  │     --------------
   │
   = Call stack:
     1: main
-            at src/main.nr:5:13
+            at src/main.nr:5:5
 
 Failed assertion

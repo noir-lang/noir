@@ -161,16 +161,19 @@ fn brillig_access_check_on_array_read() {
     ";
     let ssa = get_initial_ssa(src).unwrap();
 
+    // Brillig uses u64 for the flat index computation to prevent u32 overflow
+    // in the bounds check (index * stride can wrap around in u32).
     let expected = r#"
     brillig(inline) fn main f0 {
       b0(v0: [Field; 3], v1: u32):
         v2 = allocate -> &mut [Field; 3]
         store v0 at v2
         v3 = load v2 -> [Field; 3]
-        v5 = lt v1, u32 3
-        constrain v5 == u1 1, "Index out of bounds"
-        v7 = array_get v3, index v1 -> Field
-        return v7
+        v4 = cast v1 as u64
+        v6 = lt v4, u64 3
+        constrain v6 == u1 1, "Index out of bounds"
+        v8 = array_get v3, index v1 -> Field
+        return v8
     }
     "#;
     assert_normalized_ssa_equals(ssa, expected);

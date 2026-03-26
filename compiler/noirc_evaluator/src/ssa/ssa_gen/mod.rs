@@ -590,11 +590,25 @@ impl FunctionContext<'_> {
             }
         }
 
+        // Brillig computes the flat index in u64 to prevent overflow: u32
+        // unchecked_mul can wrap around, making an out-of-bounds index appear
+        // in-bounds during the flat bounds check.
+        let is_brillig = self.builder.current_function.runtime().is_brillig();
+        let index_type = if is_brillig {
+            NumericType::Unsigned { bit_size: 64 }
+        } else {
+            NumericType::length_type()
+        };
+
         let (flattened_index, new_array) =
-            self.compute_flat_offset(extracted_values, false, &mut indices);
+            self.compute_flat_offset(extracted_values, false, &mut indices, index_type);
 
         let array = new_array.into_value_list(self);
         let array = array[0];
+
+        // Set location to the index expression's span so that OOB errors
+        // point at the indexing operation rather than the collection.
+        self.builder.set_location(index.location);
 
         // Brillig needs explicit runtime bounds checks for all array accesses.
         // We check the computed flat index against the flat array size.
@@ -602,19 +616,23 @@ impl FunctionContext<'_> {
         // elements, but zero-sized elements (e.g. `()`) produce no instructions so we
         // need explicit checks too.
         let element_flat_size = Self::convert_type(&index.element_type).size_of_type();
-        let is_brillig = self.builder.current_function.runtime().is_brillig();
         if is_brillig {
             let array_type = &self.builder.type_of_value(array);
             if let Type::Array(_, len) = array_type {
-                // Check using the flat array size so the flat index can be validated directly.
+                // Check using the flat array size so the flat index can be validated
+                // directly. The flat index is u64 so it cannot have overflowed.
                 let flat_size = array_type.flattened_size();
                 if flat_size.0 > 0 {
-                    let flat_len = self
-                        .builder
-                        .numeric_constant(u128::from(flat_size.0), NumericType::length_type());
-                    let index_as_len =
-                        self.builder.insert_cast(flattened_index, NumericType::length_type());
-                    self.codegen_access_check(index_as_len, flat_len);
+                    let flat_len =
+                        self.builder.numeric_constant(u128::from(flat_size.0), index_type);
+                    let is_in_bounds =
+                        self.builder.insert_binary(flattened_index, BinaryOp::Lt, flat_len);
+                    let true_val = self.builder.numeric_constant(true, NumericType::bool());
+                    self.builder.insert_constrain(
+                        is_in_bounds,
+                        true_val,
+                        Some(ConstrainError::from("Index out of bounds".to_owned())),
+                    );
                 } else {
                     // Flat size is zero (empty array or zero-sized elements).
                     // Still need a semantic bounds check so constant folding can
@@ -634,9 +652,14 @@ impl FunctionContext<'_> {
             }
         }
 
-        // Set location to the index expression's span so that OOB errors
-        // point at the indexing operation rather than the collection.
-        self.builder.set_location(index.location);
+        // For Brillig, cast the u64 flat index back to u32 for array_get.
+        // This is safe because the bounds check proved the index fits within
+        // the flat array size (which always fits in u32).
+        let flattened_index = if is_brillig {
+            self.builder.insert_cast(flattened_index, NumericType::length_type())
+        } else {
+            flattened_index
+        };
         Ok(self.codegen_flat_array_get(array, flattened_index, &index.element_type))
     }
 
@@ -1515,11 +1538,16 @@ impl FunctionContext<'_> {
     /// Returns `(flat_index, extracted_ident)` where `flat_index` is the
     /// computed SSA `ValueId` for the offset and `extracted_ident` is the
     /// base `Values` after peeling off any leading struct/tuple accesses.
+    /// `index_type` controls the numeric type used for all intermediate
+    /// computations. Brillig callers should pass a wide type (u64) to
+    /// prevent u32 overflow in `index * stride`, which can make an
+    /// out-of-bounds access appear in-bounds during the flat bounds check.
     fn compute_flat_offset(
         &mut self,
         mut extracted_ident: Values,
         skip_extraction: bool,
         indices: &mut Vec<NestedArrayIndex>,
+        index_type: NumericType,
     ) -> (ValueId, Values) {
         let mut first_index = None;
 
@@ -1548,8 +1576,8 @@ impl FunctionContext<'_> {
             }
             NestedArrayIndex::Value(value, element_type) => {
                 let offset = element_type.flattened_size();
-                let offset = self.builder.numeric_constant(offset, NumericType::length_type());
-                let value = self.make_array_index(value);
+                let offset = self.builder.numeric_constant(offset, index_type);
+                let value = self.builder.insert_cast(value, index_type);
                 let new_index =
                     self.builder.insert_binary(value, BinaryOp::Mul { unchecked: true }, offset);
 
@@ -1567,7 +1595,7 @@ impl FunctionContext<'_> {
 
                     current_types = element_types[field_index].clone();
 
-                    let offset = self.builder.numeric_constant(offset, NumericType::length_type());
+                    let offset = self.builder.numeric_constant(offset, index_type);
                     let new_index = self.builder.insert_binary(
                         result_index,
                         BinaryOp::Add { unchecked: true },
@@ -1579,9 +1607,9 @@ impl FunctionContext<'_> {
                     current_types = element_type;
 
                     let offset = current_types.flattened_size();
-                    let offset = self.builder.numeric_constant(offset, NumericType::length_type());
+                    let offset = self.builder.numeric_constant(offset, index_type);
 
-                    let value = self.make_array_index(value);
+                    let value = self.builder.insert_cast(value, index_type);
                     let new_index = self.builder.insert_binary(
                         value,
                         BinaryOp::Mul { unchecked: true },
