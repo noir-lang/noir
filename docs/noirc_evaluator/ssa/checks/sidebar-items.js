@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["check_for_underconstrained_values"]};
+window.SIDEBAR_ITEMS = {"fn":["is_numeric_constant"],"mod":["check_for_missing_brillig_constraints","check_for_underconstrained_values"]};

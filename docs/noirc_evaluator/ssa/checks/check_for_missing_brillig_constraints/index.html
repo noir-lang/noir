@@ -1,0 +1,41 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="This module defines the Ssa::check_for_missing_brillig_constraints method."><title>noirc_evaluator::ssa::checks::check_for_missing_brillig_constraints - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-84e720fa.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="noirc_evaluator" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0 (29483883e 2025-08-04)" data-channel="1.89.0" data-search-js="search-92309212.js" data-settings-js="settings-5514c975.js" ><script src="../../../../static.files/storage-4e99c027.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../../static.files/main-fd3af306.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../../noirc_evaluator/index.html">noirc_<wbr>evaluator</a><span class="version">1.0.0-beta.19</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module check_<wbr>for_<wbr>missing_<wbr>brillig_<wbr>constraints</a></h2><h3><a href="#structs">Module Items</a></h3><ul class="block"><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#enums" title="Enums">Enums</a></li><li><a href="#functions" title="Functions">Functions</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In noirc_<wbr>evaluator::<wbr>ssa::<wbr>checks</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../../index.html">noirc_evaluator</a>::<wbr><a href="../../index.html">ssa</a>::<wbr><a href="../index.html">checks</a></div><h1>Module <span>check_for_missing_brillig_constraints</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../../src/noirc_evaluator/ssa/checks/check_for_missing_brillig_constraints.rs.html#1-1236">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>This module defines the <a href="../../ssa_gen/struct.Ssa.html#method.check_for_missing_brillig_constraints" title="method noirc_evaluator::ssa::ssa_gen::Ssa::check_for_missing_brillig_constraints">Ssa::check_for_missing_brillig_constraints</a> method.</p>
+<p>It verifies that the output of Brillig calls is connected to the inputs of the calls
+by assertions; in other words, that the circuit has constraints that the output is
+correct, given the inputs.</p>
+<p>To do so, it tracks the ancestry of every expression, and checks that any
+variable which is an output of a Brillig call has a descendant which appears
+in an assertion, where the other side has an ancestor that is an input of the call.</p>
+<p>Essentially, to consider a particular Brillig call constrained, we are looking
+for a constraint where the ancestors of the constraint arguments intersect both of:</p>
+<ul>
+<li>the descendants of the results of the call (outputs)</li>
+<li>the ancestors of the arguments of the call (inputs)</li>
+</ul>
+<p>For example take the following graph of variables feeding into calls:</p>
+<div class="example-wrap"><pre class="language-text"><code>  v1     v2      v3
+   \   /  \    /
+    \ /    \  /
+     v4     v5 = call(v2, v3)
+     |\     |
+     | \    |
+     |  \   |
+     |   \  |
+     |    \ |
+     |      v6 = call(v5, v4)
+     |     /
+     |    /
+     |   /
+     |  /
+constrain(v4, v6)</code></pre></div>
+<p>Both calls are considered constrained:</p>
+<ul>
+<li>The output of the 2nd call (v6) is constrained directly against its input (v4)</li>
+<li>The output of the 1st call (v5) has a descendant (v6) which is constrained against
+a value (v4) that has an ancestor (v2) which is also an ancestor of an argument of
+of the call itself.</li>
+</ul>
+<p>The goal isn’t to verify that the constraint is correct, just that some (indirect)
+connection between inputs and outputs is made.</p>
+</div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.BrilligTaintedIds.html" title="struct noirc_evaluator::ssa::checks::check_for_missing_brillig_constraints::BrilligTaintedIds">Brillig<wbr>Tainted<wbr>Ids</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Structure keeping track of value IDs descending from Brillig calls’
+arguments and results, also storing information on results
+already properly constrained</dd><dt><a class="struct" href="struct.DependencyContext.html" title="struct noirc_evaluator::ssa::checks::check_for_missing_brillig_constraints::DependencyContext">Dependency<wbr>Context</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt></dl><h2 id="enums" class="section-header">Enums<a href="#enums" class="anchor">§</a></h2><dl class="item-table"><dt><a class="enum" href="enum.ResultStatus.html" title="enum noirc_evaluator::ssa::checks::check_for_missing_brillig_constraints::ResultStatus">Result<wbr>Status</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt></dl><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><dl class="item-table"><dt><a class="fn" href="fn.intersecting.html" title="fn noirc_evaluator::ssa::checks::check_for_missing_brillig_constraints::intersecting">intersecting</a><span title="Restricted Visibility">&nbsp;🔒</span> </dt><dd>Return <code>true</code> if two sets have a non-empty intersection.</dd></dl></section></div></main></body></html>
