@@ -800,6 +800,7 @@ impl<'f> Context<'f> {
     /// merged = if then_condition { new_value } else { original }
     /// result = array_set(base_array, index, merged)
     /// ```
+    #[allow(clippy::too_many_arguments)]
     fn create_merged_array_set(
         &mut self,
         base_array: ValueId,
@@ -825,12 +826,20 @@ impl<'f> Context<'f> {
     /// Inner implementation of `create_merged_array_set` with an option to protect
     /// the final `array_set` from `remove_unreachable_instructions`.
     ///
-    /// When `protect_array_set` is true, the `array_set` is emitted under
-    /// `enable_side_effects u1 1` because `ArraySet` has
-    /// `requires_acir_gen_predicate = true` and would be zeroed out by
-    /// `remove_unreachable_instructions` if the branch contains unreachable code
-    /// (like division by zero). The `array_get` and `IfElse` stay under the branch
-    /// predicate since they don't require the predicate.
+    /// When `protect_array_set` is true, the entire merge sequence (array_get, IfElse,
+    /// array_set) is emitted under `enable_side_effects u1 1`:
+    /// - The `array_get` needs u1 1 because under disabled side effects, ACIR replaces
+    ///   the index with a "safe" first-matching-type index, reading the wrong value.
+    /// - The `array_set` needs u1 1 because `ArraySet` has
+    ///   `requires_acir_gen_predicate = true` and would be zeroed by
+    ///   `remove_unreachable_instructions`.
+    ///
+    /// To handle potentially out-of-bounds dynamic indices (which would error under
+    /// `enable_side_effects u1 1`), we create a "safe index":
+    ///   `safe_idx = IfElse(then_condition, real_index, 0)`
+    /// When the condition is false, this reads/writes at index 0 with the original value,
+    /// producing a no-op. When true, it uses the real index.
+    #[allow(clippy::too_many_arguments)]
     fn create_merged_array_set_inner(
         &mut self,
         base_array: ValueId,
@@ -844,8 +853,54 @@ impl<'f> Context<'f> {
     ) -> ValueId {
         let typ = self.inserter.function.dfg.type_of_value(new_value);
 
+        // Create a safe index to avoid OOB errors when the condition is false.
+        // When condition is false, the real index might be OOB (the branch wasn't taken),
+        // so we use a known-valid fallback index. The merged value at the fallback will be
+        // the original value (IfElse selects else_value), making it a no-op.
+        // For constant in-bounds indices, no safe index is needed.
+        let dfg = &self.inserter.function.dfg;
+        let is_known_safe =
+            dfg.get_numeric_constant(index).is_some() && dfg.is_safe_index(index, base_array);
+        let safe_index = if is_known_safe {
+            index
+        } else {
+            // The fallback must be a valid index of the correct type to avoid type
+            // mismatches in heterogeneous arrays (e.g., [(Field, u1); N]).
+            let Type::Numeric(index_type) = dfg.type_of_value(index) else {
+                unreachable!("ICE: array index must be numeric")
+            };
+            let array_type = dfg.type_of_value(base_array);
+            let offset = match &array_type {
+                Type::Array(element_types, _) | Type::Vector(element_types) => {
+                    element_types.iter().position(|t| *t == typ).unwrap_or(0) as u128
+                }
+                _ => 0,
+            };
+            let fallback =
+                self.inserter.function.dfg.make_constant(FieldElement::from(offset), index_type);
+            self.insert_instruction(
+                Instruction::IfElse {
+                    then_condition,
+                    then_value: index,
+                    else_condition,
+                    else_value: fallback,
+                },
+                call_stack,
+            )
+        };
+
+        if protect_array_set {
+            let one =
+                self.inserter.function.dfg.make_constant(FieldElement::one(), NumericType::bool());
+            self.insert_instruction_with_typevars(
+                Instruction::EnableSideEffectsIf { condition: one },
+                None,
+                call_stack,
+            );
+        }
+
         // Get the original value at this index
-        let get = Instruction::ArrayGet { array: base_array, index };
+        let get = Instruction::ArrayGet { array: base_array, index: safe_index };
         let original_value =
             self.insert_instruction_with_typevars(get, Some(vec![typ]), call_stack).first();
 
@@ -858,23 +913,14 @@ impl<'f> Context<'f> {
         };
         let merged_value = self.insert_instruction(merge, call_stack);
 
-        if protect_array_set {
-            // Temporarily enable side effects unconditionally for the array_set.
-            // The merged_value already accounts for the condition (IfElse), so the
-            // array_set is safe to execute unconditionally — when the condition is
-            // false, it writes back the original value (a no-op).
-            let one =
-                self.inserter.function.dfg.make_constant(FieldElement::one(), NumericType::bool());
-            self.insert_instruction_with_typevars(
-                Instruction::EnableSideEffectsIf { condition: one },
-                None,
-                call_stack,
-            );
-        }
-
         // Create the array_set with merged value
         let result = self.insert_instruction(
-            Instruction::ArraySet { array: base_array, index, value: merged_value, mutable },
+            Instruction::ArraySet {
+                array: base_array,
+                index: safe_index,
+                value: merged_value,
+                mutable,
+            },
             call_stack,
         );
 
@@ -1065,6 +1111,18 @@ impl<'f> Context<'f> {
             chain.push((index, value, mutable));
 
             if array == else_value {
+                // Skip if any index is a known-constant that's OOB. The optimization
+                // emits array_get which, under a disabled predicate, would use a "safe"
+                // replacement index (reading the wrong element). With a constant OOB
+                // index, remove_unreachable_instructions would also flag it as always-failing.
+                let has_known_oob_index = chain.iter().any(|(idx, _, _)| {
+                    let dfg = &self.inserter.function.dfg;
+                    dfg.get_numeric_constant(*idx).is_some() && !dfg.is_safe_index(*idx, else_value)
+                });
+                if has_known_oob_index {
+                    return None;
+                }
+
                 // Found the base - emit merged array_sets in forward order (innermost first)
                 chain.reverse();
                 let mut result = else_value;
@@ -2632,11 +2690,10 @@ mod tests {
         // Flatten
         let ssa = ssa.flatten_cfg();
 
-        // Post-flatten: interpreter should still pass (this is the bug — it currently fails
-        // with "deleted should be false" because the chain merge corrupts the last field)
+        // Post-flatten: interpreter should still pass
         ssa.interpret(args).expect("post-flatten should pass — deleted field must remain u1 0");
     }
-    
+
     /// Regression test: when JmpIf's else_destination IS the exit/merge block
     /// (no separate else block), the else_arguments carry the "no-change" value
     /// directly to the merge. This is the pattern mem2reg_simple produces when
