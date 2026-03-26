@@ -174,15 +174,15 @@ fn add_terminator_arguments(
     cfg: &ControlFlowGraph,
 ) {
     for block in blocks.iter().copied() {
-        for address in variable_states.blocks[&block].entry_state.keys() {
-            // If the current block is this variable's source block, no merge is needed.
-            if block == variables[address] {
-                continue;
-            }
+        let block_state = &variable_states.blocks[&block];
 
-            for predecessor in cfg.predecessors(block) {
-                let exit_value = variable_states.blocks[&predecessor].get_exit_value(*address);
-                add_terminator_argument(inserter.function, exit_value, predecessor, block);
+        for predecessor in cfg.predecessors(block) {
+            let pred_state = &variable_states.blocks[&predecessor];
+            let args = get_terminator_args_mut(&mut inserter.function.dfg, predecessor, block);
+            for address in block_state.entry_state.keys() {
+                if block != variables[address] {
+                    args.push(pred_state.get_exit_value(*address));
+                }
             }
         }
     }
@@ -367,42 +367,13 @@ fn get_terminator_args_mut(
     }
 }
 
-// For each index i of `items`, keep `items[i]` iff `mask[i]`
+/// For each index i of `items`, keep `items[i]` iff `mask[i]`
 fn retain_items_from_mask(items: &mut Vec<ValueId>, mask: &[bool]) {
-    let mut i = 0;
-    items.retain(|_| {
-        i += 1;
-        mask[i - 1]
-    });
+    debug_assert_eq!(items.len(), mask.len());
+    let mut mask_iter = mask.iter();
+    items.retain(|_| *mask_iter.next().unwrap());
     // Reclaim some memory, important in larger programs
     items.shrink_to_fit();
-}
-
-/// Adds an argument to the terminator of the current block, panicking if the terminator
-/// is not a `Jmp` or `JmpIf`.
-fn add_terminator_argument(
-    function: &mut Function,
-    arg: ValueId,
-    block: BasicBlockId,
-    jmp_target: BasicBlockId,
-) {
-    match function.dfg[block].unwrap_terminator_mut() {
-        TerminatorInstruction::Jmp { arguments, .. } => arguments.push(arg),
-        TerminatorInstruction::JmpIf {
-            then_destination, then_arguments, else_arguments, ..
-        } => {
-            if jmp_target == *then_destination {
-                then_arguments.push(arg);
-            } else {
-                else_arguments.push(arg);
-            }
-        }
-        other => {
-            panic!(
-                "Unexpected terminator in block {block} when adding block argument {arg}: {other:?}"
-            )
-        }
-    }
 }
 
 /// Abstractly interpret a block, collecting the value of each reference at the end of a block.
