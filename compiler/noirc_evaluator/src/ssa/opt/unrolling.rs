@@ -1900,7 +1900,6 @@ impl<'f> LoopIteration<'f> {
 
 /// Unrolling leaves some duplicate instructions which can potentially be removed.
 fn simplify_between_unrolls(function: &mut Function) {
-    function.load_store_forwarding();
     function.simplify_function();
     // Re-insert instructions to trigger DFG simplification (e.g. folding
     // vector_push_back chains whose inputs became constant after unrolling).
@@ -1910,7 +1909,6 @@ fn simplify_between_unrolls(function: &mut Function) {
     // to eliminate dead branches and propagate the single remaining value
     // through block parameters (needed for loop bound resolution).
     function.simplify_function();
-    function.load_store_forwarding();
 }
 
 /// Re-insert every instruction through the DFG's simplify path.
