@@ -95,8 +95,7 @@ impl Function {
                     // The product of an `a`-bit value and a `b`-bit value needs at most
                     // `a + b` bits: `(2^a - 1) * (2^b - 1) < 2^(a+b)`. So if
                     // `max_lhs_bits + max_rhs_bits <= bit_size`, the result is guaranteed
-                    // to fit and the multiplication cannot overflow. This covers the common
-                    // case where both operands were upcast from smaller types.
+                    // to fit and the multiplication cannot overflow.
                     //
                     // As a special case, when either operand has `max_bits == 1` its value
                     // is at most 1, so `x * 0 = 0` or `x * 1 = x` — neither can overflow.
