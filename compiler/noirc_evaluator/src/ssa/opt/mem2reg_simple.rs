@@ -122,6 +122,7 @@ impl Function {
         // lower RPO index). One reverse pass accumulates subtree sizes bottom-up.
         if let Some(max_span) = max_block_span
             && blocks.len() > max_span
+            && !variables.is_empty()
         {
             // Initialize each block's dom count to 1
             let mut subtree_size = btree_map(&blocks, |block| (*block, 1));
