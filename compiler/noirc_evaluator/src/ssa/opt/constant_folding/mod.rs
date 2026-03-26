@@ -492,6 +492,7 @@ impl Context {
         }
 
         // First try to inline a call to a brillig function with all constant arguments.
+        let instructions_before = dfg[target_block].instructions().len();
         let new_results = if runtime_is_brillig {
             Self::push_instruction(id, instruction.clone(), &old_results, target_block, dfg)
         } else {
@@ -502,6 +503,40 @@ impl Context {
                     Self::push_instruction(id, instruction.clone(), &old_results, target_block, dfg)
                 })
         };
+
+        // After pushing, the instruction may have been simplified to a different form.
+        // Check if any newly inserted constrain instructions are duplicates of already-cached ones
+        // and remove them if so. This handles cases where simplification during insertion produces
+        // a constrain equivalent to one we've already seen (e.g. with a different error message).
+        if self.use_constraint_info {
+            let instructions_after = dfg[target_block].instructions().len();
+            if instructions_after > instructions_before {
+                let new_instruction_ids: Vec<_> = dfg[target_block].instructions()
+                    [instructions_before..instructions_after]
+                    .to_vec();
+
+                for new_id in &new_instruction_ids {
+                    let new_instruction = &dfg[*new_id];
+                    if matches!(
+                        new_instruction,
+                        Instruction::Constrain(..)
+                            | Instruction::ConstrainNotEqual(..)
+                            | Instruction::RangeCheck { .. }
+                    ) {
+                        let new_predicate =
+                            self.cache_predicate(*side_effects_enabled_var, new_instruction, dfg);
+                        if self
+                            .cached_instruction_results
+                            .get(dfg, dom, *new_id, new_instruction, new_predicate, target_block)
+                            .is_some()
+                        {
+                            dfg[target_block].instructions_mut().retain(|i| i != new_id);
+                        }
+                    }
+                }
+            }
+        }
+
         // If the target_block is distinct than the original block
         // that means that the current instruction is not added in the original block
         // so it is deduplicated by the one in the target block.
@@ -3318,5 +3353,42 @@ mod test {
             jmp b1()
         }
         ");
+    }
+
+    /// Regression test for #12012: a constrain with an error message followed by an
+    /// equivalent constrain that only becomes visible after simplification.
+    /// The duplicate should be removed.
+    #[test]
+    fn duplicate_constrain_after_simplification() {
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: Field):
+                v2 = eq v0, Field 1
+                v3 = not v2
+                enable_side_effects v3
+                constrain v0 == Field 1, \"Index out of bounds\"
+                v5 = eq u32 0, u32 0
+                v6 = unchecked_mul v5, v3
+                constrain v6 == u1 0
+                enable_side_effects u1 1
+                return
+            }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants_using_constraints(DEFAULT_MAX_ITER);
+
+        // The simplified `constrain v0 == Field 1` should be deduplicated
+        // against the existing one with the error message.
+        assert_ssa_snapshot!(ssa, @r#"
+            acir(inline) fn main f0 {
+              b0(v0: Field):
+                v2 = eq v0, Field 1
+                v3 = not v2
+                enable_side_effects v3
+                constrain v0 == Field 1, "Index out of bounds"
+                enable_side_effects u1 1
+                return
+            }
+        "#);
     }
 }
