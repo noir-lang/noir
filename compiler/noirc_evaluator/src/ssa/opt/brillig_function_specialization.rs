@@ -161,9 +161,15 @@ fn collect_specialization_candidates(
                 };
 
                 // Must be a function that exists in the SSA.
-                let Some(_callee_fn) = ssa.functions.get(callee_id) else {
+                let Some(callee_fn) = ssa.functions.get(callee_id) else {
                     continue;
                 };
+
+                // Skip entry-point functions (e.g. Fold). Cloning them would create
+                // an extra ACIR circuit, breaking the expected circuit count.
+                if callee_fn.runtime().is_entry_point() {
+                    continue;
+                }
 
                 // Skip recursive functions.
                 if recursive_functions.contains(callee_id) {
