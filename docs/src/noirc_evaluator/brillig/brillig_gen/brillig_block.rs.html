@@ -1028,84 +1028,89 @@
 <a href=#1028 id=1028 data-nosnippet>1028</a>                BrilligVariable::BrilligArray(then_array),
 <a href=#1029 id=1029 data-nosnippet>1029</a>                BrilligVariable::BrilligArray(else_array),
 <a href=#1030 id=1030 data-nosnippet>1030</a>            ) =&gt; {
-<a href=#1031 id=1031 data-nosnippet>1031</a>                <span class="comment">// Pointer to the array which result from the if-else
-<a href=#1032 id=1032 data-nosnippet>1032</a>                </span><span class="kw">let </span>pointer = <span class="self">self</span>.brillig_context.allocate_register();
-<a href=#1033 id=1033 data-nosnippet>1033</a>                <span class="self">self</span>.brillig_context.conditional_move_instruction(
-<a href=#1034 id=1034 data-nosnippet>1034</a>                    then_condition.address,
-<a href=#1035 id=1035 data-nosnippet>1035</a>                    then_array.pointer,
-<a href=#1036 id=1036 data-nosnippet>1036</a>                    else_array.pointer,
-<a href=#1037 id=1037 data-nosnippet>1037</a>                    <span class="kw-2">*</span>pointer,
-<a href=#1038 id=1038 data-nosnippet>1038</a>                );
-<a href=#1039 id=1039 data-nosnippet>1039</a>                <span class="kw">let </span>if_else_array = BrilligArray { pointer: <span class="kw-2">*</span>pointer, size: then_array.size };
-<a href=#1040 id=1040 data-nosnippet>1040</a>                <span class="comment">// Copy the if-else array to the result
-<a href=#1041 id=1041 data-nosnippet>1041</a>                </span><span class="self">self</span>.brillig_context
-<a href=#1042 id=1042 data-nosnippet>1042</a>                    .call_array_copy_procedure(if_else_array, result.extract_array());
-<a href=#1043 id=1043 data-nosnippet>1043</a>            }
-<a href=#1044 id=1044 data-nosnippet>1044</a>            (
-<a href=#1045 id=1045 data-nosnippet>1045</a>                BrilligVariable::BrilligVector(then_vector),
-<a href=#1046 id=1046 data-nosnippet>1046</a>                BrilligVariable::BrilligVector(else_vector),
-<a href=#1047 id=1047 data-nosnippet>1047</a>            ) =&gt; {
-<a href=#1048 id=1048 data-nosnippet>1048</a>                <span class="comment">// Pointer to the vector which result from the if-else
-<a href=#1049 id=1049 data-nosnippet>1049</a>                </span><span class="kw">let </span>pointer = <span class="self">self</span>.brillig_context.allocate_register();
-<a href=#1050 id=1050 data-nosnippet>1050</a>                <span class="self">self</span>.brillig_context.conditional_move_instruction(
-<a href=#1051 id=1051 data-nosnippet>1051</a>                    then_condition.address,
-<a href=#1052 id=1052 data-nosnippet>1052</a>                    then_vector.pointer,
-<a href=#1053 id=1053 data-nosnippet>1053</a>                    else_vector.pointer,
-<a href=#1054 id=1054 data-nosnippet>1054</a>                    <span class="kw-2">*</span>pointer,
-<a href=#1055 id=1055 data-nosnippet>1055</a>                );
-<a href=#1056 id=1056 data-nosnippet>1056</a>                <span class="kw">let </span>if_else_vector = BrilligVector { pointer: <span class="kw-2">*</span>pointer };
-<a href=#1057 id=1057 data-nosnippet>1057</a>                <span class="comment">// Copy the if-else vector to the result
-<a href=#1058 id=1058 data-nosnippet>1058</a>                </span><span class="self">self</span>.brillig_context
-<a href=#1059 id=1059 data-nosnippet>1059</a>                    .call_vector_copy_procedure(if_else_vector, result.extract_vector());
-<a href=#1060 id=1060 data-nosnippet>1060</a>            }
-<a href=#1061 id=1061 data-nosnippet>1061</a>            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE - then and else values must have the same type"</span>),
-<a href=#1062 id=1062 data-nosnippet>1062</a>        }
-<a href=#1063 id=1063 data-nosnippet>1063</a>    }
-<a href=#1064 id=1064 data-nosnippet>1064</a>}
-<a href=#1065 id=1065 data-nosnippet>1065</a>
-<a href=#1066 id=1066 data-nosnippet>1066</a><span class="doccomment">/// Returns the type of the operation considering the types of the operands.
-<a href=#1067 id=1067 data-nosnippet>1067</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>type_of_binary_operation(lhs_type: <span class="kw-2">&amp;</span>Type, rhs_type: <span class="kw-2">&amp;</span>Type) -&gt; Type {
-<a href=#1068 id=1068 data-nosnippet>1068</a>    <span class="kw">match </span>(lhs_type, rhs_type) {
-<a href=#1069 id=1069 data-nosnippet>1069</a>        (<span class="kw">_</span>, Type::Function) | (Type::Function, <span class="kw">_</span>) =&gt; {
-<a href=#1070 id=1070 data-nosnippet>1070</a>            <span class="macro">unreachable!</span>(<span class="string">"Functions are invalid in binary operations"</span>)
-<a href=#1071 id=1071 data-nosnippet>1071</a>        }
-<a href=#1072 id=1072 data-nosnippet>1072</a>        (<span class="kw">_</span>, Type::Reference(<span class="kw">_</span>)) | (Type::Reference(<span class="kw">_</span>), <span class="kw">_</span>) =&gt; {
-<a href=#1073 id=1073 data-nosnippet>1073</a>            <span class="macro">unreachable!</span>(<span class="string">"References are invalid in binary operations"</span>)
-<a href=#1074 id=1074 data-nosnippet>1074</a>        }
-<a href=#1075 id=1075 data-nosnippet>1075</a>        (<span class="kw">_</span>, Type::Array(..)) | (Type::Array(..), <span class="kw">_</span>) =&gt; {
-<a href=#1076 id=1076 data-nosnippet>1076</a>            <span class="macro">unreachable!</span>(<span class="string">"Arrays are invalid in binary operations"</span>)
-<a href=#1077 id=1077 data-nosnippet>1077</a>        }
-<a href=#1078 id=1078 data-nosnippet>1078</a>        (<span class="kw">_</span>, Type::Vector(..)) | (Type::Vector(..), <span class="kw">_</span>) =&gt; {
-<a href=#1079 id=1079 data-nosnippet>1079</a>            <span class="macro">unreachable!</span>(<span class="string">"Arrays are invalid in binary operations"</span>)
-<a href=#1080 id=1080 data-nosnippet>1080</a>        }
-<a href=#1081 id=1081 data-nosnippet>1081</a>        (Type::Numeric(lhs_type), Type::Numeric(rhs_type)) =&gt; {
-<a href=#1082 id=1082 data-nosnippet>1082</a>            <span class="comment">// If both sides are numeric type, then we expect their types to be the same.
-<a href=#1083 id=1083 data-nosnippet>1083</a>            // For SHL and SHR they are also expected to be the same, but the SHR value itself cannot exceed the bit size.
-<a href=#1084 id=1084 data-nosnippet>1084</a>            </span><span class="macro">assert_eq!</span>(
-<a href=#1085 id=1085 data-nosnippet>1085</a>                lhs_type, rhs_type,
-<a href=#1086 id=1086 data-nosnippet>1086</a>                <span class="string">"lhs and rhs types in a binary operation are always the same but got {lhs_type} and {rhs_type}"
-<a href=#1087 id=1087 data-nosnippet>1087</a>            </span>);
-<a href=#1088 id=1088 data-nosnippet>1088</a>            Type::Numeric(<span class="kw-2">*</span>lhs_type)
-<a href=#1089 id=1089 data-nosnippet>1089</a>        }
-<a href=#1090 id=1090 data-nosnippet>1090</a>    }
-<a href=#1091 id=1091 data-nosnippet>1091</a>}
-<a href=#1092 id=1092 data-nosnippet>1092</a>
-<a href=#1093 id=1093 data-nosnippet>1093</a><span class="doccomment">/// Filter a block's live-in set to exclude globals and hoisted global constants.
-<a href=#1094 id=1094 data-nosnippet>1094</a></span><span class="kw">fn </span>live_in_no_globals(
-<a href=#1095 id=1095 data-nosnippet>1095</a>    live_in: <span class="kw-2">&amp;</span>HashSet&lt;ValueId&gt;,
-<a href=#1096 id=1096 data-nosnippet>1096</a>    dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
-<a href=#1097 id=1097 data-nosnippet>1097</a>    hoisted_global_constants: <span class="kw-2">&amp;</span>HoistedConstantsToBrilligGlobals,
-<a href=#1098 id=1098 data-nosnippet>1098</a>) -&gt; HashSet&lt;ValueId&gt; {
-<a href=#1099 id=1099 data-nosnippet>1099</a>    live_in
-<a href=#1100 id=1100 data-nosnippet>1100</a>        .iter()
-<a href=#1101 id=1101 data-nosnippet>1101</a>        .copied()
-<a href=#1102 id=1102 data-nosnippet>1102</a>        .filter(|<span class="kw-2">&amp;</span>value| {
-<a href=#1103 id=1103 data-nosnippet>1103</a>            <span class="kw">if let </span>Value::NumericConstant { constant, typ } = dfg[value]
-<a href=#1104 id=1104 data-nosnippet>1104</a>                &amp;&amp; hoisted_global_constants.contains_key(<span class="kw-2">&amp;</span>(constant, typ))
-<a href=#1105 id=1105 data-nosnippet>1105</a>            {
-<a href=#1106 id=1106 data-nosnippet>1106</a>                <span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#1107 id=1107 data-nosnippet>1107</a>            }
-<a href=#1108 id=1108 data-nosnippet>1108</a>            !dfg.is_global(value)
-<a href=#1109 id=1109 data-nosnippet>1109</a>        })
-<a href=#1110 id=1110 data-nosnippet>1110</a>        .collect()
-<a href=#1111 id=1111 data-nosnippet>1111</a>}</code></pre></div></section></main></body></html>
+<a href=#1031 id=1031 data-nosnippet>1031</a>                <span class="macro">debug_assert_eq!</span>(
+<a href=#1032 id=1032 data-nosnippet>1032</a>                    then_array.size, else_array.size,
+<a href=#1033 id=1033 data-nosnippet>1033</a>                    <span class="string">"ICE: then and else arrays in if-else must have the same size, but got {} and {}"</span>,
+<a href=#1034 id=1034 data-nosnippet>1034</a>                    then_array.size, else_array.size
+<a href=#1035 id=1035 data-nosnippet>1035</a>                );
+<a href=#1036 id=1036 data-nosnippet>1036</a>                <span class="comment">// Pointer to the array which result from the if-else
+<a href=#1037 id=1037 data-nosnippet>1037</a>                </span><span class="kw">let </span>pointer = <span class="self">self</span>.brillig_context.allocate_register();
+<a href=#1038 id=1038 data-nosnippet>1038</a>                <span class="self">self</span>.brillig_context.conditional_move_instruction(
+<a href=#1039 id=1039 data-nosnippet>1039</a>                    then_condition.address,
+<a href=#1040 id=1040 data-nosnippet>1040</a>                    then_array.pointer,
+<a href=#1041 id=1041 data-nosnippet>1041</a>                    else_array.pointer,
+<a href=#1042 id=1042 data-nosnippet>1042</a>                    <span class="kw-2">*</span>pointer,
+<a href=#1043 id=1043 data-nosnippet>1043</a>                );
+<a href=#1044 id=1044 data-nosnippet>1044</a>                <span class="kw">let </span>if_else_array = BrilligArray { pointer: <span class="kw-2">*</span>pointer, size: then_array.size };
+<a href=#1045 id=1045 data-nosnippet>1045</a>                <span class="comment">// Copy the if-else array to the result
+<a href=#1046 id=1046 data-nosnippet>1046</a>                </span><span class="self">self</span>.brillig_context
+<a href=#1047 id=1047 data-nosnippet>1047</a>                    .call_array_copy_procedure(if_else_array, result.extract_array());
+<a href=#1048 id=1048 data-nosnippet>1048</a>            }
+<a href=#1049 id=1049 data-nosnippet>1049</a>            (
+<a href=#1050 id=1050 data-nosnippet>1050</a>                BrilligVariable::BrilligVector(then_vector),
+<a href=#1051 id=1051 data-nosnippet>1051</a>                BrilligVariable::BrilligVector(else_vector),
+<a href=#1052 id=1052 data-nosnippet>1052</a>            ) =&gt; {
+<a href=#1053 id=1053 data-nosnippet>1053</a>                <span class="comment">// Pointer to the vector which result from the if-else
+<a href=#1054 id=1054 data-nosnippet>1054</a>                </span><span class="kw">let </span>pointer = <span class="self">self</span>.brillig_context.allocate_register();
+<a href=#1055 id=1055 data-nosnippet>1055</a>                <span class="self">self</span>.brillig_context.conditional_move_instruction(
+<a href=#1056 id=1056 data-nosnippet>1056</a>                    then_condition.address,
+<a href=#1057 id=1057 data-nosnippet>1057</a>                    then_vector.pointer,
+<a href=#1058 id=1058 data-nosnippet>1058</a>                    else_vector.pointer,
+<a href=#1059 id=1059 data-nosnippet>1059</a>                    <span class="kw-2">*</span>pointer,
+<a href=#1060 id=1060 data-nosnippet>1060</a>                );
+<a href=#1061 id=1061 data-nosnippet>1061</a>                <span class="kw">let </span>if_else_vector = BrilligVector { pointer: <span class="kw-2">*</span>pointer };
+<a href=#1062 id=1062 data-nosnippet>1062</a>                <span class="comment">// Copy the if-else vector to the result
+<a href=#1063 id=1063 data-nosnippet>1063</a>                </span><span class="self">self</span>.brillig_context
+<a href=#1064 id=1064 data-nosnippet>1064</a>                    .call_vector_copy_procedure(if_else_vector, result.extract_vector());
+<a href=#1065 id=1065 data-nosnippet>1065</a>            }
+<a href=#1066 id=1066 data-nosnippet>1066</a>            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE - then and else values must have the same type"</span>),
+<a href=#1067 id=1067 data-nosnippet>1067</a>        }
+<a href=#1068 id=1068 data-nosnippet>1068</a>    }
+<a href=#1069 id=1069 data-nosnippet>1069</a>}
+<a href=#1070 id=1070 data-nosnippet>1070</a>
+<a href=#1071 id=1071 data-nosnippet>1071</a><span class="doccomment">/// Returns the type of the operation considering the types of the operands.
+<a href=#1072 id=1072 data-nosnippet>1072</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>type_of_binary_operation(lhs_type: <span class="kw-2">&amp;</span>Type, rhs_type: <span class="kw-2">&amp;</span>Type) -&gt; Type {
+<a href=#1073 id=1073 data-nosnippet>1073</a>    <span class="kw">match </span>(lhs_type, rhs_type) {
+<a href=#1074 id=1074 data-nosnippet>1074</a>        (<span class="kw">_</span>, Type::Function) | (Type::Function, <span class="kw">_</span>) =&gt; {
+<a href=#1075 id=1075 data-nosnippet>1075</a>            <span class="macro">unreachable!</span>(<span class="string">"Functions are invalid in binary operations"</span>)
+<a href=#1076 id=1076 data-nosnippet>1076</a>        }
+<a href=#1077 id=1077 data-nosnippet>1077</a>        (<span class="kw">_</span>, Type::Reference(<span class="kw">_</span>)) | (Type::Reference(<span class="kw">_</span>), <span class="kw">_</span>) =&gt; {
+<a href=#1078 id=1078 data-nosnippet>1078</a>            <span class="macro">unreachable!</span>(<span class="string">"References are invalid in binary operations"</span>)
+<a href=#1079 id=1079 data-nosnippet>1079</a>        }
+<a href=#1080 id=1080 data-nosnippet>1080</a>        (<span class="kw">_</span>, Type::Array(..)) | (Type::Array(..), <span class="kw">_</span>) =&gt; {
+<a href=#1081 id=1081 data-nosnippet>1081</a>            <span class="macro">unreachable!</span>(<span class="string">"Arrays are invalid in binary operations"</span>)
+<a href=#1082 id=1082 data-nosnippet>1082</a>        }
+<a href=#1083 id=1083 data-nosnippet>1083</a>        (<span class="kw">_</span>, Type::Vector(..)) | (Type::Vector(..), <span class="kw">_</span>) =&gt; {
+<a href=#1084 id=1084 data-nosnippet>1084</a>            <span class="macro">unreachable!</span>(<span class="string">"Arrays are invalid in binary operations"</span>)
+<a href=#1085 id=1085 data-nosnippet>1085</a>        }
+<a href=#1086 id=1086 data-nosnippet>1086</a>        (Type::Numeric(lhs_type), Type::Numeric(rhs_type)) =&gt; {
+<a href=#1087 id=1087 data-nosnippet>1087</a>            <span class="comment">// If both sides are numeric type, then we expect their types to be the same.
+<a href=#1088 id=1088 data-nosnippet>1088</a>            // For SHL and SHR they are also expected to be the same, but the SHR value itself cannot exceed the bit size.
+<a href=#1089 id=1089 data-nosnippet>1089</a>            </span><span class="macro">assert_eq!</span>(
+<a href=#1090 id=1090 data-nosnippet>1090</a>                lhs_type, rhs_type,
+<a href=#1091 id=1091 data-nosnippet>1091</a>                <span class="string">"lhs and rhs types in a binary operation are always the same but got {lhs_type} and {rhs_type}"
+<a href=#1092 id=1092 data-nosnippet>1092</a>            </span>);
+<a href=#1093 id=1093 data-nosnippet>1093</a>            Type::Numeric(<span class="kw-2">*</span>lhs_type)
+<a href=#1094 id=1094 data-nosnippet>1094</a>        }
+<a href=#1095 id=1095 data-nosnippet>1095</a>    }
+<a href=#1096 id=1096 data-nosnippet>1096</a>}
+<a href=#1097 id=1097 data-nosnippet>1097</a>
+<a href=#1098 id=1098 data-nosnippet>1098</a><span class="doccomment">/// Filter a block's live-in set to exclude globals and hoisted global constants.
+<a href=#1099 id=1099 data-nosnippet>1099</a></span><span class="kw">fn </span>live_in_no_globals(
+<a href=#1100 id=1100 data-nosnippet>1100</a>    live_in: <span class="kw-2">&amp;</span>HashSet&lt;ValueId&gt;,
+<a href=#1101 id=1101 data-nosnippet>1101</a>    dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+<a href=#1102 id=1102 data-nosnippet>1102</a>    hoisted_global_constants: <span class="kw-2">&amp;</span>HoistedConstantsToBrilligGlobals,
+<a href=#1103 id=1103 data-nosnippet>1103</a>) -&gt; HashSet&lt;ValueId&gt; {
+<a href=#1104 id=1104 data-nosnippet>1104</a>    live_in
+<a href=#1105 id=1105 data-nosnippet>1105</a>        .iter()
+<a href=#1106 id=1106 data-nosnippet>1106</a>        .copied()
+<a href=#1107 id=1107 data-nosnippet>1107</a>        .filter(|<span class="kw-2">&amp;</span>value| {
+<a href=#1108 id=1108 data-nosnippet>1108</a>            <span class="kw">if let </span>Value::NumericConstant { constant, typ } = dfg[value]
+<a href=#1109 id=1109 data-nosnippet>1109</a>                &amp;&amp; hoisted_global_constants.contains_key(<span class="kw-2">&amp;</span>(constant, typ))
+<a href=#1110 id=1110 data-nosnippet>1110</a>            {
+<a href=#1111 id=1111 data-nosnippet>1111</a>                <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#1112 id=1112 data-nosnippet>1112</a>            }
+<a href=#1113 id=1113 data-nosnippet>1113</a>            !dfg.is_global(value)
+<a href=#1114 id=1114 data-nosnippet>1114</a>        })
+<a href=#1115 id=1115 data-nosnippet>1115</a>        .collect()
+<a href=#1116 id=1116 data-nosnippet>1116</a>}</code></pre></div></section></main></body></html>
