@@ -367,13 +367,11 @@ fn get_terminator_args_mut(
     }
 }
 
-// For each index i of `items`, keep `items[i]` iff `mask[i]`
+/// For each index i of `items`, keep `items[i]` iff `mask[i]`
 fn retain_items_from_mask(items: &mut Vec<ValueId>, mask: &[bool]) {
-    let mut i = 0;
-    items.retain(|_| {
-        i += 1;
-        mask[i - 1]
-    });
+    debug_assert_eq!(items.len(), mask.len());
+    let mut mask_iter = mask.iter();
+    items.retain(|_| *mask_iter.next().unwrap());
     // Reclaim some memory, important in larger programs
     items.shrink_to_fit();
 }
