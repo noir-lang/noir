@@ -30,7 +30,6 @@ mod inlining;
 mod load_store_forwarding;
 mod loop_invariant;
 mod make_constrain_not_equal;
-mod mem2reg;
 mod mem2reg_simple;
 mod mutable_array_set;
 mod normalize_value_ids;

@@ -1901,10 +1901,10 @@ impl<'f> LoopIteration<'f> {
 /// Unrolling leaves some duplicate instructions which can potentially be removed.
 fn simplify_between_unrolls(function: &mut Function) {
     // Do a mem2reg after the last unroll to aid simplify_cfg
-    function.mem2reg();
+    function.mem2reg_simple_pre_flattening();
     function.simplify_function();
     // Do another mem2reg after simplify_cfg to aid the next unroll
-    function.mem2reg();
+    function.mem2reg_simple_pre_flattening();
 }
 
 /// Decide if the new bytecode size is acceptable, compared to the original.
@@ -1947,7 +1947,6 @@ mod tests {
     use crate::ssa::interpreter::value::Value;
     use crate::ssa::ir::cfg::ControlFlowGraph;
     use crate::ssa::ir::integer::IntegerConstant;
-    use crate::ssa::opt::assert_ssa_does_not_change;
     use crate::ssa::{Ssa, ir::value::ValueId, opt::assert_normalized_ssa_equals};
 
     use super::{
@@ -2528,10 +2527,31 @@ mod tests {
             "loop should be within default force-unroll threshold"
         );
 
-        assert_ssa_does_not_change(&brillig_unroll_test_case_6470(6), |ssa| {
-            // With threshold=0, the loop should NOT be unrolled
-            ssa.unroll_loops_iteratively(None, 0, 0).unwrap()
-        });
+        let src = brillig_unroll_test_case_6470(6);
+        let ssa = Ssa::from_str(&src).unwrap().unroll_loops_iteratively(None, 0, 0).unwrap();
+
+        // The loop should not be unrolled, but the program is still changed due to
+        // mem2reg running in-between loop unrollings.
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: [u64; 6]):
+            inc_rc v0
+            v4 = make_array [u64 0, u64 0, u64 0, u64 0, u64 0, u64 0] : [u64; 6]
+            inc_rc v4
+            jmp b1(u32 0, v4)
+          b1(v1: u32, v2: [u64; 6]):
+            v7 = lt v1, u32 6
+            jmpif v7 then: b2(), else: b3()
+          b2():
+            v8 = array_get v0, index v1 -> u64
+            v10 = add v8, u64 1
+            v11 = array_set v2, index v1, value v10
+            v13 = unchecked_add v1, u32 1
+            v14 = unchecked_add v1, u32 1
+            jmp b1(v14, v11)
+          b3():
+            return v2
+        }");
     }
 
     /// Test that `break` and `continue` stop unrolling without any panic.
