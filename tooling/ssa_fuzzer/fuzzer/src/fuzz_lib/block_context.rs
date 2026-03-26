@@ -721,8 +721,8 @@ impl BlockContext {
         if !self.options.instruction_options.create_array_enabled {
             return None;
         }
-        // ACIR uses flat array layout — skip nested array creation
-        if matches!(builder.runtime, RuntimeType::Acir(_)) && element_type.is_array() {
+        // Both ACIR and Brillig use flat array layout — skip nested array creation
+        if element_type.is_array() {
             return None;
         }
         // if we storing references, take values from memory addresses, otherwise from stored variables

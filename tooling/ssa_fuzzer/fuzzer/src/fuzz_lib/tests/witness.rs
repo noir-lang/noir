@@ -83,6 +83,7 @@ fn test_array_as_initial_witness() {
 ///   arr[index];
 /// }
 #[test]
+#[ignore = "nested arrays are now flat in both ACIR and Brillig — fuzzer cannot represent them"]
 fn test_array_of_arrays_as_initial_witness() {
     let _ = env_logger::try_init();
     let instruction_get = Instruction::ArrayGet {
