@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774551849466,
+  "lastUpdate": 1774551868318,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14862,95 +14862,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "2a4483f5731e02bc34c4143c2fbaa5630f5d3387",
-          "message": "chore(brillig): Add assertion that the coalesced parameter is available (#11913)",
-          "timestamp": "2026-03-20T18:17:24Z",
-          "tree_id": "db09e2b7231f42f0c375ea01a1eebb222801a2fc",
-          "url": "https://github.com/noir-lang/noir/commit/2a4483f5731e02bc34c4143c2fbaa5630f5d3387"
-        },
-        "date": 1774033168793,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 276.02,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 312.83,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 265.4,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 346.82,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 345.22,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1550,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1550,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 346.15,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 529.16,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 464.98,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 344.86,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 75.48,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 72.92,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -19280,6 +19191,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 355.71,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 538.38,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 473.81,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 354.52,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 78.97,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 76.43,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "b48edd44c613d05ee8ecc1764fce300308df27dd",
+          "message": "feat(ssa): Replace most usage of old mem2reg pass (#11935)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-03-26T18:21:20Z",
+          "tree_id": "8c3f18afea092019c577530c0e8ce1a897e14a1a",
+          "url": "https://github.com/noir-lang/noir/commit/b48edd44c613d05ee8ecc1764fce300308df27dd"
+        },
+        "date": 1774551796729,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 287.35,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 324.84,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 278.96,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 356.03,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 354.83,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1550,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1550,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 355.7,
             "unit": "MB"
           },
           {
