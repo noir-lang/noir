@@ -1,3 +1,4 @@
+/// Verifier for ECDSA Secp256r1 signatures.
 // docs:start:ecdsa_secp256r1
 pub fn verify_signature(
     public_key_x: [u8; 32],
