@@ -33,8 +33,8 @@
 //!   - The databus is never used to return values, so instructions to create a Field array to return are never generated.
 //!
 //! ## Preconditions
-//! - ACIR: By default the pass must be run after [mem2reg][crate::ssa::opt::mem2reg] and [CFG flattening][crate::ssa::opt::flatten_cfg].
-//!   If the pass is run before these passes, it must be explicitly stated.
+//! - ACIR: By default the pass must be run after [CFG flattening][crate::ssa::opt::flatten_cfg].
+//!   If the pass is run before, it must be explicitly stated.
 //! - Must be run on the full [Ssa], not individual [Function]s, to avoid dangling
 //!   parameter references from dead parameter pruning.
 //!
