@@ -92,7 +92,7 @@ impl Hasher for Poseidon2Hasher {
         self.finish_ref()
     }
 
-    fn finish_ref(& self) -> Field {
+    fn finish_ref(&self) -> Field {
         let iv: Field = (self._state.len() as Field) * 18446744073709551616; // iv = (self._state.len() << 64)
         let mut sponge = Poseidon2::new(iv);
         for i in 0..self._state.len() {
