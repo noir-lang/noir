@@ -318,7 +318,7 @@ impl Context {
         self
     }
 
-    /// Traverse blocks an instructions top-down to build up the descendants of Brillig calls,
+    /// Traverse blocks and instructions top-down to build up the descendants of Brillig calls,
     /// trying to constrain them along the way based on the ancestry information.
     fn build_tainted(
         mut self,
@@ -476,7 +476,7 @@ fn has_call_to_brillig(func: &Function, all_functions: &BTreeMap<FunctionId, Fun
     false
 }
 
-/// Whether the instruction a call to a Brillig function with a non-empty results.
+/// Whether the instruction is a call to a Brillig function with a non-empty results.
 fn is_call_to_brillig(
     func: &Function,
     all_functions: &BTreeMap<FunctionId, Function>,
@@ -514,7 +514,7 @@ fn is_constraint(func: &Function, instruction_id: &InstructionId) -> bool {
     matches!(intrinsic, Intrinsic::ApplyRangeConstraint | Intrinsic::AssertConstant)
 }
 
-/// Whether the instruction is a non-constant side effect variable.
+/// Whether the instruction enables side effects with a non-constant variable.
 fn is_side_effect(func: &Function, instruction: &Instruction) -> bool {
     let Instruction::EnableSideEffectsIf { condition } = instruction else {
         return false;
