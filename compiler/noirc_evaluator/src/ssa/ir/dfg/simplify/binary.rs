@@ -13,6 +13,35 @@ use noirc_errors::call_stack::CallStackId;
 
 use super::SimplifyResult;
 
+/// Canonicalize commutative binary operations by:
+/// 1. Moving any constant operand to the RHS (e.g. `add Field 5, v0` → `add v0, Field 5`).
+/// 2. When both operands are non-constant, sorting so the smaller ValueId is on the left
+///    (e.g. `mul v1, v0` → `mul v0, v1`), enabling deduplication via CSE.
+fn canonicalize_binary(mut binary: Binary, dfg: &DataFlowGraph) -> Binary {
+    if !binary.operator.is_commutative() {
+        return binary;
+    }
+
+    let lhs_is_const = dfg.get_numeric_constant(binary.lhs).is_some();
+    let rhs_is_const = dfg.get_numeric_constant(binary.rhs).is_some();
+
+    let should_swap = if lhs_is_const && !rhs_is_const {
+        // Always move constants to the RHS
+        true
+    } else if !lhs_is_const && !rhs_is_const {
+        // Both non-constant: sort by ValueId
+        binary.lhs > binary.rhs
+    } else {
+        false
+    };
+
+    if should_swap {
+        std::mem::swap(&mut binary.lhs, &mut binary.rhs);
+    }
+
+    binary
+}
+
 /// Try to simplify this binary instruction, returning the new value if possible.
 pub(super) fn simplify_binary(
     binary: &Binary,
@@ -114,25 +143,26 @@ pub(super) fn simplify_binary(
                 if lhs == rhs {
                     return SimplifyResult::SimplifiedTo(lhs);
                 }
-                // b*(b*x) = b*x if b is boolean
-                if let super::Value::Instruction { instruction, .. } = &dfg[rhs]
-                    && let Instruction::Binary(Binary { lhs: b_lhs, rhs: b_rhs, operator }) =
-                        dfg[*instruction]
-                    && matches!(operator, BinaryOp::Mul { .. })
-                    && (lhs == b_lhs || lhs == b_rhs)
-                {
-                    return SimplifyResult::SimplifiedTo(rhs);
-                }
             }
-            // (b*x)*b = b*x if b is boolean
-            if dfg.get_value_max_num_bits(rhs) == 1
-                && let super::Value::Instruction { instruction, .. } = &dfg[lhs]
-                && let Instruction::Binary(Binary { lhs: b_lhs, rhs: b_rhs, operator }) =
-                    dfg[*instruction]
-                && matches!(operator, BinaryOp::Mul { .. })
-                && (rhs == b_lhs || rhs == b_rhs)
-            {
-                return SimplifyResult::SimplifiedTo(lhs);
+            // b*f(b, x) = b*x if b is boolean and f is Mul or Eq
+            // For Mul: b*(b*x) = b*x since b*b = b for booleans.
+            // For Eq: b*eq(b, x) = b*x since if b=0 then 0*eq(0,x)=0=0*x,
+            //         and if b=1 then 1*eq(1,x)=x=1*x.
+            for (bool_val, other_val) in [(lhs, rhs), (rhs, lhs)] {
+                if dfg.get_value_max_num_bits(bool_val) == 1
+                    && let super::Value::Instruction { instruction, .. } = &dfg[other_val]
+                    && let Instruction::Binary(Binary {
+                        lhs: b_lhs,
+                        rhs: b_rhs,
+                        operator: BinaryOp::Mul { .. } | BinaryOp::Eq,
+                    }) = dfg[*instruction]
+                    && (bool_val == b_lhs || bool_val == b_rhs)
+                {
+                    let other = if bool_val == b_lhs { b_rhs } else { b_lhs };
+                    return SimplifyResult::SimplifiedToInstruction(Instruction::binary(
+                        operator, bool_val, other,
+                    ));
+                }
             }
         }
         BinaryOp::Div => {
@@ -311,7 +341,10 @@ pub(super) fn simplify_binary(
             return SimplifyResult::SimplifiedToInstruction(simplified);
         }
     }
-    SimplifyResult::SimplifiedToInstruction(simplified)
+    SimplifyResult::SimplifiedToInstruction(Instruction::Binary(canonicalize_binary(
+        Binary { lhs, rhs, operator },
+        dfg,
+    )))
 }
 
 #[cfg(test)]
@@ -363,9 +396,7 @@ mod tests {
             return v1
         }
         ";
-
         let ssa = Ssa::from_str_simplifying(src).unwrap();
-
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u8):
@@ -374,5 +405,147 @@ mod tests {
             return v3
         }
         ");
+    }
+
+    #[test]
+    fn simplifies_bool_times_eq_bool_x() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1, v1: u1):
+            v2 = eq v0, v1
+            v3 = mul v0, v2
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1, v1: u1):
+            v2 = eq v0, v1
+            v3 = unchecked_mul v0, v1
+            return v3
+        }
+        ");
+    }
+
+    mod canonicalize {
+        use crate::ssa::{ir::instruction::Instruction, ssa_gen::Ssa};
+        use test_case::test_case;
+
+        use super::super::canonicalize_binary;
+
+        fn assert_operands_swapped(src: &str) {
+            let ssa = Ssa::from_str(src).unwrap();
+            let function = ssa.main();
+            let block = function.entry_block();
+            for instruction_id in function.dfg[block].instructions() {
+                if let Instruction::Binary(binary) = &function.dfg[*instruction_id] {
+                    let original_lhs = binary.lhs;
+                    let original_rhs = binary.rhs;
+                    let result = canonicalize_binary(binary.clone(), &function.dfg);
+                    assert_eq!(result.lhs, original_rhs, "expected lhs and rhs to be swapped");
+                    assert_eq!(result.rhs, original_lhs, "expected lhs and rhs to be swapped");
+                    return;
+                }
+            }
+            panic!("No binary instruction found in SSA");
+        }
+
+        fn assert_operands_unchanged(src: &str) {
+            let ssa = Ssa::from_str(src).unwrap();
+            let function = ssa.main();
+            let block = function.entry_block();
+            for instruction_id in function.dfg[block].instructions() {
+                if let Instruction::Binary(binary) = &function.dfg[*instruction_id] {
+                    let result = canonicalize_binary(binary.clone(), &function.dfg);
+                    assert_eq!(result.lhs, binary.lhs, "expected operands to remain unchanged");
+                    assert_eq!(result.rhs, binary.rhs, "expected operands to remain unchanged");
+                    return;
+                }
+            }
+            panic!("No binary instruction found in SSA");
+        }
+
+        #[test_case("mul"; "mul")]
+        #[test_case("add"; "add")]
+        #[test_case("and"; "and")]
+        #[test_case("or"; "or")]
+        #[test_case("xor"; "xor")]
+        #[test_case("eq"; "eq")]
+        fn swaps_commutative_operands(op: &str) {
+            let src = format!(
+                "acir(inline) predicate_pure fn main f0 {{
+                  b0(v0: u32, v1: u32):
+                    v2 = {op} v1, v0
+                    return v2
+                }}"
+            );
+            assert_operands_swapped(&src);
+        }
+
+        #[test_case("mul"; "mul")]
+        #[test_case("add"; "add")]
+        #[test_case("and"; "and")]
+        #[test_case("or"; "or")]
+        #[test_case("xor"; "xor")]
+        #[test_case("eq"; "eq")]
+        fn preserves_already_ordered_commutative(op: &str) {
+            let src = format!(
+                "acir(inline) predicate_pure fn main f0 {{
+                  b0(v0: u32, v1: u32):
+                    v2 = {op} v0, v1
+                    return v2
+                }}"
+            );
+            assert_operands_unchanged(&src);
+        }
+
+        #[test_case("mul"; "mul")]
+        #[test_case("add"; "add")]
+        #[test_case("and"; "and")]
+        #[test_case("or"; "or")]
+        #[test_case("xor"; "xor")]
+        #[test_case("eq"; "eq")]
+        fn moves_constant_lhs_to_rhs(op: &str) {
+            let src = format!(
+                "acir(inline) predicate_pure fn main f0 {{
+                  b0(v0: u32):
+                    v2 = {op} u32 1, v0
+                    return v2
+                }}"
+            );
+            assert_operands_swapped(&src);
+        }
+
+        #[test_case("mul"; "mul")]
+        #[test_case("add"; "add")]
+        #[test_case("and"; "and")]
+        #[test_case("or"; "or")]
+        #[test_case("xor"; "xor")]
+        #[test_case("eq"; "eq")]
+        fn keeps_constant_on_rhs(op: &str) {
+            let src = format!(
+                "acir(inline) predicate_pure fn main f0 {{
+                  b0(v0: u32):
+                    v2 = {op} v0, u32 1
+                    return v2
+                }}"
+            );
+            assert_operands_unchanged(&src);
+        }
+
+        #[test_case("sub"; "sub")]
+        #[test_case("div"; "div")]
+        #[test_case("mod"; "r#mod")]
+        fn does_not_swap_non_commutative(op: &str) {
+            let src = format!(
+                "acir(inline) predicate_pure fn main f0 {{
+                  b0(v0: u32, v1: u32):
+                    v2 = {op} v1, v0
+                    return v2
+                }}"
+            );
+            assert_operands_unchanged(&src);
+        }
     }
 }

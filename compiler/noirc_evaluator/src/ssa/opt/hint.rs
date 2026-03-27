@@ -106,9 +106,9 @@ mod tests {
             constrain u32 50 == v0
             v4 = call black_box(u32 10) -> u32
             v5 = add v4, v4
-            v6 = add v5, v4
-            v7 = add v6, v4
-            v8 = add v7, v4
+            v6 = add v4, v5
+            v7 = add v4, v6
+            v8 = add v4, v7
             constrain v8 == u32 50
             return
         }

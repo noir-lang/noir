@@ -1155,7 +1155,7 @@ mod tests {
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u1):
             enable_side_effects v0
-            v2 = unchecked_mul v1, v0
+            v2 = unchecked_mul v0, v1
             constrain v2 == v0
             v3 = not v0
             enable_side_effects u1 1
@@ -1189,7 +1189,7 @@ mod tests {
             v4 = cast v0 as Field
             v5 = cast v3 as Field
             v7 = mul v4, Field 5
-            v8 = mul v5, v2
+            v8 = mul v2, v5
             v9 = add v7, v8
             store v9 at v1
             enable_side_effects u1 1
@@ -1226,7 +1226,7 @@ mod tests {
             v4 = cast v0 as Field
             v5 = cast v3 as Field
             v7 = mul v4, Field 5
-            v8 = mul v5, v2
+            v8 = mul v2, v5
             v9 = add v7, v8
             store v9 at v1
             enable_side_effects v3
@@ -1234,7 +1234,7 @@ mod tests {
             v11 = cast v3 as Field
             v12 = cast v0 as Field
             v14 = mul v11, Field 6
-            v15 = mul v12, v10
+            v15 = mul v10, v12
             v16 = add v14, v15
             store v16 at v1
             enable_side_effects u1 1
@@ -1305,7 +1305,7 @@ mod tests {
             enable_side_effects u1 1
             v11 = cast v0 as Field
             v12 = cast v9 as Field
-            v13 = mul v11, v8
+            v13 = mul v8, v11
             v15 = mul v12, Field 2
             v16 = add v13, v15
             return v16
@@ -1415,7 +1415,7 @@ mod tests {
             v4 = cast v0 as Field
             v5 = cast v3 as Field
             v7 = mul v4, Field 2
-            v8 = add v7, v5
+            v8 = add v5, v7
             v9 = unchecked_mul v0, v1
             enable_side_effects v9
             v10 = not v9
@@ -1511,7 +1511,7 @@ mod tests {
             enable_side_effects u1 1
             v14 = cast v0 as u32
             v15 = cast v12 as u32
-            v16 = unchecked_mul v14, v11
+            v16 = unchecked_mul v11, v14
             v18 = unchecked_mul v15, u32 3
             v19 = unchecked_add v16, v18
             return v19
@@ -1715,15 +1715,15 @@ mod tests {
             v14 = not v5
             v15 = cast v4 as u8
             v16 = cast v14 as u8
-            v17 = unchecked_mul v15, v12
-            v18 = unchecked_mul v16, v13
+            v17 = unchecked_mul v12, v15
+            v18 = unchecked_mul v13, v16
             v19 = unchecked_add v17, v18
             store v19 at v6
             enable_side_effects v14
             v20 = load v6 -> u8
             v21 = cast v14 as u8
             v22 = cast v4 as u8
-            v23 = unchecked_mul v22, v20
+            v23 = unchecked_mul v20, v22
             store v23 at v6
             enable_side_effects u1 1
             constrain v5 == u1 1
@@ -1858,7 +1858,7 @@ mod tests {
             v3 = cast v0 as Field
             v4 = cast v2 as Field
             v6 = mul v3, Field 2
-            v7 = mul v4, v3
+            v7 = mul v3, v4
             v8 = add v6, v7
             enable_side_effects u1 1
             return v8
@@ -2012,12 +2012,12 @@ mod tests {
             range_check v5 to 16 bits
             v6 = not v0
             enable_side_effects v6
-            v8 = add u32 3, v3
+            v8 = add v3, u32 3
             enable_side_effects u1 1
             v10 = cast v0 as u32
             v11 = cast v6 as u32
-            v12 = unchecked_mul v10, v3
-            v13 = unchecked_mul v11, v8
+            v12 = unchecked_mul v3, v10
+            v13 = unchecked_mul v8, v11
             v14 = unchecked_add v12, v13
             return v14
         }

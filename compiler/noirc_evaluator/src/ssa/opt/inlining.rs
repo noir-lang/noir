@@ -878,16 +878,16 @@ mod tests {
           b7(v0: u32):
             jmp b8(v0)
           b8(v1: u32):
-            v8 = mul u32 2, v1
+            v8 = mul v1, u32 2
             jmp b9(v8)
           b9(v2: u32):
-            v10 = mul u32 3, v2
+            v10 = mul v2, u32 3
             jmp b10(v10)
           b10(v3: u32):
-            v12 = mul u32 4, v3
+            v12 = mul v3, u32 4
             jmp b11(v12)
           b11(v4: u32):
-            v14 = mul u32 5, v4
+            v14 = mul v4, u32 5
             jmp b12(v14)
           b12(v5: u32):
             return v5
