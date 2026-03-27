@@ -115,7 +115,7 @@ impl TaintedDescendants {
                         array_outputs.insert((*result_id, i), HashSet::new());
                     }
                 }
-                // For very large array_outputs or non-array_outputs, treat the whole result as a single value
+                // For very large arrays or non-arrays, treat the whole result as a single value
                 // to avoid memory/time issues when tracking individual elements
                 Some(_) | None => {
                     single_outputs.insert(*result_id);
@@ -172,7 +172,6 @@ impl TaintedDescendants {
 
     /// Whether one of the constrained values:
     /// * shares an ancestor with a call argument, and
-    /// * is not a descendant of the outputs, and
     /// * is not tainted
     fn arguments_intersect(
         &self,
@@ -183,11 +182,8 @@ impl TaintedDescendants {
         for constrained in constrained_values {
             if all_tainted.contains(constrained) {
                 // Allowing these would mean we could constrain the output of one call
-                // with the output of another Brillig call.
-                continue;
-            }
-            if self.is_descendant_of_outputs(ancestors, constrained) {
-                // Allowing these would trivially connect outputs to inputs of the same call.
+                // with the output of another Brillig call, and also that outputs of
+                // the call would trivially connect to the inputs.
                 continue;
             }
             // Check if this constraint is directly on one of the inputs.
@@ -213,15 +209,6 @@ impl TaintedDescendants {
             }
         }
         false
-    }
-
-    /// Whether the value is a descendant of the call outputs.
-    fn is_descendant_of_outputs(&self, ancestors: &AncestorMap, value: &ValueId) -> bool {
-        self.single_outputs.contains(value)
-            || ancestors
-                .get(value)
-                .is_some_and(|a| self.single_outputs.iter().any(|o| a.contains(o)))
-            || self.array_outputs.values().any(|d| d.contains(value))
     }
 
     /// Add to the descendants of a particular array element.
