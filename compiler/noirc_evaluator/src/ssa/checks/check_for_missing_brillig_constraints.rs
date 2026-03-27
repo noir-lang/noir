@@ -219,6 +219,7 @@ impl TaintedDescendants {
     }
 }
 
+#[derive(Debug)]
 struct Context {
     /// Block IDs in Post Order.
     post_order: Vec<BasicBlockId>,
@@ -375,7 +376,7 @@ impl Context {
                             let Instruction::Call { func: callee, .. } = instruction else {
                                 unreachable!("ICE: Expected Brillig call");
                             };
-                            visited_locations.insert((*callee, *loc))
+                            !visited_locations.insert((*callee, *loc))
                         }
                         None => false,
                     };
@@ -1289,5 +1290,26 @@ mod tests {
             1,
             "We are constraining the outputs, but they are *not* connected to the inputs"
         );
+    }
+
+    #[test]
+    #[traced_test]
+    fn single_call_no_constraint() {
+        let program = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v1 = call f1() -> i64
+            return v1
+        }
+        brillig(inline) predicate_pure fn func_1 f1 {
+          b0():
+            v2 = shl i64 0, i64 -877061792390071735
+            return v2
+        }
+        "#;
+
+        let mut ssa = Ssa::from_str(program).unwrap();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        assert_eq!(ssa_level_warnings.len(), 1);
     }
 }
