@@ -6,7 +6,7 @@
 //! other pass has a larger surface area for bugs though and this one is simpler so the goal is to
 //! replace the old pass with this one plus any other, separate passes needed for the features
 //! unhandled here (such as alias analysis).
-use iter_extended::vecmap;
+use iter_extended::{btree_map, vecmap};
 use rustc_hash::FxHashSet as HashSet;
 use std::collections::BTreeMap;
 
@@ -33,6 +33,27 @@ use crate::ssa::{
 /// paid previously.
 const MAX_VARIABLES_OPTIMIZED: u32 = 10;
 
+/// Maximum number of blocks a variable's declaration can dominate before we skip
+/// promoting it in the pre-flattening pass.
+///
+/// The cost of promoting a variable before flattening is O(promoted_variables × dominated_blocks)
+/// because each promoted variable adds a block parameter to every dominated block, and the
+/// flattener converts each conditional block into ~5 predicate opcodes (not, mul,
+/// enable_side_effects, etc.). A variable that spans many blocks (e.g. a byte in a 254-iteration
+/// unrolled loop) can generate thousands of extra ACIR opcodes.
+///
+/// This limit filters out variables whose declaration dominates too many blocks,
+/// keeping promotion beneficial for small CFGs (like if/else diamonds in `conditional_1`)
+/// while avoiding regressions in deeply unrolled code (like `to_bytes_integration`).
+const MAX_BLOCK_SPAN_PRE_FLATTENING: usize = 100;
+
+/// Maximum number of instructions a function can have before we skip
+/// mem2reg_simple in the pre-flattening pass. The infrastructure cost of
+/// building CFG/dominator trees and scanning variables on very large functions
+/// (100k+ instructions from aggressive inlining/unrolling) dominates even
+/// when no variables are ultimately promoted.
+const MAX_INSTRUCTIONS_PRE_FLATTENING: usize = 50_000;
+
 impl Ssa {
     /// Run mem2reg_simple on all functions (both ACIR and Brillig).
     ///
@@ -46,7 +67,7 @@ impl Ssa {
         for function in self.functions.values_mut() {
             let max_vars =
                 if function.runtime().is_brillig() { Some(MAX_VARIABLES_OPTIMIZED) } else { None };
-            function.mem2reg_simple(max_vars);
+            function.mem2reg_simple(max_vars, None);
         }
         self
     }
@@ -55,7 +76,7 @@ impl Ssa {
     pub(crate) fn mem2reg_simple_brillig(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             if function.runtime().is_brillig() {
-                function.mem2reg_simple(Some(MAX_VARIABLES_OPTIMIZED));
+                function.mem2reg_simple(Some(MAX_VARIABLES_OPTIMIZED), None);
             }
         }
         self
@@ -78,13 +99,18 @@ impl Ssa {
 impl Function {
     pub(crate) fn mem2reg_simple_pre_flattening(&mut self) {
         if self.runtime().is_brillig() {
-            self.mem2reg_simple(Some(MAX_VARIABLES_OPTIMIZED));
+            self.mem2reg_simple(Some(MAX_VARIABLES_OPTIMIZED), None);
         } else {
-            self.mem2reg_simple(None);
+            // Skip very large ACIR functions pre-flattening. The post-flattening
+            // mem2reg_simple handles ACIR efficiently on single-block functions.
+            if self.num_instructions() > MAX_INSTRUCTIONS_PRE_FLATTENING {
+                return;
+            }
+            self.mem2reg_simple(Some(MAX_VARIABLES_OPTIMIZED), Some(MAX_BLOCK_SPAN_PRE_FLATTENING));
         }
     }
 
-    fn mem2reg_simple(&mut self, max_variables: Option<u32>) {
+    fn mem2reg_simple(&mut self, max_variables: Option<u32>, max_block_span: Option<usize>) {
         let cfg = ControlFlowGraph::with_function(self);
         let post_order = PostOrder::with_cfg(&cfg);
         let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
@@ -97,6 +123,30 @@ impl Function {
         // so it is important we use a deterministic order so that block arguments always correspond
         // to block parameters in the same order.
         let mut variables = collect_all_eligible_variables(inserter.function, &blocks);
+
+        // Filter out variables whose declaration dominates too many blocks.
+        // Each promoted variable adds a block parameter to every dominated block, and the
+        // flattener converts each conditional into predicate opcodes, so the cost is
+        // O(promoted_variables × dominated_blocks).
+        //
+        // We approximate this count by precomputing dominator-tree subtree
+        // sizes in O(blocks): `blocks` is in RPO order, so iterating in reverse guarantees
+        // each block is visited before its immediate dominator (dominators always have a
+        // lower RPO index). One reverse pass accumulates subtree sizes bottom-up.
+        if let Some(max_span) = max_block_span
+            && blocks.len() > max_span
+            && !variables.is_empty()
+        {
+            let mut subtree_size = btree_map(&blocks, |block| (*block, 1));
+
+            for &block in blocks.iter().rev() {
+                if let Some(idom) = dom_tree.immediate_dominator(block) {
+                    let size = subtree_size[&block];
+                    *subtree_size.entry(idom).or_insert(1) += size;
+                }
+            }
+            variables.retain(|_var, decl_block| subtree_size[decl_block] <= max_span);
+        }
 
         // Limit increase in memory usage and brillig regressions by arbitrarily limiting this pass to some variables
         if let Some(max) = max_variables {

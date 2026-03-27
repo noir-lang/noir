@@ -11,6 +11,7 @@ use super::unrolling::MAX_UNROLL_ITERATIONS;
 
 impl Ssa {
     /// Run pre-processing steps on functions in isolation.
+    #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn preprocess_functions(
         mut self,
         aggressiveness: i64,
