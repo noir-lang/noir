@@ -156,6 +156,10 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new(Ssa::mem2reg_simple_brillig, "Mem2Reg Simple")
             .and_then(Ssa::load_store_forwarding),
         SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
+        SsaPass::new(
+            Ssa::lower_refs_at_acir_brillig_boundary,
+            "Lower refs at ACIR/Brillig boundary",
+        ),
         SsaPass::new_try(Ssa::inline_simple_functions, "Inlining simple functions")
             .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::mem2reg_simple_brillig, "Mem2Reg Simple")
@@ -233,13 +237,6 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         // introduce signed divisions.
         SsaPass::new(Ssa::expand_signed_math, "Expand signed math"),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
-        // Materialize immutable references that cross the ACIR→Brillig boundary
-        // (e.g. `&x` passed as argument to an unconstrained function from a constrained one).
-        // Loads inserted into ACIR functions are cleaned up by the mem2reg pass after flattening.
-        SsaPass::new(
-            Ssa::lower_refs_at_acir_brillig_boundary,
-            "Lower refs at ACIR/Brillig boundary",
-        ),
         SsaPass::new(Ssa::flatten_cfg, "Flattening"),
         SsaPass::new(Ssa::array_set_window_optimization, "ArraySet Window optimization"),
         // Run mem2reg_simple on all functions after flattening to handle cross-block promotion

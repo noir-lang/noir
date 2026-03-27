@@ -171,20 +171,19 @@ fn insert_loads_for_ref_args(
     function: &mut Function,
     block_id: BasicBlockId,
     call_stack: CallStackId,
-    args: &mut Vec<ValueId>,
+    args: &mut [ValueId],
 ) {
-    for i in 0..args.len() {
-        let ref_arg = args[i];
-        let Type::Reference(inner_type) = function.dfg.type_of_value(ref_arg) else {
+    for arg in args {
+        let Type::Reference(inner_type) = function.dfg.type_of_value(*arg) else {
             continue;
         };
         let load = function.dfg.insert_instruction_and_results_without_simplification(
-            Instruction::Load { address: ref_arg },
+            Instruction::Load { address: *arg },
             block_id,
             Some(vec![(*inner_type).clone()]),
             call_stack,
         );
-        args[i] = load.first();
+        *arg = load.first();
     }
 }
 
