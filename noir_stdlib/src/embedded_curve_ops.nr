@@ -130,8 +130,7 @@ impl Hash for EmbeddedCurveScalar {
 }
 
 /// Computes a multi scalar multiplication over the embedded curve.
-/// For bn254, We have Grumpkin and Baby JubJub.
-/// For bls12-381, we have JubJub and Bandersnatch.
+/// For bn254, We have Grumpkin.
 ///
 /// The embedded curve being used is decided by the
 /// underlying proof system.
