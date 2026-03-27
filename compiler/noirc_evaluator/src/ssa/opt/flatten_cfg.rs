@@ -992,20 +992,6 @@ impl<'f> Context<'f> {
             chain.push((index, new_val, mutable));
 
             if self.was_loaded_from_address(array, address) {
-                // Skip if any index is a known-constant that's OOB. The optimization
-                // emits array_set under `enable_side_effects u1 1` to prevent
-                // remove_unreachable_instructions from zeroing it, but that would make
-                // an OOB array_set unconditional. Dynamic indices are fine (not constant),
-                // and in-bounds constants are fine.
-                let has_known_oob_index = chain.iter().any(|(idx, _, _)| {
-                    let dfg = &self.inserter.function.dfg;
-                    dfg.get_numeric_constant(*idx).is_some()
-                        && !dfg.is_safe_index(*idx, previous_value)
-                });
-                if has_known_oob_index {
-                    return None;
-                }
-
                 // Found the base - emit merged array_sets in forward order (innermost first)
                 chain.reverse();
                 let else_condition = self.not_instruction(condition, call_stack);
@@ -1111,18 +1097,6 @@ impl<'f> Context<'f> {
             chain.push((index, value, mutable));
 
             if array == else_value {
-                // Skip if any index is a known-constant that's OOB. The optimization
-                // emits array_get which, under a disabled predicate, would use a "safe"
-                // replacement index (reading the wrong element). With a constant OOB
-                // index, remove_unreachable_instructions would also flag it as always-failing.
-                let has_known_oob_index = chain.iter().any(|(idx, _, _)| {
-                    let dfg = &self.inserter.function.dfg;
-                    dfg.get_numeric_constant(*idx).is_some() && !dfg.is_safe_index(*idx, else_value)
-                });
-                if has_known_oob_index {
-                    return None;
-                }
-
                 // Found the base - emit merged array_sets in forward order (innermost first)
                 chain.reverse();
                 let mut result = else_value;
