@@ -302,6 +302,9 @@ struct ConditionalContext {
     predicated_values: HashMap<ValueId, ValueId>,
     /// The allocations accumulated before processing the branch.
     local_allocations: HashSet<ValueId>,
+    /// When JmpIf's else_destination is the exit/merge block (no separate else block),
+    /// stores the resolved else_arguments so `inline_branch_end` can use them.
+    jmpif_else_arguments: Option<Vec<ValueId>>,
 }
 
 /// Flattens the control flow graph of the function such that it is left with a
@@ -502,14 +505,21 @@ impl<'f> Context<'f> {
                 then_destination,
                 then_arguments,
                 else_destination,
-                else_arguments: _,
+                else_arguments,
                 call_stack,
             } => {
                 // The `then` branch is next and we can prepare its args now, but the `else`
                 // branch's args need to be prepared only when the branch is later started.
                 let resolved = vecmap(then_arguments, |v| self.inserter.resolve(*v));
                 self.prepare_args(resolved);
-                self.if_start(condition, then_destination, else_destination, &block, *call_stack)
+                self.if_start(
+                    condition,
+                    then_destination,
+                    else_destination,
+                    else_arguments,
+                    &block,
+                    *call_stack,
+                )
             }
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
                 // If the destination is already on the work list, it means it's an exit block in an if-then-else,
@@ -563,6 +573,7 @@ impl<'f> Context<'f> {
         condition: &ValueId,
         then_destination: &BasicBlockId,
         else_destination: &BasicBlockId,
+        else_arguments: &[ValueId],
         if_entry: &BasicBlockId,
         call_stack: CallStackId,
     ) -> Vec<BasicBlockId> {
@@ -575,6 +586,11 @@ impl<'f> Context<'f> {
             last_block: None,
         };
         let local_allocations = std::mem::take(&mut self.local_allocations);
+        let jmpif_else_arguments = if *else_destination == self.branch_ends[if_entry] {
+            Some(vecmap(else_arguments, |v| self.inserter.resolve(*v)))
+        } else {
+            None
+        };
         let cond_context = ConditionalContext {
             condition: then_condition,
             entry_block: *if_entry,
@@ -584,6 +600,7 @@ impl<'f> Context<'f> {
             call_stack,
             predicated_values: HashMap::default(),
             local_allocations,
+            jmpif_else_arguments,
         };
         self.condition_stack.push(cond_context);
         self.insert_current_side_effects_enabled();
@@ -692,11 +709,16 @@ impl<'f> Context<'f> {
 
         // Look up and resolve the 'else' and 'then' arguments directly in their terminators,
         // rather than rely on argument passing in the context.
-        let mut else_args = Vec::new();
-        if cond_context.else_branch.is_some() {
+        // When JmpIf's else_destination is the exit block, the else_arguments were stored
+        // in jmpif_else_arguments since there is no separate else block to read them from.
+        let else_args = if let Some(args) = &cond_context.jmpif_else_arguments {
+            args.clone()
+        } else if cond_context.else_branch.is_some() {
             let last_else = cond_context.else_branch.clone().unwrap().last_block.unwrap();
-            else_args = self.inserter.function.dfg[last_else].terminator_arguments().to_vec();
-        }
+            self.inserter.function.dfg[last_else].terminator_arguments().to_vec()
+        } else {
+            Vec::new()
+        };
 
         let last_then = cond_context.then_branch.last_block.unwrap();
         let then_args = self.inserter.function.dfg[last_then].terminator_arguments().to_vec();
@@ -789,10 +811,96 @@ impl<'f> Context<'f> {
         mutable: bool,
         call_stack: CallStackId,
     ) -> ValueId {
+        self.create_merged_array_set_inner(
+            base_array,
+            index,
+            new_value,
+            then_condition,
+            else_condition,
+            mutable,
+            false,
+            call_stack,
+        )
+    }
+
+    /// Inner implementation of `create_merged_array_set` with an option to protect
+    /// the final `array_set` from `remove_unreachable_instructions`.
+    ///
+    /// When `protect_array_set` is true, the entire merge sequence (array_get, IfElse,
+    /// array_set) is emitted under `enable_side_effects u1 1`:
+    /// - The `array_get` needs u1 1 because under disabled side effects, ACIR replaces
+    ///   the index with a "safe" first-matching-type index, reading the wrong value.
+    /// - The `array_set` needs u1 1 because `ArraySet` has
+    ///   `requires_acir_gen_predicate = true` and would be zeroed by
+    ///   `remove_unreachable_instructions`.
+    ///
+    /// To handle potentially out-of-bounds dynamic indices (which would error under
+    /// `enable_side_effects u1 1`), we create a "safe index":
+    ///   `safe_idx = IfElse(then_condition, real_index, 0)`
+    /// When the condition is false, this reads/writes at index 0 with the original value,
+    /// producing a no-op. When true, it uses the real index.
+    #[allow(clippy::too_many_arguments)]
+    fn create_merged_array_set_inner(
+        &mut self,
+        base_array: ValueId,
+        index: ValueId,
+        new_value: ValueId,
+        then_condition: ValueId,
+        else_condition: ValueId,
+        mutable: bool,
+        protect_array_set: bool,
+        call_stack: CallStackId,
+    ) -> ValueId {
         let typ = self.inserter.function.dfg.type_of_value(new_value);
 
+        // Create a safe index to avoid OOB errors when the condition is false.
+        // When condition is false, the real index might be OOB (the branch wasn't taken),
+        // so we use a known-valid fallback index. The merged value at the fallback will be
+        // the original value (IfElse selects else_value), making it a no-op.
+        // For constant in-bounds indices, no safe index is needed.
+        let dfg = &self.inserter.function.dfg;
+        let is_known_safe =
+            dfg.get_numeric_constant(index).is_some() && dfg.is_safe_index(index, base_array);
+        let safe_index = if is_known_safe {
+            index
+        } else {
+            // The fallback must be a valid index of the correct type to avoid type
+            // mismatches in heterogeneous arrays (e.g., [(Field, u1); N]).
+            let Type::Numeric(index_type) = dfg.type_of_value(index) else {
+                unreachable!("ICE: array index must be numeric")
+            };
+            let array_type = dfg.type_of_value(base_array);
+            let offset = match &array_type {
+                Type::Array(element_types, _) | Type::Vector(element_types) => {
+                    element_types.iter().position(|t| *t == typ).unwrap_or(0) as u128
+                }
+                _ => 0,
+            };
+            let fallback =
+                self.inserter.function.dfg.make_constant(FieldElement::from(offset), index_type);
+            self.insert_instruction(
+                Instruction::IfElse {
+                    then_condition,
+                    then_value: index,
+                    else_condition,
+                    else_value: fallback,
+                },
+                call_stack,
+            )
+        };
+
+        if protect_array_set {
+            let one =
+                self.inserter.function.dfg.make_constant(FieldElement::one(), NumericType::bool());
+            self.insert_instruction_with_typevars(
+                Instruction::EnableSideEffectsIf { condition: one },
+                None,
+                call_stack,
+            );
+        }
+
         // Get the original value at this index
-        let get = Instruction::ArrayGet { array: base_array, index };
+        let get = Instruction::ArrayGet { array: base_array, index: safe_index };
         let original_value =
             self.insert_instruction_with_typevars(get, Some(vec![typ]), call_stack).first();
 
@@ -806,10 +914,22 @@ impl<'f> Context<'f> {
         let merged_value = self.insert_instruction(merge, call_stack);
 
         // Create the array_set with merged value
-        self.insert_instruction(
-            Instruction::ArraySet { array: base_array, index, value: merged_value, mutable },
+        let result = self.insert_instruction(
+            Instruction::ArraySet {
+                array: base_array,
+                index: safe_index,
+                value: merged_value,
+                mutable,
+            },
             call_stack,
-        )
+        );
+
+        if protect_array_set {
+            // Restore the branch predicate
+            self.insert_current_side_effects_enabled();
+        }
+
+        result
     }
 
     /// Try to optimize a Store of an ArraySet by merging just the value at the modified index.
@@ -872,21 +992,43 @@ impl<'f> Context<'f> {
             chain.push((index, new_val, mutable));
 
             if self.was_loaded_from_address(array, address) {
+                // Skip if any index is a known-constant that's OOB. The optimization
+                // emits array_set under `enable_side_effects u1 1` to prevent
+                // remove_unreachable_instructions from zeroing it, but that would make
+                // an OOB array_set unconditional. Dynamic indices are fine (not constant),
+                // and in-bounds constants are fine.
+                let has_known_oob_index = chain.iter().any(|(idx, _, _)| {
+                    let dfg = &self.inserter.function.dfg;
+                    dfg.get_numeric_constant(*idx).is_some()
+                        && !dfg.is_safe_index(*idx, previous_value)
+                });
+                if has_known_oob_index {
+                    return None;
+                }
+
                 // Found the base - emit merged array_sets in forward order (innermost first)
                 chain.reverse();
                 let else_condition = self.not_instruction(condition, call_stack);
+
                 let mut result = previous_value;
                 for (idx, val, mutable) in chain {
-                    result = self.create_merged_array_set(
+                    // Each array_set is emitted under `enable_side_effects u1 1` so that
+                    // `remove_unreachable_instructions` won't zero it out. ArraySet has
+                    // `requires_acir_gen_predicate = true`, but the merged value (IfElse)
+                    // already accounts for the condition, and array_set in ACIR is
+                    // protected by memory ops (predicated_index/predicated_store_value).
+                    result = self.create_merged_array_set_inner(
                         result,
                         idx,
                         val,
                         condition,
                         else_condition,
                         mutable,
+                        true, // protect_array_set
                         call_stack,
                     );
                 }
+
                 return Some(result);
             }
 
@@ -898,9 +1040,6 @@ impl<'f> Context<'f> {
 
     /// Check if a value was the result of loading from a specific address.
     fn was_loaded_from_address(&self, value: ValueId, address: ValueId) -> bool {
-        if self.inserter.function.dfg.is_global(value) {
-            return false;
-        }
         let Value::Instruction { instruction, .. } = &self.inserter.function.dfg[value] else {
             return false;
         };
@@ -972,6 +1111,18 @@ impl<'f> Context<'f> {
             chain.push((index, value, mutable));
 
             if array == else_value {
+                // Skip if any index is a known-constant that's OOB. The optimization
+                // emits array_get which, under a disabled predicate, would use a "safe"
+                // replacement index (reading the wrong element). With a constant OOB
+                // index, remove_unreachable_instructions would also flag it as always-failing.
+                let has_known_oob_index = chain.iter().any(|(idx, _, _)| {
+                    let dfg = &self.inserter.function.dfg;
+                    dfg.get_numeric_constant(*idx).is_some() && !dfg.is_safe_index(*idx, else_value)
+                });
+                if has_known_oob_index {
+                    return None;
+                }
+
                 // Found the base - emit merged array_sets in forward order (innermost first)
                 chain.reverse();
                 let mut result = else_value;
@@ -2256,6 +2407,80 @@ mod tests {
     }
 
     #[test]
+    fn store_optimization_stale_load_bug() {
+        // Bug: The Store optimization's `was_loaded_from_address` check matches loads
+        // from the same address regardless of WHEN the load happened. If a previous
+        // conditional store modified the address, the ArraySet's base (old load) has a
+        // different value than `previous_value` (fresh load). The optimization incorrectly
+        // uses `previous_value` as the base for the merged array_set, losing the old load's
+        // value.
+        //
+        // Pattern: two sequential conditionals writing to the same address.
+        // - First if: stores array_set(load addr, 0, 10) at addr
+        // - Second if (same condition): stores array_set(load addr, 1, 20) at addr
+        //   The second if's load sees the FIRST if's conditional store result.
+        //   But the optimization creates array_set(previous_value, 1, merged)
+        //   where previous_value is a FRESH load that also sees the first if's result.
+        //   This should be fine IF the values match. The bug is when they DON'T match
+        //   because the first store was conditionally merged.
+        //
+        // Actually, the real issue: inside a single conditional branch, there can be
+        // a load, then an array_set, then a store. During flattening, the store is
+        // conditional. The optimization sees the array_set base was loaded from the same
+        // address. But `previous_value` (the fresh load inserted by handle_instruction_side_effects)
+        // reads from addr AFTER any prior conditional stores in this branch or other branches.
+        // The array_set's base was loaded BEFORE those stores. If a prior conditional store
+        // (from a DIFFERENT branch of a DIFFERENT if-else) modified the address, the two
+        // loads return different values.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: [Field; 4]):
+            v2 = allocate -> &mut [Field; 4]
+            store v1 at v2
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            v3 = load v2 -> [Field; 4]
+            v4 = array_set v3, index u32 0, value Field 10
+            store v4 at v2
+            jmp b2()
+          b2():
+            jmpif v0 then: b3(), else: b4()
+          b3():
+            v5 = load v2 -> [Field; 4]
+            v6 = array_set v5, index u32 1, value Field 20
+            store v6 at v2
+            jmp b4()
+          b4():
+            v7 = load v2 -> [Field; 4]
+            v8 = array_get v7, index u32 0 -> Field
+            v9 = array_get v7, index u32 1 -> Field
+            constrain v8 == Field 10
+            constrain v9 == Field 20
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg();
+
+        // After flattening, the interpreter should produce correct results.
+        // The Store optimization must not corrupt the values.
+        let main = ssa.main();
+        let block = main.entry_block();
+        let instructions = main.dfg[block].instructions();
+
+        // Check no always-false constraints
+        for &instr_id in instructions {
+            if let Instruction::Constrain(lhs, rhs, _) = &main.dfg[instr_id] {
+                let lhs_const = main.dfg.get_numeric_constant(*lhs);
+                let rhs_const = main.dfg.get_numeric_constant(*rhs);
+                if let (Some(l), Some(r)) = (lhs_const, rhs_const) {
+                    assert_eq!(l, r, "Found always-false constraint: {l} != {r}");
+                }
+            }
+        }
+    }
+
+    #[test]
     fn simplifies_during_insertion() {
         // `if v0 { false } else { true }`
         let src = "
@@ -2284,6 +2509,66 @@ mod tests {
             return v1
         }
         ");
+    }
+
+    #[test]
+    fn store_optimization_arrayset_zeroed_by_remove_unreachable() {
+        // Bug: The Store optimization emits `array_set` under the branch's
+        // `enable_side_effects`. Since `ArraySet` has `requires_acir_gen_predicate = true`,
+        // `remove_unreachable_instructions` replaces it with a zeroed array when the
+        // branch becomes `UnreachableUnderPredicate` (from div-by-zero after constant
+        // folding propagates v0 = 0). The standard `IfElse` merge survives because
+        // `IfElse` has `requires_acir_gen_predicate = false`.
+        //
+        // Pattern:
+        //   if a == 0 { c[0] = 3; }            ← single ArraySet, Store opt fires
+        //   else { constrain 1==0; c[0]=1; c[1]=10/a; }  ← always-false + div-by-zero
+        //   assert(c[0] == 3);
+        // Directly test the mechanism: an `array_set` under an unreachable predicate
+        // gets replaced with a zeroed array by `remove_unreachable_instructions`
+        // because `ArraySet.requires_acir_gen_predicate() = true`.
+        //
+        // This is a post-flatten SSA that simulates what the Store optimization produces:
+        // an array_set under a branch predicate that contains div-by-zero.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: [u32; 4]):
+            enable_side_effects v0
+            v2 = div u32 10, u32 0
+            v3 = array_set v1, index u32 0, value u32 42
+            enable_side_effects u1 1
+            v4 = array_get v3, index u32 0 -> u32
+            constrain v4 == u32 42
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        // Just run remove_unreachable_instructions directly on this post-flatten SSA.
+        let ssa = ssa.remove_unreachable_instructions();
+
+        // BUG: The `array_set` is under `enable_side_effects v0` where a div-by-zero
+        // triggers `UnreachableUnderPredicate`. Since `ArraySet` has
+        // `requires_acir_gen_predicate = true`, it gets replaced with a zeroed array.
+        // The constrain then becomes `constrain u32 0 == u32 42` (always false).
+        //
+        // The Store optimization creates this exact pattern: array_set under a branch
+        // predicate where unreachable code (like div-by-zero) can occur.
+        //
+        // Current (buggy) behavior — array_set zeroed, always-false constraint:
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: [u32; 4]):
+            enable_side_effects v0
+            constrain u1 0 == v0, "attempt to divide by zero"
+            v4 = make_array [u32 0, u32 0, u32 0, u32 0] : [u32; 4]
+            enable_side_effects u1 1
+            constrain u32 0 == u32 42
+            unreachable
+        }
+        "#);
+        // EXPECTED after fix: array_set should NOT be under the predicate,
+        // so it survives remove_unreachable and the constrain resolves correctly.
     }
 
     #[test]
@@ -2368,5 +2653,119 @@ mod tests {
         // in the function's local DFG).
         let ssa = ssa.flatten_cfg();
         assert_eq!(ssa.main().reachable_blocks().len(), 1);
+    }
+
+    #[test]
+    fn store_optimization_chain_with_dynamic_index() {
+        // Regression: the Store optimization's chain merge corrupts the last field
+        // of a struct-like tuple stored in an array when using a dynamic index.
+        //
+        // Pattern: two conditional iterations writing a 4-field "slot" (key, value,
+        // valid, deleted) at a dynamic index. The first iteration fires (condition true),
+        // the second is a no-op (condition false because done=true). After flattening,
+        // the `deleted` field (index+3) incorrectly becomes u1 1 instead of u1 0.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: u32):
+            v2 = make_array [Field 0, Field 0, u1 0, u1 0, Field 0, Field 0, u1 0, u1 0] : [(Field, Field, u1, u1); 2]
+            v3 = allocate -> &mut [(Field, Field, u1, u1); 2]
+            store v2 at v3
+            v4 = allocate -> &mut u1
+            store u1 0 at v4
+            v5 = load v4 -> u1
+            v6 = not v5
+            v7 = unchecked_mul v1, u32 4
+            jmpif v6 then: b1(), else: b2()
+          b1():
+            v8 = load v3 -> [(Field, Field, u1, u1); 2]
+            v9 = array_set v8, index v7, value v0
+            v10 = unchecked_add v7, u32 1
+            v11 = array_set v9, index v10, value Field 100
+            v12 = unchecked_add v7, u32 2
+            v13 = array_set v11, index v12, value u1 1
+            v14 = unchecked_add v7, u32 3
+            v15 = array_set v13, index v14, value u1 0
+            store v15 at v3
+            store u1 1 at v4
+            jmp b2()
+          b2():
+            v16 = load v4 -> u1
+            v17 = not v16
+            jmpif v17 then: b3(), else: b4()
+          b3():
+            v18 = load v3 -> [(Field, Field, u1, u1); 2]
+            v19 = array_set v18, index v7, value v0
+            v20 = unchecked_add v7, u32 1
+            v21 = array_set v19, index v20, value Field 200
+            v22 = unchecked_add v7, u32 2
+            v23 = array_set v21, index v22, value u1 1
+            v24 = unchecked_add v7, u32 3
+            v25 = array_set v23, index v24, value u1 0
+            store v25 at v3
+            store u1 1 at v4
+            jmp b4()
+          b4():
+            v26 = load v3 -> [(Field, Field, u1, u1); 2]
+            v27 = array_get v26, index v7 -> Field
+            v28 = unchecked_add v7, u32 2
+            v29 = array_get v26, index v28 -> u1
+            v30 = unchecked_add v7, u32 3
+            v31 = array_get v26, index v30 -> u1
+            constrain v27 == v0, \"key mismatch\"
+            constrain v29 == u1 1, \"valid should be true\"
+            constrain v31 == u1 0, \"deleted should be false\"
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        use crate::ssa::interpreter::value::Value;
+        use acvm::FieldElement;
+
+        let args = vec![Value::field(FieldElement::from(42u64)), Value::u32(0)];
+
+        // Pre-flatten: interpreter should pass
+        ssa.interpret(args.clone()).expect("pre-flatten should pass");
+
+        // Flatten
+        let ssa = ssa.flatten_cfg();
+
+        // Post-flatten: interpreter should still pass
+        ssa.interpret(args).expect("post-flatten should pass — deleted field must remain u1 0");
+    }
+
+    /// Regression test: when JmpIf's else_destination IS the exit/merge block
+    /// (no separate else block), the else_arguments carry the "no-change" value
+    /// directly to the merge. This is the pattern mem2reg_simple produces when
+    /// the else branch has no stores (just falls through to the merge block).
+    #[test]
+    fn flatten_jmpif_else_args_to_exit_block() {
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1):
+                jmpif v0 then: b1(), else: b2(Field 5)
+              b1():
+                jmp b2(Field 10)
+              b2(v1: Field):
+                return v1
+            }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg();
+        // Should produce: if v0 then 10 else 5
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            v1 = not v0
+            enable_side_effects u1 1
+            v3 = cast v0 as Field
+            v4 = cast v1 as Field
+            v6 = mul v3, Field 10
+            v8 = mul v4, Field 5
+            v9 = add v6, v8
+            return v9
+        }
+        ");
     }
 }

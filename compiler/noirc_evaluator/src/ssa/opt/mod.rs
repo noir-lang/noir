@@ -27,6 +27,7 @@ pub(crate) mod flatten_cfg;
 mod hint;
 mod inline_simple_functions;
 mod inlining;
+mod load_store_forwarding;
 mod loop_invariant;
 mod make_constrain_not_equal;
 mod mem2reg;

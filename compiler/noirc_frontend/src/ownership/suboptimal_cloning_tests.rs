@@ -133,8 +133,8 @@ fn nested_array_two_disjoint_indexes() {
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0() -> () {
         let arr$l0 = [[1, 2], [3, 4]];
-        let _a$l1 = arr$l0[0].clone();
-        let _b$l2 = arr$l0[1].clone()
+        let _a$l1 = arr$l0[0];
+        let _b$l2 = arr$l0[1]
     }
     ");
 }
@@ -160,7 +160,7 @@ fn nested_array_double_index() {
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0() -> () {
         let arr$l0 = [[[1, 2], [3, 4]], [[5, 6], [7, 8]]];
-        let _val$l1 = arr$l0[0][1].clone()
+        let _val$l1 = arr$l0[0][1]
     }
     ");
 }

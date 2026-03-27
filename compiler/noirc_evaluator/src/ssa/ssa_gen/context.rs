@@ -724,13 +724,12 @@ impl<'a> FunctionContext<'a> {
 
                 // Brillig needs explicit runtime bounds checks for array writes,
                 // matching what codegen_flat_index does for reads.
-                if self.builder.current_function.runtime().is_brillig() {
-                    if let ast::Type::Array(len, _) = &flat_lvalue.elem_type {
-                        let len = self
-                            .builder
-                            .numeric_constant(u128::from(*len), NumericType::length_type());
-                        self.codegen_access_check(index, len);
-                    }
+                if self.builder.current_function.runtime().is_brillig()
+                    && let ast::Type::Array(len, _) = &flat_lvalue.elem_type
+                {
+                    let len =
+                        self.builder.numeric_constant(u128::from(*len), NumericType::length_type());
+                    self.codegen_access_check(index, len);
                 }
 
                 let stride = element_type.flattened_size();
@@ -858,7 +857,7 @@ impl<'a> FunctionContext<'a> {
 
             let flat_typ = value_typ.clone().flatten();
             let offset = self.builder.numeric_constant(flat_typ.len(), NumericType::length_type());
-            if value_typ.contains_an_array() {
+            if value_typ.contains_an_array() && !matches!(value_typ, Type::Reference(_)) {
                 // TODO: test setting a struct with array and primitive fields where primitives come after
                 // the array fields. This test should help us check whether we are updating the index appropriately
                 // TODO: Move this logic to a helper

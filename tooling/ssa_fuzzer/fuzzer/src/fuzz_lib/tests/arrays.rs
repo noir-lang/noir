@@ -265,6 +265,7 @@ fn regression_fuzzer_generated_wrong_arrays() {
 /// }
 /// output should be 0,1,2,0,1,2
 #[test]
+#[ignore = "nested arrays are now flat in both ACIR and Brillig — fuzzer cannot represent them"]
 fn test_create_array_of_arrays() {
     let _ = env_logger::try_init();
 

@@ -1,0 +1,13 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main(x: pub bool) {
+    let mut c: [&mut (bool, str<3>); 1] = [&mut (x, "AAA")];
+    for _ in 0_u32..3_u32 {
+        c[0_u32] = &mut (false, "AYB");
+    }
+    let result: (bool, str<3>) = *c[0_u32];
+    assert(result.0 == false);
+    assert(result.1 == "AYB");
+}
