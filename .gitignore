@@ -69,3 +69,6 @@ mutants.out.old
 
 # Local Netlify folder
 .netlify
+
+# Claude Code worktrees
+.claude/worktrees/
