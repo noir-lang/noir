@@ -292,7 +292,7 @@ fn get_embedded_curve_point(
     let (fields, typ) = get_struct_fields("EmbeddedCurvePoint", (value, location))?;
     let x = get_struct_field("x", &fields, &typ, location, get_field)?;
     let y = get_struct_field("y", &fields, &typ, location, get_field)?;
-    Ok((x.to_field_element(), y.to_field_element()))
+    Ok((x, y))
 }
 
 /// Decode an `EmbeddedCurveScalar` struct.
@@ -308,13 +308,7 @@ fn get_embedded_curve_scalar(
 }
 
 fn to_embedded_curve_point(x: FieldElement, y: FieldElement, typ: Type) -> Value {
-    to_struct(
-        [
-            ("x", Value::field(SignedField::positive(x))),
-            ("y", Value::field(SignedField::positive(y))),
-        ],
-        typ,
-    )
+    to_struct([("x", Value::field(x)), ("y", Value::field(y))], typ)
 }
 
 #[cfg(test)]

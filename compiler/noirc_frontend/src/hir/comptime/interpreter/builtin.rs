@@ -3122,10 +3122,8 @@ fn derive_generators(
         let y_big: BigUint = generator.y.into();
         let y = FieldElement::from_be_bytes_reduce(&y_big.to_bytes_be());
         let mut embedded_curve_point_fields = HashMap::default();
-        embedded_curve_point_fields
-            .insert(x_field_name.clone(), Shared::new(Value::field(SignedField::positive(x))));
-        embedded_curve_point_fields
-            .insert(y_field_name.clone(), Shared::new(Value::field(SignedField::positive(y))));
+        embedded_curve_point_fields.insert(x_field_name.clone(), Shared::new(Value::field(x)));
+        embedded_curve_point_fields.insert(y_field_name.clone(), Shared::new(Value::field(y)));
         let embedded_curve_point_struct =
             Value::Struct(embedded_curve_point_fields, *elements.clone());
         results.push_back(embedded_curve_point_struct);
