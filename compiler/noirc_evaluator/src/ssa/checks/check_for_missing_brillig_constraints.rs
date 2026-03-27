@@ -42,18 +42,16 @@
 //! connection between inputs and outputs is made.
 use crate::ssa::checks::is_numeric_constant;
 use crate::ssa::ir::basic_block::BasicBlockId;
-use crate::ssa::ir::function::RuntimeType;
 use crate::ssa::ir::function::{Function, FunctionId};
 use crate::ssa::ir::instruction::{Instruction, InstructionId, Intrinsic};
+use crate::ssa::ir::post_order::PostOrder;
 use crate::ssa::ir::value::{Value, ValueId};
 use crate::ssa::ssa_gen::Ssa;
-use crate::ssa::visit_once_deque::VisitOnceDeque;
+use acvm::AcirField;
 use noirc_artifacts::ssa::{InternalBug, SsaReport};
-use noirc_errors::Location;
 use rayon::prelude::*;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::hash::Hash;
-use tracing::trace;
 
 impl Ssa {
     /// Detect Brillig calls left unconstrained with manual asserts
@@ -61,8 +59,10 @@ impl Ssa {
     #[allow(clippy::needless_pass_by_ref_mut)]
     pub(crate) fn check_for_missing_brillig_constraints(
         &mut self,
-        enable_lookback: bool,
+        _enable_lookback: bool,
     ) -> Vec<SsaReport> {
+        println!("{self}");
+
         // Skip the check if there are no Brillig functions involved
         if !self.functions.values().any(|func| func.runtime().is_brillig()) {
             return vec![];
@@ -70,639 +70,442 @@ impl Ssa {
 
         self.functions
             .values()
-            .map(|f| f.id())
+            .filter(|func| func.runtime().is_acir() && has_call_to_brillig(func, &self.functions))
             .par_bridge()
-            .flat_map(|fid| {
-                let function_to_process = &self.functions[&fid];
-                match function_to_process.runtime() {
-                    RuntimeType::Acir { .. } => {
-                        let mut context =
-                            DependencyContext { enable_lookback, ..Default::default() };
-                        context.build(function_to_process, &self.functions);
-                        context.collect_warnings(function_to_process)
-                    }
-                    RuntimeType::Brillig(_) => Vec::new(),
-                }
+            .flat_map(|func| {
+                Context::new(func)
+                    .build_ancestors(func, &self.functions)
+                    .build_tainted(func, &self.functions)
+                    .into_warnings(func)
             })
             .collect()
     }
 }
 
-#[derive(Default)]
-struct DependencyContext {
-    visited_blocks: HashSet<BasicBlockId>,
-    block_queue: Vec<BasicBlockId>,
-    /// Map keeping track of values stored at memory locations
-    memory_slots: im::HashMap<ValueId, ValueId>,
-    /// Value currently affecting every instruction (i.e. being
-    /// considered a parent of every value id met) because
-    /// of its involvement in an EnableSideEffectsIf condition
-    side_effects_condition: Option<ValueId>,
-    /// Map of Brillig call IDs to sets of the value IDs descending
-    /// from their arguments and results
-    tainted: BTreeMap<InstructionId, BrilligTaintedIds>,
-    /// Map of argument value IDs to the Brillig call IDs employing them
-    call_arguments: im::HashMap<ValueId, Vec<InstructionId>>,
-    /// The set of calls currently being tracked
-    tracking: HashSet<InstructionId>,
-    /// Opt-in to use the lookback feature (tracking the argument values
-    /// of a Brillig call before the call happens if their usage precedes
-    /// it). Can prevent certain false positives, at the cost of
-    /// slowing down checking large functions considerably
-    enable_lookback: bool,
-    /// Code locations of brillig calls already visited (we don't
-    /// need to recheck calls happening in the same unrolled functions)
-    visited_locations: HashSet<(FunctionId, Location)>,
+type AncestorMap = HashMap<ValueId, HashSet<ValueId>>;
+
+/// Outputs of a Brillig call and their descendants.
+#[derive(Debug)]
+struct TaintedDescendants {
+    /// Inputs of the call.
+    ///
+    /// To consider the call constrained, the constraint must be on a value which has
+    /// an ancestry that intersects with the ancestry of the arguments.
+    arguments: Vec<ValueId>,
+    /// Descendants of the individual outputs of the call.
+    ///
+    /// To consider the call constrained, we have to find a constraint for every output,
+    /// such that the value the constraint is on is a descendant of that output.
+    results: HashMap<TaintedOutput, HashSet<ValueId>>,
 }
 
-/// Structure keeping track of value IDs descending from Brillig calls'
-/// arguments and results, also storing information on results
-/// already properly constrained
-#[derive(Clone, Debug)]
-struct BrilligTaintedIds {
-    /// Argument descendant value ids
-    arguments: HashSet<ValueId>,
-    /// Results status
-    results: Vec<ResultStatus>,
-    /// Indices of the array elements in the results vector
-    array_elements: im::HashMap<ValueId, Vec<usize>>,
-    /// Initial result value ids, along with element IDs for arrays
-    root_results: HashSet<ValueId>,
-}
-
-#[derive(Clone, Debug)]
-enum ResultStatus {
-    /// Keep track of descendants until found constrained
-    Unconstrained {
-        descendants: HashSet<ValueId>,
-    },
-    Constrained,
-}
-
-impl BrilligTaintedIds {
-    fn new(function: &Function, arguments: &[ValueId], results: &[ValueId]) -> Self {
-        // Exclude numeric constants
-        let arguments: Vec<ValueId> = arguments
-            .iter()
-            .filter(|value| !is_numeric_constant(function, **value))
-            .copied()
-            .collect();
-        let results: Vec<ValueId> = results
-            .iter()
-            .filter(|value| !is_numeric_constant(function, **value))
-            .copied()
-            .collect();
-
-        let mut results_status: Vec<ResultStatus> = vec![];
-        let mut array_elements: im::HashMap<ValueId, Vec<usize>> = im::HashMap::new();
-
-        for result in &results {
-            match function.dfg.try_get_array_length(*result) {
+impl TaintedDescendants {
+    fn new(func: &Function, arguments: Vec<ValueId>, result_ids: &[ValueId]) -> Self {
+        let max_array_size: u32 = crate::ssa::ir::dfg::MAX_ELEMENTS.try_into().unwrap();
+        let mut results = HashMap::new();
+        for result_id in result_ids {
+            match func.dfg.try_get_array_length(*result_id) {
                 // If the result value is an array, create an empty descendant set for
                 // every element to be accessed further on and record the indices
                 // of the resulting sets for future reference
-                Some(length)
-                    if length.0 <= crate::ssa::ir::dfg::MAX_ELEMENTS.try_into().unwrap() =>
-                {
-                    array_elements.insert(*result, vec![]);
-                    for _ in 0..length.0 {
-                        array_elements[result].push(results_status.len());
-                        results_status
-                            .push(ResultStatus::Unconstrained { descendants: HashSet::new() });
+                Some(length) if length.0 <= max_array_size => {
+                    for i in 0..length.0 {
+                        results.insert(TaintedOutput::Array(*result_id, i), HashSet::new());
                     }
                 }
                 // For very large arrays or non-arrays, treat the whole result as a single value
                 // to avoid memory/time issues when tracking individual elements
                 Some(_) | None => {
-                    results_status.push(ResultStatus::Unconstrained {
-                        descendants: HashSet::from([*result]),
-                    });
+                    // Not inserting the result into the dependencies because the ancestors
+                    // also do not contain self.
+                    results.insert(TaintedOutput::Single(*result_id), HashSet::new());
                 }
             }
         }
-
-        BrilligTaintedIds {
-            arguments: HashSet::from_iter(arguments.iter().copied()),
-            results: results_status,
-            array_elements,
-            root_results: HashSet::from_iter(results.iter().copied()),
-        }
+        Self { arguments, results }
     }
 
-    /// Check if the call being tracked is a simple wrapper of another call
-    fn is_wrapper(&self, other: &BrilligTaintedIds) -> bool {
-        other.root_results == self.arguments
+    /// Check if there are any unconstrained results left.
+    fn is_constrained(&self) -> bool {
+        self.results.is_empty()
     }
 
-    /// Add children of a given parent to the tainted value set
-    /// (for arguments one set is enough, for results we keep them
-    /// separate as the forthcoming check considers the call covered
-    /// if all the results were properly covered)
-    fn update_children(&mut self, parents: &HashSet<ValueId>, children: &[ValueId]) {
-        if intersecting(&self.arguments, parents) {
-            self.arguments.extend(children);
-        }
-
-        for result in &mut self.results.iter_mut() {
-            match result {
-                // Skip updating results already found covered
-                ResultStatus::Constrained => {}
-                ResultStatus::Unconstrained { descendants } => {
-                    if intersecting(descendants, parents) {
-                        descendants.extend(children);
-                    }
-                }
-            }
-        }
-    }
-
-    /// Update children of all the results (helper function for
-    /// chained Brillig call handling)
-    fn update_results_children(&mut self, children: &[ValueId]) {
-        for result in &mut self.results.iter_mut() {
-            match result {
-                // Skip updating results already found covered
-                ResultStatus::Constrained => {}
-                ResultStatus::Unconstrained { descendants } => {
-                    descendants.extend(children);
-                }
-            }
-        }
-    }
-
-    /// If Brillig call is properly constrained by the given ids, return true
-    fn check_constrained(&self) -> bool {
-        // If every result has now been constrained,
-        // consider the call properly constrained
-        self.results.iter().all(|result| matches!(result, ResultStatus::Constrained))
-    }
-
-    /// Remember partial constraints (involving some of the results and an argument)
-    /// along the way to take them into final consideration.
+    /// Try to constrain some of the outputs if:
+    /// * the constraint is connected to any of the inputs of the call, and
+    /// * the constraint is on a descendant of the output
     ///
-    /// Generally, a valid partial constraint should link up a result descendant
-    /// and an argument descendant, that is, it should establish a relationship
-    /// between the inputs and the outputs of an unconstrained call. Notably,
-    /// checking the results against an independent variable is _not_ considered
-    /// a partial constraint!
-    ///
-    /// There are two exceptions to this requirement:
-    /// * if the unconstrained call had no arguments
-    /// * if the value was constrained against some constant, rather than an input
-    fn store_partial_constraints(&mut self, constrained_values: &HashSet<ValueId>) {
-        let mut results_involved: Vec<usize> = vec![];
+    /// Return `true` if all outputs have been constrained.
+    fn try_constrain(&mut self, constrained_values: &[ValueId], ancestors: &AncestorMap) -> bool {
+        dbg!(&self);
+        dbg!(&ancestors);
+        // Make sure this constraint has something to do with the inputs,
+        // unless all inputs were constants (resulting in empty args).
+        if !self.arguments.is_empty() && !self.ancestors_intersect(ancestors, constrained_values) {
+            return false;
+        }
+        // Remove any results that have been directly or indirectly constrained.
+        self.results.retain(|output, descendants| {
+            let constrained = constrained_values
+                .iter()
+                .any(|value| output.is_single(value) || descendants.contains(value));
+            !constrained
+        });
 
-        // For a valid partial constraint, a value descending from
-        // one of the results should be constrained
-        for (i, result_status) in self.results.iter().enumerate() {
-            match result_status {
-                // Skip checking already covered results
-                ResultStatus::Constrained => {}
-                ResultStatus::Unconstrained { descendants } => {
-                    if intersecting(descendants, constrained_values) {
-                        results_involved.push(i);
-                    }
+        self.is_constrained()
+    }
+
+    /// Check if one of the constrained values have an ancestor that intersects with the
+    /// ancestors of one of the call arguments.
+    fn ancestors_intersect(&self, ancestors: &AncestorMap, constrained_values: &[ValueId]) -> bool {
+        for constrained in constrained_values {
+            let Some(constrained_ancestors) = ancestors.get(constrained) else {
+                continue;
+            };
+            for arg in &self.arguments {
+                if arg == constrained || constrained_ancestors.contains(arg) {
+                    return true;
+                }
+                let Some(arg_ancestors) = ancestors.get(arg) else {
+                    continue;
+                };
+                if arg_ancestors.contains(constrained)
+                    || intersecting(arg_ancestors, constrained_ancestors)
+                {
+                    return true;
                 }
             }
         }
+        false
+    }
 
-        if results_involved.is_empty() {
-            return;
-        }
-
-        // Along with it, one of the argument descendants should be constrained
-        // (skipped if there were no arguments, or if a result descendant
-        // has been constrained _alone_, e.g. against a constant).
-        let is_arg_constrained = intersecting(&self.arguments, constrained_values);
-        let is_against_const = constrained_values.len() == 1;
-
-        if self.arguments.is_empty() || is_arg_constrained || is_against_const {
-            // Remember the partial constraint, clearing the sets
-            results_involved.iter().for_each(|i| self.results[*i] = ResultStatus::Constrained);
+    /// Add to the descendants of any result which is an ancestor of any of the arguments of an instruction.
+    fn extend_results(&mut self, arguments: &[ValueId], results: &[ValueId]) {
+        for (output, descendants) in self.results.iter_mut() {
+            if arguments.iter().any(|value| output.is_single(value) || descendants.contains(value))
+            {
+                descendants.extend(results);
+            }
         }
     }
 
-    /// When an ArrayGet instruction occurs, place the resulting ValueId into
-    /// the corresponding sets of the call's array element result values
-    fn process_array_get(&mut self, array: ValueId, index: usize, element_results: &[ValueId]) {
-        if let Some(element_indices) = self.array_elements.get(&array)
-            && let Some(result_index) = element_indices.get(index)
-            && let Some(ResultStatus::Unconstrained { descendants }) =
-                self.results.get_mut(*result_index)
-        {
-            descendants.extend(element_results);
-            self.root_results.extend(element_results);
+    /// Add to the descendants of a particular array element.
+    fn extend_array_result(&mut self, array: ValueId, index: u32, results: &[ValueId]) {
+        if let Some(descendants) = self.results.get_mut(&TaintedOutput::Array(array, index)) {
+            descendants.extend(results);
         }
     }
 }
 
-impl DependencyContext {
-    /// Build the dependency context of variable ValueIds, storing
-    /// information on value ids involved in unchecked Brillig calls
-    fn build(&mut self, function: &Function, all_functions: &BTreeMap<FunctionId, Function>) {
-        self.block_queue.push(function.entry_block());
-        while let Some(block) = self.block_queue.pop() {
-            if !self.visited_blocks.insert(block) {
-                continue;
-            }
-            self.process_instructions(block, function, all_functions);
+/// An output of a Brillig call we are looking to constrain.
+#[derive(Debug, Hash, PartialEq, Eq)]
+enum TaintedOutput {
+    /// We are looking for constraints a result as it was returned.
+    Single(ValueId),
+    /// When the output is a reasonably sized array, we are looking for constraints
+    /// on individual elements.
+    Array(ValueId, u32),
+}
+
+impl TaintedOutput {
+    /// Check if the output matches a single value.
+    fn is_single(&self, value_id: &ValueId) -> bool {
+        if let TaintedOutput::Single(single) = self { single == value_id } else { false }
+    }
+}
+
+struct Context {
+    /// Block IDs in Post Order.
+    post_order: Vec<BasicBlockId>,
+
+    /// Ancestors of the values that we are interested in.
+    ///
+    /// We are interested in the ancestry of variables which either:
+    /// * have constraints on them, or
+    /// * are inputs to a Brillig call.
+    ///
+    /// Using that information, we can consider a constraint to cover an output of a Brillig call if:
+    /// * the output is in the ancestry of a constrained value, and
+    /// * the ancestors of a constrained value intersects the ancestors of one of the inputs of the call
+    ///
+    /// The ancestors of a value do not include the value itself.
+    ancestors: HashMap<ValueId, HashSet<ValueId>>,
+
+    /// Descendants of Brillig calls.
+    tainted: HashMap<InstructionId, TaintedDescendants>,
+}
+
+impl Context {
+    fn new(func: &Function) -> Self {
+        Self {
+            post_order: PostOrder::with_function(func).into_vec(),
+            ancestors: Default::default(),
+            tainted: Default::default(),
         }
     }
 
-    /// Go over the given block tracking Brillig calls and checking them against
-    /// following constraints
-    fn process_instructions(
-        &mut self,
-        block: BasicBlockId,
-        function: &Function,
+    /// Traverse blocks and instruction bottom-up to build up the ancestry of values.
+    fn build_ancestors(
+        mut self,
+        func: &Function,
         all_functions: &BTreeMap<FunctionId, Function>,
-    ) {
-        trace!(
-            "processing instructions of block {} of function {} {}",
-            block,
-            function.name(),
-            function.id()
-        );
+    ) -> Self {
+        // Union of all values we are tracking; helps skip values that are of no interest.
+        let mut tracked_ids = HashSet::new();
 
-        // First, gather information on all Brillig calls in the block
-        // to be able to follow their arguments first appearing in the
-        // flow graph before the calls themselves
-        function.dfg[block].instructions().iter().for_each(|instruction| {
-            if let Instruction::Call { func, arguments } = &function.dfg[*instruction]
-                && let Value::Function(callee) = &function.dfg[*func]
-                && all_functions[callee].runtime().is_brillig()
-            {
-                // Skip already visited locations (happens often in unrolled functions)
-                let call_stack = function.dfg.get_instruction_call_stack(*instruction);
-                let location = call_stack.last();
+        // Traverse block from the end towards the beginning, so we can expand the ancestry of the values bottom-up.
+        for block_id in self.post_order.iter().copied() {
+            // Traverse instructions in reverse so we know which values we want the ancestors for.
+            for instruction_id in func.dfg[block_id].instructions().iter().rev() {
+                let instruction = &func.dfg[*instruction_id];
+                let result_ids = func.dfg.instruction_results(*instruction_id);
 
-                // If there is no call stack (happens for tests), consider unvisited
-                let visited =
-                    location.is_some_and(|loc| self.visited_locations.contains(&(*callee, *loc)));
+                let is_call = is_call_to_brillig(func, all_functions, instruction_id);
 
-                if !visited {
-                    let results = function.dfg.instruction_results(*instruction);
-
-                    // Calls with no results (e.g. print) shouldn't be checked
-                    if results.is_empty() {
-                        return;
-                    }
-
-                    // Expand arguments through MakeArray chains so that
-                    // array element values are also tracked as call arguments
-                    // (e.g. for `v1 = make_array [v0]; call f(v1)`, track v0 too)
-                    let expanded_args = expand_args_through_make_array(function, arguments);
-
-                    let current_tainted = BrilligTaintedIds::new(function, &expanded_args, results);
-
-                    // Record arguments/results for each Brillig call for the check.
-                    //
-                    // Do not track Brillig calls acting as simple wrappers over
-                    // another registered Brillig call, update the tainted sets of
-                    // the wrapped call instead
-                    let mut wrapped_call_found = false;
-                    for tainted_call in self.tainted.values_mut() {
-                        if current_tainted.is_wrapper(tainted_call) {
-                            tainted_call.update_results_children(results);
-                            wrapped_call_found = true;
-                            break;
+                // If any of the results is part of something we are tracking, add the inputs to their ancestry,
+                // except if this is a Brillig call: if we connected its outputs to its inputs, then any constrained
+                // output trivially connects to the inputs of the call.
+                if !is_call {
+                    for result_id in result_ids {
+                        if is_numeric_constant(func, *result_id) || !tracked_ids.contains(result_id)
+                        {
+                            continue;
                         }
-                    }
-
-                    if !wrapped_call_found {
-                        // Record the current call, remember the argument values involved
-                        self.tainted.insert(*instruction, current_tainted);
-                        expanded_args.iter().for_each(|value| {
-                            self.call_arguments.entry(*value).or_default().push(*instruction);
-                        });
-                    }
-
-                    if let Some(location) = location {
-                        self.visited_locations.insert((*callee, *location));
-                    }
-                }
-            }
-        });
-
-        // Then, go over the instructions
-        for instruction in function.dfg[block].instructions() {
-            let mut arguments = Vec::new();
-            let mut results = Vec::new();
-
-            // Collect non-constant instruction arguments
-            function.dfg[*instruction].for_each_value(|value_id| {
-                if !is_numeric_constant(function, value_id) {
-                    arguments.push(value_id);
-                }
-            });
-
-            // Collect non-constant instruction results
-            for value_id in function.dfg.instruction_results(*instruction) {
-                if !is_numeric_constant(function, *value_id) {
-                    results.push(*value_id);
-                }
-            }
-
-            // If the lookback feature is enabled, start tracking calls when
-            // their value ids first appear in arguments or results, or when their
-            // instruction id comes up (in case there were no non-constant arguments)
-            if self.enable_lookback {
-                for id in arguments.iter().chain(&results) {
-                    if let Some(calls) = self.call_arguments.get(id) {
-                        for call in calls {
-                            if self.tainted.contains_key(call) {
-                                self.tracking.insert(*call);
-
-                                // If the instruction is a cast or truncate, also update the
-                                // tainted arguments of the call with its argument
-                                // (fixes #10547)
-                                if matches!(
-                                    &function.dfg[*instruction],
-                                    Instruction::Cast(..)
-                                        | Instruction::Truncate { .. }
-                                        | Instruction::MakeArray { .. }
-                                        | Instruction::ArraySet { .. }
-                                ) && let Some(tainted_ids) = self.tainted.get_mut(call)
-                                {
-                                    tainted_ids.arguments.extend(&arguments);
-                                }
+                        for (id, ancestors) in &mut self.ancestors {
+                            if id != result_id && !ancestors.contains(result_id) {
+                                continue;
+                            }
+                            for value_id in instruction_arguments(func, instruction) {
+                                ancestors.insert(value_id);
+                                tracked_ids.insert(value_id);
                             }
                         }
                     }
                 }
-            }
-            if self.tainted.contains_key(instruction) {
-                self.tracking.insert(*instruction);
-            }
 
-            // We can skip over instructions while nothing is being tracked
-            if !self.tracking.is_empty() {
-                match &function.dfg[*instruction] {
-                    // For memory operations, we have to link up the stored value as a parent
-                    // of one loaded from the same memory slot
-                    Instruction::Store { address, value } => {
-                        self.memory_slots.insert(*address, *value);
-                    }
-                    Instruction::Load { address } => {
-                        // Recall the value stored at address as parent for the results
-                        if let Some(value_id) = self.memory_slots.get(address) {
-                            self.update_children(&[*value_id], &results);
-                        } else {
-                            panic!(
-                                "load instruction {instruction} has attempted to access previously unused memory location"
-                            );
-                        }
-                    }
-                    // Record the condition to set as future parent for the following values
-                    Instruction::EnableSideEffectsIf { condition: value } => {
-                        self.side_effects_condition =
-                            (!is_numeric_constant(function, *value)).then_some(*value);
-                    }
-                    // Check the constrain instruction arguments against those
-                    // involved in Brillig calls, remove covered calls
-                    Instruction::Constrain(value_id1, value_id2, _) => {
-                        let constrained_values = [*value_id1, *value_id2];
-                        self.clear_constrained(&constrained_values, function);
-                        // When we have `constrain v0 == v1`, then consider any follow up constraints
-                        // on v0 or v1 as if it applied on both. This is because some SSA passes use
-                        // constraint info to simplify values, and what was a constraint on v0 could
-                        // end up being a constraint on v1.
-                        self.update_children(&constrained_values, &constrained_values);
-                    }
-                    Instruction::ConstrainNotEqual(value_id1, value_id2, _) => {
-                        self.clear_constrained(&[*value_id1, *value_id2], function);
-                    }
-                    // Consider range check to also be constraining
-                    Instruction::RangeCheck { value, .. } => {
-                        self.clear_constrained(&[*value], function);
-                    }
-                    Instruction::Call { func: func_id, .. } => {
-                        // For functions, we remove the first element of arguments,
-                        // as .for_each_value() used previously also includes func_id
-                        arguments.remove(0);
+                let should_track = is_call
+                    || is_constraint(func, instruction_id)
+                    || is_side_effect(func, instruction);
 
-                        match &function.dfg[*func_id] {
-                            Value::Intrinsic(intrinsic) => match intrinsic {
-                                Intrinsic::ApplyRangeConstraint | Intrinsic::AssertConstant => {
-                                    // Consider these intrinsic arguments constrained
-                                    self.clear_constrained(&arguments, function);
-                                }
-                                Intrinsic::AsWitness | Intrinsic::IsUnconstrained => {
-                                    // These intrinsics won't affect the dependency graph
-                                }
-                                Intrinsic::ArrayLen
-                                | Intrinsic::ArrayRefCount
-                                | Intrinsic::ArrayAsStrUnchecked
-                                | Intrinsic::AsVector
-                                | Intrinsic::BlackBox(..)
-                                | Intrinsic::DerivePedersenGenerators
-                                | Intrinsic::Hint(..)
-                                | Intrinsic::VectorPushBack
-                                | Intrinsic::VectorPushFront
-                                | Intrinsic::VectorPopBack
-                                | Intrinsic::VectorPopFront
-                                | Intrinsic::VectorRefCount
-                                | Intrinsic::VectorInsert
-                                | Intrinsic::VectorRemove
-                                | Intrinsic::StaticAssert
-                                | Intrinsic::StrAsBytes
-                                | Intrinsic::ToBits(..)
-                                | Intrinsic::ToRadix(..)
-                                | Intrinsic::FieldLessThan => {
-                                    // Record all the function arguments as parents of the results
-                                    self.update_children(&arguments, &results);
-                                }
-                            },
-                            Value::Function(callee) => match all_functions[callee].runtime() {
-                                // Only update tainted sets for non-Brillig calls, as
-                                // the chained Brillig case should already be covered
-                                RuntimeType::Acir(..) => {
-                                    self.update_children(&arguments, &results);
-                                }
-                                RuntimeType::Brillig(..) => {}
-                            },
-                            Value::ForeignFunction(..) => {
-                                panic!(
-                                    "should not be able to reach foreign function from non-Brillig functions, {func_id} in function {}",
-                                    function.name()
-                                );
-                            }
-                            Value::Instruction { .. }
-                            | Value::NumericConstant { .. }
-                            | Value::Param { .. }
-                            | Value::Global(_) => {
-                                panic!(
-                                    "calling non-function value with ID {func_id} in function {}",
-                                    function.name()
-                                );
-                            }
-                        }
+                if should_track {
+                    // Start tracking the ancestors of the inputs of the instruction.
+                    // Skip the first value of calls, which is the function ID.
+                    for value_id in instruction_arguments(func, instruction) {
+                        self.ancestors.entry(value_id).or_default();
+                        tracked_ids.insert(value_id);
                     }
-                    // For array get operations, we check the Brillig calls for
-                    // results involving the array in question, to properly
-                    // populate the array element tainted sets
-                    Instruction::ArrayGet { array, index } => {
-                        self.process_array_get(*array, *index, &results, function);
-                        // Record all the used arguments as parents of the results
-                        self.update_children(&arguments, &results);
-                    }
-                    Instruction::ArraySet { .. }
-                    | Instruction::MakeArray { .. }
-                    | Instruction::Binary(..)
-                    | Instruction::Cast(..)
-                    | Instruction::IfElse { .. }
-                    | Instruction::Not(..)
-                    | Instruction::Truncate { .. } => {
-                        // Record all the used arguments as parents of the results
-                        self.update_children(&arguments, &results);
-                    }
-                    // These instructions won't affect the dependency graph
-                    Instruction::Allocate
-                    | Instruction::DecrementRc { .. }
-                    | Instruction::IncrementRc { .. }
-                    | Instruction::Noop => {}
+                }
+
+                if let Instruction::Constrain(v1, v2, _) = instruction
+                    && !is_numeric_constant(func, *v1)
+                    && !is_numeric_constant(func, *v2)
+                {
+                    Self::add_equivalence(&mut self.ancestors, *v1, *v2);
                 }
             }
         }
 
-        if !self.tainted.is_empty() {
-            trace!(
-                "number of Brillig calls in function {} {} left unchecked: {}",
-                function.name(),
-                function.id(),
-                self.tainted.len()
-            );
+        self
+    }
+
+    /// Traverse blocks an instructions top-down to build up the descendants of Brillig calls,
+    /// trying to constrain them along the way based on the ancestry information.
+    fn build_tainted(
+        mut self,
+        func: &Function,
+        all_functions: &BTreeMap<FunctionId, Function>,
+    ) -> Self {
+        // Traverse in Reverse Post Order, ie. top-down.
+        for block_id in self.post_order.clone().into_iter().rev() {
+            let mut side_effects_var: Option<ValueId> = None;
+            for instruction_id in func.dfg[block_id].instructions() {
+                let instruction = &func.dfg[*instruction_id];
+                let mut arguments = instruction_arguments(func, instruction);
+                let results = instruction_results(func, instruction_id);
+
+                // If we are under a side effect, extend ancestors and the args.
+                if let Some(side_effects_var) = &side_effects_var {
+                    self.extend_ancestors_with_side_effects(side_effects_var, &results);
+                    arguments.push(*side_effects_var);
+                }
+
+                // Extend the descendants of Brillig calls.
+                if !results.is_empty() {
+                    // Look for ArrayGet instructions with a constant index,
+                    // and if the array is the result of a tainted call,
+                    // then add the result as a descendant of that particular index.
+                    let array_index = if let Instruction::ArrayGet { array, index } = instruction
+                        && let Some(index) = func.dfg.get_numeric_constant(*index)
+                        && let Some(index) = index.try_to_u32()
+                    {
+                        Some((*array, index))
+                    } else {
+                        None
+                    };
+
+                    for tainted in self.tainted.values_mut() {
+                        tainted.extend_results(&arguments, &results);
+                        if let Some((array, index)) = array_index {
+                            tainted.extend_array_result(array, index, &results);
+                        }
+                    }
+                }
+
+                if is_call_to_brillig(func, all_functions, instruction_id) && !results.is_empty() {
+                    let tainted = TaintedDescendants::new(func, arguments, &results);
+                    self.tainted.insert(*instruction_id, tainted);
+                } else if is_constraint(func, instruction_id) && !self.tainted.is_empty() {
+                    let constrained_values = instruction_arguments(func, instruction);
+                    self.tainted.retain(|_, tainted| {
+                        !tainted.try_constrain(&constrained_values, &self.ancestors)
+                    });
+                } else if let Instruction::EnableSideEffectsIf { condition } = instruction {
+                    side_effects_var =
+                        (!is_numeric_constant(func, *condition)).then_some(*condition);
+                }
+            }
         }
+
+        self
     }
 
     /// Every Brillig call not properly constrained should remain in the tainted set
     /// at this point. For each, emit a corresponding warning.
-    fn collect_warnings(&self, function: &Function) -> Vec<SsaReport> {
-        let warnings: Vec<SsaReport> = self
-            .tainted
+    fn into_warnings(self, function: &Function) -> Vec<SsaReport> {
+        self.tainted
             .keys()
             .map(|brillig_call| {
-                trace!(
-                    "tainted structure for {:?}: {:?}",
-                    brillig_call, self.tainted[brillig_call]
-                );
                 SsaReport::Bug(InternalBug::UncheckedBrilligCall {
                     call_stack: function.dfg.get_instruction_call_stack(*brillig_call),
                 })
             })
-            .collect();
-
-        trace!(
-            "making {} reports on underconstrained Brillig calls for function {} {}",
-            warnings.len(),
-            function.name(),
-            function.id()
-        );
-        warnings
+            .collect()
     }
 
-    /// Update sets of value ids that can be traced back to the Brillig calls being tracked
-    fn update_children(&mut self, parents: &[ValueId], children: &[ValueId]) {
-        let mut parents: HashSet<_> = HashSet::from_iter(parents.iter().copied());
-
-        // Also include the current EnableSideEffectsIf condition in parents
-        // (as it would affect every following statement)
-        self.side_effects_condition.map(|v| parents.insert(v));
-
-        // Don't update sets for the calls not yet being tracked
-        for call in &self.tracking {
-            if let Some(tainted_ids) = self.tainted.get_mut(call) {
-                tainted_ids.update_children(&parents, children);
-            }
-        }
-    }
-
-    /// Check if any of the recorded Brillig calls have been properly constrained
-    /// by given values after recording partial constraints, if so stop tracking them
-    fn clear_constrained(&mut self, constrained_values: &[ValueId], function: &Function) {
-        // Remove numeric constants
-        let constrained_values: HashSet<_> = constrained_values
-            .iter()
-            .filter(|v| !is_numeric_constant(function, **v))
-            .copied()
-            .collect();
-
-        // Skip untracked calls
-        for call in &self.tracking {
-            if let Some(tainted_ids) = self.tainted.get_mut(call) {
-                tainted_ids.store_partial_constraints(&constrained_values);
-            }
-        }
-
-        self.tainted.retain(|call, tainted_ids| {
-            if tainted_ids.check_constrained() {
-                self.tracking.remove(call);
-                false
-            } else {
-                true
-            }
-        });
-    }
-
-    /// Process ArrayGet instruction for tracked Brillig calls
-    fn process_array_get(
+    /// Add the ancestors of the current side effect variable to the ancestors of the current results.
+    ///
+    /// We weren't able to do this during bottom-up traversal, because we don't know the side effects
+    /// when the results are defined.
+    fn extend_ancestors_with_side_effects(
         &mut self,
-        array: ValueId,
-        index: ValueId,
-        element_results: &[ValueId],
-        function: &Function,
+        side_effects_var: &ValueId,
+        results: &[ValueId],
     ) {
-        use acvm::acir::AcirField;
+        let Some(side_effects_ancestors) = self.ancestors.get(side_effects_var).cloned() else {
+            return;
+        };
+        for result in results {
+            let Some(ancestors) = self.ancestors.get_mut(&result) else {
+                continue;
+            };
+            ancestors.insert(*side_effects_var);
+            ancestors.extend(&side_effects_ancestors);
+        }
+    }
 
-        // Only allow numeric constant indices
-        if let Some(value) = function.dfg.get_numeric_constant(index)
-            && let Some(index) = value.try_to_u32()
-        {
-            // Skip untracked calls
-            for call in &self.tracking {
-                if let Some(tainted_ids) = self.tainted.get_mut(call) {
-                    tainted_ids.process_array_get(array, index as usize, element_results);
+    /// When we have `constrain v0 == v1`, then consider any follow up constraints
+    /// on v0 or v1 as if it applied on both. This is because some SSA passes use
+    /// constraint info to simplify values, and what was a constraint on v0 could
+    /// end up being a constraint on v1.
+    fn add_equivalence(ancestors: &mut AncestorMap, v1: ValueId, v2: ValueId) {
+        fn go(ancestors: &mut AncestorMap, a: ValueId, b: ValueId) {
+            ancestors.entry(a).or_default().insert(b);
+            for (id, ancestors) in ancestors.iter_mut() {
+                if *id != b && ancestors.contains(&a) {
+                    ancestors.insert(b);
                 }
             }
         }
+        go(ancestors, v1, v2);
+        go(ancestors, v2, v1);
     }
+}
+
+/// Check if there is at least one instruction making a call to a Brillig function with non-empty results.
+fn has_call_to_brillig(func: &Function, all_functions: &BTreeMap<FunctionId, Function>) -> bool {
+    for block_id in func.reachable_blocks() {
+        for instruction_id in func.dfg[block_id].instructions() {
+            if is_call_to_brillig(func, all_functions, instruction_id) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// Check if the instruction a call to a Brillig function with a non-empty results.
+fn is_call_to_brillig(
+    func: &Function,
+    all_functions: &BTreeMap<FunctionId, Function>,
+    instruction_id: &InstructionId,
+) -> bool {
+    let Instruction::Call { func: callee_id, .. } = func.dfg[*instruction_id] else {
+        return false;
+    };
+    let Value::Function(callee_id) = func.dfg[callee_id] else {
+        return false;
+    };
+    if !all_functions[&callee_id].runtime().is_brillig() {
+        return false;
+    }
+    !func.dfg.instruction_results(*instruction_id).is_empty()
+}
+
+/// Check if an instruction puts constraints on its inputs.
+fn is_constraint(func: &Function, instruction_id: &InstructionId) -> bool {
+    let instruction = &func.dfg[*instruction_id];
+    if matches!(
+        instruction,
+        Instruction::Constrain(..)
+            | Instruction::ConstrainNotEqual(..)
+            | Instruction::RangeCheck { .. }
+    ) {
+        return true;
+    }
+    let Instruction::Call { func: callee_id, .. } = instruction else {
+        return false;
+    };
+    let Value::Intrinsic(intrinsic) = &func.dfg[*callee_id] else {
+        return false;
+    };
+    matches!(intrinsic, Intrinsic::ApplyRangeConstraint | Intrinsic::AssertConstant)
+}
+
+/// Check if the instruction is a non-constant side effect variable.
+fn is_side_effect(func: &Function, instruction: &Instruction) -> bool {
+    let Instruction::EnableSideEffectsIf { condition } = instruction else {
+        return false;
+    };
+    !is_numeric_constant(func, *condition)
+}
+
+/// Collect non-constant arguments of an instruction.
+fn instruction_arguments(func: &Function, instruction: &Instruction) -> Vec<ValueId> {
+    let mut arguments = Vec::new();
+    // Skip the first value of calls, which is the function ID.
+    let skip_first = matches!(instruction, Instruction::Call { .. });
+    let mut is_first = true;
+    instruction.for_each_value(|value_id| {
+        if !(skip_first && is_first || is_numeric_constant(func, value_id)) {
+            arguments.push(value_id);
+        }
+        is_first = false;
+    });
+    arguments
+}
+
+/// Collect non-constant results of an instruction.
+fn instruction_results(func: &Function, instruction_id: &InstructionId) -> Vec<ValueId> {
+    func.dfg
+        .instruction_results(*instruction_id)
+        .iter()
+        .filter(|value| !is_numeric_constant(func, **value))
+        .copied()
+        .collect()
 }
 
 /// Return `true` if two sets have a non-empty intersection.
 fn intersecting<T: Hash + Eq>(a: &HashSet<T>, b: &HashSet<T>) -> bool {
     a.intersection(b).next().is_some()
-}
-
-/// Expand a set of call arguments by tracing through MakeArray and ArraySet instructions.
-/// For example, if arguments contains v1 where `v1 = make_array [v0]`,
-/// the result will contain both v1 and v0. For `v2 = array_set v1, index .., value v3`,
-/// the result will contain v2, v3, and (recursively) the contents of v1.
-/// Works recursively for nested arrays and chained array_sets.
-fn expand_args_through_make_array(function: &Function, arguments: &[ValueId]) -> Vec<ValueId> {
-    let mut queue = VisitOnceDeque::default();
-    queue.extend(arguments.iter().copied());
-    let mut expanded = Vec::new();
-    while let Some(arg) = queue.pop_front() {
-        expanded.push(arg);
-        let Value::Instruction { instruction, .. } = &function.dfg[arg] else { continue };
-        match &function.dfg[*instruction] {
-            Instruction::MakeArray { elements, .. } => {
-                let non_constant_elements =
-                    elements.iter().copied().filter(|elem| !is_numeric_constant(function, *elem));
-                queue.extend(non_constant_elements);
-            }
-            Instruction::ArraySet { array, value, .. } => {
-                // Trace the source array (may be another ArraySet or MakeArray)
-                queue.push_back(*array);
-                // Trace the inserted value (contributes to the array content)
-                if !is_numeric_constant(function, *value) {
-                    queue.push_back(*value);
-                }
-            }
-            _ => {}
-        }
-    }
-    expanded
 }
 
 #[cfg(test)]
@@ -738,7 +541,6 @@ mod tests {
             );
         }
         */
-
         // The Brillig function is fake, for simplicity's sake
 
         let program = r#"
@@ -903,7 +705,6 @@ mod tests {
             dog
         }
         */
-
         let program = r#"
         acir(inline) fn main f0 {
           b0(v0: Field):
@@ -959,7 +760,9 @@ mod tests {
     #[traced_test]
     /// Test EnableSideEffectsIf conditions affecting the dependency graph
     /// (SSA a bit convoluted to work around simplification breaking the flow
-    /// of the parsed test code)
+    /// of the parsed test code). Note that the side effect variable is a
+    /// descendant of the output of the call, and the constraint is on a
+    /// variable which is affected by the side effect variable.
     fn test_enable_side_effects_if_affecting_following_statements() {
         let program = r#"
         acir(inline) fn main f0 {
@@ -1083,7 +886,6 @@ mod tests {
             dog
         }
         */
-
         let program = r#"
         acir(inline) fn main f0 {
           b0(v0: Field):
@@ -1389,6 +1191,31 @@ mod tests {
             ssa_level_warnings.len(),
             0,
             "Expected no warnings: both array elements constrained against inputs."
+        );
+    }
+
+    #[test]
+    #[traced_test]
+    fn outputs_do_not_trivially_connect_to_inputs() {
+        let program = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v1, v2 = call f1(v0) -> (u32, u32)
+            constrain v1 == v2
+            return
+        }
+        brillig(inline) predicate_pure fn f f1 {
+          b0(v0: u32):
+            return v0, v0
+        }
+        "#;
+
+        let mut ssa = Ssa::from_str(program).unwrap();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(true);
+        assert_eq!(
+            ssa_level_warnings.len(),
+            1,
+            "We are constraining the outputs, but they are *not* connected to the inputs"
         );
     }
 }
