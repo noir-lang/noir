@@ -160,7 +160,7 @@ impl TaintedDescendants {
         // Remove any results that have been directly or indirectly constrained.
         self.single_outputs.retain(|output| {
             !constrained_values.iter().any(|value| {
-                output == value || ancestors.get(value).map_or(false, |a| a.contains(output))
+                output == value || ancestors.get(value).is_some_and(|a| a.contains(output))
             })
         });
         self.array_outputs.retain(|_, descendants| {
@@ -220,7 +220,7 @@ impl TaintedDescendants {
         self.single_outputs.contains(value)
             || ancestors
                 .get(value)
-                .map_or(false, |a| self.single_outputs.iter().any(|o| a.contains(o)))
+                .is_some_and(|a| self.single_outputs.iter().any(|o| a.contains(o)))
             || self.array_outputs.values().any(|d| d.contains(value))
     }
 
@@ -441,7 +441,7 @@ impl Context {
             return;
         };
         for result in results {
-            let Some(ancestors) = self.ancestors.get_mut(&result) else {
+            let Some(ancestors) = self.ancestors.get_mut(result) else {
                 continue;
             };
             ancestors.insert(*side_effects_var);
