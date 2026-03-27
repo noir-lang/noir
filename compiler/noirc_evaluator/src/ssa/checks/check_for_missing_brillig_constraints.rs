@@ -350,6 +350,9 @@ impl Context {
         let mut all_tainted = HashSet::new();
         // Traverse in Reverse Post Order, ie. top-down.
         for block_id in self.post_order.clone().into_iter().rev() {
+            // No need to look for constraints on calls which originate from the same code location;
+            // these are the result of unrolling loops, and it should be enough to cover the first.
+            let mut visited_locations = HashSet::new();
             let mut side_effects_var: Option<ValueId> = None;
             for instruction_id in func.dfg[block_id].instructions() {
                 let instruction = &func.dfg[*instruction_id];
@@ -384,8 +387,27 @@ impl Context {
                 }
 
                 if is_call_to_brillig(func, all_functions, instruction_id) && !results.is_empty() {
-                    let tainted = TaintedDescendants::new(func, arguments, &results);
-                    self.tainted.insert(*instruction_id, tainted);
+                    // Skip already visited locations (happens often in unrolled functions)
+                    let call_stack = func.dfg.get_instruction_call_stack(*instruction_id);
+                    let location = call_stack.last();
+
+                    // If there is no call stack (happens for tests), consider unvisited
+                    let visited = match location {
+                        Some(loc) => {
+                            let Instruction::Call { func: callee, .. } = instruction else {
+                                unreachable!("ICE: Expected Brillig call");
+                            };
+                            visited_locations.insert((*callee, *loc))
+                        }
+                        None => false,
+                    };
+
+                    // Skip if we have a similar one already.
+                    if !visited {
+                        let tainted = TaintedDescendants::new(func, arguments, &results);
+                        self.tainted.insert(*instruction_id, tainted);
+                    }
+                    // But always keep track of tainted, required for correct constraint checks.
                     all_tainted.extend(&results);
                 } else if is_constraint(func, instruction_id) && !self.tainted.is_empty() {
                     let constrained_values = instruction_arguments(func, instruction);
