@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774614477428,
+  "lastUpdate": 1774615697475,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23111,48 +23111,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "80d344908051aab7145f4b046c274622b6bc6e9d",
-          "message": "chore(frontend): Add `CompilationErrors` wrapper to collect errors (#11931)",
-          "timestamp": "2026-03-23T11:01:54Z",
-          "tree_id": "3258cdc7ec9e4c9886976ce7cb5eba5ecca2eb6c",
-          "url": "https://github.com/noir-lang/noir/commit/80d344908051aab7145f4b046c274622b6bc6e9d"
-        },
-        "date": 1774265087906,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252737,
-            "range": "± 5572",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 222828,
-            "range": "± 5240",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2732640,
-            "range": "± 8736",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -25204,6 +25162,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2646235,
             "range": "± 18512",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e62f39e7775a8d2babb494d0f4932f6d52c862c0",
+          "message": "fix(stdlib): correct misleading doc comment on UHashMap::linear_probe (#12023)",
+          "timestamp": "2026-03-27T12:24:56Z",
+          "tree_id": "b846f681c1263df9817dbcd567d50053f1118df3",
+          "url": "https://github.com/noir-lang/noir/commit/e62f39e7775a8d2babb494d0f4932f6d52c862c0"
+        },
+        "date": 1774615647045,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168489,
+            "range": "± 566",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 137824,
+            "range": "± 286",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2642227,
+            "range": "± 10401",
             "unit": "ns/iter"
           }
         ]
