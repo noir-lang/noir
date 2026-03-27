@@ -16,7 +16,7 @@ use acir::{
     brillig::{BitSize, IntegerBitSize, MemoryAddress},
 };
 
-use crate::{assert_u32, assert_usize};
+use crate::assert_usize;
 
 /// The bit size used for addressing memory within the Brillig VM.
 ///
