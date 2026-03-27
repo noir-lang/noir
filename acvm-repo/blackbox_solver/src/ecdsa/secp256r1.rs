@@ -33,9 +33,8 @@ use crate::BlackBoxResolutionError;
 /// The function do not validate a signature if:
 /// - The signature is not "low S" normalized per BIP 0062 to prevent malleability
 ///
-/// The function will panic if `hashed_msg >= p256::NistP256::ORDER`.
-/// According to ECDSA specification, the message hash leftmost bits should be truncated
-/// up to the curve order length, and then reduced modulo the curve order.
+/// If `hashed_msg >= p256::NistP256::ORDER`, the message hash is reduced modulo the curve
+/// order per ECDSA specification (SEC 1, section 4.1.4).
 pub(super) fn verify_signature(
     hashed_msg: &[u8; 32],
     public_key_x_bytes: &[u8; 32],
@@ -61,7 +60,7 @@ pub(super) fn verify_signature(
     if pubkey.is_none().into() {
         // Public key must sit on the Secp256r1 curve.
         return Err(BlackBoxResolutionError::Failed(
-            BlackBoxFunc::EcdsaSecp256k1,
+            BlackBoxFunc::EcdsaSecp256r1,
             "Invalid public key provided for ECDSA verification".to_string(),
         ));
     }
@@ -172,5 +171,30 @@ mod secp256r1_tests {
         let invalid_pub_key_y: [u8; 32] = [0xff; 32];
         verify_signature(&HASHED_MESSAGE, &invalid_pub_key_x, &invalid_pub_key_y, &SIGNATURE)
             .unwrap();
+    }
+
+    #[test]
+    fn does_not_panic_when_hashed_msg_exceeds_curve_order() {
+        // All 0xFF bytes is larger than the secp256r1 curve order
+        // (0xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551).
+        // The function should reduce it modulo the order, not panic.
+        let oversized_hash: [u8; 32] = [0xff; 32];
+
+        // The result will be false (signature doesn't match the reduced hash), but no panic.
+        let result = verify_signature(&oversized_hash, &PUB_KEY_X, &PUB_KEY_Y, &SIGNATURE);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn does_not_panic_when_hashed_msg_equals_curve_order() {
+        // The exact secp256r1 curve order.
+        let curve_order: [u8; 32] = [
+            0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+            0xFF, 0xFF, 0xBC, 0xE6, 0xFA, 0xAD, 0xA7, 0x17, 0x9E, 0x84, 0xF3, 0xB9, 0xCA, 0xC2,
+            0xFC, 0x63, 0x25, 0x51,
+        ];
+
+        let result = verify_signature(&curve_order, &PUB_KEY_X, &PUB_KEY_Y, &SIGNATURE);
+        assert!(result.is_ok());
     }
 }
