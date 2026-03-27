@@ -174,7 +174,7 @@ pub fn embedded_curve_add(
     point2: EmbeddedCurvePoint,
 ) -> EmbeddedCurvePoint {
     // docs:end:embedded_curve_add
-    embedded_curve_add_inner(point1, point2)
+    embedded_curve_add_array_return(point1, point2, true)[0]
 }
 
 #[foreign(embedded_curve_add)]
@@ -183,11 +183,3 @@ fn embedded_curve_add_array_return(
     _point2: EmbeddedCurvePoint,
     _predicate: bool,
 ) -> [EmbeddedCurvePoint; 1] {}
-
-/// EC addition wrapper for the foreign function
-fn embedded_curve_add_inner(
-    point1: EmbeddedCurvePoint,
-    point2: EmbeddedCurvePoint,
-) -> EmbeddedCurvePoint {
-    embedded_curve_add_array_return(point1, point2, true)[0]
-}
