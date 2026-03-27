@@ -857,7 +857,7 @@ impl<'a> FunctionContext<'a> {
 
             let flat_typ = value_typ.clone().flatten();
             let offset = self.builder.numeric_constant(flat_typ.len(), NumericType::length_type());
-            if value_typ.contains_an_array() {
+            if value_typ.contains_an_array() && !matches!(value_typ, Type::Reference(_)) {
                 // TODO: test setting a struct with array and primitive fields where primitives come after
                 // the array fields. This test should help us check whether we are updating the index appropriately
                 // TODO: Move this logic to a helper

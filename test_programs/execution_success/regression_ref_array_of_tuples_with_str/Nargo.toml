@@ -1,0 +1,6 @@
+[package]
+name = "regression_ref_array_of_tuples_with_str"
+type = "bin"
+authors = [""]
+
+[dependencies]
