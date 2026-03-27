@@ -406,8 +406,8 @@ mod tests {
     pub(super) fn build_intervals(src: &str) -> (LiveIntervals, Ssa) {
         let ssa = Ssa::from_str(src).unwrap();
         let func = ssa.main();
-        let constants = ConstantAllocation::from_function(func, &Default::default());
-        let liveness = VariableLiveness::from_function(func, &constants);
+        let constants = ConstantAllocation::from_function(func);
+        let liveness = VariableLiveness::from_function(func, &constants, &Default::default());
         let post_order = PostOrder::with_function(func).into_vec();
         let intervals = LiveIntervals::from_function(func, &liveness, &constants, &post_order);
         (intervals, ssa)
@@ -788,7 +788,7 @@ mod tests {
 
         let b0_entry = intervals.block_entry_point(b0).unwrap();
 
-        let constants = ConstantAllocation::from_function(func, &Default::default());
+        let constants = ConstantAllocation::from_function(func);
 
         // Field 42 is used in both b1 and b2, so it should be allocated at b0
         // (the common dominator). It's the only constant in this function.
@@ -839,7 +839,7 @@ mod tests {
 
         let b0_entry = intervals.block_entry_point(b0).unwrap();
 
-        let constants = ConstantAllocation::from_function(func, &Default::default());
+        let constants = ConstantAllocation::from_function(func);
 
         // u32 10 is used only inside the loop body (b2), but should be
         // hoisted to b0 (outside the loop). It's the only constant.
