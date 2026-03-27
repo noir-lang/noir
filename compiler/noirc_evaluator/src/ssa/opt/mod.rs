@@ -29,6 +29,7 @@ mod inline_simple_functions;
 mod inlining;
 mod load_store_forwarding;
 mod loop_invariant;
+mod lower_refs_at_acir_brillig_boundary;
 mod make_constrain_not_equal;
 mod mem2reg;
 mod mem2reg_simple;

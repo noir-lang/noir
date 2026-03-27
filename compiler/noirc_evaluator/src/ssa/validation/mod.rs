@@ -976,7 +976,7 @@ impl<'f> Validator<'f> {
         if !self.function.runtime().is_acir() {
             return;
         }
-        let Instruction::Call { func, arguments } = &self.function.dfg[instruction] else {
+        let Instruction::Call { func, arguments: _ } = &self.function.dfg[instruction] else {
             return;
         };
         let callee_id = match &self.function.dfg[*func] {
@@ -994,19 +994,7 @@ impl<'f> Validator<'f> {
         if called_function.runtime().is_acir() {
             return;
         }
-        for arg_id in arguments {
-            let typ = self.function.dfg.type_of_value(*arg_id);
-            if typ.contains_reference() {
-                // If we don't panic here, we would have a different, more obscure panic later on.
-                panic!(
-                    "Trying to pass a reference from ACIR function '{} {}' to unconstrained '{} {}' in argument {arg_id}: {typ}",
-                    self.function.name(),
-                    self.function.id(),
-                    called_function.name(),
-                    called_function.id()
-                )
-            }
-        }
+        // References (including immutable ones) may cross the ACIR->Brillig boundary.
         for result_id in self.function.dfg.instruction_results(instruction) {
             let typ = self.function.dfg.type_of_value(*result_id);
             if typ.contains_function() {

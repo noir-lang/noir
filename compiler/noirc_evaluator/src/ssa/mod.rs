@@ -235,6 +235,14 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
         SsaPass::new(Ssa::flatten_cfg, "Flattening"),
         SsaPass::new(Ssa::array_set_window_optimization, "ArraySet Window optimization"),
+        // Materialize immutable references that cross the ACIR→Brillig boundary
+        // (e.g. `&x` passed as argument to an unconstrained function from a constrained one).
+        // This must run after flattening so ACIR functions are single-block, and before
+        // mem2reg_simple which requires no Load/Store in ACIR.
+        SsaPass::new(
+            Ssa::lower_refs_at_acir_brillig_boundary,
+            "Lower refs at ACIR/Brillig boundary",
+        ),
         // Run mem2reg_simple on all functions after flattening to handle cross-block promotion
         // (Brillig still multi-block; ACIR is single-block so this is trivial for ACIR).
         // Then run load_store_forwarding to handle aliased references within blocks

@@ -2233,10 +2233,25 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<(), MonomorphizationError> {
         for argument in &call.arguments {
             let typ = self.interner.id_type(argument);
-            if typ.contains_reference() {
+            let location = self.interner.id_location(argument);
+
+            if typ.contains_mutable_reference() {
                 let typ = typ.to_string();
-                let location = self.interner.id_location(argument);
                 return Err(MonomorphizationError::ConstrainedReferenceToUnconstrained {
+                    typ,
+                    location,
+                });
+            }
+
+            // Only a direct immutable reference `&T` where T is reference-free is supported.
+            // Reject nested refs (&&T) and containers that embed refs ([&T; N], structs, etc.).
+            let has_unsupported_ref = match typ.follow_bindings_shallow().as_ref() {
+                Type::Reference(inner, false) => inner.contains_reference(),
+                _ => typ.contains_reference(),
+            };
+            if has_unsupported_ref {
+                let typ = typ.to_string();
+                return Err(MonomorphizationError::NestedOrContainerReferenceToUnconstrained {
                     typ,
                     location,
                 });
@@ -2259,7 +2274,7 @@ impl<'interner> Monomorphizer<'interner> {
             });
         }
 
-        if return_type.contains_reference() {
+        if return_type.contains_mutable_reference() {
             let typ = return_type.to_string();
             return Err(MonomorphizationError::UnconstrainedReferenceReturnToConstrained {
                 typ,
