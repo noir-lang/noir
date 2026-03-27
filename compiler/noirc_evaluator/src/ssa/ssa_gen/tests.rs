@@ -161,16 +161,19 @@ fn brillig_access_check_on_array_read() {
     ";
     let ssa = get_initial_ssa(src).unwrap();
 
+    // Brillig uses u64 for the flat index computation to prevent u32 overflow
+    // in the bounds check (index * stride can wrap around in u32).
     let expected = r#"
     brillig(inline) fn main f0 {
       b0(v0: [Field; 3], v1: u32):
         v2 = allocate -> &mut [Field; 3]
         store v0 at v2
         v3 = load v2 -> [Field; 3]
-        v5 = lt v1, u32 3
-        constrain v5 == u1 1, "Index out of bounds"
-        v7 = array_get v3, index v1 -> Field
-        return v7
+        v4 = cast v1 as u64
+        v6 = lt v4, u64 3
+        constrain v6 == u1 1, "Index out of bounds"
+        v8 = array_get v3, index v1 -> Field
+        return v8
     }
     "#;
     assert_normalized_ssa_equals(ssa, expected);
@@ -447,28 +450,30 @@ fn for_loop_inclusive_max_value_with_break() {
       b2():
         jmpif v0 then: b4(), else: b5()
       b3():
-        v13 = load v4 -> u1
-        jmpif v13 then: b6(), else: b7()
+        v14 = load v4 -> u1
+        jmpif v14 then: b6(), else: b7()
       b4():
         store u1 0 at v4
         jmp b3()
       b5():
         v8 = load v2 -> u8
         v9 = add v8, v1
+        v10 = load v2 -> u8
         store v9 at v2
-        v11 = unchecked_add v1, u8 1
-        jmp b1(v11)
+        v12 = unchecked_add v1, u8 1
+        jmp b1(v12)
       b6():
         jmpif v0 then: b8(), else: b9()
       b7():
-        v16 = load v2 -> u8
-        return v16
+        v18 = load v2 -> u8
+        return v18
       b8():
         jmp b7()
       b9():
-        v14 = load v2 -> u8
-        v15 = add v14, u8 255
-        store v15 at v2
+        v15 = load v2 -> u8
+        v16 = add v15, u8 255
+        v17 = load v2 -> u8
+        store v16 at v2
         jmp b7()
     }
     ");
@@ -508,32 +513,34 @@ fn for_loop_inclusive_unknown_range_with_break() {
         v9 = eq v2, u8 10
         jmpif v9 then: b4(), else: b5()
       b3():
-        v15 = load v5 -> u1
-        v16 = lt v1, v0
-        v17 = not v16
-        v18 = unchecked_mul v15, v17
-        jmpif v18 then: b6(), else: b7()
+        v16 = load v5 -> u1
+        v17 = lt v1, v0
+        v18 = not v17
+        v19 = unchecked_mul v16, v18
+        jmpif v19 then: b6(), else: b7()
       b4():
         store u1 0 at v5
         jmp b3()
       b5():
         v10 = load v3 -> u8
         v11 = add v10, v2
+        v12 = load v3 -> u8
         store v11 at v3
-        v13 = unchecked_add v2, u8 1
-        jmp b1(v13)
+        v14 = unchecked_add v2, u8 1
+        jmp b1(v14)
       b6():
-        v19 = eq v1, u8 10
-        jmpif v19 then: b8(), else: b9()
+        v20 = eq v1, u8 10
+        jmpif v20 then: b8(), else: b9()
       b7():
-        v22 = load v3 -> u8
-        return v22
+        v24 = load v3 -> u8
+        return v24
       b8():
         jmp b7()
       b9():
-        v20 = load v3 -> u8
-        v21 = add v20, v1
-        store v21 at v3
+        v21 = load v3 -> u8
+        v22 = add v21, v1
+        v23 = load v3 -> u8
+        store v22 at v3
         jmp b7()
     }
     ");
@@ -702,7 +709,7 @@ fn repeated_nested_array() {
       b0():
         v2 = make_array [Field 1, Field 2] : [Field; 2]
         inc_rc v2
-        v3 = make_array [v2, v2, v2] : [[Field; 2]; 3]
+        v3 = make_array [Field 1, Field 2, Field 1, Field 2, Field 1, Field 2] : [[Field; 2]; 3]
         call f1(v3)
         return
     }

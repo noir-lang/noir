@@ -193,6 +193,11 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
         let size = size.0;
 
         assert!(start.is_direct(), "read_slice_of_values_from_memory requires direct addresses");
+        // Zero-sized element types (e.g. `[u16; 0]`) flatten to an empty value_types.
+        // The size register may still hold the semantic length, but there's no data to read.
+        if value_types.is_empty() {
+            return vec![];
+        }
         if HeapValueType::all_simple(value_types) {
             self.memory.read_slice(start, assert_usize(size)).to_vec()
         } else {

@@ -2,14 +2,12 @@ pub(super) mod brillig_black_box;
 pub(super) mod brillig_vector_ops;
 pub(super) mod code_gen_call;
 
-use acvm::acir::brillig::lengths::{ElementTypesLength, SemiFlattenedLength};
-use acvm::brillig_vm::offsets;
 use acvm::{AcirField, FieldElement};
 use iter_extended::vecmap;
 use itertools::Itertools;
 
+use crate::brillig::BrilligBlock;
 use crate::brillig::brillig_ir::{BrilligBinaryOp, registers::RegisterAllocator};
-use crate::brillig::{BrilligBlock, assert_u32};
 use crate::ssa::ir::function::FunctionId;
 use crate::ssa::ir::instruction::{InstructionId, Intrinsic};
 use crate::ssa::ir::{
@@ -64,7 +62,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                     let variable = self.define_variable(result, dfg);
                     let array = variable.extract_array();
 
-                    self.allocate_foreign_call_result_array(typ.as_ref(), array);
+                    self.allocate_foreign_call_result_array(array);
 
                     variable
                 }
@@ -114,59 +112,11 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         variables
     }
 
-    /// Recursively allocates memory on the heap for a nested array returned from a foreign function call.
-    ///
-    /// # Panics
-    /// - If the provided `typ` is not an array.
-    /// - If any vector types are encountered within the nested structure, since vectors
-    ///   require runtime size information and cannot be allocated statically here.
-    fn allocate_foreign_call_result_array(&mut self, typ: &Type, array: BrilligArray) {
-        let Type::Array(types, size) = typ else {
-            unreachable!("ICE: allocate_foreign_call_array() expects an array, got {typ:?}")
-        };
-
+    /// Allocates memory on the heap for a flat array returned from a foreign function call.
+    /// With fully-flat arrays, no recursive nesting is needed — just initialize the array.
+    fn allocate_foreign_call_result_array(&mut self, array: BrilligArray) {
         // Reserve free memory on the heap and set the initial ref-count.
         self.brillig_context.codegen_initialize_array(array);
-
-        // Go through each slot in the array: if it's a simple type then we don't need to do anything,
-        // but if it's a nested one we have to recursively allocate memory for it, and store the variable in the array.
-        // We add one since array.pointer points to [RC, ...items]
-        let mut index = offsets::ARRAY_ITEMS;
-        for _ in 0..size.0 {
-            for element_type in types.iter() {
-                match element_type {
-                    Type::Array(items, nested_size) => {
-                        // Allocate a pointer for an array on the stack.
-                        let size: SemiFlattenedLength =
-                            ElementTypesLength(assert_u32(items.len())) * *nested_size;
-                        let inner_array = self.brillig_context.allocate_brillig_array(size);
-
-                        // Recursively allocate memory for the inner array on the heap.
-                        // This sets the pointer on the stack to point at the heap.
-                        self.allocate_foreign_call_result_array(element_type, *inner_array);
-
-                        // Set the index in the outer array to be the total offset accounting for complex types.
-                        let idx =
-                            self.brillig_context.make_usize_constant_instruction(index.into());
-
-                        // Copy the inner array pointer, which points at the heap, into the outer array cell.
-                        // After this, it is okay for the `inner_array` to be deallocated from the stack,
-                        // and for its address to be reused, ie. we don't need to `.detach()` it.
-                        // What matters is that we stored the pointer to the heap.
-                        self.brillig_context.codegen_store_with_offset(
-                            array.pointer,
-                            *idx,
-                            inner_array.pointer,
-                        );
-                    }
-                    Type::Vector(_) => unreachable!(
-                        "ICE: unsupported vector type in allocate_nested_array(), expects an array or a numeric type"
-                    ),
-                    _ => (),
-                }
-                index += 1;
-            }
-        }
     }
 
     /// Internal method to codegen an [crate::ssa::ir::instruction::Instruction::Call] to a [Value::Function]
@@ -333,23 +283,24 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 // https://github.com/noir-lang/noir/issues/1889#issuecomment-1668048587
                 let user_index = self.convert_ssa_single_addr_value(arguments[2], dfg);
 
+                let items = vecmap(&arguments[3..element_size + 3], |arg| {
+                    self.convert_ssa_value(*arg, dfg)
+                });
+
+                let flat_element_size = Self::flat_variable_count(&items);
                 let converted_index =
-                    self.brillig_context.make_usize_constant_instruction(element_size.into());
+                    self.brillig_context.make_usize_constant_instruction(flat_element_size.into());
 
                 // Safety: This multiplication cannot overflow because:
                 // 1. SSA generates bounds checks ensuring `user_index <= length`
                 // 2. The vector allocation is protected by FMP's checked addition
-                // 3. Therefore `element_size * user_index <= element_size * length <= allocation_size < 2^32`
+                // 3. Therefore `flat_element_size * user_index <= flat_element_size * length <= allocation_size < 2^32`
                 self.brillig_context.memory_op_instruction(
                     converted_index.address,
                     user_index.address,
                     converted_index.address,
                     BrilligBinaryOp::Mul,
                 );
-
-                let items = vecmap(&arguments[3..element_size + 3], |arg| {
-                    self.convert_ssa_value(*arg, dfg)
-                });
 
                 self.update_vector_length(target_len, source_len, BrilligBinaryOp::Add);
 
@@ -368,23 +319,24 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 // https://github.com/noir-lang/noir/issues/1889#issuecomment-1668048587
                 let user_index = self.convert_ssa_single_addr_value(arguments[2], dfg);
 
+                let removed_items = vecmap(&results[2..element_size + 2], |result| {
+                    self.define_variable(*result, dfg)
+                });
+
+                let flat_element_size = Self::flat_variable_count(&removed_items);
                 let converted_index =
-                    self.brillig_context.make_usize_constant_instruction(element_size.into());
+                    self.brillig_context.make_usize_constant_instruction(flat_element_size.into());
 
                 // Safety: This multiplication cannot overflow because:
                 // 1. SSA generates bounds checks ensuring `user_index < length`
                 // 2. The vector allocation is protected by FMP's checked addition
-                // 3. Therefore `element_size * user_index < element_size * length <= allocation_size < 2^32`
+                // 3. Therefore `flat_element_size * user_index < flat_element_size * length <= allocation_size < 2^32`
                 self.brillig_context.memory_op_instruction(
                     converted_index.address,
                     user_index.address,
                     converted_index.address,
                     BrilligBinaryOp::Mul,
                 );
-
-                let removed_items = vecmap(&results[2..element_size + 2], |result| {
-                    self.define_variable(*result, dfg)
-                });
 
                 self.update_vector_length(target_len, source_len, BrilligBinaryOp::Sub);
 

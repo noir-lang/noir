@@ -62,8 +62,7 @@ fn clone_ssa(ssa: &Ssa) -> Ssa {
     Ssa::new(
         ssa.functions.values().cloned().collect(),
         ssa.error_selector_to_type.clone(),
-        ssa.acir_globals.clone(),
-        ssa.brillig_globals.clone(),
+        ssa.globals.clone(),
     )
 }
 

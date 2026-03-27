@@ -26,13 +26,8 @@ pub(super) fn try_interpret_call(
 
     match evaluation_result {
         EvaluationResult::NotABrilligCall | EvaluationResult::CannotEvaluate => None,
-        EvaluationResult::Evaluated(mut const_results) => {
-            // Brillig returns non-flat arrays; ACIR expects flat.
-            if !dfg.runtime().is_brillig() {
-                for result in &mut const_results {
-                    *result = InterpreterValue::flatten_for_acir(result);
-                }
-            }
+        EvaluationResult::Evaluated(const_results) => {
+            // All arrays are flat for both runtimes — no flatten/unflatten needed.
             let new_results = vecmap(const_results, |const_result| {
                 interpreter_value_to_ir_value(const_result, dfg, block)
             });
@@ -82,16 +77,12 @@ fn evaluate_const_argument_call(
     let mut interpreter_args: Vec<InterpreterValue> =
         arguments.iter().map(|arg| const_ir_value_to_interpreter_value(*arg, dfg)).collect();
 
-    // ACIR stores arrays flat; Brillig expects nested.
-    // Mark ACIR flat arrays and unflatten them for the Brillig interpreter.
-    if !dfg.runtime().is_brillig() {
-        for arg in &mut interpreter_args {
-            if let InterpreterValue::ArrayOrVector(array) = arg
-                && array.element_types.iter().any(|t| t.contains_an_array())
-            {
-                array.is_flat = true;
-            }
-            *arg = InterpreterValue::unflatten_for_brillig(arg);
+    // Mark flat arrays so the interpreter knows they're already flattened.
+    for arg in &mut interpreter_args {
+        if let InterpreterValue::ArrayOrVector(array) = arg
+            && array.element_types.iter().any(|t| t.contains_an_array())
+        {
+            array.is_flat = true;
         }
     }
 

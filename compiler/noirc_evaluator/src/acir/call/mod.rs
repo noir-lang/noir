@@ -195,11 +195,13 @@ impl Context<'_> {
                         // of the actual vector length, so we cannot recover the semantic length
                         // by dividing. In SSA, vectors are represented as (length, data) pairs,
                         // so the preceding argument holds the semantic length as a u32 constant.
-                        let length_value_id = values[idx - 1];
-                        let length = dfg
-                            .get_numeric_constant(length_value_id)
-                            .expect("ICE: Vector with zero-sized elements must be preceded by its length as a constant");
-                        SemanticLength(length.to_u128() as u32)
+                        // However, dead-parameter pruning may have removed the length value,
+                        // in which case we fall back to 0 (safe because zero-sized elements
+                        // produce no data regardless of the count).
+                        let length = idx
+                            .checked_sub(1)
+                            .and_then(|prev| dfg.get_numeric_constant(values[prev]));
+                        SemanticLength(length.map_or(0, |len| len.to_u128() as u32))
                     } else {
                         match self
                             .ssa_values
@@ -220,9 +222,7 @@ impl Context<'_> {
                                     .iter()
                                     .map(|v| arrays::flattened_value_size(v).to_usize())
                                     .sum();
-                                SemanticLength(
-                                    (flat_size / element_flat_size.0 as usize) as u32,
-                                )
+                                SemanticLength((flat_size / element_flat_size.0 as usize) as u32)
                             }
                             AcirValue::Var(..) => unreachable!("ICE: Vector value is not an array"),
                         }

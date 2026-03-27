@@ -293,10 +293,9 @@ impl Context {
         self.handle_reference_expression(&mut index.collection);
         self.handle_expression(&mut index.index);
 
-        // If the index collection is being borrowed we need to clone the result.
-        if contains_array_or_str_type(&index.element_type) {
-            clone_expr(index_expr);
-        }
+        // No clone needed on the result: codegen_flat_array_get extracts individual
+        // elements and reassembles via MakeArray — the result never shares memory
+        // with the original array.
     }
 
     fn handle_cast(&mut self, cast: &mut crate::monomorphization::ast::Cast) {
@@ -380,10 +379,6 @@ impl Context {
             LValue::Index { array, index, element_type: _, location: _ } => {
                 self.handle_expression(index);
                 self.handle_lvalue(array);
-
-                if contains_index(array) {
-                    **array = LValue::Clone(array.clone());
-                }
             }
             LValue::MemberAccess { object, field_index: _ } => {
                 self.handle_lvalue(object);
@@ -395,17 +390,6 @@ impl Context {
             // handle the corresponding lvalue
             LValue::Clone(_) => unreachable!("LValue::Clone should only be inserted by this pass"),
         }
-    }
-}
-
-fn contains_index(lvalue: &LValue) -> bool {
-    use LValue::*;
-    match lvalue {
-        Ident(_) => false,
-        Index { .. } => true,
-        Dereference { reference: lvalue, .. }
-        | MemberAccess { object: lvalue, .. }
-        | Clone(lvalue) => contains_index(lvalue),
     }
 }
 

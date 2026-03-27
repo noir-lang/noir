@@ -163,11 +163,11 @@ fn clone_call_array_result() {
     ";
 
     let program = get_monomorphized(src).unwrap();
-    // We expect no clones
+    // No clones needed: flat array extraction creates fresh values
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0(i$l0: u32) -> pub u32 {
-        let _a$l1 = foo$f1()[1][0][1].clone();
-        let _s$l2 = foo$f1()[1][0][1].clone();
+        let _a$l1 = foo$f1()[1][0][1];
+        let _s$l2 = foo$f1()[1][0][1];
         i$l0
     }
     unconstrained fn foo$f1() -> [[[[u128; 0]; 2]; 1]; 2] {
@@ -250,7 +250,7 @@ fn clone_nested_array_used_as_call_arg() {
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0(i$l0: u32) -> pub bool {
         let G_A$l1 = [[false, false, false], [false, false, false]];
-        let result$l2 = mutate_array$f1(G_A$l1[i$l0].clone())[1];
+        let result$l2 = mutate_array$f1(G_A$l1[i$l0])[1];
         if (i$l0 != 0) {
             G_A$l1[0][1]
         } else {
@@ -286,7 +286,7 @@ fn clone_global_nested_array_used_as_call_arg() {
     insta::assert_snapshot!(program, @r"
     global G_A$g0: [[bool; 3]; 2] = [[false, false, false], [false, false, false]];
     unconstrained fn main$f0(i$l0: u32) -> pub bool {
-        let result$l1 = mutate_array$f1(G_A$g0[i$l0].clone())[1];
+        let result$l1 = mutate_array$f1(G_A$g0[i$l0])[1];
         if (i$l0 != 0) {
             result$l1
         } else {
@@ -328,7 +328,7 @@ fn regression_9907() {
         foo$f1([[3405691582]])
     }
     unconstrained fn foo$f1(mut a$l0: [[Field; 1]; 1]) -> [[Field; 1]; 1] {
-        let mut b$l1 = bar$f2(a$l0.clone())[0].clone();
+        let mut b$l1 = bar$f2(a$l0.clone())[0];
         let mut x$l2 = 0;
         while (x$l2 != 0) {
         };
@@ -397,12 +397,12 @@ fn clone_nested_array_in_lvalue() {
     ";
 
     let program = get_monomorphized(src).unwrap();
-    // A clone is inserted in the lvalue position, because the array could be aliased somewhere else,
-    // and even if it was cloned, the RC was only increased for the outer array, not the nested one.
+    // No clone needed: SSA gen's extract_flat_lvalue computes a flat offset for nested
+    // indices, so no intermediate array is materialized.
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0(i$l0: u32, j$l1: u32) -> pub u32 {
         let mut a$l2 = [[1, 2], [3, 4]];
-        a$l2[i$l0].clone()[j$l1] = 5;
+        a$l2[i$l0][j$l1] = 5;
         a$l2[0][0]
     }
     ");

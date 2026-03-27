@@ -49,8 +49,7 @@ mod simplify_cfg;
 mod unrolling;
 
 pub(crate) use array_get::{
-    ArrayGetOptimizationResult, ArrayGetOptimizationSideEffects,
-    try_optimize_array_get_from_previous_instructions,
+    ArrayGetOptimizationResult, try_optimize_array_get_from_previous_instructions,
 };
 pub use brillig_function_specialization::{
     DEFAULT_MAX_SPECIALIZATIONS_PER_FN, DEFAULT_SPECIALIZATION_THRESHOLD,

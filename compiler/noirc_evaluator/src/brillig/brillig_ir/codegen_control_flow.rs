@@ -3,18 +3,12 @@ use itertools::Itertools;
 use acvm::{
     AcirField,
     acir::{
-        brillig::{
-            HeapVector, MemoryAddress,
-            lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength},
-        },
+        brillig::{HeapVector, MemoryAddress},
         circuit::ErrorSelector,
     },
 };
 
-use crate::{
-    brillig::{assert_u32, assert_usize, brillig_ir::registers::Allocated},
-    ssa::ir::instruction::ErrorType,
-};
+use crate::{brillig::brillig_ir::registers::Allocated, ssa::ir::instruction::ErrorType};
 
 use super::{
     BrilligBinaryOp, BrilligContext, ReservedRegisters,
@@ -267,15 +261,15 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                             error_variable.extract_single_addr().address,
                         );
                     }
-                    BrilligParameter::Array(item_type, item_count) => {
-                        let deflattened_items_pointer =
-                            ctx.codegen_make_array_items_pointer(error_variable.extract_array());
-
-                        ctx.flatten_array(
-                            &item_type,
-                            item_count,
+                    BrilligParameter::Array(_, _) => {
+                        // Arrays are flat — directly copy items to error data.
+                        let array = error_variable.extract_array();
+                        let items_pointer = ctx.codegen_make_array_items_pointer(array);
+                        let size_var = ctx.make_usize_constant_instruction(array.size.0.into());
+                        ctx.codegen_mem_copy(
+                            *items_pointer,
                             *current_error_data_pointer,
-                            *deflattened_items_pointer,
+                            *size_var,
                         );
                     }
                     BrilligParameter::Vector(_, _) => {
@@ -320,80 +314,5 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// Computes the size of a parameter if it was flattened
     pub(super) fn flattened_tuple_size(tuple: &[BrilligParameter]) -> usize {
         tuple.iter().map(|param| param.flattened_size()).sum()
-    }
-
-    /// Computes the size of a parameter if it was flattened
-    pub(crate) fn has_nested_arrays(tuple: &[BrilligParameter]) -> bool {
-        tuple.iter().any(|param| !matches!(param, BrilligParameter::SingleAddr(_)))
-    }
-
-    // Flattens an array by recursively copying nested arrays and regular items.
-    pub(super) fn flatten_array(
-        &mut self,
-        item_type: &[BrilligParameter],
-        item_count: SemanticLength,
-        flattened_array_pointer: MemoryAddress,
-        deflattened_items_pointer: MemoryAddress,
-    ) {
-        if Self::has_nested_arrays(item_type) {
-            let movement_register = self.allocate_register();
-
-            // Use incrementing pointers instead of computing fresh constant indices each iteration
-            let source_ptr = self.allocate_register();
-            self.mov_instruction(*source_ptr, deflattened_items_pointer);
-            let target_ptr = self.allocate_register();
-            self.mov_instruction(*target_ptr, flattened_array_pointer);
-
-            for _item_index in 0..item_count.0 {
-                for subitem in item_type {
-                    match subitem {
-                        BrilligParameter::SingleAddr(_) => {
-                            self.load_instruction(*movement_register, *source_ptr);
-                            self.store_instruction(*target_ptr, *movement_register);
-                            self.codegen_usize_op_in_place(*source_ptr, BrilligBinaryOp::Add, 1);
-                            self.codegen_usize_op_in_place(*target_ptr, BrilligBinaryOp::Add, 1);
-                        }
-                        BrilligParameter::Array(
-                            nested_array_item_type,
-                            nested_array_item_count,
-                        ) => {
-                            // Usually we need to pass a semi-flattened length to `allocate_brillig_array`.
-                            // However, since we are deflattening arrays, we need to allocate as many elements
-                            // as there are in this particular nested array, which is its semantic length.
-                            let deflattened_nested_array = self.allocate_brillig_array(
-                                SemiFlattenedLength(nested_array_item_count.0),
-                            );
-
-                            self.load_instruction(deflattened_nested_array.pointer, *source_ptr);
-                            let deflattened_nested_array_items =
-                                self.codegen_make_array_items_pointer(*deflattened_nested_array);
-
-                            self.flatten_array(
-                                nested_array_item_type,
-                                *nested_array_item_count,
-                                *target_ptr,
-                                *deflattened_nested_array_items,
-                            );
-
-                            self.codegen_usize_op_in_place(*source_ptr, BrilligBinaryOp::Add, 1);
-                            let nested_flattened_size =
-                                Self::flattened_tuple_size(nested_array_item_type)
-                                    * assert_usize(nested_array_item_count.0);
-                            self.codegen_usize_op_in_place(
-                                *target_ptr,
-                                BrilligBinaryOp::Add,
-                                nested_flattened_size,
-                            );
-                        }
-                        BrilligParameter::Vector(..) => unreachable!("ICE: Cannot flatten vectors"),
-                    }
-                }
-            }
-        } else {
-            let size: SemiFlattenedLength =
-                item_count * ElementTypesLength(assert_u32(item_type.len()));
-            let item_count = self.make_usize_constant_instruction(size.0.into());
-            self.codegen_mem_copy(deflattened_items_pointer, flattened_array_pointer, *item_count);
-        }
     }
 }

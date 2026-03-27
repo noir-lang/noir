@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn takes_zero_sized_vec(b: [[u16; 0]]) -> u32 {
+    b.len()
+}
+
+fn main() -> pub u32 {
+    let v: [[u16; 0]] = @[[], [], []];
+    // Safety: comment added by `nargo expand`
+    unsafe {
+        takes_zero_sized_vec(v)
+    }
+}

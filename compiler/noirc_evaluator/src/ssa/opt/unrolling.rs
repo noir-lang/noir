@@ -3225,10 +3225,7 @@ mod tests {
         let src = "
         brillig(inline) fn main f0 {
           b0():
-            v100 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [Field; 6]
-            v101 = make_array [Field 7, Field 8, Field 9, Field 10, Field 11, Field 12] : [Field; 6]
-            v102 = make_array [Field 13, Field 14, Field 15, Field 16, Field 17, Field 18] : [Field; 6]
-            v103 = make_array [v100, v101, v102] : [[Field; 6]; 3]
+            v103 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6, Field 7, Field 8, Field 9, Field 10, Field 11, Field 12, Field 13, Field 14, Field 15, Field 16, Field 17, Field 18] : [[Field; 6]; 3]
             jmp b1(u32 0)
           b1(v0: u32):
             v5 = lt v0, u32 3

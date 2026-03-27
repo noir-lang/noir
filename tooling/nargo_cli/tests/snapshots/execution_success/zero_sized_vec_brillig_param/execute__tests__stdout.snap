@@ -1,0 +1,5 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+[zero_sized_vec_brillig_param] Circuit output: 3
