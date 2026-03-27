@@ -148,45 +148,32 @@ impl TaintedDescendants {
         &mut self,
         constrained_values: &[ValueId],
         ancestors: &AncestorMap,
-        equivalents: &AncestorMap,
         all_tainted: &HashSet<ValueId>,
     ) -> bool {
         dbg!(&self);
         dbg!(&ancestors);
-        dbg!(&equivalents);
         dbg!(&all_tainted);
 
         let is_against_const = constrained_values.len() == 1;
         let is_const_args = self.arguments.is_empty();
 
-        // Now that we know how many values were directly constrained (to detect const pairing),
-        // we can take equivalents into account as well.
-        let all_constrained_values = || {
-            constrained_values.iter().chain(
-                constrained_values
-                    .iter()
-                    .filter_map(|value| equivalents.get(value))
-                    .flat_map(|eqs| eqs.iter()),
-            )
-        };
-
         // Make sure this constraint has something to do with the inputs,
         // unless there are no inputs, or the output is against a constant.
         if !is_against_const
             && !is_const_args
-            && !self.arguments_intersect(all_constrained_values(), ancestors, all_tainted)
+            && !self.arguments_intersect(constrained_values, ancestors, all_tainted)
         {
             return false;
         }
 
         // Remove any results that have been directly or indirectly constrained.
         self.single_outputs.retain(|output| {
-            !all_constrained_values().any(|value| {
+            !constrained_values.iter().any(|value| {
                 output == value || ancestors.get(value).map_or(false, |a| a.contains(output))
             })
         });
         self.array_outputs.retain(|_, descendants| {
-            !all_constrained_values().any(|value| descendants.contains(value))
+            !constrained_values.iter().any(|value| descendants.contains(value))
         });
 
         self.is_constrained()
@@ -196,9 +183,9 @@ impl TaintedDescendants {
     /// * shares an ancestor with a call argument, and
     /// * is not a descendant of the outputs, and
     /// * is not tainted
-    fn arguments_intersect<'a>(
+    fn arguments_intersect(
         &self,
-        constrained_values: impl Iterator<Item = &'a ValueId>,
+        constrained_values: &[ValueId],
         ancestors: &AncestorMap,
         all_tainted: &HashSet<ValueId>,
     ) -> bool {
@@ -271,12 +258,6 @@ struct Context {
     /// The ancestors of a value do not include the value itself.
     ancestors: AncestorMap,
 
-    /// When we have `constrain v0 == v1`, then consider any follow up constraints
-    /// on v0 or v1 as if it applied on both. This is because some SSA passes use
-    /// constraint info to simplify values, and what was a constraint on v0 could
-    /// end up being a constraint on v1.
-    equivalents: AncestorMap,
-
     /// Descendants of Brillig calls.
     tainted: HashMap<InstructionId, TaintedDescendants>,
 }
@@ -286,7 +267,6 @@ impl Context {
         Self {
             post_order: PostOrder::with_function(func).into_vec(),
             ancestors: Default::default(),
-            equivalents: Default::default(),
             tainted: Default::default(),
         }
     }
@@ -340,7 +320,7 @@ impl Context {
                     && !is_numeric_constant(func, *v1)
                     && !is_numeric_constant(func, *v2)
                 {
-                    Self::add_equivalence(&mut self.equivalents, *v1, *v2);
+                    Self::add_equivalence(&mut self.ancestors, *v1, *v2);
                 }
             }
         }
@@ -398,12 +378,7 @@ impl Context {
                 } else if is_constraint(func, instruction_id) && !self.tainted.is_empty() {
                     let constrained_values = instruction_arguments(func, instruction);
                     self.tainted.retain(|_, tainted| {
-                        !tainted.try_constrain(
-                            &constrained_values,
-                            &self.ancestors,
-                            &self.equivalents,
-                            &all_tainted,
-                        )
+                        !tainted.try_constrain(&constrained_values, &self.ancestors, &all_tainted)
                     });
                 } else if let Instruction::EnableSideEffectsIf { condition } = instruction {
                     side_effects_var =
@@ -449,23 +424,31 @@ impl Context {
         }
     }
 
-    /// Add a bi-directional equivalence mapping between two values,
-    /// and transitively other value they are already equivalent to.
-    ///
-    /// We are not adding these as ancestors of each other, because
-    /// that could turn a non-tainted value into something that seems
-    /// to be derived from tainted output, which is confusing.
-    fn add_equivalence(equivalents: &mut AncestorMap, v1: ValueId, v2: ValueId) {
-        fn go(equivalents: &mut AncestorMap, a: ValueId, b: ValueId) {
-            equivalents.entry(a).or_default().insert(b);
-            for (id, equivalents) in equivalents.iter_mut() {
-                if *id != b && equivalents.contains(&a) {
-                    equivalents.insert(b);
+    /// When we have `constrain v0 == v1`, then consider any follow up constraints
+    /// on v0 or v1 as if it applied on both. This is because some SSA passes use
+    /// constraint info to simplify values, and what was a constraint on v0 could
+    /// end up being a constraint on v1.
+    fn add_equivalence(ancestors: &mut AncestorMap, v1: ValueId, v2: ValueId) {
+        /// If we have `c -> a`, insert `c -> b` as well.
+        /// This way if we put a constraint on `c`, it affects anything calls
+        /// that produced `b`, even if they had no relation to `a`.
+        ///
+        /// Not inserting `a -> b` and `b -> a` because that would make
+        /// a constraint derive from the output of a call, disqualifying
+        /// it from being a constraint on the inputs.
+        fn go(ancestors: &mut AncestorMap, a: ValueId, b: ValueId) {
+            for (c, ancestors) in ancestors.iter_mut() {
+                if *c == b {
+                    // Not inserting self-ancestry.
+                    continue;
+                }
+                if ancestors.contains(&a) {
+                    ancestors.insert(b);
                 }
             }
         }
-        go(equivalents, v1, v2);
-        go(equivalents, v2, v1);
+        go(ancestors, v1, v2);
+        go(ancestors, v2, v1);
     }
 }
 
