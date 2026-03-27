@@ -745,7 +745,6 @@ fn simplify_derive_generators(
                 num_generators,
                 starting_index.try_to_u32().expect("argument is declared as u32"),
             );
-            let is_infinite = dfg.make_constant(FieldElement::zero(), NumericType::bool());
             let mut results = Vec::new();
             for generator in generators {
                 let x_big: BigUint = generator.x.into();
@@ -754,17 +753,14 @@ fn simplify_derive_generators(
                 let y = FieldElement::from_be_bytes_reduce(&y_big.to_bytes_be());
                 results.push(dfg.make_constant(x, NumericType::NativeField));
                 results.push(dfg.make_constant(y, NumericType::NativeField));
-                results.push(is_infinite);
             }
             let len = results.len() as u32;
             assert!(
-                len.is_multiple_of(3),
-                "The number of results from derive_generators must be a multiple of 3"
+                len.is_multiple_of(2),
+                "The number of results from derive_generators must be a multiple of 2"
             );
-            let typ = Type::Array(
-                vec![Type::field(), Type::field(), Type::unsigned(1)].into(),
-                SemanticLength(len / 3),
-            );
+            let typ =
+                Type::Array(vec![Type::field(), Type::field()].into(), SemanticLength(len / 2));
             let result = make_array(dfg, results.into(), typ, block, call_stack);
             SimplifyResult::SimplifiedTo(result)
         } else {
@@ -790,7 +786,7 @@ mod tests {
                 separator = make_array b"DEFAULT_DOMAIN_SEPARATOR"
 
                 // This call was previously incorrectly simplified to something that returned `[Field; 3]`
-                result = call derive_pedersen_generators(separator, u32 0) -> [(Field, Field, u1); 1]
+                result = call derive_pedersen_generators(separator, u32 0) -> [(Field, Field); 1]
 
                 return result
             }
@@ -801,8 +797,8 @@ mod tests {
         brillig(inline) fn main f0 {
           b0():
             v15 = make_array b"DEFAULT_DOMAIN_SEPARATOR"
-            v19 = make_array [Field 3728882899078719075161482178784387565366481897740339799480980287259621149274, Field -9903063709032878667290627648209915537972247634463802596148419711785767431332, u1 0] : [(Field, Field, u1); 1]
-            return v19
+            v18 = make_array [Field 3728882899078719075161482178784387565366481897740339799480980287259621149274, Field -9903063709032878667290627648209915537972247634463802596148419711785767431332] : [(Field, Field); 1]
+            return v18
         }
         "#);
     }

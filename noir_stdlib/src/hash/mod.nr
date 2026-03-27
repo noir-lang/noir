@@ -1,11 +1,9 @@
 // Exposed only for usage in `std::meta`
 pub(crate) mod poseidon2;
 
-use crate::convert::Into;
 use crate::default::Default;
 use crate::embedded_curve_ops::{
-    EmbeddedCurvePoint, EmbeddedCurveScalar, InternalEmbeddedCurvePoint, multi_scalar_mul,
-    multi_scalar_mul_array_return,
+    EmbeddedCurvePoint, EmbeddedCurveScalar, multi_scalar_mul, multi_scalar_mul_array_return,
 };
 use crate::meta::derive_via;
 use crate::static_assert;
@@ -99,7 +97,7 @@ pub fn pedersen_hash_with_separator<let N: u32>(input: [Field; N], separator: u3
     let length_generator: [EmbeddedCurvePoint; 1] =
         derive_generators("pedersen_hash_length".as_bytes(), 0);
     generators[N] = length_generator[0];
-    multi_scalar_mul_array_return(generators.map(Into::into), scalars, true)[0].x
+    multi_scalar_mul_array_return(generators, scalars, true)[0].x
 }
 
 #[field(bn254)]
@@ -110,7 +108,7 @@ pub fn derive_generators<let N: u32, let M: u32>(
 ) -> [EmbeddedCurvePoint; N] {
     crate::assert_constant(domain_separator_bytes);
     crate::assert_constant(starting_index);
-    __derive_generators(domain_separator_bytes, starting_index).map(Into::into)
+    __derive_generators(domain_separator_bytes, starting_index)
 }
 
 #[builtin(derive_pedersen_generators)]
@@ -118,7 +116,7 @@ pub fn derive_generators<let N: u32, let M: u32>(
 fn __derive_generators<let N: u32, let M: u32>(
     domain_separator_bytes: [u8; M],
     starting_index: u32,
-) -> [InternalEmbeddedCurvePoint; N] {}
+) -> [EmbeddedCurvePoint; N] {}
 
 #[field(bn254)]
 // Decompose the input 'bn254 scalar' into two 128 bits limbs.
