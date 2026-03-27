@@ -90,19 +90,26 @@ struct TaintedDescendants {
     /// Inputs of the call.
     ///
     /// To consider the call constrained, the constraint must be on a value which has
-    /// an ancestry that intersects with the ancestry of the arguments.
+    /// an ancestry that intersects with the ancestry of an argument.
     arguments: Vec<ValueId>,
-    /// Descendants of the individual outputs of the call.
+    /// Non-array outputs of the call.
     ///
-    /// To consider the call constrained, we have to find a constraint for every output,
-    /// such that the value the constraint is on is a descendant of that output.
-    results: HashMap<TaintedOutput, HashSet<ValueId>>,
+    /// To consider the output constrained, we have to find a constraint such that
+    /// the output is an ancestor of the constrained value.
+    singles: HashSet<ValueId>,
+    /// Array outputs of the call, tracked per element, accumulating their individual
+    /// dependencies.
+    ///
+    /// To consider an element constrained, we have to find a constraint such that
+    /// the constrained value appears in the descendants.
+    arrays: HashMap<(ValueId, u32), HashSet<ValueId>>,
 }
 
 impl TaintedDescendants {
     fn new(func: &Function, arguments: Vec<ValueId>, result_ids: &[ValueId]) -> Self {
         let max_array_size: u32 = crate::ssa::ir::dfg::MAX_ELEMENTS.try_into().unwrap();
-        let mut results = HashMap::new();
+        let mut singles = HashSet::new();
+        let mut arrays = HashMap::new();
         for result_id in result_ids {
             match func.dfg.try_get_array_length(*result_id) {
                 // If the result value is an array, create an empty descendant set for
@@ -110,45 +117,57 @@ impl TaintedDescendants {
                 // of the resulting sets for future reference
                 Some(length) if length.0 <= max_array_size => {
                     for i in 0..length.0 {
-                        results.insert(TaintedOutput::Array(*result_id, i), HashSet::new());
+                        arrays.insert((*result_id, i), HashSet::new());
                     }
                 }
                 // For very large arrays or non-arrays, treat the whole result as a single value
                 // to avoid memory/time issues when tracking individual elements
                 Some(_) | None => {
-                    // Not inserting the result into the dependencies because the ancestors
-                    // also do not contain self.
-                    results.insert(TaintedOutput::Single(*result_id), HashSet::new());
+                    singles.insert(*result_id);
                 }
             }
         }
-        Self { arguments, results }
+        Self { arguments, singles, arrays }
     }
 
     /// Check if there are any unconstrained results left.
     fn is_constrained(&self) -> bool {
-        self.results.is_empty()
+        self.singles.is_empty() && self.arrays.is_empty()
     }
 
     /// Try to constrain some of the outputs if:
     /// * the constraint is connected to any of the inputs of the call, and
     /// * the constraint is on a descendant of the output
     ///
+    /// Exceptions to this rule are:
+    /// * if there are no arguments (perhaps they were all numeric constants)
+    /// * if there is only one constrained value (must have been against a constant)
+    ///
     /// Return `true` if all outputs have been constrained.
     fn try_constrain(&mut self, constrained_values: &[ValueId], ancestors: &AncestorMap) -> bool {
         dbg!(&self);
         dbg!(&ancestors);
+
+        let is_against_const = constrained_values.len() == 1;
+        let is_const_args = self.arguments.is_empty();
+
         // Make sure this constraint has something to do with the inputs,
-        // unless all inputs were constants (resulting in empty args).
-        if !self.arguments.is_empty() && !self.ancestors_intersect(ancestors, constrained_values) {
+        // unless there are no inputs, or the output is against a constant.
+        if !is_against_const
+            && !is_const_args
+            && !self.ancestors_intersect(ancestors, constrained_values)
+        {
             return false;
         }
+
         // Remove any results that have been directly or indirectly constrained.
-        self.results.retain(|output, descendants| {
-            let constrained = constrained_values
-                .iter()
-                .any(|value| output.is_single(value) || descendants.contains(value));
-            !constrained
+        self.singles.retain(|output| {
+            !constrained_values.iter().any(|value| {
+                output == value || ancestors.get(value).map_or(false, |a| a.contains(output))
+            })
+        });
+        self.arrays.retain(|_, descendants| {
+            !constrained_values.iter().any(|value| descendants.contains(value))
         });
 
         self.is_constrained()
@@ -178,38 +197,11 @@ impl TaintedDescendants {
         false
     }
 
-    /// Add to the descendants of any result which is an ancestor of any of the arguments of an instruction.
-    fn extend_results(&mut self, arguments: &[ValueId], results: &[ValueId]) {
-        for (output, descendants) in self.results.iter_mut() {
-            if arguments.iter().any(|value| output.is_single(value) || descendants.contains(value))
-            {
-                descendants.extend(results);
-            }
-        }
-    }
-
     /// Add to the descendants of a particular array element.
     fn extend_array_result(&mut self, array: ValueId, index: u32, results: &[ValueId]) {
-        if let Some(descendants) = self.results.get_mut(&TaintedOutput::Array(array, index)) {
+        if let Some(descendants) = self.arrays.get_mut(&(array, index)) {
             descendants.extend(results);
         }
-    }
-}
-
-/// An output of a Brillig call we are looking to constrain.
-#[derive(Debug, Hash, PartialEq, Eq)]
-enum TaintedOutput {
-    /// We are looking for constraints a result as it was returned.
-    Single(ValueId),
-    /// When the output is a reasonably sized array, we are looking for constraints
-    /// on individual elements.
-    Array(ValueId, u32),
-}
-
-impl TaintedOutput {
-    /// Check if the output matches a single value.
-    fn is_single(&self, value_id: &ValueId) -> bool {
-        if let TaintedOutput::Single(single) = self { single == value_id } else { false }
     }
 }
 
@@ -333,19 +325,12 @@ impl Context {
                     // Look for ArrayGet instructions with a constant index,
                     // and if the array is the result of a tainted call,
                     // then add the result as a descendant of that particular index.
-                    let array_index = if let Instruction::ArrayGet { array, index } = instruction
+                    if let Instruction::ArrayGet { array, index } = instruction
                         && let Some(index) = func.dfg.get_numeric_constant(*index)
                         && let Some(index) = index.try_to_u32()
                     {
-                        Some((*array, index))
-                    } else {
-                        None
-                    };
-
-                    for tainted in self.tainted.values_mut() {
-                        tainted.extend_results(&arguments, &results);
-                        if let Some((array, index)) = array_index {
-                            tainted.extend_array_result(array, index, &results);
+                        for tainted in self.tainted.values_mut() {
+                            tainted.extend_array_result(*array, index, &results);
                         }
                     }
                 }
