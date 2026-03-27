@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["can_be_eliminated_if_unused","die_post_check","die_pre_check","should_remove_store"],"mod":["array_oob_checks","prune_dead_parameters"],"struct":["Context","DIEResult"]};
+window.SIDEBAR_ITEMS = {"fn":["can_be_eliminated_if_unused","die_post_check","is_local_allocate","must_remove_all_stores"],"mod":["array_oob_checks","prune_dead_parameters"],"struct":["Context","DIEResult"]};

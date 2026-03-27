@@ -296,7 +296,7 @@
 <a href=#296 id=296 data-nosnippet>296</a>
 <a href=#297 id=297 data-nosnippet>297</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
 <a href=#298 id=298 data-nosnippet>298</a>        <span class="comment">// DIE is necessary to fetch the block parameters liveness information
-<a href=#299 id=299 data-nosnippet>299</a>        </span><span class="kw">let </span>(ssa, die_result) = ssa.dead_instruction_elimination_inner(<span class="bool-val">false</span>);
+<a href=#299 id=299 data-nosnippet>299</a>        </span><span class="kw">let </span>(ssa, die_result) = ssa.dead_instruction_elimination_inner();
 <a href=#300 id=300 data-nosnippet>300</a>
 <a href=#301 id=301 data-nosnippet>301</a>        <span class="macro">assert!</span>(die_result.unused_parameters.len() == <span class="number">1</span>);
 <a href=#302 id=302 data-nosnippet>302</a>        <span class="kw">let </span>function = die_result
@@ -348,7 +348,7 @@
 <a href=#348 id=348 data-nosnippet>348</a>
 <a href=#349 id=349 data-nosnippet>349</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
 <a href=#350 id=350 data-nosnippet>350</a>        <span class="comment">// DIE is necessary to fetch the block parameters liveness information
-<a href=#351 id=351 data-nosnippet>351</a>        </span><span class="kw">let </span>(ssa, die_result) = ssa.dead_instruction_elimination_inner(<span class="bool-val">false</span>);
+<a href=#351 id=351 data-nosnippet>351</a>        </span><span class="kw">let </span>(ssa, die_result) = ssa.dead_instruction_elimination_inner();
 <a href=#352 id=352 data-nosnippet>352</a>
 <a href=#353 id=353 data-nosnippet>353</a>        <span class="macro">assert!</span>(die_result.unused_parameters.len() == <span class="number">1</span>);
 <a href=#354 id=354 data-nosnippet>354</a>        <span class="kw">let </span>function = die_result
@@ -370,7 +370,7 @@
 <a href=#370 id=370 data-nosnippet>370</a>        <span class="macro">assert_eq!</span>(b3_unused[<span class="number">0</span>].to_u32(), <span class="number">2</span>);
 <a href=#371 id=371 data-nosnippet>371</a>
 <a href=#372 id=372 data-nosnippet>372</a>        <span class="kw">let </span>ssa = ssa.prune_dead_parameters(<span class="kw-2">&amp;</span>die_result.unused_parameters);
-<a href=#373 id=373 data-nosnippet>373</a>        <span class="kw">let </span>(ssa, <span class="kw">_</span>) = ssa.dead_instruction_elimination_inner(<span class="bool-val">false</span>);
+<a href=#373 id=373 data-nosnippet>373</a>        <span class="kw">let </span>(ssa, <span class="kw">_</span>) = ssa.dead_instruction_elimination_inner();
 <a href=#374 id=374 data-nosnippet>374</a>
 <a href=#375 id=375 data-nosnippet>375</a>        <span class="comment">// We expect b3 to have no parameters anymore and both predecessors (b1 and b2)
 <a href=#376 id=376 data-nosnippet>376</a>        // should no longer pass any arguments to their terminator (which jumps to b3).
@@ -406,7 +406,7 @@
 <a href=#406 id=406 data-nosnippet>406</a>
 <a href=#407 id=407 data-nosnippet>407</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
 <a href=#408 id=408 data-nosnippet>408</a>        <span class="comment">// DIE is necessary to fetch the block parameters liveness information
-<a href=#409 id=409 data-nosnippet>409</a>        </span><span class="kw">let </span>(ssa, die_result) = ssa.dead_instruction_elimination_inner(<span class="bool-val">false</span>);
+<a href=#409 id=409 data-nosnippet>409</a>        </span><span class="kw">let </span>(ssa, die_result) = ssa.dead_instruction_elimination_inner();
 <a href=#410 id=410 data-nosnippet>410</a>
 <a href=#411 id=411 data-nosnippet>411</a>        <span class="macro">assert!</span>(die_result.unused_parameters.len() == <span class="number">1</span>);
 <a href=#412 id=412 data-nosnippet>412</a>        <span class="kw">let </span>function = die_result
@@ -450,7 +450,7 @@
 <a href=#450 id=450 data-nosnippet>450</a>
 <a href=#451 id=451 data-nosnippet>451</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
 <a href=#452 id=452 data-nosnippet>452</a>        <span class="comment">// DIE is necessary to fetch the block parameters liveness information
-<a href=#453 id=453 data-nosnippet>453</a>        </span><span class="kw">let </span>(ssa, die_result) = ssa.dead_instruction_elimination_inner(<span class="bool-val">false</span>);
+<a href=#453 id=453 data-nosnippet>453</a>        </span><span class="kw">let </span>(ssa, die_result) = ssa.dead_instruction_elimination_inner();
 <a href=#454 id=454 data-nosnippet>454</a>
 <a href=#455 id=455 data-nosnippet>455</a>        <span class="macro">assert!</span>(die_result.unused_parameters.len() == <span class="number">2</span>);
 <a href=#456 id=456 data-nosnippet>456</a>        <span class="kw">let </span>function = die_result
@@ -500,7 +500,7 @@
 <a href=#500 id=500 data-nosnippet>500</a>
 <a href=#501 id=501 data-nosnippet>501</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
 <a href=#502 id=502 data-nosnippet>502</a>        <span class="comment">// DIE is necessary to fetch the block parameters liveness information
-<a href=#503 id=503 data-nosnippet>503</a>        </span><span class="kw">let </span>(ssa, die_result) = ssa.dead_instruction_elimination_inner(<span class="bool-val">false</span>);
+<a href=#503 id=503 data-nosnippet>503</a>        </span><span class="kw">let </span>(ssa, die_result) = ssa.dead_instruction_elimination_inner();
 <a href=#504 id=504 data-nosnippet>504</a>        <span class="kw">let </span>ssa = ssa.prune_dead_parameters(<span class="kw-2">&amp;</span>die_result.unused_parameters);
 <a href=#505 id=505 data-nosnippet>505</a>        <span class="comment">// b0 in f1 has both parameters removed as it is not the program entry point
 <a href=#506 id=506 data-nosnippet>506</a>        // and we can rewrite its call site.
@@ -534,7 +534,7 @@
 <a href=#534 id=534 data-nosnippet>534</a>
 <a href=#535 id=535 data-nosnippet>535</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
 <a href=#536 id=536 data-nosnippet>536</a>        <span class="comment">// DIE is necessary to fetch the block parameters liveness information
-<a href=#537 id=537 data-nosnippet>537</a>        </span><span class="kw">let </span>(ssa, die_result) = ssa.dead_instruction_elimination_inner(<span class="bool-val">false</span>);
+<a href=#537 id=537 data-nosnippet>537</a>        </span><span class="kw">let </span>(ssa, die_result) = ssa.dead_instruction_elimination_inner();
 <a href=#538 id=538 data-nosnippet>538</a>        <span class="kw">let </span>ssa = ssa.prune_dead_parameters(<span class="kw-2">&amp;</span>die_result.unused_parameters);
 <a href=#539 id=539 data-nosnippet>539</a>        assert_normalized_ssa_equals(ssa, src);
 <a href=#540 id=540 data-nosnippet>540</a>    }
@@ -557,7 +557,7 @@
 <a href=#557 id=557 data-nosnippet>557</a>
 <a href=#558 id=558 data-nosnippet>558</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
 <a href=#559 id=559 data-nosnippet>559</a>        <span class="comment">// DIE is necessary to fetch the block parameters liveness information
-<a href=#560 id=560 data-nosnippet>560</a>        </span><span class="kw">let </span>(ssa, die_result) = ssa.dead_instruction_elimination_inner(<span class="bool-val">false</span>);
+<a href=#560 id=560 data-nosnippet>560</a>        </span><span class="kw">let </span>(ssa, die_result) = ssa.dead_instruction_elimination_inner();
 <a href=#561 id=561 data-nosnippet>561</a>        <span class="kw">let </span>ssa = ssa.prune_dead_parameters(<span class="kw-2">&amp;</span>die_result.unused_parameters);
 <a href=#562 id=562 data-nosnippet>562</a>        assert_normalized_ssa_equals(ssa, src);
 <a href=#563 id=563 data-nosnippet>563</a>    }
@@ -614,7 +614,7 @@
 <a href=#614 id=614 data-nosnippet>614</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
 <a href=#615 id=615 data-nosnippet>615</a>
 <a href=#616 id=616 data-nosnippet>616</a>        <span class="comment">// DIE is necessary to fetch the block parameters liveness information
-<a href=#617 id=617 data-nosnippet>617</a>        </span><span class="kw">let </span>(ssa, die_result) = ssa.dead_instruction_elimination_inner(<span class="bool-val">false</span>);
+<a href=#617 id=617 data-nosnippet>617</a>        </span><span class="kw">let </span>(ssa, die_result) = ssa.dead_instruction_elimination_inner();
 <a href=#618 id=618 data-nosnippet>618</a>
 <a href=#619 id=619 data-nosnippet>619</a>        <span class="macro">assert!</span>(die_result.unused_parameters.len() == <span class="number">1</span>);
 <a href=#620 id=620 data-nosnippet>620</a>        <span class="kw">let </span>function = die_result
@@ -638,7 +638,7 @@
 <a href=#638 id=638 data-nosnippet>638</a>
 <a href=#639 id=639 data-nosnippet>639</a>        <span class="kw">let </span>ssa = ssa.prune_dead_parameters(<span class="kw-2">&amp;</span>die_result.unused_parameters);
 <a href=#640 id=640 data-nosnippet>640</a>
-<a href=#641 id=641 data-nosnippet>641</a>        <span class="kw">let </span>(ssa, die_result) = ssa.dead_instruction_elimination_inner(<span class="bool-val">false</span>);
+<a href=#641 id=641 data-nosnippet>641</a>        <span class="kw">let </span>(ssa, die_result) = ssa.dead_instruction_elimination_inner();
 <a href=#642 id=642 data-nosnippet>642</a>
 <a href=#643 id=643 data-nosnippet>643</a>        <span class="macro">assert!</span>(die_result.unused_parameters.len() == <span class="number">1</span>);
 <a href=#644 id=644 data-nosnippet>644</a>        <span class="kw">let </span>function = die_result
@@ -679,7 +679,7 @@
 <a href=#679 id=679 data-nosnippet>679</a>
 <a href=#680 id=680 data-nosnippet>680</a>        <span class="comment">// Now check that calling the DIE -&gt; parameter pruning feedback loop produces the same result
 <a href=#681 id=681 data-nosnippet>681</a>        </span><span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-<a href=#682 id=682 data-nosnippet>682</a>        <span class="kw">let </span>ssa = ssa.dead_instruction_elimination_with_pruning(<span class="bool-val">false</span>);
+<a href=#682 id=682 data-nosnippet>682</a>        <span class="kw">let </span>ssa = ssa.dead_instruction_elimination();
 <a href=#683 id=683 data-nosnippet>683</a>        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r#"
 <a href=#684 id=684 data-nosnippet>684</a>        brillig(inline) predicate_pure fn main f0 {
 <a href=#685 id=685 data-nosnippet>685</a>          b0(v0: i16):
@@ -727,7 +727,7 @@
 <a href=#727 id=727 data-nosnippet>727</a>
 <a href=#728 id=728 data-nosnippet>728</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
 <a href=#729 id=729 data-nosnippet>729</a>        <span class="comment">// DIE is necessary to fetch the block parameters liveness information
-<a href=#730 id=730 data-nosnippet>730</a>        </span><span class="kw">let </span>(ssa, die_result) = ssa.dead_instruction_elimination_inner(<span class="bool-val">false</span>);
+<a href=#730 id=730 data-nosnippet>730</a>        </span><span class="kw">let </span>(ssa, die_result) = ssa.dead_instruction_elimination_inner();
 <a href=#731 id=731 data-nosnippet>731</a>        <span class="kw">let </span>ssa = ssa.prune_dead_parameters(<span class="kw-2">&amp;</span>die_result.unused_parameters);
 <a href=#732 id=732 data-nosnippet>732</a>
 <a href=#733 id=733 data-nosnippet>733</a>        <span class="comment">// Of b1's params, expect only `v2` above to get removed
