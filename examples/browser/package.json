@@ -8,7 +8,7 @@
     "test": "yarn build && playwright test browser.test.ts"
   },
   "dependencies": {
-    "@aztec/bb.js": "5.0.0-nightly.20260320",
+    "@aztec/bb.js": "5.0.0-nightly.20260324",
     "@noir-lang/noir_js": "workspace:*"
   },
   "devDependencies": {
