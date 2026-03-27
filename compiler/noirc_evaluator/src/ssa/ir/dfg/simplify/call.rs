@@ -1,11 +1,12 @@
 use noirc_errors::call_stack::CallStackId;
+use rustc_hash::FxHashMap as HashMap;
 use std::{collections::VecDeque, sync::Arc};
 
 use acvm::{
     AcirField as _, FieldElement,
     acir::{
         BlackBoxFunc,
-        brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength},
+        brillig::lengths::{ElementTypesLength, SemanticLength},
     },
 };
 use bn254_blackbox_solver::derive_generators;
@@ -16,7 +17,7 @@ use crate::{
     brillig::assert_u32,
     ssa::ir::{
         basic_block::BasicBlockId,
-        dfg::DataFlowGraph,
+        dfg::{DataFlowGraph, simplify::value_merger::ValueMerger},
         instruction::{Binary, BinaryOp, Endian, Hint, Instruction, Intrinsic},
         integer::IntegerConstant,
         types::{NumericType, Type},
@@ -115,9 +116,8 @@ pub(super) fn simplify_call(
             if let Some((array, array_type)) = array {
                 // Compute the resulting vector length
                 let inner_element_types = array_type.element_types();
-                let vector_length_value = dfg.try_get_vector_capacity(arguments[0]).unwrap();
-                let vector_length =
-                    dfg.make_constant(vector_length_value.0.into(), NumericType::length_type());
+                let length = array_type.array_size();
+                let vector_length = dfg.make_constant(length.into(), NumericType::length_type());
                 let new_vector =
                     make_array(dfg, array, Type::Vector(inner_element_types), block, call_stack);
                 SimplifyResult::SimplifiedToMultiple(vec![vector_length, new_vector])
@@ -131,22 +131,45 @@ pub(super) fn simplify_call(
                 if let Some(IntegerConstant::Unsigned { value: vector_len, .. }) =
                     dfg.get_integer_constant(arguments[0])
                 {
-                    let elements_size = vector_type.element_size();
-                    let semi_flattened_vector_len =
-                        SemanticLength(vector_len as u32) * elements_size;
-
                     // This simplification, which push back directly on the vector, only works if the real vector_len is the
-                    // the length of the vector (taking the elements size into account).
-                    if semi_flattened_vector_len == SemiFlattenedLength(vector.len() as u32) {
+                    // the length of the vector. For complex element types (tuples, nested arrays), each semantic
+                    // element maps to multiple SSA values, so we must compute the expected flat length.
+                    let is_acir = dfg.runtime().is_acir();
+                    let expected_len = if is_acir {
+                        let flat_stride: usize = vector_type
+                            .element_types()
+                            .iter()
+                            .map(|t| t.flattened_size().0 as usize)
+                            .sum();
+                        vector_len as usize * flat_stride
+                    } else {
+                        vector_len as usize * vector_type.element_size().0 as usize
+                    };
+                    if expected_len == vector.len() {
                         // Old code before implementing multiple vector mergers
                         for elem in &arguments[2..] {
-                            vector.push_back(*elem);
+                            let typ = dfg.type_of_value(*elem);
+                            if is_acir && matches!(typ, Type::Array(_, _) | Type::Vector(_)) {
+                                let scalars =
+                                    flatten_acir_array_to_scalars(*elem, dfg, block, call_stack);
+                                for scalar in scalars {
+                                    vector.push_back(scalar);
+                                }
+                            } else {
+                                vector.push_back(*elem);
+                            }
                         }
 
-                        let new_vector_length =
-                            increment_vector_length(arguments[0], dfg, block, call_stack);
+                        let new_vector_length = increment_vector_length(
+                            arguments[0],
+                            &vector_type,
+                            dfg,
+                            block,
+                            call_stack,
+                        );
 
-                        let new_vector = make_array(dfg, vector, vector_type, block, call_stack);
+                        let new_vector =
+                            make_array(dfg, vector, vector_type.clone(), block, call_stack);
                         return SimplifyResult::SimplifiedToMultiple(vec![
                             new_vector_length,
                             new_vector,
@@ -162,12 +185,25 @@ pub(super) fn simplify_call(
         Intrinsic::VectorPushFront => {
             let vector = dfg.get_array_constant(arguments[1]);
             if let Some((mut vector, vector_type)) = vector {
+                let is_acir = dfg.runtime().is_acir();
+
+                // Flatten elements before pushing for ACIR, since ACIR vectors
+                // store data in a flat representation.
+                // Push in reverse order so the first element ends up at the front.
                 for elem in arguments[2..].iter().rev() {
-                    vector.push_front(*elem);
+                    let typ = dfg.type_of_value(*elem);
+                    if is_acir && matches!(typ, Type::Array(_, _) | Type::Vector(_)) {
+                        let scalars = flatten_acir_array_to_scalars(*elem, dfg, block, call_stack);
+                        for scalar in scalars.into_iter().rev() {
+                            vector.push_front(scalar);
+                        }
+                    } else {
+                        vector.push_front(*elem);
+                    }
                 }
 
                 let new_vector_length =
-                    increment_vector_length(arguments[0], dfg, block, call_stack);
+                    increment_vector_length(arguments[0], &vector_type, dfg, block, call_stack);
 
                 let new_vector = make_array(dfg, vector, vector_type, block, call_stack);
                 SimplifyResult::SimplifiedToMultiple(vec![new_vector_length, new_vector])
@@ -200,15 +236,47 @@ pub(super) fn simplify_call(
 
             let vector = dfg.get_array_constant(arguments[1]);
             if let Some((mut vector, typ)) = vector {
-                let element_count = typ.element_size();
+                let is_acir = dfg.runtime().is_acir();
+                let element_types = typ.element_types();
 
-                // We must pop multiple elements in the case of a vector of tuples
-                let mut results = vecmap(0..element_count.to_usize(), |_| {
-                    vector.pop_front().expect("There are no elements in this vector to be removed")
-                });
+                // We must pop multiple elements in the case of a vector of tuples.
+                // In ACIR, array element types are stored flat so we must pop
+                // the flattened count and reconstruct arrays.
+                let mut results = Vec::new();
+                for element_type in element_types.iter() {
+                    if is_acir && matches!(element_type, Type::Array(_, _)) {
+                        let flat_typ = element_type.clone().flatten();
+                        let mut flat_values = Vec::with_capacity(flat_typ.len());
+                        for _ in &flat_typ {
+                            flat_values.push(
+                                vector
+                                    .pop_front()
+                                    .expect("There are no elements in this vector to be removed"),
+                            );
+                        }
+                        let make_arr = Instruction::MakeArray {
+                            elements: flat_values.into(),
+                            typ: element_type.clone(),
+                        };
+                        let reconstructed = dfg
+                            .insert_instruction_and_results(make_arr, block, None, call_stack)
+                            .first();
+                        results.push(reconstructed);
+                    } else {
+                        let flat_size =
+                            if is_acir { element_type.flattened_size().0 as usize } else { 1 };
+                        for _ in 0..flat_size {
+                            results.push(
+                                vector
+                                    .pop_front()
+                                    .expect("There are no elements in this vector to be removed"),
+                            );
+                        }
+                    }
+                }
 
                 let new_vector_length =
-                    decrement_vector_length(arguments[0], dfg, block, call_stack);
+                    decrement_vector_length(arguments[0], &typ, dfg, block, call_stack);
 
                 results.push(new_vector_length);
 
@@ -225,8 +293,22 @@ pub(super) fn simplify_call(
             let vector = dfg.get_array_constant(arguments[1]);
             let index = dfg.get_numeric_constant(arguments[2]);
             if let (Some((mut vector, typ)), Some(index)) = (vector, index) {
-                let elements = &arguments[3..];
-                let mut index = index.to_u128() as usize * elements.len();
+                let is_acir = dfg.runtime().is_acir();
+
+                // Flatten the elements to insert for ACIR, since ACIR vectors
+                // store data in a flat representation.
+                let mut flat_elements = Vec::new();
+                for elem in &arguments[3..] {
+                    let elem_typ = dfg.type_of_value(*elem);
+                    if is_acir && matches!(elem_typ, Type::Array(_, _) | Type::Vector(_)) {
+                        let scalars = flatten_acir_array_to_scalars(*elem, dfg, block, call_stack);
+                        flat_elements.extend(scalars);
+                    } else {
+                        flat_elements.push(*elem);
+                    }
+                }
+
+                let mut index = index.to_u128() as usize * flat_elements.len();
 
                 // Do not simplify the index is greater than the vector capacity
                 // or else we will panic inside of the im::Vector insert method
@@ -236,13 +318,13 @@ pub(super) fn simplify_call(
                     return SimplifyResult::None;
                 }
 
-                for elem in &arguments[3..] {
-                    vector.insert(index, *elem);
+                for elem in flat_elements {
+                    vector.insert(index, elem);
                     index += 1;
                 }
 
                 let new_vector_length =
-                    increment_vector_length(arguments[0], dfg, block, call_stack);
+                    increment_vector_length(arguments[0], &typ, dfg, block, call_stack);
 
                 let new_vector = make_array(dfg, vector, typ, block, call_stack);
                 SimplifyResult::SimplifiedToMultiple(vec![new_vector_length, new_vector])
@@ -261,9 +343,17 @@ pub(super) fn simplify_call(
             let vector = dfg.get_array_constant(arguments[1]);
             let index = dfg.get_numeric_constant(arguments[2]);
             if let (Some((mut vector, typ)), Some(index)) = (vector, index) {
-                let element_count = typ.element_size().to_usize();
-                let mut results = Vec::with_capacity(element_count + 1);
-                let index = index.to_u128() as usize * element_count;
+                let is_acir = dfg.runtime().is_acir();
+                let element_types = typ.element_types();
+
+                // In ACIR, array element types are stored flat.
+                let flat_element_count: usize = if is_acir {
+                    element_types.iter().map(|t| t.flattened_size().0 as usize).sum()
+                } else {
+                    element_types.len()
+                };
+                let mut results = Vec::with_capacity(flat_element_count + 2);
+                let index = index.to_u128() as usize * flat_element_count;
 
                 // Do not simplify if the index is not less than the vector capacity
                 // or else we will panic inside of the im::Vector remove method.
@@ -273,15 +363,35 @@ pub(super) fn simplify_call(
                     return SimplifyResult::None;
                 }
 
-                for _ in 0..element_count {
-                    results.push(vector.remove(index));
+                for element_type in element_types.iter() {
+                    if is_acir && matches!(element_type, Type::Array(_, _)) {
+                        let flat_typ = element_type.clone().flatten();
+                        let mut flat_values = Vec::with_capacity(flat_typ.len());
+                        for _ in &flat_typ {
+                            flat_values.push(vector.remove(index));
+                        }
+                        let make_arr = Instruction::MakeArray {
+                            elements: flat_values.into(),
+                            typ: element_type.clone(),
+                        };
+                        let reconstructed = dfg
+                            .insert_instruction_and_results(make_arr, block, None, call_stack)
+                            .first();
+                        results.push(reconstructed);
+                    } else {
+                        let flat_size =
+                            if is_acir { element_type.flattened_size().0 as usize } else { 1 };
+                        for _ in 0..flat_size {
+                            results.push(vector.remove(index));
+                        }
+                    }
                 }
+
+                let new_vector_length =
+                    decrement_vector_length(arguments[0], &typ, dfg, block, call_stack);
 
                 let new_vector = make_array(dfg, vector, typ, block, call_stack);
                 results.insert(0, new_vector);
-
-                let new_vector_length =
-                    decrement_vector_length(arguments[0], dfg, block, call_stack);
 
                 results.insert(0, new_vector_length);
 
@@ -462,6 +572,29 @@ fn make_array(
     dfg.insert_instruction_and_results(instruction, block, None, call_stack).first()
 }
 
+/// For an ACIR array/vector value, emit ArrayGets to extract each flattened scalar.
+/// Returns the flat scalar ValueIds in order.
+fn flatten_acir_array_to_scalars(
+    array: ValueId,
+    dfg: &mut DataFlowGraph,
+    block: BasicBlockId,
+    call_stack: CallStackId,
+) -> Vec<ValueId> {
+    let typ = dfg.type_of_value(array);
+    let flat_typ = typ.flatten();
+    flat_typ
+        .into_iter()
+        .enumerate()
+        .map(|(i, scalar_typ)| {
+            assert!(matches!(scalar_typ, Type::Numeric(_)));
+            let index = dfg.make_constant(i.into(), NumericType::length_type());
+            let get = Instruction::ArrayGet { array, index };
+            dfg.insert_instruction_and_results(get, block, Some(vec![scalar_typ]), call_stack)
+                .first()
+        })
+        .collect()
+}
+
 /// Vectors have a tuple structure (vector length, vector contents) to enable logic
 /// that uses dynamic vector lengths (such as with merging vectors in the flattening pass).
 /// This method codegens an update to the vector length.
@@ -471,11 +604,17 @@ fn make_array(
 /// and not a flattened length used internally to represent arrays of tuples.
 fn update_vector_length(
     vector_len: ValueId,
+    _element_type: &Type,
     dfg: &mut DataFlowGraph,
     operator: BinaryOp,
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> ValueId {
+    // let flat_element_size = u128::from(element_type
+    //         .element_types()
+    //         .iter()
+    //         .map(|typ| typ.flattened_size())
+    //         .sum::<u32>());
     let one = dfg.make_constant(FieldElement::one(), NumericType::length_type());
     let instruction = Instruction::Binary(Binary { lhs: vector_len, operator, rhs: one });
     dfg.insert_instruction_and_results(instruction, block, None, call_stack).first()
@@ -483,21 +622,37 @@ fn update_vector_length(
 
 fn increment_vector_length(
     vector_len: ValueId,
+    element_type: &Type,
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> ValueId {
-    update_vector_length(vector_len, dfg, BinaryOp::Add { unchecked: false }, block, call_stack)
+    update_vector_length(
+        vector_len,
+        element_type,
+        dfg,
+        BinaryOp::Add { unchecked: false },
+        block,
+        call_stack,
+    )
 }
 
 fn decrement_vector_length(
     vector_len: ValueId,
+    element_type: &Type,
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> ValueId {
     // Simplifications only run if the length is a known non-zero constant, so the subtraction should never overflow.
-    update_vector_length(vector_len, dfg, BinaryOp::Sub { unchecked: true }, block, call_stack)
+    update_vector_length(
+        vector_len,
+        element_type,
+        dfg,
+        BinaryOp::Sub { unchecked: true },
+        block,
+        call_stack,
+    )
 }
 
 /// Simplify a vector push back when the length is not known to equal capacity, ie. we don't
@@ -518,34 +673,124 @@ fn simplify_vector_push_back(
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> SimplifyResult {
-    // TODO(#2752): We need to handle the element_type size to appropriately handle vectors of complex types.
-    // This is reliant on dynamic indices of non-homogenous vectors also being implemented.
+    let is_acir = dfg.runtime().is_acir();
+
+    // This simplification only works for simple element types (single SSA value per element).
+    // Complex types have multiple SSA values per element, so the ArraySet at a single
+    // index can't correctly update them. For ACIR flat arrays the semantic index doesn't
+    // match the flat index either, making the merge incorrect.
     if element_type.element_size() != ElementTypesLength(1) {
         return SimplifyResult::None;
     }
-    assert_eq!(arguments.len(), 3, "should only push a single item");
+    let capacity = dfg.make_constant((vector.len() as u128).into(), NumericType::length_type());
 
-    let new_vector_length = increment_vector_length(arguments[0], dfg, block, call_stack);
+    let length = if is_acir {
+        let flat_element_size = u128::from(
+            element_type
+                .clone()
+                .element_types()
+                .iter()
+                .map(|typ| typ.flattened_size().0)
+                .sum::<u32>(),
+        );
 
-    vector.push_back(arguments[2]);
+        // The capacity must be an integer so that we can compare it against the slice length
+        let flat_element_size =
+            dfg.make_constant(flat_element_size.into(), NumericType::length_type());
+        let flat_len = Instruction::Binary(Binary {
+            lhs: arguments[0],
+            operator: BinaryOp::Mul { unchecked: true },
+            rhs: flat_element_size,
+        });
 
-    let extended_vector = make_array(dfg, vector, element_type, block, call_stack);
-
-    // Set the value at the semantic length: if the vector had extra capacity, this will set the first
-    // padding to the item we wanted to push. By doing this on the extended vector, we guarantee that
-    // there will be extra capacity. If we tried to do this on the original, we could get Index OOB if
-    // the capacity and the size were the same.
-    let set_last_vector_instr = Instruction::ArraySet {
-        array: extended_vector,
-        index: arguments[0],
-        value: arguments[2],
-        mutable: false,
+        dfg.insert_instruction_and_results(flat_len, block, None, call_stack).first()
+    } else {
+        arguments[0]
     };
 
-    let set_last_vector =
-        dfg.insert_instruction_and_results(set_last_vector_instr, block, None, call_stack).first();
+    let len_equals_capacity_instr =
+        Instruction::Binary(Binary { lhs: length, operator: BinaryOp::Eq, rhs: capacity });
+    let len_equals_capacity = dfg
+        .insert_instruction_and_results(len_equals_capacity_instr, block, None, call_stack)
+        .first();
+    let len_not_equals_capacity_instr = Instruction::Not(len_equals_capacity);
+    let len_not_equals_capacity = dfg
+        .insert_instruction_and_results(len_not_equals_capacity_instr, block, None, call_stack)
+        .first();
 
-    SimplifyResult::SimplifiedToMultiple(vec![new_vector_length, set_last_vector])
+    let new_vector_length =
+        increment_vector_length(arguments[0], &element_type, dfg, block, call_stack);
+
+    for elem in &arguments[2..] {
+        let typ = dfg.type_of_value(*elem);
+        if is_acir && matches!(typ, Type::Array(_, _) | Type::Vector(_)) {
+            let scalars = flatten_acir_array_to_scalars(*elem, dfg, block, call_stack);
+            for scalar in scalars {
+                vector.push_back(scalar);
+            }
+        } else {
+            vector.push_back(*elem);
+        }
+    }
+    let slice_size = SemanticLength(vector.len() as u32);
+
+    let new_vector = make_array(dfg, vector, element_type, block, call_stack);
+
+    let set_last_vector_value = if is_acir && dfg.type_of_value(arguments[2]).contains_an_array() {
+        // For flat nested arrays, extract scalars and chain ArraySets at flat offsets.
+        let scalars = flatten_acir_array_to_scalars(arguments[2], dfg, block, call_stack);
+        let mut current_array = new_vector;
+        for (offset, scalar) in scalars.into_iter().enumerate() {
+            let offset_val = dfg.make_constant(offset.into(), NumericType::length_type());
+            let flat_index_instr = Instruction::Binary(Binary {
+                lhs: length,
+                operator: BinaryOp::Add { unchecked: true },
+                rhs: offset_val,
+            });
+            let flat_index = dfg
+                .insert_instruction_and_results(flat_index_instr, block, None, call_stack)
+                .first();
+
+            let set_instr = Instruction::ArraySet {
+                array: current_array,
+                index: flat_index,
+                value: scalar,
+                mutable: false,
+            };
+            current_array =
+                dfg.insert_instruction_and_results(set_instr, block, None, call_stack).first();
+        }
+        current_array
+    } else {
+        // Simple element or Brillig — single ArraySet at semantic index
+        let set_instr = Instruction::ArraySet {
+            array: new_vector,
+            index: arguments[0],
+            value: arguments[2],
+            mutable: false,
+        };
+        dfg.insert_instruction_and_results(set_instr, block, None, call_stack).first()
+    };
+
+    let mut vector_sizes = HashMap::default();
+    vector_sizes.insert(set_last_vector_value, slice_size);
+    vector_sizes.insert(new_vector, slice_size);
+
+    let mut value_merger = ValueMerger::new(dfg, block, &vector_sizes, call_stack, None);
+
+    let Ok(new_vector) = value_merger.merge_values(
+        len_not_equals_capacity,
+        len_equals_capacity,
+        set_last_vector_value,
+        new_vector,
+    ) else {
+        // If we were to percolate up the error here, it'd get to insert_instruction and eventually
+        // all of ssa. Instead we just choose not to simplify the vector call since this should
+        // be a rare case.
+        return SimplifyResult::None;
+    };
+
+    SimplifyResult::SimplifiedToMultiple(vec![new_vector_length, new_vector])
 }
 
 fn simplify_vector_pop_back(
@@ -556,14 +801,25 @@ fn simplify_vector_pop_back(
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> SimplifyResult {
+    let is_acir = dfg.runtime().is_acir();
     let element_types = vector_type.element_types();
     let element_count = element_types.len();
     let mut results = VecDeque::with_capacity(element_count + 1);
 
-    let new_vector_length = decrement_vector_length(arguments[0], dfg, block, call_stack);
+    let new_vector_length =
+        decrement_vector_length(arguments[0], &vector_type, dfg, block, call_stack);
+
+    // In ACIR, vectors with array element types store data flat.
+    // E.g. [[u8; 2]] with element_types = [[u8; 2]] has 2 flat entries per logical element.
+    // In Brillig, element_count entries per logical element is correct.
+    let flat_element_count: usize = if is_acir {
+        element_types.iter().map(|typ| typ.flattened_size().0 as usize).sum()
+    } else {
+        element_count
+    };
 
     let element_size =
-        dfg.make_constant((element_count as u128).into(), NumericType::length_type());
+        dfg.make_constant((flat_element_count as u128).into(), NumericType::length_type());
     // Compute the flattened length doing an unchecked mul
     // (it shouldn't overflow because it would have overflowed before when the vector was created)
     let flattened_len_instr =
@@ -574,16 +830,54 @@ fn simplify_vector_pop_back(
     // We must pop multiple elements in the case of a vector of tuples
     // Iterating through element types in reverse here since we're popping from the end
     for element_type in element_types.iter().rev() {
-        flattened_len = decrement_vector_length(flattened_len, dfg, block, call_stack);
-        let get_last_elem_instr =
-            Instruction::ArrayGet { array: arguments[1], index: flattened_len };
+        let flat_size = if is_acir { element_type.flattened_size().0 as usize } else { 1 };
 
-        let element_type = Some(vec![element_type.clone()]);
-        let get_last_elem = dfg
-            .insert_instruction_and_results(get_last_elem_instr, block, element_type, call_stack)
-            .first();
-        results.push_front(get_last_elem);
-        vector.pop_back();
+        if is_acir && matches!(element_type, Type::Array(_, _)) {
+            // For ACIR with array element types, we need to pop the flat scalar values
+            // and reconstruct the array using MakeArray.
+            let flat_typ = element_type.clone().flatten();
+            let mut flat_values = VecDeque::with_capacity(flat_size);
+            for typ in flat_typ.iter().rev() {
+                flattened_len =
+                    decrement_vector_length(flattened_len, &vector_type, dfg, block, call_stack);
+                let get_elem_instr =
+                    Instruction::ArrayGet { array: arguments[1], index: flattened_len };
+                let typevars = Some(vec![typ.clone()]);
+                let get_elem = dfg
+                    .insert_instruction_and_results(get_elem_instr, block, typevars, call_stack)
+                    .first();
+                flat_values.push_front(get_elem);
+                vector.pop_back();
+            }
+            // Reconstruct the array from flat values
+            let make_arr = Instruction::MakeArray {
+                elements: flat_values.into_iter().collect(),
+                typ: element_type.clone(),
+            };
+            let reconstructed =
+                dfg.insert_instruction_and_results(make_arr, block, None, call_stack).first();
+            results.push_front(reconstructed);
+        } else {
+            for _ in 0..flat_size {
+                flattened_len =
+                    decrement_vector_length(flattened_len, &vector_type, dfg, block, call_stack);
+            }
+            let get_last_elem_instr =
+                Instruction::ArrayGet { array: arguments[1], index: flattened_len };
+            let element_type_var = Some(vec![element_type.clone()]);
+            let get_last_elem = dfg
+                .insert_instruction_and_results(
+                    get_last_elem_instr,
+                    block,
+                    element_type_var,
+                    call_stack,
+                )
+                .first();
+            results.push_front(get_last_elem);
+            for _ in 0..flat_size {
+                vector.pop_back();
+            }
+        }
     }
 
     let new_vector = make_array(dfg, vector, vector_type, block, call_stack);
@@ -937,6 +1231,34 @@ mod tests {
     }
 
     #[test]
+    fn simplifies_vector_push_front_with_nested_array_in_acir() {
+        // Regression test: VectorPushFront simplification was missing
+        // ACIR flattening. Pushing a [Field; 3] element to a flat [[Field; 3]] vector
+        // must flatten the element into individual scalars rather than inserting
+        // the nested array ValueId as-is.
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [Field 10, Field 20, Field 30] : [Field; 3]
+            v1 = make_array [Field 1, Field 2, Field 3] : [[Field; 3]]
+            v2, v3 = call vector_push_front(u32 1, v1, v0) -> (u32, [[Field; 3]])
+            return v2, v3
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v3 = make_array [Field 10, Field 20, Field 30] : [Field; 3]
+            v7 = make_array [Field 1, Field 2, Field 3] : [[Field; 3]]
+            v8 = make_array [Field 10, Field 20, Field 30, Field 1, Field 2, Field 3] : [[Field; 3]]
+            return u32 2, v8
+        }
+        ");
+    }
+
+    #[test]
     fn can_handle_zero_len_vector() {
         let src = r#"
         acir(inline) fn main f0 {
@@ -1003,6 +1325,62 @@ mod tests {
     }
 
     #[test]
+    fn simplifies_vector_push_back_nested_array_acir() {
+        // Pushing a [Field; 3] element to a flat [[Field; 3]] vector at capacity.
+        // The fast path should fire and flatten the element into the vector.
+        let src = r#"
+        acir(inline) fn main func {
+          b0():
+            v0 = make_array [Field 10, Field 20, Field 30] : [Field; 3]
+            v1 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [[Field; 3]]
+            v2, v3 = call vector_push_back(u32 2, v1, v0) -> (u32, [[Field; 3]])
+            return v2, v3
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v3 = make_array [Field 10, Field 20, Field 30] : [Field; 3]
+            v10 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [[Field; 3]]
+            v11 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6, Field 10, Field 20, Field 30] : [[Field; 3]]
+            return u32 3, v11
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_vector_push_back_nested_array_acir_slow_path() {
+        // Pushing a [Field; 3] element to a flat [[Field; 3]] vector where semantic_len < capacity.
+        // semantic_len=2, capacity=3 (9 flat / 3 stride), so the slow path fires.
+        let src = r#"
+        acir(inline) fn main func {
+          b0():
+            v0 = make_array [Field 10, Field 20, Field 30] : [Field; 3]
+            v1 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6, Field 7, Field 8, Field 9] : [[Field; 3]]
+            v2, v3 = call vector_push_back(u32 2, v1, v0) -> (u32, [[Field; 3]])
+            return v2, v3
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v3 = make_array [Field 10, Field 20, Field 30] : [Field; 3]
+            v13 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6, Field 7, Field 8, Field 9] : [[Field; 3]]
+            v14 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6, Field 7, Field 8, Field 9, Field 10, Field 20, Field 30] : [[Field; 3]]
+            v15 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6, Field 10, Field 8, Field 9, Field 10, Field 20, Field 30] : [[Field; 3]]
+            v16 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6, Field 10, Field 20, Field 9, Field 10, Field 20, Field 30] : [[Field; 3]]
+            v17 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6, Field 10, Field 20, Field 30, Field 10, Field 20, Field 30] : [[Field; 3]]
+            v18 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6, Field 10, Field 20, Field 30, Field 10, Field 20, Field 30] : [[Field; 3]]
+            return u32 3, v18
+        }
+        ");
+    }
+
+    #[test]
     fn does_not_simplify_vector_push_back_from_make_array_if_length_different_from_capacity_and_complex()
      {
         // Here the semantic length is different from the vector capacity.
@@ -1050,7 +1428,8 @@ mod tests {
           b0():
             v3 = make_array [Field 1, Field 2, Field 3] : [Field]
             v5 = make_array [Field 1, Field 2, Field 3, Field 5] : [Field]
-            v7 = array_set v5, index u32 1, value Field 5
+            v6 = make_array [Field 1, Field 5, Field 3, Field 5] : [Field]
+            v7 = make_array [Field 1, Field 5, Field 3, Field 5] : [Field]
             return u32 2, v7
         }
         ");
@@ -1076,10 +1455,31 @@ mod tests {
         acir(inline) fn main f0 {
           b0(v0: u32):
             v3 = make_array [Field 3, Field 4] : [Field]
-            v5 = add v0, u32 1
-            v7 = make_array [Field 3, Field 4, Field 5] : [Field]
-            v8 = array_set v7, index v0, value Field 5
-            return v5, v8
+            v5 = eq v0, u32 2
+            v6 = not v5
+            v8 = add v0, u32 1
+            v10 = make_array [Field 3, Field 4, Field 5] : [Field]
+            v11 = array_set v10, index v0, value Field 5
+            v13 = array_get v11, index u32 0 -> Field
+            v14 = cast v6 as Field
+            v15 = cast v5 as Field
+            v16 = mul v14, v13
+            v17 = mul v15, Field 3
+            v18 = add v16, v17
+            v19 = array_get v11, index u32 1 -> Field
+            v20 = cast v6 as Field
+            v21 = cast v5 as Field
+            v22 = mul v20, v19
+            v23 = mul v21, Field 4
+            v24 = add v22, v23
+            v25 = array_get v11, index u32 2 -> Field
+            v26 = cast v6 as Field
+            v27 = cast v5 as Field
+            v28 = mul v26, v25
+            v29 = mul v27, Field 5
+            v30 = add v28, v29
+            v31 = make_array [v18, v24, v30] : [Field]
+            return v8, v31
         }
         ");
     }

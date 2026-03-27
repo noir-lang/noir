@@ -100,7 +100,7 @@
 
 use std::collections::hash_map::Entry;
 
-use acvm::acir::brillig::lengths::SemanticLength;
+use acvm::acir::brillig::lengths::{FlattenedLength, SemanticLength};
 use acvm::{AcirField, FieldElement};
 use rustc_hash::FxHashMap as HashMap;
 
@@ -291,15 +291,35 @@ impl Context {
                 self.set_capacity(context.dfg, old, new, |c| c);
             }
             SizeChange::Inc { old, new } => {
+                let element_stride: u32 = context
+                    .dfg
+                    .type_of_value(old)
+                    .element_types()
+                    .iter()
+                    .map(|elem| elem.flattened_size())
+                    .sum::<FlattenedLength>()
+                    .0;
                 self.set_capacity(context.dfg, old, new, |c| {
                     // Checked addition because increasing the capacity must increase it (cannot wrap around or saturate).
-                    SemanticLength(c.0.checked_add(1).expect("Vector capacity overflow"))
+                    SemanticLength(
+                        c.0.checked_add(element_stride).expect("Vector capacity overflow"),
+                    )
                 });
             }
             SizeChange::Dec { old, new } => {
+                let element_stride: u32 = context
+                    .dfg
+                    .type_of_value(old)
+                    .element_types()
+                    .iter()
+                    .map(|elem| elem.flattened_size())
+                    .sum::<FlattenedLength>()
+                    .0;
                 // We use a saturating sub here as calling `pop_front` or `pop_back` on a zero-length vector
                 // would otherwise underflow.
-                self.set_capacity(context.dfg, old, new, |c| SemanticLength(c.0.saturating_sub(1)));
+                self.set_capacity(context.dfg, old, new, |c| {
+                    SemanticLength(c.0.saturating_sub(element_stride))
+                });
             }
             SizeChange::Many(changes) => {
                 for change in changes {
@@ -363,10 +383,17 @@ impl Context {
             | Intrinsic::VectorRemove
             | Intrinsic::VectorPopFront => {
                 if let Some(const_len) = dfg.get_numeric_constant(arguments[0]) {
-                    self.vector_sizes.insert(
-                        arguments[1],
-                        SemanticLength(const_len.try_to_u32().expect("Type should be u32")),
-                    );
+                    let semantic_len = const_len.try_to_u32().expect("Type should be u32");
+                    // Convert semantic length to flat length since vector_sizes stores flat counts
+                    let element_stride: u32 = dfg
+                        .type_of_value(arguments[1])
+                        .element_types()
+                        .iter()
+                        .map(|elem| elem.flattened_size())
+                        .sum::<FlattenedLength>()
+                        .0;
+                    self.vector_sizes
+                        .insert(arguments[1], SemanticLength(semantic_len * element_stride));
                 }
             }
             Intrinsic::Hint(Hint::BlackBox) => {
@@ -380,10 +407,16 @@ impl Context {
                     }
                     assert!(matches!(arguments_types[i - 1], Type::Numeric(_)));
                     if let Some(const_len) = dfg.get_numeric_constant(arguments[i - 1]) {
-                        self.vector_sizes.insert(
-                            *argument,
-                            SemanticLength(const_len.try_to_u32().expect("Type should be u32")),
-                        );
+                        let semantic_len = const_len.try_to_u32().expect("Type should be u32");
+                        let element_stride: u32 = dfg
+                            .type_of_value(*argument)
+                            .element_types()
+                            .iter()
+                            .map(|elem| elem.flattened_size())
+                            .sum::<FlattenedLength>()
+                            .0;
+                        self.vector_sizes
+                            .insert(*argument, SemanticLength(semantic_len * element_stride));
                     }
                 }
             }
@@ -456,9 +489,7 @@ impl Context {
 
                 let mut changes = Vec::new();
                 for (i, argument) in arguments.iter().enumerate() {
-                    if self.vector_sizes.contains_key(argument)
-                        && matches!(arguments_types[i], Type::Vector(_))
-                    {
+                    if matches!(arguments_types[i], Type::Vector(_)) {
                         assert!(matches!(arguments_types[i - 1], Type::Numeric(_)));
                         let new = results[i];
                         changes.push(SizeChange::SetTo { old: *argument, new });
@@ -593,24 +624,26 @@ mod tests {
             v8 = array_set v5, index u32 1, value u32 3
             v9 = not v0
             enable_side_effects u1 1
-            v11 = array_get v1, index u32 0 -> u32
-            v12 = cast v0 as u32
-            v13 = cast v9 as u32
-            v14 = unchecked_mul v12, u32 2
+            v11 = array_get v8, index u32 0 -> u32
+            v12 = array_get v1, index u32 0 -> u32
+            v13 = cast v0 as u32
+            v14 = cast v9 as u32
             v15 = unchecked_mul v13, v11
-            v16 = unchecked_add v14, v15
-            v17 = array_get v1, index u32 1 -> u32
-            v18 = cast v0 as u32
-            v19 = cast v9 as u32
-            v20 = unchecked_mul v18, u32 3
-            v21 = unchecked_mul v19, v17
-            v22 = unchecked_add v20, v21
-            v23 = make_array [v16, v22] : [u32; 2]
+            v16 = unchecked_mul v14, v12
+            v17 = unchecked_add v15, v16
+            v18 = array_get v8, index u32 1 -> u32
+            v19 = array_get v1, index u32 1 -> u32
+            v20 = cast v0 as u32
+            v21 = cast v9 as u32
+            v22 = unchecked_mul v20, v18
+            v23 = unchecked_mul v21, v19
+            v24 = unchecked_add v22, v23
+            v25 = make_array [v17, v24] : [u32; 2]
             enable_side_effects v0
             enable_side_effects u1 1
-            v24 = add v16, v22
-            v26 = eq v24, u32 5
-            constrain v24 == u32 5
+            v26 = add v17, v24
+            v28 = eq v26, u32 5
+            constrain v26 == u32 5
             return
         }
         ");
@@ -662,25 +695,26 @@ mod tests {
             v5 = array_set v1, index u32 0, value u32 2
             v6 = not v0
             enable_side_effects u1 1
-            v8 = array_get v1, index u32 0 -> u32
-            v9 = cast v0 as u32
-            v10 = cast v6 as u32
-            v11 = unchecked_mul v9, u32 2
+            v8 = array_get v5, index u32 0 -> u32
+            v9 = array_get v1, index u32 0 -> u32
+            v10 = cast v0 as u32
+            v11 = cast v6 as u32
             v12 = unchecked_mul v10, v8
-            v13 = unchecked_add v11, v12
-            v15 = array_get v1, index u32 1 -> u32
+            v13 = unchecked_mul v11, v9
+            v14 = unchecked_add v12, v13
             v16 = array_get v1, index u32 1 -> u32
-            v17 = cast v0 as u32
-            v18 = cast v6 as u32
-            v19 = unchecked_mul v17, v15
+            v17 = array_get v1, index u32 1 -> u32
+            v18 = cast v0 as u32
+            v19 = cast v6 as u32
             v20 = unchecked_mul v18, v16
-            v21 = unchecked_add v19, v20
-            v22 = make_array [v13, v21] : [u32; 2]
+            v21 = unchecked_mul v19, v17
+            v22 = unchecked_add v20, v21
+            v23 = make_array [v14, v22] : [u32; 2]
             enable_side_effects v0
             enable_side_effects u1 1
-            v23 = add v13, v21
-            v25 = eq v23, u32 3
-            constrain v23 == u32 3
+            v24 = add v14, v22
+            v26 = eq v24, u32 3
+            constrain v24 == u32 3
             return
         }
         ");
@@ -728,11 +762,25 @@ mod tests {
             v15 = make_array [v14] : [Field]
             enable_side_effects v0
             enable_side_effects u1 1
-            v17 = add v11, u32 1
-            v18 = make_array [v14, v2] : [Field]
-            v19 = array_set v18, index v11, value v2
-            v20 = array_get v19, index u32 0 -> Field
-            constrain v20 == Field 1
+            v17 = eq v11, u32 1
+            v18 = not v17
+            v19 = add v11, u32 1
+            v20 = make_array [v14, v2] : [Field]
+            v21 = array_set v20, index v11, value v2
+            v22 = array_get v21, index u32 0 -> Field
+            v23 = cast v18 as Field
+            v24 = cast v17 as Field
+            v25 = mul v23, v22
+            v26 = mul v24, v14
+            v27 = add v25, v26
+            v28 = array_get v21, index u32 1 -> Field
+            v29 = cast v18 as Field
+            v30 = cast v17 as Field
+            v31 = mul v29, v28
+            v32 = mul v30, v2
+            v33 = add v31, v32
+            v34 = make_array [v27, v33] : [Field]
+            constrain v27 == Field 1
             return
         }
         ");

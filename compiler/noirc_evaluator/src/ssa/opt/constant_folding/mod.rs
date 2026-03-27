@@ -1764,7 +1764,7 @@ mod test {
             jmp b1(u32 0)
           b1(v1: u32):
             inc_rc v5
-            v8 = array_set v5, index u32 0, value u8 1
+            v8 = make_array [u8 1] : [u8; 1]
             v10 = lt v1, u32 5
             jmpif v10 then: b2(), else: b6()
           b2():
@@ -2814,6 +2814,74 @@ mod test {
 
         let folded = ssa.fold_constants_using_constraints(DEFAULT_MAX_ITER);
         folded.interpret(Vec::new()).unwrap();
+    }
+
+    #[test]
+    fn fold_brillig_call_returning_nested_array_for_acir() {
+        let src = "
+            acir(inline) fn main f0 {
+              b0():
+                v0 = call f1() -> [[u128; 3]; 1]
+                v1 = array_get v0, index u32 0 -> u128
+                v2 = cast v1 as u32
+                return v2
+            }
+
+            brillig(inline) fn make_array f1 {
+              b0():
+                v0 = make_array [u128 1, u128 2, u128 3] : [u128; 3]
+                v1 = make_array [v0] : [[u128; 3]; 1]
+                return v1
+            }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        // Before the fix this panics with:
+        //   "Can only cast numeric types, got Array(...)"
+        let ssa = ssa.fold_constants(MIN_ITER);
+        let ssa = ssa.remove_unreachable_functions();
+        // After the fix the Brillig call is inlined, the array_get resolves
+        // to u128 1, and the cast folds to u32 1.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v3 = make_array [u128 1, u128 2, u128 3] : [[u128; 3]; 1]
+            return u32 1
+        }
+        ");
+    }
+
+    #[test]
+    fn fold_brillig_call_with_nested_array_arg_from_acir() {
+        let src = "
+            acir(inline) fn main f0 {
+              b0():
+                v0 = make_array [u128 1, u128 2, u128 3] : [[u128; 3]; 1]
+                v1 = call f1(v0) -> u128
+                v2 = cast v1 as u32
+                return v2
+            }
+
+            brillig(inline) fn read_first f1 {
+              b0(v0: [[u128; 3]; 1]):
+                v1 = array_get v0, index u32 0 -> [u128; 3]
+                v2 = array_get v1, index u32 0 -> u128
+                return v2
+            }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        // Before the fix the Brillig interpreter receives flat elements
+        // for a nested array type, causing incorrect array access.
+        let ssa = ssa.fold_constants(MIN_ITER);
+        let ssa = ssa.remove_unreachable_functions();
+        // After the fix the args are unflattened for Brillig, the call is
+        // evaluated correctly, and the result folds to u32 1.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v3 = make_array [u128 1, u128 2, u128 3] : [[u128; 3]; 1]
+            return u32 1
+        }
+        ");
     }
 
     /// Regression test for MakeArray deduplication in brillig with loops.

@@ -1,0 +1,10 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(a: u128) {
+    let f: [(&mut str<0>, u128); 2] = [(&mut "", 1_u128), (&mut "", a)];
+    for i in 0_u32..2_u32 {
+        assert(f[i].1 <= 1_u128);
+    }
+}

@@ -566,6 +566,81 @@ impl Type {
         }
     }
 
+    pub fn is_vector(&self) -> bool {
+        matches!(self, Type::Vector(_))
+    }
+
+    pub fn is_u128(&self) -> bool {
+        matches!(self, Type::Integer(Signedness::Unsigned, IntegerBitSize::HundredTwentyEight))
+    }
+
+    pub fn is_field(&self) -> bool {
+        matches!(self, Type::Field)
+    }
+
+    pub fn is_reference(&self) -> bool {
+        matches!(self, Type::Reference(_, _))
+    }
+
+    pub fn element_types(self) -> Vec<Type> {
+        match self {
+            Type::Array(_, elements) => {
+                vec![elements.as_ref().clone()]
+            }
+            Type::Vector(elements) => {
+                vec![elements.as_ref().clone()]
+            }
+            Type::Tuple(elements) => elements,
+            Type::Reference(element, _) => {
+                vec![element.as_ref().clone()]
+            }
+            _ => {
+                panic!("expected array slice or tuple type but got {self}")
+            }
+        }
+    }
+
+    /// Returns the flattened size of a Type
+    ///
+    /// TODO: might want to move this to SSA gen context
+    pub fn flattened_size(&self) -> u32 {
+        match self {
+            Type::Array(len, elements) => elements.flattened_size() * len,
+            Type::Tuple(elements) => {
+                elements.iter().fold(0, |sum, elem| sum + elem.flattened_size())
+            }
+            // TODO: test using strings
+            Type::String(len) => *len,
+            Type::FmtString(len, fields) => {
+                *len // The actual fmt string field
+                + 1 // The number of fields to be formatted
+                + fields.flattened_size() // The encapsulated fields themselves
+            }
+            Type::Vector(_) => {
+                unimplemented!("ICE: cannot fetch flattened slice size");
+            }
+            // A reference wraps each SSA leaf of the inner type individually.
+            // For compound inner types (tuples), each field becomes its own reference,
+            // so we recurse. For atomic types (Field, Integer, Array, String, etc.),
+            // a reference is always 1 SSA value regardless of the inner type's ACIR
+            // flat size (e.g. &mut str<0> must count as 1, not 0).
+            Type::Reference(inner, mutability) => match inner.as_ref() {
+                Type::Tuple(fields) => fields.iter().fold(0, |sum, f| {
+                    sum + Type::Reference(Rc::new(f.clone()), *mutability).flattened_size()
+                }),
+                // Nested references: Reference(Reference(X)) has the same leaf count
+                // as Reference(X) since references distribute over leaves.
+                Type::Reference(deeper, _) => {
+                    Type::Reference(deeper.clone(), *mutability).flattened_size()
+                }
+                Type::Unit => 0,
+                _ => 1,
+            },
+            Type::Unit => 0,
+            _ => 1,
+        }
+    }
+
     /// Returns the element type of this array or vector
     pub fn array_element_type(&self) -> Option<&Type> {
         match self {

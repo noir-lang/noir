@@ -43,7 +43,7 @@ fn main(mut x: [Foo; 4], y: pub u32) {
     assert(x[y - 1].bar.inner == [106, 107, 108]);
     assert(x[y].bar.inner == [109, 110, 111]);
 
-    let foo_parent_one = FooParent { array: [0, 1, 2], foos: x };
+    let mut foo_parent_one = FooParent { array: [0, 1, 2], foos: x };
     let foo_parent_two = FooParent { array: [3, 4, 5], foos: x };
     let mut foo_parents = [foo_parent_one, foo_parent_two];
 
@@ -60,6 +60,8 @@ fn main(mut x: [Foo; 4], y: pub u32) {
     } else {
         foo_parents[y - 2].foos[y - 2].b = [20, 19, 18];
     }
+    assert(foo_parents[1].foos[1].b[0] == 20);
+
     assert(foo_parents[1].foos[1].b == [20, 19, 18]);
 
     assert(foo_parents[1].foos[1].b[2] == 18);

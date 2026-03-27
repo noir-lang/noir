@@ -1,0 +1,13 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+global G: [[u8; 2]] = @[[76, 78]];
+
+fn main(mut b: (bool, [u8; 2])) -> pub [u8; 2] {
+    b = {
+        let i: ([[u8; 2]], [u8; 2]) = G.pop_back();
+        (b.0, i.1)
+    };
+    b.1
+}

@@ -368,7 +368,9 @@ impl<'a> Context<'a> {
             let typ = dfg.type_of_value(param_id);
             let value = self.convert_ssa_block_param(&typ)?;
             match &value {
-                AcirValue::Var(_, _) => (),
+                AcirValue::Var(_, _) => {
+                    self.ssa_values.insert(param_id, value);
+                }
                 AcirValue::Array(_) => {
                     let block_id = self.block_id(param_id);
                     let len = if matches!(typ, Type::Array(_, _)) {
@@ -382,12 +384,17 @@ impl<'a> Context<'a> {
                         .into());
                     };
                     self.initialize_array(block_id, len, Some(value.clone()))?;
+                    let flat_value = value
+                        .flatten()
+                        .into_iter()
+                        .map(|(var, typ)| AcirValue::Var(var, typ))
+                        .collect::<im::Vector<_>>();
+                    self.ssa_values.insert(param_id, AcirValue::Array(flat_value));
                 }
                 AcirValue::DynamicArray(_) => unreachable!(
                     "The dynamic array type is created in Acir gen and therefore cannot be a block parameter"
                 ),
             }
-            self.ssa_values.insert(param_id, value);
         }
         // Check if we have generated any witnesses.
         let Some(end_witness) = self.acir_context.current_witness_index() else {

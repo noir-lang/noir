@@ -12,7 +12,7 @@ warning: Return variable contains a constant value
     1: main
             at src/main.nr:9:5
 
-bug: Assertion is always false: Index out of bounds
+bug: Assertion is always false: Index out of bounds, array has size 0
   ┌─ src/main.nr:7:9
   │
 7 │     vec[1] = 10;
@@ -22,22 +22,12 @@ bug: Assertion is always false: Index out of bounds
     1: main
             at src/main.nr:7:9
 
-bug: Assertion is always false: Index out of bounds, array has size 0
-  ┌─ src/main.nr:7:5
-  │
-7 │     vec[1] = 10;
-  │     ------ As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution
-  │
-  = Call stack:
-    1: main
-            at src/main.nr:7:5
-
 bug: Assertion is always false
-  ┌─ src/main.nr:9:5
+  ┌─ src/main.nr:9:9
   │
 9 │     vec[0]
-  │     ------ As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution
+  │         - As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution
   │
   = Call stack:
     1: main
-            at src/main.nr:9:5
+            at src/main.nr:9:9

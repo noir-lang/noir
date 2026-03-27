@@ -27,7 +27,7 @@ use acvm::{
     FieldElement,
     acir::{
         AcirField,
-        brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength},
+        brillig::lengths::{ElementTypesLength, SemanticLength},
     },
 };
 use iter_extended::vecmap;
@@ -670,20 +670,17 @@ impl DataFlowGraph {
     /// Try to find out the capacity of a vector by tracing it back to a `MakeArray`.
     pub(crate) fn try_get_vector_capacity(&self, value: ValueId) -> Option<SemanticLength> {
         // For arrays we know the size statically
-        if let Some(length) = self.try_get_array_length(value) {
-            return Some(length);
+        let array_typ = self.type_of_value(value);
+        if let Type::Array(_, length) = &array_typ {
+            return Some(*length);
         }
 
         match self.get_local_or_global_instruction(value)? {
             Instruction::MakeArray { .. } => {
-                let (array, typ) = self.get_array_constant(value)?;
-                let elements_size = typ.element_size();
+                let (array, _typ) = self.get_array_constant(value)?;
 
-                let length = if elements_size.0 == 0 {
-                    SemanticLength(assert_u32(array.len()))
-                } else {
-                    SemiFlattenedLength(assert_u32(array.len())) / elements_size
-                };
+                // With flattened arrays, array.len() is already the correct flat count
+                let length = SemanticLength(assert_u32(array.len()));
                 Some(length)
             }
             Instruction::ArraySet { array, .. } | Instruction::ArrayGet { array, .. } => {
@@ -761,9 +758,15 @@ impl DataFlowGraph {
         #[allow(clippy::match_like_matches_macro)]
         match (self.type_of_value(array), self.get_numeric_constant(index)) {
             (Type::Array(elements, len), Some(index)) => {
-                let elements_length = ElementTypesLength(assert_u32(elements.len()));
-                let semi_flattened_length = len * elements_length;
-                index.to_u128() < u128::from(semi_flattened_length.0)
+                if self.runtime().is_brillig() {
+                    let elements_length = ElementTypesLength(assert_u32(elements.len()));
+                    let semi_flattened_length = len * elements_length;
+                    index.to_u128() < u128::from(semi_flattened_length.0)
+                } else {
+                    let flat_types_size: u128 =
+                        elements.iter().map(|element| u128::from(element.flattened_size().0)).sum();
+                    index.to_u128() < (u128::from(len.0) * flat_types_size)
+                }
             }
             _ => false,
         }
