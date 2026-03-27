@@ -80,16 +80,15 @@ impl Function {
             let instructions_to_remove =
                 forward_loads_and_stores_in_block(&mut inserter, block, &loop_aliases);
 
-            if !instructions_to_remove.is_empty() {
-                inserter.function.dfg[block]
-                    .instructions_mut()
-                    .retain(|id| !instructions_to_remove.contains(id));
-            }
-
-            // Remap instructions and terminator immediately — all predecessor
-            // mappings are already in the inserter thanks to RPO ordering.
-            for instruction_id in inserter.function.dfg[block].instructions().to_vec() {
-                inserter.map_instruction_in_place(instruction_id);
+            // Re-insert instructions through the DFG simplify path. This resolves
+            // value mappings from load forwarding AND triggers simplification
+            // (e.g. `lt v2, u32 3` folds to a constant when v2 was forwarded).
+            // Instructions marked for removal (forwarded loads, dead stores) are skipped.
+            let instructions = inserter.function.dfg[block].take_instructions();
+            for instruction_id in &instructions {
+                if !instructions_to_remove.contains(instruction_id) {
+                    inserter.push_instruction(*instruction_id, block, true);
+                }
             }
             inserter.map_terminator_in_place(block);
         }
@@ -384,8 +383,7 @@ mod tests {
             v0 = allocate -> &mut Field
             store Field 1 at v0
             store Field 2 at v0
-            v3 = add Field 1, Field 2
-            return v3
+            return Field 3
         }
         ");
     }
@@ -437,8 +435,7 @@ mod tests {
             v1 = allocate -> &mut Field
             store Field 1 at v0
             store Field 2 at v1
-            v4 = add Field 1, Field 2
-            return v4
+            return Field 3
         }
         ");
     }
@@ -569,8 +566,22 @@ mod tests {
         }
         ";
         // The store to v2 (alias of v0) must clear v0's known value,
-        // so the load should NOT be forwarded.
-        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+        // so the load should NOT be forwarded. Re-insertion simplifies
+        // `array_get [v0], 0` to `v0`, but the load is preserved.
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.load_store_forwarding();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v2 = make_array [v0] : [&mut Field; 1]
+            store Field 2 at v0
+            v4 = load v0 -> Field
+            return v4
+        }
+        ");
     }
 
     #[test]
@@ -653,14 +664,14 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.load_store_forwarding();
 
-        // v2 (load result from b2) must be forwarded to u32 10 in b1's add.
+        // v2 (load result from b2) must be forwarded to u32 10 in b1's add,
+        // then add folds to u32 11.
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0():
             jmp b2()
           b1():
-            v3 = add u32 10, u32 1
-            return v3
+            return u32 11
           b2():
             v0 = allocate -> &mut u32
             store u32 10 at v0

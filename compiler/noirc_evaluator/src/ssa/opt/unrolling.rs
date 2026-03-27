@@ -1901,35 +1901,14 @@ impl<'f> LoopIteration<'f> {
 /// Unrolling leaves some duplicate instructions which can potentially be removed.
 fn simplify_between_unrolls(function: &mut Function) {
     function.simplify_function();
-    // Re-insert instructions to trigger DFG simplification (e.g. folding
-    // vector_push_back chains whose inputs became constant after unrolling).
-    resimplify_instructions(function);
-    // The re-simplification may produce new constant jmpif conditions
+    // LSF re-inserts instructions through the DFG simplify path, so it both
+    // forwards loads and folds constant expressions in a single pass.
+    function.load_store_forwarding();
+    // The folding may produce new constant jmpif conditions
     // (e.g. `lt u32 5, u32 6` folded to `u1 1`), so simplify_cfg again
     // to eliminate dead branches and propagate the single remaining value
     // through block parameters (needed for loop bound resolution).
     function.simplify_function();
-}
-
-/// Re-insert every instruction through the DFG's simplify path.
-///
-/// When the unroller duplicates instructions, later copies may reference values
-/// that weren't yet simplified (e.g. accumulated mappings from a sibling loop
-/// hadn't been applied). After `simplify_cfg` merges the blocks into straight-line
-/// code, re-inserting triggers `DataFlowGraph::simplify()` on each instruction,
-/// folding chains like `vector_push_back(constant_len, make_array [...], elem)`.
-fn resimplify_instructions(function: &mut Function) {
-    let mut inserter = FunctionInserter::new(function);
-    let blocks = PostOrder::with_function(inserter.function).into_vec_reverse();
-
-    for block in blocks {
-        let instructions = inserter.function.dfg[block].take_instructions();
-        for instruction_id in &instructions {
-            inserter.push_instruction(*instruction_id, block, true);
-        }
-        inserter.map_terminator_in_place(block);
-    }
-    inserter.map_data_bus_in_place();
 }
 
 /// Decide if the new bytecode size is acceptable, compared to the original.
@@ -3595,7 +3574,7 @@ mod tests {
     /// This is the SSA input to unrolling from the
     /// `test_programs/execution_success/vector_loop` test program.
     #[test]
-    fn test_acir_vector_loop_unrolling() {
+    fn acir_vector_loop_unrolling() {
         let src = "
         acir(inline) predicate_pure fn main f0 {
           b0(v0: [(Field, Field); 3]):
@@ -3661,5 +3640,61 @@ mod tests {
         let result =
             ssa.unroll_loops_iteratively(None, MAX_UNROLL_ITERATIONS, FORCE_UNROLL_THRESHOLD);
         assert!(result.is_ok(), "All loops should be unrollable, got error: {:?}", result.err());
+    }
+
+    /// Regression test: when a loop accumulates a counter via store/load (like BoundedVec.push
+    /// incrementing `len`), a second loop that loads that counter as its bound requires
+    /// load-store forwarding (LSF) in simplify_between_unrolls to resolve the bound
+    /// after the first loop is unrolled.
+    ///
+    /// This reproduces the pattern from Aztec's FixtureBuilder where:
+    ///   1. A setup loop stores to a counter (e.g. `append_items` incrementing `BoundedVec.len`)
+    ///   2. After the loop, the counter is loaded as the bound of a second loop
+    ///      (e.g. `for i in 0..vec.len()` in `get_split_ordered_side_effects`)
+    ///
+    /// Without LSF in simplify_between_unrolls, the load is never resolved to a
+    /// constant, leaving the second loop's bound non-constant and unrolling fails.
+    #[test]
+    fn acir_unroll_with_store_load_loop_bound() {
+        // Loop 1 (b1): constant bound 3, stores incremented counter to v0 (allocation)
+        // Loop 2 (b4): bound loaded from v0 — should be 3 after Loop 1 completes
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = allocate -> &mut u32
+            store u32 0 at v0
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v5 = lt v1, u32 3
+            jmpif v5 then: b2(), else: b3()
+          b2():
+            v6 = load v0 -> u32
+            v7 = add v6, u32 1
+            store v7 at v0
+            v8 = unchecked_add v1, u32 1
+            jmp b1(v8)
+          b3():
+            v9 = load v0 -> u32
+            jmp b4(u32 0, Field 0)
+          b4(v2: u32, v3: Field):
+            v10 = lt v2, v9
+            jmpif v10 then: b5(), else: b6()
+          b5():
+            v11 = add v3, Field 1
+            v12 = unchecked_add v2, u32 1
+            jmp b4(v12, v11)
+          b6():
+            constrain v3 == Field 3
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let result =
+            ssa.unroll_loops_iteratively(None, MAX_UNROLL_ITERATIONS, FORCE_UNROLL_THRESHOLD);
+        assert!(
+            result.is_ok(),
+            "Both loops should be unrollable after store/load forwarding, got error: {:?}",
+            result.err()
+        );
     }
 }
