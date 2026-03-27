@@ -24,7 +24,6 @@ mod tests {
             print_codegen_timings: false,
             emit_ssa: None,
             skip_underconstrained_check: true,
-            enable_brillig_constraints_check_lookback: false,
             skip_brillig_constraints_check: true,
             inliner_aggressiveness: 0,
             max_bytecode_increase_percent: None,

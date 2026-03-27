@@ -170,12 +170,6 @@ pub struct CompileOptions {
     #[arg(long)]
     pub count_array_copies: bool,
 
-    /// Flag to turn on the lookback feature of the Brillig call constraints
-    /// check, allowing tracking argument values before the call happens preventing
-    /// certain rare false positives (leads to a slowdown on large rollout functions)
-    #[arg(long)]
-    pub enable_brillig_constraints_check_lookback: bool,
-
     /// Setting to decide on an inlining strategy for Brillig functions.
     /// A more aggressive inliner should generate larger programs but more optimized
     /// A less aggressive inliner should generate smaller programs
@@ -290,7 +284,6 @@ impl Default for CompileOptions {
             skip_brillig_constraints_check: false,
             enable_brillig_debug_assertions: false,
             count_array_copies: false,
-            enable_brillig_constraints_check_lookback: false,
             inliner_aggressiveness: i64::MAX,
             constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
             small_function_max_instructions: INLINING_MAX_INSTRUCTIONS,
@@ -334,8 +327,6 @@ impl CompileOptions {
             print_codegen_timings: self.benchmark_codegen,
             emit_ssa: if self.emit_ssa { Some(package_build_path) } else { None },
             skip_underconstrained_check: !self.silence_warnings && self.skip_underconstrained_check,
-            enable_brillig_constraints_check_lookback: self
-                .enable_brillig_constraints_check_lookback,
             skip_brillig_constraints_check: !self.silence_warnings
                 && self.skip_brillig_constraints_check,
             inliner_aggressiveness: self.inliner_aggressiveness,
