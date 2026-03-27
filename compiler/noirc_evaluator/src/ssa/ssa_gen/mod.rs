@@ -664,8 +664,6 @@ impl FunctionContext<'_> {
                 let flat_typ = typ.clone().flatten();
                 for (my_index, typ) in flat_typ.into_iter().enumerate() {
                     let index = self.make_offset(index, my_index as u128, true);
-
-                    assert!(matches!(typ, Type::Numeric(_)));
                     let res = self.builder.insert_array_get(array, index, typ);
                     flat_elements.push_back(res);
                 }
