@@ -976,7 +976,7 @@ impl<'f> Validator<'f> {
         if !self.function.runtime().is_acir() {
             return;
         }
-        let Instruction::Call { func, arguments: _ } = &self.function.dfg[instruction] else {
+        let Instruction::Call { func, arguments } = &self.function.dfg[instruction] else {
             return;
         };
         let callee_id = match &self.function.dfg[*func] {
@@ -994,7 +994,24 @@ impl<'f> Validator<'f> {
         if called_function.runtime().is_acir() {
             return;
         }
-        // References (including immutable ones) may cross the ACIR->Brillig boundary.
+        // Simple immutable references (&T where T contains no references) may cross the
+        // ACIR->Brillig boundary. Nested or container references (&&T, [&T; N], etc.) may not.
+        for arg_id in arguments {
+            let arg_type = self.function.dfg.type_of_value(*arg_id);
+            let has_unsupported_ref = match &arg_type {
+                Type::Reference(inner) => inner.contains_reference(),
+                _ => arg_type.contains_reference(),
+            };
+            if has_unsupported_ref {
+                panic!(
+                    "Trying to pass a nested reference from ACIR function '{} {}' to unconstrained '{} {}' in argument {arg_id}: {arg_type}",
+                    self.function.name(),
+                    self.function.id(),
+                    called_function.name(),
+                    called_function.id(),
+                );
+            }
+        }
         for result_id in self.function.dfg.instruction_results(instruction) {
             let typ = self.function.dfg.type_of_value(*result_id);
             if typ.contains_function() {
@@ -1791,19 +1808,21 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "Trying to pass a reference from ACIR function 'main f0' to unconstrained 'foo f1' in argument v1: &mut u32"
+        expected = "Trying to pass a nested reference from ACIR function 'main f0' to unconstrained 'foo f1' in argument v2: &mut &mut u32"
     )]
-    fn disallows_passing_refs_from_acir_to_brillig() {
+    fn disallows_passing_nested_refs_from_acir_to_brillig() {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: u32):
             v1 = allocate -> &mut u32
             store v0 at v1
-            call f1(v1)
+            v2 = allocate -> &mut &mut u32
+            store v1 at v2
+            call f1(v2)
             return
         }
         brillig(inline) fn foo f1 {
-          b0(v0: &mut u32):
+          b0(v0: &mut &mut u32):
             return
         }
         ";

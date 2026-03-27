@@ -1,10 +1,9 @@
-//! This pass materializes immutable reference arguments at the ACIR→Brillig
-//! function-call boundary.
+//! This pass materializes immutable reference arguments at the ACIR→Brillig function-call boundary.
 //!
 //! ## Background
 //!
-//! When a constrained (ACIR) function passes an immutable reference `&x` to an
-//! unconstrained (Brillig) function the frontend lowers `&x` to:
+//! When a constrained (ACIR) function passes an immutable reference `&x` to an unconstrained
+//! (Brillig) function the frontend lowers `&x` to:
 //!
 //! ```text
 //! v_ref = allocate            // allocate a slot
@@ -12,31 +11,28 @@
 //! call brillig_fn(v_ref, …)   // pass the reference
 //! ```
 //!
-//! ACIR functions cannot contain `Allocate`/`Store`/`Load` instructions, so
-//! these must be removed before ACIR code-generation.  `mem2reg` cannot remove
-//! them because `v_ref` is passed as an argument to the Brillig call (i.e. it
-//! "escapes").
+//! ACIR functions cannot contain `Allocate`/`Store`/`Load` instructions, so these must be removed
+//! before ACIR code-generation.  `mem2reg` cannot remove them because `v_ref` is passed as an
+//! argument to the Brillig call (i.e. it "escapes").
 //!
 //! ## What this pass does
 //!
-//! For every ACIR function that calls a Brillig function with one or more
-//! reference arguments it:
+//! For every ACIR function that calls a Brillig function with one or more reference arguments it:
 //!
-//! 1. Finds the value stored into each reference (the single `Store` that must
-//!    precede the call for a fresh `&x` allocation).
+//! 1. Finds the value stored into each reference (the single `Store` that must precede the call
+//!    for a fresh `&x` allocation).
 //! 2. Creates a thin **wrapper** Brillig function that
 //!    a. accepts a plain *value* instead of the reference, and
-//!    b. allocates a local slot, stores the value, and calls the original
-//!       Brillig function with the resulting reference.
-//! 3. Replaces the original call in the ACIR function with a call to the
-//!    wrapper passing the stored value directly.
+//!    b. allocates a local slot, stores the value, and calls the original Brillig function with
+//!    the resulting reference.
+//! 3. Replaces the original call in the ACIR function with a call to the wrapper passing the stored
+//!    value directly.
 //!
 //! After this transformation:
-//! - The ACIR function no longer contains `Allocate` or `Store` instructions
-//!   for the rewritten references (they become dead code, removed by the DIE
-//!   pass that follows).
-//! - The wrapper Brillig function carries all the necessary memory operations,
-//!   which are legal in Brillig.
+//! - The ACIR function no longer contains `Allocate` or `Store` instructions for the rewritten
+//!   references (they become dead code, removed by the DIE pass that follows).
+//! - The wrapper Brillig function carries all the necessary memory operations, which are legal
+//!   in Brillig.
 
 use std::sync::Arc;
 
@@ -208,10 +204,10 @@ fn collect_transformations(ssa: &Ssa) -> Vec<Transformation> {
 /// instruction and return `v`.
 fn find_stored_value(func: &Function, ref_val: ValueId, block_id: BasicBlockId) -> Option<ValueId> {
     for &instr_id in func.dfg[block_id].instructions() {
-        if let Instruction::Store { address, value } = func.dfg[instr_id] {
-            if address == ref_val {
-                return Some(value);
-            }
+        if let Instruction::Store { address, value } = func.dfg[instr_id]
+            && address == ref_val
+        {
+            return Some(value);
         }
     }
     None
