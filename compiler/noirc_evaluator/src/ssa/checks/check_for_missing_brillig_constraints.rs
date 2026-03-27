@@ -880,8 +880,11 @@ mod tests {
 
     #[test]
     #[traced_test]
-    /// Test chained (wrapper) Brillig calls not producing a false positive
-    fn test_chained_brillig_calls_constrained() {
+    /// Test chained (wrapper) Brillig calls not producing a false positive.
+    ///
+    /// A wrapper was considered something that passes all the outputs of
+    /// one Brillig call as inputs to the next Brillig call.
+    fn test_chained_brillig_calls_constrained_wrapped() {
         /*
         struct Animal {
             legs: Field,
@@ -941,6 +944,33 @@ mod tests {
             return v0, v1, v7
         }
 
+        "#;
+
+        let mut ssa = Ssa::from_str(program).unwrap();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints(false);
+        assert_eq!(ssa_level_warnings.len(), 0);
+    }
+
+    #[test]
+    #[traced_test]
+    /// Test chained Brillig calls.
+    /// This is based on the diagram from the top of the module.
+    fn test_chained_brillig_calls_constrained_mixed() {
+        let program = r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field, v2: Field):
+            v3 = mul v0, v1
+            v4 = call f1(v1, v2) -> Field
+            v5 = call f1(v3, v4) -> Field
+            constrain v3 == v5
+            return
+        }
+
+        brillig(inline) fn foo f1 {
+          b0(v0: Field, v1: Field):
+            v2 = add v0, v1
+            return v2
+        }
         "#;
 
         let mut ssa = Ssa::from_str(program).unwrap();
