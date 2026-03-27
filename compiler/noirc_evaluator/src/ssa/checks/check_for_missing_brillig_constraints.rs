@@ -303,13 +303,25 @@ impl Context {
                     }
                 }
 
+                // If this is a Store instruction, then it has no result: instead we must replace
+                // the address with the result in all ancestors, where it was inserted as the parent
+                // of the result of the following Load. By removing the address, only the first Store
+                // before the load connects the values.
+                if let Instruction::Store { address, value } = instruction {
+                    for ancestors in &mut self.ancestors.values_mut() {
+                        if ancestors.remove(address) && !is_numeric_constant(func, *value) {
+                            ancestors.insert(*value);
+                            tracked_ids.insert(*value);
+                        }
+                    }
+                }
+
+                // Start tracking the ancestors of the inputs of the instruction.
                 let should_track = is_call_to_brillig(func, all_functions, instruction_id)
                     || is_constraint(func, instruction_id)
                     || is_side_effect(func, instruction);
 
                 if should_track {
-                    // Start tracking the ancestors of the inputs of the instruction.
-                    // Skip the first value of calls, which is the function ID.
                     for value_id in instruction_arguments(func, instruction) {
                         self.ancestors.entry(value_id).or_default();
                         tracked_ids.insert(value_id);
@@ -549,6 +561,8 @@ mod tests {
     #[traced_test]
     /// Test where a call to a Brillig function is left unchecked with a later assert,
     /// by example of the program illustrating issue #5425 (simplified variant).
+    ///
+    /// The crux of this test is the load and store of values leading to the constraint.
     fn test_underconstrained_value_detector_5425() {
         /*
         unconstrained fn maximum_price(options: [u32; 2]) -> u32 {
@@ -578,8 +592,6 @@ mod tests {
         let program = r#"
         acir(inline) fn main f0 {
           b0(v4: [u32; 2], v5: [u32; 2], v6: u32):
-            inc_rc v4
-            inc_rc v5
             v8 = call f1(v4) -> u32
             v9 = allocate -> &mut u1
             store u1 0 at v9
@@ -598,8 +610,6 @@ mod tests {
             v19 = call f1(v5) -> u32
             v20 = add v8, v19
             constrain v6 == v20
-            dec_rc v4
-            dec_rc v5
             return
         }
 
