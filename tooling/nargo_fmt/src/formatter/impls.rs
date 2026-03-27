@@ -103,6 +103,7 @@ pub ( crate ) fn bar () {
 fn one(self) {}
 fn two(mut self) {}
 fn three(&mut self) {}
+fn four(&self) {}
  } }";
         let expected = "mod moo {
     impl Foo {
@@ -117,6 +118,7 @@ fn three(&mut self) {}
         fn one(self) {}
         fn two(mut self) {}
         fn three(&mut self) {}
+        fn four(&self) {}
     }
 }
 ";

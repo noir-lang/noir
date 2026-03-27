@@ -14,8 +14,8 @@
   "devDependencies": {
     "@playwright/test": "^1.49.0",
     "@types/node": "^22.19.15",
-    "typescript": "^5.8.3",
-    "vite": "^7.3.1",
+    "typescript": "^6.0.2",
+    "vite": "^8.0.2",
     "vite-plugin-node-polyfills": "0.25.0"
   }
 }

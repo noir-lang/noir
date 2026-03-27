@@ -253,6 +253,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
         // Free the victim's register so it can be reused
         self.brillig_context.deallocate_register(victim_reg);
+        self.variables.mark_unavailable(&victim_id);
 
         // Record the spill
         let sm = self.function_context.spill_manager.as_mut().unwrap();
@@ -1027,6 +1028,11 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 BrilligVariable::BrilligArray(then_array),
                 BrilligVariable::BrilligArray(else_array),
             ) => {
+                debug_assert_eq!(
+                    then_array.size, else_array.size,
+                    "ICE: then and else arrays in if-else must have the same size, but got {} and {}",
+                    then_array.size, else_array.size
+                );
                 // Pointer to the array which result from the if-else
                 let pointer = self.brillig_context.allocate_register();
                 self.brillig_context.conditional_move_instruction(

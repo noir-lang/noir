@@ -516,7 +516,14 @@ mod completion_tests {
                     "assert(${1:predicate})",
                     Some("fn(T)".to_string()),
                 )),
-                function_completion_item("assert_constant(…)", "assert_constant(${1:x})", "fn(T)"),
+                {
+                    let mut item = function_completion_item("assert_constant(…)", "assert_constant(${1:x})", "fn(T)");
+                    item.documentation = Some(Documentation::MarkupContent(async_lsp::lsp_types::MarkupContent {
+                        kind: async_lsp::lsp_types::MarkupKind::Markdown,
+                        value: "Asserts that the given value is known at compile-time.\nUseful for debugging for-loop bounds.".to_string(),
+                    }));
+                    item
+                },
                 completion_item_with_trigger_parameter_hints_command(snippet_completion_item(
                     "assert_eq(…)",
                     CompletionItemKind::FUNCTION,

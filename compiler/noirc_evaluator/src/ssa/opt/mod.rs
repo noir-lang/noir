@@ -12,6 +12,7 @@ mod basic_conditional;
 mod black_box_bypass;
 mod brillig_array_get_and_set;
 pub(crate) mod brillig_entry_points;
+mod brillig_function_specialization;
 mod check_u128_mul_overflow;
 mod checked_to_unchecked;
 #[cfg(debug_assertions)]
@@ -26,6 +27,7 @@ pub(crate) mod flatten_cfg;
 mod hint;
 mod inline_simple_functions;
 mod inlining;
+mod load_store_forwarding;
 mod loop_invariant;
 mod make_constrain_not_equal;
 mod mem2reg;
@@ -49,6 +51,9 @@ mod unrolling;
 pub(crate) use array_get::{
     ArrayGetOptimizationResult, ArrayGetOptimizationSideEffects,
     try_optimize_array_get_from_previous_instructions,
+};
+pub use brillig_function_specialization::{
+    DEFAULT_MAX_SPECIALIZATIONS_PER_FN, DEFAULT_SPECIALIZATION_THRESHOLD,
 };
 pub use constant_folding::DEFAULT_MAX_ITER as CONSTANT_FOLDING_MAX_ITER;
 pub use inlining::MAX_SIMPLE_FUNCTION_WEIGHT as INLINING_MAX_INSTRUCTIONS;

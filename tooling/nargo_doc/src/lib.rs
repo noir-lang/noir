@@ -573,7 +573,7 @@ impl DocItemBuilder<'_> {
             noirc_frontend::Type::Reference(typ, mutable) => {
                 Type::Reference { r#type: Box::new(self.convert_type(typ)), mutable: *mutable }
             }
-            noirc_frontend::Type::Constant(signed_field, _kind) => {
+            noirc_frontend::Type::Constant(signed_field) => {
                 Type::Constant(signed_field.to_string())
             }
             noirc_frontend::Type::InfixExpr(lhs, operator, rhs, _) => Type::InfixExpr {

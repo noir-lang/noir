@@ -56,7 +56,6 @@ use crate::{
     node_interner::{DefinitionKind, NodeInterner, TraitImplKind},
     parser::{Parser, StatementOrExpressionOrLValue},
     shared::{Signedness, Visibility},
-    signed_field::SignedField,
     token::{Attribute, LocatedToken, SecondaryAttribute, SecondaryAttributeKind, Token},
 };
 
@@ -297,9 +296,7 @@ fn apply_range_constraint(
 ) -> IResult<Value> {
     let (value, num_bits) = check_two_arguments(arguments, location)?;
 
-    let input = get_field(value)?;
-    let field = input.to_field_element();
-
+    let field = get_field(value)?;
     let num_bits = get_u32(num_bits)?;
     let field_num_bits = field.num_bits();
 
@@ -935,9 +932,9 @@ fn to_le_radix(
     let value = get_field(value)?;
     let radix = get_u32(radix)?;
     let (limb_count, element_type) = if let Type::Array(length, element_type) = return_type {
-        if let Type::Constant(limb_count, kind) = *length {
-            if kind.unify(&Type::u32()).is_ok() {
-                (limb_count.to_field_element(), element_type)
+        if let Type::Constant(limb_count) = *length {
+            if limb_count.get_type().unify(&Type::u32()).is_ok() {
+                (limb_count.as_field(), element_type)
             } else {
                 return Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location });
             }
@@ -952,17 +949,21 @@ fn to_le_radix(
         *element_type == Type::Integer(Signedness::Unsigned, IntegerBitSize::One);
 
     // Decompose the integer into its radix digits in little endian form.
-    let decomposed_integer = compute_to_radix_le(value.to_field_element(), radix);
+    let decomposed_integer = compute_to_radix_le(value, radix);
 
     // Validate that the value fits in the requested number of limbs.
     // This matches the runtime behavior in our black box solvers.
-    let limb_count_usize = limb_count.to_u128() as usize;
-    if limb_count_usize < decomposed_integer.len() {
-        let message = format!("Field failed to decompose into specified {limb_count_usize} limbs");
+    let Some(limb_count_u64) = limb_count.try_to_u64().map(|x| x as usize) else {
+        let message = format!("Field failed to decompose into specified {limb_count} limbs");
+        return failing_constraint(message, location, call_stack);
+    };
+
+    if limb_count_u64 < decomposed_integer.len() {
+        let message = format!("Field failed to decompose into specified {limb_count_u64} limbs");
         return failing_constraint(message, location, call_stack);
     }
 
-    let decomposed_integer = vecmap(0..limb_count_usize, |i| {
+    let decomposed_integer = vecmap(0..limb_count_u64, |i| {
         let digit = match decomposed_integer.get(i) {
             Some(digit) => *digit,
             None => 0,
@@ -975,7 +976,7 @@ fn to_le_radix(
         .len()
         .try_into()
         .expect("ICE: to_le_radix: decomposed_integer.len() is expected to fit into a u32");
-    let result_type = Type::Array(Box::new(len.into()), element_type);
+    let result_type = Type::Array(Box::new(Type::constant_u32(len)), element_type);
 
     Ok(Value::Array(decomposed_integer.into(), result_type))
 }
@@ -1444,7 +1445,7 @@ where
 // fn zeroed<T>() -> T
 fn zeroed(return_type: Type, location: Location) -> Value {
     match return_type {
-        Type::FieldElement => Value::field(SignedField::zero()),
+        Type::FieldElement => Value::field(FieldElement::zero()),
         Type::Array(length_type, elem) => {
             if let Ok(length) = length_type.evaluate_to_u32(location) {
                 let element = zeroed(elem.as_ref().clone(), location);
@@ -1946,7 +1947,7 @@ fn expr_as_index(
     })
 }
 
-// fn as_integer(self) -> Option<(Field, bool)>
+// fn as_integer(self) -> Option<Field>
 fn expr_as_integer(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
@@ -1955,17 +1956,11 @@ fn expr_as_integer(
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type, location, |expr| match expr {
         ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field, _suffix))) => {
-            Some(Value::Tuple(vec![
-                Shared::new(Value::field(SignedField::positive(field.absolute_value()))),
-                Shared::new(Value::Bool(field.is_negative())),
-            ]))
+            Some(Value::field(field))
         }
         ExprValue::Expression(ExpressionKind::Resolved(id)) => {
             if let HirExpression::Literal(HirLiteral::Integer(field)) = interner.expression(&id) {
-                Some(Value::Tuple(vec![
-                    Shared::new(Value::field(SignedField::positive(field.absolute_value()))),
-                    Shared::new(Value::Bool(field.is_negative())),
-                ]))
+                Some(Value::field(field))
             } else {
                 None
             }
@@ -3037,8 +3032,7 @@ fn quoted_hash(
 
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     tokens_string.hash(&mut hasher);
-    let hash = hasher.finish();
-    Ok(Value::field(SignedField::positive(u128::from(hash))))
+    Ok(Value::field(hasher.finish().into()))
 }
 
 fn trait_def_as_trait_constraint(
@@ -3143,31 +3137,29 @@ fn derive_generators(
 fn field_less_than(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     let (lhs, rhs) = check_two_arguments(arguments, location)?;
 
-    let lhs = get_field(lhs)?.to_field_element();
-    let rhs = get_field(rhs)?.to_field_element();
+    let lhs = get_field(lhs)?;
+    let rhs = get_field(rhs)?;
 
     Ok(Value::Bool(lhs < rhs))
 }
 
 #[cfg(test)]
 mod tests {
-    use noirc_errors::Location;
-
-    use crate::hir::comptime::value::Value;
-    use crate::signed_field::SignedField;
-
     use super::field_less_than;
+    use crate::hir::comptime::value::Value;
+    use acvm::FieldElement;
+    use noirc_errors::Location;
 
     fn args(a: Value, b: Value) -> Vec<(Value, Location)> {
         vec![(a, Location::dummy()), (b, Location::dummy())]
     }
 
     fn pos(v: u128) -> Value {
-        Value::field(SignedField::positive(v))
+        Value::field(v.into())
     }
 
     fn neg(v: u128) -> Value {
-        Value::field(SignedField::negative(v))
+        Value::field(-FieldElement::from(v))
     }
 
     #[test]

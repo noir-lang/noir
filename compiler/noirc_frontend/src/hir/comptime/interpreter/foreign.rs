@@ -5,7 +5,6 @@ use acvm::{
 };
 use bn254_blackbox_solver::Bn254BlackBoxSolver; // Currently locked to only bn254!
 use im::{Vector, vector};
-use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::{
@@ -17,7 +16,6 @@ use crate::{
             builtin::builtin_helpers::to_byte_array, builtin_helpers::check_argument_count,
         },
     },
-    signed_field::SignedField,
 };
 
 use super::{
@@ -241,13 +239,12 @@ fn poseidon2_permutation(arguments: Vec<(Value, Location)>, location: Location) 
     let input = check_one_argument(arguments, location)?;
 
     let (input, typ) = get_array_map(input, get_field)?;
-    let input = vecmap(input, SignedField::to_field_element);
 
     let fields = Bn254BlackBoxSolver
         .poseidon2_permutation(&input)
         .map_err(|error| InterpreterError::BlackBoxError(error, location))?;
 
-    let array = fields.into_iter().map(|f| Value::field(SignedField::positive(f))).collect();
+    let array = fields.into_iter().map(Value::field).collect();
     Ok(Value::Array(array, typ))
 }
 
@@ -307,7 +304,7 @@ fn get_embedded_curve_scalar(
     let (fields, typ) = get_struct_fields("EmbeddedCurveScalar", (value, location))?;
     let lo = get_struct_field("lo", &fields, &typ, location, get_field)?;
     let hi = get_struct_field("hi", &fields, &typ, location, get_field)?;
-    Ok((lo.to_field_element(), hi.to_field_element()))
+    Ok((lo, hi))
 }
 
 fn to_embedded_curve_point(x: FieldElement, y: FieldElement, typ: Type) -> Value {
