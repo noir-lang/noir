@@ -570,6 +570,10 @@ impl FunctionContext<'_> {
 
         let array_or_slice = extracted_values.clone().into_value_list(self);
 
+        // Set location to the index expression's span so that OOB errors
+        // point at the indexing operation rather than the collection.
+        self.builder.set_location(index.location);
+
         // If the collection is a vector (represented as a (length, data) tuple),
         // extract the data array and perform a bounds check before indexing.
         // The vector index is the last Value in `indices` (closest to the vector
@@ -605,10 +609,6 @@ impl FunctionContext<'_> {
 
         let array = new_array.into_value_list(self);
         let array = array[0];
-
-        // Set location to the index expression's span so that OOB errors
-        // point at the indexing operation rather than the collection.
-        self.builder.set_location(index.location);
 
         // Brillig needs explicit runtime bounds checks for all array accesses.
         // We check the computed flat index against the flat array size.
