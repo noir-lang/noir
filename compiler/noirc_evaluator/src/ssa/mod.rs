@@ -233,6 +233,11 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         // introduce signed divisions.
         SsaPass::new(Ssa::expand_signed_math, "Expand signed math"),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
+        SsaPass::new(
+            |ssa| ssa.fold_constants(options.constant_folding_max_iter),
+            "Constant Folding",
+        ),
+        SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
         SsaPass::new(Ssa::flatten_cfg, "Flattening"),
         SsaPass::new(Ssa::array_set_window_optimization, "ArraySet Window optimization"),
         // Run mem2reg_simple on all functions after flattening to handle cross-block promotion
