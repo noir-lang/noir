@@ -42,12 +42,14 @@
 //! connection between inputs and outputs is made.
 use crate::ssa::checks::is_numeric_constant;
 use crate::ssa::ir::basic_block::BasicBlockId;
+use crate::ssa::ir::dfg::DataFlowGraph;
 use crate::ssa::ir::function::{Function, FunctionId};
 use crate::ssa::ir::instruction::{Instruction, InstructionId, Intrinsic};
 use crate::ssa::ir::post_order::PostOrder;
 use crate::ssa::ir::value::{Value, ValueId};
 use crate::ssa::ssa_gen::Ssa;
 use acvm::AcirField;
+use bit_vec::BitVec;
 use noirc_artifacts::ssa::{InternalBug, SsaReport};
 use rayon::prelude::*;
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -79,6 +81,28 @@ impl Ssa {
 }
 
 type AncestorMap = HashMap<ValueId, HashSet<ValueId>>;
+
+struct ValueSet(BitVec<u32>);
+
+impl ValueSet {
+    fn new(dfg: &DataFlowGraph) -> Self {
+        Self(BitVec::from_elem(dfg.values_iter().count(), false))
+    }
+
+    fn contains(&self, value: &ValueId) -> bool {
+        self.0.get(value.to_u32().try_into().unwrap()).expect("initialized with all values")
+    }
+
+    fn insert(&mut self, value: ValueId) {
+        self.0.set(value.to_u32().try_into().unwrap(), true);
+    }
+
+    fn extend(&mut self, values: &[ValueId]) {
+        for value in values {
+            self.insert(*value);
+        }
+    }
+}
 
 /// Outputs of a Brillig call and their descendants.
 #[derive(Debug)]
@@ -144,7 +168,7 @@ impl TaintedDescendants {
         &mut self,
         constrained_values: &[ValueId],
         ancestors: &AncestorMap,
-        all_tainted: &HashSet<ValueId>,
+        all_tainted: &ValueSet,
     ) -> bool {
         let is_against_const = constrained_values.len() == 1;
         let is_const_args = self.arguments.is_empty();
@@ -181,7 +205,7 @@ impl TaintedDescendants {
         &self,
         constrained_values: &[ValueId],
         ancestors: &AncestorMap,
-        all_tainted: &HashSet<ValueId>,
+        all_tainted: &ValueSet,
     ) -> bool {
         for constrained in constrained_values {
             if all_tainted.contains(constrained) {
@@ -378,7 +402,7 @@ impl Context {
         func: &Function,
         all_functions: &BTreeMap<FunctionId, Function>,
     ) -> Self {
-        let mut all_constrainable = HashSet::new();
+        let mut all_constrainable = ValueSet::new(&func.dfg);
 
         // Traverse in Reverse Post Order, ie. top-down.
         for block_id in self.post_order.clone().into_iter().rev() {
@@ -484,7 +508,8 @@ impl Context {
         all_functions: &BTreeMap<FunctionId, Function>,
     ) -> Self {
         // Constraints on tainted output cannot be used to connect output to input.
-        let mut all_tainted = HashSet::new();
+        let mut all_tainted = ValueSet::new(&func.dfg);
+
         // Traverse in Reverse Post Order, ie. top-down.
         for block_id in self.post_order.clone().into_iter().rev() {
             // Track the current side effect variable, unless it's a constant.
