@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774882113402,
+  "lastUpdate": 1774885237095,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23091,48 +23091,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "8e1d046f59907c4dd78668bdfdf468b27b6d160d",
-          "message": "chore(acvm): Optimize Expression evaluate by avoiding unnecessary lookups and avoid temp allocs (#11936)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-03-23T16:37:34Z",
-          "tree_id": "609fdfeb0cbf74c6df18dbed220f00668a6c1834",
-          "url": "https://github.com/noir-lang/noir/commit/8e1d046f59907c4dd78668bdfdf468b27b6d160d"
-        },
-        "date": 1774284004928,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 169934,
-            "range": "± 336",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 139375,
-            "range": "± 5200",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2643146,
-            "range": "± 7110",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25184,6 +25142,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2642776,
             "range": "± 2174",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "84741533+defkit@users.noreply.github.com",
+            "name": "defkit",
+            "username": "defkit"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4bcbec9af3684b02b2571fdf8d40afd844a64a31",
+          "message": "fix(ssa_fuzzer): fix non-deterministic iteration order (#12041)",
+          "timestamp": "2026-03-30T15:17:30Z",
+          "tree_id": "ce08a13d23e5c03a912141dd79fc871114f372f6",
+          "url": "https://github.com/noir-lang/noir/commit/4bcbec9af3684b02b2571fdf8d40afd844a64a31"
+        },
+        "date": 1774885186448,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168907,
+            "range": "± 462",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 137611,
+            "range": "± 1190",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2640999,
+            "range": "± 1488",
             "unit": "ns/iter"
           }
         ]
