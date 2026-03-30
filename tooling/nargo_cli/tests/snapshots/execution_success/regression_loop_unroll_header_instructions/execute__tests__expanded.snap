@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(x: Field) {
+    let result: Field = compute(x);
+    assert(result != 0_Field);
+}
+
+#[no_predicates]
+fn compute(x: Field) -> Field {
+    let mut s: Field = x;
+    for _i in 0_u32..1_u32 {
+        s = (s * s) + 1_Field;
+    }
+    s * s
+}
