@@ -164,7 +164,10 @@ impl TaintedDescendants {
             })
         });
         self.array_outputs.retain(|_, descendants| {
-            !constrained_values.iter().any(|value| descendants.contains(value))
+            !constrained_values.iter().any(|value| {
+                descendants.contains(value)
+                    || ancestors.get(value).is_some_and(|a| intersecting(a, descendants))
+            })
         });
 
         self.is_constrained()
@@ -212,6 +215,10 @@ impl TaintedDescendants {
     }
 
     /// Add to the descendants of a particular array element.
+    ///
+    /// This is only called when we read from an array. Later on we can use the
+    /// ancestry information to connect constrained values back to values we read
+    /// from the array.
     fn extend_array_result(&mut self, array: ValueId, index: u32, results: &[ValueId]) {
         if let Some(descendants) = self.array_outputs.get_mut(&(array, index)) {
             descendants.extend(results);
@@ -1311,5 +1318,31 @@ mod tests {
         let mut ssa = Ssa::from_str(program).unwrap();
         let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
         assert_eq!(ssa_level_warnings.len(), 1);
+    }
+
+    #[test]
+    #[traced_test]
+    fn array_output_constant_constraint_on_sum() {
+        let program = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v1 = call f1(v0) -> [u32; 2]
+            v2 = array_get v1, index u32 0 -> u32
+            v3 = array_get v1, index u32 1 -> u32
+            v4 = unchecked_add v2, v3
+            v5 = lt v4, u32 100
+            constrain v5 == u1 1
+            return
+        }
+        brillig(inline) predicate_pure fn f f1 {
+          b0(v0: u32):
+            v1 = make_array [v0, v0] : [u32; 2]
+            return v1
+        }
+        "#;
+
+        let mut ssa = Ssa::from_str(program).unwrap();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        assert_eq!(ssa_level_warnings.len(), 0);
     }
 }
