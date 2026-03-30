@@ -294,11 +294,7 @@ pub(crate) fn process_workspace_for_single_file_change(
     // assume all unstable features are enabled.
     let options = FrontendOptions {
         debug_comptime_in_file: None,
-        enabled_unstable_features: &[
-            UnstableFeature::Enums,
-            UnstableFeature::Ownership,
-            UnstableFeature::TraitAsType,
-        ],
+        enabled_unstable_features: &[UnstableFeature::Enums, UnstableFeature::TraitAsType],
         disable_required_unstable_features: false,
     };
 

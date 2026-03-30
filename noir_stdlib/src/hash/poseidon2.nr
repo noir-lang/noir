@@ -89,6 +89,10 @@ pub(crate) struct Poseidon2Hasher {
 
 impl Hasher for Poseidon2Hasher {
     fn finish(self) -> Field {
+        self.finish_ref()
+    }
+
+    fn finish_ref(&self) -> Field {
         let iv: Field = (self._state.len() as Field) * 18446744073709551616; // iv = (self._state.len() << 64)
         let mut sponge = Poseidon2::new(iv);
         for i in 0..self._state.len() {

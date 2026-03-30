@@ -83,7 +83,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     ///     assert(first != last);
     /// }
     /// ```
-    pub fn get(self, index: u32) -> T {
+    pub fn get(&self, index: u32) -> T {
         assert(index < self.len, "Attempted to read past end of BoundedVec");
         self.get_unchecked(index)
     }
@@ -107,7 +107,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     ///     first + second + third
     /// }
     /// ```
-    pub fn get_unchecked(self, index: u32) -> T {
+    pub fn get_unchecked(&self, index: u32) -> T {
         self.storage[index]
     }
 
@@ -209,7 +209,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// let _ = v.pop();
     /// assert(v.len() == 2);
     /// ```
-    pub fn len(self) -> u32 {
+    pub fn len(&self) -> u32 {
         self.len
     }
 
@@ -225,7 +225,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// v.push(10);
     /// assert(v.max_len() == 5);
     /// ```
-    pub fn max_len(_self: BoundedVec<T, MaxLen>) -> u32 {
+    pub fn max_len(_self: &BoundedVec<T, MaxLen>) -> u32 {
         MaxLen
     }
 
@@ -246,7 +246,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// v.push(57);
     /// assert(v.storage() == [57, 0, 0, 0, 0]);
     /// ```
-    pub fn storage(self) -> [T; MaxLen] {
+    pub fn storage(&self) -> [T; MaxLen] {
         self.storage
     }
 
@@ -419,7 +419,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// let expected = BoundedVec::from_array([2, 4, 6, 8]);
     /// assert_eq(result, expected);
     /// ```
-    pub fn map<U, Env>(self, f: fn[Env](T) -> U) -> BoundedVec<U, MaxLen> {
+    pub fn map<U, Env>(&self, f: fn[Env](T) -> U) -> BoundedVec<U, MaxLen> {
         let mut ret = BoundedVec::new();
         ret.len = self.len();
 
@@ -450,7 +450,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// let expected = BoundedVec::from_array([2, 5, 8, 11]);
     /// assert_eq(result, expected);
     /// ```
-    pub fn mapi<U, Env>(self, f: fn[Env](u32, T) -> U) -> BoundedVec<U, MaxLen> {
+    pub fn mapi<U, Env>(&self, f: fn[Env](u32, T) -> U) -> BoundedVec<U, MaxLen> {
         let mut ret = BoundedVec::new();
         ret.len = self.len();
 
@@ -481,7 +481,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// let expected = BoundedVec::from_array([2, 4, 6, 8]);
     /// assert_eq(result, expected);
     /// ```
-    pub fn for_each<Env>(self, f: fn[Env](T) -> ()) {
+    pub fn for_each<Env>(&self, f: fn[Env](T) -> ()) {
         if is_unconstrained() {
             for i in 0..self.len() {
                 f(self.get_unchecked(i));
@@ -507,7 +507,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// let expected = BoundedVec::from_array([2, 5, 8, 11]);
     /// assert_eq(result, expected);
     /// ```
-    pub fn for_eachi<Env>(self, f: fn[Env](u32, T) -> ()) {
+    pub fn for_eachi<Env>(&self, f: fn[Env](u32, T) -> ()) {
         if is_unconstrained() {
             for i in 0..self.len() {
                 f(i, self.get_unchecked(i));

@@ -82,24 +82,24 @@
 <div class="padded-description"><div class="comments">
 <p>Returns true if the map contains a value for the specified key.</p>
 </div>
-</div><code id="is_empty" class="code-header">pub fn <a href="#is_empty"><span class="fn">is_empty</span></a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
+</div><code id="is_empty" class="code-header">pub fn <a href="#is_empty"><span class="fn">is_empty</span></a>(&mut self: &Self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns true if the map contains no elements.</p>
 </div>
-</div><code id="entries" class="code-header">pub fn <a href="#entries"><span class="fn">entries</span></a>(self) -> [(K, V)]</code>
+</div><code id="entries" class="code-header">pub fn <a href="#entries"><span class="fn">entries</span></a>(&mut self: &Self) -> [(K, V)]</code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns a vector of all valid entries in this UHashMap.
 The length of the returned vector will always match the length of this UHashMap.</p>
 </div>
-</div><code id="keys" class="code-header">pub fn <a href="#keys"><span class="fn">keys</span></a>(self) -> [K]</code>
+</div><code id="keys" class="code-header">pub fn <a href="#keys"><span class="fn">keys</span></a>(&mut self: &Self) -> [K]</code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns a vector containing all the keys within this UHashMap.
 The length of the returned vector will always match the length of this UHashMap.</p>
 </div>
-</div><code id="values" class="code-header">pub fn <a href="#values"><span class="fn">values</span></a>(self) -> [V]</code>
+</div><code id="values" class="code-header">pub fn <a href="#values"><span class="fn">values</span></a>(&mut self: &Self) -> [V]</code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns a vector containing all the values within this UHashMap.
@@ -133,12 +133,12 @@ The length of the returned vector will always match the length of this UHashMap.
 <div class="padded-description"><div class="comments">
 <p>Retains only the elements specified by the predicate.</p>
 </div>
-</div><code id="len" class="code-header">pub fn <a href="#len"><span class="fn">len</span></a>(self) -> <a href="../../../std/primitive.u32.html" class="primitive">u32</a></code>
+</div><code id="len" class="code-header">pub fn <a href="#len"><span class="fn">len</span></a>(&mut self: &Self) -> <a href="../../../std/primitive.u32.html" class="primitive">u32</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Amount of active key-value entries.</p>
 </div>
-</div><code id="capacity" class="code-header">pub fn <a href="#capacity"><span class="fn">capacity</span></a>(self) -> <a href="../../../std/primitive.u32.html" class="primitive">u32</a></code>
+</div><code id="capacity" class="code-header">pub fn <a href="#capacity"><span class="fn">capacity</span></a>(&mut self: &Self) -> <a href="../../../std/primitive.u32.html" class="primitive">u32</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Get the current capacity of the inner table.</p>

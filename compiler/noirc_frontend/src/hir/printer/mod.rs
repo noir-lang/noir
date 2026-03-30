@@ -588,9 +588,13 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         for (index, (pattern, typ, visibility)) in parameters.iter().enumerate() {
             let is_self = self.pattern_is_self(pattern);
 
-            // `&mut self` is represented as a mutable reference type, not as a mutable pattern
-            if is_self && matches!(typ, Type::Reference(..)) {
-                self.push_str("&mut ");
+            // `&mut self` and `& self` are represented as a reference type, not as a pattern
+            if is_self && let Type::Reference(_, mutable) = typ {
+                if *mutable {
+                    self.push_str("&mut ");
+                } else {
+                    self.push_str("&");
+                }
             }
 
             self.show_pattern(pattern);
