@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774886318319,
+  "lastUpdate": 1774904237065,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23091,48 +23091,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "1f712610f10359b715bfb97e9c9cd3db61489917",
-          "message": "fix: disallow`impl Trait` in invalid type positions (#11944)",
-          "timestamp": "2026-03-23T18:12:46Z",
-          "tree_id": "1b9a2bddc5bd9dcf2656cc76ad86fa66b9179510",
-          "url": "https://github.com/noir-lang/noir/commit/1f712610f10359b715bfb97e9c9cd3db61489917"
-        },
-        "date": 1774291549206,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 167578,
-            "range": "± 242",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137959,
-            "range": "± 2777",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2122476,
-            "range": "± 1172",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -25184,6 +25142,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2640999,
             "range": "± 1488",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c033e48bb813206dd272c1d24ea3c220f69f3fc4",
+          "message": "feat(ssa): Remove redundant block params (#12047)",
+          "timestamp": "2026-03-30T20:28:16Z",
+          "tree_id": "2b599dd597f11209834b302112957fa378e4a38f",
+          "url": "https://github.com/noir-lang/noir/commit/c033e48bb813206dd272c1d24ea3c220f69f3fc4"
+        },
+        "date": 1774904182933,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 125960,
+            "range": "± 693",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 111387,
+            "range": "± 3745",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3042031,
+            "range": "± 18049",
             "unit": "ns/iter"
           }
         ]
