@@ -206,7 +206,11 @@ impl Ssa {
 /// Panics if:
 ///   - Any ACIR function has at least 1 loop
 ///   - Any ACIR function has a `ConstrainNotEqual` instruction
-///   - Any ACIR function calls a pure brillig function with all-constant arguments
+///   - Any ACIR function calls a non-impure brillig function with all-constant arguments.
+///     This is not a correctness issue for flattening itself, but it hints at sub-optimal
+///     simplification: the call could have been interpreted by constant folding before
+///     flattening. After flattening, results get multiplied by a predicate, turning
+///     constants into witnesses and preventing further simplification.
 #[cfg(debug_assertions)]
 fn flatten_cfg_pre_check(function: &Function, runtimes: &HashMap<FunctionId, RuntimeType>) {
     if function.runtime().is_acir() {

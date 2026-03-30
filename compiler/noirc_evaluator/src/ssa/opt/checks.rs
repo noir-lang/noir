@@ -180,10 +180,8 @@ pub(super) fn assert_not_mutable_array_set(instruction: &Instruction) {
     );
 }
 
-/// Panics if the instruction is a call to a pure brillig function where
-/// all arguments are constant. Such calls should have been interpreted by
-/// constant folding before flattening, since flattening will multiply
-/// the results by a predicate, turning constants into witnesses.
+/// Panics if the instruction is a call to a non-impure brillig function
+/// where all arguments are constant.
 ///
 /// Only non-impure functions are checked — impure brillig functions
 /// (e.g. those taking reference parameters) cannot be interpreted at
