@@ -1900,6 +1900,10 @@ impl<'f> LoopIteration<'f> {
 
 /// Unrolling leaves some duplicate instructions which can potentially be removed.
 fn simplify_between_unrolls(function: &mut Function) {
+    function.mem2reg_simple_pre_flattening();
+    // LSF re-inserts instructions through the DFG simplify path, so it both
+    // forwards loads and folds constant expressions in a single pass.
+    function.load_store_forwarding();
     function.simplify_function();
     // LSF re-inserts instructions through the DFG simplify path, so it both
     // forwards loads and folds constant expressions in a single pass.
@@ -3694,6 +3698,80 @@ mod tests {
         assert!(
             result.is_ok(),
             "Both loops should be unrollable after store/load forwarding, got error: {:?}",
+            result.err()
+        );
+    }
+
+    /// Regression test: a BoundedVec's length is stored in an allocation.
+    /// Two sequential loops use the same length as their bound.
+    /// After Loop 1 unrolls, Loop 2's bound is still a `load` from a different block
+    /// because `simplify_function` cannot merge the blocks (a conditional branch in
+    /// between prevents it).
+    ///
+    /// Without mem2reg promoting the allocation to a block parameter (skipped for large
+    /// functions), `simplify_between_unrolls` must resolve the cross-block store->load
+    /// so the unroller can determine Loop 2's constant bound.
+    ///
+    /// Pattern from `for _i in 0..copy.len() { requests.pop(); }; for _i in 0..copy.len() { ... }`.
+    #[test]
+    fn acir_unroll_cross_block_load_bound() {
+        // v0 = allocation for `copy.len` (stored once as u32 3, never modified)
+        // v1 = allocation for `requests.len` (modified in Loop 1's body)
+        // Loop 1 (b1→b2→b1): bound is u32 3 (constant), body modifies v1
+        // b3: conditional branch that prevents simplify_function from merging
+        //     the entry block with Loop 2's pre-header
+        // After Loop 1 unrolls, Loop 2's bound comes from `load v0` in a
+        // different block that can't be merged with the store block.
+        // Loop 2 (b6→b7→b6): bound loaded from v0 (should resolve to u32 3)
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v100: Field):
+            v0 = allocate -> &mut u32
+            store u32 3 at v0
+            v1 = allocate -> &mut u32
+            store u32 3 at v1
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v5 = lt v2, u32 3
+            jmpif v5 then: b2(), else: b3()
+          b2():
+            v6 = load v1 -> u32
+            v7 = sub v6, u32 1
+            store v7 at v1
+            v8 = unchecked_add v2, u32 1
+            jmp b1(v8)
+          b3():
+            v13 = eq v100, Field 0
+            jmpif v13 then: b4(), else: b5()
+          b4():
+            jmp b9(Field 100)
+          b5():
+            jmp b9(Field 200)
+          b9(v14: Field):
+            v9 = load v0 -> u32
+            jmp b6(u32 0, v14)
+          b6(v3: u32, v4: Field):
+            v10 = lt v3, v9
+            jmpif v10 then: b7(), else: b8()
+          b7():
+            v11 = add v4, Field 1
+            v12 = unchecked_add v3, u32 1
+            jmp b6(v12, v11)
+          b8():
+            return v4
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        // let ssa = ssa.mem2reg_simple();
+        // let ssa = ssa.load_store_forwarding();
+        // println!("{}", ssa.print_with(None));
+
+        let result =
+            ssa.unroll_loops_iteratively(None, MAX_UNROLL_ITERATIONS, FORCE_UNROLL_THRESHOLD);
+        assert!(
+            result.is_ok(),
+            "Cross-block store->load bound should be resolved, got error: {:?}",
             result.err()
         );
     }
