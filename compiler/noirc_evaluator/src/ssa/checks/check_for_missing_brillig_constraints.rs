@@ -706,6 +706,8 @@ fn instruction_results(func: &Function, instruction_id: &InstructionId) -> Vec<V
 /// add v2 to v1's own ancestor set (because v1 is never its own ancestor).
 ///
 /// Calls a function `f` with each value; if `f` returns `true` the traversal continues, otherwise returns.
+///
+/// Returns the set of visited nodes.
 fn bfs_traverse_ancestors(
     starts: &[ValueId],
     parents: &HashMap<ValueId, Vec<ValueId>>,
@@ -715,10 +717,10 @@ fn bfs_traverse_ancestors(
     let mut visited: HashSet<ValueId> = HashSet::new();
     let mut queue: VecDeque<ValueId> = VecDeque::new();
     for &s in starts {
+        visited.insert(s);
         if !f(s) {
             return visited;
         }
-        visited.insert(s);
         // From start nodes: follow only parent edges, not equivalences.
         for &p in parents.get(&s).into_iter().flatten() {
             if visited.insert(p) {
