@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774881013285,
+  "lastUpdate": 1774881033344,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23091,48 +23091,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "84741533+defkit@users.noreply.github.com",
-            "name": "defkit",
-            "username": "defkit"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "882d7ccf90269fdc5468af98c7721bf42d388318",
-          "message": "feat(ssa_fuzzer): poseidon + compilation errors logging  (#11877)\n\nCo-authored-by: sarkoxedaf <sarkoxed@sarkoxed.me>",
-          "timestamp": "2026-03-23T15:33:47Z",
-          "tree_id": "08dcb350fbf9210bcf7f83ef65586b7039069993",
-          "url": "https://github.com/noir-lang/noir/commit/882d7ccf90269fdc5468af98c7721bf42d388318"
-        },
-        "date": 1774282423942,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 253267,
-            "range": "± 3942",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 222177,
-            "range": "± 7361",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2729795,
-            "range": "± 2853",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -25184,6 +25142,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2643199,
             "range": "± 1872",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "40323a52e51adf28ad09bd4278baa67969731bac",
+          "message": "chore(deps): bump brace-expansion from 1.1.12 to 1.1.13 (#12033)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-03-30T13:10:46Z",
+          "tree_id": "0ff46923bcc44cf82b8705c94a39956db1de935c",
+          "url": "https://github.com/noir-lang/noir/commit/40323a52e51adf28ad09bd4278baa67969731bac"
+        },
+        "date": 1774880951668,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168758,
+            "range": "± 349",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 137215,
+            "range": "± 1322",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2642776,
+            "range": "± 2174",
             "unit": "ns/iter"
           }
         ]
