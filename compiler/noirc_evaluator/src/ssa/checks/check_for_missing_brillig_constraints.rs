@@ -55,6 +55,9 @@ use rayon::prelude::*;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::hash::Hash;
 
+/// The maximum length of arrays that we attempt to constrain item-by-item.
+const MAX_ARRAY_OUTPUT_LENGTH: u32 = 64;
+
 impl Ssa {
     /// Detect Brillig calls left unconstrained with manual asserts
     /// and return a vector of bug reports if any have been found
@@ -127,7 +130,6 @@ struct TaintedDescendants {
 
 impl TaintedDescendants {
     fn new(func: &Function, arguments: Vec<ValueId>, result_ids: &[ValueId]) -> Self {
-        let max_array_size: u32 = crate::ssa::ir::dfg::MAX_ELEMENTS.try_into().unwrap();
         let mut single_outputs = HashSet::new();
         let mut array_outputs = HashMap::new();
         for result_id in result_ids {
@@ -135,7 +137,7 @@ impl TaintedDescendants {
                 // If the result value is an array, create an empty descendant set for
                 // every element to be accessed further on and record the indices
                 // of the resulting sets for future reference
-                Some(length) if length.0 <= max_array_size => {
+                Some(length) if length.0 <= MAX_ARRAY_OUTPUT_LENGTH => {
                     for i in 0..length.0 {
                         array_outputs.insert((*result_id, i), HashSet::new());
                     }
@@ -1503,6 +1505,45 @@ mod tests {
         brillig(inline) predicate_pure fn f f1 {
           b0(v0: u32):
             v1 = make_array [v0, v0] : [u32; 2]
+            return v1
+        }
+        "#;
+
+        let mut ssa = Ssa::from_str(program).unwrap();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        assert_eq!(ssa_level_warnings.len(), 0);
+    }
+
+    /// The array returned is longer than MAX_ARRAY_OUTPUT_LENGTH so we don't track it item-by-item,
+    /// but the constraint placed on a few items should clear the whole array.
+    #[test]
+    #[traced_test]
+    fn large_array_output_constant_constraint_on_sum() {
+        let program = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v1 = call f1(v0) -> [u32; 100]
+            v2 = array_get v1, index u32 0 -> u32
+            v3 = array_get v1, index u32 1 -> u32
+            v4 = unchecked_add v2, v3
+            v5 = lt v4, u32 100
+            constrain v5 == u1 1
+            return
+        }
+        brillig(inline) predicate_pure fn f f1 {
+          b0(v0: u32):
+            v1 = make_array [
+              v0, v0, v0, v0, v0, v0, v0, v0, v0, v0,
+              v0, v0, v0, v0, v0, v0, v0, v0, v0, v0,
+              v0, v0, v0, v0, v0, v0, v0, v0, v0, v0,
+              v0, v0, v0, v0, v0, v0, v0, v0, v0, v0,
+              v0, v0, v0, v0, v0, v0, v0, v0, v0, v0,
+              v0, v0, v0, v0, v0, v0, v0, v0, v0, v0,
+              v0, v0, v0, v0, v0, v0, v0, v0, v0, v0,
+              v0, v0, v0, v0, v0, v0, v0, v0, v0, v0,
+              v0, v0, v0, v0, v0, v0, v0, v0, v0, v0,
+              v0, v0, v0, v0, v0, v0, v0, v0, v0, v0,
+            ] : [u32; 100]
             return v1
         }
         "#;
