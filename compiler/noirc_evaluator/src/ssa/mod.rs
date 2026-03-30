@@ -202,6 +202,14 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             "Brillig Function Specialization",
         )
         .and_then(Ssa::remove_unreachable_functions),
+        // Brillig function specialization can produce trivial constant-returning
+        // clones when all arguments are constant. Fold those calls away now so
+        // they don't survive to flattening (where predicate multiplication would
+        // turn the constant results into witnesses).
+        SsaPass::new(
+            |ssa| ssa.fold_constants(options.constant_folding_max_iter),
+            "Constant Folding",
+        ),
         SsaPass::new(Ssa::as_vector_optimization, "`as_vector` optimization")
             .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new_try(
