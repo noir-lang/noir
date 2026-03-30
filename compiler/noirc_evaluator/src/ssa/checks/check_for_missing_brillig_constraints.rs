@@ -72,11 +72,24 @@ impl Ssa {
             .filter(|func| func.runtime().is_acir() && has_call_to_brillig(func, &self.functions))
             .par_bridge()
             .flat_map(|func| {
-                Context::new(func)
-                    .build_tainted(func, &self.functions)
-                    .build_parent_graph(func)
-                    .constrain_tainted(func, &self.functions)
-                    .into_warnings(func)
+                let mut ctx = Context::new(func);
+                let start = std::time::Instant::now();
+                ctx = ctx.build_tainted(func, &self.functions);
+
+                let end = std::time::Instant::now();
+                println!("build_tainted took {}ms", end.duration_since(start).as_millis());
+                let start = end;
+
+                ctx = ctx.build_parent_graph(func);
+                let end = std::time::Instant::now();
+                println!("build_parent_graph took {}ms", end.duration_since(start).as_millis());
+                let start = end;
+
+                ctx = ctx.constrain_tainted(func, &self.functions);
+                let end = std::time::Instant::now();
+                println!("constrain_tainted took {}ms", end.duration_since(start).as_millis());
+
+                ctx.into_warnings(func)
             })
             .collect()
     }
@@ -676,14 +689,20 @@ fn instruction_results(func: &Function, instruction_id: &InstructionId) -> Vec<V
 /// themselves). This matches the original transitive-closure semantics: `constrain v1 == v2`
 /// adds v2 to the ancestor sets of keys that *already* have v1 as an ancestor, but does **not**
 /// add v2 to v1's own ancestor set (because v1 is never its own ancestor).
-fn bfs_ancestors(
+///
+/// Calls a function `f` with each value; if `f` returns `true` the traversal continues, otherwise returns.
+fn bfs_traverse_ancestors(
     starts: &[ValueId],
     parents: &HashMap<ValueId, Vec<ValueId>>,
     equivalences: &HashMap<ValueId, Vec<ValueId>>,
+    mut f: impl FnMut(ValueId) -> bool,
 ) -> HashSet<ValueId> {
     let mut visited: HashSet<ValueId> = HashSet::new();
     let mut queue: VecDeque<ValueId> = VecDeque::new();
     for &s in starts {
+        if !f(s) {
+            return visited;
+        }
         visited.insert(s);
         // From start nodes: follow only parent edges, not equivalences.
         for &p in parents.get(&s).into_iter().flatten() {
@@ -694,6 +713,9 @@ fn bfs_ancestors(
     }
     // From intermediate nodes: follow both parent and equivalence edges.
     while let Some(curr) = queue.pop_front() {
+        if !f(curr) {
+            return visited;
+        }
         for &next in parents
             .get(&curr)
             .into_iter()
@@ -708,6 +730,16 @@ fn bfs_ancestors(
     visited
 }
 
+/// Compute the set of all values reachable (inclusive) from any of the `starts` by following
+/// `parents` and `equivalences` edges backwards.
+fn bfs_ancestors(
+    starts: &[ValueId],
+    parents: &HashMap<ValueId, Vec<ValueId>>,
+    equivalences: &HashMap<ValueId, Vec<ValueId>>,
+) -> HashSet<ValueId> {
+    bfs_traverse_ancestors(starts, parents, equivalences, |_| true)
+}
+
 /// Returns `true` if `start` itself, or any value reachable from `start` by following
 /// `parents` (and `equivalences` from intermediate nodes), equals `target`.
 ///
@@ -719,38 +751,14 @@ fn any_ancestor_is(
     parents: &HashMap<ValueId, Vec<ValueId>>,
     equivalences: &HashMap<ValueId, Vec<ValueId>>,
 ) -> bool {
-    if start == target {
-        return true;
-    }
-    let mut visited: HashSet<ValueId> = HashSet::new();
-    let mut queue: VecDeque<ValueId> = VecDeque::new();
-    visited.insert(start);
-    // From start: parent edges only.
-    for &p in parents.get(&start).into_iter().flatten() {
-        if p == target {
-            return true;
+    let mut found = false;
+    bfs_traverse_ancestors(&[start], parents, equivalences, |a| {
+        if a == target {
+            found = true;
         }
-        if visited.insert(p) {
-            queue.push_back(p);
-        }
-    }
-    // From intermediate nodes: parent + equivalence edges.
-    while let Some(curr) = queue.pop_front() {
-        for &next in parents
-            .get(&curr)
-            .into_iter()
-            .flatten()
-            .chain(equivalences.get(&curr).into_iter().flatten())
-        {
-            if next == target {
-                return true;
-            }
-            if visited.insert(next) {
-                queue.push_back(next);
-            }
-        }
-    }
-    false
+        !found
+    });
+    found
 }
 
 /// Returns `true` if `start` itself, or any value reachable from `start` by following
@@ -764,38 +772,14 @@ fn any_ancestor_in(
     parents: &HashMap<ValueId, Vec<ValueId>>,
     equivalences: &HashMap<ValueId, Vec<ValueId>>,
 ) -> bool {
-    if target_set.contains(&start) {
-        return true;
-    }
-    let mut visited: HashSet<ValueId> = HashSet::new();
-    let mut queue: VecDeque<ValueId> = VecDeque::new();
-    visited.insert(start);
-    // From start: parent edges only.
-    for &p in parents.get(&start).into_iter().flatten() {
-        if target_set.contains(&p) {
-            return true;
+    let mut found = false;
+    bfs_traverse_ancestors(&[start], parents, equivalences, |a| {
+        if target_set.contains(&a) {
+            found = true;
         }
-        if visited.insert(p) {
-            queue.push_back(p);
-        }
-    }
-    // From intermediate nodes: parent + equivalence edges.
-    while let Some(curr) = queue.pop_front() {
-        for &next in parents
-            .get(&curr)
-            .into_iter()
-            .flatten()
-            .chain(equivalences.get(&curr).into_iter().flatten())
-        {
-            if target_set.contains(&next) {
-                return true;
-            }
-            if visited.insert(next) {
-                queue.push_back(next);
-            }
-        }
-    }
-    false
+        !found
+    });
+    found
 }
 
 #[cfg(test)]
