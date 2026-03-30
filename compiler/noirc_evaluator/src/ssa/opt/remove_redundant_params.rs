@@ -27,10 +27,10 @@
 //! The join rule is: `None ⊔ x = x`, `One(v) ⊔ One(v) = One(v)`,
 //! `One(v) ⊔ One(w) = Many`, `Many ⊔ _ = Many`.
 //!
-//! A predecessor argument that equals the block parameter itself (a loop
-//! back-edge passing the param back) is skipped — it carries no new
-//! information.  If an argument is itself a block parameter that already
-//! resolved to `One(v)`, the resolved value is used (transitive resolution).
+//! Self-references (loop back-edges passing a param to itself) and transitive
+//! chains are handled implicitly by the lattice: a block parameter argument is
+//! resolved to its current abstract value before joining, so self-references
+//! contribute `x ⊔ x = x` (a no-op) and chains converge over iterations.
 //!
 //! **Phase 3 — Transform.**
 //! For every parameter that resolved to `One(v)`, replace all uses of the
@@ -44,6 +44,7 @@
 //! After `mem2reg` (which introduces the redundant params) and before
 //! `flatten_cfg` (where the cost is highest for ACIR).
 
+use itertools::Itertools;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::ssa::{
@@ -97,16 +98,11 @@ impl AbstractValue {
     }
 }
 
-/// An edge from a predecessor to a target block, carrying the arguments
-/// that the predecessor passes to the target's parameters.
-struct PredEdge {
-    arguments: Vec<ValueId>,
-}
-
-/// Summary of a single non-entry block: its parameters and all incoming edges.
+/// Summary of a single non-entry block: its parameters and the arguments
+/// each predecessor passes (one `Vec<ValueId>` per incoming edge).
 struct BlockSummary {
     params: Vec<ValueId>,
-    edges: Vec<PredEdge>,
+    edges: Vec<Vec<ValueId>>,
 }
 
 impl Function {
@@ -158,38 +154,23 @@ impl Function {
                     continue;
                 };
 
-                for (i, &param) in summary.params.iter().enumerate() {
-                    let current = lattice[&param];
-                    if current == AbstractValue::Many {
-                        // Already at top, cannot change.
-                        continue;
-                    }
-
-                    let mut new_val = current;
-                    for edge in &summary.edges {
-                        let arg = edge.arguments[i];
-
-                        // Skip self-references (loop back-edges passing the param to itself).
-                        if arg == param {
+                for edge in &summary.edges {
+                    for (&param, &arg) in summary.params.iter().zip_eq(edge) {
+                        let current = lattice[&param];
+                        if current == AbstractValue::Many {
                             continue;
                         }
 
-                        // Resolve the argument to its abstract value: if it's a block
-                        // parameter in the lattice use that; otherwise it's a "Group B"
+                        // Resolve the argument: if it's a block parameter in the
+                        // lattice, use its abstract value; otherwise it's a "Group B"
                         // value (instruction result / entry param / constant) → One(arg).
                         let arg_val = lattice.get(&arg).copied().unwrap_or(AbstractValue::One(arg));
+                        let new_val = current.join(arg_val);
 
-                        // After resolution, skip if it resolved to self (transitive self-reference).
-                        if arg_val == AbstractValue::One(param) {
-                            continue;
+                        if new_val != current {
+                            lattice.insert(param, new_val);
+                            changed = true;
                         }
-
-                        new_val = new_val.join(arg_val);
-                    }
-
-                    if new_val != current {
-                        lattice.insert(param, new_val);
-                        changed = true;
                     }
                 }
             }
@@ -253,12 +234,12 @@ impl Function {
 fn collect_edges_for_target(
     terminator: &TerminatorInstruction,
     target: BasicBlockId,
-    edges: &mut Vec<PredEdge>,
+    edges: &mut Vec<Vec<ValueId>>,
 ) {
     match terminator {
         TerminatorInstruction::Jmp { destination, arguments, .. } => {
             debug_assert_eq!(*destination, target);
-            edges.push(PredEdge { arguments: arguments.clone() });
+            edges.push(arguments.clone());
         }
         TerminatorInstruction::JmpIf {
             then_destination,
@@ -268,10 +249,10 @@ fn collect_edges_for_target(
             ..
         } => {
             if *then_destination == target {
-                edges.push(PredEdge { arguments: then_arguments.clone() });
+                edges.push(then_arguments.clone());
             }
             if *else_destination == target {
-                edges.push(PredEdge { arguments: else_arguments.clone() });
+                edges.push(else_arguments.clone());
             }
         }
         _ => unreachable!("ICE: Return/Unreachable cannot be a predecessor"),
