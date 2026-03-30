@@ -64,33 +64,43 @@ impl Function {
                     max_lhs_bits < bit_size && max_rhs_bits < bit_size
                 }
                 BinaryOp::Sub { unchecked: false } => {
-                    let Some(lhs_const) = dfg.get_numeric_constant(lhs) else {
-                        return;
-                    };
+                    // True when an unsigned subtraction `lhs - rhs` is guaranteed not to underflow.
+                    //
+                    // This is the case when `lhs` is a constant that is >= the maximum possible value of `rhs`
+                    // (determined by its bit width). For example, `256 - (x as u32)` where `x: u8` cannot
+                    // underflow because `256 >= 255`.
 
-                    let max_rhs_bits = get_max_num_bits(dfg, rhs, &mut value_max_num_bits);
-                    let max_rhs =
-                        if max_rhs_bits == 128 { u128::MAX } else { (1 << max_rhs_bits) - 1 };
+                    if let Some(lhs_const) = dfg.get_numeric_constant(lhs) {
+                        let max_rhs_bits = get_max_num_bits(dfg, rhs, &mut value_max_num_bits);
+                        let max_rhs =
+                            if max_rhs_bits == 128 { u128::MAX } else { (1 << max_rhs_bits) - 1 };
 
-                    // 1. `lhs` is a fixed constant and `rhs` is restricted such that `lhs - rhs > 0`
-                    //    Note strict inequality as `rhs > lhs` while `lhs_bits == max_rhs_bits` is possible.
-                    // 2. `lhs` is the maximum value for the maximum bitsize of `rhs`.
-                    //    For example: `lhs` is 1 and `rhs` max bitsize is 1, so at most it's `1 - 1` which cannot overflow.
-                    //    Another example: `lhs` is 255 and `rhs` max bitsize is 8, so at most it's `255 - 255` which cannot overflow, etc.
-                    lhs_const >= max_rhs.into()
+                        // `lhs` is a fixed constant and `rhs` is restricted such that `lhs - rhs >= 0`.
+                        // For example: `lhs` is 1 and `rhs` max bitsize is 1, so at most it's `1 - 1`.
+                        // Another example: `lhs` is 255 and `rhs` max bitsize is 8, so at most it's `255 - 255`.
+                        lhs_const >= max_rhs.into()
+                    } else {
+                        false
+                    }
                 }
                 BinaryOp::Mul { unchecked: false } => {
                     let bit_size = dfg.type_of_value(lhs).bit_size();
                     let max_lhs_bits = get_max_num_bits(dfg, lhs, &mut value_max_num_bits);
                     let max_rhs_bits = get_max_num_bits(dfg, rhs, &mut value_max_num_bits);
 
-                    // 1. Bool multiplication cannot overflow
-                    // 2. `2^max_lhs_bits * 2^max_rhs_bits` is `2^(max_lhs_bits + max_rhs_bits)` so if that sum is
-                    //    less than or equal to the bit size of the result then it cannot overflow.
-                    // 3. lhs was upcasted from a boolean
-                    // 4. rhs was upcasted from a boolean
-                    // So either performing boolean multiplication (which cannot overflow),
-                    // or `lhs` and `rhs` have both been casted up from smaller types and cannot overflow.
+                    // `get_max_num_bits` tracks the actual range of a value through casts,
+                    // truncations, and boolean multiplications — it may be smaller than the
+                    // type's bit_size (e.g. a u8 upcast to u64 still has max_bits == 8).
+                    //
+                    // The product of an `a`-bit value and a `b`-bit value needs at most
+                    // `a + b` bits: `(2^a - 1) * (2^b - 1) < 2^(a+b)`. So if
+                    // `max_lhs_bits + max_rhs_bits <= bit_size`, the result is guaranteed
+                    // to fit and the multiplication cannot overflow.
+                    //
+                    // As a special case, when either operand has `max_bits == 1` its value
+                    // is at most 1, so `x * 0 = 0` or `x * 1 = x` — neither can overflow.
+                    // This is sound as long as `get_max_num_bits` never returns 1 for a
+                    // value that could actually exceed 1.
                     max_lhs_bits + max_rhs_bits <= bit_size
                         || max_lhs_bits == 1
                         || max_rhs_bits == 1

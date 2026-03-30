@@ -9,7 +9,9 @@ error: Assertion failed: Expected x to equal 10, but got 0x05
   │            -------
   │
   = Call stack:
-    1. src/main.nr:3:26
-    2. src/main.nr:9:12
+    1: main
+            at src/main.nr:3:26
+    2: conditional
+            at src/main.nr:9:12
 
 Failed assertion

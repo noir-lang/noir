@@ -1,11 +1,6 @@
 use crate::option::Option;
 
 impl Module {
-    #[builtin(module_add_item)]
-    // docs:start:add_item
-    pub comptime fn add_item(self, item: Quoted) {}
-    // docs:end:add_item
-
     #[builtin(module_has_named_attribute)]
     // docs:start:has_named_attribute
     pub comptime fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}

@@ -1,6 +1,5 @@
 use ark_ff::PrimeField;
 use ark_ff::Zero;
-use ark_std::io::Write;
 use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
@@ -179,10 +178,39 @@ impl<F: PrimeField> TryFrom<FieldElement<F>> for u128 {
     type Error = ();
 
     fn try_from(value: FieldElement<F>) -> Result<Self, Self::Error> {
-        match value.try_into_u128() {
-            Some(value) => Ok(value),
-            None => Err(()),
-        }
+        value.try_into_u128().ok_or(())
+    }
+}
+
+impl<F: PrimeField> TryFrom<FieldElement<F>> for u64 {
+    type Error = ();
+
+    fn try_from(value: FieldElement<F>) -> Result<Self, Self::Error> {
+        value.try_to_u64().ok_or(())
+    }
+}
+
+impl<F: PrimeField> TryFrom<FieldElement<F>> for u32 {
+    type Error = ();
+
+    fn try_from(value: FieldElement<F>) -> Result<Self, Self::Error> {
+        value.try_to_u32().ok_or(())
+    }
+}
+
+impl<F: PrimeField> TryFrom<FieldElement<F>> for u16 {
+    type Error = ();
+
+    fn try_from(value: FieldElement<F>) -> Result<Self, Self::Error> {
+        value.try_to_u32().and_then(|x| x.try_into().ok()).ok_or(())
+    }
+}
+
+impl<F: PrimeField> TryFrom<FieldElement<F>> for u8 {
+    type Error = ();
+
+    fn try_from(value: FieldElement<F>) -> Result<Self, Self::Error> {
+        value.try_to_u32().and_then(|x| x.try_into().ok()).ok_or(())
     }
 }
 
@@ -190,10 +218,39 @@ impl<F: PrimeField> TryFrom<FieldElement<F>> for i128 {
     type Error = ();
 
     fn try_from(value: FieldElement<F>) -> Result<Self, Self::Error> {
-        match value.try_into_i128() {
-            Some(value) => Ok(value),
-            None => Err(()),
-        }
+        value.try_into_i128().ok_or(())
+    }
+}
+
+impl<F: PrimeField> TryFrom<FieldElement<F>> for i64 {
+    type Error = ();
+
+    fn try_from(value: FieldElement<F>) -> Result<Self, Self::Error> {
+        value.try_into_i128().and_then(|x| x.try_into().ok()).ok_or(())
+    }
+}
+
+impl<F: PrimeField> TryFrom<FieldElement<F>> for i32 {
+    type Error = ();
+
+    fn try_from(value: FieldElement<F>) -> Result<Self, Self::Error> {
+        value.try_into_i128().and_then(|x| x.try_into().ok()).ok_or(())
+    }
+}
+
+impl<F: PrimeField> TryFrom<FieldElement<F>> for i16 {
+    type Error = ();
+
+    fn try_from(value: FieldElement<F>) -> Result<Self, Self::Error> {
+        value.try_into_i128().and_then(|x| x.try_into().ok()).ok_or(())
+    }
+}
+
+impl<F: PrimeField> TryFrom<FieldElement<F>> for i8 {
+    type Error = ();
+
+    fn try_from(value: FieldElement<F>) -> Result<Self, Self::Error> {
+        value.try_into_i128().and_then(|x| x.try_into().ok()).ok_or(())
     }
 }
 
@@ -317,9 +374,14 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
 
     /// This is the number of bits required to represent this specific field element
     fn num_bits(&self) -> u32 {
-        let mut bit_counter = BitCounter::default();
-        self.0.serialize_uncompressed(&mut bit_counter).unwrap();
-        bit_counter.bits()
+        let bigint = self.0.into_bigint();
+        let limbs = bigint.as_ref();
+        for (i, &limb) in limbs.iter().enumerate().rev() {
+            if limb != 0 {
+                return (i as u32) * 64 + (64 - limb.leading_zeros());
+            }
+        }
+        0
     }
 
     fn to_u128(self) -> u128 {
@@ -520,52 +582,6 @@ impl<F: PrimeField> Sub for FieldElement<F> {
 impl<F: PrimeField> SubAssign for FieldElement<F> {
     fn sub_assign(&mut self, rhs: FieldElement<F>) {
         self.0.sub_assign(&rhs.0);
-    }
-}
-
-#[derive(Default, Debug)]
-struct BitCounter {
-    /// Total number of non-zero bytes we found.
-    count: usize,
-    /// Total bytes we found.
-    total: usize,
-    /// The last non-zero byte we found.
-    head_byte: u8,
-}
-
-impl BitCounter {
-    fn bits(&self) -> u32 {
-        // If we don't have a non-zero byte then the field element is zero,
-        // which we consider to require a zero bits to represent.
-        if self.count == 0 {
-            return 0;
-        }
-
-        let num_bits_for_head_byte = self.head_byte.ilog2();
-
-        // Each remaining byte in the byte decomposition requires 8 bits.
-        //
-        // Note: count will panic if it goes over usize::MAX.
-        // This may not be suitable for devices whose usize < u16
-        let tail_length = (self.count - 1) as u32;
-        8 * tail_length + num_bits_for_head_byte + 1
-    }
-}
-
-impl Write for BitCounter {
-    fn write(&mut self, buf: &[u8]) -> ark_std::io::Result<usize> {
-        for byte in buf {
-            self.total += 1;
-            if *byte != 0 {
-                self.count = self.total;
-                self.head_byte = *byte;
-            }
-        }
-        Ok(buf.len())
-    }
-
-    fn flush(&mut self) -> ark_std::io::Result<()> {
-        Ok(())
     }
 }
 

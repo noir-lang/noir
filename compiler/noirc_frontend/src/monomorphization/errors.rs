@@ -16,7 +16,7 @@ pub enum MonomorphizationError {
     ComptimeFnInRuntimeCode { name: String, location: Location },
     ComptimeTypeInRuntimeCode { typ: String, location: Location },
     CheckedTransmuteFailed { actual: String, expected: String, location: Location },
-    CheckedCastFailed { actual: Type, expected: Type, location: Location },
+    CheckedCastFailed { actual: String, expected: Type, location: Location },
     RecursiveType { typ: Type, location: Location },
     CannotComputeAssociatedConstant { name: String, err: TypeCheckError, location: Location },
     ReferenceReturnedFromIfOrMatch { typ: String, location: Location },

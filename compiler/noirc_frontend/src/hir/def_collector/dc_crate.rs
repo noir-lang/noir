@@ -190,6 +190,66 @@ pub(crate) type ImplMap = HashMap<
     Vec<(UnresolvedGenerics, Location, UnresolvedFunctions)>,
 >;
 
+/// Wraps a list of compilation errors.
+///
+/// This can serve as a convenient point for debugging where a certain error is emitted.
+#[derive(Debug, Default, Clone)]
+pub struct CompilationErrors(Vec<CompilationError>);
+
+impl CompilationErrors {
+    pub(crate) fn push(&mut self, error: impl Into<CompilationError>) {
+        let error: CompilationError = error.into();
+        // Filter out internal control flow errors that should not be displayed
+        if !error.should_be_filtered() {
+            self.0.push(error);
+        }
+    }
+
+    pub(crate) fn extend<E: Into<CompilationError>>(
+        &mut self,
+        errors: impl IntoIterator<Item = E>,
+    ) {
+        for error in errors {
+            self.push(error);
+        }
+    }
+
+    pub(crate) fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub(crate) fn truncate(&mut self, len: usize) {
+        self.0.truncate(len);
+    }
+
+    pub(crate) fn iter(&self) -> impl Iterator<Item = &CompilationError> {
+        self.0.iter()
+    }
+
+    pub(crate) fn map(self, f: impl Fn(CompilationError) -> CompilationError) -> Self {
+        Self(vecmap(self.0, f))
+    }
+
+    pub fn into_errors(self) -> Vec<CompilationError> {
+        self.0
+    }
+}
+
+impl IntoIterator for CompilationErrors {
+    type Item = CompilationError;
+    type IntoIter = <Vec<CompilationError> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl AsRef<[CompilationError]> for CompilationErrors {
+    fn as_ref(&self) -> &[CompilationError] {
+        &self.0
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CompilationError {
     ParseError(ParserError),
@@ -342,7 +402,7 @@ impl DefCollector {
         root_file_id: FileId,
         options: FrontendOptions,
     ) -> Vec<CompilationError> {
-        let mut errors: Vec<CompilationError> = vec![];
+        let mut errors = CompilationErrors::default();
         let crate_id = def_map.krate();
 
         // Recursively resolve the dependencies
@@ -394,7 +454,7 @@ impl DefCollector {
 
         Self::check_unused_items(context, crate_id, &mut errors);
 
-        filter_expecting_other_errors(errors)
+        filter_expecting_other_errors(errors.into_errors())
     }
 
     /// This method does several things:
@@ -420,7 +480,7 @@ impl DefCollector {
         mut def_collector: DefCollector,
         options: FrontendOptions,
         reuse_existing_module_declarations: bool,
-        errors: &mut Vec<CompilationError>,
+        errors: &mut CompilationErrors,
     ) {
         let module_id = ModuleId { krate: crate_id, local_id: local_module_id };
         context
@@ -477,19 +537,19 @@ impl DefCollector {
             disable_required_unstable_features: options.disable_required_unstable_features,
         };
 
-        let mut more_errors =
+        let more_errors =
             Elaborator::elaborate(context, crate_id, def_collector.items, cli_options);
 
-        errors.append(&mut more_errors);
+        errors.extend(more_errors);
     }
 
     fn process_imports(
         mut collected_imports: Vec<ImportDirectiveBatch>,
         crate_id: CrateId,
         context: &mut Context,
-        outer_errors: &mut Vec<CompilationError>,
+        outer_errors: &mut CompilationErrors,
     ) {
-        let mut inner_errors = Vec::new();
+        let mut inner_errors = CompilationErrors::default();
 
         // Resolve unresolved imports collected from the crate, one by one.
         // Imports that cannot be resolved don't error right away. Instead, they are put in
@@ -592,7 +652,7 @@ impl DefCollector {
                         }
                         Err(error) => {
                             let error = DefCollectorErrorKind::PathResolutionError(error);
-                            inner_errors.push(error.into());
+                            inner_errors.push(error);
                         }
                     }
                 }
@@ -615,7 +675,7 @@ impl DefCollector {
         collected_import: &ImportDirective,
         crate_id: CrateId,
         context: &mut Context,
-        errors: &mut Vec<CompilationError>,
+        errors: &mut CompilationErrors,
     ) {
         let local_module_id = collected_import.module_id;
         let current_def_map = context.def_maps.get_mut(&crate_id).unwrap();
@@ -623,7 +683,7 @@ impl DefCollector {
 
         let has_path_resolution_error = !resolved_import.errors.is_empty();
         for error in resolved_import.errors {
-            errors.push(DefCollectorErrorKind::PathResolutionError(error).into());
+            errors.push(DefCollectorErrorKind::PathResolutionError(error));
         }
 
         // Populate module namespaces according to the imports used
@@ -632,13 +692,10 @@ impl DefCollector {
         let is_prelude = collected_import.is_prelude;
         for (module_def_id, item_visibility, _) in resolved_import.namespace.iter_items() {
             if item_visibility < visibility {
-                errors.push(
-                    DefCollectorErrorKind::CannotReexportItemWithLessVisibility {
-                        item_name: name.clone(),
-                        desired_visibility: visibility,
-                    }
-                    .into(),
-                );
+                errors.push(DefCollectorErrorKind::CannotReexportItemWithLessVisibility {
+                    item_name: name.clone(),
+                    desired_visibility: visibility,
+                });
             }
             let visibility = visibility.min(item_visibility);
 
@@ -688,16 +745,12 @@ impl DefCollector {
                     first_def,
                     second_def,
                 };
-                errors.push(err.into());
+                errors.push(err);
             }
         }
     }
 
-    fn check_unused_items(
-        context: &Context,
-        crate_id: CrateId,
-        errors: &mut Vec<CompilationError>,
-    ) {
+    fn check_unused_items(context: &Context, crate_id: CrateId, errors: &mut CompilationErrors) {
         let unused_imports = context.usage_tracker.unused_items().iter();
         let unused_imports = unused_imports.filter(|(module_id, _)| module_id.krate == crate_id);
         let mut unused_errors = unused_imports

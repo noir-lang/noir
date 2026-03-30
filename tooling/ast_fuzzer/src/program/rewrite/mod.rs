@@ -61,9 +61,13 @@ pub fn change_all_functions_into_unconstrained(mut program: Program) -> Program 
         f.unconstrained = true;
         // Modify any function pointers it takes.
         for (_, _, _, typ, _) in &mut f.parameters {
-            if let Type::Function(_, _, _, unconstrained) = types::unref_mut(typ) {
-                *unconstrained = true;
-            }
+            types::unref_mut_rc(typ, |unref_mut_typ| {
+                if let Type::Function(args, ret, env, _unconstrained) = unref_mut_typ {
+                    Type::Function(args, ret, env, true)
+                } else {
+                    unref_mut_typ
+                }
+            });
         }
         // Modify the calls it makes (we don't call ACIR from Brillig).
         visit_expr_mut(&mut f.body, &mut |expr| {
@@ -73,10 +77,15 @@ pub fn change_all_functions_into_unconstrained(mut program: Program) -> Program 
             let Expression::Ident(Ident { typ, .. }) = expr::unref_mut(func.as_mut()) else {
                 unreachable!("functions are expected to be called by ident; got {func}");
             };
-            let Type::Function(_, _, _, unconstrained) = types::unref_mut(typ) else {
-                unreachable!("function idents are expected to have Function type; got {typ}");
-            };
-            *unconstrained = true;
+
+            types::unref_mut_rc(typ, |unref_mut_typ| {
+                let Type::Function(args, ret, env, _unconstrained) = unref_mut_typ else {
+                    unreachable!(
+                        "function idents are expected to have Function type; got {unref_mut_typ}"
+                    );
+                };
+                Type::Function(args, ret, env, true)
+            });
             true
         });
         f.handle_ownership();

@@ -145,6 +145,7 @@ use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use acvm::{FieldElement, acir::AcirField, acir::BlackBoxFunc};
 use indexmap::set::IndexSet;
 use iter_extended::vecmap;
+use itertools::Itertools;
 use noirc_errors::call_stack::CallStackId;
 
 use crate::ssa::{
@@ -301,6 +302,9 @@ struct ConditionalContext {
     predicated_values: HashMap<ValueId, ValueId>,
     /// The allocations accumulated before processing the branch.
     local_allocations: HashSet<ValueId>,
+    /// When JmpIf's else_destination is the exit/merge block (no separate else block),
+    /// stores the resolved else_arguments so `inline_branch_end` can use them.
+    jmpif_else_arguments: Option<Vec<ValueId>>,
 }
 
 /// Flattens the control flow graph of the function such that it is left with a
@@ -417,10 +421,11 @@ impl<'f> Context<'f> {
     /// Prepare the arguments for the next block to consume.
     ///
     /// Panics if we already have something prepared.
-    fn prepare_args(&mut self, args: Vec<ValueId>) {
+    pub(crate) fn prepare_args(&mut self, args: Vec<ValueId>) {
         assert!(self.next_arguments.is_none(), "already prepared the arguments");
-        assert!(!args.is_empty(), "only prepare args for non-empty parameter list");
-        self.next_arguments = Some(args);
+        if !args.is_empty() {
+            self.next_arguments = Some(args);
+        }
     }
 
     /// Consume the arguments prepared by the previous block.
@@ -503,17 +508,18 @@ impl<'f> Context<'f> {
                 else_arguments,
                 call_stack,
             } => {
-                assert!(
-                    then_arguments.is_empty(),
-                    "flatten_cfg has not been updated to handle jmpif arguments"
-                );
-                assert!(
-                    else_arguments.is_empty(),
-                    "flatten_cfg has not been updated to handle jmpif arguments"
-                );
-
-                // The 'then' and 'else' blocks have no arguments, so we have nothing to prepare.
-                self.if_start(condition, then_destination, else_destination, &block, *call_stack)
+                // The `then` branch is next and we can prepare its args now, but the `else`
+                // branch's args need to be prepared only when the branch is later started.
+                let resolved = vecmap(then_arguments, |v| self.inserter.resolve(*v));
+                self.prepare_args(resolved);
+                self.if_start(
+                    condition,
+                    then_destination,
+                    else_destination,
+                    else_arguments,
+                    &block,
+                    *call_stack,
+                )
             }
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
                 // If the destination is already on the work list, it means it's an exit block in an if-then-else,
@@ -562,11 +568,12 @@ impl<'f> Context<'f> {
     /// Local allocations are moved to the 'then_branch' of the `ConditionalContext`.
     /// Returns the blocks corresponding to the 'then_branch', 'else_branch',
     /// and exit block of the conditional statement, so that they will be processed in this order.
-    fn if_start(
+    pub(crate) fn if_start(
         &mut self,
         condition: &ValueId,
         then_destination: &BasicBlockId,
         else_destination: &BasicBlockId,
+        else_arguments: &[ValueId],
         if_entry: &BasicBlockId,
         call_stack: CallStackId,
     ) -> Vec<BasicBlockId> {
@@ -579,6 +586,11 @@ impl<'f> Context<'f> {
             last_block: None,
         };
         let local_allocations = std::mem::take(&mut self.local_allocations);
+        let jmpif_else_arguments = if *else_destination == self.branch_ends[if_entry] {
+            Some(vecmap(else_arguments, |v| self.inserter.resolve(*v)))
+        } else {
+            None
+        };
         let cond_context = ConditionalContext {
             condition: then_condition,
             entry_block: *if_entry,
@@ -588,6 +600,7 @@ impl<'f> Context<'f> {
             call_stack,
             predicated_values: HashMap::default(),
             local_allocations,
+            jmpif_else_arguments,
         };
         self.condition_stack.push(cond_context);
         self.insert_current_side_effects_enabled();
@@ -696,11 +709,16 @@ impl<'f> Context<'f> {
 
         // Look up and resolve the 'else' and 'then' arguments directly in their terminators,
         // rather than rely on argument passing in the context.
-        let mut else_args = Vec::new();
-        if cond_context.else_branch.is_some() {
+        // When JmpIf's else_destination is the exit block, the else_arguments were stored
+        // in jmpif_else_arguments since there is no separate else block to read them from.
+        let else_args = if let Some(args) = &cond_context.jmpif_else_arguments {
+            args.clone()
+        } else if cond_context.else_branch.is_some() {
             let last_else = cond_context.else_branch.clone().unwrap().last_block.unwrap();
-            else_args = self.inserter.function.dfg[last_else].terminator_arguments().to_vec();
-        }
+            self.inserter.function.dfg[last_else].terminator_arguments().to_vec()
+        } else {
+            Vec::new()
+        };
 
         let last_then = cond_context.then_branch.last_block.unwrap();
         let then_args = self.inserter.function.dfg[last_then].terminator_arguments().to_vec();
@@ -713,7 +731,7 @@ impl<'f> Context<'f> {
             return;
         }
 
-        let args = vecmap(then_args.iter().zip(else_args), |(then_arg, else_arg)| {
+        let args = vecmap(then_args.iter().zip_eq(else_args), |(then_arg, else_arg)| {
             (self.inserter.resolve(*then_arg), self.inserter.resolve(else_arg))
         });
         let Some(else_branch) = cond_context.else_branch else {
@@ -2033,6 +2051,41 @@ mod tests {
             v1 = not v0
             enable_side_effects u1 1
             return v1
+        }
+        ");
+    }
+
+    /// Regression test: when JmpIf's else_destination IS the exit/merge block
+    /// (no separate else block), the else_arguments carry the "no-change" value
+    /// directly to the merge. This is the pattern mem2reg_simple produces when
+    /// the else branch has no stores (just falls through to the merge block).
+    #[test]
+    fn flatten_jmpif_else_args_to_exit_block() {
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1):
+                jmpif v0 then: b1(), else: b2(Field 5)
+              b1():
+                jmp b2(Field 10)
+              b2(v1: Field):
+                return v1
+            }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg();
+        // Should produce: if v0 then 10 else 5
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            v1 = not v0
+            enable_side_effects u1 1
+            v3 = cast v0 as Field
+            v4 = cast v1 as Field
+            v6 = mul v3, Field 10
+            v8 = mul v4, Field 5
+            v9 = add v6, v8
+            return v9
         }
         ");
     }

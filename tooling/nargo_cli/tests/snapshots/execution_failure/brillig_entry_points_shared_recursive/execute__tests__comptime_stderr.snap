@@ -10,111 +10,26 @@ warning: function `baz` cannot return without recursing
    │
 
 error: Comptime Stack Overflow
-   ┌─ std/lib.nr:40:9
+   ┌─ std/lib.nr:41:9
    │
-40 │         print_unconstrained(true, input);
+41 │         print_unconstrained(true, input);
    │         -------------------------------- Exceeded the recursion limit
    │
    = Call stack:
-     1. src/main.nr:1:4
-     2. src/main.nr:2:5
-     3. src/main.nr:18:9
-     4. src/main.nr:7:5
-     5. src/main.nr:12:5
-     6. src/main.nr:18:9
-     7. src/main.nr:7:5
-     8. src/main.nr:12:5
-     9. src/main.nr:18:9
-     10. src/main.nr:7:5
-     11. src/main.nr:12:5
-     12. src/main.nr:18:9
-     13. src/main.nr:7:5
-     14. src/main.nr:12:5
-     15. src/main.nr:18:9
-     16. src/main.nr:7:5
-     17. src/main.nr:12:5
-     18. src/main.nr:18:9
-     19. src/main.nr:7:5
-     20. src/main.nr:12:5
-     21. src/main.nr:18:9
-     22. src/main.nr:7:5
-     23. src/main.nr:12:5
-     24. src/main.nr:18:9
-     25. src/main.nr:7:5
-     26. src/main.nr:12:5
-     27. src/main.nr:18:9
-     28. src/main.nr:7:5
-     29. src/main.nr:12:5
-     30. src/main.nr:18:9
-     31. src/main.nr:7:5
-     32. src/main.nr:12:5
-     33. src/main.nr:18:9
-     34. src/main.nr:7:5
-     35. src/main.nr:12:5
-     36. src/main.nr:18:9
-     37. src/main.nr:7:5
-     38. src/main.nr:12:5
-     39. src/main.nr:18:9
-     40. src/main.nr:7:5
-     41. src/main.nr:12:5
-     42. src/main.nr:18:9
-     43. src/main.nr:7:5
-     44. src/main.nr:12:5
-     45. src/main.nr:18:9
-     46. src/main.nr:7:5
-     47. src/main.nr:12:5
-     48. src/main.nr:18:9
-     49. src/main.nr:7:5
-     50. src/main.nr:12:5
-     51. src/main.nr:18:9
-     52. src/main.nr:7:5
-     53. src/main.nr:12:5
-     54. src/main.nr:18:9
-     55. src/main.nr:7:5
-     56. src/main.nr:12:5
-     57. src/main.nr:18:9
-     58. src/main.nr:7:5
-     59. src/main.nr:12:5
-     60. src/main.nr:18:9
-     61. src/main.nr:7:5
-     62. src/main.nr:12:5
-     63. src/main.nr:18:9
-     64. src/main.nr:7:5
-     65. src/main.nr:12:5
-     66. src/main.nr:18:9
-     67. src/main.nr:7:5
-     68. src/main.nr:12:5
-     69. src/main.nr:18:9
-     70. src/main.nr:7:5
-     71. src/main.nr:12:5
-     72. src/main.nr:18:9
-     73. src/main.nr:7:5
-     74. src/main.nr:12:5
-     75. src/main.nr:18:9
-     76. src/main.nr:7:5
-     77. src/main.nr:12:5
-     78. src/main.nr:18:9
-     79. src/main.nr:7:5
-     80. src/main.nr:12:5
-     81. src/main.nr:18:9
-     82. src/main.nr:7:5
-     83. src/main.nr:12:5
-     84. src/main.nr:18:9
-     85. src/main.nr:7:5
-     86. src/main.nr:12:5
-     87. src/main.nr:18:9
-     88. src/main.nr:7:5
-     89. src/main.nr:12:5
-     90. src/main.nr:18:9
-     91. src/main.nr:7:5
-     92. src/main.nr:12:5
-     93. src/main.nr:18:9
-     94. src/main.nr:7:5
-     95. src/main.nr:12:5
-     96. src/main.nr:18:9
-     97. src/main.nr:7:5
-     98. src/main.nr:12:5
-     99. src/main.nr:18:9
-     100. src/main.nr:6:5
+          1: ?
+                at src/main.nr:1:4
+          2: main
+                at src/main.nr:2:5
+     ┌─   3: baz
+     │          at src/main.nr:18:9
+     │    4: foo
+     │          at src/main.nr:7:5
+     │    5: bar
+     │          at src/main.nr:12:5
+     └─ (repeated 32 times)
+         99: baz
+                at src/main.nr:18:9
+        100: foo
+                at src/main.nr:6:5
 
 Error interpreting main function

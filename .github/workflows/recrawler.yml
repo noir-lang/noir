@@ -7,6 +7,8 @@ on:
     - cron: "0 9 * * 1-5"
   workflow_dispatch:
 
+permissions: {}
+
 jobs:
   algolia_recrawl:
     name: Algolia Recrawl
@@ -29,7 +31,7 @@ jobs:
       - name: Send an alert in slack
         # Send notifications on scheduled runs if there's a failure.
         if: ${{ failure() && github.event_name == 'schedule' }}
-        uses: slackapi/slack-github-action@v2.1.1
+        uses: slackapi/slack-github-action@v3.0.1
         with:
           webhook: ${{ secrets.ALGOLIA_FAILURE_ALERT_URL }}
           webhook-type: webhook-trigger

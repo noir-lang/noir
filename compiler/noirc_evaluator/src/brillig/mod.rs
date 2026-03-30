@@ -23,6 +23,7 @@ use self::brillig_ir::{
 };
 
 use crate::brillig::brillig_ir::LayoutConfig;
+use crate::ssa::ir::call_graph::CallGraph;
 use crate::ssa::{
     ir::{
         dfg::DataFlowGraph,
@@ -79,6 +80,7 @@ impl Brillig {
         globals: &HashMap<ValueId, BrilligVariable>,
         hoisted_global_constants: &HashMap<(FieldElement, NumericType), BrilligVariable>,
         is_entry_point: bool,
+        check_max_stack_depth: bool,
     ) {
         let obj = self.convert_ssa_function(
             func,
@@ -86,6 +88,7 @@ impl Brillig {
             globals,
             hoisted_global_constants,
             is_entry_point,
+            check_max_stack_depth,
         );
         self.ssa_function_to_brillig.insert(func.id(), obj);
     }
@@ -118,6 +121,7 @@ impl Brillig {
         globals: &HashMap<ValueId, BrilligVariable>,
         hoisted_global_constants: &HashMap<(FieldElement, NumericType), BrilligVariable>,
         is_entry_point: bool,
+        check_max_stack_depth: bool,
     ) -> BrilligArtifact<FieldElement> {
         let mut function_context =
             FunctionContext::new(func, is_entry_point, options.layout.max_stack_frame_size());
@@ -126,7 +130,9 @@ impl Brillig {
 
         brillig_context.enter_context(Label::function(func.id()));
 
-        brillig_context.call_check_max_stack_depth_procedure();
+        if check_max_stack_depth {
+            brillig_context.call_check_max_stack_depth_procedure();
+        }
 
         // Only emit spill prologue placeholders when the function may need spilling.
         if function_context.spill_enabled() {
@@ -191,6 +197,9 @@ impl Ssa {
             return brillig;
         }
 
+        let call_graph = CallGraph::from_ssa(self);
+        let max_call_depths = call_graph.max_call_depths(&brillig_reachable_function_ids);
+
         // SSA Globals are computed once at compile time and shared across all functions,
         // thus we can just fetch globals from the main function.
         // This same globals graph will then be used to declare Brillig globals for the respective entry points.
@@ -210,6 +219,8 @@ impl Ssa {
 
             let func = &self.functions[&brillig_function_id];
             let is_entry_point = brillig_globals.is_entry_point(&brillig_function_id);
+            let check_max_stack_depth = max_call_depths[&brillig_function_id]
+                .is_none_or(|max_depth| max_depth >= options.layout.num_stack_frames());
 
             brillig.compile(
                 func,
@@ -217,6 +228,7 @@ impl Ssa {
                 globals_allocations,
                 hoisted_constant_allocations,
                 is_entry_point,
+                check_max_stack_depth,
             );
         }
 
@@ -227,6 +239,7 @@ impl Ssa {
 #[cfg(test)]
 mod memory_layout {
     use acvm::{AcirField, acir::brillig::Opcode};
+    use itertools::Itertools;
 
     use crate::{
         brillig::{
@@ -253,7 +266,7 @@ mod memory_layout {
         // This assumes the same SSA where we have no globals and a single call data argument.
         let stack_start = ReservedRegisters::len() + MAX_SCRATCH_SPACE + 1;
 
-        for (op1, op2) in bytecode1.iter().zip(bytecode2) {
+        for (op1, op2) in bytecode1.iter().zip_eq(bytecode2) {
             if op1 != op2 {
                 match (op1, op2) {
                     // All opcodes are expected to be stable across memory layouts except for a few that rely
@@ -546,35 +559,55 @@ mod spill_runtime {
     }
 
     /// Caller/callee program where the caller has enough live values to trigger
-    /// spilling. Frame=12 gives 10 usable slots. The caller builds up 8 live
-    /// values ({v0, v1, v2, v3, v4, v5, v6, v7}), and computing v8 forces a
-    /// spill. Values v2, v3 must survive the call (may reload from spill slots).
-    /// The frame must also satisfy `stack_size + call_args < max_frame_size`.
+    /// spilling. Frame=12 gives 10 usable slots. The caller builds up more live
+    /// values than there are free slots, so it has to spill the LRU variables.
+    /// Values v2, v3 must survive the call (may reload from spill slots),
+    /// because we use them afterwards.
     ///
-    /// v0=3, v1=5:
-    /// v2=8, v3=5, v4=8, v5=7, v6=10, v7=9
-    /// v8 = v4+v5 = 15, v9 = v6+v7 = 19, v10 = 15+19 = 34
-    /// v11 = helper(3,5) = 8, v12 = v2+v3 = 13, v13 = 13+34 = 47
-    /// v14 = 47+8 = 55
+    /// The frame must also satisfy `stack_size + reserved_len + call_args <= max_frame_size`,
+    /// so when the call is made, we must have enough room left after spilling has happened
+    /// and dead variables have been removed. Note that we can't just spill variables to make
+    /// room for the call arguments, because the space has to be contiguous at the end of the
+    /// stack frame, so that it can become the next stack frame. For this reason we must ensure
+    /// that no variable is allocated to the end of the frame, until we come up with some other
+    /// mechanism for this (e.g. a soft allocation limit, or #11637).
     #[test]
     fn spill_with_nested_call() {
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: u32):
+            // Build-up variables until we have to spill the lowest slots.
+            // They all remain live because they will be used in the build-down.
             v2 = unchecked_add v0, v1
-            v3 = unchecked_add v0, u32 2
-            v4 = unchecked_add v1, u32 3
-            v5 = unchecked_add v0, u32 4
-            v6 = unchecked_add v1, u32 5
-            v7 = unchecked_add v0, u32 6
-            v8 = unchecked_add v4, v5
-            v9 = unchecked_add v6, v7
+            v3 = unchecked_add v1, v2
+            v4 = unchecked_add v2, v3
+            v5 = unchecked_add v3, v4
+            v6 = unchecked_add v4, v5
+            v7 = unchecked_add v5, v6
+            v8 = unchecked_add v6, v7
+            v9 = unchecked_add v7, v8
             v10 = unchecked_add v8, v9
-            v11 = call f1(v0, v1) -> u32
-            v12 = unchecked_add v2, v3
-            v13 = unchecked_add v12, v10
-            v14 = unchecked_add v13, v11
-            return v14
+            v11 = unchecked_add v9, v10
+            v12 = unchecked_add v10, v11
+            // Build-down variables:
+            // going in the opposite way, so the highest slots die first,
+            // emptying out the higher part of the stack.
+            v112 = unchecked_add v10, v11
+            v111 = unchecked_add v9, v10
+            v110 = unchecked_add v8, v9
+            v109 = unchecked_add v7, v8
+            v108 = unchecked_add v6, v7
+            v107 = unchecked_add v5, v6
+            v106 = unchecked_add v4, v5
+            v105 = unchecked_add v3, v4
+            v104 = unchecked_add v2, v3
+            v103 = unchecked_add v1, v2
+            v102 = unchecked_add v0, v1
+            // Make the call, now there should be enough space at the end of the stack.
+            v20 = call f1(v0, v1) -> u32
+            v21 = unchecked_add v2, v3
+            v22 = unchecked_add v20, v21
+            return v22
         }
         brillig(inline) fn helper f1 {
           b0(v0: u32, v1: u32):
@@ -593,12 +626,11 @@ mod spill_runtime {
             LayoutConfig::default(),
             args.clone(),
         );
-        assert_eq!(correct, vec![FieldElement::from(55u64)]);
 
         // Small frame: forces spilling in caller, values survive across call
         let layout = LayoutConfig::new(12, 16, MAX_SCRATCH_SPACE);
         let result = compile_and_run_with_layout(src, calldata, layout, args);
-        assert_eq!(result, vec![FieldElement::from(55u64)]);
+        assert_eq!(result, correct);
     }
 
     /// Cross-block spill correctness test. Frame=6 gives 4 usable slots.

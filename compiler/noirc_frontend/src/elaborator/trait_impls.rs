@@ -69,6 +69,8 @@ impl Elaborator<'_> {
         let previous_local_module = self.local_module.replace(trait_impl.module_id);
         let previous_current_trait_impl =
             std::mem::replace(&mut self.current_trait_impl, trait_impl.impl_id);
+        let previous_current_trait =
+            std::mem::replace(&mut self.current_trait, trait_impl.trait_id);
 
         let self_type = trait_impl.methods.self_type.clone();
         let self_type =
@@ -270,6 +272,7 @@ impl Elaborator<'_> {
 
         self.local_module = previous_local_module;
         self.current_trait_impl = previous_current_trait_impl;
+        self.current_trait = previous_current_trait;
         self.self_type = previous_self_type;
     }
 
@@ -424,6 +427,8 @@ impl Elaborator<'_> {
 
         // Substitute each generic on the trait function with the corresponding generic on the impl function
         for (ResolvedGeneric { type_var: trait_fn_generic, .. }, impl_fn_resolved_generic) in
+            // Use zip (not zip_eq) since the impl may have a different number of
+            // generics than the trait method (which is a user error caught elsewhere).
             method.direct_generics.iter().zip(&override_meta.direct_generics)
         {
             let trait_fn_kind = trait_fn_generic.kind();
@@ -556,7 +561,6 @@ impl Elaborator<'_> {
                     trait_bound.location,
                     &trait_constrain.typ,
                     trait_bound,
-                    trait_bound.trait_id,
                 );
             }
         }
@@ -952,7 +956,7 @@ impl Elaborator<'_> {
             for bound in bounds {
                 let typ = Type::TypeVariable(new_generic.type_var.clone());
                 let location = new_generic.location;
-                self.add_trait_bound_to_scope(location, &typ, &bound, bound.trait_id);
+                self.add_trait_bound_to_scope(location, &typ, &bound);
                 new_generics_trait_constraints
                     .push((TraitConstraint { typ, trait_bound: bound }, location));
             }

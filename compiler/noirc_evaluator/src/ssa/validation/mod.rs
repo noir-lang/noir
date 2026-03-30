@@ -22,6 +22,7 @@ use acvm::{
         brillig::lengths::{ElementTypesLength, SemiFlattenedLength},
     },
 };
+use itertools::Itertools;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 pub(crate) mod dynamic_array_indices;
@@ -276,6 +277,25 @@ impl<'f> Validator<'f> {
                     );
                 }
             }
+            Instruction::Truncate { value, .. } => {
+                // Truncating an unchecked signed sub is not allowed, because the truncate
+                // is not compatible with a potential underflow due to the unchecked subtraction.
+                // Unsigned unchecked subs must have already proven that the underflow is impossible.
+                if let Value::Instruction { instruction, .. } = &dfg[*value]
+                    && let Instruction::Binary(Binary {
+                        lhs,
+                        operator: BinaryOp::Sub { unchecked: true },
+                        ..
+                    }) = &dfg[*instruction]
+                    && matches!(dfg.type_of_value(*lhs), Type::Numeric(NumericType::Signed { .. }))
+                {
+                    panic!(
+                        "Truncate follows a signed integer-typed unchecked Sub, which may underflow. \
+                         Use Field arithmetic with an explicit 2^bit_size addition before the \
+                         Sub to prevent integer underflow, then Truncate the Field result."
+                    );
+                }
+            }
             Instruction::EnableSideEffectsIf { condition } => {
                 let condition_type = dfg.type_of_value(*condition);
                 assert_u1(&condition_type, "enable_side_effects condition");
@@ -308,7 +328,7 @@ impl<'f> Validator<'f> {
                 );
 
                 for (index, (argument, parameter_type)) in
-                    arguments.iter().zip(parameter_types).enumerate()
+                    arguments.iter().zip_eq(parameter_types).enumerate()
                 {
                     let argument_type = dfg.type_of_value(*argument);
                     if argument_type != parameter_type {
@@ -330,7 +350,7 @@ impl<'f> Validator<'f> {
                         );
                     }
                     for (index, (instruction_result, return_value)) in
-                        instruction_results.iter().zip(returns).enumerate()
+                        instruction_results.iter().zip_eq(returns).enumerate()
                     {
                         let return_type = called_function.dfg.type_of_value(*return_value);
                         let instruction_result_type = dfg.type_of_value(*instruction_result);
@@ -1044,7 +1064,7 @@ impl<'f> Validator<'f> {
                     block_parameters.len(),
                     "Number of arguments in jmp must match number of block parameters"
                 );
-                for (argument, parameter) in arguments.iter().zip(block_parameters) {
+                for (argument, parameter) in arguments.iter().zip_eq(block_parameters) {
                     let argument_type = self.function.dfg.type_of_value(*argument);
                     let parameter_type = self.function.dfg.type_of_value(*parameter);
                     assert_eq!(
@@ -2015,6 +2035,56 @@ mod tests {
         let ssa = builder.finish();
 
         Validator::new(&ssa.functions[&main_id], &ssa).run();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Truncate follows a signed integer-typed unchecked Sub, which may underflow. Use Field arithmetic with an explicit 2^bit_size addition before the Sub to prevent integer underflow, then Truncate the Field result."
+    )]
+    fn signed_unchecked_sub_before_truncate_is_rejected() {
+        // An unchecked Sub on signed types whose result feeds a Truncate may underflow:
+        // lhs - rhs wraps to near `p` in the field, making the Truncate output wrong.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: i8, v1: i8):
+            v2 = unchecked_sub v0, v1
+            v3 = truncate v2 to 8 bits, max_bit_size: 9
+            return v3
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn unsigned_unchecked_sub_before_truncate_is_allowed() {
+        // An unchecked Sub on unsigned types feeding a Truncate is fine:
+        // checked_to_unchecked only marks a sub as unchecked when underflow
+        // is proven impossible, so the truncation is safe.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8, v1: u8):
+            v2 = unchecked_sub v0, v1
+            v3 = truncate v2 to 8 bits, max_bit_size: 9
+            return v3
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn field_unchecked_sub_before_truncate_is_allowed() {
+        // A Sub on Field type feeding a Truncate is fine: Field arithmetic handles the
+        // wrap-around, and the caller must ensure the value fits in `max_bit_size` bits
+        // (e.g. by adding 2^bit_size to the lhs before subtracting).
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v2 = unchecked_sub v0, v1
+            v3 = truncate v2 to 8 bits, max_bit_size: 9
+            return v3
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]

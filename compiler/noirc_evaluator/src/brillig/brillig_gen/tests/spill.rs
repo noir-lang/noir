@@ -1,8 +1,12 @@
+use acvm::FieldElement;
+
 use crate::{
     assert_artifact_snapshot,
     brillig::{
         BrilligOptions,
-        brillig_gen::tests::ssa_to_brillig_artifacts_with_options,
+        brillig_gen::tests::{
+            execute_brillig_from_ssa_with_options, ssa_to_brillig_artifacts_with_options,
+        },
         brillig_ir::{LayoutConfig, registers::MAX_SCRATCH_SPACE},
     },
     ssa::ir::map::Id,
@@ -49,25 +53,24 @@ fn brillig_spill_and_reload() {
     //   18:    Return
     assert_artifact_snapshot!(main, @r"
     fn main
-     0: call 0 // -> CheckMaxStackDepth
-     1: sp[1] = @1
-     2: @3 = const u32 1
-     3: @1 = u32 add @1, @3
-     4: sp[4] = u32 add sp[2], sp[3]
-     5: sp[5] = const u32 2
-     6: @4 = const u32 0
-     7: @3 = u32 add sp[1], @4
-     8: store sp[4] at @3
-     9: sp[4] = u32 add sp[2], sp[5]
-    10: sp[2] = const u32 3
-    11: sp[5] = u32 add sp[3], sp[2]
-    12: @4 = const u32 0
-    13: @3 = u32 add sp[1], @4
-    14: sp[3] = load @3
-    15: sp[2] = u32 add sp[3], sp[4]
-    16: sp[3] = u32 add sp[2], sp[5]
-    17: sp[2] = sp[3]
-    18: return
+     0: sp[1] = @1
+     1: @3 = const u32 1
+     2: @1 = u32 add @1, @3
+     3: sp[4] = u32 add sp[2], sp[3]
+     4: sp[5] = const u32 2
+     5: @4 = const u32 0
+     6: @3 = u32 add sp[1], @4
+     7: store sp[4] at @3
+     8: sp[4] = u32 add sp[2], sp[5]
+     9: sp[2] = const u32 3
+    10: sp[5] = u32 add sp[3], sp[2]
+    11: @4 = const u32 0
+    12: @3 = u32 add sp[1], @4
+    13: sp[3] = load @3
+    14: sp[2] = u32 add sp[3], sp[4]
+    15: sp[3] = u32 add sp[2], sp[5]
+    16: sp[2] = sp[3]
+    17: return
     ");
 }
 
@@ -114,33 +117,32 @@ fn brillig_spill_successor_params() {
     //   26:    Return
     assert_artifact_snapshot!(main, @r"
     fn main
-     0: call 0 // -> CheckMaxStackDepth
-     1: sp[1] = @1
-     2: @3 = const u32 3
-     3: @1 = u32 add @1, @3
-     4: @4 = const u32 0
-     5: @3 = u32 add sp[1], @4
-     6: store sp[2] at @3
-     7: @4 = const u32 1
-     8: @3 = u32 add sp[1], @4
-     9: store sp[2] at @3
-    10: @4 = const u32 2
-    11: @3 = u32 add sp[1], @4
-    12: store sp[2] at @3
-    13: jump to 0 // -> 14: f0/b1
-    14: @4 = const u32 0 // f0/b1
-    15: @3 = u32 add sp[1], @4
-    16: sp[3] = load @3
-    17: @4 = const u32 1
-    18: @3 = u32 add sp[1], @4
-    19: sp[4] = load @3
-    20: sp[2] = u32 add sp[3], sp[4]
-    21: @4 = const u32 2
-    22: @3 = u32 add sp[1], @4
-    23: sp[4] = load @3
-    24: sp[3] = u32 add sp[2], sp[4]
-    25: sp[2] = sp[3]
-    26: return
+     0: sp[1] = @1
+     1: @3 = const u32 3
+     2: @1 = u32 add @1, @3
+     3: @4 = const u32 0
+     4: @3 = u32 add sp[1], @4
+     5: store sp[2] at @3
+     6: @4 = const u32 1
+     7: @3 = u32 add sp[1], @4
+     8: store sp[2] at @3
+     9: @4 = const u32 2
+    10: @3 = u32 add sp[1], @4
+    11: store sp[2] at @3
+    12: jump to 0 // -> 13: f0/b1
+    13: @4 = const u32 0 // f0/b1
+    14: @3 = u32 add sp[1], @4
+    15: sp[3] = load @3
+    16: @4 = const u32 1
+    17: @3 = u32 add sp[1], @4
+    18: sp[4] = load @3
+    19: sp[2] = u32 add sp[3], sp[4]
+    20: @4 = const u32 2
+    21: @3 = u32 add sp[1], @4
+    22: sp[4] = load @3
+    23: sp[3] = u32 add sp[2], sp[4]
+    24: sp[2] = sp[3]
+    25: return
     ");
 }
 
@@ -187,4 +189,44 @@ fn brillig_spill_jmpif_diamond_dead_else_condition() {
     let brillig = ssa_to_brillig_artifacts_with_options(src, &options);
     let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     assert!(!main.to_string().is_empty());
+}
+
+/// Regression test for `ensure_permanent_spill` when the record is not permanent and not currently spilled.
+#[test]
+fn brillig_spill_case4_diamond_wrong_output() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u32, v1: u32):
+        v2 = unchecked_add v0, v1
+        v3 = unchecked_add v0, u32 2
+        v4 = unchecked_add v1, u32 3
+        v5 = unchecked_add v2, v3
+        v6 = eq v0, u32 0
+        jmpif v6 then: b1(), else: b2()
+      b1():
+        v11 = unchecked_add v2, v4
+        jmp b3(v11)
+      b2():
+        v7 = unchecked_add v4, u32 10
+        v8 = unchecked_add v5, u32 20
+        v9 = unchecked_add v7, v8
+        v10 = unchecked_add v2, v9
+        jmp b3(v10)
+      b3(v12: u32):
+        return v12
+    }
+    ";
+
+    let layout = LayoutConfig::new(6, 16, MAX_SCRATCH_SPACE);
+    let options = BrilligOptions { layout, ..Default::default() };
+
+    // v0=0, v1=42 → v6=true → takes b1.
+    // Correct: v2=42, v4=45, v11=42+45=87
+    // Wrong:  v11=45 (if reads v4's register instead of v2's)
+    let result = execute_brillig_from_ssa_with_options(
+        src,
+        vec![FieldElement::from(0u32), FieldElement::from(42u32)],
+        &options,
+    );
+    assert_eq!(result, vec![FieldElement::from(87u32)]);
 }
