@@ -326,9 +326,8 @@ impl CompileOptions {
             },
             print_codegen_timings: self.benchmark_codegen,
             emit_ssa: if self.emit_ssa { Some(package_build_path) } else { None },
-            skip_underconstrained_check: !self.silence_warnings && self.skip_underconstrained_check,
-            skip_brillig_constraints_check: !self.silence_warnings
-                && self.skip_brillig_constraints_check,
+            skip_underconstrained_check: self.skip_underconstrained_check,
+            skip_brillig_constraints_check: self.skip_brillig_constraints_check,
             inliner_aggressiveness: self.inliner_aggressiveness,
             constant_folding_max_iter: self.constant_folding_max_iter,
             small_function_max_instruction: self.small_function_max_instructions,
