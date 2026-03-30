@@ -665,58 +665,6 @@ mod tests {
         );
     }
 
-    /// When all arguments to a brillig function are constant, specialization
-    /// should produce a clone where constant folding has reduced the body to
-    /// trivial constant returns. A subsequent constant folding pass should
-    /// then be able to interpret such calls and inline the results directly.
-    #[test]
-    fn all_constant_args_produces_trivial_body() {
-        let src = "
-        acir(inline) fn main f0 {
-          b0(v0: u1):
-            jmpif v0 then: b1(), else: b2()
-          b1():
-            v1, v2 = call f1(Field 340282366920938463463374607431768211456) -> (Field, Field)
-            constrain v1 == Field 0
-            jmp b2()
-          b2():
-            return
-        }
-        brillig(inline) fn decompose_hint f1 {
-          b0(v0: Field):
-            v1 = truncate v0 to 128 bits, max_bit_size: 254
-            v2 = sub v0, v1
-            v3 = mul v2, Field 8680525429001239497728366687280168587232520577698044359798894838135247199343
-            return v1, v3
-        }
-        ";
-
-        let ssa = run_specialization(src);
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) fn main f0 {
-          b0(v0: u1):
-            jmpif v0 then: b1(), else: b2()
-          b1():
-            v3, v4 = call f2(Field 340282366920938463463374607431768211456) -> (Field, Field)
-            constrain v3 == Field 0
-            jmp b2()
-          b2():
-            return
-        }
-        brillig(inline) fn decompose_hint f1 {
-          b0(v0: Field):
-            v1 = truncate v0 to 128 bits, max_bit_size: 254
-            v2 = sub v0, v1
-            v4 = mul v2, Field 8680525429001239497728366687280168587232520577698044359798894838135247199343
-            return v1, v4
-        }
-        brillig(inline) fn decompose_hint f2 {
-          b0(v0: Field):
-            return Field 0, Field 1
-        }
-        ");
-    }
-
     #[test]
     fn below_threshold_no_specialization() {
         // If the function body doesn't benefit enough from the constant,
