@@ -183,8 +183,7 @@ pub enum BlackBoxFuncCall<F> {
         predicate: FunctionInput<F>,
         outputs: (Witness, Witness, Witness),
     },
-    /// Addition over the embedded curve on which the witness is defined
-    /// Coordinates (x,y) of each point must be all witnesses, or all constants.
+    /// Addition over the embedded curve on which the witness is defined.
     /// The opcode makes the following assumptions but does not enforce them because
     /// it is more efficient to do it only when required. For instance, adding two
     /// points that are on the curve it guarantee to give a point on the curve.
@@ -193,6 +192,9 @@ pub enum BlackBoxFuncCall<F> {
     /// If the inputs are the same witnesses index, it will perform a doubling,
     /// If not, it assumes that the points' x-coordinates are not equal.
     /// It also assumes neither point is the infinity point.
+    ///
+    /// Coordinates of each point must be all witnesses or all constants.
+    /// This is a backend requirement from Barretenberg.
     EmbeddedCurveAdd {
         input1: Box<[FunctionInput<F>; 3]>,
         input2: Box<[FunctionInput<F>; 3]>,
