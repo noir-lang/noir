@@ -56,6 +56,7 @@ impl CoalescingMap {
     ///   record `arg -> param` so the instruction writes to the param's register.
     /// - Param-side: if the arg is a block parameter or instruction from another block,
     ///   record `param -> arg` so the param reuses the arg's register.
+    #[allow(dead_code)]
     pub(crate) fn from_function(func: &Function, liveness: &VariableLiveness) -> Self {
         let mut coalesced = HashMap::default();
         let cfg = liveness.cfg();

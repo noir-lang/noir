@@ -92,13 +92,8 @@ impl FunctionContext {
 
         let spill_manager = if needs_spill_support { Some(SpillManager::new()) } else { None };
 
-        // Disable coalescing when spilling is enabled.
-        // Shared registers currently conflicts with the spill eviction mechanism.
-        let coalescing = if spill_manager.is_some() {
-            CoalescingMap::default()
-        } else {
-            CoalescingMap::from_function(function, &liveness)
-        };
+        // Disable coalescing
+        let coalescing = CoalescingMap::default();
 
         Self {
             function_id: Some(id),
