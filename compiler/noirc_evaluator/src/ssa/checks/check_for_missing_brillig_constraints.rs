@@ -72,24 +72,11 @@ impl Ssa {
             .filter(|func| func.runtime().is_acir() && has_call_to_brillig(func, &self.functions))
             .par_bridge()
             .flat_map(|func| {
-                let mut ctx = Context::new(func);
-                let start = std::time::Instant::now();
-                ctx = ctx.build_tainted(func, &self.functions);
-
-                let end = std::time::Instant::now();
-                println!("build_tainted took {}ms", end.duration_since(start).as_millis());
-                let start = end;
-
-                ctx = ctx.build_parent_graph(func);
-                let end = std::time::Instant::now();
-                println!("build_parent_graph took {}ms", end.duration_since(start).as_millis());
-                let start = end;
-
-                ctx = ctx.constrain_tainted(func, &self.functions);
-                let end = std::time::Instant::now();
-                println!("constrain_tainted took {}ms", end.duration_since(start).as_millis());
-
-                ctx.into_warnings(func)
+                Context::new(func)
+                    .build_tainted(func, &self.functions)
+                    .build_parent_graph(func)
+                    .constrain_tainted(func, &self.functions)
+                    .into_warnings(func)
             })
             .collect()
     }
@@ -135,7 +122,7 @@ struct TaintedDescendants {
     ///
     /// To consider an element constrained, we have to find a constraint such that
     /// the constrained value appears in the descendants.
-    array_outputs: HashMap<(ValueId, u32), HashSet<ValueId>>,
+    array_outputs: HashMap<ValueId, HashMap<u32, HashSet<ValueId>>>,
     /// The union of all values reachable from any argument by following parents and
     /// equivalences backwards. Includes the arguments themselves.
     ///
@@ -153,10 +140,12 @@ impl TaintedDescendants {
                 // If the result value is an array, create an empty descendant set for
                 // every element to be accessed further on and record the indices
                 // of the resulting sets for future reference
-                Some(length) if length.0 <= MAX_ARRAY_OUTPUT_LENGTH => {
+                Some(length) if length.0 > 0 && length.0 <= MAX_ARRAY_OUTPUT_LENGTH => {
+                    let mut index_outputs = HashMap::new();
                     for i in 0..length.0 {
-                        array_outputs.insert((*result_id, i), HashSet::new());
+                        index_outputs.insert(i, HashSet::new());
                     }
+                    array_outputs.insert(*result_id, index_outputs);
                 }
                 // For very large arrays or non-arrays, treat the whole result as a single value
                 // to avoid memory/time issues when tracking individual elements
@@ -203,14 +192,36 @@ impl TaintedDescendants {
 
         // Remove any results that have been directly or indirectly constrained.
         self.single_outputs.retain(|output| {
-            !constrained_values
+            let constrained = constrained_values
                 .iter()
-                .any(|value| any_ancestor_is(*value, *output, parents, equivalences))
+                .any(|value| any_ancestor_is(*value, *output, parents, equivalences));
+            !constrained
         });
-        self.array_outputs.retain(|_, descendants| {
-            !constrained_values
+        self.array_outputs.retain(|array, index_outputs| {
+            // If the array itself is not an ancestor of the constrained value, then we don't have to check the items.
+            let can_constrain = constrained_values
                 .iter()
-                .any(|value| any_ancestor_in(*value, descendants, parents, equivalences))
+                .any(|value| any_ancestor_is(*value, *array, parents, equivalences));
+
+            if !can_constrain {
+                return true;
+            }
+
+            // Remove whichever index was constrained.
+            index_outputs.retain(|_index, descendants| {
+                // Until we have seen an ArrayGet and know which value is the output,
+                // we can't tell this index has been constrained.
+                if descendants.is_empty() {
+                    return true;
+                }
+                let constrained = constrained_values
+                    .iter()
+                    .any(|value| any_ancestor_in(*value, descendants, parents, equivalences));
+                !constrained
+            });
+
+            // Keep the array until all indexed items have been constrained.
+            !index_outputs.is_empty()
         });
 
         self.is_constrained()
@@ -248,9 +259,13 @@ impl TaintedDescendants {
     /// ancestry information to connect constrained values back to values we read
     /// from the array.
     fn extend_array_result(&mut self, array: ValueId, index: u32, results: &[ValueId]) {
-        if let Some(descendants) = self.array_outputs.get_mut(&(array, index)) {
-            descendants.extend(results);
-        }
+        let Some(index_outputs) = self.array_outputs.get_mut(&array) else {
+            return;
+        };
+        let Some(descendants) = index_outputs.get_mut(&index) else {
+            return;
+        };
+        descendants.extend(results);
     }
 }
 
