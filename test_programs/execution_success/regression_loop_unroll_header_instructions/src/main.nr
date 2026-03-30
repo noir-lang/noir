@@ -1,8 +1,8 @@
-// Regression test: loop unrolling must propagate instruction results
-// defined in the loop header (not just block parameters) to exit blocks.
-// When constant folding's CSE hoists `s * s` into the loop header
-// (as common dominator of body and exit), unrolling must map that
-// instruction result to its final-iteration value.
+// Regression test: constant folding's CSE must not hoist instructions
+// into loop headers when it can't escape to the pre-header.
+// Here `s * s` appears in both the loop body and after the loop;
+// hoisting it into the header would break loop unrolling, which only
+// maps header parameters (not instruction results) to final-iteration values.
 fn main(x: Field) {
     let result = compute(x);
     assert(result != 0);
