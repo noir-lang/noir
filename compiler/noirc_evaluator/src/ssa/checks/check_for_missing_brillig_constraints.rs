@@ -69,8 +69,9 @@ impl Ssa {
             .par_bridge()
             .flat_map(|func| {
                 Context::new(func)
-                    .build_ancestors(func, &self.functions)
                     .build_tainted(func, &self.functions)
+                    .build_ancestors(func)
+                    .constrain_tainted(func, &self.functions)
                     .into_warnings(func)
             })
             .collect()
@@ -231,6 +232,15 @@ struct Context {
     /// Block IDs in Post Order.
     post_order: Vec<BasicBlockId>,
 
+    /// Descendants of Brillig calls.
+    tainted: HashMap<InstructionId, TaintedDescendants>,
+
+    /// Constraints which will be relevant to constraining Brillig outputs.
+    ///
+    /// These are determined during the initial top-down pass,
+    /// so that we can limit the amount of ancestry we collect.
+    constraints: HashSet<InstructionId>,
+
     /// Ancestors of the values that we are interested in.
     ///
     /// We are interested in the ancestry of variables which either:
@@ -243,26 +253,20 @@ struct Context {
     ///
     /// The ancestors of a value do not include the value itself.
     ancestors: AncestorMap,
-
-    /// Descendants of Brillig calls.
-    tainted: HashMap<InstructionId, TaintedDescendants>,
 }
 
 impl Context {
     fn new(func: &Function) -> Self {
         Self {
             post_order: PostOrder::with_function(func).into_vec(),
-            ancestors: Default::default(),
-            tainted: Default::default(),
+            tainted: HashMap::default(),
+            constraints: HashSet::default(),
+            ancestors: HashMap::default(),
         }
     }
 
     /// Traverse blocks and instruction bottom-up to build up the ancestry of values.
-    fn build_ancestors(
-        mut self,
-        func: &Function,
-        all_functions: &BTreeMap<FunctionId, Function>,
-    ) -> Self {
+    fn build_ancestors(mut self, func: &Function) -> Self {
         // Union of all values we are tracking; helps skip values that are of no interest.
         let mut tracked_ids = HashSet::new();
 
@@ -303,8 +307,8 @@ impl Context {
                 }
 
                 // Start tracking the ancestors of the inputs of the instruction.
-                let should_track = is_call_to_brillig(func, all_functions, instruction_id)
-                    || is_constraint(func, instruction_id)
+                let should_track = self.tainted.contains_key(instruction_id)
+                    || self.constraints.contains(instruction_id)
                     || is_side_effect(func, instruction);
 
                 if should_track {
@@ -314,11 +318,8 @@ impl Context {
                     }
                 }
 
-                if let Instruction::Constrain(v1, v2, _) = instruction
-                    && !is_numeric_constant(func, *v1)
-                    && !is_numeric_constant(func, *v2)
-                {
-                    Self::add_equivalence(&mut self.ancestors, *v1, *v2);
+                if let Some((v1, v2)) = as_equivalence(func, instruction) {
+                    Self::add_equivalence(&mut self.ancestors, v1, v2);
                 }
             }
         }
@@ -326,28 +327,29 @@ impl Context {
         self
     }
 
-    /// Traverse blocks and instructions top-down to build up the descendants of Brillig calls,
-    /// trying to constrain them along the way based on the ancestry information.
+    /// Traverse blocks and instructions top-down to build up the descendants of Brillig calls.
     fn build_tainted(
         mut self,
         func: &Function,
         all_functions: &BTreeMap<FunctionId, Function>,
     ) -> Self {
-        let mut all_tainted = HashSet::new();
+        let mut all_constrainable = HashSet::new();
+
         // Traverse in Reverse Post Order, ie. top-down.
         for block_id in self.post_order.clone().into_iter().rev() {
+            // Track the current side effect variable, unless it's a constant.
+            let mut side_effects_var: Option<ValueId> = None;
             // No need to look for constraints on calls which originate from the same code location;
             // these are the result of unrolling loops, and it should be enough to cover the first.
             let mut visited_locations = HashSet::new();
-            let mut side_effects_var: Option<ValueId> = None;
+
             for instruction_id in func.dfg[block_id].instructions() {
                 let instruction = &func.dfg[*instruction_id];
                 let mut arguments = instruction_arguments(func, instruction);
                 let results = instruction_results(func, instruction_id);
 
-                // If we are under a side effect, extend ancestors and the args.
+                // If we are under a side effect, extend the args.
                 if let Some(side_effects_var) = &side_effects_var {
-                    self.extend_ancestors_with_side_effects(side_effects_var, &results);
                     arguments.push(*side_effects_var);
                 }
 
@@ -366,9 +368,28 @@ impl Context {
                         }
                     }
 
-                    // Tainted values cannot be used to constrain Brillig output.
-                    if arguments.iter().any(|a| all_tainted.contains(a)) {
-                        all_tainted.extend(&results);
+                    // Extend the values we are looking to constrain.
+                    if arguments.iter().any(|a| all_constrainable.contains(a)) {
+                        all_constrainable.extend(&results);
+                    }
+                }
+
+                // If this is a Store instruction, then it has no result: instead if the value we store
+                // is constrainable, then we can add the address to the constrainable set.
+                if let Instruction::Store { address, value } = instruction
+                    && all_constrainable.contains(value)
+                {
+                    all_constrainable.insert(*address);
+                }
+
+                // If we have a constraint that means two values are equal, then we are interested
+                // in constraints on the descendants on either of those, even if one of them is
+                // not a descendant of Brillig outputs.
+                if let Some((v1, v2)) = as_equivalence(func, instruction) {
+                    if all_constrainable.contains(&v1) {
+                        all_constrainable.insert(v2);
+                    } else if all_constrainable.contains(&v2) {
+                        all_constrainable.insert(v1);
                     }
                 }
 
@@ -392,10 +413,61 @@ impl Context {
                     if !visited {
                         let tainted = TaintedDescendants::new(func, arguments, &results);
                         self.tainted.insert(*instruction_id, tainted);
+                        // Look out for constraints on these values.
+                        all_constrainable.extend(&results);
                     }
-                    // But always keep track of tainted, required for correct constraint checks.
-                    all_tainted.extend(&results);
                 } else if is_constraint(func, instruction_id) && !self.tainted.is_empty() {
+                    let constrained_values = instruction_arguments(func, instruction);
+                    // If this constraint involves a Brillig output, then we can use it later, otherwise it's not interesting.
+                    if constrained_values.iter().any(|value| all_constrainable.contains(value)) {
+                        self.constraints.insert(*instruction_id);
+                    }
+                } else if let Instruction::EnableSideEffectsIf { condition } = instruction {
+                    side_effects_var =
+                        (!is_numeric_constant(func, *condition)).then_some(*condition);
+                }
+            }
+        }
+
+        self
+    }
+
+    /// Traverse blocks and instructions top-down and try to constrain Brillig outputs.
+    fn constrain_tainted(
+        mut self,
+        func: &Function,
+        all_functions: &BTreeMap<FunctionId, Function>,
+    ) -> Self {
+        // Constraints on tainted output cannot be used to connect output to input.
+        let mut all_tainted = HashSet::new();
+        // Traverse in Reverse Post Order, ie. top-down.
+        for block_id in self.post_order.clone().into_iter().rev() {
+            // Track the current side effect variable, unless it's a constant.
+            let mut side_effects_var: Option<ValueId> = None;
+
+            for instruction_id in func.dfg[block_id].instructions() {
+                let instruction = &func.dfg[*instruction_id];
+                let mut arguments = instruction_arguments(func, instruction);
+                let results = instruction_results(func, instruction_id);
+
+                // If we are under a side effect, extend ancestors and the args.
+                if let Some(side_effects_var) = &side_effects_var {
+                    self.extend_ancestors_with_side_effects(side_effects_var, &results);
+                    arguments.push(*side_effects_var);
+                }
+
+                // Extend the descendants of Brillig calls.
+                if !results.is_empty() {
+                    // Tainted values cannot be used to constrain Brillig output.
+                    if arguments.iter().any(|a| all_tainted.contains(a)) {
+                        all_tainted.extend(&results);
+                    }
+                }
+
+                if is_call_to_brillig(func, all_functions, instruction_id) && !results.is_empty() {
+                    // Always keep track of tainted descendants, required for correct constraint checks.
+                    all_tainted.extend(&results);
+                } else if self.constraints.contains(instruction_id) && !self.tainted.is_empty() {
                     let constrained_values = instruction_arguments(func, instruction);
                     self.tainted.retain(|_, tainted| {
                         !tainted.try_constrain(&constrained_values, &self.ancestors, &all_tainted)
@@ -528,6 +600,18 @@ fn is_side_effect(func: &Function, instruction: &Instruction) -> bool {
         return false;
     };
     !is_numeric_constant(func, *condition)
+}
+
+/// Whether the instruction is a `constrain v1 == v2` with non-constant variables.
+fn as_equivalence(func: &Function, instruction: &Instruction) -> Option<(ValueId, ValueId)> {
+    if let Instruction::Constrain(v1, v2, _) = instruction
+        && !is_numeric_constant(func, *v1)
+        && !is_numeric_constant(func, *v2)
+    {
+        Some((*v1, *v2))
+    } else {
+        None
+    }
 }
 
 /// Collect non-constant arguments of an instruction.
@@ -813,7 +897,7 @@ mod tests {
     /// of the parsed test code). Note that the side effect variable is a
     /// descendant of the output of the call, and the constraint is on a
     /// variable which is affected by the side effect variable.
-    fn test_enable_side_effects_if_affecting_following_statements() {
+    fn test_enable_side_effects_affecting_following_statements() {
         let program = r#"
         acir(inline) fn main f0 {
           b0(v0: Field, v1: Field):
