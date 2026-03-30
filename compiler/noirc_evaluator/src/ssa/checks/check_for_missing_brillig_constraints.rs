@@ -267,8 +267,10 @@ impl Context {
 
     /// Traverse blocks and instruction bottom-up to build up the ancestry of values.
     fn build_ancestors(mut self, func: &Function) -> Self {
-        // Union of all values we are tracking; helps skip values that are of no interest.
-        let mut tracked_ids = HashSet::new();
+        // Reverse index: who_cares[v] = set of ancestor-map keys k such that v ∈ ancestors[k].
+        // Using this we can find all relevant ancestor sets for a given value in O(1) instead of
+        // scanning the entire ancestor map.
+        let mut who_cares: HashMap<ValueId, HashSet<ValueId>> = HashMap::default();
 
         // Traverse block from the end towards the beginning, so we can expand the ancestry of the values bottom-up.
         for block_id in self.post_order.iter().copied() {
@@ -278,17 +280,52 @@ impl Context {
                 let result_ids = func.dfg.instruction_results(*instruction_id);
 
                 // If any of the results is part of something we are tracking, add the inputs to their ancestry.
+                // Compute args lazily — only when we find a tracked result that needs updating.
+                let mut args: Option<Vec<ValueId>> = None;
+
                 for result_id in result_ids {
-                    if is_numeric_constant(func, *result_id) || !tracked_ids.contains(result_id) {
+                    if is_numeric_constant(func, *result_id) {
                         continue;
                     }
-                    for (id, ancestors) in &mut self.ancestors {
-                        if id != result_id && !ancestors.contains(result_id) {
-                            continue;
+
+                    // Collect the ancestor-map keys that need to be updated.
+                    // "Self-care": result_id itself is a key in ancestors.
+                    let self_care = self.ancestors.contains_key(result_id);
+                    // Check cheaply before allocating the Vec.
+                    let has_other = who_cares.get(result_id).map_or(false, |s| !s.is_empty());
+
+                    if !self_care && !has_other {
+                        continue;
+                    }
+
+                    // Other keys that have result_id in their ancestor set.
+                    // Collect into a Vec to release the immutable borrow on who_cares before
+                    // the try_insert! calls that need to mutate it.
+                    let other_keys: Vec<ValueId> =
+                        who_cares.get(result_id).into_iter().flatten().copied().collect();
+
+                    // Compute instruction args once, reuse for all matching keys.
+                    let args = args.get_or_insert_with(|| instruction_arguments(func, instruction));
+
+                    // Helper to add an arg to a key's ancestor set and update who_cares.
+                    macro_rules! try_insert {
+                        ($key:expr, $arg:expr) => {
+                            if $key != $arg {
+                                if self.ancestors.get_mut(&$key).unwrap().insert($arg) {
+                                    who_cares.entry($arg).or_default().insert($key);
+                                }
+                            }
+                        };
+                    }
+
+                    if self_care {
+                        for &arg in args.iter() {
+                            try_insert!(*result_id, arg);
                         }
-                        for value_id in instruction_arguments(func, instruction) {
-                            ancestors.insert(value_id);
-                            tracked_ids.insert(value_id);
+                    }
+                    for key in other_keys {
+                        for &arg in args.iter() {
+                            try_insert!(key, arg);
                         }
                     }
                 }
@@ -298,10 +335,14 @@ impl Context {
                 // of the result of the following Load. By removing the address, only the first Store
                 // before the load connects the values.
                 if let Instruction::Store { address, value } = instruction {
-                    for ancestors in &mut self.ancestors.values_mut() {
-                        if ancestors.remove(address) && !is_numeric_constant(func, *value) {
-                            ancestors.insert(*value);
-                            tracked_ids.insert(*value);
+                    if let Some(caring_keys) = who_cares.remove(address) {
+                        for key in caring_keys {
+                            let Some(anc) = self.ancestors.get_mut(&key) else { continue };
+                            if anc.remove(address) && !is_numeric_constant(func, *value) {
+                                if anc.insert(*value) {
+                                    who_cares.entry(*value).or_default().insert(key);
+                                }
+                            }
                         }
                     }
                 }
@@ -313,13 +354,16 @@ impl Context {
 
                 if should_track {
                     for value_id in instruction_arguments(func, instruction) {
+                        // Only insert if not already present (or_default does this).
                         self.ancestors.entry(value_id).or_default();
-                        tracked_ids.insert(value_id);
+                        // No who_cares update needed: new entry starts with an empty ancestor set,
+                        // so nothing currently in any other ancestor set refers to it.
+                        // Future iterations (earlier instructions) will populate it via self_care.
                     }
                 }
 
                 if let Some((v1, v2)) = as_equivalence(func, instruction) {
-                    Self::add_equivalence(&mut self.ancestors, v1, v2);
+                    Self::add_equivalence(&mut self.ancestors, &mut who_cares, v1, v2);
                 }
             }
         }
@@ -520,27 +564,39 @@ impl Context {
     /// on v0 or v1 as if it applied on both. This is because some SSA passes use
     /// constraint info to simplify values, and what was a constraint on v0 could
     /// end up being a constraint on v1.
-    fn add_equivalence(ancestors: &mut AncestorMap, v1: ValueId, v2: ValueId) {
-        /// If we have `c -> a`, insert `c -> b` as well.
-        /// This way if we put a constraint on `c`, it affects anything calls
-        /// that produced `b`, even if they had no relation to `a`.
+    fn add_equivalence(
+        ancestors: &mut AncestorMap,
+        who_cares: &mut HashMap<ValueId, HashSet<ValueId>>,
+        v1: ValueId,
+        v2: ValueId,
+    ) {
+        /// For all keys `k` where `a ∈ ancestors[k]` (and `k != b`), insert `b` into `ancestors[k]`.
+        ///
+        /// Uses `who_cares[a]` to find those keys directly instead of scanning the whole map.
         ///
         /// Not inserting `a -> b` and `b -> a` because that would make
         /// a constraint derive from the output of a call, disqualifying
         /// it from being a constraint on the inputs.
-        fn go(ancestors: &mut AncestorMap, a: ValueId, b: ValueId) {
-            for (c, ancestors) in ancestors.iter_mut() {
-                if *c == b {
+        fn go(
+            a: ValueId,
+            b: ValueId,
+            ancestors: &mut AncestorMap,
+            who_cares: &mut HashMap<ValueId, HashSet<ValueId>>,
+        ) {
+            // Snapshot to avoid borrowing who_cares while mutating it.
+            let caring_keys: Vec<ValueId> =
+                who_cares.get(&a).into_iter().flatten().filter(|&&k| k != b).copied().collect();
+            for key in caring_keys {
+                if ancestors.get_mut(&key).map_or(false, |s| s.insert(b)) {
                     // Not inserting self-ancestry.
-                    continue;
-                }
-                if ancestors.contains(&a) {
-                    ancestors.insert(b);
+                    if key != b {
+                        who_cares.entry(b).or_default().insert(key);
+                    }
                 }
             }
         }
-        go(ancestors, v1, v2);
-        go(ancestors, v2, v1);
+        go(v1, v2, ancestors, who_cares);
+        go(v2, v1, ancestors, who_cares);
     }
 }
 
