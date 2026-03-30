@@ -1900,10 +1900,6 @@ impl<'f> LoopIteration<'f> {
 
 /// Unrolling leaves some duplicate instructions which can potentially be removed.
 fn simplify_between_unrolls(function: &mut Function) {
-    // LSF re-inserts instructions through the DFG simplify path, so it both
-    // forwards loads and folds constant expressions in a single pass.
-    function.load_store_forwarding();
-    
     function.simplify_function();
     // LSF re-inserts instructions through the DFG simplify path, so it both
     // forwards loads and folds constant expressions in a single pass.
