@@ -276,7 +276,7 @@ impl<K, V, B> UHashMap<K, V, B> {
 
     /// Get the value by key. If it does not exist, returns none().
     // docs:start:get
-    pub unconstrained fn get(self, key: K) -> Option<V>
+    pub unconstrained fn get(&self, key: K) -> Option<V>
     where
         K: Eq + Hash,
         B: BuildHasher,
