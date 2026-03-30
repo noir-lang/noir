@@ -384,17 +384,17 @@ impl Context {
                 // Store resolution: replace the address placeholder with the stored value in
                 // all pending load results for this address. By using remove(), only the
                 // first Store encountered (going backward) resolves the loads.
-                if let Instruction::Store { address, value } = instruction {
-                    if let Some(pending) = pending_loads.remove(address) {
-                        for tracked in pending {
-                            let parents_of_tracked =
-                                self.parents.get_mut(&tracked).expect("was inserted above");
-                            parents_of_tracked.retain(|&p| p != *address);
-                            if !is_numeric_constant(func, *value) {
-                                parents_of_tracked.push(*value);
-                                // Start tracking the stored value's own parents.
-                                self.parents.entry(*value).or_default();
-                            }
+                if let Instruction::Store { address, value } = instruction
+                    && let Some(pending) = pending_loads.remove(address)
+                {
+                    for tracked in pending {
+                        let parents_of_tracked =
+                            self.parents.get_mut(&tracked).expect("was inserted above");
+                        parents_of_tracked.retain(|&p| p != *address);
+                        if !is_numeric_constant(func, *value) {
+                            parents_of_tracked.push(*value);
+                            // Start tracking the stored value's own parents.
+                            self.parents.entry(*value).or_default();
                         }
                     }
                 }
