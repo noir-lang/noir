@@ -173,6 +173,10 @@ pub enum BlackBoxFuncCall<F> {
     /// Because the Grumpkin scalar field is bigger than the ACIR field, we
     /// provide 2 ACIR fields representing the low and high parts of the Grumpkin
     /// scalar $a$: `a=low+high*2^{128}`, with `low< 2^{128}` and `high< 2^{126}`
+    ///
+    /// Coordinates of each point must be all witnesses or all constants.
+    /// Similarly, both halves (lo, hi) of each scalar must be all witnesses or
+    /// all constants. This is a backend requirement from Barretenberg.
     MultiScalarMul {
         points: Vec<FunctionInput<F>>,
         scalars: Vec<FunctionInput<F>>,
