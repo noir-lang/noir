@@ -18,9 +18,9 @@ Check out the contributing guide [here](../CONTRIBUTING.md).
 
 ### Prerequisites
 
-- Node.js (tested working with v25.8.0)
-- Yarn (tested working with v4.10.3)
-- Rust (tested working with v1.89.0)
+- Node.js ([pinned version](./package.json#L65))
+- Yarn ([pinned version](../package.json#L47))
+- Rust ([pinned version](../rust-toolchain.toml#L2))
 - GNU ld (tested working with v2.45.1-4.fc43)
 - jq (tested working with v1.8.1)
 
