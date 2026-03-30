@@ -81,18 +81,18 @@ enum AbstractValue {
 }
 
 impl AbstractValue {
-    /// Lattice join: combine `self` with another observed value.
-    fn join(self, value: ValueId) -> Self {
-        match self {
-            AbstractValue::None => AbstractValue::One(value),
-            AbstractValue::One(existing) => {
-                if existing == value {
-                    self
+    /// Lattice join: combine two abstract values.
+    fn join(self, other: AbstractValue) -> Self {
+        match (self, other) {
+            (AbstractValue::None, other) | (other, AbstractValue::None) => other,
+            (AbstractValue::Many, _) | (_, AbstractValue::Many) => AbstractValue::Many,
+            (AbstractValue::One(a), AbstractValue::One(b)) => {
+                if a == b {
+                    AbstractValue::One(a)
                 } else {
                     AbstractValue::Many
                 }
             }
-            AbstractValue::Many => AbstractValue::Many,
         }
     }
 }
@@ -167,24 +167,24 @@ impl Function {
 
                     let mut new_val = current;
                     for edge in &summary.edges {
-                        let mut arg = edge.arguments[i];
+                        let arg = edge.arguments[i];
 
                         // Skip self-references (loop back-edges passing the param to itself).
                         if arg == param {
                             continue;
                         }
 
-                        // Transitive resolution: if the argument is itself a block
-                        // parameter that resolved to One(v), use v instead.
-                        if let Some(&AbstractValue::One(resolved)) = lattice.get(&arg) {
-                            arg = resolved;
-                            // After resolution, skip if it resolved to self.
-                            if arg == param {
-                                continue;
-                            }
+                        // Resolve the argument to its abstract value: if it's a block
+                        // parameter in the lattice use that; otherwise it's a "Group B"
+                        // value (instruction result / entry param / constant) → One(arg).
+                        let arg_val = lattice.get(&arg).copied().unwrap_or(AbstractValue::One(arg));
+
+                        // After resolution, skip if it resolved to self (transitive self-reference).
+                        if arg_val == AbstractValue::One(param) {
+                            continue;
                         }
 
-                        new_val = new_val.join(arg);
+                        new_val = new_val.join(arg_val);
                     }
 
                     if new_val != current {
