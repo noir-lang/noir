@@ -110,10 +110,25 @@ impl Function {
         let cfg = ControlFlowGraph::with_function(self);
         let rpo = PostOrder::with_cfg(&cfg).into_vec_reverse();
 
-        // Phase 1: Summarize — collect block params and predecessor arguments.
+        let summaries = self.summarize_block_params(&cfg, &rpo);
+        if summaries.is_empty() {
+            return;
+        }
+
+        let lattice = Self::solve_dataflow(&summaries, &rpo);
+
+        self.apply_transforms(&cfg, &rpo, &summaries, &lattice);
+    }
+
+    /// Phase 1: Summarize — collect block params and predecessor arguments.
+    fn summarize_block_params(
+        &self,
+        cfg: &ControlFlowGraph,
+        rpo: &[BasicBlockId],
+    ) -> HashMap<BasicBlockId, BlockSummary> {
         let mut summaries: HashMap<BasicBlockId, BlockSummary> = HashMap::default();
 
-        for &block in &rpo {
+        for &block in rpo {
             if block == self.entry_block() {
                 continue;
             }
@@ -131,12 +146,14 @@ impl Function {
             summaries.insert(block, BlockSummary { params, edges });
         }
 
-        if summaries.is_empty() {
-            return;
-        }
+        summaries
+    }
 
-        // Phase 2: Dataflow — iterate until fixed point.
-        // Map from block parameter ValueId -> AbstractValue.
+    /// Phase 2: Dataflow — iterate in RPO until fixed point.
+    fn solve_dataflow(
+        summaries: &HashMap<BasicBlockId, BlockSummary>,
+        rpo: &[BasicBlockId],
+    ) -> HashMap<ValueId, AbstractValue> {
         let mut lattice: HashMap<ValueId, AbstractValue> = HashMap::default();
 
         for summary in summaries.values() {
@@ -149,7 +166,7 @@ impl Function {
         while changed {
             changed = false;
 
-            for &block in &rpo {
+            for &block in rpo {
                 let Some(summary) = summaries.get(&block) else {
                     continue;
                 };
@@ -176,25 +193,34 @@ impl Function {
             }
         }
 
-        // Phase 3: Transform — replace redundant params and prune them.
+        lattice
+    }
+
+    /// Phase 3: Transform — replace redundant params and prune them from blocks
+    /// and predecessor terminators.
+    fn apply_transforms(
+        &mut self,
+        cfg: &ControlFlowGraph,
+        rpo: &[BasicBlockId],
+        summaries: &HashMap<BasicBlockId, BlockSummary>,
+        lattice: &HashMap<ValueId, AbstractValue>,
+    ) {
         let mut mapping = ValueMapping::default();
-        let mut has_redundant = false;
 
         for summary in summaries.values() {
             for &param in &summary.params {
                 if let AbstractValue::One(value) = lattice[&param] {
                     mapping.insert(param, value);
-                    has_redundant = true;
                 }
             }
         }
 
-        if !has_redundant {
+        if mapping.is_empty() {
             return;
         }
 
         // Remove redundant parameters from blocks and predecessor terminators.
-        for (&block, summary) in &summaries {
+        for (&block, summary) in summaries {
             let keep_list: Vec<bool> = summary
                 .params
                 .iter()
@@ -222,7 +248,7 @@ impl Function {
         }
 
         // Apply value replacements across all reachable blocks.
-        for &block in &rpo {
+        for &block in rpo {
             self.dfg.replace_values_in_block(block, &mapping);
         }
     }
