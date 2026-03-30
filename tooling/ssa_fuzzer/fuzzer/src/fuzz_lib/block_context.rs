@@ -8,14 +8,14 @@ use super::{
 use noir_ssa_fuzzer::builder::{FuzzerBuilder, InstructionWithOneArg, InstructionWithTwoArgs};
 use noir_ssa_fuzzer::typed_value::{NumericType, Point, Scalar, Type, TypedValue};
 use noirc_evaluator::ssa::ir::{basic_block::BasicBlockId, function::Function, map::Id};
-use std::collections::{HashMap, VecDeque};
+use std::collections::{BTreeMap, VecDeque};
 
 /// Main context for the ssa block containing both ACIR and Brillig builders and their state
 /// It works with indices of variables Ids, because it cannot handle Ids logic for ACIR and Brillig
 #[derive(Debug, Clone)]
 pub(crate) struct BlockContext {
     /// Ids of the Program variables stored as TypedValue separated by type
-    pub(crate) stored_variables: HashMap<Type, Vec<TypedValue>>,
+    pub(crate) stored_variables: BTreeMap<Type, Vec<TypedValue>>,
     /// Parent blocks history
     pub(crate) parent_blocks_history: VecDeque<BasicBlockId>,
     /// Children blocks
@@ -26,7 +26,7 @@ pub(crate) struct BlockContext {
 
 impl BlockContext {
     pub(crate) fn new(
-        stored_variables: HashMap<Type, Vec<TypedValue>>,
+        stored_variables: BTreeMap<Type, Vec<TypedValue>>,
         parent_blocks_history: VecDeque<BasicBlockId>,
         options: SsaBlockOptions,
     ) -> Self {
