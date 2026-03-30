@@ -272,7 +272,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
     /// Read memory slots.
     ///
     /// Used by the debugger to inspect the contents of the memory.
-    pub fn get_memory(&self) -> &[MemoryValue<F>] {
+    pub fn get_memory(&self) -> Vec<MemoryValue<F>> {
         self.memory.values()
     }
 

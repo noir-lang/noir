@@ -150,7 +150,7 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
         Ok(vm)
     }
 
-    pub fn get_memory(&self) -> &[MemoryValue<F>] {
+    pub fn get_memory(&self) -> Vec<MemoryValue<F>> {
         self.vm.get_memory()
     }
 
@@ -204,8 +204,9 @@ impl<'b, B: BlackBoxFunctionSolver<F>, F: AcirField> BrilligSolver<'b, F, B> {
                         Some(ResolvedAssertionPayload::String(message))
                     }
                     FailureReason::Trap { revert_data_offset, revert_data_size } => {
+                        let memory = self.vm.get_memory();
                         extract_failure_payload_from_memory(
-                            self.vm.get_memory(),
+                            &memory,
                             revert_data_offset
                                 .try_into()
                                 .expect("Failed conversion from u32 to usize"),

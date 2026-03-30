@@ -370,24 +370,107 @@ impl<F: AcirField> TryFrom<MemoryValue<F>> for u128 {
         memory_value.expect_u128()
     }
 }
+/// Compact internal representation of a memory slot — 16 bytes.
+///
+/// Large values (Field, U128) are stored in a side table and referenced by a `u32` index.
+///
+/// `sizeof(Slot) == 16` because the largest inline variant is `u64` (8 bytes,
+/// 8-byte alignment) and the discriminant is padded to match.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+enum Slot {
+    /// Uninitialized — reads as `MemoryValue::Field(F::zero())`.
+    #[default]
+    Uninit,
+    U1(bool),
+    U8(u8),
+    U16(u16),
+    U32(u32),
+    U64(u64),
+    /// Index into [`Memory::large`] holding `F::from(u128_value)`.
+    U128(u32),
+    /// Index into [`Memory::large`] holding the field element.
+    Field(u32),
+}
+
 /// The VM's memory.
 ///
-/// Memory is internally represented as a vector of values.
-/// We grow the memory when values past the end are set, extending with 0s.
+/// Uses a single contiguous `Vec<Slot>` (16 bytes/slot).
+/// Field and U128 values overflow into a side table.
+///
+/// One indexed load per read from a single contiguous array, preserving cache behavior.
 ///
 /// # Capacity Limits
 ///
-/// The inner `Vec` is subject to Rust's allocator limit of `isize::MAX` bytes.
-/// This means:
-/// - On 64-bit: Practical limit is available RAM (~200 GB for full u32 range)
-/// - On 32-bit: Hard limit of ~44 million addressable slots
-///
-/// Exceeding these limits will cause a panic with "capacity overflow".
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+/// The maximum number of addressable slots is `i32::MAX` to ensure
+/// deterministic behavior across 32-bit and 64-bit systems.
+#[derive(Debug, Clone)]
 pub struct Memory<F> {
-    // Internal memory representation
-    inner: Vec<MemoryValue<F>>,
+    /// One [`Slot`] per memory address — 16 bytes each.
+    slots: Vec<Slot>,
+    /// Side table for Field and U128 values (32 bytes each for BN254).
+    /// U128 is promoted to `F` via `F::from(u128)`.
+    large: Vec<F>,
+    /// Free list of reusable indices in [`Self::large`].
+    large_free: Vec<u32>,
 }
+
+impl<F> Default for Memory<F> {
+    fn default() -> Self {
+        Self { slots: Vec::new(), large: Vec::new(), large_free: Vec::new() }
+    }
+}
+
+impl<F: PartialEq> PartialEq for Memory<F> {
+    fn eq(&self, other: &Self) -> bool {
+        if self.slots.len() != other.slots.len() {
+            return false;
+        }
+        for i in 0..self.slots.len() {
+            match (self.slots[i], other.slots[i]) {
+                (Slot::Uninit, Slot::Uninit) => {}
+                (Slot::U1(a), Slot::U1(b)) => {
+                    if a != b {
+                        return false;
+                    }
+                }
+                (Slot::U8(a), Slot::U8(b)) => {
+                    if a != b {
+                        return false;
+                    }
+                }
+                (Slot::U16(a), Slot::U16(b)) => {
+                    if a != b {
+                        return false;
+                    }
+                }
+                (Slot::U32(a), Slot::U32(b)) => {
+                    if a != b {
+                        return false;
+                    }
+                }
+                (Slot::U64(a), Slot::U64(b)) => {
+                    if a != b {
+                        return false;
+                    }
+                }
+                (Slot::U128(a), Slot::U128(b)) => {
+                    if self.large[a as usize] != other.large[b as usize] {
+                        return false;
+                    }
+                }
+                (Slot::Field(a), Slot::Field(b)) => {
+                    if self.large[a as usize] != other.large[b as usize] {
+                        return false;
+                    }
+                }
+                _ => return false, // different tags
+            }
+        }
+        true
+    }
+}
+
+impl<F: Eq> Eq for Memory<F> {}
 
 impl<F: AcirField> Memory<F> {
     /// Read the value from slot 0.
@@ -411,12 +494,93 @@ impl<F: AcirField> Memory<F> {
         }
     }
 
+    /// Decode a slot into the public `MemoryValue<F>` representation.
+    fn decode_slot(&self, index: usize) -> MemoryValue<F> {
+        match self.slots[index] {
+            Slot::Uninit => MemoryValue::Field(F::zero()),
+            Slot::U1(v) => MemoryValue::U1(v),
+            Slot::U8(v) => MemoryValue::U8(v),
+            Slot::U16(v) => MemoryValue::U16(v),
+            Slot::U32(v) => MemoryValue::U32(v),
+            Slot::U64(v) => MemoryValue::U64(v),
+            Slot::U128(idx) => MemoryValue::U128(self.large[idx as usize].to_u128()),
+            Slot::Field(idx) => MemoryValue::Field(self.large[idx as usize]),
+        }
+    }
+
+    /// Allocate (or reuse) an entry in the `large` vec and return its index.
+    fn alloc_large(&mut self, value: F) -> u32 {
+        if let Some(idx) = self.large_free.pop() {
+            self.large[idx as usize] = value;
+            idx
+        } else {
+            let idx = self.large.len() as u32;
+            self.large.push(value);
+            idx
+        }
+    }
+
+    /// If `slot` holds a large value, push its index onto the free list.
+    fn free_large_if_needed(&mut self, slot: Slot) {
+        match slot {
+            Slot::U128(idx) | Slot::Field(idx) => self.large_free.push(idx),
+            _ => {}
+        }
+    }
+
+    /// Encode a `MemoryValue<F>` and store it at the given slot index.
+    fn encode_and_store(&mut self, index: usize, value: MemoryValue<F>) {
+        let old = self.slots[index];
+        self.slots[index] = match value {
+            MemoryValue::U1(v) => {
+                self.free_large_if_needed(old);
+                Slot::U1(v)
+            }
+            MemoryValue::U8(v) => {
+                self.free_large_if_needed(old);
+                Slot::U8(v)
+            }
+            MemoryValue::U16(v) => {
+                self.free_large_if_needed(old);
+                Slot::U16(v)
+            }
+            MemoryValue::U32(v) => {
+                self.free_large_if_needed(old);
+                Slot::U32(v)
+            }
+            MemoryValue::U64(v) => {
+                self.free_large_if_needed(old);
+                Slot::U64(v)
+            }
+            MemoryValue::U128(v) => {
+                if let Slot::U128(idx) = old {
+                    // In-place update of existing large entry
+                    self.large[idx as usize] = F::from(v);
+                    return;
+                }
+                self.free_large_if_needed(old);
+                Slot::U128(self.alloc_large(F::from(v)))
+            }
+            MemoryValue::Field(f) => {
+                if let Slot::Field(idx) = old {
+                    self.large[idx as usize] = f;
+                    return;
+                }
+                self.free_large_if_needed(old);
+                Slot::Field(self.alloc_large(f))
+            }
+        };
+    }
+
     /// Reads the numeric value at the address.
     ///
     /// If the address is beyond the size of memory, a default value is returned.
     pub fn read(&self, address: MemoryAddress) -> MemoryValue<F> {
         let resolved_addr = assert_usize(self.resolve(address));
-        self.inner.get(resolved_addr).copied().unwrap_or_default()
+        if resolved_addr >= self.slots.len() {
+            return MemoryValue::default();
+        }
+        self.decode_slot(resolved_addr)
     }
 
     /// Reads the value at the address and returns it as a direct memory address,
@@ -430,25 +594,25 @@ impl<F: AcirField> Memory<F> {
         self.write(ptr, MemoryValue::from(address.to_u32()));
     }
 
-    /// Read a contiguous vector of memory starting at `address`, up to `len` slots.
+    /// Read a contiguous range of memory starting at `address`, up to `len` slots.
     ///
     /// Panics if the end index is beyond the size of the memory.
-    pub fn read_slice(&self, address: MemoryAddress, len: usize) -> &[MemoryValue<F>] {
-        // Allows to read a vector of uninitialized memory if the length is zero.
-        // Ideally we'd be able to read uninitialized memory in general (as read does)
-        // but that's not possible if we want to return a vector instead of owned data.
+    pub fn read_slice(&self, address: MemoryAddress, len: usize) -> Vec<MemoryValue<F>> {
         if len == 0 {
-            return &[];
+            return Vec::new();
         }
-        let resolved_addr = assert_usize(self.resolve(address));
-        &self.inner[resolved_addr..(resolved_addr + len)]
+        let start = assert_usize(self.resolve(address));
+        let end = start + len;
+        // Bounds check — panics with standard slice message if out of range
+        let _ = &self.slots[start..end];
+        (start..end).map(|i| self.decode_slot(i)).collect()
     }
 
     /// Sets the value at `address` to `value`
     pub fn write(&mut self, address: MemoryAddress, value: MemoryValue<F>) {
         let resolved_addr = assert_usize(self.resolve(address));
         self.resize_to_fit(resolved_addr + 1);
-        self.inner[resolved_addr] = value;
+        self.encode_and_store(resolved_addr, value);
     }
 
     /// Maximum number of memory slots that can be allocated.
@@ -461,7 +625,7 @@ impl<F: AcirField> Memory<F> {
     /// See: <https://github.com/rust-lang/rust/pull/95295> and <https://doc.rust-lang.org/1.81.0/src/core/alloc/layout.rs.html>
     const MAX_MEMORY_SIZE: usize = i32::MAX as usize;
 
-    /// Increase the size of memory fit `size` elements, or the current length, whichever is bigger.
+    /// Increase the size of memory to fit `size` slots, or the current length, whichever is bigger.
     ///
     /// # Panics
     ///
@@ -472,23 +636,33 @@ impl<F: AcirField> Memory<F> {
             "Memory address space exceeded: requested {size} slots, maximum is {} (i32::MAX)",
             Self::MAX_MEMORY_SIZE
         );
-        // Calculate new memory size
-        let new_size = std::cmp::max(self.inner.len(), size);
-        // Expand memory to new size with default values if needed
-        self.inner.resize(new_size, MemoryValue::default());
+        let new_size = std::cmp::max(self.slots.len(), size);
+        self.slots.resize(new_size, Slot::Uninit);
     }
 
-    /// Sets the values after `address` to `values`
+    /// Sets the values starting at `address`.
     pub fn write_slice(&mut self, address: MemoryAddress, values: &[MemoryValue<F>]) {
-        let resolved_addr = assert_usize(self.resolve(address));
-        let end_addr = resolved_addr + values.len();
-        self.resize_to_fit(end_addr);
-        self.inner[resolved_addr..end_addr].copy_from_slice(values);
+        let start = assert_usize(self.resolve(address));
+        let end = start + values.len();
+        self.resize_to_fit(end);
+        for (i, value) in values.iter().enumerate() {
+            self.encode_and_store(start + i, *value);
+        }
     }
 
-    /// Returns the values of the memory
-    pub fn values(&self) -> &[MemoryValue<F>] {
-        &self.inner
+    /// Returns all values of the memory as an owned vector.
+    pub fn values(&self) -> Vec<MemoryValue<F>> {
+        (0..self.slots.len()).map(|i| self.decode_slot(i)).collect()
+    }
+
+    /// Returns the number of allocated memory slots.
+    pub fn len(&self) -> usize {
+        self.slots.len()
+    }
+
+    /// Returns `true` if no memory slots have been allocated.
+    pub fn is_empty(&self) -> bool {
+        self.slots.is_empty()
     }
 }
 
@@ -534,7 +708,7 @@ mod tests {
         let mut expected = vec![MemoryValue::default(); 10];
         expected.push(MemoryValue::U32(123));
 
-        assert_eq!(memory.values(), &expected);
+        assert_eq!(memory.values(), expected);
     }
 
     #[test]
@@ -542,7 +716,7 @@ mod tests {
         let mut memory = Memory::<FieldElement>::default();
         memory.resize_to_fit(15);
 
-        assert_eq!(memory.values().len(), 15);
+        assert_eq!(memory.len(), 15);
         assert!(memory.values().iter().all(|v| *v == MemoryValue::default()));
     }
 
@@ -615,7 +789,7 @@ mod tests {
     #[test]
     fn zero_length_slice() {
         let memory = Memory::<FieldElement>::default();
-        assert_eq!(memory.read_slice(MemoryAddress::direct(20), 0), &[]);
+        assert!(memory.read_slice(MemoryAddress::direct(20), 0).is_empty());
     }
 
     #[test]
@@ -658,5 +832,78 @@ mod tests {
         memory.write(STACK_POINTER_ADDRESS, MemoryValue::from(u32::MAX - 10));
         let addr = MemoryAddress::relative(20);
         let _wrap = memory.resolve(addr);
+    }
+
+    #[test]
+    fn roundtrip_all_types() {
+        let mut memory = Memory::<FieldElement>::default();
+        let test_values: Vec<MemoryValue<FieldElement>> = vec![
+            MemoryValue::U1(true),
+            MemoryValue::U1(false),
+            MemoryValue::U8(0),
+            MemoryValue::U8(255),
+            MemoryValue::U16(12345),
+            MemoryValue::U32(0xDEADBEEF),
+            MemoryValue::U64(0xCAFEBABE_12345678),
+            MemoryValue::U128(u128::MAX),
+            MemoryValue::U128(0),
+            MemoryValue::Field(FieldElement::from(42u128)),
+            MemoryValue::Field(FieldElement::zero()),
+        ];
+
+        for (i, value) in test_values.iter().enumerate() {
+            let addr = MemoryAddress::direct(i as u32);
+            memory.write(addr, *value);
+            assert_eq!(memory.read(addr), *value, "roundtrip failed for slot {i}: {value}");
+        }
+    }
+
+    #[test]
+    fn type_change_overwrites() {
+        let mut memory = Memory::<FieldElement>::default();
+        let addr = MemoryAddress::direct(0);
+
+        // Write Field, then overwrite with U32, then with U128
+        memory.write(addr, MemoryValue::Field(FieldElement::from(99u128)));
+        assert_eq!(memory.read(addr), MemoryValue::Field(FieldElement::from(99u128)));
+
+        memory.write(addr, MemoryValue::U32(42));
+        assert_eq!(memory.read(addr), MemoryValue::U32(42));
+
+        memory.write(addr, MemoryValue::U128(777));
+        assert_eq!(memory.read(addr), MemoryValue::U128(777));
+
+        // Overwrite back to a small type
+        memory.write(addr, MemoryValue::U8(1));
+        assert_eq!(memory.read(addr), MemoryValue::U8(1));
+    }
+
+    #[test]
+    fn in_place_update_same_type() {
+        let mut memory = Memory::<FieldElement>::default();
+        let addr = MemoryAddress::direct(0);
+
+        memory.write(addr, MemoryValue::U32(1));
+        // With inline storage, overwriting same type just updates inline[0]
+        memory.write(addr, MemoryValue::U32(2));
+        assert_eq!(memory.read(addr), MemoryValue::U32(2));
+    }
+
+    #[test]
+    fn large_free_list_reuse() {
+        let mut memory = Memory::<FieldElement>::default();
+
+        // Write a field value
+        memory.write(MemoryAddress::direct(0), MemoryValue::Field(FieldElement::from(1u128)));
+        assert_eq!(memory.large.len(), 1);
+
+        // Overwrite with integer — large entry should be freed
+        memory.write(MemoryAddress::direct(0), MemoryValue::U32(42));
+        assert_eq!(memory.large_free.len(), 1);
+
+        // Write another field value — should reuse the freed entry
+        memory.write(MemoryAddress::direct(1), MemoryValue::Field(FieldElement::from(2u128)));
+        assert_eq!(memory.large.len(), 1); // no growth
+        assert_eq!(memory.large_free.len(), 0); // reused
     }
 }

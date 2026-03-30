@@ -194,7 +194,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
 
         assert!(start.is_direct(), "read_slice_of_values_from_memory requires direct addresses");
         if HeapValueType::all_simple(value_types) {
-            self.memory.read_slice(start, assert_usize(size)).to_vec()
+            self.memory.read_slice(start, assert_usize(size))
         } else {
             // Check that the sequence of value types fit an integer number of
             // times inside the given size.

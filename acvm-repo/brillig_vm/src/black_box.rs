@@ -15,10 +15,7 @@ use crate::memory::MemoryValue;
 /// Reads a fixed-size [array][HeapArray] from memory.
 ///
 /// The data is not expected to contain pointers to nested arrays or vector.
-fn read_heap_array<'a, F: AcirField>(
-    memory: &'a Memory<F>,
-    array: &HeapArray,
-) -> &'a [MemoryValue<F>] {
+fn read_heap_array<F: AcirField>(memory: &Memory<F>, array: &HeapArray) -> Vec<MemoryValue<F>> {
     let items_start = memory.read_ref(array.pointer);
     memory.read_slice(items_start, assert_usize(array.size.0))
 }
@@ -76,13 +73,14 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
         BlackBoxOp::AES128Encrypt { inputs, iv, key, outputs } => {
             let bb_func = black_box_function_from_op(op);
 
-            let inputs = to_u8_vec(read_heap_array(memory, inputs));
+            let inputs = to_u8_vec(&read_heap_array(memory, inputs));
 
-            let iv: [u8; 16] = to_u8_vec(read_heap_array(memory, iv)).try_into().map_err(|_| {
-                BlackBoxResolutionError::Failed(bb_func, "Invalid iv length".to_string())
-            })?;
+            let iv: [u8; 16] =
+                to_u8_vec(&read_heap_array(memory, iv)).try_into().map_err(|_| {
+                    BlackBoxResolutionError::Failed(bb_func, "Invalid iv length".to_string())
+                })?;
             let key: [u8; 16] =
-                to_u8_vec(read_heap_array(memory, key)).try_into().map_err(|_| {
+                to_u8_vec(&read_heap_array(memory, key)).try_into().map_err(|_| {
                     BlackBoxResolutionError::Failed(bb_func, "Invalid key length".to_string())
                 })?;
             let ciphertext = aes128_encrypt(&inputs, iv, key)?;
@@ -92,13 +90,13 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             Ok(())
         }
         BlackBoxOp::Blake2s { message, output } => {
-            let message = to_u8_vec(read_heap_array(memory, message));
+            let message = to_u8_vec(&read_heap_array(memory, message));
             let bytes = blake2s(message.as_slice())?;
             write_heap_array(memory, output, &to_value_vec(&bytes));
             Ok(())
         }
         BlackBoxOp::Blake3 { message, output } => {
-            let message = to_u8_vec(read_heap_array(memory, message));
+            let message = to_u8_vec(&read_heap_array(memory, message));
             let bytes = blake3(message.as_slice())?;
             write_heap_array(memory, output, &to_value_vec(&bytes));
             Ok(())
@@ -133,25 +131,25 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             let bb_func = black_box_function_from_op(op);
 
             let public_key_x: [u8; 32] =
-                to_u8_vec(read_heap_array(memory, public_key_x)).try_into().map_err(|_| {
+                to_u8_vec(&read_heap_array(memory, public_key_x)).try_into().map_err(|_| {
                     BlackBoxResolutionError::Failed(
                         bb_func,
                         "Invalid public key x length".to_string(),
                     )
                 })?;
             let public_key_y: [u8; 32] =
-                to_u8_vec(read_heap_array(memory, public_key_y)).try_into().map_err(|_| {
+                to_u8_vec(&read_heap_array(memory, public_key_y)).try_into().map_err(|_| {
                     BlackBoxResolutionError::Failed(
                         bb_func,
                         "Invalid public key y length".to_string(),
                     )
                 })?;
             let signature: [u8; 64] =
-                to_u8_vec(read_heap_array(memory, signature)).try_into().map_err(|_| {
+                to_u8_vec(&read_heap_array(memory, signature)).try_into().map_err(|_| {
                     BlackBoxResolutionError::Failed(bb_func, "Invalid signature length".to_string())
                 })?;
 
-            let hashed_msg = to_u8_vec(read_heap_array(memory, hashed_msg));
+            let hashed_msg = to_u8_vec(&read_heap_array(memory, hashed_msg));
 
             let result = match op {
                 BlackBoxOp::EcdsaSecp256k1 { .. } => ecdsa_secp256k1_verify(
