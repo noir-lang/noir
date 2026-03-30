@@ -52,8 +52,7 @@ use acvm::AcirField;
 use bit_vec::BitVec;
 use noirc_artifacts::ssa::{InternalBug, SsaReport};
 use rayon::prelude::*;
-use std::collections::{BTreeMap, HashMap, HashSet};
-use std::hash::Hash;
+use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 
 /// The maximum length of arrays that we attempt to constrain item-by-item.
 const MAX_ARRAY_OUTPUT_LENGTH: u32 = 64;
@@ -75,15 +74,13 @@ impl Ssa {
             .flat_map(|func| {
                 Context::new(func)
                     .build_tainted(func, &self.functions)
-                    .build_ancestors(func)
+                    .build_parent_graph(func)
                     .constrain_tainted(func, &self.functions)
                     .into_warnings(func)
             })
             .collect()
     }
 }
-
-type AncestorMap = HashMap<ValueId, HashSet<ValueId>>;
 
 struct ValueSet(BitVec<u32>);
 
@@ -126,6 +123,12 @@ struct TaintedDescendants {
     /// To consider an element constrained, we have to find a constraint such that
     /// the constrained value appears in the descendants.
     array_outputs: HashMap<(ValueId, u32), HashSet<ValueId>>,
+    /// The union of all values reachable from any argument by following parents and
+    /// equivalences backwards. Includes the arguments themselves.
+    ///
+    /// Pre-computed after the parent graph is built so that `arguments_intersect`
+    /// can check membership in O(1) rather than re-running BFS for every constraint.
+    arg_ancestors: HashSet<ValueId>,
 }
 
 impl TaintedDescendants {
@@ -149,7 +152,7 @@ impl TaintedDescendants {
                 }
             }
         }
-        Self { arguments, single_outputs, array_outputs }
+        Self { arguments, single_outputs, array_outputs, arg_ancestors: HashSet::new() }
     }
 
     /// Whether there are any unconstrained results left.
@@ -169,7 +172,8 @@ impl TaintedDescendants {
     fn try_constrain(
         &mut self,
         constrained_values: &[ValueId],
-        ancestors: &AncestorMap,
+        parents: &HashMap<ValueId, Vec<ValueId>>,
+        equivalences: &HashMap<ValueId, Vec<ValueId>>,
         all_tainted: &ValueSet,
     ) -> bool {
         let is_against_const = constrained_values.len() == 1;
@@ -179,63 +183,47 @@ impl TaintedDescendants {
         // unless there are no inputs, or the output is against a constant.
         if !is_against_const
             && !is_const_args
-            && !self.arguments_intersect(constrained_values, ancestors, all_tainted)
+            && !self.arguments_intersect(constrained_values, parents, equivalences, all_tainted)
         {
             return false;
         }
 
         // Remove any results that have been directly or indirectly constrained.
         self.single_outputs.retain(|output| {
-            !constrained_values.iter().any(|value| {
-                output == value || ancestors.get(value).is_some_and(|a| a.contains(output))
-            })
+            !constrained_values
+                .iter()
+                .any(|value| any_ancestor_is(*value, *output, parents, equivalences))
         });
         self.array_outputs.retain(|_, descendants| {
-            !constrained_values.iter().any(|value| {
-                descendants.contains(value)
-                    || ancestors.get(value).is_some_and(|a| intersecting(a, descendants))
-            })
+            !constrained_values
+                .iter()
+                .any(|value| any_ancestor_in(*value, descendants, parents, equivalences))
         });
 
         self.is_constrained()
     }
 
     /// Whether one of the constrained values:
-    /// * shares an ancestor with a call argument, and
+    /// * shares an ancestor with a call argument (checked via pre-computed `arg_ancestors`), and
     /// * is not tainted
     fn arguments_intersect(
         &self,
         constrained_values: &[ValueId],
-        ancestors: &AncestorMap,
+        parents: &HashMap<ValueId, Vec<ValueId>>,
+        equivalences: &HashMap<ValueId, Vec<ValueId>>,
         all_tainted: &ValueSet,
     ) -> bool {
-        for constrained in constrained_values {
-            if all_tainted.contains(constrained) {
+        for &cv in constrained_values {
+            if all_tainted.contains(&cv) {
                 // Allowing these would mean we could constrain the output of one call
                 // with the output of another Brillig call, and also that outputs of
                 // the call would trivially connect to the inputs.
                 continue;
             }
-            // Check if this constraint is directly on one of the inputs.
-            if self.arguments.iter().any(|a| a == constrained) {
+            // arg_ancestors contains the arguments themselves and all their transitive ancestors.
+            // BFS from cv to check if cv or any ancestor of cv is in arg_ancestors.
+            if any_ancestor_in(cv, &self.arg_ancestors, parents, equivalences) {
                 return true;
-            }
-            // Check if one of the inputs shares an ancestor with the constraint.
-            let Some(constrained_ancestors) = ancestors.get(constrained) else {
-                continue;
-            };
-            for arg in &self.arguments {
-                if constrained_ancestors.contains(arg) {
-                    return true;
-                }
-                let Some(arg_ancestors) = ancestors.get(arg) else {
-                    continue;
-                };
-                if arg_ancestors.contains(constrained)
-                    || intersecting(arg_ancestors, constrained_ancestors)
-                {
-                    return true;
-                }
             }
         }
         false
@@ -267,18 +255,23 @@ struct Context {
     /// so that we can limit the amount of ancestry we collect.
     constraints: HashSet<InstructionId>,
 
-    /// Ancestors of the values that we are interested in.
+    /// Direct parent graph for tracked values.
     ///
-    /// We are interested in the ancestry of variables which either:
+    /// `parents[v]` = the immediate instruction arguments that produced `v`,
+    /// plus the active side-effect condition (if any) at the time `v` was produced.
+    ///
+    /// We track parents for values which either:
     /// * have constraints on them, or
     /// * are inputs to a Brillig call.
     ///
-    /// Using that information, we can consider a constraint to cover an output of a Brillig call if:
-    /// * the output is in the ancestry of a constrained value, and
-    /// * the ancestors of a constrained value intersects the ancestors of one of the inputs of the call
+    /// Transitive ancestry is computed on demand via BFS instead of being pre-computed.
+    parents: HashMap<ValueId, Vec<ValueId>>,
+
+    /// Bidirectional equivalence edges from `constrain v1 == v2` instructions.
     ///
-    /// The ancestors of a value do not include the value itself.
-    ancestors: AncestorMap,
+    /// If `v1` and `v2` are equivalent, any ancestor of `v1` is also an ancestor of `v2`
+    /// and vice versa. BFS follows these edges alongside `parents` edges.
+    equivalences: HashMap<ValueId, Vec<ValueId>>,
 }
 
 impl Context {
@@ -287,112 +280,128 @@ impl Context {
             post_order: PostOrder::with_function(func).into_vec(),
             tainted: HashMap::default(),
             constraints: HashSet::default(),
-            ancestors: HashMap::default(),
+            parents: HashMap::default(),
+            equivalences: HashMap::default(),
         }
     }
 
-    /// Traverse blocks and instruction bottom-up to build up the ancestry of values.
-    fn build_ancestors(mut self, func: &Function) -> Self {
-        // Reverse index: who_cares[v] = set of ancestor-map keys k such that v ∈ ancestors[k].
-        // Using this we can find all relevant ancestor sets for a given value in O(1) instead of
-        // scanning the entire ancestor map.
-        let mut who_cares: HashMap<ValueId, HashSet<ValueId>> = HashMap::default();
+    /// Build a direct parent graph for tracked values, then compute `arg_ancestors` for each
+    /// tainted Brillig call via BFS.
+    ///
+    /// This replaces the old transitive-closure `ancestors` map with a compact representation:
+    /// `parents[v]` stores only the immediate instruction arguments of `v` (plus the active
+    /// side-effect condition, if any). Transitive ancestry is computed on demand during BFS.
+    fn build_parent_graph(mut self, func: &Function) -> Self {
+        // Forward sub-pass: collect which side-effect condition (if any) is active at each
+        // instruction, so we can add it as a parent during the backward pass below.
+        let mut side_effect_at: HashMap<InstructionId, ValueId> = HashMap::new();
+        for block_id in self.post_order.iter().copied().rev() {
+            let mut current_se: Option<ValueId> = None;
+            for instr_id in func.dfg[block_id].instructions() {
+                if let Instruction::EnableSideEffectsIf { condition } = &func.dfg[*instr_id] {
+                    current_se = (!is_numeric_constant(func, *condition)).then_some(*condition);
+                } else if let Some(se) = current_se {
+                    side_effect_at.insert(*instr_id, se);
+                }
+            }
+        }
 
-        // Traverse block from the end towards the beginning, so we can expand the ancestry of the values bottom-up.
+        // Backward pass: build the parent graph.
+        //
+        // pending_loads[address] = list of tracked load results whose direct parent is `address`.
+        // When we later encounter Store { address, value }, we fix those parents up.
+        let mut pending_loads: HashMap<ValueId, Vec<ValueId>> = HashMap::new();
+
         for block_id in self.post_order.iter().copied() {
-            // Traverse instructions in reverse so we know which values we want the ancestors for.
             for instruction_id in func.dfg[block_id].instructions().iter().rev() {
                 let instruction = &func.dfg[*instruction_id];
                 let result_ids = func.dfg.instruction_results(*instruction_id);
 
-                // If any of the results is part of something we are tracking, add the inputs to their ancestry.
-                // Compute args lazily — only when we find a tracked result that needs updating.
+                // For each tracked result, add its instruction's arguments as direct parents.
+                // Compute args lazily — only when we find a tracked result.
                 let mut args: Option<Vec<ValueId>> = None;
 
                 for result_id in result_ids {
-                    if is_numeric_constant(func, *result_id) {
+                    if is_numeric_constant(func, *result_id)
+                        || !self.parents.contains_key(result_id)
+                    {
                         continue;
                     }
 
-                    // Collect the ancestor-map keys that need to be updated.
-                    // "Self-care": result_id itself is a key in ancestors.
-                    let self_care = self.ancestors.contains_key(result_id);
-                    // Check cheaply before allocating the Vec.
-                    let has_other = who_cares.get(result_id).is_some_and(|s| !s.is_empty());
-
-                    if !self_care && !has_other {
-                        continue;
-                    }
-
-                    // Other keys that have result_id in their ancestor set.
-                    // Collect into a Vec to release the immutable borrow on who_cares before
-                    // the try_insert! calls that need to mutate it.
-                    let other_keys: Vec<ValueId> =
-                        who_cares.get(result_id).into_iter().flatten().copied().collect();
-
-                    // Compute instruction args once, reuse for all matching keys.
                     let args = args.get_or_insert_with(|| instruction_arguments(func, instruction));
 
-                    // Helper to add an arg to a key's ancestor set and update who_cares.
-                    macro_rules! try_insert {
-                        ($key:expr, $arg:expr) => {
-                            if $key != $arg {
-                                if self.ancestors.get_mut(&$key).unwrap().insert($arg) {
-                                    who_cares.entry($arg).or_default().insert($key);
-                                }
+                    self.parents.entry(*result_id).or_default().extend(args.iter().copied());
+
+                    // Ensure each arg is itself tracked so that when we reach the instruction
+                    // that produces arg (going backward), we expand its parents too.
+                    // This is the equivalent of the who_cares[arg].insert(key) update.
+                    for &arg in args.iter() {
+                        self.parents.entry(arg).or_default();
+                    }
+
+                    // Add the active side-effect condition as an additional parent so that
+                    // BFS can reach the condition's ancestors from this result.
+                    if let Some(&se) = side_effect_at.get(instruction_id) {
+                        self.parents.entry(*result_id).or_default().push(se);
+                        // Ensure the condition itself is tracked.
+                        self.parents.entry(se).or_default();
+                    }
+
+                    // If this is a Load, remember it so Store can fix up the placeholder parent.
+                    if let Instruction::Load { address } = instruction {
+                        pending_loads.entry(*address).or_default().push(*result_id);
+                    }
+                }
+
+                // Store resolution: replace the address placeholder with the stored value in
+                // all pending load results for this address. By using remove(), only the
+                // first Store encountered (going backward) resolves the loads.
+                if let Instruction::Store { address, value } = instruction {
+                    if let Some(pending) = pending_loads.remove(address) {
+                        for tracked in pending {
+                            let parents_of_tracked =
+                                self.parents.get_mut(&tracked).expect("was inserted above");
+                            parents_of_tracked.retain(|&p| p != *address);
+                            if !is_numeric_constant(func, *value) {
+                                parents_of_tracked.push(*value);
+                                // Start tracking the stored value's own parents.
+                                self.parents.entry(*value).or_default();
                             }
-                        };
-                    }
-
-                    if self_care {
-                        for &arg in args.iter() {
-                            try_insert!(*result_id, arg);
-                        }
-                    }
-                    for key in other_keys {
-                        for &arg in args.iter() {
-                            try_insert!(key, arg);
                         }
                     }
                 }
 
-                // If this is a Store instruction, then it has no result: instead we must replace
-                // the address with the result in all ancestors, where it was inserted as the parent
-                // of the result of the following Load. By removing the address, only the first Store
-                // before the load connects the values.
-                if let Instruction::Store { address, value } = instruction
-                    && let Some(caring_keys) = who_cares.remove(address)
-                {
-                    for key in caring_keys {
-                        let Some(anc) = self.ancestors.get_mut(&key) else { continue };
-                        if anc.remove(address)
-                            && !is_numeric_constant(func, *value)
-                            && anc.insert(*value)
-                        {
-                            who_cares.entry(*value).or_default().insert(key);
-                        }
-                    }
-                }
-
-                // Start tracking the ancestors of the inputs of the instruction.
+                // Start tracking the direct parents of this instruction's arguments if it is
+                // a tainted call, a relevant constraint, or an EnableSideEffectsIf instruction.
                 let should_track = self.tainted.contains_key(instruction_id)
                     || self.constraints.contains(instruction_id)
                     || is_side_effect(func, instruction);
 
                 if should_track {
-                    for value_id in instruction_arguments(func, instruction) {
-                        // Only insert if not already present (or_default does this).
-                        self.ancestors.entry(value_id).or_default();
-                        // No who_cares update needed: new entry starts with an empty ancestor set,
-                        // so nothing currently in any other ancestor set refers to it.
-                        // Future iterations (earlier instructions) will populate it via self_care.
+                    let args = args.get_or_insert_with(|| instruction_arguments(func, instruction));
+                    for value_id in args.iter() {
+                        self.parents.entry(*value_id).or_default();
                     }
                 }
 
+                // Collect equivalences from `constrain v1 == v2`.
+                // These are followed bidirectionally during BFS so that ancestry flows
+                // through equivalent values.
                 if let Some((v1, v2)) = as_equivalence(func, instruction) {
-                    Self::add_equivalence(&mut self.ancestors, &mut who_cares, v1, v2);
+                    self.equivalences.entry(v1).or_default().push(v2);
+                    self.equivalences.entry(v2).or_default().push(v1);
                 }
             }
+        }
+
+        // BFS sub-pass: compute arg_ancestors for each tainted Brillig call.
+        // arg_ancestors is the union of all values reachable backwards from any argument,
+        // including the arguments themselves. This is pre-computed once so that
+        // arguments_intersect can check membership in O(1) per constrained value.
+        let parents = &self.parents;
+        let equivalences = &self.equivalences;
+        for tainted in self.tainted.values_mut() {
+            tainted.arg_ancestors = bfs_ancestors(&tainted.arguments, parents, equivalences);
         }
 
         self
@@ -514,19 +523,10 @@ impl Context {
 
         // Traverse in Reverse Post Order, ie. top-down.
         for block_id in self.post_order.clone().into_iter().rev() {
-            // Track the current side effect variable, unless it's a constant.
-            let mut side_effects_var: Option<ValueId> = None;
-
             for instruction_id in func.dfg[block_id].instructions() {
                 let instruction = &func.dfg[*instruction_id];
-                let mut arguments = instruction_arguments(func, instruction);
+                let arguments = instruction_arguments(func, instruction);
                 let results = instruction_results(func, instruction_id);
-
-                // If we are under a side effect, extend ancestors and the args.
-                if let Some(side_effects_var) = &side_effects_var {
-                    self.extend_ancestors_with_side_effects(side_effects_var, &results);
-                    arguments.push(*side_effects_var);
-                }
 
                 // Extend the descendants of Brillig calls.
                 if !results.is_empty() {
@@ -541,12 +541,18 @@ impl Context {
                     all_tainted.extend(&results);
                 } else if self.constraints.contains(instruction_id) && !self.tainted.is_empty() {
                     let constrained_values = instruction_arguments(func, instruction);
+                    // Split borrows: extract parents/equivalences before the closure that
+                    // mutably borrows self.tainted.
+                    let parents = &self.parents;
+                    let equivalences = &self.equivalences;
                     self.tainted.retain(|_, tainted| {
-                        !tainted.try_constrain(&constrained_values, &self.ancestors, &all_tainted)
+                        !tainted.try_constrain(
+                            &constrained_values,
+                            parents,
+                            equivalences,
+                            &all_tainted,
+                        )
                     });
-                } else if let Instruction::EnableSideEffectsIf { condition } = instruction {
-                    side_effects_var =
-                        (!is_numeric_constant(func, *condition)).then_some(*condition);
                 }
             }
         }
@@ -565,66 +571,6 @@ impl Context {
                 })
             })
             .collect()
-    }
-
-    /// Add the ancestors of the current side effect variable to the ancestors of the current results.
-    ///
-    /// We weren't able to do this during bottom-up traversal, because we don't know the side effects
-    /// when the results are defined.
-    fn extend_ancestors_with_side_effects(
-        &mut self,
-        side_effects_var: &ValueId,
-        results: &[ValueId],
-    ) {
-        let Some(side_effects_ancestors) = self.ancestors.get(side_effects_var).cloned() else {
-            return;
-        };
-        for result in results {
-            let Some(ancestors) = self.ancestors.get_mut(result) else {
-                continue;
-            };
-            ancestors.insert(*side_effects_var);
-            ancestors.extend(&side_effects_ancestors);
-        }
-    }
-
-    /// When we have `constrain v0 == v1`, then consider any follow up constraints
-    /// on v0 or v1 as if it applied on both. This is because some SSA passes use
-    /// constraint info to simplify values, and what was a constraint on v0 could
-    /// end up being a constraint on v1.
-    fn add_equivalence(
-        ancestors: &mut AncestorMap,
-        who_cares: &mut HashMap<ValueId, HashSet<ValueId>>,
-        v1: ValueId,
-        v2: ValueId,
-    ) {
-        /// For all keys `k` where `a ∈ ancestors[k]` (and `k != b`), insert `b` into `ancestors[k]`.
-        ///
-        /// Uses `who_cares[a]` to find those keys directly instead of scanning the whole map.
-        ///
-        /// Not inserting `a -> b` and `b -> a` because that would make
-        /// a constraint derive from the output of a call, disqualifying
-        /// it from being a constraint on the inputs.
-        fn go(
-            a: ValueId,
-            b: ValueId,
-            ancestors: &mut AncestorMap,
-            who_cares: &mut HashMap<ValueId, HashSet<ValueId>>,
-        ) {
-            // Snapshot to avoid borrowing who_cares while mutating it.
-            let caring_keys: Vec<ValueId> =
-                who_cares.get(&a).into_iter().flatten().filter(|&&k| k != b).copied().collect();
-            for key in caring_keys {
-                if ancestors.get_mut(&key).is_some_and(|s| s.insert(b)) {
-                    // Not inserting self-ancestry.
-                    if key != b {
-                        who_cares.entry(b).or_default().insert(key);
-                    }
-                }
-            }
-        }
-        go(v1, v2, ancestors, who_cares);
-        go(v2, v1, ancestors, who_cares);
     }
 }
 
@@ -723,9 +669,133 @@ fn instruction_results(func: &Function, instruction_id: &InstructionId) -> Vec<V
         .collect()
 }
 
-/// Return `true` if two sets have a non-empty intersection.
-fn intersecting<T: Hash + Eq>(a: &HashSet<T>, b: &HashSet<T>) -> bool {
-    a.intersection(b).next().is_some()
+/// Compute the set of all values reachable (inclusive) from any of the `starts` by following
+/// `parents` and `equivalences` edges backwards.
+///
+/// Equivalences are only followed from **intermediate** nodes (not from the starting nodes
+/// themselves). This matches the original transitive-closure semantics: `constrain v1 == v2`
+/// adds v2 to the ancestor sets of keys that *already* have v1 as an ancestor, but does **not**
+/// add v2 to v1's own ancestor set (because v1 is never its own ancestor).
+fn bfs_ancestors(
+    starts: &[ValueId],
+    parents: &HashMap<ValueId, Vec<ValueId>>,
+    equivalences: &HashMap<ValueId, Vec<ValueId>>,
+) -> HashSet<ValueId> {
+    let mut visited: HashSet<ValueId> = HashSet::new();
+    let mut queue: VecDeque<ValueId> = VecDeque::new();
+    for &s in starts {
+        visited.insert(s);
+        // From start nodes: follow only parent edges, not equivalences.
+        for &p in parents.get(&s).into_iter().flatten() {
+            if visited.insert(p) {
+                queue.push_back(p);
+            }
+        }
+    }
+    // From intermediate nodes: follow both parent and equivalence edges.
+    while let Some(curr) = queue.pop_front() {
+        for &next in parents
+            .get(&curr)
+            .into_iter()
+            .flatten()
+            .chain(equivalences.get(&curr).into_iter().flatten())
+        {
+            if visited.insert(next) {
+                queue.push_back(next);
+            }
+        }
+    }
+    visited
+}
+
+/// Returns `true` if `start` itself, or any value reachable from `start` by following
+/// `parents` (and `equivalences` from intermediate nodes), equals `target`.
+///
+/// Equivalences are not followed directly from `start` — only from nodes reached via
+/// parent edges. See [`bfs_ancestors`] for the rationale.
+fn any_ancestor_is(
+    start: ValueId,
+    target: ValueId,
+    parents: &HashMap<ValueId, Vec<ValueId>>,
+    equivalences: &HashMap<ValueId, Vec<ValueId>>,
+) -> bool {
+    if start == target {
+        return true;
+    }
+    let mut visited: HashSet<ValueId> = HashSet::new();
+    let mut queue: VecDeque<ValueId> = VecDeque::new();
+    visited.insert(start);
+    // From start: parent edges only.
+    for &p in parents.get(&start).into_iter().flatten() {
+        if p == target {
+            return true;
+        }
+        if visited.insert(p) {
+            queue.push_back(p);
+        }
+    }
+    // From intermediate nodes: parent + equivalence edges.
+    while let Some(curr) = queue.pop_front() {
+        for &next in parents
+            .get(&curr)
+            .into_iter()
+            .flatten()
+            .chain(equivalences.get(&curr).into_iter().flatten())
+        {
+            if next == target {
+                return true;
+            }
+            if visited.insert(next) {
+                queue.push_back(next);
+            }
+        }
+    }
+    false
+}
+
+/// Returns `true` if `start` itself, or any value reachable from `start` by following
+/// `parents` (and `equivalences` from intermediate nodes), is contained in `target_set`.
+///
+/// Equivalences are not followed directly from `start` — only from nodes reached via
+/// parent edges. See [`bfs_ancestors`] for the rationale.
+fn any_ancestor_in(
+    start: ValueId,
+    target_set: &HashSet<ValueId>,
+    parents: &HashMap<ValueId, Vec<ValueId>>,
+    equivalences: &HashMap<ValueId, Vec<ValueId>>,
+) -> bool {
+    if target_set.contains(&start) {
+        return true;
+    }
+    let mut visited: HashSet<ValueId> = HashSet::new();
+    let mut queue: VecDeque<ValueId> = VecDeque::new();
+    visited.insert(start);
+    // From start: parent edges only.
+    for &p in parents.get(&start).into_iter().flatten() {
+        if target_set.contains(&p) {
+            return true;
+        }
+        if visited.insert(p) {
+            queue.push_back(p);
+        }
+    }
+    // From intermediate nodes: parent + equivalence edges.
+    while let Some(curr) = queue.pop_front() {
+        for &next in parents
+            .get(&curr)
+            .into_iter()
+            .flatten()
+            .chain(equivalences.get(&curr).into_iter().flatten())
+        {
+            if target_set.contains(&next) {
+                return true;
+            }
+            if visited.insert(next) {
+                queue.push_back(next);
+            }
+        }
+    }
+    false
 }
 
 #[cfg(test)]
