@@ -292,7 +292,7 @@ impl Context {
                     // "Self-care": result_id itself is a key in ancestors.
                     let self_care = self.ancestors.contains_key(result_id);
                     // Check cheaply before allocating the Vec.
-                    let has_other = who_cares.get(result_id).map_or(false, |s| !s.is_empty());
+                    let has_other = who_cares.get(result_id).is_some_and(|s| !s.is_empty());
 
                     if !self_care && !has_other {
                         continue;
@@ -334,15 +334,16 @@ impl Context {
                 // the address with the result in all ancestors, where it was inserted as the parent
                 // of the result of the following Load. By removing the address, only the first Store
                 // before the load connects the values.
-                if let Instruction::Store { address, value } = instruction {
-                    if let Some(caring_keys) = who_cares.remove(address) {
-                        for key in caring_keys {
-                            let Some(anc) = self.ancestors.get_mut(&key) else { continue };
-                            if anc.remove(address) && !is_numeric_constant(func, *value) {
-                                if anc.insert(*value) {
-                                    who_cares.entry(*value).or_default().insert(key);
-                                }
-                            }
+                if let Instruction::Store { address, value } = instruction
+                    && let Some(caring_keys) = who_cares.remove(address)
+                {
+                    for key in caring_keys {
+                        let Some(anc) = self.ancestors.get_mut(&key) else { continue };
+                        if anc.remove(address)
+                            && !is_numeric_constant(func, *value)
+                            && anc.insert(*value)
+                        {
+                            who_cares.entry(*value).or_default().insert(key);
                         }
                     }
                 }
@@ -587,7 +588,7 @@ impl Context {
             let caring_keys: Vec<ValueId> =
                 who_cares.get(&a).into_iter().flatten().filter(|&&k| k != b).copied().collect();
             for key in caring_keys {
-                if ancestors.get_mut(&key).map_or(false, |s| s.insert(b)) {
+                if ancestors.get_mut(&key).is_some_and(|s| s.insert(b)) {
                     // Not inserting self-ancestry.
                     if key != b {
                         who_cares.entry(b).or_default().insert(key);
