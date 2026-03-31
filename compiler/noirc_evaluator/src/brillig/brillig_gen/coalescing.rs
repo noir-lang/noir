@@ -17,6 +17,7 @@ use crate::ssa::ir::{
 
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
+use super::union_find::UnionFind;
 use super::variable_liveness::VariableLiveness;
 
 /// Check if param-side coalescing is safe: the destination must have exactly
@@ -42,7 +43,6 @@ fn can_coalesce_param_side(
 pub(crate) struct CoalescingMap {
     coalesced: HashMap<ValueId, ValueId>,
     /// Maps each coalesced value to its connected component group ID.
-    /// Used by `has_live_partner` to find all values sharing the same register.
     groups: HashMap<ValueId, usize>,
     /// All members of each connected component group.
     group_members: Vec<Vec<ValueId>>,
@@ -157,55 +157,27 @@ impl CoalescingMap {
             }
         }
 
-        let mut coalesced_reverse: HashMap<ValueId, Vec<ValueId>> = HashMap::default();
-        for (k, v) in &coalesced {
-            coalesced_reverse.entry(*v).or_default().push(*k);
+        // Build connected component groups via Union-Find.
+        let mut uf = UnionFind::new();
+        for (&k, &v) in &coalesced {
+            uf.make_set(k);
+            uf.make_set(v);
+            uf.union(k, v);
         }
 
-        // Build connected component groups: all values sharing the same register
-        // (through transitive coalescing chains) get the same group ID.
-        // This is needed because `has_live_partner` must check ALL values in the
-        // connected component, not just direct neighbors.
+        let all_values: Vec<ValueId> = uf.parent.keys().copied().collect();
+        let mut root_to_group: HashMap<ValueId, usize> = HashMap::default();
         let mut groups: HashMap<ValueId, usize> = HashMap::default();
         let mut group_members: Vec<Vec<ValueId>> = Vec::new();
 
-        // Collect all values that participate in coalescing.
-        let mut all_values = HashSet::default();
-        for (k, v) in &coalesced {
-            all_values.insert(*k);
-            all_values.insert(*v);
-        }
-
-        for value in &all_values {
-            if groups.contains_key(value) {
-                continue;
-            }
-            // BFS to find the full connected component.
-            let group_id = group_members.len();
-            let mut members = Vec::new();
-            let mut queue = vec![*value];
-            while let Some(current) = queue.pop() {
-                if groups.contains_key(&current) {
-                    continue;
-                }
-                groups.insert(current, group_id);
-                members.push(current);
-                // Forward edge: current → target
-                if let Some(&target) = coalesced.get(&current)
-                    && !groups.contains_key(&target)
-                {
-                    queue.push(target);
-                }
-                // Reverse edges: sources → current
-                if let Some(sources) = coalesced_reverse.get(&current) {
-                    for source in sources {
-                        if !groups.contains_key(source) {
-                            queue.push(*source);
-                        }
-                    }
-                }
-            }
-            group_members.push(members);
+        for value in all_values {
+            let root = uf.find(value);
+            let group_id = *root_to_group.entry(root).or_insert_with(|| {
+                group_members.push(Vec::new());
+                group_members.len() - 1
+            });
+            groups.insert(value, group_id);
+            group_members[group_id].push(value);
         }
 
         Self { coalesced, groups, group_members }
@@ -239,12 +211,7 @@ impl CoalescingMap {
         let Some(&group_id) = self.groups.get(value_id) else {
             return false;
         };
-        for member in &self.group_members[group_id] {
-            if member != value_id && is_alive(member) {
-                return true;
-            }
-        }
-        false
+        self.group_members[group_id].iter().any(|member| member != value_id && is_alive(member))
     }
 
     #[cfg(test)]

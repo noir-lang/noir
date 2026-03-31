@@ -334,6 +334,7 @@ fn coalescing_transitive_chain_no_double_dealloc() {
     // v0=3, v1=7 → v2=10
     // chain: v8=v5=v4=v3=v2=10  (all share one register)
     // b1: v6 = v2 + v0 = 10 + 3 = 13, v7 = v3 + v6 = 10 + 13 = 23
-    let result = execute_brillig_from_ssa(src, vec![FieldElement::from(3u64), FieldElement::from(7u64)]);
+    let result =
+        execute_brillig_from_ssa(src, vec![FieldElement::from(3u64), FieldElement::from(7u64)]);
     assert_eq!(result, vec![FieldElement::from(23u64)]);
 }
