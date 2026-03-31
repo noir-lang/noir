@@ -265,28 +265,35 @@ impl SpillManager {
 
     /// Ensure a value has a permanent spill slot.
     ///
-    /// Handles all three cases where a record already exists with a single lookup:
+    /// Handles all cases where a record already exists with a single lookup:
     /// - Permanent + currently spilled -> no-op (slot has correct data)
     /// - Currently spilled but not permanent -> promote to permanent
     /// - Permanent but not currently spilled (reloaded) -> re-mark as spilled
+    /// - Not currently spilled (reloaded) and not permanent -> re-mark as spilled and permanent
     ///
     /// # Returns
-    /// `true` if a record existed (caller should skip further processing),
-    /// `false` if no record exists (first encounter — caller must allocate a slot).
+    /// * `true` if a record already exists (caller should skip further processing),
+    /// * `false` if no record exists (first encounter - caller must allocate a slot).
     pub(crate) fn ensure_permanent_spill(&mut self, value_id: &ValueId) -> bool {
-        if let Some(record) = self.records.get_mut(value_id) {
-            if record.is_permanent && record.is_currently_spilled {
-                // Already permanent and spilled — nothing to do.
-            } else if record.is_currently_spilled {
-                // Transient spill — promote to permanent.
-                record.is_permanent = true;
-            } else if record.is_permanent {
-                // Permanent but reloaded — re-mark as spilled.
-                record.is_currently_spilled = true;
-            }
-            return true;
+        let Some(record) = self.records.get_mut(value_id) else {
+            return false;
+        };
+        if record.is_permanent && record.is_currently_spilled {
+            // Already permanent and spilled — nothing to do.
+        } else if record.is_currently_spilled {
+            // Transient spill — promote to permanent.
+            record.is_permanent = true;
+        } else if record.is_permanent {
+            // Permanent but reloaded — re-mark as spilled.
+            record.is_currently_spilled = true;
+        } else {
+            // Transient spill that got reloaded - re-mark as spilled and promote to permanent.
+            // `record_permanent_spill` ensures that we never change the offset of an existing record,
+            // so the data in the spill slot should still be good.
+            record.is_permanent = true;
+            record.is_currently_spilled = true;
         }
-        false
+        true
     }
 }
 
@@ -458,6 +465,19 @@ mod tests {
         sm.remove_spill(&v0);
         assert!(!sm.is_spilled(&v0));
         assert!(sm.free_spill_slots.is_empty());
+    }
+
+    #[test]
+    fn ensure_permanent_spill_for_not_spilled() {
+        let mut sm = SpillManager::new();
+        let v0 = Id::test_new(0);
+
+        // Record a transient spill
+        let off = sm.allocate_spill_offset();
+        sm.record_spill(v0, off, test_var(0));
+        sm.unmark_spilled(&v0);
+
+        assert!(sm.ensure_permanent_spill(&v0), "expect true because the record exists");
     }
 
     #[test]

@@ -390,10 +390,8 @@ impl<K, V, B> UHashMap<K, V, B> {
         hasher.finish() as u32
     }
 
-    /// Probing scheme: quadratic function.
-    /// We use 0.5 constant near variadic attempt and attempt^2 monomials.
-    /// This ensures good uniformity of distribution for table sizes
-    /// equal to prime numbers or powers of two.
+    /// Probing scheme: linear probing.
+    /// Each attempt increments the index by one, wrapping around the table.
     fn linear_probe(self: Self, hash: u32, attempt: u32) -> u32 {
         (hash + attempt) % self._table.len()
     }
