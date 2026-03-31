@@ -547,42 +547,24 @@ mod tests {
             return v10
         }
         ";
+
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.remove_redundant_params();
-        println!("{}", ssa.print_with(None));
-    }
 
-    #[test]
-    fn more_loop_carried_params() {
-        let src = "
-        acir(inline) impure fn main f0 {
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
           b0(v0: u32):
             jmp b1(u32 0, u32 0)
           b1(v1: u32, v2: u32):
-            v13 = lt v1, u32 5
-            jmpif v13 then: b2(v2), else: b3(v2)
+            v7 = lt v1, u32 5
+            jmpif v7 then: b2(v2), else: b3(v2)
           b2(v3: u32):
-            v21 = add v3, u32 10
-            v22 = unchecked_add v1, u32 1
-            jmp b1(v22, v21)
+            v9 = add v3, u32 10
+            v11 = unchecked_add v1, u32 1
+            jmp b1(v11, v9)
           b3(v4: u32):
-            constrain v4 == v0
-            v16 = call black_box(u32 10) -> u32
-            jmp b4(u32 0, v4, u32 0)
-          b4(v5: u32, v6: u32, v7: u32):
-            v17 = lt v5, u32 5
-            jmpif v17 then: b5(v6, v7), else: b6(v7)
-          b5(v8: u32, v9: u32):
-            v18 = add v9, v16
-            v20 = unchecked_add v5, u32 1
-            jmp b4(v20, v8, v18)
-          b6(v10: u32):
-            constrain v10 == v0
-            return
+            return v4
         }
-        ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_redundant_params();
-        println!("{}", ssa.print_with(None));
+        ");
     }
 }

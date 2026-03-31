@@ -165,8 +165,6 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new(Ssa::array_set_optimization, "ArraySet optimization"),
         SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
         SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
-        // Preprocessing may unroll loops; remove redundant params first.
-        SsaPass::new(Ssa::remove_redundant_params, "Remove Redundant Parameters"),
         SsaPass::new_try(
             move |ssa| {
                 ssa.preprocess_functions(
@@ -216,9 +214,6 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
         SsaPass::new(Ssa::loop_invariant_code_motion, "Loop Invariant Code Motion"),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
-        // Remove redundant block parameters before unrolling — the unroller cannot
-        // handle loop-carried parameters that are invariant (always the same value).
-        SsaPass::new(Ssa::remove_redundant_params, "Remove Redundant Parameters"),
         SsaPass::new_try(
             move |ssa| {
                 ssa.unroll_loops_iteratively(
@@ -243,6 +238,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new(Ssa::expand_signed_math, "Expand signed math"),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
         SsaPass::new(Ssa::remove_redundant_params, "Remove Redundant Parameters"),
+        // Removing redundant block parameters can reveal new CFG structures that can be simplified further.
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
         SsaPass::new(Ssa::flatten_cfg, "Flattening"),
         SsaPass::new(Ssa::array_set_window_optimization, "ArraySet Window optimization"),
@@ -252,7 +248,8 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         // (which mem2reg_simple doesn't handle). Finally free memory before inlining.
         SsaPass::new(Ssa::mem2reg_simple, "Mem2Reg Simple")
             .and_then(Ssa::load_store_forwarding)
-            .and_then(Ssa::remove_unused_instructions),
+            .and_then(Ssa::remove_unused_instructions)
+            .and_then(Ssa::remove_redundant_params),
         // Run the inlining pass again to handle functions with `InlineType::NoPredicates`.
         // Before flattening is run, we treat functions marked with the `InlineType::NoPredicates` as an entry point.
         // This pass must come immediately following load/store forwarding as the succeeding passes
