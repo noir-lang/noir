@@ -1103,11 +1103,11 @@ checksum = "de0758edba32d61d1fd9f4d69491b47604b91ee2f7e6b33de7e54ca4ebe55dc3"
 
 [[package]]
 name = "codespan"
-version = "0.11.1"
+version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3362992a0d9f1dd7c3d0e89e0ab2bb540b7a95fea8cd798090e758fda2899b5e"
+checksum = "583f52b0658b321b25fd6b209b6c76cf058f433071297de64e5980c3d9aad937"
 dependencies = [
- "codespan-reporting",
+ "codespan-reporting 0.13.1",
  "serde",
 ]
 
@@ -1117,7 +1117,7 @@ version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc4159b76af02757139baf42c0c971c6dc155330999fbfd8eddb29b97fb2db68"
 dependencies = [
- "codespan-reporting",
+ "codespan-reporting 0.11.1",
  "lsp-types 0.88.0",
  "url",
 ]
@@ -1127,6 +1127,16 @@ name = "codespan-reporting"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3538270d33cc669650c4b093848450d380def10c331d38c768e34cac80576e6e"
+dependencies = [
+ "termcolor",
+ "unicode-width",
+]
+
+[[package]]
+name = "codespan-reporting"
+version = "0.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af491d569909a7e4dee0ad7db7f5341fef5c614d5b8ec8cf765732aba3cff681"
 dependencies = [
  "serde",
  "termcolor",
@@ -1965,7 +1975,7 @@ dependencies = [
 name = "fm"
 version = "1.0.0-beta.19"
 dependencies = [
- "codespan-reporting",
+ "codespan-reporting 0.11.1",
  "iter-extended",
  "itertools 0.14.0",
  "serde",
@@ -3626,7 +3636,7 @@ dependencies = [
  "assert_cmd",
  "bn254_blackbox_solver",
  "build-data",
- "codespan-reporting",
+ "codespan-reporting 0.11.1",
  "dap",
  "easy-repl",
  "fm",
@@ -3873,7 +3883,7 @@ dependencies = [
  "acir",
  "acvm",
  "base64",
- "codespan-reporting",
+ "codespan-reporting 0.11.1",
  "flate2",
  "fm",
  "noirc_abi",
@@ -3923,7 +3933,7 @@ dependencies = [
 name = "noirc_errors"
 version = "1.0.0-beta.19"
 dependencies = [
- "codespan-reporting",
+ "codespan-reporting 0.11.1",
  "fm",
  "noirc_span",
  "rangemap",
