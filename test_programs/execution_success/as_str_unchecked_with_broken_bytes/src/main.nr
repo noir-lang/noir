@@ -1,6 +1,7 @@
 fn main() {
     check_runtime();
     check_comptime();
+    check_comptime_to_runtime();
 }
 
 fn check_runtime() {
@@ -24,4 +25,14 @@ comptime fn lossy_roundtrip() -> Quoted {
     let raw: [u8; 4] = [102, 111, 128, 111]; // "fo\x80o" (0x80 is invalid UTF-8)
     let s: str<4> = raw.as_str_unchecked();
     quote { ($raw, ($s).as_bytes()) }
+}
+
+fn check_comptime_to_runtime() {
+    let str = comptime {
+        let bytes = [102, 111, 128, 111_u8];
+        let str = bytes.as_str_unchecked();
+        str
+    };
+    let bytes = str.as_bytes();
+    assert_eq(bytes, [102, 111, 128, 111_u8]);
 }

@@ -5,6 +5,7 @@ expression: expanded_code
 fn main() {
     check_runtime();
     check_comptime();
+    check_comptime_to_runtime();
 }
 
 fn check_runtime() {
@@ -31,4 +32,10 @@ comptime fn lossy_roundtrip() -> Quoted {
     let raw: [u8; 4] = [102_u8, 111_u8, 128_u8, 111_u8];
     let s: str<4> = raw.as_str_unchecked();
     quote { ($raw, ($s).as_bytes()) }
+}
+
+fn check_comptime_to_runtime() {
+    let str: str<4> = [102_u8, 111_u8, 128_u8, 111_u8].as_str_unchecked();
+    let bytes: [u8; 4] = str.as_bytes();
+    assert(bytes == [102_u8, 111_u8, 128_u8, 111_u8]);
 }
