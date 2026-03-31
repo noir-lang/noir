@@ -196,7 +196,7 @@ cfg-if = "1.0.0"
 dirs = "^6.0.0"
 env_logger = "0.11.6"
 log = "0.4"
-serde = { version = "1.0.136", features = ["derive"] }
+serde = { version = "1.0.136", features = ["derive", "rc"] }
 serde_json = "1.0"
 smol_str = { version = "0.3.2", features = ["serde"] }
 thiserror = "2.0.18"
