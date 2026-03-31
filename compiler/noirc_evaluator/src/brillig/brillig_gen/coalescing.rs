@@ -41,10 +41,11 @@ fn can_coalesce_param_side(
 #[derive(Default, Debug)]
 pub(crate) struct CoalescingMap {
     coalesced: HashMap<ValueId, ValueId>,
-    /// Reverse mapping: values that are targets of coalescing.
-    /// Maps a coalescing target back to all its sources (multiple values
-    /// can map to the same hub value).
-    coalesced_reverse: HashMap<ValueId, Vec<ValueId>>,
+    /// Maps each coalesced value to its connected component group ID.
+    /// Used by `has_live_partner` to find all values sharing the same register.
+    groups: HashMap<ValueId, usize>,
+    /// All members of each connected component group.
+    group_members: Vec<Vec<ValueId>>,
 }
 
 impl CoalescingMap {
@@ -160,7 +161,54 @@ impl CoalescingMap {
         for (k, v) in &coalesced {
             coalesced_reverse.entry(*v).or_default().push(*k);
         }
-        Self { coalesced, coalesced_reverse }
+
+        // Build connected component groups: all values sharing the same register
+        // (through transitive coalescing chains) get the same group ID.
+        // This is needed because `has_live_partner` must check ALL values in the
+        // connected component, not just direct neighbors.
+        let mut groups: HashMap<ValueId, usize> = HashMap::default();
+        let mut group_members: Vec<Vec<ValueId>> = Vec::new();
+
+        // Collect all values that participate in coalescing.
+        let mut all_values = HashSet::default();
+        for (k, v) in &coalesced {
+            all_values.insert(*k);
+            all_values.insert(*v);
+        }
+
+        for value in &all_values {
+            if groups.contains_key(value) {
+                continue;
+            }
+            // BFS to find the full connected component.
+            let group_id = group_members.len();
+            let mut members = Vec::new();
+            let mut queue = vec![*value];
+            while let Some(current) = queue.pop() {
+                if groups.contains_key(&current) {
+                    continue;
+                }
+                groups.insert(current, group_id);
+                members.push(current);
+                // Forward edge: current → target
+                if let Some(&target) = coalesced.get(&current) {
+                    if !groups.contains_key(&target) {
+                        queue.push(target);
+                    }
+                }
+                // Reverse edges: sources → current
+                if let Some(sources) = coalesced_reverse.get(&current) {
+                    for source in sources {
+                        if !groups.contains_key(source) {
+                            queue.push(*source);
+                        }
+                    }
+                }
+            }
+            group_members.push(members);
+        }
+
+        Self { coalesced, groups, group_members }
     }
 
     /// Forward-only lookup: if `value_id` is a coalesced arg, returns the param
@@ -179,35 +227,21 @@ impl CoalescingMap {
     /// Check whether any value sharing a register with `value_id` through
     /// coalescing is still alive (i.e., satisfies the `is_alive` predicate).
     ///
-    /// Multiple values can share a register through a "hub" pattern:
-    /// e.g., `v1 -> v_hub <- v3` means v1, v_hub, and v3 all share one register.
-    /// When `v1` dies we must check whether `v_hub` or any sibling (like `v3`)
-    /// is still alive before deallocating the register.
+    /// Coalescing can create transitive chains (e.g., `v1 -> v2 -> v3 -> v_root`)
+    /// where all values share the same register. This method checks ALL values
+    /// in the connected component, not just direct neighbors, to avoid premature
+    /// register deallocation.
     pub(crate) fn has_live_partner(
         &self,
         value_id: &ValueId,
         is_alive: impl Fn(&ValueId) -> bool,
     ) -> bool {
-        // Forward: check the hub this value maps to
-        if let Some(hub) = self.coalesced.get(value_id) {
-            if is_alive(hub) {
+        let Some(&group_id) = self.groups.get(value_id) else {
+            return false;
+        };
+        for member in &self.group_members[group_id] {
+            if member != value_id && is_alive(member) {
                 return true;
-            }
-            // Also check siblings: other values that map to the same hub
-            if let Some(siblings) = self.coalesced_reverse.get(hub) {
-                for sibling in siblings {
-                    if sibling != value_id && is_alive(sibling) {
-                        return true;
-                    }
-                }
-            }
-        }
-        // Reverse: this value is a hub — check all values that map to it
-        if let Some(sources) = self.coalesced_reverse.get(value_id) {
-            for source in sources {
-                if is_alive(source) {
-                    return true;
-                }
             }
         }
         false
