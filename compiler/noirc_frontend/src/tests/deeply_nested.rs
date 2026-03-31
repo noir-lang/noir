@@ -16,9 +16,10 @@ fn assert_parser_max_recursion_depth(src: &str, expected_error_count: Option<usi
     let errors = get_program_errors(src);
 
     if let Some(expected_error_count) = expected_error_count {
-        // We should get exactly one MaximumRecursionDepthExceeded error
-        assert_eq!(errors.len(), expected_error_count, "Expected exactly one error");
+        assert_eq!(errors.len(), expected_error_count, "Expected an exact number of errors");
     } else {
+        // We didn't work out how many errors we will get exactly, but at there shouldn't
+        // be an avalanche of them, which would indicate the error recovery does not work.
         assert!(errors.len() < 10, "Not expecting cascading errors");
     }
 
