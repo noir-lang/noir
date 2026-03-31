@@ -309,6 +309,7 @@ impl TaintedDescendants {
         descendants.extend(results);
     }
 
+    /// If any of the `args` is one of the constrainable values, then extend them with the `results`.
     fn extend_constrainable(&mut self, args: &[ValueId], results: &[ValueId]) {
         if args.iter().any(|v| self.constrainable.contains(v)) {
             self.constrainable.extend(results);
@@ -609,6 +610,8 @@ impl Context {
         self
     }
 
+    /// If any of the `args` is one of the constrainable values of a tainted call,
+    /// then extend them with the `results`.
     fn extend_constrainable(&mut self, args: &[ValueId], results: &[ValueId]) {
         for t in self.tainted.values_mut() {
             t.extend_constrainable(args, results);
