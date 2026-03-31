@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774969483781,
+  "lastUpdate": 1774970576498,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23041,48 +23041,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "b30bfe6ecbc45641e2102ad165e7fb93aa60aefb",
-          "message": "chore: split benchmark NUM_RUNS into separate compile and execute run counts (#11963)",
-          "timestamp": "2026-03-24T14:16:00Z",
-          "tree_id": "a1516481b0ca1fcce88643866e453095004a530f",
-          "url": "https://github.com/noir-lang/noir/commit/b30bfe6ecbc45641e2102ad165e7fb93aa60aefb"
-        },
-        "date": 1774363196672,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 169165,
-            "range": "± 529",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 138602,
-            "range": "± 1279",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2646844,
-            "range": "± 3945",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -25134,6 +25092,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2647936,
             "range": "± 903",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "c921ed00469111689649d365d02991f04a693b93",
+          "message": "chore: Remove comptime mutating methods (#12003)",
+          "timestamp": "2026-03-31T14:57:11Z",
+          "tree_id": "fc08fd761d72bc3c1b1710d598220c435a0fe710",
+          "url": "https://github.com/noir-lang/noir/commit/c921ed00469111689649d365d02991f04a693b93"
+        },
+        "date": 1774970523928,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 172950,
+            "range": "± 403",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 142424,
+            "range": "± 721",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2647808,
+            "range": "± 2760",
             "unit": "ns/iter"
           }
         ]
