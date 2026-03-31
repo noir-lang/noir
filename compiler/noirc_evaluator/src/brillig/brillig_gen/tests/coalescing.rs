@@ -312,8 +312,6 @@ fn coalescing_arg_to_deallocated_parameter_panics() {
 ///   v7 = add v3, v6  ← v3 dies here
 ///   return v7
 /// ```
-///
-/// Found by AST fuzzer seed `0x95838d4700100000` in `min_vs_full` test.
 #[test]
 fn coalescing_transitive_chain_no_double_dealloc() {
     let src = "
