@@ -28,7 +28,7 @@ use crate::{
     },
     node_interner::{ExprId, FuncId, NodeInterner, StmtId, TraitId, TraitImplId, TypeId},
     parser::{Item, Parser},
-    token::{FmtStrFragment, LocatedToken, Token, Tokens},
+    token::{FmtStrFragment, IntegerTypeSuffix, LocatedToken, Token, Tokens},
 };
 use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
@@ -624,8 +624,31 @@ impl Value {
             }
             Value::TypedExpr(TypedExpr::ExprId(expr_id)) => vec![Token::UnquoteMarker(expr_id)],
             Value::String(bytes) | Value::CtString(bytes) => {
-                let string = String::from_utf8_lossy(&bytes);
-                vec![Token::Str(string.to_string())]
+                if bytes.iter().all(|byte| byte.is_ascii()) {
+                    let string = String::from_utf8_lossy(&bytes);
+                    vec![Token::Str(string.to_string())]
+                } else {
+                    // If the string contains non-ASCII bytes we can't use `Token::Str`, because in order to do
+                    // that we'd need to use `String::from_utf8_lossy` which would change the underlying (invalid) bytes.
+                    //
+                    // In order to preserve the bytes, we create a byte array and call `as_str_unchecked` on it.
+                    let mut tokens = Vec::new();
+                    tokens.push(Token::LeftBracket);
+
+                    for (i, byte) in bytes.iter().enumerate() {
+                        if i > 0 {
+                            tokens.push(Token::Comma);
+                        }
+                        tokens.push(Token::Int((*byte).into(), Some(IntegerTypeSuffix::U8)));
+                    }
+
+                    tokens.push(Token::RightBracket);
+                    tokens.push(Token::Dot);
+                    tokens.push(Token::Ident("as_str_unchecked".to_string()));
+                    tokens.push(Token::LeftParen);
+                    tokens.push(Token::RightParen);
+                    tokens
+                }
             }
             Value::FormatString(fragments, _, _) => {
                 // When a fmtstr is unquoted, we turn it into a normal string by evaluating the interpolations
