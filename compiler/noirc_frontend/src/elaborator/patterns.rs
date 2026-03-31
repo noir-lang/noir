@@ -205,12 +205,12 @@ impl Elaborator<'_> {
                         let tuple =
                             Type::Tuple(vecmap(&fields, |_| self.interner.next_type_variable()));
 
-                        self.push_err(TypeCheckError::TypeMismatchWithSource {
-                            expected: expected_type,
-                            actual: tuple,
+                        self.push_err(self.new_type_mismatch_with_source_error(
+                            &tuple,
+                            &expected_type,
+                            Source::Assignment,
                             location,
-                            source: Source::Assignment,
-                        });
+                        ));
                         None
                     }
                 };
@@ -346,12 +346,12 @@ impl Elaborator<'_> {
 
         let actual_type = Type::DataType(struct_type.clone(), generics);
 
-        self.unify(&actual_type, &expected_type, || TypeCheckError::TypeMismatchWithSource {
-            expected: expected_type.clone(),
-            actual: actual_type.clone(),
+        self.unify_or_type_mismatch_with_source(
+            &actual_type,
+            &expected_type,
+            Source::Assignment,
             location,
-            source: Source::Assignment,
-        });
+        );
 
         let fields = self.resolve_constructor_pattern_fields(
             fields,

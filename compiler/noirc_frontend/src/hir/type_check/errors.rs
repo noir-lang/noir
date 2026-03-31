@@ -64,7 +64,7 @@ pub enum TypeCheckError {
     #[error("Expected type {expected_typ:?} is not the same as {expr_typ:?}")]
     TypeMismatch { expected_typ: String, expr_typ: String, expr_location: Location },
     #[error("Expected type {expected} is not the same as {actual}")]
-    TypeMismatchWithSource { expected: Type, actual: Type, location: Location, source: Source },
+    TypeMismatchWithSource { expected: String, actual: String, location: Location, source: Source },
     #[error("Expected type {expected_kind:?} is not the same as {expr_kind:?}")]
     TypeKindMismatch { expected_kind: Kind, expr_kind: Kind, expr_location: Location },
     #[error("Evaluating {to} resulted in {to_value}, but {from_value} was expected")]
