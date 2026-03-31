@@ -279,6 +279,7 @@
         "rustc",
         "rustfmt",
         "Rumata",
+        "rollup",
         "rustup",
         "rvalue",
         "sboxed",
