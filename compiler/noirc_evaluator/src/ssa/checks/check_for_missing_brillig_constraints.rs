@@ -146,6 +146,8 @@ struct TaintedDescendants {
     /// Pre-computed after the parent graph is built so that `arguments_intersect`
     /// can check membership in O(1) rather than re-running BFS for every constraint.
     arg_ancestors: HashSet<ValueId>,
+
+    constrainable: HashSet<ValueId>,
 }
 
 impl TaintedDescendants {
@@ -175,7 +177,14 @@ impl TaintedDescendants {
                 }
             }
         }
-        Self { arguments, single_outputs, array_outputs, arg_ancestors: HashSet::new() }
+
+        Self {
+            arguments,
+            single_outputs,
+            array_outputs,
+            arg_ancestors: HashSet::new(),
+            constrainable: HashSet::from_iter(result_ids.iter().copied()),
+        }
     }
 
     /// Whether there are any unconstrained outputs left.
@@ -199,6 +208,10 @@ impl TaintedDescendants {
         equivalences: &HashMap<ValueId, Vec<ValueId>>,
         all_tainted: &ValueSet,
     ) -> bool {
+        if !constrained_values.iter().any(|v| self.constrainable.contains(v)) {
+            return false;
+        }
+
         let is_against_const = constrained_values.len() == 1;
         let is_const_args = self.arguments.is_empty();
 
@@ -218,6 +231,7 @@ impl TaintedDescendants {
                 .any(|value| any_ancestor_is(*value, *output, parents, equivalences));
             !constrained
         });
+
         self.array_outputs.retain(|array, index_outputs| {
             // If the array itself is not an ancestor of the constrained value, then we don't have to check the items.
             let can_constrain = constrained_values
@@ -287,6 +301,12 @@ impl TaintedDescendants {
             return;
         };
         descendants.extend(results);
+    }
+
+    fn extend_constrainable(&mut self, args: &[ValueId], results: &[ValueId]) {
+        if args.iter().any(|v| self.constrainable.contains(v)) {
+            self.constrainable.extend(results);
+        }
     }
 }
 
@@ -513,6 +533,7 @@ impl Context {
                         && dist < MAX_ANCESTOR_DISTANCE
                     {
                         all_constrainable.extend(results.iter().map(|r| (*r, dist + 1)));
+                        self.extend_constrainable(&arguments, &results);
                     }
                 }
 
@@ -523,6 +544,7 @@ impl Context {
                 {
                     // Keep the same distance as the address is just a handover point for values.
                     all_constrainable.insert(*address, *dist);
+                    self.extend_constrainable(&[*value], &[*address]);
                 }
 
                 // If we have a constraint that means two values are equal, then we are interested
@@ -531,8 +553,10 @@ impl Context {
                 if let Some((v1, v2)) = as_equivalence(func, instruction) {
                     if let Some(dist) = all_constrainable.get(&v1) {
                         all_constrainable.insert(v2, *dist);
+                        self.extend_constrainable(&[v1], &[v2]);
                     } else if let Some(dist) = all_constrainable.get(&v2) {
                         all_constrainable.insert(v1, *dist);
+                        self.extend_constrainable(&[v2], &[v1]);
                     }
                 }
 
@@ -577,6 +601,12 @@ impl Context {
         }
 
         self
+    }
+
+    fn extend_constrainable(&mut self, args: &[ValueId], results: &[ValueId]) {
+        for t in self.tainted.values_mut() {
+            t.extend_constrainable(args, results);
+        }
     }
 
     /// Traverse blocks and instructions top-down and try to constrain Brillig outputs.
