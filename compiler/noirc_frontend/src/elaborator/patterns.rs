@@ -53,6 +53,7 @@ impl Elaborator<'_> {
     ///
     /// `parameter_names_in_list` keeps track of parameter names, and their location, across multiple
     /// patterns in a list. If a name is found multiple times, an error is captured.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_pattern(
         &mut self,
         pattern: Pattern,
@@ -81,6 +82,7 @@ impl Elaborator<'_> {
     /// `parameter_names_in_list` keeps track of parameter names, and their location, across multiple
     /// patterns in a list. If a name is found multiple times, an error is captured.
     #[allow(clippy::too_many_arguments)]
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn elaborate_pattern_and_store_ids(
         &mut self,
         pattern: Pattern,
@@ -112,6 +114,7 @@ impl Elaborator<'_> {
     /// - `parameter_names_in_list` keeps track of parameter names, and their location, across multiple
     ///   patterns in a list. If a name is found multiple times, an error is captured.
     #[allow(clippy::too_many_arguments)]
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_pattern_mut(
         &mut self,
         pattern: Pattern,
@@ -288,6 +291,7 @@ impl Elaborator<'_> {
     }
 
     #[allow(clippy::too_many_arguments)]
+    #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_struct_pattern(
         &mut self,
         name: TypedPath,
@@ -376,6 +380,7 @@ impl Elaborator<'_> {
     /// Ensures all fields are present, none are repeated, and all
     /// are part of the struct.
     #[allow(clippy::too_many_arguments)]
+    #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_constructor_pattern_fields(
         &mut self,
         fields: Vec<(Ident, Pattern)>,
@@ -454,6 +459,7 @@ impl Elaborator<'_> {
     /// Returns the created identifier.
     ///
     /// Panics if the `definition` is [DefinitionKind::Global].
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn add_variable_decl(
         &mut self,
         name: Ident,
@@ -487,6 +493,7 @@ impl Elaborator<'_> {
 
     /// Add a [ResolverMeta] to the last scope for a given [HirIdent], which already has its definition interned,
     /// unless its name is `"_"`.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn add_existing_variable_to_scope(
         &mut self,
         name: String,
@@ -524,6 +531,7 @@ impl Elaborator<'_> {
     /// If the variable is not found, an error is returned.
     ///
     /// This method is private and is expected to be called through [Self::get_ident_from_path_or_error].
+    #[tracing::instrument(level = "trace", skip_all)]
     fn use_variable(&mut self, name: &Ident) -> Result<Variable, ResolverError> {
         // Find the definition for this Ident
         let scope_tree = self.scopes.current_scope_tree();
@@ -554,6 +562,7 @@ impl Elaborator<'_> {
     /// Looks up the generics of the function in [FuncMeta][crate::hir_def::function::FuncMeta].
     ///
     /// If there is no turbofish, it returns `None`.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_function_turbofish_generics(
         &mut self,
         func_id: &FuncId,
@@ -586,6 +595,7 @@ impl Elaborator<'_> {
     /// Resolve generics using the generic kinds of a struct [DataType].
     ///
     /// If there are no turbofish, returns the generics of the struct itself, as constructed by the caller.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_struct_turbofish_generics(
         &mut self,
         struct_type: &DataType,
@@ -609,6 +619,7 @@ impl Elaborator<'_> {
     /// Resolve generics using the generics and generic kinds of a [Trait][crate::hir_def::traits::Trait].
     ///
     /// If there are no turbofish, returns the generics of the trait itself, as constructed by the caller.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_trait_turbofish_generics(
         &mut self,
         trait_name: &str,
@@ -632,6 +643,7 @@ impl Elaborator<'_> {
     /// Resolve generics using the generic and generic kinds of a [TypeAlias].
     ///
     /// If there are no turbofish, returns the generics of the trait itself, as constructed by the caller.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_alias_turbofish_generics(
         &mut self,
         type_alias: &TypeAlias,
@@ -657,6 +669,7 @@ impl Elaborator<'_> {
     /// and if so try unify them with the expected kinds, otherwise return the default
     /// generics of the type.
     #[allow(clippy::too_many_arguments)]
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_item_turbofish_generics(
         &mut self,
         item_kind: &'static str,
@@ -696,6 +709,7 @@ impl Elaborator<'_> {
     /// Given the generic [Kind]s of a type, and the list of generic types in a non-empty turbofish,
     /// which have already been verified to match the expected number of generics, run type checking
     /// to ensure each turbofish generic matches the expected kind, and return the unified types.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_turbofish_generics(
         &mut self,
         kinds: Vec<Kind>,
@@ -715,6 +729,7 @@ impl Elaborator<'_> {
     /// Create a validated [TypedPath] from a [Path] by resolving all generics in every [PathSegment] in it.
     ///
     /// Pushes an error if the first segment is `Self` and it has turbofish generics.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn validate_path(&mut self, path: Path) -> TypedPath {
         let mut segments = vecmap(path.segments, |segment| self.validate_path_segment(segment));
 
@@ -739,6 +754,7 @@ impl Elaborator<'_> {
 
     /// Create a validated [TypedPathSegment] from a [PathSegment] by resolving all turbofish generics
     /// in it with [Kind::Any], allowing wildcards, and marking them as _used_.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn validate_path_segment(&mut self, segment: PathSegment) -> TypedPathSegment {
         let generics = segment.generics.map(|generics| {
             vecmap(generics, |generic| {
@@ -752,6 +768,7 @@ impl Elaborator<'_> {
     }
 
     /// Get the [DataType] of a [TypeId] and call [Elaborator::resolve_struct_turbofish_generics].
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_struct_id_turbofish_generics(
         &mut self,
         struct_id: TypeId,
@@ -775,6 +792,7 @@ impl Elaborator<'_> {
     }
 
     /// Get the [TypeAlias] of a [TypeAliasId] and call [Elaborator::resolve_alias_turbofish_generics].
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_type_alias_id_turbofish_generics(
         &mut self,
         type_alias_id: TypeAliasId,
@@ -803,6 +821,7 @@ impl Elaborator<'_> {
     /// Resolve a [TypedPath] into a local or global [HirIdent].
     ///
     /// If it cannot be found, then it pushes the error and returns [None].
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn get_ident_from_path(&mut self, path: TypedPath) -> Option<IdentFromPath> {
         match self.get_ident_from_path_or_error(path) {
             Ok(value) => Some(value),
@@ -814,6 +833,7 @@ impl Elaborator<'_> {
     }
 
     /// Resolve a [TypedPath] into a local or global [HirIdent], or return `Err` if it could not be found.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn get_ident_from_path_or_error(
         &mut self,
         path: TypedPath,
