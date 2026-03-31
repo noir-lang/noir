@@ -273,6 +273,7 @@ fn ssa_to_acir_program(ssa: Ssa) -> AcirProgram<FieldElement> {
         builder,
         &ssa_evaluator_options,
         &primary_passes(&ssa_evaluator_options),
+        None,
     ) {
         Ok(artifacts_and_warnings) => artifacts_and_warnings.0,
         Err(_) => panic!("Should compile manually generated SSA into acir"),

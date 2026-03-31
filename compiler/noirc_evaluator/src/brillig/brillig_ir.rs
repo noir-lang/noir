@@ -44,7 +44,9 @@ use acvm::{
 };
 use debug_show::DebugShow;
 
-use super::{BrilligOptions, FunctionId, GlobalSpace, ProcedureId};
+use super::{
+    BrilligOptions, CopySiteRegistry, FunctionId, GlobalSpace, MAX_TRACK_SITES, ProcedureId,
+};
 
 /// The Brillig VM does not apply a limit to the memory address space,
 /// As a convention, we take use 32 bits. This means that we assume that
@@ -119,6 +121,8 @@ pub(crate) struct BrilligContext<F, Registers> {
     enable_debug_assertions: bool,
     /// Count the number of arrays that are copied, and output this to stdout
     count_arrays_copied: bool,
+    /// Shared registry for per-site array copy tracking (populated during compilation).
+    copy_site_registry: Option<CopySiteRegistry>,
 
     globals_memory_size: Option<usize>,
 }
@@ -149,6 +153,18 @@ impl<F, R: RegisterAllocator> BrilligContext<F, R> {
     /// If this flag is set, compile the array copy counter as a global.
     pub(crate) fn count_array_copies(&self) -> bool {
         self.count_arrays_copied
+    }
+
+    /// Returns the global memory address of the per-site copy counter for `site_index`.
+    /// Per-site counters occupy slots 1..=MAX_TRACK_SITES right after the total counter (slot 0).
+    pub(crate) fn per_site_counter_address(&self, site_index: usize) -> MemoryAddress {
+        assert!(
+            site_index < MAX_TRACK_SITES,
+            "site_index {site_index} exceeds MAX_TRACK_SITES {MAX_TRACK_SITES}"
+        );
+        MemoryAddress::direct(assert_u32(
+            GlobalSpace::start_with_layout(&self.layout()) + 1 + site_index,
+        ))
     }
 
     /// Set the globals memory size if it is not already set.
@@ -192,6 +208,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
             debug_show: DebugShow::new(options.enable_debug_trace),
             enable_debug_assertions: options.enable_debug_assertions,
             count_arrays_copied: options.enable_array_copy_counter,
+            copy_site_registry: options.copy_site_registry.clone(),
             can_call_procedures: true,
             globals_memory_size: None,
         }
@@ -356,6 +373,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, ScratchSpace> {
             debug_show: DebugShow::new(options.enable_debug_trace),
             enable_debug_assertions: options.enable_debug_assertions,
             count_arrays_copied: options.enable_array_copy_counter,
+            copy_site_registry: options.copy_site_registry.clone(),
             can_call_procedures: false,
             globals_memory_size: None,
         }
@@ -378,6 +396,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, GlobalSpace> {
             debug_show: DebugShow::new(options.enable_debug_trace),
             enable_debug_assertions: options.enable_debug_assertions,
             count_arrays_copied: options.enable_array_copy_counter,
+            copy_site_registry: options.copy_site_registry.clone(),
             can_call_procedures: false,
             globals_memory_size: None,
         }
@@ -399,6 +418,11 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// Sets a current call stack that the next pushed opcodes will be associated with.
     pub(crate) fn set_call_stack(&mut self, call_stack: CallStackId) {
         self.obj.set_call_stack(call_stack);
+    }
+
+    /// Returns the `CallStackId` that is currently active in this context.
+    pub(crate) fn current_call_stack_id(&self) -> CallStackId {
+        self.obj.current_call_stack_id()
     }
 }
 
@@ -481,6 +505,7 @@ pub(crate) mod tests {
             enable_debug_trace: false,
             enable_debug_assertions: context.enable_debug_assertions,
             enable_array_copy_counter: context.count_arrays_copied,
+            copy_site_registry: context.copy_site_registry.clone(),
             ..Default::default()
         };
         let artifact = context.into_artifact();
@@ -541,6 +566,7 @@ pub(crate) mod tests {
             enable_array_copy_counter: false,
             show_opcode_advisories: false,
             layout: Default::default(),
+            copy_site_registry: None,
         };
         let mut context = BrilligContext::new("test", &options);
 
@@ -721,6 +747,7 @@ pub(crate) mod tests {
             enable_array_copy_counter: false,
             show_opcode_advisories: false,
             layout: Default::default(),
+            copy_site_registry: None,
         };
         let mut context = BrilligContext::new("test", &options);
 
@@ -948,6 +975,7 @@ pub(crate) mod tests {
             enable_array_copy_counter: false,
             show_opcode_advisories: false,
             layout: small_layout,
+            copy_site_registry: None,
         };
 
         let mut context: BrilligContext<FieldElement, Stack> =

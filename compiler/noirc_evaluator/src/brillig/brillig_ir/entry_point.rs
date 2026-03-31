@@ -45,6 +45,11 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
 
         context.add_external_call_instruction(target_function);
 
+        // After the function body returns, print per-site (and total) copy counts if enabled.
+        if context.count_arrays_copied {
+            context.emit_println_of_array_copy_counter();
+        }
+
         context.codegen_exit_point(&arguments, &return_parameters);
         (context.into_artifact(), stack_start)
     }

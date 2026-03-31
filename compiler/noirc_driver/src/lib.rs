@@ -330,6 +330,7 @@ impl CompileOptions {
                     self.num_stack_frames,
                     self.max_scratch_space,
                 ),
+                copy_site_registry: None,
             },
             print_codegen_timings: self.benchmark_codegen,
             emit_ssa: if self.emit_ssa { Some(package_build_path) } else { None },
@@ -959,7 +960,11 @@ pub fn compile_no_check(
         create_program(
             program,
             &ssa_evaluator_options,
-            if options.with_ssa_locations { Some(&context.file_manager) } else { None },
+            if options.with_ssa_locations || options.count_array_copies {
+                Some(&context.file_manager)
+            } else {
+                None
+            },
         )?
     };
 

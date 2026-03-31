@@ -43,6 +43,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
         self.mov_instruction(destination_vector.pointer, destination_vector_pointer_return);
         self.mov_instruction(write_pointer, write_pointer_return);
+
+        self.codegen_count_if_copy_occurred(source_vector.pointer, destination_vector.pointer);
     }
 }
 

@@ -11,9 +11,9 @@ use acvm::{
 
 use super::ProcedureId;
 use crate::brillig::{
-    BrilligVariable, assert_u32,
+    assert_u32,
     brillig_ir::{
-        BrilligContext, ReservedRegisters,
+        BrilligBinaryOp, BrilligContext, ReservedRegisters,
         brillig_variable::{BrilligArray, SingleAddrVariable},
         debug_show::DebugToString,
         registers::{Allocated, RegisterAllocator, ScratchSpace},
@@ -51,6 +51,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.add_procedure_call_instruction(ProcedureId::ArrayCopy);
 
         self.mov_instruction(destination_array.pointer, destination_array_pointer_return);
+
+        self.codegen_count_if_copy_occurred(source_array.pointer, destination_array.pointer);
     }
 }
 
@@ -150,26 +152,150 @@ fn initialize_constant_string<F: AcirField + DebugToString, Registers: RegisterA
 }
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
-    /// emit: `println(f"Total arrays copied: {array_copy_counter}")`
+    /// Emit print statements for the total array copy count, then for the top
+    /// [`MAX_DISPLAY_SITES`] most-copied locations sorted descending by count.
+    ///
+    /// Uses a compile-time-unrolled selection sort: [`MAX_DISPLAY_SITES`] outer iterations, each
+    /// running a runtime inner loop to find the maximum remaining counter, printing its label
+    /// via a compile-time if-else chain, then zeroing that slot in a working heap buffer.
+    ///
+    /// Multiple internal tracking slots that resolve to the same source label are merged
+    /// (their counts are summed) before sorting, so each unique source line appears once.
     pub(crate) fn emit_println_of_array_copy_counter(&mut self) {
-        let array_copy_counter = BrilligVariable::from(SingleAddrVariable {
-            address: self.array_copy_counter_address(),
-            bit_size: 32,
-        });
+        use crate::brillig::{MAX_DISPLAY_SITES, MAX_TRACK_SITES};
 
+        // Print total.
+        let total_addr = self.array_copy_counter_address();
+        let total_msg = format!("Total arrays copied in {}: {{}}", self.name());
+        self.emit_println_u32(&total_msg, total_addr);
+
+        // Retrieve resolved labels; nothing more to do if there are none.
+        let Some(registry) = self.copy_site_registry.clone() else {
+            return;
+        };
+        let labels = registry.get_resolved_labels();
+        if labels.is_empty() {
+            return;
+        }
+        let n = labels.len().min(MAX_TRACK_SITES);
+
+        // Merge tracking slots that share the same resolved label.
+        // `dedup_labels[j]` is the unique label for slot j in the work buffer.
+        // `dedup_groups[j]` lists the original per-site counter indices that contribute to slot j.
+        let mut dedup_labels: Vec<&str> = Vec::new();
+        let mut dedup_groups: Vec<Vec<usize>> = Vec::new();
+        for (i, label) in labels[..n].iter().enumerate() {
+            if let Some(pos) = dedup_labels.iter().position(|&l| l == label.as_str()) {
+                dedup_groups[pos].push(i);
+            } else {
+                dedup_labels.push(label.as_str());
+                dedup_groups.push(vec![i]);
+            }
+        }
+        let m = dedup_labels.len(); // number of unique locations
+
+        // Allocate a working heap buffer of M slots.
+        // Each slot holds the merged (summed) count for one unique source location.
+        let m_reg = self.make_usize_constant_instruction(F::from(m));
+        let work_ptr = self.allocate_single_addr_usize();
+        self.codegen_allocate_mem(work_ptr.address, m_reg.address);
+
+        for (j, group) in dedup_groups.iter().enumerate() {
+            // Sum all per-site counter values for this group into a temporary register.
+            let sum = self.allocate_single_addr_usize();
+            self.usize_const_instruction(sum.address, F::from(0_usize));
+            for &idx in group {
+                // counter_addr is a direct global address; mov copies the value directly.
+                let counter_addr = self.per_site_counter_address(idx);
+                let cur = self.allocate_single_addr_usize();
+                self.mov_instruction(cur.address, counter_addr);
+                self.memory_op_instruction(
+                    sum.address,
+                    cur.address,
+                    sum.address,
+                    BrilligBinaryOp::Add,
+                );
+            }
+            let j_reg = self.make_usize_constant_instruction(F::from(j));
+            self.codegen_store_with_offset(work_ptr.address, *j_reg, sum.address);
+        }
+
+        // Registers that persist across all MAX_DISPLAY_SITES outer iterations.
+        let max_val = self.allocate_single_addr_usize();
+        let max_idx = self.allocate_single_addr_usize();
+        let bound_reg = self.make_usize_constant_instruction(F::from(m));
+        let one_addr = ReservedRegisters::usize_one();
+
+        for _ in 0..MAX_DISPLAY_SITES {
+            // Initialise: max = working[0], max_idx = 0.
+            self.load_instruction(max_val.address, work_ptr.address);
+            self.usize_const_instruction(max_idx.address, F::from(0_usize));
+
+            // Inner runtime loop: scan working[1..m] and track the maximum.
+            let max_val_addr = max_val.address;
+            let max_idx_addr = max_idx.address;
+            let work_ptr_addr = work_ptr.address;
+            self.codegen_for_loop(Some(one_addr), bound_reg.address, None, |ctx, i_var| {
+                let cur_val = ctx.allocate_single_addr_usize();
+                ctx.codegen_load_with_offset(work_ptr_addr, i_var, cur_val.address);
+                let is_greater = ctx.allocate_single_addr_bool();
+                // is_greater = (max_val < cur_val)
+                ctx.memory_op_instruction(
+                    max_val_addr,
+                    cur_val.address,
+                    is_greater.address,
+                    BrilligBinaryOp::LessThan,
+                );
+                ctx.codegen_if(is_greater.address, |ctx| {
+                    ctx.mov_instruction(max_val_addr, cur_val.address);
+                    ctx.mov_instruction(max_idx_addr, i_var.address);
+                });
+            });
+
+            // Skip if the maximum counter is zero (no more nonzero sites to display).
+            let max_is_zero = self.allocate_single_addr_bool();
+            self.codegen_usize_op(max_val.address, max_is_zero.address, BrilligBinaryOp::Equals, 0);
+            let work_ptr_addr = work_ptr.address;
+            self.codegen_if_not(max_is_zero.address, |ctx| {
+                // Compile-time if-else chain: print the label for whichever slot holds the max.
+                for (j, label) in dedup_labels.iter().enumerate() {
+                    let is_match = ctx.allocate_single_addr_bool();
+                    ctx.codegen_usize_op(
+                        max_idx_addr,
+                        is_match.address,
+                        BrilligBinaryOp::Equals,
+                        j,
+                    );
+                    ctx.codegen_if(is_match.address, |ctx| {
+                        let msg = format!("  {label}: {{}}");
+                        ctx.emit_println_u32(&msg, max_val_addr);
+                    });
+                }
+                // Zero out the selected slot so it is not picked in subsequent iterations.
+                let zero = ctx.make_usize_constant_instruction(F::from(0_usize));
+                ctx.codegen_store_with_offset(
+                    work_ptr_addr,
+                    SingleAddrVariable::new_usize(max_idx_addr),
+                    zero.address,
+                );
+            });
+        }
+    }
+
+    /// Emit a `print` foreign call that prints `message` as a format string with one u32 substitution.
+    fn emit_println_u32(&mut self, message: &str, value_addr: MemoryAddress) {
         let newline = ValueOrArray::MemoryAddress(ReservedRegisters::usize_one());
-        let message_with_func_name = format!("Total arrays copied in {}: {{}}", &self.name());
-        let message = literal_string_to_value(&message_with_func_name, self);
+        let message_val = literal_string_to_value(message, self);
         let item_count = ValueOrArray::MemoryAddress(ReservedRegisters::usize_one());
-        let value_to_print = ValueOrArray::MemoryAddress(array_copy_counter.extract_register());
+        let value_to_print = ValueOrArray::MemoryAddress(value_addr);
         let type_string_metadata = literal_string_to_value(PRINT_U32_TYPE_STRING, self);
         let is_fmt_string = ValueOrArray::MemoryAddress(ReservedRegisters::usize_one());
 
         let inputs = [
             newline, // true
-            *message,
+            *message_val,
             item_count,     // 1
-            value_to_print, // array clone counter
+            value_to_print, // the u32 counter value
             *type_string_metadata,
             is_fmt_string, // true
         ];
@@ -179,7 +305,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         let u32_type = HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32));
 
         let newline_type = u1_type.clone();
-        let size = SemanticLength(assert_u32(message_with_func_name.len()));
+        let size = SemanticLength(assert_u32(message.len()));
         let msg_type = HeapValueType::Array { value_types: vec![u8_type.clone()], size };
         let item_count_type = HeapValueType::field();
         let value_to_print_type = u32_type;
