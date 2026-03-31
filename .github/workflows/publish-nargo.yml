@@ -69,7 +69,7 @@ jobs:
           retention-days: 3
 
       - name: Upload nargo binary to release tag
-        uses: svenstaro/upload-release-action@29e53e917877a24fad85510ded594ab3c9934a7a # v2
+        uses: svenstaro/upload-release-action@29e53e917877a24fad85510ded594ab3c9ca12de # v2
         if: ${{ inputs.publish || github.event_name == 'schedule' }}
         with:
           repo_name: noir-lang/noir
@@ -86,7 +86,7 @@ jobs:
           subject-path: ./noir-${{ matrix.target }}.tar.gz
 
       - name: Upload Noir binaries to release tag
-        uses: svenstaro/upload-release-action@29e53e917877a24fad85510ded594ab3c9934a7a # v2
+        uses: svenstaro/upload-release-action@29e53e917877a24fad85510ded594ab3c9ca12de # v2
         if: ${{ inputs.publish || github.event_name == 'schedule' }}
         with:
           repo_name: noir-lang/noir
@@ -102,7 +102,7 @@ jobs:
         run: echo "date=$(date '+%Y-%m-%d')" >> $GITHUB_OUTPUT
 
       - name: Upload nargo binary to release with date tag
-        uses: svenstaro/upload-release-action@29e53e917877a24fad85510ded594ab3c9934a7a # v2
+        uses: svenstaro/upload-release-action@29e53e917877a24fad85510ded594ab3c9ca12de # v2
         if: ${{ inputs.tag == '' && inputs.publish || github.event_name == 'schedule' }}
         with:
           repo_name: noir-lang/noir
@@ -115,7 +115,7 @@ jobs:
           tag: ${{ format('{0}-{1}', 'nightly', steps.date.outputs.date) }}
 
       - name: Upload Noir binaries to release with date tag
-        uses: svenstaro/upload-release-action@29e53e917877a24fad85510ded594ab3c9934a7a # v2
+        uses: svenstaro/upload-release-action@29e53e917877a24fad85510ded594ab3c9ca12de # v2
         if: ${{ inputs.tag == '' && inputs.publish || github.event_name == 'schedule' }}
         with:
           repo_name: noir-lang/noir
@@ -177,7 +177,7 @@ jobs:
           retention-days: 3
 
       - name: Upload nargo binary to release tag
-        uses: svenstaro/upload-release-action@29e53e917877a24fad85510ded594ab3c9934a7a # v2
+        uses: svenstaro/upload-release-action@29e53e917877a24fad85510ded594ab3c9ca12de # v2
         if: ${{ inputs.publish }}
         with:
           repo_name: noir-lang/noir
@@ -195,7 +195,7 @@ jobs:
           subject-path: ./noir-${{ matrix.target }}.tar.gz
 
       - name: Upload Noir binaries to release tag
-        uses: svenstaro/upload-release-action@29e53e917877a24fad85510ded594ab3c9934a7a # v2
+        uses: svenstaro/upload-release-action@29e53e917877a24fad85510ded594ab3c9ca12de # v2
         if: ${{ inputs.publish }}
         with:
           repo_name: noir-lang/noir
@@ -212,7 +212,7 @@ jobs:
         run: echo "date=$(date '+%Y-%m-%d')" >> $GITHUB_OUTPUT
 
       - name: Upload nargo binary to release with date tag
-        uses: svenstaro/upload-release-action@29e53e917877a24fad85510ded594ab3c9934a7a # v2
+        uses: svenstaro/upload-release-action@29e53e917877a24fad85510ded594ab3c9ca12de # v2
         if: ${{ env.NIGHTLY_RELEASE && inputs.publish }}
         with:
           repo_name: noir-lang/noir
@@ -225,7 +225,7 @@ jobs:
           tag: ${{ format('{0}-{1}', 'nightly', steps.date.outputs.date) }}
 
       - name: Upload Noir binaries to release with date tag
-        uses: svenstaro/upload-release-action@29e53e917877a24fad85510ded594ab3c9934a7a # v2
+        uses: svenstaro/upload-release-action@29e53e917877a24fad85510ded594ab3c9ca12de # v2
         if: ${{ env.NIGHTLY_RELEASE && inputs.publish }}
         with:
           repo_name: noir-lang/noir
