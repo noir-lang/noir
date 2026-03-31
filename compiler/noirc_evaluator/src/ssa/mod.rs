@@ -278,7 +278,6 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             "Constant Folding using constraints",
         ),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
-        SsaPass::new(Ssa::remove_redundant_params, "Remove Redundant Parameters"),
         SsaPass::new_try(
             move |ssa| {
                 ssa.unroll_loops_iteratively(

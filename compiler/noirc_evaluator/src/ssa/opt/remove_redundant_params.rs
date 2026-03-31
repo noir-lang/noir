@@ -41,9 +41,8 @@
 //!
 //! ## Pipeline placement
 //!
-//! Chained after every `mem2reg_simple` call in the pipeline. Must run
-//! before loop unrolling since the unroller cannot handle redundant
-//! loop-carried parameters.
+//! Chained after every `mem2reg_simple` call in the pipeline. `mem2reg_simple` is likely to generate
+//! redundant parameters when promoting memory variables.  
 
 use itertools::Itertools;
 use rustc_hash::FxHashMap as HashMap;
