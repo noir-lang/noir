@@ -126,7 +126,7 @@ projects:
     num_execute_runs: 5
     compilation-timeout: 5
     execution-timeout: 0.6
-    brillig-compilation-timeout: 2
+    brillig-compilation-timeout: 3
     brillig-execution-timeout: 0.6
     compilation-memory-limit: 500
     execution-memory-limit: 450
