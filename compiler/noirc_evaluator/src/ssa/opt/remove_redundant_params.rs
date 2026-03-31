@@ -41,8 +41,9 @@
 //!
 //! ## Pipeline placement
 //!
-//! After `mem2reg` (which introduces the redundant params) and before
-//! `flatten_cfg` (where the cost is highest for ACIR).
+//! Chained after every `mem2reg_simple` call in the pipeline. Must run
+//! before loop unrolling since the unroller cannot handle redundant
+//! loop-carried parameters.
 
 use itertools::Itertools;
 use rustc_hash::FxHashMap as HashMap;
@@ -527,5 +528,61 @@ mod tests {
         }";
 
         assert_ssa_does_not_change(src, Ssa::remove_redundant_params);
+    }
+
+    #[test]
+    fn redundant_loop_carried_params() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            jmp b1(u32 0, v0, u32 0)
+          b1(v2: u32, v3: u32, v4: u32):
+            v5 = lt v2, u32 5
+            jmpif v5 then: b2(v3, v4), else: b3(v4)
+          b2(v6: u32, v7: u32):
+            v8 = add v7, u32 10
+            v9 = unchecked_add v2, u32 1
+            jmp b1(v9, v6, v8)
+          b3(v10: u32):
+            return v10
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_redundant_params();
+        println!("{}", ssa.print_with(None));
+    }
+
+    #[test]
+    fn more_loop_carried_params() {
+        let src = "
+        acir(inline) impure fn main f0 {
+          b0(v0: u32):
+            jmp b1(u32 0, u32 0)
+          b1(v1: u32, v2: u32):
+            v13 = lt v1, u32 5
+            jmpif v13 then: b2(v2), else: b3(v2)
+          b2(v3: u32):
+            v21 = add v3, u32 10
+            v22 = unchecked_add v1, u32 1
+            jmp b1(v22, v21)
+          b3(v4: u32):
+            constrain v4 == v0
+            v16 = call black_box(u32 10) -> u32
+            jmp b4(u32 0, v4, u32 0)
+          b4(v5: u32, v6: u32, v7: u32):
+            v17 = lt v5, u32 5
+            jmpif v17 then: b5(v6, v7), else: b6(v7)
+          b5(v8: u32, v9: u32):
+            v18 = add v9, v16
+            v20 = unchecked_add v5, u32 1
+            jmp b4(v20, v8, v18)
+          b6(v10: u32):
+            constrain v10 == v0
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_redundant_params();
+        println!("{}", ssa.print_with(None));
     }
 }

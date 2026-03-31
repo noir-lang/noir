@@ -154,15 +154,19 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         // inlining and unrolling, causing regressions in unrolled-loop-heavy programs.
         // LSF is safe here — it forwards same-block store->load without block parameters.
         SsaPass::new(Ssa::mem2reg_simple_brillig, "Mem2Reg Simple")
-            .and_then(Ssa::load_store_forwarding),
+            .and_then(Ssa::load_store_forwarding)
+            .and_then(Ssa::remove_redundant_params),
         SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
         SsaPass::new_try(Ssa::inline_simple_functions, "Inlining simple functions")
             .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::mem2reg_simple_brillig, "Mem2Reg Simple")
-            .and_then(Ssa::load_store_forwarding),
+            .and_then(Ssa::load_store_forwarding)
+            .and_then(Ssa::remove_redundant_params),
         SsaPass::new(Ssa::array_set_optimization, "ArraySet optimization"),
         SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
         SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
+        // Preprocessing may unroll loops; remove redundant params first.
+        SsaPass::new(Ssa::remove_redundant_params, "Remove Redundant Parameters"),
         SsaPass::new_try(
             move |ssa| {
                 ssa.preprocess_functions(
@@ -185,7 +189,8 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         // Run mem2reg with block span limit for ACIR, then load_store_forwarding to handle
         // same-block store->load patterns without creating block parameters.
         SsaPass::new(Ssa::mem2reg_simple_pre_flattening, "Mem2Reg Simple")
-            .and_then(Ssa::load_store_forwarding),
+            .and_then(Ssa::load_store_forwarding)
+            .and_then(Ssa::remove_redundant_params),
         SsaPass::new(Ssa::array_set_optimization, "ArraySet optimization"),
         SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
         // Running DIE here might remove some unused instructions mem2reg could not eliminate.
@@ -211,6 +216,9 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
         SsaPass::new(Ssa::loop_invariant_code_motion, "Loop Invariant Code Motion"),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
+        // Remove redundant block parameters before unrolling — the unroller cannot
+        // handle loop-carried parameters that are invariant (always the same value).
+        SsaPass::new(Ssa::remove_redundant_params, "Remove Redundant Parameters"),
         SsaPass::new_try(
             move |ssa| {
                 ssa.unroll_loops_iteratively(
@@ -225,7 +233,8 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         // After unrolling there are no loops left, so load_store_forwarding has no
         // loop-alias overhead. This is the most impactful position for ACIR store->load forwarding.
         SsaPass::new(Ssa::mem2reg_simple_pre_flattening, "Mem2Reg Simple")
-            .and_then(Ssa::load_store_forwarding),
+            .and_then(Ssa::load_store_forwarding)
+            .and_then(Ssa::remove_redundant_params),
         SsaPass::new(Ssa::remove_bit_shifts, "Removing Bit Shifts"),
         SsaPass::new(Ssa::array_set_optimization, "ArraySet optimization"),
         SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
@@ -234,7 +243,6 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new(Ssa::expand_signed_math, "Expand signed math"),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
         SsaPass::new(Ssa::remove_redundant_params, "Remove Redundant Parameters"),
-        // Removing redundant block parameters can reveal new CFG structures that can be simplified further.
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
         SsaPass::new(Ssa::flatten_cfg, "Flattening"),
         SsaPass::new(Ssa::array_set_window_optimization, "ArraySet Window optimization"),
@@ -273,6 +281,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             "Constant Folding using constraints",
         ),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
+        SsaPass::new(Ssa::remove_redundant_params, "Remove Redundant Parameters"),
         SsaPass::new_try(
             move |ssa| {
                 ssa.unroll_loops_iteratively(
