@@ -17,7 +17,7 @@ jobs:
       contents: read
     steps:
       - name: Algolia crawler creation and crawl
-        uses: algolia/algoliasearch-crawler-github-actions@v1.1.13
+        uses: algolia/algoliasearch-crawler-github-actions@3ae4def15d82c60aa02b0e528b50167593cbaaf6 # v1.1.13
         id: algolia_crawler
         with:
           crawler-user-id: ${{ secrets.CRAWLER_USER_ID }}
@@ -31,7 +31,7 @@ jobs:
       - name: Send an alert in slack
         # Send notifications on scheduled runs if there's a failure.
         if: ${{ failure() && github.event_name == 'schedule' }}
-        uses: slackapi/slack-github-action@v3.0.1
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
         with:
           webhook: ${{ secrets.ALGOLIA_FAILURE_ALERT_URL }}
           webhook-type: webhook-trigger
