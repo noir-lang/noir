@@ -58,10 +58,12 @@ impl Parser<'_> {
         &mut self,
         allow_generics: bool,
     ) -> Option<UnresolvedType> {
-        let start_location = self.current_token_location;
-        let typ = self.parse_unresolved_type_data(allow_generics)?;
-        let location = self.location_since(start_location);
-        Some(UnresolvedType { typ, location })
+        self.with_max_recursion_depth_guard(|this| {
+            let start_location = this.current_token_location;
+            let typ = this.parse_unresolved_type_data(allow_generics)?;
+            let location = this.location_since(start_location);
+            Some(UnresolvedType { typ, location })
+        })
     }
 
     fn parse_unresolved_type_data(&mut self, allow_generics: bool) -> Option<UnresolvedTypeData> {
@@ -485,8 +487,8 @@ mod tests {
     #[test]
     fn errors_if_missing_right_bracket_after_vector_type() {
         let src = "
-        [Field 
-              ^
+        [Field
+             ^
         ";
         let (src, span) = get_source_with_error_span(src);
         let mut parser = Parser::for_str_with_dummy_file(&src);
