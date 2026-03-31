@@ -55,7 +55,22 @@ use rayon::prelude::*;
 use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 
 /// The maximum length of arrays that we attempt to constrain item-by-item.
+///
+/// Arrays longer than this value will be considered constrained if any item
+/// we get from them gets constrained.
+///
+/// The higher this value the longer it will take to check them all,
+/// which can slow down the compilation of larger rollup circuits.
 const MAX_ARRAY_OUTPUT_LENGTH: u32 = 64;
+
+/// Limit how far back the BFS traverses to try to find a relation between
+/// the ancestors of constrained values and Brillig inputs/outputs.
+///
+/// This exists to help keep the runtime down on the largest protocol circuits,
+/// such as `rollup-checkpoint-root` and `rollup-checkpoint-root-single-block`,
+/// which have hundreds of thousands of constraints that we need to check,
+/// even though they are only checked against a few dozen of Brillig outputs.
+const MAX_ANCESTOR_DISTANCE: u32 = 10;
 
 impl Ssa {
     /// Detect Brillig calls left unconstrained with manual asserts
@@ -82,6 +97,7 @@ impl Ssa {
     }
 }
 
+/// A more compact representation of a `HashSet<ValueId>` to limit memory use.
 struct ValueSet(BitVec<u32>);
 
 impl ValueSet {
@@ -117,8 +133,8 @@ struct TaintedDescendants {
     /// To consider the output constrained, we have to find a constraint such that
     /// the output is an ancestor of the constrained value.
     single_outputs: HashSet<ValueId>,
-    /// Array outputs of the call, tracked per element, accumulating their individual
-    /// dependencies.
+    /// Array outputs of the call, tracked per index, accumulating their individual
+    /// dependencies (only the values read from the array).
     ///
     /// To consider an element constrained, we have to find a constraint such that
     /// the constrained value appears in the descendants.
@@ -132,6 +148,10 @@ struct TaintedDescendants {
 }
 
 impl TaintedDescendants {
+    /// Create a new `TaintedDescendants` from the arguments and results of a call.
+    ///
+    /// Populates `single_outputs` and `array_outputs` according to the result types.
+    /// Leaves `arg_ancestors` to be populated later.
     fn new(func: &Function, arguments: Vec<ValueId>, result_ids: &[ValueId]) -> Self {
         let mut single_outputs = HashSet::new();
         let mut array_outputs = HashMap::new();
@@ -157,7 +177,7 @@ impl TaintedDescendants {
         Self { arguments, single_outputs, array_outputs, arg_ancestors: HashSet::new() }
     }
 
-    /// Whether there are any unconstrained results left.
+    /// Whether there are any unconstrained outputs left.
     fn is_constrained(&self) -> bool {
         self.single_outputs.is_empty() && self.array_outputs.is_empty()
     }
@@ -316,7 +336,7 @@ impl Context {
     /// Build a direct parent graph for tracked values, then compute `arg_ancestors` for each
     /// tainted Brillig call via BFS.
     ///
-    /// This replaces the old transitive-closure `ancestors` map with a compact representation:
+    /// This avoids having to have a transitive-closure `ancestors` map, with a compact representation:
     /// `parents[v]` stores only the immediate instruction arguments of `v` (plus the active
     /// side-effect condition, if any). Transitive ancestry is computed on demand during BFS.
     fn build_parent_graph(mut self, func: &Function) -> Self {
@@ -712,25 +732,25 @@ fn bfs_traverse_ancestors(
     starts: &[ValueId],
     parents: &HashMap<ValueId, Vec<ValueId>>,
     equivalences: &HashMap<ValueId, Vec<ValueId>>,
-    mut f: impl FnMut(ValueId) -> bool,
+    mut f: impl FnMut(ValueId, u32) -> bool,
 ) -> HashSet<ValueId> {
     let mut visited: HashSet<ValueId> = HashSet::new();
-    let mut queue: VecDeque<ValueId> = VecDeque::new();
+    let mut queue: VecDeque<(ValueId, u32)> = VecDeque::new();
     for &s in starts {
         visited.insert(s);
-        if !f(s) {
+        if !f(s, 0) {
             return visited;
         }
         // From start nodes: follow only parent edges, not equivalences.
         for &p in parents.get(&s).into_iter().flatten() {
             if visited.insert(p) {
-                queue.push_back(p);
+                queue.push_back((p, 1));
             }
         }
     }
     // From intermediate nodes: follow both parent and equivalence edges.
-    while let Some(curr) = queue.pop_front() {
-        if !f(curr) {
+    while let Some((curr, dist)) = queue.pop_front() {
+        if !f(curr, dist) {
             return visited;
         }
         for &next in parents
@@ -740,7 +760,7 @@ fn bfs_traverse_ancestors(
             .chain(equivalences.get(&curr).into_iter().flatten())
         {
             if visited.insert(next) {
-                queue.push_back(next);
+                queue.push_back((next, dist + 1));
             }
         }
     }
@@ -754,7 +774,7 @@ fn bfs_ancestors(
     parents: &HashMap<ValueId, Vec<ValueId>>,
     equivalences: &HashMap<ValueId, Vec<ValueId>>,
 ) -> HashSet<ValueId> {
-    bfs_traverse_ancestors(starts, parents, equivalences, |_| true)
+    bfs_traverse_ancestors(starts, parents, equivalences, |_, _| true)
 }
 
 /// Returns `true` if `start` itself, or any value reachable from `start` by following
@@ -769,11 +789,11 @@ fn any_ancestor_is(
     equivalences: &HashMap<ValueId, Vec<ValueId>>,
 ) -> bool {
     let mut found = false;
-    bfs_traverse_ancestors(&[start], parents, equivalences, |a| {
+    bfs_traverse_ancestors(&[start], parents, equivalences, |a, d| {
         if a == target {
             found = true;
         }
-        !found
+        !found && d <= MAX_ANCESTOR_DISTANCE
     });
     found
 }
@@ -790,11 +810,11 @@ fn any_ancestor_in(
     equivalences: &HashMap<ValueId, Vec<ValueId>>,
 ) -> bool {
     let mut found = false;
-    bfs_traverse_ancestors(&[start], parents, equivalences, |a| {
+    bfs_traverse_ancestors(&[start], parents, equivalences, |a, d| {
         if target_set.contains(&a) {
             found = true;
         }
-        !found
+        !found && d <= MAX_ANCESTOR_DISTANCE
     });
     found
 }
