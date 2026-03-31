@@ -132,10 +132,19 @@ impl<'context> Elaborator<'context> {
             self.elaborate_reasons.clone(),
         );
 
+        // Collect (and update) variable names from the parent scope for better error messages
+        // when a runtime variable is referenced in comptime code.
+        let current_scope_tree = self.scopes.0.last();
+        let local_scopes = current_scope_tree.into_iter().flat_map(|tree| tree.0.iter());
+        let local_vars = local_scopes.flat_map(|scope| scope.0.keys()).cloned();
+        let parent_runtime_variables =
+            self.parent_runtime_variables.iter().cloned().chain(local_vars).collect();
+
         elaborator.push_function_context();
         elaborator.scopes.start_function();
 
         elaborator.local_module = self.local_module;
+        elaborator.parent_runtime_variables = parent_runtime_variables;
 
         setup(&mut elaborator);
 
