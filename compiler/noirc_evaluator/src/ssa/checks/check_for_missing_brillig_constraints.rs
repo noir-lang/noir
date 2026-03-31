@@ -52,6 +52,7 @@ use acvm::AcirField;
 use bit_vec::BitVec;
 use noirc_artifacts::ssa::{InternalBug, SsaReport};
 use rayon::prelude::*;
+use std::cmp;
 use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 
 /// The maximum length of arrays that we attempt to constrain item-by-item.
@@ -461,7 +462,8 @@ impl Context {
         func: &Function,
         all_functions: &BTreeMap<FunctionId, Function>,
     ) -> Self {
-        let mut all_constrainable = ValueSet::new(&func.dfg);
+        // The distance at which we track constrainable values.
+        let mut all_constrainable: HashMap<ValueId, u32> = HashMap::new();
 
         // Traverse in Reverse Post Order, ie. top-down.
         for block_id in self.post_order.clone().into_iter().rev() {
@@ -497,27 +499,40 @@ impl Context {
                     }
 
                     // Extend the values we are looking to constrain.
-                    if arguments.iter().any(|a| all_constrainable.contains(a)) {
-                        all_constrainable.extend(&results);
+                    let min_dist = arguments
+                        .iter()
+                        .fold(None, |acc, arg| match (acc, all_constrainable.get(arg)) {
+                            (None, dist) => dist,
+                            (acc, None) => acc,
+                            (Some(acc), Some(dist)) => Some(cmp::min(acc, dist)),
+                        })
+                        .copied();
+
+                    // Only extend if we will not exceed the traversal limit to reach them.
+                    if let Some(dist) = min_dist
+                        && dist < MAX_ANCESTOR_DISTANCE
+                    {
+                        all_constrainable.extend(results.iter().map(|r| (*r, dist + 1)));
                     }
                 }
 
                 // If this is a Store instruction, then it has no result: instead if the value we store
                 // is constrainable, then we can add the address to the constrainable set.
                 if let Instruction::Store { address, value } = instruction
-                    && all_constrainable.contains(value)
+                    && let Some(dist) = all_constrainable.get(value)
                 {
-                    all_constrainable.insert(*address);
+                    // Keep the same distance as the address is just a handover point for values.
+                    all_constrainable.insert(*address, *dist);
                 }
 
                 // If we have a constraint that means two values are equal, then we are interested
                 // in constraints on the descendants on either of those, even if one of them is
                 // not a descendant of Brillig outputs.
                 if let Some((v1, v2)) = as_equivalence(func, instruction) {
-                    if all_constrainable.contains(&v1) {
-                        all_constrainable.insert(v2);
-                    } else if all_constrainable.contains(&v2) {
-                        all_constrainable.insert(v1);
+                    if let Some(dist) = all_constrainable.get(&v1) {
+                        all_constrainable.insert(v2, *dist);
+                    } else if let Some(dist) = all_constrainable.get(&v2) {
+                        all_constrainable.insert(v1, *dist);
                     }
                 }
 
@@ -541,13 +556,17 @@ impl Context {
                     if !visited {
                         let tainted = TaintedDescendants::new(func, arguments, &results);
                         self.tainted.insert(*instruction_id, tainted);
-                        // Look out for constraints on these values.
-                        all_constrainable.extend(&results);
+                        // Look out for constraints on these outputs.
+                        // We don't need to consider the inputs: the constraints which are relevant will have to constrain
+                        // at least one output. Then, we will look at whether the other constrained value is related to
+                        // the inputs, based on its ancestry, collected later for all inputs of relevant constraints.
+                        all_constrainable.extend(results.iter().map(|r| (*r, 0)));
                     }
                 } else if is_constraint(func, instruction_id) && !self.tainted.is_empty() {
                     let constrained_values = instruction_arguments(func, instruction);
                     // If this constraint involves a Brillig output, then we can use it later, otherwise it's not interesting.
-                    if constrained_values.iter().any(|value| all_constrainable.contains(value)) {
+                    if constrained_values.iter().any(|value| all_constrainable.contains_key(value))
+                    {
                         self.constraints.insert(*instruction_id);
                     }
                 } else if let Instruction::EnableSideEffectsIf { condition } = instruction {
