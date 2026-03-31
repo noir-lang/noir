@@ -2,7 +2,7 @@
     context: &amp;<a class="struct" href="../../../noirc_frontend/hir/struct.Context.html" title="struct noirc_frontend::hir::Context">Context</a>&lt;'_, '_&gt;,
     package: <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;&amp;Package&gt;,
     crate_id: <a class="enum" href="../../../noirc_frontend/graph/enum.CrateId.html" title="enum noirc_frontend::graph::CrateId">CrateId</a>,
-    file_manager: &amp;FileManager,
+    file_manager: &amp;<a class="struct" href="../../../fm/struct.FileManager.html" title="struct fm::FileManager">FileManager</a>,
     item_id_to_converted_item: &amp;mut <a class="struct" href="https://doc.rust-lang.org/1.89.0/std/collections/hash/map/struct.HashMap.html" title="struct std::collections::hash::map::HashMap">HashMap</a>&lt;ItemId, ConvertedItem&gt;,
     dependencies: &amp;mut <a class="struct" href="https://doc.rust-lang.org/1.89.0/std/collections/hash/map/struct.HashMap.html" title="struct std::collections::hash::map::HashMap">HashMap</a>&lt;<a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>, Crate&gt;,
     broken_links: &amp;mut <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;BrokenLink&gt;,
