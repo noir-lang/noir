@@ -449,24 +449,24 @@ impl Value {
         use crate::ast::Literal::*;
         use ExpressionKind::Literal;
 
-        if bytes.iter().all(|byte| byte.is_ascii()) {
-            let string = String::from_utf8_lossy(bytes);
-            Literal(Str(string.to_string()))
-        } else {
-            // Produce `[...].as_str_unchecked()` to preserve the non-UTF-8 bytes.
-            let bytes = vecmap(bytes.iter(), |byte| Expression {
-                kind: Literal(Integer((*byte).into(), Some(IntegerTypeSuffix::U8))),
-                location,
-            });
-            let bytes = Literal(Array(ArrayLiteral::Standard(bytes)));
-            let bytes = Expression { kind: bytes, location };
-            ExpressionKind::MethodCall(Box::new(MethodCallExpression {
-                object: bytes,
-                method_name: Ident::new("as_str_unchecked".to_string(), location),
-                generics: None,
-                arguments: vec![],
-                is_macro_call: false,
-            }))
+        match str::from_utf8(bytes) {
+            Ok(string) => Literal(Str(string.to_string())),
+            Err(_) => {
+                // Produce `[...].as_str_unchecked()` to preserve the non-UTF-8 bytes.
+                let bytes = vecmap(bytes.iter(), |byte| Expression {
+                    kind: Literal(Integer((*byte).into(), Some(IntegerTypeSuffix::U8))),
+                    location,
+                });
+                let bytes = Literal(Array(ArrayLiteral::Standard(bytes)));
+                let bytes = Expression { kind: bytes, location };
+                ExpressionKind::MethodCall(Box::new(MethodCallExpression {
+                    object: bytes,
+                    method_name: Ident::new("as_str_unchecked".to_string(), location),
+                    generics: None,
+                    arguments: vec![],
+                    is_macro_call: false,
+                }))
+            }
         }
     }
 
@@ -646,27 +646,29 @@ impl Value {
             }
             Value::TypedExpr(TypedExpr::ExprId(expr_id)) => vec![Token::UnquoteMarker(expr_id)],
             Value::String(bytes) | Value::CtString(bytes) => {
-                if bytes.iter().all(|byte| byte.is_ascii()) {
-                    let string = String::from_utf8_lossy(&bytes);
-                    vec![Token::Str(string.to_string())]
-                } else {
-                    // Produce `[...].as_str_unchecked()` to preserve the non-UTF-8 bytes.
-                    let mut tokens = Vec::new();
-                    tokens.push(Token::LeftBracket);
-
-                    for (i, byte) in bytes.iter().enumerate() {
-                        if i > 0 {
-                            tokens.push(Token::Comma);
-                        }
-                        tokens.push(Token::Int((*byte).into(), Some(IntegerTypeSuffix::U8)));
+                match str::from_utf8(&bytes) {
+                    Ok(string) => {
+                        vec![Token::Str(string.to_string())]
                     }
+                    Err(_) => {
+                        // Produce `[...].as_str_unchecked()` to preserve the non-UTF-8 bytes.
+                        let mut tokens = Vec::new();
+                        tokens.push(Token::LeftBracket);
 
-                    tokens.push(Token::RightBracket);
-                    tokens.push(Token::Dot);
-                    tokens.push(Token::Ident("as_str_unchecked".to_string()));
-                    tokens.push(Token::LeftParen);
-                    tokens.push(Token::RightParen);
-                    tokens
+                        for (i, byte) in bytes.iter().enumerate() {
+                            if i > 0 {
+                                tokens.push(Token::Comma);
+                            }
+                            tokens.push(Token::Int((*byte).into(), Some(IntegerTypeSuffix::U8)));
+                        }
+
+                        tokens.push(Token::RightBracket);
+                        tokens.push(Token::Dot);
+                        tokens.push(Token::Ident("as_str_unchecked".to_string()));
+                        tokens.push(Token::LeftParen);
+                        tokens.push(Token::RightParen);
+                        tokens
+                    }
                 }
             }
             Value::FormatString(fragments, _, _) => {
