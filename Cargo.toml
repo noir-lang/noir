@@ -175,7 +175,7 @@ getrandom = "^0.3.3"
 # Debugger
 dap = "0.4.1-alpha1"
 clap = { version = "4.6.0", features = ["derive", "env"] }
-codespan = { version = "0.11.1", features = ["serialization"] }
+codespan = { version = "0.13.1", features = ["serialization"] }
 codespan-lsp = "0.11.1"
 codespan-reporting = "0.11.1"
 
@@ -196,7 +196,7 @@ cfg-if = "1.0.0"
 dirs = "^6.0.0"
 env_logger = "0.11.6"
 log = "0.4"
-serde = { version = "1.0.136", features = ["derive"] }
+serde = { version = "1.0.136", features = ["derive", "rc"] }
 serde_json = "1.0"
 smol_str = { version = "0.3.2", features = ["serde"] }
 thiserror = "2.0.18"
@@ -244,7 +244,7 @@ tracing-web = "0.1.3"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter", "json"] }
 rust-embed = "^8.7.2"
 petgraph = "^0.8.2"
-insta = "1.42.2"
+insta = "1.47.2"
 
 [profile.dev]
 # This is required to be able to run `cargo test` in acvm_js due to the `locals exceeds maximum` error.

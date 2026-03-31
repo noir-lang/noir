@@ -544,6 +544,7 @@ pub fn compute_function_abi(
 /// On error this returns the non-empty list of warnings and errors.
 ///
 /// See [compile_no_check] for further information about the use of `cached_program`.
+#[tracing::instrument(level = "trace", skip_all)]
 pub fn compile_main(
     context: &mut Context,
     crate_id: CrateId,
@@ -583,6 +584,7 @@ pub fn compile_main(
 }
 
 /// Run the frontend to check the crate for errors then compile all contracts if there were none
+#[tracing::instrument(level = "trace", skip_all)]
 pub fn compile_contract(
     context: &mut Context,
     crate_id: CrateId,
