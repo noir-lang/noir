@@ -587,6 +587,8 @@ impl Context {
     ) -> Self {
         // Constraints on tainted output cannot be used to connect output to input.
         let mut all_tainted = ValueSet::new(&func.dfg);
+        // Skip checks until we encounter the tainted instruction.
+        let mut active_tainted = HashSet::new();
 
         // Traverse in Reverse Post Order, ie. top-down.
         for block_id in self.post_order.clone().into_iter().rev() {
@@ -606,19 +608,35 @@ impl Context {
                 if is_call_to_brillig(func, all_functions, instruction_id) && !results.is_empty() {
                     // Always keep track of tainted descendants, required for correct constraint checks.
                     all_tainted.extend(&results);
-                } else if self.constraints.contains(instruction_id) && !self.tainted.is_empty() {
+                    if self.tainted.contains_key(instruction_id) {
+                        active_tainted.insert(instruction_id);
+                    }
+                } else if self.constraints.contains(instruction_id)
+                    && !self.tainted.is_empty()
+                    && !active_tainted.is_empty()
+                {
                     let constrained_values = instruction_arguments(func, instruction);
                     // Split borrows: extract parents/equivalences before the closure that
                     // mutably borrows self.tainted.
                     let parents = &self.parents;
                     let equivalences = &self.equivalences;
-                    self.tainted.retain(|_, tainted| {
-                        !tainted.try_constrain(
+                    self.tainted.retain(|id, tainted| {
+                        if !active_tainted.contains(id) {
+                            return true;
+                        }
+
+                        let constrained = tainted.try_constrain(
                             &constrained_values,
                             parents,
                             equivalences,
                             &all_tainted,
-                        )
+                        );
+
+                        if constrained {
+                            active_tainted.remove(id);
+                        }
+
+                        !constrained
                     });
                 }
             }
