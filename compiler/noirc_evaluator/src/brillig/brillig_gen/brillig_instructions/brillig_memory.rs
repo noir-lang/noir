@@ -170,9 +170,11 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     ///
     /// This method generates one `store` instruction per array element, writing each
     /// value from the SSA into consecutive memory addresses starting at `pointer`.
+    /// It emits a memcpy instruction if the array values are in consecutive registers.
     ///
-    /// Unlike [initialize_constant_array_runtime][Self::initialize_constant_array_runtime], this
-    /// does not use loops and emits one instruction per write, which can increase bytecode size
+    /// Unlike [initialize_constant_array_runtime][Self::initialize_constant_array_runtime],
+    /// when the values are not in consecutive registers, this does not use loops and
+    /// emits one instruction per write, which can increase bytecode size
     /// but provides fine-grained control.
     fn initialize_constant_array_comptime(
         &mut self,
@@ -180,19 +182,24 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         dfg: &DataFlowGraph,
         pointer: MemoryAddress,
     ) {
-        // Allocate a register for the iterator
-        let write_pointer_register = self.brillig_context.allocate_register();
+        // Collect all element registers upfront.
+        let registers: Vec<MemoryAddress> =
+            data.iter().map(|id| self.convert_ssa_value(*id, dfg).extract_register()).collect();
 
+        // If all elements are in consecutive stack-relative registers,
+        // emit a memcpy instead of individual stores.
+        if self.try_memcpy_to_dest_from_consecutive_registers(&registers, pointer) {
+            return;
+        }
+
+        // Fallback: individual stores with pointer increment.
+        let write_pointer_register = self.brillig_context.allocate_register();
         self.brillig_context.mov_instruction(*write_pointer_register, pointer);
 
-        for (element_idx, element_id) in data.iter().enumerate() {
-            let element_variable = self.convert_ssa_value(*element_id, dfg);
-            // Store the item in memory
-            self.brillig_context
-                .store_instruction(*write_pointer_register, element_variable.extract_register());
+        for (element_idx, register) in registers.iter().enumerate() {
+            self.brillig_context.store_instruction(*write_pointer_register, *register);
 
-            if element_idx != data.len() - 1 {
-                // Increment the write_pointer_register
+            if element_idx != registers.len() - 1 {
                 self.brillig_context.memory_op_inc_by_usize_one(*write_pointer_register);
             }
         }

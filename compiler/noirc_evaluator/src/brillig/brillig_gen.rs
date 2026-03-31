@@ -8,7 +8,7 @@ mod brillig_instructions;
 mod coalescing;
 pub(crate) mod constant_allocation;
 mod live_intervals;
-pub(crate) mod memcpy_optimizations;
+mod memcpy_optimizations;
 pub(crate) mod spill_manager;
 #[cfg(test)]
 mod tests;
