@@ -223,10 +223,7 @@ impl<T: Hash + Clone + Eq> VisitedRefHashSet<T> {
         let mut hasher = FxHasher::default();
         value.hash(&mut hasher);
         let hash = hasher.finish();
-        if self.hashes.insert(hash) {
-            return true;
-        }
-        self.values.insert(value.clone())
+        self.hashes.insert(hash) || self.values.insert(value.clone())
     }
 }
 
