@@ -3583,4 +3583,49 @@ mod tests {
         }
         ");
     }
+
+    /// Documents that loop unrolling does NOT propagate instruction results defined
+    /// in the loop header (only block parameters) to exit blocks.
+    ///
+    /// If an instruction is hoisted into a loop header (e.g. by constant folding's CSE),
+    /// and the exit block references that instruction's result, unrolling will leave a
+    /// dangling reference because `Loop::unroll` only maps header parameters, not
+    /// instruction results.
+    ///
+    /// To fix this in the unrolling pass (if we ever want to allow hoisting into headers):
+    /// in `unroll_header`, on the final iteration (when `is_in_loop` is false), iterate
+    /// over header instruction results and add their resolved values from the inserter
+    /// to the `ValueMapping` returned by `unroll`.
+    #[test]
+    #[should_panic(expected = "should already be in scope")]
+    fn unroll_panics_on_header_instruction_results_referenced_by_exit_block() {
+        // Models the SSA after CSE hoists `mul v2, v2` into the loop header:
+        //   b1 header has v4 = mul v2, v2 (an instruction result, not a parameter)
+        //   b2 loop body uses v4
+        //   b3 exit block uses v4
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            jmp b1(u8 0, v0)
+          b1(v1: u8, v2: Field):
+            v3 = lt v1, u8 1
+            v4 = mul v2, v2
+            jmpif v3 then: b2(), else: b3()
+          b2():
+            v5 = add v4, Field 1
+            v6 = add v1, u8 1
+            jmp b1(v6, v5)
+          b3():
+            return v4
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let (ssa, errors) = try_unroll_loops(ssa);
+        assert!(errors.is_empty(), "Loop should unroll successfully");
+
+        // This panics because v4 (a header instruction result) was not mapped
+        // to its final-iteration value, leaving a dangling reference.
+        let _result = ssa.interpret(vec![Value::field(3u128.into())]);
+    }
 }
