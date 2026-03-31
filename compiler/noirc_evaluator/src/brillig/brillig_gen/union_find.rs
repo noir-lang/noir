@@ -6,7 +6,7 @@ use rustc_hash::FxHashMap as HashMap;
 use crate::ssa::ir::value::ValueId;
 
 pub(super) struct UnionFind {
-    pub(super) parent: HashMap<ValueId, ValueId>,
+    parent: HashMap<ValueId, ValueId>,
     rank: HashMap<ValueId, u32>,
 }
 
@@ -49,4 +49,37 @@ impl UnionFind {
             }
         }
     }
+}
+
+/// Compute connected components from a directed edge map.
+///
+/// Returns:
+/// - A map from each value to its group ID.
+/// - A vec of all members in each group.
+pub(super) fn connected_components(
+    edges: &HashMap<ValueId, ValueId>,
+) -> (HashMap<ValueId, usize>, Vec<Vec<ValueId>>) {
+    let mut uf = UnionFind::new();
+    for (&k, &v) in edges {
+        uf.make_set(k);
+        uf.make_set(v);
+        uf.union(k, v);
+    }
+
+    let all_values: Vec<ValueId> = uf.parent.keys().copied().collect();
+    let mut root_to_group: HashMap<ValueId, usize> = HashMap::default();
+    let mut groups: HashMap<ValueId, usize> = HashMap::default();
+    let mut group_members: Vec<Vec<ValueId>> = Vec::new();
+
+    for value in all_values {
+        let root = uf.find(value);
+        let group_id = *root_to_group.entry(root).or_insert_with(|| {
+            group_members.push(Vec::new());
+            group_members.len() - 1
+        });
+        groups.insert(value, group_id);
+        group_members[group_id].push(value);
+    }
+
+    (groups, group_members)
 }

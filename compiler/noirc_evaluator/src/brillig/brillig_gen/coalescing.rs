@@ -17,7 +17,7 @@ use crate::ssa::ir::{
 
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
-use super::union_find::UnionFind;
+use super::union_find::connected_components;
 use super::variable_liveness::VariableLiveness;
 
 /// Check if param-side coalescing is safe: the destination must have exactly
@@ -157,28 +157,7 @@ impl CoalescingMap {
             }
         }
 
-        // Build connected component groups via Union-Find.
-        let mut uf = UnionFind::new();
-        for (&k, &v) in &coalesced {
-            uf.make_set(k);
-            uf.make_set(v);
-            uf.union(k, v);
-        }
-
-        let all_values: Vec<ValueId> = uf.parent.keys().copied().collect();
-        let mut root_to_group: HashMap<ValueId, usize> = HashMap::default();
-        let mut groups: HashMap<ValueId, usize> = HashMap::default();
-        let mut group_members: Vec<Vec<ValueId>> = Vec::new();
-
-        for value in all_values {
-            let root = uf.find(value);
-            let group_id = *root_to_group.entry(root).or_insert_with(|| {
-                group_members.push(Vec::new());
-                group_members.len() - 1
-            });
-            groups.insert(value, group_id);
-            group_members[group_id].push(value);
-        }
+        let (groups, group_members) = connected_components(&coalesced);
 
         Self { coalesced, groups, group_members }
     }
