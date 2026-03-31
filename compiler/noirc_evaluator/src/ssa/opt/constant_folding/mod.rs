@@ -3272,64 +3272,6 @@ mod test {
         ");
     }
 
-    #[test]
-    fn does_not_hoist_duplicate_into_loop_header() {
-        // When b3 (loop body) and b4 (loop exit) both contain identical instructions
-        // (array_get v2 followed by mul), CSE finds a common dominator of b1 (a loop header).
-        // Since the instructions use v2 (a header parameter), we can't escape to the
-        // pre-header, and must not hoist into the header either.
-        let src = "
-        brillig(inline) fn main f0 {
-          b0(v0: [Field; 1]):
-            jmp b1(u8 0, v0)
-          b2():
-            return
-          b1(v1: u8, v2: [Field; 1]):
-            v3 = lt v1, u8 2
-            jmpif v3 then: b3(), else: b4()
-          b3():
-            v4 = array_get v2, index u32 0 -> Field
-            v5 = mul v4, v4
-            v6 = array_set v2, index u32 0, value v5
-            v7 = unchecked_add v1, u8 1
-            jmp b1(v7, v6)
-          b4():
-            v8 = array_get v2, index u32 0 -> Field
-            v9 = mul v8, v8
-            jmp b2()
-        }
-        ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants(DEFAULT_MAX_ITER);
-
-        let elements = vec![Value::field((2u32).into())];
-        let inputs = Value::array(elements, vec![Type::field()]);
-        let _ = ssa.interpret(vec![inputs]).unwrap();
-
-        // Instructions stay in b3 and b4 — not hoisted into header b2.
-        assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
-          b0(v0: [Field; 1]):
-            jmp b2(u8 0, v0)
-          b1():
-            return
-          b2(v1: u8, v2: [Field; 1]):
-            v5 = lt v1, u8 2
-            jmpif v5 then: b3(), else: b4()
-          b3():
-            v9 = array_get v2, index u32 0 -> Field
-            v10 = mul v9, v9
-            v11 = array_set v2, index u32 0, value v10
-            v13 = unchecked_add v1, u8 1
-            jmp b2(v13, v11)
-          b4():
-            v7 = array_get v2, index u32 0 -> Field
-            v8 = mul v7, v7
-            jmp b1()
-        }
-        ");
-    }
-
     /// Regression test: CSE must not hoist an instruction into a loop header when
     /// it can't escape to the pre-header because it uses header-defined values.
     ///
