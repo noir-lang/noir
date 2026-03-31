@@ -83,6 +83,7 @@ pub(super) fn compile_prepare_vector_insert_procedure<F: AcirField + DebugToStri
         *source_capacity,
         target_vector,
         *target_size,
+        None,
     );
 
     let target_vector_items_pointer =

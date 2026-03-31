@@ -33,6 +33,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             item_push_count_arg,
             destination_vector_pointer_return,
             write_pointer_return,
+            did_rc_copy_return,
         ] = self.make_scratch_registers();
 
         self.mov_instruction(source_vector_length_arg, source_len.address);
@@ -44,7 +45,9 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.mov_instruction(destination_vector.pointer, destination_vector_pointer_return);
         self.mov_instruction(write_pointer, write_pointer_return);
 
-        self.codegen_count_if_copy_occurred(source_vector.pointer, destination_vector.pointer);
+        // Count only RC copies (not necessary reallocations) by using the flag returned by the
+        // procedure rather than comparing pointers, which would also fire for reallocations.
+        self.codegen_count_if_nonzero(did_rc_copy_return);
     }
 }
 
@@ -59,7 +62,13 @@ pub(super) fn compile_prepare_vector_push_procedure<F: AcirField + DebugToString
         item_push_count_arg,
         destination_vector_pointer_return,
         write_pointer_return,
+        did_rc_copy_return,
     ] = brillig_context.allocate_scratch_registers();
+
+    // Initialize the did_rc_copy flag to false (1-bit 0); reallocate_vector_for_insertion
+    // sets it to true if and only if an RC copy (not a necessary reallocation) is performed.
+    brillig_context
+        .const_instruction(SingleAddrVariable::new(did_rc_copy_return, 1), F::from(0_usize));
 
     let source_vector = BrilligVector { pointer: source_vector_pointer_arg };
     let target_vector = BrilligVector { pointer: destination_vector_pointer_return };
@@ -91,6 +100,7 @@ pub(super) fn compile_prepare_vector_push_procedure<F: AcirField + DebugToString
         *source_capacity,
         target_vector,
         *target_size,
+        Some(did_rc_copy_return),
     );
 
     // Get the pointer to the start of the items in the target vector.
@@ -162,6 +172,7 @@ pub(crate) fn reallocate_vector_for_insertion<
     source_capacity: SingleAddrVariable,
     target_vector: BrilligVector,
     target_size: SingleAddrVariable,
+    did_rc_copy: Option<MemoryAddress>,
 ) {
     // If the source capacity is at least as large than the target size, we can potentially reuse the source vector to write the new items.
     let does_capacity_fit = brillig_context.allocate_single_addr_bool();
@@ -191,6 +202,13 @@ pub(crate) fn reallocate_vector_for_insertion<
                         if brillig_context.count_arrays_copied {
                             brillig_context.codegen_increment_array_copy_counter();
                         }
+                        // Signal to the call site that an RC copy occurred (not a mere reallocation).
+                        if let Some(flag) = did_rc_copy {
+                            brillig_context.const_instruction(
+                                SingleAddrVariable::new(flag, 1),
+                                F::from(1_usize),
+                            );
+                        }
                         // We could not reuse the source vector, because there are other references to it.
                         // Allocate a new vector with the target size and source capacity.
                         brillig_context.codegen_initialize_vector(
@@ -217,10 +235,8 @@ pub(crate) fn reallocate_vector_for_insertion<
                     Some(*double_size),
                 );
 
-                // Increase our array copy counter if that flag is set
-                if brillig_context.count_arrays_copied {
-                    brillig_context.codegen_increment_array_copy_counter();
-                }
+                // Don't increment the array copy counter: we don't count necessary
+                // reallocations as copies
             }
         },
     );

@@ -51,6 +51,7 @@ pub(crate) struct FunctionContext {
     /// Information on where to allocate constants
     pub(crate) constant_allocation: ConstantAllocation,
     /// True if this function is a brillig entry point
+    #[allow(dead_code)]
     pub(crate) is_entry_point: bool,
     /// Manages spilling of register values to the heap spill region when register pressure
     /// exceeds the stack frame limit. Persists across blocks so spill state is not lost.
