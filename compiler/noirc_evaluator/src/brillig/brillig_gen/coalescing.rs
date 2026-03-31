@@ -191,10 +191,10 @@ impl CoalescingMap {
                 groups.insert(current, group_id);
                 members.push(current);
                 // Forward edge: current → target
-                if let Some(&target) = coalesced.get(&current) {
-                    if !groups.contains_key(&target) {
-                        queue.push(target);
-                    }
+                if let Some(&target) = coalesced.get(&current)
+                    && !groups.contains_key(&target)
+                {
+                    queue.push(target);
                 }
                 // Reverse edges: sources → current
                 if let Some(sources) = coalesced_reverse.get(&current) {
