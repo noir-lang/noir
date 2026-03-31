@@ -99,6 +99,7 @@ impl Ssa {
 }
 
 /// A more compact representation of a `HashSet<ValueId>` to limit memory use.
+#[derive(Debug)]
 struct ValueSet(BitVec<u32>);
 
 impl ValueSet {
@@ -146,8 +147,9 @@ struct TaintedDescendants {
     /// Pre-computed after the parent graph is built so that `arguments_intersect`
     /// can check membership in O(1) rather than re-running BFS for every constraint.
     arg_ancestors: HashSet<ValueId>,
-
-    constrainable: HashSet<ValueId>,
+    /// Set of values the constraints on which are interesting for at least one of
+    /// the outputs. This helps eliminate constraints which are of no effect.
+    constrainable: ValueSet,
 }
 
 impl TaintedDescendants {
@@ -178,12 +180,15 @@ impl TaintedDescendants {
             }
         }
 
+        let mut constrainable = ValueSet::new(&func.dfg);
+        constrainable.extend(result_ids);
+
         Self {
             arguments,
             single_outputs,
             array_outputs,
             arg_ancestors: HashSet::new(),
-            constrainable: HashSet::from_iter(result_ids.iter().copied()),
+            constrainable,
         }
     }
 
@@ -208,6 +213,7 @@ impl TaintedDescendants {
         equivalences: &HashMap<ValueId, Vec<ValueId>>,
         all_tainted: &ValueSet,
     ) -> bool {
+        // Make sure this constraint has something to do with the outputs.
         if !constrained_values.iter().any(|v| self.constrainable.contains(v)) {
             return false;
         }
