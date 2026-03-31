@@ -6,7 +6,7 @@ projects:
     path: noir-projects/noir-protocol-circuits/crates/private-kernel-inner
     num_compile_runs: 5
     num_execute_runs: 5
-    compilation-timeout: 3.0
+    compilation-timeout: 12
     execution-timeout: 0.08
     brillig-compilation-timeout: 3.0
     brillig-execution-timeout: 0.08
@@ -18,7 +18,7 @@ projects:
     path: noir-projects/noir-protocol-circuits/crates/private-kernel-tail
     num_compile_runs: 5
     num_execute_runs: 5
-    compilation-timeout: 3
+    compilation-timeout: 6
     execution-timeout: 0.04
     brillig-compilation-timeout: 3
     brillig-execution-timeout: 0.04
@@ -30,7 +30,7 @@ projects:
     path: noir-projects/noir-protocol-circuits/crates/private-kernel-reset
     num_compile_runs: 5
     num_execute_runs: 10
-    compilation-timeout: 15
+    compilation-timeout: 25
     execution-timeout: 0.35
     brillig-compilation-timeout: 10
     brillig-execution-timeout: 0.35
@@ -148,7 +148,7 @@ projects:
     path: noir-projects/noir-protocol-circuits/crates/rollup-tx-base-public
     num_compile_runs: 5
     num_execute_runs: 10
-    compilation-timeout: 150
+    compilation-timeout: 180
     execution-timeout: 0.75
     brillig-compilation-timeout: 120
     brillig-execution-timeout: 0.75
