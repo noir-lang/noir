@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774955612444,
+  "lastUpdate": 1774955731172,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -40019,105 +40019,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "343850c6d5ebc0ad1562bf8c886bea0a9468913b",
-          "message": "chore(acvm): Escape early if we have a constant when evaluating an expression (#11937)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-03-24T11:30:49Z",
-          "tree_id": "0fd325f74debc2040e6a3cf5ccee2e6042a9720b",
-          "url": "https://github.com/noir-lang/noir/commit/343850c6d5ebc0ad1562bf8c886bea0a9468913b"
-        },
-        "date": 1774353895709,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 814.1,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 731.3,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 357.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 298,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 302.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 365.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 282.1,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 568.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 610.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 430.3,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 667.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 836.1,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 218.9,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 2065.1,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 146.2,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -44877,6 +44778,105 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/3148191ef904308000905b7d1088c3a99f66483b"
         },
         "date": 1774953202880,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 813.7,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 731.8,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 358.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 300.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 302.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 364.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 282.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 567.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 610.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 431.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 667.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 835.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 219.4,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 2065.1,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 144.8,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ef07716c4f51429620d9c1d9ad6fb37cad3cd97c",
+          "message": "chore(deps-dev): bump unzipit from 1.4.3 to 2.0.0 (#12059)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\nCo-authored-by: Aztec Bot <49558828+AztecBot@users.noreply.github.com>",
+          "timestamp": "2026-03-31T10:35:10Z",
+          "tree_id": "e033329b5d1d26a048c95b947856abe6911914f2",
+          "url": "https://github.com/noir-lang/noir/commit/ef07716c4f51429620d9c1d9ad6fb37cad3cd97c"
+        },
+        "date": 1774955679711,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
