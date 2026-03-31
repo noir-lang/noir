@@ -279,3 +279,63 @@ fn coalescing_arg_to_deallocated_parameter_panics() {
         "the arg->param register is aliased with the other variable"
     );
 }
+
+/// Regression test for transitive coalescing chains causing "register already deallocated".
+///
+/// # Bug
+///
+/// Coalescing creates a transitive chain through block parameter passthroughs.
+/// The block IDs must be ordered so that "inner" chain blocks (b2, b3) are processed
+/// before "outer" ones (b4), causing param-side coalescing to build a chain where
+/// intermediate values become both keys and values in the coalescing map:
+///
+/// ```text
+/// coalesced: { v2→v8, v3→v4, v4→v5, v5→v8 }
+/// chain:       v3→v4→v5→v8←v2  (all share one register)
+/// ```
+///
+/// The old `has_live_partner` only checked direct neighbors (one hop). When `v2`
+/// died in b1, it checked `v8` and `v8`'s siblings (`v5`), but did NOT follow the
+/// chain from `v5→v4→v3` to discover that `v3` (the block param of b1) was still
+/// alive. The register was freed prematurely, and when `v3` later died, the
+/// double-deallocation caused a panic.
+///
+/// # Scenario
+///
+/// ```text
+/// b0: v2 = add v0, v1; jmp b4(v2)  — arg-side: v2→v8
+/// b4(v8): jmp b3(v8)               — param-side: v5→v8
+/// b3(v5): jmp b2(v5)               — param-side: v4→v5
+/// b2(v4): jmp b1(v4)               — param-side: v3→v4
+/// b1(v3):
+///   v6 = add v2, v0  ← v2 dies here (last use), but v3 still alive
+///   v7 = add v3, v6  ← v3 dies here
+///   return v7
+/// ```
+///
+/// Found by AST fuzzer seed `0x95838d4700100000` in `min_vs_full` test.
+#[test]
+fn coalescing_transitive_chain_no_double_dealloc() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u32, v1: u32):
+        v2 = unchecked_add v0, v1
+        jmp b4(v2)
+      b1(v3: u32):
+        v6 = unchecked_add v2, v0
+        v7 = unchecked_add v3, v6
+        return v7
+      b2(v4: u32):
+        jmp b1(v4)
+      b3(v5: u32):
+        jmp b2(v5)
+      b4(v8: u32):
+        jmp b3(v8)
+    }
+    ";
+    // v0=3, v1=7 → v2=10
+    // chain: v8=v5=v4=v3=v2=10  (all share one register)
+    // b1: v6 = v2 + v0 = 10 + 3 = 13, v7 = v3 + v6 = 10 + 13 = 23
+    let result = execute_brillig_from_ssa(src, vec![FieldElement::from(3u64), FieldElement::from(7u64)]);
+    assert_eq!(result, vec![FieldElement::from(23u64)]);
+}
