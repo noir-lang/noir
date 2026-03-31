@@ -3583,4 +3583,49 @@
 <a href=#3583 id=3583 data-nosnippet>3583</a>        }
 <a href=#3584 id=3584 data-nosnippet>3584</a>        "</span>);
 <a href=#3585 id=3585 data-nosnippet>3585</a>    }
-<a href=#3586 id=3586 data-nosnippet>3586</a>}</code></pre></div></section></main></body></html>
+<a href=#3586 id=3586 data-nosnippet>3586</a>
+<a href=#3587 id=3587 data-nosnippet>3587</a>    <span class="doccomment">/// Documents that loop unrolling does NOT propagate instruction results defined
+<a href=#3588 id=3588 data-nosnippet>3588</a>    /// in the loop header (only block parameters) to exit blocks.
+<a href=#3589 id=3589 data-nosnippet>3589</a>    ///
+<a href=#3590 id=3590 data-nosnippet>3590</a>    /// If an instruction is hoisted into a loop header (e.g. by constant folding's CSE),
+<a href=#3591 id=3591 data-nosnippet>3591</a>    /// and the exit block references that instruction's result, unrolling will leave a
+<a href=#3592 id=3592 data-nosnippet>3592</a>    /// dangling reference because `Loop::unroll` only maps header parameters, not
+<a href=#3593 id=3593 data-nosnippet>3593</a>    /// instruction results.
+<a href=#3594 id=3594 data-nosnippet>3594</a>    ///
+<a href=#3595 id=3595 data-nosnippet>3595</a>    /// To fix this in the unrolling pass (if we ever want to allow hoisting into headers):
+<a href=#3596 id=3596 data-nosnippet>3596</a>    /// in `unroll_header`, on the final iteration (when `is_in_loop` is false), iterate
+<a href=#3597 id=3597 data-nosnippet>3597</a>    /// over header instruction results and add their resolved values from the inserter
+<a href=#3598 id=3598 data-nosnippet>3598</a>    /// to the `ValueMapping` returned by `unroll`.
+<a href=#3599 id=3599 data-nosnippet>3599</a>    </span><span class="attr">#[test]
+<a href=#3600 id=3600 data-nosnippet>3600</a>    #[should_panic(expected = <span class="string">"should already be in scope"</span>)]
+<a href=#3601 id=3601 data-nosnippet>3601</a>    </span><span class="kw">fn </span>unroll_panics_on_header_instruction_results_referenced_by_exit_block() {
+<a href=#3602 id=3602 data-nosnippet>3602</a>        <span class="comment">// Models the SSA after CSE hoists `mul v2, v2` into the loop header:
+<a href=#3603 id=3603 data-nosnippet>3603</a>        //   b1 header has v4 = mul v2, v2 (an instruction result, not a parameter)
+<a href=#3604 id=3604 data-nosnippet>3604</a>        //   b2 loop body uses v4
+<a href=#3605 id=3605 data-nosnippet>3605</a>        //   b3 exit block uses v4
+<a href=#3606 id=3606 data-nosnippet>3606</a>        </span><span class="kw">let </span>src = <span class="string">"
+<a href=#3607 id=3607 data-nosnippet>3607</a>        acir(inline) fn main f0 {
+<a href=#3608 id=3608 data-nosnippet>3608</a>          b0(v0: Field):
+<a href=#3609 id=3609 data-nosnippet>3609</a>            jmp b1(u8 0, v0)
+<a href=#3610 id=3610 data-nosnippet>3610</a>          b1(v1: u8, v2: Field):
+<a href=#3611 id=3611 data-nosnippet>3611</a>            v3 = lt v1, u8 1
+<a href=#3612 id=3612 data-nosnippet>3612</a>            v4 = mul v2, v2
+<a href=#3613 id=3613 data-nosnippet>3613</a>            jmpif v3 then: b2(), else: b3()
+<a href=#3614 id=3614 data-nosnippet>3614</a>          b2():
+<a href=#3615 id=3615 data-nosnippet>3615</a>            v5 = add v4, Field 1
+<a href=#3616 id=3616 data-nosnippet>3616</a>            v6 = add v1, u8 1
+<a href=#3617 id=3617 data-nosnippet>3617</a>            jmp b1(v6, v5)
+<a href=#3618 id=3618 data-nosnippet>3618</a>          b3():
+<a href=#3619 id=3619 data-nosnippet>3619</a>            return v4
+<a href=#3620 id=3620 data-nosnippet>3620</a>        }
+<a href=#3621 id=3621 data-nosnippet>3621</a>        "</span>;
+<a href=#3622 id=3622 data-nosnippet>3622</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#3623 id=3623 data-nosnippet>3623</a>
+<a href=#3624 id=3624 data-nosnippet>3624</a>        <span class="kw">let </span>(ssa, errors) = try_unroll_loops(ssa);
+<a href=#3625 id=3625 data-nosnippet>3625</a>        <span class="macro">assert!</span>(errors.is_empty(), <span class="string">"Loop should unroll successfully"</span>);
+<a href=#3626 id=3626 data-nosnippet>3626</a>
+<a href=#3627 id=3627 data-nosnippet>3627</a>        <span class="comment">// This panics because v4 (a header instruction result) was not mapped
+<a href=#3628 id=3628 data-nosnippet>3628</a>        // to its final-iteration value, leaving a dangling reference.
+<a href=#3629 id=3629 data-nosnippet>3629</a>        </span><span class="kw">let </span>_result = ssa.interpret(<span class="macro">vec!</span>[Value::field(<span class="number">3u128</span>.into())]);
+<a href=#3630 id=3630 data-nosnippet>3630</a>    }
+<a href=#3631 id=3631 data-nosnippet>3631</a>}</code></pre></div></section></main></body></html>
