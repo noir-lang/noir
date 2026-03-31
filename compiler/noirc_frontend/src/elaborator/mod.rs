@@ -200,6 +200,11 @@ pub struct Loop {
 /// Helper to keep track of visited items, without having to clone all of them.
 ///
 /// It cannot be used to iterate visited items, only to detect the first visit.
+///
+/// This is used where we would normally use a `HashSet<&T>`, but the borrow
+/// checker doesn't allow us due to lifetime issues for example. By storing
+/// the hashes, and the values only if the hashes collide, we avoid cloning
+/// in the majority of cases.
 struct VisitedRefHashSet<T> {
     /// Contains the hashes of every visited item (they might collide).
     hashes: HashSet<u64>,
