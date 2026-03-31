@@ -59,6 +59,7 @@ struct ModCollector<'a> {
 /// and processing the file behind `mod foo;` declarations, as when a file is changed those
 /// modules should already exist and they don't need to be reprocessed (they are added as child modules
 /// to `module_id`, though).
+#[tracing::instrument(level = "trace", skip_all)]
 pub fn collect_defs(
     def_collector: &mut DefCollector,
     ast: SortedModule,

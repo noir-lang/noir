@@ -13,7 +13,7 @@ use crate::{
 };
 
 use super::{
-    MAX_PARSER_RECURSION_DEPTH, Parser,
+    Parser,
     parse_many::{
         separated_by_comma_until_right_brace, separated_by_comma_until_right_paren,
         without_separator,
@@ -66,29 +66,9 @@ impl Parser<'_> {
     }
 
     fn parse_expression_impl(&mut self, allow_constructors: bool) -> Option<Expression> {
-        // Check recursion depth to prevent stack overflow
-        if self.recursion_depth >= MAX_PARSER_RECURSION_DEPTH {
-            self.push_error(
-                ParserErrorReason::MaximumRecursionDepthExceeded,
-                self.current_token_location,
-            );
-            // Skip to a recovery point to avoid cascading errors
-            self.skip_to_recovery_point();
-            // Set flag to suppress cascading errors during stack unwinding
-            self.recovering_from_depth_overflow = true;
-            return None;
-        }
-
-        self.recursion_depth += 1;
-        let result = self.parse_equal_or_not_equal(allow_constructors);
-        self.recursion_depth -= 1;
-
-        // Clear recovery flag when we've fully unwound (back at top level)
-        if self.recursion_depth == 0 {
-            self.recovering_from_depth_overflow = false;
-        }
-
-        result
+        self.with_max_recursion_depth_guard(|this| {
+            this.parse_equal_or_not_equal(allow_constructors)
+        })
     }
 
     /// Term
@@ -2436,10 +2416,10 @@ mod tests {
         fn main()  {
             if true {
                 match c _ => {
-                    match d _ => 0,                     
+                    match d _ => 0,
                 }
             }
-        } } } 
+        } } }
         ";
         let (_, errors) = parse_program_with_dummy_file(src);
         assert!(!errors.is_empty());

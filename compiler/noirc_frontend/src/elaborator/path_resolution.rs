@@ -244,6 +244,7 @@ impl TypedPath {
     /// Removes and returns the last segment.
     ///
     /// Panics if there are no more segments in the path.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub fn pop(&mut self) -> TypedPathSegment {
         self.segments.pop().unwrap()
     }
@@ -377,6 +378,7 @@ impl std::fmt::Display for TypedPathSegment {
 
 impl Elaborator<'_> {
     /// Try to resolve a [TypedPath] into a [PathResolutionItem], marking it as _referenced_.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_path_or_error(
         &mut self,
         path: TypedPath,
@@ -386,6 +388,7 @@ impl Elaborator<'_> {
     }
 
     /// Try to resolve a [TypedPath] into a [PathResolutionItem], marking it as _used_.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn use_path_or_error(
         &mut self,
         path: TypedPath,
@@ -397,6 +400,7 @@ impl Elaborator<'_> {
     /// Try to resolve a [TypedPath] into a [PathResolutionItem].
     ///
     /// Pushes the `errors` from the [PathResolution], returning only the `item`.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_path_or_error_inner(
         &mut self,
         path: TypedPath,
@@ -411,6 +415,7 @@ impl Elaborator<'_> {
     }
 
     /// Try to resolve a [TypedPath] into a [PathResolution] with [PathResolutionTarget::Type], marking it as _referenced_.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_path_as_type(&mut self, path: TypedPath) -> PathResolutionResult {
         self.resolve_path_inner(
             path,
@@ -420,6 +425,7 @@ impl Elaborator<'_> {
     }
 
     /// Try to resolve a [TypedPath] into a [PathResolution] with [PathResolutionTarget::Type], marking it as _used_.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn use_path_as_type(&mut self, path: TypedPath) -> PathResolutionResult {
         self.resolve_path_inner(path, PathResolutionTarget::Type, PathResolutionMode::MarkAsUsed)
     }
@@ -429,6 +435,7 @@ impl Elaborator<'_> {
     /// If the referenced name can't be found, `Err` will be returned. If it can be found, `Ok`
     /// will be returned with a potential list of errors if, for example, one of the segments
     /// is not accessible from the current module (e.g. because it's private).
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_path_inner(
         &mut self,
         mut path: TypedPath,
@@ -500,6 +507,7 @@ impl Elaborator<'_> {
     /// Resolves a [TypedPath].
     ///
     /// `importing_module` is the module where the lookup originally started.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_path_in_module(
         &mut self,
         path: TypedPath,
@@ -541,6 +549,7 @@ impl Elaborator<'_> {
     ///
     /// Marks the segments in the path as used or referenced, depending on the [PathResolutionMode].
     /// Pushes errors if segments refer to private items.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_name_in_module(
         &mut self,
         path: TypedPath,
@@ -774,6 +783,7 @@ impl Elaborator<'_> {
     /// Transform a result from [PerNs] into a [PathResolutionItem],
     /// pushing any visibility errors.
     #[allow(clippy::too_many_arguments)]
+    #[tracing::instrument(level = "trace", skip_all)]
     fn per_ns_item_to_path_resolution_item(
         &mut self,
         path: TypedPath,
@@ -954,6 +964,7 @@ impl Elaborator<'_> {
     /// This handles paths like `MyAlias::method()` where `MyAlias` aliases
     /// a primitive type. Because they do not have module, we look up the method directly
     /// like what is done in [Self::resolve_primitive_type_or_function].
+    #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_primitive_type_alias_method(
         &mut self,
         typ: Type,
@@ -1025,6 +1036,7 @@ impl Elaborator<'_> {
     ///
     /// If the path consists of 2 segments, use the 2nd segment as the method name and look up a direct method implementation,
     /// or an unambiguous trait method among the traits which are in scope.
+    #[tracing::instrument(level = "trace", skip_all)]
     fn resolve_primitive_type_or_function(
         &mut self,
         path: TypedPath,
