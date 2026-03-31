@@ -184,9 +184,15 @@ pub(crate) fn simplify(
                     {
                         // If we're truncating the result of a division by a constant denominator, we can
                         // reason about the maximum bit size of the result and whether a truncation is necessary.
+                        // This only applies to unsigned integer division where the quotient is bounded.
+                        // Field division is multiplication by the modular inverse, so the result can
+                        // be any field element.
 
-                        let numerator_type = dfg.type_of_value(*lhs);
-                        let max_numerator_bits = numerator_type.bit_size();
+                        let Type::Numeric(NumericType::Unsigned { bit_size: max_numerator_bits }) =
+                            dfg.type_of_value(*lhs)
+                        else {
+                            return None;
+                        };
 
                         let divisor =
                             dfg.get_numeric_constant(*rhs).expect("rhs is checked to be constant.");
@@ -768,5 +774,57 @@ mod tests {
         ";
         let ssa = Ssa::from_str_simplifying(src).unwrap();
         assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn does_not_drop_truncate_on_field_division_result() {
+        // Regression: the truncate simplifier reasons about the bit size of `div` results
+        // using integer division logic (quotient_bits = numerator_bits - divisor_bits).
+        // This is incorrect for Field division, which is multiplication by the modular
+        // inverse — the result can be any field element regardless of the divisor's size.
+        // For example, `v0 / Field(-1)` = `-v0`, which is up to 254 bits.
+        use acvm::FieldElement;
+        use noirc_errors::call_stack::CallStackId;
+
+        use crate::ssa::ir::{
+            dfg::InsertInstructionResult,
+            function::Function,
+            instruction::{Binary, BinaryOp, Instruction},
+            types::{NumericType, Type},
+        };
+
+        let func_id = crate::ssa::ir::function::FunctionId::test_new(0);
+        let mut func = Function::new("main".into(), func_id);
+        let block = func.entry_block();
+
+        // Add a Field parameter
+        let v0 = func.dfg.add_block_parameter(block, Type::field());
+
+        // Insert `div v0, Field -1` WITHOUT simplification (to keep it as a div)
+        let minus_one =
+            func.dfg.make_constant(FieldElement::from(-1_i128), NumericType::NativeField);
+        let div = Instruction::Binary(Binary { lhs: v0, rhs: minus_one, operator: BinaryOp::Div });
+        let div_result = func
+            .dfg
+            .insert_instruction_and_results_without_simplification(
+                div,
+                block,
+                None,
+                CallStackId::root(),
+            )
+            .first();
+
+        // Insert `truncate div_result to 128 bits` WITH simplification
+        let truncate =
+            Instruction::Truncate { value: div_result, bit_size: 128, max_bit_size: 254 };
+        let truncate_result =
+            func.dfg.insert_instruction_and_results(truncate, block, None, CallStackId::root());
+
+        // The truncate must NOT be simplified away — field division doesn't
+        // bound the result's bit size.
+        assert!(
+            !matches!(truncate_result, InsertInstructionResult::SimplifiedTo(v) if v == div_result),
+            "truncate of field division result was incorrectly simplified to the division result"
+        );
     }
 }
