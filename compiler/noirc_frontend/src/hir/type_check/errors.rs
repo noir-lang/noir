@@ -62,9 +62,20 @@ pub enum TypeCheckError {
     #[error("Type {typ:?} cannot be used in a {place:?}")]
     TypeCannotBeUsed { typ: Type, place: &'static str, location: Location },
     #[error("Expected type {expected_typ:?} is not the same as {expr_typ:?}")]
-    TypeMismatch { expected_typ: String, expr_typ: String, expr_location: Location },
+    TypeMismatch {
+        expected_typ: String,
+        expr_typ: String,
+        expr_location: Location,
+        similar_types: Vec<(String, String)>,
+    },
     #[error("Expected type {expected} is not the same as {actual}")]
-    TypeMismatchWithSource { expected: String, actual: String, location: Location, source: Source },
+    TypeMismatchWithSource {
+        expected: String,
+        actual: String,
+        location: Location,
+        source: Source,
+        similar_types: Vec<(String, String)>,
+    },
     #[error("Expected type {expected_kind:?} is not the same as {expr_kind:?}")]
     TypeKindMismatch { expected_kind: Kind, expr_kind: Kind, expr_location: Location },
     #[error("Evaluating {to} resulted in {to_value}, but {from_value} was expected")]
@@ -426,12 +437,16 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 String::new(),
                 *location,
             ),
-            TypeCheckError::TypeMismatch { expected_typ, expr_typ, expr_location } => {
-                Diagnostic::simple_error(
+            TypeCheckError::TypeMismatch { expected_typ, expr_typ, expr_location, similar_types } => {
+                let mut diagnostic = Diagnostic::simple_error(
                     format!("Expected type {expected_typ}, found type {expr_typ}"),
                     String::new(),
                     *expr_location,
-                )
+                );
+                for (type1, type2) in similar_types {
+                    diagnostic.add_secondary(format!("Note: `{type1}` and `{type2}` have similar names, but are actually distinct types"), *expr_location);
+                }
+                diagnostic
             }
             TypeCheckError::TypeKindMismatch { expected_kind, expr_kind, expr_location } => {
                 // Try to improve the error message for some kind combinations
@@ -629,7 +644,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 error
             },
             TypeCheckError::ResolverError(error) => error.into(),
-            TypeCheckError::TypeMismatchWithSource { expected, actual, location, source } => {
+            TypeCheckError::TypeMismatchWithSource { expected, actual, location, source, similar_types } => {
                 let message = match source {
                     Source::Binary => format!("Types in a binary operation should match, but found {expected} and {actual}"),
                     Source::Assignment => {
@@ -654,7 +669,12 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                     Source::ArrayIndex => format!("Indexing arrays and vectors must be done with `{expected}`, not `{actual}`"),
                 };
 
-                Diagnostic::simple_error(message, String::new(), *location)
+                let mut diagnostic = Diagnostic::simple_error(message, String::new(), *location);
+                for (type1, type2) in similar_types {
+                    diagnostic.add_secondary(format!("Note: `{type1}` and `{type2}` have similar names, but are actually distinct types"), *location);
+                }
+                diagnostic
+
             }
             TypeCheckError::CallDeprecated { location, note, deny, name } => {
                 let default_primary = format!("`{name}` has been deprecated");

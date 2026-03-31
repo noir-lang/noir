@@ -1,4 +1,5 @@
 //! Type resolution, unification, and method resolution (for both types and traits).
+mod similar_types;
 
 use std::{borrow::Cow, collections::BTreeSet, rc::Rc};
 
@@ -1668,6 +1669,7 @@ impl Elaborator<'_> {
             expected_typ: expected.to_string(),
             expr_typ: actual.to_string(),
             expr_location: location,
+            similar_types: self.compute_similar_types(actual, expected),
         }
     }
 
@@ -1683,6 +1685,7 @@ impl Elaborator<'_> {
             actual: actual.to_string(),
             source,
             location,
+            similar_types: self.compute_similar_types(actual, expected),
         }
     }
 

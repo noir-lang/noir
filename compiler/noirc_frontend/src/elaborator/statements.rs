@@ -650,6 +650,7 @@ impl Elaborator<'_> {
                             expected_typ: "array".to_string(),
                             expr_typ: other.to_string(),
                             expr_location: location,
+                            similar_types: Vec::new(),
                         });
                         Type::Error
                     }

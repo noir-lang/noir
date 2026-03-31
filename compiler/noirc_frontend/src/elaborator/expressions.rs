@@ -718,6 +718,7 @@ impl Elaborator<'_> {
                     expected_typ: "Array".to_owned(),
                     expr_typ: typ.to_string(),
                     expr_location: lhs_location,
+                    similar_types: Vec::new(),
                 });
                 Type::Error
             }
