@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774962925441,
+  "lastUpdate": 1774963056453,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23066,48 +23066,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "9a9df1e1fae10b02c505d3d7483e92c294e9b8b9",
-          "message": "chore(deps): bump koa from 2.16.1 to 2.16.4 (#11967)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-03-24T12:23:50Z",
-          "tree_id": "92be7c6a63ea3a79273911ecd52c131bac794548",
-          "url": "https://github.com/noir-lang/noir/commit/9a9df1e1fae10b02c505d3d7483e92c294e9b8b9"
-        },
-        "date": 1774357602611,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 172031,
-            "range": "± 389",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 140482,
-            "range": "± 2834",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2650948,
-            "range": "± 45289",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -25159,6 +25117,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2648024,
             "range": "± 3048",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "9ee9c620827be6f9702a0aa231f36c1dfa0e4e26",
+          "message": "chore(deps): bump brace-expansion from 1.1.12 to 1.1.13 in /docs (#12031)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-03-31T12:54:37Z",
+          "tree_id": "5f883e61f26af6f419c43d6163ffd4818cac9e05",
+          "url": "https://github.com/noir-lang/noir/commit/9ee9c620827be6f9702a0aa231f36c1dfa0e4e26"
+        },
+        "date": 1774962996602,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 180083,
+            "range": "± 1252",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 150100,
+            "range": "± 597",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2647758,
+            "range": "± 6244",
             "unit": "ns/iter"
           }
         ]
