@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774986258792,
+  "lastUpdate": 1774986262704,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23056,48 +23056,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "974c3d400cc87567abb4ba93c25d814e13da3da1",
-          "message": "fix: error on struct pattern syntax for enum variants (#11930)",
-          "timestamp": "2026-03-24T15:51:53Z",
-          "tree_id": "a32ce415893b0c36a117765a94c64c62880c3160",
-          "url": "https://github.com/noir-lang/noir/commit/974c3d400cc87567abb4ba93c25d814e13da3da1"
-        },
-        "date": 1774368956741,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 163305,
-            "range": "± 376",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 135786,
-            "range": "± 1704",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2124708,
-            "range": "± 2214",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49558828+AztecBot@users.noreply.github.com",
             "name": "Aztec Bot",
             "username": "AztecBot"
@@ -25149,6 +25107,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2117577,
             "range": "± 2637",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0b19781c314f51c8b81c0d2f95739a9c81c766b2",
+          "message": "chore: refactor primitive method lookup (#12069)",
+          "timestamp": "2026-03-31T19:20:19Z",
+          "tree_id": "852b34faf3c886cf916c9c1b6f71a4f716549def",
+          "url": "https://github.com/noir-lang/noir/commit/0b19781c314f51c8b81c0d2f95739a9c81c766b2"
+        },
+        "date": 1774986194953,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 170239,
+            "range": "± 995",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 140363,
+            "range": "± 1995",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2647435,
+            "range": "± 3050",
             "unit": "ns/iter"
           }
         ]
