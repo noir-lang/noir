@@ -815,302 +815,308 @@
 <a href=#815 id=815 data-nosnippet>815</a>    <span class="doccomment">/// Converts an SSA [ValueId] into a [BrilligVariable]. Initializes if necessary, or returns an existing allocation.
 <a href=#816 id=816 data-nosnippet>816</a>    ///
 <a href=#817 id=817 data-nosnippet>817</a>    /// This method also first checks whether the SSA value is a hoisted global constant.
-<a href=#818 id=818 data-nosnippet>818</a>    /// If it has already been initialized in the global space, we return the already existing variable.
-<a href=#819 id=819 data-nosnippet>819</a>    /// If an SSA value is a [Value::Global], we check whether the value exists in the [BrilligBlock::globals] map,
-<a href=#820 id=820 data-nosnippet>820</a>    /// otherwise the method panics.
-<a href=#821 id=821 data-nosnippet>821</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>convert_ssa_value(
-<a href=#822 id=822 data-nosnippet>822</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#823 id=823 data-nosnippet>823</a>        value_id: ValueId,
-<a href=#824 id=824 data-nosnippet>824</a>        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
-<a href=#825 id=825 data-nosnippet>825</a>    ) -&gt; BrilligVariable {
-<a href=#826 id=826 data-nosnippet>826</a>        <span class="kw">let </span>value = <span class="kw-2">&amp;</span>dfg[value_id];
-<a href=#827 id=827 data-nosnippet>827</a>
-<a href=#828 id=828 data-nosnippet>828</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(variable) = <span class="self">self</span>.get_hoisted_global(dfg, value_id) {
-<a href=#829 id=829 data-nosnippet>829</a>            <span class="kw">return </span>variable;
-<a href=#830 id=830 data-nosnippet>830</a>        }
-<a href=#831 id=831 data-nosnippet>831</a>
-<a href=#832 id=832 data-nosnippet>832</a>        <span class="kw">match </span>value {
-<a href=#833 id=833 data-nosnippet>833</a>            Value::Global(<span class="kw">_</span>) =&gt; {
-<a href=#834 id=834 data-nosnippet>834</a>                <span class="macro">unreachable!</span>(<span class="string">"Expected global value to be resolve to its inner value"</span>);
-<a href=#835 id=835 data-nosnippet>835</a>            }
-<a href=#836 id=836 data-nosnippet>836</a>            Value::Param { .. } | Value::Instruction { .. } =&gt; {
-<a href=#837 id=837 data-nosnippet>837</a>                <span class="comment">// All block parameters and instruction results should have already been
-<a href=#838 id=838 data-nosnippet>838</a>                // converted to registers so we fetch from the cache.
-<a href=#839 id=839 data-nosnippet>839</a>                </span><span class="kw">if </span>dfg.is_global(value_id) {
-<a href=#840 id=840 data-nosnippet>840</a>                    <span class="kw-2">*</span><span class="self">self</span>.globals.get(<span class="kw-2">&amp;</span>value_id).unwrap_or_else(|| {
-<a href=#841 id=841 data-nosnippet>841</a>                        <span class="macro">panic!</span>(<span class="string">"ICE: Global value not found in cache {value_id}"</span>)
-<a href=#842 id=842 data-nosnippet>842</a>                    })
-<a href=#843 id=843 data-nosnippet>843</a>                } <span class="kw">else </span>{
-<a href=#844 id=844 data-nosnippet>844</a>                    <span class="comment">// Check if spilled, reload if needed
-<a href=#845 id=845 data-nosnippet>845</a>                    </span><span class="kw">if </span><span class="self">self</span>.is_spilled(<span class="kw-2">&amp;</span>value_id) {
-<a href=#846 id=846 data-nosnippet>846</a>                        <span class="kw">return </span><span class="self">self</span>.reload_spilled_value(value_id);
-<a href=#847 id=847 data-nosnippet>847</a>                    }
-<a href=#848 id=848 data-nosnippet>848</a>                    <span class="kw">let </span>var = <span class="self">self</span>.variables.get_allocation(<span class="self">self</span>.function_context, value_id);
-<a href=#849 id=849 data-nosnippet>849</a>                    <span class="kw">if let </span><span class="prelude-val">Some</span>(sm) = <span class="self">self</span>.function_context.spill_manager.as_mut() {
-<a href=#850 id=850 data-nosnippet>850</a>                        sm.touch(value_id);
-<a href=#851 id=851 data-nosnippet>851</a>                    }
-<a href=#852 id=852 data-nosnippet>852</a>                    var
-<a href=#853 id=853 data-nosnippet>853</a>                }
-<a href=#854 id=854 data-nosnippet>854</a>            }
-<a href=#855 id=855 data-nosnippet>855</a>            Value::NumericConstant { constant, .. } =&gt; {
-<a href=#856 id=856 data-nosnippet>856</a>                <span class="comment">// Check if spilled before is_allocated — spilled values are filtered
-<a href=#857 id=857 data-nosnippet>857</a>                // out of available_variables at block entry, so is_allocated would
-<a href=#858 id=858 data-nosnippet>858</a>                // return false even though the value exists.
-<a href=#859 id=859 data-nosnippet>859</a>                </span><span class="kw">if </span><span class="self">self</span>.is_spilled(<span class="kw-2">&amp;</span>value_id) {
-<a href=#860 id=860 data-nosnippet>860</a>                    <span class="kw">return </span><span class="self">self</span>.reload_spilled_value(value_id);
-<a href=#861 id=861 data-nosnippet>861</a>                }
-<a href=#862 id=862 data-nosnippet>862</a>                <span class="comment">// Constants might have been converted previously or not, so we get or create and
-<a href=#863 id=863 data-nosnippet>863</a>                // (re)initialize the value inside.
-<a href=#864 id=864 data-nosnippet>864</a>                </span><span class="kw">if </span><span class="self">self</span>.variables.is_allocated(<span class="kw-2">&amp;</span>value_id) {
-<a href=#865 id=865 data-nosnippet>865</a>                    <span class="kw">let </span>var = <span class="self">self</span>.variables.get_allocation(<span class="self">self</span>.function_context, value_id);
-<a href=#866 id=866 data-nosnippet>866</a>                    <span class="kw">if let </span><span class="prelude-val">Some</span>(sm) = <span class="self">self</span>.function_context.spill_manager.as_mut() {
-<a href=#867 id=867 data-nosnippet>867</a>                        sm.touch(value_id);
-<a href=#868 id=868 data-nosnippet>868</a>                    }
-<a href=#869 id=869 data-nosnippet>869</a>                    var
-<a href=#870 id=870 data-nosnippet>870</a>                } <span class="kw">else if </span>dfg.is_global(value_id) {
-<a href=#871 id=871 data-nosnippet>871</a>                    <span class="kw-2">*</span><span class="self">self</span>.globals.get(<span class="kw-2">&amp;</span>value_id).unwrap_or_else(|| {
-<a href=#872 id=872 data-nosnippet>872</a>                        <span class="macro">panic!</span>(<span class="string">"ICE: Global value not found in cache {value_id}"</span>)
-<a href=#873 id=873 data-nosnippet>873</a>                    })
-<a href=#874 id=874 data-nosnippet>874</a>                } <span class="kw">else </span>{
-<a href=#875 id=875 data-nosnippet>875</a>                    <span class="kw">let </span>new_variable = <span class="self">self</span>.define_variable(value_id, dfg);
-<a href=#876 id=876 data-nosnippet>876</a>
-<a href=#877 id=877 data-nosnippet>877</a>                    <span class="self">self</span>.brillig_context
-<a href=#878 id=878 data-nosnippet>878</a>                        .const_instruction(new_variable.extract_single_addr(), <span class="kw-2">*</span>constant);
-<a href=#879 id=879 data-nosnippet>879</a>                    new_variable
-<a href=#880 id=880 data-nosnippet>880</a>                }
-<a href=#881 id=881 data-nosnippet>881</a>            }
-<a href=#882 id=882 data-nosnippet>882</a>            Value::Function(<span class="kw">_</span>) =&gt; {
-<a href=#883 id=883 data-nosnippet>883</a>                <span class="comment">// For the debugger instrumentation we want to allow passing
-<a href=#884 id=884 data-nosnippet>884</a>                // around values representing function pointers, even though
-<a href=#885 id=885 data-nosnippet>885</a>                // there is no interaction with the function possible given that
-<a href=#886 id=886 data-nosnippet>886</a>                // value.
-<a href=#887 id=887 data-nosnippet>887</a>                </span><span class="kw">let </span>new_variable = <span class="self">self</span>.define_variable(value_id, dfg);
-<a href=#888 id=888 data-nosnippet>888</a>
-<a href=#889 id=889 data-nosnippet>889</a>                <span class="self">self</span>.brillig_context.const_instruction(
-<a href=#890 id=890 data-nosnippet>890</a>                    new_variable.extract_single_addr(),
-<a href=#891 id=891 data-nosnippet>891</a>                    value_id.to_u32().into(),
-<a href=#892 id=892 data-nosnippet>892</a>                );
-<a href=#893 id=893 data-nosnippet>893</a>                new_variable
-<a href=#894 id=894 data-nosnippet>894</a>            }
-<a href=#895 id=895 data-nosnippet>895</a>            Value::Intrinsic(<span class="kw">_</span>) | Value::ForeignFunction(<span class="kw">_</span>) =&gt; {
-<a href=#896 id=896 data-nosnippet>896</a>                <span class="macro">unreachable!</span>(<span class="string">"ICE: Cannot convert value to Brillig: {value:?}"</span>)
-<a href=#897 id=897 data-nosnippet>897</a>            }
-<a href=#898 id=898 data-nosnippet>898</a>        }
-<a href=#899 id=899 data-nosnippet>899</a>    }
-<a href=#900 id=900 data-nosnippet>900</a>
-<a href=#901 id=901 data-nosnippet>901</a>    <span class="doccomment">/// Converts an SSA `ValueId` into a single `MemoryAddress`. Initializes if necessary.
-<a href=#902 id=902 data-nosnippet>902</a>    ///
-<a href=#903 id=903 data-nosnippet>903</a>    /// Panics if the value was converted to an array or vector.
-<a href=#904 id=904 data-nosnippet>904</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>convert_ssa_single_addr_value(
-<a href=#905 id=905 data-nosnippet>905</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#906 id=906 data-nosnippet>906</a>        value_id: ValueId,
-<a href=#907 id=907 data-nosnippet>907</a>        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
-<a href=#908 id=908 data-nosnippet>908</a>    ) -&gt; SingleAddrVariable {
-<a href=#909 id=909 data-nosnippet>909</a>        <span class="kw">let </span>variable = <span class="self">self</span>.convert_ssa_value(value_id, dfg);
-<a href=#910 id=910 data-nosnippet>910</a>        variable.extract_single_addr()
-<a href=#911 id=911 data-nosnippet>911</a>    }
-<a href=#912 id=912 data-nosnippet>912</a>
-<a href=#913 id=913 data-nosnippet>913</a>    <span class="doccomment">/// If the supplied value is a numeric constant check whether it is exists within
-<a href=#914 id=914 data-nosnippet>914</a>    /// the precomputed [hoisted globals map][Self::hoisted_global_constants].
-<a href=#915 id=915 data-nosnippet>915</a>    /// If the variable exists as a hoisted global return that value, otherwise return `None`.
-<a href=#916 id=916 data-nosnippet>916</a>    </span><span class="kw">fn </span>get_hoisted_global(
-<a href=#917 id=917 data-nosnippet>917</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#918 id=918 data-nosnippet>918</a>        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
-<a href=#919 id=919 data-nosnippet>919</a>        value_id: ValueId,
-<a href=#920 id=920 data-nosnippet>920</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;BrilligVariable&gt; {
-<a href=#921 id=921 data-nosnippet>921</a>        <span class="kw">if let </span>Value::NumericConstant { constant, typ } = <span class="kw-2">&amp;</span>dfg[value_id]
-<a href=#922 id=922 data-nosnippet>922</a>            &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(variable) = <span class="self">self</span>.hoisted_global_constants.get(<span class="kw-2">&amp;</span>(<span class="kw-2">*</span>constant, <span class="kw-2">*</span>typ))
-<a href=#923 id=923 data-nosnippet>923</a>        {
-<a href=#924 id=924 data-nosnippet>924</a>            <span class="kw">return </span><span class="prelude-val">Some</span>(<span class="kw-2">*</span>variable);
-<a href=#925 id=925 data-nosnippet>925</a>        }
-<a href=#926 id=926 data-nosnippet>926</a>        <span class="prelude-val">None
-<a href=#927 id=927 data-nosnippet>927</a>    </span>}
-<a href=#928 id=928 data-nosnippet>928</a>
-<a href=#929 id=929 data-nosnippet>929</a>    <span class="doccomment">/// Define the result variable, convert the value, then generate Brillig opcodes to negate the variable.
-<a href=#930 id=930 data-nosnippet>930</a>    </span><span class="kw">fn </span>codegen_not(<span class="kw-2">&amp;mut </span><span class="self">self</span>, instruction_id: InstructionId, value: ValueId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) {
-<a href=#931 id=931 data-nosnippet>931</a>        <span class="kw">let </span>[result_id] = dfg.instruction_result(instruction_id);
-<a href=#932 id=932 data-nosnippet>932</a>        <span class="kw">let </span>condition_register = <span class="self">self</span>.convert_ssa_single_addr_value(value, dfg);
-<a href=#933 id=933 data-nosnippet>933</a>        <span class="kw">let </span>result_register = <span class="self">self</span>.define_single_addr_variable(result_id, dfg);
-<a href=#934 id=934 data-nosnippet>934</a>        <span class="self">self</span>.brillig_context.not_instruction(condition_register, result_register);
-<a href=#935 id=935 data-nosnippet>935</a>    }
-<a href=#936 id=936 data-nosnippet>936</a>
-<a href=#937 id=937 data-nosnippet>937</a>    <span class="doccomment">/// Define the result variable, convert the value, then generate Brillig opcodes to truncate the variable.
-<a href=#938 id=938 data-nosnippet>938</a>    </span><span class="kw">fn </span>codegen_truncate(
-<a href=#939 id=939 data-nosnippet>939</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#940 id=940 data-nosnippet>940</a>        instruction_id: InstructionId,
-<a href=#941 id=941 data-nosnippet>941</a>        value: ValueId,
-<a href=#942 id=942 data-nosnippet>942</a>        bit_size: u32,
-<a href=#943 id=943 data-nosnippet>943</a>        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
-<a href=#944 id=944 data-nosnippet>944</a>    ) {
-<a href=#945 id=945 data-nosnippet>945</a>        <span class="kw">let </span>[result_id] = dfg.instruction_result(instruction_id);
-<a href=#946 id=946 data-nosnippet>946</a>        <span class="kw">let </span>destination_register = <span class="self">self</span>.define_single_addr_variable(result_id, dfg);
-<a href=#947 id=947 data-nosnippet>947</a>        <span class="kw">let </span>source_register = <span class="self">self</span>.convert_ssa_single_addr_value(value, dfg);
-<a href=#948 id=948 data-nosnippet>948</a>        <span class="self">self</span>.brillig_context.codegen_truncate(destination_register, source_register, bit_size);
-<a href=#949 id=949 data-nosnippet>949</a>    }
-<a href=#950 id=950 data-nosnippet>950</a>
-<a href=#951 id=951 data-nosnippet>951</a>    <span class="doccomment">/// Define the result variable, convert the value, then generate Brillig opcodes to truncate the variable.
-<a href=#952 id=952 data-nosnippet>952</a>    </span><span class="kw">fn </span>codegen_cast(<span class="kw-2">&amp;mut </span><span class="self">self</span>, instruction_id: InstructionId, value: ValueId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) {
-<a href=#953 id=953 data-nosnippet>953</a>        <span class="kw">let </span>[result_id] = dfg.instruction_result(instruction_id);
-<a href=#954 id=954 data-nosnippet>954</a>        <span class="kw">let </span>destination_variable = <span class="self">self</span>.define_single_addr_variable(result_id, dfg);
-<a href=#955 id=955 data-nosnippet>955</a>        <span class="kw">let </span>source_variable = <span class="self">self</span>.convert_ssa_single_addr_value(value, dfg);
-<a href=#956 id=956 data-nosnippet>956</a>        <span class="self">self</span>.convert_cast(destination_variable, source_variable);
-<a href=#957 id=957 data-nosnippet>957</a>    }
-<a href=#958 id=958 data-nosnippet>958</a>
-<a href=#959 id=959 data-nosnippet>959</a>    <span class="doccomment">/// Convert the value, and if its bit size is larger than the maximum bit size,
-<a href=#960 id=960 data-nosnippet>960</a>    /// then generate opcodes to constrain the value to be no greater than the maximum
-<a href=#961 id=961 data-nosnippet>961</a>    /// value as a `Field`.
-<a href=#962 id=962 data-nosnippet>962</a>    </span><span class="kw">fn </span>codegen_range_check(
-<a href=#963 id=963 data-nosnippet>963</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#964 id=964 data-nosnippet>964</a>        value: ValueId,
-<a href=#965 id=965 data-nosnippet>965</a>        max_bit_size: u32,
-<a href=#966 id=966 data-nosnippet>966</a>        assert_message: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>String&gt;,
-<a href=#967 id=967 data-nosnippet>967</a>        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
-<a href=#968 id=968 data-nosnippet>968</a>    ) {
-<a href=#969 id=969 data-nosnippet>969</a>        <span class="kw">let </span>value = <span class="self">self</span>.convert_ssa_single_addr_value(value, dfg);
-<a href=#970 id=970 data-nosnippet>970</a>        <span class="comment">// SSA generates redundant range checks. A range check with a max bit size &gt;= value.bit_size will always pass.
-<a href=#971 id=971 data-nosnippet>971</a>        </span><span class="kw">if </span>value.bit_size &gt; max_bit_size {
-<a href=#972 id=972 data-nosnippet>972</a>            <span class="comment">// Cast original value to field
-<a href=#973 id=973 data-nosnippet>973</a>            </span><span class="kw">let </span>left = <span class="self">self</span>.brillig_context.allocate_single_addr(FieldElement::max_num_bits());
-<a href=#974 id=974 data-nosnippet>974</a>            <span class="self">self</span>.convert_cast(<span class="kw-2">*</span>left, value);
-<a href=#975 id=975 data-nosnippet>975</a>
-<a href=#976 id=976 data-nosnippet>976</a>            <span class="comment">// Create a field constant with the max
-<a href=#977 id=977 data-nosnippet>977</a>            </span><span class="kw">let </span>max = BigUint::from(<span class="number">2_u128</span>).pow(max_bit_size) - BigUint::from(<span class="number">1_u128</span>);
-<a href=#978 id=978 data-nosnippet>978</a>            <span class="kw">let </span>right = <span class="self">self</span>.brillig_context.make_constant_instruction(
-<a href=#979 id=979 data-nosnippet>979</a>                FieldElement::from_be_bytes_reduce(<span class="kw-2">&amp;</span>max.to_bytes_be()),
-<a href=#980 id=980 data-nosnippet>980</a>                FieldElement::max_num_bits(),
-<a href=#981 id=981 data-nosnippet>981</a>            );
-<a href=#982 id=982 data-nosnippet>982</a>
-<a href=#983 id=983 data-nosnippet>983</a>            <span class="comment">// Check if lte max
-<a href=#984 id=984 data-nosnippet>984</a>            </span><span class="kw">let </span>condition = <span class="self">self</span>.brillig_context.allocate_single_addr_bool();
-<a href=#985 id=985 data-nosnippet>985</a>            <span class="self">self</span>.brillig_context.binary_instruction(
-<a href=#986 id=986 data-nosnippet>986</a>                <span class="kw-2">*</span>left,
-<a href=#987 id=987 data-nosnippet>987</a>                <span class="kw-2">*</span>right,
-<a href=#988 id=988 data-nosnippet>988</a>                <span class="kw-2">*</span>condition,
-<a href=#989 id=989 data-nosnippet>989</a>                BrilligBinaryOp::LessThanEquals,
-<a href=#990 id=990 data-nosnippet>990</a>            );
-<a href=#991 id=991 data-nosnippet>991</a>
-<a href=#992 id=992 data-nosnippet>992</a>            <span class="self">self</span>.brillig_context.codegen_constrain(<span class="kw-2">*</span>condition, assert_message.cloned());
-<a href=#993 id=993 data-nosnippet>993</a>        }
-<a href=#994 id=994 data-nosnippet>994</a>    }
-<a href=#995 id=995 data-nosnippet>995</a>
-<a href=#996 id=996 data-nosnippet>996</a>    <span class="doccomment">/// Convert the condition and the values, define a variable for the result,
-<a href=#997 id=997 data-nosnippet>997</a>    /// then generate opcodes for a conditional move.
-<a href=#998 id=998 data-nosnippet>998</a>    ///
-<a href=#999 id=999 data-nosnippet>999</a>    /// Panics if the `then_value` and `else_value` are incompatible.
-<a href=#1000 id=1000 data-nosnippet>1000</a>    </span><span class="kw">fn </span>codegen_if_else(
-<a href=#1001 id=1001 data-nosnippet>1001</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#1002 id=1002 data-nosnippet>1002</a>        instruction_id: InstructionId,
-<a href=#1003 id=1003 data-nosnippet>1003</a>        then_condition: ValueId,
-<a href=#1004 id=1004 data-nosnippet>1004</a>        then_value: ValueId,
-<a href=#1005 id=1005 data-nosnippet>1005</a>        else_value: ValueId,
-<a href=#1006 id=1006 data-nosnippet>1006</a>        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
-<a href=#1007 id=1007 data-nosnippet>1007</a>    ) {
-<a href=#1008 id=1008 data-nosnippet>1008</a>        <span class="kw">let </span>then_condition = <span class="self">self</span>.convert_ssa_single_addr_value(then_condition, dfg);
-<a href=#1009 id=1009 data-nosnippet>1009</a>        <span class="kw">let </span>then_value = <span class="self">self</span>.convert_ssa_value(then_value, dfg);
-<a href=#1010 id=1010 data-nosnippet>1010</a>        <span class="kw">let </span>else_value = <span class="self">self</span>.convert_ssa_value(else_value, dfg);
-<a href=#1011 id=1011 data-nosnippet>1011</a>
-<a href=#1012 id=1012 data-nosnippet>1012</a>        <span class="kw">let </span>[result_id] = dfg.instruction_result(instruction_id);
-<a href=#1013 id=1013 data-nosnippet>1013</a>        <span class="kw">let </span>result = <span class="self">self</span>.define_variable(result_id, dfg);
-<a href=#1014 id=1014 data-nosnippet>1014</a>
-<a href=#1015 id=1015 data-nosnippet>1015</a>        <span class="kw">match </span>(then_value, else_value) {
-<a href=#1016 id=1016 data-nosnippet>1016</a>            (
-<a href=#1017 id=1017 data-nosnippet>1017</a>                BrilligVariable::SingleAddr(then_address),
-<a href=#1018 id=1018 data-nosnippet>1018</a>                BrilligVariable::SingleAddr(else_address),
-<a href=#1019 id=1019 data-nosnippet>1019</a>            ) =&gt; {
-<a href=#1020 id=1020 data-nosnippet>1020</a>                <span class="self">self</span>.brillig_context.conditional_move_instruction(
-<a href=#1021 id=1021 data-nosnippet>1021</a>                    then_condition.address,
-<a href=#1022 id=1022 data-nosnippet>1022</a>                    then_address.address,
-<a href=#1023 id=1023 data-nosnippet>1023</a>                    else_address.address,
-<a href=#1024 id=1024 data-nosnippet>1024</a>                    result.extract_single_addr().address,
-<a href=#1025 id=1025 data-nosnippet>1025</a>                );
-<a href=#1026 id=1026 data-nosnippet>1026</a>            }
-<a href=#1027 id=1027 data-nosnippet>1027</a>            (
-<a href=#1028 id=1028 data-nosnippet>1028</a>                BrilligVariable::BrilligArray(then_array),
-<a href=#1029 id=1029 data-nosnippet>1029</a>                BrilligVariable::BrilligArray(else_array),
-<a href=#1030 id=1030 data-nosnippet>1030</a>            ) =&gt; {
-<a href=#1031 id=1031 data-nosnippet>1031</a>                <span class="macro">debug_assert_eq!</span>(
-<a href=#1032 id=1032 data-nosnippet>1032</a>                    then_array.size, else_array.size,
-<a href=#1033 id=1033 data-nosnippet>1033</a>                    <span class="string">"ICE: then and else arrays in if-else must have the same size, but got {} and {}"</span>,
-<a href=#1034 id=1034 data-nosnippet>1034</a>                    then_array.size, else_array.size
-<a href=#1035 id=1035 data-nosnippet>1035</a>                );
-<a href=#1036 id=1036 data-nosnippet>1036</a>                <span class="comment">// Pointer to the array which result from the if-else
-<a href=#1037 id=1037 data-nosnippet>1037</a>                </span><span class="kw">let </span>pointer = <span class="self">self</span>.brillig_context.allocate_register();
-<a href=#1038 id=1038 data-nosnippet>1038</a>                <span class="self">self</span>.brillig_context.conditional_move_instruction(
-<a href=#1039 id=1039 data-nosnippet>1039</a>                    then_condition.address,
-<a href=#1040 id=1040 data-nosnippet>1040</a>                    then_array.pointer,
-<a href=#1041 id=1041 data-nosnippet>1041</a>                    else_array.pointer,
-<a href=#1042 id=1042 data-nosnippet>1042</a>                    <span class="kw-2">*</span>pointer,
-<a href=#1043 id=1043 data-nosnippet>1043</a>                );
-<a href=#1044 id=1044 data-nosnippet>1044</a>                <span class="kw">let </span>if_else_array = BrilligArray { pointer: <span class="kw-2">*</span>pointer, size: then_array.size };
-<a href=#1045 id=1045 data-nosnippet>1045</a>                <span class="comment">// Copy the if-else array to the result
-<a href=#1046 id=1046 data-nosnippet>1046</a>                </span><span class="self">self</span>.brillig_context
-<a href=#1047 id=1047 data-nosnippet>1047</a>                    .call_array_copy_procedure(if_else_array, result.extract_array());
-<a href=#1048 id=1048 data-nosnippet>1048</a>            }
-<a href=#1049 id=1049 data-nosnippet>1049</a>            (
-<a href=#1050 id=1050 data-nosnippet>1050</a>                BrilligVariable::BrilligVector(then_vector),
-<a href=#1051 id=1051 data-nosnippet>1051</a>                BrilligVariable::BrilligVector(else_vector),
-<a href=#1052 id=1052 data-nosnippet>1052</a>            ) =&gt; {
-<a href=#1053 id=1053 data-nosnippet>1053</a>                <span class="comment">// Pointer to the vector which result from the if-else
-<a href=#1054 id=1054 data-nosnippet>1054</a>                </span><span class="kw">let </span>pointer = <span class="self">self</span>.brillig_context.allocate_register();
-<a href=#1055 id=1055 data-nosnippet>1055</a>                <span class="self">self</span>.brillig_context.conditional_move_instruction(
-<a href=#1056 id=1056 data-nosnippet>1056</a>                    then_condition.address,
-<a href=#1057 id=1057 data-nosnippet>1057</a>                    then_vector.pointer,
-<a href=#1058 id=1058 data-nosnippet>1058</a>                    else_vector.pointer,
-<a href=#1059 id=1059 data-nosnippet>1059</a>                    <span class="kw-2">*</span>pointer,
-<a href=#1060 id=1060 data-nosnippet>1060</a>                );
-<a href=#1061 id=1061 data-nosnippet>1061</a>                <span class="kw">let </span>if_else_vector = BrilligVector { pointer: <span class="kw-2">*</span>pointer };
-<a href=#1062 id=1062 data-nosnippet>1062</a>                <span class="comment">// Copy the if-else vector to the result
-<a href=#1063 id=1063 data-nosnippet>1063</a>                </span><span class="self">self</span>.brillig_context
-<a href=#1064 id=1064 data-nosnippet>1064</a>                    .call_vector_copy_procedure(if_else_vector, result.extract_vector());
-<a href=#1065 id=1065 data-nosnippet>1065</a>            }
-<a href=#1066 id=1066 data-nosnippet>1066</a>            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE - then and else values must have the same type"</span>),
-<a href=#1067 id=1067 data-nosnippet>1067</a>        }
-<a href=#1068 id=1068 data-nosnippet>1068</a>    }
-<a href=#1069 id=1069 data-nosnippet>1069</a>}
-<a href=#1070 id=1070 data-nosnippet>1070</a>
-<a href=#1071 id=1071 data-nosnippet>1071</a><span class="doccomment">/// Returns the type of the operation considering the types of the operands.
-<a href=#1072 id=1072 data-nosnippet>1072</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>type_of_binary_operation(lhs_type: <span class="kw-2">&amp;</span>Type, rhs_type: <span class="kw-2">&amp;</span>Type) -&gt; Type {
-<a href=#1073 id=1073 data-nosnippet>1073</a>    <span class="kw">match </span>(lhs_type, rhs_type) {
-<a href=#1074 id=1074 data-nosnippet>1074</a>        (<span class="kw">_</span>, Type::Function) | (Type::Function, <span class="kw">_</span>) =&gt; {
-<a href=#1075 id=1075 data-nosnippet>1075</a>            <span class="macro">unreachable!</span>(<span class="string">"Functions are invalid in binary operations"</span>)
-<a href=#1076 id=1076 data-nosnippet>1076</a>        }
-<a href=#1077 id=1077 data-nosnippet>1077</a>        (<span class="kw">_</span>, Type::Reference(<span class="kw">_</span>)) | (Type::Reference(<span class="kw">_</span>), <span class="kw">_</span>) =&gt; {
-<a href=#1078 id=1078 data-nosnippet>1078</a>            <span class="macro">unreachable!</span>(<span class="string">"References are invalid in binary operations"</span>)
-<a href=#1079 id=1079 data-nosnippet>1079</a>        }
-<a href=#1080 id=1080 data-nosnippet>1080</a>        (<span class="kw">_</span>, Type::Array(..)) | (Type::Array(..), <span class="kw">_</span>) =&gt; {
-<a href=#1081 id=1081 data-nosnippet>1081</a>            <span class="macro">unreachable!</span>(<span class="string">"Arrays are invalid in binary operations"</span>)
+<a href=#818 id=818 data-nosnippet>818</a>    /// If the value has already been initialized in the global space, we return the already existing variable.
+<a href=#819 id=819 data-nosnippet>819</a>    ///
+<a href=#820 id=820 data-nosnippet>820</a>    /// If an SSA value is a [Value::Global], we check whether the value exists in the [BrilligBlock::globals] map,
+<a href=#821 id=821 data-nosnippet>821</a>    /// otherwise the method panics. All globals should already have been allocated at this point, we just need to
+<a href=#822 id=822 data-nosnippet>822</a>    /// look them up in [BrilligBlock::globals].
+<a href=#823 id=823 data-nosnippet>823</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>convert_ssa_value(
+<a href=#824 id=824 data-nosnippet>824</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#825 id=825 data-nosnippet>825</a>        value_id: ValueId,
+<a href=#826 id=826 data-nosnippet>826</a>        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+<a href=#827 id=827 data-nosnippet>827</a>    ) -&gt; BrilligVariable {
+<a href=#828 id=828 data-nosnippet>828</a>        <span class="comment">// Get the value; note that if the value is global, the DFG resolves it from its globals map.
+<a href=#829 id=829 data-nosnippet>829</a>        </span><span class="kw">let </span>value = <span class="kw-2">&amp;</span>dfg[value_id];
+<a href=#830 id=830 data-nosnippet>830</a>
+<a href=#831 id=831 data-nosnippet>831</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(variable) = <span class="self">self</span>.get_hoisted_global(dfg, value_id) {
+<a href=#832 id=832 data-nosnippet>832</a>            <span class="kw">return </span>variable;
+<a href=#833 id=833 data-nosnippet>833</a>        }
+<a href=#834 id=834 data-nosnippet>834</a>
+<a href=#835 id=835 data-nosnippet>835</a>        <span class="kw">match </span>value {
+<a href=#836 id=836 data-nosnippet>836</a>            Value::Global(<span class="kw">_</span>) =&gt; {
+<a href=#837 id=837 data-nosnippet>837</a>                <span class="comment">// We should not see the `Global` wrapper any more, because the DFG indexing resolves to the underlying `Value`
+<a href=#838 id=838 data-nosnippet>838</a>                // in the globals graph. We shouldn't have to convert the `Value`, just look up the `BrilligVariable` by its
+<a href=#839 id=839 data-nosnippet>839</a>                // `ValueId` in the `globals` mapping.
+<a href=#840 id=840 data-nosnippet>840</a>                </span><span class="macro">unreachable!</span>(<span class="string">"Expected global value to be resolve to its inner value by the DFG"</span>);
+<a href=#841 id=841 data-nosnippet>841</a>            }
+<a href=#842 id=842 data-nosnippet>842</a>            Value::Param { .. } | Value::Instruction { .. } =&gt; {
+<a href=#843 id=843 data-nosnippet>843</a>                <span class="comment">// All block parameters and instruction results should have already been
+<a href=#844 id=844 data-nosnippet>844</a>                // converted to registers so we fetch from the cache.
+<a href=#845 id=845 data-nosnippet>845</a>                </span><span class="kw">if </span>dfg.is_global(value_id) {
+<a href=#846 id=846 data-nosnippet>846</a>                    <span class="kw-2">*</span><span class="self">self</span>.globals.get(<span class="kw-2">&amp;</span>value_id).unwrap_or_else(|| {
+<a href=#847 id=847 data-nosnippet>847</a>                        <span class="macro">panic!</span>(<span class="string">"ICE: Global value allocation not found in cache {value_id}"</span>)
+<a href=#848 id=848 data-nosnippet>848</a>                    })
+<a href=#849 id=849 data-nosnippet>849</a>                } <span class="kw">else </span>{
+<a href=#850 id=850 data-nosnippet>850</a>                    <span class="comment">// Check if spilled, reload if needed
+<a href=#851 id=851 data-nosnippet>851</a>                    </span><span class="kw">if </span><span class="self">self</span>.is_spilled(<span class="kw-2">&amp;</span>value_id) {
+<a href=#852 id=852 data-nosnippet>852</a>                        <span class="kw">return </span><span class="self">self</span>.reload_spilled_value(value_id);
+<a href=#853 id=853 data-nosnippet>853</a>                    }
+<a href=#854 id=854 data-nosnippet>854</a>                    <span class="kw">let </span>var = <span class="self">self</span>.variables.get_allocation(<span class="self">self</span>.function_context, value_id);
+<a href=#855 id=855 data-nosnippet>855</a>                    <span class="kw">if let </span><span class="prelude-val">Some</span>(sm) = <span class="self">self</span>.function_context.spill_manager.as_mut() {
+<a href=#856 id=856 data-nosnippet>856</a>                        sm.touch(value_id);
+<a href=#857 id=857 data-nosnippet>857</a>                    }
+<a href=#858 id=858 data-nosnippet>858</a>                    var
+<a href=#859 id=859 data-nosnippet>859</a>                }
+<a href=#860 id=860 data-nosnippet>860</a>            }
+<a href=#861 id=861 data-nosnippet>861</a>            Value::NumericConstant { constant, .. } =&gt; {
+<a href=#862 id=862 data-nosnippet>862</a>                <span class="comment">// Check if spilled before is_allocated — spilled values are filtered
+<a href=#863 id=863 data-nosnippet>863</a>                // out of available_variables at block entry, so is_allocated would
+<a href=#864 id=864 data-nosnippet>864</a>                // return false even though the value exists.
+<a href=#865 id=865 data-nosnippet>865</a>                </span><span class="kw">if </span><span class="self">self</span>.is_spilled(<span class="kw-2">&amp;</span>value_id) {
+<a href=#866 id=866 data-nosnippet>866</a>                    <span class="kw">return </span><span class="self">self</span>.reload_spilled_value(value_id);
+<a href=#867 id=867 data-nosnippet>867</a>                }
+<a href=#868 id=868 data-nosnippet>868</a>                <span class="comment">// Constants might have been converted previously or not, so we get or create and
+<a href=#869 id=869 data-nosnippet>869</a>                // (re)initialize the value inside.
+<a href=#870 id=870 data-nosnippet>870</a>                </span><span class="kw">if </span><span class="self">self</span>.variables.is_allocated(<span class="kw-2">&amp;</span>value_id) {
+<a href=#871 id=871 data-nosnippet>871</a>                    <span class="kw">let </span>var = <span class="self">self</span>.variables.get_allocation(<span class="self">self</span>.function_context, value_id);
+<a href=#872 id=872 data-nosnippet>872</a>                    <span class="kw">if let </span><span class="prelude-val">Some</span>(sm) = <span class="self">self</span>.function_context.spill_manager.as_mut() {
+<a href=#873 id=873 data-nosnippet>873</a>                        sm.touch(value_id);
+<a href=#874 id=874 data-nosnippet>874</a>                    }
+<a href=#875 id=875 data-nosnippet>875</a>                    var
+<a href=#876 id=876 data-nosnippet>876</a>                } <span class="kw">else if </span>dfg.is_global(value_id) {
+<a href=#877 id=877 data-nosnippet>877</a>                    <span class="kw-2">*</span><span class="self">self</span>.globals.get(<span class="kw-2">&amp;</span>value_id).unwrap_or_else(|| {
+<a href=#878 id=878 data-nosnippet>878</a>                        <span class="macro">panic!</span>(<span class="string">"ICE: Global value allocation not found in cache {value_id}"</span>)
+<a href=#879 id=879 data-nosnippet>879</a>                    })
+<a href=#880 id=880 data-nosnippet>880</a>                } <span class="kw">else </span>{
+<a href=#881 id=881 data-nosnippet>881</a>                    <span class="kw">let </span>new_variable = <span class="self">self</span>.define_variable(value_id, dfg);
+<a href=#882 id=882 data-nosnippet>882</a>
+<a href=#883 id=883 data-nosnippet>883</a>                    <span class="self">self</span>.brillig_context
+<a href=#884 id=884 data-nosnippet>884</a>                        .const_instruction(new_variable.extract_single_addr(), <span class="kw-2">*</span>constant);
+<a href=#885 id=885 data-nosnippet>885</a>                    new_variable
+<a href=#886 id=886 data-nosnippet>886</a>                }
+<a href=#887 id=887 data-nosnippet>887</a>            }
+<a href=#888 id=888 data-nosnippet>888</a>            Value::Function(<span class="kw">_</span>) =&gt; {
+<a href=#889 id=889 data-nosnippet>889</a>                <span class="comment">// For the debugger instrumentation we want to allow passing
+<a href=#890 id=890 data-nosnippet>890</a>                // around values representing function pointers, even though
+<a href=#891 id=891 data-nosnippet>891</a>                // there is no interaction with the function possible given that
+<a href=#892 id=892 data-nosnippet>892</a>                // value.
+<a href=#893 id=893 data-nosnippet>893</a>                </span><span class="kw">let </span>new_variable = <span class="self">self</span>.define_variable(value_id, dfg);
+<a href=#894 id=894 data-nosnippet>894</a>
+<a href=#895 id=895 data-nosnippet>895</a>                <span class="self">self</span>.brillig_context.const_instruction(
+<a href=#896 id=896 data-nosnippet>896</a>                    new_variable.extract_single_addr(),
+<a href=#897 id=897 data-nosnippet>897</a>                    value_id.to_u32().into(),
+<a href=#898 id=898 data-nosnippet>898</a>                );
+<a href=#899 id=899 data-nosnippet>899</a>                new_variable
+<a href=#900 id=900 data-nosnippet>900</a>            }
+<a href=#901 id=901 data-nosnippet>901</a>            Value::Intrinsic(<span class="kw">_</span>) | Value::ForeignFunction(<span class="kw">_</span>) =&gt; {
+<a href=#902 id=902 data-nosnippet>902</a>                <span class="macro">unreachable!</span>(<span class="string">"ICE: Cannot convert value to Brillig: {value:?}"</span>)
+<a href=#903 id=903 data-nosnippet>903</a>            }
+<a href=#904 id=904 data-nosnippet>904</a>        }
+<a href=#905 id=905 data-nosnippet>905</a>    }
+<a href=#906 id=906 data-nosnippet>906</a>
+<a href=#907 id=907 data-nosnippet>907</a>    <span class="doccomment">/// Converts an SSA `ValueId` into a single `MemoryAddress`. Initializes if necessary.
+<a href=#908 id=908 data-nosnippet>908</a>    ///
+<a href=#909 id=909 data-nosnippet>909</a>    /// Panics if the value was converted to an array or vector.
+<a href=#910 id=910 data-nosnippet>910</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>convert_ssa_single_addr_value(
+<a href=#911 id=911 data-nosnippet>911</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#912 id=912 data-nosnippet>912</a>        value_id: ValueId,
+<a href=#913 id=913 data-nosnippet>913</a>        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+<a href=#914 id=914 data-nosnippet>914</a>    ) -&gt; SingleAddrVariable {
+<a href=#915 id=915 data-nosnippet>915</a>        <span class="kw">let </span>variable = <span class="self">self</span>.convert_ssa_value(value_id, dfg);
+<a href=#916 id=916 data-nosnippet>916</a>        variable.extract_single_addr()
+<a href=#917 id=917 data-nosnippet>917</a>    }
+<a href=#918 id=918 data-nosnippet>918</a>
+<a href=#919 id=919 data-nosnippet>919</a>    <span class="doccomment">/// If the supplied value is a numeric constant check whether it is exists within
+<a href=#920 id=920 data-nosnippet>920</a>    /// the precomputed [hoisted globals map][Self::hoisted_global_constants].
+<a href=#921 id=921 data-nosnippet>921</a>    /// If the variable exists as a hoisted global return that value, otherwise return `None`.
+<a href=#922 id=922 data-nosnippet>922</a>    </span><span class="kw">fn </span>get_hoisted_global(
+<a href=#923 id=923 data-nosnippet>923</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#924 id=924 data-nosnippet>924</a>        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+<a href=#925 id=925 data-nosnippet>925</a>        value_id: ValueId,
+<a href=#926 id=926 data-nosnippet>926</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;BrilligVariable&gt; {
+<a href=#927 id=927 data-nosnippet>927</a>        <span class="kw">if let </span>Value::NumericConstant { constant, typ } = <span class="kw-2">&amp;</span>dfg[value_id]
+<a href=#928 id=928 data-nosnippet>928</a>            &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(variable) = <span class="self">self</span>.hoisted_global_constants.get(<span class="kw-2">&amp;</span>(<span class="kw-2">*</span>constant, <span class="kw-2">*</span>typ))
+<a href=#929 id=929 data-nosnippet>929</a>        {
+<a href=#930 id=930 data-nosnippet>930</a>            <span class="kw">return </span><span class="prelude-val">Some</span>(<span class="kw-2">*</span>variable);
+<a href=#931 id=931 data-nosnippet>931</a>        }
+<a href=#932 id=932 data-nosnippet>932</a>        <span class="prelude-val">None
+<a href=#933 id=933 data-nosnippet>933</a>    </span>}
+<a href=#934 id=934 data-nosnippet>934</a>
+<a href=#935 id=935 data-nosnippet>935</a>    <span class="doccomment">/// Define the result variable, convert the value, then generate Brillig opcodes to negate the variable.
+<a href=#936 id=936 data-nosnippet>936</a>    </span><span class="kw">fn </span>codegen_not(<span class="kw-2">&amp;mut </span><span class="self">self</span>, instruction_id: InstructionId, value: ValueId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) {
+<a href=#937 id=937 data-nosnippet>937</a>        <span class="kw">let </span>[result_id] = dfg.instruction_result(instruction_id);
+<a href=#938 id=938 data-nosnippet>938</a>        <span class="kw">let </span>condition_register = <span class="self">self</span>.convert_ssa_single_addr_value(value, dfg);
+<a href=#939 id=939 data-nosnippet>939</a>        <span class="kw">let </span>result_register = <span class="self">self</span>.define_single_addr_variable(result_id, dfg);
+<a href=#940 id=940 data-nosnippet>940</a>        <span class="self">self</span>.brillig_context.not_instruction(condition_register, result_register);
+<a href=#941 id=941 data-nosnippet>941</a>    }
+<a href=#942 id=942 data-nosnippet>942</a>
+<a href=#943 id=943 data-nosnippet>943</a>    <span class="doccomment">/// Define the result variable, convert the value, then generate Brillig opcodes to truncate the variable.
+<a href=#944 id=944 data-nosnippet>944</a>    </span><span class="kw">fn </span>codegen_truncate(
+<a href=#945 id=945 data-nosnippet>945</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#946 id=946 data-nosnippet>946</a>        instruction_id: InstructionId,
+<a href=#947 id=947 data-nosnippet>947</a>        value: ValueId,
+<a href=#948 id=948 data-nosnippet>948</a>        bit_size: u32,
+<a href=#949 id=949 data-nosnippet>949</a>        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+<a href=#950 id=950 data-nosnippet>950</a>    ) {
+<a href=#951 id=951 data-nosnippet>951</a>        <span class="kw">let </span>[result_id] = dfg.instruction_result(instruction_id);
+<a href=#952 id=952 data-nosnippet>952</a>        <span class="kw">let </span>destination_register = <span class="self">self</span>.define_single_addr_variable(result_id, dfg);
+<a href=#953 id=953 data-nosnippet>953</a>        <span class="kw">let </span>source_register = <span class="self">self</span>.convert_ssa_single_addr_value(value, dfg);
+<a href=#954 id=954 data-nosnippet>954</a>        <span class="self">self</span>.brillig_context.codegen_truncate(destination_register, source_register, bit_size);
+<a href=#955 id=955 data-nosnippet>955</a>    }
+<a href=#956 id=956 data-nosnippet>956</a>
+<a href=#957 id=957 data-nosnippet>957</a>    <span class="doccomment">/// Define the result variable, convert the value, then generate Brillig opcodes to truncate the variable.
+<a href=#958 id=958 data-nosnippet>958</a>    </span><span class="kw">fn </span>codegen_cast(<span class="kw-2">&amp;mut </span><span class="self">self</span>, instruction_id: InstructionId, value: ValueId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) {
+<a href=#959 id=959 data-nosnippet>959</a>        <span class="kw">let </span>[result_id] = dfg.instruction_result(instruction_id);
+<a href=#960 id=960 data-nosnippet>960</a>        <span class="kw">let </span>destination_variable = <span class="self">self</span>.define_single_addr_variable(result_id, dfg);
+<a href=#961 id=961 data-nosnippet>961</a>        <span class="kw">let </span>source_variable = <span class="self">self</span>.convert_ssa_single_addr_value(value, dfg);
+<a href=#962 id=962 data-nosnippet>962</a>        <span class="self">self</span>.convert_cast(destination_variable, source_variable);
+<a href=#963 id=963 data-nosnippet>963</a>    }
+<a href=#964 id=964 data-nosnippet>964</a>
+<a href=#965 id=965 data-nosnippet>965</a>    <span class="doccomment">/// Convert the value, and if its bit size is larger than the maximum bit size,
+<a href=#966 id=966 data-nosnippet>966</a>    /// then generate opcodes to constrain the value to be no greater than the maximum
+<a href=#967 id=967 data-nosnippet>967</a>    /// value as a `Field`.
+<a href=#968 id=968 data-nosnippet>968</a>    </span><span class="kw">fn </span>codegen_range_check(
+<a href=#969 id=969 data-nosnippet>969</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#970 id=970 data-nosnippet>970</a>        value: ValueId,
+<a href=#971 id=971 data-nosnippet>971</a>        max_bit_size: u32,
+<a href=#972 id=972 data-nosnippet>972</a>        assert_message: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>String&gt;,
+<a href=#973 id=973 data-nosnippet>973</a>        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+<a href=#974 id=974 data-nosnippet>974</a>    ) {
+<a href=#975 id=975 data-nosnippet>975</a>        <span class="kw">let </span>value = <span class="self">self</span>.convert_ssa_single_addr_value(value, dfg);
+<a href=#976 id=976 data-nosnippet>976</a>        <span class="comment">// SSA generates redundant range checks. A range check with a max bit size &gt;= value.bit_size will always pass.
+<a href=#977 id=977 data-nosnippet>977</a>        </span><span class="kw">if </span>value.bit_size &gt; max_bit_size {
+<a href=#978 id=978 data-nosnippet>978</a>            <span class="comment">// Cast original value to field
+<a href=#979 id=979 data-nosnippet>979</a>            </span><span class="kw">let </span>left = <span class="self">self</span>.brillig_context.allocate_single_addr(FieldElement::max_num_bits());
+<a href=#980 id=980 data-nosnippet>980</a>            <span class="self">self</span>.convert_cast(<span class="kw-2">*</span>left, value);
+<a href=#981 id=981 data-nosnippet>981</a>
+<a href=#982 id=982 data-nosnippet>982</a>            <span class="comment">// Create a field constant with the max
+<a href=#983 id=983 data-nosnippet>983</a>            </span><span class="kw">let </span>max = BigUint::from(<span class="number">2_u128</span>).pow(max_bit_size) - BigUint::from(<span class="number">1_u128</span>);
+<a href=#984 id=984 data-nosnippet>984</a>            <span class="kw">let </span>right = <span class="self">self</span>.brillig_context.make_constant_instruction(
+<a href=#985 id=985 data-nosnippet>985</a>                FieldElement::from_be_bytes_reduce(<span class="kw-2">&amp;</span>max.to_bytes_be()),
+<a href=#986 id=986 data-nosnippet>986</a>                FieldElement::max_num_bits(),
+<a href=#987 id=987 data-nosnippet>987</a>            );
+<a href=#988 id=988 data-nosnippet>988</a>
+<a href=#989 id=989 data-nosnippet>989</a>            <span class="comment">// Check if lte max
+<a href=#990 id=990 data-nosnippet>990</a>            </span><span class="kw">let </span>condition = <span class="self">self</span>.brillig_context.allocate_single_addr_bool();
+<a href=#991 id=991 data-nosnippet>991</a>            <span class="self">self</span>.brillig_context.binary_instruction(
+<a href=#992 id=992 data-nosnippet>992</a>                <span class="kw-2">*</span>left,
+<a href=#993 id=993 data-nosnippet>993</a>                <span class="kw-2">*</span>right,
+<a href=#994 id=994 data-nosnippet>994</a>                <span class="kw-2">*</span>condition,
+<a href=#995 id=995 data-nosnippet>995</a>                BrilligBinaryOp::LessThanEquals,
+<a href=#996 id=996 data-nosnippet>996</a>            );
+<a href=#997 id=997 data-nosnippet>997</a>
+<a href=#998 id=998 data-nosnippet>998</a>            <span class="self">self</span>.brillig_context.codegen_constrain(<span class="kw-2">*</span>condition, assert_message.cloned());
+<a href=#999 id=999 data-nosnippet>999</a>        }
+<a href=#1000 id=1000 data-nosnippet>1000</a>    }
+<a href=#1001 id=1001 data-nosnippet>1001</a>
+<a href=#1002 id=1002 data-nosnippet>1002</a>    <span class="doccomment">/// Convert the condition and the values, define a variable for the result,
+<a href=#1003 id=1003 data-nosnippet>1003</a>    /// then generate opcodes for a conditional move.
+<a href=#1004 id=1004 data-nosnippet>1004</a>    ///
+<a href=#1005 id=1005 data-nosnippet>1005</a>    /// Panics if the `then_value` and `else_value` are incompatible.
+<a href=#1006 id=1006 data-nosnippet>1006</a>    </span><span class="kw">fn </span>codegen_if_else(
+<a href=#1007 id=1007 data-nosnippet>1007</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#1008 id=1008 data-nosnippet>1008</a>        instruction_id: InstructionId,
+<a href=#1009 id=1009 data-nosnippet>1009</a>        then_condition: ValueId,
+<a href=#1010 id=1010 data-nosnippet>1010</a>        then_value: ValueId,
+<a href=#1011 id=1011 data-nosnippet>1011</a>        else_value: ValueId,
+<a href=#1012 id=1012 data-nosnippet>1012</a>        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+<a href=#1013 id=1013 data-nosnippet>1013</a>    ) {
+<a href=#1014 id=1014 data-nosnippet>1014</a>        <span class="kw">let </span>then_condition = <span class="self">self</span>.convert_ssa_single_addr_value(then_condition, dfg);
+<a href=#1015 id=1015 data-nosnippet>1015</a>        <span class="kw">let </span>then_value = <span class="self">self</span>.convert_ssa_value(then_value, dfg);
+<a href=#1016 id=1016 data-nosnippet>1016</a>        <span class="kw">let </span>else_value = <span class="self">self</span>.convert_ssa_value(else_value, dfg);
+<a href=#1017 id=1017 data-nosnippet>1017</a>
+<a href=#1018 id=1018 data-nosnippet>1018</a>        <span class="kw">let </span>[result_id] = dfg.instruction_result(instruction_id);
+<a href=#1019 id=1019 data-nosnippet>1019</a>        <span class="kw">let </span>result = <span class="self">self</span>.define_variable(result_id, dfg);
+<a href=#1020 id=1020 data-nosnippet>1020</a>
+<a href=#1021 id=1021 data-nosnippet>1021</a>        <span class="kw">match </span>(then_value, else_value) {
+<a href=#1022 id=1022 data-nosnippet>1022</a>            (
+<a href=#1023 id=1023 data-nosnippet>1023</a>                BrilligVariable::SingleAddr(then_address),
+<a href=#1024 id=1024 data-nosnippet>1024</a>                BrilligVariable::SingleAddr(else_address),
+<a href=#1025 id=1025 data-nosnippet>1025</a>            ) =&gt; {
+<a href=#1026 id=1026 data-nosnippet>1026</a>                <span class="self">self</span>.brillig_context.conditional_move_instruction(
+<a href=#1027 id=1027 data-nosnippet>1027</a>                    then_condition.address,
+<a href=#1028 id=1028 data-nosnippet>1028</a>                    then_address.address,
+<a href=#1029 id=1029 data-nosnippet>1029</a>                    else_address.address,
+<a href=#1030 id=1030 data-nosnippet>1030</a>                    result.extract_single_addr().address,
+<a href=#1031 id=1031 data-nosnippet>1031</a>                );
+<a href=#1032 id=1032 data-nosnippet>1032</a>            }
+<a href=#1033 id=1033 data-nosnippet>1033</a>            (
+<a href=#1034 id=1034 data-nosnippet>1034</a>                BrilligVariable::BrilligArray(then_array),
+<a href=#1035 id=1035 data-nosnippet>1035</a>                BrilligVariable::BrilligArray(else_array),
+<a href=#1036 id=1036 data-nosnippet>1036</a>            ) =&gt; {
+<a href=#1037 id=1037 data-nosnippet>1037</a>                <span class="macro">debug_assert_eq!</span>(
+<a href=#1038 id=1038 data-nosnippet>1038</a>                    then_array.size, else_array.size,
+<a href=#1039 id=1039 data-nosnippet>1039</a>                    <span class="string">"ICE: then and else arrays in if-else must have the same size, but got {} and {}"</span>,
+<a href=#1040 id=1040 data-nosnippet>1040</a>                    then_array.size, else_array.size
+<a href=#1041 id=1041 data-nosnippet>1041</a>                );
+<a href=#1042 id=1042 data-nosnippet>1042</a>                <span class="comment">// Pointer to the array which result from the if-else
+<a href=#1043 id=1043 data-nosnippet>1043</a>                </span><span class="kw">let </span>pointer = <span class="self">self</span>.brillig_context.allocate_register();
+<a href=#1044 id=1044 data-nosnippet>1044</a>                <span class="self">self</span>.brillig_context.conditional_move_instruction(
+<a href=#1045 id=1045 data-nosnippet>1045</a>                    then_condition.address,
+<a href=#1046 id=1046 data-nosnippet>1046</a>                    then_array.pointer,
+<a href=#1047 id=1047 data-nosnippet>1047</a>                    else_array.pointer,
+<a href=#1048 id=1048 data-nosnippet>1048</a>                    <span class="kw-2">*</span>pointer,
+<a href=#1049 id=1049 data-nosnippet>1049</a>                );
+<a href=#1050 id=1050 data-nosnippet>1050</a>                <span class="kw">let </span>if_else_array = BrilligArray { pointer: <span class="kw-2">*</span>pointer, size: then_array.size };
+<a href=#1051 id=1051 data-nosnippet>1051</a>                <span class="comment">// Copy the if-else array to the result
+<a href=#1052 id=1052 data-nosnippet>1052</a>                </span><span class="self">self</span>.brillig_context
+<a href=#1053 id=1053 data-nosnippet>1053</a>                    .call_array_copy_procedure(if_else_array, result.extract_array());
+<a href=#1054 id=1054 data-nosnippet>1054</a>            }
+<a href=#1055 id=1055 data-nosnippet>1055</a>            (
+<a href=#1056 id=1056 data-nosnippet>1056</a>                BrilligVariable::BrilligVector(then_vector),
+<a href=#1057 id=1057 data-nosnippet>1057</a>                BrilligVariable::BrilligVector(else_vector),
+<a href=#1058 id=1058 data-nosnippet>1058</a>            ) =&gt; {
+<a href=#1059 id=1059 data-nosnippet>1059</a>                <span class="comment">// Pointer to the vector which result from the if-else
+<a href=#1060 id=1060 data-nosnippet>1060</a>                </span><span class="kw">let </span>pointer = <span class="self">self</span>.brillig_context.allocate_register();
+<a href=#1061 id=1061 data-nosnippet>1061</a>                <span class="self">self</span>.brillig_context.conditional_move_instruction(
+<a href=#1062 id=1062 data-nosnippet>1062</a>                    then_condition.address,
+<a href=#1063 id=1063 data-nosnippet>1063</a>                    then_vector.pointer,
+<a href=#1064 id=1064 data-nosnippet>1064</a>                    else_vector.pointer,
+<a href=#1065 id=1065 data-nosnippet>1065</a>                    <span class="kw-2">*</span>pointer,
+<a href=#1066 id=1066 data-nosnippet>1066</a>                );
+<a href=#1067 id=1067 data-nosnippet>1067</a>                <span class="kw">let </span>if_else_vector = BrilligVector { pointer: <span class="kw-2">*</span>pointer };
+<a href=#1068 id=1068 data-nosnippet>1068</a>                <span class="comment">// Copy the if-else vector to the result
+<a href=#1069 id=1069 data-nosnippet>1069</a>                </span><span class="self">self</span>.brillig_context
+<a href=#1070 id=1070 data-nosnippet>1070</a>                    .call_vector_copy_procedure(if_else_vector, result.extract_vector());
+<a href=#1071 id=1071 data-nosnippet>1071</a>            }
+<a href=#1072 id=1072 data-nosnippet>1072</a>            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE - then and else values must have the same type"</span>),
+<a href=#1073 id=1073 data-nosnippet>1073</a>        }
+<a href=#1074 id=1074 data-nosnippet>1074</a>    }
+<a href=#1075 id=1075 data-nosnippet>1075</a>}
+<a href=#1076 id=1076 data-nosnippet>1076</a>
+<a href=#1077 id=1077 data-nosnippet>1077</a><span class="doccomment">/// Returns the type of the operation considering the types of the operands.
+<a href=#1078 id=1078 data-nosnippet>1078</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>type_of_binary_operation(lhs_type: <span class="kw-2">&amp;</span>Type, rhs_type: <span class="kw-2">&amp;</span>Type) -&gt; Type {
+<a href=#1079 id=1079 data-nosnippet>1079</a>    <span class="kw">match </span>(lhs_type, rhs_type) {
+<a href=#1080 id=1080 data-nosnippet>1080</a>        (<span class="kw">_</span>, Type::Function) | (Type::Function, <span class="kw">_</span>) =&gt; {
+<a href=#1081 id=1081 data-nosnippet>1081</a>            <span class="macro">unreachable!</span>(<span class="string">"Functions are invalid in binary operations"</span>)
 <a href=#1082 id=1082 data-nosnippet>1082</a>        }
-<a href=#1083 id=1083 data-nosnippet>1083</a>        (<span class="kw">_</span>, Type::Vector(..)) | (Type::Vector(..), <span class="kw">_</span>) =&gt; {
-<a href=#1084 id=1084 data-nosnippet>1084</a>            <span class="macro">unreachable!</span>(<span class="string">"Arrays are invalid in binary operations"</span>)
+<a href=#1083 id=1083 data-nosnippet>1083</a>        (<span class="kw">_</span>, Type::Reference(<span class="kw">_</span>)) | (Type::Reference(<span class="kw">_</span>), <span class="kw">_</span>) =&gt; {
+<a href=#1084 id=1084 data-nosnippet>1084</a>            <span class="macro">unreachable!</span>(<span class="string">"References are invalid in binary operations"</span>)
 <a href=#1085 id=1085 data-nosnippet>1085</a>        }
-<a href=#1086 id=1086 data-nosnippet>1086</a>        (Type::Numeric(lhs_type), Type::Numeric(rhs_type)) =&gt; {
-<a href=#1087 id=1087 data-nosnippet>1087</a>            <span class="comment">// If both sides are numeric type, then we expect their types to be the same.
-<a href=#1088 id=1088 data-nosnippet>1088</a>            // For SHL and SHR they are also expected to be the same, but the SHR value itself cannot exceed the bit size.
-<a href=#1089 id=1089 data-nosnippet>1089</a>            </span><span class="macro">assert_eq!</span>(
-<a href=#1090 id=1090 data-nosnippet>1090</a>                lhs_type, rhs_type,
-<a href=#1091 id=1091 data-nosnippet>1091</a>                <span class="string">"lhs and rhs types in a binary operation are always the same but got {lhs_type} and {rhs_type}"
-<a href=#1092 id=1092 data-nosnippet>1092</a>            </span>);
-<a href=#1093 id=1093 data-nosnippet>1093</a>            Type::Numeric(<span class="kw-2">*</span>lhs_type)
-<a href=#1094 id=1094 data-nosnippet>1094</a>        }
-<a href=#1095 id=1095 data-nosnippet>1095</a>    }
-<a href=#1096 id=1096 data-nosnippet>1096</a>}
-<a href=#1097 id=1097 data-nosnippet>1097</a>
-<a href=#1098 id=1098 data-nosnippet>1098</a><span class="doccomment">/// Filter a block's live-in set to exclude globals and hoisted global constants.
-<a href=#1099 id=1099 data-nosnippet>1099</a></span><span class="kw">fn </span>live_in_no_globals(
-<a href=#1100 id=1100 data-nosnippet>1100</a>    live_in: <span class="kw-2">&amp;</span>HashSet&lt;ValueId&gt;,
-<a href=#1101 id=1101 data-nosnippet>1101</a>    dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
-<a href=#1102 id=1102 data-nosnippet>1102</a>    hoisted_global_constants: <span class="kw-2">&amp;</span>HoistedConstantsToBrilligGlobals,
-<a href=#1103 id=1103 data-nosnippet>1103</a>) -&gt; HashSet&lt;ValueId&gt; {
-<a href=#1104 id=1104 data-nosnippet>1104</a>    live_in
-<a href=#1105 id=1105 data-nosnippet>1105</a>        .iter()
-<a href=#1106 id=1106 data-nosnippet>1106</a>        .copied()
-<a href=#1107 id=1107 data-nosnippet>1107</a>        .filter(|<span class="kw-2">&amp;</span>value| {
-<a href=#1108 id=1108 data-nosnippet>1108</a>            <span class="kw">if let </span>Value::NumericConstant { constant, typ } = dfg[value]
-<a href=#1109 id=1109 data-nosnippet>1109</a>                &amp;&amp; hoisted_global_constants.contains_key(<span class="kw-2">&amp;</span>(constant, typ))
-<a href=#1110 id=1110 data-nosnippet>1110</a>            {
-<a href=#1111 id=1111 data-nosnippet>1111</a>                <span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#1112 id=1112 data-nosnippet>1112</a>            }
-<a href=#1113 id=1113 data-nosnippet>1113</a>            !dfg.is_global(value)
-<a href=#1114 id=1114 data-nosnippet>1114</a>        })
-<a href=#1115 id=1115 data-nosnippet>1115</a>        .collect()
-<a href=#1116 id=1116 data-nosnippet>1116</a>}</code></pre></div></section></main></body></html>
+<a href=#1086 id=1086 data-nosnippet>1086</a>        (<span class="kw">_</span>, Type::Array(..)) | (Type::Array(..), <span class="kw">_</span>) =&gt; {
+<a href=#1087 id=1087 data-nosnippet>1087</a>            <span class="macro">unreachable!</span>(<span class="string">"Arrays are invalid in binary operations"</span>)
+<a href=#1088 id=1088 data-nosnippet>1088</a>        }
+<a href=#1089 id=1089 data-nosnippet>1089</a>        (<span class="kw">_</span>, Type::Vector(..)) | (Type::Vector(..), <span class="kw">_</span>) =&gt; {
+<a href=#1090 id=1090 data-nosnippet>1090</a>            <span class="macro">unreachable!</span>(<span class="string">"Arrays are invalid in binary operations"</span>)
+<a href=#1091 id=1091 data-nosnippet>1091</a>        }
+<a href=#1092 id=1092 data-nosnippet>1092</a>        (Type::Numeric(lhs_type), Type::Numeric(rhs_type)) =&gt; {
+<a href=#1093 id=1093 data-nosnippet>1093</a>            <span class="comment">// If both sides are numeric type, then we expect their types to be the same.
+<a href=#1094 id=1094 data-nosnippet>1094</a>            // For SHL and SHR they are also expected to be the same, but the SHR value itself cannot exceed the bit size.
+<a href=#1095 id=1095 data-nosnippet>1095</a>            </span><span class="macro">assert_eq!</span>(
+<a href=#1096 id=1096 data-nosnippet>1096</a>                lhs_type, rhs_type,
+<a href=#1097 id=1097 data-nosnippet>1097</a>                <span class="string">"lhs and rhs types in a binary operation are always the same but got {lhs_type} and {rhs_type}"
+<a href=#1098 id=1098 data-nosnippet>1098</a>            </span>);
+<a href=#1099 id=1099 data-nosnippet>1099</a>            Type::Numeric(<span class="kw-2">*</span>lhs_type)
+<a href=#1100 id=1100 data-nosnippet>1100</a>        }
+<a href=#1101 id=1101 data-nosnippet>1101</a>    }
+<a href=#1102 id=1102 data-nosnippet>1102</a>}
+<a href=#1103 id=1103 data-nosnippet>1103</a>
+<a href=#1104 id=1104 data-nosnippet>1104</a><span class="doccomment">/// Filter a block's live-in set to exclude globals and hoisted global constants.
+<a href=#1105 id=1105 data-nosnippet>1105</a></span><span class="kw">fn </span>live_in_no_globals(
+<a href=#1106 id=1106 data-nosnippet>1106</a>    live_in: <span class="kw-2">&amp;</span>HashSet&lt;ValueId&gt;,
+<a href=#1107 id=1107 data-nosnippet>1107</a>    dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+<a href=#1108 id=1108 data-nosnippet>1108</a>    hoisted_global_constants: <span class="kw-2">&amp;</span>HoistedConstantsToBrilligGlobals,
+<a href=#1109 id=1109 data-nosnippet>1109</a>) -&gt; HashSet&lt;ValueId&gt; {
+<a href=#1110 id=1110 data-nosnippet>1110</a>    live_in
+<a href=#1111 id=1111 data-nosnippet>1111</a>        .iter()
+<a href=#1112 id=1112 data-nosnippet>1112</a>        .copied()
+<a href=#1113 id=1113 data-nosnippet>1113</a>        .filter(|<span class="kw-2">&amp;</span>value| {
+<a href=#1114 id=1114 data-nosnippet>1114</a>            <span class="kw">if let </span>Value::NumericConstant { constant, typ } = dfg[value]
+<a href=#1115 id=1115 data-nosnippet>1115</a>                &amp;&amp; hoisted_global_constants.contains_key(<span class="kw-2">&amp;</span>(constant, typ))
+<a href=#1116 id=1116 data-nosnippet>1116</a>            {
+<a href=#1117 id=1117 data-nosnippet>1117</a>                <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#1118 id=1118 data-nosnippet>1118</a>            }
+<a href=#1119 id=1119 data-nosnippet>1119</a>            !dfg.is_global(value)
+<a href=#1120 id=1120 data-nosnippet>1120</a>        })
+<a href=#1121 id=1121 data-nosnippet>1121</a>        .collect()
+<a href=#1122 id=1122 data-nosnippet>1122</a>}</code></pre></div></section></main></body></html>
