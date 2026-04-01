@@ -14,7 +14,7 @@ use noir_ssa_fuzzer::{
 use noirc_evaluator::ssa::ir::{basic_block::BasicBlockId, function::Function, map::Id};
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::{BTreeMap, HashMap, HashSet, VecDeque},
+    collections::{BTreeMap, HashSet, VecDeque},
     hash::Hash,
 };
 use strum_macros::EnumCount;
@@ -108,9 +108,9 @@ pub(crate) struct FuzzerFunctionContext<'a> {
     /// Instruction blocks
     instruction_blocks: &'a Vec<InstructionBlock>,
     /// Hashmap of stored variables in blocks
-    stored_variables_for_block: HashMap<BasicBlockId, HashMap<Type, Vec<TypedValue>>>,
+    stored_variables_for_block: BTreeMap<BasicBlockId, BTreeMap<Type, Vec<TypedValue>>>,
     /// Hashmap of stored blocks
-    stored_blocks: HashMap<BasicBlockId, StoredBlock>,
+    stored_blocks: BTreeMap<BasicBlockId, StoredBlock>,
     /// Options of the program context
     function_context_options: FunctionContextOptions,
     /// Number of instructions inserted in the program
@@ -119,7 +119,7 @@ pub(crate) struct FuzzerFunctionContext<'a> {
     inserted_ssa_blocks_count: usize,
 
     /// Stored cycles info, to handle loops in Jmp, JmpIf and finalization
-    cycle_bodies_to_iters_ids: HashMap<BasicBlockId, CycleInfo>,
+    cycle_bodies_to_iters_ids: BTreeMap<BasicBlockId, CycleInfo>,
     /// Number of iterations of loops in the program
     parent_iterations_count: usize,
 
@@ -138,7 +138,7 @@ impl<'a> FuzzerFunctionContext<'a> {
         defined_functions: BTreeMap<Id<Function>, FunctionInfo>,
         builder: &'a mut FuzzerBuilder,
     ) -> Self {
-        let mut ids = HashMap::new();
+        let mut ids = BTreeMap::new();
         for type_ in types {
             let id = builder.insert_variable(type_.clone().into());
             ids.entry(type_.clone()).or_insert(Vec::new()).push(id);
@@ -159,12 +159,12 @@ impl<'a> FuzzerFunctionContext<'a> {
             current_block,
             not_terminated_blocks: VecDeque::new(),
             instruction_blocks,
-            stored_variables_for_block: HashMap::new(),
-            stored_blocks: HashMap::new(),
+            stored_variables_for_block: BTreeMap::new(),
+            stored_blocks: BTreeMap::new(),
             function_context_options: context_options,
             inserted_instructions_count: 0,
             inserted_ssa_blocks_count: 0,
-            cycle_bodies_to_iters_ids: HashMap::new(),
+            cycle_bodies_to_iters_ids: BTreeMap::new(),
             parent_iterations_count: 1,
             defined_functions,
             return_type,
@@ -182,7 +182,7 @@ impl<'a> FuzzerFunctionContext<'a> {
         defined_functions: BTreeMap<Id<Function>, FunctionInfo>,
         builder: &'a mut FuzzerBuilder,
     ) -> Self {
-        let mut ids = HashMap::new();
+        let mut ids = BTreeMap::new();
 
         for (value, type_) in values_types {
             let field_element = value;
@@ -206,12 +206,12 @@ impl<'a> FuzzerFunctionContext<'a> {
             current_block,
             not_terminated_blocks: VecDeque::new(),
             instruction_blocks,
-            stored_variables_for_block: HashMap::new(),
-            stored_blocks: HashMap::new(),
+            stored_variables_for_block: BTreeMap::new(),
+            stored_blocks: BTreeMap::new(),
             function_context_options: context_options,
             inserted_instructions_count: 0,
             inserted_ssa_blocks_count: 0,
-            cycle_bodies_to_iters_ids: HashMap::new(),
+            cycle_bodies_to_iters_ids: BTreeMap::new(),
             parent_iterations_count: 1,
             defined_functions,
             return_type,
