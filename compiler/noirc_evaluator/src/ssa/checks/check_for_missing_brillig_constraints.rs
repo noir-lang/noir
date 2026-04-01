@@ -968,9 +968,10 @@ mod tests {
             v18 = load v9 -> u1
             constrain v18 == u1 1    // This constrains v8
             v19 = call f1(v5) -> u32
-            v20 = add v8, v19
-            constrain v6 == v20      // v6 is not connected to the inputs, and even though v8 is constrained, it's tainted.
-            return
+            v20 = add v8, v19        // Combines the output of the call with v8
+            constrain v6 == v20      // v6 is not connected to the inputs, so this shouldn't constrain;
+            return                   // v20 is connected to the output v19, so it cannot provide the input-side constraint,
+                                     // so even though the tainted v8 is constrained, it cannot be provide a constraint here.
         }
 
         brillig(inline) fn maximum_price f1 {
