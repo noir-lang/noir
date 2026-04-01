@@ -38,13 +38,13 @@ use crate::ssa::{
     ssa_gen::Ssa,
 };
 
-/// Arbitrary limit for maximum variables optimized by this pass in each function.
-///
-/// This is because this pass can lead to regressions in certain cases (e.g. the hashmap test)
-/// where variables are modified in inner loops but not outer ones, yet the outer loops would need
-/// to pay for passing around the variables while with the `Load` approach, only the inner loops
-/// paid previously.
-const MAX_VARIABLES_OPTIMIZED: u32 = 10;
+// /// Arbitrary limit for maximum variables optimized by this pass in each function.
+// ///
+// /// This is because this pass can lead to regressions in certain cases (e.g. the hashmap test)
+// /// where variables are modified in inner loops but not outer ones, yet the outer loops would need
+// /// to pay for passing around the variables while with the `Load` approach, only the inner loops
+// /// paid previously.
+// const MAX_VARIABLES_OPTIMIZED: u32 = 10;
 
 // /// Maximum number of blocks a variable's declaration can dominate before we skip
 // /// promoting it in the pre-flattening pass.
@@ -71,9 +71,7 @@ impl Ssa {
     /// regressions from promoting variables that span too many blocks.
     pub(crate) fn mem2reg_simple(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            let max_vars =
-                if function.runtime().is_brillig() { Some(MAX_VARIABLES_OPTIMIZED) } else { None };
-            function.mem2reg_simple(max_vars, None);
+            function.mem2reg_simple(None, None);
         }
         self
     }
@@ -82,7 +80,7 @@ impl Ssa {
     pub(crate) fn mem2reg_simple_brillig(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             if function.runtime().is_brillig() {
-                function.mem2reg_simple(Some(MAX_VARIABLES_OPTIMIZED), None);
+                function.mem2reg_simple(None, None);
             }
         }
         self
@@ -96,11 +94,7 @@ impl Ssa {
     /// generates O(variables × blocks) extra predicate opcodes after flattening.
     pub(crate) fn mem2reg_simple_pre_flattening(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            if function.runtime().is_brillig() {
-                function.mem2reg_simple(Some(MAX_VARIABLES_OPTIMIZED), None);
-            } else {
-                function.mem2reg_simple(None, None);
-            }
+            function.mem2reg_simple(None, None);
         }
         self
     }
