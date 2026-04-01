@@ -107,15 +107,6 @@ impl Ssa {
 }
 
 impl Function {
-    #[allow(dead_code)]
-    pub(crate) fn mem2reg_simple_pre_flattening(&mut self) {
-        if self.runtime().is_brillig() {
-            self.mem2reg_simple(Some(MAX_VARIABLES_OPTIMIZED), None);
-        } else {
-            self.mem2reg_simple(Some(MAX_VARIABLES_OPTIMIZED), Some(MAX_BLOCK_SPAN_PRE_FLATTENING));
-        }
-    }
-
     fn mem2reg_simple(&mut self, max_variables: Option<u32>, max_block_span: Option<usize>) {
         let cfg = ControlFlowGraph::with_function(self);
         let post_order = PostOrder::with_cfg(&cfg);
