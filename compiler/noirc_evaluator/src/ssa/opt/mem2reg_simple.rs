@@ -99,10 +99,7 @@ impl Ssa {
             if function.runtime().is_brillig() {
                 function.mem2reg_simple(Some(MAX_VARIABLES_OPTIMIZED), None);
             } else {
-                function.mem2reg_simple(
-                    None,
-                    Some(MAX_BLOCK_SPAN_PRE_FLATTENING),
-                );
+                function.mem2reg_simple(None, None);
             }
         }
         self
