@@ -103,10 +103,10 @@ impl Function {
         } else {
             // Skip very large ACIR functions pre-flattening. The post-flattening
             // mem2reg_simple handles ACIR efficiently on single-block functions.
-            if self.num_instructions() > MAX_INSTRUCTIONS_PRE_FLATTENING {
-                return;
-            }
-            self.mem2reg_simple(None, Some(MAX_BLOCK_SPAN_PRE_FLATTENING));
+            // if self.num_instructions() > MAX_INSTRUCTIONS_PRE_FLATTENING {
+            //     return;
+            // }
+            self.mem2reg_simple(None, None);
         }
     }
 

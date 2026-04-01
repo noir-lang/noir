@@ -186,6 +186,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         // same-block store->load patterns without creating block parameters.
         SsaPass::new(Ssa::mem2reg_simple_pre_flattening, "Mem2Reg Simple")
             .and_then(Ssa::load_store_forwarding),
+            .and_then(Ssa::remove_redundant_params),
         SsaPass::new(Ssa::array_set_optimization, "ArraySet optimization"),
         SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
         // Running DIE here might remove some unused instructions mem2reg could not eliminate.
@@ -226,6 +227,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         // loop-alias overhead. This is the most impactful position for ACIR store->load forwarding.
         SsaPass::new(Ssa::mem2reg_simple_pre_flattening, "Mem2Reg Simple")
             .and_then(Ssa::load_store_forwarding),
+            .and_then(Ssa::remove_redundant_params),
         SsaPass::new(Ssa::remove_bit_shifts, "Removing Bit Shifts"),
         SsaPass::new(Ssa::array_set_optimization, "ArraySet optimization"),
         SsaPass::new(Ssa::array_get_optimization, "ArrayGet optimization"),
