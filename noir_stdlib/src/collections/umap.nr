@@ -313,43 +313,40 @@ impl<K, V, B> UHashMap<K, V, B> {
         self.try_resize();
 
         let hash = self.hash(key);
-        let mut insert_at_loop_end = false;
         let mut insert_index: u32 = 0;
+        let mut increment_length = false;
+        let mut found_deleted_candidate = false;
 
         for attempt in 0..self._table.len() {
             let index = self.linear_probe(hash, attempt as u32);
-            let mut slot = self._table[index];
+            let slot = self._table[index];
 
             if slot.is_valid() {
                 if slot._key == key {
                     // Key exists: update in place without changing length.
-                    slot.set(key, value);
-                    self._table[index] = slot;
-                    insert_at_loop_end = false;
+                    insert_index = index;
                     break;
                 }
             } else if slot._is_deleted {
                 // Deleted slot: remember as candidate but keep probing for existing key.
-                if !insert_at_loop_end {
-                    insert_index = index;
-                    insert_at_loop_end = true;
-                }
+                insert_index = index;
+                found_deleted_candidate = true;
             } else {
                 // Empty slot: key cannot exist beyond this point.
                 // Insert at a deleted slot, if we found one previously, or at the current slot.
-                if !insert_at_loop_end {
+                if !found_deleted_candidate {
                     insert_index = index;
+                    increment_length = true;
                 }
-                insert_at_loop_end = true;
                 break;
             }
         }
 
-        // Exhausted all slots without finding key or empty slot (table is full of deleted entries).
-        if insert_at_loop_end {
-            let mut s = self._table[insert_index];
-            s.set(key, value);
-            self._table[insert_index] = s;
+        let mut s = self._table[insert_index];
+        s.set(key, value);
+        self._table[insert_index] = s;
+
+        if increment_length {
             self._len += 1;
         }
     }
