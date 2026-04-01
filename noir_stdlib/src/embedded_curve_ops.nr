@@ -31,8 +31,8 @@ impl EmbeddedCurvePoint {
         }
     }
 
-    /// True if this point is the zero point which is indistinguishable from the point at infinity
-    pub fn is_infinite_or_zero(self) -> bool {
+    /// True if this point is the point at infinity
+    pub fn is_infinite(self) -> bool {
         (self.x == 0) & (self.y == 0)
     }
 }
