@@ -543,3 +543,23 @@ fn struct_pattern_on_enum_variant_errors() {
     ";
     check_errors_using_features(src, &[UnstableFeature::Enums]);
 }
+
+// Regression test: comptime enum variant without fields on a generic enum
+// should not crash follow_bindings with a Forall type.
+#[test]
+fn comptime_generic_enum_variant() {
+    let src = r#"
+    enum Foo<T> {
+        A(T),
+        B,
+    }
+
+    fn main() {
+        comptime let fb: Foo<str<5>> = Foo::B;
+        foo(fb);
+    }
+
+    fn foo(_f: Foo<str<5>>) {}
+    "#;
+    assert_no_errors(src);
+}

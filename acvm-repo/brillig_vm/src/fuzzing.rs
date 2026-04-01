@@ -46,6 +46,25 @@ impl FuzzingTrace {
         FUZZING_COMPARISON_LOG_RANGE_START_STATE + log
     }
 
+    /// Compute the distance of two field elements as the number of bits required
+    /// to represent their difference, which is the same as its logarithm.
+    fn field_diff_log<F: AcirField>(a: F, b: F) -> u64 {
+        // Field subtraction is modular, not signed. When a > b, even if the two values
+        // are numerically very close in the intended integer sense, `b - a` becomes a
+        // large field element near the modulus. For example, if `a = b + 1`, the computed
+        // difference is effectively `-1 mod p`, which has a very large bit length.
+        // Since we are only interested in how close the numbers are, we subtract the
+        // smaller representation from the larger.
+        let d = if a > b { a - b } else { b - a };
+        BigUint::from_bytes_be(&d.to_be_bytes()).bits()
+    }
+
+    /// Compute the distance of two integers as the logarithm of the absolute value
+    /// of their difference, which is the number of bits required to represent it.
+    fn int_diff_log(a: u128, b: u128) -> u32 {
+        a.abs_diff(b).checked_ilog2().map_or(0, |x| x + 1)
+    }
+
     pub(super) fn new(branch_to_feature_map: HashMap<(usize, usize), usize>) -> Self {
         let len = branch_to_feature_map.len();
         Self { trace: vec![0; len], branch_to_feature_map }
@@ -82,7 +101,7 @@ impl FuzzingTrace {
                 };
 
                 // Logarithm of the difference between LHS as RHS as the number of bits required to represent its value:
-                let diff_log = BigUint::from_bytes_be(&(b - a).to_be_bytes()).bits();
+                let diff_log = Self::field_diff_log(a, b);
 
                 let approach_index =
                     self.branch_to_feature_map[&(pc, Self::log_range_state(diff_log as usize))];
@@ -116,8 +135,7 @@ impl FuzzingTrace {
                     return;
                 };
 
-                let diff_log =
-                    rhs_val.abs_diff(lhs_val).checked_ilog2().map_or_else(|| 0, |x| x + 1);
+                let diff_log = Self::int_diff_log(lhs_val, rhs_val);
 
                 let approach_index =
                     self.branch_to_feature_map[&(pc, Self::log_range_state(diff_log as usize))];
@@ -183,5 +201,43 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'_, F, B> {
         if let Some(ref mut trace) = self.fuzzing_trace {
             trace.record_conditional_mov(self.program_counter, branch);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use acir::FieldElement;
+    use proptest::proptest;
+
+    use crate::FuzzingTrace;
+
+    proptest! {
+        #[test]
+        fn int_diff_log_is_symmetric(a: u128, b: u128) {
+            let ab = FuzzingTrace::int_diff_log(a, b);
+            let ba = FuzzingTrace::int_diff_log(b, a);
+            assert_eq!(ab, ba);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn field_diff_log_is_symmetric(a: u128, b: u128) {
+            let a = FieldElement::from(a);
+            let b = FieldElement::from(b);
+            let ab = FuzzingTrace::field_diff_log(a, b);
+            let ba = FuzzingTrace::field_diff_log(b, a);
+            assert_eq!(ab, ba);
+        }
+    }
+
+    #[test]
+    fn field_diff_log_with_1_diff() {
+        let a = FieldElement::from(1);
+        let b = FieldElement::from(2);
+        let ab = FuzzingTrace::field_diff_log(a, b);
+        let ba = FuzzingTrace::field_diff_log(b, a);
+        assert_eq!(ab, 1);
+        assert_eq!(ab, ba);
     }
 }

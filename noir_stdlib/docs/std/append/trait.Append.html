@@ -43,6 +43,16 @@
     pub fn <a href="#append"><span class="fn">append</span></a>(self, other: Self) -> Self;
 }</code></pre>
 
+<div class="comments">
+<p>Appends two values together, returning the result.</p>
+<p>An alternate name for this trait is <code>Monoid</code> if that is familiar.
+If not, it can be ignored.</p>
+<p>It is expected that for any implementation:</p>
+<ul>
+<li><code>T::empty().append(x) == x</code></li>
+<li><code>x.append(T::empty()) == x</code></li>
+</ul>
+</div>
 <h2>Required methods</h2>
 <div class="padded-methods"><code id="empty" class="code-header">pub fn <a href="#empty"><span class="fn">empty</span></a>() -> Self</code>
 

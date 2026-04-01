@@ -54,7 +54,7 @@ impl<T, let N: u32> [T; N] {
     /// let b = a.map(|a| a * 2);
     /// assert_eq(b, [2, 4, 6]);
     /// ```
-    pub fn map<U, Env>(& self, f: fn[Env](T) -> U) -> [U; N] {
+    pub fn map<U, Env>(&self, f: fn[Env](T) -> U) -> [U; N] {
         let uninitialized = crate::mem::zeroed();
         let mut ret = [uninitialized; N];
 
@@ -75,7 +75,7 @@ impl<T, let N: u32> [T; N] {
     /// let b = a.mapi(|i, a| i + a * 2);
     /// assert_eq(b, [2, 5, 8]);
     /// ```
-    pub fn mapi<U, Env>(& self, f: fn[Env](u32, T) -> U) -> [U; N] {
+    pub fn mapi<U, Env>(&self, f: fn[Env](u32, T) -> U) -> [U; N] {
         let uninitialized = crate::mem::zeroed();
         let mut ret = [uninitialized; N];
 
@@ -100,7 +100,7 @@ impl<T, let N: u32> [T; N] {
     /// });
     /// assert_eq(a, b);
     /// ```
-    pub fn for_each<Env>(& self, f: fn[Env](T) -> ()) {
+    pub fn for_each<Env>(&self, f: fn[Env](T) -> ()) {
         for i in 0..self.len() {
             f(self[i]);
         }
@@ -118,7 +118,7 @@ impl<T, let N: u32> [T; N] {
     /// });
     /// assert_eq(a, b);
     /// ```
-    pub fn for_eachi<Env>(& self, f: fn[Env](u32, T) -> ()) {
+    pub fn for_eachi<Env>(&self, f: fn[Env](u32, T) -> ()) {
         for i in 0..self.len() {
             f(i, self[i]);
         }
@@ -142,7 +142,7 @@ impl<T, let N: u32> [T; N] {
     ///
     /// assert_eq(a3.fold(10, f), 10 - 1 - 2 - 3);
     /// ```
-    pub fn fold<U, Env>(& self, mut accumulator: U, f: fn[Env](U, T) -> U) -> U {
+    pub fn fold<U, Env>(&self, mut accumulator: U, f: fn[Env](U, T) -> U) -> U {
         for elem in self {
             accumulator = f(accumulator, elem);
         }
@@ -162,7 +162,7 @@ impl<T, let N: u32> [T; N] {
     ///     assert(reduced == 10);
     /// }
     /// ```
-    pub fn reduce<Env>(& self, f: fn[Env](T, T) -> T) -> T {
+    pub fn reduce<Env>(&self, f: fn[Env](T, T) -> T) -> T {
         let mut accumulator = self[0];
         for i in 1..self.len() {
             accumulator = f(accumulator, self[i]);
@@ -181,7 +181,7 @@ impl<T, let N: u32> [T; N] {
     ///     assert(all);
     /// }
     /// ```
-    pub fn all<Env>(& self, predicate: fn[Env](T) -> bool) -> bool {
+    pub fn all<Env>(&self, predicate: fn[Env](T) -> bool) -> bool {
         let mut ret = true;
         for elem in self {
             ret &= predicate(elem);
@@ -200,7 +200,7 @@ impl<T, let N: u32> [T; N] {
     ///     assert(any);
     /// }
     /// ```
-    pub fn any<Env>(& self, predicate: fn[Env](T) -> bool) -> bool {
+    pub fn any<Env>(&self, predicate: fn[Env](T) -> bool) -> bool {
         let mut ret = false;
         for elem in self {
             ret |= predicate(elem);
@@ -220,7 +220,7 @@ impl<T, let N: u32> [T; N] {
     ///     assert(concatenated_arr == [1, 2, 3, 4, 6, 7, 8, 9, 10, 11]);
     /// }
     /// ```
-    pub fn concat<let M: u32>(& self, array2: [T; M]) -> [T; N + M] {
+    pub fn concat<let M: u32>(&self, array2: [T; M]) -> [T; N + M] {
         let mut result = [crate::mem::zeroed(); N + M];
         for i in 0..N {
             result[i] = self[i];

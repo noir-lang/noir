@@ -1,7 +1,7 @@
 use crate::tests::{
-        assert_no_errors, assert_no_errors_using_features, check_errors,
-        check_errors_using_features, check_monomorphization_error, get_program_using_features,
-    };
+    assert_no_errors, assert_no_errors_using_features, check_errors, check_errors_using_features,
+    check_monomorphization_error,
+};
 
 #[test]
 fn cannot_mutate_immutable_variable() {
@@ -105,7 +105,7 @@ fn constrained_reference_to_unconstrained() {
 }
 
 #[test]
-fn immutable_references_with_ownership_feature() {
+fn immutable_references_with_ownership_feature_brillig() {
     let src = r#"
         unconstrained fn main() {
             let array = [1, 2, 3];
@@ -114,26 +114,20 @@ fn immutable_references_with_ownership_feature() {
 
         fn borrow(_array: &[Field; 3]) {}
     "#;
-
-    let (_, _, errors) = get_program_using_features(src, &[]);
-    assert_eq!(errors.len(), 0);
+    assert_no_errors(src);
 }
 
 #[test]
-fn immutable_references_without_ownership_feature() {
+fn immutable_references_with_ownership_feature() {
     let src = r#"
         fn main() {
             let array = [1, 2, 3];
             borrow(&array);
-                   ^^^^^^ This requires the unstable feature 'ownership' which is not enabled
-                   ~~~~~~ Pass -Zownership to nargo to enable this feature at your own risk.
         }
 
         fn borrow(_array: &[Field; 3]) {}
-                          ^^^^^^^^^^^ This requires the unstable feature 'ownership' which is not enabled
-                          ~~~~~~~~~~~ Pass -Zownership to nargo to enable this feature at your own risk.
-    "#;
-    check_errors(src);
+     "#;
+    assert_no_errors(src);
 }
 
 #[test]
@@ -282,4 +276,16 @@ fn disallows_mutating_non_mutable_reference_inside_mutable_reference() {
     }
     "#;
     check_errors_using_features(src, &[]);
+}
+
+#[test]
+fn cannot_take_mut_ref_of_immutable_variable_in_deref() {
+    let src = r#"
+    fn main() {
+        let x: Field = 5;
+        let _y = *&mut x;
+                       ^ Cannot mutate immutable variable `x`
+    }
+    "#;
+    check_errors(src);
 }

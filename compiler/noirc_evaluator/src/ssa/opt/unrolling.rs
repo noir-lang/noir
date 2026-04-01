@@ -1824,6 +1824,16 @@ impl<'f> LoopIteration<'f> {
 
                 self.source_block = self.get_original_block(destination);
 
+                // The body block's instructions will be inlined directly into the
+                // current insert_block, not into the fresh destination block created
+                // by `get_or_insert_block`. Map the destination's block params to the
+                // jmp arguments so that inlined instructions resolve to the actual
+                // values rather than the fresh block's (now unreachable) params.
+                let destination_params = self.dfg().block_parameters(destination).to_vec();
+                for (param, arg) in destination_params.iter().zip(&arguments) {
+                    self.inserter.map_value(*param, *arg);
+                }
+
                 let jmp = TerminatorInstruction::Jmp { destination, arguments, call_stack };
                 self.inserter.function.dfg.set_block_terminator(self.insert_block, jmp);
                 vec![destination]
@@ -3138,6 +3148,7 @@ mod tests {
             }
         ";
         let ssa = Ssa::from_str(src).unwrap();
+        let _ = ssa.interpret(vec![]).unwrap();
 
         // After mem2reg_simple, no loads/stores remain — the cost model must recognize
         // the loop-internal terminator costs as boilerplate.
@@ -3156,6 +3167,8 @@ mod tests {
 
         let (ssa, errors) = try_unroll_loops(ssa);
         assert_eq!(errors.len(), 0, "Unroll should have no errors");
+        let _ = ssa.interpret(vec![]).unwrap();
+
         // Loop has been unrolled
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) predicate_pure fn main f0 {
@@ -3166,22 +3179,22 @@ mod tests {
           b1():
             v33 = array_get v32, index u32 6 -> Field
             constrain v33 == Field 27
-            v34 = array_get v9, index u32 6 -> Field
+            v34 = array_get v5, index u32 6 -> Field
             v35 = eq v34, Field 27
             constrain v35 == u1 0
             return
           b2(v0: [Field; 10]):
             v14 = array_set v11, index u32 0, value Field 27
-            jmp b3(v0)
+            jmp b3(v11)
           b3(v1: [Field; 10]):
             v16 = array_set v14, index u32 1, value Field 27
-            jmp b4(v1)
+            jmp b4(v11)
           b4(v2: [Field; 10]):
             v18 = array_set v16, index u32 2, value Field 27
-            jmp b5(v2)
+            jmp b5(v11)
           b5(v3: [Field; 10]):
             v20 = array_set v18, index u32 3, value Field 27
-            jmp b6(v3)
+            jmp b6(v11)
           b6(v4: [Field; 10]):
             v22 = array_set v20, index u32 4, value Field 27
             jmp b7()
@@ -3193,13 +3206,13 @@ mod tests {
             jmp b9(v5)
           b9(v6: [Field; 10]):
             v26 = array_set v24, index u32 6, value Field 27
-            jmp b10(v6)
+            jmp b10(v5)
           b10(v7: [Field; 10]):
             v28 = array_set v26, index u32 7, value Field 27
-            jmp b11(v7)
+            jmp b11(v5)
           b11(v8: [Field; 10]):
             v30 = array_set v28, index u32 8, value Field 27
-            jmp b12(v8)
+            jmp b12(v5)
           b12(v9: [Field; 10]):
             v32 = array_set v30, index u32 9, value Field 27
             jmp b1()
@@ -3535,5 +3548,84 @@ mod tests {
         ssa_after = ssa_after.loop_invariant_code_motion();
         let after = ssa_after.interpret(vec![Value::bool(false)]);
         assert_eq!(before, after, "LICM should preserve semantics");
+    }
+
+    /// Regression: when a jmpif in the loop header evaluates to a constant,
+    /// the body block's instructions are inlined directly into the unroll
+    /// target. The body block's params must be mapped to the jmp arguments
+    /// so inlined instructions resolve correctly — otherwise they reference
+    /// dangling params from the (now unreachable) fresh block copy.
+    #[test]
+    fn unroll_with_body_block_params() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            jmp b1(u32 0, u32 0)
+          b1(v1: u32, v2: u32):
+            v3 = lt v1, u32 5
+            jmpif v3 then: b2(v2), else: b3(v2)
+          b2(v4: u32):
+            v5 = add v4, u32 10
+            v6 = unchecked_add v1, u32 1
+            jmp b1(v6, v5)
+          b3(v7: u32):
+            return v7
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let (ssa, _) = try_unroll_loops(ssa);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            jmp b1(u32 50)
+          b1(v1: u32):
+            return v1
+        }
+        ");
+    }
+
+    /// Documents that loop unrolling does NOT propagate instruction results defined
+    /// in the loop header (only block parameters) to exit blocks.
+    ///
+    /// If an instruction is hoisted into a loop header (e.g. by constant folding's CSE),
+    /// and the exit block references that instruction's result, unrolling will leave a
+    /// dangling reference because `Loop::unroll` only maps header parameters, not
+    /// instruction results.
+    ///
+    /// To fix this in the unrolling pass (if we ever want to allow hoisting into headers):
+    /// in `unroll_header`, on the final iteration (when `is_in_loop` is false), iterate
+    /// over header instruction results and add their resolved values from the inserter
+    /// to the `ValueMapping` returned by `unroll`.
+    #[test]
+    #[should_panic(expected = "should already be in scope")]
+    fn unroll_panics_on_header_instruction_results_referenced_by_exit_block() {
+        // Models the SSA after CSE hoists `mul v2, v2` into the loop header:
+        //   b1 header has v4 = mul v2, v2 (an instruction result, not a parameter)
+        //   b2 loop body uses v4
+        //   b3 exit block uses v4
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            jmp b1(u8 0, v0)
+          b1(v1: u8, v2: Field):
+            v3 = lt v1, u8 1
+            v4 = mul v2, v2
+            jmpif v3 then: b2(), else: b3()
+          b2():
+            v5 = add v4, Field 1
+            v6 = add v1, u8 1
+            jmp b1(v6, v5)
+          b3():
+            return v4
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let (ssa, errors) = try_unroll_loops(ssa);
+        assert!(errors.is_empty(), "Loop should unroll successfully");
+
+        // This panics because v4 (a header instruction result) was not mapped
+        // to its final-iteration value, leaving a dangling reference.
+        let _result = ssa.interpret(vec![Value::field(3u128.into())]);
     }
 }

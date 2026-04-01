@@ -85,7 +85,7 @@ dependencies = [
  "cbc",
  "criterion",
  "k256",
- "keccak 0.2.0-rc.2",
+ "keccak 0.2.0",
  "log",
  "p256",
  "pprof",
@@ -1103,11 +1103,11 @@ checksum = "de0758edba32d61d1fd9f4d69491b47604b91ee2f7e6b33de7e54ca4ebe55dc3"
 
 [[package]]
 name = "codespan"
-version = "0.11.1"
+version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3362992a0d9f1dd7c3d0e89e0ab2bb540b7a95fea8cd798090e758fda2899b5e"
+checksum = "583f52b0658b321b25fd6b209b6c76cf058f433071297de64e5980c3d9aad937"
 dependencies = [
- "codespan-reporting",
+ "codespan-reporting 0.13.1",
  "serde",
 ]
 
@@ -1117,7 +1117,7 @@ version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc4159b76af02757139baf42c0c971c6dc155330999fbfd8eddb29b97fb2db68"
 dependencies = [
- "codespan-reporting",
+ "codespan-reporting 0.11.1",
  "lsp-types 0.88.0",
  "url",
 ]
@@ -1127,6 +1127,16 @@ name = "codespan-reporting"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3538270d33cc669650c4b093848450d380def10c331d38c768e34cac80576e6e"
+dependencies = [
+ "termcolor",
+ "unicode-width",
+]
+
+[[package]]
+name = "codespan-reporting"
+version = "0.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af491d569909a7e4dee0ad7db7f5341fef5c614d5b8ec8cf765732aba3cff681"
 dependencies = [
  "serde",
  "termcolor",
@@ -1195,6 +1205,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "console"
+version = "0.16.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d64e8af5551369d19cf50138de61f1c42074ab970f74e99be916646777f8fc87"
+dependencies = [
+ "encode_unicode",
+ "libc",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "console_error_panic_hook"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1244,9 +1265,9 @@ checksum = "3d52eff69cd5e647efe296129160853a42795992097e8af39800e1060caeea9b"
 
 [[package]]
 name = "convert_case"
-version = "0.7.1"
+version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb402b8d4c85569410425650ce3eddc7d698ed96d39a73f941b08fb63082f1e7"
+checksum = "affbf0190ed2caf063e3def54ff444b449371d55c58e513a95ab98eca50adb49"
 dependencies = [
  "unicode-segmentation",
 ]
@@ -1954,7 +1975,7 @@ dependencies = [
 name = "fm"
 version = "1.0.0-beta.19"
 dependencies = [
- "codespan-reporting",
+ "codespan-reporting 0.11.1",
  "iter-extended",
  "itertools 0.14.0",
  "serde",
@@ -2776,11 +2797,11 @@ dependencies = [
 
 [[package]]
 name = "insta"
-version = "1.46.3"
+version = "1.47.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e82db8c87c7f1ccecb34ce0c24399b8a73081427f3c7c50a5d597925356115e4"
+checksum = "7b4a6248eb93a4401ed2f37dfe8ea592d3cf05b7cf4f8efa867b6895af7e094e"
 dependencies = [
- "console",
+ "console 0.16.3",
  "once_cell",
  "pest",
  "pest_derive",
@@ -3062,9 +3083,9 @@ dependencies = [
 
 [[package]]
 name = "k256"
-version = "0.14.0-rc.7"
+version = "0.14.0-rc.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "83da23da11f0b5db6f23d9280a84b3a33a746aa43ebb9270d6b445991da9cee3"
+checksum = "f7d2c6c227649d5ec80eaae541f1736232641a0bcdb3062a52b34edb42054158"
 dependencies = [
  "cpubits",
  "ecdsa",
@@ -3084,10 +3105,11 @@ dependencies = [
 
 [[package]]
 name = "keccak"
-version = "0.2.0-rc.2"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "882b69cb15b1f78b51342322a97ccd16f5123d1dc8a3da981a95244f488e8692"
+checksum = "9e24a010dd405bd7ed803e5253182815b41bf2e6a80cc3bfc066658e03a198aa"
 dependencies = [
+ "cfg-if",
  "cpufeatures 0.3.0",
 ]
 
@@ -3614,7 +3636,7 @@ dependencies = [
  "assert_cmd",
  "bn254_blackbox_solver",
  "build-data",
- "codespan-reporting",
+ "codespan-reporting 0.11.1",
  "dap",
  "easy-repl",
  "fm",
@@ -3680,7 +3702,6 @@ dependencies = [
  "fuzzy-matcher",
  "insta",
  "iter-extended",
- "itertools 0.14.0",
  "nargo",
  "nargo_doc",
  "nargo_expand",
@@ -3861,7 +3882,7 @@ dependencies = [
  "acir",
  "acvm",
  "base64",
- "codespan-reporting",
+ "codespan-reporting 0.11.1",
  "flate2",
  "fm",
  "noirc_abi",
@@ -3911,7 +3932,7 @@ dependencies = [
 name = "noirc_errors"
 version = "1.0.0-beta.19"
 dependencies = [
- "codespan-reporting",
+ "codespan-reporting 0.11.1",
  "fm",
  "noirc_span",
  "rangemap",
@@ -4180,9 +4201,9 @@ checksum = "d211803b9b6b570f68772237e415a029d5a50c65d382910b879fb19d3271f94d"
 
 [[package]]
 name = "p256"
-version = "0.14.0-rc.7"
+version = "0.14.0-rc.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "018bfbb86e05fd70a83e985921241035ee09fcd369c4a2c3680b389a01d2ad28"
+checksum = "44f0a10fe314869359cb2901342b045f4e5a962ef9febc006f03d2a8c848fe4c"
 dependencies = [
  "ecdsa",
  "elliptic-curve",
@@ -5632,7 +5653,7 @@ version = "1.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b5b441962c817e33508847a22bd82f03a30cff43642dc2fae8b050566121eb9a"
 dependencies = [
- "console",
+ "console 0.15.11",
  "similar",
 ]
 
@@ -5931,7 +5952,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.3.4",
+ "getrandom 0.4.2",
  "once_cell",
  "rustix 1.1.4",
  "windows-sys 0.61.2",

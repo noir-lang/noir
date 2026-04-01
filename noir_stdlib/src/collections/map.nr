@@ -64,11 +64,11 @@ impl<K, V> Default for Slot<K, V> {
 }
 
 impl<K, V> Slot<K, V> {
-    fn is_valid(self) -> bool {
+    fn is_valid(&self) -> bool {
         !self._is_deleted & self._is_present
     }
 
-    fn is_available(self) -> bool {
+    fn is_available(&self) -> bool {
         self._is_deleted | !self._is_present
     }
 
@@ -142,7 +142,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
     /// }
     /// ```
     // docs:start:contains_key
-    pub fn contains_key(self, key: K) -> bool
+    pub fn contains_key(&self, key: K) -> bool
     where
         K: Hash + Eq,
         B: BuildHasher,
@@ -165,7 +165,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
     /// assert(map.is_empty());
     /// ```
     // docs:start:is_empty
-    pub fn is_empty(self) -> bool {
+    pub fn is_empty(&self) -> bool {
         // docs:end:is_empty
         self._len == 0
     }
@@ -189,7 +189,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
     /// }
     /// ```
     // docs:start:entries
-    pub fn entries(self) -> BoundedVec<(K, V), N> {
+    pub fn entries(&self) -> BoundedVec<(K, V), N> {
         // docs:end:entries
         let mut entries = BoundedVec::new();
 
@@ -227,7 +227,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
     /// }
     /// ```
     // docs:start:keys
-    pub fn keys(self) -> BoundedVec<K, N> {
+    pub fn keys(&self) -> BoundedVec<K, N> {
         // docs:end:keys
         let mut keys = BoundedVec::new();
 
@@ -263,7 +263,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
     /// }
     /// ```
     // docs:start:values
-    pub fn values(self) -> BoundedVec<V, N> {
+    pub fn values(&self) -> BoundedVec<V, N> {
         // docs:end:values
         let mut values = BoundedVec::new();
 
@@ -424,7 +424,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
     /// assert(map.len() == 2);
     /// ```
     // docs:start:len
-    pub fn len(self) -> u32 {
+    pub fn len(&self) -> u32 {
         // docs:end:len
         self._len
     }
@@ -446,7 +446,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
     /// assert(empty_map.capacity() == 42);
     /// ```
     // docs:start:capacity
-    pub fn capacity(_self: Self) -> u32 {
+    pub fn capacity(_self: &Self) -> u32 {
         // docs:end:capacity
         N
     }
@@ -465,7 +465,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
     /// }
     /// ```
     // docs:start:get
-    pub fn get(self, key: K) -> Option<V>
+    pub fn get(&self, key: K) -> Option<V>
     where
         K: Eq + Hash,
         B: BuildHasher,
@@ -587,14 +587,14 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
     }
 
     // Apply HashMap's hasher onto key to obtain pre-hash for probing.
-    fn hash(self, key: K) -> u32
+    fn hash(&self, key: K) -> u32
     where
         K: Hash,
         B: BuildHasher,
     {
         let mut hasher = self._build_hasher.build_hasher();
         key.hash(&mut hasher);
-        hasher.finish() as u32
+        hasher.finish_ref() as u32
     }
 
     // Probing scheme: quadratic function.
@@ -613,7 +613,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
     // we conduct cross-multiplication instead.
     // n / m >= MAX_LOAD_FACTOR_NUMERATOR / MAX_LOAD_FACTOR_DENOMINATOR
     // n * MAX_LOAD_FACTOR_DENOMINATOR >= m * MAX_LOAD_FACTOR_NUMERATOR
-    fn assert_load_factor(self) {
+    fn assert_load_factor(&self) {
         let lhs = self._len * MAX_LOAD_FACTOR_DENOMINATOR;
         let rhs = self._table.len() * MAX_LOAD_FACTOR_NUMERATOR;
         let exceeded = lhs >= rhs;

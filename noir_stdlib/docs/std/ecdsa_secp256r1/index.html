@@ -89,7 +89,27 @@
 <div><a href="../../index.html">noir_stdlib</a> - <a href="../index.html">std</a>::ecdsa_secp256r1</div>
 <h1>Module <span id="mod" class="module">ecdsa_secp256r1</span></h1>
 <h2 id="functions">Functions</h2><ul class="item-list">
-<li><div class="item-name"><a href="fn.verify_signature.html" class="fn">verify_signature</a></div><div class="item-description"></div></li>
+<li><div class="item-name"><a href="fn.verify_signature.html" class="fn">verify_signature</a></div><div class="item-description">Verifier for ECDSA Secp256r1 signatures.
+Verifies a ECDSA signature over the secp256r1 curve.</p>
+<ul>
+<li>inputs:
+<ul>
+<li>x coordinate of public key as 32 bytes</li>
+<li>y coordinate of public key as 32 bytes</li>
+<li>the signature, as a 64 bytes array
+The signature internally will be represented as <code>(r, s)</code>,
+where <code>r</code> and <code>s</code> are fixed-sized big endian scalar values.
+As the <code>secp256r1</code> has a 256-bit modulus, we have a 64 byte signature
+while <code>r</code> and <code>s</code> will both be 32 bytes.
+We expect <code>s</code> to be normalized. This means given the curve's order,
+<code>s</code> should be less than or equal to <code>order / 2</code>.
+This is done to prevent malleability.
+For more context regarding malleability you can reference BIP 0062.</li>
+<li>the hash of the message, as a vector of bytes</li>
+</ul>
+</li>
+<li>output: false for failure and true for success</li>
+</ul></div></li>
 </ul>
 </main>
 </span>
