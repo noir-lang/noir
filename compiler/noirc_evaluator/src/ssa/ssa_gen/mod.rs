@@ -1307,8 +1307,7 @@ impl FunctionContext<'_> {
                     let zero =
                         self.builder.numeric_constant(0u32, NumericType::Unsigned { bit_size: 32 });
                     let length = self.make_array_index(arguments[0]);
-                    let is_non_empty =
-                        self.builder.insert_binary(zero, BinaryOp::Lt, length);
+                    let is_non_empty = self.builder.insert_binary(zero, BinaryOp::Lt, length);
                     let true_const = self.builder.numeric_constant(true, NumericType::bool());
                     self.builder.insert_constrain(
                         is_non_empty,
