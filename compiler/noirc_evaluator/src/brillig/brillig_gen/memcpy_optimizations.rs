@@ -3,10 +3,10 @@
 //! It also detect consecutive `ArrayGet` written into consecutive registers,
 //! and consecutive `ArraySet` of consecutive registers, which both can be optimized with `mem_copy`.
 //!
-//! This is a read-only analysis computed once per function (in [`FunctionContext::new`])
+//! This is a read-only analysis computed once per function (in `FunctionContext::new`)
 //! and consumed during block codegen. It follows the same pattern as
-//! [`ConstantAllocation`] and [`VariableLiveness`] — an analysis struct stored in
-//! [`FunctionContext`], not a modification to the SSA IR.
+//! `ConstantAllocation` and `VariableLiveness` — an analysis struct stored in
+//! `FunctionContext`, not a modification to the SSA IR.
 //!
 //! ## Pattern matched
 //!
@@ -203,7 +203,7 @@ fn make_variable_for_type(typ: &Type, register: MemoryAddress) -> BrilligVariabl
 }
 
 /// Returns the relative offset of the first register if all registers are
-/// consecutive `Relative` addresses (sp[K], sp[K+1], ...), or `None` otherwise.
+/// consecutive `Relative` addresses (sp\[K\], sp\[K+1\], ...), or `None` otherwise.
 fn try_get_consecutive_relative(registers: &[MemoryAddress]) -> Option<u32> {
     if registers.is_empty() || !registers[0].is_relative() {
         return None;
@@ -334,13 +334,11 @@ impl MemcpyOptimizations {
 
                 let total_consumed = array_get_ids.len() + skipped_ids.len();
 
-                // Mark elements 1..N and their single-use index computations for skipping.
+                // Mark elements 1..N for skipping — codegen_load_group defines them all.
                 for &get_id in &array_get_ids[1..] {
-                    let [result_id] = dfg.instruction_result(get_id);
-                    if use_counts.get(&result_id).copied().unwrap_or(0) <= 1 {
-                        result.skip_instructions.insert(get_id);
-                    }
+                    result.skip_instructions.insert(get_id);
                 }
+                // Mark single-use index computations for skipping.
                 for &add_id in &skipped_ids {
                     let [result_id] = dfg.instruction_result(add_id);
                     if use_counts.get(&result_id).copied().unwrap_or(0) <= 1 {
@@ -725,9 +723,8 @@ mod tests {
         let load_group = opts.load_groups.values().next().unwrap();
         assert_eq!(load_group.array_get_ids.len(), 8, "Should have 8 array_gets in the group");
 
-        // The skipped instructions should include the 7 interleaved unchecked_adds
-        // (index computations for elements 1-7, all single-use).
-        assert_eq!(opts.skip_instructions.len(), 7, "7 index adds should be skipped");
+        // Elements 1-7 are skipped (7 array_gets) + 7 single-use index adds = 14.
+        assert_eq!(opts.skip_instructions.len(), 14, "14 instructions should be skipped");
     }
 
     #[test]
