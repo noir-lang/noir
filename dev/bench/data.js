@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775060859080,
+  "lastUpdate": 1775060899669,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14842,95 +14842,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "5fa6131882b3e6fec882fcbb98d1bba5cb1b1c77",
-          "message": "fix: Improve error reporting for runtime variables in comptime code (#11986)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
-          "timestamp": "2026-03-24T19:04:09Z",
-          "tree_id": "969cd602a3c0e8400eae787b34b79c1814753ef3",
-          "url": "https://github.com/noir-lang/noir/commit/5fa6131882b3e6fec882fcbb98d1bba5cb1b1c77"
-        },
-        "date": 1774381632828,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 287.36,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 324.83,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 278.96,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 356.01,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 354.81,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1550,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1550,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 355.68,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 538.36,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 473.79,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 354.49,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 78.94,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 76.4,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -19220,6 +19131,95 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/58dabf8e3de5adcf6910728f4b9eb03c0faff900"
         },
         "date": 1775060609963,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 287.35,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 324.85,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 278.98,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 356.01,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 354.83,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1550,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1550,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 355.7,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 538.37,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 473.81,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 354.52,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 78.94,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 76.4,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8e1bf36a781fb77ccf65677ffba9cdf5c4e3048e",
+          "message": "fix: check mutability in `*&mut x` elaboration optimization (#12079)",
+          "timestamp": "2026-04-01T15:44:47Z",
+          "tree_id": "272cd6bfdcd2e131d4ad7a13f50e557fb5ffa294",
+          "url": "https://github.com/noir-lang/noir/commit/8e1bf36a781fb77ccf65677ffba9cdf5c4e3048e"
+        },
+        "date": 1775060848493,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
