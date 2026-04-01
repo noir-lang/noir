@@ -49,7 +49,7 @@ your program, it may be helpful to create a type alias:
 
 ### with_hasher
 
-#include_code with_hasher noir_stdlib/src/collections/map.nr rust
+#include_code with_hasher noir_stdlib/src/collections/umap.nr rust
 
 Creates a hash map with an existing `BuildHasher`. This can be used to ensure multiple
 hash maps are created with the same hasher instance.
@@ -60,7 +60,7 @@ Example:
 
 ### get
 
-#include_code get noir_stdlib/src/collections/map.nr rust
+#include_code get noir_stdlib/src/collections/umap.nr rust
 
 Retrieves a value from the hash map, returning `Option::none()` if it was not found.
 
@@ -70,7 +70,7 @@ Example:
 
 ### insert
 
-#include_code insert noir_stdlib/src/collections/map.nr rust
+#include_code insert noir_stdlib/src/collections/umap.nr rust
 
 Inserts a new key-value pair into the map. If the key was already in the map, its
 previous value will be overridden with the newly provided one.
@@ -81,7 +81,7 @@ Example:
 
 ### remove
 
-#include_code remove noir_stdlib/src/collections/map.nr rust
+#include_code remove noir_stdlib/src/collections/umap.nr rust
 
 Removes the given key-value pair from the map. If the key was not already present
 in the map, this does nothing.
@@ -92,7 +92,7 @@ Example:
 
 ### is_empty
 
-#include_code is_empty noir_stdlib/src/collections/map.nr rust
+#include_code is_empty noir_stdlib/src/collections/umap.nr rust
 
 True if the length of the hash map is empty.
 
@@ -102,7 +102,7 @@ Example:
 
 ### len
 
-#include_code len noir_stdlib/src/collections/map.nr rust
+#include_code len noir_stdlib/src/collections/umap.nr rust
 
 Returns the current length of this hash map.
 
@@ -112,7 +112,7 @@ Example:
 
 ### clear
 
-#include_code clear noir_stdlib/src/collections/map.nr rust
+#include_code clear noir_stdlib/src/collections/umap.nr rust
 
 Clears the hash map, removing all key-value pairs from it.
 
@@ -122,7 +122,7 @@ Example:
 
 ### contains_key
 
-#include_code contains_key noir_stdlib/src/collections/map.nr rust
+#include_code contains_key noir_stdlib/src/collections/umap.nr rust
 
 True if the hash map contains the given key. Unlike `get`, this will not also return
 the value associated with the key.
@@ -133,7 +133,7 @@ Example:
 
 ### entries
 
-#include_code entries noir_stdlib/src/collections/map.nr rust
+#include_code entries noir_stdlib/src/collections/umap.nr rust
 
 Returns a vector of each key-value pair present in the hash map.
 
@@ -145,7 +145,7 @@ Example:
 
 ### keys
 
-#include_code keys noir_stdlib/src/collections/map.nr rust
+#include_code keys noir_stdlib/src/collections/umap.nr rust
 
 Returns a vector of each key present in the hash map.
 
@@ -157,7 +157,7 @@ Example:
 
 ### values
 
-#include_code values noir_stdlib/src/collections/map.nr rust
+#include_code values noir_stdlib/src/collections/umap.nr rust
 
 Returns a vector of each value present in the hash map.
 
@@ -169,7 +169,7 @@ Example:
 
 ### iter_mut
 
-#include_code iter_mut noir_stdlib/src/collections/map.nr rust
+#include_code iter_mut noir_stdlib/src/collections/umap.nr rust
 
 Iterates through each key-value pair of the UHashMap, setting each key-value pair to the
 result returned from the given function.
@@ -187,7 +187,7 @@ Example:
 
 ### iter_keys_mut
 
-#include_code iter_keys_mut noir_stdlib/src/collections/map.nr rust
+#include_code iter_keys_mut noir_stdlib/src/collections/umap.nr rust
 
 Iterates through the UHashMap, mutating each key to the result returned from
 the given function.
@@ -205,7 +205,7 @@ Example:
 
 ### iter_values_mut
 
-#include_code iter_values_mut noir_stdlib/src/collections/map.nr rust
+#include_code iter_values_mut noir_stdlib/src/collections/umap.nr rust
 
 Iterates through the UHashMap, applying the given function to each value and mutating the
 value to equal the result. This function is more efficient than `iter_mut` and `iter_keys_mut`
@@ -217,7 +217,7 @@ Example:
 
 ### retain
 
-#include_code retain noir_stdlib/src/collections/map.nr rust
+#include_code retain noir_stdlib/src/collections/umap.nr rust
 
 Retains only the key-value pairs for which the given function returns true.
 Any key-value pairs for which the function returns false will be removed from the map.
@@ -230,7 +230,7 @@ Example:
 
 ### default
 
-#include_code default noir_stdlib/src/collections/map.nr rust
+#include_code default noir_stdlib/src/collections/umap.nr rust
 
 Constructs an empty UHashMap.
 
@@ -240,7 +240,7 @@ Example:
 
 ### eq
 
-#include_code eq noir_stdlib/src/collections/map.nr rust
+#include_code eq noir_stdlib/src/collections/umap.nr rust
 
 Checks if two UHashMaps are equal.
 
