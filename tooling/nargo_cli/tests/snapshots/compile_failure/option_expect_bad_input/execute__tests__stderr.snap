@@ -13,14 +13,14 @@ error: Type annotation needed
   ┌─ src/main.nr:5:12
   │
 5 │     assert(some.expect("Should have the value {inner_value}") == 3);
-  │            ----------- Could not determine the value of the generic argument `N` declared on the function `expect`
+  │            ----------- Could not determine the type of the generic argument `MessageTypes` declared on the function `expect`
   │
 
 error: Type annotation needed
   ┌─ src/main.nr:5:12
   │
 5 │     assert(some.expect("Should have the value {inner_value}") == 3);
-  │            ----------- Could not determine the type of the generic argument `MessageTypes` declared on the function `expect`
+  │            ----------- Could not determine the value of the generic argument `N` declared on the function `expect`
   │
 
 Aborting due to 3 previous errors
