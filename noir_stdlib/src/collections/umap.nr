@@ -49,10 +49,6 @@ impl<K, V> Slot<K, V> {
         !self._is_deleted & self._is_present
     }
 
-    fn is_available(self) -> bool {
-        self._is_deleted | !self._is_present
-    }
-
     fn set(&mut self, key: K, value: V) {
         self._key = key;
         self._value = value;
