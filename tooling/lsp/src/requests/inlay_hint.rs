@@ -187,7 +187,8 @@ impl<'a> InlayHintCollector<'a> {
                 parameters_count -= 1;
             }
 
-            // Note: we use `zip` and not `zip_eq` because there might be less arguments than parameters in the source code
+            // Note: we use `zip` and not `zip_eq` because the user might have passed a different number of arguments
+            // than parameters expected.
             for (call_argument, (pattern, _, _)) in arguments.iter().zip(parameters) {
                 let Some(lsp_location) =
                     to_lsp_location(self.files, self.file_id, call_argument.location.span)
