@@ -895,10 +895,17 @@ impl Elaborator<'_> {
         }
 
         if push_required_type_variables {
-            for (type_variable, _kind, typ) in bindings.values() {
+            // Record required type variables in a predictable order to avoid nondeterminism in error messages.
+            let mut required_type_variables = bindings
+                .values()
+                .map(|(type_variable, _, typ)| (type_variable.id(), typ.clone()))
+                .collect::<Vec<_>>();
+            required_type_variables.sort_by_key(|(id, _typ)| *id);
+
+            for (type_variable_id, typ) in required_type_variables {
                 self.push_required_type_variable(
-                    type_variable.id(),
-                    typ.clone(),
+                    type_variable_id,
+                    typ,
                     BindableTypeVariableKind::Ident(ident.id),
                     ident.location,
                 );
