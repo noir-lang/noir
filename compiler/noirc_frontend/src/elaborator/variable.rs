@@ -24,7 +24,7 @@ use crate::node_interner::{
     DefinitionId, DefinitionInfo, DefinitionKind, ExprId, TraitImplKind, TypeAliasId,
 };
 use crate::{Kind, Type, TypeBindings, TypeVariable};
-use iter_extended::vecmap;
+use iter_extended::{btree_map, vecmap};
 use noirc_errors::Location;
 
 /// The result of [`Elaborator::resolve_variable`].
@@ -895,10 +895,16 @@ impl Elaborator<'_> {
         }
 
         if push_required_type_variables {
-            for (type_variable, _kind, typ) in bindings.values() {
+            // Record required type variables in a predictable order to avoid nondeterminism in error messages.
+            let required_type_variables =
+                btree_map(bindings.values(), |(type_variable, _, typ)| {
+                    (type_variable.id(), typ.clone())
+                });
+
+            for (type_variable_id, typ) in required_type_variables {
                 self.push_required_type_variable(
-                    type_variable.id(),
-                    typ.clone(),
+                    type_variable_id,
+                    typ,
                     BindableTypeVariableKind::Ident(ident.id),
                     ident.location,
                 );
