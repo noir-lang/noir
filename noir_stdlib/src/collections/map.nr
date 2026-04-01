@@ -514,52 +514,48 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
         self.assert_load_factor();
 
         let hash = self.hash(key);
-        let mut should_break = false;
-        let mut candidate_index: u32 = 0;
-        let mut has_candidate = false;
+        let mut found_key = false;
 
+        // Pass 1: check if key already exists; stop at the first empty slot since
+        // the key cannot appear beyond it in the probe chain.
+        let mut should_break = false;
         for attempt in 0..N {
             if !should_break {
                 let index = self.quadratic_probe(hash, attempt as u32);
-                let mut slot = self._table[index];
+                let slot = self._table[index];
 
                 if slot.is_valid() {
                     if slot._key == key {
                         // Key exists: update in place without changing length.
-                        slot.set(key, value);
-                        self._table[index] = slot;
-                        has_candidate = false;
+                        let mut s = slot;
+                        s.set(key, value);
+                        self._table[index] = s;
+                        found_key = true;
                         should_break = true;
                     }
-                } else if slot._is_deleted {
-                    // Deleted slot: remember as candidate but keep probing for existing key.
-                    if !has_candidate {
-                        candidate_index = index;
-                        has_candidate = true;
-                    }
-                } else {
+                } else if !slot._is_deleted {
                     // Empty slot: key cannot exist beyond this point.
-                    let insert_at = if has_candidate {
-                        candidate_index
-                    } else {
-                        index
-                    };
-                    let mut s = self._table[insert_at];
-                    s.set(key, value);
-                    self._table[insert_at] = s;
-                    self._len += 1;
-                    has_candidate = false;
                     should_break = true;
                 }
             }
         }
 
-        // Exhausted all slots without finding key or empty slot (table is full of deleted entries).
-        if has_candidate {
-            let mut s = self._table[candidate_index];
-            s.set(key, value);
-            self._table[candidate_index] = s;
-            self._len += 1;
+        // Pass 2: if key was not found, insert at the first available slot.
+        if !found_key {
+            let mut should_break = false;
+            for attempt in 0..N {
+                if !should_break {
+                    let index = self.quadratic_probe(hash, attempt as u32);
+                    let mut slot = self._table[index];
+
+                    if slot.is_available() {
+                        slot.set(key, value);
+                        self._table[index] = slot;
+                        self._len += 1;
+                        should_break = true;
+                    }
+                }
+            }
         }
     }
 
