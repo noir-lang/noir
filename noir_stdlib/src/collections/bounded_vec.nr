@@ -324,9 +324,14 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
                 self.storage[self.len + i] = vec.get_unchecked(i);
             }
         } else {
-            for i in 0..Len {
-                if i < append_len {
-                    self.storage[self.len + i] = vec.get_unchecked(i);
+            for i in 0..MaxLen {
+                // Assigning existing and zeroed items to avoid having to merge arrays in SSA.
+                self.storage[i] = if i < self.len {
+                    self.storage[i]
+                } else if i < new_len {
+                    vec.get_unchecked(i - self.len)
+                } else {
+                    crate::mem::zeroed()
                 }
             }
         }
@@ -429,8 +434,10 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
             }
         } else {
             for i in 0..MaxLen {
-                if i < self.len() {
-                    ret.storage[i] = f(self.get_unchecked(i));
+                ret.storage[i] = if i < self.len() {
+                    f(self.get_unchecked(i))
+                } else {
+                    crate::mem::zeroed()
                 }
             }
         }
@@ -460,8 +467,10 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
             }
         } else {
             for i in 0..MaxLen {
-                if i < self.len() {
-                    ret.storage[i] = f(i, self.get_unchecked(i));
+                ret.storage[i] = if i < self.len() {
+                    f(i, self.get_unchecked(i))
+                } else {
+                    crate::mem::zeroed()
                 }
             }
         }
@@ -1239,7 +1248,7 @@ mod bounded_vec_tests {
         #[test]
         fn extend_from_bounded_vec() {
             let mut vec1: BoundedVec<u32, 5> = BoundedVec::new();
-            let mut vec2: BoundedVec<u32, 3> = BoundedVec::new();
+            let mut vec2: BoundedVec<u32, 9> = BoundedVec::new();
 
             vec1.push(1);
             vec2.push(2);
