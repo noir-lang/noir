@@ -515,8 +515,8 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
 
         let hash = self.hash(key);
         let mut should_break = false;
-        let mut candidate_index: u32 = 0;
-        let mut has_candidate = false;
+        let mut insert_at_loop_end = false;
+        let mut insert_index: u32 = 0;
 
         for attempt in 0..N {
             if !should_break {
@@ -528,37 +528,31 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
                         // Key exists: update in place without changing length.
                         slot.set(key, value);
                         self._table[index] = slot;
-                        has_candidate = false;
+                        insert_at_loop_end = false;
                         should_break = true;
                     }
                 } else if slot._is_deleted {
                     // Deleted slot: remember as candidate but keep probing for existing key.
-                    if !has_candidate {
-                        candidate_index = index;
-                        has_candidate = true;
+                    if !insert_at_loop_end {
+                        insert_at_loop_end = true;
+                        insert_index = index;
                     }
                 } else {
                     // Empty slot: key cannot exist beyond this point.
-                    let insert_at = if has_candidate {
-                        candidate_index
-                    } else {
-                        index
-                    };
-                    let mut s = self._table[insert_at];
-                    s.set(key, value);
-                    self._table[insert_at] = s;
-                    self._len += 1;
-                    has_candidate = false;
+                    // Insert at a deleted slot, if we found one previously, or at the current slot.
+                    if !insert_at_loop_end {
+                        insert_index = index;
+                    }
+                    insert_at_loop_end = true;
                     should_break = true;
                 }
             }
         }
 
-        // Exhausted all slots without finding key or empty slot (table is full of deleted entries).
-        if has_candidate {
-            let mut s = self._table[candidate_index];
+        if insert_at_loop_end {
+            let mut s = self._table[insert_index];
             s.set(key, value);
-            self._table[candidate_index] = s;
+            self._table[insert_index] = s;
             self._len += 1;
         }
     }

@@ -313,8 +313,8 @@ impl<K, V, B> UHashMap<K, V, B> {
         self.try_resize();
 
         let hash = self.hash(key);
-        let mut candidate_index: u32 = 0;
-        let mut has_candidate = false;
+        let mut insert_at_loop_end = false;
+        let mut insert_index: u32 = 0;
 
         for attempt in 0..self._table.len() {
             let index = self.linear_probe(hash, attempt as u32);
@@ -325,36 +325,31 @@ impl<K, V, B> UHashMap<K, V, B> {
                     // Key exists: update in place without changing length.
                     slot.set(key, value);
                     self._table[index] = slot;
-                    has_candidate = false;
+                    insert_at_loop_end = false;
                     break;
                 }
             } else if slot._is_deleted {
                 // Deleted slot: remember as candidate but keep probing for existing key.
-                if !has_candidate {
-                    candidate_index = index;
-                    has_candidate = true;
+                if !insert_at_loop_end {
+                    insert_index = index;
+                    insert_at_loop_end = true;
                 }
             } else {
                 // Empty slot: key cannot exist beyond this point.
-                let insert_at = if has_candidate {
-                    candidate_index
-                } else {
-                    index
-                };
-                let mut s = self._table[insert_at];
-                s.set(key, value);
-                self._table[insert_at] = s;
-                self._len += 1;
-                has_candidate = false;
+                // Insert at a deleted slot, if we found one previously, or at the current slot.
+                if !insert_at_loop_end {
+                    insert_index = index;
+                }
+                insert_at_loop_end = true;
                 break;
             }
         }
 
         // Exhausted all slots without finding key or empty slot (table is full of deleted entries).
-        if has_candidate {
-            let mut s = self._table[candidate_index];
+        if insert_at_loop_end {
+            let mut s = self._table[insert_index];
             s.set(key, value);
-            self._table[candidate_index] = s;
+            self._table[insert_index] = s;
             self._len += 1;
         }
     }
