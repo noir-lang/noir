@@ -1465,7 +1465,7 @@ fn main() {{
 fn deref_of_ref_is_simplified() {
     let src = "
         unconstrained fn main() {
-            let x: Field = 5;
+            let mut x: Field = 5;
             let y = *&mut x;
             assert(y == 5);
         }
@@ -1474,7 +1474,7 @@ fn deref_of_ref_is_simplified() {
     // `*&mut x` should be simplified to just `x` during elaboration
     insta::assert_snapshot!(program, @r"
     unconstrained fn main$f0() -> () {
-        let x$l0 = 5;
+        let mut x$l0 = 5;
         let y$l1 = x$l0;
         assert((y$l1 == 5));
     }
