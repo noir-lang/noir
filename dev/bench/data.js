@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775040528998,
+  "lastUpdate": 1775059534426,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23056,48 +23056,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "fa67e0bc90ef0ffc9e917807fa9e5a93e7064a75",
-          "message": "fix(fuzzer): correct type when assigning ref (#11988)",
-          "timestamp": "2026-03-24T18:30:01Z",
-          "tree_id": "3e55b92ccfc1fa294f4ea5a558070b7ed93ec31a",
-          "url": "https://github.com/noir-lang/noir/commit/fa67e0bc90ef0ffc9e917807fa9e5a93e7064a75"
-        },
-        "date": 1774378333330,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 168018,
-            "range": "± 656",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 136957,
-            "range": "± 4299",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2642294,
-            "range": "± 1882",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -25149,6 +25107,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2646796,
             "range": "± 1878",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "58dabf8e3de5adcf6910728f4b9eb03c0faff900",
+          "message": "chore(ssa): Clarify the handling of globals in `covert_ssa_value` (#12076)",
+          "timestamp": "2026-04-01T15:42:10Z",
+          "tree_id": "e829de4c732bf54480f3056834d2e053b8a2edcb",
+          "url": "https://github.com/noir-lang/noir/commit/58dabf8e3de5adcf6910728f4b9eb03c0faff900"
+        },
+        "date": 1775059481588,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 127978,
+            "range": "± 1502",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 113733,
+            "range": "± 1515",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3043178,
+            "range": "± 1838",
             "unit": "ns/iter"
           }
         ]
