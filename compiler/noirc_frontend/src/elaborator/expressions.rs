@@ -533,10 +533,15 @@ impl Elaborator<'_> {
         // Simplify `*&x` and `*&mut x` to just `x`
         if let UnaryOp::Dereference { .. } = prefix.operator
             && let ExpressionKind::Prefix(ref inner) = prefix.rhs.kind
-            && matches!(inner.operator, UnaryOp::Reference { .. })
+            && let UnaryOp::Reference { mutable } = inner.operator
         {
             let ExpressionKind::Prefix(inner) = prefix.rhs.kind else { unreachable!() };
-            return self.elaborate_expression(inner.rhs);
+            let rhs_location = inner.rhs.location;
+            let (rhs, typ) = self.elaborate_expression(inner.rhs);
+            if mutable {
+                self.check_can_mutate(rhs, rhs_location);
+            }
+            return (rhs, typ);
         }
 
         let rhs_location = prefix.rhs.location;

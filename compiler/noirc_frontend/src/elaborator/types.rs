@@ -2204,7 +2204,7 @@ impl Elaborator<'_> {
         is_ord: bool,
     ) {
         let method_type = self.interner.definition_type(trait_method_id.item_id);
-        let (method_type, mut bindings) = method_type.instantiate(self.interner);
+        let (method_type, bindings) = method_type.instantiate(self.interner);
 
         match method_type {
             Type::Function(mut args, ret, env, _unconstrained) => {
@@ -2302,26 +2302,12 @@ impl Elaborator<'_> {
             }
         }
 
-        // We must also remember to apply these substitutions to the object_type
-        // referenced by the selected trait impl, if one has yet to be selected.
-        let impl_kind = self.interner.get_selected_impl_for_expression(expr_id);
-        if let Some(TraitImplKind::Assumed { object_type, trait_generics }) = impl_kind {
-            let the_trait = self.interner.get_trait(trait_method_id.trait_id);
-            let object_type = object_type.substitute(&bindings);
-            bindings.insert(
-                the_trait.self_type_typevar.id(),
-                (
-                    the_trait.self_type_typevar.clone(),
-                    the_trait.self_type_typevar.kind(),
-                    object_type.clone(),
-                ),
-            );
-
-            self.interner.select_impl_for_expression(
-                expr_id,
-                TraitImplKind::Assumed { object_type, trait_generics },
-            );
-        }
+        // The expr_id is freshly created by the caller and the trait constraint is deferred
+        // to function end (check_and_pop_function_context), so no impl should be selected yet.
+        assert!(
+            self.interner.get_selected_impl_for_expression(expr_id).is_none(),
+            "type_check_operator_method: expected no impl to be selected yet for this expression"
+        );
 
         self.interner.store_instantiation_bindings(expr_id, bindings);
     }
