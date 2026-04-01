@@ -106,7 +106,7 @@ impl Function {
             // if self.num_instructions() > MAX_INSTRUCTIONS_PRE_FLATTENING {
             //     return;
             // }
-            self.mem2reg_simple(None, None);
+            self.mem2reg_simple(None, Some(MAX_BLOCK_SPAN_PRE_FLATTENING));
         }
     }
 
