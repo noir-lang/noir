@@ -1307,6 +1307,7 @@ mod tests {
     #[test]
     #[traced_test]
     /// Test chained Brillig calls.
+    ///
     /// This is based on the diagram from the top of the module.
     fn test_chained_brillig_calls_constrained_mixed() {
         let program = r#"
@@ -1329,6 +1330,64 @@ mod tests {
         let mut ssa = Ssa::from_str(program).unwrap();
         let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
         assert_eq!(ssa_level_warnings.len(), 0);
+    }
+
+    #[test]
+    #[traced_test]
+    /// Show that the output of two Brillig calls don't constrain each other.
+    fn test_brillig_calls_constrained_only_against_each_other() {
+        let program = r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v2 = call f1(v0, v1) -> Field
+            v3 = call f1(v2, v2) -> Field
+            constrain v2 == v3
+            return
+        }
+
+        brillig(inline) fn foo f1 {
+          b0(v0: Field, v1: Field):
+            v2 = add v0, v1
+            return v2
+        }
+        "#;
+
+        let mut ssa = Ssa::from_str(program).unwrap();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        assert_eq!(ssa_level_warnings.len(), 2);
+    }
+
+    #[test]
+    #[traced_test]
+    /// Test chained Brillig calls.
+    ///
+    /// In this one we constrain the output of the first call against a constant,
+    /// then we feed it into a second call, and constrain the second call output
+    /// against its tainted input. But because the tainted input is constrained,
+    /// the second call should be constrained as well.
+    fn test_chained_brillig_calls_constrained_against_const() {
+        let program = r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field, v2: Field):
+            v3 = mul v0, v1
+            v4 = call f1(v1, v2) -> Field
+            v5 = call f1(v4, v4) -> Field
+            constrain v4 == Field 10
+            v6 = mul v4, Field 2
+            constrain v5 == v6
+            return
+        }
+
+        brillig(inline) fn foo f1 {
+          b0(v0: Field, v1: Field):
+            v2 = add v0, v1
+            return v2
+        }
+        "#;
+
+        let mut ssa = Ssa::from_str(program).unwrap();
+        let ssa_level_warnings = ssa.check_for_missing_brillig_constraints();
+        assert_eq!(ssa_level_warnings.len(), 1);
     }
 
     #[test]
